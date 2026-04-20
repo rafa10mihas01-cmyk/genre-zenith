@@ -32,9 +32,14 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const start = Date.now();
 
-  let body: { genre_id: string };
+  let body: { genre_id: string; cluster_id?: string | null; cluster_playlist_ids?: string[]; cluster_label?: string };
   try { body = await req.json(); } catch { return j({ error: "Invalid JSON" }, 400); }
   if (!body.genre_id) return j({ error: "genre_id obrigatório" }, 400);
+
+  const clusterId = body.cluster_id ?? null;
+  const clusterPlaylistIds = Array.isArray(body.cluster_playlist_ids) ? body.cluster_playlist_ids : [];
+  const clusterLabel = body.cluster_label ?? null;
+  const isClusterMode = !!clusterId && clusterPlaylistIds.length > 0;
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
