@@ -9,7 +9,7 @@ import { Bell, HelpCircle } from "lucide-react";
 export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <SidebarProvider>
-      <div className="cc-shell min-h-screen flex w-full text-foreground bg-background">
+      <div className="min-h-screen flex w-full text-foreground bg-background">
         <AppSidebar />
 
         <div className="flex-1 flex flex-col min-w-0 relative">
@@ -62,7 +62,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             </div>
           </header>
 
-          <main className="flex-1 py-6 cc-fade-in-up pb-20 md:pb-8">{children}</main>
+          <main className="flex-1 py-6 pb-20 md:pb-8">{children}</main>
         </div>
 
         <MobileBottomNav />
