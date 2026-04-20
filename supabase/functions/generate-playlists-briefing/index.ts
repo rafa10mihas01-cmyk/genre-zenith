@@ -61,13 +61,79 @@ Deno.serve(async (req) => {
     if (!genre) return j({ error: "Gênero não encontrado" }, 404);
     if (!model) return j({ error: "Sem modelo. Execute analyze-genre primeiro." }, 400);
 
-    const palavrasChave = (model.palavras_chave as any[] ?? []);
-    const padroesNome = (model.padroes_nome as any[] ?? []);
-    const playlistsDom = (model.playlists_dominantes as any[] ?? []);
-    const musicasRec = (model.musicas_recorrentes as any[] ?? []);
+    let palavrasChave = (model.palavras_chave as any[] ?? []);
+    let padroesNome = (model.padroes_nome as any[] ?? []);
+    let playlistsDom = (model.playlists_dominantes as any[] ?? []);
+    let musicasRec = (model.musicas_recorrentes as any[] ?? []);
+
+    // ═══════════════ MODO CLUSTER: re-deriva tudo só do subgrupo ═══════════════
+    if (isClusterMode) {
+      const STOPWORDS = new Set([
+        "a","o","as","os","um","uma","de","da","do","das","dos","e","em","no","na","nos","nas",
+        "para","por","com","sem","que","se","sua","seu","mais","melhor","melhores","the","of","and",
+        "to","in","on","for","with","best","top","mix","playlist","playlists","música","musicas",
+        "músicas","musica","hits","hit","new","novo","nova","novos","novas",
+      ]);
+      const tokenize = (s: string) => (s || "")
+        .toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9\s]/g, " ").split(/\s+/)
+        .filter(w => w.length >= 3 && !STOPWORDS.has(w));
+      const topN = <T extends string>(arr: T[], n: number) => {
+        const m = new Map<T, number>();
+        for (const v of arr) m.set(v, (m.get(v) ?? 0) + 1);
+        return Array.from(m.entries()).sort((a, b) => b[1] - a[1]).slice(0, n)
+          .map(([value, count]) => ({ value, count }));
+      };
+
+      // Carrega só playlists do cluster + suas tracks
+      const { data: clusterResults } = await supabase
+        .from("search_results")
+        .select("id,nome_playlist,seguidores,spotify_url,imagem_url,total_musicas")
+        .in("id", clusterPlaylistIds);
+
+      const resultIds = (clusterResults ?? []).map(r => r.id);
+      const { data: clusterTracks } = resultIds.length > 0
+        ? await supabase.from("search_tracks")
+            .select("nome_musica,artista").in("result_id", resultIds).limit(10000)
+        : { data: [] as any[] };
+
+      const names = (clusterResults ?? []).map(r => r.nome_playlist).filter(Boolean) as string[];
+      const allTokens = names.flatMap(tokenize);
+      palavrasChave = topN(allTokens, 30);
+
+      const bigrams: string[] = [];
+      for (const n of names) {
+        const t = tokenize(n);
+        for (let i = 0; i < t.length - 1; i++) bigrams.push(`${t[i]} ${t[i + 1]}`);
+      }
+      padroesNome = topN(bigrams, 20);
+
+      const seenUrl = new Set<string>();
+      playlistsDom = (clusterResults ?? [])
+        .filter(r => r.spotify_url && !seenUrl.has(r.spotify_url) && (seenUrl.add(r.spotify_url), true))
+        .sort((a, b) => (b.seguidores ?? -1) - (a.seguidores ?? -1))
+        .slice(0, 25)
+        .map(r => ({
+          nome: r.nome_playlist,
+          seguidores: r.seguidores ?? 0,
+          spotify_url: r.spotify_url,
+          imagem_url: r.imagem_url,
+          total_musicas: r.total_musicas,
+        }));
+
+      const tk = (t: any) => `${(t.nome_musica ?? "").toLowerCase().trim()}||${(t.artista ?? "").toLowerCase().trim()}`;
+      const trackMap = new Map<string, { nome: string; artista: string; count: number }>();
+      for (const t of clusterTracks ?? []) {
+        const k = tk(t);
+        if (!k || k === "||") continue;
+        const cur = trackMap.get(k);
+        if (cur) cur.count++;
+        else trackMap.set(k, { nome: t.nome_musica, artista: t.artista, count: 1 });
+      }
+      musicasRec = Array.from(trackMap.values()).sort((a, b) => b.count - a.count).slice(0, 50);
+    }
 
     // ═══════════════ ENRIQUECER PLAYLISTS DOMINANTES COM METADADOS REAIS ═══════════════
-    // Busca seguidores, url, imagem do search_results pra cada playlist dominante
     const domNames = playlistsDom.map((p: any) => p.nome).filter(Boolean);
     const playlistsMetaMap = new Map<string, { seguidores: number; spotify_url: string | null; imagem_url: string | null }>();
     if (domNames.length > 0) {
@@ -76,7 +142,6 @@ Deno.serve(async (req) => {
         .select("nome_playlist, seguidores, spotify_url, imagem_url")
         .eq("genre_id", body.genre_id)
         .in("nome_playlist", domNames);
-      // Pega o de maior seguidores caso tenha duplicata por nome
       for (const r of srData ?? []) {
         const prev = playlistsMetaMap.get(r.nome_playlist);
         if (!prev || (r.seguidores ?? 0) > (prev.seguidores ?? 0)) {
@@ -90,8 +155,9 @@ Deno.serve(async (req) => {
     }
     const insights = (model.insights as any) ?? {};
     const dnaVisual = insights.dna_visual ?? null;
-    // Total real do corpus analisado (não só as dominantes)
-    const totalPlaylists = Math.max(corpusCount ?? 0, playlistsDom.length, 1);
+    const totalPlaylists = isClusterMode
+      ? Math.max(clusterPlaylistIds.length, playlistsDom.length, 1)
+      : Math.max(corpusCount ?? 0, playlistsDom.length, 1);
 
     // ═══════════════ KEYWORDS COM PESO % ═══════════════
     const totalKwCount = palavrasChave.reduce((s: number, k: any) => s + (k.count ?? 0), 0) || 1;
