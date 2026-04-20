@@ -390,9 +390,14 @@ export default function Brain() {
       {/* RESULTADOS */}
       {result && model && (
         <div className="space-y-6 animate-fade-in">
-          <div className="flex items-center gap-2 pt-4">
+          <div className="flex items-center gap-3 pt-4 flex-wrap">
             <TrendingUp className="h-5 w-5 text-primary" />
             <h2 className="text-2xl font-bold">Resultados — {result.genre?.nome}</h2>
+            {isSaved && (
+              <Badge variant="outline" className="text-[10px] uppercase tracking-wider">
+                Análise salva{savedAt ? ` · ${new Date(savedAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}` : ""}
+              </Badge>
+            )}
           </div>
 
           {/* IA */}
