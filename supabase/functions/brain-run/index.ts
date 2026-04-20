@@ -191,14 +191,72 @@ async function runPipeline(jobId: string, body: StartBody) {
     }
     stages.filter = { removed: irrelevant.length, kept: (allResults?.length ?? 0) - irrelevant.length };
 
-    // 4) Enriquecer em loop até atingir cobertura alvo (cap dinâmico p/ caber no timeout do edge)
-    //    Cada ciclo enrich-playlists leva ~80-100s. Edge tem teto de ~150s wall (waitUntil ~5min).
-    //    Por isso limitamos ciclos em função do tamanho da coleção:
-    //      ≤ 200 playlists  → até 8 ciclos (target 70%)
-    //      ≤ 500 playlists  → até 5 ciclos (target 50%)
-    //      > 500 playlists  → até 3 ciclos por run (target 30%, marca parcial e segue)
-    //    Pra cobrir o resto, o usuário usa "Retomar" — outra invocação do brain-run em background.
-    const totalForPlan = (allResults?.length ?? 0) - irrelevant.length;
+    // 3.5) PRIORIZAÇÃO INTELIGENTE — calcular score, threshold dinâmico, cap em max_playlists
+    //   score = (1/posição)*0.4 + log10(seg+1)/log10(1e7)*0.4 + min(times_seen,5)/5*0.2 + bonusBR(0.1)
+    await setJob(supabase, gid, jobId, { status: "running", stage: "Priorizando playlists...", progress: 65 });
+    const { data: filt } = await supabase
+      .from("genre_filters").select("max_playlists,min_followers")
+      .eq("genre_id", gid).maybeSingle();
+    const maxPlaylists = filt?.max_playlists ?? 150;
+    const minFollowersOverride = filt?.min_followers ?? null;
+
+    const { data: kept } = await supabase
+      .from("search_results")
+      .select("id,posicao,seguidores,times_seen,owner_country")
+      .eq("genre_id", gid);
+    const keptArr = kept ?? [];
+
+    // Threshold dinâmico (Fase 5): só aplica se houver >=20 com followers
+    const withFollowers = keptArr
+      .map((r: any) => r.seguidores)
+      .filter((n: any): n is number => typeof n === "number" && n > 0)
+      .sort((a: number, b: number) => a - b);
+    let dynamicMin = 0;
+    if (minFollowersOverride && minFollowersOverride > 0) {
+      dynamicMin = minFollowersOverride;
+    } else if (withFollowers.length >= 20) {
+      const p25 = withFollowers[Math.floor(withFollowers.length * 0.25)];
+      dynamicMin = Math.max(200, p25);
+    }
+
+    // Score
+    const LOG_MAX = Math.log10(1e7);
+    const scored = keptArr.map((r: any) => {
+      const posScore = r.posicao && r.posicao > 0 ? (1 / r.posicao) : 0;
+      const folScore = typeof r.seguidores === "number" && r.seguidores > 0
+        ? Math.min(1, Math.log10(r.seguidores + 1) / LOG_MAX) : 0;
+      const seenScore = Math.min(5, r.times_seen ?? 1) / 5;
+      const brBonus = r.owner_country === "BR" ? 0.1 : 0;
+      const score = posScore * 0.4 + folScore * 0.4 + seenScore * 0.2 + brBonus;
+      return { id: r.id, seguidores: r.seguidores, score };
+    });
+    // Aplica threshold (quem ainda não tem followers passa pra ser enriquecido depois)
+    const passing = dynamicMin > 0
+      ? scored.filter(s => s.seguidores == null || s.seguidores >= dynamicMin)
+      : scored;
+    passing.sort((a, b) => b.score - a.score);
+    const selectedIds = passing.slice(0, maxPlaylists).map(s => s.id);
+    const selectedSet = new Set(selectedIds);
+    const droppedIds = keptArr.filter((r: any) => !selectedSet.has(r.id)).map((r: any) => r.id);
+
+    // Persiste score em todas e remove as que NÃO entraram (descarte inteligente)
+    for (const s of scored) {
+      await supabase.from("search_results").update({ priority_score: s.score }).eq("id", s.id);
+    }
+    if (droppedIds.length > 0) {
+      await supabase.from("search_tracks").delete().in("result_id", droppedIds);
+      await supabase.from("search_results").delete().in("id", droppedIds);
+    }
+    stages.prioritize = {
+      total_after_filter: keptArr.length,
+      dynamic_min_followers: dynamicMin,
+      max_playlists: maxPlaylists,
+      selected: selectedIds.length,
+      dropped: droppedIds.length,
+    };
+
+    // 4) Enriquecer APENAS as selecionadas (enrich seletivo — Fase 7)
+    const totalForPlan = selectedIds.length;
     const { coverageTarget: COVERAGE_TARGET, maxCycles: MAX_CYCLES } =
       totalForPlan > 500 ? { coverageTarget: 0.3, maxCycles: 3 } :
       totalForPlan > 200 ? { coverageTarget: 0.5, maxCycles: 5 } :
@@ -222,18 +280,27 @@ async function runPipeline(jobId: string, body: StartBody) {
       cycles++;
       await setJob(supabase, gid, jobId, {
         status: "running",
-        stage: `Enriquecendo dados... (${enrichedCount}/${totalPls} • ${Math.round(coverage * 100)}%) ciclo ${cycles}/${MAX_CYCLES}`,
+        stage: `Enriquecendo seleção... (${enrichedCount}/${totalPls} • ${Math.round(coverage * 100)}%) ciclo ${cycles}/${MAX_CYCLES}`,
         progress: 70 + Math.min(15, Math.round(coverage * 20)),
       });
+      // Pendentes dentro do set selecionado, ordenadas por score
+      const { data: pendIds } = await supabase
+        .from("search_results")
+        .select("id")
+        .eq("genre_id", gid)
+        .is("seguidores", null)
+        .order("priority_score", { ascending: false, nullsFirst: false })
+        .limit(50);
+      const idsToEnrich = (pendIds ?? []).map((r: any) => r.id);
+      if (idsToEnrich.length === 0) break;
       const r = await callFn("enrich-playlists", {
         genre_id: gid, limit: 50, fetch_tracks: true,
-        prioritize: true, keyword: slug,
+        result_ids: idsToEnrich,
       });
       const d = r.data as any;
       if (!r.ok || !d?.ok) break;
       enrichedTotal += d.enriched ?? 0;
       tracksTotal += d.tracks_saved ?? 0;
-      // Se não há mais pendentes, sai do loop
       if (!d.processed || d.processed === 0) break;
       await measureCoverage();
     }

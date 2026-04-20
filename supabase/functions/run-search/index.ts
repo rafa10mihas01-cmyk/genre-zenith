@@ -1,4 +1,8 @@
-// run-search — executa um termo via Apify automation-lab/spotify-scraper e salva playlists + músicas
+// run-search — executa um termo via Apify automation-lab/spotify-scraper
+// Salva playlists com DEDUP via spotify_playlist_id (UPSERT) + filtro inteligente:
+//   - precisa conter slug do gênero OU termo de busca
+//   - rejeita se contém qualquer palavra da blacklist (genre_filters.blacklist)
+//   - se já existe (genre_id, spotify_playlist_id): incrementa times_seen, atualiza last_seen_at + posição
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -14,9 +18,12 @@ interface Body {
 }
 
 const APIFY_ACTOR = "automation-lab~spotify-scraper";
+const DEFAULT_BLACKLIST = [
+  "workout","gym","treino","academia","sleep","study","focus","lofi",
+  "edm","techno","house","trance","rock","metal","jazz","classical",
+];
 
 async function runApify(searchTerm: string, maxResults: number, signal: AbortSignal) {
-  // Synchronous run — returns dataset items directly. Timeout 120s.
   const url = `https://api.apify.com/v2/acts/${APIFY_ACTOR}/run-sync-get-dataset-items?token=${APIFY_API_KEY}&timeout=120`;
   const resp = await fetch(url, {
     method: "POST",
@@ -34,7 +41,6 @@ async function runApify(searchTerm: string, maxResults: number, signal: AbortSig
     throw new Error(`Apify ${resp.status}: ${txt.slice(0, 300)}`);
   }
   const items = await resp.json();
-  // runId is in headers
   const runId = resp.headers.get("x-apify-pagination-total") ?? null;
   return { runId, items: Array.isArray(items) ? items : [] };
 }
@@ -53,6 +59,11 @@ function pickNum(o: any, ...keys: string[]): number | null {
     if (typeof v === "string" && /^\d+$/.test(v)) return parseInt(v, 10);
   }
   return null;
+}
+function extractPlaylistId(url: string | null): string | null {
+  if (!url) return null;
+  const m = url.match(/playlist\/([A-Za-z0-9]+)/);
+  return m?.[1] ?? null;
 }
 
 Deno.serve(async (req) => {
@@ -84,50 +95,109 @@ Deno.serve(async (req) => {
   const timeoutHandle = setTimeout(() => controller.abort(), 130_000);
 
   try {
+    // Carrega slug do gênero + blacklist (filtro inteligente)
+    const [{ data: genre }, { data: filt }] = await Promise.all([
+      supabase.from("genres").select("slug,nome").eq("id", body.genre_id).maybeSingle(),
+      supabase.from("genre_filters").select("blacklist").eq("genre_id", body.genre_id).maybeSingle(),
+    ]);
+    const slug = (genre?.slug ?? "").toLowerCase();
+    const nome = (genre?.nome ?? "").toLowerCase();
+    const termLower = body.search_term.toLowerCase();
+    const blacklist = (filt?.blacklist as string[] | undefined)?.map(b => b.toLowerCase()) ?? DEFAULT_BLACKLIST;
+
     await supabase.from("genres").update({ status: "coletando" }).eq("id", body.genre_id);
 
     const { runId, items } = await runApify(body.search_term, maxResults, controller.signal);
 
     let savedResults = 0;
+    let updatedResults = 0;
     let savedTracks = 0;
+    let filteredOut = 0;
 
     for (let i = 0; i < items.length; i++) {
       const it = items[i];
-      // Filter: only playlist items
       if (it.type && it.type !== "playlist") continue;
 
-      const nome = pickStr(it, "name", "title", "playlistName") ?? "Sem nome";
+      const nomePl = pickStr(it, "name", "title", "playlistName") ?? "Sem nome";
       const url = pickStr(it, "url", "spotifyUrl", "playlistUrl");
       const followers = pickNum(it, "followers", "followersCount", "totalFollowers");
       const imagem = pickStr(it, "imageUrl", "coverImage", "image");
       const descricao = pickStr(it, "description", "desc");
       const totalTracks = pickNum(it, "trackCount", "tracksCount", "totalTracks");
+      const ownerCountry = pickStr(it.owner ?? {}, "country") ?? pickStr(it, "ownerCountry");
+      const playlistId = pickStr(it, "playlistId", "id") ?? extractPlaylistId(url);
 
-      const { data: inserted, error: insErr } = await supabase
-        .from("search_results")
-        .insert({
-          genre_id: body.genre_id,
-          term_id: body.term_id,
-          nome_playlist: nome,
-          posicao: i + 1,
-          spotify_url: url,
-          seguidores: followers,
-          imagem_url: imagem,
-          descricao,
-          total_musicas: totalTracks,
-          apify_run_id: runId,
-        })
-        .select("id")
-        .single();
-
-      if (insErr) {
-        console.error("insert result err", insErr);
+      // Filtro inteligente
+      const haystack = `${nomePl} ${descricao ?? ""} ${termLower}`.toLowerCase();
+      const containsGenre = (slug && haystack.includes(slug)) || (nome && haystack.includes(nome)) || haystack.includes(termLower);
+      const hitsBlacklist = blacklist.some(b => b && haystack.includes(b));
+      if (!containsGenre || hitsBlacklist) {
+        filteredOut++;
         continue;
       }
-      savedResults++;
+
+      // UPSERT manual (tabela tem unique parcial em (genre_id, spotify_playlist_id))
+      let resultId: string | null = null;
+      if (playlistId) {
+        const { data: existing } = await supabase
+          .from("search_results")
+          .select("id,times_seen")
+          .eq("genre_id", body.genre_id)
+          .eq("spotify_playlist_id", playlistId)
+          .maybeSingle();
+        if (existing) {
+          const { error: updErr } = await supabase.from("search_results").update({
+            posicao: i + 1,
+            nome_playlist: nomePl,
+            spotify_url: url,
+            seguidores: followers,
+            imagem_url: imagem,
+            descricao,
+            total_musicas: totalTracks,
+            apify_run_id: runId,
+            term_id: body.term_id,
+            owner_country: ownerCountry,
+            times_seen: (existing.times_seen ?? 1) + 1,
+            last_seen_at: new Date().toISOString(),
+          }).eq("id", existing.id);
+          if (updErr) {
+            console.error("update result err", updErr);
+            continue;
+          }
+          updatedResults++;
+          resultId = existing.id;
+        }
+      }
+      if (!resultId) {
+        const { data: inserted, error: insErr } = await supabase
+          .from("search_results")
+          .insert({
+            genre_id: body.genre_id,
+            term_id: body.term_id,
+            nome_playlist: nomePl,
+            posicao: i + 1,
+            spotify_url: url,
+            spotify_playlist_id: playlistId,
+            seguidores: followers,
+            imagem_url: imagem,
+            descricao,
+            total_musicas: totalTracks,
+            apify_run_id: runId,
+            owner_country: ownerCountry,
+            times_seen: 1,
+          })
+          .select("id")
+          .single();
+        if (insErr) {
+          console.error("insert result err", insErr);
+          continue;
+        }
+        savedResults++;
+        resultId = inserted.id;
+      }
 
       const tracks = Array.isArray(it.tracks) ? it.tracks : [];
-      if (tracks.length > 0) {
+      if (tracks.length > 0 && resultId) {
         const trackRows = tracks.slice(0, 100).map((t: any, idx: number) => {
           let artista = pickStr(t, "artist", "artistName") ?? "Desconhecido";
           if (Array.isArray(t.artists)) {
@@ -135,13 +205,15 @@ Deno.serve(async (req) => {
           }
           return {
             genre_id: body.genre_id,
-            result_id: inserted.id,
+            result_id: resultId,
             nome_musica: pickStr(t, "name", "title", "trackName") ?? "Desconhecida",
             artista,
             spotify_track_id: pickStr(t, "id", "trackId", "spotifyId"),
             posicao_na_playlist: idx + 1,
           };
         });
+        // Para evitar acumular tracks em re-execuções, limpa antes (só nas que estamos atualizando)
+        await supabase.from("search_tracks").delete().eq("result_id", resultId);
         const { error: trkErr } = await supabase.from("search_tracks").insert(trackRows);
         if (!trkErr) savedTracks += trackRows.length;
         else console.error("insert tracks err", trkErr);
@@ -150,7 +222,7 @@ Deno.serve(async (req) => {
 
     await supabase
       .from("search_terms")
-      .update({ executado: true, total_resultados: savedResults, ultima_execucao: new Date().toISOString() })
+      .update({ executado: true, total_resultados: savedResults + updatedResults, ultima_execucao: new Date().toISOString() })
       .eq("id", body.term_id);
 
     const [{ count: pCount }, { count: tCount }] = await Promise.all([
@@ -169,13 +241,13 @@ Deno.serve(async (req) => {
       term_id: body.term_id,
       acao: "run-search",
       status: "sucesso",
-      mensagem: `"${body.search_term}" → ${savedResults} playlists, ${savedTracks} músicas`,
+      mensagem: `"${body.search_term}" → ${savedResults} novas, ${updatedResults} atualizadas, ${filteredOut} filtradas, ${savedTracks} músicas`,
       duracao_ms: Date.now() - start,
     });
 
     clearTimeout(timeoutHandle);
     return new Response(
-      JSON.stringify({ ok: true, savedResults, savedTracks, runId }),
+      JSON.stringify({ ok: true, savedResults, updatedResults, filteredOut, savedTracks, runId }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e) {
@@ -191,7 +263,7 @@ Deno.serve(async (req) => {
       duracao_ms: Date.now() - start,
     });
     return new Response(JSON.stringify({ ok: false, error: msg }), {
-      status: 200, // soft error so orchestrator continues
+      status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

@@ -62,6 +62,44 @@ export type Database = {
           },
         ]
       }
+      genre_filters: {
+        Row: {
+          blacklist: string[]
+          created_at: string
+          genre_id: string
+          id: string
+          max_playlists: number
+          min_followers: number | null
+          updated_at: string
+        }
+        Insert: {
+          blacklist?: string[]
+          created_at?: string
+          genre_id: string
+          id?: string
+          max_playlists?: number
+          min_followers?: number | null
+          updated_at?: string
+        }
+        Update: {
+          blacklist?: string[]
+          created_at?: string
+          genre_id?: string
+          id?: string
+          max_playlists?: number
+          min_followers?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "genre_filters_genre_id_fkey"
+            columns: ["genre_id"]
+            isOneToOne: true
+            referencedRelation: "genres"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       genre_models: {
         Row: {
           genre_id: string | null
@@ -150,42 +188,60 @@ export type Database = {
           apify_run_id: string | null
           coletado_em: string | null
           descricao: string | null
+          first_seen_at: string
           genre_id: string | null
           id: string
           imagem_url: string | null
+          last_seen_at: string
           nome_playlist: string
+          owner_country: string | null
           posicao: number
+          priority_score: number | null
           seguidores: number | null
+          spotify_playlist_id: string | null
           spotify_url: string | null
           term_id: string | null
+          times_seen: number
           total_musicas: number | null
         }
         Insert: {
           apify_run_id?: string | null
           coletado_em?: string | null
           descricao?: string | null
+          first_seen_at?: string
           genre_id?: string | null
           id?: string
           imagem_url?: string | null
+          last_seen_at?: string
           nome_playlist: string
+          owner_country?: string | null
           posicao: number
+          priority_score?: number | null
           seguidores?: number | null
+          spotify_playlist_id?: string | null
           spotify_url?: string | null
           term_id?: string | null
+          times_seen?: number
           total_musicas?: number | null
         }
         Update: {
           apify_run_id?: string | null
           coletado_em?: string | null
           descricao?: string | null
+          first_seen_at?: string
           genre_id?: string | null
           id?: string
           imagem_url?: string | null
+          last_seen_at?: string
           nome_playlist?: string
+          owner_country?: string | null
           posicao?: number
+          priority_score?: number | null
           seguidores?: number | null
+          spotify_playlist_id?: string | null
           spotify_url?: string | null
           term_id?: string | null
+          times_seen?: number
           total_musicas?: number | null
         }
         Relationships: [
