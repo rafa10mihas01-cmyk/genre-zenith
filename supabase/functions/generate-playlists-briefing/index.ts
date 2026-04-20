@@ -60,6 +60,29 @@ Deno.serve(async (req) => {
     const padroesNome = (model.padroes_nome as any[] ?? []);
     const playlistsDom = (model.playlists_dominantes as any[] ?? []);
     const musicasRec = (model.musicas_recorrentes as any[] ?? []);
+
+    // ═══════════════ ENRIQUECER PLAYLISTS DOMINANTES COM METADADOS REAIS ═══════════════
+    // Busca seguidores, url, imagem do search_results pra cada playlist dominante
+    const domNames = playlistsDom.map((p: any) => p.nome).filter(Boolean);
+    const playlistsMetaMap = new Map<string, { seguidores: number; spotify_url: string | null; imagem_url: string | null }>();
+    if (domNames.length > 0) {
+      const { data: srData } = await supabase
+        .from("search_results")
+        .select("nome_playlist, seguidores, spotify_url, imagem_url")
+        .eq("genre_id", body.genre_id)
+        .in("nome_playlist", domNames);
+      // Pega o de maior seguidores caso tenha duplicata por nome
+      for (const r of srData ?? []) {
+        const prev = playlistsMetaMap.get(r.nome_playlist);
+        if (!prev || (r.seguidores ?? 0) > (prev.seguidores ?? 0)) {
+          playlistsMetaMap.set(r.nome_playlist, {
+            seguidores: r.seguidores ?? 0,
+            spotify_url: r.spotify_url,
+            imagem_url: r.imagem_url,
+          });
+        }
+      }
+    }
     const insights = (model.insights as any) ?? {};
     const dnaVisual = insights.dna_visual ?? null;
     // Total real do corpus analisado (não só as dominantes)
