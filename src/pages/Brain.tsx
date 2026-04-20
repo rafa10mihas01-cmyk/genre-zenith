@@ -45,6 +45,9 @@ export default function Brain() {
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<any>(null);
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  const [loadingSaved, setLoadingSaved] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
 
   const runLockRef = useRef(false);
   const cancelRequestedRef = useRef(false);
@@ -57,6 +60,39 @@ export default function Brain() {
       cancelRequestedRef.current = true;
     };
   }, []);
+
+  // Auto-carrega o último modelo salvo ao trocar de nicho (se não estiver rodando)
+  useEffect(() => {
+    if (running) return;
+    let cancelled = false;
+    (async () => {
+      setLoadingSaved(true);
+      setResult(null);
+      setIsSaved(false);
+      setSavedAt(null);
+      try {
+        const { data: genre } = await supabase
+          .from("genres").select("id,nome,slug").eq("slug", nicho).maybeSingle();
+        if (!genre || cancelled) return;
+        const { data: model } = await supabase
+          .from("genre_models").select("*").eq("genre_id", genre.id).maybeSingle();
+        if (cancelled) return;
+        if (model) {
+          setResult({
+            ok: true,
+            genre: { id: genre.id, nome: genre.nome, slug: genre.slug },
+            model,
+            stages: {},
+          });
+          setIsSaved(true);
+          setSavedAt(model.ultima_analise ?? null);
+        }
+      } finally {
+        if (!cancelled) setLoadingSaved(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [nicho, running]);
 
   const hasPausedJob = Boolean(activeJobId) && !running && !result;
 
