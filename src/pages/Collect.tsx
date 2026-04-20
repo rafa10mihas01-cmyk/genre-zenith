@@ -3,12 +3,34 @@ import { useSearchParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Radio, Play, Square, Sparkles, Pause, ChevronRight, ListChecks } from "lucide-react";
+import { Radio, Play, Square, Sparkles, Pause, ChevronRight, ListChecks, Globe2, Brain, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { collectGenre, generateTerms } from "@/lib/engine";
 import { StatusBadge } from "@/components/StatusBadge";
 import { timeAgo } from "@/lib/format";
 import { getCollectSettings } from "@/pages/Settings";
+
+const GLOBAL_STATE_KEY = "nx-global-collection-v1";
+const BATCH_SIZE = 5;
+
+interface GlobalState {
+  queue: string[];        // ordered ids still to process
+  done: string[];         // ids already processed
+  totalPlaylists: number;
+  totalTracks: number;
+  totalGenres: number;    // snapshot of initial size
+  startedAt: number;
+  lastBatchAt: number | null;
+  lastBatchDurationMs: number | null;
+}
+
+function loadGlobal(): GlobalState | null {
+  try { const r = localStorage.getItem(GLOBAL_STATE_KEY); return r ? JSON.parse(r) : null; } catch { return null; }
+}
+function saveGlobal(s: GlobalState | null) {
+  if (s) localStorage.setItem(GLOBAL_STATE_KEY, JSON.stringify(s));
+  else localStorage.removeItem(GLOBAL_STATE_KEY);
+}
 
 interface LogRow {
   id: string;
