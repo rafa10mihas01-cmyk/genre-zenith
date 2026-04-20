@@ -67,11 +67,16 @@ Deno.serve(async (req) => {
     }
     const padroes_nome = topN(bigrams, 20);
 
-    // Playlists dominantes: maior nº seguidores, dedup por url
+    // Playlists dominantes: rank por seguidores DESC; fallback para total_musicas; dedup por url
     const seen = new Set<string>();
     const playlists_dominantes = (results ?? [])
       .filter(r => r.spotify_url && !seen.has(r.spotify_url) && (seen.add(r.spotify_url), true))
-      .sort((a, b) => (b.seguidores ?? 0) - (a.seguidores ?? 0))
+      .sort((a, b) => {
+        const af = a.seguidores ?? -1;
+        const bf = b.seguidores ?? -1;
+        if (af !== bf) return bf - af; // followers DESC
+        return (b.total_musicas ?? 0) - (a.total_musicas ?? 0); // fallback
+      })
       .slice(0, 25)
       .map(r => ({
         nome: r.nome_playlist,

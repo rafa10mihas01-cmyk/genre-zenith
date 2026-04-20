@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Settings as SettingsIcon, KeyRound, CheckCircle2, XCircle, Loader2, Zap, RefreshCw, LogOut, Database, CalendarClock, Play,
+  Settings as SettingsIcon, KeyRound, CheckCircle2, XCircle, Loader2, Zap, RefreshCw, LogOut, Database, CalendarClock, Play, Music2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -33,6 +33,17 @@ export default function Settings() {
   const [testResult, setTestResult] = useState<{ ok: boolean; msg: string; meta?: any } | null>(null);
   const [stats, setStats] = useState<{ genres: number; terms: number; results: number; tracks: number } | null>(null);
   const [runningCron, setRunningCron] = useState(false);
+  const [spotifyTesting, setSpotifyTesting] = useState(false);
+  const [spotifyResult, setSpotifyResult] = useState<{ ok: boolean; msg: string; meta?: any } | null>(null);
+
+  async function testSpotify() {
+    setSpotifyTesting(true); setSpotifyResult(null);
+    const { data, error } = await supabase.functions.invoke("spotify-auth");
+    setSpotifyTesting(false);
+    if (error) { setSpotifyResult({ ok: false, msg: error.message }); return; }
+    if (data?.ok) setSpotifyResult({ ok: true, msg: data.message ?? "Conectado", meta: { token: data.token_prefix } });
+    else setSpotifyResult({ ok: false, msg: data?.error ?? "Falha desconhecida" });
+  }
 
   useEffect(() => { void loadStats(); }, []);
 
@@ -129,6 +140,48 @@ export default function Settings() {
                 {testResult.meta.username && <div>Usuário: <span className="font-mono text-foreground">{testResult.meta.username}</span></div>}
                 {testResult.meta.email && <div>Email: <span className="font-mono text-foreground">{testResult.meta.email}</span></div>}
                 {testResult.meta.plan && <div>Plano: <span className="font-mono text-foreground">{testResult.meta.plan}</span></div>}
+              </div>
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* Spotify Web API */}
+      <section className="nx-card p-5 mt-4">
+        <div className="flex items-center gap-2">
+          <Music2 className="h-5 w-5 text-accent" />
+          <h2 className="font-semibold">Spotify Web API</h2>
+        </div>
+        <p className="text-sm text-muted-foreground mt-1">
+          Usado para buscar contagem real de seguidores das playlists. Crie um app gratuito em{" "}
+          <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noreferrer"
+             className="text-accent underline-offset-2 hover:underline">
+            developer.spotify.com → Dashboard → Create app
+          </a>
+          . Copie o Client ID e Client Secret e configure como secrets do projeto.
+        </p>
+        <div className="flex items-center gap-2 mt-4 flex-wrap">
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-success/15 text-success border border-success/30 text-xs">
+            <KeyRound className="h-3.5 w-3.5" /> SPOTIFY_CLIENT_ID + SECRET configurados
+          </div>
+          <Button size="sm" variant="outline" onClick={testSpotify} disabled={spotifyTesting}>
+            {spotifyTesting ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            Testar conexão
+          </Button>
+        </div>
+        {spotifyResult && (
+          <div className={`mt-3 p-3 rounded-lg border text-sm ${
+            spotifyResult.ok
+              ? "bg-success/10 border-success/30 text-success-foreground"
+              : "bg-destructive/10 border-destructive/30 text-destructive"
+          }`}>
+            <div className="flex items-center gap-2 font-medium">
+              {spotifyResult.ok ? <CheckCircle2 className="h-4 w-4 text-success" /> : <XCircle className="h-4 w-4 text-destructive" />}
+              {spotifyResult.msg}
+            </div>
+            {spotifyResult.meta?.token && (
+              <div className="mt-2 text-xs text-muted-foreground">
+                Token: <span className="font-mono text-foreground">{spotifyResult.meta.token}</span>
               </div>
             )}
           </div>

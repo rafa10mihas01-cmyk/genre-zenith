@@ -3,7 +3,7 @@ import { useSearchParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Radio, Play, Square, Sparkles, Pause, ChevronRight, ListChecks, Globe2, Brain, RotateCcw } from "lucide-react";
+import { Radio, Play, Square, Sparkles, Pause, ChevronRight, ListChecks, Globe2, Brain, RotateCcw, Music2 } from "lucide-react";
 import { toast } from "sonner";
 import { collectGenre, generateTerms } from "@/lib/engine";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -63,6 +63,48 @@ export default function Collect() {
   const [batchRunning, setBatchRunning] = useState(false);
   const [batchProgress, setBatchProgress] = useState<{ idx: number; size: number; nome: string } | null>(null);
   const [insightsRunning, setInsightsRunning] = useState(false);
+  const [enrichRunning, setEnrichRunning] = useState(false);
+  const [pendingEnrich, setPendingEnrich] = useState<number>(0);
+
+  // Conta playlists pendentes de enrich (seguidores IS NULL)
+  const refreshPendingEnrich = async (gid?: string | null) => {
+    let q = supabase
+      .from("search_results")
+      .select("*", { count: "exact", head: true })
+      .is("seguidores", null)
+      .not("spotify_url", "is", null);
+    if (gid) q = q.eq("genre_id", gid);
+    const { count } = await q;
+    setPendingEnrich(count ?? 0);
+  };
+
+  const runEnrich = async (scope: "active" | "all") => {
+    if (scope === "active" && !activeId) {
+      toast.error("Selecione um gênero primeiro");
+      return;
+    }
+    setEnrichRunning(true);
+    toast.info(scope === "active" ? "Enriquecendo gênero ativo…" : "Enriquecendo todos os pendentes…",
+      { description: "Pode levar alguns minutos. Acompanhe nos logs." });
+    try {
+      const body: any = { limit: 50, fetch_tracks: true };
+      if (scope === "active") body.genre_id = activeId;
+      const { data, error } = await supabase.functions.invoke("enrich-playlists", { body });
+      if (error) throw error;
+      toast.success("Enriquecimento concluído", {
+        description: `${data?.enriched ?? 0} playlists, ${data?.tracks_saved ?? 0} tracks${data?.errors ? `, ${data.errors} erros` : ""}`,
+      });
+      // Re-analisa o gênero ativo se aplicável
+      if (scope === "active" && activeId) {
+        await supabase.functions.invoke("analyze-genre", { body: { genre_id: activeId } });
+        toast.success("Modelo re-analisado");
+      }
+      await refreshPendingEnrich(scope === "active" ? activeId : null);
+    } catch (e: any) {
+      toast.error("Erro no enriquecimento", { description: e.message?.slice(0, 150) });
+    }
+    setEnrichRunning(false);
+  };
 
   const initGlobal = async () => {
     const { data } = await supabase.from("genres").select("id").eq("ativo", true).order("nome");
@@ -168,7 +210,8 @@ export default function Collect() {
       .then(({ data }) => setGenres(data ?? []));
   }, []);
 
-  // Poll logs every 5s
+  // Atualiza contador de pendentes ao mudar gênero ativo
+  useEffect(() => { void refreshPendingEnrich(activeId); }, [activeId]);
   useEffect(() => {
     const fetchLogs = async () => {
       const { data } = await supabase
@@ -334,6 +377,44 @@ export default function Collect() {
         )}
       </div>
 
+      {/* === ENRICH PANEL === */}
+      <div className="nx-card p-5 border-accent/30 bg-accent/5">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-2">
+            <Music2 className="h-5 w-5 text-accent" />
+            <div>
+              <h2 className="font-semibold">Enriquecer playlists — Spotify Web API</h2>
+              <p className="text-xs text-muted-foreground">
+                Busca seguidores reais (Spotify oficial) + lista de músicas (Apify). Re-analisa o gênero ao final.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-muted text-foreground border border-border text-xs font-mono">
+              {pendingEnrich} {activeId ? "no gênero ativo" : "no total"} aguardando
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => runEnrich("active")}
+              disabled={enrichRunning || !activeId || pendingEnrich === 0}
+              className="gap-2"
+            >
+              {enrichRunning ? <Sparkles className="h-4 w-4 animate-spin" /> : <Music2 className="h-4 w-4" />}
+              Enriquecer gênero ativo
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => runEnrich("all")}
+              disabled={enrichRunning}
+              className="gap-2"
+            >
+              {enrichRunning ? <Sparkles className="h-4 w-4 animate-spin" /> : <Music2 className="h-4 w-4" />}
+              Enriquecer 50 (todos os gêneros)
+            </Button>
+          </div>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Status panel */}
