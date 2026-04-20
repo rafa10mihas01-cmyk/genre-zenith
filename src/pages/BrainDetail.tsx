@@ -384,7 +384,47 @@ export default function BrainDetail() {
         }
       />
 
-      {loading ? (
+      {/* Barra de subgrupos (clusters) */}
+      {(clusters.length > 0 || loadingClusters) && (
+        <div className="cc-glass cc-glass-sm p-2 flex items-center gap-2 overflow-x-auto">
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground px-2 shrink-0">
+            Subgrupos
+          </span>
+          <button
+            type="button"
+            onClick={() => selectCluster(null)}
+            className={cn(
+              "shrink-0 rounded-md px-3 py-1.5 text-xs font-medium transition-colors border",
+              selectedClusterId === null
+                ? "bg-primary/15 text-primary border-primary/40"
+                : "border-border bg-muted/30 text-muted-foreground hover:text-foreground hover:bg-muted/60"
+            )}
+          >
+            Todos
+          </button>
+          {clusters.map(c => (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => selectCluster(c.id)}
+              className={cn(
+                "shrink-0 rounded-md px-3 py-1.5 text-xs font-medium transition-colors border inline-flex items-center gap-2",
+                selectedClusterId === c.id
+                  ? "bg-primary/15 text-primary border-primary/40"
+                  : "border-border bg-muted/30 text-muted-foreground hover:text-foreground hover:bg-muted/60"
+              )}
+              title={`${c.size} playlists • média ${c.media_seguidores.toLocaleString("pt-BR")} seguidores`}
+            >
+              <span>{c.label}</span>
+              <span className="text-[10px] font-mono opacity-70">{c.size}</span>
+            </button>
+          ))}
+          {loadingClusters && (
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground shrink-0" />
+          )}
+        </div>
+      )}
+
         <div className="py-20 text-center text-muted-foreground text-sm">
           <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2" /> Carregando decisões...
         </div>
