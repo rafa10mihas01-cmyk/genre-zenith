@@ -56,8 +56,21 @@ export default function Genres() {
     else setSelected(new Set(filtered.map((g) => g.id)));
   };
 
-  const notReady = (label: string) =>
-    toast.info(`${label} estará disponível na Fase 2`, { description: "Edge functions de coleta ainda em construção." });
+  const nav = useNavigate();
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const handleGenerate = async (id: string) => {
+    setBusy(id);
+    await generateTerms(id);
+    setBusy(null);
+    load();
+  };
+  const handleCollect = (id: string) => nav(`/collect?genre=${id}`);
+  const handleBulk = () => {
+    if (selected.size === 0) return;
+    const first = Array.from(selected)[0];
+    nav(`/collect?genre=${first}&queue=${Array.from(selected).join(",")}`);
+  };
 
   return (
     <div className="space-y-5 max-w-[1400px] mx-auto">
