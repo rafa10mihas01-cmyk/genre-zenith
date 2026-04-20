@@ -1,22 +1,17 @@
-/* NexCreatorX V3 — Command Center shell, glass, glows, animações
-   Spec §4, §5, §10. Dark only. */
+/* NexCreatorX V3 — shell, surfaces, glass-cards, glows. Dark-only. */
 
 /* ============================================================
-   .cc-shell — fundo premium com 3 pontos de glow + ruído
+   .cc-shell — fundo limpo, SEM overlays/noise/mix-blend-mode
    ============================================================ */
 .cc-shell {
   position: relative;
   min-height: 100%;
-  background:
-    radial-gradient(1100px 700px at 85% -15%, rgba(var(--cc-glow-indigo), 0.10) 0%, transparent 60%),
-    radial-gradient(1000px 600px at -10% 20%, rgba(var(--cc-glow-sky), 0.07) 0%, transparent 60%),
-    radial-gradient(900px 700px at 110% 95%, rgba(var(--cc-glow-violet), 0.09) 0%, transparent 60%),
-    linear-gradient(180deg, hsl(222 30% 9%) 0%, hsl(222 32% 7%) 100%);
+  background: hsl(var(--background));
 }
 .cc-shell > * { position: relative; z-index: 1; }
 
 /* ============================================================
-   Surfaces (sólidas) — fallback fora do shell
+   Surfaces sólidas
    ============================================================ */
 .nx-surface {
   background: hsl(var(--card));
@@ -75,7 +70,8 @@
 /* ============================================================
    Stat label / value
    ============================================================ */
-.nx-stat-label {
+.nx-stat-label,
+.nx-group-label {
   font-family: "Plus Jakarta Sans", system-ui, sans-serif;
   font-size: 10px;
   font-weight: 600;
@@ -89,15 +85,6 @@
   letter-spacing: -0.02em;
   color: hsl(var(--foreground));
   font-variant-numeric: tabular-nums;
-}
-
-.nx-group-label {
-  font-family: "Plus Jakarta Sans", system-ui, sans-serif;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: hsl(var(--muted-foreground));
 }
 
 /* ============================================================
@@ -125,7 +112,7 @@
 }
 
 /* ============================================================
-   Search button do header — glass discreto
+   Header search
    ============================================================ */
 .nx-search {
   display: flex;
@@ -135,8 +122,8 @@
   padding: 0 10px 0 12px;
   width: 280px;
   max-width: 100%;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: hsl(var(--secondary));
+  border: 1px solid hsl(var(--border));
   border-radius: 8px;
   color: hsl(var(--foreground));
   font-size: 13px;
@@ -144,90 +131,81 @@
   cursor: text;
 }
 .nx-search:hover {
-  border-color: rgba(var(--cc-glow-indigo), 0.35);
-  background: rgba(255, 255, 255, 0.06);
+  border-color: hsl(var(--ring) / 0.5);
+  background: hsl(var(--accent));
 }
 .nx-kbd {
   font-family: "JetBrains Mono", ui-monospace, monospace;
   font-size: 10px;
   padding: 2px 6px;
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: hsl(var(--muted));
+  border: 1px solid hsl(var(--border));
   color: hsl(var(--muted-foreground));
 }
 
 /* ============================================================
-   Animação de entrada
+   Glass cards — versão SÓLIDA (sem blur/transparência) pra contraste
    ============================================================ */
-.cc-anim-enter {
-  animation: cc-enter 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+.cc-glass {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--cc-radius-lg);
+  color: hsl(var(--card-foreground));
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
+.cc-glass-sm { border-radius: var(--cc-radius-sm); }
+.cc-glass-md { border-radius: var(--cc-radius); }
+.cc-glass-hover {
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+.cc-glass-hover:hover {
+  border-color: hsl(var(--ring) / 0.45);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px -8px rgba(0, 0, 0, 0.6);
+}
+
+/* Glow border accents (apenas borda colorida) */
+.cc-glow-indigo  { border-color: rgba(var(--cc-glow-indigo), 0.45) !important; }
+.cc-glow-violet  { border-color: rgba(var(--cc-glow-violet), 0.45) !important; }
+.cc-glow-pink    { border-color: rgba(var(--cc-glow-pink), 0.45) !important; }
+.cc-glow-sky     { border-color: rgba(var(--cc-glow-sky), 0.45) !important; }
+.cc-glow-emerald { border-color: rgba(var(--cc-glow-emerald), 0.45) !important; }
+.cc-glow-blue    { border-color: rgba(var(--cc-glow-sky), 0.45) !important; }
+.cc-glow-amber   { border-color: hsl(38 92% 55% / 0.45) !important; }
+.cc-glow-rose    { border-color: rgba(var(--cc-glow-pink), 0.45) !important; }
+
+/* Title gradient */
+.cc-title-accent {
+  background: linear-gradient(135deg, hsl(217 91% 75%) 0%, hsl(217 91% 60%) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* ============================================================
+   Charts — eixos e legendas legíveis
+   ============================================================ */
+.recharts-cartesian-axis-tick text,
+.recharts-text,
+.recharts-legend-item-text {
+  fill: hsl(var(--muted-foreground)) !important;
+  color: hsl(var(--muted-foreground)) !important;
+}
+.recharts-cartesian-grid line {
+  stroke: hsl(var(--border)) !important;
+}
+
+/* ============================================================
+   Animations
+   ============================================================ */
+.cc-anim-enter { animation: cc-enter 0.45s cubic-bezier(0.16, 1, 0.3, 1) both; }
 @keyframes cc-enter {
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-
-/* ============================================================
-   Glass Cards — V3 §5
-   ============================================================ */
-.cc-glass {
-  background: linear-gradient(140deg, rgba(20,24,40,0.82) 0%, rgba(10,12,22,0.92) 100%);
-  border: 1px solid rgba(255,255,255,0.07);
-  border-radius: var(--cc-radius-lg);
-  box-shadow:
-    0 1px 2px rgba(0,0,0,0.5),
-    0 8px 24px -8px rgba(0,0,0,0.55),
-    inset 0 1px 0 rgba(255,255,255,0.05);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-}
-.cc-glass-hover {
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
-              box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1),
-              border-color 0.25s ease;
-}
-.cc-glass-hover:hover {
-  transform: translateY(-2px);
-  border-color: rgba(255,255,255,0.12);
-  box-shadow:
-    0 1px 2px rgba(0,0,0,0.5),
-    0 24px 60px -16px rgba(0,0,0,0.7),
-    inset 0 1px 0 rgba(255,255,255,0.08);
-}
-
-/* Glow border accents (cores RGB do spec §4.1) */
-.cc-glow-indigo  { border-color: rgba(var(--cc-glow-indigo), 0.35) !important; }
-.cc-glow-violet  { border-color: rgba(var(--cc-glow-violet), 0.35) !important; }
-.cc-glow-pink    { border-color: rgba(var(--cc-glow-pink), 0.35) !important; }
-.cc-glow-sky     { border-color: rgba(var(--cc-glow-sky), 0.35) !important; }
-.cc-glow-emerald { border-color: rgba(var(--cc-glow-emerald), 0.35) !important; }
-.cc-glow-blue    { border-color: rgba(var(--cc-glow-sky), 0.35) !important; }
-.cc-glow-amber   { border-color: hsl(38 92% 55% / 0.35) !important; }
-.cc-glow-rose    { border-color: rgba(var(--cc-glow-pink), 0.35) !important; }
-
-/* Title gradient */
-.cc-title-accent {
-  background: linear-gradient(135deg, #c4b5fd 0%, #818cf8 50%, #60a5fa 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  filter: drop-shadow(0 2px 24px rgba(99,102,241,0.20));
-}
-
-/* ============================================================
-   Animações — V3 §10 (Apple easing)
-   ============================================================ */
 @keyframes nx-fade-in-up {
   from { opacity: 0; transform: translateY(16px); }
   to   { opacity: 1; transform: translateY(0); }
-}
-@keyframes nx-shimmer {
-  from { background-position: -200% 0; }
-  to   { background-position: 200% 0; }
-}
-@keyframes nx-pulse-glow {
-  0%, 100% { box-shadow: 0 0 0 0 hsl(var(--primary) / 0.5); }
-  50%      { box-shadow: 0 0 0 6px hsl(var(--primary) / 0); }
 }
 .cc-fade-in-up { animation: nx-fade-in-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) both; }
