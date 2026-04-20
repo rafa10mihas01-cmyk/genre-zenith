@@ -52,11 +52,13 @@ function PlaylistCard({ briefing, index, onExpand, expanded }: {
   briefing: PlaylistBriefing; index: number; onExpand: () => void; expanded: boolean;
 }) {
   return (
-    <Card className={cn(
-      "transition-all cursor-pointer border hover:border-primary/40",
-      expanded && "border-primary/50 ring-1 ring-primary/20 shadow-lg shadow-primary/5",
-    )} onClick={onExpand}>
-      <CardContent className="p-4 space-y-3">
+    <div
+      className={cn(
+        "cc-glass cc-glass-hover cc-glass-md p-4 space-y-3 transition-all cursor-pointer",
+        expanded && "cc-glow-indigo"
+      )}
+      onClick={onExpand}
+    >
         {/* Header */}
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
