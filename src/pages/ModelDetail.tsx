@@ -6,6 +6,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Brain, ExternalLink, RefreshCw, Sparkles, TrendingUp, Music, Hash, ListMusic, Wand2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { formatNumber, timeAgo } from "@/lib/format";
+import ExportMenu from "@/components/ExportMenu";
+import { exportCSV, exportJSON, timestamp } from "@/lib/export";
 
 interface KW { value: string; count: number }
 interface Playlist { nome: string; seguidores: number; url: string; imagem?: string; total_musicas?: number }
@@ -113,6 +115,37 @@ export default function ModelDetail() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <ExportMenu
+            disabled={!model}
+            onCSV={() => {
+              if (!model || !genre) return;
+              const slug = genre.nome.toLowerCase().replace(/\s+/g, "-");
+              exportCSV(`${slug}-palavras-chave-${timestamp()}`,
+                model.palavras_chave, [{ key: "value", label: "termo" }, { key: "count", label: "frequencia" }]);
+              exportCSV(`${slug}-padroes-nome-${timestamp()}`,
+                model.padroes_nome, [{ key: "value", label: "bigrama" }, { key: "count", label: "frequencia" }]);
+              exportCSV(`${slug}-playlists-${timestamp()}`,
+                model.playlists_dominantes, [
+                  { key: "nome", label: "nome" },
+                  { key: "seguidores", label: "seguidores" },
+                  { key: "total_musicas", label: "total_musicas" },
+                  { key: "url", label: "url" },
+                ]);
+              exportCSV(`${slug}-musicas-${timestamp()}`,
+                model.musicas_recorrentes, [
+                  { key: "nome", label: "musica" },
+                  { key: "artista", label: "artista" },
+                  { key: "count", label: "ocorrencias" },
+                ]);
+              toast.success("4 arquivos CSV exportados");
+            }}
+            onJSON={() => {
+              if (!model || !genre) return;
+              const slug = genre.nome.toLowerCase().replace(/\s+/g, "-");
+              exportJSON(`${slug}-modelo-${timestamp()}`, { genero: genre.nome, ...model });
+              toast.success("Modelo completo exportado (JSON)");
+            }}
+          />
           <Button variant="outline" size="sm" onClick={reanalyze} disabled={reanalyzing}>
             <RefreshCw className={`h-4 w-4 ${reanalyzing ? "animate-spin" : ""}`} />
             Re-analisar
