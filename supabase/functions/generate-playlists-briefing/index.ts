@@ -89,12 +89,59 @@ Deno.serve(async (req) => {
     // Total real do corpus analisado (não só as dominantes)
     const totalPlaylists = Math.max(corpusCount ?? 0, playlistsDom.length, 1);
 
-    // Helper: classifica um formato/keyword/cards num subgênero
+    // Helper: classifica por nome (formato/keyword)
     function classifySub(text: string): { slug: string; nome: string } | null {
       const lower = (text ?? "").toLowerCase();
       for (const s of subgeneros) {
         const slug = String(s.slug ?? s.nome ?? "").toLowerCase();
         if (slug && lower.includes(slug)) return { slug: s.slug, nome: s.nome };
+      }
+      return null;
+    }
+
+    // ═══ MAPAS DE INFERÊNCIA POR TRACKS/ARTISTAS ═══
+    // Para cada subgênero, monta sets de "trackKey" e "artista" dominantes
+    const norm = (s: string) => (s ?? "").toLowerCase().trim();
+    const trackKeyOf = (n: string, a: string) => `${norm(n)}||${norm(a)}`;
+    const subToTracks = new Map<string, Set<string>>();
+    const subToArtists = new Map<string, Set<string>>();
+    const subInfoBySlug = new Map<string, { slug: string; nome: string }>();
+    for (const sg of subgeneros) {
+      const slug = String(sg.slug ?? sg.nome ?? "").toLowerCase();
+      if (!slug) continue;
+      subInfoBySlug.set(slug, { slug: sg.slug, nome: sg.nome });
+      const tset = new Set<string>();
+      const aset = new Set<string>();
+      for (const t of (sg.top_tracks ?? [])) {
+        if (t?.nome && t?.artista) tset.add(trackKeyOf(t.nome, t.artista));
+        if (t?.artista) aset.add(norm(t.artista));
+      }
+      subToTracks.set(slug, tset);
+      subToArtists.set(slug, aset);
+    }
+
+    // Infere subgênero a partir de uma lista de tracks (≥60% pertencem ao cluster)
+    function inferSubFromTracks(tracks: { nome: string; artista: string }[]): { slug: string; nome: string } | null {
+      if (!tracks.length || subInfoBySlug.size === 0) return null;
+      const scores = new Map<string, number>();
+      for (const t of tracks) {
+        const tk = trackKeyOf(t.nome, t.artista);
+        const ar = norm(t.artista);
+        for (const [slug] of subInfoBySlug) {
+          let hit = 0;
+          if (subToTracks.get(slug)?.has(tk)) hit += 1;
+          else if (subToArtists.get(slug)?.has(ar)) hit += 0.6;
+          if (hit > 0) scores.set(slug, (scores.get(slug) ?? 0) + hit);
+        }
+      }
+      if (scores.size === 0) return null;
+      const ranked = [...scores.entries()].sort((a, b) => b[1] - a[1]);
+      const [bestSlug, bestScore] = ranked[0];
+      const ratio = bestScore / tracks.length;
+      if (ratio >= 0.6) return subInfoBySlug.get(bestSlug) ?? null;
+      // fallback: maioria simples se pelo menos 40% e gap ≥ 1.5x sobre o segundo
+      if (ratio >= 0.4 && (!ranked[1] || bestScore >= ranked[1][1] * 1.5)) {
+        return subInfoBySlug.get(bestSlug) ?? null;
       }
       return null;
     }
