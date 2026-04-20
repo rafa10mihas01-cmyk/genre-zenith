@@ -414,6 +414,10 @@ Responda JSON: {"playlists": [{"idx": 1, "nome_final": "..."}, ...]}`
       version: nextVersion,
       briefings: valid,
       metadata: {
+        cluster_id: clusterId,
+        cluster_label: clusterLabel,
+        cluster_size: isClusterMode ? clusterPlaylistIds.length : null,
+        scope: isClusterMode ? "cluster" : "todos",
         total_keywords_analisadas: sortedKw.length,
         total_padroes_analisados: sortedFormats.length,
         total_playlists_referencia: totalPlaylists,
