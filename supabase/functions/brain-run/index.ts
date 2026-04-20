@@ -1,5 +1,6 @@
-// brain-run — orquestra pipeline completa para um nicho:
-// kit de termos → run-search (filtrado) → enrich-playlists → analyze-genre → genre-insights
+// brain-run — orquestra pipeline em BACKGROUND para evitar timeout (150s).
+// POST { slug, intensity?, max_playlists? }            → { ok, job_id }
+// GET  ?job_id=...                                     → { ok, status, stage, progress, result? }
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -8,13 +9,12 @@ const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 type Intensity = "leve" | "normal" | "agressivo";
 
-interface Body {
-  slug: "funk" | "sertanejo" | "piseiro" | string;
+interface StartBody {
+  slug: string;
   intensity?: Intensity;
   max_playlists?: 20 | 50 | 100;
 }
 
-// Kits curados por nicho
 const KITS: Record<string, string[]> = {
   funk: [
     "funk", "funk br", "funk brasil", "funk mandelão", "funk consciente",
@@ -61,121 +61,194 @@ async function callFn(name: string, body: unknown) {
   catch { return { ok: r.ok, data: { raw: txt }, status: r.status }; }
 }
 
-Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-  if (req.method !== "POST") return jr({ error: "POST only" }, 405);
+// ---------- Job state via collection_logs ----------
+// acao = `brain-job:${jobId}`, mensagem = JSON {status, stage, progress, result?, error?}
+async function setJob(
+  supabase: any,
+  genreId: string,
+  jobId: string,
+  payload: { status: "running" | "done" | "error"; stage: string; progress: number; result?: unknown; error?: string },
+) {
+  await supabase.from("collection_logs").insert({
+    genre_id: genreId,
+    acao: `brain-job:${jobId}`,
+    status: payload.status === "error" ? "erro" : "sucesso",
+    mensagem: JSON.stringify(payload).slice(0, 8000),
+  });
+}
 
-  let body: Body;
-  try { body = await req.json(); } catch { return jr({ error: "Invalid JSON" }, 400); }
-  if (!body.slug) return jr({ error: "slug obrigatório" }, 400);
+async function getJob(supabase: any, jobId: string) {
+  const { data } = await supabase
+    .from("collection_logs")
+    .select("mensagem,created_at,genre_id")
+    .eq("acao", `brain-job:${jobId}`)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!data) return null;
+  try { return { ...JSON.parse(data.mensagem), genre_id: data.genre_id, updated_at: data.created_at }; }
+  catch { return null; }
+}
 
+// ---------- Pipeline em background ----------
+async function runPipeline(jobId: string, body: StartBody) {
+  const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
   const slug = body.slug.toLowerCase();
   const kit = KITS[slug];
-  if (!kit) return jr({ error: `Nicho '${slug}' não tem kit curado. Suportados: ${Object.keys(KITS).join(", ")}` }, 400);
-
-  const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
   const { termsCount, delayMs } = intensityLimits(body.intensity ?? "normal");
   const maxPerSearch = body.max_playlists ?? 50;
   const start = Date.now();
 
-  // 1) Buscar genre
-  const { data: genre, error: gErr } = await supabase
+  const { data: genre } = await supabase
     .from("genres").select("id,nome,slug").eq("slug", slug).maybeSingle();
-  if (gErr || !genre) return jr({ error: `Gênero '${slug}' não encontrado` }, 404);
-
-  await supabase.from("collection_logs").insert({
-    genre_id: genre.id, acao: "brain-run", status: "sucesso",
-    mensagem: `Iniciado: ${termsCount} termos, ${maxPerSearch} playlists/termo, intensidade=${body.intensity ?? "normal"}`,
-  });
+  if (!genre) {
+    // Não temos genreId — guarda erro num log órfão
+    await supabase.from("collection_logs").insert({
+      acao: `brain-job:${jobId}`, status: "erro",
+      mensagem: JSON.stringify({ status: "error", stage: "init", progress: 0, error: `Gênero '${slug}' não encontrado` }),
+    });
+    return;
+  }
+  const gid = genre.id;
+  await setJob(supabase, gid, jobId, { status: "running", stage: "Gerando termos...", progress: 5 });
 
   const stages: Record<string, unknown> = {};
 
-  // 2) Termos: garantir que kit existe em search_terms (apenas os do kit, fatiados pela intensidade)
-  const selectedTerms = kit.slice(0, termsCount);
-  const { data: existingTerms } = await supabase
-    .from("search_terms").select("id,termo").eq("genre_id", genre.id);
-  const existingMap = new Map((existingTerms ?? []).map(t => [t.termo.toLowerCase(), t.id]));
-  const missing = selectedTerms.filter(t => !existingMap.has(t.toLowerCase()));
-  if (missing.length > 0) {
-    await supabase.from("search_terms").insert(
-      missing.map(t => ({ genre_id: genre.id, termo: t, tipo: "kit" })),
+  try {
+    // 1) Termos
+    const selectedTerms = kit.slice(0, termsCount);
+    const { data: existingTerms } = await supabase
+      .from("search_terms").select("id,termo").eq("genre_id", gid);
+    const existingMap = new Map((existingTerms ?? []).map((t: any) => [t.termo.toLowerCase(), t.id]));
+    const missing = selectedTerms.filter(t => !existingMap.has(t.toLowerCase()));
+    if (missing.length > 0) {
+      await supabase.from("search_terms").insert(
+        missing.map(t => ({ genre_id: gid, termo: t, tipo: "kit" })),
+      );
+    }
+    const { data: termsRows } = await supabase
+      .from("search_terms").select("id,termo")
+      .eq("genre_id", gid).in("termo", selectedTerms);
+    stages.terms = { count: termsRows?.length ?? 0, list: selectedTerms };
+
+    // 2) Buscas
+    await setJob(supabase, gid, jobId, { status: "running", stage: "Buscando playlists...", progress: 15 });
+    let searchedOk = 0, searchedErr = 0, totalSavedResults = 0;
+    const total = (termsRows ?? []).length || 1;
+    let idx = 0;
+    for (const t of (termsRows ?? [])) {
+      const r = await callFn("run-search", {
+        genre_id: gid, term_id: t.id, search_term: t.termo, max_results: maxPerSearch,
+      });
+      if (r.ok && (r.data as any)?.ok) {
+        searchedOk++;
+        totalSavedResults += (r.data as any)?.savedResults ?? 0;
+      } else searchedErr++;
+      idx++;
+      await setJob(supabase, gid, jobId, {
+        status: "running",
+        stage: `Buscando playlists... (${idx}/${total})`,
+        progress: 15 + Math.round((idx / total) * 40),
+      });
+      if (delayMs > 0) await new Promise(res => setTimeout(res, delayMs));
+    }
+    stages.search = { ok: searchedOk, err: searchedErr, total_inserted: totalSavedResults };
+
+    // 3) Filtro
+    await setJob(supabase, gid, jobId, { status: "running", stage: "Filtrando resultados...", progress: 60 });
+    const { data: allResults } = await supabase
+      .from("search_results").select("id,nome_playlist").eq("genre_id", gid);
+    const irrelevant = (allResults ?? []).filter((r: any) =>
+      !(r.nome_playlist ?? "").toLowerCase().includes(slug)
     );
-  }
-  // re-fetch para pegar ids
-  const { data: termsRows } = await supabase
-    .from("search_terms").select("id,termo")
-    .eq("genre_id", genre.id)
-    .in("termo", selectedTerms);
-  stages.terms = { count: termsRows?.length ?? 0, list: selectedTerms };
+    if (irrelevant.length > 0) {
+      const ids = irrelevant.map((r: any) => r.id);
+      await supabase.from("search_tracks").delete().in("result_id", ids);
+      await supabase.from("search_results").delete().in("id", ids);
+    }
+    stages.filter = { removed: irrelevant.length, kept: (allResults?.length ?? 0) - irrelevant.length };
 
-  // 3) Rodar busca para cada termo
-  let searchedOk = 0, searchedErr = 0, totalSavedResults = 0;
-  for (const t of (termsRows ?? [])) {
-    const r = await callFn("run-search", {
-      genre_id: genre.id,
-      term_id: t.id,
-      search_term: t.termo,
-      max_results: maxPerSearch,
+    // 4) Enriquecer
+    await setJob(supabase, gid, jobId, { status: "running", stage: "Enriquecendo dados...", progress: 70 });
+    let enrichedTotal = 0, tracksTotal = 0;
+    for (let i = 0; i < 3; i++) {
+      const r = await callFn("enrich-playlists", { genre_id: gid, limit: 50, fetch_tracks: true });
+      const d = r.data as any;
+      if (!r.ok || !d?.ok) break;
+      enrichedTotal += d.enriched ?? 0;
+      tracksTotal += d.tracks_saved ?? 0;
+      if (!d.processed || d.processed < 50) break;
+    }
+    stages.enrich = { enriched: enrichedTotal, tracks_saved: tracksTotal };
+
+    // 5) Analisar
+    await setJob(supabase, gid, jobId, { status: "running", stage: "Analisando padrões...", progress: 85 });
+    const a = await callFn("analyze-genre", { genre_id: gid });
+    stages.analyze = (a.data as any)?.insights ?? { ok: a.ok };
+
+    // 6) Insights IA
+    await setJob(supabase, gid, jobId, { status: "running", stage: "Gerando insights...", progress: 92 });
+    const ia = await callFn("genre-insights", { genre_id: gid });
+    stages.insights = (ia.data as any)?.ai ?? { ok: ia.ok, error: (ia.data as any)?.error };
+
+    // 7) Modelo final
+    const { data: model } = await supabase
+      .from("genre_models").select("*").eq("genre_id", gid).maybeSingle();
+
+    await supabase.from("collection_logs").insert({
+      genre_id: gid, acao: "brain-run", status: "sucesso",
+      mensagem: `Concluído em ${Math.round((Date.now() - start)/1000)}s — ${searchedOk} buscas, ${enrichedTotal} enriquecidas, ${irrelevant.length} filtradas`,
+      duracao_ms: Date.now() - start,
     });
-    if (r.ok && (r.data as any)?.ok) {
-      searchedOk++;
-      totalSavedResults += (r.data as any)?.savedResults ?? 0;
-    } else searchedErr++;
-    if (delayMs > 0) await new Promise(res => setTimeout(res, delayMs));
+
+    await setJob(supabase, gid, jobId, {
+      status: "done",
+      stage: "Concluído",
+      progress: 100,
+      result: {
+        ok: true,
+        genre: { id: gid, nome: genre.nome, slug: genre.slug },
+        duration_ms: Date.now() - start,
+        stages,
+        model: model ?? null,
+      },
+    });
+  } catch (e) {
+    const msg = (e as Error).message ?? String(e);
+    console.error("pipeline error", msg);
+    await setJob(supabase, gid, jobId, {
+      status: "error", stage: "Erro", progress: 0, error: msg.slice(0, 500),
+    });
   }
-  stages.search = { ok: searchedOk, err: searchedErr, total_inserted: totalSavedResults };
+}
 
-  // 4) Filtro de relevância: deletar playlists que NÃO contêm a palavra do nicho no nome
-  // Mantém somente quem tem `slug` (ex: "funk", "sertanejo", "piseiro") no nome (case-insensitive)
-  const keyword = slug;
-  const { data: allResults } = await supabase
-    .from("search_results").select("id,nome_playlist").eq("genre_id", genre.id);
-  const irrelevant = (allResults ?? []).filter(r =>
-    !(r.nome_playlist ?? "").toLowerCase().includes(keyword)
-  );
-  if (irrelevant.length > 0) {
-    const ids = irrelevant.map(r => r.id);
-    // Apaga tracks dependentes primeiro
-    await supabase.from("search_tracks").delete().in("result_id", ids);
-    await supabase.from("search_results").delete().in("id", ids);
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  // GET → status
+  if (req.method === "GET") {
+    const url = new URL(req.url);
+    const jobId = url.searchParams.get("job_id");
+    if (!jobId) return jr({ error: "job_id obrigatório" }, 400);
+    const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+    const job = await getJob(supabase, jobId);
+    if (!job) return jr({ ok: false, status: "unknown" }, 404);
+    return jr({ ok: true, ...job });
   }
-  stages.filter = { removed: irrelevant.length, kept: (allResults?.length ?? 0) - irrelevant.length };
 
-  // 5) Enriquecer playlists (followers via Spotify + tracks via Apify) — em batches
-  let enrichedTotal = 0, tracksTotal = 0;
-  for (let i = 0; i < 3; i++) {
-    const r = await callFn("enrich-playlists", { genre_id: genre.id, limit: 50, fetch_tracks: true });
-    const d = r.data as any;
-    if (!r.ok || !d?.ok) break;
-    enrichedTotal += d.enriched ?? 0;
-    tracksTotal += d.tracks_saved ?? 0;
-    if (!d.processed || d.processed < 50) break;
-  }
-  stages.enrich = { enriched: enrichedTotal, tracks_saved: tracksTotal };
+  if (req.method !== "POST") return jr({ error: "POST or GET" }, 405);
 
-  // 6) Analisar gênero
-  const a = await callFn("analyze-genre", { genre_id: genre.id });
-  stages.analyze = (a.data as any)?.insights ?? { ok: a.ok };
+  let body: StartBody;
+  try { body = await req.json(); } catch { return jr({ error: "Invalid JSON" }, 400); }
+  if (!body.slug) return jr({ error: "slug obrigatório" }, 400);
+  const slug = body.slug.toLowerCase();
+  if (!KITS[slug]) return jr({ error: `Nicho '${slug}' sem kit. Suportados: ${Object.keys(KITS).join(", ")}` }, 400);
 
-  // 7) Insights IA (não falha se erro)
-  const ia = await callFn("genre-insights", { genre_id: genre.id });
-  stages.insights = (ia.data as any)?.ai ?? { ok: ia.ok, error: (ia.data as any)?.error };
+  const jobId = crypto.randomUUID();
 
-  // 8) Buscar modelo final para devolver
-  const { data: model } = await supabase
-    .from("genre_models").select("*").eq("genre_id", genre.id).maybeSingle();
+  // Dispara em background — retorna imediatamente
+  // @ts-ignore EdgeRuntime global
+  EdgeRuntime.waitUntil(runPipeline(jobId, body));
 
-  await supabase.from("collection_logs").insert({
-    genre_id: genre.id, acao: "brain-run", status: "sucesso",
-    mensagem: `Concluído em ${Math.round((Date.now() - start)/1000)}s — ${searchedOk} buscas, ${enrichedTotal} enriquecidas, ${irrelevant.length} filtradas`,
-    duracao_ms: Date.now() - start,
-  });
-
-  return jr({
-    ok: true,
-    genre: { id: genre.id, nome: genre.nome, slug: genre.slug },
-    duration_ms: Date.now() - start,
-    stages,
-    model: model ?? null,
-  });
+  return jr({ ok: true, job_id: jobId, status: "running" }, 202);
 });

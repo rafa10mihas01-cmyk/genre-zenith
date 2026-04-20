@@ -41,31 +41,55 @@ export default function Brain() {
   const [size, setSize] = useState<Size>(50);
   const [running, setRunning] = useState(false);
   const [stageIdx, setStageIdx] = useState(0);
+  const [stageLabel, setStageLabel] = useState<string>("");
+  const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<any>(null);
 
   async function runAnalysis() {
     setRunning(true);
     setResult(null);
     setStageIdx(0);
-
-    // Animação visual de etapas (estimativa) — gira ~10s por etapa
-    const stageTimer = setInterval(() => {
-      setStageIdx(i => Math.min(i + 1, STAGES.length - 1));
-    }, 12_000);
+    setProgress(0);
+    setStageLabel("Iniciando...");
 
     try {
-      const { data, error } = await supabase.functions.invoke("brain-run", {
+      // 1) Inicia job (retorno rápido, 202)
+      const { data: startData, error: startErr } = await supabase.functions.invoke("brain-run", {
         body: { slug: nicho, intensity, max_playlists: size },
       });
-      clearInterval(stageTimer);
-      if (error) throw error;
-      if (!data?.ok) throw new Error(data?.error ?? "Falha desconhecida");
-      setResult(data);
-      toast.success("Análise concluída", {
-        description: `${data.stages?.search?.ok ?? 0} buscas em ${Math.round((data.duration_ms ?? 0)/1000)}s`,
-      });
+      if (startErr) throw startErr;
+      if (!startData?.job_id) throw new Error(startData?.error ?? "Falha ao iniciar job");
+      const jobId = startData.job_id as string;
+
+      // 2) Polling do status
+      const SUPABASE_URL = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co`;
+      const ANON = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+      const deadline = Date.now() + 20 * 60_000; // 20 min máx
+
+      while (Date.now() < deadline) {
+        await new Promise(r => setTimeout(r, 3000));
+        const r = await fetch(`${SUPABASE_URL}/functions/v1/brain-run?job_id=${jobId}`, {
+          headers: { apikey: ANON, Authorization: `Bearer ${ANON}` },
+        });
+        const j = await r.json();
+        if (!j?.ok) continue;
+        setStageLabel(j.stage ?? "");
+        setProgress(j.progress ?? 0);
+        // mapeia label para índice visual
+        const labelLower = (j.stage ?? "").toLowerCase();
+        const idx = STAGES.findIndex(s => labelLower.includes(s.toLowerCase().replace("...", "").split(" ")[0]));
+        if (idx >= 0) setStageIdx(idx);
+        if (j.status === "done") {
+          setResult(j.result);
+          toast.success("Análise concluída", {
+            description: `${j.result?.stages?.search?.ok ?? 0} buscas em ${Math.round((j.result?.duration_ms ?? 0)/1000)}s`,
+          });
+          return;
+        }
+        if (j.status === "error") throw new Error(j.error ?? "Erro no pipeline");
+      }
+      throw new Error("Timeout aguardando conclusão (20 min)");
     } catch (e: any) {
-      clearInterval(stageTimer);
       toast.error("Erro na análise", { description: e?.message ?? String(e) });
     } finally {
       setRunning(false);
@@ -181,26 +205,40 @@ export default function Brain() {
       {/* Loading com etapas */}
       {running && (
         <Card className="border-primary/30 bg-primary/5">
-          <CardContent className="py-6 space-y-3">
-            {STAGES.map((s, i) => {
-              const done = i < stageIdx;
-              const active = i === stageIdx;
-              return (
-                <div key={s} className={cn("flex items-center gap-3 text-sm transition-opacity", !done && !active && "opacity-40")}>
-                  <div className={cn(
-                    "h-5 w-5 rounded-full flex items-center justify-center border",
-                    done && "bg-primary border-primary text-primary-foreground",
-                    active && "border-primary",
-                    !done && !active && "border-muted-foreground/30",
-                  )}>
-                    {done ? "✓" : active ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+          <CardContent className="py-6 space-y-4">
+            <div>
+              <div className="flex items-center justify-between text-xs mb-1.5">
+                <span className="text-muted-foreground">{stageLabel || "Iniciando..."}</span>
+                <span className="font-mono text-primary">{progress}%</span>
+              </div>
+              <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full bg-primary transition-all duration-500"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              {STAGES.map((s, i) => {
+                const done = i < stageIdx;
+                const active = i === stageIdx;
+                return (
+                  <div key={s} className={cn("flex items-center gap-3 text-sm transition-opacity", !done && !active && "opacity-40")}>
+                    <div className={cn(
+                      "h-5 w-5 rounded-full flex items-center justify-center border",
+                      done && "bg-primary border-primary text-primary-foreground",
+                      active && "border-primary",
+                      !done && !active && "border-muted-foreground/30",
+                    )}>
+                      {done ? "✓" : active ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                    </div>
+                    <span className={cn(active && "text-foreground font-medium", done && "text-muted-foreground line-through")}>
+                      {s}
+                    </span>
                   </div>
-                  <span className={cn(active && "text-foreground font-medium", done && "text-muted-foreground line-through")}>
-                    {s}
-                  </span>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </CardContent>
         </Card>
       )}
