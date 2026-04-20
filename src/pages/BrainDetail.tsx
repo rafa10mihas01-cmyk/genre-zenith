@@ -21,6 +21,15 @@ function SignalBadge({ sinal }: { sinal: string }) {
   return <Badge variant="outline" className={cn("text-[10px] uppercase", config.cls)}>{config.label}</Badge>;
 }
 
+function ConfidenceBadge({ confidence }: { confidence: "alta" | "media" | "baixa" }) {
+  const config = confidence === "alta"
+    ? { label: "Alta confiança", cls: "bg-[hsl(var(--success))]/15 text-[hsl(var(--success))] border-[hsl(var(--success))]/30" }
+    : confidence === "media"
+    ? { label: "Média confiança", cls: "bg-[hsl(var(--warning))]/15 text-[hsl(var(--warning))] border-[hsl(var(--warning))]/30" }
+    : { label: "⚠ Baixa confiança", cls: "bg-destructive/10 text-destructive border-destructive/30" };
+  return <Badge variant="outline" className={cn("text-[10px] uppercase", config.cls)}>{config.label}</Badge>;
+}
+
 function ForceBar({ value }: { value: number }) {
   const color = value >= 70 ? "bg-[hsl(var(--success))]" : value >= 40 ? "bg-[hsl(var(--warning))]" : "bg-muted-foreground";
   return (
@@ -49,7 +58,7 @@ function PlaylistCard({ briefing, index, onExpand, expanded }: {
             <h3 className="font-bold text-sm truncate">{briefing.nome}</h3>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <SignalBadge sinal={briefing.justificativa.sinal} />
+            <ConfidenceBadge confidence={briefing.confidence ?? "baixa"} />
             {expanded ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
           </div>
         </div>
@@ -58,6 +67,7 @@ function PlaylistCard({ briefing, index, onExpand, expanded }: {
         <div className="flex items-center gap-3 flex-wrap">
           <Badge variant="secondary" className="text-[10px]">{briefing.formato}</Badge>
           <ForceBar value={briefing.forca_nome} />
+          <SignalBadge sinal={briefing.justificativa.sinal} />
         </div>
 
         {/* Expanded detail */}
@@ -112,23 +122,26 @@ function PlaylistCard({ briefing, index, onExpand, expanded }: {
               </div>
             </Section>
 
-            {/* DNA da capa */}
-            <Section icon={Palette} title="DNA da capa">
-              <div className="text-xs text-muted-foreground space-y-1">
-                <p><span className="text-foreground">Estilo:</span> {briefing.dna_capa.estilo_dominante}</p>
-                <p><span className="text-foreground">Texto:</span> {briefing.dna_capa.uso_texto}</p>
-                <p><span className="text-foreground">Estrutura:</span> {briefing.dna_capa.estrutura_visual}</p>
-              </div>
-            </Section>
+            {/* DNA da capa — só mostra se implementado */}
+            {briefing.dna_capa && (
+              <Section icon={Palette} title="DNA da capa">
+                <div className="text-xs text-muted-foreground space-y-1">
+                  <p><span className="text-foreground">Estilo:</span> {briefing.dna_capa.estilo_dominante}</p>
+                  <p><span className="text-foreground">Texto:</span> {briefing.dna_capa.uso_texto}</p>
+                  <p><span className="text-foreground">Estrutura:</span> {briefing.dna_capa.estrutura_visual}</p>
+                </div>
+              </Section>
+            )}
 
             {/* Justificativa */}
             <Section icon={FileText} title="Justificativa">
               <div className="text-xs leading-relaxed text-muted-foreground space-y-1">
                 <p>
-                  Esse formato aparece em <span className="text-foreground font-medium">{briefing.justificativa.frequencia_padrao_pct}%</span> dos padrões analisados, 
-                  com <span className="text-foreground font-medium">{briefing.justificativa.repeticao_em_playlists}</span> repetições em playlists.
+                  Esse formato aparece em <span className="text-foreground font-medium">{briefing.justificativa.frequencia_padrao_pct}%</span> dos padrões analisados,
+                  com <span className="text-foreground font-medium">{briefing.justificativa.repeticao_em_playlists}</span> repetições em playlists de referência.
                 </p>
                 <p>
+                  Score: <span className="text-foreground font-mono font-medium">{briefing.justificativa.score}</span> •
                   Sinal: <span className="text-foreground font-medium capitalize">{briefing.justificativa.sinal}</span>
                 </p>
               </div>
@@ -245,7 +258,8 @@ export default function BrainDetail() {
             <div>
               <h2 className="text-lg font-bold">Playlists para criar agora</h2>
               <p className="text-xs text-muted-foreground">
-                {briefing.briefings.length} decisões baseadas em {briefing.metadata?.total_keywords_analisadas ?? 0} keywords e {briefing.metadata?.total_playlists_referencia ?? 0} playlists de referência
+                {briefing.briefings.length} {briefing.briefings.length === 1 ? "decisão qualificada" : "decisões qualificadas"} de {briefing.metadata?.total_padroes_analisados ?? 0} padrões analisados
+                {briefing.metadata?.cards_descartados > 0 && ` • ${briefing.metadata.cards_descartados} descartados por baixa qualidade`}
               </p>
             </div>
           </div>

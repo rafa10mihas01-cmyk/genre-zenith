@@ -6,12 +6,13 @@ export type PlaylistBriefing = {
   forca_nome: number;
   formato: string;
   formato_id: string;
+  confidence: "alta" | "media" | "baixa";
   keywords_utilizadas: { value: string; peso: number }[];
   base_musical: {
     top_musicas: { nome: string; artista: string }[];
     artistas_principais: string[];
   };
-  dna_capa: {
+  dna_capa: null | {
     estilo_dominante: string;
     cores: string[];
     uso_texto: string;
@@ -20,6 +21,7 @@ export type PlaylistBriefing = {
   justificativa: {
     frequencia_padrao_pct: number;
     repeticao_em_playlists: number;
+    score: number;
     sinal: string;
   };
 };
