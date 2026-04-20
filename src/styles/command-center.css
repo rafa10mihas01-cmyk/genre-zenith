@@ -1,31 +1,45 @@
-/* NexEngine — Shell + utilidades visuais (theme-aware) */
+/* NexCreatorX V3 — Command Center shell, glass, glows, animações
+   Spec §4, §5, §10. Dark only. */
 
 /* ============================================================
-   .cc-shell — fundo da app. Usa tokens, então segue light/dark.
+   .cc-shell — fundo premium com 3 pontos de glow + ruído
    ============================================================ */
 .cc-shell {
-  background: hsl(var(--background));
+  position: relative;
   min-height: 100%;
+  background:
+    radial-gradient(1100px 700px at 85% -15%, rgba(var(--cc-glow-indigo), 0.18) 0%, transparent 55%),
+    radial-gradient(1000px 600px at -10% 20%, rgba(var(--cc-glow-sky), 0.13) 0%, transparent 55%),
+    radial-gradient(900px 700px at 110% 95%, rgba(var(--cc-glow-violet), 0.16) 0%, transparent 55%),
+    linear-gradient(180deg, #070B14 0%, #04060D 100%);
 }
+.cc-shell::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.035;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/></svg>");
+  background-size: 220px 220px;
+}
+.cc-shell > * { position: relative; z-index: 1; }
 
 /* ============================================================
-   Surface — superfície sólida (card-like) usando tokens
+   Surfaces (sólidas) — fallback fora do shell
    ============================================================ */
 .nx-surface {
   background: hsl(var(--card));
   border: 1px solid hsl(var(--border));
-  border-radius: 14px;
+  border-radius: var(--cc-radius);
 }
-
 .nx-surface-elevated {
   background: hsl(var(--elevated));
   border: 1px solid hsl(var(--border));
-  border-radius: 16px;
+  border-radius: var(--cc-radius);
 }
-
-.nx-surface-hover {
-  transition: border-color 0.2s ease, transform 0.2s ease;
-}
+.nx-surface-hover { transition: border-color 0.2s ease, transform 0.2s ease; }
 .nx-surface-hover:hover {
   border-color: hsl(var(--ring) / 0.4);
   transform: translateY(-1px);
@@ -122,46 +136,35 @@
 }
 
 /* ============================================================
-   Search input do header — alto contraste em ambos os temas
+   Search button do header — glass discreto
    ============================================================ */
 .nx-search {
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 36px;
-  padding: 0 12px;
-  width: 360px;
+  height: 32px;
+  padding: 0 10px 0 12px;
+  width: 280px;
   max-width: 100%;
-  background: hsl(var(--muted));
-  border: 1px solid hsl(var(--border));
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 8px;
   color: hsl(var(--foreground));
   font-size: 13px;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition: border-color 0.15s ease, background 0.15s ease;
   cursor: text;
 }
-.nx-search:hover { border-color: hsl(var(--ring) / 0.5); }
-.nx-search:focus-within {
-  border-color: hsl(var(--ring));
-  box-shadow: 0 0 0 3px hsl(var(--ring) / 0.18);
+.nx-search:hover {
+  border-color: rgba(var(--cc-glow-indigo), 0.35);
+  background: rgba(255, 255, 255, 0.06);
 }
-.nx-search input {
-  background: transparent;
-  border: none;
-  outline: none;
-  flex: 1;
-  font-size: 13px;
-  color: hsl(var(--foreground));
-}
-.nx-search input::placeholder { color: hsl(var(--muted-foreground)); opacity: 1; }
-
 .nx-kbd {
   font-family: "JetBrains Mono", ui-monospace, monospace;
   font-size: 10px;
   padding: 2px 6px;
   border-radius: 4px;
-  background: hsl(var(--background));
-  border: 1px solid hsl(var(--border));
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   color: hsl(var(--muted-foreground));
 }
 
@@ -177,25 +180,65 @@
 }
 
 /* ============================================================
-   LEGADO — mantido para páginas que ainda usam .cc-glass.
-   Agora baseado em tokens, então segue o tema.
+   Glass Cards — V3 §5
    ============================================================ */
 .cc-glass {
-  background: hsl(var(--card));
-  border: 1px solid hsl(var(--border));
-  border-radius: 14px;
+  background: linear-gradient(140deg, rgba(20,24,40,0.82) 0%, rgba(10,12,22,0.92) 100%);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: var(--cc-radius-lg);
+  box-shadow:
+    0 1px 2px rgba(0,0,0,0.5),
+    0 8px 24px -8px rgba(0,0,0,0.55),
+    inset 0 1px 0 rgba(255,255,255,0.05);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
 }
-.cc-glass-hover { transition: border-color 0.2s ease, transform 0.2s ease; }
-.cc-glass-hover:hover { border-color: hsl(var(--ring) / 0.4); transform: translateY(-1px); }
-.cc-glow-indigo  { border-color: hsl(231 60% 55% / 0.45) !important; }
-.cc-glow-violet  { border-color: hsl(270 70% 65% / 0.45) !important; }
-.cc-glow-blue    { border-color: hsl(217 80% 60% / 0.45) !important; }
-.cc-glow-emerald { border-color: hsl(152 70% 50% / 0.45) !important; }
-.cc-glow-amber   { border-color: hsl(38 92% 55% / 0.45) !important; }
-.cc-glow-rose    { border-color: hsl(0 72% 60% / 0.45) !important; }
+.cc-glass-hover {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.25s ease;
+}
+.cc-glass-hover:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255,255,255,0.12);
+  box-shadow:
+    0 1px 2px rgba(0,0,0,0.5),
+    0 24px 60px -16px rgba(0,0,0,0.7),
+    inset 0 1px 0 rgba(255,255,255,0.08);
+}
+
+/* Glow border accents (cores RGB do spec §4.1) */
+.cc-glow-indigo  { border-color: rgba(var(--cc-glow-indigo), 0.35) !important; }
+.cc-glow-violet  { border-color: rgba(var(--cc-glow-violet), 0.35) !important; }
+.cc-glow-pink    { border-color: rgba(var(--cc-glow-pink), 0.35) !important; }
+.cc-glow-sky     { border-color: rgba(var(--cc-glow-sky), 0.35) !important; }
+.cc-glow-emerald { border-color: rgba(var(--cc-glow-emerald), 0.35) !important; }
+.cc-glow-blue    { border-color: rgba(var(--cc-glow-sky), 0.35) !important; }
+.cc-glow-amber   { border-color: hsl(38 92% 55% / 0.35) !important; }
+.cc-glow-rose    { border-color: rgba(var(--cc-glow-pink), 0.35) !important; }
+
+/* Title gradient */
 .cc-title-accent {
-  background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(231 70% 65%) 100%);
+  background: linear-gradient(135deg, #c4b5fd 0%, #818cf8 50%, #60a5fa 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+  filter: drop-shadow(0 2px 24px rgba(99,102,241,0.20));
 }
+
+/* ============================================================
+   Animações — V3 §10 (Apple easing)
+   ============================================================ */
+@keyframes nx-fade-in-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes nx-shimmer {
+  from { background-position: -200% 0; }
+  to   { background-position: 200% 0; }
+}
+@keyframes nx-pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 hsl(var(--primary) / 0.5); }
+  50%      { box-shadow: 0 0 0 6px hsl(var(--primary) / 0); }
+}
+.cc-fade-in-up { animation: nx-fade-in-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) both; }

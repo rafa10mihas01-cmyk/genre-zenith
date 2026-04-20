@@ -1,105 +1,69 @@
-/* NexCreatorX V3 — Brand tokens (HSL only, no hex in components) */
+/* NexCreatorX V3 — Brand tokens (HSL only, no hex in components)
+   DARK is the default and only theme for /admin per V3 Spec §3.3 */
 
-/* ============================================================
-   LIGHT (default — :root sem classe)
-   ============================================================ */
-:root {
-  --primary: 231 48% 40%;
-  --primary-foreground: 0 0% 100%;
-  --primary-hover: 231 48% 35%;
-
-  --accent: 230 14% 94%;
-  --accent-foreground: 230 17% 12%;
-
-  --background: 0 0% 100%;
-  --foreground: 230 17% 12%;
-  --card: 0 0% 100%;
-  --card-foreground: 230 17% 12%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 230 17% 12%;
-  --elevated: 240 20% 97%;
-  --secondary: 240 16% 95%;
-  --secondary-foreground: 230 17% 12%;
-  --muted: 240 16% 95%;
-  --muted-foreground: 230 6% 42%;
-
-  --border: 240 14% 89%;
-  --input: 240 14% 89%;
-  --ring: 231 48% 40%;
-
-  --success: 152 69% 36%;
-  --warning: 38 92% 50%;
-  --destructive: 0 72% 51%;
-  --destructive-foreground: 0 0% 100%;
-  --neutral: 220 9% 46%;
-
-  --radius: 0.75rem;
-
-  --sidebar-background: 240 20% 98%;
-  --sidebar-foreground: 230 17% 12%;
-  --sidebar-primary: 231 48% 40%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 240 16% 93%;
-  --sidebar-accent-foreground: 230 17% 12%;
-  --sidebar-border: 240 14% 89%;
-  --sidebar-ring: 231 48% 40%;
-
-  --chart-1: 231 48% 40%;
-  --chart-2: 152 69% 36%;
-  --chart-3: 220 9% 46%;
-  --chart-4: 221 83% 53%;
-  --chart-5: 38 92% 55%;
-
-  --cc-radius-sm: 12px;
-  --cc-radius: 16px;
-  --cc-radius-lg: 20px;
-}
-
-/* ============================================================
-   DARK (aplicado quando <html class="dark">)
-   ============================================================ */
+:root,
 .dark {
-  --primary: 231 60% 60%;
+  /* Core brand */
+  --primary: 231 48% 52%;
   --primary-foreground: 0 0% 100%;
-  --primary-hover: 231 60% 54%;
+  --primary-hover: 231 48% 46%;
 
-  --accent: 230 14% 13%;
+  /* Surfaces — V3 §3.3 */
+  --background: 222 35% 7%;        /* #0B0F1A deep navy-black */
+  --foreground: 0 0% 93%;
+  --card: 230 12% 9%;              /* #11131A */
+  --card-foreground: 0 0% 93%;
+  --popover: 230 12% 9%;
+  --popover-foreground: 0 0% 93%;
+  --elevated: 230 12% 11%;
+  --secondary: 230 8% 14%;
+  --secondary-foreground: 0 0% 93%;
+  --muted: 230 8% 14%;
+  --muted-foreground: 230 8% 62%;
+  --accent: 230 8% 14%;
   --accent-foreground: 0 0% 96%;
 
-  --background: 230 35% 4%;
-  --foreground: 0 0% 96%;
-  --card: 230 22% 8%;
-  --card-foreground: 0 0% 96%;
-  --popover: 230 22% 8%;
-  --popover-foreground: 0 0% 96%;
-  --elevated: 230 18% 11%;
-  --secondary: 230 14% 13%;
-  --secondary-foreground: 0 0% 96%;
-  --muted: 230 14% 12%;
-  --muted-foreground: 230 8% 62%;
-
-  --border: 230 14% 14%;
-  --input: 230 14% 14%;
+  --border: 230 8% 15%;
+  --input: 230 8% 15%;
   --ring: 231 60% 55%;
 
-  --success: 152 70% 50%;
+  /* Semantic — V3 §3.2 */
+  --success: 152 69% 46%;
   --warning: 38 92% 55%;
   --destructive: 0 72% 56%;
   --destructive-foreground: 0 0% 100%;
+  --info: 221 83% 62%;
+  --engagement: 330 81% 62%;
   --neutral: 220 9% 56%;
 
-  --sidebar-background: 230 30% 5%;
-  --sidebar-foreground: 0 0% 92%;
-  --sidebar-primary: 231 60% 60%;
+  --radius: 0.75rem;
+
+  /* Sidebar — V3 §3.4 */
+  --sidebar-background: 230 15% 4%;
+  --sidebar-foreground: 230 8% 60%;
+  --sidebar-primary: 231 48% 52%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 230 16% 12%;
+  --sidebar-accent: 230 8% 12%;
   --sidebar-accent-foreground: 0 0% 96%;
-  --sidebar-border: 230 14% 13%;
+  --sidebar-border: 230 8% 15%;
   --sidebar-ring: 231 60% 55%;
 
-  --chart-1: 231 60% 60%;
-  --chart-2: 152 70% 50%;
+  /* Charts — V3 §3.5 */
+  --chart-1: 231 48% 52%;
+  --chart-2: 152 69% 46%;
   --chart-3: 220 9% 56%;
-  --chart-4: 221 83% 60%;
+  --chart-4: 221 83% 53%;
   --chart-5: 38 92% 55%;
+
+  /* Glow accents (RGB puro p/ rgba) — V3 §4.1 */
+  --cc-glow-indigo: 99 102 241;
+  --cc-glow-violet: 168 85 247;
+  --cc-glow-pink: 236 72 153;
+  --cc-glow-sky: 59 130 246;
+  --cc-glow-emerald: 52 211 153;
+
+  /* Radii — V3 §5.1 */
+  --cc-radius-sm: 12px;
+  --cc-radius: 16px;
+  --cc-radius-lg: 20px;
 }
