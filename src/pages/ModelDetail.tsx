@@ -225,23 +225,37 @@ export default function ModelDetail() {
             <TabsContent value="playlists">
               <div className="nx-card p-5">
                 <h3 className="font-semibold mb-1">Top 25 playlists por seguidores</h3>
-                <p className="text-xs text-muted-foreground mb-4">As playlists com maior alcance neste gênero.</p>
+                <p className="text-xs text-muted-foreground mb-4">
+                  Ranqueadas por seguidores reais (Spotify Web API). Sem seguidores = ainda não enriquecida.
+                </p>
                 {model.playlists_dominantes.length === 0 && <EmptyState />}
                 <div className="grid sm:grid-cols-2 gap-2">
-                  {model.playlists_dominantes.map((p, i) => (
-                    <a key={p.url + i} href={p.url} target="_blank" rel="noreferrer"
-                       className="flex items-center gap-3 p-2.5 rounded-lg border border-border hover:border-accent/50 hover:bg-muted/30 transition-colors group">
-                      {p.imagem
-                        ? <img src={p.imagem} alt="" className="h-12 w-12 rounded object-cover shrink-0" loading="lazy" />
-                        : <div className="h-12 w-12 rounded bg-muted shrink-0" />
-                      }
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm truncate">{p.nome}</div>
-                        <div className="text-xs text-muted-foreground">{formatNumber(p.seguidores)} seguidores</div>
-                      </div>
-                      <ExternalLink className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-                    </a>
-                  ))}
+                  {model.playlists_dominantes.map((p, i) => {
+                    const f = p.seguidores ?? 0;
+                    const tier =
+                      f >= 10000 ? { cls: "bg-success/15 text-success border-success/30", label: "alto" } :
+                      f >= 1000  ? { cls: "bg-warning/15 text-warning border-warning/30", label: "médio" } :
+                                   { cls: "bg-muted text-muted-foreground border-border", label: f > 0 ? "baixo" : "n/d" };
+                    return (
+                      <a key={p.url + i} href={p.url} target="_blank" rel="noreferrer"
+                         className="flex items-center gap-3 p-2.5 rounded-lg border border-border hover:border-accent/50 hover:bg-muted/30 transition-colors group">
+                        {p.imagem
+                          ? <img src={p.imagem} alt="" className="h-12 w-12 rounded object-cover shrink-0" loading="lazy" />
+                          : <div className="h-12 w-12 rounded bg-muted shrink-0" />
+                        }
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-sm truncate">{p.nome}</div>
+                          <div className="text-xs text-muted-foreground flex items-center gap-2">
+                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded border text-[10px] font-mono ${tier.cls}`}>
+                              {formatNumber(f)} seguidores
+                            </span>
+                            {p.total_musicas != null && <span>{p.total_musicas} faixas</span>}
+                          </div>
+                        </div>
+                        <ExternalLink className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                      </a>
+                    );
+                  })}
                 </div>
               </div>
             </TabsContent>
