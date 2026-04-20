@@ -75,17 +75,28 @@ Deno.serve(async (req) => {
     const limit = Math.min(body.limit ?? 50, 100);
     const fetchTracks = body.fetch_tracks ?? true;
 
-    // Pega playlists pendentes
+    // Pega playlists pendentes — prioriza por posição (melhores primeiro) quando solicitado
     let q = supabase
       .from("search_results")
-      .select("id,genre_id,spotify_url,nome_playlist")
+      .select("id,genre_id,spotify_url,nome_playlist,posicao")
       .is("seguidores", null)
-      .not("spotify_url", "is", null)
-      .order("coletado_em", { ascending: false })
-      .limit(limit);
+      .not("spotify_url", "is", null);
     if (body.genre_id) q = q.eq("genre_id", body.genre_id);
-    const { data: pending, error: pErr } = await q;
+    q = body.prioritize
+      ? q.order("posicao", { ascending: true }).limit(limit)
+      : q.order("coletado_em", { ascending: false }).limit(limit);
+    let { data: pending, error: pErr } = await q;
     if (pErr) throw pErr;
+
+    // Boost: se keyword fornecida, sobe quem tem keyword no nome pro topo
+    if (pending && body.keyword) {
+      const kw = body.keyword.toLowerCase();
+      pending = [...pending].sort((a, b) => {
+        const aHas = (a.nome_playlist ?? "").toLowerCase().includes(kw) ? 0 : 1;
+        const bHas = (b.nome_playlist ?? "").toLowerCase().includes(kw) ? 0 : 1;
+        return aHas - bHas;
+      });
+    }
 
     console.log(`[enrich] genre=${body.genre_id ?? "all"} pending=${pending?.length ?? 0} limit=${limit}`);
 
