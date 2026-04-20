@@ -139,11 +139,42 @@ Deno.serve(async (req) => {
       ((history?.[1]?.palavras_chave as any[]) ?? []).map((k: any) => k.value)
     );
 
-    // ═══════════════ GERAR CARDS COM ROTAÇÃO ═══════════════
+    // ═══════════════ GERAR CARDS COM ROTAÇÃO POR SUBGÊNERO ═══════════════
+    // Pool global (fallback quando não há subgênero detectado)
     const valid: any[] = [];
     const kwLen = sortedKw.length;
     const trackLen = allTracks.length;
     const artistLen = allArtists.length;
+
+    // Pré-monta pools por subgênero (keywords + tracks isoladas, não misturam clusters)
+    const subPools = new Map<string, {
+      kws: { value: string; peso: number }[];
+      tracks: { nome: string; artista: string }[];
+      artists: string[];
+    }>();
+    for (const sg of subgeneros) {
+      const tot = (sg.top_keywords ?? []).reduce((s: number, k: any) => s + (k.count ?? 0), 0) || 1;
+      const kws = (sg.top_keywords ?? [])
+        .map((k: any) => ({
+          value: String(k.value ?? "").trim(),
+          peso: Math.round(((k.count ?? 0) / tot) * 1000) / 10,
+        }))
+        .filter((k: any) => k.value);
+      const tracks = (sg.top_tracks ?? []).map((t: any) => ({ nome: t.nome, artista: t.artista }));
+      const artistMapSg = new Map<string, number>();
+      for (const t of (sg.top_tracks ?? [])) {
+        const a = (t.artista ?? "").trim();
+        if (!a) continue;
+        artistMapSg.set(a, (artistMapSg.get(a) ?? 0) + (t.count ?? 1));
+      }
+      const artists = Array.from(artistMapSg.entries())
+        .sort((a, b) => b[1] - a[1])
+        .map(([n]) => n);
+      subPools.set(String(sg.slug ?? sg.nome).toLowerCase(), { kws, tracks, artists });
+    }
+
+    // Contador pra rotação por subgênero (cada sub tem seu próprio offset)
+    const subRotation = new Map<string, number>();
 
     for (let fi = 0; fi < sortedFormats.length && valid.length < MAX_RESULTS; fi++) {
       const fmt = sortedFormats[fi];
@@ -154,36 +185,46 @@ Deno.serve(async (req) => {
       if (freq < MIN_FREQ_PCT) continue;
       if (rep < MIN_REPETITIONS) continue;
 
-      // 🔄 ROTAÇÃO de keywords com wrap
-      if (kwLen < MIN_KEYWORDS) continue;
-      const kwStart = (valid.length * KW_PER_CARD) % kwLen;
+      // 🏷️ CLASSIFICA SUBGÊNERO do formato
+      const subInfo = classifySub(fmt.value);
+      const subKey = subInfo ? subInfo.slug.toLowerCase() : "_global";
+      const pool = subInfo ? subPools.get(subKey) : null;
+
+      // Decide pools: se há pool do subgênero com keywords/tracks suficientes, usa eles
+      // (não mistura mandelão com consciente). Se não, cai no global.
+      const useSubPool = !!pool && pool.kws.length >= MIN_KEYWORDS && pool.tracks.length > 0;
+      const kwSource = useSubPool ? pool!.kws : sortedKw.map(k => ({ value: k.value, peso: k.peso }));
+      const trackSource = useSubPool ? pool!.tracks : allTracks.map(t => ({ nome: t.nome, artista: t.artista }));
+      const artistSource = useSubPool ? pool!.artists : allArtists;
+
+      const kwSrcLen = kwSource.length;
+      const trkSrcLen = trackSource.length;
+      const artSrcLen = artistSource.length;
+      if (kwSrcLen < MIN_KEYWORDS) continue;
+
+      // 🔄 ROTAÇÃO independente por subgênero (cards do mesmo sub não repetem keywords)
+      const rotIdx = subRotation.get(subKey) ?? 0;
+      subRotation.set(subKey, rotIdx + 1);
+
+      const kwStart = (rotIdx * KW_PER_CARD) % kwSrcLen;
       const selectedKw: any[] = [];
-      for (let i = 0; i < KW_PER_CARD; i++) {
-        selectedKw.push(sortedKw[(kwStart + i) % kwLen]);
-      }
-      // dedup por value
-      const seen = new Set<string>();
-      const uniqKw = selectedKw.filter(k => {
-        if (seen.has(k.value)) return false;
-        seen.add(k.value); return true;
+      for (let i = 0; i < KW_PER_CARD; i++) selectedKw.push(kwSource[(kwStart + i) % kwSrcLen]);
+      const seenK = new Set<string>();
+      const uniqKw = selectedKw.filter((k: any) => {
+        if (!k?.value || seenK.has(k.value)) return false;
+        seenK.add(k.value); return true;
       });
       if (uniqKw.length < MIN_KEYWORDS) continue;
 
-      // 🔄 ROTAÇÃO de tracks
-      const tStart = trackLen ? (valid.length * TRACKS_PER_CARD) % trackLen : 0;
+      const tStart = trkSrcLen ? (rotIdx * TRACKS_PER_CARD) % trkSrcLen : 0;
       const tracks: any[] = [];
-      for (let i = 0; i < TRACKS_PER_CARD && i < trackLen; i++) {
-        tracks.push(allTracks[(tStart + i) % trackLen]);
-      }
+      for (let i = 0; i < TRACKS_PER_CARD && i < trkSrcLen; i++) tracks.push(trackSource[(tStart + i) % trkSrcLen]);
 
-      // 🔄 ROTAÇÃO de artistas
-      const aStart = artistLen ? (valid.length * 3) % artistLen : 0;
+      const aStart = artSrcLen ? (rotIdx * 3) % artSrcLen : 0;
       const artists: string[] = [];
-      for (let i = 0; i < 5 && i < artistLen; i++) {
-        artists.push(allArtists[(aStart + i) % artistLen]);
-      }
+      for (let i = 0; i < 5 && i < artSrcLen; i++) artists.push(artistSource[(aStart + i) % artSrcLen]);
 
-      // 📊 SCORE: freq*0.5 + rep*0.3 + diversidade_kw*5
+      // 📊 SCORE
       const score = (freq * 0.5) + (rep * 0.3) + (uniqKw.length * 5);
       const forca_nome = Math.min(100, Math.round(score));
 
@@ -192,23 +233,22 @@ Deno.serve(async (req) => {
       if (freq >= 6 && rep >= 5) confidence = "alta";
       else if (freq >= 4 && rep >= 3) confidence = "media";
 
-      // 📈 TREND vs versão anterior
+      // 📈 TREND
       let sinal = "estável";
       if (prevKwSet.size > 0) {
-        const novosKw = uniqKw.filter(k => !prevKwSet.has(k.value));
+        const novosKw = uniqKw.filter((k: any) => !prevKwSet.has(k.value));
         if (novosKw.length >= 2) sinal = "crescimento";
       } else if (history && history.length === 0) {
         sinal = "novo";
       }
 
-      // 📝 NOME BASE: usa o formato detectado real + gênero
-      // Ex: "top 50" + "funk" → "Top 50 Funk"
+      // 📝 NOME BASE
       const fmtTitle = titleCase(fmt.value);
       const nomeBase = fmtTitle.toLowerCase().includes(genre.nome.toLowerCase())
         ? fmtTitle
         : `${fmtTitle} ${titleCase(genre.nome)}`;
 
-      // 🎯 PLAYLISTS DE REFERÊNCIA: dominantes que contêm o formato no nome
+      // 🎯 PLAYLISTS DE REFERÊNCIA: dominantes que casam com o formato
       const fmtLower = fmt.value.toLowerCase();
       const refMatches = playlistsDom
         .filter((p: any) => String(p.nome ?? "").toLowerCase().includes(fmtLower))
@@ -223,7 +263,6 @@ Deno.serve(async (req) => {
         })
         .sort((a, b) => (b.seguidores ?? 0) - (a.seguidores ?? 0));
 
-      // Fallback: se nenhuma dominante bater no formato, usa as top dominantes do gênero
       const playlistsRef = (refMatches.length > 0 ? refMatches : playlistsDom.slice(0, 3).map((p: any) => {
         const meta = playlistsMetaMap.get(p.nome);
         return {
@@ -234,7 +273,6 @@ Deno.serve(async (req) => {
         };
       })).slice(0, 3);
 
-      // 📊 MÉTRICAS AGREGADAS
       const totalSeg = playlistsRef.reduce((s, p) => s + (p.seguidores ?? 0), 0);
       const mediaSeguidores = playlistsRef.length > 0 ? Math.round(totalSeg / playlistsRef.length) : 0;
 
@@ -244,7 +282,9 @@ Deno.serve(async (req) => {
         forca_nome,
         formato: fmt.value,
         formato_id: `fmt_${fi}`,
-        keywords_utilizadas: uniqKw.map(k => ({ value: k.value, peso: k.peso })),
+        // 🆕 SUBGÊNERO (null quando não classificável)
+        subgenero: subInfo ? { slug: subInfo.slug, nome: subInfo.nome } : null,
+        keywords_utilizadas: uniqKw.map((k: any) => ({ value: k.value, peso: k.peso })),
         base_musical: {
           top_musicas: tracks.map(t => ({ nome: t.nome, artista: t.artista })),
           artistas_principais: artists,
@@ -254,7 +294,6 @@ Deno.serve(async (req) => {
           media_seguidores: mediaSeguidores,
           total_referencias: playlistsRef.length,
         },
-        // DNA visual: vem do insights.dna_visual (camada 3, edge function analyze-genre-visual-dna)
         dna_capa: dnaVisual,
         justificativa: {
           frequencia_padrao_pct: Math.round(freq * 10) / 10,
