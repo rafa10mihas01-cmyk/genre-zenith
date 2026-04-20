@@ -249,6 +249,33 @@ export type Database = {
         }
         Relationships: []
       }
+      playlist_briefings: {
+        Row: {
+          briefings: Json
+          created_at: string
+          genre_id: string
+          id: string
+          metadata: Json | null
+          version: number
+        }
+        Insert: {
+          briefings?: Json
+          created_at?: string
+          genre_id: string
+          id?: string
+          metadata?: Json | null
+          version?: number
+        }
+        Update: {
+          briefings?: Json
+          created_at?: string
+          genre_id?: string
+          id?: string
+          metadata?: Json | null
+          version?: number
+        }
+        Relationships: []
+      }
       search_results: {
         Row: {
           apify_run_id: string | null
