@@ -41,17 +41,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                   </div>
                 </div>
                 <div className="flex flex-col min-w-0">
-                  <span
-                    className="font-display text-[15px] font-semibold leading-none bg-clip-text"
-                    style={{
-                      backgroundImage:
-                        "linear-gradient(135deg, hsl(var(--foreground)) 0%, #818cf8 100%)",
-                      WebkitBackgroundClip: "text",
-                      WebkitTextFillColor: "transparent",
-                      color: "transparent",
-                    }}
-                  >
-                    NexEngine
+                  <span className="font-display text-[15px] font-semibold leading-none text-foreground">
+                    Nex<span style={{ color: "#818cf8" }}>Engine</span>
                   </span>
                   <span
                     className="text-[10px] uppercase mt-1 text-muted-foreground"
