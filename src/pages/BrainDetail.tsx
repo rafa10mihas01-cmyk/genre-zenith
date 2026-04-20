@@ -360,7 +360,7 @@ export default function BrainDetail() {
           </div>
         }
         title={genre?.nome ?? NICHO_LABELS[slug] ?? slug}
-        subtitle={hasBriefing ? `${briefing.briefings.length} ${briefing.briefings.length === 1 ? "decisão qualificada" : "decisões qualificadas"} de ${briefing.metadata?.total_padroes_analisados ?? 0} padrões analisados.` : undefined}
+        subtitle={hasBriefing ? `${briefing.briefings.length} ${briefing.briefings.length === 1 ? "decisão qualificada" : "decisões qualificadas"} de ${briefing.metadata?.total_padroes_analisados ?? 0} padrões analisados${activeCluster ? ` • subgrupo ${activeCluster.label}` : ""}.` : undefined}
         actions={
           <>
             <Button
