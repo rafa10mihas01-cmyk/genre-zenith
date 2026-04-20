@@ -1,68 +1,73 @@
-/* NexCreatorX V3 — Brand tokens (HSL only, no hex in components)
-   DARK is the default and only theme for /admin per V3 Spec §3.3 */
+/* NexCreatorX V3 — Brand tokens (HSL only). Dark-only. */
 
 :root,
 .dark {
-  /* Core brand */
-  --primary: 231 48% 52%;
-  --primary-foreground: 0 0% 100%;
-  --primary-hover: 231 48% 46%;
+  /* ===== Core color tokens (exatos do brief) ===== */
+  --background: 222 28% 10%;
+  --foreground: 210 40% 98%;
 
-  /* Surfaces — V3 §3.3 (ajustado pra contraste legível) */
-  --background: 222 30% 9%;
-  --foreground: 0 0% 98%;
-  --card: 230 18% 12%;
-  --card-foreground: 0 0% 98%;
-  --popover: 230 18% 12%;
-  --popover-foreground: 0 0% 98%;
-  --elevated: 230 16% 15%;
-  --secondary: 230 12% 18%;
-  --secondary-foreground: 0 0% 98%;
-  --muted: 230 12% 18%;
-  --muted-foreground: 230 10% 72%;
-  --accent: 230 12% 18%;
-  --accent-foreground: 0 0% 98%;
+  --card: 222 28% 13%;
+  --card-foreground: 210 40% 98%;
 
-  --border: 230 10% 22%;
-  --input: 230 10% 22%;
-  --ring: 231 60% 60%;
+  --popover: 222 28% 13%;
+  --popover-foreground: 210 40% 98%;
 
-  /* Semantic — V3 §3.2 */
+  --primary: 217 91% 60%;
+  --primary-foreground: 222 47% 11%;
+  --primary-hover: 217 91% 54%;
+
+  --secondary: 217 32% 17%;
+  --secondary-foreground: 210 40% 98%;
+
+  --muted: 217 32% 17%;
+  --muted-foreground: 215 20% 65%;
+
+  --accent: 217 32% 17%;
+  --accent-foreground: 210 40% 98%;
+
+  --destructive: 0 62% 50%;
+  --destructive-foreground: 210 40% 98%;
+
+  --border: 217 32% 20%;
+  --input: 217 32% 17%;
+  --ring: 217 91% 60%;
+
+  --elevated: 222 28% 15%;
+
+  /* ===== Semantic ===== */
   --success: 152 69% 46%;
   --warning: 38 92% 55%;
-  --destructive: 0 72% 56%;
-  --destructive-foreground: 0 0% 100%;
-  --info: 221 83% 62%;
+  --info: 217 91% 60%;
   --engagement: 330 81% 62%;
-  --neutral: 220 9% 56%;
+  --neutral: 215 20% 65%;
 
   --radius: 0.75rem;
 
-  /* Sidebar — V3 §3.4 (clareado pra legibilidade) */
-  --sidebar-background: 230 22% 7%;
-  --sidebar-foreground: 230 10% 78%;
-  --sidebar-primary: 231 60% 62%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 230 14% 16%;
-  --sidebar-accent-foreground: 0 0% 98%;
-  --sidebar-border: 230 10% 20%;
-  --sidebar-ring: 231 60% 60%;
+  /* ===== Sidebar ===== */
+  --sidebar-background: 222 28% 8%;
+  --sidebar-foreground: 210 40% 98%;
+  --sidebar-primary: 217 91% 60%;
+  --sidebar-primary-foreground: 222 47% 11%;
+  --sidebar-accent: 217 32% 17%;
+  --sidebar-accent-foreground: 210 40% 98%;
+  --sidebar-border: 217 32% 20%;
+  --sidebar-ring: 217 91% 60%;
 
-  /* Charts — V3 §3.5 */
-  --chart-1: 231 48% 52%;
+  /* ===== Charts ===== */
+  --chart-1: 217 91% 60%;
   --chart-2: 152 69% 46%;
-  --chart-3: 220 9% 56%;
-  --chart-4: 221 83% 53%;
-  --chart-5: 38 92% 55%;
+  --chart-3: 38 92% 55%;
+  --chart-4: 330 81% 62%;
+  --chart-5: 215 20% 65%;
 
-  /* Glow accents (RGB puro p/ rgba) — V3 §4.1 */
+  /* ===== Glow accents (RGB para rgba) ===== */
   --cc-glow-indigo: 99 102 241;
   --cc-glow-violet: 168 85 247;
   --cc-glow-pink: 236 72 153;
   --cc-glow-sky: 59 130 246;
   --cc-glow-emerald: 52 211 153;
 
-  /* Radii — V3 §5.1 */
+  /* Radii */
   --cc-radius-sm: 12px;
   --cc-radius: 16px;
   --cc-radius-lg: 20px;
