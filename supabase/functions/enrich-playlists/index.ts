@@ -76,27 +76,40 @@ Deno.serve(async (req) => {
     const limit = Math.min(body.limit ?? 50, 100);
     const fetchTracks = body.fetch_tracks ?? true;
 
-    // Pega playlists pendentes — prioriza por posição (melhores primeiro) quando solicitado
-    let q = supabase
-      .from("search_results")
-      .select("id,genre_id,spotify_url,nome_playlist,posicao")
-      .is("seguidores", null)
-      .not("spotify_url", "is", null);
-    if (body.genre_id) q = q.eq("genre_id", body.genre_id);
-    q = body.prioritize
-      ? q.order("posicao", { ascending: true }).limit(limit)
-      : q.order("coletado_em", { ascending: false }).limit(limit);
-    let { data: pending, error: pErr } = await q;
-    if (pErr) throw pErr;
+    // Pega playlists pendentes — modo seletivo (result_ids) tem prioridade
+    let pending: any[] | null = null;
+    if (body.result_ids && body.result_ids.length > 0) {
+      const { data, error: pErr } = await supabase
+        .from("search_results")
+        .select("id,genre_id,spotify_url,nome_playlist,posicao")
+        .in("id", body.result_ids.slice(0, limit))
+        .is("seguidores", null)
+        .not("spotify_url", "is", null);
+      if (pErr) throw pErr;
+      pending = data;
+    } else {
+      let q = supabase
+        .from("search_results")
+        .select("id,genre_id,spotify_url,nome_playlist,posicao")
+        .is("seguidores", null)
+        .not("spotify_url", "is", null);
+      if (body.genre_id) q = q.eq("genre_id", body.genre_id);
+      q = body.prioritize
+        ? q.order("posicao", { ascending: true }).limit(limit)
+        : q.order("coletado_em", { ascending: false }).limit(limit);
+      const { data, error: pErr } = await q;
+      if (pErr) throw pErr;
+      pending = data;
 
-    // Boost: se keyword fornecida, sobe quem tem keyword no nome pro topo
-    if (pending && body.keyword) {
-      const kw = body.keyword.toLowerCase();
-      pending = [...pending].sort((a, b) => {
-        const aHas = (a.nome_playlist ?? "").toLowerCase().includes(kw) ? 0 : 1;
-        const bHas = (b.nome_playlist ?? "").toLowerCase().includes(kw) ? 0 : 1;
-        return aHas - bHas;
-      });
+      // Boost: se keyword fornecida, sobe quem tem keyword no nome pro topo
+      if (pending && body.keyword) {
+        const kw = body.keyword.toLowerCase();
+        pending = [...pending].sort((a, b) => {
+          const aHas = (a.nome_playlist ?? "").toLowerCase().includes(kw) ? 0 : 1;
+          const bHas = (b.nome_playlist ?? "").toLowerCase().includes(kw) ? 0 : 1;
+          return aHas - bHas;
+        });
+      }
     }
 
     console.log(`[enrich] genre=${body.genre_id ?? "all"} pending=${pending?.length ?? 0} limit=${limit}`);
