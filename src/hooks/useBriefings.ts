@@ -14,6 +14,13 @@ export type DnaVisual = {
   analyzed_at?: string;
 };
 
+export type PlaylistRef = {
+  nome: string;
+  seguidores: number;
+  spotify_url: string | null;
+  imagem_url: string | null;
+};
+
 export type PlaylistBriefing = {
   nome: string;
   forca_nome: number;
@@ -24,6 +31,11 @@ export type PlaylistBriefing = {
   base_musical: {
     top_musicas: { nome: string; artista: string }[];
     artistas_principais: string[];
+  };
+  playlists_referencia?: PlaylistRef[];
+  metricas?: {
+    media_seguidores: number;
+    total_referencias: number;
   };
   dna_capa: DnaVisual | null;
   justificativa: {
