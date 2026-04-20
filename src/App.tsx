@@ -7,14 +7,13 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AppLayout from "@/components/AppLayout";
 import Login from "./pages/Login";
-import Brain from "./pages/Brain";
+import BrainHub from "./pages/BrainHub";
 import BrainDetail from "./pages/BrainDetail";
 import Dashboard from "./pages/Dashboard";
 import Genres from "./pages/Genres";
 import Collect from "./pages/Collect";
 import Models from "./pages/Models";
 import ModelDetail from "./pages/ModelDetail";
-import Placeholder from "./pages/Placeholder";
 import Logs from "./pages/Logs";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
@@ -37,7 +36,7 @@ const App = () => (
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/" element={<Protected><Dashboard /></Protected>} />
-            <Route path="/brain" element={<Protected><Brain /></Protected>} />
+            <Route path="/brain" element={<Protected><BrainHub /></Protected>} />
             <Route path="/brain/:slug" element={<Protected><BrainDetail /></Protected>} />
             <Route path="/dashboard" element={<Protected><Dashboard /></Protected>} />
             <Route path="/genres" element={<Protected><Genres /></Protected>} />
