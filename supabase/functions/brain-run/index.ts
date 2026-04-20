@@ -64,6 +64,48 @@ async function callFn(name: string, body: unknown) {
   catch { return { ok: r.ok, data: { raw: txt }, status: r.status }; }
 }
 
+// Garante que o briefing seja gerado SEMPRE que existir um genre_model.
+// Tenta até 2x. Não lança — apenas loga em stages e collection_logs.
+async function ensureBriefing(supabase: any, gid: string, stages: Record<string, unknown>) {
+  // Pré-condição: precisa existir genre_models pro briefing rodar
+  const { data: model } = await supabase
+    .from("genre_models").select("id").eq("genre_id", gid).maybeSingle();
+  if (!model) {
+    stages.briefing = { ok: false, skipped: true, reason: "sem genre_model" };
+    await supabase.from("collection_logs").insert({
+      genre_id: gid, acao: "generate-briefing", status: "erro",
+      mensagem: "Briefing pulado: genre_model inexistente",
+    }).catch(() => {});
+    return;
+  }
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const br = await callFn("generate-playlists-briefing", { genre_id: gid });
+      const d = br.data as any;
+      if (br.ok && d?.ok) {
+        stages.briefing = { ok: true, version: d.version, count: d.count, attempt };
+        return;
+      }
+      stages.briefing = { ok: false, attempt, error: d?.error ?? `HTTP ${br.status}` };
+      if (attempt === 2) {
+        await supabase.from("collection_logs").insert({
+          genre_id: gid, acao: "generate-briefing", status: "erro",
+          mensagem: `Briefing falhou após 2 tentativas: ${(d?.error ?? `HTTP ${br.status}`).toString().slice(0, 400)}`,
+        }).catch(() => {});
+      }
+    } catch (e) {
+      stages.briefing = { ok: false, attempt, error: (e as Error).message };
+      if (attempt === 2) {
+        await supabase.from("collection_logs").insert({
+          genre_id: gid, acao: "generate-briefing", status: "erro",
+          mensagem: `Briefing exception: ${(e as Error).message.slice(0, 400)}`,
+        }).catch(() => {});
+      }
+    }
+    if (attempt === 1) await new Promise((r) => setTimeout(r, 1500));
+  }
+}
+
 // ---------- Job state via collection_logs ----------
 // acao = `brain-job:${jobId}`, mensagem = JSON {status, stage, progress, result?, error?}
 async function setJob(
