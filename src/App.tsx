@@ -13,6 +13,8 @@ import Collect from "./pages/Collect";
 import Models from "./pages/Models";
 import ModelDetail from "./pages/ModelDetail";
 import Placeholder from "./pages/Placeholder";
+import Logs from "./pages/Logs";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -37,8 +39,8 @@ const App = () => (
             <Route path="/collect" element={<Protected><Collect /></Protected>} />
             <Route path="/models" element={<Protected><Models /></Protected>} />
             <Route path="/models/:genreId" element={<Protected><ModelDetail /></Protected>} />
-            <Route path="/logs" element={<Protected><Placeholder title="Logs de Coleta" subtitle="Histórico completo com filtros" phase="Fase 4" /></Protected>} />
-            <Route path="/settings" element={<Protected><Placeholder title="Configurações" subtitle="API key, delays, teste de conexão" phase="Fase 4" /></Protected>} />
+            <Route path="/logs" element={<Protected><Logs /></Protected>} />
+            <Route path="/settings" element={<Protected><Settings /></Protected>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { collectGenre, generateTerms } from "@/lib/engine";
 import { StatusBadge } from "@/components/StatusBadge";
 import { timeAgo } from "@/lib/format";
+import { getCollectSettings } from "@/pages/Settings";
 
 interface LogRow {
   id: string;
