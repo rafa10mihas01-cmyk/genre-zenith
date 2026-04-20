@@ -1,117 +1,115 @@
 /* NexCreatorX V3 — Brand tokens (HSL only, no hex in components) */
-@layer base {
-  :root,
-  .dark {
-    /* Core brand — indigo */
-    --primary: 231 48% 52%;
-    --primary-foreground: 0 0% 100%;
-    --primary-hover: 231 48% 46%;
+:root,
+.dark {
+  /* Core brand — indigo */
+  --primary: 231 48% 52%;
+  --primary-foreground: 0 0% 100%;
+  --primary-hover: 231 48% 46%;
 
-    /* Accent (dark) — neutro escuro selecionados */
-    --accent: 230 8% 14%;
-    --accent-foreground: 0 0% 96%;
+  /* Accent (dark) — neutro escuro selecionados */
+  --accent: 230 8% 14%;
+  --accent-foreground: 0 0% 96%;
 
-    /* Backgrounds (Command Center base) */
-    --background: 222 35% 5%;          /* #070B14 baseline */
-    --foreground: 0 0% 96%;
-    --card: 230 12% 9%;
-    --card-foreground: 0 0% 96%;
-    --popover: 230 12% 9%;
-    --popover-foreground: 0 0% 96%;
-    --elevated: 230 10% 12%;
-    --secondary: 230 8% 14%;
-    --secondary-foreground: 0 0% 96%;
-    --muted: 230 8% 14%;
-    --muted-foreground: 230 6% 62%;
+  /* Backgrounds (Command Center base) */
+  --background: 222 35% 5%;
+  --foreground: 0 0% 96%;
+  --card: 230 12% 9%;
+  --card-foreground: 0 0% 96%;
+  --popover: 230 12% 9%;
+  --popover-foreground: 0 0% 96%;
+  --elevated: 230 10% 12%;
+  --secondary: 230 8% 14%;
+  --secondary-foreground: 0 0% 96%;
+  --muted: 230 8% 14%;
+  --muted-foreground: 230 6% 62%;
 
-    /* Borders + inputs */
-    --border: 230 8% 16%;
-    --input: 230 8% 16%;
-    --ring: 231 48% 52%;
+  /* Borders + inputs */
+  --border: 230 8% 16%;
+  --input: 230 8% 16%;
+  --ring: 231 48% 52%;
 
-    /* Status semantics */
-    --success: 152 69% 46%;
-    --warning: 38 92% 55%;
-    --destructive: 0 72% 56%;
-    --destructive-foreground: 0 0% 100%;
-    --neutral: 220 9% 46%;
+  /* Status semantics */
+  --success: 152 69% 46%;
+  --warning: 38 92% 55%;
+  --destructive: 0 72% 56%;
+  --destructive-foreground: 0 0% 100%;
+  --neutral: 220 9% 46%;
 
-    --radius: 0.75rem;
+  --radius: 0.75rem;
 
-    /* Sidebar (Linear/Notion-style) */
-    --sidebar-background: 230 10% 7%;
-    --sidebar-foreground: 0 0% 90%;
-    --sidebar-primary: 231 48% 52%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 230 8% 13%;
-    --sidebar-accent-foreground: 0 0% 96%;
-    --sidebar-border: 230 8% 15%;
-    --sidebar-ring: 231 48% 52%;
+  /* Sidebar (Linear/Notion-style) */
+  --sidebar-background: 230 10% 7%;
+  --sidebar-foreground: 0 0% 90%;
+  --sidebar-primary: 231 48% 52%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 230 8% 13%;
+  --sidebar-accent-foreground: 0 0% 96%;
+  --sidebar-border: 230 8% 15%;
+  --sidebar-ring: 231 48% 52%;
 
-    /* Chart palette */
-    --chart-1: 231 48% 52%;  /* indigo */
-    --chart-2: 152 69% 46%;  /* green */
-    --chart-3: 220 9% 56%;   /* gray */
-    --chart-4: 221 83% 60%;  /* blue */
-    --chart-5: 38 92% 55%;   /* amber */
+  /* Chart palette */
+  --chart-1: 231 48% 52%;
+  --chart-2: 152 69% 46%;
+  --chart-3: 220 9% 56%;
+  --chart-4: 221 83% 60%;
+  --chart-5: 38 92% 55%;
 
-    /* Command Center glow RGB triplets (used in rgba()) */
-    --cc-glow-indigo: 99, 102, 241;
-    --cc-glow-violet: 168, 85, 247;
-    --cc-glow-blue: 59, 130, 246;
-    --cc-glow-emerald: 52, 211, 153;
-    --cc-glow-amber: 251, 191, 36;
-    --cc-glow-rose: 244, 63, 94;
+  /* Command Center glow RGB triplets */
+  --cc-glow-indigo: 99, 102, 241;
+  --cc-glow-violet: 168, 85, 247;
+  --cc-glow-blue: 59, 130, 246;
+  --cc-glow-emerald: 52, 211, 153;
+  --cc-glow-amber: 251, 191, 36;
+  --cc-glow-rose: 244, 63, 94;
 
-    /* Command Center radii */
-    --cc-radius-sm: 12px;
-    --cc-radius: 16px;
-    --cc-radius-lg: 20px;
-  }
+  /* Command Center radii */
+  --cc-radius-sm: 12px;
+  --cc-radius: 16px;
+  --cc-radius-lg: 20px;
+}
 
-  .light {
-    --primary: 231 48% 40%;
-    --primary-foreground: 0 0% 100%;
-    --primary-hover: 231 48% 35%;
+.light {
+  --primary: 231 48% 40%;
+  --primary-foreground: 0 0% 100%;
+  --primary-hover: 231 48% 35%;
 
-    --accent: 230 14% 94%;
-    --accent-foreground: 230 17% 12%;
+  --accent: 230 14% 94%;
+  --accent-foreground: 230 17% 12%;
 
-    --background: 0 0% 100%;
-    --foreground: 230 17% 12%;
-    --card: 240 20% 99%;
-    --card-foreground: 230 17% 12%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 230 17% 12%;
-    --elevated: 240 20% 97%;
-    --secondary: 240 16% 95%;
-    --secondary-foreground: 230 17% 12%;
-    --muted: 240 16% 95%;
-    --muted-foreground: 230 6% 42%;
+  --background: 0 0% 100%;
+  --foreground: 230 17% 12%;
+  --card: 240 20% 99%;
+  --card-foreground: 230 17% 12%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 230 17% 12%;
+  --elevated: 240 20% 97%;
+  --secondary: 240 16% 95%;
+  --secondary-foreground: 230 17% 12%;
+  --muted: 240 16% 95%;
+  --muted-foreground: 230 6% 42%;
 
-    --border: 240 14% 89%;
-    --input: 240 14% 89%;
-    --ring: 231 48% 40%;
+  --border: 240 14% 89%;
+  --input: 240 14% 89%;
+  --ring: 231 48% 40%;
 
-    --success: 152 69% 36%;
-    --warning: 38 92% 50%;
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 100%;
-    --neutral: 220 9% 46%;
+  --success: 152 69% 36%;
+  --warning: 38 92% 50%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --neutral: 220 9% 46%;
 
-    --sidebar-background: 240 20% 98%;
-    --sidebar-foreground: 230 17% 12%;
-    --sidebar-primary: 231 48% 40%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 16% 93%;
-    --sidebar-accent-foreground: 230 17% 12%;
-    --sidebar-border: 240 14% 89%;
-    --sidebar-ring: 231 48% 40%;
+  --sidebar-background: 240 20% 98%;
+  --sidebar-foreground: 230 17% 12%;
+  --sidebar-primary: 231 48% 40%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 240 16% 93%;
+  --sidebar-accent-foreground: 230 17% 12%;
+  --sidebar-border: 240 14% 89%;
+  --sidebar-ring: 231 48% 40%;
 
-    --chart-1: 231 48% 40%;
-    --chart-2: 152 69% 36%;
-    --chart-3: 220 9% 46%;
-    --chart-4: 221 83% 53%;
-    --chart-5: 38 92% 50%;
-  }
+  --chart-1: 231 48% 40%;
+  --chart-2: 152 69% 36%;
+  --chart-3: 220 9% 46%;
+  --chart-4: 221 83% 53%;
+  --chart-5: 38 92% 50%;
 }
