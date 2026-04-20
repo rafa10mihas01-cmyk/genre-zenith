@@ -3,19 +3,27 @@ import { Link, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Brain, ExternalLink, RefreshCw, Sparkles, TrendingUp, Music, Hash, ListMusic } from "lucide-react";
+import { ArrowLeft, Brain, ExternalLink, RefreshCw, Sparkles, TrendingUp, Music, Hash, ListMusic, Wand2, Loader2, Lightbulb, Tag, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { formatNumber, timeAgo } from "@/lib/format";
 
 interface KW { value: string; count: number }
 interface Playlist { nome: string; seguidores: number; url: string; imagem?: string; total_musicas?: number }
 interface Track { nome: string; artista: string; count: number }
+interface AIInsights {
+  resumo: string;
+  tendencias: string[];
+  oportunidades_seo: string[];
+  sugestoes_nomes: string[];
+  generated_at: string;
+}
 interface Insights {
   total_playlists_analisadas: number;
   total_tracks_analisadas: number;
   media_seguidores: number;
   diversidade_tracks: number;
   maior_playlist: Playlist | null;
+  ai?: AIInsights;
 }
 
 export default function ModelDetail() {
