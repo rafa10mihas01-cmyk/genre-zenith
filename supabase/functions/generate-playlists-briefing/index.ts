@@ -1,6 +1,7 @@
 // generate-playlists-briefing — motor de decisão honesto
 // Filtros de qualidade + score transparente + confidence + IA refina nomes
 // Retorna entre 0 e 10 playlists (NUNCA força fillers)
+// V2: Priorização por tamanho (tiers de seguidores) + pesos log10
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -17,6 +18,11 @@ const MAX_RESULTS = 10;
 const KW_PER_CARD = 3;
 const TRACKS_PER_CARD = 5;
 
+// 🆕 TIERS DE PRIORIZAÇÃO POR SEGUIDORES
+const TIER1_MIN = 500_000;
+const TIER2_MIN = 100_000;
+const MIN_PLAYLISTS_DESEJADO = 8;
+
 function j(payload: any, status = 200) {
   return new Response(JSON.stringify(payload), {
     status, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -26,6 +32,18 @@ function j(payload: any, status = 200) {
 // Capitaliza para nomes mais legíveis
 function titleCase(s: string): string {
   return s.split(" ").map(w => w.length > 2 ? w[0].toUpperCase() + w.slice(1) : w).join(" ");
+}
+
+// 🆕 Peso por popularidade: log10(max(seguidores, 1000))
+function pesoPlaylist(seguidores: number): number {
+  return Math.log10(Math.max(seguidores ?? 0, 1000));
+}
+
+// 🆕 Classifica playlist em tier
+function classificaTier(seguidores: number): 1 | 2 | 3 {
+  if ((seguidores ?? 0) >= TIER1_MIN) return 1;
+  if ((seguidores ?? 0) >= TIER2_MIN) return 2;
+  return 3;
 }
 
 Deno.serve(async (req) => {
@@ -44,8 +62,8 @@ Deno.serve(async (req) => {
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
   try {
-    // ═══════════════ CARREGAR DADOS ═══════════════
-    const [{ data: genre }, { data: model }, { data: history }, { count: corpusCount }] = await Promise.all([
+    // ═══════════════ CARREGAR DADOS BASE ═══════════════
+    const [{ data: genre }, { data: model }, { data: history }] = await Promise.all([
       supabase.from("genres").select("id,nome,slug").eq("id", body.genre_id).single(),
       supabase.from("genre_models").select("*").eq("genre_id", body.genre_id).maybeSingle(),
       supabase.from("genre_models_history")
@@ -53,126 +71,168 @@ Deno.serve(async (req) => {
         .eq("genre_id", body.genre_id)
         .order("version", { ascending: false })
         .limit(2),
-      supabase.from("search_results")
-        .select("id", { count: "exact", head: true })
-        .eq("genre_id", body.genre_id),
     ]);
 
     if (!genre) return j({ error: "Gênero não encontrado" }, 404);
     if (!model) return j({ error: "Sem modelo. Execute analyze-genre primeiro." }, 400);
 
-    let palavrasChave = (model.palavras_chave as any[] ?? []);
-    let padroesNome = (model.padroes_nome as any[] ?? []);
-    let playlistsDom = (model.playlists_dominantes as any[] ?? []);
-    let musicasRec = (model.musicas_recorrentes as any[] ?? []);
+    // ═══════════════ CARREGAR PLAYLISTS DO ESCOPO (cluster ou todas) ═══════════════
+    // Sempre carregamos a lista bruta para aplicar tiers + pesos
+    let scopeQuery = supabase
+      .from("search_results")
+      .select("id,nome_playlist,seguidores,spotify_url,imagem_url,total_musicas")
+      .eq("genre_id", body.genre_id);
 
-    // ═══════════════ MODO CLUSTER: re-deriva tudo só do subgrupo ═══════════════
     if (isClusterMode) {
-      const STOPWORDS = new Set([
-        "a","o","as","os","um","uma","de","da","do","das","dos","e","em","no","na","nos","nas",
-        "para","por","com","sem","que","se","sua","seu","mais","melhor","melhores","the","of","and",
-        "to","in","on","for","with","best","top","mix","playlist","playlists","música","musicas",
-        "músicas","musica","hits","hit","new","novo","nova","novos","novas",
-      ]);
-      const tokenize = (s: string) => (s || "")
-        .toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-        .replace(/[^a-z0-9\s]/g, " ").split(/\s+/)
-        .filter(w => w.length >= 3 && !STOPWORDS.has(w));
-      const topN = <T extends string>(arr: T[], n: number) => {
-        const m = new Map<T, number>();
-        for (const v of arr) m.set(v, (m.get(v) ?? 0) + 1);
-        return Array.from(m.entries()).sort((a, b) => b[1] - a[1]).slice(0, n)
-          .map(([value, count]) => ({ value, count }));
-      };
-
-      // Carrega só playlists do cluster + suas tracks
-      const { data: clusterResults } = await supabase
-        .from("search_results")
-        .select("id,nome_playlist,seguidores,spotify_url,imagem_url,total_musicas")
-        .in("id", clusterPlaylistIds);
-
-      const resultIds = (clusterResults ?? []).map(r => r.id);
-      const { data: clusterTracks } = resultIds.length > 0
-        ? await supabase.from("search_tracks")
-            .select("nome_musica,artista").in("result_id", resultIds).limit(10000)
-        : { data: [] as any[] };
-
-      const names = (clusterResults ?? []).map(r => r.nome_playlist).filter(Boolean) as string[];
-      const allTokens = names.flatMap(tokenize);
-      palavrasChave = topN(allTokens, 30);
-
-      const bigrams: string[] = [];
-      for (const n of names) {
-        const t = tokenize(n);
-        for (let i = 0; i < t.length - 1; i++) bigrams.push(`${t[i]} ${t[i + 1]}`);
-      }
-      padroesNome = topN(bigrams, 20);
-
-      const seenUrl = new Set<string>();
-      playlistsDom = (clusterResults ?? [])
-        .filter(r => r.spotify_url && !seenUrl.has(r.spotify_url) && (seenUrl.add(r.spotify_url), true))
-        .sort((a, b) => (b.seguidores ?? -1) - (a.seguidores ?? -1))
-        .slice(0, 25)
-        .map(r => ({
-          nome: r.nome_playlist,
-          seguidores: r.seguidores ?? 0,
-          spotify_url: r.spotify_url,
-          imagem_url: r.imagem_url,
-          total_musicas: r.total_musicas,
-        }));
-
-      const tk = (t: any) => `${(t.nome_musica ?? "").toLowerCase().trim()}||${(t.artista ?? "").toLowerCase().trim()}`;
-      const trackMap = new Map<string, { nome: string; artista: string; count: number }>();
-      for (const t of clusterTracks ?? []) {
-        const k = tk(t);
-        if (!k || k === "||") continue;
-        const cur = trackMap.get(k);
-        if (cur) cur.count++;
-        else trackMap.set(k, { nome: t.nome_musica, artista: t.artista, count: 1 });
-      }
-      musicasRec = Array.from(trackMap.values()).sort((a, b) => b.count - a.count).slice(0, 50);
+      scopeQuery = scopeQuery.in("id", clusterPlaylistIds);
     }
 
-    // ═══════════════ ENRIQUECER PLAYLISTS DOMINANTES COM METADADOS REAIS ═══════════════
-    const domNames = playlistsDom.map((p: any) => p.nome).filter(Boolean);
+    const { data: scopeResults } = await scopeQuery.limit(5000);
+    const allScopePlaylists = scopeResults ?? [];
+
+    // 🆕 ═══════════════ APLICAR TIERS DE PRIORIZAÇÃO ═══════════════
+    const tier1 = allScopePlaylists.filter(p => (p.seguidores ?? 0) >= TIER1_MIN);
+    const tier2 = allScopePlaylists.filter(p => (p.seguidores ?? 0) >= TIER2_MIN && (p.seguidores ?? 0) < TIER1_MIN);
+    const tier3 = allScopePlaylists.filter(p => (p.seguidores ?? 0) < TIER2_MIN);
+
+    // Selecionar playlists para análise: começa com Tier 1, agrega conforme necessário
+    let selectedPlaylists: typeof allScopePlaylists = [];
+    let tierPrincipal: 1 | 2 | 3 = 1;
+    let fallback = false;
+    let minFollowersAplicado = TIER1_MIN;
+
+    if (tier1.length >= MIN_PLAYLISTS_DESEJADO) {
+      selectedPlaylists = tier1;
+      tierPrincipal = 1;
+    } else if (tier1.length + tier2.length >= MIN_PLAYLISTS_DESEJADO) {
+      selectedPlaylists = [...tier1, ...tier2];
+      tierPrincipal = 2;
+      minFollowersAplicado = TIER2_MIN;
+      fallback = tier1.length === 0;
+    } else {
+      // Tier 3: usa as maiores disponíveis (ordena por seguidores desc)
+      selectedPlaylists = [...allScopePlaylists].sort((a, b) => (b.seguidores ?? 0) - (a.seguidores ?? 0));
+      tierPrincipal = 3;
+      minFollowersAplicado = 0;
+      fallback = true;
+    }
+
+    const selectedIds = new Set(selectedPlaylists.map(p => p.id));
+    const totalPlaylists = Math.max(selectedPlaylists.length, 1);
+
+    // 🆕 Mapa de pesos por playlist (id → peso log10)
+    const pesoPorId = new Map<string, number>();
+    const pesoPorNome = new Map<string, number>();
+    let pesoTotal = 0;
+    for (const p of selectedPlaylists) {
+      const w = pesoPlaylist(p.seguidores ?? 0);
+      pesoPorId.set(p.id, w);
+      // Acumula maior peso quando há nomes duplicados
+      const prev = pesoPorNome.get(p.nome_playlist) ?? 0;
+      if (w > prev) pesoPorNome.set(p.nome_playlist, w);
+      pesoTotal += w;
+    }
+
+    // ═══════════════ DERIVAR DADOS PONDERADOS ═══════════════
+    // Sempre re-derivamos do escopo selecionado (cluster OU todas, com tier aplicado)
+    const STOPWORDS = new Set([
+      "a","o","as","os","um","uma","de","da","do","das","dos","e","em","no","na","nos","nas",
+      "para","por","com","sem","que","se","sua","seu","mais","melhor","melhores","the","of","and",
+      "to","in","on","for","with","best","top","mix","playlist","playlists","música","musicas",
+      "músicas","musica","hits","hit","new","novo","nova","novos","novas",
+    ]);
+    const tokenize = (s: string) => (s || "")
+      .toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9\s]/g, " ").split(/\s+/)
+      .filter(w => w.length >= 3 && !STOPWORDS.has(w));
+
+    // 🆕 topN PONDERADO: soma pesos em vez de contar ocorrências
+    const topNWeighted = <T extends string>(entries: { value: T; weight: number }[], n: number) => {
+      const m = new Map<T, number>();
+      for (const e of entries) m.set(e.value, (m.get(e.value) ?? 0) + e.weight);
+      return Array.from(m.entries()).sort((a, b) => b[1] - a[1]).slice(0, n)
+        .map(([value, count]) => ({ value, count: Math.round(count * 100) / 100 }));
+    };
+
+    // Keywords ponderadas (peso da playlist aplicado a cada token)
+    const tokenEntries: { value: string; weight: number }[] = [];
+    const bigramEntries: { value: string; weight: number }[] = [];
+    for (const p of selectedPlaylists) {
+      const w = pesoPorId.get(p.id) ?? 1;
+      const t = tokenize(p.nome_playlist);
+      for (const tok of t) tokenEntries.push({ value: tok, weight: w });
+      for (let i = 0; i < t.length - 1; i++) {
+        bigramEntries.push({ value: `${t[i]} ${t[i + 1]}`, weight: w });
+      }
+    }
+    const palavrasChaveCalc = topNWeighted(tokenEntries, 30);
+    const padroesNomeCalc = topNWeighted(bigramEntries, 20);
+
+    // Playlists dominantes do escopo (já filtradas por tier)
+    const seenUrl = new Set<string>();
+    const playlistsDom = selectedPlaylists
+      .filter(r => r.spotify_url && !seenUrl.has(r.spotify_url) && (seenUrl.add(r.spotify_url), true))
+      .sort((a, b) => (b.seguidores ?? -1) - (a.seguidores ?? -1))
+      .slice(0, 25)
+      .map(r => ({
+        nome: r.nome_playlist,
+        seguidores: r.seguidores ?? 0,
+        spotify_url: r.spotify_url,
+        imagem_url: r.imagem_url,
+        total_musicas: r.total_musicas,
+      }));
+
+    // Tracks ponderadas do escopo
+    const selectedIdArr = Array.from(selectedIds);
+    const { data: scopeTracks } = selectedIdArr.length > 0
+      ? await supabase.from("search_tracks")
+          .select("nome_musica,artista,result_id").in("result_id", selectedIdArr).limit(20000)
+      : { data: [] as any[] };
+
+    const tk = (t: any) => `${(t.nome_musica ?? "").toLowerCase().trim()}||${(t.artista ?? "").toLowerCase().trim()}`;
+    const trackMap = new Map<string, { nome: string; artista: string; count: number; weight: number }>();
+    for (const t of scopeTracks ?? []) {
+      const k = tk(t);
+      if (!k || k === "||") continue;
+      const w = pesoPorId.get(t.result_id) ?? 1;
+      const cur = trackMap.get(k);
+      if (cur) { cur.count++; cur.weight += w; }
+      else trackMap.set(k, { nome: t.nome_musica, artista: t.artista, count: 1, weight: w });
+    }
+    const musicasRec = Array.from(trackMap.values())
+      .sort((a, b) => b.weight - a.weight)
+      .slice(0, 50);
+
+    // ═══════════════ ENRIQUECER METADATA DAS DOMINANTES ═══════════════
     const playlistsMetaMap = new Map<string, { seguidores: number; spotify_url: string | null; imagem_url: string | null }>();
-    if (domNames.length > 0) {
-      const { data: srData } = await supabase
-        .from("search_results")
-        .select("nome_playlist, seguidores, spotify_url, imagem_url")
-        .eq("genre_id", body.genre_id)
-        .in("nome_playlist", domNames);
-      for (const r of srData ?? []) {
-        const prev = playlistsMetaMap.get(r.nome_playlist);
-        if (!prev || (r.seguidores ?? 0) > (prev.seguidores ?? 0)) {
-          playlistsMetaMap.set(r.nome_playlist, {
-            seguidores: r.seguidores ?? 0,
-            spotify_url: r.spotify_url,
-            imagem_url: r.imagem_url,
-          });
-        }
+    for (const p of selectedPlaylists) {
+      const prev = playlistsMetaMap.get(p.nome_playlist);
+      if (!prev || (p.seguidores ?? 0) > (prev.seguidores ?? 0)) {
+        playlistsMetaMap.set(p.nome_playlist, {
+          seguidores: p.seguidores ?? 0,
+          spotify_url: p.spotify_url,
+          imagem_url: p.imagem_url,
+        });
       }
     }
+
     const insights = (model.insights as any) ?? {};
     const dnaVisual = insights.dna_visual ?? null;
-    const totalPlaylists = isClusterMode
-      ? Math.max(clusterPlaylistIds.length, playlistsDom.length, 1)
-      : Math.max(corpusCount ?? 0, playlistsDom.length, 1);
 
-    // ═══════════════ KEYWORDS COM PESO % ═══════════════
-    const totalKwCount = palavrasChave.reduce((s: number, k: any) => s + (k.count ?? 0), 0) || 1;
-    const sortedKw = [...palavrasChave]
-      .map((k: any) => ({
+    // ═══════════════ KEYWORDS COM PESO % (já ponderadas) ═══════════════
+    const totalKwCount = palavrasChaveCalc.reduce((s, k) => s + (k.count ?? 0), 0) || 1;
+    const sortedKw = palavrasChaveCalc
+      .map((k) => ({
         value: String(k.value ?? "").trim(),
         count: k.count ?? 0,
-        peso: Math.round(((k.count ?? 0) / totalKwCount) * 1000) / 10, // 1 casa decimal
+        peso: Math.round(((k.count ?? 0) / totalKwCount) * 1000) / 10,
       }))
       .filter(k => k.value && k.peso >= KW_MIN_PCT)
       .sort((a, b) => b.peso - a.peso);
 
     // ═══════════════ FORMATOS COM SCORE ═══════════════
-    const sortedFormats = [...padroesNome]
-      .map((p: any) => ({
+    const sortedFormats = padroesNomeCalc
+      .map((p) => ({
         value: String(p.value ?? "").trim(),
         count: p.count ?? 0,
       }))
@@ -180,15 +240,16 @@ Deno.serve(async (req) => {
       .sort((a, b) => b.count - a.count);
 
     // ═══════════════ BASE MUSICAL ═══════════════
-    const allTracks = musicasRec.map((m: any) => ({
+    const allTracks = musicasRec.map((m) => ({
       nome: m.nome, artista: m.artista, count: m.count ?? 1,
     }));
 
+    // Artistas ponderados
     const artistMap = new Map<string, number>();
     for (const t of musicasRec) {
       const a = (t.artista ?? "").trim();
       if (!a) continue;
-      artistMap.set(a, (artistMap.get(a) ?? 0) + (t.count ?? 1));
+      artistMap.set(a, (artistMap.get(a) ?? 0) + (t.weight ?? 1));
     }
     const allArtists = Array.from(artistMap.entries())
       .sort((a, b) => b[1] - a[1])
@@ -200,6 +261,7 @@ Deno.serve(async (req) => {
     );
 
     // ═══════════════ GERAR CARDS COM ROTAÇÃO ═══════════════
+    // 🆕 freq agora é ponderada: soma de pesos do bigrama / peso total do escopo
     const valid: any[] = [];
     const kwLen = sortedKw.length;
     const trackLen = allTracks.length;
@@ -207,8 +269,10 @@ Deno.serve(async (req) => {
 
     for (let fi = 0; fi < sortedFormats.length && valid.length < MAX_RESULTS; fi++) {
       const fmt = sortedFormats[fi];
-      const freq = (fmt.count / totalPlaylists) * 100;
-      const rep = fmt.count;
+      // freq% = (peso acumulado do bigrama / peso total) * 100
+      const freq = pesoTotal > 0 ? (fmt.count / pesoTotal) * 100 : 0;
+      // rep = count bruto aproximado (peso/peso médio); usamos freq*totalPlaylists/100
+      const rep = Math.max(1, Math.round((freq / 100) * totalPlaylists));
 
       // 🚨 FILTROS DE QUALIDADE
       if (freq < MIN_FREQ_PCT) continue;
@@ -221,7 +285,6 @@ Deno.serve(async (req) => {
       for (let i = 0; i < KW_PER_CARD; i++) {
         selectedKw.push(sortedKw[(kwStart + i) % kwLen]);
       }
-      // dedup por value
       const seen = new Set<string>();
       const uniqKw = selectedKw.filter(k => {
         if (seen.has(k.value)) return false;
@@ -243,14 +306,15 @@ Deno.serve(async (req) => {
         artists.push(allArtists[(aStart + i) % artistLen]);
       }
 
-      // 📊 SCORE: freq*0.5 + rep*0.3 + diversidade_kw*5
+      // 📊 SCORE
       const score = (freq * 0.5) + (rep * 0.3) + (uniqKw.length * 5);
       const forca_nome = Math.min(100, Math.round(score));
 
-      // 🎯 CONFIDENCE
+      // 🎯 CONFIDENCE (briefing-level, depende do tier global também)
       let confidence: "alta" | "media" | "baixa" = "baixa";
-      if (freq >= 6 && rep >= 5) confidence = "alta";
-      else if (freq >= 4 && rep >= 3) confidence = "media";
+      if (tierPrincipal === 1 && freq >= 6 && rep >= 5) confidence = "alta";
+      else if (tierPrincipal <= 2 && freq >= 4 && rep >= 3) confidence = "media";
+      // tier 3 ou fallback nunca passa de "baixa"
 
       // 📈 TREND vs versão anterior
       let sinal = "estável";
@@ -261,14 +325,13 @@ Deno.serve(async (req) => {
         sinal = "novo";
       }
 
-      // 📝 NOME BASE: usa o formato detectado real + gênero
-      // Ex: "top 50" + "funk" → "Top 50 Funk"
+      // 📝 NOME BASE
       const fmtTitle = titleCase(fmt.value);
       const nomeBase = fmtTitle.toLowerCase().includes(genre.nome.toLowerCase())
         ? fmtTitle
         : `${fmtTitle} ${titleCase(genre.nome)}`;
 
-      // 🎯 PLAYLISTS DE REFERÊNCIA: dominantes que contêm o formato no nome
+      // 🎯 PLAYLISTS DE REFERÊNCIA
       const fmtLower = fmt.value.toLowerCase();
       const refMatches = playlistsDom
         .filter((p: any) => String(p.nome ?? "").toLowerCase().includes(fmtLower))
@@ -283,7 +346,6 @@ Deno.serve(async (req) => {
         })
         .sort((a, b) => (b.seguidores ?? 0) - (a.seguidores ?? 0));
 
-      // Fallback: se nenhuma dominante bater no formato, usa as top dominantes do gênero
       const playlistsRef = (refMatches.length > 0 ? refMatches : playlistsDom.slice(0, 3).map((p: any) => {
         const meta = playlistsMetaMap.get(p.nome);
         return {
@@ -294,7 +356,6 @@ Deno.serve(async (req) => {
         };
       })).slice(0, 3);
 
-      // 📊 MÉTRICAS AGREGADAS
       const totalSeg = playlistsRef.reduce((s, p) => s + (p.seguidores ?? 0), 0);
       const mediaSeguidores = playlistsRef.length > 0 ? Math.round(totalSeg / playlistsRef.length) : 0;
 
@@ -314,13 +375,13 @@ Deno.serve(async (req) => {
           media_seguidores: mediaSeguidores,
           total_referencias: playlistsRef.length,
         },
-        // DNA visual: vem do insights.dna_visual (camada 3, edge function analyze-genre-visual-dna)
         dna_capa: dnaVisual,
         justificativa: {
           frequencia_padrao_pct: Math.round(freq * 10) / 10,
           repeticao_em_playlists: rep,
           score: Math.round(score),
           sinal,
+          tier_origem: tierPrincipal,
         },
         confidence,
       });
@@ -418,6 +479,19 @@ Responda JSON: {"playlists": [{"idx": 1, "nome_final": "..."}, ...]}`
         cluster_label: clusterLabel,
         cluster_size: isClusterMode ? clusterPlaylistIds.length : null,
         scope: isClusterMode ? "cluster" : "todos",
+        // 🆕 priorização por tamanho
+        priorizacao: {
+          tier_principal: tierPrincipal,
+          min_followers_aplicado: minFollowersAplicado,
+          fallback,
+          counts: {
+            tier1: tier1.length,
+            tier2: tier2.length,
+            tier3: tier3.length,
+          },
+          playlists_analisadas: selectedPlaylists.length,
+          playlists_disponiveis: allScopePlaylists.length,
+        },
         total_keywords_analisadas: sortedKw.length,
         total_padroes_analisados: sortedFormats.length,
         total_playlists_referencia: totalPlaylists,
@@ -425,7 +499,7 @@ Responda JSON: {"playlists": [{"idx": 1, "nome_final": "..."}, ...]}`
         total_artistas_base: allArtists.length,
         cards_gerados: valid.length,
         cards_descartados: sortedFormats.length - valid.length,
-        filtros: { MIN_FREQ_PCT, MIN_REPETITIONS, MIN_KEYWORDS, KW_MIN_PCT },
+        filtros: { MIN_FREQ_PCT, MIN_REPETITIONS, MIN_KEYWORDS, KW_MIN_PCT, TIER1_MIN, TIER2_MIN, MIN_PLAYLISTS_DESEJADO },
         generated_at: new Date().toISOString(),
         duration_ms: Date.now() - start,
       },
@@ -435,7 +509,7 @@ Responda JSON: {"playlists": [{"idx": 1, "nome_final": "..."}, ...]}`
       genre_id: body.genre_id,
       acao: "generate-briefing",
       status: "sucesso",
-      mensagem: `Briefing v${nextVersion}: ${valid.length} playlists qualificadas (${sortedFormats.length - valid.length} descartadas por filtro)`,
+      mensagem: `Briefing v${nextVersion}: ${valid.length} playlists qualificadas | Tier ${tierPrincipal} (${selectedPlaylists.length} playlists analisadas, T1=${tier1.length} T2=${tier2.length} T3=${tier3.length})${fallback ? " [fallback]" : ""}`,
       duracao_ms: Date.now() - start,
     });
 
