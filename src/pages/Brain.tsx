@@ -45,6 +45,9 @@ export default function Brain() {
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<any>(null);
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  const [loadingSaved, setLoadingSaved] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
 
   const runLockRef = useRef(false);
   const cancelRequestedRef = useRef(false);
@@ -57,6 +60,39 @@ export default function Brain() {
       cancelRequestedRef.current = true;
     };
   }, []);
+
+  // Auto-carrega o último modelo salvo ao trocar de nicho (se não estiver rodando)
+  useEffect(() => {
+    if (running) return;
+    let cancelled = false;
+    (async () => {
+      setLoadingSaved(true);
+      setResult(null);
+      setIsSaved(false);
+      setSavedAt(null);
+      try {
+        const { data: genre } = await supabase
+          .from("genres").select("id,nome,slug").eq("slug", nicho).maybeSingle();
+        if (!genre || cancelled) return;
+        const { data: model } = await supabase
+          .from("genre_models").select("*").eq("genre_id", genre.id).maybeSingle();
+        if (cancelled) return;
+        if (model) {
+          setResult({
+            ok: true,
+            genre: { id: genre.id, nome: genre.nome, slug: genre.slug },
+            model,
+            stages: {},
+          });
+          setIsSaved(true);
+          setSavedAt(model.ultima_analise ?? null);
+        }
+      } finally {
+        if (!cancelled) setLoadingSaved(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [nicho, running]);
 
   const hasPausedJob = Boolean(activeJobId) && !running && !result;
 
@@ -279,16 +315,30 @@ export default function Brain() {
       </Card>
 
       {/* BLOCO 3 — Ação */}
-      <div className="flex justify-center">
+      <div className="flex flex-col items-center gap-2">
         <Button
           size="lg"
           onClick={hasPausedJob ? resumeAnalysis : startNewAnalysis}
-          disabled={running}
+          disabled={running || loadingSaved}
           className="h-14 px-10 text-base font-semibold gap-2 shadow-lg shadow-primary/30"
         >
           {running ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
-          {running ? "Analisando..." : hasPausedJob ? "Retomar acompanhamento" : "Analisar agora"}
+          {running
+            ? "Analisando..."
+            : hasPausedJob
+              ? "Retomar acompanhamento"
+              : isSaved
+                ? "Rodar nova análise"
+                : "Analisar agora"}
         </Button>
+        {loadingSaved && (
+          <div className="text-xs text-muted-foreground flex items-center gap-1.5">
+            <Loader2 className="h-3 w-3 animate-spin" /> Carregando análise salva...
+          </div>
+        )}
+        {!loadingSaved && !running && !isSaved && !hasPausedJob && (
+          <div className="text-xs text-muted-foreground">Nenhuma análise salva para este nicho ainda.</div>
+        )}
       </div>
 
       {/* Loading com etapas */}
@@ -354,9 +404,14 @@ export default function Brain() {
       {/* RESULTADOS */}
       {result && model && (
         <div className="space-y-6 animate-fade-in">
-          <div className="flex items-center gap-2 pt-4">
+          <div className="flex items-center gap-3 pt-4 flex-wrap">
             <TrendingUp className="h-5 w-5 text-primary" />
             <h2 className="text-2xl font-bold">Resultados — {result.genre?.nome}</h2>
+            {isSaved && (
+              <Badge variant="outline" className="text-[10px] uppercase tracking-wider">
+                Análise salva{savedAt ? ` · ${new Date(savedAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}` : ""}
+              </Badge>
+            )}
           </div>
 
           {/* IA */}
