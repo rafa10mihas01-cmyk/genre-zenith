@@ -85,8 +85,19 @@ Deno.serve(async (req) => {
     }
     const insights = (model.insights as any) ?? {};
     const dnaVisual = insights.dna_visual ?? null;
+    const subgeneros: any[] = Array.isArray(insights.subgeneros) ? insights.subgeneros : [];
     // Total real do corpus analisado (não só as dominantes)
     const totalPlaylists = Math.max(corpusCount ?? 0, playlistsDom.length, 1);
+
+    // Helper: classifica um formato/keyword/cards num subgênero
+    function classifySub(text: string): { slug: string; nome: string } | null {
+      const lower = (text ?? "").toLowerCase();
+      for (const s of subgeneros) {
+        const slug = String(s.slug ?? s.nome ?? "").toLowerCase();
+        if (slug && lower.includes(slug)) return { slug: s.slug, nome: s.nome };
+      }
+      return null;
+    }
 
     // ═══════════════ KEYWORDS COM PESO % ═══════════════
     const totalKwCount = palavrasChave.reduce((s: number, k: any) => s + (k.count ?? 0), 0) || 1;
