@@ -104,10 +104,16 @@ export default function ModelDetail() {
             </p>
           </div>
         </div>
-        <Button variant="outline" size="sm" onClick={reanalyze} disabled={reanalyzing}>
-          <RefreshCw className={`h-4 w-4 ${reanalyzing ? "animate-spin" : ""}`} />
-          Re-analisar
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={reanalyze} disabled={reanalyzing}>
+            <RefreshCw className={`h-4 w-4 ${reanalyzing ? "animate-spin" : ""}`} />
+            Re-analisar
+          </Button>
+          <Button size="sm" onClick={generateAI} disabled={generatingAI || !model}>
+            {generatingAI ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+            {model?.insights?.ai ? "Re-gerar com IA" : "Gerar com IA"}
+          </Button>
+        </div>
       </div>
 
       {loading && <div className="nx-card p-12 mt-6 text-center text-sm text-muted-foreground">Carregando…</div>}
@@ -134,13 +140,20 @@ export default function ModelDetail() {
             <InsightCard icon={Hash} label="Tracks únicas" value={formatNumber(model.insights.diversidade_tracks)} />
           </div>
 
-          <Tabs defaultValue="keywords" className="mt-6">
+          <Tabs defaultValue={model.insights?.ai ? "ai" : "keywords"} className="mt-6">
             <TabsList>
+              <TabsTrigger value="ai" className="gap-1.5">
+                <Wand2 className="h-3.5 w-3.5" /> Insights IA
+              </TabsTrigger>
               <TabsTrigger value="keywords">Palavras-chave</TabsTrigger>
               <TabsTrigger value="patterns">Padrões de nome</TabsTrigger>
               <TabsTrigger value="playlists">Playlists dominantes</TabsTrigger>
               <TabsTrigger value="tracks">Músicas recorrentes</TabsTrigger>
             </TabsList>
+
+            <TabsContent value="ai">
+              <AIInsightsPanel ai={model.insights?.ai} loading={generatingAI} onGenerate={generateAI} />
+            </TabsContent>
 
             <TabsContent value="keywords">
               <div className="nx-card p-5">
