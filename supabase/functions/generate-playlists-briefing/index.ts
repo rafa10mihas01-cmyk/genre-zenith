@@ -400,6 +400,13 @@ Responda JSON: {"playlists": [{"idx": 1, "nome_final": "..."}, ...]}`
         total_artistas_base: allArtists.length,
         cards_gerados: valid.length,
         cards_descartados: sortedFormats.length - valid.length,
+        subgeneros_detectados: subgeneros.map((s: any) => ({
+          slug: s.slug, nome: s.nome, total_playlists: s.total_playlists, peso_pct: s.peso_pct,
+        })),
+        cards_por_subgenero: valid.reduce((acc: Record<string, number>, c: any) => {
+          const k = c.subgenero?.slug ?? "_sem_classificacao";
+          acc[k] = (acc[k] ?? 0) + 1; return acc;
+        }, {}),
         filtros: { MIN_FREQ_PCT, MIN_REPETITIONS, MIN_KEYWORDS, KW_MIN_PCT },
         generated_at: new Date().toISOString(),
         duration_ms: Date.now() - start,
