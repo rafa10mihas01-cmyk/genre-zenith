@@ -133,7 +133,7 @@ export default function Dashboard() {
           <Button onClick={startNext} className="w-full justify-start gap-2">
             <Play className="h-4 w-4" /> Iniciar próxima coleta
           </Button>
-          <Button onClick={generateAllTerms} variant="outline" className="w-full justify-start gap-2">
+          <Button onClick={handleGenerateAll} variant="outline" className="w-full justify-start gap-2">
             <Sparkles className="h-4 w-4" /> Gerar todos os termos
           </Button>
         </div>
