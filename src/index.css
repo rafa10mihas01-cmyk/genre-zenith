@@ -10,7 +10,6 @@
 @import "./styles/typography.css";
 @import "./styles/spacing.css";
 @import "./styles/command-center.css";
-@import "./styles/_force-contrast.css";
 
 @layer base {
   * {
