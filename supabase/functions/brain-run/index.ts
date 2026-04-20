@@ -239,13 +239,33 @@ async function runPipeline(jobId: string, body: StartBody) {
     const selectedSet = new Set(selectedIds);
     const droppedIds = keptArr.filter((r: any) => !selectedSet.has(r.id)).map((r: any) => r.id);
 
-    // Persiste score em todas e remove as que NÃO entraram (descarte inteligente)
-    for (const s of scored) {
-      await supabase.from("search_results").update({ priority_score: s.score }).eq("id", s.id);
+    // Persiste score em paralelo (chunks) — antes era N updates em série (~60-90s, fazia o job parecer travado)
+    const CHUNK = 25;
+    for (let i = 0; i < scored.length; i += CHUNK) {
+      const slice = scored.slice(i, i + CHUNK);
+      await Promise.all(slice.map(s =>
+        supabase.from("search_results").update({ priority_score: s.score }).eq("id", s.id)
+      ));
+      // Heartbeat a cada 4 chunks (100 updates) pra UI saber que o job tá vivo
+      if (i > 0 && i % (CHUNK * 4) === 0) {
+        await setJob(supabase, gid, jobId, {
+          status: "running",
+          stage: `Priorizando playlists... (${Math.min(i + CHUNK, scored.length)}/${scored.length})`,
+          progress: 65,
+        });
+      }
     }
+    // Descarte das não-selecionadas em chunks (evita payload gigante no .in())
     if (droppedIds.length > 0) {
-      await supabase.from("search_tracks").delete().in("result_id", droppedIds);
-      await supabase.from("search_results").delete().in("id", droppedIds);
+      await setJob(supabase, gid, jobId, {
+        status: "running", stage: `Descartando ${droppedIds.length} de baixa prioridade...`, progress: 68,
+      });
+      const DEL_CHUNK = 100;
+      for (let i = 0; i < droppedIds.length; i += DEL_CHUNK) {
+        const ids = droppedIds.slice(i, i + DEL_CHUNK);
+        await supabase.from("search_tracks").delete().in("result_id", ids);
+        await supabase.from("search_results").delete().in("id", ids);
+      }
     }
     stages.prioritize = {
       total_after_filter: keptArr.length,
