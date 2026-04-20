@@ -12,8 +12,6 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { generateTerms } from "@/lib/engine";
-import { PageContainer } from "@/components/cc/PageContainer";
-import { PageHeader } from "@/components/cc/PageHeader";
 
 interface Genre {
   id: string; nome: string; slug: string; status: string;
@@ -75,19 +73,18 @@ export default function Genres() {
   };
 
   return (
-    <PageContainer size="7xl" className="space-y-5">
-      <PageHeader
-        eyebrow="Catálogo"
-        title="Gêneros"
-        subtitle={`${genres.length} gêneros • ${selected.size} selecionados`}
-        actions={
-          selected.size > 0 ? (
-            <Button onClick={handleBulk} className="gap-2">
-              <Play className="h-4 w-4" /> Coletar {selected.size} em lote
-            </Button>
-          ) : null
-        }
-      />
+    <div className="space-y-5 max-w-[1400px] mx-auto">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Gêneros</h1>
+          <p className="text-sm text-muted-foreground">{genres.length} gêneros • {selected.size} selecionados</p>
+        </div>
+        {selected.size > 0 && (
+          <Button onClick={handleBulk} className="gap-2">
+            <Play className="h-4 w-4" /> Coletar {selected.size} em lote
+          </Button>
+        )}
+      </div>
 
       <div className="nx-card p-4 flex flex-col md:flex-row gap-3">
         <div className="relative flex-1">
@@ -167,6 +164,6 @@ export default function Genres() {
           </table>
         </div>
       </div>
-    </PageContainer>
+    </div>
   );
 }

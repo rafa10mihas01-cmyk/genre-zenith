@@ -8,8 +8,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { PageContainer } from "@/components/cc/PageContainer";
-import { PageHeader } from "@/components/cc/PageHeader";
 
 const STORAGE_KEY = "nx-collect-settings";
 
@@ -96,21 +94,21 @@ export default function Settings() {
   }
 
   return (
-    <PageContainer size="4xl">
-      <PageHeader
-        eyebrow={
-          <span className="inline-flex items-center gap-1.5">
-            <SettingsIcon className="h-3.5 w-3.5" /> Sistema
-          </span>
-        }
-        title="Configurações"
-        subtitle="Conexão Apify, parâmetros de coleta e conta."
-      />
+    <div className="max-w-[900px] mx-auto">
+      <div className="flex items-center gap-3">
+        <div className="h-10 w-10 rounded-lg bg-accent/15 border border-accent/30 flex items-center justify-center">
+          <SettingsIcon className="h-5 w-5 text-accent" />
+        </div>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Configurações</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Conexão Apify, parâmetros de coleta e conta</p>
+        </div>
+      </div>
 
       {/* Apify */}
       <section className="nx-card p-5 mt-6">
         <div className="flex items-center gap-2">
-          <Zap className="h-5 w-5 text-primary" />
+          <Zap className="h-5 w-5 text-accent" />
           <h2 className="font-semibold">Apify</h2>
         </div>
         <p className="text-sm text-muted-foreground mt-1">
@@ -151,13 +149,13 @@ export default function Settings() {
       {/* Spotify Web API */}
       <section className="nx-card p-5 mt-4">
         <div className="flex items-center gap-2">
-          <Music2 className="h-5 w-5 text-primary" />
+          <Music2 className="h-5 w-5 text-accent" />
           <h2 className="font-semibold">Spotify Web API</h2>
         </div>
         <p className="text-sm text-muted-foreground mt-1">
           Usado para buscar contagem real de seguidores das playlists. Crie um app gratuito em{" "}
           <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noreferrer"
-             className="text-primary underline-offset-2 hover:underline">
+             className="text-accent underline-offset-2 hover:underline">
             developer.spotify.com → Dashboard → Create app
           </a>
           . Copie o Client ID e Client Secret e configure como secrets do projeto.
@@ -226,7 +224,7 @@ export default function Settings() {
       {/* Coleta automática */}
       <section className="nx-card p-5 mt-4">
         <div className="flex items-center gap-2">
-          <CalendarClock className="h-5 w-5 text-primary" />
+          <CalendarClock className="h-5 w-5 text-accent" />
           <h2 className="font-semibold">Coleta automática</h2>
         </div>
         <p className="text-sm text-muted-foreground mt-1">
@@ -247,7 +245,7 @@ export default function Settings() {
       {/* Banco */}
       <section className="nx-card p-5 mt-4">
         <div className="flex items-center gap-2">
-          <Database className="h-5 w-5 text-primary" />
+          <Database className="h-5 w-5 text-accent" />
           <h2 className="font-semibold">Estado do banco</h2>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
@@ -271,7 +269,7 @@ export default function Settings() {
           </Button>
         </div>
       </section>
-    </PageContainer>
+    </div>
   );
 }
 

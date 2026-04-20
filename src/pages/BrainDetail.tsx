@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, Sparkles, RefreshCw, Loader2, ChevronDown, ChevronUp, Flame, Music2, Palette, FileText, Hash, BarChart3, Image as ImageIcon, Users, ExternalLink } from "lucide-react";
@@ -8,9 +9,6 @@ import { useBriefings, PlaylistBriefing } from "@/hooks/useBriefings";
 import { formatDate, timeAgo } from "@/lib/format";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { PageHeader } from "@/components/cc/PageHeader";
-import { HeroCard } from "@/components/cc/HeroCard";
-import { PageContainer } from "@/components/cc/PageContainer";
 
 function formatFollowers(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
@@ -54,13 +52,11 @@ function PlaylistCard({ briefing, index, onExpand, expanded }: {
   briefing: PlaylistBriefing; index: number; onExpand: () => void; expanded: boolean;
 }) {
   return (
-    <div
-      className={cn(
-        "cc-glass cc-glass-hover cc-glass-md p-4 space-y-3 transition-all cursor-pointer",
-        expanded && "cc-glow-indigo"
-      )}
-      onClick={onExpand}
-    >
+    <Card className={cn(
+      "transition-all cursor-pointer border hover:border-primary/40",
+      expanded && "border-primary/50 ring-1 ring-primary/20 shadow-lg shadow-primary/5",
+    )} onClick={onExpand}>
+      <CardContent className="p-4 space-y-3">
         {/* Header */}
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
@@ -283,7 +279,8 @@ function PlaylistCard({ briefing, index, onExpand, expanded }: {
             </Section>
           </div>
         )}
-    </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -303,17 +300,12 @@ export default function BrainDetail() {
   const { slug = "" } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { loading: loadingModel, genre, model, reload: reloadModel } = useBrainModel(slug);
-  const {
-    loading: loadingBriefing, briefing, generating, regenerate,
-    reload: reloadBriefing, analyzeVisualDna, analyzingDna,
-    clusters, loadingClusters, selectedClusterId, selectCluster,
-  } = useBriefings(genre?.id);
+  const { loading: loadingBriefing, briefing, generating, regenerate, reload: reloadBriefing, analyzeVisualDna, analyzingDna } = useBriefings(genre?.id);
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
 
   const loading = loadingModel || loadingBriefing;
   const hasBriefing = briefing && Array.isArray(briefing.briefings) && briefing.briefings.length > 0;
   const hasDnaVisual = hasBriefing && briefing.briefings.some(b => b.dna_capa);
-  const activeCluster = selectedClusterId ? clusters.find(c => c.id === selectedClusterId) ?? null : null;
 
   const handleRegenerate = async () => {
     try {
@@ -336,33 +328,33 @@ export default function BrainDetail() {
 
   if (!loadingModel && !genre) {
     return (
-      <PageContainer size="2xl" className="py-20 text-center space-y-4">
+      <div className="max-w-2xl mx-auto py-20 text-center space-y-4">
         <h1 className="text-2xl font-bold">Nicho não encontrado</h1>
         <Button asChild variant="outline"><Link to="/"><ChevronLeft className="h-4 w-4" /> Voltar</Link></Button>
-      </PageContainer>
+      </div>
     );
   }
 
   return (
-    <PageContainer size="5xl" className="space-y-6">
-      <PageHeader
-        eyebrow={
-          <div className="flex items-center gap-2">
-            <Button asChild variant="ghost" size="icon" className="h-6 w-6 -ml-1">
-              <Link to="/"><ChevronLeft className="h-3.5 w-3.5" /></Link>
+    <div className="max-w-4xl mx-auto space-y-6">
+      {/* Header sticky */}
+      <div className="sticky top-12 z-20 -mx-6 px-6 py-4 bg-background/85 backdrop-blur border-b border-border">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-3 min-w-0">
+            <Button asChild variant="ghost" size="sm" className="-ml-2">
+              <Link to="/"><ChevronLeft className="h-4 w-4" /></Link>
             </Button>
-            <span>Decisões</span>
+            <div className="min-w-0">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Decisões</div>
+              <h1 className="text-xl font-bold truncate">{genre?.nome ?? NICHO_LABELS[slug] ?? slug}</h1>
+            </div>
             {briefing?.created_at && (
               <Badge variant="outline" className="text-[10px] uppercase">
                 v{briefing.version} • {timeAgo(briefing.created_at)}
               </Badge>
             )}
           </div>
-        }
-        title={genre?.nome ?? NICHO_LABELS[slug] ?? slug}
-        subtitle={hasBriefing ? `${briefing.briefings.length} ${briefing.briefings.length === 1 ? "decisão qualificada" : "decisões qualificadas"} de ${briefing.metadata?.total_padroes_analisados ?? 0} padrões analisados${activeCluster ? ` • subgrupo ${activeCluster.label}` : ""}.` : undefined}
-        actions={
-          <>
+          <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
@@ -380,75 +372,34 @@ export default function BrainDetail() {
             <Button size="sm" onClick={() => navigate(`/?run=${slug}`)}>
               <Sparkles className="h-3.5 w-3.5" /> Nova análise
             </Button>
-          </>
-        }
-      />
-
-      {/* Barra de subgrupos (clusters) */}
-      {(clusters.length > 0 || loadingClusters) && (
-        <div className="cc-glass cc-glass-sm p-2 flex items-center gap-2 overflow-x-auto">
-          <span className="text-[10px] uppercase tracking-wider text-muted-foreground px-2 shrink-0">
-            Subgrupos
-          </span>
-          <button
-            type="button"
-            onClick={() => selectCluster(null)}
-            className={cn(
-              "shrink-0 rounded-md px-3 py-1.5 text-xs font-medium transition-colors border",
-              selectedClusterId === null
-                ? "bg-primary/15 text-primary border-primary/40"
-                : "border-border bg-muted/30 text-muted-foreground hover:text-foreground hover:bg-muted/60"
-            )}
-          >
-            Todos
-          </button>
-          {clusters.map(c => (
-            <button
-              key={c.id}
-              type="button"
-              onClick={() => selectCluster(c.id)}
-              className={cn(
-                "shrink-0 rounded-md px-3 py-1.5 text-xs font-medium transition-colors border inline-flex items-center gap-2",
-                selectedClusterId === c.id
-                  ? "bg-primary/15 text-primary border-primary/40"
-                  : "border-border bg-muted/30 text-muted-foreground hover:text-foreground hover:bg-muted/60"
-              )}
-              title={`${c.size} playlists • média ${c.media_seguidores.toLocaleString("pt-BR")} seguidores`}
-            >
-              <span>{c.label}</span>
-              <span className="text-[10px] font-mono opacity-70">{c.size}</span>
-            </button>
-          ))}
-          {loadingClusters && (
-            <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground shrink-0" />
-          )}
+          </div>
         </div>
-      )}
+      </div>
 
       {loading ? (
         <div className="py-20 text-center text-muted-foreground text-sm">
           <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2" /> Carregando decisões...
         </div>
       ) : !model ? (
-        <HeroCard className="text-center" noOrbs>
-          <div className="py-10 space-y-3">
+        <Card className="border-dashed">
+          <CardContent className="py-16 text-center space-y-3">
             <div className="text-sm text-muted-foreground">Nenhuma análise salva para este nicho.</div>
             <Button onClick={() => navigate(`/?run=${slug}`)}>
               <Sparkles className="h-4 w-4" /> Rodar primeira análise
             </Button>
-          </div>
-        </HeroCard>
+          </CardContent>
+        </Card>
       ) : !hasBriefing ? (
-        <HeroCard className="text-center">
-          <div className="py-10 space-y-3">
+        <Card className="border-dashed border-primary/30">
+          <CardContent className="py-16 text-center space-y-3">
             <Flame className="h-8 w-8 text-primary mx-auto" />
             <div className="text-sm text-muted-foreground">Análise pronta mas sem briefing gerado ainda.</div>
             <Button onClick={handleRegenerate} disabled={generating}>
               {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
               Gerar playlists agora
             </Button>
-          </div>
-        </HeroCard>
+          </CardContent>
+        </Card>
       ) : (
         <div className="space-y-4">
           {/* Title */}
@@ -487,6 +438,6 @@ export default function BrainDetail() {
           </div>
         </div>
       )}
-    </PageContainer>
+    </div>
   );
 }

@@ -13,8 +13,6 @@ import { cn } from "@/lib/utils";
 import ExportMenu from "@/components/ExportMenu";
 import { exportCSV, exportJSON, timestamp } from "@/lib/export";
 import { toast } from "sonner";
-import { PageContainer } from "@/components/cc/PageContainer";
-import { PageHeader } from "@/components/cc/PageHeader";
 
 interface Log {
   id: string;
@@ -73,40 +71,38 @@ export default function Logs() {
   };
 
   return (
-    <PageContainer size="7xl">
-      <PageHeader
-        eyebrow="Auditoria"
-        title="Logs"
-        titleAccent="de Coleta"
-        subtitle="Histórico das últimas 500 ações do motor."
-        actions={
-          <>
-            <ExportMenu
-              disabled={filtered.length === 0}
-              onCSV={() => {
-                const rows = filtered.map(l => ({
-                  created_at: l.created_at,
-                  acao: l.acao,
-                  status: l.status,
-                  genero: l.genre_id ? (genreMap.get(l.genre_id) ?? l.genre_id) : "",
-                  duracao_ms: l.duracao_ms,
-                  mensagem: l.mensagem,
-                }));
-                exportCSV(`logs-${timestamp()}`, rows);
-                toast.success(`${rows.length} logs exportados (CSV)`);
-              }}
-              onJSON={() => {
-                exportJSON(`logs-${timestamp()}`, filtered);
-                toast.success(`${filtered.length} logs exportados (JSON)`);
-              }}
-            />
-            <Button variant="outline" size="sm" onClick={load} disabled={loading}>
-              <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
-              Atualizar
-            </Button>
-          </>
-        }
-      />
+    <div className="max-w-[1400px] mx-auto">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Logs de Coleta</h1>
+          <p className="text-sm text-muted-foreground mt-1">Histórico das últimas 500 ações do motor</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <ExportMenu
+            disabled={filtered.length === 0}
+            onCSV={() => {
+              const rows = filtered.map(l => ({
+                created_at: l.created_at,
+                acao: l.acao,
+                status: l.status,
+                genero: l.genre_id ? (genreMap.get(l.genre_id) ?? l.genre_id) : "",
+                duracao_ms: l.duracao_ms,
+                mensagem: l.mensagem,
+              }));
+              exportCSV(`logs-${timestamp()}`, rows);
+              toast.success(`${rows.length} logs exportados (CSV)`);
+            }}
+            onJSON={() => {
+              exportJSON(`logs-${timestamp()}`, filtered);
+              toast.success(`${filtered.length} logs exportados (JSON)`);
+            }}
+          />
+          <Button variant="outline" size="sm" onClick={load} disabled={loading}>
+            <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+            Atualizar
+          </Button>
+        </div>
+      </div>
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3 mt-6">
@@ -178,7 +174,7 @@ export default function Logs() {
           ))}
         </div>
       </div>
-    </PageContainer>
+    </div>
   );
 }
 

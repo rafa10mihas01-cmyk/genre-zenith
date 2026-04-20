@@ -9,8 +9,6 @@ import { collectGenre, generateTerms } from "@/lib/engine";
 import { StatusBadge } from "@/components/StatusBadge";
 import { timeAgo } from "@/lib/format";
 import { getCollectSettings } from "@/pages/Settings";
-import { PageContainer } from "@/components/cc/PageContainer";
-import { PageHeader } from "@/components/cc/PageHeader";
 
 const GLOBAL_STATE_KEY = "nx-global-collection-v1";
 const BATCH_SIZE = 5;
@@ -289,17 +287,15 @@ export default function Collect() {
   const fmtEta = (s: number) => s > 60 ? `${Math.floor(s / 60)}m ${s % 60}s` : `${s}s`;
 
   return (
-    <PageContainer size="7xl" className="space-y-5">
-      <PageHeader
-        eyebrow={
-          <span className="inline-flex items-center gap-1.5">
-            <Radio className={`h-3.5 w-3.5 ${running ? "animate-pulse-soft" : ""}`} /> Pipeline
-          </span>
-        }
-        title="Coleta"
-        titleAccent="ao Vivo"
-        subtitle="Monitor em tempo real da execução das coletas Apify."
-      />
+    <div className="space-y-5 max-w-[1400px] mx-auto">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+            <Radio className={`h-6 w-6 text-primary ${running ? "animate-pulse-soft" : ""}`} /> Coleta ao Vivo
+          </h1>
+          <p className="text-sm text-muted-foreground">Monitor em tempo real da execução das coletas Apify</p>
+        </div>
+      </div>
 
       {/* === GLOBAL COLLECTION PANEL === */}
       <div className="nx-card p-5 border-primary/30 bg-primary/5">
@@ -526,6 +522,6 @@ export default function Collect() {
           <div ref={logEndRef} />
         </div>
       </div>
-    </PageContainer>
+    </div>
   );
 }

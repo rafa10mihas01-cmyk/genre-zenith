@@ -24,16 +24,35 @@ function applyTheme(resolved: "light" | "dark") {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  // V3 Spec §3.3: dark é o tema padrão e único do /admin.
-  const [theme] = useState<Theme>("dark");
+  const [theme, setThemeState] = useState<Theme>(() => {
+    if (typeof window === "undefined") return "dark";
+    return (localStorage.getItem(STORAGE_KEY) as Theme) ?? "dark";
+  });
+  const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">(() =>
+    theme === "system" ? getSystemTheme() : (theme as "light" | "dark")
+  );
 
   useEffect(() => {
-    applyTheme("dark");
-    try { localStorage.setItem(STORAGE_KEY, "dark"); } catch { /* noop */ }
-  }, []);
+    const resolved = theme === "system" ? getSystemTheme() : (theme as "light" | "dark");
+    setResolvedTheme(resolved);
+    applyTheme(resolved);
+    localStorage.setItem(STORAGE_KEY, theme);
+  }, [theme]);
+
+  useEffect(() => {
+    if (theme !== "system") return;
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const handler = () => {
+      const resolved = mq.matches ? "dark" : "light";
+      setResolvedTheme(resolved);
+      applyTheme(resolved);
+    };
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, [theme]);
 
   return (
-    <ThemeContext.Provider value={{ theme, resolvedTheme: "dark", setTheme: () => applyTheme("dark") }}>
+    <ThemeContext.Provider value={{ theme, resolvedTheme, setTheme: setThemeState }}>
       {children}
     </ThemeContext.Provider>
   );

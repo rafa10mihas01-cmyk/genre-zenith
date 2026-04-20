@@ -7,8 +7,6 @@ import { Brain, ChevronRight, RefreshCw, Search, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { formatNumber, timeAgo } from "@/lib/format";
 import { StatusBadge } from "@/components/StatusBadge";
-import { PageContainer } from "@/components/cc/PageContainer";
-import { PageHeader } from "@/components/cc/PageHeader";
 
 interface Row {
   id: string;
@@ -58,19 +56,17 @@ export default function Models() {
   const filtered = rows.filter(r => r.nome.toLowerCase().includes(q.toLowerCase()));
 
   return (
-    <PageContainer size="7xl">
-      <PageHeader
-        eyebrow="Inteligência"
-        title="Modelos"
-        titleAccent="de IA"
-        subtitle="Análise de padrões SEO por gênero musical."
-        actions={
-          <Button variant="outline" size="sm" onClick={load} disabled={loading}>
-            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-            Atualizar
-          </Button>
-        }
-      />
+    <div className="max-w-[1400px] mx-auto">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Modelos de Inteligência</h1>
+          <p className="text-sm text-muted-foreground mt-1">Análise de padrões SEO por gênero musical</p>
+        </div>
+        <Button variant="outline" size="sm" onClick={load} disabled={loading}>
+          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+          Atualizar
+        </Button>
+      </div>
 
       <div className="relative mt-6 max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -125,6 +121,6 @@ export default function Models() {
           );
         })}
       </div>
-    </PageContainer>
+    </div>
   );
 }

@@ -55,97 +55,46 @@ export type BriefingRow = {
   metadata: any;
 };
 
-export type Cluster = {
-  id: string;
-  label: string;
-  seed: string;
-  size: number;
-  playlist_ids: string[];
-  media_seguidores: number;
-  top_examples: { nome: string; seguidores: number; imagem_url: string | null; spotify_url: string | null }[];
-};
-
 export function useBriefings(genreId: string | undefined) {
   const [loading, setLoading] = useState(true);
   const [briefing, setBriefing] = useState<BriefingRow | null>(null);
   const [generating, setGenerating] = useState(false);
   const [analyzingDna, setAnalyzingDna] = useState(false);
 
-  // Clusters
-  const [clusters, setClusters] = useState<Cluster[]>([]);
-  const [loadingClusters, setLoadingClusters] = useState(false);
-  const [selectedClusterId, setSelectedClusterId] = useState<string | null>(null);
-
-  const load = useCallback(async (clusterId: string | null = null) => {
+  const load = useCallback(async () => {
     if (!genreId) return;
     setLoading(true);
     try {
-      // Filtra por cluster_id no metadata (ou null/"todos" pra geral)
-      let query = supabase
+      const { data } = await supabase
         .from("playlist_briefings")
         .select("*")
         .eq("genre_id", genreId)
-        .order("version", { ascending: false });
-
-      const { data } = await query.limit(50);
-      const rows = (data ?? []) as BriefingRow[];
-      const match = rows.find(r => {
-        const cid = r.metadata?.cluster_id ?? null;
-        return clusterId ? cid === clusterId : !cid;
-      });
-      setBriefing(match ?? null);
+        .order("version", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      setBriefing(data as BriefingRow | null);
     } finally {
       setLoading(false);
     }
   }, [genreId]);
 
-  const loadClusters = useCallback(async () => {
-    if (!genreId) return;
-    setLoadingClusters(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("cluster-playlists", {
-        body: { genre_id: genreId },
-      });
-      if (error) throw error;
-      setClusters((data?.clusters ?? []) as Cluster[]);
-    } catch (e) {
-      console.error("loadClusters error", e);
-      setClusters([]);
-    } finally {
-      setLoadingClusters(false);
-    }
-  }, [genreId]);
-
-  useEffect(() => {
-    load(selectedClusterId);
-  }, [load, selectedClusterId]);
-
-  useEffect(() => {
-    loadClusters();
-  }, [loadClusters]);
+  useEffect(() => { load(); }, [load]);
 
   const regenerate = useCallback(async () => {
     if (!genreId || generating) return;
     setGenerating(true);
     try {
-      const cluster = selectedClusterId ? clusters.find(c => c.id === selectedClusterId) : null;
-      const payload: any = { genre_id: genreId };
-      if (cluster) {
-        payload.cluster_id = cluster.id;
-        payload.cluster_label = cluster.label;
-        payload.cluster_playlist_ids = cluster.playlist_ids;
-      }
       const { data, error } = await supabase.functions.invoke("generate-playlists-briefing", {
-        body: payload,
+        body: { genre_id: genreId },
       });
       if (error) throw error;
       if (!data?.ok) throw new Error(data?.error ?? "Falha ao gerar briefing");
-      await load(selectedClusterId);
+      await load();
       return data;
     } finally {
       setGenerating(false);
     }
-  }, [genreId, generating, load, selectedClusterId, clusters]);
+  }, [genreId, generating, load]);
 
   const analyzeVisualDna = useCallback(async () => {
     if (!genreId || analyzingDna) return;
@@ -156,6 +105,7 @@ export function useBriefings(genreId: string | undefined) {
       });
       if (error) throw error;
       if (!data?.ok) throw new Error(data?.error ?? "Falha ao analisar DNA visual");
+      // Após analisar DNA, regenera briefing pra incluir
       await regenerate();
       return data;
     } finally {
@@ -163,22 +113,5 @@ export function useBriefings(genreId: string | undefined) {
     }
   }, [genreId, analyzingDna, regenerate]);
 
-  const selectCluster = useCallback((id: string | null) => {
-    setSelectedClusterId(id);
-  }, []);
-
-  return {
-    loading,
-    briefing,
-    generating,
-    regenerate,
-    reload: () => load(selectedClusterId),
-    analyzeVisualDna,
-    analyzingDna,
-    clusters,
-    loadingClusters,
-    selectedClusterId,
-    selectCluster,
-    reloadClusters: loadClusters,
-  };
+  return { loading, briefing, generating, regenerate, reload: load, analyzeVisualDna, analyzingDna };
 }
