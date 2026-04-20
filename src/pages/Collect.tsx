@@ -58,6 +58,107 @@ export default function Collect() {
   const abortRef = useRef<AbortController | null>(null);
   const logEndRef = useRef<HTMLDivElement | null>(null);
 
+  // ===== Global collection state (lotes manuais) =====
+  const [globalState, setGlobalState] = useState<GlobalState | null>(loadGlobal());
+  const [batchRunning, setBatchRunning] = useState(false);
+  const [batchProgress, setBatchProgress] = useState<{ idx: number; size: number; nome: string } | null>(null);
+  const [insightsRunning, setInsightsRunning] = useState(false);
+
+  const initGlobal = async () => {
+    const { data } = await supabase.from("genres").select("id").eq("ativo", true).order("nome");
+    const ids = (data ?? []).map((g) => g.id);
+    if (ids.length === 0) { toast.error("Nenhum gênero ativo"); return; }
+    const fresh: GlobalState = {
+      queue: ids, done: [], totalPlaylists: 0, totalTracks: 0,
+      totalGenres: ids.length, startedAt: Date.now(),
+      lastBatchAt: null, lastBatchDurationMs: null,
+    };
+    setGlobalState(fresh);
+    saveGlobal(fresh);
+    toast.success(`Coleta global iniciada`, { description: `${ids.length} gêneros na fila` });
+  };
+
+  const resetGlobal = () => {
+    setGlobalState(null);
+    saveGlobal(null);
+    toast.info("Estado da coleta global resetado");
+  };
+
+  const processNextBatch = async () => {
+    if (!globalState || globalState.queue.length === 0) return;
+    setBatchRunning(true);
+    const batchIds = globalState.queue.slice(0, BATCH_SIZE);
+    const cfg = getCollectSettings();
+    const t0 = Date.now();
+    setBatchProgress({ idx: 0, size: batchIds.length, nome: "iniciando…" });
+
+    let saved = 0, tracks = 0;
+    const newDone: string[] = [];
+
+    for (let i = 0; i < batchIds.length; i++) {
+      const gid = batchIds[i];
+      const g = genres.find((x) => x.id === gid);
+      setBatchProgress({ idx: i + 1, size: batchIds.length, nome: g?.nome ?? "?" });
+      try {
+        const { data, error } = await supabase.functions.invoke("collect-batch", {
+          body: {
+            genre_ids: [gid],
+            terms_per_genre: 10,
+            max_results: cfg.max_results ?? 25,
+            delay_ms: cfg.delay_ms ?? 2000,
+          },
+        });
+        if (error) throw error;
+        saved += data?.total_playlists ?? 0;
+        tracks += data?.total_tracks ?? 0;
+        newDone.push(gid);
+      } catch (e: any) {
+        toast.error(`Erro em ${g?.nome}`, { description: e.message?.slice(0, 100) });
+      }
+    }
+
+    const next: GlobalState = {
+      ...globalState,
+      queue: globalState.queue.slice(newDone.length),
+      done: [...globalState.done, ...newDone],
+      totalPlaylists: globalState.totalPlaylists + saved,
+      totalTracks: globalState.totalTracks + tracks,
+      lastBatchAt: Date.now(),
+      lastBatchDurationMs: Date.now() - t0,
+    };
+    setGlobalState(next);
+    saveGlobal(next);
+    setBatchRunning(false);
+    setBatchProgress(null);
+
+    const { data: gData } = await supabase.from("genres").select("id,nome,status,total_termos").order("nome");
+    setGenres(gData ?? []);
+
+    toast.success(`Lote concluído`, {
+      description: `+${saved} playlists, +${tracks} tracks. ${next.queue.length} gêneros restantes.`,
+    });
+  };
+
+  const runInsightsTop10 = async () => {
+    setInsightsRunning(true);
+    const { data: top } = await supabase
+      .from("genres")
+      .select("id,nome,total_playlists")
+      .order("total_playlists", { ascending: false })
+      .limit(10);
+
+    let ok = 0, err = 0;
+    for (const g of top ?? []) {
+      try {
+        const { error } = await supabase.functions.invoke("genre-insights", { body: { genre_id: g.id } });
+        if (error) throw error;
+        ok++;
+      } catch { err++; }
+    }
+    setInsightsRunning(false);
+    toast.success(`Insights IA gerados`, { description: `${ok} ok, ${err} erros (top 10 gêneros)` });
+  };
+
   // Load genre list
   useEffect(() => {
     supabase
