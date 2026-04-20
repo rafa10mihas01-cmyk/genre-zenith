@@ -388,6 +388,23 @@ export default function Brain() {
         )}
       </div>
 
+      {/* Banner "travou" — pipeline morreu por timeout do edge function */}
+      {stalled && !running && (
+        <Card className="border-destructive/40 bg-destructive/5">
+          <CardContent className="py-5 flex items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="text-sm font-semibold text-destructive">Análise travou no meio do caminho</div>
+              <div className="text-xs text-muted-foreground">
+                {stageLabel || "Sem progresso há mais de 2 minutos."} Os dados já coletados estão salvos — clique em Retomar pra continuar de onde parou.
+              </div>
+            </div>
+            <Button onClick={resumeAnalysis} size="sm" variant="default" className="shrink-0">
+              <Sparkles className="h-4 w-4 mr-1.5" /> Retomar
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Painel de progresso */}
       {running && (
         <Card className="border-primary/30 bg-primary/5">
