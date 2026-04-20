@@ -5,6 +5,8 @@ import {
   CommandDialog, CommandEmpty, CommandGroup, CommandInput,
   CommandItem, CommandList, CommandSeparator,
 } from "@/components/ui/command";
+import { DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { supabase } from "@/integrations/supabase/client";
 
 type Genre = { id: string; nome: string; slug: string };
@@ -51,6 +53,10 @@ export function GlobalSearch() {
       </button>
 
       <CommandDialog open={open} onOpenChange={setOpen}>
+        <VisuallyHidden>
+          <DialogTitle>Busca global</DialogTitle>
+          <DialogDescription>Buscar páginas e gêneros</DialogDescription>
+        </VisuallyHidden>
         <CommandInput placeholder="Buscar páginas, gêneros..." />
         <CommandList>
           <CommandEmpty>Nada encontrado.</CommandEmpty>
