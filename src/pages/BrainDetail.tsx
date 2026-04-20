@@ -83,6 +83,48 @@ function PlaylistCard({ briefing, index, onExpand, expanded }: {
           )}
         </div>
 
+        {/* Preview sempre visível das referências */}
+        {briefing.playlists_referencia && briefing.playlists_referencia.length > 0 && (
+          <div className="flex items-center justify-between gap-3 flex-wrap pt-1">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <div className="flex -space-x-2 shrink-0">
+                {briefing.playlists_referencia.slice(0, 3).map((p, i) => (
+                  <div key={`${p.nome}-thumb-${i}`} className="h-8 w-8 rounded-md overflow-hidden border border-border bg-muted shrink-0">
+                    {p.imagem_url ? (
+                      <img
+                        src={p.imagem_url}
+                        alt={p.nome}
+                        className="h-full w-full object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="h-full w-full flex items-center justify-center">
+                        <Music2 className="h-3.5 w-3.5 text-muted-foreground" />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <div className="min-w-0 text-[10px] text-muted-foreground truncate">
+                {briefing.playlists_referencia.length} refs • {briefing.playlists_referencia[0]?.nome}
+              </div>
+            </div>
+
+            {briefing.playlists_referencia[0]?.spotify_url && (
+              <a
+                href={briefing.playlists_referencia[0].spotify_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/40 px-2 py-1 text-[10px] text-foreground hover:border-primary/40 hover:bg-muted/70"
+              >
+                <ExternalLink className="h-3 w-3" />
+                Abrir playlist
+              </a>
+            )}
+          </div>
+        )}
+
         {/* Expanded detail */}
         {expanded && (
           <div className="space-y-4 pt-3 border-t border-border animate-in fade-in slide-in-from-top-2 duration-200">
