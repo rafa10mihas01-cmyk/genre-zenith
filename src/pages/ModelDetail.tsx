@@ -31,6 +31,7 @@ export default function ModelDetail() {
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [reanalyzing, setReanalyzing] = useState(false);
+  const [generatingAI, setGeneratingAI] = useState(false);
 
   async function load() {
     if (!genreId) return;
