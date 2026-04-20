@@ -77,6 +77,14 @@ export default function Brain() {
   }
   useEffect(() => { loadSummaries(); }, []);
 
+  // Refresh automático enquanto roda — mostra contadores subindo em tempo real
+  useEffect(() => {
+    if (!running) return;
+    const id = setInterval(() => { loadSummaries(); }, 8000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [running]);
+
   // Auto-start se vier ?run=slug
   useEffect(() => {
     const run = params.get("run") as Slug | null;
