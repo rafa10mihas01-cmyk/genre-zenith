@@ -42,6 +42,8 @@ export default function Brain() {
   const [stageLabel, setStageLabel] = useState("");
   const [progress, setProgress] = useState(0);
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  const [stalled, setStalled] = useState(false);
+  const [stalledSlug, setStalledSlug] = useState<Slug | null>(null);
   const [summaries, setSummaries] = useState<Record<string, GenreSummary>>({});
 
   const runLockRef = useRef(false);
