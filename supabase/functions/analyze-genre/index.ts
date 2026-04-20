@@ -47,10 +47,11 @@ Deno.serve(async (req) => {
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
   try {
-    const [{ data: genre }, { data: results }, { data: tracks }] = await Promise.all([
-      supabase.from("genres").select("id,nome").eq("id", body.genre_id).single(),
-      supabase.from("search_results").select("nome_playlist,seguidores,spotify_url,imagem_url,descricao,total_musicas").eq("genre_id", body.genre_id).limit(2000),
-      supabase.from("search_tracks").select("nome_musica,artista").eq("genre_id", body.genre_id).limit(10000),
+    const [{ data: genre }, { data: results }, { data: tracks }, { data: terms }] = await Promise.all([
+      supabase.from("genres").select("id,nome,slug").eq("id", body.genre_id).single(),
+      supabase.from("search_results").select("id,nome_playlist,seguidores,spotify_url,imagem_url,descricao,total_musicas,term_id").eq("genre_id", body.genre_id).limit(2000),
+      supabase.from("search_tracks").select("nome_musica,artista,result_id").eq("genre_id", body.genre_id).limit(10000),
+      supabase.from("search_terms").select("id,termo").eq("genre_id", body.genre_id),
     ]);
 
     if (!genre) throw new Error("Gênero não encontrado");
@@ -74,8 +75,8 @@ Deno.serve(async (req) => {
       .sort((a, b) => {
         const af = a.seguidores ?? -1;
         const bf = b.seguidores ?? -1;
-        if (af !== bf) return bf - af; // followers DESC
-        return (b.total_musicas ?? 0) - (a.total_musicas ?? 0); // fallback
+        if (af !== bf) return bf - af;
+        return (b.total_musicas ?? 0) - (a.total_musicas ?? 0);
       })
       .slice(0, 25)
       .map(r => ({
@@ -100,6 +101,103 @@ Deno.serve(async (req) => {
       .sort((a, b) => b.count - a.count)
       .slice(0, 50);
 
+    // ============ CLUSTERIZAÇÃO POR SUBGÊNERO ============
+    // Subgênero = palavra extra que vem junto do gênero principal nos termos de busca
+    // Ex: para "funk", os termos "funk mandelão", "funk consciente" → subs: mandelão, consciente
+    const slugToken = tokenize(genre.slug ?? "")[0] ?? "";
+    const nomeToken = tokenize(genre.nome ?? "")[0] ?? "";
+    const baseTokens = new Set([slugToken, nomeToken].filter(Boolean));
+    const NON_SUB = new Set([
+      "2025","2026","2024","2023","tiktok","tik","tok","viral","top","mix","hits",
+      "playlist","spotify","brasil","novo","novos","nova","novas","atualizado",
+      "atualizada","lancamentos","melhores","melhor","tocadas","mais",
+      "para","pra","com","sem","feat","official","oficial","radio","abril","maio",
+    ]);
+
+    // term_id → tokens extras (subgênero candidato)
+    const termIdToSubs = new Map<string, string[]>();
+    for (const t of (terms ?? [])) {
+      const toks = tokenize(t.termo ?? "");
+      const extras = toks.filter(tk => !baseTokens.has(tk) && !NON_SUB.has(tk));
+      termIdToSubs.set(t.id, extras);
+    }
+    // Universo de subs candidatos (vindos dos termos do kit)
+    const allSubsFromTerms = new Set<string>();
+    for (const arr of termIdToSubs.values()) for (const s of arr) allSubsFromTerms.add(s);
+
+    const subWeight = new Map<string, number>();
+    const subPlaylists = new Map<string, Set<string>>();
+    const subKwBag = new Map<string, Map<string, number>>();
+    const subTrackBag = new Map<string, Map<string, { nome: string; artista: string; count: number }>>();
+
+    for (const r of (results ?? [])) {
+      const fromTerm = termIdToSubs.get(r.term_id ?? "") ?? [];
+      const nameToks = tokenize(r.nome_playlist ?? "");
+      const descToks = tokenize((r as any).descricao ?? "");
+      const cloud = new Set([...nameToks, ...descToks]);
+      const candidates = new Set<string>(fromTerm);
+      for (const s of allSubsFromTerms) if (cloud.has(s)) candidates.add(s);
+      for (const sub of candidates) {
+        if (!sub) continue;
+        subWeight.set(sub, (subWeight.get(sub) ?? 0) + 1);
+        if (!subPlaylists.has(sub)) subPlaylists.set(sub, new Set());
+        subPlaylists.get(sub)!.add(r.id);
+        if (!subKwBag.has(sub)) subKwBag.set(sub, new Map());
+        const kbag = subKwBag.get(sub)!;
+        for (const tk of nameToks) {
+          if (baseTokens.has(tk) || NON_SUB.has(tk) || tk === sub) continue;
+          kbag.set(tk, (kbag.get(tk) ?? 0) + 1);
+        }
+      }
+    }
+
+    // Distribui tracks por sub via result_id
+    const resultIdToSubs = new Map<string, string[]>();
+    for (const [sub, ids] of subPlaylists) {
+      for (const id of ids) {
+        if (!resultIdToSubs.has(id)) resultIdToSubs.set(id, []);
+        resultIdToSubs.get(id)!.push(sub);
+      }
+    }
+    for (const t of (tracks ?? [])) {
+      const subs = resultIdToSubs.get((t as any).result_id ?? "") ?? [];
+      for (const sub of subs) {
+        if (!subTrackBag.has(sub)) subTrackBag.set(sub, new Map());
+        const tbag = subTrackBag.get(sub)!;
+        const k = trackKey(t);
+        if (!k || k === "||") continue;
+        const cur = tbag.get(k);
+        if (cur) cur.count++;
+        else tbag.set(k, { nome: t.nome_musica, artista: t.artista, count: 1 });
+      }
+    }
+
+    const totalRes = results?.length ?? 0;
+    const minPlaylistsForSub = Math.max(3, Math.floor(totalRes * 0.02));
+    const subgeneros = Array.from(subWeight.entries())
+      .filter(([, w]) => w >= minPlaylistsForSub)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([sub, w]) => {
+        const kbag = subKwBag.get(sub) ?? new Map();
+        const top_keywords = Array.from(kbag.entries())
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 8)
+          .map(([value, count]) => ({ value, count }));
+        const tbag = subTrackBag.get(sub) ?? new Map();
+        const top_tracks = Array.from(tbag.values())
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 8);
+        return {
+          slug: sub,
+          nome: sub,
+          total_playlists: w,
+          peso_pct: totalRes > 0 ? Math.round((w / totalRes) * 1000) / 10 : 0,
+          top_keywords,
+          top_tracks,
+        };
+      });
+
     const insights = {
       total_playlists_analisadas: results?.length ?? 0,
       total_tracks_analisadas: tracks?.length ?? 0,
@@ -108,6 +206,7 @@ Deno.serve(async (req) => {
         : 0,
       maior_playlist: playlists_dominantes[0] ?? null,
       diversidade_tracks: trackMap.size,
+      subgeneros,
     };
 
     // Upsert genre_models
