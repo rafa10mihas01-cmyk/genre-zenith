@@ -34,9 +34,10 @@ const KITS: Record<string, string[]> = {
 
 function intensityLimits(intensity: Intensity) {
   switch (intensity) {
-    case "leve":      return { termsCount: 5,  delayMs: 2500 };
-    case "agressivo": return { termsCount: 12, delayMs: 1000 };
-    default:          return { termsCount: 8,  delayMs: 1500 };
+    // delayMs = pausa entre BATCHES de buscas paralelas (não entre cada termo)
+    case "leve":      return { termsCount: 5,  delayMs: 1000, batchSize: 2 };
+    case "agressivo": return { termsCount: 12, delayMs: 300,  batchSize: 4 };
+    default:          return { termsCount: 8,  delayMs: 500,  batchSize: 3 };
   }
 }
 
@@ -95,7 +96,7 @@ async function runPipeline(jobId: string, body: StartBody) {
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
   const slug = body.slug.toLowerCase();
   const kit = KITS[slug];
-  const { termsCount, delayMs } = intensityLimits(body.intensity ?? "normal");
+  const { termsCount, delayMs, batchSize } = intensityLimits(body.intensity ?? "normal");
   const maxPerSearch = body.max_playlists ?? 50;
   const start = Date.now();
 
@@ -131,28 +132,37 @@ async function runPipeline(jobId: string, body: StartBody) {
       .eq("genre_id", gid).in("termo", selectedTerms);
     stages.terms = { count: termsRows?.length ?? 0, list: selectedTerms };
 
-    // 2) Buscas
+    // 2) Buscas — paralelizadas em batches (3 simultâneas no modo normal)
     await setJob(supabase, gid, jobId, { status: "running", stage: "Buscando playlists...", progress: 15 });
     let searchedOk = 0, searchedErr = 0, totalSavedResults = 0;
-    const total = (termsRows ?? []).length || 1;
-    let idx = 0;
-    for (const t of (termsRows ?? [])) {
-      const r = await callFn("run-search", {
-        genre_id: gid, term_id: t.id, search_term: t.termo, max_results: maxPerSearch,
+    const allTerms = termsRows ?? [];
+    const total = allTerms.length || 1;
+    let processed = 0;
+    for (let i = 0; i < allTerms.length; i += batchSize) {
+      const batch = allTerms.slice(i, i + batchSize);
+      const results = await Promise.all(batch.map((t) =>
+        callFn("run-search", {
+          genre_id: gid, term_id: t.id, search_term: t.termo, max_results: maxPerSearch,
+        })
+      ));
+      results.forEach((r) => {
+        if (r.ok && (r.data as any)?.ok) {
+          searchedOk++;
+          totalSavedResults += (r.data as any)?.savedResults ?? 0;
+        } else searchedErr++;
       });
-      if (r.ok && (r.data as any)?.ok) {
-        searchedOk++;
-        totalSavedResults += (r.data as any)?.savedResults ?? 0;
-      } else searchedErr++;
-      idx++;
+      processed += batch.length;
       await setJob(supabase, gid, jobId, {
         status: "running",
-        stage: `Buscando playlists... (${idx}/${total})`,
-        progress: 15 + Math.round((idx / total) * 40),
+        stage: `Buscando playlists... (${processed}/${total})`,
+        progress: 15 + Math.round((processed / total) * 40),
       });
-      if (delayMs > 0) await new Promise(res => setTimeout(res, delayMs));
+      if (delayMs > 0 && i + batchSize < allTerms.length) {
+        await new Promise((res) => setTimeout(res, delayMs));
+      }
     }
     stages.search = { ok: searchedOk, err: searchedErr, total_inserted: totalSavedResults };
+
 
     // 3) Filtro relaxado: relevante se nome OU descrição OU termo de origem contém o slug
     //    OU qualquer um dos termos do kit (ex.: "mandelão" pra funk).
