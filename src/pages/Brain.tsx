@@ -315,16 +315,30 @@ export default function Brain() {
       </Card>
 
       {/* BLOCO 3 — Ação */}
-      <div className="flex justify-center">
+      <div className="flex flex-col items-center gap-2">
         <Button
           size="lg"
           onClick={hasPausedJob ? resumeAnalysis : startNewAnalysis}
-          disabled={running}
+          disabled={running || loadingSaved}
           className="h-14 px-10 text-base font-semibold gap-2 shadow-lg shadow-primary/30"
         >
           {running ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
-          {running ? "Analisando..." : hasPausedJob ? "Retomar acompanhamento" : "Analisar agora"}
+          {running
+            ? "Analisando..."
+            : hasPausedJob
+              ? "Retomar acompanhamento"
+              : isSaved
+                ? "Rodar nova análise"
+                : "Analisar agora"}
         </Button>
+        {loadingSaved && (
+          <div className="text-xs text-muted-foreground flex items-center gap-1.5">
+            <Loader2 className="h-3 w-3 animate-spin" /> Carregando análise salva...
+          </div>
+        )}
+        {!loadingSaved && !running && !isSaved && !hasPausedJob && (
+          <div className="text-xs text-muted-foreground">Nenhuma análise salva para este nicho ainda.</div>
+        )}
       </div>
 
       {/* Loading com etapas */}
