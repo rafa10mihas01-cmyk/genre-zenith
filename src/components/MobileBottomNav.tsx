@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { Brain, LogOut } from "lucide-react";
+import { Brain, LogOut, LayoutDashboard, Layers, Activity } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 
@@ -12,16 +12,15 @@ type Item = {
   onClick?: () => void;
 };
 
-/**
- * MobileBottomNav — barra fixa inferior visível apenas no mobile (md:hidden)
- * Glass escuro, safe-area-inset, ações principais (Cérebro + Sair)
- */
 export function MobileBottomNav() {
   const { signOut } = useAuth();
   const location = useLocation();
 
   const items: Item[] = [
-    { label: "Cérebro", icon: Brain, to: "/", end: true, accent: "99,102,241" },
+    { label: "Visão", icon: LayoutDashboard, to: "/", end: true, accent: "99,102,241" },
+    { label: "Cérebro", icon: Brain, to: "/brain", accent: "168,85,247" },
+    { label: "Modelos", icon: Layers, to: "/models", accent: "59,130,246" },
+    { label: "Coletor", icon: Activity, to: "/collect", accent: "251,191,36" },
     { label: "Sair", icon: LogOut, accent: "244,63,94", onClick: () => signOut() },
   ];
 
