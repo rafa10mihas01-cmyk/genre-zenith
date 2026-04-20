@@ -1,6 +1,7 @@
 // brain-run — orquestra pipeline em BACKGROUND para evitar timeout (150s).
 // POST { slug, intensity?, max_playlists? }            → { ok, job_id }
-// GET  ?job_id=...                                     → { ok, status, stage, progress, result? }
+// POST { action: "resume", slug }                       → { ok, job_id }  (continua enrich + análise)
+// GET  ?job_id=...                                     → { ok, status, stage, progress, result?, stale? }
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -13,6 +14,7 @@ interface StartBody {
   slug: string;
   intensity?: Intensity;
   max_playlists?: 20 | 50 | 100;
+  action?: "start" | "resume";
 }
 
 const KITS: Record<string, string[]> = {
