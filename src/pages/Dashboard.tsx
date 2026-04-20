@@ -5,6 +5,7 @@ import { ArrowUpRight, TrendingUp, Brain, Layers, Activity, Plus, Sparkles, Chev
 import { formatNumber, timeAgo } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
+
 type NichoKpi = {
   slug: string;
   nome: string;
