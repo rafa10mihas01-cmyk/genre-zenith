@@ -1,4 +1,5 @@
 // enrich-playlists — busca followers reais via Spotify Web API + tracks via Apify
+// Logs granulares por playlist + retry com backoff em 429/5xx + telemetria completa.
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getSpotifyToken } from "../_shared/spotify.ts";
@@ -15,16 +16,24 @@ interface Body {
 }
 
 function extractPlaylistId(url: string): string | null {
-  // formats: https://open.spotify.com/playlist/<id>(?si=...)
   const m = url.match(/playlist\/([A-Za-z0-9]+)/);
   return m?.[1] ?? null;
 }
 
-async function fetchSpotifyPlaylist(id: string, token: string) {
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+type SpotifyResp = { followers: number | null; total: number | null; status: number };
+
+async function fetchSpotifyPlaylist(id: string, token: string): Promise<SpotifyResp> {
   const url = `https://api.spotify.com/v1/playlists/${id}?fields=followers(total),tracks(total)`;
   const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-  if (r.status === 401) throw new Error("TOKEN_EXPIRED");
-  if (r.status === 404) return { followers: null, total: null, status: 404 };
+  if (r.status === 401) { await r.text().catch(() => ""); throw new Error("TOKEN_EXPIRED"); }
+  if (r.status === 429) {
+    const retry = Number(r.headers.get("Retry-After") ?? "2");
+    await r.text().catch(() => "");
+    throw new Error(`RATE_LIMIT:${retry}`);
+  }
+  if (r.status === 404) { await r.text().catch(() => ""); return { followers: null, total: null, status: 404 }; }
   if (!r.ok) {
     const t = await r.text();
     throw new Error(`Spotify ${r.status}: ${t.slice(0, 200)}`);
@@ -42,13 +51,9 @@ async function fetchApifyTracks(playlistUrl: string): Promise<any[]> {
   const r = await fetch(apifyUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      mode: "urls",
-      urls: [playlistUrl],
-      proxy: { useApifyProxy: true },
-    }),
+    body: JSON.stringify({ mode: "urls", urls: [playlistUrl], proxy: { useApifyProxy: true } }),
   });
-  if (!r.ok) return [];
+  if (!r.ok) { await r.text().catch(() => ""); return []; }
   const items = await r.json();
   if (!Array.isArray(items) || !items[0]) return [];
   return Array.isArray(items[0].tracks) ? items[0].tracks : [];
@@ -60,6 +65,9 @@ Deno.serve(async (req) => {
   let body: Body = {};
   try { body = await req.json(); } catch { /* default */ }
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+
+  const samples: any[] = [];
+  const errorSamples: any[] = [];
 
   try {
     const limit = Math.min(body.limit ?? 50, 100);
@@ -76,46 +84,82 @@ Deno.serve(async (req) => {
     if (body.genre_id) q = q.eq("genre_id", body.genre_id);
     const { data: pending, error: pErr } = await q;
     if (pErr) throw pErr;
+
+    console.log(`[enrich] genre=${body.genre_id ?? "all"} pending=${pending?.length ?? 0} limit=${limit}`);
+
     if (!pending || pending.length === 0) {
+      // Conta quantas playlists totais existem pra esse gênero pra dar contexto
+      let context: any = {};
+      if (body.genre_id) {
+        const { count: total } = await supabase.from("search_results").select("*", { count: "exact", head: true }).eq("genre_id", body.genre_id);
+        const { count: semUrl } = await supabase.from("search_results").select("*", { count: "exact", head: true }).eq("genre_id", body.genre_id).is("spotify_url", null);
+        const { count: jaEnriq } = await supabase.from("search_results").select("*", { count: "exact", head: true }).eq("genre_id", body.genre_id).not("seguidores", "is", null);
+        context = { total_no_genero: total, sem_spotify_url: semUrl, ja_enriquecidas: jaEnriq };
+      }
       return new Response(
-        JSON.stringify({ ok: true, message: "Nenhuma playlist para enriquecer", enriched: 0 }),
+        JSON.stringify({ ok: true, message: "Nenhuma playlist para enriquecer", enriched: 0, processed: 0, context }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
     let token = await getSpotifyToken();
-    let enriched = 0, tracksSaved = 0, errors = 0;
+    let enriched = 0, tracksSaved = 0, errors = 0, skipped = 0;
 
-    for (const p of pending) {
+    for (let i = 0; i < pending.length; i++) {
+      const p = pending[i];
       const id = p.spotify_url ? extractPlaylistId(p.spotify_url) : null;
-      if (!id) continue;
+      if (!id) { skipped++; continue; }
 
-      // Spotify followers + total
-      let info: { followers: number | null; total: number | null; status: number };
-      try {
-        info = await fetchSpotifyPlaylist(id, token);
-      } catch (e) {
-        if ((e as Error).message === "TOKEN_EXPIRED") {
-          token = await getSpotifyToken(true);
-          try { info = await fetchSpotifyPlaylist(id, token); }
-          catch { errors++; continue; }
-        } else { errors++; continue; }
+      // Spotify followers + total — com retry para 429/token
+      let info: SpotifyResp | null = null;
+      let attempts = 0;
+      while (attempts < 3 && !info) {
+        attempts++;
+        try {
+          info = await fetchSpotifyPlaylist(id, token);
+        } catch (e) {
+          const msg = (e as Error).message;
+          if (msg === "TOKEN_EXPIRED") {
+            console.log(`[enrich] token expirado, refresh (tent ${attempts})`);
+            token = await getSpotifyToken(true);
+            continue;
+          }
+          if (msg.startsWith("RATE_LIMIT:")) {
+            const wait = (Number(msg.split(":")[1]) || 2) * 1000;
+            console.log(`[enrich] rate limit, esperando ${wait}ms`);
+            await sleep(wait);
+            continue;
+          }
+          // erro permanente
+          errors++;
+          if (errorSamples.length < 5) errorSamples.push({ playlist: p.nome_playlist, id, error: msg.slice(0, 200) });
+          console.error(`[enrich] erro permanente em ${p.nome_playlist}:`, msg);
+          break;
+        }
       }
+      if (!info) continue;
 
       const update: Record<string, unknown> = {};
       if (info.followers !== null) update.seguidores = info.followers;
       if (info.total !== null) update.total_musicas = info.total;
       if (Object.keys(update).length > 0) {
-        await supabase.from("search_results").update(update).eq("id", p.id);
-        enriched++;
+        const { error: uErr } = await supabase.from("search_results").update(update).eq("id", p.id);
+        if (uErr) {
+          errors++;
+          console.error(`[enrich] update DB falhou em ${p.nome_playlist}:`, uErr.message);
+        } else {
+          enriched++;
+          if (samples.length < 3) samples.push({ playlist: p.nome_playlist, followers: info.followers, total: info.total });
+        }
+      } else {
+        skipped++;
       }
 
-      // Tracks via Apify (only if requested)
+      // Tracks via Apify (apenas se solicitado)
       if (fetchTracks && p.genre_id) {
         try {
           const tracks = await fetchApifyTracks(p.spotify_url!);
           if (tracks.length > 0) {
-            // Limpa antigas desse result_id antes de inserir (idempotente)
             await supabase.from("search_tracks").delete().eq("result_id", p.id);
             const rows = tracks.slice(0, 100).map((t: any, idx: number) => ({
               genre_id: p.genre_id,
@@ -127,9 +171,15 @@ Deno.serve(async (req) => {
             }));
             const { error: tErr } = await supabase.from("search_tracks").insert(rows);
             if (!tErr) tracksSaved += rows.length;
+            else console.error(`[enrich] insert tracks falhou:`, tErr.message);
           }
-        } catch { /* skip tracks */ }
+        } catch (e) {
+          console.error(`[enrich] apify tracks falhou em ${p.nome_playlist}:`, (e as Error).message);
+        }
       }
+
+      // Pequeno respiro para não bater rate limit
+      if (i < pending.length - 1) await sleep(150);
     }
 
     // Atualiza totais do gênero processado
@@ -144,11 +194,12 @@ Deno.serve(async (req) => {
       }).eq("id", body.genre_id);
     }
 
+    const status = errors === 0 ? "sucesso" : (enriched > 0 ? "parcial" : "erro");
     await supabase.from("collection_logs").insert({
       genre_id: body.genre_id ?? null,
       acao: "enrich-playlists",
-      status: errors > 0 ? "parcial" : "sucesso",
-      mensagem: `Enriquecidas ${enriched}/${pending.length} playlists, ${tracksSaved} tracks salvas, ${errors} erros`,
+      status,
+      mensagem: `Enriquecidas ${enriched}/${pending.length} • ${tracksSaved} tracks • ${errors} erros • ${skipped} ignoradas${errorSamples.length ? " • ex: " + errorSamples[0].error.slice(0, 80) : ""}`,
       duracao_ms: Date.now() - start,
     });
 
@@ -159,13 +210,16 @@ Deno.serve(async (req) => {
         enriched,
         tracks_saved: tracksSaved,
         errors,
+        skipped,
+        samples,
+        error_samples: errorSamples,
         remaining_estimate: pending.length === limit ? "≥ próximo lote" : 0,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e) {
     const msg = (e as Error).message ?? String(e);
-    console.error("enrich-playlists error", msg);
+    console.error("enrich-playlists fatal", msg);
     await supabase.from("collection_logs").insert({
       genre_id: body.genre_id ?? null,
       acao: "enrich-playlists",
