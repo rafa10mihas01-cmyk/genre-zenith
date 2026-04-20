@@ -89,12 +89,59 @@ Deno.serve(async (req) => {
     // Total real do corpus analisado (não só as dominantes)
     const totalPlaylists = Math.max(corpusCount ?? 0, playlistsDom.length, 1);
 
-    // Helper: classifica um formato/keyword/cards num subgênero
+    // Helper: classifica por nome (formato/keyword)
     function classifySub(text: string): { slug: string; nome: string } | null {
       const lower = (text ?? "").toLowerCase();
       for (const s of subgeneros) {
         const slug = String(s.slug ?? s.nome ?? "").toLowerCase();
         if (slug && lower.includes(slug)) return { slug: s.slug, nome: s.nome };
+      }
+      return null;
+    }
+
+    // ═══ MAPAS DE INFERÊNCIA POR TRACKS/ARTISTAS ═══
+    // Para cada subgênero, monta sets de "trackKey" e "artista" dominantes
+    const norm = (s: string) => (s ?? "").toLowerCase().trim();
+    const trackKeyOf = (n: string, a: string) => `${norm(n)}||${norm(a)}`;
+    const subToTracks = new Map<string, Set<string>>();
+    const subToArtists = new Map<string, Set<string>>();
+    const subInfoBySlug = new Map<string, { slug: string; nome: string }>();
+    for (const sg of subgeneros) {
+      const slug = String(sg.slug ?? sg.nome ?? "").toLowerCase();
+      if (!slug) continue;
+      subInfoBySlug.set(slug, { slug: sg.slug, nome: sg.nome });
+      const tset = new Set<string>();
+      const aset = new Set<string>();
+      for (const t of (sg.top_tracks ?? [])) {
+        if (t?.nome && t?.artista) tset.add(trackKeyOf(t.nome, t.artista));
+        if (t?.artista) aset.add(norm(t.artista));
+      }
+      subToTracks.set(slug, tset);
+      subToArtists.set(slug, aset);
+    }
+
+    // Infere subgênero a partir de uma lista de tracks (≥60% pertencem ao cluster)
+    function inferSubFromTracks(tracks: { nome: string; artista: string }[]): { slug: string; nome: string } | null {
+      if (!tracks.length || subInfoBySlug.size === 0) return null;
+      const scores = new Map<string, number>();
+      for (const t of tracks) {
+        const tk = trackKeyOf(t.nome, t.artista);
+        const ar = norm(t.artista);
+        for (const [slug] of subInfoBySlug) {
+          let hit = 0;
+          if (subToTracks.get(slug)?.has(tk)) hit += 1;
+          else if (subToArtists.get(slug)?.has(ar)) hit += 0.6;
+          if (hit > 0) scores.set(slug, (scores.get(slug) ?? 0) + hit);
+        }
+      }
+      if (scores.size === 0) return null;
+      const ranked = [...scores.entries()].sort((a, b) => b[1] - a[1]);
+      const [bestSlug, bestScore] = ranked[0];
+      const ratio = bestScore / tracks.length;
+      if (ratio >= 0.6) return subInfoBySlug.get(bestSlug) ?? null;
+      // fallback: maioria simples se pelo menos 40% e gap ≥ 1.5x sobre o segundo
+      if (ratio >= 0.4 && (!ranked[1] || bestScore >= ranked[1][1] * 1.5)) {
+        return subInfoBySlug.get(bestSlug) ?? null;
       }
       return null;
     }
@@ -176,6 +223,18 @@ Deno.serve(async (req) => {
     // Contador pra rotação por subgênero (cada sub tem seu próprio offset)
     const subRotation = new Map<string, number>();
 
+    // ═══ COTAS POR SUBGÊNERO (balanceamento + priorização) ═══
+    const subsRanked = [...subgeneros]
+      .filter((s: any) => s.slug || s.nome)
+      .sort((a: any, b: any) => (b.total_playlists ?? 0) - (a.total_playlists ?? 0));
+    const subQuota = new Map<string, { max: number; count: number }>();
+    for (let i = 0; i < subsRanked.length; i++) {
+      const slug = String(subsRanked[i].slug ?? subsRanked[i].nome).toLowerCase();
+      // top1: até 4 cards | top2: até 3 | top3-4: até 2 | resto: até 1
+      const max = i === 0 ? 4 : i === 1 ? 3 : i < 4 ? 2 : 1;
+      subQuota.set(slug, { max, count: 0 });
+    }
+
     for (let fi = 0; fi < sortedFormats.length && valid.length < MAX_RESULTS; fi++) {
       const fmt = sortedFormats[fi];
       const freq = (fmt.count / totalPlaylists) * 100;
@@ -185,14 +244,34 @@ Deno.serve(async (req) => {
       if (freq < MIN_FREQ_PCT) continue;
       if (rep < MIN_REPETITIONS) continue;
 
-      // 🏷️ CLASSIFICA SUBGÊNERO do formato
-      const subInfo = classifySub(fmt.value);
+      // 🏷️ CLASSIFICAÇÃO OBRIGATÓRIA: 1) por nome 2) por tracks 3) descarta
+      let subInfo = classifySub(fmt.value);
+
+      // 🚫 Se há subs detectados mas não classificou pelo nome, deixa pra reconfirmar via tracks
+      // (a inferência por tracks acontece após montar tracks reais do card, abaixo)
+
+      const hasClusters = subInfoBySlug.size > 0;
+      // Se não há clusters de subgênero detectados no gênero, permite classificação null
+      if (hasClusters && !subInfo) {
+        // tenta inferência inicial via pool global (rápida) — se falhar, descartará após tracks
+        const sampleTracks = allTracks.slice(0, 8).map(t => ({ nome: t.nome, artista: t.artista }));
+        subInfo = inferSubFromTracks(sampleTracks);
+        if (!subInfo) continue; // sem chance de classificar → descarta
+      }
+
       const subKey = subInfo ? subInfo.slug.toLowerCase() : "_global";
+
+      // 📏 RESPEITA COTA
+      const quota = subQuota.get(subKey);
+      if (quota && quota.count >= quota.max) continue;
+
       const pool = subInfo ? subPools.get(subKey) : null;
 
-      // Decide pools: se há pool do subgênero com keywords/tracks suficientes, usa eles
-      // (não mistura mandelão com consciente). Se não, cai no global.
-      const useSubPool = !!pool && pool.kws.length >= MIN_KEYWORDS && pool.tracks.length > 0;
+      // 🔒 ISOLAMENTO TOTAL: se classificado, usa SOMENTE o pool do sub
+      const useSubPool = !!subInfo;
+      if (useSubPool && (!pool || pool.kws.length < MIN_KEYWORDS || pool.tracks.length === 0)) {
+        continue; // sem pool isolado → descarta (não mistura clusters)
+      }
       const kwSource = useSubPool ? pool!.kws : sortedKw.map(k => ({ value: k.value, peso: k.peso }));
       const trackSource = useSubPool ? pool!.tracks : allTracks.map(t => ({ nome: t.nome, artista: t.artista }));
       const artistSource = useSubPool ? pool!.artists : allArtists;
@@ -202,7 +281,7 @@ Deno.serve(async (req) => {
       const artSrcLen = artistSource.length;
       if (kwSrcLen < MIN_KEYWORDS) continue;
 
-      // 🔄 ROTAÇÃO independente por subgênero (cards do mesmo sub não repetem keywords)
+      // 🔄 ROTAÇÃO independente por subgênero
       const rotIdx = subRotation.get(subKey) ?? 0;
       subRotation.set(subKey, rotIdx + 1);
 
@@ -224,8 +303,20 @@ Deno.serve(async (req) => {
       const artists: string[] = [];
       for (let i = 0; i < 5 && i < artSrcLen; i++) artists.push(artistSource[(aStart + i) % artSrcLen]);
 
-      // 📊 SCORE
-      const score = (freq * 0.5) + (rep * 0.3) + (uniqKw.length * 5);
+      // 🔬 RECONFIRMAÇÃO via tracks reais (proteção contra mistura)
+      if (subInfo && hasClusters) {
+        const reInfer = inferSubFromTracks(tracks);
+        if (reInfer && reInfer.slug.toLowerCase() !== subInfo.slug.toLowerCase()) {
+          continue; // tracks pertencem a outro cluster → descarta
+        }
+      }
+
+      // 📊 SCORE com boost por volume do subgênero
+      const subPesoPct = subInfo
+        ? (subgeneros.find((s: any) => String(s.slug).toLowerCase() === subKey)?.peso_pct ?? 0)
+        : 0;
+      const subBoost = Math.min(20, subPesoPct * 0.5);
+      const score = (freq * 0.5) + (rep * 0.3) + (uniqKw.length * 5) + subBoost;
       const forca_nome = Math.min(100, Math.round(score));
 
       // 🎯 CONFIDENCE
@@ -248,7 +339,7 @@ Deno.serve(async (req) => {
         ? fmtTitle
         : `${fmtTitle} ${titleCase(genre.nome)}`;
 
-      // 🎯 PLAYLISTS DE REFERÊNCIA: dominantes que casam com o formato
+      // 🎯 PLAYLISTS DE REFERÊNCIA
       const fmtLower = fmt.value.toLowerCase();
       const refMatches = playlistsDom
         .filter((p: any) => String(p.nome ?? "").toLowerCase().includes(fmtLower))
@@ -276,13 +367,15 @@ Deno.serve(async (req) => {
       const totalSeg = playlistsRef.reduce((s, p) => s + (p.seguidores ?? 0), 0);
       const mediaSeguidores = playlistsRef.length > 0 ? Math.round(totalSeg / playlistsRef.length) : 0;
 
+      // ✅ Incrementa cota
+      if (quota) quota.count += 1;
+
       valid.push({
         nome: nomeBase,
         nome_provisorio: nomeBase,
         forca_nome,
         formato: fmt.value,
         formato_id: `fmt_${fi}`,
-        // 🆕 SUBGÊNERO (null quando não classificável)
         subgenero: subInfo ? { slug: subInfo.slug, nome: subInfo.nome } : null,
         keywords_utilizadas: uniqKw.map((k: any) => ({ value: k.value, peso: k.peso })),
         base_musical: {
@@ -300,9 +393,17 @@ Deno.serve(async (req) => {
           repeticao_em_playlists: rep,
           score: Math.round(score),
           sinal,
+          subgenero_peso_pct: subPesoPct || null,
         },
         confidence,
       });
+    }
+
+    // 🛡️ GARANTIA FINAL: zero subgenero=null quando há clusters detectados
+    if (subInfoBySlug.size > 0) {
+      for (let i = valid.length - 1; i >= 0; i--) {
+        if (!valid[i].subgenero) valid.splice(i, 1);
+      }
     }
 
     // ═══════════════ IA: REFINAR NOMES (opcional) ═══════════════
