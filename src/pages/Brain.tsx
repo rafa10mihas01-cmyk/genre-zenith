@@ -77,6 +77,14 @@ export default function Brain() {
   }
   useEffect(() => { loadSummaries(); }, []);
 
+  // Refresh automático enquanto roda — mostra contadores subindo em tempo real
+  useEffect(() => {
+    if (!running) return;
+    const id = setInterval(() => { loadSummaries(); }, 8000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [running]);
+
   // Auto-start se vier ?run=slug
   useEffect(() => {
     const run = params.get("run") as Slug | null;
@@ -89,11 +97,35 @@ export default function Brain() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function pollJob(jobId: string) {
+  // Confere no banco se a análise concluiu (fallback quando o status do job some)
+  async function checkFinishedInDb(targetSlug: Slug, startedAt: number): Promise<boolean> {
+    const { data: g } = await supabase
+      .from("genres")
+      .select("id,ultima_coleta,status")
+      .eq("slug", targetSlug)
+      .maybeSingle();
+    if (!g) return false;
+    const ts = g.ultima_coleta ? new Date(g.ultima_coleta).getTime() : 0;
+    // Considera concluído se ultima_coleta foi atualizada APÓS o início do run
+    return ts >= startedAt - 5_000 && (g.status === "analisado" || g.status === "coletando");
+  }
+
+  async function pollJob(jobId: string, targetSlug: Slug, startedAt: number) {
     const SUPABASE_URL = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co`;
     const ANON = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
     const deadline = Date.now() + 20 * 60_000;
     let consecutiveErrors = 0;
+    let highestProgress = 0;
+    let pendingAfterProgressCount = 0;
+
+    const finish = async (label: string) => {
+      setActiveJobId(null);
+      setProgress(100);
+      setStageLabel("Concluído");
+      toast.success("Análise concluída", { description: label });
+      await loadSummaries();
+      navigate(`/brain/${targetSlug}`);
+    };
 
     while (Date.now() < deadline && !cancelRequestedRef.current) {
       await new Promise(r => setTimeout(r, 3000));
@@ -104,24 +136,54 @@ export default function Brain() {
           headers: { apikey: ANON, Authorization: `Bearer ${ANON}` },
         });
         j = await r.json();
-      } catch { consecutiveErrors++; if (consecutiveErrors > 15) throw new Error("Conexão instável"); continue; }
+      } catch {
+        consecutiveErrors++;
+        // Antes de desistir, confere no banco
+        if (highestProgress >= 85 && await checkFinishedInDb(targetSlug, startedAt)) {
+          return finish("Abrindo a inteligência...");
+        }
+        if (consecutiveErrors > 15) throw new Error("Conexão instável");
+        continue;
+      }
       if (cancelRequestedRef.current) return;
-      if (!j?.ok) { consecutiveErrors++; if (consecutiveErrors > 15) throw new Error("Job não encontrado"); continue; }
+      if (!j?.ok) {
+        consecutiveErrors++;
+        if (consecutiveErrors > 15) throw new Error("Job não encontrado");
+        continue;
+      }
       consecutiveErrors = 0;
       if (!mountedRef.current) return;
-      setStageLabel(j.stage ?? "");
-      setProgress(j.progress ?? 0);
-      const labelLower = (j.stage ?? "").toLowerCase();
-      const idx = STAGES.findIndex(s => labelLower.includes(s.toLowerCase().replace("...", "").split(" ")[0]));
-      if (idx >= 0) setStageIdx(idx);
-      if (j.status === "done") {
-        setActiveJobId(null);
-        toast.success("Análise concluída", { description: "Abrindo a inteligência..." });
-        await loadSummaries();
-        navigate(`/brain/${nicho}`);
-        return;
+
+      const prog = Number(j.progress ?? 0);
+      const status = j.status as string;
+
+      // Detecta o "fantasma": job estava avançado e voltou pra pending → terminou
+      if (status === "pending" && highestProgress >= 85) {
+        pendingAfterProgressCount++;
+        if (pendingAfterProgressCount >= 2 || await checkFinishedInDb(targetSlug, startedAt)) {
+          return finish("Abrindo a inteligência...");
+        }
+      } else {
+        pendingAfterProgressCount = 0;
       }
-      if (j.status === "error") { setActiveJobId(null); throw new Error(j.error ?? "Erro no pipeline"); }
+
+      // Só atualiza UI se não for "regressão fantasma"
+      if (!(status === "pending" && highestProgress >= 50)) {
+        setStageLabel(j.stage ?? "");
+        setProgress(prog);
+        const labelLower = (j.stage ?? "").toLowerCase();
+        const idx = STAGES.findIndex(s => labelLower.includes(s.toLowerCase().replace("...", "").split(" ")[0]));
+        if (idx >= 0) setStageIdx(idx);
+      }
+      if (prog > highestProgress) highestProgress = prog;
+
+      if (status === "done") return finish("Abrindo a inteligência...");
+      if (status === "error") { setActiveJobId(null); throw new Error(j.error ?? "Erro no pipeline"); }
+
+      // Safety net: se passou de 90% e o banco já marcou concluído, abre
+      if (highestProgress >= 90 && await checkFinishedInDb(targetSlug, startedAt)) {
+        return finish("Abrindo a inteligência...");
+      }
     }
     if (cancelRequestedRef.current) return;
     throw new Error("Timeout aguardando conclusão (20 min)");
@@ -137,6 +199,7 @@ export default function Brain() {
     setStageIdx(0);
     setProgress(0);
     setStageLabel("Iniciando...");
+    const startedAt = Date.now();
     try {
       const { data, error } = await supabase.functions.invoke("brain-run", {
         body: { slug: target, intensity, max_playlists: size },
@@ -144,7 +207,7 @@ export default function Brain() {
       if (error) throw error;
       if (!data?.job_id) throw new Error(data?.error ?? "Falha ao iniciar");
       setActiveJobId(data.job_id);
-      await pollJob(data.job_id);
+      await pollJob(data.job_id, target, startedAt);
     } catch (e: any) {
       if (!cancelRequestedRef.current) toast.error("Erro na análise", { description: e?.message ?? String(e) });
     } finally {
