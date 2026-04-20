@@ -81,7 +81,10 @@ export default function Collect() {
     for (const gid of list) {
       if (abortRef.current?.signal.aborted) break;
       setActiveId(gid);
+      const cfg = getCollectSettings();
       await collectGenre(gid, {
+        delayMs: cfg.delay_ms,
+        maxResults: cfg.max_results,
         onProgress: (done, total, term) => setProgress({ done, total, term }),
         abortSignal: abortRef.current?.signal,
       });
