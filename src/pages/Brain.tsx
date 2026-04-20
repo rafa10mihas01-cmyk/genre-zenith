@@ -205,26 +205,40 @@ export default function Brain() {
       {/* Loading com etapas */}
       {running && (
         <Card className="border-primary/30 bg-primary/5">
-          <CardContent className="py-6 space-y-3">
-            {STAGES.map((s, i) => {
-              const done = i < stageIdx;
-              const active = i === stageIdx;
-              return (
-                <div key={s} className={cn("flex items-center gap-3 text-sm transition-opacity", !done && !active && "opacity-40")}>
-                  <div className={cn(
-                    "h-5 w-5 rounded-full flex items-center justify-center border",
-                    done && "bg-primary border-primary text-primary-foreground",
-                    active && "border-primary",
-                    !done && !active && "border-muted-foreground/30",
-                  )}>
-                    {done ? "✓" : active ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+          <CardContent className="py-6 space-y-4">
+            <div>
+              <div className="flex items-center justify-between text-xs mb-1.5">
+                <span className="text-muted-foreground">{stageLabel || "Iniciando..."}</span>
+                <span className="font-mono text-primary">{progress}%</span>
+              </div>
+              <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full bg-primary transition-all duration-500"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              {STAGES.map((s, i) => {
+                const done = i < stageIdx;
+                const active = i === stageIdx;
+                return (
+                  <div key={s} className={cn("flex items-center gap-3 text-sm transition-opacity", !done && !active && "opacity-40")}>
+                    <div className={cn(
+                      "h-5 w-5 rounded-full flex items-center justify-center border",
+                      done && "bg-primary border-primary text-primary-foreground",
+                      active && "border-primary",
+                      !done && !active && "border-muted-foreground/30",
+                    )}>
+                      {done ? "✓" : active ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                    </div>
+                    <span className={cn(active && "text-foreground font-medium", done && "text-muted-foreground line-through")}>
+                      {s}
+                    </span>
                   </div>
-                  <span className={cn(active && "text-foreground font-medium", done && "text-muted-foreground line-through")}>
-                    {s}
-                  </span>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </CardContent>
         </Card>
       )}
