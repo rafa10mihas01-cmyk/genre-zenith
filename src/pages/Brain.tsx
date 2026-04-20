@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Brain as BrainIcon, Sparkles, Loader2, Music, Radio, Flame, ChevronRight, Settings2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatNumber, timeAgo } from "@/lib/format";
+import { PageContainer } from "@/components/cc/PageContainer";
 
 type Slug = "funk" | "sertanejo" | "piseiro";
 type Intensity = "leve" | "normal" | "agressivo";
@@ -440,6 +441,6 @@ export default function Brain() {
           </CardContent>
         </Card>
       )}
-    </div>
+    </PageContainer>
   );
 }
