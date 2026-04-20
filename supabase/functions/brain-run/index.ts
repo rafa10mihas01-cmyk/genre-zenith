@@ -262,7 +262,7 @@ async function runPipeline(jobId: string, body: StartBody) {
       total_musicas: tCnt.count ?? 0,
       total_termos: teCnt.count ?? 0,
       ultima_coleta: new Date().toISOString(),
-      status: "analisado",
+      status: partial ? "parcial" : "analisado",
     }).eq("id", gid);
     stages.totals = { playlists: pCnt.count ?? 0, musicas: tCnt.count ?? 0, termos: teCnt.count ?? 0 };
 
@@ -270,18 +270,24 @@ async function runPipeline(jobId: string, body: StartBody) {
     const { data: model } = await supabase
       .from("genre_models").select("*").eq("genre_id", gid).maybeSingle();
 
+    const coveragePct = Math.round(coverage * 100);
+    const summary = `${enrichedCount} de ${totalPls} playlists analisadas (${coveragePct}%)`;
+
     await supabase.from("collection_logs").insert({
-      genre_id: gid, acao: "brain-run", status: "sucesso",
-      mensagem: `Concluído em ${Math.round((Date.now() - start)/1000)}s — ${searchedOk} buscas, ${enrichedTotal} enriquecidas, ${irrelevant.length} filtradas, ${tCnt.count ?? 0} faixas no banco`,
+      genre_id: gid, acao: "brain-run", status: partial ? "parcial" : "sucesso",
+      mensagem: `Concluído em ${Math.round((Date.now() - start)/1000)}s — ${searchedOk} buscas, ${summary}, ${cycles} ciclos enrich, ${irrelevant.length} filtradas, ${tCnt.count ?? 0} faixas`,
       duracao_ms: Date.now() - start,
     });
 
     await setJob(supabase, gid, jobId, {
       status: "done",
-      stage: "Concluído",
+      stage: partial ? `Concluído (parcial — ${coveragePct}%)` : `Concluído — ${summary}`,
       progress: 100,
       result: {
         ok: true,
+        partial,
+        coverage: coveragePct,
+        summary,
         genre: { id: gid, nome: genre.nome, slug: genre.slug },
         duration_ms: Date.now() - start,
         stages,
