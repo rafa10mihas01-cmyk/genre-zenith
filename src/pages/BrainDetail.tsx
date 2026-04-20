@@ -303,12 +303,17 @@ export default function BrainDetail() {
   const { slug = "" } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { loading: loadingModel, genre, model, reload: reloadModel } = useBrainModel(slug);
-  const { loading: loadingBriefing, briefing, generating, regenerate, reload: reloadBriefing, analyzeVisualDna, analyzingDna } = useBriefings(genre?.id);
+  const {
+    loading: loadingBriefing, briefing, generating, regenerate,
+    reload: reloadBriefing, analyzeVisualDna, analyzingDna,
+    clusters, loadingClusters, selectedClusterId, selectCluster,
+  } = useBriefings(genre?.id);
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
 
   const loading = loadingModel || loadingBriefing;
   const hasBriefing = briefing && Array.isArray(briefing.briefings) && briefing.briefings.length > 0;
   const hasDnaVisual = hasBriefing && briefing.briefings.some(b => b.dna_capa);
+  const activeCluster = selectedClusterId ? clusters.find(c => c.id === selectedClusterId) ?? null : null;
 
   const handleRegenerate = async () => {
     try {
