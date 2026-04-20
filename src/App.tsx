@@ -8,6 +8,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import AppLayout from "@/components/AppLayout";
 import Login from "./pages/Login";
 import Brain from "./pages/Brain";
+import BrainDetail from "./pages/BrainDetail";
 import Dashboard from "./pages/Dashboard";
 import Genres from "./pages/Genres";
 import Collect from "./pages/Collect";
@@ -36,6 +37,7 @@ const App = () => (
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/" element={<Protected><Brain /></Protected>} />
+            <Route path="/brain/:slug" element={<Protected><BrainDetail /></Protected>} />
             <Route path="/dashboard" element={<Protected><Dashboard /></Protected>} />
             <Route path="/genres" element={<Protected><Genres /></Protected>} />
             <Route path="/collect" element={<Protected><Collect /></Protected>} />
