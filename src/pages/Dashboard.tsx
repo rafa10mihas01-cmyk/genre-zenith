@@ -72,13 +72,24 @@ export default function Dashboard() {
 
   const pct = stats && stats.totalGenres ? Math.round((stats.analyzed / stats.totalGenres) * 100) : 0;
 
-  const generateAllTerms = async () => {
-    toast.info("Geração de termos será disponibilizada na Fase 2", {
-      description: "A edge function generate-terms ainda está sendo construída.",
-    });
+  const handleGenerateAll = async () => {
+    await generateAllTerms();
+    load();
   };
   const startNext = async () => {
-    toast.info("Coleta automática será disponibilizada na Fase 2");
+    const { data } = await supabase
+      .from("genres")
+      .select("id,nome,status")
+      .in("status", ["pendente", "coletando"])
+      .order("status")
+      .order("nome")
+      .limit(1)
+      .maybeSingle();
+    if (!data) {
+      toast.info("Nada para coletar — todos os gêneros estão analisados");
+      return;
+    }
+    nav(`/collect?genre=${data.id}`);
   };
 
   return (
