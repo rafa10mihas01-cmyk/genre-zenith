@@ -338,25 +338,25 @@ export default function BrainDetail() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      {/* Header sticky */}
-      <div className="sticky top-12 z-20 -mx-6 px-6 py-4 bg-background/85 backdrop-blur border-b border-border">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-3 min-w-0">
-            <Button asChild variant="ghost" size="sm" className="-ml-2">
-              <Link to="/"><ChevronLeft className="h-4 w-4" /></Link>
+    <div className="max-w-5xl mx-auto space-y-6">
+      <PageHeader
+        eyebrow={
+          <div className="flex items-center gap-2">
+            <Button asChild variant="ghost" size="icon" className="h-6 w-6 -ml-1">
+              <Link to="/"><ChevronLeft className="h-3.5 w-3.5" /></Link>
             </Button>
-            <div className="min-w-0">
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Decisões</div>
-              <h1 className="text-xl font-bold truncate">{genre?.nome ?? NICHO_LABELS[slug] ?? slug}</h1>
-            </div>
+            <span>Decisões</span>
             {briefing?.created_at && (
               <Badge variant="outline" className="text-[10px] uppercase">
                 v{briefing.version} • {timeAgo(briefing.created_at)}
               </Badge>
             )}
           </div>
-          <div className="flex items-center gap-2">
+        }
+        title={genre?.nome ?? NICHO_LABELS[slug] ?? slug}
+        subtitle={hasBriefing ? `${briefing.briefings.length} ${briefing.briefings.length === 1 ? "decisão qualificada" : "decisões qualificadas"} de ${briefing.metadata?.total_padroes_analisados ?? 0} padrões analisados.` : undefined}
+        actions={
+          <>
             <Button
               variant="outline"
               size="sm"
@@ -374,34 +374,34 @@ export default function BrainDetail() {
             <Button size="sm" onClick={() => navigate(`/?run=${slug}`)}>
               <Sparkles className="h-3.5 w-3.5" /> Nova análise
             </Button>
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {loading ? (
         <div className="py-20 text-center text-muted-foreground text-sm">
           <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2" /> Carregando decisões...
         </div>
       ) : !model ? (
-        <Card className="border-dashed">
-          <CardContent className="py-16 text-center space-y-3">
+        <HeroCard className="text-center" noOrbs>
+          <div className="py-10 space-y-3">
             <div className="text-sm text-muted-foreground">Nenhuma análise salva para este nicho.</div>
             <Button onClick={() => navigate(`/?run=${slug}`)}>
               <Sparkles className="h-4 w-4" /> Rodar primeira análise
             </Button>
-          </CardContent>
-        </Card>
+          </div>
+        </HeroCard>
       ) : !hasBriefing ? (
-        <Card className="border-dashed border-primary/30">
-          <CardContent className="py-16 text-center space-y-3">
+        <HeroCard className="text-center">
+          <div className="py-10 space-y-3">
             <Flame className="h-8 w-8 text-primary mx-auto" />
             <div className="text-sm text-muted-foreground">Análise pronta mas sem briefing gerado ainda.</div>
             <Button onClick={handleRegenerate} disabled={generating}>
               {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
               Gerar playlists agora
             </Button>
-          </CardContent>
-        </Card>
+          </div>
+        </HeroCard>
       ) : (
         <div className="space-y-4">
           {/* Title */}
