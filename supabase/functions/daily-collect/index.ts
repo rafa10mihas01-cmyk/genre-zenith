@@ -1,0 +1,91 @@
+// Coleta automática diária: para cada gênero ativo, executa run-search
+// para os termos pendentes e re-analisa o modelo.
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const supabase = createClient(supabaseUrl, serviceKey);
+
+  const startedAt = Date.now();
+  const summary = { genres: 0, terms_run: 0, models_updated: 0, errors: 0 };
+
+  try {
+    const { data: genres, error } = await supabase
+      .from("genres")
+      .select("id, nome")
+      .eq("ativo", true);
+    if (error) throw error;
+
+    summary.genres = genres?.length ?? 0;
+
+    for (const g of genres ?? []) {
+      try {
+        // Buscar termos não executados (limit 3 por gênero por execução)
+        const { data: terms } = await supabase
+          .from("search_terms")
+          .select("id")
+          .eq("genre_id", g.id)
+          .eq("executado", false)
+          .limit(3);
+
+        for (const t of terms ?? []) {
+          const r = await fetch(`${supabaseUrl}/functions/v1/run-search`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${serviceKey}`,
+            },
+            body: JSON.stringify({ term_id: t.id }),
+          });
+          if (r.ok) summary.terms_run++;
+          else summary.errors++;
+        }
+
+        // Re-analisar modelo do gênero
+        const a = await fetch(`${supabaseUrl}/functions/v1/analyze-genre`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${serviceKey}`,
+          },
+          body: JSON.stringify({ genre_id: g.id }),
+        });
+        if (a.ok) summary.models_updated++;
+        else summary.errors++;
+      } catch (e) {
+        summary.errors++;
+        console.error(`Genre ${g.nome} failed`, e);
+      }
+    }
+
+    await supabase.from("collection_logs").insert({
+      acao: "daily-collect",
+      status: summary.errors > 0 ? "erro" : "sucesso",
+      mensagem: `Cron diário: ${summary.genres} gêneros, ${summary.terms_run} buscas, ${summary.models_updated} modelos. ${summary.errors} erros.`,
+      duracao_ms: Date.now() - startedAt,
+    });
+
+    return new Response(JSON.stringify({ ok: true, ...summary }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (e: any) {
+    await supabase.from("collection_logs").insert({
+      acao: "daily-collect",
+      status: "erro",
+      mensagem: `Cron falhou: ${e.message}`,
+      duracao_ms: Date.now() - startedAt,
+    });
+    return new Response(JSON.stringify({ ok: false, error: e.message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});
