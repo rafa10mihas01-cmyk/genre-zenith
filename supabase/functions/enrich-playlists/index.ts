@@ -13,6 +13,8 @@ interface Body {
   genre_id?: string;
   limit?: number;
   fetch_tracks?: boolean;
+  prioritize?: boolean; // ordena por posição/relevância
+  keyword?: string;     // keyword principal pra boost
 }
 
 function extractPlaylistId(url: string): string | null {
