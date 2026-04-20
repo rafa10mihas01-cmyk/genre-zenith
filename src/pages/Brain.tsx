@@ -159,6 +159,17 @@ export default function Brain() {
       const prog = Number(j.progress ?? 0);
       const status = j.status as string;
 
+      // 🚨 Job morto: edge function caiu por timeout. Para o polling e oferece Retomar.
+      if (j.stale === true) {
+        setActiveJobId(null);
+        setStalled(true);
+        setStalledSlug(targetSlug);
+        setStageLabel(`Travou em "${j.stage ?? "?"}" — clique em Retomar`);
+        await loadSummaries();
+        toast.error("Análise travou", { description: "O processo parou de responder. Use Retomar pra continuar de onde parou." });
+        return;
+      }
+
       // Detecta o "fantasma": job estava avançado e voltou pra pending → terminou
       if (status === "pending" && highestProgress >= 85) {
         pendingAfterProgressCount++;
