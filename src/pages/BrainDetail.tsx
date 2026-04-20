@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, Sparkles, RefreshCw, Loader2, ChevronDown, ChevronUp, Flame, Music2, Palette, FileText, TrendingUp, Hash, BarChart3 } from "lucide-react";
+import { ChevronLeft, Sparkles, RefreshCw, Loader2, ChevronDown, ChevronUp, Flame, Music2, Palette, FileText, Hash, BarChart3, Image as ImageIcon } from "lucide-react";
 import { useBrainModel } from "@/hooks/useBrainModel";
 import { useBriefings, PlaylistBriefing } from "@/hooks/useBriefings";
 import { formatDate, timeAgo } from "@/lib/format";
@@ -122,13 +122,44 @@ function PlaylistCard({ briefing, index, onExpand, expanded }: {
               </div>
             </Section>
 
-            {/* DNA da capa — só mostra se implementado */}
+            {/* DNA da capa — só mostra se foi extraído via análise visual */}
             {briefing.dna_capa && (
-              <Section icon={Palette} title="DNA da capa">
-                <div className="text-xs text-muted-foreground space-y-1">
-                  <p><span className="text-foreground">Estilo:</span> {briefing.dna_capa.estilo_dominante}</p>
-                  <p><span className="text-foreground">Texto:</span> {briefing.dna_capa.uso_texto}</p>
-                  <p><span className="text-foreground">Estrutura:</span> {briefing.dna_capa.estrutura_visual}</p>
+              <Section icon={Palette} title="DNA visual da capa">
+                <div className="space-y-3">
+                  {/* Cores dominantes */}
+                  {briefing.dna_capa.cores_dominantes?.length > 0 && (
+                    <div>
+                      <p className="text-[10px] uppercase text-muted-foreground mb-1.5">Cores dominantes</p>
+                      <div className="flex gap-1.5">
+                        {briefing.dna_capa.cores_dominantes.map(c => (
+                          <div key={c} className="flex flex-col items-center gap-1">
+                            <div
+                              className="h-8 w-8 rounded-md border border-border shadow-sm"
+                              style={{ backgroundColor: c }}
+                              title={c}
+                            />
+                            <span className="text-[9px] font-mono text-muted-foreground">{c}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Atributos */}
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                    <div><span className="text-muted-foreground">Estilo:</span> <span className="font-medium">{briefing.dna_capa.estilo_dominante}</span></div>
+                    <div><span className="text-muted-foreground">Texto:</span> <span className="font-medium">{briefing.dna_capa.uso_texto}</span></div>
+                    <div><span className="text-muted-foreground">Estrutura:</span> <span className="font-medium">{briefing.dna_capa.estrutura_visual}</span></div>
+                    <div><span className="text-muted-foreground">Atmosfera:</span> <span className="font-medium">{briefing.dna_capa.atmosfera}</span></div>
+                  </div>
+
+                  {/* Recomendação */}
+                  {briefing.dna_capa.recomendacao_criacao && (
+                    <div className="text-xs p-2.5 rounded-md bg-primary/5 border border-primary/15">
+                      <span className="text-[10px] uppercase text-primary font-semibold">Recomendação</span>
+                      <p className="mt-0.5 text-foreground/85">{briefing.dna_capa.recomendacao_criacao}</p>
+                    </div>
+                  )}
                 </div>
               </Section>
             )}
@@ -169,11 +200,12 @@ export default function BrainDetail() {
   const { slug = "" } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { loading: loadingModel, genre, model, reload: reloadModel } = useBrainModel(slug);
-  const { loading: loadingBriefing, briefing, generating, regenerate, reload: reloadBriefing } = useBriefings(genre?.id);
+  const { loading: loadingBriefing, briefing, generating, regenerate, reload: reloadBriefing, analyzeVisualDna, analyzingDna } = useBriefings(genre?.id);
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
 
   const loading = loadingModel || loadingBriefing;
   const hasBriefing = briefing && Array.isArray(briefing.briefings) && briefing.briefings.length > 0;
+  const hasDnaVisual = hasBriefing && briefing.briefings.some(b => b.dna_capa);
 
   const handleRegenerate = async () => {
     try {
@@ -181,6 +213,16 @@ export default function BrainDetail() {
       toast.success("Briefing regenerado");
     } catch (e: any) {
       toast.error("Erro ao gerar briefing", { description: e?.message });
+    }
+  };
+
+  const handleAnalyzeDna = async () => {
+    try {
+      toast.info("Analisando capas...", { description: "Isso pode levar 10-20s" });
+      await analyzeVisualDna();
+      toast.success("DNA visual extraído e briefing atualizado");
+    } catch (e: any) {
+      toast.error("Erro ao analisar DNA visual", { description: e?.message });
     }
   };
 
