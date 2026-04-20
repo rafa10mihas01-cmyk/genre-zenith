@@ -210,7 +210,8 @@ export default function Collect() {
       .then(({ data }) => setGenres(data ?? []));
   }, []);
 
-  // Poll logs every 5s
+  // Atualiza contador de pendentes ao mudar gênero ativo
+  useEffect(() => { void refreshPendingEnrich(activeId); }, [activeId]);
   useEffect(() => {
     const fetchLogs = async () => {
       const { data } = await supabase
