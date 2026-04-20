@@ -39,6 +39,7 @@ export default function Dashboard() {
   const [genres, setGenres] = useState<Genre[]>([]);
   const [logs, setLogs] = useState<LogRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const nav = useNavigate();
 
   const load = async () => {
     const [{ count: totalGenres }, { count: analyzed }, { count: searchesRun }, { count: playlists }, { count: tracks }, { data: lastLog }, { data: gs }, { data: ls }] = await Promise.all([
