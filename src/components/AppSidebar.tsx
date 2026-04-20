@@ -8,12 +8,19 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-type NavItem = { title: string; url: string; icon: typeof Brain; end?: boolean };
+type NavItem = {
+  title: string;
+  url: string;
+  icon: typeof Brain;
+  end?: boolean;
+  /** quadradinho 6×6 (V3 §7.2) */
+  accent: string;
+};
 
 const NAV: NavItem[] = [
-  { title: "Visão Geral", url: "/", icon: LayoutDashboard, end: true },
-  { title: "Cérebro",     url: "/brain", icon: Brain },
-  { title: "Configurações", url: "/settings", icon: Settings },
+  { title: "Visão Geral",   url: "/",         icon: LayoutDashboard, end: true, accent: "bg-blue-500/15 text-blue-400" },
+  { title: "Cérebro",       url: "/brain",    icon: Brain,                       accent: "bg-orange-500/15 text-orange-400" },
+  { title: "Configurações", url: "/settings", icon: Settings,                    accent: "bg-slate-500/15 text-slate-400" },
 ];
 
 function userInitials(email?: string | null) {
@@ -29,26 +36,42 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
-      {/* Brand */}
-      <SidebarHeader className="px-3 py-3.5 border-b border-sidebar-border">
+      {/* Brand — V3 §7.1 */}
+      <SidebarHeader className="px-3 py-3 border-b border-sidebar-border">
         <div className="flex items-center gap-2.5">
-          <div
-            className={cn(
-              "flex items-center justify-center font-display font-bold text-primary-foreground shrink-0 bg-primary",
-              collapsed ? "h-8 w-8 rounded-lg text-[13px]" : "h-9 w-9 rounded-[10px] text-sm"
-            )}
-          >
-            N
+          <div className="relative shrink-0">
+            <div
+              className="absolute inset-0 blur-md opacity-60 rounded-xl"
+              style={{ background: "radial-gradient(circle, rgba(99,102,241,0.6), transparent 70%)" }}
+            />
+            <div
+              className={cn(
+                "relative flex items-center justify-center font-display font-bold text-foreground",
+                collapsed ? "h-9 w-9 rounded-lg text-[13px]" : "h-10 w-10 rounded-xl text-sm"
+              )}
+              style={{
+                background: "linear-gradient(135deg, rgba(99,102,241,0.18), rgba(168,85,247,0.12))",
+                border: "1px solid rgba(99,102,241,0.35)",
+                boxShadow: "0 0 0 1px rgba(99,102,241,0.15), 0 8px 24px -8px rgba(99,102,241,0.4)",
+              }}
+            >
+              N
+            </div>
           </div>
           {!collapsed && (
             <div className="leading-tight min-w-0 flex-1">
-              <div className="font-display font-semibold text-[14px] tracking-tight truncate text-sidebar-foreground">
+              <div
+                className="font-display font-semibold text-[14px] tracking-tight truncate"
+                style={{
+                  backgroundImage: "linear-gradient(135deg, hsl(var(--foreground)), #6366f1)",
+                  WebkitBackgroundClip: "text",
+                  backgroundClip: "text",
+                  color: "transparent",
+                }}
+              >
                 NexEngine
               </div>
-              <div
-                className="text-[9px] text-muted-foreground uppercase mt-0.5"
-                style={{ letterSpacing: "0.20em" }}
-              >
+              <div className="text-[9px] text-muted-foreground uppercase mt-0.5" style={{ letterSpacing: "0.20em" }}>
                 Playlist Intel
               </div>
             </div>
@@ -73,12 +96,14 @@ export function AppSidebar() {
                       isActive={active}
                       className={cn(
                         "h-9 rounded-md transition-colors",
-                        "text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent",
-                        active && "bg-sidebar-accent text-sidebar-foreground font-medium"
+                        "text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-accent/60",
+                        active && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
                       )}
                     >
-                      <NavLink to={item.url} end={item.end} className="flex items-center gap-2.5 w-full px-2">
-                        <Icon className={cn("h-4 w-4 shrink-0", active ? "text-primary" : "text-muted-foreground")} />
+                      <NavLink to={item.url} end={item.end} className="flex items-center gap-2.5 w-full px-1.5">
+                        <span className={cn("h-6 w-6 shrink-0 rounded-md flex items-center justify-center", item.accent)}>
+                          <Icon className="h-3.5 w-3.5" />
+                        </span>
                         {!collapsed && <span className="text-[13px] truncate">{item.title}</span>}
                       </NavLink>
                     </SidebarMenuButton>
@@ -94,7 +119,10 @@ export function AppSidebar() {
       <SidebarFooter className="border-t border-sidebar-border p-2">
         {user && (
           <div className={cn("flex items-center gap-2 rounded-md p-1.5", !collapsed && "bg-sidebar-accent/40")}>
-            <div className="h-7 w-7 rounded-md flex items-center justify-center text-[10px] font-semibold text-primary-foreground bg-primary shrink-0">
+            <div
+              className="h-7 w-7 rounded-md flex items-center justify-center text-[10px] font-semibold text-foreground shrink-0"
+              style={{ background: "linear-gradient(135deg, #6366f1, #a855f7)" }}
+            >
               {userInitials(user.email)}
             </div>
             {!collapsed && (
