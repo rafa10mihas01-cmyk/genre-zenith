@@ -65,17 +65,29 @@ export default function Brain() {
       const SUPABASE_URL = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co`;
       const ANON = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
       const deadline = Date.now() + 20 * 60_000; // 20 min máx
+      let consecutiveErrors = 0;
 
       while (Date.now() < deadline) {
         await new Promise(r => setTimeout(r, 3000));
-        const r = await fetch(`${SUPABASE_URL}/functions/v1/brain-run?job_id=${jobId}`, {
-          headers: { apikey: ANON, Authorization: `Bearer ${ANON}` },
-        });
-        const j = await r.json();
-        if (!j?.ok) continue;
+        let j: any = null;
+        try {
+          const r = await fetch(`${SUPABASE_URL}/functions/v1/brain-run?job_id=${jobId}`, {
+            headers: { apikey: ANON, Authorization: `Bearer ${ANON}` },
+          });
+          j = await r.json();
+        } catch {
+          consecutiveErrors++;
+          if (consecutiveErrors > 15) throw new Error("Conexão instável com o servidor");
+          continue;
+        }
+        if (!j?.ok) {
+          consecutiveErrors++;
+          if (consecutiveErrors > 15) throw new Error("Job não encontrado após várias tentativas");
+          continue;
+        }
+        consecutiveErrors = 0;
         setStageLabel(j.stage ?? "");
         setProgress(j.progress ?? 0);
-        // mapeia label para índice visual
         const labelLower = (j.stage ?? "").toLowerCase();
         const idx = STAGES.findIndex(s => labelLower.includes(s.toLowerCase().replace("...", "").split(" ")[0]));
         if (idx >= 0) setStageIdx(idx);

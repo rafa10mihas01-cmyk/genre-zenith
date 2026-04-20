@@ -231,9 +231,15 @@ Deno.serve(async (req) => {
     const jobId = url.searchParams.get("job_id");
     if (!jobId) return jr({ error: "job_id obrigatório" }, 400);
     const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
-    const job = await getJob(supabase, jobId);
-    if (!job) return jr({ ok: false, status: "unknown" }, 404);
-    return jr({ ok: true, ...job });
+    try {
+      const job = await getJob(supabase, jobId);
+      // Nunca 404 — retorna 'pending' se ainda não houver log (job acabou de iniciar)
+      if (!job) return jr({ ok: true, status: "pending", stage: "Aguardando início...", progress: 0 });
+      return jr({ ok: true, ...job });
+    } catch (e) {
+      // Erro transitório de DB — devolve 200 com status pending para o cliente continuar polling
+      return jr({ ok: true, status: "pending", stage: "Aguardando...", progress: 0, transient: true });
+    }
   }
 
   if (req.method !== "POST") return jr({ error: "POST or GET" }, 405);
