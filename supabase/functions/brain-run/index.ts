@@ -191,9 +191,18 @@ async function runPipeline(jobId: string, body: StartBody) {
     }
     stages.filter = { removed: irrelevant.length, kept: (allResults?.length ?? 0) - irrelevant.length };
 
-    // 4) Enriquecer em loop até atingir 70% de cobertura (max 10 ciclos)
-    const COVERAGE_TARGET = 0.7;
-    const MAX_CYCLES = 10;
+    // 4) Enriquecer em loop até atingir cobertura alvo (cap dinâmico p/ caber no timeout do edge)
+    //    Cada ciclo enrich-playlists leva ~80-100s. Edge tem teto de ~150s wall (waitUntil ~5min).
+    //    Por isso limitamos ciclos em função do tamanho da coleção:
+    //      ≤ 200 playlists  → até 8 ciclos (target 70%)
+    //      ≤ 500 playlists  → até 5 ciclos (target 50%)
+    //      > 500 playlists  → até 3 ciclos por run (target 30%, marca parcial e segue)
+    //    Pra cobrir o resto, o usuário usa "Retomar" — outra invocação do brain-run em background.
+    const totalForPlan = (allResults?.length ?? 0) - irrelevant.length;
+    const { coverageTarget: COVERAGE_TARGET, maxCycles: MAX_CYCLES } =
+      totalForPlan > 500 ? { coverageTarget: 0.3, maxCycles: 3 } :
+      totalForPlan > 200 ? { coverageTarget: 0.5, maxCycles: 5 } :
+                           { coverageTarget: 0.7, maxCycles: 8 };
     let enrichedTotal = 0, tracksTotal = 0, cycles = 0;
     let coverage = 0, totalPls = 0, enrichedCount = 0;
     let partial = false;
@@ -233,7 +242,7 @@ async function runPipeline(jobId: string, body: StartBody) {
       enriched: enrichedTotal, tracks_saved: tracksTotal,
       cycles, coverage: Math.round(coverage * 100) / 100,
       enriched_count: enrichedCount, total_playlists: totalPls,
-      partial,
+      partial, max_cycles: MAX_CYCLES, target: COVERAGE_TARGET,
     };
     await setJob(supabase, gid, jobId, {
       status: "running",
