@@ -1,1 +1,4 @@
 project_id = "xtxxjmkijeyxkdyxtvsf"
+
+[functions.daily-collect]
+verify_jwt = false
