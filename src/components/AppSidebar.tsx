@@ -8,11 +8,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-const NAV = [
+type NavItem = { title: string; url: string; icon: typeof Brain; end?: boolean };
+
+const NAV: NavItem[] = [
   { title: "Visão Geral", url: "/", icon: LayoutDashboard, end: true },
   { title: "Cérebro",     url: "/brain", icon: Brain },
   { title: "Configurações", url: "/settings", icon: Settings },
-] as const;
+];
 
 function userInitials(email?: string | null) {
   if (!email) return "??";
