@@ -255,7 +255,17 @@ export default function BrainDetail() {
             )}
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={handleRegenerate} disabled={generating}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleAnalyzeDna}
+              disabled={analyzingDna || generating || !hasBriefing}
+              title={hasDnaVisual ? "Re-analisar capas" : "Analisar capas para extrair DNA visual"}
+            >
+              {analyzingDna ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImageIcon className="h-3.5 w-3.5" />}
+              {hasDnaVisual ? "Re-analisar capas" : "Analisar capas"}
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleRegenerate} disabled={generating || analyzingDna}>
               {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
               Gerar briefings
             </Button>
