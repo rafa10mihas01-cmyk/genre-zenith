@@ -133,6 +133,67 @@ Deno.serve(async (req) => {
       await supabase.from("genre_models").insert(payload);
     }
 
+    // ============ HISTÓRICO ============
+    // 1. Buscar última versão do gênero
+    const { data: lastVersion } = await supabase
+      .from("genre_models_history")
+      .select("version,palavras_chave,musicas_recorrentes,playlists_dominantes")
+      .eq("genre_id", body.genre_id)
+      .order("version", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const nextVersion = (lastVersion?.version ?? 0) + 1;
+
+    // 2. Calcular diffs vs versão anterior
+    const diff_keywords: any = { added: [], removed: [] };
+    const diff_tracks: any = { added: [], removed: [] };
+    const diff_playlists: any = { added: [], removed: [] };
+
+    if (lastVersion) {
+      const prevKw = new Set(((lastVersion.palavras_chave as any[]) ?? []).map((k: any) => k.value));
+      const newKw = new Set(palavras_chave.map(k => k.value));
+      diff_keywords.added = [...newKw].filter(k => !prevKw.has(k));
+      diff_keywords.removed = [...prevKw].filter(k => !newKw.has(k));
+
+      const trackKey2 = (t: any) => `${(t.nome ?? "").toLowerCase()}||${(t.artista ?? "").toLowerCase()}`;
+      const prevTr = new Set(((lastVersion.musicas_recorrentes as any[]) ?? []).map(trackKey2));
+      const newTr = new Set(musicas_recorrentes.map(trackKey2));
+      diff_tracks.added = [...newTr].filter(k => !prevTr.has(k));
+      diff_tracks.removed = [...prevTr].filter(k => !newTr.has(k));
+
+      const prevPl = new Set(((lastVersion.playlists_dominantes as any[]) ?? []).map((p: any) => p.url));
+      const newPl = new Set(playlists_dominantes.map(p => p.url));
+      diff_playlists.added = [...newPl].filter(k => !prevPl.has(k));
+      diff_playlists.removed = [...prevPl].filter(k => !newPl.has(k));
+    }
+
+    // 3. Métricas
+    const totalPlaylistsCount = results?.length ?? 0;
+    const enrichedCount = (results ?? []).filter(r => (r.seguidores ?? 0) > 0).length;
+    const coverage = totalPlaylistsCount > 0 ? (enrichedCount / totalPlaylistsCount) * 100 : 0;
+
+    // 4. Inserir snapshot no histórico
+    await supabase.from("genre_models_history").insert({
+      genre_id: body.genre_id,
+      version: nextVersion,
+      palavras_chave,
+      padroes_nome,
+      playlists_dominantes,
+      musicas_recorrentes,
+      insights,
+      ai_summary: null,
+      ai_insights: null,
+      ai_suggestions: null,
+      total_playlists: totalPlaylistsCount,
+      total_enriched: enrichedCount,
+      coverage_percent: Math.round(coverage * 100) / 100,
+      diff_keywords,
+      diff_tracks,
+      diff_playlists,
+    });
+    // ============ /HISTÓRICO ============
+
     await supabase.from("genres").update({ status: "analisado" }).eq("id", body.genre_id);
 
     await supabase.from("collection_logs").insert({
