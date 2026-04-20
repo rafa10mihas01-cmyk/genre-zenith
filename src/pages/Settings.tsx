@@ -110,7 +110,7 @@ export default function Settings() {
       {/* Apify */}
       <section className="nx-card p-5 mt-6">
         <div className="flex items-center gap-2">
-          <Zap className="h-5 w-5 text-accent" />
+          <Zap className="h-5 w-5 text-primary" />
           <h2 className="font-semibold">Apify</h2>
         </div>
         <p className="text-sm text-muted-foreground mt-1">
@@ -151,13 +151,13 @@ export default function Settings() {
       {/* Spotify Web API */}
       <section className="nx-card p-5 mt-4">
         <div className="flex items-center gap-2">
-          <Music2 className="h-5 w-5 text-accent" />
+          <Music2 className="h-5 w-5 text-primary" />
           <h2 className="font-semibold">Spotify Web API</h2>
         </div>
         <p className="text-sm text-muted-foreground mt-1">
           Usado para buscar contagem real de seguidores das playlists. Crie um app gratuito em{" "}
           <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noreferrer"
-             className="text-accent underline-offset-2 hover:underline">
+             className="text-primary underline-offset-2 hover:underline">
             developer.spotify.com → Dashboard → Create app
           </a>
           . Copie o Client ID e Client Secret e configure como secrets do projeto.
@@ -226,7 +226,7 @@ export default function Settings() {
       {/* Coleta automática */}
       <section className="nx-card p-5 mt-4">
         <div className="flex items-center gap-2">
-          <CalendarClock className="h-5 w-5 text-accent" />
+          <CalendarClock className="h-5 w-5 text-primary" />
           <h2 className="font-semibold">Coleta automática</h2>
         </div>
         <p className="text-sm text-muted-foreground mt-1">
@@ -247,7 +247,7 @@ export default function Settings() {
       {/* Banco */}
       <section className="nx-card p-5 mt-4">
         <div className="flex items-center gap-2">
-          <Database className="h-5 w-5 text-accent" />
+          <Database className="h-5 w-5 text-primary" />
           <h2 className="font-semibold">Estado do banco</h2>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">

@@ -135,25 +135,10 @@ export default function Dashboard() {
           className="lg:col-span-2 nx-surface-elevated relative overflow-hidden p-7"
           style={{ minHeight: 300 }}
         >
-          {/* halo radial discreto */}
-          <div
-            className="absolute -top-32 -right-32 h-80 w-80 rounded-full pointer-events-none"
-            style={{
-              background: "radial-gradient(circle, hsl(231 60% 55% / 0.18) 0%, transparent 70%)",
-              filter: "blur(40px)",
-            }}
-          />
-
           <div className="relative space-y-5">
             <div className="flex items-center gap-3">
-              <div
-                className="nx-accent-square h-9 w-9"
-                style={{
-                  background: "hsl(152 70% 50% / 0.12)",
-                  borderColor: "hsl(152 70% 50% / 0.30)",
-                }}
-              >
-                <Sparkles className="h-4 w-4" style={{ color: "hsl(152 70% 60%)" }} />
+              <div className="nx-accent-square h-9 w-9 bg-[hsl(var(--success))]/12 border-[hsl(var(--success))]/30">
+                <Sparkles className="h-4 w-4 text-[hsl(var(--success))]" />
               </div>
               <div className="flex-1">
                 <div className="nx-stat-label">Decisões qualificadas</div>
@@ -191,14 +176,14 @@ export default function Dashboard() {
               <svg viewBox="0 0 400 60" className="w-full h-12 opacity-80">
                 <defs>
                   <linearGradient id="sparkGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="hsl(231 60% 55%)" stopOpacity="0.3" />
-                    <stop offset="100%" stopColor="hsl(231 60% 55%)" stopOpacity="0" />
+                    <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.3" />
+                    <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0" />
                   </linearGradient>
                 </defs>
                 <path
                   d="M0,45 L40,40 L80,42 L120,30 L160,35 L200,25 L240,28 L280,18 L320,22 L360,12 L400,15"
                   fill="none"
-                  stroke="hsl(231 60% 65%)"
+                  stroke="hsl(var(--primary))"
                   strokeWidth="2"
                   strokeLinecap="round"
                 />
@@ -217,17 +202,18 @@ export default function Dashboard() {
             label="Confiança alta"
             value={loading ? "—" : `${totals.coberturaPct}%`}
             sub={`${totals.confiancaAlta} briefings`}
-            hue={152}
+            tone="success"
             delta="+4.2%"
           />
           <KpiBlock
             label="Nichos ativos"
             value={loading ? "—" : String(totals.nichosAtivos)}
             sub="Em monitoramento"
-            hue={231}
+            tone="primary"
           />
         </div>
       </div>
+
 
       {/* ============ KPI Grid denso (4 colunas) ============ */}
       <div className="space-y-3">
@@ -238,10 +224,10 @@ export default function Dashboard() {
           </div>
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <KpiTile label="Playlists" value={loading ? "—" : formatNumber(totals.playlists)} hue={231} icon={Layers} />
-          <KpiTile label="Faixas únicas" value={loading ? "—" : formatNumber(totals.faixas)} hue={270} icon={Activity} />
-          <KpiTile label="Nichos" value={loading ? "—" : String(totals.nichosAtivos)} hue={152} icon={Brain} />
-          <KpiTile label="Briefings" value={loading ? "—" : formatNumber(totals.decisoes)} hue={38} icon={Sparkles} />
+          <KpiTile label="Playlists" value={loading ? "—" : formatNumber(totals.playlists)} tone="primary" icon={Layers} />
+          <KpiTile label="Faixas únicas" value={loading ? "—" : formatNumber(totals.faixas)} tone="primary" icon={Activity} />
+          <KpiTile label="Nichos" value={loading ? "—" : String(totals.nichosAtivos)} tone="success" icon={Brain} />
+          <KpiTile label="Briefings" value={loading ? "—" : formatNumber(totals.decisoes)} tone="warning" icon={Sparkles} />
         </div>
       </div>
 
@@ -273,27 +259,29 @@ export default function Dashboard() {
    Subcomponentes
    ============================================================ */
 
+type Tone = "primary" | "success" | "warning";
+
+const TONE_VAR: Record<Tone, string> = {
+  primary: "var(--primary)",
+  success: "var(--success)",
+  warning: "var(--warning)",
+};
+
 function KpiBlock({
-  label, value, sub, hue, delta,
-}: { label: string; value: string; sub: string; hue: number; delta?: string }) {
+  label, value, sub, tone, delta,
+}: { label: string; value: string; sub: string; tone: Tone; delta?: string }) {
+  const c = TONE_VAR[tone];
   return (
     <div className="nx-surface relative overflow-hidden p-5">
-      <div
-        className="absolute -top-12 -right-12 h-32 w-32 rounded-full pointer-events-none"
-        style={{
-          background: `radial-gradient(circle, hsl(${hue} 70% 55% / 0.16) 0%, transparent 70%)`,
-          filter: "blur(20px)",
-        }}
-      />
       <div className="relative flex items-start justify-between mb-3">
         <div
           className="nx-accent-square h-8 w-8"
           style={{
-            background: `hsl(${hue} 70% 55% / 0.12)`,
-            borderColor: `hsl(${hue} 70% 55% / 0.28)`,
+            background: `hsl(${c} / 0.12)`,
+            borderColor: `hsl(${c} / 0.28)`,
           }}
         >
-          <TrendingUp className="h-3.5 w-3.5" style={{ color: `hsl(${hue} 70% 65%)` }} />
+          <TrendingUp className="h-3.5 w-3.5" style={{ color: `hsl(${c})` }} />
         </div>
         {delta && <span className="nx-delta nx-delta-up">{delta}</span>}
       </div>
@@ -307,19 +295,20 @@ function KpiBlock({
 }
 
 function KpiTile({
-  label, value, hue, icon: Icon,
-}: { label: string; value: string; hue: number; icon: typeof Brain }) {
+  label, value, tone, icon: Icon,
+}: { label: string; value: string; tone: Tone; icon: typeof Brain }) {
+  const c = TONE_VAR[tone];
   return (
     <div className="nx-surface nx-surface-hover relative overflow-hidden p-4 group cursor-default">
       <div className="flex items-start justify-between mb-3">
         <div
           className="nx-accent-square h-7 w-7"
           style={{
-            background: `hsl(${hue} 70% 55% / 0.10)`,
-            borderColor: `hsl(${hue} 70% 55% / 0.22)`,
+            background: `hsl(${c} / 0.10)`,
+            borderColor: `hsl(${c} / 0.22)`,
           }}
         >
-          <Icon className="h-3.5 w-3.5" style={{ color: `hsl(${hue} 70% 62%)` }} />
+          <Icon className="h-3.5 w-3.5" style={{ color: `hsl(${c})` }} />
         </div>
       </div>
       <div className="space-y-0.5">
@@ -342,17 +331,17 @@ function NichoCard({ nicho, loading }: { nicho: NichoKpi | null; loading: boolea
     <Link to={`/brain/${nicho.slug}`} className="nx-surface nx-surface-hover relative overflow-hidden p-5 block group">
       <div
         className="absolute top-0 left-0 right-0 h-px"
-        style={{ background: `linear-gradient(90deg, transparent, hsl(${nicho.hue} 70% 60% / 0.6), transparent)` }}
+        style={{ background: `linear-gradient(90deg, transparent, hsl(var(--primary) / 0.6), transparent)` }}
       />
       <div className="flex items-center justify-between mb-3">
         <div
           className="nx-accent-square h-8 w-8"
           style={{
-            background: `hsl(${nicho.hue} 70% 55% / 0.12)`,
-            borderColor: `hsl(${nicho.hue} 70% 55% / 0.30)`,
+            background: `hsl(var(--primary) / 0.12)`,
+            borderColor: `hsl(var(--primary) / 0.30)`,
           }}
         >
-          <Brain className="h-3.5 w-3.5" style={{ color: `hsl(${nicho.hue} 70% 65%)` }} />
+          <Brain className="h-3.5 w-3.5" style={{ color: `hsl(var(--primary))` }} />
         </div>
         <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground/50 group-hover:text-foreground transition-colors" />
       </div>
