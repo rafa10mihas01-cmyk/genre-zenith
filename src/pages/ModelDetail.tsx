@@ -3,7 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Brain, ExternalLink, RefreshCw, Sparkles, TrendingUp, Music, Hash, ListMusic, Wand2, Loader2, Lightbulb, Tag, FileText } from "lucide-react";
+import { ArrowLeft, Brain, ExternalLink, RefreshCw, Sparkles, TrendingUp, Music, Hash, ListMusic, Wand2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { formatNumber, timeAgo } from "@/lib/format";
 
@@ -266,4 +266,84 @@ function BarRow({ label, count, max }: { label: string; count: number; max: numb
 
 function EmptyState() {
   return <p className="text-sm text-muted-foreground py-6 text-center">Nada por aqui ainda.</p>;
+}
+
+function AIInsightsPanel({ ai, loading, onGenerate }: { ai?: AIInsights; loading: boolean; onGenerate: () => void }) {
+  if (!ai) {
+    return (
+      <div className="nx-card p-10 text-center">
+        <Wand2 className="h-8 w-8 mx-auto text-accent" />
+        <h3 className="mt-3 font-semibold">Insights ainda não gerados</h3>
+        <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
+          Use a IA para criar um resumo executivo, identificar tendências e gerar sugestões de nomes
+          de playlist otimizadas para descoberta.
+        </p>
+        <Button size="sm" className="mt-4" onClick={onGenerate} disabled={loading}>
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+          Gerar agora
+        </Button>
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-4">
+      <div className="nx-card p-5 bg-gradient-to-br from-accent/10 to-transparent border-accent/30">
+        <div className="flex items-center gap-2 mb-2">
+          <Sparkles className="h-4 w-4 text-accent" />
+          <h3 className="font-semibold">Resumo executivo</h3>
+          <span className="ml-auto text-[10px] uppercase tracking-wider text-muted-foreground">
+            gerado {timeAgo(ai.generated_at)}
+          </span>
+        </div>
+        <p className="text-sm leading-relaxed">{ai.resumo || "—"}</p>
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-4">
+        <ListBlock title="Tendências observadas" items={ai.tendencias} icon={TrendingUp} />
+        <ListBlock title="Oportunidades de SEO" items={ai.oportunidades_seo} icon={Sparkles} />
+      </div>
+
+      <div className="nx-card p-5">
+        <div className="flex items-center gap-2 mb-3">
+          <Wand2 className="h-4 w-4 text-accent" />
+          <h3 className="font-semibold">Sugestões de nome de playlist</h3>
+        </div>
+        {ai.sugestoes_nomes.length === 0 ? <EmptyState /> : (
+          <div className="flex flex-wrap gap-2">
+            {ai.sugestoes_nomes.map((s, i) => (
+              <button
+                key={i}
+                onClick={() => { navigator.clipboard.writeText(s); toast.success("Copiado", { description: s }); }}
+                className="px-3 py-1.5 rounded-md border border-border bg-muted/30 hover:bg-accent/15 hover:border-accent/50 text-sm transition-colors"
+                title="Clique para copiar"
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ListBlock({ title, items, icon: Icon }: { title: string; items: string[]; icon: any }) {
+  return (
+    <div className="nx-card p-5">
+      <div className="flex items-center gap-2 mb-3">
+        <Icon className="h-4 w-4 text-accent" />
+        <h3 className="font-semibold">{title}</h3>
+      </div>
+      {items.length === 0 ? <EmptyState /> : (
+        <ul className="space-y-2">
+          {items.map((s, i) => (
+            <li key={i} className="text-sm flex gap-2">
+              <span className="text-accent mt-0.5">•</span>
+              <span className="leading-relaxed">{s}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
 }
