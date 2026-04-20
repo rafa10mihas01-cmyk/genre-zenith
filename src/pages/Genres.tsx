@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Search, Sparkles, Play, Eye, Database, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { generateTerms } from "@/lib/engine";
 
 interface Genre {
   id: string; nome: string; slug: string; status: string;
@@ -55,8 +56,21 @@ export default function Genres() {
     else setSelected(new Set(filtered.map((g) => g.id)));
   };
 
-  const notReady = (label: string) =>
-    toast.info(`${label} estará disponível na Fase 2`, { description: "Edge functions de coleta ainda em construção." });
+  const nav = useNavigate();
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const handleGenerate = async (id: string) => {
+    setBusy(id);
+    await generateTerms(id);
+    setBusy(null);
+    load();
+  };
+  const handleCollect = (id: string) => nav(`/collect?genre=${id}`);
+  const handleBulk = () => {
+    if (selected.size === 0) return;
+    const first = Array.from(selected)[0];
+    nav(`/collect?genre=${first}&queue=${Array.from(selected).join(",")}`);
+  };
 
   return (
     <div className="space-y-5 max-w-[1400px] mx-auto">
@@ -66,7 +80,7 @@ export default function Genres() {
           <p className="text-sm text-muted-foreground">{genres.length} gêneros • {selected.size} selecionados</p>
         </div>
         {selected.size > 0 && (
-          <Button onClick={() => notReady("Coleta em lote")} className="gap-2">
+          <Button onClick={handleBulk} className="gap-2">
             <Play className="h-4 w-4" /> Coletar {selected.size} em lote
           </Button>
         )}
@@ -130,10 +144,10 @@ export default function Genres() {
                   <td className="p-3 text-xs text-muted-foreground">{formatDate(g.ultima_coleta)}</td>
                   <td className="p-3">
                     <div className="flex items-center justify-end gap-1">
-                      <Button size="sm" variant="ghost" onClick={() => notReady("Geração de termos")} title="Gerar termos">
-                        <Sparkles className="h-3.5 w-3.5" />
+                      <Button size="sm" variant="ghost" disabled={busy === g.id} onClick={() => handleGenerate(g.id)} title="Gerar termos">
+                        {busy === g.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
                       </Button>
-                      <Button size="sm" variant="ghost" onClick={() => notReady("Coleta")} title="Coletar agora">
+                      <Button size="sm" variant="ghost" onClick={() => handleCollect(g.id)} title="Coletar agora">
                         <Play className="h-3.5 w-3.5" />
                       </Button>
                       <Button size="sm" variant="ghost" asChild title="Ver modelo">

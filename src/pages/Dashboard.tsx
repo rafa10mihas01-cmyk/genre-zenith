@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Zap, Music, Search, ListMusic, Activity, Clock, Sparkles, Play } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { formatNumber, timeAgo } from "@/lib/format";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
+import { generateAllTerms } from "@/lib/engine";
 
 interface Stats {
   totalGenres: number;
@@ -38,6 +39,7 @@ export default function Dashboard() {
   const [genres, setGenres] = useState<Genre[]>([]);
   const [logs, setLogs] = useState<LogRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const nav = useNavigate();
 
   const load = async () => {
     const [{ count: totalGenres }, { count: analyzed }, { count: searchesRun }, { count: playlists }, { count: tracks }, { data: lastLog }, { data: gs }, { data: ls }] = await Promise.all([
@@ -71,13 +73,24 @@ export default function Dashboard() {
 
   const pct = stats && stats.totalGenres ? Math.round((stats.analyzed / stats.totalGenres) * 100) : 0;
 
-  const generateAllTerms = async () => {
-    toast.info("Geração de termos será disponibilizada na Fase 2", {
-      description: "A edge function generate-terms ainda está sendo construída.",
-    });
+  const handleGenerateAll = async () => {
+    await generateAllTerms();
+    load();
   };
   const startNext = async () => {
-    toast.info("Coleta automática será disponibilizada na Fase 2");
+    const { data } = await supabase
+      .from("genres")
+      .select("id,nome,status")
+      .in("status", ["pendente", "coletando"])
+      .order("status")
+      .order("nome")
+      .limit(1)
+      .maybeSingle();
+    if (!data) {
+      toast.info("Nada para coletar — todos os gêneros estão analisados");
+      return;
+    }
+    nav(`/collect?genre=${data.id}`);
   };
 
   return (
@@ -120,7 +133,7 @@ export default function Dashboard() {
           <Button onClick={startNext} className="w-full justify-start gap-2">
             <Play className="h-4 w-4" /> Iniciar próxima coleta
           </Button>
-          <Button onClick={generateAllTerms} variant="outline" className="w-full justify-start gap-2">
+          <Button onClick={handleGenerateAll} variant="outline" className="w-full justify-start gap-2">
             <Sparkles className="h-4 w-4" /> Gerar todos os termos
           </Button>
         </div>
