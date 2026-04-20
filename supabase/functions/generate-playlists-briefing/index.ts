@@ -60,6 +60,8 @@ Deno.serve(async (req) => {
     const padroesNome = (model.padroes_nome as any[] ?? []);
     const playlistsDom = (model.playlists_dominantes as any[] ?? []);
     const musicasRec = (model.musicas_recorrentes as any[] ?? []);
+    const insights = (model.insights as any) ?? {};
+    const dnaVisual = insights.dna_visual ?? null;
     // Total real do corpus analisado (não só as dominantes)
     const totalPlaylists = Math.max(corpusCount ?? 0, playlistsDom.length, 1);
 
@@ -183,8 +185,8 @@ Deno.serve(async (req) => {
           top_musicas: tracks.map(t => ({ nome: t.nome, artista: t.artista })),
           artistas_principais: artists,
         },
-        // DNA visual permanece null até implementação real (camada 3)
-        dna_capa: null,
+        // DNA visual: vem do insights.dna_visual (camada 3, edge function analyze-genre-visual-dna)
+        dna_capa: dnaVisual,
         justificativa: {
           frequencia_padrao_pct: Math.round(freq * 10) / 10,
           repeticao_em_playlists: rep,

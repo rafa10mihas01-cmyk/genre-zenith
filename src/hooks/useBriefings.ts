@@ -1,6 +1,19 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
+export type DnaVisual = {
+  cores_dominantes: string[];
+  estilo_dominante: string;
+  uso_texto: string;
+  presenca_emoji: boolean;
+  ano_visivel: boolean;
+  estrutura_visual: string;
+  atmosfera: string;
+  recomendacao_criacao: string;
+  capas_analisadas?: { nome: string; url: string }[];
+  analyzed_at?: string;
+};
+
 export type PlaylistBriefing = {
   nome: string;
   forca_nome: number;
@@ -12,12 +25,7 @@ export type PlaylistBriefing = {
     top_musicas: { nome: string; artista: string }[];
     artistas_principais: string[];
   };
-  dna_capa: null | {
-    estilo_dominante: string;
-    cores: string[];
-    uso_texto: string;
-    estrutura_visual: string;
-  };
+  dna_capa: DnaVisual | null;
   justificativa: {
     frequencia_padrao_pct: number;
     repeticao_em_playlists: number;
@@ -39,6 +47,7 @@ export function useBriefings(genreId: string | undefined) {
   const [loading, setLoading] = useState(true);
   const [briefing, setBriefing] = useState<BriefingRow | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [analyzingDna, setAnalyzingDna] = useState(false);
 
   const load = useCallback(async () => {
     if (!genreId) return;
@@ -75,5 +84,22 @@ export function useBriefings(genreId: string | undefined) {
     }
   }, [genreId, generating, load]);
 
-  return { loading, briefing, generating, regenerate, reload: load };
+  const analyzeVisualDna = useCallback(async () => {
+    if (!genreId || analyzingDna) return;
+    setAnalyzingDna(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("analyze-genre-visual-dna", {
+        body: { genre_id: genreId },
+      });
+      if (error) throw error;
+      if (!data?.ok) throw new Error(data?.error ?? "Falha ao analisar DNA visual");
+      // Após analisar DNA, regenera briefing pra incluir
+      await regenerate();
+      return data;
+    } finally {
+      setAnalyzingDna(false);
+    }
+  }, [genreId, analyzingDna, regenerate]);
+
+  return { loading, briefing, generating, regenerate, reload: load, analyzeVisualDna, analyzingDna };
 }
