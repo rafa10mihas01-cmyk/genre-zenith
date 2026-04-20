@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Zap, Music, Search, ListMusic, Activity, Clock, Sparkles, Play } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { formatNumber, timeAgo } from "@/lib/format";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
+import { generateAllTerms } from "@/lib/engine";
 
 interface Stats {
   totalGenres: number;
