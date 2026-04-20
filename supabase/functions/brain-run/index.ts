@@ -314,6 +314,95 @@ async function runPipeline(jobId: string, body: StartBody) {
   }
 }
 
+// ---------- Pipeline RESUME: continua enrich + análise sem refazer search ----------
+async function resumePipeline(jobId: string, slug: string) {
+  const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+  const start = Date.now();
+  const { data: genre } = await supabase
+    .from("genres").select("id,nome,slug").eq("slug", slug).maybeSingle();
+  if (!genre) {
+    await supabase.from("collection_logs").insert({
+      acao: `brain-job:${jobId}`, status: "erro",
+      mensagem: JSON.stringify({ status: "error", stage: "resume", progress: 0, error: `Gênero '${slug}' não encontrado` }),
+    });
+    return;
+  }
+  const gid = genre.id;
+  await setJob(supabase, gid, jobId, { status: "running", stage: "Retomando enriquecimento...", progress: 70 });
+
+  try {
+    let totalPls = 0, enrichedCount = 0, coverage = 0;
+    let cycles = 0, enrichedTotal = 0, tracksTotal = 0;
+    async function measure() {
+      const [{ count: t }, { count: e }] = await Promise.all([
+        supabase.from("search_results").select("*", { count: "exact", head: true }).eq("genre_id", gid),
+        supabase.from("search_results").select("*", { count: "exact", head: true }).eq("genre_id", gid).not("seguidores", "is", null),
+      ]);
+      totalPls = t ?? 0; enrichedCount = e ?? 0;
+      coverage = totalPls > 0 ? enrichedCount / totalPls : 1;
+    }
+    await measure();
+    const MAX_CYCLES = totalPls > 500 ? 3 : totalPls > 200 ? 5 : 8;
+    const TARGET = totalPls > 500 ? 0.5 : totalPls > 200 ? 0.7 : 0.85;
+    while (coverage < TARGET && cycles < MAX_CYCLES) {
+      cycles++;
+      await setJob(supabase, gid, jobId, {
+        status: "running",
+        stage: `Retomando... (${enrichedCount}/${totalPls} • ${Math.round(coverage * 100)}%) ciclo ${cycles}/${MAX_CYCLES}`,
+        progress: 70 + Math.min(15, Math.round(coverage * 20)),
+      });
+      const r = await callFn("enrich-playlists", {
+        genre_id: gid, limit: 50, fetch_tracks: true,
+        prioritize: true, keyword: slug,
+      });
+      const d = r.data as any;
+      if (!r.ok || !d?.ok) break;
+      enrichedTotal += d.enriched ?? 0;
+      tracksTotal += d.tracks_saved ?? 0;
+      if (!d.processed || d.processed === 0) break;
+      await measure();
+    }
+    const partial = coverage < 0.7;
+    await setJob(supabase, gid, jobId, { status: "running", stage: "Analisando padrões...", progress: 87 });
+    await callFn("analyze-genre", { genre_id: gid });
+    await setJob(supabase, gid, jobId, { status: "running", stage: "Gerando insights...", progress: 92 });
+    await callFn("genre-insights", { genre_id: gid });
+
+    const [pCnt, tCnt, teCnt] = await Promise.all([
+      supabase.from("search_results").select("*", { count: "exact", head: true }).eq("genre_id", gid),
+      supabase.from("search_tracks").select("*", { count: "exact", head: true }).eq("genre_id", gid),
+      supabase.from("search_terms").select("*", { count: "exact", head: true }).eq("genre_id", gid),
+    ]);
+    await supabase.from("genres").update({
+      total_playlists: pCnt.count ?? 0, total_musicas: tCnt.count ?? 0, total_termos: teCnt.count ?? 0,
+      ultima_coleta: new Date().toISOString(),
+      status: partial ? "parcial" : "analisado",
+    }).eq("id", gid);
+
+    const coveragePct = Math.round(coverage * 100);
+    const summary = `${enrichedCount} de ${totalPls} playlists analisadas (${coveragePct}%)`;
+    await supabase.from("collection_logs").insert({
+      genre_id: gid, acao: "brain-resume", status: partial ? "parcial" : "sucesso",
+      mensagem: `Retomada concluída — ${summary}, +${enrichedTotal} enriquecidas, +${tracksTotal} faixas, ${cycles} ciclos`,
+      duracao_ms: Date.now() - start,
+    });
+    await setJob(supabase, gid, jobId, {
+      status: "done",
+      stage: partial ? `Concluído (parcial — ${coveragePct}%)` : `Concluído — ${summary}`,
+      progress: 100,
+      result: { ok: true, partial, coverage: coveragePct, summary, resumed: true,
+        genre: { id: gid, nome: genre.nome, slug: genre.slug },
+        enriched_added: enrichedTotal, tracks_added: tracksTotal, cycles },
+    });
+  } catch (e) {
+    const msg = (e as Error).message ?? String(e);
+    await setJob(supabase, gid, jobId, { status: "error", stage: "Erro retomando", progress: 0, error: msg.slice(0, 500) });
+  }
+}
+
+// Stale detection: se o último log do job tem >2min sem update e ainda 'running' = morreu
+const STALE_MS = 120_000;
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -325,11 +414,12 @@ Deno.serve(async (req) => {
     const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
     try {
       const job = await getJob(supabase, jobId);
-      // Nunca 404 — retorna 'pending' se ainda não houver log (job acabou de iniciar)
       if (!job) return jr({ ok: true, status: "pending", stage: "Aguardando início...", progress: 0 });
-      return jr({ ok: true, ...job });
+      const updatedTs = job.updated_at ? new Date(job.updated_at).getTime() : 0;
+      const ageMs = Date.now() - updatedTs;
+      const isStale = job.status === "running" && ageMs > STALE_MS;
+      return jr({ ok: true, ...job, stale: isStale, age_ms: ageMs });
     } catch (e) {
-      // Erro transitório de DB — devolve 200 com status pending para o cliente continuar polling
       return jr({ ok: true, status: "pending", stage: "Aguardando...", progress: 0, transient: true });
     }
   }
@@ -344,9 +434,13 @@ Deno.serve(async (req) => {
 
   const jobId = crypto.randomUUID();
 
-  // Dispara em background — retorna imediatamente
   // @ts-ignore EdgeRuntime global
+  if (body.action === "resume") {
+    // @ts-ignore
+    EdgeRuntime.waitUntil(resumePipeline(jobId, slug));
+    return jr({ ok: true, job_id: jobId, status: "running", resumed: true }, 202);
+  }
+  // @ts-ignore
   EdgeRuntime.waitUntil(runPipeline(jobId, body));
-
   return jr({ ok: true, job_id: jobId, status: "running" }, 202);
 });
