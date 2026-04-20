@@ -3,12 +3,18 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, Sparkles, RefreshCw, Loader2, ChevronDown, ChevronUp, Flame, Music2, Palette, FileText, Hash, BarChart3, Image as ImageIcon } from "lucide-react";
+import { ChevronLeft, Sparkles, RefreshCw, Loader2, ChevronDown, ChevronUp, Flame, Music2, Palette, FileText, Hash, BarChart3, Image as ImageIcon, Users, ExternalLink } from "lucide-react";
 import { useBrainModel } from "@/hooks/useBrainModel";
 import { useBriefings, PlaylistBriefing } from "@/hooks/useBriefings";
 import { formatDate, timeAgo } from "@/lib/format";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+
+function formatFollowers(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1).replace(/\.0$/, "")}k`;
+  return String(n);
+}
 
 const NICHO_LABELS: Record<string, string> = { funk: "Funk", sertanejo: "Sertanejo", piseiro: "Piseiro" };
 
