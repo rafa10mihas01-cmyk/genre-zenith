@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Settings as SettingsIcon, KeyRound, CheckCircle2, XCircle, Loader2, Zap, RefreshCw, LogOut, Database,
+  Settings as SettingsIcon, KeyRound, CheckCircle2, XCircle, Loader2, Zap, RefreshCw, LogOut, Database, CalendarClock, Play,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -32,6 +32,7 @@ export default function Settings() {
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; msg: string; meta?: any } | null>(null);
   const [stats, setStats] = useState<{ genres: number; terms: number; results: number; tracks: number } | null>(null);
+  const [runningCron, setRunningCron] = useState(false);
 
   useEffect(() => { void loadStats(); }, []);
 
@@ -65,6 +66,20 @@ export default function Settings() {
   function saveSettings() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
     toast.success("Configurações salvas", { description: "Aplicadas nas próximas coletas." });
+  }
+
+  async function runCronNow() {
+    setRunningCron(true);
+    const { data, error } = await supabase.functions.invoke("daily-collect");
+    setRunningCron(false);
+    if (error || !data?.ok) {
+      toast.error("Falha ao executar coleta", { description: error?.message ?? data?.error });
+      return;
+    }
+    toast.success("Coleta executada", {
+      description: `${data.genres} gêneros, ${data.terms_run} buscas, ${data.models_updated} modelos. ${data.errors} erros.`,
+    });
+    loadStats();
   }
 
   return (
@@ -150,6 +165,27 @@ export default function Settings() {
 
         <div className="mt-4 flex justify-end">
           <Button size="sm" onClick={saveSettings}>Salvar</Button>
+        </div>
+      </section>
+
+      {/* Coleta automática */}
+      <section className="nx-card p-5 mt-4">
+        <div className="flex items-center gap-2">
+          <CalendarClock className="h-5 w-5 text-accent" />
+          <h2 className="font-semibold">Coleta automática</h2>
+        </div>
+        <p className="text-sm text-muted-foreground mt-1">
+          Cron diário às <span className="font-mono text-foreground">03:00 UTC</span> percorre todos os gêneros ativos,
+          executa termos pendentes (até 3/gênero) e re-analisa os modelos.
+        </p>
+        <div className="mt-4 flex items-center gap-2 flex-wrap">
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-success/15 text-success border border-success/30 text-xs">
+            <CheckCircle2 className="h-3.5 w-3.5" /> Agendado
+          </div>
+          <Button size="sm" variant="outline" onClick={runCronNow} disabled={runningCron}>
+            {runningCron ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+            Executar agora
+          </Button>
         </div>
       </section>
 
