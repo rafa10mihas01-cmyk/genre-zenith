@@ -3,6 +3,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   return (
@@ -71,8 +72,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             </div>
           </header>
 
-          <main className="flex-1 p-4 sm:p-6 cc-anim-enter">{children}</main>
+          <main className="flex-1 py-4 sm:py-6 cc-anim-enter">{children}</main>
         </div>
+        <MobileBottomNav />
       </div>
     </SidebarProvider>
   );

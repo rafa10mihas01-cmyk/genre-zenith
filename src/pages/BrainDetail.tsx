@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/cc/PageHeader";
 import { HeroCard } from "@/components/cc/HeroCard";
+import { PageContainer } from "@/components/cc/PageContainer";
 
 function formatFollowers(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
@@ -330,15 +331,15 @@ export default function BrainDetail() {
 
   if (!loadingModel && !genre) {
     return (
-      <div className="max-w-2xl mx-auto py-20 text-center space-y-4">
+      <PageContainer size="2xl" className="py-20 text-center space-y-4">
         <h1 className="text-2xl font-bold">Nicho não encontrado</h1>
         <Button asChild variant="outline"><Link to="/"><ChevronLeft className="h-4 w-4" /> Voltar</Link></Button>
-      </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
+    <PageContainer size="5xl" className="space-y-6">
       <PageHeader
         eyebrow={
           <div className="flex items-center gap-2">
@@ -440,6 +441,6 @@ export default function BrainDetail() {
           </div>
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 }

@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Brain as BrainIcon, Sparkles, Loader2, Music, Radio, Flame, ChevronRight, Settings2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatNumber, timeAgo } from "@/lib/format";
+import { PageContainer } from "@/components/cc/PageContainer";
 
 type Slug = "funk" | "sertanejo" | "piseiro";
 type Intensity = "leve" | "normal" | "agressivo";
@@ -269,7 +270,7 @@ export default function Brain() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-10">
+    <PageContainer size="5xl" className="space-y-10">
       {/* Header */}
       <div className="text-center space-y-3 pt-4">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/30 text-xs uppercase tracking-wider text-primary">
@@ -440,6 +441,6 @@ export default function Brain() {
           </CardContent>
         </Card>
       )}
-    </div>
+    </PageContainer>
   );
 }
