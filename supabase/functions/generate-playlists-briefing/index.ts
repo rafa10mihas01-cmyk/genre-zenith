@@ -60,6 +60,8 @@ Deno.serve(async (req) => {
     const padroesNome = (model.padroes_nome as any[] ?? []);
     const playlistsDom = (model.playlists_dominantes as any[] ?? []);
     const musicasRec = (model.musicas_recorrentes as any[] ?? []);
+    const insights = (model.insights as any) ?? {};
+    const dnaVisual = insights.dna_visual ?? null;
     // Total real do corpus analisado (não só as dominantes)
     const totalPlaylists = Math.max(corpusCount ?? 0, playlistsDom.length, 1);
 
