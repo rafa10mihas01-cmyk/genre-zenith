@@ -450,10 +450,12 @@ async function resumePipeline(jobId: string, slug: string) {
       await measure();
     }
     const partial = coverage < 0.7;
-    await setJob(supabase, gid, jobId, { status: "running", stage: "Analisando padrões...", progress: 87 });
+    await setJob(supabase, gid, jobId, { status: "running", stage: "Analisando padrões...", progress: 85 });
     await callFn("analyze-genre", { genre_id: gid });
-    await setJob(supabase, gid, jobId, { status: "running", stage: "Gerando insights...", progress: 92 });
+    await setJob(supabase, gid, jobId, { status: "running", stage: "Gerando insights...", progress: 90 });
     await callFn("genre-insights", { genre_id: gid });
+    await setJob(supabase, gid, jobId, { status: "running", stage: "Gerando briefing de playlists...", progress: 95 });
+    await callFn("generate-playlists-briefing", { genre_id: gid });
 
     const [pCnt, tCnt, teCnt] = await Promise.all([
       supabase.from("search_results").select("*", { count: "exact", head: true }).eq("genre_id", gid),
