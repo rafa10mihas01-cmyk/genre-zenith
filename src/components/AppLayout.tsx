@@ -77,7 +77,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             </div>
           </header>
 
-          <main className="flex-1 cc-anim-enter">{children}</main>
+          <main className="flex-1 p-4 sm:p-6 cc-anim-enter">{children}</main>
         </div>
       </div>
     </SidebarProvider>
