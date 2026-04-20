@@ -1,7 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import {
-  LayoutDashboard, Music, Radio, BrainCircuit, ScrollText, Settings, Zap, LogOut,
-} from "lucide-react";
+import { Brain, Zap, LogOut } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, SidebarFooter, useSidebar,
@@ -9,13 +7,9 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 
+// Demais rotas (genres, collect, models, logs, settings) continuam ativas, apenas ocultas no menu.
 const items = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard, end: true },
-  { title: "Gêneros", url: "/genres", icon: Music },
-  { title: "Coleta ao Vivo", url: "/collect", icon: Radio },
-  { title: "Modelos", url: "/models", icon: BrainCircuit },
-  { title: "Logs", url: "/logs", icon: ScrollText },
-  { title: "Configurações", url: "/settings", icon: Settings },
+  { title: "Cérebro", url: "/", icon: Brain, end: true },
 ];
 
 export function AppSidebar() {
