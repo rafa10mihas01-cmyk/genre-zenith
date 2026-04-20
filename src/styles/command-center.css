@@ -1,101 +1,38 @@
-/* NexEngine — Command Center Shell (NexCreatorX-aligned) */
+/* NexEngine — Shell + utilidades visuais (theme-aware) */
 
 /* ============================================================
-   .cc-shell — fundo escuro denso, sem glows roxos genéricos
-   Inspirado no NexCreatorX: um único halo radial sutil indigo
-   no topo direito + ruído de filme imperceptível.
+   .cc-shell — fundo da app. Usa tokens, então segue light/dark.
    ============================================================ */
 .cc-shell {
-  position: relative;
-  background:
-    radial-gradient(ellipse 60% 50% at 100% -10%, rgba(99, 102, 241, 0.10), transparent 60%),
-    radial-gradient(ellipse 50% 40% at -10% 110%, rgba(59, 130, 246, 0.06), transparent 60%),
-    linear-gradient(180deg, hsl(230 30% 5%) 0%, hsl(230 35% 4%) 100%);
+  background: hsl(var(--background));
   min-height: 100%;
 }
 
-.cc-shell::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  opacity: 0.025;
-  mix-blend-mode: overlay;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.9 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
-  background-size: 240px 240px;
-  z-index: 0;
-}
-
-.cc-shell > * {
-  position: relative;
-  z-index: 1;
-}
-
-/* Força tokens dark dentro do shell — inclui sidebar + primary */
-.cc-force-dark {
-  --background: 230 35% 4%;
-  --foreground: 0 0% 96%;
-  --card: 230 22% 8%;
-  --card-foreground: 0 0% 96%;
-  --popover: 230 22% 8%;
-  --popover-foreground: 0 0% 96%;
-  --muted: 230 14% 12%;
-  --muted-foreground: 230 8% 62%;
-  --border: 230 14% 14%;
-  --input: 230 14% 14%;
-  --accent: 230 14% 13%;
-  --accent-foreground: 0 0% 96%;
-  --secondary: 230 14% 13%;
-  --secondary-foreground: 0 0% 96%;
-  --primary: 231 60% 60%;
-  --primary-foreground: 0 0% 100%;
-  --ring: 231 60% 55%;
-
-  /* Sidebar — antes herdava do tema claro e ficava texto branco invisível */
-  --sidebar-background: 230 30% 5%;
-  --sidebar-foreground: 0 0% 92%;
-  --sidebar-primary: 231 60% 60%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 230 16% 12%;
-  --sidebar-accent-foreground: 0 0% 96%;
-  --sidebar-border: 230 14% 13%;
-  --sidebar-ring: 231 60% 55%;
-
-  color-scheme: dark;
-}
-
 /* ============================================================
-   .nx-surface — superfície sólida escura (NexCreatorX style)
-   Sem glass blurry. Borda 1px, sombra interna sutil.
+   Surface — superfície sólida (card-like) usando tokens
    ============================================================ */
 .nx-surface {
-  background: hsl(230 25% 7%);
-  border: 1px solid hsl(230 15% 13%);
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
   border-radius: 14px;
-  box-shadow:
-    0 1px 0 0 hsl(0 0% 100% / 0.02) inset,
-    0 24px 48px -24px hsl(230 50% 2% / 0.5);
 }
 
 .nx-surface-elevated {
-  background: linear-gradient(180deg, hsl(230 22% 9%) 0%, hsl(230 25% 7%) 100%);
-  border: 1px solid hsl(230 15% 14%);
+  background: hsl(var(--elevated));
+  border: 1px solid hsl(var(--border));
   border-radius: 16px;
-  box-shadow:
-    0 1px 0 0 hsl(0 0% 100% / 0.03) inset,
-    0 32px 64px -32px hsl(230 50% 2% / 0.6);
 }
 
 .nx-surface-hover {
   transition: border-color 0.2s ease, transform 0.2s ease;
 }
 .nx-surface-hover:hover {
-  border-color: hsl(230 15% 20%);
+  border-color: hsl(var(--ring) / 0.4);
   transform: translateY(-1px);
 }
 
 /* ============================================================
-   Accent square — bloco tonal de ícone (24/28/32px) — assinatura visual
+   Accent square — bloco tonal de ícone
    ============================================================ */
 .nx-accent-square {
   display: inline-flex;
@@ -107,7 +44,7 @@
 }
 
 /* ============================================================
-   Eyebrow pulsante (● DASHBOARD · TEMPO REAL)
+   Eyebrow pulsante
    ============================================================ */
 .nx-eyebrow {
   display: inline-flex;
@@ -118,46 +55,22 @@
   font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: hsl(230 8% 65%);
+  color: hsl(var(--muted-foreground));
 }
 .nx-eyebrow-dot {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: hsl(152 70% 50%);
-  box-shadow: 0 0 0 0 hsl(152 70% 50% / 0.6);
+  background: hsl(var(--success));
   animation: nx-pulse-dot 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 @keyframes nx-pulse-dot {
-  0%, 100% { box-shadow: 0 0 0 0 hsl(152 70% 50% / 0.55); }
-  50%      { box-shadow: 0 0 0 6px hsl(152 70% 50% / 0); }
+  0%, 100% { box-shadow: 0 0 0 0 hsl(var(--success) / 0.55); }
+  50%      { box-shadow: 0 0 0 6px hsl(var(--success) / 0); }
 }
 
 /* ============================================================
-   Title accent — palavra com gradient (assinatura NexCreatorX)
-   ============================================================ */
-.nx-title-accent {
-  background: linear-gradient(135deg, #c4b5fd 0%, #818cf8 45%, #60a5fa 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  filter: drop-shadow(0 4px 32px rgba(129, 140, 248, 0.25));
-}
-
-/* ============================================================
-   Sidebar group label
-   ============================================================ */
-.nx-group-label {
-  font-family: "Plus Jakarta Sans", system-ui, sans-serif;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: hsl(230 6% 42%);
-}
-
-/* ============================================================
-   Stat label (uppercase tracking, sublinha grande)
+   Stat label / value
    ============================================================ */
 .nx-stat-label {
   font-family: "Plus Jakarta Sans", system-ui, sans-serif;
@@ -165,18 +78,27 @@
   font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: hsl(230 6% 52%);
+  color: hsl(var(--muted-foreground));
 }
 .nx-stat-value {
   font-family: "Plus Jakarta Sans", system-ui, sans-serif;
   font-weight: 700;
   letter-spacing: -0.02em;
-  color: hsl(0 0% 96%);
+  color: hsl(var(--foreground));
   font-variant-numeric: tabular-nums;
 }
 
+.nx-group-label {
+  font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: hsl(var(--muted-foreground));
+}
+
 /* ============================================================
-   Delta pill (+12.4% verde / -3.2% vermelho)
+   Delta pill
    ============================================================ */
 .nx-delta {
   display: inline-flex;
@@ -189,38 +111,39 @@
   font-variant-numeric: tabular-nums;
 }
 .nx-delta-up {
-  background: hsl(152 70% 50% / 0.12);
-  color: hsl(152 70% 65%);
-  border: 1px solid hsl(152 70% 50% / 0.25);
+  background: hsl(var(--success) / 0.12);
+  color: hsl(var(--success));
+  border: 1px solid hsl(var(--success) / 0.25);
 }
 .nx-delta-down {
-  background: hsl(0 72% 56% / 0.12);
-  color: hsl(0 72% 70%);
-  border: 1px solid hsl(0 72% 56% / 0.25);
+  background: hsl(var(--destructive) / 0.12);
+  color: hsl(var(--destructive));
+  border: 1px solid hsl(var(--destructive) / 0.25);
 }
 
 /* ============================================================
-   Search input estilo ⌘K
+   Search input do header — alto contraste em ambos os temas
    ============================================================ */
 .nx-search {
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 34px;
-  padding: 0 10px;
-  width: 320px;
+  height: 36px;
+  padding: 0 12px;
+  width: 360px;
   max-width: 100%;
-  background: hsl(230 22% 9%);
-  border: 1px solid hsl(230 15% 14%);
+  background: hsl(var(--muted));
+  border: 1px solid hsl(var(--border));
   border-radius: 8px;
-  color: hsl(230 8% 60%);
+  color: hsl(var(--foreground));
   font-size: 13px;
-  transition: border-color 0.15s ease;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  cursor: text;
 }
-.nx-search:hover { border-color: hsl(230 15% 20%); }
+.nx-search:hover { border-color: hsl(var(--ring) / 0.5); }
 .nx-search:focus-within {
-  border-color: hsl(231 60% 55%);
-  box-shadow: 0 0 0 3px hsl(231 60% 55% / 0.12);
+  border-color: hsl(var(--ring));
+  box-shadow: 0 0 0 3px hsl(var(--ring) / 0.18);
 }
 .nx-search input {
   background: transparent;
@@ -228,48 +151,51 @@
   outline: none;
   flex: 1;
   font-size: 13px;
-  color: hsl(0 0% 96%);
+  color: hsl(var(--foreground));
 }
-.nx-search input::placeholder { color: hsl(230 8% 50%); }
+.nx-search input::placeholder { color: hsl(var(--muted-foreground)); opacity: 1; }
+
 .nx-kbd {
   font-family: "JetBrains Mono", ui-monospace, monospace;
   font-size: 10px;
   padding: 2px 6px;
   border-radius: 4px;
-  background: hsl(230 15% 14%);
-  border: 1px solid hsl(230 15% 18%);
-  color: hsl(230 8% 65%);
+  background: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
+  color: hsl(var(--muted-foreground));
 }
 
 /* ============================================================
    Animação de entrada
    ============================================================ */
 .cc-anim-enter {
-  animation: cc-enter 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: cc-enter 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 @keyframes cc-enter {
-  from { opacity: 0; transform: translateY(10px); }
+  from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
 /* ============================================================
-   LEGADO — manter pra não quebrar páginas que ainda usam .cc-glass
-   (vão ser migradas progressivamente pra .nx-surface)
+   LEGADO — mantido para páginas que ainda usam .cc-glass.
+   Agora baseado em tokens, então segue o tema.
    ============================================================ */
 .cc-glass {
-  background: hsl(230 25% 7%);
-  border: 1px solid hsl(230 15% 13%);
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
   border-radius: 14px;
 }
 .cc-glass-hover { transition: border-color 0.2s ease, transform 0.2s ease; }
-.cc-glass-hover:hover { border-color: hsl(230 15% 20%); transform: translateY(-1px); }
-.cc-glow-indigo  { border-color: hsl(231 60% 55% / 0.45) !important; box-shadow: 0 0 0 1px hsl(231 60% 55% / 0.30), 0 0 32px hsl(231 60% 55% / 0.18); }
-.cc-glow-violet  { border-color: hsl(270 70% 65% / 0.45) !important; box-shadow: 0 0 0 1px hsl(270 70% 65% / 0.30), 0 0 32px hsl(270 70% 65% / 0.18); }
-.cc-glow-blue    { border-color: hsl(217 80% 60% / 0.45) !important; box-shadow: 0 0 0 1px hsl(217 80% 60% / 0.30), 0 0 32px hsl(217 80% 60% / 0.18); }
-.cc-glow-emerald { border-color: hsl(152 70% 50% / 0.45) !important; box-shadow: 0 0 0 1px hsl(152 70% 50% / 0.30), 0 0 32px hsl(152 70% 50% / 0.18); }
-.cc-glow-amber   { border-color: hsl(38 92% 55% / 0.45) !important;  box-shadow: 0 0 0 1px hsl(38 92% 55% / 0.30), 0 0 32px hsl(38 92% 55% / 0.18); }
-.cc-glow-rose    { border-color: hsl(0 72% 60% / 0.45) !important;   box-shadow: 0 0 0 1px hsl(0 72% 60% / 0.30), 0 0 32px hsl(0 72% 60% / 0.18); }
-.cc-orb { position: absolute; pointer-events: none; border-radius: 9999px; filter: blur(110px); opacity: 0.35; }
-.cc-orb-indigo { background: radial-gradient(circle, hsl(231 60% 55% / 0.30) 0%, transparent 70%); }
-.cc-orb-violet { background: radial-gradient(circle, hsl(270 70% 65% / 0.25) 0%, transparent 70%); }
-.cc-title-accent { background: linear-gradient(135deg, #c4b5fd 0%, #818cf8 45%, #60a5fa 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.cc-glass-hover:hover { border-color: hsl(var(--ring) / 0.4); transform: translateY(-1px); }
+.cc-glow-indigo  { border-color: hsl(231 60% 55% / 0.45) !important; }
+.cc-glow-violet  { border-color: hsl(270 70% 65% / 0.45) !important; }
+.cc-glow-blue    { border-color: hsl(217 80% 60% / 0.45) !important; }
+.cc-glow-emerald { border-color: hsl(152 70% 50% / 0.45) !important; }
+.cc-glow-amber   { border-color: hsl(38 92% 55% / 0.45) !important; }
+.cc-glow-rose    { border-color: hsl(0 72% 60% / 0.45) !important; }
+.cc-title-accent {
+  background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(231 70% 65%) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
