@@ -303,12 +303,17 @@ export default function BrainDetail() {
   const { slug = "" } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { loading: loadingModel, genre, model, reload: reloadModel } = useBrainModel(slug);
-  const { loading: loadingBriefing, briefing, generating, regenerate, reload: reloadBriefing, analyzeVisualDna, analyzingDna } = useBriefings(genre?.id);
+  const {
+    loading: loadingBriefing, briefing, generating, regenerate,
+    reload: reloadBriefing, analyzeVisualDna, analyzingDna,
+    clusters, loadingClusters, selectedClusterId, selectCluster,
+  } = useBriefings(genre?.id);
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
 
   const loading = loadingModel || loadingBriefing;
   const hasBriefing = briefing && Array.isArray(briefing.briefings) && briefing.briefings.length > 0;
   const hasDnaVisual = hasBriefing && briefing.briefings.some(b => b.dna_capa);
+  const activeCluster = selectedClusterId ? clusters.find(c => c.id === selectedClusterId) ?? null : null;
 
   const handleRegenerate = async () => {
     try {
@@ -355,7 +360,7 @@ export default function BrainDetail() {
           </div>
         }
         title={genre?.nome ?? NICHO_LABELS[slug] ?? slug}
-        subtitle={hasBriefing ? `${briefing.briefings.length} ${briefing.briefings.length === 1 ? "decisão qualificada" : "decisões qualificadas"} de ${briefing.metadata?.total_padroes_analisados ?? 0} padrões analisados.` : undefined}
+        subtitle={hasBriefing ? `${briefing.briefings.length} ${briefing.briefings.length === 1 ? "decisão qualificada" : "decisões qualificadas"} de ${briefing.metadata?.total_padroes_analisados ?? 0} padrões analisados${activeCluster ? ` • subgrupo ${activeCluster.label}` : ""}.` : undefined}
         actions={
           <>
             <Button
@@ -378,6 +383,47 @@ export default function BrainDetail() {
           </>
         }
       />
+
+      {/* Barra de subgrupos (clusters) */}
+      {(clusters.length > 0 || loadingClusters) && (
+        <div className="cc-glass cc-glass-sm p-2 flex items-center gap-2 overflow-x-auto">
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground px-2 shrink-0">
+            Subgrupos
+          </span>
+          <button
+            type="button"
+            onClick={() => selectCluster(null)}
+            className={cn(
+              "shrink-0 rounded-md px-3 py-1.5 text-xs font-medium transition-colors border",
+              selectedClusterId === null
+                ? "bg-primary/15 text-primary border-primary/40"
+                : "border-border bg-muted/30 text-muted-foreground hover:text-foreground hover:bg-muted/60"
+            )}
+          >
+            Todos
+          </button>
+          {clusters.map(c => (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => selectCluster(c.id)}
+              className={cn(
+                "shrink-0 rounded-md px-3 py-1.5 text-xs font-medium transition-colors border inline-flex items-center gap-2",
+                selectedClusterId === c.id
+                  ? "bg-primary/15 text-primary border-primary/40"
+                  : "border-border bg-muted/30 text-muted-foreground hover:text-foreground hover:bg-muted/60"
+              )}
+              title={`${c.size} playlists • média ${c.media_seguidores.toLocaleString("pt-BR")} seguidores`}
+            >
+              <span>{c.label}</span>
+              <span className="text-[10px] font-mono opacity-70">{c.size}</span>
+            </button>
+          ))}
+          {loadingClusters && (
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground shrink-0" />
+          )}
+        </div>
+      )}
 
       {loading ? (
         <div className="py-20 text-center text-muted-foreground text-sm">
