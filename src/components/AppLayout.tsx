@@ -9,46 +9,23 @@ import { Bell, HelpCircle } from "lucide-react";
 export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <SidebarProvider>
-      <div className="cc-shell min-h-screen flex w-full text-foreground">
+      <div className="cc-shell min-h-screen flex w-full text-foreground bg-background">
         <AppSidebar />
 
         <div className="flex-1 flex flex-col min-w-0 relative">
-          {/* Mobile header — V3 §8.2 */}
+          {/* Mobile header */}
           <header
-            className="md:hidden sticky top-0 z-50 bg-background/85 backdrop-blur-[10px]"
-            style={{
-              paddingTop: "calc(env(safe-area-inset-top) + 12px)",
-              boxShadow: "0 2px 16px rgba(0,0,0,0.18)",
-            }}
+            className="md:hidden sticky top-0 z-50 bg-sidebar border-b border-border"
+            style={{ paddingTop: "calc(env(safe-area-inset-top) + 12px)" }}
           >
             <div className="flex items-center justify-between px-4 pb-3">
               <div className="flex items-center gap-2.5 min-w-0">
                 <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
-                <div className="relative">
-                  <div
-                    className="absolute inset-0 blur-md opacity-50 rounded-xl"
-                    style={{ background: "radial-gradient(circle, rgba(99,102,241,0.55), transparent 70%)" }}
-                  />
-                  <div
-                    className="relative h-9 w-9 rounded-xl flex items-center justify-center font-display font-bold text-[13px] text-foreground"
-                    style={{
-                      background: "linear-gradient(135deg, rgba(99,102,241,0.16), rgba(168,85,247,0.11))",
-                      border: "1px solid rgba(99,102,241,0.22)",
-                    }}
-                  >
-                    N
-                  </div>
+                <div className="h-9 w-9 rounded-md flex items-center justify-center font-display font-bold text-[13px] text-primary-foreground bg-primary">
+                  N
                 </div>
                 <div className="leading-tight">
-                  <div
-                    className="font-display text-[14px] font-semibold"
-                    style={{
-                      backgroundImage: "linear-gradient(135deg, hsl(var(--foreground)), #6366f1)",
-                      WebkitBackgroundClip: "text",
-                      backgroundClip: "text",
-                      color: "transparent",
-                    }}
-                  >
+                  <div className="font-display text-[14px] font-semibold text-foreground">
                     NexEngine
                   </div>
                   <div className="text-[10px] uppercase text-muted-foreground" style={{ letterSpacing: "0.20em" }}>
@@ -59,8 +36,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             </div>
           </header>
 
-          {/* Desktop header — V3 §8.1: h-12, transparent, blur-xl */}
-          <header className="hidden md:flex h-12 items-center justify-between px-4 border-b border-border bg-background/60 backdrop-blur-xl sticky top-0 z-40">
+          {/* Desktop header */}
+          <header className="hidden md:flex h-12 items-center justify-between px-4 border-b border-border bg-background sticky top-0 z-40">
             <div className="flex items-center gap-3 min-w-0">
               <SidebarTrigger className="text-muted-foreground hover:text-foreground shrink-0" />
               <div className="h-4 w-px bg-border shrink-0" />
@@ -70,13 +47,13 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             <div className="flex items-center gap-1.5 shrink-0">
               <GlobalSearch />
               <button
-                className="h-8 w-8 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
+                className="h-8 w-8 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
                 title="Ajuda"
               >
                 <HelpCircle className="h-4 w-4" />
               </button>
               <button
-                className="h-8 w-8 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors relative"
+                className="h-8 w-8 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors relative"
                 title="Notificações"
               >
                 <Bell className="h-4 w-4" />
