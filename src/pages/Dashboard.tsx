@@ -260,7 +260,7 @@ export default function Dashboard() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          {(loading ? Array.from({ length: 3 }).map((_, i) => null) : nichos).map((n, i) => (
+          {(loading ? Array.from({ length: 3 }).map(() => null) : nichos).map((n, i) => (
             <NichoCard key={n?.slug ?? i} nicho={n} loading={loading} />
           ))}
         </div>
