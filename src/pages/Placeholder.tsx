@@ -1,19 +1,29 @@
 import { Construction } from "lucide-react";
+import { PageContainer } from "@/components/cc/PageContainer";
+import { PageHeader } from "@/components/cc/PageHeader";
+import { HeroCard } from "@/components/cc/HeroCard";
 
 export default function Placeholder({ title, subtitle, phase }: { title: string; subtitle?: string; phase?: string }) {
   return (
-    <div className="max-w-[1400px] mx-auto">
-      <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
-      {subtitle && <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>}
-      <div className="nx-card p-12 mt-6 text-center">
-        <div className="h-12 w-12 rounded-lg bg-warning/15 border border-warning/30 mx-auto flex items-center justify-center">
-          <Construction className="h-6 w-6 text-warning" />
+    <PageContainer size="7xl" className="space-y-6">
+      <PageHeader title={title} subtitle={subtitle} />
+      <HeroCard className="text-center">
+        <div className="py-8 space-y-3">
+          <div
+            className="mx-auto h-12 w-12 rounded-xl flex items-center justify-center"
+            style={{
+              background: "linear-gradient(135deg, rgba(245,158,11,0.18), rgba(245,158,11,0.10))",
+              border: "1px solid rgba(245,158,11,0.30)",
+            }}
+          >
+            <Construction className="h-6 w-6" style={{ color: "rgb(245,158,11)" }} />
+          </div>
+          <h2 className="font-display text-lg font-semibold">Em construção</h2>
+          <p className="text-sm text-muted-foreground">
+            Este módulo será entregue em <strong className="text-foreground">{phase ?? "uma próxima fase"}</strong>.
+          </p>
         </div>
-        <h2 className="mt-4 font-semibold">Em construção</h2>
-        <p className="text-sm text-muted-foreground mt-1.5">
-          Este módulo será entregue em <strong className="text-foreground">{phase ?? "uma próxima fase"}</strong>.
-        </p>
-      </div>
-    </div>
+      </HeroCard>
+    </PageContainer>
   );
 }
