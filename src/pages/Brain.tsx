@@ -42,6 +42,8 @@ export default function Brain() {
   const [stageLabel, setStageLabel] = useState("");
   const [progress, setProgress] = useState(0);
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  const [stalled, setStalled] = useState(false);
+  const [stalledSlug, setStalledSlug] = useState<Slug | null>(null);
   const [summaries, setSummaries] = useState<Record<string, GenreSummary>>({});
 
   const runLockRef = useRef(false);
@@ -157,6 +159,17 @@ export default function Brain() {
       const prog = Number(j.progress ?? 0);
       const status = j.status as string;
 
+      // 🚨 Job morto: edge function caiu por timeout. Para o polling e oferece Retomar.
+      if (j.stale === true) {
+        setActiveJobId(null);
+        setStalled(true);
+        setStalledSlug(targetSlug);
+        setStageLabel(`Travou em "${j.stage ?? "?"}" — clique em Retomar`);
+        await loadSummaries();
+        toast.error("Análise travou", { description: "O processo parou de responder. Use Retomar pra continuar de onde parou." });
+        return;
+      }
+
       // Detecta o "fantasma": job estava avançado e voltou pra pending → terminou
       if (status === "pending" && highestProgress >= 85) {
         pendingAfterProgressCount++;
@@ -195,6 +208,8 @@ export default function Brain() {
     runLockRef.current = true;
     cancelRequestedRef.current = false;
     setRunning(true);
+    setStalled(false);
+    setStalledSlug(null);
     setActiveJobId(null);
     setStageIdx(0);
     setProgress(0);
@@ -210,6 +225,35 @@ export default function Brain() {
       await pollJob(data.job_id, target, startedAt);
     } catch (e: any) {
       if (!cancelRequestedRef.current) toast.error("Erro na análise", { description: e?.message ?? String(e) });
+    } finally {
+      runLockRef.current = false;
+      if (mountedRef.current && !cancelRequestedRef.current) setRunning(false);
+    }
+  }
+
+  async function resumeAnalysis() {
+    const target = stalledSlug ?? nicho;
+    if (runLockRef.current || running) return;
+    runLockRef.current = true;
+    cancelRequestedRef.current = false;
+    setRunning(true);
+    setStalled(false);
+    setStalledSlug(null);
+    setActiveJobId(null);
+    setStageIdx(3);
+    setProgress(70);
+    setStageLabel("Retomando enriquecimento...");
+    const startedAt = Date.now();
+    try {
+      const { data, error } = await supabase.functions.invoke("brain-run", {
+        body: { slug: target, action: "resume" },
+      });
+      if (error) throw error;
+      if (!data?.job_id) throw new Error(data?.error ?? "Falha ao retomar");
+      setActiveJobId(data.job_id);
+      await pollJob(data.job_id, target, startedAt);
+    } catch (e: any) {
+      if (!cancelRequestedRef.current) toast.error("Erro ao retomar", { description: e?.message ?? String(e) });
     } finally {
       runLockRef.current = false;
       if (mountedRef.current && !cancelRequestedRef.current) setRunning(false);
@@ -343,6 +387,23 @@ export default function Brain() {
           </Link>
         )}
       </div>
+
+      {/* Banner "travou" — pipeline morreu por timeout do edge function */}
+      {stalled && !running && (
+        <Card className="border-destructive/40 bg-destructive/5">
+          <CardContent className="py-5 flex items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="text-sm font-semibold text-destructive">Análise travou no meio do caminho</div>
+              <div className="text-xs text-muted-foreground">
+                {stageLabel || "Sem progresso há mais de 2 minutos."} Os dados já coletados estão salvos — clique em Retomar pra continuar de onde parou.
+              </div>
+            </div>
+            <Button onClick={resumeAnalysis} size="sm" variant="default" className="shrink-0">
+              <Sparkles className="h-4 w-4 mr-1.5" /> Retomar
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Painel de progresso */}
       {running && (
