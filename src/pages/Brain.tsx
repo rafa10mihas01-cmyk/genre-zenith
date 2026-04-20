@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,9 +14,9 @@ type Intensity = "leve" | "normal" | "agressivo";
 type Size = 20 | 50 | 100;
 
 const NICHOS: { slug: Slug; nome: string; icon: typeof Flame; cor: string }[] = [
-  { slug: "funk",      nome: "Funk",      icon: Flame, cor: "from-rose-500/20 to-orange-500/20 border-rose-500/40" },
+  { slug: "funk", nome: "Funk", icon: Flame, cor: "from-rose-500/20 to-orange-500/20 border-rose-500/40" },
   { slug: "sertanejo", nome: "Sertanejo", icon: Music, cor: "from-amber-500/20 to-yellow-500/20 border-amber-500/40" },
-  { slug: "piseiro",   nome: "Piseiro",   icon: Radio, cor: "from-emerald-500/20 to-teal-500/20 border-emerald-500/40" },
+  { slug: "piseiro", nome: "Piseiro", icon: Radio, cor: "from-emerald-500/20 to-teal-500/20 border-emerald-500/40" },
 ];
 
 const STAGES = [
@@ -30,8 +30,8 @@ const STAGES = [
 
 function fmtNum(n: number | null | undefined) {
   if (n == null) return "—";
-  if (n >= 1_000_000) return `${(n/1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n/1_000).toFixed(1)}k`;
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
   return String(n);
 }
 
@@ -44,73 +44,152 @@ export default function Brain() {
   const [stageLabel, setStageLabel] = useState<string>("");
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<any>(null);
+  const [activeJobId, setActiveJobId] = useState<string | null>(null);
 
-  async function runAnalysis() {
+  const runLockRef = useRef(false);
+  const cancelRequestedRef = useRef(false);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      cancelRequestedRef.current = true;
+    };
+  }, []);
+
+  const hasPausedJob = Boolean(activeJobId) && !running && !result;
+
+  function stopWatchingAnalysis() {
+    if (!activeJobId) return;
+    cancelRequestedRef.current = true;
+    if (mountedRef.current) {
+      setRunning(false);
+      setStageLabel("Acompanhamento pausado");
+    }
+    toast("Acompanhamento pausado", {
+      description: "O job continua no backend e você pode retomar quando quiser.",
+    });
+  }
+
+  async function pollJob(jobId: string) {
+    const SUPABASE_URL = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co`;
+    const ANON = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+    const deadline = Date.now() + 20 * 60_000;
+    let consecutiveErrors = 0;
+
+    while (Date.now() < deadline && !cancelRequestedRef.current) {
+      await new Promise((r) => setTimeout(r, 3000));
+      if (cancelRequestedRef.current) return;
+
+      let j: any = null;
+      try {
+        const r = await fetch(`${SUPABASE_URL}/functions/v1/brain-run?job_id=${jobId}`, {
+          headers: { apikey: ANON, Authorization: `Bearer ${ANON}` },
+        });
+        j = await r.json();
+      } catch {
+        consecutiveErrors++;
+        if (consecutiveErrors > 15) throw new Error("Conexão instável com o servidor");
+        continue;
+      }
+
+      if (cancelRequestedRef.current) return;
+      if (!j?.ok) {
+        consecutiveErrors++;
+        if (consecutiveErrors > 15) throw new Error("Job não encontrado após várias tentativas");
+        continue;
+      }
+
+      consecutiveErrors = 0;
+      if (!mountedRef.current) return;
+
+      setStageLabel(j.stage ?? "");
+      setProgress(j.progress ?? 0);
+
+      const labelLower = (j.stage ?? "").toLowerCase();
+      const idx = STAGES.findIndex((s) => labelLower.includes(s.toLowerCase().replace("...", "").split(" ")[0]));
+      if (idx >= 0) setStageIdx(idx);
+
+      if (j.status === "done") {
+        setResult(j.result);
+        setActiveJobId(null);
+        toast.success("Análise concluída", {
+          description: `${j.result?.stages?.search?.ok ?? 0} buscas em ${Math.round((j.result?.duration_ms ?? 0) / 1000)}s`,
+        });
+        return;
+      }
+
+      if (j.status === "error") {
+        setActiveJobId(null);
+        throw new Error(j.error ?? "Erro no pipeline");
+      }
+    }
+
+    if (cancelRequestedRef.current) return;
+    throw new Error("Timeout aguardando conclusão (20 min)");
+  }
+
+  async function startNewAnalysis() {
+    if (runLockRef.current || running) return;
+
+    runLockRef.current = true;
+    cancelRequestedRef.current = false;
     setRunning(true);
     setResult(null);
+    setActiveJobId(null);
     setStageIdx(0);
     setProgress(0);
     setStageLabel("Iniciando...");
 
     try {
-      // 1) Inicia job (retorno rápido, 202)
       const { data: startData, error: startErr } = await supabase.functions.invoke("brain-run", {
         body: { slug: nicho, intensity, max_playlists: size },
       });
       if (startErr) throw startErr;
       if (!startData?.job_id) throw new Error(startData?.error ?? "Falha ao iniciar job");
+
       const jobId = startData.job_id as string;
+      if (!mountedRef.current) return;
 
-      // 2) Polling do status
-      const SUPABASE_URL = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co`;
-      const ANON = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
-      const deadline = Date.now() + 20 * 60_000; // 20 min máx
-      let consecutiveErrors = 0;
-
-      while (Date.now() < deadline) {
-        await new Promise(r => setTimeout(r, 3000));
-        let j: any = null;
-        try {
-          const r = await fetch(`${SUPABASE_URL}/functions/v1/brain-run?job_id=${jobId}`, {
-            headers: { apikey: ANON, Authorization: `Bearer ${ANON}` },
-          });
-          j = await r.json();
-        } catch {
-          consecutiveErrors++;
-          if (consecutiveErrors > 15) throw new Error("Conexão instável com o servidor");
-          continue;
-        }
-        if (!j?.ok) {
-          consecutiveErrors++;
-          if (consecutiveErrors > 15) throw new Error("Job não encontrado após várias tentativas");
-          continue;
-        }
-        consecutiveErrors = 0;
-        setStageLabel(j.stage ?? "");
-        setProgress(j.progress ?? 0);
-        const labelLower = (j.stage ?? "").toLowerCase();
-        const idx = STAGES.findIndex(s => labelLower.includes(s.toLowerCase().replace("...", "").split(" ")[0]));
-        if (idx >= 0) setStageIdx(idx);
-        if (j.status === "done") {
-          setResult(j.result);
-          toast.success("Análise concluída", {
-            description: `${j.result?.stages?.search?.ok ?? 0} buscas em ${Math.round((j.result?.duration_ms ?? 0)/1000)}s`,
-          });
-          return;
-        }
-        if (j.status === "error") throw new Error(j.error ?? "Erro no pipeline");
-      }
-      throw new Error("Timeout aguardando conclusão (20 min)");
+      setActiveJobId(jobId);
+      await pollJob(jobId);
     } catch (e: any) {
-      toast.error("Erro na análise", { description: e?.message ?? String(e) });
+      if (!cancelRequestedRef.current) {
+        toast.error("Erro na análise", { description: e?.message ?? String(e) });
+      }
     } finally {
-      setRunning(false);
+      runLockRef.current = false;
+      if (mountedRef.current && !cancelRequestedRef.current) {
+        setRunning(false);
+      }
+    }
+  }
+
+  async function resumeAnalysis() {
+    if (!activeJobId || runLockRef.current || running) return;
+
+    runLockRef.current = true;
+    cancelRequestedRef.current = false;
+    setRunning(true);
+
+    try {
+      await pollJob(activeJobId);
+    } catch (e: any) {
+      if (!cancelRequestedRef.current) {
+        toast.error("Erro na análise", { description: e?.message ?? String(e) });
+      }
+    } finally {
+      runLockRef.current = false;
+      if (mountedRef.current && !cancelRequestedRef.current) {
+        setRunning(false);
+      }
     }
   }
 
   const model = result?.model;
   const palavras: { value: string; count: number }[] = model?.palavras_chave ?? [];
-  const padroes:  { value: string; count: number }[] = model?.padroes_nome ?? [];
+  const padroes: { value: string; count: number }[] = model?.padroes_nome ?? [];
   const playlists: any[] = model?.playlists_dominantes ?? [];
   const musicas: any[] = model?.musicas_recorrentes ?? [];
   const ai = model?.insights?.ai;
@@ -128,7 +207,7 @@ export default function Brain() {
 
       {/* BLOCO 1 — Nicho */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {NICHOS.map(n => {
+        {NICHOS.map((n) => {
           const Icon = n.icon;
           const active = nicho === n.slug;
           return (
@@ -148,9 +227,7 @@ export default function Brain() {
             >
               <Icon className="h-7 w-7 mb-3" />
               <div className="text-xl font-bold">{n.nome}</div>
-              {active && (
-                <div className="absolute top-3 right-3 h-2 w-2 rounded-full bg-primary animate-pulse" />
-              )}
+              {active && <div className="absolute top-3 right-3 h-2 w-2 rounded-full bg-primary animate-pulse" />}
             </button>
           );
         })}
@@ -165,7 +242,7 @@ export default function Brain() {
           <div>
             <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Intensidade</div>
             <div className="flex gap-2">
-              {(["leve", "normal", "agressivo"] as Intensity[]).map(i => (
+              {(["leve", "normal", "agressivo"] as Intensity[]).map((i) => (
                 <Button
                   key={i}
                   type="button"
@@ -183,7 +260,7 @@ export default function Brain() {
           <div>
             <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Playlists por termo</div>
             <div className="flex gap-2">
-              {([20, 50, 100] as Size[]).map(s => (
+              {([20, 50, 100] as Size[]).map((s) => (
                 <Button
                   key={s}
                   type="button"
@@ -205,12 +282,12 @@ export default function Brain() {
       <div className="flex justify-center">
         <Button
           size="lg"
-          onClick={runAnalysis}
+          onClick={hasPausedJob ? resumeAnalysis : startNewAnalysis}
           disabled={running}
           className="h-14 px-10 text-base font-semibold gap-2 shadow-lg shadow-primary/30"
         >
           {running ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
-          {running ? "Analisando..." : "Analisar agora"}
+          {running ? "Analisando..." : hasPausedJob ? "Retomar acompanhamento" : "Analisar agora"}
         </Button>
       </div>
 
@@ -251,6 +328,25 @@ export default function Brain() {
                 );
               })}
             </div>
+            <div className="flex justify-end">
+              <Button type="button" variant="outline" size="sm" onClick={stopWatchingAnalysis}>
+                Parar acompanhamento
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {hasPausedJob && (
+        <Card className="border-border/60 bg-card/40">
+          <CardContent className="py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="text-sm font-medium">Existe uma análise em andamento no backend.</div>
+              <div className="text-xs text-muted-foreground">Você pausou o acompanhamento e pode retomar sem reiniciar o job.</div>
+            </div>
+            <Button type="button" size="sm" onClick={resumeAnalysis}>
+              Retomar agora
+            </Button>
           </CardContent>
         </Card>
       )}
