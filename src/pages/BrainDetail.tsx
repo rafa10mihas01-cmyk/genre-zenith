@@ -425,6 +425,7 @@ export default function BrainDetail() {
         </div>
       )}
 
+      {loading ? (
         <div className="py-20 text-center text-muted-foreground text-sm">
           <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2" /> Carregando decisões...
         </div>
