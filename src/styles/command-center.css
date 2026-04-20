@@ -31,7 +31,7 @@
   z-index: 1;
 }
 
-/* Força tokens dark dentro do shell */
+/* Força tokens dark dentro do shell — inclui sidebar + primary */
 .cc-force-dark {
   --background: 230 35% 4%;
   --foreground: 0 0% 96%;
@@ -40,9 +40,27 @@
   --popover: 230 22% 8%;
   --popover-foreground: 0 0% 96%;
   --muted: 230 14% 12%;
-  --muted-foreground: 230 8% 60%;
+  --muted-foreground: 230 8% 62%;
   --border: 230 14% 14%;
   --input: 230 14% 14%;
+  --accent: 230 14% 13%;
+  --accent-foreground: 0 0% 96%;
+  --secondary: 230 14% 13%;
+  --secondary-foreground: 0 0% 96%;
+  --primary: 231 60% 60%;
+  --primary-foreground: 0 0% 100%;
+  --ring: 231 60% 55%;
+
+  /* Sidebar — antes herdava do tema claro e ficava texto branco invisível */
+  --sidebar-background: 230 30% 5%;
+  --sidebar-foreground: 0 0% 92%;
+  --sidebar-primary: 231 60% 60%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 230 16% 12%;
+  --sidebar-accent-foreground: 0 0% 96%;
+  --sidebar-border: 230 14% 13%;
+  --sidebar-ring: 231 60% 55%;
+
   color-scheme: dark;
 }
 
