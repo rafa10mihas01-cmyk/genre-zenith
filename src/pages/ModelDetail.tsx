@@ -71,6 +71,19 @@ export default function ModelDetail() {
     load();
   }
 
+  async function generateAI() {
+    if (!genreId) return;
+    setGeneratingAI(true);
+    const { data, error } = await supabase.functions.invoke("genre-insights", { body: { genre_id: genreId } });
+    setGeneratingAI(false);
+    if (error || !data?.ok) {
+      toast.error("Falha ao gerar insights IA", { description: error?.message ?? data?.error });
+      return;
+    }
+    toast.success("Insights gerados pela IA");
+    load();
+  }
+
   const maxKW = Math.max(...(model?.palavras_chave ?? []).map(k => k.count), 1);
   const maxPad = Math.max(...(model?.padroes_nome ?? []).map(k => k.count), 1);
 
