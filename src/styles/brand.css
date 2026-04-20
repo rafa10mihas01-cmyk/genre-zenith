@@ -8,24 +8,24 @@
   --primary-foreground: 0 0% 100%;
   --primary-hover: 231 48% 46%;
 
-  /* Surfaces — V3 §3.3 */
-  --background: 222 35% 7%;        /* #0B0F1A deep navy-black */
-  --foreground: 0 0% 93%;
-  --card: 230 12% 9%;              /* #11131A */
-  --card-foreground: 0 0% 93%;
-  --popover: 230 12% 9%;
-  --popover-foreground: 0 0% 93%;
-  --elevated: 230 12% 11%;
-  --secondary: 230 8% 14%;
-  --secondary-foreground: 0 0% 93%;
-  --muted: 230 8% 14%;
-  --muted-foreground: 230 8% 62%;
-  --accent: 230 8% 14%;
-  --accent-foreground: 0 0% 96%;
+  /* Surfaces — V3 §3.3 (ajustado pra contraste legível) */
+  --background: 222 30% 9%;
+  --foreground: 0 0% 98%;
+  --card: 230 18% 12%;
+  --card-foreground: 0 0% 98%;
+  --popover: 230 18% 12%;
+  --popover-foreground: 0 0% 98%;
+  --elevated: 230 16% 15%;
+  --secondary: 230 12% 18%;
+  --secondary-foreground: 0 0% 98%;
+  --muted: 230 12% 18%;
+  --muted-foreground: 230 10% 72%;
+  --accent: 230 12% 18%;
+  --accent-foreground: 0 0% 98%;
 
-  --border: 230 8% 15%;
-  --input: 230 8% 15%;
-  --ring: 231 60% 55%;
+  --border: 230 10% 22%;
+  --input: 230 10% 22%;
+  --ring: 231 60% 60%;
 
   /* Semantic — V3 §3.2 */
   --success: 152 69% 46%;
@@ -38,15 +38,15 @@
 
   --radius: 0.75rem;
 
-  /* Sidebar — V3 §3.4 */
-  --sidebar-background: 230 15% 4%;
-  --sidebar-foreground: 230 8% 60%;
-  --sidebar-primary: 231 48% 52%;
+  /* Sidebar — V3 §3.4 (clareado pra legibilidade) */
+  --sidebar-background: 230 22% 7%;
+  --sidebar-foreground: 230 10% 78%;
+  --sidebar-primary: 231 60% 62%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 230 8% 12%;
-  --sidebar-accent-foreground: 0 0% 96%;
-  --sidebar-border: 230 8% 15%;
-  --sidebar-ring: 231 60% 55%;
+  --sidebar-accent: 230 14% 16%;
+  --sidebar-accent-foreground: 0 0% 98%;
+  --sidebar-border: 230 10% 20%;
+  --sidebar-ring: 231 60% 60%;
 
   /* Charts — V3 §3.5 */
   --chart-1: 231 48% 52%;
