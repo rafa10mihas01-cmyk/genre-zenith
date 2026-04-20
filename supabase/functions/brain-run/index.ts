@@ -189,21 +189,60 @@ async function runPipeline(jobId: string, body: StartBody) {
     }
     stages.filter = { removed: irrelevant.length, kept: (allResults?.length ?? 0) - irrelevant.length };
 
-    // 4) Enriquecer
-    await setJob(supabase, gid, jobId, { status: "running", stage: "Enriquecendo dados...", progress: 70 });
-    let enrichedTotal = 0, tracksTotal = 0;
-    for (let i = 0; i < 3; i++) {
-      const r = await callFn("enrich-playlists", { genre_id: gid, limit: 50, fetch_tracks: true });
+    // 4) Enriquecer em loop até atingir 70% de cobertura (max 10 ciclos)
+    const COVERAGE_TARGET = 0.7;
+    const MAX_CYCLES = 10;
+    let enrichedTotal = 0, tracksTotal = 0, cycles = 0;
+    let coverage = 0, totalPls = 0, enrichedCount = 0;
+    let partial = false;
+
+    async function measureCoverage() {
+      const [{ count: total }, { count: enr }] = await Promise.all([
+        supabase.from("search_results").select("*", { count: "exact", head: true }).eq("genre_id", gid),
+        supabase.from("search_results").select("*", { count: "exact", head: true }).eq("genre_id", gid).not("seguidores", "is", null),
+      ]);
+      totalPls = total ?? 0;
+      enrichedCount = enr ?? 0;
+      coverage = totalPls > 0 ? enrichedCount / totalPls : 1;
+    }
+
+    await measureCoverage();
+    while (coverage < COVERAGE_TARGET && cycles < MAX_CYCLES) {
+      cycles++;
+      await setJob(supabase, gid, jobId, {
+        status: "running",
+        stage: `Enriquecendo dados... (${enrichedCount}/${totalPls} • ${Math.round(coverage * 100)}%) ciclo ${cycles}/${MAX_CYCLES}`,
+        progress: 70 + Math.min(15, Math.round(coverage * 20)),
+      });
+      const r = await callFn("enrich-playlists", {
+        genre_id: gid, limit: 50, fetch_tracks: true,
+        prioritize: true, keyword: slug,
+      });
       const d = r.data as any;
       if (!r.ok || !d?.ok) break;
       enrichedTotal += d.enriched ?? 0;
       tracksTotal += d.tracks_saved ?? 0;
-      if (!d.processed || d.processed < 50) break;
+      // Se não há mais pendentes, sai do loop
+      if (!d.processed || d.processed === 0) break;
+      await measureCoverage();
     }
-    stages.enrich = { enriched: enrichedTotal, tracks_saved: tracksTotal };
+    if (coverage < COVERAGE_TARGET) partial = true;
+    stages.enrich = {
+      enriched: enrichedTotal, tracks_saved: tracksTotal,
+      cycles, coverage: Math.round(coverage * 100) / 100,
+      enriched_count: enrichedCount, total_playlists: totalPls,
+      partial,
+    };
+    await setJob(supabase, gid, jobId, {
+      status: "running",
+      stage: partial
+        ? `Cobertura parcial (${Math.round(coverage * 100)}%) — analisando mesmo assim`
+        : `Dados suficientes coletados (${Math.round(coverage * 100)}%)`,
+      progress: 85,
+    });
 
     // 5) Analisar
-    await setJob(supabase, gid, jobId, { status: "running", stage: "Analisando padrões...", progress: 85 });
+    await setJob(supabase, gid, jobId, { status: "running", stage: "Analisando padrões...", progress: 87 });
     const a = await callFn("analyze-genre", { genre_id: gid });
     stages.analyze = (a.data as any)?.insights ?? { ok: a.ok };
 
