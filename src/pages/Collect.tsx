@@ -234,6 +234,15 @@ export default function Collect() {
     ? Math.round(((Date.now() - startedAt) / progress.done) * (progress.total - progress.done) / 1000)
     : null;
 
+  // Global pct + ETA
+  const globalDone = globalState?.done.length ?? 0;
+  const globalTotal = globalState?.totalGenres ?? 0;
+  const globalPct = globalTotal > 0 ? Math.round((globalDone / globalTotal) * 100) : 0;
+  const globalEtaSec = globalState?.lastBatchDurationMs && globalState.queue.length > 0
+    ? Math.round((globalState.lastBatchDurationMs / BATCH_SIZE) * globalState.queue.length / 1000)
+    : null;
+  const fmtEta = (s: number) => s > 60 ? `${Math.floor(s / 60)}m ${s % 60}s` : `${s}s`;
+
   return (
     <div className="space-y-5 max-w-[1400px] mx-auto">
       <div className="flex items-center justify-between">
@@ -244,6 +253,87 @@ export default function Collect() {
           <p className="text-sm text-muted-foreground">Monitor em tempo real da execução das coletas Apify</p>
         </div>
       </div>
+
+      {/* === GLOBAL COLLECTION PANEL === */}
+      <div className="nx-card p-5 border-primary/30 bg-primary/5">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-2">
+            <Globe2 className="h-5 w-5 text-primary" />
+            <div>
+              <h2 className="font-semibold">Coleta Global — todos os gêneros</h2>
+              <p className="text-xs text-muted-foreground">
+                Lotes de {BATCH_SIZE} gêneros · 10 termos cada · 25 playlists/termo · analyze automático
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {!globalState ? (
+              <Button onClick={initGlobal} className="gap-2">
+                <Play className="h-4 w-4" /> Iniciar coleta global
+              </Button>
+            ) : globalState.queue.length === 0 ? (
+              <>
+                <Button onClick={runInsightsTop10} disabled={insightsRunning} className="gap-2">
+                  <Brain className="h-4 w-4" /> {insightsRunning ? "Gerando insights…" : "Gerar Insights IA (Top 10)"}
+                </Button>
+                <Button onClick={resetGlobal} variant="outline" size="sm" className="gap-2">
+                  <RotateCcw className="h-3.5 w-3.5" /> Resetar
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button onClick={processNextBatch} disabled={batchRunning} className="gap-2">
+                  <Play className="h-4 w-4" />
+                  {batchRunning ? "Processando…" : `Processar próximo lote (${Math.min(BATCH_SIZE, globalState.queue.length)} gêneros)`}
+                </Button>
+                <Button onClick={resetGlobal} variant="ghost" size="sm" disabled={batchRunning} className="gap-2">
+                  <RotateCcw className="h-3.5 w-3.5" /> Resetar
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {globalState && (
+          <div className="mt-4 space-y-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="bg-background border border-border rounded-md p-3">
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Progresso</div>
+                <div className="text-xl font-bold tabular-nums">{globalDone}/{globalTotal}</div>
+                <div className="text-[11px] text-muted-foreground">{globalPct}%</div>
+              </div>
+              <div className="bg-background border border-border rounded-md p-3">
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Playlists coletadas</div>
+                <div className="text-xl font-bold tabular-nums text-primary">{globalState.totalPlaylists}</div>
+              </div>
+              <div className="bg-background border border-border rounded-md p-3">
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Tracks coletadas</div>
+                <div className="text-xl font-bold tabular-nums">{globalState.totalTracks}</div>
+              </div>
+              <div className="bg-background border border-border rounded-md p-3">
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">ETA restante</div>
+                <div className="text-xl font-bold tabular-nums">
+                  {globalState.queue.length === 0 ? "✓" : globalEtaSec ? fmtEta(globalEtaSec) : "—"}
+                </div>
+                <div className="text-[11px] text-muted-foreground">{globalState.queue.length} restantes</div>
+              </div>
+            </div>
+            <Progress value={globalPct} className="h-2" />
+            {batchProgress && (
+              <div className="text-xs text-muted-foreground flex items-center gap-2">
+                <span className="inline-block h-2 w-2 rounded-full bg-primary animate-pulse" />
+                Processando <span className="text-foreground font-medium">{batchProgress.nome}</span> ({batchProgress.idx}/{batchProgress.size} do lote)
+              </div>
+            )}
+            {globalState.queue.length === 0 && (
+              <div className="text-sm text-success font-medium">
+                ✓ Coleta global concluída — {globalState.totalPlaylists} playlists em {globalState.totalGenres} gêneros
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Status panel */}
