@@ -154,13 +154,24 @@ async function runPipeline(jobId: string, body: StartBody) {
     }
     stages.search = { ok: searchedOk, err: searchedErr, total_inserted: totalSavedResults };
 
-    // 3) Filtro
+    // 3) Filtro relaxado: relevante se nome OU descrição OU termo de origem contém o slug
+    //    OU qualquer um dos termos do kit (ex.: "mandelão" pra funk).
     await setJob(supabase, gid, jobId, { status: "running", stage: "Filtrando resultados...", progress: 60 });
     const { data: allResults } = await supabase
-      .from("search_results").select("id,nome_playlist").eq("genre_id", gid);
-    const irrelevant = (allResults ?? []).filter((r: any) =>
-      !(r.nome_playlist ?? "").toLowerCase().includes(slug)
-    );
+      .from("search_results")
+      .select("id,nome_playlist,descricao,term_id")
+      .eq("genre_id", gid);
+    const termMap = new Map((termsRows ?? []).map((t: any) => [t.id, (t.termo ?? "").toLowerCase()]));
+    const kitLower = kit.map(k => k.toLowerCase());
+    const irrelevant = (allResults ?? []).filter((r: any) => {
+      const nome = (r.nome_playlist ?? "").toLowerCase();
+      const desc = (r.descricao ?? "").toLowerCase();
+      const termo = termMap.get(r.term_id) ?? "";
+      const haystack = `${nome} ${desc} ${termo}`;
+      // mantém se contém o slug OU qualquer palavra-chave do kit
+      const ok = haystack.includes(slug) || kitLower.some(k => haystack.includes(k));
+      return !ok;
+    });
     if (irrelevant.length > 0) {
       const ids = irrelevant.map((r: any) => r.id);
       await supabase.from("search_tracks").delete().in("result_id", ids);
@@ -191,13 +202,28 @@ async function runPipeline(jobId: string, body: StartBody) {
     const ia = await callFn("genre-insights", { genre_id: gid });
     stages.insights = (ia.data as any)?.ai ?? { ok: ia.ok, error: (ia.data as any)?.error };
 
-    // 7) Modelo final
+    // 7) Sincroniza contadores de genres + status
+    const [pCnt, tCnt, teCnt] = await Promise.all([
+      supabase.from("search_results").select("*", { count: "exact", head: true }).eq("genre_id", gid),
+      supabase.from("search_tracks").select("*", { count: "exact", head: true }).eq("genre_id", gid),
+      supabase.from("search_terms").select("*", { count: "exact", head: true }).eq("genre_id", gid),
+    ]);
+    await supabase.from("genres").update({
+      total_playlists: pCnt.count ?? 0,
+      total_musicas: tCnt.count ?? 0,
+      total_termos: teCnt.count ?? 0,
+      ultima_coleta: new Date().toISOString(),
+      status: "analisado",
+    }).eq("id", gid);
+    stages.totals = { playlists: pCnt.count ?? 0, musicas: tCnt.count ?? 0, termos: teCnt.count ?? 0 };
+
+    // 8) Modelo final
     const { data: model } = await supabase
       .from("genre_models").select("*").eq("genre_id", gid).maybeSingle();
 
     await supabase.from("collection_logs").insert({
       genre_id: gid, acao: "brain-run", status: "sucesso",
-      mensagem: `Concluído em ${Math.round((Date.now() - start)/1000)}s — ${searchedOk} buscas, ${enrichedTotal} enriquecidas, ${irrelevant.length} filtradas`,
+      mensagem: `Concluído em ${Math.round((Date.now() - start)/1000)}s — ${searchedOk} buscas, ${enrichedTotal} enriquecidas, ${irrelevant.length} filtradas, ${tCnt.count ?? 0} faixas no banco`,
       duracao_ms: Date.now() - start,
     });
 
