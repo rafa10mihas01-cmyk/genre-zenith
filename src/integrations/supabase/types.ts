@@ -144,6 +144,72 @@ export type Database = {
           },
         ]
       }
+      genre_models_history: {
+        Row: {
+          ai_insights: string | null
+          ai_suggestions: Json | null
+          ai_summary: string | null
+          coverage_percent: number | null
+          created_at: string
+          diff_keywords: Json | null
+          diff_playlists: Json | null
+          diff_tracks: Json | null
+          genre_id: string
+          id: string
+          insights: Json | null
+          musicas_recorrentes: Json | null
+          padroes_nome: Json | null
+          palavras_chave: Json | null
+          playlists_dominantes: Json | null
+          run_id: string | null
+          total_enriched: number | null
+          total_playlists: number | null
+          version: number
+        }
+        Insert: {
+          ai_insights?: string | null
+          ai_suggestions?: Json | null
+          ai_summary?: string | null
+          coverage_percent?: number | null
+          created_at?: string
+          diff_keywords?: Json | null
+          diff_playlists?: Json | null
+          diff_tracks?: Json | null
+          genre_id: string
+          id?: string
+          insights?: Json | null
+          musicas_recorrentes?: Json | null
+          padroes_nome?: Json | null
+          palavras_chave?: Json | null
+          playlists_dominantes?: Json | null
+          run_id?: string | null
+          total_enriched?: number | null
+          total_playlists?: number | null
+          version: number
+        }
+        Update: {
+          ai_insights?: string | null
+          ai_suggestions?: Json | null
+          ai_summary?: string | null
+          coverage_percent?: number | null
+          created_at?: string
+          diff_keywords?: Json | null
+          diff_playlists?: Json | null
+          diff_tracks?: Json | null
+          genre_id?: string
+          id?: string
+          insights?: Json | null
+          musicas_recorrentes?: Json | null
+          padroes_nome?: Json | null
+          palavras_chave?: Json | null
+          playlists_dominantes?: Json | null
+          run_id?: string | null
+          total_enriched?: number | null
+          total_playlists?: number | null
+          version?: number
+        }
+        Relationships: []
+      }
       genres: {
         Row: {
           ativo: boolean | null
@@ -376,6 +442,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      compare_genre_versions: {
+        Args: { p_genre_id: string; p_version_a: number; p_version_b: number }
+        Returns: Json
+      }
       has_team_access: { Args: never; Returns: boolean }
     }
     Enums: {
