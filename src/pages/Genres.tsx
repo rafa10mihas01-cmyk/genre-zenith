@@ -80,7 +80,7 @@ export default function Genres() {
           <p className="text-sm text-muted-foreground">{genres.length} gêneros • {selected.size} selecionados</p>
         </div>
         {selected.size > 0 && (
-          <Button onClick={() => notReady("Coleta em lote")} className="gap-2">
+          <Button onClick={handleBulk} className="gap-2">
             <Play className="h-4 w-4" /> Coletar {selected.size} em lote
           </Button>
         )}
@@ -144,10 +144,10 @@ export default function Genres() {
                   <td className="p-3 text-xs text-muted-foreground">{formatDate(g.ultima_coleta)}</td>
                   <td className="p-3">
                     <div className="flex items-center justify-end gap-1">
-                      <Button size="sm" variant="ghost" onClick={() => notReady("Geração de termos")} title="Gerar termos">
-                        <Sparkles className="h-3.5 w-3.5" />
+                      <Button size="sm" variant="ghost" disabled={busy === g.id} onClick={() => handleGenerate(g.id)} title="Gerar termos">
+                        {busy === g.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
                       </Button>
-                      <Button size="sm" variant="ghost" onClick={() => notReady("Coleta")} title="Coletar agora">
+                      <Button size="sm" variant="ghost" onClick={() => handleCollect(g.id)} title="Coletar agora">
                         <Play className="h-3.5 w-3.5" />
                       </Button>
                       <Button size="sm" variant="ghost" asChild title="Ver modelo">
