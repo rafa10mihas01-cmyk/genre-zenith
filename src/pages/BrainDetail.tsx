@@ -258,7 +258,8 @@ export default function BrainDetail() {
             <div>
               <h2 className="text-lg font-bold">Playlists para criar agora</h2>
               <p className="text-xs text-muted-foreground">
-                {briefing.briefings.length} decisões baseadas em {briefing.metadata?.total_keywords_analisadas ?? 0} keywords e {briefing.metadata?.total_playlists_referencia ?? 0} playlists de referência
+                {briefing.briefings.length} {briefing.briefings.length === 1 ? "decisão qualificada" : "decisões qualificadas"} de {briefing.metadata?.total_padroes_analisados ?? 0} padrões analisados
+                {briefing.metadata?.cards_descartados > 0 && ` • ${briefing.metadata.cards_descartados} descartados por baixa qualidade`}
               </p>
             </div>
           </div>
