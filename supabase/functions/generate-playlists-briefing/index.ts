@@ -185,8 +185,8 @@ Deno.serve(async (req) => {
           top_musicas: tracks.map(t => ({ nome: t.nome, artista: t.artista })),
           artistas_principais: artists,
         },
-        // DNA visual permanece null até implementação real (camada 3)
-        dna_capa: null,
+        // DNA visual: vem do insights.dna_visual (camada 3, edge function analyze-genre-visual-dna)
+        dna_capa: dnaVisual,
         justificativa: {
           frequencia_padrao_pct: Math.round(freq * 10) / 10,
           repeticao_em_playlists: rep,
