@@ -104,11 +104,12 @@ Deno.serve(async (req) => {
 
     let token = await getSpotifyToken();
     let enriched = 0, tracksSaved = 0, errors = 0, skipped = 0;
+    const CONCURRENCY = 5;
 
-    for (let i = 0; i < pending.length; i++) {
-      const p = pending[i];
+    // Processa uma única playlist (Spotify + Apify tracks). Mutações de contadores via refs.
+    async function processOne(p: any) {
       const id = p.spotify_url ? extractPlaylistId(p.spotify_url) : null;
-      if (!id) { skipped++; continue; }
+      if (!id) { skipped++; return; }
 
       // Spotify followers + total — com retry para 429/token
       let info: SpotifyResp | null = null;
@@ -130,14 +131,13 @@ Deno.serve(async (req) => {
             await sleep(wait);
             continue;
           }
-          // erro permanente
           errors++;
           if (errorSamples.length < 5) errorSamples.push({ playlist: p.nome_playlist, id, error: msg.slice(0, 200) });
           console.error(`[enrich] erro permanente em ${p.nome_playlist}:`, msg);
-          break;
+          return;
         }
       }
-      if (!info) continue;
+      if (!info) return;
 
       const update: Record<string, unknown> = {};
       if (info.followers !== null) update.seguidores = info.followers;
@@ -155,7 +155,7 @@ Deno.serve(async (req) => {
         skipped++;
       }
 
-      // Tracks via Apify (apenas se solicitado)
+      // Tracks via Apify (apenas se solicitado) — esta é a chamada mais lenta (~10s)
       if (fetchTracks && p.genre_id) {
         try {
           const tracks = await fetchApifyTracks(p.spotify_url!);
@@ -177,9 +177,12 @@ Deno.serve(async (req) => {
           console.error(`[enrich] apify tracks falhou em ${p.nome_playlist}:`, (e as Error).message);
         }
       }
+    }
 
-      // Pequeno respiro para não bater rate limit
-      if (i < pending.length - 1) await sleep(150);
+    // Roda em batches paralelos de CONCURRENCY playlists
+    for (let i = 0; i < pending.length; i += CONCURRENCY) {
+      const batch = pending.slice(i, i + CONCURRENCY);
+      await Promise.all(batch.map(processOne));
     }
 
     // Atualiza totais do gênero processado
