@@ -208,6 +208,8 @@ export default function Brain() {
     runLockRef.current = true;
     cancelRequestedRef.current = false;
     setRunning(true);
+    setStalled(false);
+    setStalledSlug(null);
     setActiveJobId(null);
     setStageIdx(0);
     setProgress(0);
@@ -223,6 +225,35 @@ export default function Brain() {
       await pollJob(data.job_id, target, startedAt);
     } catch (e: any) {
       if (!cancelRequestedRef.current) toast.error("Erro na análise", { description: e?.message ?? String(e) });
+    } finally {
+      runLockRef.current = false;
+      if (mountedRef.current && !cancelRequestedRef.current) setRunning(false);
+    }
+  }
+
+  async function resumeAnalysis() {
+    const target = stalledSlug ?? nicho;
+    if (runLockRef.current || running) return;
+    runLockRef.current = true;
+    cancelRequestedRef.current = false;
+    setRunning(true);
+    setStalled(false);
+    setStalledSlug(null);
+    setActiveJobId(null);
+    setStageIdx(3);
+    setProgress(70);
+    setStageLabel("Retomando enriquecimento...");
+    const startedAt = Date.now();
+    try {
+      const { data, error } = await supabase.functions.invoke("brain-run", {
+        body: { slug: target, action: "resume" },
+      });
+      if (error) throw error;
+      if (!data?.job_id) throw new Error(data?.error ?? "Falha ao retomar");
+      setActiveJobId(data.job_id);
+      await pollJob(data.job_id, target, startedAt);
+    } catch (e: any) {
+      if (!cancelRequestedRef.current) toast.error("Erro ao retomar", { description: e?.message ?? String(e) });
     } finally {
       runLockRef.current = false;
       if (mountedRef.current && !cancelRequestedRef.current) setRunning(false);
