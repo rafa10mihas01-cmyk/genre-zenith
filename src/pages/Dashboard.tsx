@@ -8,6 +8,7 @@ import { formatNumber, timeAgo } from "@/lib/format";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { generateAllTerms } from "@/lib/engine";
+import DashboardCharts from "@/components/DashboardCharts";
 
 interface Stats {
   totalGenres: number;
@@ -138,6 +139,9 @@ export default function Dashboard() {
           </Button>
         </div>
       </div>
+
+      {/* Charts */}
+      <DashboardCharts />
 
       {/* Genre grid */}
       <div className="nx-card p-5">
