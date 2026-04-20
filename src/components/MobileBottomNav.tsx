@@ -1,97 +1,60 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { Brain, LogOut, LayoutDashboard, Layers, Activity } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
+import { Brain, LayoutDashboard, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Item = {
   label: string;
   icon: typeof Brain;
-  to?: string;
+  to: string;
   end?: boolean;
-  accent: string;
-  onClick?: () => void;
 };
 
-export function MobileBottomNav() {
-  const { signOut } = useAuth();
-  const location = useLocation();
+const ITEMS: Item[] = [
+  { label: "Visão", icon: LayoutDashboard, to: "/", end: true },
+  { label: "Cérebro", icon: Brain, to: "/brain" },
+  { label: "Config", icon: Settings, to: "/settings" },
+];
 
-  const items: Item[] = [
-    { label: "Visão", icon: LayoutDashboard, to: "/", end: true, accent: "99,102,241" },
-    { label: "Cérebro", icon: Brain, to: "/brain", accent: "168,85,247" },
-    { label: "Modelos", icon: Layers, to: "/models", accent: "59,130,246" },
-    { label: "Coletor", icon: Activity, to: "/collect", accent: "251,191,36" },
-    { label: "Sair", icon: LogOut, accent: "244,63,94", onClick: () => signOut() },
-  ];
+export function MobileBottomNav() {
+  const location = useLocation();
 
   return (
     <nav
-      className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-border/40"
-      style={{
-        paddingBottom: "calc(env(safe-area-inset-bottom) + 8px)",
-        background:
-          "linear-gradient(180deg, rgba(10,12,22,0.85) 0%, rgba(7,11,20,0.95) 100%)",
-        backdropFilter: "blur(16px)",
-        WebkitBackdropFilter: "blur(16px)",
-        boxShadow: "0 -4px 24px rgba(0,0,0,0.35)",
-      }}
+      className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-sidebar"
+      style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 8px)" }}
       aria-label="Navegação principal"
     >
       <ul className="flex items-stretch justify-around px-2 pt-2">
-        {items.map((item) => {
+        {ITEMS.map((item) => {
           const Icon = item.icon;
-          const active = item.to
-            ? item.end
-              ? location.pathname === item.to
-              : location.pathname.startsWith(item.to)
-            : false;
-
-          const content = (
-            <div className="flex flex-col items-center gap-1 px-3 py-1.5">
-              <div
-                className="h-9 w-9 rounded-xl flex items-center justify-center transition-all"
-                style={{
-                  background: active
-                    ? `linear-gradient(135deg, rgba(${item.accent},0.30) 0%, rgba(${item.accent},0.18) 100%)`
-                    : `rgba(${item.accent},0.10)`,
-                  border: `1px solid rgba(${item.accent},${active ? 0.45 : 0.20})`,
-                  boxShadow: active
-                    ? `0 0 16px rgba(${item.accent},0.35)`
-                    : "none",
-                }}
-              >
-                <Icon
-                  className="h-[18px] w-[18px]"
-                  style={{ color: `rgba(${item.accent},1)` }}
-                />
-              </div>
-              <span
-                className={cn(
-                  "text-[10px] font-medium leading-none tracking-wide",
-                  active ? "text-foreground" : "text-muted-foreground"
-                )}
-              >
-                {item.label}
-              </span>
-            </div>
-          );
+          const active = item.end
+            ? location.pathname === item.to
+            : location.pathname.startsWith(item.to);
 
           return (
             <li key={item.label} className="flex-1 flex justify-center">
-              {item.to ? (
-                <NavLink to={item.to} end={item.end} className="block">
-                  {content}
-                </NavLink>
-              ) : (
-                <button
-                  type="button"
-                  onClick={item.onClick}
-                  className="block focus:outline-none"
-                  aria-label={item.label}
+              <NavLink
+                to={item.to}
+                end={item.end}
+                className={cn(
+                  "flex flex-col items-center gap-1 px-3 py-1.5 rounded-md transition-colors",
+                  active
+                    ? "text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <div
+                  className={cn(
+                    "h-9 w-9 rounded-md flex items-center justify-center transition-colors",
+                    active ? "bg-sidebar-accent" : "bg-transparent"
+                  )}
                 >
-                  {content}
-                </button>
-              )}
+                  <Icon className="h-[18px] w-[18px]" />
+                </div>
+                <span className="text-[10px] font-medium leading-none tracking-wide">
+                  {item.label}
+                </span>
+              </NavLink>
             </li>
           );
         })}

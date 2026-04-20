@@ -36,39 +36,20 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
-      {/* Brand — V3 §7.1 */}
+      {/* Brand */}
       <SidebarHeader className="px-3 py-3 border-b border-sidebar-border">
         <div className="flex items-center gap-2.5">
-          <div className="relative shrink-0">
-            <div
-              className="absolute inset-0 blur-md opacity-60 rounded-xl"
-              style={{ background: "radial-gradient(circle, rgba(99,102,241,0.6), transparent 70%)" }}
-            />
-            <div
-              className={cn(
-                "relative flex items-center justify-center font-display font-bold text-foreground",
-                collapsed ? "h-9 w-9 rounded-lg text-[13px]" : "h-10 w-10 rounded-xl text-sm"
-              )}
-              style={{
-                background: "linear-gradient(135deg, rgba(99,102,241,0.18), rgba(168,85,247,0.12))",
-                border: "1px solid rgba(99,102,241,0.35)",
-                boxShadow: "0 0 0 1px rgba(99,102,241,0.15), 0 8px 24px -8px rgba(99,102,241,0.4)",
-              }}
-            >
-              N
-            </div>
+          <div
+            className={cn(
+              "relative flex items-center justify-center font-display font-bold bg-primary text-primary-foreground shrink-0",
+              collapsed ? "h-9 w-9 rounded-md text-[13px]" : "h-10 w-10 rounded-md text-sm"
+            )}
+          >
+            N
           </div>
           {!collapsed && (
             <div className="leading-tight min-w-0 flex-1">
-              <div
-                className="font-display font-semibold text-[14px] tracking-tight truncate"
-                style={{
-                  backgroundImage: "linear-gradient(135deg, hsl(var(--foreground)), #6366f1)",
-                  WebkitBackgroundClip: "text",
-                  backgroundClip: "text",
-                  color: "transparent",
-                }}
-              >
+              <div className="font-display font-semibold text-[14px] tracking-tight truncate text-sidebar-foreground">
                 NexEngine
               </div>
               <div className="text-[9px] text-muted-foreground uppercase mt-0.5" style={{ letterSpacing: "0.20em" }}>
@@ -118,11 +99,8 @@ export function AppSidebar() {
       {/* Footer — só user + sair */}
       <SidebarFooter className="border-t border-sidebar-border p-2">
         {user && (
-          <div className={cn("flex items-center gap-2 rounded-md p-1.5", !collapsed && "bg-sidebar-accent/40")}>
-            <div
-              className="h-7 w-7 rounded-md flex items-center justify-center text-[10px] font-semibold text-foreground shrink-0"
-              style={{ background: "linear-gradient(135deg, #6366f1, #a855f7)" }}
-            >
+          <div className={cn("flex items-center gap-2 rounded-md p-1.5", !collapsed && "bg-sidebar-accent")}>
+            <div className="h-7 w-7 rounded-md flex items-center justify-center text-[10px] font-semibold text-primary-foreground bg-primary shrink-0">
               {userInitials(user.email)}
             </div>
             {!collapsed && (

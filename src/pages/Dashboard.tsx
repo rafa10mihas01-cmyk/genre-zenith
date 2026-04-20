@@ -118,11 +118,7 @@ export default function Dashboard() {
           </div>
           <button
             onClick={() => navigate("/brain")}
-            className="inline-flex items-center gap-2 h-10 px-4 rounded-lg text-[13px] font-medium text-white transition-transform hover:scale-[1.02]"
-            style={{
-              background: "linear-gradient(135deg, hsl(231 60% 55%) 0%, hsl(270 65% 58%) 100%)",
-              boxShadow: "0 0 0 1px hsl(231 60% 55% / 0.30), 0 12px 28px -8px hsl(231 60% 55% / 0.55)",
-            }}
+            className="inline-flex items-center gap-2 h-10 px-4 rounded-lg text-[13px] font-medium bg-primary text-primary-foreground hover:bg-[hsl(var(--primary-hover))] transition-colors"
           >
             <Plus className="h-3.5 w-3.5" />
             Nova análise
