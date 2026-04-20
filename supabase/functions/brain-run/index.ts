@@ -64,6 +64,48 @@ async function callFn(name: string, body: unknown) {
   catch { return { ok: r.ok, data: { raw: txt }, status: r.status }; }
 }
 
+// Garante que o briefing seja gerado SEMPRE que existir um genre_model.
+// Tenta até 2x. Não lança — apenas loga em stages e collection_logs.
+async function ensureBriefing(supabase: any, gid: string, stages: Record<string, unknown>) {
+  // Pré-condição: precisa existir genre_models pro briefing rodar
+  const { data: model } = await supabase
+    .from("genre_models").select("id").eq("genre_id", gid).maybeSingle();
+  if (!model) {
+    stages.briefing = { ok: false, skipped: true, reason: "sem genre_model" };
+    await supabase.from("collection_logs").insert({
+      genre_id: gid, acao: "generate-briefing", status: "erro",
+      mensagem: "Briefing pulado: genre_model inexistente",
+    }).catch(() => {});
+    return;
+  }
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const br = await callFn("generate-playlists-briefing", { genre_id: gid });
+      const d = br.data as any;
+      if (br.ok && d?.ok) {
+        stages.briefing = { ok: true, version: d.version, count: d.count, attempt };
+        return;
+      }
+      stages.briefing = { ok: false, attempt, error: d?.error ?? `HTTP ${br.status}` };
+      if (attempt === 2) {
+        await supabase.from("collection_logs").insert({
+          genre_id: gid, acao: "generate-briefing", status: "erro",
+          mensagem: `Briefing falhou após 2 tentativas: ${(d?.error ?? `HTTP ${br.status}`).toString().slice(0, 400)}`,
+        }).catch(() => {});
+      }
+    } catch (e) {
+      stages.briefing = { ok: false, attempt, error: (e as Error).message };
+      if (attempt === 2) {
+        await supabase.from("collection_logs").insert({
+          genre_id: gid, acao: "generate-briefing", status: "erro",
+          mensagem: `Briefing exception: ${(e as Error).message.slice(0, 400)}`,
+        }).catch(() => {});
+      }
+    }
+    if (attempt === 1) await new Promise((r) => setTimeout(r, 1500));
+  }
+}
+
 // ---------- Job state via collection_logs ----------
 // acao = `brain-job:${jobId}`, mensagem = JSON {status, stage, progress, result?, error?}
 async function setJob(
@@ -339,20 +381,27 @@ async function runPipeline(jobId: string, body: StartBody) {
       progress: 85,
     });
 
-    // 5) Analisar
+    // 5) Analisar (best-effort)
     await setJob(supabase, gid, jobId, { status: "running", stage: "Analisando padrões...", progress: 87 });
-    const a = await callFn("analyze-genre", { genre_id: gid });
-    stages.analyze = (a.data as any)?.insights ?? { ok: a.ok };
+    try {
+      const a = await callFn("analyze-genre", { genre_id: gid });
+      stages.analyze = (a.data as any)?.insights ?? { ok: a.ok };
+    } catch (e) {
+      stages.analyze = { ok: false, error: (e as Error).message };
+    }
 
-    // 6) Insights IA
+    // 6) Insights IA (best-effort — não bloqueia briefing)
     await setJob(supabase, gid, jobId, { status: "running", stage: "Gerando insights...", progress: 90 });
-    const ia = await callFn("genre-insights", { genre_id: gid });
-    stages.insights = (ia.data as any)?.ai ?? { ok: ia.ok, error: (ia.data as any)?.error };
+    try {
+      const ia = await callFn("genre-insights", { genre_id: gid });
+      stages.insights = (ia.data as any)?.ai ?? { ok: ia.ok, error: (ia.data as any)?.error };
+    } catch (e) {
+      stages.insights = { ok: false, error: (e as Error).message };
+    }
 
-    // 6.5) Gerar briefing de playlists
+    // 6.5) Gerar briefing — SEMPRE tenta, com retry. Não pode pular.
     await setJob(supabase, gid, jobId, { status: "running", stage: "Gerando briefing de playlists...", progress: 95 });
-    const br = await callFn("generate-playlists-briefing", { genre_id: gid });
-    stages.briefing = { ok: (br.data as any)?.ok, version: (br.data as any)?.version, error: (br.data as any)?.error };
+    await ensureBriefing(supabase, gid, stages);
 
     // 7) Sincroniza contadores de genres + status
     const [pCnt, tCnt, teCnt] = await Promise.all([
@@ -400,6 +449,8 @@ async function runPipeline(jobId: string, body: StartBody) {
   } catch (e) {
     const msg = (e as Error).message ?? String(e);
     console.error("pipeline error", msg);
+    // Antes de marcar erro, tenta gerar briefing se já existir modelo (não deixa análise sem output)
+    try { await ensureBriefing(supabase, gid, stages); } catch (_) {}
     await setJob(supabase, gid, jobId, {
       status: "error", stage: "Erro", progress: 0, error: msg.slice(0, 500),
     });
@@ -455,12 +506,13 @@ async function resumePipeline(jobId: string, slug: string) {
       await measure();
     }
     const partial = coverage < 0.7;
+    const stages: Record<string, unknown> = {};
     await setJob(supabase, gid, jobId, { status: "running", stage: "Analisando padrões...", progress: 85 });
-    await callFn("analyze-genre", { genre_id: gid });
+    try { await callFn("analyze-genre", { genre_id: gid }); } catch (_) {}
     await setJob(supabase, gid, jobId, { status: "running", stage: "Gerando insights...", progress: 90 });
-    await callFn("genre-insights", { genre_id: gid });
+    try { await callFn("genre-insights", { genre_id: gid }); } catch (_) {}
     await setJob(supabase, gid, jobId, { status: "running", stage: "Gerando briefing de playlists...", progress: 95 });
-    await callFn("generate-playlists-briefing", { genre_id: gid });
+    await ensureBriefing(supabase, gid, stages);
 
     const [pCnt, tCnt, teCnt] = await Promise.all([
       supabase.from("search_results").select("*", { count: "exact", head: true }).eq("genre_id", gid),
@@ -486,10 +538,12 @@ async function resumePipeline(jobId: string, slug: string) {
       progress: 100,
       result: { ok: true, partial, coverage: coveragePct, summary, resumed: true,
         genre: { id: gid, nome: genre.nome, slug: genre.slug },
-        enriched_added: enrichedTotal, tracks_added: tracksTotal, cycles },
+        enriched_added: enrichedTotal, tracks_added: tracksTotal, cycles, stages },
     });
   } catch (e) {
     const msg = (e as Error).message ?? String(e);
+    // Garante briefing mesmo em erro de retomada
+    try { await ensureBriefing(supabase, gid, {}); } catch (_) {}
     await setJob(supabase, gid, jobId, { status: "error", stage: "Erro retomando", progress: 0, error: msg.slice(0, 500) });
   }
 }
