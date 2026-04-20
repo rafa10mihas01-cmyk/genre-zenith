@@ -249,23 +249,23 @@ export default function BrainDetail() {
                 columns={[
                   {
                     key: "nome_playlist", header: "Playlist", accessor: (r) => r.nome_playlist, sortable: true,
-                    cell: (r) => (
-                      <div className="flex items-center gap-2 min-w-0">
-                        {r.imagem_url ? <img src={r.imagem_url} alt="" className="h-8 w-8 rounded object-cover shrink-0" /> : <div className="h-8 w-8 rounded bg-muted shrink-0" />}
-                        <span className="truncate font-medium">{r.nome_playlist}</span>
-                      </div>
-                    ),
+                    cell: (r) => {
+                      const inner = (
+                        <div className="flex items-center gap-2 min-w-0 group">
+                          {r.imagem_url ? <img src={r.imagem_url} alt="" className="h-8 w-8 rounded object-cover shrink-0" loading="lazy" /> : <div className="h-8 w-8 rounded bg-muted shrink-0" />}
+                          <span className="truncate font-medium group-hover:text-primary group-hover:underline transition-colors">{r.nome_playlist}</span>
+                          {r.spotify_url && <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-60 shrink-0" />}
+                        </div>
+                      );
+                      return r.spotify_url ? (
+                        <a href={r.spotify_url} target="_blank" rel="noreferrer" title="Abrir no Spotify" className="block">{inner}</a>
+                      ) : inner;
+                    },
                   },
-                  { key: "seguidores", header: "Seguidores", accessor: (r) => r.seguidores ?? 0, sortable: true, align: "right", cell: (r) => formatNumber(r.seguidores) },
-                  { key: "total_musicas", header: "Faixas", accessor: (r) => r.total_musicas ?? 0, sortable: true, align: "right" },
+                  { key: "seguidores", header: "Salvamentos", accessor: (r) => r.seguidores ?? 0, sortable: true, align: "right", cell: (r) => r.seguidores != null ? formatNumber(r.seguidores) : <span className="text-muted-foreground">—</span> },
+                  { key: "total_musicas", header: "Faixas", accessor: (r) => r.total_musicas ?? 0, sortable: true, align: "right", cell: (r) => r.total_musicas != null ? formatNumber(r.total_musicas) : <span className="text-muted-foreground">—</span> },
                   { key: "posicao", header: "Pos.", accessor: (r) => r.posicao, sortable: true, align: "right" },
                   { key: "coletado_em", header: "Coletado", accessor: (r) => r.coletado_em, sortable: true, cell: (r) => <span className="text-xs text-muted-foreground">{timeAgo(r.coletado_em)}</span> },
-                  {
-                    key: "url", header: "", accessor: (r) => r.spotify_url, align: "center",
-                    cell: (r) => r.spotify_url ? (
-                      <a href={r.spotify_url} target="_blank" rel="noreferrer" className="text-primary hover:opacity-80 inline-flex"><ExternalLink className="h-3.5 w-3.5" /></a>
-                    ) : null,
-                  },
                 ]}
               />
             </TabsContent>
