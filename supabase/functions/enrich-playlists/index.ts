@@ -15,6 +15,7 @@ interface Body {
   fetch_tracks?: boolean;
   prioritize?: boolean; // ordena por posição/relevância
   keyword?: string;     // keyword principal pra boost
+  result_ids?: string[]; // modo seletivo: enriquecer apenas estes IDs (ignora prioritize/keyword)
 }
 
 function extractPlaylistId(url: string): string | null {
