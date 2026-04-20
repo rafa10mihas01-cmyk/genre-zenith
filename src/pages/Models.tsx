@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Brain, ChevronRight, RefreshCw, Search, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { formatNumber, timeAgo } from "@/lib/format";
-import StatusBadge from "@/components/StatusBadge";
+import { StatusBadge } from "@/components/StatusBadge";
 
 interface Row {
   id: string;
