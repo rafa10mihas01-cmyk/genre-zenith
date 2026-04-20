@@ -9,6 +9,8 @@ import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { generateAllTerms } from "@/lib/engine";
 import DashboardCharts from "@/components/DashboardCharts";
+import { PageContainer } from "@/components/cc/PageContainer";
+import { PageHeader } from "@/components/cc/PageHeader";
 
 interface Stats {
   totalGenres: number;
@@ -95,14 +97,13 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="space-y-6 max-w-[1400px] mx-auto">
-      <div>
-        <div className="flex items-center gap-2.5">
-          <Zap className="h-7 w-7 text-primary" />
-          <h1 className="text-2xl font-bold tracking-tight">NexEngine</h1>
-        </div>
-        <p className="text-sm text-muted-foreground mt-1">Motor de Inteligência de Playlists</p>
-      </div>
+    <PageContainer size="7xl" className="space-y-6">
+      <PageHeader
+        eyebrow="Motor"
+        title="Nex"
+        titleAccent="Engine"
+        subtitle="Motor de Inteligência de Playlists — visão geral em tempo real."
+      />
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -191,7 +192,7 @@ export default function Dashboard() {
           </ul>
         )}
       </div>
-    </div>
+    </PageContainer>
   );
 }
 

@@ -8,6 +8,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { PageContainer } from "@/components/cc/PageContainer";
+import { PageHeader } from "@/components/cc/PageHeader";
 
 const STORAGE_KEY = "nx-collect-settings";
 
@@ -94,16 +96,16 @@ export default function Settings() {
   }
 
   return (
-    <div className="max-w-[900px] mx-auto">
-      <div className="flex items-center gap-3">
-        <div className="h-10 w-10 rounded-lg bg-accent/15 border border-accent/30 flex items-center justify-center">
-          <SettingsIcon className="h-5 w-5 text-accent" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Configurações</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Conexão Apify, parâmetros de coleta e conta</p>
-        </div>
-      </div>
+    <PageContainer size="4xl">
+      <PageHeader
+        eyebrow={
+          <span className="inline-flex items-center gap-1.5">
+            <SettingsIcon className="h-3.5 w-3.5" /> Sistema
+          </span>
+        }
+        title="Configurações"
+        subtitle="Conexão Apify, parâmetros de coleta e conta."
+      />
 
       {/* Apify */}
       <section className="nx-card p-5 mt-6">
@@ -269,7 +271,7 @@ export default function Settings() {
           </Button>
         </div>
       </section>
-    </div>
+    </PageContainer>
   );
 }
 

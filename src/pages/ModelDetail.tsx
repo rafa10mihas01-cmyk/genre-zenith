@@ -8,6 +8,8 @@ import { toast } from "sonner";
 import { formatNumber, timeAgo } from "@/lib/format";
 import ExportMenu from "@/components/ExportMenu";
 import { exportCSV, exportJSON, timestamp } from "@/lib/export";
+import { PageContainer } from "@/components/cc/PageContainer";
+import { PageHeader } from "@/components/cc/PageHeader";
 
 interface KW { value: string; count: number }
 interface Playlist { nome: string; seguidores: number; url: string; imagem?: string; total_musicas?: number }
@@ -98,64 +100,59 @@ export default function ModelDetail() {
   const maxPad = Math.max(...(model?.padroes_nome ?? []).map(k => k.count), 1);
 
   return (
-    <div className="max-w-[1400px] mx-auto">
-      <Button variant="ghost" size="sm" asChild className="mb-3 -ml-2">
-        <Link to="/models"><ArrowLeft className="h-4 w-4" /> Voltar</Link>
-      </Button>
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-3">
-          <div className="h-12 w-12 rounded-lg bg-accent/15 border border-accent/30 flex items-center justify-center">
-            <Brain className="h-6 w-6 text-accent" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">{genre?.nome ?? "—"}</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              {model ? `Modelo gerado ${timeAgo(model.ultima_analise)}` : "Sem modelo ainda"}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <ExportMenu
-            disabled={!model}
-            onCSV={() => {
-              if (!model || !genre) return;
-              const slug = genre.nome.toLowerCase().replace(/\s+/g, "-");
-              exportCSV(`${slug}-palavras-chave-${timestamp()}`,
-                model.palavras_chave, [{ key: "value", label: "termo" }, { key: "count", label: "frequencia" }]);
-              exportCSV(`${slug}-padroes-nome-${timestamp()}`,
-                model.padroes_nome, [{ key: "value", label: "bigrama" }, { key: "count", label: "frequencia" }]);
-              exportCSV(`${slug}-playlists-${timestamp()}`,
-                model.playlists_dominantes, [
-                  { key: "nome", label: "nome" },
-                  { key: "seguidores", label: "seguidores" },
-                  { key: "total_musicas", label: "total_musicas" },
-                  { key: "url", label: "url" },
-                ]);
-              exportCSV(`${slug}-musicas-${timestamp()}`,
-                model.musicas_recorrentes, [
-                  { key: "nome", label: "musica" },
-                  { key: "artista", label: "artista" },
-                  { key: "count", label: "ocorrencias" },
-                ]);
-              toast.success("4 arquivos CSV exportados");
-            }}
-            onJSON={() => {
-              if (!model || !genre) return;
-              const slug = genre.nome.toLowerCase().replace(/\s+/g, "-");
-              exportJSON(`${slug}-modelo-${timestamp()}`, { genero: genre.nome, ...model });
-              toast.success("Modelo completo exportado (JSON)");
-            }}
-          />
-          <Button variant="outline" size="sm" onClick={reanalyze} disabled={reanalyzing}>
-            <RefreshCw className={`h-4 w-4 ${reanalyzing ? "animate-spin" : ""}`} />
-            Re-analisar
-          </Button>
-          <Button size="sm" onClick={generateAI} disabled={generatingAI || !model}>
-            {generatingAI ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-            {model?.insights?.ai ? "Re-gerar com IA" : "Gerar com IA"}
-          </Button>
-        </div>
-      </div>
+    <PageContainer size="7xl">
+      <PageHeader
+        eyebrow={
+          <Link to="/models" className="inline-flex items-center gap-1 hover:text-foreground transition-colors">
+            <ArrowLeft className="h-3 w-3" /> Modelos
+          </Link>
+        }
+        title={genre?.nome ?? "—"}
+        subtitle={model ? `Modelo gerado ${timeAgo(model.ultima_analise)}` : "Sem modelo ainda"}
+        actions={
+          <>
+            <ExportMenu
+              disabled={!model}
+              onCSV={() => {
+                if (!model || !genre) return;
+                const slug = genre.nome.toLowerCase().replace(/\s+/g, "-");
+                exportCSV(`${slug}-palavras-chave-${timestamp()}`,
+                  model.palavras_chave, [{ key: "value", label: "termo" }, { key: "count", label: "frequencia" }]);
+                exportCSV(`${slug}-padroes-nome-${timestamp()}`,
+                  model.padroes_nome, [{ key: "value", label: "bigrama" }, { key: "count", label: "frequencia" }]);
+                exportCSV(`${slug}-playlists-${timestamp()}`,
+                  model.playlists_dominantes, [
+                    { key: "nome", label: "nome" },
+                    { key: "seguidores", label: "seguidores" },
+                    { key: "total_musicas", label: "total_musicas" },
+                    { key: "url", label: "url" },
+                  ]);
+                exportCSV(`${slug}-musicas-${timestamp()}`,
+                  model.musicas_recorrentes, [
+                    { key: "nome", label: "musica" },
+                    { key: "artista", label: "artista" },
+                    { key: "count", label: "ocorrencias" },
+                  ]);
+                toast.success("4 arquivos CSV exportados");
+              }}
+              onJSON={() => {
+                if (!model || !genre) return;
+                const slug = genre.nome.toLowerCase().replace(/\s+/g, "-");
+                exportJSON(`${slug}-modelo-${timestamp()}`, { genero: genre.nome, ...model });
+                toast.success("Modelo completo exportado (JSON)");
+              }}
+            />
+            <Button variant="outline" size="sm" onClick={reanalyze} disabled={reanalyzing}>
+              <RefreshCw className={`h-4 w-4 ${reanalyzing ? "animate-spin" : ""}`} />
+              Re-analisar
+            </Button>
+            <Button size="sm" onClick={generateAI} disabled={generatingAI || !model}>
+              {generatingAI ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+              {model?.insights?.ai ? "Re-gerar com IA" : "Gerar com IA"}
+            </Button>
+          </>
+        }
+      />
 
       {loading && <div className="nx-card p-12 mt-6 text-center text-sm text-muted-foreground">Carregando…</div>}
 
@@ -282,7 +279,7 @@ export default function ModelDetail() {
           </Tabs>
         </>
       )}
-    </div>
+    </PageContainer>
   );
 }
 
