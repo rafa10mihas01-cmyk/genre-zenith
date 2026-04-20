@@ -40,7 +40,7 @@ Deno.serve(async (req) => {
 
   try {
     // ═══════════════ CARREGAR DADOS ═══════════════
-    const [{ data: genre }, { data: model }, { data: history }] = await Promise.all([
+    const [{ data: genre }, { data: model }, { data: history }, { count: corpusCount }] = await Promise.all([
       supabase.from("genres").select("id,nome,slug").eq("id", body.genre_id).single(),
       supabase.from("genre_models").select("*").eq("genre_id", body.genre_id).maybeSingle(),
       supabase.from("genre_models_history")
@@ -48,6 +48,9 @@ Deno.serve(async (req) => {
         .eq("genre_id", body.genre_id)
         .order("version", { ascending: false })
         .limit(2),
+      supabase.from("search_results")
+        .select("id", { count: "exact", head: true })
+        .eq("genre_id", body.genre_id),
     ]);
 
     if (!genre) return j({ error: "Gênero não encontrado" }, 404);
@@ -57,7 +60,8 @@ Deno.serve(async (req) => {
     const padroesNome = (model.padroes_nome as any[] ?? []);
     const playlistsDom = (model.playlists_dominantes as any[] ?? []);
     const musicasRec = (model.musicas_recorrentes as any[] ?? []);
-    const totalPlaylists = playlistsDom.length || 1;
+    // Total real do corpus analisado (não só as dominantes)
+    const totalPlaylists = Math.max(corpusCount ?? 0, playlistsDom.length, 1);
 
     // ═══════════════ KEYWORDS COM PESO % ═══════════════
     const totalKwCount = palavrasChave.reduce((s: number, k: any) => s + (k.count ?? 0), 0) || 1;
