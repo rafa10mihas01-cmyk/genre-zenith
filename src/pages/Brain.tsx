@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
-  Brain, Sparkles, Loader2, Music, Radio, Flame, Users, ListMusic, Hash, TrendingUp,
+  Brain as BrainIcon, Sparkles, Loader2, Music, Radio, Flame, Users, ListMusic, Hash, TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -84,7 +84,7 @@ export default function Brain() {
       {/* Header */}
       <div className="text-center space-y-2">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/30 text-xs uppercase tracking-wider text-primary">
-          <Brain className="h-3.5 w-3.5" /> Cérebro
+          <BrainIcon className="h-3.5 w-3.5" /> Cérebro
         </div>
         <h1 className="text-4xl font-bold tracking-tight">O que você quer analisar?</h1>
         <p className="text-muted-foreground">Escolha o nicho. Configure. Receba inteligência.</p>
