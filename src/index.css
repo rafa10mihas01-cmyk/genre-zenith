@@ -2,9 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
-/* NexEngine Design System — Dark only */
+/* NexEngine Design System — Light & Dark */
 @layer base {
-  :root {
+  :root,
+  .dark {
     /* Backgrounds */
     --background: 240 20% 5%;        /* #0A0A0F */
     --card: 240 17% 8%;              /* #111118 */
@@ -52,6 +53,54 @@
     --sidebar-accent-foreground: 240 22% 95%;
     --sidebar-border: 240 26% 15%;
     --sidebar-ring: 217 91% 60%;
+  }
+
+  .light {
+    /* Backgrounds */
+    --background: 0 0% 100%;            /* #FFFFFF */
+    --card: 240 20% 99%;                /* #FBFBFD */
+    --elevated: 240 20% 97%;            /* #F4F4F8 */
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 17% 12%;
+    --card-foreground: 240 17% 12%;
+
+    /* Text */
+    --foreground: 240 17% 12%;          /* #1C1C24 */
+    --muted-foreground: 240 6% 42%;     /* #65656F */
+    --muted: 240 16% 95%;
+
+    /* Accent */
+    --primary: 217 91% 55%;             /* #2D7CF0 */
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 217 91% 55% / 0.18;
+
+    --accent: 217 91% 55%;
+    --accent-foreground: 0 0% 100%;
+
+    --secondary: 240 16% 95%;
+    --secondary-foreground: 240 17% 12%;
+
+    /* Borders + inputs */
+    --border: 240 14% 89%;              /* #DEDEE5 */
+    --input: 240 14% 89%;
+    --ring: 217 91% 55%;
+
+    /* Status (mesma família, leve ajuste de luz pra contraste em fundo claro) */
+    --success: 160 80% 32%;
+    --warning: 38 92% 45%;
+    --destructive: 0 75% 52%;
+    --destructive-foreground: 0 0% 100%;
+    --neutral: 220 9% 46%;
+
+    /* Sidebar */
+    --sidebar-background: 240 20% 98%;
+    --sidebar-foreground: 240 17% 12%;
+    --sidebar-primary: 217 91% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 16% 93%;
+    --sidebar-accent-foreground: 240 17% 12%;
+    --sidebar-border: 240 14% 89%;
+    --sidebar-ring: 217 91% 55%;
   }
 }
 
