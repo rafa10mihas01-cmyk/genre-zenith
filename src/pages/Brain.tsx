@@ -26,6 +26,7 @@ const STAGES = [
   "Enriquecendo dados...",
   "Analisando padrões...",
   "Gerando insights...",
+  "Gerando briefing de playlists...",
 ];
 
 type GenreSummary = { id: string; slug: string; nome: string; total_playlists: number | null; total_musicas: number | null; ultima_coleta: string | null; hasModel: boolean; lastAnalysis: string | null };

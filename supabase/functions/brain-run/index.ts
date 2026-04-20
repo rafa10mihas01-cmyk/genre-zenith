@@ -345,9 +345,14 @@ async function runPipeline(jobId: string, body: StartBody) {
     stages.analyze = (a.data as any)?.insights ?? { ok: a.ok };
 
     // 6) Insights IA
-    await setJob(supabase, gid, jobId, { status: "running", stage: "Gerando insights...", progress: 92 });
+    await setJob(supabase, gid, jobId, { status: "running", stage: "Gerando insights...", progress: 90 });
     const ia = await callFn("genre-insights", { genre_id: gid });
     stages.insights = (ia.data as any)?.ai ?? { ok: ia.ok, error: (ia.data as any)?.error };
+
+    // 6.5) Gerar briefing de playlists
+    await setJob(supabase, gid, jobId, { status: "running", stage: "Gerando briefing de playlists...", progress: 95 });
+    const br = await callFn("generate-playlists-briefing", { genre_id: gid });
+    stages.briefing = { ok: (br.data as any)?.ok, version: (br.data as any)?.version, error: (br.data as any)?.error };
 
     // 7) Sincroniza contadores de genres + status
     const [pCnt, tCnt, teCnt] = await Promise.all([
@@ -450,10 +455,12 @@ async function resumePipeline(jobId: string, slug: string) {
       await measure();
     }
     const partial = coverage < 0.7;
-    await setJob(supabase, gid, jobId, { status: "running", stage: "Analisando padrões...", progress: 87 });
+    await setJob(supabase, gid, jobId, { status: "running", stage: "Analisando padrões...", progress: 85 });
     await callFn("analyze-genre", { genre_id: gid });
-    await setJob(supabase, gid, jobId, { status: "running", stage: "Gerando insights...", progress: 92 });
+    await setJob(supabase, gid, jobId, { status: "running", stage: "Gerando insights...", progress: 90 });
     await callFn("genre-insights", { genre_id: gid });
+    await setJob(supabase, gid, jobId, { status: "running", stage: "Gerando briefing de playlists...", progress: 95 });
+    await callFn("generate-playlists-briefing", { genre_id: gid });
 
     const [pCnt, tCnt, teCnt] = await Promise.all([
       supabase.from("search_results").select("*", { count: "exact", head: true }).eq("genre_id", gid),
