@@ -810,6 +810,13 @@ async function runPipeline(jobId: string, body: StartBody) {
       duracao_ms: Date.now() - start,
     });
 
+    // Cleanup automático pós brain-run (fire-and-forget — não bloqueia resposta)
+    fetch(`${SUPABASE_URL}/functions/v1/cleanup-brain`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${SERVICE_KEY}` },
+      body: JSON.stringify({ trigger: "brain-run" }),
+    }).catch((e) => console.error("cleanup-brain hook failed", e));
+
     await setJob(supabase, gid, jobId, {
       status: "done",
       stage: partial ? `Concluído (parcial — ${coveragePct}%)` : `Concluído — ${summary}`,
