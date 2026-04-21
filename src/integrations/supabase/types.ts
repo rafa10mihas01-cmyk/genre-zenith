@@ -308,6 +308,7 @@ export type Database = {
           imagem_url: string | null
           is_valid: boolean
           last_seen_at: string
+          needs_enrich: boolean
           nome_playlist: string
           posicao: number
           priority_score: number | null
@@ -336,6 +337,7 @@ export type Database = {
           imagem_url?: string | null
           is_valid?: boolean
           last_seen_at?: string
+          needs_enrich?: boolean
           nome_playlist: string
           posicao: number
           priority_score?: number | null
@@ -364,6 +366,7 @@ export type Database = {
           imagem_url?: string | null
           is_valid?: boolean
           last_seen_at?: string
+          needs_enrich?: boolean
           nome_playlist?: string
           posicao?: number
           priority_score?: number | null
