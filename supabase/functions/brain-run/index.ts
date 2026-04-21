@@ -139,7 +139,7 @@ async function getJob(supabase: any, jobId: string) {
 async function runPipeline(jobId: string, body: StartBody) {
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
   const slug = body.slug.toLowerCase();
-  const kit = KITS[slug];
+  const kit = KITS[slug] ?? null; // boost opcional para gêneros conhecidos
   const { termsCount, delayMs, batchSize } = intensityLimits(body.intensity ?? "normal");
   const maxPerSearch = body.max_playlists ?? 50;
   const start = Date.now();
@@ -150,7 +150,7 @@ async function runPipeline(jobId: string, body: StartBody) {
     // Não temos genreId — guarda erro num log órfão
     await supabase.from("collection_logs").insert({
       acao: `brain-job:${jobId}`, status: "erro",
-      mensagem: JSON.stringify({ status: "error", stage: "init", progress: 0, error: `Gênero '${slug}' não encontrado` }),
+      mensagem: JSON.stringify({ status: "error", stage: "init", progress: 0, error: `Gênero '${slug}' não encontrado no banco. Crie em /genres antes.` }),
     });
     return;
   }
@@ -160,21 +160,47 @@ async function runPipeline(jobId: string, body: StartBody) {
   const stages: Record<string, unknown> = {};
 
   try {
-    // 1) Termos
-    const selectedTerms = kit.slice(0, termsCount);
-    const { data: existingTerms } = await supabase
-      .from("search_terms").select("id,termo").eq("genre_id", gid);
-    const existingMap = new Map((existingTerms ?? []).map((t: any) => [t.termo.toLowerCase(), t.id]));
-    const missing = selectedTerms.filter(t => !existingMap.has(t.toLowerCase()));
-    if (missing.length > 0) {
-      await supabase.from("search_terms").insert(
-        missing.map(t => ({ genre_id: gid, termo: t, tipo: "kit" })),
-      );
+    // 1) Termos — fonte dinâmica:
+    //    a) Se há KIT específico (funk/sertanejo/piseiro) → usa kit (curado, melhor qualidade)
+    //    b) Senão → garante que generate-terms rodou (cria variações automáticas) e usa search_terms do gênero
+    let selectedTerms: string[] = [];
+    if (kit && kit.length > 0) {
+      selectedTerms = kit.slice(0, termsCount);
+      const { data: existingTerms } = await supabase
+        .from("search_terms").select("id,termo").eq("genre_id", gid);
+      const existingMap = new Map((existingTerms ?? []).map((t: any) => [t.termo.toLowerCase(), t.id]));
+      const missing = selectedTerms.filter(t => !existingMap.has(t.toLowerCase()));
+      if (missing.length > 0) {
+        await supabase.from("search_terms").insert(
+          missing.map(t => ({ genre_id: gid, termo: t, tipo: "kit" })),
+        );
+      }
+    } else {
+      // Sem kit → dispara generate-terms se ainda não houver termos suficientes
+      const { count: existingCount } = await supabase
+        .from("search_terms").select("*", { count: "exact", head: true }).eq("genre_id", gid);
+      if ((existingCount ?? 0) < termsCount) {
+        const gt = await callFn("generate-terms", { genre_id: gid });
+        if (!gt.ok || !(gt.data as any)?.ok) {
+          await supabase.from("collection_logs").insert({
+            genre_id: gid, acao: "brain-run", status: "erro",
+            mensagem: `generate-terms falhou: ${(gt.data as any)?.error ?? `HTTP ${gt.status}`}`,
+          }).catch(() => {});
+        }
+      }
+      // Seleciona top N termos priorizando: completo > variacao > contextual > prefixo
+      const { data: allDyn } = await supabase
+        .from("search_terms").select("termo,tipo").eq("genre_id", gid);
+      const tipoRank: Record<string, number> = { completo: 0, variacao: 1, contextual: 2, prefixo: 3, kit: 0 };
+      const ordered = (allDyn ?? [])
+        .filter((t: any) => (t.termo ?? "").length >= 3) // descarta prefixos curtíssimos
+        .sort((a: any, b: any) => (tipoRank[a.tipo] ?? 9) - (tipoRank[b.tipo] ?? 9));
+      selectedTerms = ordered.slice(0, termsCount).map((t: any) => t.termo);
     }
     const { data: termsRows } = await supabase
       .from("search_terms").select("id,termo")
       .eq("genre_id", gid).in("termo", selectedTerms);
-    stages.terms = { count: termsRows?.length ?? 0, list: selectedTerms };
+    stages.terms = { count: termsRows?.length ?? 0, list: selectedTerms, source: kit ? "kit" : "dynamic" };
 
     // 2) Buscas — paralelizadas em batches (3 simultâneas no modo normal)
     await setJob(supabase, gid, jobId, { status: "running", stage: "Buscando playlists...", progress: 15 });
@@ -208,22 +234,27 @@ async function runPipeline(jobId: string, body: StartBody) {
     stages.search = { ok: searchedOk, err: searchedErr, total_inserted: totalSavedResults };
 
 
-    // 3) Filtro relaxado: relevante se nome OU descrição OU termo de origem contém o slug
-    //    OU qualquer um dos termos do kit (ex.: "mandelão" pra funk).
+    // 3) Filtro relaxado: relevante se nome OU descrição OU termo de origem contém o slug,
+    //    o nome do gênero, OU qualquer termo selecionado nesta rodada (kit OU dinâmico).
     await setJob(supabase, gid, jobId, { status: "running", stage: "Filtrando resultados...", progress: 60 });
     const { data: allResults } = await supabase
       .from("search_results")
       .select("id,nome_playlist,descricao,term_id")
       .eq("genre_id", gid);
     const termMap = new Map((termsRows ?? []).map((t: any) => [t.id, (t.termo ?? "").toLowerCase()]));
-    const kitLower = kit.map(k => k.toLowerCase());
+    const nomeLower = (genre.nome ?? "").toLowerCase();
+    const relevanceTokens = [
+      ...selectedTerms.map(t => t.toLowerCase()),
+      ...(kit ?? []).map(k => k.toLowerCase()),
+      nomeLower,
+    ].filter(Boolean);
     const irrelevant = (allResults ?? []).filter((r: any) => {
       const nome = (r.nome_playlist ?? "").toLowerCase();
       const desc = (r.descricao ?? "").toLowerCase();
       const termo = termMap.get(r.term_id) ?? "";
       const haystack = `${nome} ${desc} ${termo}`;
-      // mantém se contém o slug OU qualquer palavra-chave do kit
-      const ok = haystack.includes(slug) || kitLower.some(k => haystack.includes(k));
+      // mantém se contém o slug, o nome do gênero OU qualquer termo relevante
+      const ok = haystack.includes(slug) || relevanceTokens.some(k => k && haystack.includes(k));
       return !ok;
     });
     if (irrelevant.length > 0) {
@@ -578,7 +609,8 @@ Deno.serve(async (req) => {
   try { body = await req.json(); } catch { return jr({ error: "Invalid JSON" }, 400); }
   if (!body.slug) return jr({ error: "slug obrigatório" }, 400);
   const slug = body.slug.toLowerCase();
-  if (!KITS[slug]) return jr({ error: `Nicho '${slug}' sem kit. Suportados: ${Object.keys(KITS).join(", ")}` }, 400);
+  // Aceita qualquer slug existente em `genres`. Se houver KIT específico (funk/sertanejo/piseiro),
+  // ele é usado como boost de qualidade; caso contrário, generate-terms cria os termos dinamicamente.
 
   const jobId = crypto.randomUUID();
 
