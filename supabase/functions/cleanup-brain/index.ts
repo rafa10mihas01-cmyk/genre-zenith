@@ -20,6 +20,7 @@ interface CleanupResult {
   orphan_playlists: number;
   low_quality: number;
   blacklisted: number;
+  low_quality_24h: number;
   total: number;
   duration_ms: number;
 }
