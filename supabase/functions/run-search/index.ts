@@ -370,7 +370,7 @@ Deno.serve(async (req) => {
             total_musicas: totalTracks,
             apify_run_id: runId,
             term_id: body.term_id,
-            owner_country: ownerCountry,
+            // owner_country removido — coluna não existe no schema (PGRST204)
             times_seen: (existing.times_seen ?? 1) + 1,
             last_seen_at: new Date().toISOString(),
             score,
@@ -405,7 +405,7 @@ Deno.serve(async (req) => {
             descricao,
             total_musicas: totalTracks,
             apify_run_id: runId,
-            owner_country: ownerCountry,
+            // owner_country removido — coluna não existe no schema (PGRST204)
             times_seen: 1,
             score,
             // Phase 1: status provisório — Phase 2 sobrescreve após enrich
