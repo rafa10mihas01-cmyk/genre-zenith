@@ -199,6 +199,83 @@ Deno.serve(async (req) => {
         };
       });
 
+    // ═══════════════ FALLBACK DE IA: SUBGÊNEROS INSUFICIENTES ═══════════════
+    let ai_subgenres_added: any[] = [];
+    let ai_meta: any = null;
+    if (subgeneros.length < 2 && (results?.length ?? 0) >= 5) {
+      try {
+        const sample = (results ?? [])
+          .filter(r => r.nome_playlist)
+          .sort((a, b) => (b.seguidores ?? 0) - (a.seguidores ?? 0))
+          .slice(0, 20);
+        const tracksByResult = new Map<string, { nome: string; artista: string }[]>();
+        for (const t of (tracks ?? [])) {
+          const rid = (t as any).result_id;
+          if (!rid) continue;
+          if (!tracksByResult.has(rid)) tracksByResult.set(rid, []);
+          const arr = tracksByResult.get(rid)!;
+          if (arr.length < 8) arr.push({ nome: t.nome_musica, artista: t.artista });
+        }
+        const known = subgeneros.map(s => s.nome);
+        const ai = await classifySubgenre(
+          genre.nome,
+          known,
+          sample.map(r => ({
+            id: r.id,
+            nome: r.nome_playlist,
+            descricao: (r as any).descricao ?? "",
+            top_tracks: tracksByResult.get(r.id) ?? [],
+          })),
+        );
+        const groups = new Map<string, { ids: string[] }>();
+        for (const c of ai) {
+          if (!c.subgenero || c.confidence === "baixa") continue;
+          const k = c.subgenero.toLowerCase();
+          if (!groups.has(k)) groups.set(k, { ids: [] });
+          groups.get(k)!.ids.push(c.id);
+        }
+        for (const [slug, g] of groups) {
+          if (g.ids.length < 2) continue;
+          const grpResults = (results ?? []).filter(r => g.ids.includes(r.id));
+          const kbag = new Map<string, number>();
+          for (const r of grpResults) {
+            for (const tk of tokenize(r.nome_playlist ?? "")) {
+              if (baseTokens.has(tk) || NON_SUB.has(tk) || tk === slug) continue;
+              kbag.set(tk, (kbag.get(tk) ?? 0) + 1);
+            }
+          }
+          const tbag = new Map<string, { nome: string; artista: string; count: number }>();
+          for (const r of grpResults) {
+            for (const t of (tracksByResult.get(r.id) ?? [])) {
+              const k = trackKey(t);
+              if (!k || k === "||") continue;
+              const cur = tbag.get(k);
+              if (cur) cur.count++;
+              else tbag.set(k, { nome: t.nome, artista: t.artista, count: 1 });
+            }
+          }
+          ai_subgenres_added.push({
+            slug,
+            nome: slug,
+            total_playlists: g.ids.length,
+            peso_pct: totalRes > 0 ? Math.round((g.ids.length / totalRes) * 1000) / 10 : 0,
+            top_keywords: Array.from(kbag.entries()).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([value, count]) => ({ value, count })),
+            top_tracks: Array.from(tbag.values()).sort((a, b) => b.count - a.count).slice(0, 8),
+            origem_ia: true,
+          });
+        }
+        if (ai_subgenres_added.length > 0) subgeneros.push(...ai_subgenres_added);
+        ai_meta = {
+          provider: activeProvider(),
+          playlists_classificadas: ai.length,
+          subgeneros_inferidos: ai_subgenres_added.length,
+        };
+      } catch (e) {
+        console.error("AI subgenre fallback failed:", (e as Error).message);
+        ai_meta = { provider: activeProvider(), error: (e as Error).message };
+      }
+    }
+
     const insights = {
       total_playlists_analisadas: results?.length ?? 0,
       total_tracks_analisadas: tracks?.length ?? 0,
@@ -208,6 +285,7 @@ Deno.serve(async (req) => {
       maior_playlist: playlists_dominantes[0] ?? null,
       diversidade_tracks: trackMap.size,
       subgeneros,
+      ai_classification: ai_meta,
     };
 
     // Upsert genre_models
