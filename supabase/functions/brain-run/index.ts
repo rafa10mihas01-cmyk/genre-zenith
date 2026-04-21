@@ -413,10 +413,23 @@ async function runPipeline(jobId: string, body: StartBody) {
     let truncated = false;
     const allTerms = termsRows ?? [];
     const total = allTerms.length || 1;
-    const WAVE_1_CALLS = 5;
-    const WAVE_2_CALLS = 5;
+
+    // 🟢 OTIMIZAÇÃO 4: limite dinâmico — usa override do genre_filters.max_search_calls,
+    // senão usa min(termos disponíveis, 12). Garante que pequenos gêneros não desperdicem
+    // chamadas e que gêneros grandes possam expandir até o teto configurado.
+    const { data: filtCalls } = await supabase
+      .from("genre_filters").select("max_search_calls")
+      .eq("genre_id", gid).maybeSingle();
+    const overrideCalls = filtCalls?.max_search_calls ?? null;
+    const DEFAULT_MAX_CALLS = 12;
+    const MAX_CALLS = Math.max(
+      1,
+      Math.min(allTerms.length || DEFAULT_MAX_CALLS, overrideCalls ?? DEFAULT_MAX_CALLS),
+    );
+    // Wave 1 ≈ metade (mín 3, máx 8). Wave 2 = restante.
+    const WAVE_1_CALLS = Math.min(MAX_CALLS, Math.max(3, Math.ceil(MAX_CALLS / 2)));
+    const WAVE_2_CALLS = Math.max(0, MAX_CALLS - WAVE_1_CALLS);
     const MIN_RESULTS_FOR_STOP = 80; // Wave 1 ≥ 80 novas → pula Wave 2
-    const MAX_CALLS = WAVE_1_CALLS + WAVE_2_CALLS;
 
     // Helper: roda um intervalo [from, to) de termos respeitando batchSize/delayMs/circuit breaker.
     async function runWave(from: number, to: number) {
