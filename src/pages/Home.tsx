@@ -6,6 +6,7 @@ import { Brain, Sparkles, ListMusic, Music2, TrendingUp, ArrowRight, Activity, L
 import { formatNumber, timeAgo } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { genreStyleVars } from "@/lib/genreColors";
+import { PageHeader } from "@/components/PageHeader";
 
 /**
  * HOME — Resumo executivo do sistema.
@@ -98,13 +99,10 @@ export default function Home() {
 
   return (
     <div className="space-y-8 max-w-[1600px] mx-auto">
-      {/* Saudação */}
-      <header className="space-y-1">
-        <h1 className="text-3xl font-bold tracking-tight">Bom dia 👋</h1>
-        <p className="text-sm text-muted-foreground">
-          Visão geral do sistema. Selecione um gênero para abrir a inteligência completa no Cérebro.
-        </p>
-      </header>
+      <PageHeader
+        title="Visão geral"
+        subtitle="Acompanhar o estado do sistema e abrir a inteligência completa de cada gênero no Cérebro."
+      />
 
       {/* KPIs globais */}
       <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
