@@ -71,6 +71,7 @@ Deno.serve(async (req) => {
     // 🎛️ MODO DE DISTRIBUIÇÃO: 'strict' (padrão) ou 'expansao'
     const briefingMode: "strict" | "expansao" =
       (filters?.briefing_mode === "expansao") ? "expansao" : "strict";
+    console.log("MODE:", briefingMode, "| genre_id:", body.genre_id, "| survival_mode:", survivalMode, "| filters_row:", filters);
 
     if (!genre) return j({ error: "Gênero não encontrado" }, 404);
     if (!model) return j({ error: "Sem modelo. Execute analyze-genre primeiro." }, 400);
