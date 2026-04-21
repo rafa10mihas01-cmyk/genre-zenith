@@ -512,6 +512,8 @@ async function runPipeline(jobId: string, body: StartBody) {
       calls: searchCalls, blocked: apifyBlocked,
       cache_skip: cacheHit, calls_avoided: callsAvoided, playlists_reused: playlistsReused,
       wave2_skipped: wave2Skipped, truncated,
+      max_calls: MAX_CALLS, wave_1: WAVE_1_CALLS, wave_2: WAVE_2_CALLS,
+      max_calls_source: overrideCalls ? "override" : "default",
     };
 
     // Circuit breaker: pipeline interrompido — não prossegue para enrich/analyze/briefing.
