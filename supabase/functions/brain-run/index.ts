@@ -273,6 +273,18 @@ async function runPipeline(jobId: string, body: StartBody) {
       return;
     }
 
+    // 🟢 OTIMIZAÇÃO 1: CACHE-SKIP — se já temos ≥30 playlists relevantes coletadas
+    //    nos últimos 7 dias, pula a coleta Apify inteira e vai direto pra enrich+análise+briefing.
+    const CACHE_THRESHOLD = 30;
+    const CACHE_WINDOW_DAYS = 7;
+    const cacheSince = new Date(Date.now() - CACHE_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    const { count: freshCount } = await supabase
+      .from("search_results")
+      .select("*", { count: "exact", head: true })
+      .eq("genre_id", gid)
+      .gte("last_seen_at", cacheSince);
+    const cacheHit = (freshCount ?? 0) >= CACHE_THRESHOLD;
+
     // 1) Termos — fonte dinâmica:
     //    a) Se há KIT específico (funk/sertanejo/piseiro) → usa kit (curado, melhor qualidade)
     //    b) Senão → garante que generate-terms rodou (cria variações automáticas) e usa search_terms do gênero
@@ -302,18 +314,31 @@ async function runPipeline(jobId: string, body: StartBody) {
         }
       }
       // Seleciona top N termos priorizando: completo > variacao > contextual > prefixo
+      // 🟢 OTIMIZAÇÃO 2: também descarta termos comprovadamente fracos (executados c/ 0 resultados)
       const { data: allDyn } = await supabase
-        .from("search_terms").select("termo,tipo").eq("genre_id", gid);
+        .from("search_terms").select("termo,tipo,executado,total_resultados").eq("genre_id", gid);
       const tipoRank: Record<string, number> = { completo: 0, variacao: 1, contextual: 2, prefixo: 3, kit: 0 };
       const ordered = (allDyn ?? [])
         .filter((t: any) => (t.termo ?? "").length >= 3) // descarta prefixos curtíssimos
+        .filter((t: any) => !(t.executado === true && (t.total_resultados ?? 0) === 0)) // descarta termos fracos
         .sort((a: any, b: any) => (tipoRank[a.tipo] ?? 9) - (tipoRank[b.tipo] ?? 9));
       selectedTerms = ordered.slice(0, termsCount).map((t: any) => t.termo);
     }
+
+    // 🟢 OTIMIZAÇÃO 3: dedup case-insensitive (defesa extra)
+    const seenTerms = new Set<string>();
+    selectedTerms = selectedTerms.filter(t => {
+      const k = t.trim().toLowerCase();
+      if (!k || seenTerms.has(k)) return false;
+      seenTerms.add(k);
+      return true;
+    });
+
     const { data: termsRows } = await supabase
       .from("search_terms").select("id,termo")
       .eq("genre_id", gid).in("termo", selectedTerms);
     stages.terms = { count: termsRows?.length ?? 0, list: selectedTerms, source: kit ? "kit" : "dynamic" };
+    stages.cache_check = { fresh_playlists_7d: freshCount ?? 0, threshold: CACHE_THRESHOLD, cache_hit: cacheHit };
 
     // 2) Buscas — paralelizadas em batches (3 simultâneas no modo normal)
     await setJob(supabase, gid, jobId, { status: "running", stage: "Buscando playlists...", progress: 15 });
