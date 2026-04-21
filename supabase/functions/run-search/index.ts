@@ -340,6 +340,8 @@ Deno.serve(async (req) => {
             times_seen: (existing.times_seen ?? 1) + 1,
             last_seen_at: new Date().toISOString(),
             score,
+            is_valid: true,
+            validation_reason: null,
           }).eq("id", existing.id);
           if (updErr) {
             console.error("update result err", updErr);
