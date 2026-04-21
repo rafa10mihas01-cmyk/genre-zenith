@@ -341,51 +341,74 @@ async function runPipeline(jobId: string, body: StartBody) {
     stages.cache_check = { fresh_playlists_7d: freshCount ?? 0, threshold: CACHE_THRESHOLD, cache_hit: cacheHit };
 
     // 2) Buscas — paralelizadas em batches (3 simultâneas no modo normal)
-    await setJob(supabase, gid, jobId, { status: "running", stage: "Buscando playlists...", progress: 15 });
+    // 2) Buscas — paralelizadas em batches (3 simultâneas no modo normal)
+    //    🟢 OTIMIZAÇÃO 4: se cacheHit, pula coleta inteira e contabiliza economia.
     let searchedOk = 0, searchedErr = 0, totalSavedResults = 0;
     let apifyBlocked = false;
+    let searchCalls = 0;
+    let callsAvoided = 0;
+    let playlistsReused = 0;
     const allTerms = termsRows ?? [];
     const total = allTerms.length || 1;
-    let processed = 0;
-    let searchCalls = 0;
     const MAX_SEARCH_CALLS = 5; // limite de proteção de custo por run
-    outer: for (let i = 0; i < allTerms.length; i += batchSize) {
-      const batch = allTerms.slice(i, i + batchSize);
-      const results = await Promise.all(batch.map((t) => {
-        searchCalls++;
-        return callFn("run-search", {
-          genre_id: gid, term_id: t.id, search_term: t.termo, max_results: maxPerSearch,
-        });
-      }));
-      for (const r of results) {
-        const d = r.data as any;
-        if (d?.blocked) { apifyBlocked = true; break; }
-        if (r.ok && d?.ok) {
-          searchedOk++;
-          totalSavedResults += d?.savedResults ?? 0;
-        } else searchedErr++;
-      }
-      processed += batch.length;
+
+    if (cacheHit) {
+      callsAvoided = Math.min(allTerms.length, MAX_SEARCH_CALLS);
+      playlistsReused = freshCount ?? 0;
       await setJob(supabase, gid, jobId, {
         status: "running",
-        stage: apifyBlocked
-          ? "⚠️ Coleta pausada — limite de API atingido"
-          : `Buscando playlists... (${processed}/${total})`,
-        progress: 15 + Math.round((processed / total) * 40),
+        stage: `♻️ Cache fresco (${playlistsReused} playlists em ${CACHE_WINDOW_DAYS}d) — pulando coleta`,
+        progress: 55,
       });
-      if (apifyBlocked) break outer;
-      if (searchCalls >= MAX_SEARCH_CALLS) {
-        await supabase.from("collection_logs").insert({
-          genre_id: gid, acao: "brain-run", status: "parcial",
-          mensagem: `MAX_SEARCH_CALLS (${MAX_SEARCH_CALLS}) atingido — interrompendo coleta`,
+      await supabase.from("collection_logs").insert({
+        genre_id: gid, acao: "cache-skip", status: "ok",
+        mensagem: `Coleta pulada — ${playlistsReused} playlists reaproveitadas, ${callsAvoided} chamadas Apify evitadas`,
+      });
+    } else {
+      await setJob(supabase, gid, jobId, { status: "running", stage: "Buscando playlists...", progress: 15 });
+      let processed = 0;
+      outer: for (let i = 0; i < allTerms.length; i += batchSize) {
+        const batch = allTerms.slice(i, i + batchSize);
+        const results = await Promise.all(batch.map((t) => {
+          searchCalls++;
+          return callFn("run-search", {
+            genre_id: gid, term_id: t.id, search_term: t.termo, max_results: maxPerSearch,
+          });
+        }));
+        for (const r of results) {
+          const d = r.data as any;
+          if (d?.blocked) { apifyBlocked = true; break; }
+          if (r.ok && d?.ok) {
+            searchedOk++;
+            totalSavedResults += d?.savedResults ?? 0;
+          } else searchedErr++;
+        }
+        processed += batch.length;
+        await setJob(supabase, gid, jobId, {
+          status: "running",
+          stage: apifyBlocked
+            ? "⚠️ Coleta pausada — limite de API atingido"
+            : `Buscando playlists... (${processed}/${total})`,
+          progress: 15 + Math.round((processed / total) * 40),
         });
-        break outer;
-      }
-      if (delayMs > 0 && i + batchSize < allTerms.length) {
-        await new Promise((res) => setTimeout(res, delayMs));
+        if (apifyBlocked) break outer;
+        if (searchCalls >= MAX_SEARCH_CALLS) {
+          await supabase.from("collection_logs").insert({
+            genre_id: gid, acao: "brain-run", status: "parcial",
+            mensagem: `MAX_SEARCH_CALLS (${MAX_SEARCH_CALLS}) atingido — interrompendo coleta`,
+          });
+          break outer;
+        }
+        if (delayMs > 0 && i + batchSize < allTerms.length) {
+          await new Promise((res) => setTimeout(res, delayMs));
+        }
       }
     }
-    stages.search = { ok: searchedOk, err: searchedErr, total_inserted: totalSavedResults, calls: searchCalls, blocked: apifyBlocked };
+    stages.search = {
+      ok: searchedOk, err: searchedErr, total_inserted: totalSavedResults,
+      calls: searchCalls, blocked: apifyBlocked,
+      cache_skip: cacheHit, calls_avoided: callsAvoided, playlists_reused: playlistsReused,
+    };
 
     // Circuit breaker: pipeline interrompido — não prossegue para enrich/analyze/briefing.
     if (apifyBlocked) {
