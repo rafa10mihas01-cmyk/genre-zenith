@@ -17,6 +17,12 @@ const MAX_RESULTS = 10;
 const KW_PER_CARD = 3;
 const TRACKS_PER_CARD = 5;
 
+// 🚧 PISOS ABSOLUTOS (mesmo em modo expansão — nunca aceitar lixo)
+const HARD_MIN_FREQ_PCT = 1;     // < 1% nunca entra, nem em expansão
+const HARD_MIN_REP = 1;          // < 1 repetição nunca entra
+const HARD_MIN_TRACKS = 2;       // < 2 músicas relevantes nunca entra
+const SCORE_MIN_EXPANSAO = 15;   // score mínimo pra card expansão sobreviver
+
 function j(payload: any, status = 200) {
   return new Response(JSON.stringify(payload), {
     status, headers: { ...corsHeaders, "Content-Type": "application/json" },
