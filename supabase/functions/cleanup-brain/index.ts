@@ -21,6 +21,7 @@ interface CleanupResult {
   low_quality: number;
   blacklisted: number;
   low_quality_24h: number;
+  invalidated: number;
   total: number;
   duration_ms: number;
 }
@@ -43,6 +44,7 @@ Deno.serve(async (req) => {
     low_quality: 0,
     blacklisted: 0,
     low_quality_24h: 0,
+    invalidated: 0,
     total: 0,
     duration_ms: 0,
   };
@@ -182,6 +184,24 @@ Deno.serve(async (req) => {
       }
     }
 
+    // 4.7) PURGE: playlists marcadas is_valid=false pelo scoring estrito (run-search/revalidate-dataset)
+    {
+      const { data: rows, error } = await supabase
+        .from("search_results")
+        .select("id")
+        .eq("is_valid", false);
+      if (error) { errors.push(`invalid-scan: ${error.message}`); }
+      else if (rows && rows.length > 0) {
+        const ids = rows.map((r: any) => r.id);
+        for (let i = 0; i < ids.length; i += 500) {
+          const chunk = ids.slice(i, i + 500);
+          const { error: dErr } = await supabase.from("search_results").delete().in("id", chunk);
+          if (dErr) { errors.push(`invalid-del: ${dErr.message}`); break; }
+          result.invalidated += chunk.length;
+        }
+      }
+    }
+
     // 5) Re-roda passo 1 (tracks que ficaram órfãs após deletar playlists nos passos 2-4)
     {
       const { data: validIds } = await supabase.from("search_results").select("id");
@@ -209,7 +229,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    result.total = result.orphan_tracks + result.orphan_playlists + result.low_quality + result.blacklisted + result.low_quality_24h;
+    result.total = result.orphan_tracks + result.orphan_playlists + result.low_quality + result.blacklisted + result.low_quality_24h + result.invalidated;
     result.duration_ms = Date.now() - start;
 
     // ============ RE-ANÁLISE AUTOMÁTICA ============
@@ -266,6 +286,7 @@ Deno.serve(async (req) => {
       `baixa_qualidade: ${result.low_quality} | ` +
       `blacklist: ${result.blacklisted} | ` +
       `low_quality_24h: ${result.low_quality_24h} | ` +
+      `invalidated: ${result.invalidated} | ` +
       `TOTAL: ${result.total}` +
       reanalyzeInfo +
       (errors.length > 0 ? ` | erros: ${errors.slice(0, 3).join("; ")}` : "");
