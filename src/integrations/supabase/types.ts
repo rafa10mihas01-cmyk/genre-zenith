@@ -267,6 +267,72 @@ export type Database = {
         }
         Relationships: []
       }
+      playlist_blueprints: {
+        Row: {
+          confidence: string
+          cover_style: Json | null
+          created_at: string
+          format: string | null
+          generated_by_model: string | null
+          genre_id: string
+          id: string
+          mood: string | null
+          name: string
+          name_pattern: string | null
+          notes: string | null
+          replication_score: number
+          sample_size: number
+          slug: string
+          source_playlists: Json | null
+          status: string
+          tier: string
+          track_dna: Json | null
+          updated_at: string
+        }
+        Insert: {
+          confidence?: string
+          cover_style?: Json | null
+          created_at?: string
+          format?: string | null
+          generated_by_model?: string | null
+          genre_id: string
+          id?: string
+          mood?: string | null
+          name: string
+          name_pattern?: string | null
+          notes?: string | null
+          replication_score?: number
+          sample_size?: number
+          slug: string
+          source_playlists?: Json | null
+          status?: string
+          tier?: string
+          track_dna?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          confidence?: string
+          cover_style?: Json | null
+          created_at?: string
+          format?: string | null
+          generated_by_model?: string | null
+          genre_id?: string
+          id?: string
+          mood?: string | null
+          name?: string
+          name_pattern?: string | null
+          notes?: string | null
+          replication_score?: number
+          sample_size?: number
+          slug?: string
+          source_playlists?: Json | null
+          status?: string
+          tier?: string
+          track_dna?: Json | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       playlist_briefings: {
         Row: {
           briefings: Json
@@ -293,6 +359,77 @@ export type Database = {
           version?: number
         }
         Relationships: []
+      }
+      playlist_templates: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          blueprint_id: string
+          cover_brief: string | null
+          created_at: string
+          description: string | null
+          generated_by_model: string | null
+          genre_id: string
+          id: string
+          keywords: Json | null
+          name: string
+          regras: Json | null
+          rejection_reason: string | null
+          replication_score: number
+          status: string
+          track_seeds: Json | null
+          updated_at: string
+          variation_index: number
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          blueprint_id: string
+          cover_brief?: string | null
+          created_at?: string
+          description?: string | null
+          generated_by_model?: string | null
+          genre_id: string
+          id?: string
+          keywords?: Json | null
+          name: string
+          regras?: Json | null
+          rejection_reason?: string | null
+          replication_score?: number
+          status?: string
+          track_seeds?: Json | null
+          updated_at?: string
+          variation_index?: number
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          blueprint_id?: string
+          cover_brief?: string | null
+          created_at?: string
+          description?: string | null
+          generated_by_model?: string | null
+          genre_id?: string
+          id?: string
+          keywords?: Json | null
+          name?: string
+          regras?: Json | null
+          rejection_reason?: string | null
+          replication_score?: number
+          status?: string
+          track_seeds?: Json | null
+          updated_at?: string
+          variation_index?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "playlist_templates_blueprint_id_fkey"
+            columns: ["blueprint_id"]
+            isOneToOne: false
+            referencedRelation: "playlist_blueprints"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       search_results: {
         Row: {

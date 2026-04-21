@@ -8,7 +8,7 @@ import {
 import { Button } from "@/components/ui/button";
 import {
   Brain, Sparkles, Loader2, RefreshCw, ListMusic, Music2, TrendingUp, Hash,
-  ExternalLink, Image as ImageIcon, Palette, Wand2, FileText, Activity,
+  ExternalLink, Image as ImageIcon, Palette, Wand2, FileText, Activity, Layers,
 } from "lucide-react";
 import { useBrainModel } from "@/hooks/useBrainModel";
 import { useBriefings } from "@/hooks/useBriefings";
@@ -16,6 +16,7 @@ import { formatNumber, timeAgo, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/PageHeader";
+import { Replicacao } from "@/components/brain/Replicacao";
 
 /**
  * CÉREBRO — módulo único com 6 abas internas.
@@ -144,6 +145,7 @@ export default function Cerebro() {
             { v: "base", label: "Base" },
             { v: "insights", label: "Insights" },
             { v: "visual", label: "Visual" },
+            { v: "replicacao", label: "Replicação" },
           ].map(t => (
             <TabsTrigger
               key={t.v}
@@ -179,6 +181,9 @@ export default function Cerebro() {
         </TabsContent>
         <TabsContent value="visual" className="mt-0">
           <Visual briefing={briefing} loading={loadingBriefing} onAnalyze={analyzeVisualDna} analyzing={analyzingDna} />
+        </TabsContent>
+        <TabsContent value="replicacao" className="mt-0">
+          <Replicacao genreId={genre?.id} />
         </TabsContent>
       </Tabs>
     </div>
