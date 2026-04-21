@@ -10,6 +10,7 @@ import Login from "./pages/Login";
 import Home from "./pages/Home";
 import Cerebro from "./pages/Cerebro";
 import Criacao from "./pages/Criacao";
+import Operacao from "./pages/Operacao";
 import Performance from "./pages/Performance";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
