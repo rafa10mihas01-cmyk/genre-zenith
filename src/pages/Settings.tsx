@@ -254,6 +254,57 @@ export default function Settings() {
             )}
           </div>
         )}
+
+        {/* Contas conectadas (OAuth) */}
+        <div className="mt-5 pt-5 border-t border-border">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <h3 className="text-sm font-semibold flex items-center gap-1.5">
+                <UserCheck className="h-4 w-4 text-primary" /> Contas Spotify conectadas
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Necessário para criar playlists no Spotify a partir de templates aprovados.
+                Adicione <span className="font-mono text-foreground">{`${window.location.origin}/settings?spotify_callback=1`}</span> como Redirect URI no app do Spotify.
+              </p>
+            </div>
+            <Button size="sm" onClick={connectSpotify} disabled={connectingSpotify}>
+              {connectingSpotify ? <Loader2 className="h-4 w-4 animate-spin" /> : <Music2 className="h-4 w-4" />}
+              Conectar conta
+            </Button>
+          </div>
+
+          {spotifyAccounts.length === 0 ? (
+            <p className="text-xs text-muted-foreground mt-3 italic">Nenhuma conta conectada ainda.</p>
+          ) : (
+            <div className="mt-3 space-y-2">
+              {spotifyAccounts.map((acc) => (
+                <div key={acc.id} className="flex items-center justify-between gap-2 p-2.5 rounded-lg border border-border bg-muted/20">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-sm truncate">{acc.display_name ?? acc.spotify_user_id}</span>
+                      {acc.is_default && (
+                        <span className="text-[10px] inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/15 text-primary">
+                          <Star className="h-2.5 w-2.5" /> padrão
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-muted-foreground font-mono truncate">{acc.email ?? acc.spotify_user_id}</div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {!acc.is_default && (
+                      <Button size="sm" variant="ghost" onClick={() => setDefaultAccount(acc.id)} className="h-7 px-2 text-xs">
+                        <Star className="h-3 w-3" /> Padrão
+                      </Button>
+                    )}
+                    <Button size="sm" variant="ghost" onClick={() => removeAccount(acc.id)} className="h-7 w-7 p-0 text-destructive hover:text-destructive">
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </section>
 
       {/* Parâmetros */}
