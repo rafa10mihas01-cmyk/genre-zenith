@@ -21,6 +21,7 @@ interface CleanupResult {
   low_quality: number;
   blacklisted: number;
   low_quality_24h: number;
+  invalidated: number;
   total: number;
   duration_ms: number;
 }
