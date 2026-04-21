@@ -176,10 +176,10 @@ Deno.serve(async (req) => {
       "para","pra","com","sem","feat","official","oficial","radio","abril","maio",
     ]);
 
-    // term_id → tokens extras (subgênero candidato)
+    // term_id → tokens extras (subgênero candidato) — normalizados
     const termIdToSubs = new Map<string, string[]>();
     for (const t of (terms ?? [])) {
-      const toks = tokenize(t.termo ?? "");
+      const toks = tokenize(t.termo ?? "").map(normalize);
       const extras = toks.filter(tk => !baseTokens.has(tk) && !NON_SUB.has(tk));
       termIdToSubs.set(t.id, extras);
     }
@@ -194,8 +194,8 @@ Deno.serve(async (req) => {
 
     for (const r of (results ?? [])) {
       const fromTerm = termIdToSubs.get(r.term_id ?? "") ?? [];
-      const nameToks = tokenize(r.nome_playlist ?? "");
-      const descToks = tokenize((r as any).descricao ?? "");
+      const nameToks = tokenize(r.nome_playlist ?? "").map(normalize);
+      const descToks = tokenize((r as any).descricao ?? "").map(normalize);
       const cloud = new Set([...nameToks, ...descToks]);
       const candidates = new Set<string>(fromTerm);
       for (const s of allSubsFromTerms) if (cloud.has(s)) candidates.add(s);
