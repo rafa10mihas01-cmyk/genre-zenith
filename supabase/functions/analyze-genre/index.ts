@@ -1,6 +1,7 @@
 // analyze-genre — analisa search_results + search_tracks de um gênero e gera modelo de inteligência
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { classifySubgenre, activeProvider } from "../_shared/ai_service.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
