@@ -253,8 +253,8 @@ async function runPipeline(jobId: string, body: StartBody) {
       const desc = (r.descricao ?? "").toLowerCase();
       const termo = termMap.get(r.term_id) ?? "";
       const haystack = `${nome} ${desc} ${termo}`;
-      // mantém se contém o slug OU qualquer palavra-chave do kit
-      const ok = haystack.includes(slug) || kitLower.some(k => haystack.includes(k));
+      // mantém se contém o slug, o nome do gênero OU qualquer termo relevante
+      const ok = haystack.includes(slug) || relevanceTokens.some(k => k && haystack.includes(k));
       return !ok;
     });
     if (irrelevant.length > 0) {
