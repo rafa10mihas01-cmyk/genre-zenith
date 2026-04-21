@@ -48,6 +48,16 @@ Deno.serve(async (req) => {
   };
   const errors: string[] = [];
 
+  // Snapshot do tamanho do dataset ANTES da limpeza (pra calcular % afetada)
+  let totalBefore = 0;
+  try {
+    const [{ count: pl }, { count: tr }] = await Promise.all([
+      supabase.from("search_results").select("*", { count: "exact", head: true }),
+      supabase.from("search_tracks").select("*", { count: "exact", head: true }),
+    ]);
+    totalBefore = (pl ?? 0) + (tr ?? 0);
+  } catch (_) { /* segue, threshold cai pra 0 */ }
+
   try {
     // 1) Tracks órfãs: result_id NULL ou aponta para playlist deletada.
     //    Estratégia: pega ids de tracks com result_id que NÃO existe em search_results.
@@ -202,6 +212,48 @@ Deno.serve(async (req) => {
     result.total = result.orphan_tracks + result.orphan_playlists + result.low_quality + result.blacklisted + result.low_quality_24h;
     result.duration_ms = Date.now() - start;
 
+    // ============ RE-ANÁLISE AUTOMÁTICA ============
+    // Dispara analyze-genre → genre-insights → analyze-genre-visual-dna
+    // Critério: trigger=brain-run (sempre) OU >10% das linhas afetadas pela limpeza.
+    const affectedPct = totalBefore > 0 ? (result.total / totalBefore) * 100 : 0;
+    const shouldReanalyze = trigger === "brain-run" || affectedPct >= 10;
+    let reanalyzeInfo = "";
+
+    if (shouldReanalyze && result.total > 0) {
+      const { data: activeGenres } = await supabase
+        .from("genres")
+        .select("id, nome")
+        .eq("ativo", true);
+
+      const genres = activeGenres ?? [];
+      reanalyzeInfo = ` | reanalyze: ${genres.length} gêneros (afetado=${affectedPct.toFixed(1)}%)`;
+
+      // Fire-and-forget: encadeia analyze → insights → visual-dna por gênero, sem await.
+      for (const g of genres) {
+        const headers = {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${SERVICE_KEY}`,
+        };
+        (async () => {
+          try {
+            await fetch(`${SUPABASE_URL}/functions/v1/analyze-genre`, {
+              method: "POST", headers, body: JSON.stringify({ genre_id: g.id }),
+            });
+            await fetch(`${SUPABASE_URL}/functions/v1/genre-insights`, {
+              method: "POST", headers, body: JSON.stringify({ genre_id: g.id }),
+            });
+            await fetch(`${SUPABASE_URL}/functions/v1/analyze-genre-visual-dna`, {
+              method: "POST", headers, body: JSON.stringify({ genre_id: g.id }),
+            });
+          } catch (e) {
+            console.error(`reanalyze hook failed for ${g.nome}:`, (e as Error).message);
+          }
+        })();
+      }
+    } else {
+      reanalyzeInfo = ` | reanalyze: skipped (afetado=${affectedPct.toFixed(1)}%)`;
+    }
+
     const status = errors.length > 0 ? "parcial" : "sucesso";
     const mensagem =
       `cleanup-brain (${trigger}) | ` +
@@ -211,6 +263,7 @@ Deno.serve(async (req) => {
       `blacklist: ${result.blacklisted} | ` +
       `low_quality_24h: ${result.low_quality_24h} | ` +
       `TOTAL: ${result.total}` +
+      reanalyzeInfo +
       (errors.length > 0 ? ` | erros: ${errors.slice(0, 3).join("; ")}` : "");
 
     await supabase.from("collection_logs").insert({
@@ -220,7 +273,14 @@ Deno.serve(async (req) => {
       duracao_ms: result.duration_ms,
     });
 
-    return j({ ok: true, trigger, ...result, errors: errors.length ? errors : undefined });
+    return j({
+      ok: true,
+      trigger,
+      ...result,
+      affected_pct: Number(affectedPct.toFixed(2)),
+      reanalyze_triggered: shouldReanalyze && result.total > 0,
+      errors: errors.length ? errors : undefined,
+    });
   } catch (e) {
     const msg = (e as Error).message ?? String(e);
     console.error("cleanup-brain error", msg);
