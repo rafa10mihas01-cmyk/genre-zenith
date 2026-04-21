@@ -273,6 +273,18 @@ async function runPipeline(jobId: string, body: StartBody) {
       return;
     }
 
+    // 🟢 OTIMIZAÇÃO 1: CACHE-SKIP — se já temos ≥30 playlists relevantes coletadas
+    //    nos últimos 7 dias, pula a coleta Apify inteira e vai direto pra enrich+análise+briefing.
+    const CACHE_THRESHOLD = 30;
+    const CACHE_WINDOW_DAYS = 7;
+    const cacheSince = new Date(Date.now() - CACHE_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    const { count: freshCount } = await supabase
+      .from("search_results")
+      .select("*", { count: "exact", head: true })
+      .eq("genre_id", gid)
+      .gte("last_seen_at", cacheSince);
+    const cacheHit = (freshCount ?? 0) >= CACHE_THRESHOLD;
+
     // 1) Termos — fonte dinâmica:
     //    a) Se há KIT específico (funk/sertanejo/piseiro) → usa kit (curado, melhor qualidade)
     //    b) Senão → garante que generate-terms rodou (cria variações automáticas) e usa search_terms do gênero
@@ -302,65 +314,101 @@ async function runPipeline(jobId: string, body: StartBody) {
         }
       }
       // Seleciona top N termos priorizando: completo > variacao > contextual > prefixo
+      // 🟢 OTIMIZAÇÃO 2: também descarta termos comprovadamente fracos (executados c/ 0 resultados)
       const { data: allDyn } = await supabase
-        .from("search_terms").select("termo,tipo").eq("genre_id", gid);
+        .from("search_terms").select("termo,tipo,executado,total_resultados").eq("genre_id", gid);
       const tipoRank: Record<string, number> = { completo: 0, variacao: 1, contextual: 2, prefixo: 3, kit: 0 };
       const ordered = (allDyn ?? [])
         .filter((t: any) => (t.termo ?? "").length >= 3) // descarta prefixos curtíssimos
+        .filter((t: any) => !(t.executado === true && (t.total_resultados ?? 0) === 0)) // descarta termos fracos
         .sort((a: any, b: any) => (tipoRank[a.tipo] ?? 9) - (tipoRank[b.tipo] ?? 9));
       selectedTerms = ordered.slice(0, termsCount).map((t: any) => t.termo);
     }
+
+    // 🟢 OTIMIZAÇÃO 3: dedup case-insensitive (defesa extra)
+    const seenTerms = new Set<string>();
+    selectedTerms = selectedTerms.filter(t => {
+      const k = t.trim().toLowerCase();
+      if (!k || seenTerms.has(k)) return false;
+      seenTerms.add(k);
+      return true;
+    });
+
     const { data: termsRows } = await supabase
       .from("search_terms").select("id,termo")
       .eq("genre_id", gid).in("termo", selectedTerms);
     stages.terms = { count: termsRows?.length ?? 0, list: selectedTerms, source: kit ? "kit" : "dynamic" };
+    stages.cache_check = { fresh_playlists_7d: freshCount ?? 0, threshold: CACHE_THRESHOLD, cache_hit: cacheHit };
 
     // 2) Buscas — paralelizadas em batches (3 simultâneas no modo normal)
-    await setJob(supabase, gid, jobId, { status: "running", stage: "Buscando playlists...", progress: 15 });
+    // 2) Buscas — paralelizadas em batches (3 simultâneas no modo normal)
+    //    🟢 OTIMIZAÇÃO 4: se cacheHit, pula coleta inteira e contabiliza economia.
     let searchedOk = 0, searchedErr = 0, totalSavedResults = 0;
     let apifyBlocked = false;
+    let searchCalls = 0;
+    let callsAvoided = 0;
+    let playlistsReused = 0;
     const allTerms = termsRows ?? [];
     const total = allTerms.length || 1;
-    let processed = 0;
-    let searchCalls = 0;
     const MAX_SEARCH_CALLS = 5; // limite de proteção de custo por run
-    outer: for (let i = 0; i < allTerms.length; i += batchSize) {
-      const batch = allTerms.slice(i, i + batchSize);
-      const results = await Promise.all(batch.map((t) => {
-        searchCalls++;
-        return callFn("run-search", {
-          genre_id: gid, term_id: t.id, search_term: t.termo, max_results: maxPerSearch,
-        });
-      }));
-      for (const r of results) {
-        const d = r.data as any;
-        if (d?.blocked) { apifyBlocked = true; break; }
-        if (r.ok && d?.ok) {
-          searchedOk++;
-          totalSavedResults += d?.savedResults ?? 0;
-        } else searchedErr++;
-      }
-      processed += batch.length;
+
+    if (cacheHit) {
+      callsAvoided = Math.min(allTerms.length, MAX_SEARCH_CALLS);
+      playlistsReused = freshCount ?? 0;
       await setJob(supabase, gid, jobId, {
         status: "running",
-        stage: apifyBlocked
-          ? "⚠️ Coleta pausada — limite de API atingido"
-          : `Buscando playlists... (${processed}/${total})`,
-        progress: 15 + Math.round((processed / total) * 40),
+        stage: `♻️ Cache fresco (${playlistsReused} playlists em ${CACHE_WINDOW_DAYS}d) — pulando coleta`,
+        progress: 55,
       });
-      if (apifyBlocked) break outer;
-      if (searchCalls >= MAX_SEARCH_CALLS) {
-        await supabase.from("collection_logs").insert({
-          genre_id: gid, acao: "brain-run", status: "parcial",
-          mensagem: `MAX_SEARCH_CALLS (${MAX_SEARCH_CALLS}) atingido — interrompendo coleta`,
+      await supabase.from("collection_logs").insert({
+        genre_id: gid, acao: "cache-skip", status: "ok",
+        mensagem: `Coleta pulada — ${playlistsReused} playlists reaproveitadas, ${callsAvoided} chamadas Apify evitadas`,
+      });
+    } else {
+      await setJob(supabase, gid, jobId, { status: "running", stage: "Buscando playlists...", progress: 15 });
+      let processed = 0;
+      outer: for (let i = 0; i < allTerms.length; i += batchSize) {
+        const batch = allTerms.slice(i, i + batchSize);
+        const results = await Promise.all(batch.map((t) => {
+          searchCalls++;
+          return callFn("run-search", {
+            genre_id: gid, term_id: t.id, search_term: t.termo, max_results: maxPerSearch,
+          });
+        }));
+        for (const r of results) {
+          const d = r.data as any;
+          if (d?.blocked) { apifyBlocked = true; break; }
+          if (r.ok && d?.ok) {
+            searchedOk++;
+            totalSavedResults += d?.savedResults ?? 0;
+          } else searchedErr++;
+        }
+        processed += batch.length;
+        await setJob(supabase, gid, jobId, {
+          status: "running",
+          stage: apifyBlocked
+            ? "⚠️ Coleta pausada — limite de API atingido"
+            : `Buscando playlists... (${processed}/${total})`,
+          progress: 15 + Math.round((processed / total) * 40),
         });
-        break outer;
-      }
-      if (delayMs > 0 && i + batchSize < allTerms.length) {
-        await new Promise((res) => setTimeout(res, delayMs));
+        if (apifyBlocked) break outer;
+        if (searchCalls >= MAX_SEARCH_CALLS) {
+          await supabase.from("collection_logs").insert({
+            genre_id: gid, acao: "brain-run", status: "parcial",
+            mensagem: `MAX_SEARCH_CALLS (${MAX_SEARCH_CALLS}) atingido — interrompendo coleta`,
+          });
+          break outer;
+        }
+        if (delayMs > 0 && i + batchSize < allTerms.length) {
+          await new Promise((res) => setTimeout(res, delayMs));
+        }
       }
     }
-    stages.search = { ok: searchedOk, err: searchedErr, total_inserted: totalSavedResults, calls: searchCalls, blocked: apifyBlocked };
+    stages.search = {
+      ok: searchedOk, err: searchedErr, total_inserted: totalSavedResults,
+      calls: searchCalls, blocked: apifyBlocked,
+      cache_skip: cacheHit, calls_avoided: callsAvoided, playlists_reused: playlistsReused,
+    };
 
     // Circuit breaker: pipeline interrompido — não prossegue para enrich/analyze/briefing.
     if (apifyBlocked) {
@@ -516,6 +564,8 @@ async function runPipeline(jobId: string, body: StartBody) {
     }
 
     await measureCoverage();
+    // 🟢 OTIMIZAÇÃO 5: para ciclo se 2 iterações seguidas não enriquecem nada (evita queimar Apify à toa)
+    let zeroProgressStreak = 0;
     while (coverage < COVERAGE_TARGET && cycles < MAX_CYCLES) {
       cycles++;
       await setJob(supabase, gid, jobId, {
@@ -539,9 +589,22 @@ async function runPipeline(jobId: string, body: StartBody) {
       });
       const d = r.data as any;
       if (!r.ok || !d?.ok) break;
-      enrichedTotal += d.enriched ?? 0;
+      const gained = d.enriched ?? 0;
+      enrichedTotal += gained;
       tracksTotal += d.tracks_saved ?? 0;
       if (!d.processed || d.processed === 0) break;
+      if (gained === 0) {
+        zeroProgressStreak++;
+        if (zeroProgressStreak >= 2) {
+          await supabase.from("collection_logs").insert({
+            genre_id: gid, acao: "enrich-guard", status: "parcial",
+            mensagem: `Enrich parado: 2 ciclos sem progresso (URLs inválidas ou Spotify 404)`,
+          });
+          break;
+        }
+      } else {
+        zeroProgressStreak = 0;
+      }
       await measureCoverage();
     }
     if (coverage < COVERAGE_TARGET) partial = true;
@@ -603,9 +666,12 @@ async function runPipeline(jobId: string, body: StartBody) {
     const coveragePct = Math.round(coverage * 100);
     const summary = `${enrichedCount} de ${totalPls} playlists analisadas (${coveragePct}%)`;
 
+    const economyTag = cacheHit
+      ? ` • ♻️ ${callsAvoided} chamadas Apify evitadas, ${playlistsReused} playlists reaproveitadas`
+      : "";
     await supabase.from("collection_logs").insert({
       genre_id: gid, acao: "brain-run", status: partial ? "parcial" : "sucesso",
-      mensagem: `Concluído em ${Math.round((Date.now() - start)/1000)}s — ${searchedOk} buscas, ${summary}, ${cycles} ciclos enrich, ${irrelevant.length} filtradas, ${tCnt.count ?? 0} faixas`,
+      mensagem: `Concluído em ${Math.round((Date.now() - start)/1000)}s — ${searchedOk} buscas, ${summary}, ${cycles} ciclos enrich, ${irrelevant.length} filtradas, ${tCnt.count ?? 0} faixas${economyTag}`,
       duracao_ms: Date.now() - start,
     });
 
