@@ -136,9 +136,37 @@ Deno.serve(async (req) => {
         }
       }
     }
-    const insights = (model.insights as any) ?? {};
-    const dnaVisual = insights.dna_visual ?? null;
+    let insights = (model.insights as any) ?? {};
+    let dnaVisual = insights.dna_visual ?? null;
     const subgeneros: any[] = Array.isArray(insights.subgeneros) ? insights.subgeneros : [];
+
+    // 🎨 AUTO-TRIGGER DNA VISUAL: se chamada direta (sem brain-run) e não há DNA persistido,
+    // dispara analyze-genre-visual-dna best-effort pra que dna_capa não fique null nos cards.
+    if (!dnaVisual) {
+      try {
+        console.log(`[briefing] dna_visual ausente — disparando analyze-genre-visual-dna...`);
+        const dnaResp = await fetch(`${SUPABASE_URL}/functions/v1/analyze-genre-visual-dna`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${SERVICE_KEY}`,
+          },
+          body: JSON.stringify({ genre_id: body.genre_id }),
+        });
+        if (dnaResp.ok) {
+          const dnaJson = await dnaResp.json().catch(() => ({}));
+          if (dnaJson?.ok && dnaJson?.dna_visual) {
+            dnaVisual = dnaJson.dna_visual;
+            insights = { ...insights, dna_visual: dnaVisual };
+            console.log(`[briefing] ✅ DNA visual extraído on-the-fly: ${dnaVisual?.estilo_dominante}`);
+          } else {
+            console.log(`[briefing] ⚠️ DNA visual on-the-fly falhou:`, dnaJson?.error ?? "sem retorno");
+          }
+        }
+      } catch (e) {
+        console.log(`[briefing] ⚠️ DNA visual on-the-fly exception:`, (e as Error).message);
+      }
+    }
     // Total real do corpus analisado (não só as dominantes)
     const totalPlaylists = Math.max(corpusCount ?? 0, playlistsDom.length, 1);
 
