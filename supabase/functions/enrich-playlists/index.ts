@@ -25,6 +25,39 @@ function extractPlaylistId(url: string): string | null {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+// ============ PHASE 2 (POST-ENRICH VALIDATION) ============
+// Avalia qualidade APÓS termos números reais do Spotify.
+// Fontes da verdade: followers + total_musicas vindos da Spotify Web API.
+const PHASE2_MIN_FOLLOWERS = 100;
+const PHASE2_MIN_TRACKS = 20;
+
+function computeQualityScore(opts: {
+  followers: number | null;
+  totalTracks: number | null;
+  descricao: string | null;
+  imagem: string | null;
+}): number {
+  const { followers, totalTracks, descricao, imagem } = opts;
+  let q = 0;
+  const f = followers ?? 0;
+  if (f >= 100_000) q += 50;
+  else if (f >= 10_000) q += 40;
+  else if (f >= 1_000) q += 30;
+  else if (f >= 100) q += 15;
+  else if (f > 0) q += 5;
+
+  const t = totalTracks ?? 0;
+  if (t >= 100) q += 30;
+  else if (t >= 50) q += 20;
+  else if (t >= 30) q += 12;
+  else if (t >= 10) q += 5;
+
+  if (imagem && imagem.length > 10) q += 10;
+  if (descricao && descricao.trim().length >= 20) q += 10;
+
+  return Math.min(100, Math.max(0, q));
+}
+
 type SpotifyResp = { followers: number | null; total: number | null; status: number };
 
 async function fetchSpotifyPlaylist(id: string, token: string): Promise<SpotifyResp> {
