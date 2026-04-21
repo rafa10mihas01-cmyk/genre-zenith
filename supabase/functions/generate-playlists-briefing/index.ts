@@ -235,12 +235,20 @@ Deno.serve(async (req) => {
     const subsRanked = [...subgeneros]
       .filter((s: any) => s.slug || s.nome)
       .sort((a: any, b: any) => (b.total_playlists ?? 0) - (a.total_playlists ?? 0));
-    const subQuota = new Map<string, { max: number; count: number }>();
+    const subQuota = new Map<string, { max: number; min: number; count: number }>();
     for (let i = 0; i < subsRanked.length; i++) {
       const slug = String(subsRanked[i].slug ?? subsRanked[i].nome).toLowerCase();
-      // top1: até 4 cards | top2: até 3 | top3-4: até 2 | resto: até 1
-      const max = i === 0 ? 4 : i === 1 ? 3 : i < 4 ? 2 : 1;
-      subQuota.set(slug, { max, count: 0 });
+      // STRICT: prioriza volume — top1=4, top2=3, top3-4=2, resto=1, sem mínimo
+      // EXPANSAO: distribuição mais plana + mínimo 1-2 por sub detectado
+      let max: number, min: number;
+      if (briefingMode === "expansao") {
+        max = i === 0 ? 3 : 2;
+        min = i < 2 ? 2 : 1; // garante 1-2 cards mesmo em subs fracos
+      } else {
+        max = i === 0 ? 4 : i === 1 ? 3 : i < 4 ? 2 : 1;
+        min = 0;
+      }
+      subQuota.set(slug, { max, min, count: 0 });
     }
 
     for (let fi = 0; fi < sortedFormats.length && valid.length < MAX_RESULTS; fi++) {
