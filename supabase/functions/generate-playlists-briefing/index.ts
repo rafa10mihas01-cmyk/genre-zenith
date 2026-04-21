@@ -568,6 +568,8 @@ Deno.serve(async (req) => {
           acc[k] = (acc[k] ?? 0) + 1; return acc;
         }, {}),
         briefing_mode: briefingMode,
+        survival_mode: survivalMode,
+        ...(survivalMode ? { apify_blocked: true, data_freshness: "stale", effective_filters: { MIN_FREQ_PCT: effMinFreqPct, MIN_REPETITIONS: effMinReps, HARD_MIN_TRACKS } } : {}),
         ai: aiStats,
         generated_at: new Date().toISOString(),
         duration_ms: Date.now() - start,
