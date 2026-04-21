@@ -141,8 +141,18 @@ Deno.serve(async (req) => {
     ]);
     const slug = (genre?.slug ?? "").toLowerCase();
     const nome = (genre?.nome ?? "").toLowerCase();
+    const slugOrNome = (genre?.slug ?? "").toLowerCase() || nome;
     const termLower = body.search_term.toLowerCase();
     const blacklist = (filt?.blacklist as string[] | undefined)?.map(b => b.toLowerCase()) ?? DEFAULT_BLACKLIST;
+
+    // STRONG_BLACKLIST: rejeição imediata por gênero (escopo: funk BR)
+    const STRONG_BLACKLIST_BY_GENRE: Record<string, string[]> = {
+      funk: [
+        "phonk","kordhell","eternxlkz","boogie","disco","oldies","chicano",
+        "bruno mars","uptown funk","pocoyo","meow","anime","jjk","yuji","edit anime",
+      ],
+    };
+    const strongBlacklist = STRONG_BLACKLIST_BY_GENRE[slugOrNome] ?? [];
 
     // Extrai sinais do modelo (cold-start safe: arrays vazios)
     const modelKeywords: string[] = (() => {
@@ -184,6 +194,13 @@ Deno.serve(async (req) => {
       const haystack = `${nameLow} ${descLow}`;
       let score = 0;
       const reasons: string[] = [];
+
+      // STRONG_BLACKLIST: rejeição imediata se nome OU descrição contém termo proibido
+      const strongHit = strongBlacklist.find(b => b && haystack.includes(b));
+      if (strongHit) {
+        reasons.push(`strong_blacklist:${strongHit}`);
+        return { score: -999, reasons, hardBlock: true };
+      }
 
       // Positivos
       if (nameLow.includes(termLower)) { score += 30; reasons.push("+30 name~term"); }
