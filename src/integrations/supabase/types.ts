@@ -70,6 +70,7 @@ export type Database = {
           genre_id: string
           id: string
           max_playlists: number
+          max_search_calls: number | null
           min_followers: number | null
           updated_at: string
         }
@@ -80,6 +81,7 @@ export type Database = {
           genre_id: string
           id?: string
           max_playlists?: number
+          max_search_calls?: number | null
           min_followers?: number | null
           updated_at?: string
         }
@@ -90,6 +92,7 @@ export type Database = {
           genre_id?: string
           id?: string
           max_playlists?: number
+          max_search_calls?: number | null
           min_followers?: number | null
           updated_at?: string
         }
@@ -284,6 +287,8 @@ export type Database = {
           apify_run_id: string | null
           coletado_em: string | null
           descricao: string | null
+          enrich_attempted_at: string | null
+          enrich_attempts: number
           enrich_failed: boolean
           first_seen_at: string
           genre_id: string | null
@@ -291,7 +296,6 @@ export type Database = {
           imagem_url: string | null
           last_seen_at: string
           nome_playlist: string
-          owner_country: string | null
           posicao: number
           priority_score: number | null
           seguidores: number | null
@@ -305,6 +309,8 @@ export type Database = {
           apify_run_id?: string | null
           coletado_em?: string | null
           descricao?: string | null
+          enrich_attempted_at?: string | null
+          enrich_attempts?: number
           enrich_failed?: boolean
           first_seen_at?: string
           genre_id?: string | null
@@ -312,7 +318,6 @@ export type Database = {
           imagem_url?: string | null
           last_seen_at?: string
           nome_playlist: string
-          owner_country?: string | null
           posicao: number
           priority_score?: number | null
           seguidores?: number | null
@@ -326,6 +331,8 @@ export type Database = {
           apify_run_id?: string | null
           coletado_em?: string | null
           descricao?: string | null
+          enrich_attempted_at?: string | null
+          enrich_attempts?: number
           enrich_failed?: boolean
           first_seen_at?: string
           genre_id?: string | null
@@ -333,7 +340,6 @@ export type Database = {
           imagem_url?: string | null
           last_seen_at?: string
           nome_playlist?: string
-          owner_country?: string | null
           posicao?: number
           priority_score?: number | null
           seguidores?: number | null
