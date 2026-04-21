@@ -292,6 +292,36 @@ Deno.serve(async (req) => {
     clearTimeout(timeoutHandle);
     const msg = (e as Error).message ?? String(e);
     console.error("run-search error", msg);
+
+    // Circuit breaker: bloqueio do Apify (limit exceeded / 403)
+    if (e instanceof ApifyBlockedError) {
+      // Ativa flag global
+      const { data: f } = await supabase
+        .from("system_flags").select("id").order("created_at", { ascending: true }).limit(1).maybeSingle();
+      if (f?.id) {
+        await supabase.from("system_flags").update({
+          apify_blocked: true,
+          apify_blocked_at: new Date().toISOString(),
+          apify_blocked_reason: msg.slice(0, 300),
+        }).eq("id", f.id);
+      } else {
+        await supabase.from("system_flags").insert({
+          apify_blocked: true,
+          apify_blocked_at: new Date().toISOString(),
+          apify_blocked_reason: msg.slice(0, 300),
+        });
+      }
+      await supabase.from("collection_logs").insert({
+        genre_id: body.genre_id, term_id: body.term_id,
+        acao: "apify-blocked", status: "erro",
+        mensagem: "Apify limit exceeded - circuit breaker activated",
+        duracao_ms: Date.now() - start,
+      });
+      return new Response(JSON.stringify({ ok: false, blocked: true, reason: "APIFY_LIMIT" }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     await supabase.from("collection_logs").insert({
       genre_id: body.genre_id,
       term_id: body.term_id,
