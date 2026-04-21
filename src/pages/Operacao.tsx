@@ -6,6 +6,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { PageHeader } from "@/components/PageHeader";
 
 /**
  * OPERAÇÃO — painel de controle contínuo das playlists já publicadas.
@@ -44,21 +45,17 @@ export default function Operacao() {
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto">
-      {/* HEADER */}
-      <header className="flex items-end justify-between gap-4 flex-wrap">
-        <div className="space-y-1">
-          <div className="inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-bold">
-            <Activity className="h-3 w-3 text-primary" /> Módulo de Operação
-          </div>
-          <h1 className="text-3xl font-bold tracking-tight">Operação</h1>
-          <p className="text-sm text-muted-foreground">
-            Controle contínuo das playlists já publicadas. Manutenção, trocas e ajustes do dia-a-dia.
-          </p>
-        </div>
-        <Button variant="premium" className="rounded-full h-9 gap-1.5">
-          <Plus className="h-4 w-4" /> Adicionar playlist
-        </Button>
-      </header>
+      <PageHeader
+        kicker="Módulo de Operação"
+        icon={Activity}
+        title="Operação"
+        subtitle="Controlar playlists já publicadas: monitorar status, executar trocas e ajustes do dia-a-dia."
+        actions={
+          <Button variant="premium" className="rounded-full h-9 gap-1.5">
+            <Plus className="h-4 w-4" /> Adicionar playlist
+          </Button>
+        }
+      />
 
       {/* KPIs operacionais (zerados — sem mentir) */}
       <section className="grid grid-cols-2 md:grid-cols-5 gap-3">
