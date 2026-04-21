@@ -28,6 +28,7 @@ export type PlaylistBriefing = {
   formato_id: string;
   confidence: "alta" | "media" | "baixa";
   origem?: "strict" | "expansao";
+  origem_ia?: boolean;
   subgenero?: { slug: string; nome: string } | null;
   keywords_utilizadas: { value: string; peso: number }[];
   base_musical: {
@@ -40,6 +41,18 @@ export type PlaylistBriefing = {
     total_referencias: number;
   };
   dna_capa: DnaVisual | null;
+  briefing_ai?: {
+    regras_nome: string[];
+    capa_instrucao: string;
+    descricao: string;
+    regras_obrigatorias: string[];
+    provider: string;
+  };
+  ai_validation?: {
+    status: "coerente" | "incoerente";
+    motivo: string;
+    provider: string;
+  };
   justificativa: {
     frequencia_padrao_pct: number;
     repeticao_em_playlists: number;
