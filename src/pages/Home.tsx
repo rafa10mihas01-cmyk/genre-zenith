@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Brain, Sparkles, ListMusic, Music2, TrendingUp, ArrowRight, Activity, Loader2 } from "lucide-react";
 import { formatNumber, timeAgo } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { genreStyleVars } from "@/lib/genreColors";
 
 /**
  * HOME — Resumo executivo do sistema.
@@ -216,11 +217,31 @@ function GenreCardItem({ g }: { g: GenreCard }) {
   return (
     <Link
       to={`/cerebro/${g.slug}`}
-      className="nx-card-hover p-5 group flex flex-col gap-4 relative overflow-hidden"
+      style={genreStyleVars(g.slug || g.nome)}
+      className="genre-card nx-card-hover p-5 group flex flex-col gap-4 relative overflow-hidden"
     >
-      {/* Avatar circular grande estilo Spotify */}
-      <div className="flex items-start justify-between">
-        <div className="h-14 w-14 rounded-full bg-elevated border border-border flex items-center justify-center text-xl font-bold text-foreground/80 shrink-0 group-hover:border-primary/40 transition-colors">
+      {/* Glow de fundo na cor do gênero (sutil) */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 opacity-60 group-hover:opacity-100 transition-opacity duration-300"
+        style={{
+          background:
+            "radial-gradient(circle at 0% 0%, hsl(var(--g) / 0.18) 0%, transparent 55%)",
+        }}
+      />
+
+      {/* Avatar circular grande estilo Spotify, tingido pela cor do gênero */}
+      <div className="relative flex items-start justify-between">
+        <div
+          className="h-14 w-14 rounded-full flex items-center justify-center text-xl font-bold shrink-0 transition-all"
+          style={{
+            background:
+              "linear-gradient(135deg, hsl(var(--g) / 0.35), hsl(var(--g) / 0.10))",
+            border: "1px solid hsl(var(--g) / 0.45)",
+            color: "hsl(var(--g))",
+            boxShadow: "0 0 20px -8px hsl(var(--g) / 0.5)",
+          }}
+        >
           {g.nome.slice(0, 2).toUpperCase()}
         </div>
         <span className={cn("text-[10px] uppercase tracking-wider font-bold", statusColor)}>
@@ -228,7 +249,7 @@ function GenreCardItem({ g }: { g: GenreCard }) {
         </span>
       </div>
 
-      <div className="space-y-1">
+      <div className="relative space-y-1">
         <h3 className="text-lg font-bold capitalize leading-tight">{g.nome}</h3>
         <p className="text-[11px] text-muted-foreground">
           {g.ultima_analise
@@ -239,13 +260,20 @@ function GenreCardItem({ g }: { g: GenreCard }) {
         </p>
       </div>
 
-      <div className="flex items-center gap-4 pt-1 mt-auto">
+      <div className="relative flex items-center gap-4 pt-1 mt-auto">
         <Metric label="Playlists" value={formatNumber(g.total_playlists)} />
         <Metric label="Faixas" value={formatNumber(g.total_musicas)} />
       </div>
 
-      {/* Hover: aparece botão circular verde estilo Spotify */}
-      <div className="absolute bottom-4 right-4 h-10 w-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all shadow-lg shadow-primary/30">
+      {/* Botão hover na cor do gênero */}
+      <div
+        className="absolute bottom-4 right-4 h-10 w-10 rounded-full flex items-center justify-center opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all"
+        style={{
+          background: "hsl(var(--g))",
+          color: "#000",
+          boxShadow: "0 8px 24px -6px hsl(var(--g) / 0.6)",
+        }}
+      >
         <Sparkles className="h-4 w-4" />
       </div>
     </Link>
