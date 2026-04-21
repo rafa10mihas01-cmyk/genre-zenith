@@ -564,6 +564,7 @@ Deno.serve(async (req) => {
           acc[k] = (acc[k] ?? 0) + 1; return acc;
         }, {}),
         briefing_mode: briefingMode,
+        ai: aiStats,
         generated_at: new Date().toISOString(),
         duration_ms: Date.now() - start,
       },
