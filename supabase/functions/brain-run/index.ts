@@ -646,6 +646,35 @@ Deno.serve(async (req) => {
   // Aceita qualquer slug existente em `genres`. Se houver KIT específico (funk/sertanejo/piseiro),
   // ele é usado como boost de qualidade; caso contrário, generate-terms cria os termos dinamicamente.
 
+  // Circuit breaker GLOBAL: se Apify está bloqueado, não inicia pipeline.
+  // Reset automático após 24h.
+  const supabaseCheck = createClient(SUPABASE_URL, SERVICE_KEY);
+  const { data: flag } = await supabaseCheck
+    .from("system_flags")
+    .select("id,apify_blocked,apify_blocked_at,apify_blocked_reason")
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (flag?.apify_blocked) {
+    const blockedAt = flag.apify_blocked_at ? new Date(flag.apify_blocked_at).getTime() : 0;
+    const ageMs = Date.now() - blockedAt;
+    if (ageMs > 24 * 60 * 60 * 1000) {
+      await supabaseCheck.from("system_flags").update({
+        apify_blocked: false, apify_blocked_at: null, apify_blocked_reason: null,
+      }).eq("id", flag.id);
+    } else {
+      await supabaseCheck.from("collection_logs").insert({
+        acao: "brain-run", status: "erro",
+        mensagem: "Execução cancelada - Apify bloqueado (circuit breaker global)",
+      });
+      return jr({
+        ok: false, blocked: true, reason: "APIFY_BLOCKED_GLOBAL",
+        blocked_at: flag.apify_blocked_at, blocked_reason: flag.apify_blocked_reason,
+        message: "⚠️ Coleta pausada — limite de API atingido. Reset automático em 24h.",
+      }, 200);
+    }
+  }
+
   const jobId = crypto.randomUUID();
 
   // @ts-ignore EdgeRuntime global
