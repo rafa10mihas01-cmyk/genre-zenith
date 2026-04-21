@@ -320,6 +320,7 @@ Deno.serve(async (req) => {
             owner_country: ownerCountry,
             times_seen: (existing.times_seen ?? 1) + 1,
             last_seen_at: new Date().toISOString(),
+            score,
           }).eq("id", existing.id);
           if (updErr) {
             console.error("update result err", updErr);
@@ -346,6 +347,7 @@ Deno.serve(async (req) => {
             apify_run_id: runId,
             owner_country: ownerCountry,
             times_seen: 1,
+            score,
           })
           .select("id")
           .single();
