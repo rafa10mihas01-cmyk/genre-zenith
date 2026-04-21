@@ -40,7 +40,7 @@ Deno.serve(async (req) => {
 
   try {
     // ═══════════════ CARREGAR DADOS ═══════════════
-    const [{ data: genre }, { data: model }, { data: history }, { count: corpusCount }] = await Promise.all([
+    const [{ data: genre }, { data: model }, { data: history }, { count: corpusCount }, { data: filters }] = await Promise.all([
       supabase.from("genres").select("id,nome,slug").eq("id", body.genre_id).single(),
       supabase.from("genre_models").select("*").eq("genre_id", body.genre_id).maybeSingle(),
       supabase.from("genre_models_history")
@@ -51,7 +51,15 @@ Deno.serve(async (req) => {
       supabase.from("search_results")
         .select("id", { count: "exact", head: true })
         .eq("genre_id", body.genre_id),
+      supabase.from("genre_filters")
+        .select("briefing_mode")
+        .eq("genre_id", body.genre_id)
+        .maybeSingle(),
     ]);
+
+    // 🎛️ MODO DE DISTRIBUIÇÃO: 'strict' (padrão) ou 'expansao'
+    const briefingMode: "strict" | "expansao" =
+      (filters?.briefing_mode === "expansao") ? "expansao" : "strict";
 
     if (!genre) return j({ error: "Gênero não encontrado" }, 404);
     if (!model) return j({ error: "Sem modelo. Execute analyze-genre primeiro." }, 400);
