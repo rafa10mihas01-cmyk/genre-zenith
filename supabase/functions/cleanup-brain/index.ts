@@ -199,7 +199,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    result.total = result.orphan_tracks + result.orphan_playlists + result.low_quality + result.blacklisted;
+    result.total = result.orphan_tracks + result.orphan_playlists + result.low_quality + result.blacklisted + result.low_quality_24h;
     result.duration_ms = Date.now() - start;
 
     const status = errors.length > 0 ? "parcial" : "sucesso";
@@ -209,6 +209,7 @@ Deno.serve(async (req) => {
       `playlists_sem_id: ${result.orphan_playlists} | ` +
       `baixa_qualidade: ${result.low_quality} | ` +
       `blacklist: ${result.blacklisted} | ` +
+      `low_quality_24h: ${result.low_quality_24h} | ` +
       `TOTAL: ${result.total}` +
       (errors.length > 0 ? ` | erros: ${errors.slice(0, 3).join("; ")}` : "");
 
