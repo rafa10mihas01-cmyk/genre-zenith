@@ -666,9 +666,12 @@ async function runPipeline(jobId: string, body: StartBody) {
     const coveragePct = Math.round(coverage * 100);
     const summary = `${enrichedCount} de ${totalPls} playlists analisadas (${coveragePct}%)`;
 
+    const economyTag = cacheHit
+      ? ` • ♻️ ${callsAvoided} chamadas Apify evitadas, ${playlistsReused} playlists reaproveitadas`
+      : "";
     await supabase.from("collection_logs").insert({
       genre_id: gid, acao: "brain-run", status: partial ? "parcial" : "sucesso",
-      mensagem: `Concluído em ${Math.round((Date.now() - start)/1000)}s — ${searchedOk} buscas, ${summary}, ${cycles} ciclos enrich, ${irrelevant.length} filtradas, ${tCnt.count ?? 0} faixas`,
+      mensagem: `Concluído em ${Math.round((Date.now() - start)/1000)}s — ${searchedOk} buscas, ${summary}, ${cycles} ciclos enrich, ${irrelevant.length} filtradas, ${tCnt.count ?? 0} faixas${economyTag}`,
       duracao_ms: Date.now() - start,
     });
 
