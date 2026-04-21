@@ -559,7 +559,11 @@ Responda JSON: {"playlists": [{"idx": 1, "nome_final": "..."}, ...]}`
           const k = c.subgenero?.slug ?? "_sem_classificacao";
           acc[k] = (acc[k] ?? 0) + 1; return acc;
         }, {}),
-        filtros: { MIN_FREQ_PCT, MIN_REPETITIONS, MIN_KEYWORDS, KW_MIN_PCT },
+        filtros: { MIN_FREQ_PCT, MIN_REPETITIONS, MIN_KEYWORDS, KW_MIN_PCT, HARD_MIN_FREQ_PCT, HARD_MIN_REP, HARD_MIN_TRACKS, SCORE_MIN_EXPANSAO },
+        cards_por_origem: valid.reduce((acc: Record<string, number>, c: any) => {
+          const k = c.origem ?? "strict";
+          acc[k] = (acc[k] ?? 0) + 1; return acc;
+        }, {}),
         briefing_mode: briefingMode,
         generated_at: new Date().toISOString(),
         duration_ms: Date.now() - start,
