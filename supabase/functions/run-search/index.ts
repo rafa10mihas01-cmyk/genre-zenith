@@ -195,6 +195,13 @@ Deno.serve(async (req) => {
       let score = 0;
       const reasons: string[] = [];
 
+      // STRONG_BLACKLIST: rejeição imediata se nome OU descrição contém termo proibido
+      const strongHit = strongBlacklist.find(b => b && haystack.includes(b));
+      if (strongHit) {
+        reasons.push(`strong_blacklist:${strongHit}`);
+        return { score: -999, reasons, hardBlock: true };
+      }
+
       // Positivos
       if (nameLow.includes(termLower)) { score += 30; reasons.push("+30 name~term"); }
       else if (slug && nameLow.includes(slug)) { score += 20; reasons.push("+20 name~slug"); }
