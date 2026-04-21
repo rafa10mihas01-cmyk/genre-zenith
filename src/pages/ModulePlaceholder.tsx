@@ -1,8 +1,9 @@
-import { Construction, Sparkles, BarChart3 } from "lucide-react";
+import { Construction, Sparkles } from "lucide-react";
+import { PageHeader } from "@/components/PageHeader";
 
 /**
- * Placeholder padrão de módulo. Usa o MESMO layout/spacing/cards do resto do sistema.
- * Toda nova página criada DEVE seguir esse padrão visual.
+ * Placeholder padrão de módulo. Usa o PageHeader global obrigatório.
+ * Toda nova página criada DEVE seguir este padrão visual.
  */
 export default function ModulePlaceholder({
   title,
@@ -11,19 +12,18 @@ export default function ModulePlaceholder({
   phase = "uma próxima fase",
 }: {
   title: string;
-  subtitle?: string;
+  subtitle: string;
   icon?: any;
   phase?: string;
 }) {
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto">
-      <header className="space-y-1">
-        <div className="inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-bold">
-          <Icon className="h-3 w-3 text-primary" /> Módulo
-        </div>
-        <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
-        {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
-      </header>
+      <PageHeader
+        kicker="Módulo"
+        icon={Icon}
+        title={title}
+        subtitle={subtitle}
+      />
 
       <div className="nx-card p-12 text-center max-w-2xl mx-auto">
         <div className="h-14 w-14 rounded-full bg-elevated border border-border mx-auto flex items-center justify-center">
