@@ -609,7 +609,8 @@ Deno.serve(async (req) => {
   try { body = await req.json(); } catch { return jr({ error: "Invalid JSON" }, 400); }
   if (!body.slug) return jr({ error: "slug obrigatório" }, 400);
   const slug = body.slug.toLowerCase();
-  if (!KITS[slug]) return jr({ error: `Nicho '${slug}' sem kit. Suportados: ${Object.keys(KITS).join(", ")}` }, 400);
+  // Aceita qualquer slug existente em `genres`. Se houver KIT específico (funk/sertanejo/piseiro),
+  // ele é usado como boost de qualidade; caso contrário, generate-terms cria os termos dinamicamente.
 
   const jobId = crypto.randomUUID();
 
