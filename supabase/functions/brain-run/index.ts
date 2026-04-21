@@ -100,6 +100,7 @@ async function acquireLock(
 
 // Garante que o briefing seja gerado SEMPRE que existir um genre_model.
 // Tenta até 2x. Não lança — apenas loga em stages e collection_logs.
+// 🔒 Lock idempotente: evita briefing duplicado dentro da mesma janela.
 async function ensureBriefing(supabase: any, gid: string, stages: Record<string, unknown>, opts?: { survival_mode?: boolean }) {
   // Pré-condição: precisa existir genre_models pro briefing rodar
   const { data: model } = await supabase
@@ -110,6 +111,12 @@ async function ensureBriefing(supabase: any, gid: string, stages: Record<string,
       genre_id: gid, acao: "generate-briefing", status: "erro",
       mensagem: "Briefing pulado: genre_model inexistente",
     }).then(() => {}, () => {});
+    return;
+  }
+  // 🔒 Lock: se outro pipeline já gerou briefing nos últimos 5 min, pula
+  const got = await acquireLock(supabase, gid, "generate-briefing", 300);
+  if (!got) {
+    stages.briefing = { ok: true, skipped: true, reason: "lock — briefing recente já existe" };
     return;
   }
   for (let attempt = 1; attempt <= 2; attempt++) {
