@@ -106,7 +106,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                   "radial-gradient(ellipse 80% 60% at 50% 0%, hsl(141 76% 48% / 0.10) 0%, hsl(141 76% 48% / 0.04) 30%, transparent 70%)",
               }}
             />
-            <div className="relative z-10 px-6 lg:px-8 py-6">{children}</div>
+            <div className="nx-page relative z-10">{children}</div>
           </main>
         </div>
       </div>
