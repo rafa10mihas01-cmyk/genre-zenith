@@ -22,7 +22,14 @@ const TRACKS_PER_CARD = 5;
 const HARD_MIN_FREQ_PCT = 1;     // < 1% nunca entra, nem em expansão
 const HARD_MIN_REP = 1;          // < 1 repetição nunca entra
 const HARD_MIN_TRACKS = 2;       // < 2 músicas relevantes nunca entra
-const SCORE_MIN_EXPANSAO = 15;   // score mínimo pra card expansão sobreviver
+const SCORE_MIN_EXPANSAO = 8;    // score mínimo relaxado (antes 15 — impedia base pequena)
+const EXPANSAO_MIN_KEYWORDS = 1; // expansão aceita cards com 1 keyword válida
+const EXPANSAO_TARGET_CARDS = 5; // alvo mínimo de cards extra em expansão
+// Conceitos sintéticos pra forçar variação quando formatos acabam
+const SYNTHETIC_CONCEPTS = [
+  "essenciais", "favoritas", "clássicos", "novidades", "underground",
+  "mix", "tops", "hits", "vibes", "selection",
+];
 
 function j(payload: any, status = 200) {
   return new Response(JSON.stringify(payload), {
