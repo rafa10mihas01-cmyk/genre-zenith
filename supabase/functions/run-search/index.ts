@@ -174,6 +174,13 @@ Deno.serve(async (req) => {
         continue;
       }
 
+      // 🛡️ Guard: rejeita playlists sem ID extraível ou URL truncada/inválida.
+      // Sem isso, registro fica órfão (sem dedup, sem enrich) e polui o dataset.
+      if (!playlistId || !url || !/playlist\/[A-Za-z0-9]{16,}/.test(url)) {
+        filteredOut++;
+        continue;
+      }
+
       // UPSERT manual (tabela tem unique parcial em (genre_id, spotify_playlist_id))
       let resultId: string | null = null;
       if (playlistId) {
