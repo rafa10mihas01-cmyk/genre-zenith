@@ -555,7 +555,7 @@ async function runPipeline(jobId: string, body: StartBody) {
 
     const { data: kept } = await supabase
       .from("search_results")
-      .select("id,posicao,seguidores,times_seen,owner_country")
+      .select("id,posicao,seguidores,times_seen")
       .eq("genre_id", gid);
     const keptArr = kept ?? [];
 
@@ -572,15 +572,14 @@ async function runPipeline(jobId: string, body: StartBody) {
       dynamicMin = Math.max(200, p25);
     }
 
-    // Score
+    // Score (owner_country removido — campo não populado, brBonus eliminado)
     const LOG_MAX = Math.log10(1e7);
     const scored = keptArr.map((r: any) => {
       const posScore = r.posicao && r.posicao > 0 ? (1 / r.posicao) : 0;
       const folScore = typeof r.seguidores === "number" && r.seguidores > 0
         ? Math.min(1, Math.log10(r.seguidores + 1) / LOG_MAX) : 0;
       const seenScore = Math.min(5, r.times_seen ?? 1) / 5;
-      const brBonus = r.owner_country === "BR" ? 0.1 : 0;
-      const score = posScore * 0.4 + folScore * 0.4 + seenScore * 0.2 + brBonus;
+      const score = posScore * 0.4 + folScore * 0.4 + seenScore * 0.2;
       return { id: r.id, seguidores: r.seguidores, score };
     });
     // Aplica threshold (quem ainda não tem followers passa pra ser enriquecido depois)
