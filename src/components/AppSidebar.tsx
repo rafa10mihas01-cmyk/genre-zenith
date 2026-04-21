@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { Home, Brain, Sparkles, BarChart3, Settings, LogOut, Zap } from "lucide-react";
+import { Home, Brain, Sparkles, BarChart3, Settings, LogOut, Zap, Activity } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, SidebarFooter, useSidebar,
@@ -8,12 +8,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-// 5 módulos do sistema. Padrão fixo, escalável.
+// 6 módulos do sistema. Padrão fixo, escalável.
 // Para adicionar um novo módulo: criar página + rota em App.tsx + entrada aqui.
 const items = [
   { title: "Home", url: "/", icon: Home, end: true },
   { title: "Cérebro", url: "/cerebro", icon: Brain },
   { title: "Criação", url: "/criacao", icon: Sparkles },
+  { title: "Operação", url: "/operacao", icon: Activity },
   { title: "Performance", url: "/performance", icon: BarChart3 },
   { title: "Configurações", url: "/configuracoes", icon: Settings },
 ];
