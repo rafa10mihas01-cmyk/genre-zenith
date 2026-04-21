@@ -381,6 +381,9 @@ Deno.serve(async (req) => {
             score,
             is_valid: true,
             validation_reason: null,
+            quality_score: qualityScore,
+            quality_flag: qualityFlag,
+            quality_flagged_at: qualityFlaggedAt,
           })
           .select("id")
           .single();
