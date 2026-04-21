@@ -467,6 +467,33 @@ export type Database = {
         }
         Relationships: []
       }
+      system_flags: {
+        Row: {
+          apify_blocked: boolean
+          apify_blocked_at: string | null
+          apify_blocked_reason: string | null
+          created_at: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          apify_blocked?: boolean
+          apify_blocked_at?: string | null
+          apify_blocked_reason?: string | null
+          created_at?: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          apify_blocked?: boolean
+          apify_blocked_at?: string | null
+          apify_blocked_reason?: string | null
+          created_at?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
