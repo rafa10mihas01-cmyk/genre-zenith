@@ -23,6 +23,12 @@ const DEFAULT_BLACKLIST = [
   "edm","techno","house","trance","rock","metal","jazz","classical",
 ];
 
+class ApifyBlockedError extends Error {
+  reason = "APIFY_LIMIT";
+  status = 403;
+  constructor(msg: string) { super(msg); this.name = "ApifyBlockedError"; }
+}
+
 async function runApify(searchTerm: string, maxResults: number, signal: AbortSignal) {
   const url = `https://api.apify.com/v2/acts/${APIFY_ACTOR}/run-sync-get-dataset-items?token=${APIFY_API_KEY}&timeout=120`;
   const resp = await fetch(url, {
@@ -38,6 +44,10 @@ async function runApify(searchTerm: string, maxResults: number, signal: AbortSig
   });
   if (!resp.ok) {
     const txt = await resp.text();
+    // Detectar bloqueio por limite mensal do Apify (circuit breaker)
+    if (resp.status === 403 || /monthly usage hard limit exceeded/i.test(txt)) {
+      throw new ApifyBlockedError(`Apify ${resp.status}: ${txt.slice(0, 300)}`);
+    }
     throw new Error(`Apify ${resp.status}: ${txt.slice(0, 300)}`);
   }
   const items = await resp.json();
@@ -88,6 +98,34 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: "APIFY_API_KEY não configurada" }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
+  }
+
+  // Circuit breaker: se Apify já foi bloqueado globalmente, não chama a API.
+  // Reset automático após 24h.
+  const { data: flag } = await supabase
+    .from("system_flags")
+    .select("id,apify_blocked,apify_blocked_at")
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (flag?.apify_blocked) {
+    const blockedAt = flag.apify_blocked_at ? new Date(flag.apify_blocked_at).getTime() : 0;
+    const ageMs = Date.now() - blockedAt;
+    if (ageMs > 24 * 60 * 60 * 1000) {
+      // Reset automático
+      await supabase.from("system_flags").update({
+        apify_blocked: false, apify_blocked_at: null, apify_blocked_reason: null,
+      }).eq("id", flag.id);
+    } else {
+      await supabase.from("collection_logs").insert({
+        genre_id: body.genre_id, term_id: body.term_id,
+        acao: "apify-blocked", status: "erro",
+        mensagem: "Pulado: Apify globalmente bloqueado (circuit breaker)",
+      });
+      return new Response(JSON.stringify({ ok: false, blocked: true, reason: "APIFY_BLOCKED_GLOBAL" }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
   }
 
   const maxResults = body.max_results ?? 20;
@@ -254,6 +292,36 @@ Deno.serve(async (req) => {
     clearTimeout(timeoutHandle);
     const msg = (e as Error).message ?? String(e);
     console.error("run-search error", msg);
+
+    // Circuit breaker: bloqueio do Apify (limit exceeded / 403)
+    if (e instanceof ApifyBlockedError) {
+      // Ativa flag global
+      const { data: f } = await supabase
+        .from("system_flags").select("id").order("created_at", { ascending: true }).limit(1).maybeSingle();
+      if (f?.id) {
+        await supabase.from("system_flags").update({
+          apify_blocked: true,
+          apify_blocked_at: new Date().toISOString(),
+          apify_blocked_reason: msg.slice(0, 300),
+        }).eq("id", f.id);
+      } else {
+        await supabase.from("system_flags").insert({
+          apify_blocked: true,
+          apify_blocked_at: new Date().toISOString(),
+          apify_blocked_reason: msg.slice(0, 300),
+        });
+      }
+      await supabase.from("collection_logs").insert({
+        genre_id: body.genre_id, term_id: body.term_id,
+        acao: "apify-blocked", status: "erro",
+        mensagem: "Apify limit exceeded - circuit breaker activated",
+        duracao_ms: Date.now() - start,
+      });
+      return new Response(JSON.stringify({ ok: false, blocked: true, reason: "APIFY_LIMIT" }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     await supabase.from("collection_logs").insert({
       genre_id: body.genre_id,
       term_id: body.term_id,
