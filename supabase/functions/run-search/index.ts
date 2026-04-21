@@ -133,15 +133,85 @@ Deno.serve(async (req) => {
   const timeoutHandle = setTimeout(() => controller.abort(), 130_000);
 
   try {
-    // Carrega slug do gênero + blacklist (filtro inteligente)
-    const [{ data: genre }, { data: filt }] = await Promise.all([
+    // Carrega slug do gênero + blacklist + modelo (keywords, artistas, subgêneros)
+    const [{ data: genre }, { data: filt }, { data: model }] = await Promise.all([
       supabase.from("genres").select("slug,nome").eq("id", body.genre_id).maybeSingle(),
       supabase.from("genre_filters").select("blacklist").eq("genre_id", body.genre_id).maybeSingle(),
+      supabase.from("genre_models").select("palavras_chave,musicas_recorrentes,insights").eq("genre_id", body.genre_id).maybeSingle(),
     ]);
     const slug = (genre?.slug ?? "").toLowerCase();
     const nome = (genre?.nome ?? "").toLowerCase();
     const termLower = body.search_term.toLowerCase();
     const blacklist = (filt?.blacklist as string[] | undefined)?.map(b => b.toLowerCase()) ?? DEFAULT_BLACKLIST;
+
+    // Extrai sinais do modelo (cold-start safe: arrays vazios)
+    const modelKeywords: string[] = (() => {
+      const arr = model?.palavras_chave as any[] | undefined;
+      if (!Array.isArray(arr)) return [];
+      return arr.map(x => (typeof x === "string" ? x : x?.value ?? x?.keyword ?? "")).filter(Boolean).map(s => String(s).toLowerCase());
+    })();
+    const modelArtists: string[] = (() => {
+      const tracks = model?.musicas_recorrentes as any[] | undefined;
+      if (!Array.isArray(tracks)) return [];
+      const set = new Set<string>();
+      for (const t of tracks) {
+        const a = typeof t === "string" ? "" : (t?.artista ?? t?.artist ?? "");
+        if (a) String(a).split(/[,&]/).forEach(x => { const v = x.trim().toLowerCase(); if (v.length > 2) set.add(v); });
+      }
+      return [...set];
+    })();
+    const subgenresList: string[] = (() => {
+      const subs = (model?.insights as any)?.subgeneros;
+      if (!Array.isArray(subs)) return [];
+      return subs.map((s: any) => [s?.slug, s?.nome].filter(Boolean)).flat().map((x: string) => String(x).toLowerCase());
+    })();
+
+    // Detecta termo de expansão (sinais semânticos amplos, não vinculados ao gênero core)
+    const EXPANSION_MARKERS = ["remix", "viral", "cover", "tiktok", "tik tok", "edit", "phonk", "2026", "2025", "mashup"];
+    const isExpansionTerm = EXPANSION_MARKERS.some(m => termLower.includes(m));
+    const SCORE_THRESHOLD_STRICT = 60;
+    const SCORE_THRESHOLD_EXPANSION = 50;
+    const EXPANSION_BONUS = 10; // reduz threshold efetivo em 10 pra termos de expansão
+    const effectiveThreshold = isExpansionTerm
+      ? SCORE_THRESHOLD_EXPANSION - EXPANSION_BONUS  // = 40
+      : SCORE_THRESHOLD_STRICT;                       // = 60
+    const FOLLOWERS_THRESHOLD = 5000;
+
+    function scorePlaylist(opts: { nomePl: string; descricao: string | null; followers: number | null; }) {
+      const { nomePl, descricao, followers } = opts;
+      const nameLow = nomePl.toLowerCase();
+      const descLow = (descricao ?? "").toLowerCase();
+      const haystack = `${nameLow} ${descLow}`;
+      let score = 0;
+      const reasons: string[] = [];
+
+      // Positivos
+      if (nameLow.includes(termLower)) { score += 30; reasons.push("+30 name~term"); }
+      else if (slug && nameLow.includes(slug)) { score += 20; reasons.push("+20 name~slug"); }
+      else if (nome && nameLow.includes(nome)) { score += 20; reasons.push("+20 name~nome"); }
+
+      if (descLow && descLow.includes(termLower)) { score += 15; reasons.push("+15 desc~term"); }
+
+      const artistHit = modelArtists.some(a => haystack.includes(a));
+      if (artistHit) { score += 25; reasons.push("+25 artist"); }
+
+      const kwHits = modelKeywords.filter(k => k && haystack.includes(k)).slice(0, 3);
+      if (kwHits.length > 0) { score += 20; reasons.push(`+20 kw(${kwHits.length})`); }
+
+      const subHit = subgenresList.find(s => s && haystack.includes(s));
+      if (subHit) { score += 15; reasons.push(`+15 sub:${subHit}`); }
+
+      if ((followers ?? 0) > FOLLOWERS_THRESHOLD) { score += 10; reasons.push("+10 followers"); }
+
+      // Negativos
+      const blHits = blacklist.filter(b => b && haystack.includes(b));
+      if (blHits.length > 0) { score -= 40; reasons.push(`-40 bl:${blHits[0]}`); }
+
+      const containsGenreAny = (slug && haystack.includes(slug)) || (nome && haystack.includes(nome)) || haystack.includes(termLower);
+      if (!containsGenreAny) { score -= 30; reasons.push("-30 genre-mismatch"); }
+
+      return { score, reasons, hardBlock: blHits.length > 0 };
+    }
 
     await supabase.from("genres").update({ status: "coletando" }).eq("id", body.genre_id);
 
@@ -151,6 +221,7 @@ Deno.serve(async (req) => {
     let updatedResults = 0;
     let savedTracks = 0;
     let filteredOut = 0;
+    const scoreLog: Array<{ name: string; score: number; accepted: boolean; reasons: string[] }> = [];
 
     for (let i = 0; i < items.length; i++) {
       const it = items[i];
@@ -165,17 +236,17 @@ Deno.serve(async (req) => {
       const ownerCountry = pickStr(it.owner ?? {}, "country") ?? pickStr(it, "ownerCountry");
       const playlistId = pickStr(it, "playlistId", "id") ?? extractPlaylistId(url);
 
-      // Filtro inteligente
-      const haystack = `${nomePl} ${descricao ?? ""} ${termLower}`.toLowerCase();
-      const containsGenre = (slug && haystack.includes(slug)) || (nome && haystack.includes(nome)) || haystack.includes(termLower);
-      const hitsBlacklist = blacklist.some(b => b && haystack.includes(b));
-      if (!containsGenre || hitsBlacklist) {
+      // Scoring de relevância (substitui filtro binário)
+      const { score, reasons, hardBlock } = scorePlaylist({ nomePl, descricao, followers });
+      const accepted = !hardBlock && score >= effectiveThreshold;
+      scoreLog.push({ name: nomePl.slice(0, 60), score, accepted, reasons });
+
+      if (!accepted) {
         filteredOut++;
         continue;
       }
 
       // 🛡️ Guard: rejeita playlists sem ID extraível ou URL truncada/inválida.
-      // Sem isso, registro fica órfão (sem dedup, sem enrich) e polui o dataset.
       if (!playlistId || !url || !/playlist\/[A-Za-z0-9]{16,}/.test(url)) {
         filteredOut++;
         continue;
@@ -281,18 +352,29 @@ Deno.serve(async (req) => {
       status: "coletando",
     }).eq("id", body.genre_id);
 
+    // Top-3 aceitas e top-3 rejeitadas com score, para diagnóstico de calibração
+    const acceptedTop = scoreLog.filter(s => s.accepted).sort((a,b) => b.score - a.score).slice(0, 3);
+    const rejectedTop = scoreLog.filter(s => !s.accepted).sort((a,b) => b.score - a.score).slice(0, 3);
+    const fmt = (s: typeof scoreLog[0]) => `[${s.score}] ${s.name} {${s.reasons.join(",")}}`;
+    const diag =
+      `mode=${isExpansionTerm ? "EXPANSION" : "STRICT"} thr=${effectiveThreshold} | ` +
+      `aceitas: ${acceptedTop.map(fmt).join(" | ") || "—"} || rejeitadas: ${rejectedTop.map(fmt).join(" | ") || "—"}`;
+
     await supabase.from("collection_logs").insert({
       genre_id: body.genre_id,
       term_id: body.term_id,
       acao: "run-search",
       status: "sucesso",
-      mensagem: `"${body.search_term}" → ${savedResults} novas, ${updatedResults} atualizadas, ${filteredOut} filtradas, ${savedTracks} músicas`,
+      mensagem: `"${body.search_term}" → ${savedResults} novas, ${updatedResults} atualizadas, ${filteredOut} filtradas, ${savedTracks} músicas | ${diag}`.slice(0, 4000),
       duracao_ms: Date.now() - start,
     });
 
     clearTimeout(timeoutHandle);
     return new Response(
-      JSON.stringify({ ok: true, savedResults, updatedResults, filteredOut, savedTracks, runId }),
+      JSON.stringify({
+        ok: true, savedResults, updatedResults, filteredOut, savedTracks, runId,
+        scoring: { mode: isExpansionTerm ? "expansion" : "strict", threshold: effectiveThreshold, evaluated: scoreLog.length },
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e) {
