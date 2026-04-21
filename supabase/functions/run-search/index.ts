@@ -347,6 +347,7 @@ Deno.serve(async (req) => {
             apify_run_id: runId,
             owner_country: ownerCountry,
             times_seen: 1,
+            score,
           })
           .select("id")
           .single();
