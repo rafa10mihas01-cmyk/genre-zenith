@@ -284,6 +284,13 @@ Deno.serve(async (req) => {
         continue;
       }
 
+      // 🛡️ Quality gate: rejeita playlists fracas (sem seguidores E com poucas faixas)
+      if ((followers == null) && ((totalTracks ?? 0) < 30)) {
+        filteredOut++;
+        scoreLog.push({ name: nomePl.slice(0, 60), score, accepted: false, reasons: ["low_quality_no_followers"] });
+        continue;
+      }
+
       // 🛡️ Guard: rejeita playlists sem ID extraível ou URL truncada/inválida.
       if (!playlistId || !url || !/playlist\/[A-Za-z0-9]{16,}/.test(url)) {
         filteredOut++;
