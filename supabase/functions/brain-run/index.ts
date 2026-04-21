@@ -719,7 +719,7 @@ async function runPipeline(jobId: string, body: StartBody) {
       total_musicas: tCnt.count ?? 0,
       total_termos: teCnt.count ?? 0,
       ultima_coleta: new Date().toISOString(),
-      status: partial ? "parcial" : "analisado",
+      status: (partial || truncated) ? "parcial" : "analisado",
     }).eq("id", gid);
     stages.totals = { playlists: pCnt.count ?? 0, musicas: tCnt.count ?? 0, termos: teCnt.count ?? 0 };
 
@@ -730,11 +730,16 @@ async function runPipeline(jobId: string, body: StartBody) {
     const coveragePct = Math.round(coverage * 100);
     const summary = `${enrichedCount} de ${totalPls} playlists analisadas (${coveragePct}%)`;
 
-    const economyTag = cacheHit
-      ? ` • ♻️ ${callsAvoided} chamadas Apify evitadas, ${playlistsReused} playlists reaproveitadas`
-      : "";
+    const economyParts: string[] = [];
+    if (cacheHit) economyParts.push(`♻️ cache: ${playlistsReused} playlists, ${callsAvoided} chamadas evitadas`);
+    if (wave2Skipped) economyParts.push(`💡 Wave 2 pulada: ${WAVE_2_CALLS} chamadas economizadas`);
+    if (truncated) economyParts.push(`⚠️ truncado: termos restantes não coletados`);
+    const economyTag = economyParts.length ? ` • ${economyParts.join(" • ")}` : "";
+
+    // status final: parcial só se cobertura baixa OU coleta truncada de verdade
+    const finalPartial = partial || truncated;
     await supabase.from("collection_logs").insert({
-      genre_id: gid, acao: "brain-run", status: partial ? "parcial" : "sucesso",
+      genre_id: gid, acao: "brain-run", status: finalPartial ? "parcial" : "sucesso",
       mensagem: `Concluído em ${Math.round((Date.now() - start)/1000)}s — ${searchedOk} buscas, ${summary}, ${cycles} ciclos enrich, ${irrelevant.length} filtradas, ${tCnt.count ?? 0} faixas${economyTag}`,
       duracao_ms: Date.now() - start,
     });
