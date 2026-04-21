@@ -346,7 +346,7 @@ Deno.serve(async (req) => {
       genre_id: body.genre_id ?? null,
       acao: "enrich-playlists",
       status,
-      mensagem: `Enriquecidas ${enriched}/${pending.length} • ${tracksSaved} tracks • ${errors} erros • ${skipped} ignoradas • ${zombiesMarked} zumbis${errorSamples.length ? " • ex: " + errorSamples[0].error.slice(0, 80) : ""}`,
+      mensagem: `Enriquecidas ${enriched}/${pending.length} • ${tracksSaved} tracks • ${errors} erros • ${skipped} ignoradas • ${zombiesMarked} zumbis • phase2: ${phase2Flagged} low_quality / ${phase2Cleared} ok${errorSamples.length ? " • ex: " + errorSamples[0].error.slice(0, 80) : ""}`,
       duracao_ms: Date.now() - start,
     });
 
@@ -359,6 +359,8 @@ Deno.serve(async (req) => {
         errors,
         skipped,
         zombies_marked: zombiesMarked,
+        phase2_flagged_low_quality: phase2Flagged,
+        phase2_passed: phase2Cleared,
         samples,
         error_samples: errorSamples,
         remaining_estimate: pending.length === limit ? "≥ próximo lote" : 0,
