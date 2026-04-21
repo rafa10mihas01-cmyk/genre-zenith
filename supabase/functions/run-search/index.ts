@@ -274,28 +274,47 @@ Deno.serve(async (req) => {
       const ownerCountry = pickStr(it.owner ?? {}, "country") ?? pickStr(it, "ownerCountry");
       const playlistId = pickStr(it, "playlistId", "id") ?? extractPlaylistId(url);
 
-      // Scoring de relevância (substitui filtro binário)
+      // ============= VALIDAÇÃO ESTRITA UNIFICADA =============
+      // Computa is_valid + validation_reason. Playlists inválidas NUNCA entram no banco.
       const { score, reasons, hardBlock } = scorePlaylist({ nomePl, descricao, followers });
-      const accepted = !hardBlock && score >= effectiveThreshold;
-      scoreLog.push({ name: nomePl.slice(0, 60), score, accepted, reasons });
 
-      if (!accepted) {
+      let isValid = true;
+      let validationReason: string | null = null;
+
+      // Regra 1: nome deve conter "funk" (ou slug do gênero) — tratado em scorePlaylist via gate
+      // Regra 2: strong blacklist — tratado em scorePlaylist (hardBlock)
+      if (hardBlock) {
+        isValid = false;
+        validationReason = reasons.find(r => r.startsWith("strong_blacklist")) ?? reasons.find(r => r.startsWith("no_")) ?? "hard_block";
+      }
+      // Regra 4: score abaixo do threshold
+      else if (score < effectiveThreshold) {
+        isValid = false;
+        validationReason = `low_score:${score}<${effectiveThreshold}`;
+      }
+      // Regra 3: sem seguidores E poucas faixas
+      else if ((followers == null) && ((totalTracks ?? 0) < 30)) {
+        isValid = false;
+        validationReason = "low_quality_no_followers";
+      }
+      // Regra extra: ID/URL inválida (lixo do scraper)
+      else if (!playlistId || !url || !/playlist\/[A-Za-z0-9]{16,}/.test(url)) {
+        isValid = false;
+        validationReason = "invalid_url_or_id";
+      }
+
+      scoreLog.push({
+        name: nomePl.slice(0, 60),
+        score,
+        accepted: isValid,
+        reasons: isValid ? reasons : [...reasons, validationReason ?? "rejected"],
+      });
+
+      if (!isValid) {
         filteredOut++;
         continue;
       }
-
-      // 🛡️ Quality gate: rejeita playlists fracas (sem seguidores E com poucas faixas)
-      if ((followers == null) && ((totalTracks ?? 0) < 30)) {
-        filteredOut++;
-        scoreLog.push({ name: nomePl.slice(0, 60), score, accepted: false, reasons: ["low_quality_no_followers"] });
-        continue;
-      }
-
-      // 🛡️ Guard: rejeita playlists sem ID extraível ou URL truncada/inválida.
-      if (!playlistId || !url || !/playlist\/[A-Za-z0-9]{16,}/.test(url)) {
-        filteredOut++;
-        continue;
-      }
+      // ============= FIM DA VALIDAÇÃO =============
 
       // UPSERT manual (tabela tem unique parcial em (genre_id, spotify_playlist_id))
       let resultId: string | null = null;
@@ -321,6 +340,8 @@ Deno.serve(async (req) => {
             times_seen: (existing.times_seen ?? 1) + 1,
             last_seen_at: new Date().toISOString(),
             score,
+            is_valid: true,
+            validation_reason: null,
           }).eq("id", existing.id);
           if (updErr) {
             console.error("update result err", updErr);
@@ -348,6 +369,8 @@ Deno.serve(async (req) => {
             owner_country: ownerCountry,
             times_seen: 1,
             score,
+            is_valid: true,
+            validation_reason: null,
           })
           .select("id")
           .single();
