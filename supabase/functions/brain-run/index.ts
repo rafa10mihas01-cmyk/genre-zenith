@@ -65,6 +65,39 @@ async function callFn(name: string, body: unknown) {
   catch { return { ok: r.ok, data: { raw: txt }, status: r.status }; }
 }
 
+// 🔒 Lock idempotente baseado em logs recentes.
+// Evita race condition: se a mesma `acao` já rodou para o mesmo `genre_id`
+// dentro da janela `windowSec`, retorna false (ação deve ser pulada).
+// Insere imediatamente um log "lock" pra reservar a janela contra concorrência.
+async function acquireLock(
+  supabase: any,
+  genreId: string,
+  acao: string,
+  windowSec = 300,
+): Promise<boolean> {
+  const since = new Date(Date.now() - windowSec * 1000).toISOString();
+  const { data: recent } = await supabase
+    .from("collection_logs")
+    .select("id,status")
+    .eq("genre_id", genreId)
+    .eq("acao", acao)
+    .gte("created_at", since)
+    .in("status", ["sucesso", "lock", "ok"])
+    .limit(1);
+  if (recent && recent.length > 0) {
+    console.log(`[lock] SKIP ${acao} for genre=${genreId} — already ran in last ${windowSec}s`);
+    return false;
+  }
+  // Reserva o slot — mesmo se a função demorar, runs paralelos vão ver este lock.
+  await supabase.from("collection_logs").insert({
+    genre_id: genreId,
+    acao,
+    status: "lock",
+    mensagem: `lock acquired (window ${windowSec}s)`,
+  }).then(() => {}, () => {});
+  return true;
+}
+
 // Garante que o briefing seja gerado SEMPRE que existir um genre_model.
 // Tenta até 2x. Não lança — apenas loga em stages e collection_logs.
 async function ensureBriefing(supabase: any, gid: string, stages: Record<string, unknown>, opts?: { survival_mode?: boolean }) {
