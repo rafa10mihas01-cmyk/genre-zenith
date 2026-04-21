@@ -108,8 +108,19 @@ Deno.serve(async (req) => {
     if (!genre) throw new Error("Gênero não encontrado");
 
     const playlistNames = (results ?? []).map(r => r.nome_playlist).filter(Boolean) as string[];
-    const allTokens = playlistNames.flatMap(tokenize);
-    const palavras_chave = topN(allTokens, 30);
+    const rawTokens = playlistNames.flatMap(tokenize);
+
+    // 🔗 Normalização: mescla typos via Levenshtein (≤2). Construído UMA vez sobre todo o universo
+    // de tokens do gênero — usado tanto pra palavras_chave globais quanto pros subgêneros.
+    const tokenNormalizer = buildKeywordNormalizer(rawTokens);
+    const normalize = (tk: string) => tokenNormalizer.get(tk) ?? tk;
+    const normalizedTokens = rawTokens.map(normalize);
+    const palavras_chave = topN(normalizedTokens, 30);
+    const mergedKeywordsCount = Array.from(tokenNormalizer.entries())
+      .filter(([k, v]) => k !== v).length;
+    if (mergedKeywordsCount > 0) {
+      console.log(`[normalize] ${mergedKeywordsCount} typos mesclados em canônicos`);
+    }
 
     // Padrões de nome: bigramas
     const bigrams: string[] = [];
