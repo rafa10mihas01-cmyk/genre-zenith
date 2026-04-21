@@ -56,6 +56,30 @@ Deno.serve(async (req) => {
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
+  // 🔒 DEFESA ANTI-DUPLICAÇÃO: se já existe briefing pro mesmo genre_id criado < 30s atrás,
+  //    retorna a versão existente sem reprocessar (~80s + custo IA economizados).
+  try {
+    const { data: recent } = await supabase
+      .from("playlist_briefings")
+      .select("id,version,briefings,metadata,created_at")
+      .eq("genre_id", body.genre_id)
+      .gte("created_at", new Date(Date.now() - 30_000).toISOString())
+      .order("version", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (recent) {
+      console.log(`[briefing] dedup: returning existing v${recent.version} (created ${recent.created_at})`);
+      return j({
+        ok: true,
+        version: recent.version,
+        count: Array.isArray(recent.briefings) ? recent.briefings.length : 0,
+        deduped: true,
+        reason: "briefing recente já existe (< 30s)",
+        duration_ms: Date.now() - start,
+      });
+    }
+  } catch (_) { /* segue fluxo normal */ }
+
   try {
     // ═══════════════ CARREGAR DADOS ═══════════════
     const [{ data: genre }, { data: model }, { data: history }, { count: corpusCount }, { data: filters }] = await Promise.all([
