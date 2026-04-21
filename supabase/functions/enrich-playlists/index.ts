@@ -25,6 +25,39 @@ function extractPlaylistId(url: string): string | null {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+// ============ PHASE 2 (POST-ENRICH VALIDATION) ============
+// Avalia qualidade APÓS termos números reais do Spotify.
+// Fontes da verdade: followers + total_musicas vindos da Spotify Web API.
+const PHASE2_MIN_FOLLOWERS = 100;
+const PHASE2_MIN_TRACKS = 20;
+
+function computeQualityScore(opts: {
+  followers: number | null;
+  totalTracks: number | null;
+  descricao: string | null;
+  imagem: string | null;
+}): number {
+  const { followers, totalTracks, descricao, imagem } = opts;
+  let q = 0;
+  const f = followers ?? 0;
+  if (f >= 100_000) q += 50;
+  else if (f >= 10_000) q += 40;
+  else if (f >= 1_000) q += 30;
+  else if (f >= 100) q += 15;
+  else if (f > 0) q += 5;
+
+  const t = totalTracks ?? 0;
+  if (t >= 100) q += 30;
+  else if (t >= 50) q += 20;
+  else if (t >= 30) q += 12;
+  else if (t >= 10) q += 5;
+
+  if (imagem && imagem.length > 10) q += 10;
+  if (descricao && descricao.trim().length >= 20) q += 10;
+
+  return Math.min(100, Math.max(0, q));
+}
+
 type SpotifyResp = { followers: number | null; total: number | null; status: number };
 
 async function fetchSpotifyPlaylist(id: string, token: string): Promise<SpotifyResp> {
@@ -87,7 +120,7 @@ Deno.serve(async (req) => {
     if (body.result_ids && body.result_ids.length > 0) {
       const { data, error: pErr } = await supabase
         .from("search_results")
-        .select("id,genre_id,spotify_url,nome_playlist,posicao,enrich_attempts")
+        .select("id,genre_id,spotify_url,nome_playlist,posicao,enrich_attempts,descricao,imagem_url")
         .in("id", body.result_ids.slice(0, limit))
         .eq("enrich_failed", false)
         .is("seguidores", null)
@@ -97,7 +130,7 @@ Deno.serve(async (req) => {
     } else {
       let q = supabase
         .from("search_results")
-        .select("id,genre_id,spotify_url,nome_playlist,posicao,enrich_attempts")
+        .select("id,genre_id,spotify_url,nome_playlist,posicao,enrich_attempts,descricao,imagem_url")
         .eq("enrich_failed", false)
         .is("seguidores", null)
         .not("spotify_url", "is", null)
@@ -139,7 +172,7 @@ Deno.serve(async (req) => {
     }
 
     let token = await getSpotifyToken();
-    let enriched = 0, tracksSaved = 0, errors = 0, skipped = 0;
+    let enriched = 0, tracksSaved = 0, errors = 0, skipped = 0, phase2Flagged = 0, phase2Cleared = 0;
     const CONCURRENCY = 5;
     let zombiesMarked = 0;
 
@@ -218,6 +251,33 @@ Deno.serve(async (req) => {
         };
         if (info.followers !== null) update.seguidores = info.followers;
         if (info.total !== null) update.total_musicas = info.total;
+
+        // ============ PHASE 2 (POST-ENRICH VALIDATION) ============
+        // Agora temos números reais → reavalia qualidade.
+        // Regra: followers < MIN_FOLLOWERS OU tracks < MIN_TRACKS → flag low_quality.
+        // Quem passar é desflaggado (limpa flag/quality_score antigos).
+        const effFollowers = info.followers;
+        const effTracks = info.total;
+        const phase2Fail =
+          (effFollowers != null && effFollowers < PHASE2_MIN_FOLLOWERS) ||
+          (effTracks != null && effTracks < PHASE2_MIN_TRACKS);
+        const qualityScore = computeQualityScore({
+          followers: effFollowers,
+          totalTracks: effTracks,
+          descricao: p.descricao ?? null,
+          imagem: p.imagem_url ?? null,
+        });
+        update.quality_score = qualityScore;
+        if (phase2Fail || qualityScore < 40) {
+          update.quality_flag = "low_quality";
+          update.quality_flagged_at = new Date().toISOString();
+          phase2Flagged++;
+        } else {
+          update.quality_flag = null;
+          update.quality_flagged_at = null;
+          phase2Cleared++;
+        }
+
         const { error: uErr } = await supabase.from("search_results").update(update).eq("id", p.id);
         if (uErr) {
           errors++;
@@ -226,7 +286,13 @@ Deno.serve(async (req) => {
           return;
         }
         enriched++;
-        if (samples.length < 3) samples.push({ playlist: p.nome_playlist, followers: info.followers, total: info.total });
+        if (samples.length < 3) samples.push({
+          playlist: p.nome_playlist,
+          followers: info.followers,
+          total: info.total,
+          quality_score: qualityScore,
+          phase2: phase2Fail ? "low_quality" : "ok",
+        });
       } else {
         skipped++;
         await markAttempt(p, { failed: true, reason: "spotify_empty" });
@@ -280,7 +346,7 @@ Deno.serve(async (req) => {
       genre_id: body.genre_id ?? null,
       acao: "enrich-playlists",
       status,
-      mensagem: `Enriquecidas ${enriched}/${pending.length} • ${tracksSaved} tracks • ${errors} erros • ${skipped} ignoradas • ${zombiesMarked} zumbis${errorSamples.length ? " • ex: " + errorSamples[0].error.slice(0, 80) : ""}`,
+      mensagem: `Enriquecidas ${enriched}/${pending.length} • ${tracksSaved} tracks • ${errors} erros • ${skipped} ignoradas • ${zombiesMarked} zumbis • phase2: ${phase2Flagged} low_quality / ${phase2Cleared} ok${errorSamples.length ? " • ex: " + errorSamples[0].error.slice(0, 80) : ""}`,
       duracao_ms: Date.now() - start,
     });
 
@@ -293,6 +359,8 @@ Deno.serve(async (req) => {
         errors,
         skipped,
         zombies_marked: zombiesMarked,
+        phase2_flagged_low_quality: phase2Flagged,
+        phase2_passed: phase2Cleared,
         samples,
         error_samples: errorSamples,
         remaining_estimate: pending.length === limit ? "≥ próximo lote" : 0,

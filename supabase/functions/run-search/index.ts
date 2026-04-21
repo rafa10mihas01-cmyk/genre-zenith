@@ -315,7 +315,10 @@ Deno.serve(async (req) => {
       let isValid = true;
       let validationReason: string | null = null;
 
-      // Regra 1: nome deve conter "funk" (ou slug do gênero) — tratado em scorePlaylist via gate
+      // PHASE 1 (COLLECTION): permissiva — só rejeita por sinais TEXTUAIS confiáveis.
+      // followers/total_tracks NÃO bloqueiam aqui (Apify devolve null com frequência).
+      // Validação de qualidade por números acontece em PHASE 2 (pós enrich-playlists).
+      // Regra 1: nome deve conter slug do gênero — tratado em scorePlaylist via gate
       // Regra 2: strong blacklist — tratado em scorePlaylist (hardBlock)
       if (hardBlock) {
         isValid = false;
@@ -326,16 +329,12 @@ Deno.serve(async (req) => {
         isValid = false;
         validationReason = `low_score:${score}<${effectiveThreshold}`;
       }
-      // Regra 3: sem seguidores E poucas faixas
-      else if ((followers == null) && ((totalTracks ?? 0) < 30)) {
-        isValid = false;
-        validationReason = "low_quality_no_followers";
-      }
       // Regra extra: ID/URL inválida (lixo do scraper)
       else if (!playlistId || !url || !/playlist\/[A-Za-z0-9]{16,}/.test(url)) {
         isValid = false;
         validationReason = "invalid_url_or_id";
       }
+      // ⚠️ Regra removida: low_quality_no_followers — agora avaliada em PHASE 2 pós-enrich
 
       scoreLog.push({
         name: nomePl.slice(0, 60),
