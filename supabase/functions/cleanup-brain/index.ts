@@ -152,6 +152,26 @@ Deno.serve(async (req) => {
       }
     }
 
+    // 4.5) AUTO-PRUNE: playlists flagged como low_quality há mais de 24h
+    {
+      const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const { data: rows, error } = await supabase
+        .from("search_results")
+        .select("id")
+        .eq("quality_flag", "low_quality")
+        .lt("quality_flagged_at", cutoff);
+      if (error) { errors.push(`lowq24h-scan: ${error.message}`); }
+      else if (rows && rows.length > 0) {
+        const ids = rows.map((r: any) => r.id);
+        for (let i = 0; i < ids.length; i += 500) {
+          const chunk = ids.slice(i, i + 500);
+          const { error: dErr } = await supabase.from("search_results").delete().in("id", chunk);
+          if (dErr) { errors.push(`lowq24h-del: ${dErr.message}`); break; }
+          result.low_quality_24h += chunk.length;
+        }
+      }
+    }
+
     // 5) Re-roda passo 1 (tracks que ficaram órfãs após deletar playlists nos passos 2-4)
     {
       const { data: validIds } = await supabase.from("search_results").select("id");
