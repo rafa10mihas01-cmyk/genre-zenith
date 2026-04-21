@@ -245,8 +245,12 @@ Deno.serve(async (req) => {
             await fetch(`${SUPABASE_URL}/functions/v1/analyze-genre-visual-dna`, {
               method: "POST", headers, body: JSON.stringify({ genre_id: g.id }),
             });
+            // Audit final: roda DEPOIS do modelo reconstruído pra avaliar saúde do dataset
+            await fetch(`${SUPABASE_URL}/functions/v1/audit-brain`, {
+              method: "POST", headers, body: JSON.stringify({ genre_id: g.id, trigger }),
+            });
           } catch (e) {
-            console.error(`reanalyze hook failed for ${g.nome}:`, (e as Error).message);
+            console.error(`reanalyze+audit hook failed for ${g.nome}:`, (e as Error).message);
           }
         })();
       }
