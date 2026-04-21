@@ -399,20 +399,28 @@ Deno.serve(async (req) => {
       status: "coletando",
     }).eq("id", body.genre_id);
 
-    // Top-3 aceitas e top-3 rejeitadas com score, para diagnóstico de calibração
+    // Top-3 aceitas (maior score) e top-3 rejeitadas (mais "perto de passar" → maior score primeiro)
     const acceptedTop = scoreLog.filter(s => s.accepted).sort((a,b) => b.score - a.score).slice(0, 3);
     const rejectedTop = scoreLog.filter(s => !s.accepted).sort((a,b) => b.score - a.score).slice(0, 3);
-    const fmt = (s: typeof scoreLog[0]) => `[${s.score}] ${s.name} {${s.reasons.join(",")}}`;
+    const fmt = (s: typeof scoreLog[0]) => `[${s.score}] "${s.name}" → ${s.reasons.join(", ") || "—"}`;
+    const acceptedBlock = acceptedTop.length
+      ? acceptedTop.map((s, i) => `  #${i+1} ${fmt(s)}`).join("\n")
+      : "  —";
+    const rejectedBlock = rejectedTop.length
+      ? rejectedTop.map((s, i) => `  #${i+1} ${fmt(s)}`).join("\n")
+      : "  —";
     const diag =
-      `mode=${isExpansionTerm ? "EXPANSION" : "STRICT"} thr=${effectiveThreshold} | ` +
-      `aceitas: ${acceptedTop.map(fmt).join(" | ") || "—"} || rejeitadas: ${rejectedTop.map(fmt).join(" | ") || "—"}`;
+      `"${body.search_term}" | mode=${isExpansionTerm ? "EXPANSION" : "STRICT"} thr=${effectiveThreshold} | ` +
+      `${savedResults} novas, ${updatedResults} atualizadas, ${filteredOut} filtradas, ${savedTracks} músicas (${scoreLog.length} avaliadas)\n` +
+      `TOP 3 ACEITAS:\n${acceptedBlock}\n` +
+      `TOP 3 REJEITADAS:\n${rejectedBlock}`;
 
     await supabase.from("collection_logs").insert({
       genre_id: body.genre_id,
       term_id: body.term_id,
       acao: "run-search",
       status: "sucesso",
-      mensagem: `"${body.search_term}" → ${savedResults} novas, ${updatedResults} atualizadas, ${filteredOut} filtradas, ${savedTracks} músicas | ${diag}`.slice(0, 4000),
+      mensagem: diag.slice(0, 4000),
       duracao_ms: Date.now() - start,
     });
 
