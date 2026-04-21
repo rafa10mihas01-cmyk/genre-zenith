@@ -348,6 +348,10 @@ Deno.serve(async (req) => {
             score,
             is_valid: true,
             validation_reason: null,
+            quality_score: qualityScore,
+            quality_flag: qualityFlag,
+            // mantém timestamp original se já estava flagged; só seta novo se acabou de virar low_quality
+            ...(qualityFlag ? { quality_flagged_at: qualityFlaggedAt } : { quality_flagged_at: null }),
           }).eq("id", existing.id);
           if (updErr) {
             console.error("update result err", updErr);
