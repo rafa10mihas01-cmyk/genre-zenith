@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Zap, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { NexEngineLogo } from "@/components/NexEngineLogo";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,8 +39,8 @@ export default function Login() {
 
       <div className="relative w-full max-w-sm nx-card p-8 animate-fade-in">
         <div className="flex items-center gap-3 mb-7">
-          <div className="h-11 w-11 rounded-lg bg-primary/15 border border-primary/30 flex items-center justify-center nx-glow">
-            <Zap className="h-6 w-6 text-primary" />
+          <div className="h-11 w-11 rounded-lg bg-primary/10 border border-primary/30 flex items-center justify-center nx-glow">
+            <NexEngineLogo size={28} />
           </div>
           <div>
             <h1 className="text-lg font-bold leading-tight">NexEngine</h1>
