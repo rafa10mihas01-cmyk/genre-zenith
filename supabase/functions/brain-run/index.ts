@@ -227,6 +227,22 @@ async function runPipeline(jobId: string, body: StartBody) {
         stages.analyze = { ok: false, error: (e as Error).message };
       }
 
+      // 3.5) DNA Visual (best-effort) — survival mode também extrai padrão visual
+      await setJob(supabase, gid, jobId, {
+        status: "running",
+        stage: "⚠️ Modo sobrevivência — analisando DNA visual...",
+        progress: 80,
+      });
+      try {
+        const v = await callFn("analyze-genre-visual-dna", { genre_id: gid });
+        const vd = v.data as any;
+        stages.visual_dna = vd?.ok
+          ? { ok: true, estilo: vd?.dna_visual?.estilo_dominante, atmosfera: vd?.dna_visual?.atmosfera }
+          : { ok: false, error: vd?.error ?? `HTTP ${v.status}` };
+      } catch (e) {
+        stages.visual_dna = { ok: false, error: (e as Error).message };
+      }
+
       // 4) Briefing SEMPRE (com survival_mode → filtros relaxados + metadata)
       await setJob(supabase, gid, jobId, {
         status: "running",
@@ -640,6 +656,18 @@ async function runPipeline(jobId: string, body: StartBody) {
       stages.insights = { ok: false, error: (e as Error).message };
     }
 
+    // 6.4) DNA Visual das capas (best-effort, antes do briefing pra que ele injete dna_capa)
+    await setJob(supabase, gid, jobId, { status: "running", stage: "Analisando DNA visual das capas...", progress: 92 });
+    try {
+      const v = await callFn("analyze-genre-visual-dna", { genre_id: gid });
+      const vd = v.data as any;
+      stages.visual_dna = vd?.ok
+        ? { ok: true, estilo: vd?.dna_visual?.estilo_dominante, atmosfera: vd?.dna_visual?.atmosfera, capas: vd?.dna_visual?.capas_analisadas?.length ?? 0 }
+        : { ok: false, error: vd?.error ?? `HTTP ${v.status}` };
+    } catch (e) {
+      stages.visual_dna = { ok: false, error: (e as Error).message };
+    }
+
     // 6.5) Gerar briefing — SEMPRE tenta, com retry. Não pode pular.
     await setJob(supabase, gid, jobId, { status: "running", stage: "Gerando briefing de playlists...", progress: 95 });
     await ensureBriefing(supabase, gid, stages);
@@ -755,6 +783,16 @@ async function resumePipeline(jobId: string, slug: string) {
     try { await callFn("analyze-genre", { genre_id: gid }); } catch (_) {}
     await setJob(supabase, gid, jobId, { status: "running", stage: "Gerando insights...", progress: 90 });
     try { await callFn("genre-insights", { genre_id: gid }); } catch (_) {}
+    await setJob(supabase, gid, jobId, { status: "running", stage: "Analisando DNA visual das capas...", progress: 92 });
+    try {
+      const v = await callFn("analyze-genre-visual-dna", { genre_id: gid });
+      const vd = v.data as any;
+      (stages as any).visual_dna = vd?.ok
+        ? { ok: true, estilo: vd?.dna_visual?.estilo_dominante, atmosfera: vd?.dna_visual?.atmosfera }
+        : { ok: false, error: vd?.error ?? `HTTP ${v.status}` };
+    } catch (e) {
+      (stages as any).visual_dna = { ok: false, error: (e as Error).message };
+    }
     await setJob(supabase, gid, jobId, { status: "running", stage: "Gerando briefing de playlists...", progress: 95 });
     await ensureBriefing(supabase, gid, stages);
 
