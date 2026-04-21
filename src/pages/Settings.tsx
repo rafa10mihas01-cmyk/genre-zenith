@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Settings as SettingsIcon, KeyRound, CheckCircle2, XCircle, Loader2, Zap, RefreshCw, LogOut, Database, CalendarClock, Play, Music2,
+  Settings as SettingsIcon, KeyRound, CheckCircle2, XCircle, Loader2, Zap, RefreshCw, LogOut, Database, CalendarClock, Play, Music2, UserCheck, Star, Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -36,6 +36,8 @@ export default function Settings() {
   const [runningCron, setRunningCron] = useState(false);
   const [spotifyTesting, setSpotifyTesting] = useState(false);
   const [spotifyResult, setSpotifyResult] = useState<{ ok: boolean; msg: string; meta?: any } | null>(null);
+  const [spotifyAccounts, setSpotifyAccounts] = useState<any[]>([]);
+  const [connectingSpotify, setConnectingSpotify] = useState(false);
 
   async function testSpotify() {
     setSpotifyTesting(true); setSpotifyResult(null);
@@ -46,7 +48,75 @@ export default function Settings() {
     else setSpotifyResult({ ok: false, msg: data?.error ?? "Falha desconhecida" });
   }
 
-  useEffect(() => { void loadStats(); }, []);
+  useEffect(() => { void loadStats(); void loadSpotifyAccounts(); }, []);
+
+  // Trata retorno do OAuth do Spotify
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("spotify_callback") === "1") {
+      const code = params.get("code");
+      const state = params.get("state");
+      const error = params.get("error");
+      const redirect = `${window.location.origin}/settings?spotify_callback=1`;
+      if (error) {
+        toast.error("Conexão Spotify cancelada", { description: error });
+      } else if (code) {
+        (async () => {
+          const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/spotify-auth?mode=callback&code=${encodeURIComponent(code)}&redirect=${encodeURIComponent(redirect)}&state=${encodeURIComponent(state ?? "")}`;
+          const resp = await fetch(url, {
+            headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+          });
+          const json = await resp.json();
+          if (json?.ok) {
+            toast.success("Conta Spotify conectada", { description: json.display_name ?? json.spotify_user_id });
+            await loadSpotifyAccounts();
+          } else {
+            toast.error("Falha ao conectar Spotify", { description: json?.error ?? "" });
+          }
+          window.history.replaceState({}, "", "/settings");
+        })();
+      }
+    }
+  }, []);
+
+  async function loadSpotifyAccounts() {
+    const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/spotify-auth?mode=accounts`;
+    const resp = await fetch(url, {
+      headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+    });
+    const j = await resp.json();
+    if (j?.ok) setSpotifyAccounts(j.accounts ?? []);
+  }
+
+  async function connectSpotify() {
+    setConnectingSpotify(true);
+    try {
+      const redirect = `${window.location.origin}/settings?spotify_callback=1`;
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/spotify-auth?mode=login&redirect=${encodeURIComponent(redirect)}`;
+      const resp = await fetch(url, {
+        headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+      });
+      const j = await resp.json();
+      if (!j?.ok) throw new Error(j?.error ?? "Falha");
+      window.location.href = j.url;
+    } catch (e: any) {
+      toast.error("Erro ao iniciar conexão", { description: e?.message });
+      setConnectingSpotify(false);
+    }
+  }
+
+  async function setDefaultAccount(id: string) {
+    await supabase.from("spotify_user_tokens").update({ is_default: false }).neq("id", id);
+    await supabase.from("spotify_user_tokens").update({ is_default: true }).eq("id", id);
+    toast.success("Conta padrão atualizada");
+    await loadSpotifyAccounts();
+  }
+
+  async function removeAccount(id: string) {
+    await supabase.from("spotify_user_tokens").delete().eq("id", id);
+    toast.success("Conta removida");
+    await loadSpotifyAccounts();
+  }
 
   async function loadStats() {
     const [g, t, r, tr] = await Promise.all([
@@ -184,6 +254,57 @@ export default function Settings() {
             )}
           </div>
         )}
+
+        {/* Contas conectadas (OAuth) */}
+        <div className="mt-5 pt-5 border-t border-border">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <h3 className="text-sm font-semibold flex items-center gap-1.5">
+                <UserCheck className="h-4 w-4 text-primary" /> Contas Spotify conectadas
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Necessário para criar playlists no Spotify a partir de templates aprovados.
+                Adicione <span className="font-mono text-foreground">{`${window.location.origin}/settings?spotify_callback=1`}</span> como Redirect URI no app do Spotify.
+              </p>
+            </div>
+            <Button size="sm" onClick={connectSpotify} disabled={connectingSpotify}>
+              {connectingSpotify ? <Loader2 className="h-4 w-4 animate-spin" /> : <Music2 className="h-4 w-4" />}
+              Conectar conta
+            </Button>
+          </div>
+
+          {spotifyAccounts.length === 0 ? (
+            <p className="text-xs text-muted-foreground mt-3 italic">Nenhuma conta conectada ainda.</p>
+          ) : (
+            <div className="mt-3 space-y-2">
+              {spotifyAccounts.map((acc) => (
+                <div key={acc.id} className="flex items-center justify-between gap-2 p-2.5 rounded-lg border border-border bg-muted/20">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-sm truncate">{acc.display_name ?? acc.spotify_user_id}</span>
+                      {acc.is_default && (
+                        <span className="text-[10px] inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/15 text-primary">
+                          <Star className="h-2.5 w-2.5" /> padrão
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-muted-foreground font-mono truncate">{acc.email ?? acc.spotify_user_id}</div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {!acc.is_default && (
+                      <Button size="sm" variant="ghost" onClick={() => setDefaultAccount(acc.id)} className="h-7 px-2 text-xs">
+                        <Star className="h-3 w-3" /> Padrão
+                      </Button>
+                    )}
+                    <Button size="sm" variant="ghost" onClick={() => removeAccount(acc.id)} className="h-7 w-7 p-0 text-destructive hover:text-destructive">
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </section>
 
       {/* Parâmetros */}

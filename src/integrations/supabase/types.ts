@@ -367,6 +367,8 @@ export type Database = {
           blueprint_id: string
           cover_brief: string | null
           created_at: string
+          created_on_spotify_at: string | null
+          creation_error: string | null
           description: string | null
           generated_by_model: string | null
           genre_id: string
@@ -376,8 +378,14 @@ export type Database = {
           regras: Json | null
           rejection_reason: string | null
           replication_score: number
+          spotify_owner_id: string | null
+          spotify_playlist_id: string | null
+          spotify_snapshot_id: string | null
+          spotify_url: string | null
           status: string
           track_seeds: Json | null
+          tracks_added: number
+          tracks_failed: number
           updated_at: string
           variation_index: number
         }
@@ -387,6 +395,8 @@ export type Database = {
           blueprint_id: string
           cover_brief?: string | null
           created_at?: string
+          created_on_spotify_at?: string | null
+          creation_error?: string | null
           description?: string | null
           generated_by_model?: string | null
           genre_id: string
@@ -396,8 +406,14 @@ export type Database = {
           regras?: Json | null
           rejection_reason?: string | null
           replication_score?: number
+          spotify_owner_id?: string | null
+          spotify_playlist_id?: string | null
+          spotify_snapshot_id?: string | null
+          spotify_url?: string | null
           status?: string
           track_seeds?: Json | null
+          tracks_added?: number
+          tracks_failed?: number
           updated_at?: string
           variation_index?: number
         }
@@ -407,6 +423,8 @@ export type Database = {
           blueprint_id?: string
           cover_brief?: string | null
           created_at?: string
+          created_on_spotify_at?: string | null
+          creation_error?: string | null
           description?: string | null
           generated_by_model?: string | null
           genre_id?: string
@@ -416,8 +434,14 @@ export type Database = {
           regras?: Json | null
           rejection_reason?: string | null
           replication_score?: number
+          spotify_owner_id?: string | null
+          spotify_playlist_id?: string | null
+          spotify_snapshot_id?: string | null
+          spotify_url?: string | null
           status?: string
           track_seeds?: Json | null
+          tracks_added?: number
+          tracks_failed?: number
           updated_at?: string
           variation_index?: number
         }
@@ -643,6 +667,48 @@ export type Database = {
           created_at?: string
           expires_at?: string
           id?: string
+        }
+        Relationships: []
+      }
+      spotify_user_tokens: {
+        Row: {
+          access_token: string
+          created_at: string
+          display_name: string | null
+          email: string | null
+          expires_at: string
+          id: string
+          is_default: boolean
+          refresh_token: string
+          scope: string | null
+          spotify_user_id: string
+          updated_at: string
+        }
+        Insert: {
+          access_token: string
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          expires_at: string
+          id?: string
+          is_default?: boolean
+          refresh_token: string
+          scope?: string | null
+          spotify_user_id: string
+          updated_at?: string
+        }
+        Update: {
+          access_token?: string
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          expires_at?: string
+          id?: string
+          is_default?: boolean
+          refresh_token?: string
+          scope?: string | null
+          spotify_user_id?: string
+          updated_at?: string
         }
         Relationships: []
       }
