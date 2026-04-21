@@ -272,12 +272,19 @@ Deno.serve(async (req) => {
 
     // ═══════════════ PASS BUILDER ═══════════════
     // Constrói cards numa pass (strict ou expansao). Retorna candidatos válidos.
-    function buildCards(pass: "strict" | "expansao", skipFormatIdx: Set<number>): any[] {
+    // ⚠️ Expansão usa cotas próprias (não herda as cheias do strict) e filtros relaxados.
+    function buildCards(
+      pass: "strict" | "expansao",
+      skipFormatIdx: Set<number>,
+      usedNames: Set<string>,
+      quotaMap: Map<string, { max: number; min: number; count: number }>,
+    ): any[] {
       const out: any[] = [];
 
-      // Limites por pass (survival_mode relaxa pisos do strict pass)
+      // Limites por pass
       const minFreq = pass === "expansao" ? HARD_MIN_FREQ_PCT : effMinFreqPct;
       const minRep = pass === "expansao" ? HARD_MIN_REP : effMinReps;
+      const minKw = pass === "expansao" ? EXPANSAO_MIN_KEYWORDS : MIN_KEYWORDS;
 
       for (let fi = 0; fi < sortedFormats.length; fi++) {
         if (skipFormatIdx.has(fi)) continue;
@@ -291,26 +298,24 @@ Deno.serve(async (req) => {
         if (freq < minFreq) continue;
         if (rep < minRep) continue;
 
-        // 🏷️ CLASSIFICAÇÃO OBRIGATÓRIA
+        // 🏷️ CLASSIFICAÇÃO (em expansão, pode operar sem subgenero — _global)
         let subInfo = classifySub(fmt.value);
         const hasClusters = subInfoBySlug.size > 0;
         if (hasClusters && !subInfo) {
           const sampleTracks = allTracks.slice(0, 8).map(t => ({ nome: t.nome, artista: t.artista }));
           subInfo = inferSubFromTracks(sampleTracks);
-          if (!subInfo) continue;
+          // Em strict, exige subgênero. Em expansão, aceita sem.
+          if (!subInfo && pass === "strict") continue;
         }
 
         const subKey = subInfo ? subInfo.slug.toLowerCase() : "_global";
 
-        // 📏 RESPEITA COTA
-        const quota = subQuota.get(subKey);
+        // 📏 RESPEITA COTA (própria da pass)
+        const quota = quotaMap.get(subKey);
         if (quota && quota.count >= quota.max) continue;
 
         const pool = subInfo ? subPools.get(subKey) : null;
-        const useSubPool = !!subInfo;
-        if (useSubPool && (!pool || pool.kws.length < MIN_KEYWORDS || pool.tracks.length === 0)) {
-          continue;
-        }
+        const useSubPool = !!subInfo && !!pool && pool.kws.length >= minKw && pool.tracks.length >= HARD_MIN_TRACKS;
         const kwSource = useSubPool ? pool!.kws : sortedKw.map(k => ({ value: k.value, peso: k.peso }));
         const trackSource = useSubPool ? pool!.tracks : allTracks.map(t => ({ nome: t.nome, artista: t.artista }));
         const artistSource = useSubPool ? pool!.artists : allArtists;
@@ -318,9 +323,7 @@ Deno.serve(async (req) => {
         const kwSrcLen = kwSource.length;
         const trkSrcLen = trackSource.length;
         const artSrcLen = artistSource.length;
-        if (kwSrcLen < MIN_KEYWORDS) continue;
-
-        // 🚧 PISO ABSOLUTO: precisa de ao menos HARD_MIN_TRACKS músicas
+        if (kwSrcLen < minKw) continue;
         if (trkSrcLen < HARD_MIN_TRACKS) continue;
 
         // 🔄 ROTAÇÃO independente por subgênero
@@ -335,21 +338,20 @@ Deno.serve(async (req) => {
           if (!k?.value || seenK.has(k.value)) return false;
           seenK.add(k.value); return true;
         });
-        if (uniqKw.length < MIN_KEYWORDS) continue;
+        if (uniqKw.length < minKw) continue;
 
         const tStart = trkSrcLen ? (rotIdx * TRACKS_PER_CARD) % trkSrcLen : 0;
         const tracks: any[] = [];
         for (let i = 0; i < TRACKS_PER_CARD && i < trkSrcLen; i++) tracks.push(trackSource[(tStart + i) % trkSrcLen]);
 
-        // 🚧 PISO ABSOLUTO no card final também
         if (tracks.length < HARD_MIN_TRACKS) continue;
 
         const aStart = artSrcLen ? (rotIdx * 3) % artSrcLen : 0;
         const artists: string[] = [];
         for (let i = 0; i < 5 && i < artSrcLen; i++) artists.push(artistSource[(aStart + i) % artSrcLen]);
 
-        // 🔬 RECONFIRMAÇÃO via tracks reais
-        if (subInfo && hasClusters) {
+        // 🔬 RECONFIRMAÇÃO via tracks reais — só em strict (expansão explora)
+        if (pass === "strict" && subInfo && hasClusters) {
           const reInfer = inferSubFromTracks(tracks);
           if (reInfer && reInfer.slug.toLowerCase() !== subInfo.slug.toLowerCase()) {
             continue;
@@ -364,7 +366,7 @@ Deno.serve(async (req) => {
         const score = (freq * 0.5) + (rep * 0.3) + (uniqKw.length * 5) + subBoost;
         const forca_nome = Math.min(100, Math.round(score));
 
-        // 🚧 PISO DE SCORE EM EXPANSÃO: descarta lixo mesmo respeitando frequência
+        // 🚧 PISO DE SCORE EM EXPANSÃO (agora 8, era 15)
         if (pass === "expansao" && score < SCORE_MIN_EXPANSAO) continue;
 
         // 🎯 CONFIDENCE
@@ -386,6 +388,11 @@ Deno.serve(async (req) => {
         const nomeBase = fmtTitle.toLowerCase().includes(genre.nome.toLowerCase())
           ? fmtTitle
           : `${fmtTitle} ${titleCase(genre.nome)}`;
+
+        // 🚫 EVITA DUPLICATAS COM O STRICT
+        const nomeKey = nomeBase.toLowerCase().trim();
+        if (usedNames.has(nomeKey)) continue;
+        usedNames.add(nomeKey);
 
         // 🎯 PLAYLISTS DE REFERÊNCIA
         const fmtLower = fmt.value.toLowerCase();
@@ -451,18 +458,140 @@ Deno.serve(async (req) => {
       return out;
     }
 
+    // ═══════════════ BUILDER SINTÉTICO (modo expansão) ═══════════════
+    // Quando formatos reais esgotam, cria cards combinando subgênero + conceito sintético
+    // + keywords do sub + tracks. Garante que expansão gere NOVAS IDEIAS.
+    function buildSyntheticExpansao(
+      usedNames: Set<string>,
+      quotaMap: Map<string, { max: number; min: number; count: number }>,
+      target: number,
+    ): any[] {
+      const out: any[] = [];
+      if (subsRanked.length === 0) return out;
+      let conceptIdx = 0;
+      let safety = 0;
+      while (out.length < target && safety < target * SYNTHETIC_CONCEPTS.length * 2) {
+        safety++;
+        for (const sg of subsRanked) {
+          if (out.length >= target) break;
+          const subKey = String(sg.slug ?? sg.nome).toLowerCase();
+          const pool = subPools.get(subKey);
+          if (!pool || pool.kws.length < EXPANSAO_MIN_KEYWORDS || pool.tracks.length < HARD_MIN_TRACKS) continue;
+          const quota = quotaMap.get(subKey);
+          if (quota && quota.count >= quota.max) continue;
+
+          const concept = SYNTHETIC_CONCEPTS[conceptIdx % SYNTHETIC_CONCEPTS.length];
+          conceptIdx++;
+
+          const nomeBase = `${titleCase(concept)} ${titleCase(sg.nome ?? genre.nome)}`;
+          const nomeKey = nomeBase.toLowerCase().trim();
+          if (usedNames.has(nomeKey)) continue;
+
+          // Rotação pra pegar fatias diferentes
+          const rot = (subRotation.get(subKey) ?? 0) + 1;
+          subRotation.set(subKey, rot);
+
+          const kwStart = (rot * KW_PER_CARD) % pool.kws.length;
+          const kwSel: any[] = [];
+          const seen = new Set<string>();
+          for (let i = 0; i < KW_PER_CARD && kwSel.length < KW_PER_CARD; i++) {
+            const k = pool.kws[(kwStart + i) % pool.kws.length];
+            if (k?.value && !seen.has(k.value)) { seen.add(k.value); kwSel.push(k); }
+          }
+          if (kwSel.length < EXPANSAO_MIN_KEYWORDS) continue;
+
+          const tStart = (rot * TRACKS_PER_CARD) % pool.tracks.length;
+          const tracks: any[] = [];
+          for (let i = 0; i < TRACKS_PER_CARD && i < pool.tracks.length; i++) {
+            tracks.push(pool.tracks[(tStart + i) % pool.tracks.length]);
+          }
+          if (tracks.length < HARD_MIN_TRACKS) continue;
+
+          const aStart = pool.artists.length ? (rot * 3) % pool.artists.length : 0;
+          const artists: string[] = [];
+          for (let i = 0; i < 5 && i < pool.artists.length; i++) artists.push(pool.artists[(aStart + i) % pool.artists.length]);
+
+          usedNames.add(nomeKey);
+          if (quota) quota.count += 1;
+
+          const subPesoPct = sg.peso_pct ?? 0;
+          const subBoost = Math.min(20, subPesoPct * 0.5);
+          // Score sintético: mais baixo de propósito (exploratório)
+          const score = 10 + (kwSel.length * 3) + subBoost;
+
+          out.push({
+            nome: nomeBase,
+            nome_provisorio: nomeBase,
+            forca_nome: Math.min(100, Math.round(score)),
+            formato: concept,
+            formato_id: `syn_${subKey}_${concept}`,
+            subgenero: { slug: sg.slug, nome: sg.nome },
+            origem: "expansao",
+            keywords_utilizadas: kwSel.map((k: any) => ({ value: k.value, peso: k.peso })),
+            base_musical: {
+              top_musicas: tracks.map(t => ({ nome: t.nome, artista: t.artista })),
+              artistas_principais: artists,
+            },
+            playlists_referencia: playlistsDom.slice(0, 3).map((p: any) => {
+              const meta = playlistsMetaMap.get(p.nome);
+              return {
+                nome: p.nome,
+                seguidores: meta?.seguidores ?? p.seguidores ?? 0,
+                spotify_url: meta?.spotify_url ?? p.spotify_url ?? null,
+                imagem_url: meta?.imagem_url ?? p.imagem_url ?? null,
+              };
+            }),
+            metricas: { media_seguidores: 0, total_referencias: 0 },
+            dna_capa: dnaVisual,
+            justificativa: {
+              frequencia_padrao_pct: 0,
+              repeticao_em_playlists: 0,
+              score: Math.round(score),
+              sinal: "exploratório",
+              subgenero_peso_pct: subPesoPct || null,
+            },
+            confidence: "baixa",
+          });
+        }
+      }
+      return out;
+    }
+
     // ═══════════════ EXECUÇÃO EM 2 PASSES ═══════════════
-    // PASS 1 (sempre): STRICT — só playlists confiáveis primeiro
-    const consumed = new Set<number>();
-    const strictCards = buildCards("strict", consumed);
+    // PASS 1 (sempre): STRICT
+    const consumedStrict = new Set<number>();
+    const usedNames = new Set<string>();
+    const strictCards = buildCards("strict", consumedStrict, usedNames, subQuota);
     valid.push(...strictCards);
     console.log(`PASS strict → ${strictCards.length} cards`);
 
-    // PASS 2 (só em modo expansão): preenche com exploratórias respeitando piso
+    // PASS 2 (só em modo expansão): cotas próprias + filtros relaxados + sintético
+    let expansaoCount = 0;
     if (briefingMode === "expansao" && valid.length < MAX_RESULTS) {
-      const expansaoCards = buildCards("expansao", consumed);
-      valid.push(...expansaoCards);
-      console.log(`PASS expansao → ${expansaoCards.length} cards (total agora: ${valid.length})`);
+      // 🔑 COTAS INDEPENDENTES pra expansão (não herda contadores cheios do strict)
+      const expansaoQuota = new Map<string, { max: number; min: number; count: number }>();
+      for (let i = 0; i < subsRanked.length; i++) {
+        const slug = String(subsRanked[i].slug ?? subsRanked[i].nome).toLowerCase();
+        expansaoQuota.set(slug, { max: i === 0 ? 3 : 2, min: 0, count: 0 });
+      }
+      expansaoQuota.set("_global", { max: 4, min: 0, count: 0 });
+
+      // Formatos reais não usados no strict
+      const consumedExp = new Set<number>(); // independente — expansão pode revisitar formatos relaxando filtros
+      const expReal = buildCards("expansao", consumedExp, usedNames, expansaoQuota);
+      valid.push(...expReal);
+      expansaoCount += expReal.length;
+      console.log(`PASS expansao (real) → ${expReal.length} cards`);
+
+      // Se ainda não atingiu alvo mínimo, gera sintéticos
+      const stillNeed = Math.min(MAX_RESULTS - valid.length, EXPANSAO_TARGET_CARDS - expansaoCount);
+      if (stillNeed > 0) {
+        const expSyn = buildSyntheticExpansao(usedNames, expansaoQuota, stillNeed);
+        valid.push(...expSyn);
+        expansaoCount += expSyn.length;
+        console.log(`PASS expansao (sintético) → ${expSyn.length} cards`);
+      }
+      console.log(`PASS expansao TOTAL → ${expansaoCount} cards (strict: ${strictCards.length}, total: ${valid.length})`);
     } else if (briefingMode === "expansao") {
       console.log(`PASS expansao → SKIPPED (já atingiu MAX_RESULTS=${MAX_RESULTS})`);
     }
