@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Loader2, Sparkles, Wand2, Layers, CheckCircle2, XCircle, Clock, Trash2, ExternalLink, FileText } from "lucide-react";
+import { Loader2, Sparkles, Wand2, Layers, CheckCircle2, XCircle, Clock, Trash2, ExternalLink, FileText, Music2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { formatNumber, timeAgo } from "@/lib/format";
@@ -41,6 +41,12 @@ type Template = {
   approved_at: string | null;
   rejection_reason: string | null;
   created_at: string;
+  spotify_playlist_id: string | null;
+  spotify_url: string | null;
+  tracks_added: number | null;
+  tracks_failed: number | null;
+  creation_error: string | null;
+  created_on_spotify_at: string | null;
 };
 
 const TIER_LABEL: Record<string, string> = { mega: "Mega", big: "Big", medium: "Médio", small: "Small" };
@@ -63,6 +69,7 @@ export function Replicacao({ genreId }: { genreId?: string }) {
   const [loading, setLoading] = useState(true);
   const [extracting, setExtracting] = useState(false);
   const [generating, setGenerating] = useState<string | null>(null);
+  const [creating, setCreating] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const load = async () => {
@@ -147,6 +154,29 @@ export function Replicacao({ genreId }: { genreId?: string }) {
     if (error) { toast.error("Erro"); return; }
     toast.success("Template removido");
     await load();
+  };
+
+  const createOnSpotify = async (id: string) => {
+    setCreating(id);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-spotify-playlist", {
+        body: { template_id: id, public: true },
+      });
+      if (error) throw error;
+      if (data?.ok === false) throw new Error(data?.error ?? "Falha ao criar");
+      toast.success("Playlist criada no Spotify", {
+        description: `${data?.tracks_added ?? 0} faixas adicionadas · ${data?.tracks_failed ?? 0} falhas`,
+        action: data?.spotify_url ? { label: "Abrir", onClick: () => window.open(data.spotify_url, "_blank") } : undefined,
+      });
+      await load();
+    } catch (e: any) {
+      const msg = e?.message ?? "Erro desconhecido";
+      toast.error("Erro ao criar no Spotify", {
+        description: msg.includes("Nenhuma conta") ? "Conecte uma conta Spotify em Configurações." : msg,
+      });
+    } finally {
+      setCreating(null);
+    }
   };
 
   const toggleExpand = (id: string) =>
@@ -267,10 +297,12 @@ export function Replicacao({ genreId }: { genreId?: string }) {
                     ) : (
                       templates.map((t) => <TemplateCard
                         key={t.id} t={t}
+                        creating={creating === t.id}
                         onApprove={() => updateTemplateStatus(t.id, "approved")}
                         onReject={() => updateTemplateStatus(t.id, "rejected")}
                         onReset={() => updateTemplateStatus(t.id, "pending")}
                         onDelete={() => deleteTemplate(t.id)}
+                        onCreate={() => createOnSpotify(t.id)}
                       />)
                     )}
                   </div>
@@ -304,15 +336,18 @@ function ScoreBadge({ score }: { score: number }) {
   );
 }
 
-function TemplateCard({ t, onApprove, onReject, onReset, onDelete }: {
+function TemplateCard({ t, creating, onApprove, onReject, onReset, onDelete, onCreate }: {
   t: Template;
+  creating: boolean;
   onApprove: () => void;
   onReject: () => void;
   onReset: () => void;
   onDelete: () => void;
+  onCreate: () => void;
 }) {
   const meta = STATUS_LABEL[t.status] ?? STATUS_LABEL.pending;
   const Icon = meta.icon;
+  const isCreated = !!t.spotify_playlist_id;
   return (
     <div className="rounded-lg border border-border bg-background p-3 space-y-2">
       <div className="flex items-start justify-between gap-2 flex-wrap">
@@ -325,26 +360,56 @@ function TemplateCard({ t, onApprove, onReject, onReset, onDelete }: {
           </span>
         </div>
         <div className="flex items-center gap-1">
-          {t.status !== "approved" && (
+          {t.status !== "approved" && t.status !== "created" && (
             <Button size="sm" variant="outline" onClick={onApprove} className="h-7 px-2 text-xs">
               <CheckCircle2 className="h-3 w-3" /> Aprovar
             </Button>
           )}
-          {t.status !== "rejected" && (
+          {t.status === "approved" && !isCreated && (
+            <Button size="sm" onClick={onCreate} disabled={creating} className="h-7 px-2 text-xs">
+              {creating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Music2 className="h-3 w-3" />}
+              Criar no Spotify
+            </Button>
+          )}
+          {isCreated && t.spotify_url && (
+            <a href={t.spotify_url} target="_blank" rel="noreferrer"
+               className="h-7 px-2 text-xs inline-flex items-center gap-1 rounded-md border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20">
+              <Music2 className="h-3 w-3" /> Abrir no Spotify <ExternalLink className="h-2.5 w-2.5" />
+            </a>
+          )}
+          {t.status !== "rejected" && t.status !== "created" && (
             <Button size="sm" variant="outline" onClick={onReject} className="h-7 px-2 text-xs">
               <XCircle className="h-3 w-3" /> Rejeitar
             </Button>
           )}
-          {t.status !== "pending" && (
+          {t.status !== "pending" && t.status !== "created" && (
             <Button size="sm" variant="ghost" onClick={onReset} className="h-7 px-2 text-xs">
               Reset
             </Button>
           )}
-          <Button size="sm" variant="ghost" onClick={onDelete} className="h-7 w-7 p-0 text-destructive hover:text-destructive">
-            <Trash2 className="h-3 w-3" />
-          </Button>
+          {!isCreated && (
+            <Button size="sm" variant="ghost" onClick={onDelete} className="h-7 w-7 p-0 text-destructive hover:text-destructive">
+              <Trash2 className="h-3 w-3" />
+            </Button>
+          )}
         </div>
       </div>
+
+      {isCreated && (
+        <div className="text-[11px] flex items-center gap-3 px-2 py-1.5 rounded bg-emerald-500/5 border border-emerald-500/20 text-emerald-300">
+          <span className="inline-flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Criada no Spotify</span>
+          <span className="text-muted-foreground">·</span>
+          <span>{t.tracks_added ?? 0} faixas adicionadas</span>
+          {(t.tracks_failed ?? 0) > 0 && <span className="text-warning">{t.tracks_failed} não encontradas</span>}
+          {t.created_on_spotify_at && <span className="text-muted-foreground ml-auto">{timeAgo(t.created_on_spotify_at)}</span>}
+        </div>
+      )}
+
+      {t.creation_error && !isCreated && (
+        <div className="text-[11px] flex items-start gap-1.5 px-2 py-1.5 rounded bg-destructive/10 border border-destructive/30 text-destructive">
+          <AlertTriangle className="h-3 w-3 shrink-0 mt-0.5" /><span>{t.creation_error}</span>
+        </div>
+      )}
 
       {t.description && <p className="text-xs text-muted-foreground">{t.description}</p>}
 
