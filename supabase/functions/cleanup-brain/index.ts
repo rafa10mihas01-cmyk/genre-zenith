@@ -44,6 +44,7 @@ Deno.serve(async (req) => {
     low_quality: 0,
     blacklisted: 0,
     low_quality_24h: 0,
+    invalidated: 0,
     total: 0,
     duration_ms: 0,
   };
