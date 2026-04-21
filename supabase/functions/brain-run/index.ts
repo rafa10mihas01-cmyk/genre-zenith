@@ -205,33 +205,67 @@ async function runPipeline(jobId: string, body: StartBody) {
     // 2) Buscas — paralelizadas em batches (3 simultâneas no modo normal)
     await setJob(supabase, gid, jobId, { status: "running", stage: "Buscando playlists...", progress: 15 });
     let searchedOk = 0, searchedErr = 0, totalSavedResults = 0;
+    let apifyBlocked = false;
     const allTerms = termsRows ?? [];
     const total = allTerms.length || 1;
     let processed = 0;
-    for (let i = 0; i < allTerms.length; i += batchSize) {
+    let searchCalls = 0;
+    const MAX_SEARCH_CALLS = 5; // limite de proteção de custo por run
+    outer: for (let i = 0; i < allTerms.length; i += batchSize) {
       const batch = allTerms.slice(i, i + batchSize);
-      const results = await Promise.all(batch.map((t) =>
-        callFn("run-search", {
+      const results = await Promise.all(batch.map((t) => {
+        searchCalls++;
+        return callFn("run-search", {
           genre_id: gid, term_id: t.id, search_term: t.termo, max_results: maxPerSearch,
-        })
-      ));
-      results.forEach((r) => {
-        if (r.ok && (r.data as any)?.ok) {
+        });
+      }));
+      for (const r of results) {
+        const d = r.data as any;
+        if (d?.blocked) { apifyBlocked = true; break; }
+        if (r.ok && d?.ok) {
           searchedOk++;
-          totalSavedResults += (r.data as any)?.savedResults ?? 0;
+          totalSavedResults += d?.savedResults ?? 0;
         } else searchedErr++;
-      });
+      }
       processed += batch.length;
       await setJob(supabase, gid, jobId, {
         status: "running",
-        stage: `Buscando playlists... (${processed}/${total})`,
+        stage: apifyBlocked
+          ? "⚠️ Coleta pausada — limite de API atingido"
+          : `Buscando playlists... (${processed}/${total})`,
         progress: 15 + Math.round((processed / total) * 40),
       });
+      if (apifyBlocked) break outer;
+      if (searchCalls >= MAX_SEARCH_CALLS) {
+        await supabase.from("collection_logs").insert({
+          genre_id: gid, acao: "brain-run", status: "parcial",
+          mensagem: `MAX_SEARCH_CALLS (${MAX_SEARCH_CALLS}) atingido — interrompendo coleta`,
+        });
+        break outer;
+      }
       if (delayMs > 0 && i + batchSize < allTerms.length) {
         await new Promise((res) => setTimeout(res, delayMs));
       }
     }
-    stages.search = { ok: searchedOk, err: searchedErr, total_inserted: totalSavedResults };
+    stages.search = { ok: searchedOk, err: searchedErr, total_inserted: totalSavedResults, calls: searchCalls, blocked: apifyBlocked };
+
+    // Circuit breaker: pipeline interrompido — não prossegue para enrich/analyze/briefing.
+    if (apifyBlocked) {
+      await supabase.from("collection_logs").insert({
+        genre_id: gid, acao: "brain-run", status: "erro",
+        mensagem: "Pipeline interrompido por limite do Apify",
+        duracao_ms: Date.now() - start,
+      });
+      await setJob(supabase, gid, jobId, {
+        status: "error",
+        stage: "⚠️ Coleta pausada — limite de API atingido",
+        progress: 0,
+        error: "Pipeline interrompido por limite do Apify",
+        result: { ok: false, blocked: true, reason: "APIFY_LIMIT", apify_blocked: true, stages },
+      });
+      return;
+    }
+
 
 
     // 3) Filtro relaxado: relevante se nome OU descrição OU termo de origem contém o slug,
