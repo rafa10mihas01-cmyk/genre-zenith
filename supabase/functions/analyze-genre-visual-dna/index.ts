@@ -204,12 +204,6 @@ Para cada campo:
     }
 
     // ============ SALVAR (preserva DNA global se for sub, e vice-versa) ============
-    const { data: model } = await supabase
-      .from("genre_models")
-      .select("id,insights")
-      .eq("genre_id", body.genre_id)
-      .maybeSingle();
-
     const dnaPayload = {
       ...dna,
       capas_analisadas: validCovers.map(c => ({ nome: c.nome_playlist, url: c.imagem_url })),
@@ -217,35 +211,88 @@ Para cada campo:
       ...(subgeneroSlug ? { subgenero_slug: subgeneroSlug, subgenero_nome: subgeneroNome } : {}),
     };
 
-    const prevInsights = (model?.insights as any) ?? {};
-    const newInsights = subgeneroSlug
-      ? {
-          ...prevInsights,
-          dna_visual_subgeneros: {
-            ...(prevInsights.dna_visual_subgeneros ?? {}),
-            [subgeneroSlug]: dnaPayload,
-          },
-        }
-      : {
-          ...prevInsights,
-          dna_visual: dnaPayload,
-        };
+    // Helper: merge seguro lendo insights frescos do DB (evita race com analyze-genre)
+    async function safeMergeAndPersist(): Promise<{ ok: boolean; error?: string; verified?: any }> {
+      const { data: model, error: readErr } = await supabase
+        .from("genre_models")
+        .select("id,insights")
+        .eq("genre_id", body.genre_id)
+        .maybeSingle();
+      if (readErr) return { ok: false, error: `read failed: ${readErr.message}` };
 
-    if (model) {
-      await supabase.from("genre_models")
-        .update({ insights: newInsights, updated_at: new Date().toISOString() })
-        .eq("id", model.id);
-    } else {
-      await supabase.from("genre_models")
-        .insert({ genre_id: body.genre_id, insights: newInsights });
+      const prevInsights = (model?.insights as any) ?? {};
+      const prevSubMap = (prevInsights.dna_visual_subgeneros && typeof prevInsights.dna_visual_subgeneros === "object")
+        ? prevInsights.dna_visual_subgeneros
+        : {};
+
+      // Estrutura garantida: dna_visual_subgeneros sempre existe como objeto (nunca null)
+      const newInsights = {
+        ...prevInsights,
+        dna_visual: subgeneroSlug ? (prevInsights.dna_visual ?? null) : dnaPayload,
+        dna_visual_subgeneros: subgeneroSlug
+          ? { ...prevSubMap, [subgeneroSlug]: dnaPayload }
+          : prevSubMap,
+      };
+
+      const writeRes = model
+        ? await supabase.from("genre_models")
+            .update({ insights: newInsights, updated_at: new Date().toISOString() })
+            .eq("id", model.id)
+        : await supabase.from("genre_models")
+            .insert({ genre_id: body.genre_id, insights: newInsights });
+
+      if (writeRes.error) return { ok: false, error: `write failed: ${writeRes.error.message}` };
+
+      // Read-back verification: confirma que o DB realmente persistiu
+      const { data: verify, error: verifyErr } = await supabase
+        .from("genre_models")
+        .select("insights")
+        .eq("genre_id", body.genre_id)
+        .maybeSingle();
+      if (verifyErr || !verify) return { ok: false, error: `verify failed: ${verifyErr?.message ?? "no row"}` };
+
+      const v = verify.insights as any;
+      const persisted = subgeneroSlug
+        ? v?.dna_visual_subgeneros?.[subgeneroSlug]?.analyzed_at === dnaPayload.analyzed_at
+        : v?.dna_visual?.analyzed_at === dnaPayload.analyzed_at;
+
+      if (!persisted) return { ok: false, error: "read-back mismatch (analyzed_at não bateu)" };
+      return { ok: true, verified: v };
     }
 
-    const escopoLog = subgeneroSlug ? `[sub:${subgeneroSlug}] ` : "";
+    // Tenta persistir com 1 retry (cobre race condition com analyze-genre rodando em paralelo)
+    let persistResult = await safeMergeAndPersist();
+    if (!persistResult.ok) {
+      console.warn("[visual-dna] 1ª tentativa falhou, retry em 500ms:", persistResult.error);
+      await new Promise(r => setTimeout(r, 500));
+      persistResult = await safeMergeAndPersist();
+    }
+
+    if (!persistResult.ok) {
+      const errMsg = `Persistência falhou após retry: ${persistResult.error}`;
+      console.error("[visual-dna] PERSIST FAIL:", errMsg);
+      await supabase.from("collection_logs").insert({
+        genre_id: body.genre_id,
+        acao: "analyze-visual-dna",
+        status: "erro",
+        mensagem: errMsg,
+        duracao_ms: Date.now() - start,
+      });
+      return j({ ok: false, error: errMsg }, 500);
+    }
+
+    // Confirmação explícita pós-write
+    const v = persistResult.verified;
+    const subKeysCount = v?.dna_visual_subgeneros ? Object.keys(v.dna_visual_subgeneros).length : 0;
+    const escopoLog = subgeneroSlug ? `[sub:${subgeneroSlug}] ` : "[global] ";
+    const persistMsg = `${escopoLog}DNA visual PERSISTIDO ✓ (${validCovers.length} capas, estilo=${dna.estilo_dominante}, atmosfera=${dna.atmosfera}) | dna_visual=${!!v?.dna_visual} | subgeneros_count=${subKeysCount}`;
+    console.log("[visual-dna]", persistMsg);
+
     await supabase.from("collection_logs").insert({
       genre_id: body.genre_id,
       acao: "analyze-visual-dna",
       status: "sucesso",
-      mensagem: `${escopoLog}DNA visual extraído de ${validCovers.length} capas: ${dna.estilo_dominante}, ${dna.atmosfera}`,
+      mensagem: persistMsg,
       duracao_ms: Date.now() - start,
     });
 
@@ -254,6 +301,12 @@ Para cada campo:
       scope: subgeneroSlug ? "subgenero" : "global",
       subgenero_slug: subgeneroSlug,
       dna_visual: dnaPayload,
+      persisted: true,
+      verified: {
+        has_dna_visual: !!v?.dna_visual,
+        subgeneros_persisted: subKeysCount,
+        subgeneros_keys: v?.dna_visual_subgeneros ? Object.keys(v.dna_visual_subgeneros) : [],
+      },
     });
   } catch (e) {
     const msg = (e as Error).message ?? String(e);
