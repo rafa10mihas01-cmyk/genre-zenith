@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Brain, Sparkles, ListMusic, Music2, TrendingUp, ArrowRight, Activity, Loader2 } from "lucide-react";
 import { formatNumber, timeAgo } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { genreStyleVars } from "@/lib/genreColors";
 
 /**
  * HOME — Resumo executivo do sistema.
