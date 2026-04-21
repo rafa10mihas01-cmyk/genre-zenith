@@ -22,9 +22,11 @@ const TRACKS_PER_CARD = 5;
 const HARD_MIN_FREQ_PCT = 1;     // < 1% nunca entra, nem em expansão
 const HARD_MIN_REP = 1;          // < 1 repetição nunca entra
 const HARD_MIN_TRACKS = 2;       // < 2 músicas relevantes nunca entra
-const SCORE_MIN_EXPANSAO = 8;    // score mínimo relaxado (antes 15 — impedia base pequena)
+const SCORE_MIN_EXPANSAO = 12;   // score mínimo em expansão (8 → 12: corta cards fracos)
 const EXPANSAO_MIN_KEYWORDS = 1; // expansão aceita cards com 1 keyword válida
 const EXPANSAO_TARGET_CARDS = 5; // alvo mínimo de cards extra em expansão
+const MIN_HIGH_MED_RATIO = 0.6;  // ≥60% dos cards finais devem ser confidence alta/média
+const MIN_CARDS_FOR_RATIO = 4;   // só aplica o ratio se houver pelo menos N cards (evita zerar runs pequenas)
 // Conceitos sintéticos pra forçar variação quando formatos acabam
 const SYNTHETIC_CONCEPTS = [
   "essenciais", "favoritas", "clássicos", "novidades", "underground",
