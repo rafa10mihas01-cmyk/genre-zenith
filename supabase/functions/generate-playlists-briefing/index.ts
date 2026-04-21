@@ -39,9 +39,13 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const start = Date.now();
 
-  let body: { genre_id: string };
+  let body: { genre_id: string; survival_mode?: boolean };
   try { body = await req.json(); } catch { return j({ error: "Invalid JSON" }, 400); }
   if (!body.genre_id) return j({ error: "genre_id obrigatório" }, 400);
+  const survivalMode = body.survival_mode === true;
+  // 🛟 Modo sobrevivência: filtros relaxados (mas mantém HARD_MIN_TRACKS)
+  const effMinFreqPct = survivalMode ? 2 : MIN_FREQ_PCT;
+  const effMinReps = survivalMode ? 1 : MIN_REPETITIONS;
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
