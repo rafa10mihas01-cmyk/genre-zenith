@@ -96,8 +96,17 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           </header>
 
           {/* CONTEÚDO — padding consistente em todas as páginas */}
-          <main className="flex-1 px-6 lg:px-8 py-6 animate-fade-in nx-scroll">
-            {children}
+          <main className="relative flex-1 animate-fade-in nx-scroll">
+            {/* Gradiente sutil no topo: verde Spotify difuso → transparente */}
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 top-0 h-[420px] z-0"
+              style={{
+                background:
+                  "radial-gradient(ellipse 80% 60% at 50% 0%, hsl(141 76% 48% / 0.10) 0%, hsl(141 76% 48% / 0.04) 30%, transparent 70%)",
+              }}
+            />
+            <div className="relative z-10 px-6 lg:px-8 py-6">{children}</div>
           </main>
         </div>
       </div>
