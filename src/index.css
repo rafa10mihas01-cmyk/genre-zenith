@@ -2,112 +2,102 @@
 @tailwind components;
 @tailwind utilities;
 
-/* NexEngine Design System — Light & Dark */
+/* ============================================================
+   NexEngine Design System — Spotify-inspired (dark first)
+   Black canvas + Spotify green #1DB954
+   Aplicado globalmente. Toda página herda automaticamente.
+   ============================================================ */
 @layer base {
   :root,
   .dark {
     /* Backgrounds */
-    --background: 240 20% 5%;        /* #0A0A0F */
-    --card: 240 17% 8%;              /* #111118 */
-    --elevated: 240 16% 11%;         /* #16161F */
-    --popover: 240 17% 8%;
-    --popover-foreground: 240 22% 95%;
-    --card-foreground: 240 22% 95%;
+    --background: 0 0% 4%;            /* #0B0B0B  - canvas */
+    --card: 0 0% 7%;                  /* #121212  - cards */
+    --elevated: 0 0% 10%;             /* #1A1A1A  - hover/elevated */
+    --popover: 0 0% 7%;
+    --popover-foreground: 0 0% 96%;
+    --card-foreground: 0 0% 96%;
 
     /* Text */
-    --foreground: 240 22% 95%;       /* #F0F0F5 */
-    --muted-foreground: 240 11% 59%; /* #8B8BA0 */
-    --muted: 240 16% 11%;
+    --foreground: 0 0% 96%;           /* #F5F5F5 */
+    --muted-foreground: 0 0% 60%;     /* #999999 */
+    --muted: 0 0% 12%;
 
-    /* Accent */
-    --primary: 217 91% 60%;          /* #3B82F6 */
-    --primary-foreground: 0 0% 100%;
-    --primary-glow: 217 91% 60% / 0.15;
+    /* Spotify green accent */
+    --primary: 141 76% 48%;           /* #1DB954 */
+    --primary-foreground: 0 0% 0%;    /* black on green for buttons */
+    --primary-glow: 141 76% 48% / 0.18;
 
-    --accent: 217 91% 60%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 141 76% 48%;
+    --accent-foreground: 0 0% 0%;
 
-    --secondary: 240 16% 11%;
-    --secondary-foreground: 240 22% 95%;
+    --secondary: 0 0% 12%;
+    --secondary-foreground: 0 0% 96%;
 
     /* Borders + inputs */
-    --border: 240 26% 15%;           /* #1E1E2E */
-    --input: 240 26% 15%;
-    --ring: 217 91% 60%;
+    --border: 0 0% 14%;               /* #242424 */
+    --input: 0 0% 14%;
+    --ring: 141 76% 48%;
 
     /* Status */
-    --success: 160 84% 39%;          /* #10B981 */
-    --warning: 38 92% 50%;           /* #F59E0B */
-    --destructive: 0 84% 60%;        /* #EF4444 */
+    --success: 141 76% 48%;           /* mesmo verde Spotify */
+    --warning: 38 92% 55%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --neutral: 220 9% 46%;           /* #6B7280 */
+    --neutral: 0 0% 45%;
 
-    --radius: 0.75rem;
+    --radius: 1rem;                   /* 16px = padrão Spotify cards */
 
     /* Sidebar */
-    --sidebar-background: 240 18% 6%;
-    --sidebar-foreground: 240 22% 95%;
-    --sidebar-primary: 217 91% 60%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 16% 11%;
-    --sidebar-accent-foreground: 240 22% 95%;
-    --sidebar-border: 240 26% 15%;
-    --sidebar-ring: 217 91% 60%;
+    --sidebar-background: 0 0% 0%;    /* #000 - sidebar mais escura que canvas */
+    --sidebar-foreground: 0 0% 70%;
+    --sidebar-primary: 141 76% 48%;
+    --sidebar-primary-foreground: 0 0% 0%;
+    --sidebar-accent: 0 0% 10%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 0 0% 10%;
+    --sidebar-ring: 141 76% 48%;
   }
 
+  /* Light mode mantido como fallback (não é o foco do sistema) */
   .light {
-    /* Backgrounds */
-    --background: 0 0% 100%;            /* #FFFFFF */
-    --card: 240 20% 99%;                /* #FBFBFD */
-    --elevated: 240 20% 97%;            /* #F4F4F8 */
+    --background: 0 0% 100%;
+    --card: 0 0% 99%;
+    --elevated: 0 0% 96%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 17% 12%;
-    --card-foreground: 240 17% 12%;
-
-    /* Text */
-    --foreground: 240 17% 12%;          /* #1C1C24 */
-    --muted-foreground: 240 6% 42%;     /* #65656F */
-    --muted: 240 16% 95%;
-
-    /* Accent */
-    --primary: 217 91% 55%;             /* #2D7CF0 */
+    --popover-foreground: 0 0% 10%;
+    --card-foreground: 0 0% 10%;
+    --foreground: 0 0% 10%;
+    --muted-foreground: 0 0% 40%;
+    --muted: 0 0% 95%;
+    --primary: 141 76% 38%;
     --primary-foreground: 0 0% 100%;
-    --primary-glow: 217 91% 55% / 0.18;
-
-    --accent: 217 91% 55%;
+    --primary-glow: 141 76% 38% / 0.18;
+    --accent: 141 76% 38%;
     --accent-foreground: 0 0% 100%;
-
-    --secondary: 240 16% 95%;
-    --secondary-foreground: 240 17% 12%;
-
-    /* Borders + inputs */
-    --border: 240 14% 89%;              /* #DEDEE5 */
-    --input: 240 14% 89%;
-    --ring: 217 91% 55%;
-
-    /* Status (mesma família, leve ajuste de luz pra contraste em fundo claro) */
-    --success: 160 80% 32%;
+    --secondary: 0 0% 95%;
+    --secondary-foreground: 0 0% 10%;
+    --border: 0 0% 88%;
+    --input: 0 0% 88%;
+    --ring: 141 76% 38%;
+    --success: 141 76% 38%;
     --warning: 38 92% 45%;
     --destructive: 0 75% 52%;
     --destructive-foreground: 0 0% 100%;
-    --neutral: 220 9% 46%;
-
-    /* Sidebar */
-    --sidebar-background: 240 20% 98%;
-    --sidebar-foreground: 240 17% 12%;
-    --sidebar-primary: 217 91% 55%;
+    --neutral: 0 0% 45%;
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 0 0% 20%;
+    --sidebar-primary: 141 76% 38%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 16% 93%;
-    --sidebar-accent-foreground: 240 17% 12%;
-    --sidebar-border: 240 14% 89%;
-    --sidebar-ring: 217 91% 55%;
+    --sidebar-accent: 0 0% 93%;
+    --sidebar-accent-foreground: 0 0% 10%;
+    --sidebar-border: 0 0% 88%;
+    --sidebar-ring: 141 76% 38%;
   }
 }
 
 @layer base {
-  * {
-    @apply border-border;
-  }
+  * { @apply border-border; }
   html, body, #root {
     @apply bg-background text-foreground;
     min-height: 100vh;
@@ -115,15 +105,20 @@
   body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     font-feature-settings: 'cv02','cv03','cv04','cv11';
+    -webkit-font-smoothing: antialiased;
   }
 }
 
 @layer components {
+  /* Card padrão Spotify: cinza escuro, radius 16px, hover sutil */
   .nx-card {
-    @apply bg-card border border-border rounded-xl;
+    @apply bg-card border border-border rounded-2xl transition-colors;
+  }
+  .nx-card-hover {
+    @apply nx-card hover:bg-[hsl(var(--elevated))] hover:border-border cursor-pointer;
   }
   .nx-elevated {
-    @apply bg-[hsl(var(--elevated))] border border-border rounded-xl;
+    @apply bg-[hsl(var(--elevated))] border border-border rounded-2xl;
   }
   .nx-glow {
     box-shadow: 0 0 0 1px hsl(var(--primary) / 0.4), 0 0 40px hsl(var(--primary) / 0.15);
@@ -134,6 +129,10 @@
   .nx-status-dot {
     @apply inline-block h-2 w-2 rounded-full;
   }
+  /* Spotify pill button (verde sólido, preto no texto, escala no hover) */
+  .nx-pill {
+    @apply inline-flex items-center gap-2 rounded-full bg-primary text-primary-foreground px-5 py-2 text-sm font-bold tracking-wide transition-transform hover:scale-105 active:scale-100;
+  }
 }
 
 @layer utilities {
@@ -143,6 +142,10 @@
   .animate-pulse-soft {
     animation: nx-pulse 1.6s ease-in-out infinite;
   }
+  /* scrollbar discreta (estilo Spotify) */
+  .nx-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+  .nx-scroll::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 8px; }
+  .nx-scroll::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground) / 0.4); }
 }
 
 @keyframes nx-fade-in {

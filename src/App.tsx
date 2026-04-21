@@ -7,15 +7,10 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AppLayout from "@/components/AppLayout";
 import Login from "./pages/Login";
-import Brain from "./pages/Brain";
-import BrainDetail from "./pages/BrainDetail";
-import Dashboard from "./pages/Dashboard";
-import Genres from "./pages/Genres";
-import Collect from "./pages/Collect";
-import Models from "./pages/Models";
-import ModelDetail from "./pages/ModelDetail";
-import Placeholder from "./pages/Placeholder";
-import Logs from "./pages/Logs";
+import Home from "./pages/Home";
+import Cerebro from "./pages/Cerebro";
+import Criacao from "./pages/Criacao";
+import Performance from "./pages/Performance";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
@@ -36,15 +31,13 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/login" element={<Login />} />
-            <Route path="/" element={<Protected><Brain /></Protected>} />
-            <Route path="/brain/:slug" element={<Protected><BrainDetail /></Protected>} />
-            <Route path="/dashboard" element={<Protected><Dashboard /></Protected>} />
-            <Route path="/genres" element={<Protected><Genres /></Protected>} />
-            <Route path="/collect" element={<Protected><Collect /></Protected>} />
-            <Route path="/models" element={<Protected><Models /></Protected>} />
-            <Route path="/models/:genreId" element={<Protected><ModelDetail /></Protected>} />
-            <Route path="/logs" element={<Protected><Logs /></Protected>} />
-            <Route path="/settings" element={<Protected><Settings /></Protected>} />
+            {/* 5 módulos do sistema. Toda página dentro de <Protected> herda o layout global. */}
+            <Route path="/" element={<Protected><Home /></Protected>} />
+            <Route path="/cerebro" element={<Protected><Cerebro /></Protected>} />
+            <Route path="/cerebro/:slug" element={<Protected><Cerebro /></Protected>} />
+            <Route path="/criacao" element={<Protected><Criacao /></Protected>} />
+            <Route path="/performance" element={<Protected><Performance /></Protected>} />
+            <Route path="/configuracoes" element={<Protected><Settings /></Protected>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
