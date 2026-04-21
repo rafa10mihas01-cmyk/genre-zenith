@@ -356,35 +356,29 @@ async function runPipeline(jobId: string, body: StartBody) {
     stages.terms = { count: termsRows?.length ?? 0, list: selectedTerms, source: kit ? "kit" : "dynamic" };
     stages.cache_check = { fresh_playlists_7d: freshCount ?? 0, threshold: CACHE_THRESHOLD, cache_hit: cacheHit };
 
-    // 2) Buscas — paralelizadas em batches (3 simultâneas no modo normal)
-    // 2) Buscas — paralelizadas em batches (3 simultâneas no modo normal)
-    //    🟢 OTIMIZAÇÃO 4: se cacheHit, pula coleta inteira e contabiliza economia.
+    // 2) Buscas — WAVES INTELIGENTES (Wave 1 sempre, Wave 2 só se Wave 1 não trouxe o suficiente)
+    //    🟢 cacheHit pula coleta inteira.
     let searchedOk = 0, searchedErr = 0, totalSavedResults = 0;
     let apifyBlocked = false;
     let searchCalls = 0;
     let callsAvoided = 0;
     let playlistsReused = 0;
+    let wave2Skipped = false;
+    let truncated = false;
     const allTerms = termsRows ?? [];
     const total = allTerms.length || 1;
-    const MAX_SEARCH_CALLS = 5; // limite de proteção de custo por run
+    const WAVE_1_CALLS = 5;
+    const WAVE_2_CALLS = 5;
+    const MIN_RESULTS_FOR_STOP = 80; // Wave 1 ≥ 80 novas → pula Wave 2
+    const MAX_CALLS = WAVE_1_CALLS + WAVE_2_CALLS;
 
-    if (cacheHit) {
-      callsAvoided = Math.min(allTerms.length, MAX_SEARCH_CALLS);
-      playlistsReused = freshCount ?? 0;
-      await setJob(supabase, gid, jobId, {
-        status: "running",
-        stage: `♻️ Cache fresco (${playlistsReused} playlists em ${CACHE_WINDOW_DAYS}d) — pulando coleta`,
-        progress: 55,
-      });
-      await supabase.from("collection_logs").insert({
-        genre_id: gid, acao: "cache-skip", status: "ok",
-        mensagem: `Coleta pulada — ${playlistsReused} playlists reaproveitadas, ${callsAvoided} chamadas Apify evitadas`,
-      });
-    } else {
-      await setJob(supabase, gid, jobId, { status: "running", stage: "Buscando playlists...", progress: 15 });
+    // Helper: roda um intervalo [from, to) de termos respeitando batchSize/delayMs/circuit breaker.
+    async function runWave(from: number, to: number) {
+      const slice = allTerms.slice(from, to);
       let processed = 0;
-      outer: for (let i = 0; i < allTerms.length; i += batchSize) {
-        const batch = allTerms.slice(i, i + batchSize);
+      const offsetBase = from;
+      for (let i = 0; i < slice.length; i += batchSize) {
+        const batch = slice.slice(i, i + batchSize);
         const results = await Promise.all(batch.map((t) => {
           searchCalls++;
           return callFn("run-search", {
@@ -404,26 +398,61 @@ async function runPipeline(jobId: string, body: StartBody) {
           status: "running",
           stage: apifyBlocked
             ? "⚠️ Coleta pausada — limite de API atingido"
-            : `Buscando playlists... (${processed}/${total})`,
-          progress: 15 + Math.round((processed / total) * 40),
+            : `Buscando playlists... (${offsetBase + processed}/${Math.min(allTerms.length, MAX_CALLS)})`,
+          progress: 15 + Math.round(((offsetBase + processed) / Math.min(allTerms.length, MAX_CALLS)) * 40),
         });
-        if (apifyBlocked) break outer;
-        if (searchCalls >= MAX_SEARCH_CALLS) {
-          await supabase.from("collection_logs").insert({
-            genre_id: gid, acao: "brain-run", status: "parcial",
-            mensagem: `MAX_SEARCH_CALLS (${MAX_SEARCH_CALLS}) atingido — interrompendo coleta`,
-          });
-          break outer;
-        }
-        if (delayMs > 0 && i + batchSize < allTerms.length) {
+        if (apifyBlocked) return;
+        if (delayMs > 0 && i + batchSize < slice.length) {
           await new Promise((res) => setTimeout(res, delayMs));
         }
       }
     }
+
+    if (cacheHit) {
+      callsAvoided = Math.min(allTerms.length, MAX_CALLS);
+      playlistsReused = freshCount ?? 0;
+      await setJob(supabase, gid, jobId, {
+        status: "running",
+        stage: `♻️ Cache fresco (${playlistsReused} playlists em ${CACHE_WINDOW_DAYS}d) — pulando coleta`,
+        progress: 55,
+      });
+      await supabase.from("collection_logs").insert({
+        genre_id: gid, acao: "cache-skip", status: "ok",
+        mensagem: `Coleta pulada — ${playlistsReused} playlists reaproveitadas, ${callsAvoided} chamadas Apify evitadas`,
+      });
+    } else {
+      await setJob(supabase, gid, jobId, { status: "running", stage: "Buscando playlists... (Wave 1)", progress: 15 });
+
+      // Wave 1
+      await runWave(0, Math.min(WAVE_1_CALLS, allTerms.length));
+
+      // Decisão Wave 2: só se não bloqueou, Wave 1 trouxe pouco E ainda tem termos
+      const wave1Saved = totalSavedResults;
+      const hasMoreTerms = allTerms.length > WAVE_1_CALLS;
+      if (!apifyBlocked && hasMoreTerms && wave1Saved < MIN_RESULTS_FOR_STOP) {
+        await setJob(supabase, gid, jobId, {
+          status: "running",
+          stage: `Wave 1 trouxe ${wave1Saved} (< ${MIN_RESULTS_FOR_STOP}) — expandindo (Wave 2)`,
+          progress: 35,
+        });
+        await runWave(WAVE_1_CALLS, Math.min(WAVE_1_CALLS + WAVE_2_CALLS, allTerms.length));
+        // Truncated: se Wave 2 também usou tudo e ainda restavam termos
+        if (allTerms.length > MAX_CALLS) truncated = true;
+      } else if (!apifyBlocked && hasMoreTerms) {
+        wave2Skipped = true;
+        await supabase.from("collection_logs").insert({
+          genre_id: gid, acao: "wave2-skipped", status: "ok",
+          mensagem: `Wave 1 suficiente (${wave1Saved} novas ≥ ${MIN_RESULTS_FOR_STOP}) — Wave 2 pulada (${WAVE_2_CALLS} chamadas economizadas)`,
+        });
+        callsAvoided += WAVE_2_CALLS;
+      }
+    }
+
     stages.search = {
       ok: searchedOk, err: searchedErr, total_inserted: totalSavedResults,
       calls: searchCalls, blocked: apifyBlocked,
       cache_skip: cacheHit, calls_avoided: callsAvoided, playlists_reused: playlistsReused,
+      wave2_skipped: wave2Skipped, truncated,
     };
 
     // Circuit breaker: pipeline interrompido — não prossegue para enrich/analyze/briefing.
@@ -590,10 +619,12 @@ async function runPipeline(jobId: string, body: StartBody) {
         progress: 70 + Math.min(15, Math.round(coverage * 20)),
       });
       // Pendentes dentro do set selecionado, ordenadas por score
+      // 🛡️ filtra enrich_failed=false pra nunca tentar zumbis de novo
       const { data: pendIds } = await supabase
         .from("search_results")
         .select("id")
         .eq("genre_id", gid)
+        .eq("enrich_failed", false)
         .is("seguidores", null)
         .order("priority_score", { ascending: false, nullsFirst: false })
         .limit(50);
@@ -612,9 +643,14 @@ async function runPipeline(jobId: string, body: StartBody) {
       if (gained === 0) {
         zeroProgressStreak++;
         if (zeroProgressStreak >= 2) {
+          // 💀 marca pendentes como zumbi: nunca mais tenta
+          const { error: markErr } = await supabase
+            .from("search_results")
+            .update({ enrich_failed: true })
+            .in("id", idsToEnrich);
           await supabase.from("collection_logs").insert({
             genre_id: gid, acao: "enrich-guard", status: "parcial",
-            mensagem: `Enrich parado: 2 ciclos sem progresso (URLs inválidas ou Spotify 404)`,
+            mensagem: `Enrich parado: 2 ciclos sem progresso. ${idsToEnrich.length} playlists marcadas como enrich_failed.${markErr ? ` (mark err: ${markErr.message.slice(0,80)})` : ""}`,
           });
           break;
         }
