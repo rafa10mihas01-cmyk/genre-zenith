@@ -10,20 +10,21 @@
 @layer base {
   :root,
   .dark {
-    /* Backgrounds — preto profundo estilo Spotify */
-    --background: 0 0% 2.7%;          /* #070707 - canvas */
+    /* === DESIGN SYSTEM — TOKENS GLOBAIS === */
+    /* Backgrounds */
+    --background: 0 0% 1.96%;         /* #050505 - canvas */
     --card: 0 0% 6.7%;                /* #111111 - cards */
-    --elevated: 0 0% 11%;             /* #1C1C1C - hover/elevated */
+    --elevated: 0 0% 10.2%;           /* #1A1A1A - hover/elevated */
     --popover: 0 0% 6.7%;
     --popover-foreground: 0 0% 100%;
     --card-foreground: 0 0% 100%;
 
     /* Text */
-    --foreground: 0 0% 100%;          /* #FFFFFF puro */
-    --muted-foreground: 220 9% 65%;   /* #9CA3AF */
+    --foreground: 0 0% 100%;          /* #FFFFFF */
+    --muted-foreground: 218 11% 65%;  /* #9CA3AF */
     --muted: 0 0% 9%;
 
-    /* Spotify green accent */
+    /* Spotify green */
     --primary: 141 76% 48%;           /* #1DB954 */
     --primary-foreground: 0 0% 0%;
     --primary-glow: 141 76% 48% / 0.22;
@@ -34,7 +35,7 @@
     --secondary: 0 0% 9%;
     --secondary-foreground: 0 0% 100%;
 
-    /* Borders quase invisíveis (~rgba 255/6%) */
+    /* Borders quase invisíveis */
     --border: 0 0% 14%;
     --input: 0 0% 14%;
     --ring: 141 76% 48%;
@@ -46,14 +47,23 @@
     --destructive-foreground: 0 0% 100%;
     --neutral: 0 0% 45%;
 
-    --radius: 1rem;
+    /* Spacing scale (px reais) */
+    --space-page-x: 24px;             /* padding horizontal padrão */
+    --space-page-y: 24px;             /* padding vertical padrão */
+    --space-section: 32px;            /* gap entre seções */
+    --space-card: 20px;               /* padding interno de cards */
 
-    /* Sidebar — preto absoluto, separação por sombra à direita */
-    --sidebar-background: 0 0% 0%;
-    --sidebar-foreground: 220 9% 65%;
+    /* Radius / shadows */
+    --radius: 1rem;                   /* 16px = padrão de cards */
+    --shadow-soft: 0 1px 2px rgba(0,0,0,0.4), 0 4px 12px -6px rgba(0,0,0,0.5);
+    --shadow-elevated: 0 8px 24px -12px rgba(0,0,0,0.6), 0 2px 6px -2px rgba(0,0,0,0.4);
+
+    /* Sidebar */
+    --sidebar-background: 0 0% 0%;    /* #000000 */
+    --sidebar-foreground: 218 11% 65%;
     --sidebar-primary: 141 76% 48%;
     --sidebar-primary-foreground: 0 0% 0%;
-    --sidebar-accent: 0 0% 11%;
+    --sidebar-accent: 0 0% 10.2%;
     --sidebar-accent-foreground: 0 0% 100%;
     --sidebar-border: 0 0% 8%;
     --sidebar-ring: 141 76% 48%;
@@ -105,15 +115,27 @@
   body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     font-feature-settings: 'cv02','cv03','cv04','cv11';
+    font-weight: 400;                /* texto = normal por padrão */
     -webkit-font-smoothing: antialiased;
+    color: hsl(var(--foreground));
   }
+  /* Tipografia padrão: títulos = semibold (sem precisar adicionar classe) */
+  h1, h2, h3, h4, h5, h6 {
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: hsl(var(--foreground));
+  }
+  p, span, li, label { font-weight: 400; }
+  /* Texto secundário herda automaticamente quando usa text-muted-foreground */
 }
 
 @layer components {
-  /* Card padrão Spotify: preto profundo, borda quase invisível, hover mais claro */
+  /* === CARD PADRÃO DO SISTEMA === padding 20px, radius 16px, sombra leve */
   .nx-card {
     @apply bg-card rounded-2xl transition-all duration-200;
+    padding: var(--space-card);
     border: 1px solid rgba(255, 255, 255, 0.04);
+    box-shadow: var(--shadow-soft);
   }
   .nx-card-hover {
     @apply nx-card cursor-pointer;
@@ -125,8 +147,14 @@
     background: hsl(var(--elevated));
     border-color: rgba(255, 255, 255, 0.12);
     transform: translateY(-2px);
-    box-shadow: 0 8px 24px -12px rgba(0, 0, 0, 0.6),
-                0 2px 6px -2px rgba(0, 0, 0, 0.4);
+    box-shadow: var(--shadow-elevated);
+  }
+  /* === WRAPPER DE PÁGINA === aplica padding + gap entre seções automaticamente */
+  .nx-page {
+    padding: var(--space-page-y) var(--space-page-x);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-section);
   }
   /* Card de gênero: usa a variável --g (HSL) injetada via style. Borda + glow tingidos. */
   .genre-card {
@@ -139,6 +167,7 @@
   }
   .nx-elevated {
     @apply bg-[hsl(var(--elevated))] rounded-2xl;
+    padding: var(--space-card);
     border: 1px solid rgba(255, 255, 255, 0.06);
   }
   .nx-glow {
