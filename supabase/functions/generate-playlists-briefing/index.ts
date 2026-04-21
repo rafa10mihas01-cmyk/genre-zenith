@@ -395,10 +395,17 @@ Deno.serve(async (req) => {
         // 🚧 PISO DE SCORE EM EXPANSÃO (agora 8, era 15)
         if (pass === "expansao" && score < SCORE_MIN_EXPANSAO) continue;
 
-        // 🎯 CONFIDENCE
+        // 🎯 CONFIDENCE — combina sinal estatístico (freq/rep) com peso do subgênero.
+        // Subgênero forte (≥15% do corpus) NÃO pode cair em "baixa" só porque o formato
+        // específico dele tem repetição modesta — o sinal de mercado já está validado pelo peso.
         let confidence: "alta" | "media" | "baixa" = "baixa";
         if (freq >= 6 && rep >= 5) confidence = "alta";
         else if (freq >= 4 && rep >= 3) confidence = "media";
+
+        // 🚀 BOOST por peso de subgênero (mandelão 23%, putaria 17%, consciente 10%, etc.)
+        if (subPesoPct >= 20 && confidence === "baixa") confidence = "media";
+        else if (subPesoPct >= 15 && confidence === "baixa" && rep >= 2) confidence = "media";
+        if (subPesoPct >= 25 && confidence === "media") confidence = "alta";
 
         // 📈 TREND
         let sinal = "estável";
