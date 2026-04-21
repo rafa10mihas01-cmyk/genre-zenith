@@ -42,6 +42,7 @@ Deno.serve(async (req) => {
     orphan_playlists: 0,
     low_quality: 0,
     blacklisted: 0,
+    low_quality_24h: 0,
     total: 0,
     duration_ms: 0,
   };
