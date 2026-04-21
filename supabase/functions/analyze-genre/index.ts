@@ -122,10 +122,10 @@ Deno.serve(async (req) => {
       console.log(`[normalize] ${mergedKeywordsCount} typos mesclados em canônicos`);
     }
 
-    // Padrões de nome: bigramas
+    // Padrões de nome: bigramas (com tokens normalizados — funde typos antes de contar)
     const bigrams: string[] = [];
     for (const name of playlistNames) {
-      const t = tokenize(name);
+      const t = tokenize(name).map(normalize);
       for (let i = 0; i < t.length - 1; i++) bigrams.push(`${t[i]} ${t[i+1]}`);
     }
     const padroes_nome = topN(bigrams, 20);
