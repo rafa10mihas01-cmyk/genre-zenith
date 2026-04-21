@@ -700,6 +700,28 @@ Deno.serve(async (req) => {
     // Ordena por score desc
     valid.sort((a, b) => b.justificativa.score - a.justificativa.score);
 
+    // 🎯 FILTRO DE QUALIDADE FINAL: garante ≥60% de cards com confidence alta/média.
+    // Remove cards "baixa" do FINAL (menor score) até atingir o ratio.
+    // Só aplica se houver cards suficientes — runs pequenas não são afetadas.
+    let qualityTrimmed = 0;
+    if (valid.length >= MIN_CARDS_FOR_RATIO) {
+      const isStrong = (c: any) => c.confidence === "alta" || c.confidence === "media";
+      let i = valid.length - 1;
+      while (i >= 0 && valid.length > MIN_CARDS_FOR_RATIO) {
+        const strong = valid.filter(isStrong).length;
+        const ratio = strong / valid.length;
+        if (ratio >= MIN_HIGH_MED_RATIO) break;
+        if (!isStrong(valid[i])) {
+          valid.splice(i, 1);
+          qualityTrimmed++;
+        }
+        i--;
+      }
+      if (qualityTrimmed > 0) {
+        console.log(`QUALITY TRIM → ${qualityTrimmed} cards "baixa" removidos (ratio alvo ≥${MIN_HIGH_MED_RATIO * 100}%)`);
+      }
+    }
+
     // ═══════════════ SALVAR ═══════════════
     const { data: lastBriefing } = await supabase
       .from("playlist_briefings")
