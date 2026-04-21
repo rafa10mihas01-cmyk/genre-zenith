@@ -154,6 +154,15 @@ Deno.serve(async (req) => {
     };
     const strongBlacklist = STRONG_BLACKLIST_BY_GENRE[slugOrNome] ?? [];
 
+    // BR_BOOST: sinais que reforçam autenticidade Brasil (escopo: funk BR)
+    const BR_BOOST_BY_GENRE: Record<string, string[]> = {
+      funk: ["brasil","br","bailão","bailao","mandelão","mandelao","automotivo","tropa","dj","mtg"],
+    };
+    const brBoostTerms = BR_BOOST_BY_GENRE[slugOrNome] ?? [];
+
+    // Match com word-boundary para evitar falsos positivos (ex.: "br" em "brunette")
+    const wordHit = (hay: string, term: string) => new RegExp(`(^|[^a-záéíóúâêôãõç])${term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^a-záéíóúâêôãõç]|$)`, "i").test(hay);
+
     // Extrai sinais do modelo (cold-start safe: arrays vazios)
     const modelKeywords: string[] = (() => {
       const arr = model?.palavras_chave as any[] | undefined;
@@ -227,6 +236,10 @@ Deno.serve(async (req) => {
       if (subHit) { score += 15; reasons.push(`+15 sub:${subHit}`); }
 
       if ((followers ?? 0) > FOLLOWERS_THRESHOLD) { score += 10; reasons.push("+10 followers"); }
+
+      // BR_BOOST: +15 se nome OU descrição contém algum sinal de funk brasileiro
+      const brHit = brBoostTerms.find(t => t && wordHit(haystack, t));
+      if (brHit) { score += 15; reasons.push(`+15 br:${brHit}`); }
 
       // Negativos
       const blHits = blacklist.filter(b => b && haystack.includes(b));
