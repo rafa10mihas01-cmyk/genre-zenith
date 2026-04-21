@@ -659,6 +659,7 @@ Deno.serve(async (req) => {
     .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();
+  let survivalMode = false;
   if (flag?.apify_blocked) {
     const blockedAt = flag.apify_blocked_at ? new Date(flag.apify_blocked_at).getTime() : 0;
     const ageMs = Date.now() - blockedAt;
@@ -667,15 +668,12 @@ Deno.serve(async (req) => {
         apify_blocked: false, apify_blocked_at: null, apify_blocked_reason: null,
       }).eq("id", flag.id);
     } else {
+      // 🛟 MODO SOBREVIVÊNCIA: Apify bloqueado, mas seguimos com cache + IA
+      survivalMode = true;
       await supabaseCheck.from("collection_logs").insert({
-        acao: "brain-run", status: "erro",
-        mensagem: "Execução cancelada - Apify bloqueado (circuit breaker global)",
-      });
-      return jr({
-        ok: false, blocked: true, reason: "APIFY_BLOCKED_GLOBAL",
-        blocked_at: flag.apify_blocked_at, blocked_reason: flag.apify_blocked_reason,
-        message: "⚠️ Coleta pausada — limite de API atingido. Reset automático em 24h.",
-      }, 200);
+        acao: "survival-mode", status: "ok",
+        mensagem: "Pipeline iniciado em modo sobrevivência (Apify bloqueado) — usando cache + IA",
+      }).catch(() => {});
     }
   }
 
