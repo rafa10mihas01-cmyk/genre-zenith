@@ -564,6 +564,8 @@ async function runPipeline(jobId: string, body: StartBody) {
     }
 
     await measureCoverage();
+    // 🟢 OTIMIZAÇÃO 5: para ciclo se 2 iterações seguidas não enriquecem nada (evita queimar Apify à toa)
+    let zeroProgressStreak = 0;
     while (coverage < COVERAGE_TARGET && cycles < MAX_CYCLES) {
       cycles++;
       await setJob(supabase, gid, jobId, {
@@ -587,9 +589,22 @@ async function runPipeline(jobId: string, body: StartBody) {
       });
       const d = r.data as any;
       if (!r.ok || !d?.ok) break;
-      enrichedTotal += d.enriched ?? 0;
+      const gained = d.enriched ?? 0;
+      enrichedTotal += gained;
       tracksTotal += d.tracks_saved ?? 0;
       if (!d.processed || d.processed === 0) break;
+      if (gained === 0) {
+        zeroProgressStreak++;
+        if (zeroProgressStreak >= 2) {
+          await supabase.from("collection_logs").insert({
+            genre_id: gid, acao: "enrich-guard", status: "parcial",
+            mensagem: `Enrich parado: 2 ciclos sem progresso (URLs inválidas ou Spotify 404)`,
+          });
+          break;
+        }
+      } else {
+        zeroProgressStreak = 0;
+      }
       await measureCoverage();
     }
     if (coverage < COVERAGE_TARGET) partial = true;
