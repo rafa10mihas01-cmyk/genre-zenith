@@ -7,6 +7,7 @@ import { Search, Bell, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react
 import { supabase } from "@/integrations/supabase/client";
 import { timeAgo } from "@/lib/format";
 import { useNavigate } from "react-router-dom";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 /**
  * Layout global do sistema. Toda página renderizada DEVE estar dentro dele.
@@ -86,6 +87,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 <RefreshCw className="h-3.5 w-3.5" />
                 <span className="hidden md:inline">Atualizar</span>
               </Button>
+              <ThemeToggle />
               <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground" aria-label="Notificações">
                 <Bell className="h-4 w-4" />
                 <span className="sr-only">Notificações</span>
