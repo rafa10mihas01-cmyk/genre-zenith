@@ -267,9 +267,9 @@ Deno.serve(async (req) => {
     function buildCards(pass: "strict" | "expansao", skipFormatIdx: Set<number>): any[] {
       const out: any[] = [];
 
-      // Limites por pass
-      const minFreq = pass === "expansao" ? HARD_MIN_FREQ_PCT : MIN_FREQ_PCT;
-      const minRep = pass === "expansao" ? HARD_MIN_REP : MIN_REPETITIONS;
+      // Limites por pass (survival_mode relaxa pisos do strict pass)
+      const minFreq = pass === "expansao" ? HARD_MIN_FREQ_PCT : effMinFreqPct;
+      const minRep = pass === "expansao" ? HARD_MIN_REP : effMinReps;
 
       for (let fi = 0; fi < sortedFormats.length; fi++) {
         if (skipFormatIdx.has(fi)) continue;
