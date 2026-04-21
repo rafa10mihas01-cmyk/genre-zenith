@@ -273,14 +273,20 @@ async function runPipeline(jobId: string, body: StartBody) {
         stage: "⚠️ Modo sobrevivência — analisando DNA visual...",
         progress: 80,
       });
-      try {
-        const v = await callFn("analyze-genre-visual-dna", { genre_id: gid });
-        const vd = v.data as any;
-        stages.visual_dna = vd?.ok
-          ? { ok: true, estilo: vd?.dna_visual?.estilo_dominante, atmosfera: vd?.dna_visual?.atmosfera }
-          : { ok: false, error: vd?.error ?? `HTTP ${v.status}` };
-      } catch (e) {
-        stages.visual_dna = { ok: false, error: (e as Error).message };
+      // 🔒 Lock: evita 2x analyze-visual-dna no mesmo gênero em runs concorrentes
+      const gotLockSurv = await acquireLock(supabase, gid, "analyze-visual-dna", 300);
+      if (!gotLockSurv) {
+        stages.visual_dna = { ok: true, skipped: true, reason: "lock — DNA recente já existe" };
+      } else {
+        try {
+          const v = await callFn("analyze-genre-visual-dna", { genre_id: gid });
+          const vd = v.data as any;
+          stages.visual_dna = vd?.ok
+            ? { ok: true, estilo: vd?.dna_visual?.estilo_dominante, atmosfera: vd?.dna_visual?.atmosfera }
+            : { ok: false, error: vd?.error ?? `HTTP ${v.status}` };
+        } catch (e) {
+          stages.visual_dna = { ok: false, error: (e as Error).message };
+        }
       }
 
       // 4) Briefing SEMPRE (com survival_mode → filtros relaxados + metadata)
@@ -733,14 +739,20 @@ async function runPipeline(jobId: string, body: StartBody) {
 
     // 6.4) DNA Visual das capas (best-effort, antes do briefing pra que ele injete dna_capa)
     await setJob(supabase, gid, jobId, { status: "running", stage: "Analisando DNA visual das capas...", progress: 92 });
-    try {
-      const v = await callFn("analyze-genre-visual-dna", { genre_id: gid });
-      const vd = v.data as any;
-      stages.visual_dna = vd?.ok
-        ? { ok: true, estilo: vd?.dna_visual?.estilo_dominante, atmosfera: vd?.dna_visual?.atmosfera, capas: vd?.dna_visual?.capas_analisadas?.length ?? 0 }
-        : { ok: false, error: vd?.error ?? `HTTP ${v.status}` };
-    } catch (e) {
-      stages.visual_dna = { ok: false, error: (e as Error).message };
+    // 🔒 Lock: previne race com runs concorrentes para o mesmo gênero
+    const gotLockDna = await acquireLock(supabase, gid, "analyze-visual-dna", 300);
+    if (!gotLockDna) {
+      stages.visual_dna = { ok: true, skipped: true, reason: "lock — DNA recente já existe" };
+    } else {
+      try {
+        const v = await callFn("analyze-genre-visual-dna", { genre_id: gid });
+        const vd = v.data as any;
+        stages.visual_dna = vd?.ok
+          ? { ok: true, estilo: vd?.dna_visual?.estilo_dominante, atmosfera: vd?.dna_visual?.atmosfera, capas: vd?.dna_visual?.capas_analisadas?.length ?? 0 }
+          : { ok: false, error: vd?.error ?? `HTTP ${v.status}` };
+      } catch (e) {
+        stages.visual_dna = { ok: false, error: (e as Error).message };
+      }
     }
 
     // 6.5) Gerar briefing — SEMPRE tenta, com retry. Não pode pular.
@@ -864,14 +876,20 @@ async function resumePipeline(jobId: string, slug: string) {
     await setJob(supabase, gid, jobId, { status: "running", stage: "Gerando insights...", progress: 90 });
     try { await callFn("genre-insights", { genre_id: gid }); } catch (_) {}
     await setJob(supabase, gid, jobId, { status: "running", stage: "Analisando DNA visual das capas...", progress: 92 });
-    try {
-      const v = await callFn("analyze-genre-visual-dna", { genre_id: gid });
-      const vd = v.data as any;
-      (stages as any).visual_dna = vd?.ok
-        ? { ok: true, estilo: vd?.dna_visual?.estilo_dominante, atmosfera: vd?.dna_visual?.atmosfera }
-        : { ok: false, error: vd?.error ?? `HTTP ${v.status}` };
-    } catch (e) {
-      (stages as any).visual_dna = { ok: false, error: (e as Error).message };
+    // 🔒 Lock: evita race com runPipeline concorrente
+    const gotLockResume = await acquireLock(supabase, gid, "analyze-visual-dna", 300);
+    if (!gotLockResume) {
+      (stages as any).visual_dna = { ok: true, skipped: true, reason: "lock — DNA recente já existe" };
+    } else {
+      try {
+        const v = await callFn("analyze-genre-visual-dna", { genre_id: gid });
+        const vd = v.data as any;
+        (stages as any).visual_dna = vd?.ok
+          ? { ok: true, estilo: vd?.dna_visual?.estilo_dominante, atmosfera: vd?.dna_visual?.atmosfera }
+          : { ok: false, error: vd?.error ?? `HTTP ${v.status}` };
+      } catch (e) {
+        (stages as any).visual_dna = { ok: false, error: (e as Error).message };
+      }
     }
     await setJob(supabase, gid, jobId, { status: "running", stage: "Gerando briefing de playlists...", progress: 95 });
     await ensureBriefing(supabase, gid, stages);
