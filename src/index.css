@@ -167,6 +167,7 @@
   }
   .nx-elevated {
     @apply bg-[hsl(var(--elevated))] rounded-2xl;
+    padding: var(--space-card);
     border: 1px solid rgba(255, 255, 255, 0.06);
   }
   .nx-glow {
