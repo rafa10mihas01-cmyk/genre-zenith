@@ -458,69 +458,67 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ═══════════════ IA: REFINAR NOMES (opcional) ═══════════════
-    if (LOVABLE_API_KEY && valid.length > 0) {
-      try {
-        const summary = valid.map((c, i) =>
-          `${i + 1}. Formato detectado: "${c.formato}" | Keywords: ${c.keywords_utilizadas.map((k: any) => `${k.value}(${k.peso}%)`).join(", ")} | Nome base: "${c.nome_provisorio}"`
-        ).join("\n");
+    // ═══════════════ IA: BRIEFING + VALIDAÇÃO (ai_service) ═══════════════
+    const aiStats = { briefing_ok: 0, briefing_fail: 0, validated: 0, incoerente_ajustado: 0, incoerente_descartado: 0, provider: activeProvider() };
 
-        const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "google/gemini-2.5-flash",
-            messages: [
-              {
-                role: "system",
-                content: `Você refina nomes de playlists do Spotify para o gênero ${genre.nome} no Brasil. REGRAS ESTRITAS:
-- Mantenha o FORMATO DETECTADO de cada item (não invente formatos novos)
-- Use as KEYWORDS de maior peso quando fizer sentido
-- Soe natural e atraente para SEO no Spotify (PT-BR)
-- NÃO copie textualmente nomes de playlists existentes
-- NÃO invente conceitos não presentes nas keywords/formato
-- Pode usar 1 emoji no máximo por nome (se combinar com o gênero)
-- Responda APENAS JSON válido`
-              },
-              {
-                role: "user",
-                content: `Refine estes ${valid.length} nomes mantendo o formato detectado de cada um.
+    for (let i = valid.length - 1; i >= 0; i--) {
+      const c = valid[i];
 
-Playlists dominantes (referência, NÃO copiar): ${playlistsDom.slice(0, 8).map((p: any) => `"${p.nome}"`).join(", ")}
-
-${summary}
-
-Responda JSON: {"playlists": [{"idx": 1, "nome_final": "..."}, ...]}`
-              },
-            ],
-            response_format: { type: "json_object" },
-          }),
-        });
-
-        if (aiResp.ok) {
-          const aiJson = await aiResp.json();
-          const content = aiJson?.choices?.[0]?.message?.content ?? "{}";
-          try {
-            const parsed = JSON.parse(content);
-            if (Array.isArray(parsed.playlists)) {
-              for (const p of parsed.playlists) {
-                const idx = (p.idx ?? 0) - 1;
-                if (idx >= 0 && idx < valid.length && typeof p.nome_final === "string" && p.nome_final.trim()) {
-                  valid[idx].nome = p.nome_final.trim();
-                }
-              }
+      // 1) Validação pré-decisão (somente confidence baixa OU origem expansao)
+      const needsValidate = c.confidence === "baixa" || c.origem === "expansao";
+      if (needsValidate) {
+        try {
+          const v = await validate({
+            genero: genre.nome,
+            subgenero: c.subgenero?.nome ?? null,
+            formato: c.formato,
+            keywords: c.keywords_utilizadas.map((k: any) => k.value),
+            top_tracks: c.base_musical.top_musicas,
+          });
+          aiStats.validated += 1;
+          c.ai_validation = { status: v.status, motivo: v.motivo, provider: aiStats.provider };
+          if (v.status === "incoerente") {
+            if (v.ajuste?.subgenero && subInfoBySlug.has(String(v.ajuste.subgenero).toLowerCase())) {
+              const newSub = subInfoBySlug.get(String(v.ajuste.subgenero).toLowerCase())!;
+              c.subgenero = { slug: newSub.slug, nome: newSub.nome };
+              aiStats.incoerente_ajustado += 1;
+            } else {
+              valid.splice(i, 1);
+              aiStats.incoerente_descartado += 1;
+              continue;
             }
-          } catch (e) {
-            console.error("AI JSON parse failed:", e);
           }
-        } else {
-          console.error("AI refinement HTTP error:", aiResp.status, await aiResp.text());
+        } catch (e) {
+          console.error("validate failed:", (e as Error).message);
         }
+      }
+
+      // 2) Briefing estruturado (sempre)
+      try {
+        const brief = await generateBriefing({
+          formato: c.formato,
+          nome_base: c.nome_provisorio,
+          genero: genre.nome,
+          subgenero: c.subgenero?.nome ?? null,
+          keywords: c.keywords_utilizadas,
+          top_tracks: c.base_musical.top_musicas,
+          artistas: c.base_musical.artistas_principais,
+          playlists_referencia: (c.playlists_referencia ?? []).map((p: any) => p.nome),
+          dna_visual: dnaVisual,
+        });
+        if (brief.nome) c.nome = brief.nome;
+        c.briefing_ai = {
+          regras_nome: brief.regras_nome,
+          capa_instrucao: brief.capa_instrucao,
+          descricao: brief.descricao,
+          regras_obrigatorias: brief.regras_obrigatorias,
+          provider: aiStats.provider,
+        };
+        c.origem_ia = true;
+        aiStats.briefing_ok += 1;
       } catch (e) {
-        console.error("AI name refinement failed:", e);
+        console.error("generateBriefing failed:", (e as Error).message);
+        aiStats.briefing_fail += 1;
       }
     }
 
