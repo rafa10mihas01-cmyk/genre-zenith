@@ -120,7 +120,7 @@ Deno.serve(async (req) => {
     if (body.result_ids && body.result_ids.length > 0) {
       const { data, error: pErr } = await supabase
         .from("search_results")
-        .select("id,genre_id,spotify_url,nome_playlist,posicao,enrich_attempts")
+        .select("id,genre_id,spotify_url,nome_playlist,posicao,enrich_attempts,descricao,imagem_url")
         .in("id", body.result_ids.slice(0, limit))
         .eq("enrich_failed", false)
         .is("seguidores", null)
@@ -130,7 +130,7 @@ Deno.serve(async (req) => {
     } else {
       let q = supabase
         .from("search_results")
-        .select("id,genre_id,spotify_url,nome_playlist,posicao,enrich_attempts")
+        .select("id,genre_id,spotify_url,nome_playlist,posicao,enrich_attempts,descricao,imagem_url")
         .eq("enrich_failed", false)
         .is("seguidores", null)
         .not("spotify_url", "is", null)
@@ -172,7 +172,7 @@ Deno.serve(async (req) => {
     }
 
     let token = await getSpotifyToken();
-    let enriched = 0, tracksSaved = 0, errors = 0, skipped = 0;
+    let enriched = 0, tracksSaved = 0, errors = 0, skipped = 0, phase2Flagged = 0, phase2Cleared = 0;
     const CONCURRENCY = 5;
     let zombiesMarked = 0;
 
