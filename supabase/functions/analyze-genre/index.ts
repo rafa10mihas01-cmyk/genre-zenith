@@ -300,7 +300,7 @@ Deno.serve(async (req) => {
           const grpResults = (results ?? []).filter(r => g.ids.includes(r.id));
           const kbag = new Map<string, number>();
           for (const r of grpResults) {
-            for (const tk of tokenize(r.nome_playlist ?? "")) {
+            for (const tk of tokenize(r.nome_playlist ?? "").map(normalize)) {
               if (baseTokens.has(tk) || NON_SUB.has(tk) || tk === slug) continue;
               kbag.set(tk, (kbag.get(tk) ?? 0) + 1);
             }
