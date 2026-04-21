@@ -22,15 +22,15 @@ export function ThemeToggle() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
-          variant="ghost"
+          variant="premium"
           size="icon"
-          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+          className="h-8 w-8 rounded-full"
           aria-label="Alternar tema"
         >
           {resolvedTheme === "dark" ? (
-            <Moon className="h-4 w-4" />
+            <Moon className="h-3.5 w-3.5" />
           ) : (
-            <Sun className="h-4 w-4" />
+            <Sun className="h-3.5 w-3.5" />
           )}
         </Button>
       </DropdownMenuTrigger>
