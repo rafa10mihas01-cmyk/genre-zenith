@@ -71,6 +71,7 @@ Deno.serve(async (req) => {
     // 🎛️ MODO DE DISTRIBUIÇÃO: 'strict' (padrão) ou 'expansao'
     const briefingMode: "strict" | "expansao" =
       (filters?.briefing_mode === "expansao") ? "expansao" : "strict";
+    console.log("MODE:", briefingMode, "| genre_id:", body.genre_id, "| survival_mode:", survivalMode, "| filters_row:", filters);
 
     if (!genre) return j({ error: "Gênero não encontrado" }, 404);
     if (!model) return j({ error: "Sem modelo. Execute analyze-genre primeiro." }, 400);
@@ -448,11 +449,15 @@ Deno.serve(async (req) => {
     const consumed = new Set<number>();
     const strictCards = buildCards("strict", consumed);
     valid.push(...strictCards);
+    console.log(`PASS strict → ${strictCards.length} cards`);
 
     // PASS 2 (só em modo expansão): preenche com exploratórias respeitando piso
     if (briefingMode === "expansao" && valid.length < MAX_RESULTS) {
       const expansaoCards = buildCards("expansao", consumed);
       valid.push(...expansaoCards);
+      console.log(`PASS expansao → ${expansaoCards.length} cards (total agora: ${valid.length})`);
+    } else if (briefingMode === "expansao") {
+      console.log(`PASS expansao → SKIPPED (já atingiu MAX_RESULTS=${MAX_RESULTS})`);
     }
 
     // 🛡️ GARANTIA FINAL: zero subgenero=null quando há clusters detectados
