@@ -62,13 +62,6 @@ export default function Settings() {
         toast.error("Conexão Spotify cancelada", { description: error });
       } else if (code) {
         (async () => {
-          const { data, error: invErr } = await supabase.functions.invoke("spotify-auth", {
-            body: undefined,
-            method: "GET",
-            headers: {} as any,
-            // invoke não suporta query strings → usamos URL completa via fetch:
-          } as any);
-          // fallback: chamada direta
           const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/spotify-auth?mode=callback&code=${encodeURIComponent(code)}&redirect=${encodeURIComponent(redirect)}&state=${encodeURIComponent(state ?? "")}`;
           const resp = await fetch(url, {
             headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
@@ -80,12 +73,8 @@ export default function Settings() {
           } else {
             toast.error("Falha ao conectar Spotify", { description: json?.error ?? "" });
           }
-          // Limpa querystring
           window.history.replaceState({}, "", "/settings");
         })();
-        // não bloqueia o restante
-        void invErr;
-        void data;
       }
     }
   }, []);
