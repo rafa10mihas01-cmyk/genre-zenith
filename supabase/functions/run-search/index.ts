@@ -76,6 +76,40 @@ function extractPlaylistId(url: string | null): string | null {
   return m?.[1] ?? null;
 }
 
+// Quality score (0-100): saúde da playlist, independente do match de gênero.
+// Sinais: seguidores (peso forte), nº de faixas, completude de metadata.
+function computeQualityScore(opts: {
+  followers: number | null;
+  totalTracks: number | null;
+  descricao: string | null;
+  imagem: string | null;
+}): number {
+  const { followers, totalTracks, descricao, imagem } = opts;
+  let q = 0;
+
+  // Seguidores (até 50 pts) — escala log para não saturar com mega-playlists
+  const f = followers ?? 0;
+  if (f >= 100_000) q += 50;
+  else if (f >= 10_000) q += 40;
+  else if (f >= 1_000) q += 30;
+  else if (f >= 100) q += 15;
+  else if (f > 0) q += 5;
+
+  // Quantidade de faixas (até 30 pts)
+  const t = totalTracks ?? 0;
+  if (t >= 100) q += 30;
+  else if (t >= 50) q += 20;
+  else if (t >= 30) q += 12;
+  else if (t >= 10) q += 5;
+  // < 10 faixas: 0 pts (playlist embrionária ou abandonada)
+
+  // Completude (até 20 pts)
+  if (imagem && imagem.length > 10) q += 10;
+  if (descricao && descricao.trim().length >= 20) q += 10;
+
+  return Math.min(100, Math.max(0, q));
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const start = Date.now();
@@ -316,6 +350,12 @@ Deno.serve(async (req) => {
       }
       // ============= FIM DA VALIDAÇÃO =============
 
+      // ============= QUALITY SCORE (saúde da playlist, 0-100) =============
+      // Mede vitalidade independente do match de gênero. <40 = "low_quality" → flagged.
+      const qualityScore = computeQualityScore({ followers, totalTracks, descricao, imagem });
+      const qualityFlag = qualityScore < 40 ? "low_quality" : null;
+      const qualityFlaggedAt = qualityFlag ? new Date().toISOString() : null;
+
       // UPSERT manual (tabela tem unique parcial em (genre_id, spotify_playlist_id))
       let resultId: string | null = null;
       if (playlistId) {
@@ -342,6 +382,10 @@ Deno.serve(async (req) => {
             score,
             is_valid: true,
             validation_reason: null,
+            quality_score: qualityScore,
+            quality_flag: qualityFlag,
+            // mantém timestamp original se já estava flagged; só seta novo se acabou de virar low_quality
+            ...(qualityFlag ? { quality_flagged_at: qualityFlaggedAt } : { quality_flagged_at: null }),
           }).eq("id", existing.id);
           if (updErr) {
             console.error("update result err", updErr);
@@ -371,6 +415,9 @@ Deno.serve(async (req) => {
             score,
             is_valid: true,
             validation_reason: null,
+            quality_score: qualityScore,
+            quality_flag: qualityFlag,
+            quality_flagged_at: qualityFlaggedAt,
           })
           .select("id")
           .single();

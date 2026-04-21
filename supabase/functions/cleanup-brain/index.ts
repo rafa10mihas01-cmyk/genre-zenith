@@ -20,6 +20,7 @@ interface CleanupResult {
   orphan_playlists: number;
   low_quality: number;
   blacklisted: number;
+  low_quality_24h: number;
   total: number;
   duration_ms: number;
 }
@@ -41,6 +42,7 @@ Deno.serve(async (req) => {
     orphan_playlists: 0,
     low_quality: 0,
     blacklisted: 0,
+    low_quality_24h: 0,
     total: 0,
     duration_ms: 0,
   };
@@ -150,6 +152,26 @@ Deno.serve(async (req) => {
       }
     }
 
+    // 4.5) AUTO-PRUNE: playlists flagged como low_quality há mais de 24h
+    {
+      const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const { data: rows, error } = await supabase
+        .from("search_results")
+        .select("id")
+        .eq("quality_flag", "low_quality")
+        .lt("quality_flagged_at", cutoff);
+      if (error) { errors.push(`lowq24h-scan: ${error.message}`); }
+      else if (rows && rows.length > 0) {
+        const ids = rows.map((r: any) => r.id);
+        for (let i = 0; i < ids.length; i += 500) {
+          const chunk = ids.slice(i, i + 500);
+          const { error: dErr } = await supabase.from("search_results").delete().in("id", chunk);
+          if (dErr) { errors.push(`lowq24h-del: ${dErr.message}`); break; }
+          result.low_quality_24h += chunk.length;
+        }
+      }
+    }
+
     // 5) Re-roda passo 1 (tracks que ficaram órfãs após deletar playlists nos passos 2-4)
     {
       const { data: validIds } = await supabase.from("search_results").select("id");
@@ -177,7 +199,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    result.total = result.orphan_tracks + result.orphan_playlists + result.low_quality + result.blacklisted;
+    result.total = result.orphan_tracks + result.orphan_playlists + result.low_quality + result.blacklisted + result.low_quality_24h;
     result.duration_ms = Date.now() - start;
 
     const status = errors.length > 0 ? "parcial" : "sucesso";
@@ -187,6 +209,7 @@ Deno.serve(async (req) => {
       `playlists_sem_id: ${result.orphan_playlists} | ` +
       `baixa_qualidade: ${result.low_quality} | ` +
       `blacklist: ${result.blacklisted} | ` +
+      `low_quality_24h: ${result.low_quality_24h} | ` +
       `TOTAL: ${result.total}` +
       (errors.length > 0 ? ` | erros: ${errors.slice(0, 3).join("; ")}` : "");
 

@@ -299,6 +299,9 @@ export type Database = {
           nome_playlist: string
           posicao: number
           priority_score: number | null
+          quality_flag: string | null
+          quality_flagged_at: string | null
+          quality_score: number | null
           score: number | null
           seguidores: number | null
           spotify_playlist_id: string | null
@@ -324,6 +327,9 @@ export type Database = {
           nome_playlist: string
           posicao: number
           priority_score?: number | null
+          quality_flag?: string | null
+          quality_flagged_at?: string | null
+          quality_score?: number | null
           score?: number | null
           seguidores?: number | null
           spotify_playlist_id?: string | null
@@ -349,6 +355,9 @@ export type Database = {
           nome_playlist?: string
           posicao?: number
           priority_score?: number | null
+          quality_flag?: string | null
+          quality_flagged_at?: string | null
+          quality_score?: number | null
           score?: number | null
           seguidores?: number | null
           spotify_playlist_id?: string | null
