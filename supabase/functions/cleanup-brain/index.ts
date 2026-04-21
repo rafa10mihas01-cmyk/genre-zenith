@@ -286,6 +286,7 @@ Deno.serve(async (req) => {
       `baixa_qualidade: ${result.low_quality} | ` +
       `blacklist: ${result.blacklisted} | ` +
       `low_quality_24h: ${result.low_quality_24h} | ` +
+      `invalidated: ${result.invalidated} | ` +
       `TOTAL: ${result.total}` +
       reanalyzeInfo +
       (errors.length > 0 ? ` | erros: ${errors.slice(0, 3).join("; ")}` : "");
