@@ -1,0 +1,219 @@
+// cleanup-brain — limpeza automatizada do dataset do cérebro.
+// Roda via cron a cada 6h e ao final de cada brain-run.
+// Remove: tracks órfãs, playlists sem ID, baixa qualidade, blacklist forte (funk).
+import { corsHeaders } from "npm:@supabase/supabase-js/cors";
+import { createClient } from "npm:@supabase/supabase-js@2";
+
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+// Blacklist forte por slug de gênero (mesma do run-search)
+const STRONG_BLACKLIST_BY_GENRE: Record<string, string[]> = {
+  funk: [
+    "phonk", "boogie", "oldies", "chicano", "anime",
+    "meow", "pocoyo", "bruno mars", "uptown funk",
+  ],
+};
+
+interface CleanupResult {
+  orphan_tracks: number;
+  orphan_playlists: number;
+  low_quality: number;
+  blacklisted: number;
+  total: number;
+  duration_ms: number;
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const start = Date.now();
+  const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+
+  // Trigger opcional para auditoria (cron | brain-run | manual)
+  let trigger: string = "manual";
+  try {
+    const body = await req.json().catch(() => ({}));
+    if (body?.trigger) trigger = String(body.trigger).slice(0, 32);
+  } catch (_) { /* sem body, segue manual */ }
+
+  const result: CleanupResult = {
+    orphan_tracks: 0,
+    orphan_playlists: 0,
+    low_quality: 0,
+    blacklisted: 0,
+    total: 0,
+    duration_ms: 0,
+  };
+  const errors: string[] = [];
+
+  try {
+    // 1) Tracks órfãs: result_id NULL ou aponta para playlist deletada.
+    //    Estratégia: pega ids de tracks com result_id que NÃO existe em search_results.
+    {
+      const { data: validIds } = await supabase.from("search_results").select("id");
+      const validSet = new Set((validIds ?? []).map((r: any) => r.id));
+      // Pagina pelas tracks pra evitar carregar tudo
+      let from = 0;
+      const PAGE = 1000;
+      const orphanIds: string[] = [];
+      // limita a varredura a 100k tracks (proteção)
+      while (from < 100_000) {
+        const { data: page, error } = await supabase
+          .from("search_tracks")
+          .select("id, result_id")
+          .range(from, from + PAGE - 1);
+        if (error) { errors.push(`tracks-scan: ${error.message}`); break; }
+        if (!page || page.length === 0) break;
+        for (const t of page) {
+          if (!t.result_id || !validSet.has(t.result_id)) orphanIds.push(t.id);
+        }
+        if (page.length < PAGE) break;
+        from += PAGE;
+      }
+      // delete em chunks
+      for (let i = 0; i < orphanIds.length; i += 500) {
+        const chunk = orphanIds.slice(i, i + 500);
+        const { error } = await supabase.from("search_tracks").delete().in("id", chunk);
+        if (error) { errors.push(`tracks-del: ${error.message}`); break; }
+        result.orphan_tracks += chunk.length;
+      }
+    }
+
+    // 2) Playlists sem spotify_playlist_id (não dedupáveis, lixo do scraper)
+    {
+      const { data: rows, error } = await supabase
+        .from("search_results")
+        .select("id")
+        .is("spotify_playlist_id", null);
+      if (error) { errors.push(`orphan-pl-scan: ${error.message}`); }
+      else if (rows && rows.length > 0) {
+        const ids = rows.map((r: any) => r.id);
+        for (let i = 0; i < ids.length; i += 500) {
+          const chunk = ids.slice(i, i + 500);
+          const { error: dErr } = await supabase.from("search_results").delete().in("id", chunk);
+          if (dErr) { errors.push(`orphan-pl-del: ${dErr.message}`); break; }
+          result.orphan_playlists += chunk.length;
+        }
+      }
+    }
+
+    // 3) Baixa qualidade: sem seguidores E < 30 faixas
+    {
+      const { data: rows, error } = await supabase
+        .from("search_results")
+        .select("id, total_musicas")
+        .is("seguidores", null);
+      if (error) { errors.push(`lowq-scan: ${error.message}`); }
+      else if (rows && rows.length > 0) {
+        const ids = rows
+          .filter((r: any) => (r.total_musicas ?? 0) < 30)
+          .map((r: any) => r.id);
+        for (let i = 0; i < ids.length; i += 500) {
+          const chunk = ids.slice(i, i + 500);
+          const { error: dErr } = await supabase.from("search_results").delete().in("id", chunk);
+          if (dErr) { errors.push(`lowq-del: ${dErr.message}`); break; }
+          result.low_quality += chunk.length;
+        }
+      }
+    }
+
+    // 4) Blacklist forte por gênero (escopo: funk hoje; estende-se via map)
+    {
+      const { data: genres, error: gErr } = await supabase
+        .from("genres")
+        .select("id, slug, nome");
+      if (gErr) { errors.push(`genres-scan: ${gErr.message}`); }
+      else {
+        for (const g of genres ?? []) {
+          const slugKey = (g.slug ?? "").toLowerCase() || (g.nome ?? "").toLowerCase();
+          const terms = STRONG_BLACKLIST_BY_GENRE[slugKey];
+          if (!terms || terms.length === 0) continue;
+          // Constrói padrão SIMILAR TO sem tocar SQL cru: usa ilike por termo
+          const ids = new Set<string>();
+          for (const term of terms) {
+            const { data: hits, error: hErr } = await supabase
+              .from("search_results")
+              .select("id")
+              .eq("genre_id", g.id)
+              .ilike("nome_playlist", `%${term}%`);
+            if (hErr) { errors.push(`bl-scan(${term}): ${hErr.message}`); continue; }
+            for (const h of hits ?? []) ids.add(h.id);
+          }
+          const list = [...ids];
+          for (let i = 0; i < list.length; i += 500) {
+            const chunk = list.slice(i, i + 500);
+            const { error: dErr } = await supabase.from("search_results").delete().in("id", chunk);
+            if (dErr) { errors.push(`bl-del: ${dErr.message}`); break; }
+            result.blacklisted += chunk.length;
+          }
+        }
+      }
+    }
+
+    // 5) Re-roda passo 1 (tracks que ficaram órfãs após deletar playlists nos passos 2-4)
+    {
+      const { data: validIds } = await supabase.from("search_results").select("id");
+      const validSet = new Set((validIds ?? []).map((r: any) => r.id));
+      const orphanIds: string[] = [];
+      let from = 0;
+      const PAGE = 1000;
+      while (from < 100_000) {
+        const { data: page, error } = await supabase
+          .from("search_tracks")
+          .select("id, result_id")
+          .range(from, from + PAGE - 1);
+        if (error || !page || page.length === 0) break;
+        for (const t of page) {
+          if (!t.result_id || !validSet.has(t.result_id)) orphanIds.push(t.id);
+        }
+        if (page.length < PAGE) break;
+        from += PAGE;
+      }
+      for (let i = 0; i < orphanIds.length; i += 500) {
+        const chunk = orphanIds.slice(i, i + 500);
+        const { error } = await supabase.from("search_tracks").delete().in("id", chunk);
+        if (error) { errors.push(`tracks-del2: ${error.message}`); break; }
+        result.orphan_tracks += chunk.length;
+      }
+    }
+
+    result.total = result.orphan_tracks + result.orphan_playlists + result.low_quality + result.blacklisted;
+    result.duration_ms = Date.now() - start;
+
+    const status = errors.length > 0 ? "parcial" : "sucesso";
+    const mensagem =
+      `cleanup-brain (${trigger}) | ` +
+      `tracks_órfãs: ${result.orphan_tracks} | ` +
+      `playlists_sem_id: ${result.orphan_playlists} | ` +
+      `baixa_qualidade: ${result.low_quality} | ` +
+      `blacklist: ${result.blacklisted} | ` +
+      `TOTAL: ${result.total}` +
+      (errors.length > 0 ? ` | erros: ${errors.slice(0, 3).join("; ")}` : "");
+
+    await supabase.from("collection_logs").insert({
+      acao: "cleanup-brain",
+      status,
+      mensagem: mensagem.slice(0, 4000),
+      duracao_ms: result.duration_ms,
+    });
+
+    return j({ ok: true, trigger, ...result, errors: errors.length ? errors : undefined });
+  } catch (e) {
+    const msg = (e as Error).message ?? String(e);
+    console.error("cleanup-brain error", msg);
+    await supabase.from("collection_logs").insert({
+      acao: "cleanup-brain",
+      status: "erro",
+      mensagem: `cleanup-brain (${trigger}) FALHOU: ${msg}`.slice(0, 4000),
+      duracao_ms: Date.now() - start,
+    });
+    return j({ ok: false, error: msg }, 500);
+  }
+});
+
+function j(payload: any, status = 200) {
+  return new Response(JSON.stringify(payload), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
