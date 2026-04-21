@@ -229,7 +229,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    result.total = result.orphan_tracks + result.orphan_playlists + result.low_quality + result.blacklisted + result.low_quality_24h;
+    result.total = result.orphan_tracks + result.orphan_playlists + result.low_quality + result.blacklisted + result.low_quality_24h + result.invalidated;
     result.duration_ms = Date.now() - start;
 
     // ============ RE-ANÁLISE AUTOMÁTICA ============
