@@ -369,6 +369,8 @@ Deno.serve(async (req) => {
             owner_country: ownerCountry,
             times_seen: 1,
             score,
+            is_valid: true,
+            validation_reason: null,
           })
           .select("id")
           .single();
