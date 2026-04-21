@@ -597,9 +597,10 @@ Deno.serve(async (req) => {
     }
 
     // 🛡️ GARANTIA FINAL: zero subgenero=null quando há clusters detectados
+    // ⚠️ Não derruba cards de expansão com subgenero=null (eles podem operar em _global)
     if (subInfoBySlug.size > 0) {
       for (let i = valid.length - 1; i >= 0; i--) {
-        if (!valid[i].subgenero) valid.splice(i, 1);
+        if (!valid[i].subgenero && valid[i].origem !== "expansao") valid.splice(i, 1);
       }
     }
 
