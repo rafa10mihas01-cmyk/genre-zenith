@@ -527,6 +527,7 @@ Responda JSON: {"playlists": [{"idx": 1, "nome_final": "..."}, ...]}`
           acc[k] = (acc[k] ?? 0) + 1; return acc;
         }, {}),
         filtros: { MIN_FREQ_PCT, MIN_REPETITIONS, MIN_KEYWORDS, KW_MIN_PCT },
+        briefing_mode: briefingMode,
         generated_at: new Date().toISOString(),
         duration_ms: Date.now() - start,
       },
