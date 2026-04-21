@@ -439,7 +439,7 @@ Deno.serve(async (req) => {
       genre_id: body.genre_id,
       acao: "analyze-genre",
       status: "sucesso",
-      mensagem: `Modelo gerado: ${palavras_chave.length} palavras-chave, ${musicas_recorrentes.length} músicas recorrentes`,
+      mensagem: `Modelo gerado: ${palavras_chave.length} palavras-chave (${mergedKeywordsCount} typos mesclados), ${musicas_recorrentes.length} músicas recorrentes`,
       duracao_ms: Date.now() - start,
     });
 
