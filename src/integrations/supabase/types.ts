@@ -65,6 +65,7 @@ export type Database = {
       genre_filters: {
         Row: {
           blacklist: string[]
+          briefing_mode: string
           created_at: string
           genre_id: string
           id: string
@@ -74,6 +75,7 @@ export type Database = {
         }
         Insert: {
           blacklist?: string[]
+          briefing_mode?: string
           created_at?: string
           genre_id: string
           id?: string
@@ -83,6 +85,7 @@ export type Database = {
         }
         Update: {
           blacklist?: string[]
+          briefing_mode?: string
           created_at?: string
           genre_id?: string
           id?: string

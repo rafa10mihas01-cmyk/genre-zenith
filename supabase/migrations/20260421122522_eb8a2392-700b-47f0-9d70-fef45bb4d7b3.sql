@@ -1,0 +1,1 @@
+ALTER TABLE public.genre_filters ADD COLUMN IF NOT EXISTS briefing_mode TEXT NOT NULL DEFAULT 'strict' CHECK (briefing_mode IN ('strict', 'expansao'));
