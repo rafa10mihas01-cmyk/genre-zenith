@@ -141,8 +141,18 @@ Deno.serve(async (req) => {
     ]);
     const slug = (genre?.slug ?? "").toLowerCase();
     const nome = (genre?.nome ?? "").toLowerCase();
+    const slugOrNome = (genre?.slug ?? "").toLowerCase() || nome;
     const termLower = body.search_term.toLowerCase();
     const blacklist = (filt?.blacklist as string[] | undefined)?.map(b => b.toLowerCase()) ?? DEFAULT_BLACKLIST;
+
+    // STRONG_BLACKLIST: rejeição imediata por gênero (escopo: funk BR)
+    const STRONG_BLACKLIST_BY_GENRE: Record<string, string[]> = {
+      funk: [
+        "phonk","kordhell","eternxlkz","boogie","disco","oldies","chicano",
+        "bruno mars","uptown funk","pocoyo","meow","anime","jjk","yuji","edit anime",
+      ],
+    };
+    const strongBlacklist = STRONG_BLACKLIST_BY_GENRE[slugOrNome] ?? [];
 
     // Extrai sinais do modelo (cold-start safe: arrays vazios)
     const modelKeywords: string[] = (() => {
