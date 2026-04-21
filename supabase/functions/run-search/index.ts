@@ -23,6 +23,12 @@ const DEFAULT_BLACKLIST = [
   "edm","techno","house","trance","rock","metal","jazz","classical",
 ];
 
+class ApifyBlockedError extends Error {
+  reason = "APIFY_LIMIT";
+  status = 403;
+  constructor(msg: string) { super(msg); this.name = "ApifyBlockedError"; }
+}
+
 async function runApify(searchTerm: string, maxResults: number, signal: AbortSignal) {
   const url = `https://api.apify.com/v2/acts/${APIFY_ACTOR}/run-sync-get-dataset-items?token=${APIFY_API_KEY}&timeout=120`;
   const resp = await fetch(url, {
@@ -38,6 +44,10 @@ async function runApify(searchTerm: string, maxResults: number, signal: AbortSig
   });
   if (!resp.ok) {
     const txt = await resp.text();
+    // Detectar bloqueio por limite mensal do Apify (circuit breaker)
+    if (resp.status === 403 || /monthly usage hard limit exceeded/i.test(txt)) {
+      throw new ApifyBlockedError(`Apify ${resp.status}: ${txt.slice(0, 300)}`);
+    }
     throw new Error(`Apify ${resp.status}: ${txt.slice(0, 300)}`);
   }
   const items = await resp.json();
