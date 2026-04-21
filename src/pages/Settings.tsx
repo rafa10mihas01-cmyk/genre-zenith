@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Settings as SettingsIcon, KeyRound, CheckCircle2, XCircle, Loader2, Zap, RefreshCw, LogOut, Database, CalendarClock, Play, Music2,
+  Settings as SettingsIcon, KeyRound, CheckCircle2, XCircle, Loader2, Zap, RefreshCw, LogOut, Database, CalendarClock, Play, Music2, UserCheck, Star, Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -36,6 +36,8 @@ export default function Settings() {
   const [runningCron, setRunningCron] = useState(false);
   const [spotifyTesting, setSpotifyTesting] = useState(false);
   const [spotifyResult, setSpotifyResult] = useState<{ ok: boolean; msg: string; meta?: any } | null>(null);
+  const [spotifyAccounts, setSpotifyAccounts] = useState<any[]>([]);
+  const [connectingSpotify, setConnectingSpotify] = useState(false);
 
   async function testSpotify() {
     setSpotifyTesting(true); setSpotifyResult(null);
@@ -46,7 +48,86 @@ export default function Settings() {
     else setSpotifyResult({ ok: false, msg: data?.error ?? "Falha desconhecida" });
   }
 
-  useEffect(() => { void loadStats(); }, []);
+  useEffect(() => { void loadStats(); void loadSpotifyAccounts(); }, []);
+
+  // Trata retorno do OAuth do Spotify
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("spotify_callback") === "1") {
+      const code = params.get("code");
+      const state = params.get("state");
+      const error = params.get("error");
+      const redirect = `${window.location.origin}/settings?spotify_callback=1`;
+      if (error) {
+        toast.error("Conexão Spotify cancelada", { description: error });
+      } else if (code) {
+        (async () => {
+          const { data, error: invErr } = await supabase.functions.invoke("spotify-auth", {
+            body: undefined,
+            method: "GET",
+            headers: {} as any,
+            // invoke não suporta query strings → usamos URL completa via fetch:
+          } as any);
+          // fallback: chamada direta
+          const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/spotify-auth?mode=callback&code=${encodeURIComponent(code)}&redirect=${encodeURIComponent(redirect)}&state=${encodeURIComponent(state ?? "")}`;
+          const resp = await fetch(url, {
+            headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+          });
+          const json = await resp.json();
+          if (json?.ok) {
+            toast.success("Conta Spotify conectada", { description: json.display_name ?? json.spotify_user_id });
+            await loadSpotifyAccounts();
+          } else {
+            toast.error("Falha ao conectar Spotify", { description: json?.error ?? "" });
+          }
+          // Limpa querystring
+          window.history.replaceState({}, "", "/settings");
+        })();
+        // não bloqueia o restante
+        void invErr;
+        void data;
+      }
+    }
+  }, []);
+
+  async function loadSpotifyAccounts() {
+    const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/spotify-auth?mode=accounts`;
+    const resp = await fetch(url, {
+      headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+    });
+    const j = await resp.json();
+    if (j?.ok) setSpotifyAccounts(j.accounts ?? []);
+  }
+
+  async function connectSpotify() {
+    setConnectingSpotify(true);
+    try {
+      const redirect = `${window.location.origin}/settings?spotify_callback=1`;
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/spotify-auth?mode=login&redirect=${encodeURIComponent(redirect)}`;
+      const resp = await fetch(url, {
+        headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+      });
+      const j = await resp.json();
+      if (!j?.ok) throw new Error(j?.error ?? "Falha");
+      window.location.href = j.url;
+    } catch (e: any) {
+      toast.error("Erro ao iniciar conexão", { description: e?.message });
+      setConnectingSpotify(false);
+    }
+  }
+
+  async function setDefaultAccount(id: string) {
+    await supabase.from("spotify_user_tokens").update({ is_default: false }).neq("id", id);
+    await supabase.from("spotify_user_tokens").update({ is_default: true }).eq("id", id);
+    toast.success("Conta padrão atualizada");
+    await loadSpotifyAccounts();
+  }
+
+  async function removeAccount(id: string) {
+    await supabase.from("spotify_user_tokens").delete().eq("id", id);
+    toast.success("Conta removida");
+    await loadSpotifyAccounts();
+  }
 
   async function loadStats() {
     const [g, t, r, tr] = await Promise.all([
