@@ -237,6 +237,10 @@ Deno.serve(async (req) => {
 
       if ((followers ?? 0) > FOLLOWERS_THRESHOLD) { score += 10; reasons.push("+10 followers"); }
 
+      // BR_BOOST: +15 se nome OU descrição contém algum sinal de funk brasileiro
+      const brHit = brBoostTerms.find(t => t && wordHit(haystack, t));
+      if (brHit) { score += 15; reasons.push(`+15 br:${brHit}`); }
+
       // Negativos
       const blHits = blacklist.filter(b => b && haystack.includes(b));
       if (blHits.length > 0) { score -= 40; reasons.push(`-40 bl:${blHits[0]}`); }
