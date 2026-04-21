@@ -686,6 +686,6 @@ Deno.serve(async (req) => {
     return jr({ ok: true, job_id: jobId, status: "running", resumed: true }, 202);
   }
   // @ts-ignore
-  EdgeRuntime.waitUntil(runPipeline(jobId, body));
-  return jr({ ok: true, job_id: jobId, status: "running" }, 202);
+  EdgeRuntime.waitUntil(runPipeline(jobId, { ...body, survival_mode: survivalMode }));
+  return jr({ ok: true, job_id: jobId, status: "running", survival_mode: survivalMode }, 202);
 });
