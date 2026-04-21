@@ -337,7 +337,18 @@ Deno.serve(async (req) => {
       }
     }
 
+    // 🔒 PRESERVA campos de outras funções (analyze-visual-dna, genre-insights)
+    // que escrevem em `insights` antes/depois desta função no pipeline.
+    // Sem isso, este update sobrescreve dna_visual / dna_visual_subgeneros / ai.
+    const { data: existing } = await supabase
+      .from("genre_models")
+      .select("id,insights")
+      .eq("genre_id", body.genre_id)
+      .maybeSingle();
+
+    const prevInsights = (existing?.insights as any) ?? {};
     const insights = {
+      ...prevInsights, // preserva dna_visual, dna_visual_subgeneros, ai (genre-insights), etc.
       total_playlists_analisadas: results?.length ?? 0,
       total_tracks_analisadas: tracks?.length ?? 0,
       media_seguidores: results?.length
@@ -348,13 +359,6 @@ Deno.serve(async (req) => {
       subgeneros,
       ai_classification: ai_meta,
     };
-
-    // Upsert genre_models
-    const { data: existing } = await supabase
-      .from("genre_models")
-      .select("id")
-      .eq("genre_id", body.genre_id)
-      .maybeSingle();
 
     const payload = {
       genre_id: body.genre_id,
