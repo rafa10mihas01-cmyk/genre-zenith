@@ -752,7 +752,11 @@ Deno.serve(async (req) => {
           const k = c.subgenero?.slug ?? "_sem_classificacao";
           acc[k] = (acc[k] ?? 0) + 1; return acc;
         }, {}),
-        filtros: { MIN_FREQ_PCT, MIN_REPETITIONS, MIN_KEYWORDS, KW_MIN_PCT, HARD_MIN_FREQ_PCT, HARD_MIN_REP, HARD_MIN_TRACKS, SCORE_MIN_EXPANSAO },
+        filtros: { MIN_FREQ_PCT, MIN_REPETITIONS, MIN_KEYWORDS, KW_MIN_PCT, HARD_MIN_FREQ_PCT, HARD_MIN_REP, HARD_MIN_TRACKS, SCORE_MIN_EXPANSAO, MIN_HIGH_MED_RATIO },
+        quality_trimmed: qualityTrimmed,
+        confidence_breakdown: valid.reduce((acc: Record<string, number>, c: any) => {
+          acc[c.confidence] = (acc[c.confidence] ?? 0) + 1; return acc;
+        }, {}),
         cards_por_origem: valid.reduce((acc: Record<string, number>, c: any) => {
           const k = c.origem ?? "strict";
           acc[k] = (acc[k] ?? 0) + 1; return acc;
