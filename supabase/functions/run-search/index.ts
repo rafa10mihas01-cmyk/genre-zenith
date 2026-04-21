@@ -100,6 +100,34 @@ Deno.serve(async (req) => {
     });
   }
 
+  // Circuit breaker: se Apify já foi bloqueado globalmente, não chama a API.
+  // Reset automático após 24h.
+  const { data: flag } = await supabase
+    .from("system_flags")
+    .select("id,apify_blocked,apify_blocked_at")
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (flag?.apify_blocked) {
+    const blockedAt = flag.apify_blocked_at ? new Date(flag.apify_blocked_at).getTime() : 0;
+    const ageMs = Date.now() - blockedAt;
+    if (ageMs > 24 * 60 * 60 * 1000) {
+      // Reset automático
+      await supabase.from("system_flags").update({
+        apify_blocked: false, apify_blocked_at: null, apify_blocked_reason: null,
+      }).eq("id", flag.id);
+    } else {
+      await supabase.from("collection_logs").insert({
+        genre_id: body.genre_id, term_id: body.term_id,
+        acao: "apify-blocked", status: "erro",
+        mensagem: "Pulado: Apify globalmente bloqueado (circuit breaker)",
+      });
+      return new Response(JSON.stringify({ ok: false, blocked: true, reason: "APIFY_BLOCKED_GLOBAL" }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+  }
+
   const maxResults = body.max_results ?? 20;
   const controller = new AbortController();
   const timeoutHandle = setTimeout(() => controller.abort(), 130_000);
