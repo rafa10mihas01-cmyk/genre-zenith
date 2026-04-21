@@ -774,6 +774,23 @@ async function runPipeline(jobId: string, body: StartBody) {
     await setJob(supabase, gid, jobId, { status: "running", stage: "Gerando briefing de playlists...", progress: 95 });
     await ensureBriefing(supabase, gid, stages);
 
+    // 6.7) Extrair blueprints (replicação) — best-effort
+    await setJob(supabase, gid, jobId, { status: "running", stage: "Extraindo blueprints replicáveis...", progress: 97 });
+    const gotLockBp = await acquireLock(supabase, gid, "extract-blueprints", 600);
+    if (!gotLockBp) {
+      stages.blueprints = { ok: true, skipped: true, reason: "lock — extração recente" };
+    } else {
+      try {
+        const bp = await callFn("extract-blueprints", { genre_id: gid, max_per_tier: 5 });
+        const bd = bp.data as any;
+        stages.blueprints = bd?.ok
+          ? { ok: true, created: bd.created?.length ?? 0, updated: bd.updated?.length ?? 0, total: bd.total ?? 0 }
+          : { ok: false, error: bd?.error ?? `HTTP ${bp.status}` };
+      } catch (e) {
+        stages.blueprints = { ok: false, error: (e as Error).message };
+      }
+    }
+
     // 7) Sincroniza contadores de genres + status
     const [pCnt, tCnt, teCnt] = await Promise.all([
       supabase.from("search_results").select("*", { count: "exact", head: true }).eq("genre_id", gid),
