@@ -5,7 +5,7 @@ export default function Criacao() {
   return (
     <ModulePlaceholder
       title="Criação"
-      subtitle="Geração de capas, nomes e descrições com base nos briefings do Cérebro."
+      subtitle="Gerar capas, nomes e descrições de playlists a partir dos briefings produzidos pelo Cérebro."
       icon={Sparkles}
       phase="Fase 2"
     />

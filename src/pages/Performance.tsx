@@ -5,7 +5,7 @@ export default function Performance() {
   return (
     <ModulePlaceholder
       title="Performance"
-      subtitle="Acompanhamento de plays, salvos e crescimento das playlists publicadas."
+      subtitle="Acompanhar plays, salvos e crescimento das playlists publicadas em produção."
       icon={BarChart3}
       phase="Fase 3"
     />
