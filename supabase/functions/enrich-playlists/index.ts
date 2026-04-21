@@ -253,9 +253,10 @@ Deno.serve(async (req) => {
         if (info.total !== null) update.total_musicas = info.total;
 
         // ============ PHASE 2 (POST-ENRICH VALIDATION) ============
-        // Agora temos números reais → reavalia qualidade.
-        // Regra: followers < MIN_FOLLOWERS OU tracks < MIN_TRACKS → flag low_quality.
-        // Quem passar é desflaggado (limpa flag/quality_score antigos).
+        // Agora temos números reais → escreve is_valid + validation_reason DEFINITIVOS.
+        // Regra: followers < MIN_FOLLOWERS OU tracks < MIN_TRACKS
+        //        → is_valid=false, validation_reason="low_quality_post_enrich", quality_flag="low_quality"
+        // Caso contrário: is_valid=true, validation_reason=null, quality_flag=null
         const effFollowers = info.followers;
         const effTracks = info.total;
         const phase2Fail =
@@ -268,13 +269,25 @@ Deno.serve(async (req) => {
           imagem: p.imagem_url ?? null,
         });
         update.quality_score = qualityScore;
-        if (phase2Fail || qualityScore < 40) {
+        update.needs_enrich = false; // já enriquecida → sai da fila
+
+        if (phase2Fail) {
+          update.is_valid = false;
+          update.validation_reason = "low_quality_post_enrich";
           update.quality_flag = "low_quality";
           update.quality_flagged_at = new Date().toISOString();
           phase2Flagged++;
         } else {
-          update.quality_flag = null;
-          update.quality_flagged_at = null;
+          update.is_valid = true;
+          update.validation_reason = null;
+          // Mantém flag por quality_score<40 (vitalidade), independente do gate Phase 2
+          if (qualityScore < 40) {
+            update.quality_flag = "low_quality";
+            update.quality_flagged_at = new Date().toISOString();
+          } else {
+            update.quality_flag = null;
+            update.quality_flagged_at = null;
+          }
           phase2Cleared++;
         }
 
@@ -291,7 +304,8 @@ Deno.serve(async (req) => {
           followers: info.followers,
           total: info.total,
           quality_score: qualityScore,
-          phase2: phase2Fail ? "low_quality" : "ok",
+          is_valid: !phase2Fail,
+          validation_reason: phase2Fail ? "low_quality_post_enrich" : null,
         });
       } else {
         skipped++;
