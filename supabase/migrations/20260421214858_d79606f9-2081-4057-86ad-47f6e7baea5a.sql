@@ -1,0 +1,2 @@
+ALTER TABLE public.search_results ADD COLUMN IF NOT EXISTS needs_enrich boolean NOT NULL DEFAULT true;
+CREATE INDEX IF NOT EXISTS idx_search_results_needs_enrich ON public.search_results(needs_enrich) WHERE needs_enrich = true;

@@ -308,54 +308,49 @@ Deno.serve(async (req) => {
       const ownerCountry = pickStr(it.owner ?? {}, "country") ?? pickStr(it, "ownerCountry");
       const playlistId = pickStr(it, "playlistId", "id") ?? extractPlaylistId(url);
 
-      // ============= VALIDAÇÃO ESTRITA UNIFICADA =============
-      // Computa is_valid + validation_reason. Playlists inválidas NUNCA entram no banco.
+      // ============= PHASE 1 (COLLECTION — PERMISSIVA) =============
+      // Aceita se: nome contém slug do gênero + NÃO em STRONG_BLACKLIST + URL Spotify válida.
+      // NÃO rejeita por followers nem total_tracks (Apify devolve null com frequência).
+      // Quality + is_valid definitivos são definidos em PHASE 2 (enrich-playlists).
       const { score, reasons, hardBlock } = scorePlaylist({ nomePl, descricao, followers });
 
-      let isValid = true;
-      let validationReason: string | null = null;
+      let rejected = false;
+      let rejectReason: string | null = null;
 
-      // PHASE 1 (COLLECTION): permissiva — só rejeita por sinais TEXTUAIS confiáveis.
-      // followers/total_tracks NÃO bloqueiam aqui (Apify devolve null com frequência).
-      // Validação de qualidade por números acontece em PHASE 2 (pós enrich-playlists).
-      // Regra 1: nome deve conter slug do gênero — tratado em scorePlaylist via gate
-      // Regra 2: strong blacklist — tratado em scorePlaylist (hardBlock)
+      // Hard-reject só por sinais TEXTUAIS (não dependem de enrich):
+      //   - strong_blacklist:<termo>  (palavra proibida no nome/descrição)
+      //   - no_<slug>_in_name         (gate textual: nome não contém o gênero)
       if (hardBlock) {
-        isValid = false;
-        validationReason = reasons.find(r => r.startsWith("strong_blacklist")) ?? reasons.find(r => r.startsWith("no_")) ?? "hard_block";
+        rejected = true;
+        rejectReason = reasons.find(r => r.startsWith("strong_blacklist"))
+          ?? reasons.find(r => r.startsWith("no_"))
+          ?? "hard_block";
       }
-      // Regra 4: score abaixo do threshold
-      else if (score < effectiveThreshold) {
-        isValid = false;
-        validationReason = `low_score:${score}<${effectiveThreshold}`;
-      }
-      // Regra extra: ID/URL inválida (lixo do scraper)
+      // URL/ID inválida — lixo do scraper, não há o que enriquecer
       else if (!playlistId || !url || !/playlist\/[A-Za-z0-9]{16,}/.test(url)) {
-        isValid = false;
-        validationReason = "invalid_url_or_id";
+        rejected = true;
+        rejectReason = "invalid_url_or_id";
       }
-      // ⚠️ Regra removida: low_quality_no_followers — agora avaliada em PHASE 2 pós-enrich
+      // ⚠️ Removido em Phase 1: low_score (depende de followers que vem null), low_quality_no_followers.
+      // Score é informativo aqui; gating por score acontece em downstream (analyze-genre rank cutoff).
 
       scoreLog.push({
         name: nomePl.slice(0, 60),
         score,
-        accepted: isValid,
-        reasons: isValid ? reasons : [...reasons, validationReason ?? "rejected"],
+        accepted: !rejected,
+        reasons: rejected ? [...reasons, rejectReason ?? "rejected"] : reasons,
       });
 
-      if (!isValid) {
+      if (rejected) {
         filteredOut++;
         continue;
       }
-      // ============= FIM DA VALIDAÇÃO =============
-
-      // ============= QUALITY SCORE (saúde da playlist, 0-100) =============
-      // Mede vitalidade independente do match de gênero. <40 = "low_quality" → flagged.
-      const qualityScore = computeQualityScore({ followers, totalTracks, descricao, imagem });
-      const qualityFlag = qualityScore < 40 ? "low_quality" : null;
-      const qualityFlaggedAt = qualityFlag ? new Date().toISOString() : null;
+      // ============= FIM PHASE 1 =============
 
       // UPSERT manual (tabela tem unique parcial em (genre_id, spotify_playlist_id))
+      // Todas as linhas inseridas/atualizadas saem com:
+      //   needs_enrich=true, is_valid=true (provisório), validation_reason="pre_enrich"
+      //   quality_score / quality_flag = null  (Phase 2 vai computar)
       let resultId: string | null = null;
       if (playlistId) {
         const { data: existing } = await supabase
@@ -375,16 +370,17 @@ Deno.serve(async (req) => {
             total_musicas: totalTracks,
             apify_run_id: runId,
             term_id: body.term_id,
-            owner_country: ownerCountry,
+            // owner_country removido — coluna não existe no schema (PGRST204)
             times_seen: (existing.times_seen ?? 1) + 1,
             last_seen_at: new Date().toISOString(),
             score,
+            // Phase 1: status provisório — Phase 2 sobrescreve após enrich
+            needs_enrich: true,
             is_valid: true,
-            validation_reason: null,
-            quality_score: qualityScore,
-            quality_flag: qualityFlag,
-            // mantém timestamp original se já estava flagged; só seta novo se acabou de virar low_quality
-            ...(qualityFlag ? { quality_flagged_at: qualityFlaggedAt } : { quality_flagged_at: null }),
+            validation_reason: "pre_enrich",
+            quality_score: null,
+            quality_flag: null,
+            quality_flagged_at: null,
           }).eq("id", existing.id);
           if (updErr) {
             console.error("update result err", updErr);
@@ -409,14 +405,16 @@ Deno.serve(async (req) => {
             descricao,
             total_musicas: totalTracks,
             apify_run_id: runId,
-            owner_country: ownerCountry,
+            // owner_country removido — coluna não existe no schema (PGRST204)
             times_seen: 1,
             score,
+            // Phase 1: status provisório — Phase 2 sobrescreve após enrich
+            needs_enrich: true,
             is_valid: true,
-            validation_reason: null,
-            quality_score: qualityScore,
-            quality_flag: qualityFlag,
-            quality_flagged_at: qualityFlaggedAt,
+            validation_reason: "pre_enrich",
+            quality_score: null,
+            quality_flag: null,
+            quality_flagged_at: null,
           })
           .select("id")
           .single();
