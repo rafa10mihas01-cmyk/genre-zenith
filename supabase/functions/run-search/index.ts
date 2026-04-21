@@ -202,6 +202,14 @@ Deno.serve(async (req) => {
         return { score: -999, reasons, hardBlock: true };
       }
 
+      // GENRE-IN-NAME GATE: nome da playlist DEVE conter slug ou nome do gênero
+      // (descrição não é mais aceita como sinal primário de gênero)
+      const nameHasGenre = (slug && nameLow.includes(slug)) || (nome && nameLow.includes(nome));
+      if (!nameHasGenre) {
+        reasons.push(`no_${slug || nome || "genre"}_in_name`);
+        return { score: -999, reasons, hardBlock: true };
+      }
+
       // Positivos
       if (nameLow.includes(termLower)) { score += 30; reasons.push("+30 name~term"); }
       else if (slug && nameLow.includes(slug)) { score += 20; reasons.push("+20 name~slug"); }
