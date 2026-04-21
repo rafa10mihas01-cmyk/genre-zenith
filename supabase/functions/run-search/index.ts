@@ -352,18 +352,29 @@ Deno.serve(async (req) => {
       status: "coletando",
     }).eq("id", body.genre_id);
 
+    // Top-3 aceitas e top-3 rejeitadas com score, para diagnóstico de calibração
+    const acceptedTop = scoreLog.filter(s => s.accepted).sort((a,b) => b.score - a.score).slice(0, 3);
+    const rejectedTop = scoreLog.filter(s => !s.accepted).sort((a,b) => b.score - a.score).slice(0, 3);
+    const fmt = (s: typeof scoreLog[0]) => `[${s.score}] ${s.name} {${s.reasons.join(",")}}`;
+    const diag =
+      `mode=${isExpansionTerm ? "EXPANSION" : "STRICT"} thr=${effectiveThreshold} | ` +
+      `aceitas: ${acceptedTop.map(fmt).join(" | ") || "—"} || rejeitadas: ${rejectedTop.map(fmt).join(" | ") || "—"}`;
+
     await supabase.from("collection_logs").insert({
       genre_id: body.genre_id,
       term_id: body.term_id,
       acao: "run-search",
       status: "sucesso",
-      mensagem: `"${body.search_term}" → ${savedResults} novas, ${updatedResults} atualizadas, ${filteredOut} filtradas, ${savedTracks} músicas`,
+      mensagem: `"${body.search_term}" → ${savedResults} novas, ${updatedResults} atualizadas, ${filteredOut} filtradas, ${savedTracks} músicas | ${diag}`.slice(0, 4000),
       duracao_ms: Date.now() - start,
     });
 
     clearTimeout(timeoutHandle);
     return new Response(
-      JSON.stringify({ ok: true, savedResults, updatedResults, filteredOut, savedTracks, runId }),
+      JSON.stringify({
+        ok: true, savedResults, updatedResults, filteredOut, savedTracks, runId,
+        scoring: { mode: isExpansionTerm ? "expansion" : "strict", threshold: effectiveThreshold, evaluated: scoreLog.length },
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e) {
