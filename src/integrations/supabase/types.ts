@@ -219,8 +219,12 @@ export type Database = {
       genres: {
         Row: {
           ativo: boolean | null
+          attention_flagged_at: string | null
+          attention_reason: string | null
           created_at: string | null
           id: string
+          last_audit_metrics: Json | null
+          needs_attention: boolean
           nome: string
           slug: string
           status: string | null
@@ -231,8 +235,12 @@ export type Database = {
         }
         Insert: {
           ativo?: boolean | null
+          attention_flagged_at?: string | null
+          attention_reason?: string | null
           created_at?: string | null
           id?: string
+          last_audit_metrics?: Json | null
+          needs_attention?: boolean
           nome: string
           slug: string
           status?: string | null
@@ -243,8 +251,12 @@ export type Database = {
         }
         Update: {
           ativo?: boolean | null
+          attention_flagged_at?: string | null
+          attention_reason?: string | null
           created_at?: string | null
           id?: string
+          last_audit_metrics?: Json | null
+          needs_attention?: boolean
           nome?: string
           slug?: string
           status?: string | null
