@@ -48,6 +48,16 @@ Deno.serve(async (req) => {
   };
   const errors: string[] = [];
 
+  // Snapshot do tamanho do dataset ANTES da limpeza (pra calcular % afetada)
+  let totalBefore = 0;
+  try {
+    const [{ count: pl }, { count: tr }] = await Promise.all([
+      supabase.from("search_results").select("*", { count: "exact", head: true }),
+      supabase.from("search_tracks").select("*", { count: "exact", head: true }),
+    ]);
+    totalBefore = (pl ?? 0) + (tr ?? 0);
+  } catch (_) { /* segue, threshold cai pra 0 */ }
+
   try {
     // 1) Tracks órfãs: result_id NULL ou aponta para playlist deletada.
     //    Estratégia: pega ids de tracks com result_id que NÃO existe em search_results.
