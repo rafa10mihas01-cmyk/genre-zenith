@@ -146,6 +146,7 @@ async function runPipeline(jobId: string, body: StartBody) {
   const kit = KITS[slug] ?? null; // boost opcional para gêneros conhecidos
   const { termsCount, delayMs, batchSize } = intensityLimits(body.intensity ?? "normal");
   const maxPerSearch = body.max_playlists ?? 50;
+  const survivalMode = body.survival_mode === true;
   const start = Date.now();
 
   const { data: genre } = await supabase
@@ -159,11 +160,119 @@ async function runPipeline(jobId: string, body: StartBody) {
     return;
   }
   const gid = genre.id;
-  await setJob(supabase, gid, jobId, { status: "running", stage: "Gerando termos...", progress: 5 });
+  await setJob(supabase, gid, jobId, {
+    status: "running",
+    stage: survivalMode ? "⚠️ Modo sobrevivência — usando dados existentes" : "Gerando termos...",
+    progress: 5,
+  });
 
   const stages: Record<string, unknown> = {};
+  if (survivalMode) (stages as any).survival_mode = true;
 
   try {
+    // 🛟 SURVIVAL MODE: pula coleta, usa cache + IA
+    if (survivalMode) {
+      // 1) Cache: 7 dias, top 150 por priority_score; fallback 100 sem filtro de data
+      let { data: cached } = await supabase
+        .from("search_results")
+        .select("id,seguidores")
+        .eq("genre_id", gid)
+        .gte("created_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+        .order("priority_score", { ascending: false, nullsFirst: false })
+        .limit(150);
+      let dataSource: "cache_7d" | "cache_full" = "cache_7d";
+      if (!cached || cached.length === 0) {
+        const fb = await supabase
+          .from("search_results")
+          .select("id,seguidores")
+          .eq("genre_id", gid)
+          .order("priority_score", { ascending: false, nullsFirst: false })
+          .limit(100);
+        cached = fb.data ?? [];
+        dataSource = "cache_full";
+      }
+      stages.survival_cache = { source: dataSource, total: cached.length };
+
+      // 2) Enrich inteligente: só followers IS NULL, limite 20, ignora se falhar
+      const pendingIds = (cached ?? []).filter((r: any) => r.seguidores == null).slice(0, 20).map((r: any) => r.id);
+      if (pendingIds.length > 0) {
+        await setJob(supabase, gid, jobId, {
+          status: "running",
+          stage: `⚠️ Modo sobrevivência — enriquecendo ${pendingIds.length} pendentes...`,
+          progress: 35,
+        });
+        try {
+          const er = await callFn("enrich-playlists", {
+            genre_id: gid, limit: 20, fetch_tracks: true, result_ids: pendingIds,
+          });
+          const ed = er.data as any;
+          stages.survival_enrich = { ok: er.ok && ed?.ok, enriched: ed?.enriched ?? 0, tracks_saved: ed?.tracks_saved ?? 0 };
+        } catch (e) {
+          stages.survival_enrich = { ok: false, ignored: true, error: (e as Error).message };
+        }
+      } else {
+        stages.survival_enrich = { ok: true, skipped: true, reason: "nada pendente" };
+      }
+
+      // 3) Analyze normal
+      await setJob(supabase, gid, jobId, {
+        status: "running",
+        stage: "⚠️ Modo sobrevivência — analisando padrões...",
+        progress: 60,
+      });
+      try {
+        const a = await callFn("analyze-genre", { genre_id: gid });
+        stages.analyze = (a.data as any)?.insights ?? { ok: a.ok };
+      } catch (e) {
+        stages.analyze = { ok: false, error: (e as Error).message };
+      }
+
+      // 4) Briefing SEMPRE (com survival_mode → filtros relaxados + metadata)
+      await setJob(supabase, gid, jobId, {
+        status: "running",
+        stage: "⚠️ Modo sobrevivência — gerando briefing...",
+        progress: 90,
+      });
+      await ensureBriefing(supabase, gid, stages, { survival_mode: true });
+
+      // Sincroniza contadores
+      const [pCnt, tCnt, teCnt] = await Promise.all([
+        supabase.from("search_results").select("*", { count: "exact", head: true }).eq("genre_id", gid),
+        supabase.from("search_tracks").select("*", { count: "exact", head: true }).eq("genre_id", gid),
+        supabase.from("search_terms").select("*", { count: "exact", head: true }).eq("genre_id", gid),
+      ]);
+      await supabase.from("genres").update({
+        total_playlists: pCnt.count ?? 0,
+        total_musicas: tCnt.count ?? 0,
+        total_termos: teCnt.count ?? 0,
+        ultima_coleta: new Date().toISOString(),
+        status: "parcial",
+      }).eq("id", gid);
+
+      await supabase.from("collection_logs").insert({
+        genre_id: gid, acao: "survival-mode", status: "ok",
+        mensagem: "Pipeline executado sem coleta nova (Apify bloqueado)",
+        duracao_ms: Date.now() - start,
+      });
+
+      const { data: model } = await supabase
+        .from("genre_models").select("*").eq("genre_id", gid).maybeSingle();
+
+      await setJob(supabase, gid, jobId, {
+        status: "done",
+        stage: "⚠️ Modo sobrevivência — concluído com dados existentes",
+        progress: 100,
+        result: {
+          ok: true, survival_mode: true, apify_blocked: true,
+          data_freshness: "stale", data_source: dataSource,
+          genre: { id: gid, nome: genre.nome, slug: genre.slug },
+          duration_ms: Date.now() - start,
+          stages, model: model ?? null,
+        },
+      });
+      return;
+    }
+
     // 1) Termos — fonte dinâmica:
     //    a) Se há KIT específico (funk/sertanejo/piseiro) → usa kit (curado, melhor qualidade)
     //    b) Senão → garante que generate-terms rodou (cria variações automáticas) e usa search_terms do gênero
