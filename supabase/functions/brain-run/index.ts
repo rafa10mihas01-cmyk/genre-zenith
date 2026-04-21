@@ -234,15 +234,20 @@ async function runPipeline(jobId: string, body: StartBody) {
     stages.search = { ok: searchedOk, err: searchedErr, total_inserted: totalSavedResults };
 
 
-    // 3) Filtro relaxado: relevante se nome OU descrição OU termo de origem contém o slug
-    //    OU qualquer um dos termos do kit (ex.: "mandelão" pra funk).
+    // 3) Filtro relaxado: relevante se nome OU descrição OU termo de origem contém o slug,
+    //    o nome do gênero, OU qualquer termo selecionado nesta rodada (kit OU dinâmico).
     await setJob(supabase, gid, jobId, { status: "running", stage: "Filtrando resultados...", progress: 60 });
     const { data: allResults } = await supabase
       .from("search_results")
       .select("id,nome_playlist,descricao,term_id")
       .eq("genre_id", gid);
     const termMap = new Map((termsRows ?? []).map((t: any) => [t.id, (t.termo ?? "").toLowerCase()]));
-    const kitLower = kit.map(k => k.toLowerCase());
+    const nomeLower = (genre.nome ?? "").toLowerCase();
+    const relevanceTokens = [
+      ...selectedTerms.map(t => t.toLowerCase()),
+      ...(kit ?? []).map(k => k.toLowerCase()),
+      nomeLower,
+    ].filter(Boolean);
     const irrelevant = (allResults ?? []).filter((r: any) => {
       const nome = (r.nome_playlist ?? "").toLowerCase();
       const desc = (r.descricao ?? "").toLowerCase();
