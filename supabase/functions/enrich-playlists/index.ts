@@ -251,6 +251,33 @@ Deno.serve(async (req) => {
         };
         if (info.followers !== null) update.seguidores = info.followers;
         if (info.total !== null) update.total_musicas = info.total;
+
+        // ============ PHASE 2 (POST-ENRICH VALIDATION) ============
+        // Agora temos números reais → reavalia qualidade.
+        // Regra: followers < MIN_FOLLOWERS OU tracks < MIN_TRACKS → flag low_quality.
+        // Quem passar é desflaggado (limpa flag/quality_score antigos).
+        const effFollowers = info.followers;
+        const effTracks = info.total;
+        const phase2Fail =
+          (effFollowers != null && effFollowers < PHASE2_MIN_FOLLOWERS) ||
+          (effTracks != null && effTracks < PHASE2_MIN_TRACKS);
+        const qualityScore = computeQualityScore({
+          followers: effFollowers,
+          totalTracks: effTracks,
+          descricao: p.descricao ?? null,
+          imagem: p.imagem_url ?? null,
+        });
+        update.quality_score = qualityScore;
+        if (phase2Fail || qualityScore < 40) {
+          update.quality_flag = "low_quality";
+          update.quality_flagged_at = new Date().toISOString();
+          phase2Flagged++;
+        } else {
+          update.quality_flag = null;
+          update.quality_flagged_at = null;
+          phase2Cleared++;
+        }
+
         const { error: uErr } = await supabase.from("search_results").update(update).eq("id", p.id);
         if (uErr) {
           errors++;
@@ -259,7 +286,13 @@ Deno.serve(async (req) => {
           return;
         }
         enriched++;
-        if (samples.length < 3) samples.push({ playlist: p.nome_playlist, followers: info.followers, total: info.total });
+        if (samples.length < 3) samples.push({
+          playlist: p.nome_playlist,
+          followers: info.followers,
+          total: info.total,
+          quality_score: qualityScore,
+          phase2: phase2Fail ? "low_quality" : "ok",
+        });
       } else {
         skipped++;
         await markAttempt(p, { failed: true, reason: "spotify_empty" });
