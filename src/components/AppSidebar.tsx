@@ -1,5 +1,6 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { Home, Brain, Sparkles, BarChart3, Settings, LogOut, Zap, Activity } from "lucide-react";
+import { Home, Brain, Sparkles, BarChart3, Settings, LogOut, Activity } from "lucide-react";
+import { NexEngineLogo } from "@/components/NexEngineLogo";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, SidebarFooter, useSidebar,
@@ -29,9 +30,7 @@ export function AppSidebar() {
     <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
       <SidebarHeader className="px-4 py-5 border-b border-sidebar-border">
         <div className="flex items-center gap-2.5">
-          <div className="h-9 w-9 rounded-full bg-primary flex items-center justify-center shrink-0">
-            <Zap className="h-5 w-5 text-primary-foreground" />
-          </div>
+          <NexEngineLogo size={36} />
           {!collapsed && (
             <div className="leading-tight">
               <div className="font-bold text-[15px] tracking-tight text-sidebar-foreground">NexEngine</div>
