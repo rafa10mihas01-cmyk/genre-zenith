@@ -1,0 +1,1 @@
+UPDATE system_flags SET apify_blocked = false, apify_blocked_at = NULL, apify_blocked_reason = NULL WHERE apify_blocked = true;
