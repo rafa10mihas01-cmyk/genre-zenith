@@ -77,12 +77,14 @@ Deno.serve(async (req) => {
     const fetchTracks = body.fetch_tracks ?? true;
 
     // Pega playlists pendentes — modo seletivo (result_ids) tem prioridade
+    // 🛡️ filtra enrich_failed=false sempre — zumbis nunca são reprocessadas
     let pending: any[] | null = null;
     if (body.result_ids && body.result_ids.length > 0) {
       const { data, error: pErr } = await supabase
         .from("search_results")
         .select("id,genre_id,spotify_url,nome_playlist,posicao")
         .in("id", body.result_ids.slice(0, limit))
+        .eq("enrich_failed", false)
         .is("seguidores", null)
         .not("spotify_url", "is", null);
       if (pErr) throw pErr;
@@ -91,6 +93,7 @@ Deno.serve(async (req) => {
       let q = supabase
         .from("search_results")
         .select("id,genre_id,spotify_url,nome_playlist,posicao")
+        .eq("enrich_failed", false)
         .is("seguidores", null)
         .not("spotify_url", "is", null);
       if (body.genre_id) q = q.eq("genre_id", body.genre_id);

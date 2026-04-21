@@ -1,0 +1,2 @@
+ALTER TABLE public.search_results ADD COLUMN IF NOT EXISTS enrich_failed boolean NOT NULL DEFAULT false;
+CREATE INDEX IF NOT EXISTS idx_search_results_enrich_failed ON public.search_results(genre_id, enrich_failed) WHERE enrich_failed = false;
