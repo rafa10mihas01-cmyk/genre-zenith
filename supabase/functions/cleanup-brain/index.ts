@@ -184,6 +184,24 @@ Deno.serve(async (req) => {
       }
     }
 
+    // 4.7) PURGE: playlists marcadas is_valid=false pelo scoring estrito (run-search/revalidate-dataset)
+    {
+      const { data: rows, error } = await supabase
+        .from("search_results")
+        .select("id")
+        .eq("is_valid", false);
+      if (error) { errors.push(`invalid-scan: ${error.message}`); }
+      else if (rows && rows.length > 0) {
+        const ids = rows.map((r: any) => r.id);
+        for (let i = 0; i < ids.length; i += 500) {
+          const chunk = ids.slice(i, i + 500);
+          const { error: dErr } = await supabase.from("search_results").delete().in("id", chunk);
+          if (dErr) { errors.push(`invalid-del: ${dErr.message}`); break; }
+          result.invalidated += chunk.length;
+        }
+      }
+    }
+
     // 5) Re-roda passo 1 (tracks que ficaram órfãs após deletar playlists nos passos 2-4)
     {
       const { data: validIds } = await supabase.from("search_results").select("id");
