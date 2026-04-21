@@ -80,9 +80,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               </div>
               <Button
                 size="sm"
-                variant="ghost"
+                variant="premium"
                 onClick={refresh}
-                className="rounded-full h-8 gap-1.5 text-muted-foreground hover:text-foreground"
+                className="rounded-full h-8 gap-1.5"
               >
                 <RefreshCw className="h-3.5 w-3.5" />
                 <span className="hidden md:inline">Atualizar</span>
