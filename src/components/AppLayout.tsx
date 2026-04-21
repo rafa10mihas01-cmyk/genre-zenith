@@ -7,6 +7,7 @@ import { Search, Bell, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react
 import { supabase } from "@/integrations/supabase/client";
 import { timeAgo } from "@/lib/format";
 import { useNavigate } from "react-router-dom";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 /**
  * Layout global do sistema. Toda página renderizada DEVE estar dentro dele.
