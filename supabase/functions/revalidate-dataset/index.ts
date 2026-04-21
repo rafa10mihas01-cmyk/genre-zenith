@@ -267,9 +267,6 @@ Deno.serve(async (req) => {
         } else if (score < effectiveThreshold) {
           isValid = false;
           validationReason = `low_score:${score}<${effectiveThreshold}`;
-        } else if ((r.seguidores == null) && ((r.total_musicas ?? 0) < 30)) {
-          isValid = false;
-          validationReason = "low_quality_no_followers";
         } else if (
           !r.spotify_playlist_id ||
           !r.spotify_url ||
@@ -278,6 +275,7 @@ Deno.serve(async (req) => {
           isValid = false;
           validationReason = "invalid_url_or_id";
         }
+        // ⚠️ low_quality_no_followers removido: avaliado em PHASE 2 pelo enrich-playlists
 
         const qualityScore = computeQualityScore({
           followers: r.seguidores,
