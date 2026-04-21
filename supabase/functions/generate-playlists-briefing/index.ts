@@ -22,9 +22,11 @@ const TRACKS_PER_CARD = 5;
 const HARD_MIN_FREQ_PCT = 1;     // < 1% nunca entra, nem em expansão
 const HARD_MIN_REP = 1;          // < 1 repetição nunca entra
 const HARD_MIN_TRACKS = 2;       // < 2 músicas relevantes nunca entra
-const SCORE_MIN_EXPANSAO = 8;    // score mínimo relaxado (antes 15 — impedia base pequena)
+const SCORE_MIN_EXPANSAO = 12;   // score mínimo em expansão (8 → 12: corta cards fracos)
 const EXPANSAO_MIN_KEYWORDS = 1; // expansão aceita cards com 1 keyword válida
 const EXPANSAO_TARGET_CARDS = 5; // alvo mínimo de cards extra em expansão
+const MIN_HIGH_MED_RATIO = 0.6;  // ≥60% dos cards finais devem ser confidence alta/média
+const MIN_CARDS_FOR_RATIO = 4;   // só aplica o ratio se houver pelo menos N cards (evita zerar runs pequenas)
 // Conceitos sintéticos pra forçar variação quando formatos acabam
 const SYNTHETIC_CONCEPTS = [
   "essenciais", "favoritas", "clássicos", "novidades", "underground",
@@ -698,6 +700,28 @@ Deno.serve(async (req) => {
     // Ordena por score desc
     valid.sort((a, b) => b.justificativa.score - a.justificativa.score);
 
+    // 🎯 FILTRO DE QUALIDADE FINAL: garante ≥60% de cards com confidence alta/média.
+    // Remove cards "baixa" do FINAL (menor score) até atingir o ratio.
+    // Só aplica se houver cards suficientes — runs pequenas não são afetadas.
+    let qualityTrimmed = 0;
+    if (valid.length >= MIN_CARDS_FOR_RATIO) {
+      const isStrong = (c: any) => c.confidence === "alta" || c.confidence === "media";
+      let i = valid.length - 1;
+      while (i >= 0 && valid.length > MIN_CARDS_FOR_RATIO) {
+        const strong = valid.filter(isStrong).length;
+        const ratio = strong / valid.length;
+        if (ratio >= MIN_HIGH_MED_RATIO) break;
+        if (!isStrong(valid[i])) {
+          valid.splice(i, 1);
+          qualityTrimmed++;
+        }
+        i--;
+      }
+      if (qualityTrimmed > 0) {
+        console.log(`QUALITY TRIM → ${qualityTrimmed} cards "baixa" removidos (ratio alvo ≥${MIN_HIGH_MED_RATIO * 100}%)`);
+      }
+    }
+
     // ═══════════════ SALVAR ═══════════════
     const { data: lastBriefing } = await supabase
       .from("playlist_briefings")
@@ -728,7 +752,11 @@ Deno.serve(async (req) => {
           const k = c.subgenero?.slug ?? "_sem_classificacao";
           acc[k] = (acc[k] ?? 0) + 1; return acc;
         }, {}),
-        filtros: { MIN_FREQ_PCT, MIN_REPETITIONS, MIN_KEYWORDS, KW_MIN_PCT, HARD_MIN_FREQ_PCT, HARD_MIN_REP, HARD_MIN_TRACKS, SCORE_MIN_EXPANSAO },
+        filtros: { MIN_FREQ_PCT, MIN_REPETITIONS, MIN_KEYWORDS, KW_MIN_PCT, HARD_MIN_FREQ_PCT, HARD_MIN_REP, HARD_MIN_TRACKS, SCORE_MIN_EXPANSAO, MIN_HIGH_MED_RATIO },
+        quality_trimmed: qualityTrimmed,
+        confidence_breakdown: valid.reduce((acc: Record<string, number>, c: any) => {
+          acc[c.confidence] = (acc[c.confidence] ?? 0) + 1; return acc;
+        }, {}),
         cards_por_origem: valid.reduce((acc: Record<string, number>, c: any) => {
           const k = c.origem ?? "strict";
           acc[k] = (acc[k] ?? 0) + 1; return acc;
