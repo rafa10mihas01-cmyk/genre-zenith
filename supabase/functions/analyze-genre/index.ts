@@ -22,6 +22,56 @@ function tokenize(text: string): string[] {
     .filter(w => w.length >= 3 && !STOPWORDS.has(w));
 }
 
+// 🧬 Distância de Levenshtein (iterativa, O(n*m)). Curto-circuita quando excede `max`.
+function levenshtein(a: string, b: string, max = 2): number {
+  if (a === b) return 0;
+  if (Math.abs(a.length - b.length) > max) return max + 1;
+  const m = a.length, n = b.length;
+  if (m === 0) return n;
+  if (n === 0) return m;
+  let prev = new Array(n + 1);
+  let curr = new Array(n + 1);
+  for (let j = 0; j <= n; j++) prev[j] = j;
+  for (let i = 1; i <= m; i++) {
+    curr[0] = i;
+    let rowMin = curr[0];
+    for (let j = 1; j <= n; j++) {
+      const cost = a.charCodeAt(i - 1) === b.charCodeAt(j - 1) ? 0 : 1;
+      curr[j] = Math.min(curr[j - 1] + 1, prev[j] + 1, prev[j - 1] + cost);
+      if (curr[j] < rowMin) rowMin = curr[j];
+    }
+    if (rowMin > max) return max + 1; // poda — nenhum caminho viável
+    [prev, curr] = [curr, prev];
+  }
+  return prev[n];
+}
+
+// 🔗 Normaliza tokens mesclando typos: para cada token, procura um "canônico" mais
+// frequente com distância ≤2. Aplica só se canônico for ≥3× mais frequente
+// (evita colapsar palavras válidas distintas como "funk" e "junk").
+function buildKeywordNormalizer(tokens: string[]): Map<string, string> {
+  const freq = new Map<string, number>();
+  for (const t of tokens) freq.set(t, (freq.get(t) ?? 0) + 1);
+  const sorted = Array.from(freq.entries()).sort((a, b) => b[1] - a[1]);
+  const map = new Map<string, string>();
+  const MIN_LEN_FOR_FUZZY = 5; // só tenta merge em tokens ≥5 chars (curtos têm muitos vizinhos espúrios)
+  const FREQ_RATIO = 3;
+  for (const [tok, count] of sorted) {
+    if (map.has(tok)) continue;
+    if (tok.length < MIN_LEN_FOR_FUZZY) { map.set(tok, tok); continue; }
+    // procura canônico já mapeado mais frequente E distante ≤2
+    let best: string | null = null;
+    for (const [canon, canonCount] of sorted) {
+      if (canon === tok) break; // sorted desc — daqui pra frente é menos frequente
+      if (canonCount < count * FREQ_RATIO) continue;
+      if (canon.length < MIN_LEN_FOR_FUZZY) continue;
+      if (levenshtein(tok, canon, 2) <= 2) { best = canon; break; }
+    }
+    map.set(tok, best ?? tok);
+  }
+  return map;
+}
+
 function topN<T extends string>(arr: T[], n: number): { value: T; count: number }[] {
   const map = new Map<T, number>();
   for (const v of arr) map.set(v, (map.get(v) ?? 0) + 1);
@@ -58,13 +108,24 @@ Deno.serve(async (req) => {
     if (!genre) throw new Error("Gênero não encontrado");
 
     const playlistNames = (results ?? []).map(r => r.nome_playlist).filter(Boolean) as string[];
-    const allTokens = playlistNames.flatMap(tokenize);
-    const palavras_chave = topN(allTokens, 30);
+    const rawTokens = playlistNames.flatMap(tokenize);
 
-    // Padrões de nome: bigramas
+    // 🔗 Normalização: mescla typos via Levenshtein (≤2). Construído UMA vez sobre todo o universo
+    // de tokens do gênero — usado tanto pra palavras_chave globais quanto pros subgêneros.
+    const tokenNormalizer = buildKeywordNormalizer(rawTokens);
+    const normalize = (tk: string) => tokenNormalizer.get(tk) ?? tk;
+    const normalizedTokens = rawTokens.map(normalize);
+    const palavras_chave = topN(normalizedTokens, 30);
+    const mergedKeywordsCount = Array.from(tokenNormalizer.entries())
+      .filter(([k, v]) => k !== v).length;
+    if (mergedKeywordsCount > 0) {
+      console.log(`[normalize] ${mergedKeywordsCount} typos mesclados em canônicos`);
+    }
+
+    // Padrões de nome: bigramas (com tokens normalizados — funde typos antes de contar)
     const bigrams: string[] = [];
     for (const name of playlistNames) {
-      const t = tokenize(name);
+      const t = tokenize(name).map(normalize);
       for (let i = 0; i < t.length - 1; i++) bigrams.push(`${t[i]} ${t[i+1]}`);
     }
     const padroes_nome = topN(bigrams, 20);
@@ -115,10 +176,10 @@ Deno.serve(async (req) => {
       "para","pra","com","sem","feat","official","oficial","radio","abril","maio",
     ]);
 
-    // term_id → tokens extras (subgênero candidato)
+    // term_id → tokens extras (subgênero candidato) — normalizados
     const termIdToSubs = new Map<string, string[]>();
     for (const t of (terms ?? [])) {
-      const toks = tokenize(t.termo ?? "");
+      const toks = tokenize(t.termo ?? "").map(normalize);
       const extras = toks.filter(tk => !baseTokens.has(tk) && !NON_SUB.has(tk));
       termIdToSubs.set(t.id, extras);
     }
@@ -133,8 +194,8 @@ Deno.serve(async (req) => {
 
     for (const r of (results ?? [])) {
       const fromTerm = termIdToSubs.get(r.term_id ?? "") ?? [];
-      const nameToks = tokenize(r.nome_playlist ?? "");
-      const descToks = tokenize((r as any).descricao ?? "");
+      const nameToks = tokenize(r.nome_playlist ?? "").map(normalize);
+      const descToks = tokenize((r as any).descricao ?? "").map(normalize);
       const cloud = new Set([...nameToks, ...descToks]);
       const candidates = new Set<string>(fromTerm);
       for (const s of allSubsFromTerms) if (cloud.has(s)) candidates.add(s);
@@ -239,7 +300,7 @@ Deno.serve(async (req) => {
           const grpResults = (results ?? []).filter(r => g.ids.includes(r.id));
           const kbag = new Map<string, number>();
           for (const r of grpResults) {
-            for (const tk of tokenize(r.nome_playlist ?? "")) {
+            for (const tk of tokenize(r.nome_playlist ?? "").map(normalize)) {
               if (baseTokens.has(tk) || NON_SUB.has(tk) || tk === slug) continue;
               kbag.set(tk, (kbag.get(tk) ?? 0) + 1);
             }
@@ -378,7 +439,7 @@ Deno.serve(async (req) => {
       genre_id: body.genre_id,
       acao: "analyze-genre",
       status: "sucesso",
-      mensagem: `Modelo gerado: ${palavras_chave.length} palavras-chave, ${musicas_recorrentes.length} músicas recorrentes`,
+      mensagem: `Modelo gerado: ${palavras_chave.length} palavras-chave (${mergedKeywordsCount} typos mesclados), ${musicas_recorrentes.length} músicas recorrentes`,
       duracao_ms: Date.now() - start,
     });
 
