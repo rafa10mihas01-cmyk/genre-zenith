@@ -76,7 +76,7 @@ async function ensureBriefing(supabase: any, gid: string, stages: Record<string,
     await supabase.from("collection_logs").insert({
       genre_id: gid, acao: "generate-briefing", status: "erro",
       mensagem: "Briefing pulado: genre_model inexistente",
-    }).catch(() => {});
+    }).then(() => {}, () => {});
     return;
   }
   for (let attempt = 1; attempt <= 2; attempt++) {
@@ -95,7 +95,7 @@ async function ensureBriefing(supabase: any, gid: string, stages: Record<string,
         await supabase.from("collection_logs").insert({
           genre_id: gid, acao: "generate-briefing", status: "erro",
           mensagem: `Briefing falhou após 2 tentativas: ${(d?.error ?? `HTTP ${br.status}`).toString().slice(0, 400)}`,
-        }).catch(() => {});
+        }).then(() => {}, () => {});
       }
     } catch (e) {
       stages.briefing = { ok: false, attempt, error: (e as Error).message };
@@ -103,7 +103,7 @@ async function ensureBriefing(supabase: any, gid: string, stages: Record<string,
         await supabase.from("collection_logs").insert({
           genre_id: gid, acao: "generate-briefing", status: "erro",
           mensagem: `Briefing exception: ${(e as Error).message.slice(0, 400)}`,
-        }).catch(() => {});
+        }).then(() => {}, () => {});
       }
     }
     if (attempt === 1) await new Promise((r) => setTimeout(r, 1500));
@@ -310,7 +310,7 @@ async function runPipeline(jobId: string, body: StartBody) {
           await supabase.from("collection_logs").insert({
             genre_id: gid, acao: "brain-run", status: "erro",
             mensagem: `generate-terms falhou: ${(gt.data as any)?.error ?? `HTTP ${gt.status}`}`,
-          }).catch(() => {});
+          }).then(() => {}, () => {});
         }
       }
       // Seleciona top N termos priorizando: completo > variacao > contextual > prefixo
@@ -848,7 +848,7 @@ Deno.serve(async (req) => {
       await supabaseCheck.from("collection_logs").insert({
         acao: "survival-mode", status: "ok",
         mensagem: "Pipeline iniciado em modo sobrevivência (Apify bloqueado) — usando cache + IA",
-      }).catch(() => {});
+      }).then(() => {}, () => {});
     }
   }
 
