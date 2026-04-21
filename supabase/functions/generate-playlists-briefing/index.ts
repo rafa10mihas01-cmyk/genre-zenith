@@ -256,9 +256,11 @@ Deno.serve(async (req) => {
       const freq = (fmt.count / totalPlaylists) * 100;
       const rep = fmt.count;
 
-      // 🚨 FILTROS DE QUALIDADE
-      if (freq < MIN_FREQ_PCT) continue;
-      if (rep < MIN_REPETITIONS) continue;
+      // 🚨 FILTROS DE QUALIDADE (relaxados em modo expansão)
+      const minFreq = briefingMode === "expansao" ? MIN_FREQ_PCT * 0.5 : MIN_FREQ_PCT;
+      const minRep = briefingMode === "expansao" ? 1 : MIN_REPETITIONS;
+      if (freq < minFreq) continue;
+      if (rep < minRep) continue;
 
       // 🏷️ CLASSIFICAÇÃO OBRIGATÓRIA: 1) por nome 2) por tracks 3) descarta
       let subInfo = classifySub(fmt.value);
