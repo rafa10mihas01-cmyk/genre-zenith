@@ -78,11 +78,16 @@ Deno.serve(async (req) => {
 
     // Pega playlists pendentes — modo seletivo (result_ids) tem prioridade
     // 🛡️ filtra enrich_failed=false sempre — zumbis nunca são reprocessadas
+    // 🛡️ filtra enrich_attempted_at < (agora - 1h) — evita retry em loop dentro da mesma janela
+    const RETRY_COOLDOWN_MS = 60 * 60 * 1000; // 1h
+    const MAX_ENRICH_ATTEMPTS = 3;
+    const cooldownIso = new Date(Date.now() - RETRY_COOLDOWN_MS).toISOString();
+
     let pending: any[] | null = null;
     if (body.result_ids && body.result_ids.length > 0) {
       const { data, error: pErr } = await supabase
         .from("search_results")
-        .select("id,genre_id,spotify_url,nome_playlist,posicao")
+        .select("id,genre_id,spotify_url,nome_playlist,posicao,enrich_attempts")
         .in("id", body.result_ids.slice(0, limit))
         .eq("enrich_failed", false)
         .is("seguidores", null)
@@ -92,10 +97,11 @@ Deno.serve(async (req) => {
     } else {
       let q = supabase
         .from("search_results")
-        .select("id,genre_id,spotify_url,nome_playlist,posicao")
+        .select("id,genre_id,spotify_url,nome_playlist,posicao,enrich_attempts")
         .eq("enrich_failed", false)
         .is("seguidores", null)
-        .not("spotify_url", "is", null);
+        .not("spotify_url", "is", null)
+        .or(`enrich_attempted_at.is.null,enrich_attempted_at.lt.${cooldownIso}`);
       if (body.genre_id) q = q.eq("genre_id", body.genre_id);
       q = body.prioritize
         ? q.order("posicao", { ascending: true }).limit(limit)
