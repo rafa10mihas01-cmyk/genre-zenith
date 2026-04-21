@@ -294,6 +294,7 @@ export type Database = {
           genre_id: string | null
           id: string
           imagem_url: string | null
+          is_valid: boolean
           last_seen_at: string
           nome_playlist: string
           posicao: number
@@ -305,6 +306,7 @@ export type Database = {
           term_id: string | null
           times_seen: number
           total_musicas: number | null
+          validation_reason: string | null
         }
         Insert: {
           apify_run_id?: string | null
@@ -317,6 +319,7 @@ export type Database = {
           genre_id?: string | null
           id?: string
           imagem_url?: string | null
+          is_valid?: boolean
           last_seen_at?: string
           nome_playlist: string
           posicao: number
@@ -328,6 +331,7 @@ export type Database = {
           term_id?: string | null
           times_seen?: number
           total_musicas?: number | null
+          validation_reason?: string | null
         }
         Update: {
           apify_run_id?: string | null
@@ -340,6 +344,7 @@ export type Database = {
           genre_id?: string | null
           id?: string
           imagem_url?: string | null
+          is_valid?: boolean
           last_seen_at?: string
           nome_playlist?: string
           posicao?: number
@@ -351,6 +356,7 @@ export type Database = {
           term_id?: string | null
           times_seen?: number
           total_musicas?: number | null
+          validation_reason?: string | null
         }
         Relationships: [
           {
