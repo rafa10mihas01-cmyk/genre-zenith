@@ -78,11 +78,16 @@ Deno.serve(async (req) => {
 
     // Pega playlists pendentes — modo seletivo (result_ids) tem prioridade
     // 🛡️ filtra enrich_failed=false sempre — zumbis nunca são reprocessadas
+    // 🛡️ filtra enrich_attempted_at < (agora - 1h) — evita retry em loop dentro da mesma janela
+    const RETRY_COOLDOWN_MS = 60 * 60 * 1000; // 1h
+    const MAX_ENRICH_ATTEMPTS = 3;
+    const cooldownIso = new Date(Date.now() - RETRY_COOLDOWN_MS).toISOString();
+
     let pending: any[] | null = null;
     if (body.result_ids && body.result_ids.length > 0) {
       const { data, error: pErr } = await supabase
         .from("search_results")
-        .select("id,genre_id,spotify_url,nome_playlist,posicao")
+        .select("id,genre_id,spotify_url,nome_playlist,posicao,enrich_attempts")
         .in("id", body.result_ids.slice(0, limit))
         .eq("enrich_failed", false)
         .is("seguidores", null)
@@ -92,10 +97,11 @@ Deno.serve(async (req) => {
     } else {
       let q = supabase
         .from("search_results")
-        .select("id,genre_id,spotify_url,nome_playlist,posicao")
+        .select("id,genre_id,spotify_url,nome_playlist,posicao,enrich_attempts")
         .eq("enrich_failed", false)
         .is("seguidores", null)
-        .not("spotify_url", "is", null);
+        .not("spotify_url", "is", null)
+        .or(`enrich_attempted_at.is.null,enrich_attempted_at.lt.${cooldownIso}`);
       if (body.genre_id) q = q.eq("genre_id", body.genre_id);
       q = body.prioritize
         ? q.order("posicao", { ascending: true }).limit(limit)
@@ -135,15 +141,39 @@ Deno.serve(async (req) => {
     let token = await getSpotifyToken();
     let enriched = 0, tracksSaved = 0, errors = 0, skipped = 0;
     const CONCURRENCY = 5;
+    let zombiesMarked = 0;
+
+    // Helper: registra tentativa (attempted_at + attempts++); se atingir teto, marca como zumbi.
+    async function markAttempt(p: any, opts: { failed?: boolean; reason?: string } = {}) {
+      const nextAttempts = (p.enrich_attempts ?? 0) + 1;
+      const shouldZombify = opts.failed && nextAttempts >= MAX_ENRICH_ATTEMPTS;
+      const patch: Record<string, unknown> = {
+        enrich_attempted_at: new Date().toISOString(),
+        enrich_attempts: nextAttempts,
+      };
+      if (shouldZombify) {
+        patch.enrich_failed = true;
+        zombiesMarked++;
+      }
+      await supabase.from("search_results").update(patch).eq("id", p.id);
+      if (shouldZombify) {
+        console.log(`[enrich] 🧟 zumbi: ${p.nome_playlist} (${nextAttempts} tent, motivo=${opts.reason ?? "?"})`);
+      }
+    }
 
     // Processa uma única playlist (Spotify + Apify tracks). Mutações de contadores via refs.
     async function processOne(p: any) {
       const id = p.spotify_url ? extractPlaylistId(p.spotify_url) : null;
-      if (!id) { skipped++; return; }
+      if (!id) {
+        skipped++;
+        await markAttempt(p, { failed: true, reason: "no_playlist_id" });
+        return;
+      }
 
       // Spotify followers + total — com retry para 429/token
       let info: SpotifyResp | null = null;
       let attempts = 0;
+      let permanentError: string | null = null;
       while (attempts < 3 && !info) {
         attempts++;
         try {
@@ -162,27 +192,45 @@ Deno.serve(async (req) => {
             continue;
           }
           errors++;
+          permanentError = msg;
           if (errorSamples.length < 5) errorSamples.push({ playlist: p.nome_playlist, id, error: msg.slice(0, 200) });
           console.error(`[enrich] erro permanente em ${p.nome_playlist}:`, msg);
-          return;
+          break;
         }
       }
-      if (!info) return;
+      if (!info) {
+        await markAttempt(p, { failed: true, reason: permanentError ?? "spotify_unreachable" });
+        return;
+      }
 
-      const update: Record<string, unknown> = {};
-      if (info.followers !== null) update.seguidores = info.followers;
-      if (info.total !== null) update.total_musicas = info.total;
-      if (Object.keys(update).length > 0) {
+      // 404 do Spotify — playlist deletada/privada → vira zumbi imediato
+      if (info.status === 404) {
+        await markAttempt(p, { failed: true, reason: "spotify_404" });
+        skipped++;
+        return;
+      }
+
+      const hasData = info.followers !== null || info.total !== null;
+      if (hasData) {
+        const update: Record<string, unknown> = {
+          enrich_attempted_at: new Date().toISOString(),
+          enrich_attempts: (p.enrich_attempts ?? 0) + 1,
+        };
+        if (info.followers !== null) update.seguidores = info.followers;
+        if (info.total !== null) update.total_musicas = info.total;
         const { error: uErr } = await supabase.from("search_results").update(update).eq("id", p.id);
         if (uErr) {
           errors++;
           console.error(`[enrich] update DB falhou em ${p.nome_playlist}:`, uErr.message);
-        } else {
-          enriched++;
-          if (samples.length < 3) samples.push({ playlist: p.nome_playlist, followers: info.followers, total: info.total });
+          await markAttempt(p, { failed: true, reason: "db_update_failed" });
+          return;
         }
+        enriched++;
+        if (samples.length < 3) samples.push({ playlist: p.nome_playlist, followers: info.followers, total: info.total });
       } else {
         skipped++;
+        await markAttempt(p, { failed: true, reason: "spotify_empty" });
+        return;
       }
 
       // Tracks via Apify (apenas se solicitado) — esta é a chamada mais lenta (~10s)
@@ -232,7 +280,7 @@ Deno.serve(async (req) => {
       genre_id: body.genre_id ?? null,
       acao: "enrich-playlists",
       status,
-      mensagem: `Enriquecidas ${enriched}/${pending.length} • ${tracksSaved} tracks • ${errors} erros • ${skipped} ignoradas${errorSamples.length ? " • ex: " + errorSamples[0].error.slice(0, 80) : ""}`,
+      mensagem: `Enriquecidas ${enriched}/${pending.length} • ${tracksSaved} tracks • ${errors} erros • ${skipped} ignoradas • ${zombiesMarked} zumbis${errorSamples.length ? " • ex: " + errorSamples[0].error.slice(0, 80) : ""}`,
       duracao_ms: Date.now() - start,
     });
 
@@ -244,6 +292,7 @@ Deno.serve(async (req) => {
         tracks_saved: tracksSaved,
         errors,
         skipped,
+        zombies_marked: zombiesMarked,
         samples,
         error_samples: errorSamples,
         remaining_estimate: pending.length === limit ? "≥ próximo lote" : 0,
