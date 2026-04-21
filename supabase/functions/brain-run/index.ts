@@ -67,7 +67,7 @@ async function callFn(name: string, body: unknown) {
 
 // Garante que o briefing seja gerado SEMPRE que existir um genre_model.
 // Tenta até 2x. Não lança — apenas loga em stages e collection_logs.
-async function ensureBriefing(supabase: any, gid: string, stages: Record<string, unknown>) {
+async function ensureBriefing(supabase: any, gid: string, stages: Record<string, unknown>, opts?: { survival_mode?: boolean }) {
   // Pré-condição: precisa existir genre_models pro briefing rodar
   const { data: model } = await supabase
     .from("genre_models").select("id").eq("genre_id", gid).maybeSingle();
@@ -81,10 +81,13 @@ async function ensureBriefing(supabase: any, gid: string, stages: Record<string,
   }
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
-      const br = await callFn("generate-playlists-briefing", { genre_id: gid });
+      const br = await callFn("generate-playlists-briefing", {
+        genre_id: gid,
+        survival_mode: opts?.survival_mode === true,
+      });
       const d = br.data as any;
       if (br.ok && d?.ok) {
-        stages.briefing = { ok: true, version: d.version, count: d.count, attempt };
+        stages.briefing = { ok: true, version: d.version, count: d.count, attempt, survival_mode: opts?.survival_mode === true };
         return;
       }
       stages.briefing = { ok: false, attempt, error: d?.error ?? `HTTP ${br.status}` };
