@@ -40,7 +40,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
         <AppSidebar />
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 flex flex-col min-w-0 shadow-[-1px_0_0_rgba(255,255,255,0.04)]">
           {/* TOPBAR GLOBAL — todas as páginas herdam */}
           <header className="h-14 flex items-center gap-3 border-b border-border bg-background/95 backdrop-blur sticky top-0 z-30 px-4">
             <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
