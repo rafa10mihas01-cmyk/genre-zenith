@@ -15,6 +15,7 @@ interface StartBody {
   intensity?: Intensity;
   max_playlists?: 20 | 50 | 100;
   action?: "start" | "resume";
+  survival_mode?: boolean;
 }
 
 const KITS: Record<string, string[]> = {
