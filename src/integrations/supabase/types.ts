@@ -284,6 +284,7 @@ export type Database = {
           apify_run_id: string | null
           coletado_em: string | null
           descricao: string | null
+          enrich_failed: boolean
           first_seen_at: string
           genre_id: string | null
           id: string
@@ -304,6 +305,7 @@ export type Database = {
           apify_run_id?: string | null
           coletado_em?: string | null
           descricao?: string | null
+          enrich_failed?: boolean
           first_seen_at?: string
           genre_id?: string | null
           id?: string
@@ -324,6 +326,7 @@ export type Database = {
           apify_run_id?: string | null
           coletado_em?: string | null
           descricao?: string | null
+          enrich_failed?: boolean
           first_seen_at?: string
           genre_id?: string | null
           id?: string
