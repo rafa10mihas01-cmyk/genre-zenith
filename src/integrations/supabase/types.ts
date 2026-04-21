@@ -298,6 +298,7 @@ export type Database = {
           nome_playlist: string
           posicao: number
           priority_score: number | null
+          score: number | null
           seguidores: number | null
           spotify_playlist_id: string | null
           spotify_url: string | null
@@ -320,6 +321,7 @@ export type Database = {
           nome_playlist: string
           posicao: number
           priority_score?: number | null
+          score?: number | null
           seguidores?: number | null
           spotify_playlist_id?: string | null
           spotify_url?: string | null
@@ -342,6 +344,7 @@ export type Database = {
           nome_playlist?: string
           posicao?: number
           priority_score?: number | null
+          score?: number | null
           seguidores?: number | null
           spotify_playlist_id?: string | null
           spotify_url?: string | null
