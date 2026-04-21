@@ -17,6 +17,12 @@ const MAX_RESULTS = 10;
 const KW_PER_CARD = 3;
 const TRACKS_PER_CARD = 5;
 
+// 🚧 PISOS ABSOLUTOS (mesmo em modo expansão — nunca aceitar lixo)
+const HARD_MIN_FREQ_PCT = 1;     // < 1% nunca entra, nem em expansão
+const HARD_MIN_REP = 1;          // < 1 repetição nunca entra
+const HARD_MIN_TRACKS = 2;       // < 2 músicas relevantes nunca entra
+const SCORE_MIN_EXPANSAO = 15;   // score mínimo pra card expansão sobreviver
+
 function j(payload: any, status = 200) {
   return new Response(JSON.stringify(payload), {
     status, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -251,117 +257,139 @@ Deno.serve(async (req) => {
       subQuota.set(slug, { max, min, count: 0 });
     }
 
-    for (let fi = 0; fi < sortedFormats.length && valid.length < MAX_RESULTS; fi++) {
-      const fmt = sortedFormats[fi];
-      const freq = (fmt.count / totalPlaylists) * 100;
-      const rep = fmt.count;
+    // ═══════════════ PASS BUILDER ═══════════════
+    // Constrói cards numa pass (strict ou expansao). Retorna candidatos válidos.
+    function buildCards(pass: "strict" | "expansao", skipFormatIdx: Set<number>): any[] {
+      const out: any[] = [];
 
-      // 🚨 FILTROS DE QUALIDADE (relaxados em modo expansão)
-      const minFreq = briefingMode === "expansao" ? MIN_FREQ_PCT * 0.5 : MIN_FREQ_PCT;
-      const minRep = briefingMode === "expansao" ? 1 : MIN_REPETITIONS;
-      if (freq < minFreq) continue;
-      if (rep < minRep) continue;
+      // Limites por pass
+      const minFreq = pass === "expansao" ? HARD_MIN_FREQ_PCT : MIN_FREQ_PCT;
+      const minRep = pass === "expansao" ? HARD_MIN_REP : MIN_REPETITIONS;
 
-      // 🏷️ CLASSIFICAÇÃO OBRIGATÓRIA: 1) por nome 2) por tracks 3) descarta
-      let subInfo = classifySub(fmt.value);
+      for (let fi = 0; fi < sortedFormats.length; fi++) {
+        if (skipFormatIdx.has(fi)) continue;
+        if (valid.length + out.length >= MAX_RESULTS) break;
 
-      // 🚫 Se há subs detectados mas não classificou pelo nome, deixa pra reconfirmar via tracks
-      // (a inferência por tracks acontece após montar tracks reais do card, abaixo)
+        const fmt = sortedFormats[fi];
+        const freq = (fmt.count / totalPlaylists) * 100;
+        const rep = fmt.count;
 
-      const hasClusters = subInfoBySlug.size > 0;
-      // Se não há clusters de subgênero detectados no gênero, permite classificação null
-      if (hasClusters && !subInfo) {
-        // tenta inferência inicial via pool global (rápida) — se falhar, descartará após tracks
-        const sampleTracks = allTracks.slice(0, 8).map(t => ({ nome: t.nome, artista: t.artista }));
-        subInfo = inferSubFromTracks(sampleTracks);
-        if (!subInfo) continue; // sem chance de classificar → descarta
-      }
+        // 🚨 FILTROS DE FREQUÊNCIA / REPETIÇÃO
+        if (freq < minFreq) continue;
+        if (rep < minRep) continue;
 
-      const subKey = subInfo ? subInfo.slug.toLowerCase() : "_global";
-
-      // 📏 RESPEITA COTA
-      const quota = subQuota.get(subKey);
-      if (quota && quota.count >= quota.max) continue;
-
-      const pool = subInfo ? subPools.get(subKey) : null;
-
-      // 🔒 ISOLAMENTO TOTAL: se classificado, usa SOMENTE o pool do sub
-      const useSubPool = !!subInfo;
-      if (useSubPool && (!pool || pool.kws.length < MIN_KEYWORDS || pool.tracks.length === 0)) {
-        continue; // sem pool isolado → descarta (não mistura clusters)
-      }
-      const kwSource = useSubPool ? pool!.kws : sortedKw.map(k => ({ value: k.value, peso: k.peso }));
-      const trackSource = useSubPool ? pool!.tracks : allTracks.map(t => ({ nome: t.nome, artista: t.artista }));
-      const artistSource = useSubPool ? pool!.artists : allArtists;
-
-      const kwSrcLen = kwSource.length;
-      const trkSrcLen = trackSource.length;
-      const artSrcLen = artistSource.length;
-      if (kwSrcLen < MIN_KEYWORDS) continue;
-
-      // 🔄 ROTAÇÃO independente por subgênero
-      const rotIdx = subRotation.get(subKey) ?? 0;
-      subRotation.set(subKey, rotIdx + 1);
-
-      const kwStart = (rotIdx * KW_PER_CARD) % kwSrcLen;
-      const selectedKw: any[] = [];
-      for (let i = 0; i < KW_PER_CARD; i++) selectedKw.push(kwSource[(kwStart + i) % kwSrcLen]);
-      const seenK = new Set<string>();
-      const uniqKw = selectedKw.filter((k: any) => {
-        if (!k?.value || seenK.has(k.value)) return false;
-        seenK.add(k.value); return true;
-      });
-      if (uniqKw.length < MIN_KEYWORDS) continue;
-
-      const tStart = trkSrcLen ? (rotIdx * TRACKS_PER_CARD) % trkSrcLen : 0;
-      const tracks: any[] = [];
-      for (let i = 0; i < TRACKS_PER_CARD && i < trkSrcLen; i++) tracks.push(trackSource[(tStart + i) % trkSrcLen]);
-
-      const aStart = artSrcLen ? (rotIdx * 3) % artSrcLen : 0;
-      const artists: string[] = [];
-      for (let i = 0; i < 5 && i < artSrcLen; i++) artists.push(artistSource[(aStart + i) % artSrcLen]);
-
-      // 🔬 RECONFIRMAÇÃO via tracks reais (proteção contra mistura)
-      if (subInfo && hasClusters) {
-        const reInfer = inferSubFromTracks(tracks);
-        if (reInfer && reInfer.slug.toLowerCase() !== subInfo.slug.toLowerCase()) {
-          continue; // tracks pertencem a outro cluster → descarta
+        // 🏷️ CLASSIFICAÇÃO OBRIGATÓRIA
+        let subInfo = classifySub(fmt.value);
+        const hasClusters = subInfoBySlug.size > 0;
+        if (hasClusters && !subInfo) {
+          const sampleTracks = allTracks.slice(0, 8).map(t => ({ nome: t.nome, artista: t.artista }));
+          subInfo = inferSubFromTracks(sampleTracks);
+          if (!subInfo) continue;
         }
-      }
 
-      // 📊 SCORE com boost por volume do subgênero
-      const subPesoPct = subInfo
-        ? (subgeneros.find((s: any) => String(s.slug).toLowerCase() === subKey)?.peso_pct ?? 0)
-        : 0;
-      const subBoost = Math.min(20, subPesoPct * 0.5);
-      const score = (freq * 0.5) + (rep * 0.3) + (uniqKw.length * 5) + subBoost;
-      const forca_nome = Math.min(100, Math.round(score));
+        const subKey = subInfo ? subInfo.slug.toLowerCase() : "_global";
 
-      // 🎯 CONFIDENCE
-      let confidence: "alta" | "media" | "baixa" = "baixa";
-      if (freq >= 6 && rep >= 5) confidence = "alta";
-      else if (freq >= 4 && rep >= 3) confidence = "media";
+        // 📏 RESPEITA COTA
+        const quota = subQuota.get(subKey);
+        if (quota && quota.count >= quota.max) continue;
 
-      // 📈 TREND
-      let sinal = "estável";
-      if (prevKwSet.size > 0) {
-        const novosKw = uniqKw.filter((k: any) => !prevKwSet.has(k.value));
-        if (novosKw.length >= 2) sinal = "crescimento";
-      } else if (history && history.length === 0) {
-        sinal = "novo";
-      }
+        const pool = subInfo ? subPools.get(subKey) : null;
+        const useSubPool = !!subInfo;
+        if (useSubPool && (!pool || pool.kws.length < MIN_KEYWORDS || pool.tracks.length === 0)) {
+          continue;
+        }
+        const kwSource = useSubPool ? pool!.kws : sortedKw.map(k => ({ value: k.value, peso: k.peso }));
+        const trackSource = useSubPool ? pool!.tracks : allTracks.map(t => ({ nome: t.nome, artista: t.artista }));
+        const artistSource = useSubPool ? pool!.artists : allArtists;
 
-      // 📝 NOME BASE
-      const fmtTitle = titleCase(fmt.value);
-      const nomeBase = fmtTitle.toLowerCase().includes(genre.nome.toLowerCase())
-        ? fmtTitle
-        : `${fmtTitle} ${titleCase(genre.nome)}`;
+        const kwSrcLen = kwSource.length;
+        const trkSrcLen = trackSource.length;
+        const artSrcLen = artistSource.length;
+        if (kwSrcLen < MIN_KEYWORDS) continue;
 
-      // 🎯 PLAYLISTS DE REFERÊNCIA
-      const fmtLower = fmt.value.toLowerCase();
-      const refMatches = playlistsDom
-        .filter((p: any) => String(p.nome ?? "").toLowerCase().includes(fmtLower))
-        .map((p: any) => {
+        // 🚧 PISO ABSOLUTO: precisa de ao menos HARD_MIN_TRACKS músicas
+        if (trkSrcLen < HARD_MIN_TRACKS) continue;
+
+        // 🔄 ROTAÇÃO independente por subgênero
+        const rotIdx = subRotation.get(subKey) ?? 0;
+        subRotation.set(subKey, rotIdx + 1);
+
+        const kwStart = (rotIdx * KW_PER_CARD) % kwSrcLen;
+        const selectedKw: any[] = [];
+        for (let i = 0; i < KW_PER_CARD; i++) selectedKw.push(kwSource[(kwStart + i) % kwSrcLen]);
+        const seenK = new Set<string>();
+        const uniqKw = selectedKw.filter((k: any) => {
+          if (!k?.value || seenK.has(k.value)) return false;
+          seenK.add(k.value); return true;
+        });
+        if (uniqKw.length < MIN_KEYWORDS) continue;
+
+        const tStart = trkSrcLen ? (rotIdx * TRACKS_PER_CARD) % trkSrcLen : 0;
+        const tracks: any[] = [];
+        for (let i = 0; i < TRACKS_PER_CARD && i < trkSrcLen; i++) tracks.push(trackSource[(tStart + i) % trkSrcLen]);
+
+        // 🚧 PISO ABSOLUTO no card final também
+        if (tracks.length < HARD_MIN_TRACKS) continue;
+
+        const aStart = artSrcLen ? (rotIdx * 3) % artSrcLen : 0;
+        const artists: string[] = [];
+        for (let i = 0; i < 5 && i < artSrcLen; i++) artists.push(artistSource[(aStart + i) % artSrcLen]);
+
+        // 🔬 RECONFIRMAÇÃO via tracks reais
+        if (subInfo && hasClusters) {
+          const reInfer = inferSubFromTracks(tracks);
+          if (reInfer && reInfer.slug.toLowerCase() !== subInfo.slug.toLowerCase()) {
+            continue;
+          }
+        }
+
+        // 📊 SCORE
+        const subPesoPct = subInfo
+          ? (subgeneros.find((s: any) => String(s.slug).toLowerCase() === subKey)?.peso_pct ?? 0)
+          : 0;
+        const subBoost = Math.min(20, subPesoPct * 0.5);
+        const score = (freq * 0.5) + (rep * 0.3) + (uniqKw.length * 5) + subBoost;
+        const forca_nome = Math.min(100, Math.round(score));
+
+        // 🚧 PISO DE SCORE EM EXPANSÃO: descarta lixo mesmo respeitando frequência
+        if (pass === "expansao" && score < SCORE_MIN_EXPANSAO) continue;
+
+        // 🎯 CONFIDENCE
+        let confidence: "alta" | "media" | "baixa" = "baixa";
+        if (freq >= 6 && rep >= 5) confidence = "alta";
+        else if (freq >= 4 && rep >= 3) confidence = "media";
+
+        // 📈 TREND
+        let sinal = "estável";
+        if (prevKwSet.size > 0) {
+          const novosKw = uniqKw.filter((k: any) => !prevKwSet.has(k.value));
+          if (novosKw.length >= 2) sinal = "crescimento";
+        } else if (history && history.length === 0) {
+          sinal = "novo";
+        }
+
+        // 📝 NOME BASE
+        const fmtTitle = titleCase(fmt.value);
+        const nomeBase = fmtTitle.toLowerCase().includes(genre.nome.toLowerCase())
+          ? fmtTitle
+          : `${fmtTitle} ${titleCase(genre.nome)}`;
+
+        // 🎯 PLAYLISTS DE REFERÊNCIA
+        const fmtLower = fmt.value.toLowerCase();
+        const refMatches = playlistsDom
+          .filter((p: any) => String(p.nome ?? "").toLowerCase().includes(fmtLower))
+          .map((p: any) => {
+            const meta = playlistsMetaMap.get(p.nome);
+            return {
+              nome: p.nome,
+              seguidores: meta?.seguidores ?? p.seguidores ?? 0,
+              spotify_url: meta?.spotify_url ?? p.spotify_url ?? null,
+              imagem_url: meta?.imagem_url ?? p.imagem_url ?? null,
+            };
+          })
+          .sort((a, b) => (b.seguidores ?? 0) - (a.seguidores ?? 0));
+
+        const playlistsRef = (refMatches.length > 0 ? refMatches : playlistsDom.slice(0, 3).map((p: any) => {
           const meta = playlistsMetaMap.get(p.nome);
           return {
             nome: p.nome,
@@ -369,52 +397,57 @@ Deno.serve(async (req) => {
             spotify_url: meta?.spotify_url ?? p.spotify_url ?? null,
             imagem_url: meta?.imagem_url ?? p.imagem_url ?? null,
           };
-        })
-        .sort((a, b) => (b.seguidores ?? 0) - (a.seguidores ?? 0));
+        })).slice(0, 3);
 
-      const playlistsRef = (refMatches.length > 0 ? refMatches : playlistsDom.slice(0, 3).map((p: any) => {
-        const meta = playlistsMetaMap.get(p.nome);
-        return {
-          nome: p.nome,
-          seguidores: meta?.seguidores ?? p.seguidores ?? 0,
-          spotify_url: meta?.spotify_url ?? p.spotify_url ?? null,
-          imagem_url: meta?.imagem_url ?? p.imagem_url ?? null,
-        };
-      })).slice(0, 3);
+        const totalSeg = playlistsRef.reduce((s, p) => s + (p.seguidores ?? 0), 0);
+        const mediaSeguidores = playlistsRef.length > 0 ? Math.round(totalSeg / playlistsRef.length) : 0;
 
-      const totalSeg = playlistsRef.reduce((s, p) => s + (p.seguidores ?? 0), 0);
-      const mediaSeguidores = playlistsRef.length > 0 ? Math.round(totalSeg / playlistsRef.length) : 0;
+        // ✅ Incrementa cota e marca format consumido
+        if (quota) quota.count += 1;
+        skipFormatIdx.add(fi);
 
-      // ✅ Incrementa cota
-      if (quota) quota.count += 1;
+        out.push({
+          nome: nomeBase,
+          nome_provisorio: nomeBase,
+          forca_nome,
+          formato: fmt.value,
+          formato_id: `fmt_${fi}`,
+          subgenero: subInfo ? { slug: subInfo.slug, nome: subInfo.nome } : null,
+          origem: pass, // 🏷️ TAG DE CONTROLE: "strict" ou "expansao"
+          keywords_utilizadas: uniqKw.map((k: any) => ({ value: k.value, peso: k.peso })),
+          base_musical: {
+            top_musicas: tracks.map(t => ({ nome: t.nome, artista: t.artista })),
+            artistas_principais: artists,
+          },
+          playlists_referencia: playlistsRef,
+          metricas: {
+            media_seguidores: mediaSeguidores,
+            total_referencias: playlistsRef.length,
+          },
+          dna_capa: dnaVisual,
+          justificativa: {
+            frequencia_padrao_pct: Math.round(freq * 10) / 10,
+            repeticao_em_playlists: rep,
+            score: Math.round(score),
+            sinal,
+            subgenero_peso_pct: subPesoPct || null,
+          },
+          confidence,
+        });
+      }
+      return out;
+    }
 
-      valid.push({
-        nome: nomeBase,
-        nome_provisorio: nomeBase,
-        forca_nome,
-        formato: fmt.value,
-        formato_id: `fmt_${fi}`,
-        subgenero: subInfo ? { slug: subInfo.slug, nome: subInfo.nome } : null,
-        keywords_utilizadas: uniqKw.map((k: any) => ({ value: k.value, peso: k.peso })),
-        base_musical: {
-          top_musicas: tracks.map(t => ({ nome: t.nome, artista: t.artista })),
-          artistas_principais: artists,
-        },
-        playlists_referencia: playlistsRef,
-        metricas: {
-          media_seguidores: mediaSeguidores,
-          total_referencias: playlistsRef.length,
-        },
-        dna_capa: dnaVisual,
-        justificativa: {
-          frequencia_padrao_pct: Math.round(freq * 10) / 10,
-          repeticao_em_playlists: rep,
-          score: Math.round(score),
-          sinal,
-          subgenero_peso_pct: subPesoPct || null,
-        },
-        confidence,
-      });
+    // ═══════════════ EXECUÇÃO EM 2 PASSES ═══════════════
+    // PASS 1 (sempre): STRICT — só playlists confiáveis primeiro
+    const consumed = new Set<number>();
+    const strictCards = buildCards("strict", consumed);
+    valid.push(...strictCards);
+
+    // PASS 2 (só em modo expansão): preenche com exploratórias respeitando piso
+    if (briefingMode === "expansao" && valid.length < MAX_RESULTS) {
+      const expansaoCards = buildCards("expansao", consumed);
+      valid.push(...expansaoCards);
     }
 
     // 🛡️ GARANTIA FINAL: zero subgenero=null quando há clusters detectados
@@ -526,7 +559,11 @@ Responda JSON: {"playlists": [{"idx": 1, "nome_final": "..."}, ...]}`
           const k = c.subgenero?.slug ?? "_sem_classificacao";
           acc[k] = (acc[k] ?? 0) + 1; return acc;
         }, {}),
-        filtros: { MIN_FREQ_PCT, MIN_REPETITIONS, MIN_KEYWORDS, KW_MIN_PCT },
+        filtros: { MIN_FREQ_PCT, MIN_REPETITIONS, MIN_KEYWORDS, KW_MIN_PCT, HARD_MIN_FREQ_PCT, HARD_MIN_REP, HARD_MIN_TRACKS, SCORE_MIN_EXPANSAO },
+        cards_por_origem: valid.reduce((acc: Record<string, number>, c: any) => {
+          const k = c.origem ?? "strict";
+          acc[k] = (acc[k] ?? 0) + 1; return acc;
+        }, {}),
         briefing_mode: briefingMode,
         generated_at: new Date().toISOString(),
         duration_ms: Date.now() - start,

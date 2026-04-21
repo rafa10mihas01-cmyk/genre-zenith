@@ -27,6 +27,8 @@ export type PlaylistBriefing = {
   formato: string;
   formato_id: string;
   confidence: "alta" | "media" | "baixa";
+  origem?: "strict" | "expansao";
+  subgenero?: { slug: string; nome: string } | null;
   keywords_utilizadas: { value: string; peso: number }[];
   base_musical: {
     top_musicas: { nome: string; artista: string }[];
@@ -43,6 +45,7 @@ export type PlaylistBriefing = {
     repeticao_em_playlists: number;
     score: number;
     sinal: string;
+    subgenero_peso_pct?: number | null;
   };
 };
 
