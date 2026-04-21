@@ -1,5 +1,6 @@
 // analyze-genre-visual-dna — extrai DNA visual das top capas do gênero via Gemini multimodal
-// Salva em genre_models.insights.dna_visual
+// Modo global: { genre_id }                        → salva em insights.dna_visual
+// Modo segmentado: { genre_id, subgenero_slug }    → salva em insights.dna_visual_subgeneros[slug]
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -8,6 +9,7 @@ const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
 
 const TOP_N = 8; // capas pra analisar
+const MIN_COVERS = 3;
 
 function j(payload: any, status = 200) {
   return new Response(JSON.stringify(payload), {
@@ -15,15 +17,25 @@ function j(payload: any, status = 200) {
   });
 }
 
+function tokenize(text: string): string[] {
+  return text
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const start = Date.now();
 
-  let body: { genre_id: string };
+  let body: { genre_id: string; subgenero_slug?: string };
   try { body = await req.json(); } catch { return j({ error: "Invalid JSON" }, 400); }
   if (!body.genre_id) return j({ error: "genre_id obrigatório" }, 400);
   if (!LOVABLE_API_KEY) return j({ error: "LOVABLE_API_KEY ausente" }, 500);
 
+  const subgeneroSlug = body.subgenero_slug?.toLowerCase().trim() || null;
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
   try {
@@ -31,14 +43,60 @@ Deno.serve(async (req) => {
       .from("genres").select("id,nome").eq("id", body.genre_id).single();
     if (!genre) return j({ error: "Gênero não encontrado" }, 404);
 
-    // Pega top capas com URL válida ordenado por seguidores
-    const { data: results } = await supabase
-      .from("search_results")
-      .select("nome_playlist,imagem_url,seguidores")
-      .eq("genre_id", body.genre_id)
-      .not("imagem_url", "is", null)
-      .order("seguidores", { ascending: false, nullsFirst: false })
-      .limit(TOP_N);
+    // ============ SELEÇÃO DE CAPAS ============
+    let results: { nome_playlist: string; imagem_url: string; seguidores: number | null; descricao?: string | null }[] = [];
+    let subgeneroNome: string | null = null;
+
+    if (subgeneroSlug) {
+      // Modo segmentado: filtra playlists cujo nome OU descrição contenha o slug do subgênero.
+      // Pega bem mais (até 60) pra ter pool depois do filtro single-image.
+      const { data: pool } = await supabase
+        .from("search_results")
+        .select("nome_playlist,imagem_url,seguidores,descricao")
+        .eq("genre_id", body.genre_id)
+        .not("imagem_url", "is", null)
+        .order("seguidores", { ascending: false, nullsFirst: false })
+        .limit(60);
+
+      const filtered = (pool ?? []).filter(r => {
+        const cloud = new Set([
+          ...tokenize(r.nome_playlist ?? ""),
+          ...tokenize((r as any).descricao ?? ""),
+        ]);
+        return cloud.has(subgeneroSlug);
+      });
+
+      // Tenta resgatar nome "bonito" do subgênero a partir do genre_models
+      const { data: model } = await supabase
+        .from("genre_models")
+        .select("insights")
+        .eq("genre_id", body.genre_id)
+        .maybeSingle();
+      const subs = (model?.insights as any)?.subgeneros ?? [];
+      const found = subs.find((s: any) =>
+        String(s.slug ?? "").toLowerCase() === subgeneroSlug ||
+        String(s.nome ?? "").toLowerCase() === subgeneroSlug,
+      );
+      subgeneroNome = found?.nome ?? subgeneroSlug;
+
+      results = filtered.slice(0, TOP_N);
+      if (results.length < MIN_COVERS) {
+        return j({
+          ok: false,
+          error: `Subgênero "${subgeneroSlug}" tem apenas ${results.length} playlists com capa (mínimo ${MIN_COVERS}).`,
+        }, 400);
+      }
+    } else {
+      // Modo global
+      const { data } = await supabase
+        .from("search_results")
+        .select("nome_playlist,imagem_url,seguidores")
+        .eq("genre_id", body.genre_id)
+        .not("imagem_url", "is", null)
+        .order("seguidores", { ascending: false, nullsFirst: false })
+        .limit(TOP_N);
+      results = data ?? [];
+    }
 
     if (!results || results.length === 0) {
       return j({ ok: false, error: "Sem capas pra analisar" }, 400);
@@ -49,15 +107,19 @@ Deno.serve(async (req) => {
       r.imagem_url && !r.imagem_url.includes("mosaic.scdn.co")
     ).slice(0, 6);
 
-    if (validCovers.length < 3) {
-      return j({ ok: false, error: "Capas insuficientes (precisa de ≥3 single-image)" }, 400);
+    if (validCovers.length < MIN_COVERS) {
+      return j({ ok: false, error: `Capas insuficientes (precisa de ≥${MIN_COVERS} single-image)` }, 400);
     }
 
-    // Monta payload multimodal
+    // ============ PROMPT ============
+    const escopo = subgeneroSlug
+      ? `subgênero "${subgeneroNome}" dentro do gênero "${genre.nome}"`
+      : `gênero "${genre.nome}"`;
+
     const userContent: any[] = [
       {
         type: "text",
-        text: `Analise as ${validCovers.length} capas de playlists do gênero "${genre.nome}" abaixo e extraia o DNA VISUAL DOMINANTE.
+        text: `Analise as ${validCovers.length} capas de playlists do ${escopo} abaixo e extraia o DNA VISUAL DOMINANTE.
 
 Retorne via tool call. Seja DIRETO e baseado APENAS no que vê — sem inventar.
 
@@ -141,21 +203,33 @@ Para cada campo:
       return j({ ok: false, error: "AI retornou JSON inválido" }, 500);
     }
 
-    // Salva em genre_models.insights.dna_visual
+    // ============ SALVAR (preserva DNA global se for sub, e vice-versa) ============
     const { data: model } = await supabase
       .from("genre_models")
       .select("id,insights")
       .eq("genre_id", body.genre_id)
       .maybeSingle();
 
-    const newInsights = {
-      ...(model?.insights as any ?? {}),
-      dna_visual: {
-        ...dna,
-        capas_analisadas: validCovers.map(c => ({ nome: c.nome_playlist, url: c.imagem_url })),
-        analyzed_at: new Date().toISOString(),
-      },
+    const dnaPayload = {
+      ...dna,
+      capas_analisadas: validCovers.map(c => ({ nome: c.nome_playlist, url: c.imagem_url })),
+      analyzed_at: new Date().toISOString(),
+      ...(subgeneroSlug ? { subgenero_slug: subgeneroSlug, subgenero_nome: subgeneroNome } : {}),
     };
+
+    const prevInsights = (model?.insights as any) ?? {};
+    const newInsights = subgeneroSlug
+      ? {
+          ...prevInsights,
+          dna_visual_subgeneros: {
+            ...(prevInsights.dna_visual_subgeneros ?? {}),
+            [subgeneroSlug]: dnaPayload,
+          },
+        }
+      : {
+          ...prevInsights,
+          dna_visual: dnaPayload,
+        };
 
     if (model) {
       await supabase.from("genre_models")
@@ -166,15 +240,21 @@ Para cada campo:
         .insert({ genre_id: body.genre_id, insights: newInsights });
     }
 
+    const escopoLog = subgeneroSlug ? `[sub:${subgeneroSlug}] ` : "";
     await supabase.from("collection_logs").insert({
       genre_id: body.genre_id,
       acao: "analyze-visual-dna",
       status: "sucesso",
-      mensagem: `DNA visual extraído de ${validCovers.length} capas: ${dna.estilo_dominante}, ${dna.atmosfera}`,
+      mensagem: `${escopoLog}DNA visual extraído de ${validCovers.length} capas: ${dna.estilo_dominante}, ${dna.atmosfera}`,
       duracao_ms: Date.now() - start,
     });
 
-    return j({ ok: true, dna_visual: newInsights.dna_visual });
+    return j({
+      ok: true,
+      scope: subgeneroSlug ? "subgenero" : "global",
+      subgenero_slug: subgeneroSlug,
+      dna_visual: dnaPayload,
+    });
   } catch (e) {
     const msg = (e as Error).message ?? String(e);
     console.error("analyze-genre-visual-dna error:", msg);
