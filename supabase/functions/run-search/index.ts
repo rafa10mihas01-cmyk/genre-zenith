@@ -316,6 +316,12 @@ Deno.serve(async (req) => {
       }
       // ============= FIM DA VALIDAÇÃO =============
 
+      // ============= QUALITY SCORE (saúde da playlist, 0-100) =============
+      // Mede vitalidade independente do match de gênero. <40 = "low_quality" → flagged.
+      const qualityScore = computeQualityScore({ followers, totalTracks, descricao, imagem });
+      const qualityFlag = qualityScore < 40 ? "low_quality" : null;
+      const qualityFlaggedAt = qualityFlag ? new Date().toISOString() : null;
+
       // UPSERT manual (tabela tem unique parcial em (genre_id, spotify_playlist_id))
       let resultId: string | null = null;
       if (playlistId) {
