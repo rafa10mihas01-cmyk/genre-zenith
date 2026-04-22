@@ -44,8 +44,6 @@ function tierFor(followers: number): "mega" | "big" | "medium" | "small" {
 
 const TIER_ORDER = ["mega", "big", "medium", "small"] as const;
 
-const TIER_ORDER = ["mega", "big", "medium", "small"] as const;
-
 // Pesos para ordenar candidatos a blueprint pela prioridade herdada do módulo Performance.
 const PRIORITY_WEIGHT: Record<string, number> = { alta: 2, media: 1, baixa: 0 };
 
