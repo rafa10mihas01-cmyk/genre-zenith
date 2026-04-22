@@ -1,0 +1,183 @@
+// analyze-performance — Claude interpreta métricas já calculadas e gera insights.
+// POST { genre_id?: string, min_age_hours?: number }
+// Claude NÃO calcula nada. Só interpreta o dataset.
+import { corsHeaders } from "npm:@supabase/supabase-js/cors";
+import { createClient } from "npm:@supabase/supabase-js@2";
+
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const CLAUDE_API_KEY = Deno.env.get("CLAUDE_API_KEY") ?? "";
+const CLAUDE_MODEL = Deno.env.get("CLAUDE_MODEL") ?? "claude-sonnet-4-5-20250929";
+
+function jr(p: unknown, status = 200) {
+  return new Response(JSON.stringify(p), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+const SCHEMA = {
+  type: "object",
+  properties: {
+    classificacao: {
+      type: "object",
+      properties: {
+        alta: { type: "array", items: { type: "string" } },
+        media: { type: "array", items: { type: "string" } },
+        baixa: { type: "array", items: { type: "string" } },
+      },
+      required: ["alta", "media", "baixa"],
+    },
+    insights: {
+      type: "object",
+      properties: {
+        padroes_vencedores: { type: "array", items: { type: "string" } },
+        padroes_fracos: { type: "array", items: { type: "string" } },
+      },
+      required: ["padroes_vencedores", "padroes_fracos"],
+    },
+    recomendacoes: { type: "array", items: { type: "string" } },
+    acoes_sugeridas: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          tipo: { type: "string", enum: ["replicar", "ajustar", "pausar"] },
+          playlist: { type: "string" },
+          motivo: { type: "string" },
+          acao: { type: "string" },
+          prioridade: { type: "string", enum: ["alta", "media", "baixa"] },
+        },
+        required: ["tipo", "motivo", "prioridade"],
+      },
+    },
+  },
+  required: ["classificacao", "insights", "recomendacoes", "acoes_sugeridas"],
+};
+
+async function callClaude(systemPrompt: string, userPayload: any) {
+  if (!CLAUDE_API_KEY) throw new Error("CLAUDE_API_KEY ausente");
+  const resp = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "x-api-key": CLAUDE_API_KEY,
+      "anthropic-version": "2023-06-01",
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      model: CLAUDE_MODEL,
+      max_tokens: 2500,
+      system: systemPrompt,
+      messages: [{
+        role: "user",
+        content: `Analise este conjunto de playlists publicadas no Spotify e gere insights de performance.\n\nDADOS:\n${JSON.stringify(userPayload, null, 2)}`,
+      }],
+      tools: [{
+        name: "performance_report",
+        description: "Retorna um relatório estruturado de performance.",
+        input_schema: SCHEMA,
+      }],
+      tool_choice: { type: "tool", name: "performance_report" },
+    }),
+  });
+  if (!resp.ok) {
+    const t = await resp.text();
+    throw new Error(`Claude HTTP ${resp.status}: ${t.slice(0, 300)}`);
+  }
+  const json = await resp.json();
+  const tool = (json?.content ?? []).find((c: any) => c.type === "tool_use");
+  if (!tool?.input) throw new Error("Claude não retornou tool_use");
+  return tool.input;
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  let body: { genre_id?: string; min_age_hours?: number } = {};
+  try { if (req.method === "POST") body = await req.json(); } catch {}
+
+  const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+  const minAge = body.min_age_hours ?? 24;
+
+  const { data: dataset, error } = await supabase.rpc("get_performance_dataset", {
+    p_min_age_hours: minAge,
+  });
+  if (error) return jr({ error: error.message }, 500);
+
+  let rows = (dataset ?? []) as any[];
+  if (body.genre_id) rows = rows.filter((r) => r.genre_id === body.genre_id);
+
+  if (rows.length === 0) {
+    return jr({
+      ok: true,
+      empty: true,
+      message: "Nenhuma playlist publicada com idade suficiente para analisar.",
+    });
+  }
+
+  // Compacta payload para Claude (só dados, ele só interpreta)
+  const playlists = rows.slice(0, 80).map((r) => ({
+    id: r.template_id,
+    nome: r.nome,
+    followers_start: r.followers_start,
+    followers_now: r.followers_now,
+    crescimento_absoluto: r.crescimento_absoluto,
+    crescimento_percentual: r.crescimento_percentual,
+    tempo_horas: r.tempo_horas,
+    total_tracks: r.total_tracks,
+  }));
+
+  const system =
+    `Você é um analista de performance de playlists do Spotify. Você NÃO calcula métricas — elas já vêm prontas. Sua tarefa é INTERPRETAR o dataset e identificar padrões de crescimento, padrões fracos, e gerar recomendações acionáveis em PT-BR.
+
+Regras:
+- Classifique cada playlist como ALTA, MÉDIA ou BAIXA performance baseado em crescimento_percentual e tempo_horas.
+- Identifique padrões de NOMES (ano, emoji, subgênero, palavras vencedoras).
+- Identifique padrões de TAMANHO (faixa ideal de tracks).
+- Sugira ações concretas: replicar padrão vencedor, ajustar nome de playlist específica, pausar fracas.
+- Seja direto e técnico. Sem firula.`;
+
+  let result: any;
+  try {
+    result = await callClaude(system, { total: rows.length, amostra: playlists });
+  } catch (e) {
+    return jr({ error: `claude_failed: ${(e as Error).message}` }, 500);
+  }
+
+  // Persiste insights
+  const { data: inserted, error: insErr } = await supabase
+    .from("performance_insights")
+    .insert({
+      genre_id: body.genre_id ?? null,
+      scope: body.genre_id ? "genre" : "global",
+      total_playlists_analisadas: rows.length,
+      insights: result.insights ?? {},
+      recomendacoes: result.recomendacoes ?? [],
+      acoes_sugeridas: result.acoes_sugeridas ?? [],
+      classificacao: result.classificacao ?? {},
+      generated_by_model: CLAUDE_MODEL,
+    })
+    .select()
+    .single();
+
+  if (insErr) return jr({ error: insErr.message }, 500);
+
+  // Atualiza performance_class por playlist (alta/media/baixa)
+  const cls = result.classificacao ?? {};
+  for (const [klass, ids] of Object.entries(cls) as [string, string[]][]) {
+    if (Array.isArray(ids) && ids.length) {
+      await supabase
+        .from("playlist_templates")
+        .update({ performance_class: klass, performance_evaluated_at: new Date().toISOString() })
+        .in("id", ids);
+    }
+  }
+
+  await supabase.from("collection_logs").insert({
+    acao: "analyze_performance",
+    status: "ok",
+    mensagem: `claude analisou ${rows.length} playlists`,
+  });
+
+  return jr({ ok: true, insight_id: inserted.id, analisadas: rows.length, result });
+});
