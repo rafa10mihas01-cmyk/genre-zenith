@@ -1,0 +1,1 @@
+DELETE FROM public.spotify_tokens;
