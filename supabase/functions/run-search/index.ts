@@ -384,40 +384,53 @@ Deno.serve(async (req) => {
       // ============= FIM PHASE 1 =============
 
       // UPSERT manual (tabela tem unique parcial em (genre_id, spotify_playlist_id))
-      // Todas as linhas inseridas/atualizadas saem com:
-      //   needs_enrich=true, is_valid=true (provisório), validation_reason="pre_enrich"
-      //   quality_score / quality_flag = null  (Phase 2 vai computar)
+      // 🔁 REGRA ÚNICA DE VERDADE (Fase 1):
+      //    needs_enrich = (seguidores IS NULL)
+      // Se a linha JÁ tem followers, NÃO resetamos needs_enrich nem destruímos quality_score.
+      // Isso preserva dados enriquecidos e mata o loop de re-enrich.
       let resultId: string | null = null;
       if (playlistId) {
         const { data: existing } = await supabase
           .from("search_results")
-          .select("id,times_seen")
+          .select("id,times_seen,seguidores,quality_score,quality_flag,is_valid,validation_reason")
           .eq("genre_id", body.genre_id)
           .eq("spotify_playlist_id", playlistId)
           .maybeSingle();
         if (existing) {
-          const { error: updErr } = await supabase.from("search_results").update({
+          // Se já tem followers (já foi enriquecida), preserva tudo de Phase 2.
+          // Apify pode mandar followers=null mesmo pra playlists que conhecemos — não sobrescreve.
+          const alreadyEnriched = existing.seguidores != null;
+          const updatePatch: Record<string, unknown> = {
             posicao: i + 1,
             nome_playlist: nomePl,
             spotify_url: url,
-            seguidores: followers,
             imagem_url: imagem,
             descricao,
-            total_musicas: totalTracks,
             apify_run_id: runId,
             term_id: body.term_id,
-            // owner_country removido — coluna não existe no schema (PGRST204)
             times_seen: (existing.times_seen ?? 1) + 1,
             last_seen_at: new Date().toISOString(),
             score,
-            // Phase 1: status provisório — Phase 2 sobrescreve após enrich
-            needs_enrich: true,
-            is_valid: true,
-            validation_reason: "pre_enrich",
-            quality_score: null,
-            quality_flag: null,
-            quality_flagged_at: null,
-          }).eq("id", existing.id);
+          };
+          if (alreadyEnriched) {
+            // Só atualiza followers se Apify trouxer um número (não sobrescreve com null)
+            if (followers != null) updatePatch.seguidores = followers;
+            if (totalTracks != null) updatePatch.total_musicas = totalTracks;
+            // needs_enrich/is_valid/quality_* PRESERVADOS — fase 2 já mandou
+          } else {
+            updatePatch.seguidores = followers;
+            updatePatch.total_musicas = totalTracks;
+            updatePatch.needs_enrich = followers == null; // regra única de verdade
+            updatePatch.is_valid = true;
+            updatePatch.validation_reason = "pre_enrich";
+            updatePatch.quality_score = null;
+            updatePatch.quality_flag = null;
+            updatePatch.quality_flagged_at = null;
+          }
+          const { error: updErr } = await supabase
+            .from("search_results")
+            .update(updatePatch)
+            .eq("id", existing.id);
           if (updErr) {
             console.error("update result err", updErr);
             continue;
@@ -444,8 +457,8 @@ Deno.serve(async (req) => {
             // owner_country removido — coluna não existe no schema (PGRST204)
             times_seen: 1,
             score,
-            // Phase 1: status provisório — Phase 2 sobrescreve após enrich
-            needs_enrich: true,
+            // 🔁 Regra única: needs_enrich = (followers IS NULL)
+            needs_enrich: followers == null,
             is_valid: true,
             validation_reason: "pre_enrich",
             quality_score: null,
