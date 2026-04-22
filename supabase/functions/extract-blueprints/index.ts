@@ -223,10 +223,13 @@ Deno.serve(async (req) => {
         }
       } catch (_) { /* fallback default */ }
 
+      // 🧠 Aplica regras de naming determinísticas (ano, subgênero, prefix/suffix, avoid)
+      const enforcedName = enforceNamingRules(String(bp.name), activeRules);
+
       const row = {
         genre_id: genreId,
         tier,
-        name: String(bp.name).slice(0, 120),
+        name: enforcedName.slice(0, 120),
         slug,
         name_pattern: bp.name_pattern ?? null,
         format: bp.format ?? null,
