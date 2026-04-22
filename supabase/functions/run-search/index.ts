@@ -162,7 +162,43 @@ Deno.serve(async (req) => {
     }
   }
 
-  const maxResults = body.max_results ?? 20;
+  // ============= APIFY OPTIMIZATION POLICY =============
+  // 1 chamada Apify ≈ 1 unidade de custo, INDEPENDENTE de maxResults (até o teto do actor).
+  // Logo: pedir 20 itens custa o MESMO que pedir 100 → SEMPRE pedir alto.
+  // MIN_MAX_RESULTS = 50  (nunca menos que isso)
+  // DEFAULT_MAX_RESULTS = 100 (padrão otimizado)
+  const MIN_MAX_RESULTS = 50;
+  const DEFAULT_MAX_RESULTS = 100;
+  const requested = body.max_results ?? DEFAULT_MAX_RESULTS;
+  const maxResults = Math.max(MIN_MAX_RESULTS, Math.min(requested, 200));
+
+  // ============= COOLDOWN ANTI-DUPLICAÇÃO =============
+  // Bloqueia re-execução de term_id se foi executado nas últimas COOLDOWN_HOURS
+  // E já trouxe pelo menos 1 resultado. Use force=true pra ignorar.
+  const COOLDOWN_HOURS = 24;
+  if (!(body as any).force) {
+    const { data: termRow } = await supabase
+      .from("search_terms")
+      .select("ultima_execucao,total_resultados")
+      .eq("id", body.term_id)
+      .maybeSingle();
+    if (termRow?.ultima_execucao && (termRow.total_resultados ?? 0) > 0) {
+      const ageH = (Date.now() - new Date(termRow.ultima_execucao).getTime()) / 36e5;
+      if (ageH < COOLDOWN_HOURS) {
+        await supabase.from("collection_logs").insert({
+          genre_id: body.genre_id, term_id: body.term_id,
+          acao: "run-search", status: "skipped",
+          mensagem: `cooldown: termo "${body.search_term}" executado há ${ageH.toFixed(1)}h (<${COOLDOWN_HOURS}h) com ${termRow.total_resultados} resultados. Use force=true pra ignorar.`,
+          duracao_ms: Date.now() - start,
+        });
+        return new Response(JSON.stringify({
+          ok: true, skipped: true, reason: "cooldown",
+          ageH: Number(ageH.toFixed(2)), cooldownH: COOLDOWN_HOURS,
+        }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    }
+  }
+
   const controller = new AbortController();
   const timeoutHandle = setTimeout(() => controller.abort(), 130_000);
 

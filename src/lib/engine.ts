@@ -31,8 +31,11 @@ export async function generateAllTerms() {
   return data;
 }
 
-export async function runSearch(args: { genre_id: string; term_id: string; search_term: string; max_results?: number }) {
-  const { data, error } = await supabase.functions.invoke("run-search", { body: args });
+export async function runSearch(args: { genre_id: string; term_id: string; search_term: string; max_results?: number; force?: boolean }) {
+  // Política Apify: 1 chamada custa o mesmo independente do maxResults.
+  // Forçamos mínimo 50 (default 100) pra maximizar yield por execução.
+  const payload = { ...args, max_results: Math.max(50, args.max_results ?? 100) };
+  const { data, error } = await supabase.functions.invoke("run-search", { body: payload });
   if (error) {
     toast.error("Erro na busca", { description: error.message });
     return null;
@@ -48,7 +51,8 @@ export async function collectGenre(
   genre_id: string,
   opts: { delayMs?: number; maxResults?: number; onProgress?: (done: number, total: number, currentTerm: string) => void; abortSignal?: AbortSignal } = {},
 ) {
-  const { delayMs = 2000, maxResults = 20, onProgress, abortSignal } = opts;
+  // Default otimizado: 100 itens por chamada (mesmo custo que 20).
+  const { delayMs = 2000, maxResults = 100, onProgress, abortSignal } = opts;
 
   const { data: terms, error } = await supabase
     .from("search_terms")
