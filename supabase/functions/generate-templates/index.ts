@@ -190,14 +190,16 @@ Deno.serve(async (req) => {
       const spotify_track_id = seedIdMap.get(k) ?? null;
       return { nome, artista, spotify_track_id };
     });
+    // 🧠 Aplica regras determinísticas (Claude → execução)
+    const enforcedName = enforceNamingRules(String(t.name), activeRules).slice(0, 200);
     return {
       blueprint_id: blueprintId,
       genre_id: bp.genre_id,
       variation_index: startIdx + i,
-      name: String(t.name).slice(0, 200),
+      name: enforcedName,
       description: t.description ?? null,
       cover_brief: t.cover_brief ?? null,
-      track_seeds: enrichedSeeds,
+      track_seeds: reorderTracksByRules(enrichedSeeds, activeRules),
       keywords: t.keywords ?? [],
       regras: t.regras ?? {},
       replication_score: Math.max(0, Math.min(100, Number(t.replication_score ?? 0))),
@@ -214,8 +216,14 @@ Deno.serve(async (req) => {
 
   await supabase.from("collection_logs").insert({
     genre_id: bp.genre_id, acao: "generate-templates", status: "sucesso",
-    mensagem: `${inserted?.length ?? 0} templates gerados a partir do blueprint "${bp.name}"`,
+    mensagem: `${inserted?.length ?? 0} templates gerados a partir do blueprint "${bp.name}" (regras: ${rulesSummary.total}, alta=${rulesSummary.high})`,
   }).then(() => {}, () => {});
 
-  return jr({ ok: true, blueprint_id: blueprintId, templates: inserted ?? [], count: inserted?.length ?? 0 });
+  return jr({
+    ok: true,
+    blueprint_id: blueprintId,
+    templates: inserted ?? [],
+    count: inserted?.length ?? 0,
+    rules_applied: rulesSummary,
+  });
 });
