@@ -14,6 +14,56 @@ export type Database = {
   }
   public: {
     Tables: {
+      accounts: {
+        Row: {
+          created_at: string
+          current_playlists: number
+          display_name: string | null
+          email: string | null
+          id: string
+          max_playlists: number
+          notes: string | null
+          spotify_user_id: string
+          spotify_user_token_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          current_playlists?: number
+          display_name?: string | null
+          email?: string | null
+          id?: string
+          max_playlists?: number
+          notes?: string | null
+          spotify_user_id: string
+          spotify_user_token_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          current_playlists?: number
+          display_name?: string | null
+          email?: string | null
+          id?: string
+          max_playlists?: number
+          notes?: string | null
+          spotify_user_id?: string
+          spotify_user_token_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounts_spotify_user_token_id_fkey"
+            columns: ["spotify_user_token_id"]
+            isOneToOne: false
+            referencedRelation: "spotify_user_tokens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       collection_logs: {
         Row: {
           acao: string
@@ -451,6 +501,65 @@ export type Database = {
             columns: ["blueprint_id"]
             isOneToOne: false
             referencedRelation: "playlist_blueprints"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      replications: {
+        Row: {
+          account_id: string | null
+          blueprint_id: string | null
+          created_at: string
+          error_message: string | null
+          genre_id: string
+          id: string
+          selection_score: number
+          source_result_id: string | null
+          spotify_playlist_id: string | null
+          spotify_url: string | null
+          status: string
+          template_id: string | null
+          triggered_by: string
+          updated_at: string
+        }
+        Insert: {
+          account_id?: string | null
+          blueprint_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          genre_id: string
+          id?: string
+          selection_score?: number
+          source_result_id?: string | null
+          spotify_playlist_id?: string | null
+          spotify_url?: string | null
+          status?: string
+          template_id?: string | null
+          triggered_by?: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string | null
+          blueprint_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          genre_id?: string
+          id?: string
+          selection_score?: number
+          source_result_id?: string | null
+          spotify_playlist_id?: string | null
+          spotify_url?: string | null
+          status?: string
+          template_id?: string | null
+          triggered_by?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "replications_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
             referencedColumns: ["id"]
           },
         ]
