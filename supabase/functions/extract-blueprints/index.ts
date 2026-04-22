@@ -88,9 +88,11 @@ Deno.serve(async (req) => {
   // Busca playlists válidas, enriquecidas (com seguidores)
   const { data: playlists, error: pErr } = await supabase
     .from("search_results")
-    .select("id,nome_playlist,descricao,seguidores,total_musicas,spotify_url,imagem_url,quality_score")
+    .select("id,nome_playlist,descricao,seguidores,total_musicas,spotify_url,imagem_url,quality_score,followers_source,followers_verified_at")
     .eq("genre_id", genreId)
     .eq("is_valid", true)
+    .eq("followers_source", "spotify_api")
+    .not("followers_verified_at", "is", null)
     .not("seguidores", "is", null)
     .order("seguidores", { ascending: false })
     .limit(200);
