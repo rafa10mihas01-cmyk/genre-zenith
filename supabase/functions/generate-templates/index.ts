@@ -67,11 +67,17 @@ Deno.serve(async (req) => {
   const { data: genre } = await supabase
     .from("genres").select("id,nome,slug").eq("id", bp.genre_id).maybeSingle();
 
-  // Faixas recorrentes do gênero como seed (top 30)
+  // 🧠 Carrega regras aprendidas (Claude → executor)
+  const activeRules = await loadActiveRules(supabase, bp.genre_id);
+  const rulesBlock = rulesAsPromptBlock(activeRules);
+  const rulesSummary = summarizeRules(activeRules);
+
+  // Faixas recorrentes do gênero como seed (top 30) — reordenadas por boost/avoid de regras
   const { data: model } = await supabase
     .from("genre_models").select("musicas_recorrentes,palavras_chave")
     .eq("genre_id", bp.genre_id).maybeSingle();
-  const trackSeeds = (model?.musicas_recorrentes ?? []).slice(0, 30);
+  const trackSeedsRaw = (model?.musicas_recorrentes ?? []).slice(0, 60);
+  const trackSeeds = reorderTracksByRules(trackSeedsRaw, activeRules).slice(0, 30);
   const allKeywords = (model?.palavras_chave ?? []).slice(0, 30);
 
   // Já existem templates? quantos? (usa para variation_index)
