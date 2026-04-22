@@ -86,6 +86,11 @@ Deno.serve(async (req) => {
     .from("genres").select("id,nome,slug").eq("id", genreId).maybeSingle();
   if (!genre) return jr({ error: "genre not found" }, 404);
 
+  // 🧠 Carrega regras aprendidas pelo Claude (do performance_insights)
+  const activeRules = await loadActiveRules(supabase, genreId);
+  const rulesBlock = rulesAsPromptBlock(activeRules);
+  const rulesSummary = summarizeRules(activeRules);
+
   // Busca playlists válidas, enriquecidas (com seguidores)
   const { data: playlists, error: pErr } = await supabase
     .from("search_results")
