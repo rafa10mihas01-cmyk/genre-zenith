@@ -129,7 +129,7 @@ export default function Settings() {
     if (j?.ok) setSpotifyAccounts(j.accounts ?? []);
   }
 
-  async function connectSpotify() {
+  async function connectSpotify(forceLogin = false) {
     if (isInIframe) {
       toast.warning("Abra o app em nova aba", {
         description: "O Spotify bloqueia login dentro de iframes. Clique em 'Abrir em nova aba' acima.",
@@ -140,7 +140,9 @@ export default function Settings() {
     const popup = window.open("about:blank", "_blank", "noopener,noreferrer");
     try {
       const redirect = getSpotifyRedirectUri();
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/spotify-auth?mode=login&redirect=${encodeURIComponent(redirect)}`;
+      const qs = new URLSearchParams({ mode: "login", redirect });
+      if (forceLogin) qs.set("force_login", "1");
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/spotify-auth?${qs.toString()}`;
       const resp = await fetch(url, {
         headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
       });
@@ -148,8 +150,10 @@ export default function Settings() {
       if (!j?.ok) throw new Error(j?.error ?? "Falha");
       if (popup && !popup.closed) popup.location.href = j.url;
       else window.location.href = j.url;
-      toast.info("Autorização aberta em nova aba", {
-        description: "Depois de aprovar no Spotify, volte para esta tela que a conta será registrada automaticamente.",
+      toast.info(forceLogin ? "Escolha a outra conta no Spotify" : "Autorização aberta em nova aba", {
+        description: forceLogin
+          ? "Vai abrir a tela de login do Spotify pra você entrar com a outra conta. Depois de aprovar, volte aqui."
+          : "Depois de aprovar no Spotify, volte para esta tela que a conta será registrada automaticamente.",
       });
     } catch (e: any) {
       popup?.close();
@@ -321,10 +325,18 @@ export default function Settings() {
                 Adicione <span className="font-mono text-foreground">{getSpotifyRedirectUri()}</span> como Redirect URI no app do Spotify.
               </p>
             </div>
-            <Button size="sm" onClick={connectSpotify} disabled={connectingSpotify || isInIframe}>
-              {connectingSpotify ? <Loader2 className="h-4 w-4 animate-spin" /> : <Music2 className="h-4 w-4" />}
-              Conectar conta
-            </Button>
+            <div className="flex items-center gap-2">
+              {spotifyAccounts.length > 0 && (
+                <Button size="sm" variant="outline" onClick={() => connectSpotify(true)} disabled={connectingSpotify || isInIframe}>
+                  {connectingSpotify ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                  Conectar outra conta
+                </Button>
+              )}
+              <Button size="sm" onClick={() => connectSpotify(false)} disabled={connectingSpotify || isInIframe}>
+                {connectingSpotify ? <Loader2 className="h-4 w-4 animate-spin" /> : <Music2 className="h-4 w-4" />}
+                {spotifyAccounts.length > 0 ? "Conectar mesma conta" : "Conectar conta"}
+              </Button>
+            </div>
           </div>
 
           {isInIframe && (
