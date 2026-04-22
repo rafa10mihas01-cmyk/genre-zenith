@@ -86,16 +86,26 @@ Deno.serve(async (req) => {
   const playlistUrl: string = created?.external_urls?.spotify ?? `https://open.spotify.com/playlist/${playlistId}`;
 
   // 2) Resolve URIs das faixas (track_seeds)
+  // 🎯 Se seed traz spotify_track_id (vindo do generate-templates), usa direto:
+  // 100% preciso, zero latência extra. Fallback pra search apenas quando faltar ID.
   const seeds: any[] = Array.isArray(tpl.track_seeds) ? tpl.track_seeds : [];
   const uris: string[] = [];
   let failed = 0;
+  let resolvedFromId = 0;
+  let resolvedFromSearch = 0;
   for (const s of seeds.slice(0, 80)) {
+    const trackId = String(s?.spotify_track_id ?? "").trim();
+    if (trackId && /^[A-Za-z0-9]{16,}$/.test(trackId)) {
+      uris.push(`spotify:track:${trackId}`);
+      resolvedFromId++;
+      continue;
+    }
     const nome = String(s?.nome ?? "").trim();
     const artista = String(s?.artista ?? "").trim();
     if (!nome || !artista) { failed++; continue; }
     try {
       const uri = await searchTrackUri(token, nome, artista);
-      if (uri) uris.push(uri); else failed++;
+      if (uri) { uris.push(uri); resolvedFromSearch++; } else failed++;
     } catch { failed++; }
   }
 
@@ -133,7 +143,7 @@ Deno.serve(async (req) => {
 
   await supabase.from("collection_logs").insert({
     genre_id: tpl.genre_id, acao: "create-spotify-playlist", status: "sucesso",
-    mensagem: `Playlist "${tpl.name}" criada no Spotify (${uris.length} faixas, ${failed} falhas)`,
+    mensagem: `Playlist "${tpl.name}" criada (${uris.length} faixas, ${failed} falhas) • IDs diretos: ${resolvedFromId}, via search: ${resolvedFromSearch}`,
   }).then(() => {}, () => {});
 
   return jr({
@@ -142,5 +152,7 @@ Deno.serve(async (req) => {
     spotify_url: playlistUrl,
     tracks_added: uris.length,
     tracks_failed: failed,
+    resolved_from_id: resolvedFromId,
+    resolved_from_search: resolvedFromSearch,
   });
 });
