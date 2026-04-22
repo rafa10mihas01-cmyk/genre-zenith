@@ -44,17 +44,35 @@ function tierFor(followers: number): "mega" | "big" | "medium" | "small" {
 
 const TIER_ORDER = ["mega", "big", "medium", "small"] as const;
 
+const TIER_ORDER = ["mega", "big", "medium", "small"] as const;
+
+// Pesos para ordenar candidatos a blueprint pela prioridade herdada do módulo Performance.
+const PRIORITY_WEIGHT: Record<string, number> = { alta: 2, media: 1, baixa: 0 };
+
 function nearestBlueprint(targetTier: string, blueprints: any[]): any | null {
   if (blueprints.length === 0) return null;
-  // 1) match exato
-  const exact = blueprints.filter(b => b.tier === targetTier).sort((a, b) => Number(b.replication_score) - Number(a.replication_score));
+  // Filtra blueprints "baixa": padrão perdedor — não replicar
+  const eligible = blueprints.filter(b => (b.replication_priority ?? "media") !== "baixa");
+  if (eligible.length === 0) return null;
+
+  // 1) match exato no tier — ordena por priority desc, depois replication_score desc
+  const exact = eligible
+    .filter(b => b.tier === targetTier)
+    .sort((a, b) =>
+      (PRIORITY_WEIGHT[b.replication_priority ?? "media"] - PRIORITY_WEIGHT[a.replication_priority ?? "media"]) ||
+      (Number(b.replication_score) - Number(a.replication_score))
+    );
   if (exact.length > 0) return exact[0];
-  // 2) tier mais próximo (distância no array TIER_ORDER)
+
+  // 2) tier mais próximo — empate quebrado por priority + score
   const targetIdx = TIER_ORDER.indexOf(targetTier as any);
-  return [...blueprints]
+  return [...eligible]
     .map(b => ({ b, dist: Math.abs(TIER_ORDER.indexOf(b.tier) - targetIdx) }))
-    .sort((a, b) => a.dist - b.dist || Number(b.b.replication_score) - Number(a.b.replication_score))
-    [0]?.b ?? null;
+    .sort((a, b) =>
+      a.dist - b.dist ||
+      (PRIORITY_WEIGHT[b.b.replication_priority ?? "media"] - PRIORITY_WEIGHT[a.b.replication_priority ?? "media"]) ||
+      (Number(b.b.replication_score) - Number(a.b.replication_score))
+    )[0]?.b ?? null;
 }
 
 async function callFn(name: string, body: unknown) {
