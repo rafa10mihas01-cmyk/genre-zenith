@@ -100,7 +100,7 @@ Deno.serve(async (req) => {
   try {
     const [{ data: genre }, { data: results }, { data: tracks }, { data: terms }] = await Promise.all([
       supabase.from("genres").select("id,nome,slug").eq("id", body.genre_id).single(),
-      supabase.from("search_results").select("id,nome_playlist,seguidores,spotify_url,imagem_url,descricao,total_musicas,term_id").eq("genre_id", body.genre_id).limit(2000),
+      supabase.from("search_results").select("id,nome_playlist,seguidores,spotify_url,imagem_url,descricao,total_musicas,term_id,followers_source,followers_verified_at").eq("genre_id", body.genre_id).eq("followers_source", "spotify_api").not("followers_verified_at", "is", null).limit(2000),
       supabase.from("search_tracks").select("nome_musica,artista,result_id").eq("genre_id", body.genre_id).limit(10000),
       supabase.from("search_terms").select("id,termo").eq("genre_id", body.genre_id),
     ]);
@@ -413,7 +413,7 @@ Deno.serve(async (req) => {
 
     // 3. Métricas
     const totalPlaylistsCount = results?.length ?? 0;
-    const enrichedCount = (results ?? []).filter(r => (r.seguidores ?? 0) > 0).length;
+      const enrichedCount = (results ?? []).filter(r => r.followers_source === "spotify_api" && r.followers_verified_at && (r.seguidores ?? 0) >= 0).length;
     const coverage = totalPlaylistsCount > 0 ? (enrichedCount / totalPlaylistsCount) * 100 : 0;
 
     // 4. Inserir snapshot no histórico
