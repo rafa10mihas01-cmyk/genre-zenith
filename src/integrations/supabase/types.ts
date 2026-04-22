@@ -634,6 +634,63 @@ export type Database = {
           },
         ]
       }
+      replication_rules: {
+        Row: {
+          active: boolean
+          condition: Json
+          confidence: string
+          created_at: string
+          evidence: string | null
+          expires_at: string | null
+          generated_by_model: string | null
+          genre_id: string | null
+          id: string
+          priority: string
+          rule_type: string
+          scope: string
+          source_insight_id: string | null
+          target: string
+          updated_at: string
+          value: Json
+        }
+        Insert: {
+          active?: boolean
+          condition?: Json
+          confidence?: string
+          created_at?: string
+          evidence?: string | null
+          expires_at?: string | null
+          generated_by_model?: string | null
+          genre_id?: string | null
+          id?: string
+          priority?: string
+          rule_type: string
+          scope?: string
+          source_insight_id?: string | null
+          target: string
+          updated_at?: string
+          value?: Json
+        }
+        Update: {
+          active?: boolean
+          condition?: Json
+          confidence?: string
+          created_at?: string
+          evidence?: string | null
+          expires_at?: string | null
+          generated_by_model?: string | null
+          genre_id?: string | null
+          id?: string
+          priority?: string
+          rule_type?: string
+          scope?: string
+          source_insight_id?: string | null
+          target?: string
+          updated_at?: string
+          value?: Json
+        }
+        Relationships: []
+      }
       replications: {
         Row: {
           account_id: string | null
@@ -1019,6 +1076,20 @@ export type Database = {
       compare_genre_versions: {
         Args: { p_genre_id: string; p_version_a: number; p_version_b: number }
         Returns: Json
+      }
+      get_active_replication_rules: {
+        Args: { p_genre_id: string }
+        Returns: {
+          condition: Json
+          confidence: string
+          evidence: string
+          id: string
+          priority: string
+          rule_type: string
+          scope: string
+          target: string
+          value: Json
+        }[]
       }
       get_followers_revalidation_candidates: {
         Args: {
