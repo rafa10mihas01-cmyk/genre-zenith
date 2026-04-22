@@ -337,7 +337,7 @@ Deno.serve(async (req) => {
 
       const nomePl = pickStr(it, "name", "title", "playlistName") ?? "Sem nome";
       const url = pickStr(it, "url", "spotifyUrl", "playlistUrl");
-      const followers = pickNum(it, "followers", "followersCount", "totalFollowers");
+      const followers = null;
       const imagem = pickStr(it, "imageUrl", "coverImage", "image");
       const descricao = pickStr(it, "description", "desc");
       const totalTracks = pickNum(it, "trackCount", "tracksCount", "totalTracks");
@@ -392,14 +392,13 @@ Deno.serve(async (req) => {
       if (playlistId) {
         const { data: existing } = await supabase
           .from("search_results")
-          .select("id,times_seen,seguidores,quality_score,quality_flag,is_valid,validation_reason")
+          .select("id,times_seen,seguidores,quality_score,quality_flag,is_valid,validation_reason,followers_source,followers_verified_at,needs_enrich")
           .eq("genre_id", body.genre_id)
           .eq("spotify_playlist_id", playlistId)
           .maybeSingle();
         if (existing) {
-          // Se já tem followers (já foi enriquecida), preserva tudo de Phase 2.
-          // Apify pode mandar followers=null mesmo pra playlists que conhecemos — não sobrescreve.
-          const alreadyEnriched = existing.seguidores != null;
+          // Followers do actor são descartados; somente Spotify API pode preencher seguidores.
+          const alreadyVerified = existing.followers_source === "spotify_api" && existing.followers_verified_at != null;
           const updatePatch: Record<string, unknown> = {
             posicao: i + 1,
             nome_playlist: nomePl,
@@ -412,15 +411,15 @@ Deno.serve(async (req) => {
             last_seen_at: new Date().toISOString(),
             score,
           };
-          if (alreadyEnriched) {
-            // Só atualiza followers se Apify trouxer um número (não sobrescreve com null)
-            if (followers != null) updatePatch.seguidores = followers;
-            if (totalTracks != null) updatePatch.total_musicas = totalTracks;
+          if (alreadyVerified) {
+            updatePatch.needs_enrich = false;
             // needs_enrich/is_valid/quality_* PRESERVADOS — fase 2 já mandou
           } else {
-            updatePatch.seguidores = followers;
+            updatePatch.seguidores = null;
             updatePatch.total_musicas = totalTracks;
-            updatePatch.needs_enrich = followers == null; // regra única de verdade
+            updatePatch.needs_enrich = true;
+            updatePatch.followers_source = null;
+            updatePatch.followers_verified_at = null;
             updatePatch.is_valid = true;
             updatePatch.validation_reason = "pre_enrich";
             updatePatch.quality_score = null;
@@ -449,7 +448,7 @@ Deno.serve(async (req) => {
             posicao: i + 1,
             spotify_url: url,
             spotify_playlist_id: playlistId,
-            seguidores: followers,
+            seguidores: null,
             imagem_url: imagem,
             descricao,
             total_musicas: totalTracks,
@@ -457,8 +456,10 @@ Deno.serve(async (req) => {
             // owner_country removido — coluna não existe no schema (PGRST204)
             times_seen: 1,
             score,
-            // 🔁 Regra única: needs_enrich = (followers IS NULL)
-            needs_enrich: followers == null,
+            // 🔁 Followers entram somente após enrich oficial via Spotify API.
+            needs_enrich: true,
+            followers_source: null,
+            followers_verified_at: null,
             is_valid: true,
             validation_reason: "pre_enrich",
             quality_score: null,
