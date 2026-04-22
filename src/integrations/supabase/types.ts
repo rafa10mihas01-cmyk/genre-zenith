@@ -741,7 +741,29 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      v_brain_health: {
+        Row: {
+          analyzed_genres: number | null
+          apify_blocked: boolean | null
+          apify_blocked_at: string | null
+          apify_blocked_reason: string | null
+          avg_quality_score: number | null
+          brain_status: string | null
+          checks: Json | null
+          duplicate_count: number | null
+          enrich_failed_count: number | null
+          followers_coverage_pct: number | null
+          invalid_records: number | null
+          last_collection_at: string | null
+          needs_enrich_pct: number | null
+          pending_enrich: number | null
+          stuck_enrich_loop: number | null
+          total_genres: number | null
+          total_playlists: number | null
+          with_followers: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       compare_genre_versions: {
