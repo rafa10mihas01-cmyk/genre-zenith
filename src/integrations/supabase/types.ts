@@ -317,6 +317,39 @@ export type Database = {
         }
         Relationships: []
       }
+      learning_loop_runs: {
+        Row: {
+          duracao_ms: number | null
+          finished_at: string | null
+          id: string
+          started_at: string
+          status: string
+          steps: Json
+          summary: string | null
+          triggered_by: string
+        }
+        Insert: {
+          duracao_ms?: number | null
+          finished_at?: string | null
+          id?: string
+          started_at?: string
+          status?: string
+          steps?: Json
+          summary?: string | null
+          triggered_by?: string
+        }
+        Update: {
+          duracao_ms?: number | null
+          finished_at?: string | null
+          id?: string
+          started_at?: string
+          status?: string
+          steps?: Json
+          summary?: string | null
+          triggered_by?: string
+        }
+        Relationships: []
+      }
       performance_insights: {
         Row: {
           acoes_sugeridas: Json
@@ -1106,6 +1139,7 @@ export type Database = {
           spotify_url: string
         }[]
       }
+      get_learning_loop_status: { Args: never; Returns: Json }
       get_low_performance_candidates: {
         Args: {
           p_cooldown_hours?: number
