@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Settings as SettingsIcon, KeyRound, CheckCircle2, XCircle, Loader2, Zap, RefreshCw, LogOut, Database, CalendarClock, Play, Music2, UserCheck, Star, Trash2,
+  Settings as SettingsIcon, KeyRound, CheckCircle2, XCircle, Loader2, Zap, RefreshCw, LogOut, Database, CalendarClock, Play, Music2, UserCheck, Star, Trash2, AlertTriangle, ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -45,6 +45,19 @@ export default function Settings() {
   const [spotifyResult, setSpotifyResult] = useState<{ ok: boolean; msg: string; meta?: any } | null>(null);
   const [spotifyAccounts, setSpotifyAccounts] = useState<any[]>([]);
   const [connectingSpotify, setConnectingSpotify] = useState(false);
+  const [isInIframe, setIsInIframe] = useState(false);
+
+  useEffect(() => {
+    try {
+      setIsInIframe(window.self !== window.top);
+    } catch {
+      setIsInIframe(true);
+    }
+  }, []);
+
+  function openInNewTab() {
+    window.open(window.location.href, "_blank", "noopener,noreferrer");
+  }
 
   async function testSpotify() {
     setSpotifyTesting(true); setSpotifyResult(null);
@@ -96,8 +109,14 @@ export default function Settings() {
   }
 
   async function connectSpotify() {
+    if (isInIframe) {
+      toast.warning("Abra o app em nova aba", {
+        description: "O Spotify bloqueia login dentro de iframes. Clique em 'Abrir em nova aba' acima.",
+      });
+      return;
+    }
     setConnectingSpotify(true);
-    const popup = window.open("", "_blank", "noopener,noreferrer");
+    const popup = window.open("about:blank", "_blank", "noopener,noreferrer");
     try {
       const redirect = getSpotifyRedirectUri();
       const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/spotify-auth?mode=login&redirect=${encodeURIComponent(redirect)}`;
@@ -106,7 +125,7 @@ export default function Settings() {
       });
       const j = await resp.json();
       if (!j?.ok) throw new Error(j?.error ?? "Falha");
-      if (popup) popup.location.href = j.url;
+      if (popup && !popup.closed) popup.location.href = j.url;
       else window.location.href = j.url;
       toast.info("Autorização aberta em nova aba", {
         description: "Depois de aprovar no Spotify, volte para esta tela que a conta será registrada automaticamente.",
@@ -281,11 +300,28 @@ export default function Settings() {
                 Adicione <span className="font-mono text-foreground">{getSpotifyRedirectUri()}</span> como Redirect URI no app do Spotify.
               </p>
             </div>
-            <Button size="sm" onClick={connectSpotify} disabled={connectingSpotify}>
+            <Button size="sm" onClick={connectSpotify} disabled={connectingSpotify || isInIframe}>
               {connectingSpotify ? <Loader2 className="h-4 w-4 animate-spin" /> : <Music2 className="h-4 w-4" />}
               Conectar conta
             </Button>
           </div>
+
+          {isInIframe && (
+            <div className="mt-3 p-3 rounded-lg border border-warning/40 bg-warning/10 flex items-start gap-3">
+              <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium text-foreground">
+                  ⚠️ Abra em nova aba para conectar o Spotify
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  O Spotify bloqueia o login dentro de iframes (preview do editor). Abra o app numa aba normal e clique em <strong>Conectar conta</strong>.
+                </p>
+                <Button size="sm" variant="outline" className="mt-2" onClick={openInNewTab}>
+                  <ExternalLink className="h-3.5 w-3.5" /> Abrir em nova aba
+                </Button>
+              </div>
+            </div>
+          )}
 
           {spotifyAccounts.length === 0 ? (
             <p className="text-xs text-muted-foreground mt-3 italic">Nenhuma conta conectada ainda.</p>
