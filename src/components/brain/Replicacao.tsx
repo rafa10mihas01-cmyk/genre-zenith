@@ -24,6 +24,9 @@ type Blueprint = {
   replication_score: number;
   status: string;
   updated_at: string;
+  performance_source: string | null;
+  replication_priority: string;
+  replication_reason: string | null;
 };
 
 type Template = {
@@ -241,9 +244,26 @@ export function Replicacao({ genreId }: { genreId?: string }) {
                           : bp.confidence === "media" ? "bg-warning/15 text-warning"
                           : "bg-muted text-muted-foreground",
                         )}>{bp.confidence}</span>
+                        <span
+                          className={cn(
+                            "text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border",
+                            bp.replication_priority === "alta" && "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+                            bp.replication_priority === "media" && "bg-muted/40 text-muted-foreground border-border",
+                            bp.replication_priority === "baixa" && "bg-warning/15 text-warning border-warning/30",
+                          )}
+                          title={bp.replication_reason ?? ""}
+                        >
+                          prio: {bp.replication_priority}
+                          {bp.performance_source ? ` · ${bp.performance_source}` : ""}
+                        </span>
                         <ScoreBadge score={Number(bp.replication_score)} />
                       </div>
                       <h4 className="font-bold text-base mt-1.5 truncate">{bp.name}</h4>
+                      {bp.replication_reason && (
+                        <p className="text-[11px] text-muted-foreground mt-0.5 italic">
+                          {bp.replication_reason}
+                        </p>
+                      )}
                       {bp.name_pattern && (
                         <p className="text-xs text-muted-foreground mt-0.5">
                           Padrão: <span className="font-mono text-foreground">{bp.name_pattern}</span>

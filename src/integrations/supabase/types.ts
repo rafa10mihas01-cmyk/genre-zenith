@@ -369,6 +369,9 @@ export type Database = {
           name: string
           name_pattern: string | null
           notes: string | null
+          performance_source: string | null
+          replication_priority: string
+          replication_reason: string | null
           replication_score: number
           sample_size: number
           slug: string
@@ -390,6 +393,9 @@ export type Database = {
           name: string
           name_pattern?: string | null
           notes?: string | null
+          performance_source?: string | null
+          replication_priority?: string
+          replication_reason?: string | null
           replication_score?: number
           sample_size?: number
           slug: string
@@ -411,6 +417,9 @@ export type Database = {
           name?: string
           name_pattern?: string | null
           notes?: string | null
+          performance_source?: string | null
+          replication_priority?: string
+          replication_reason?: string | null
           replication_score?: number
           sample_size?: number
           slug?: string
@@ -981,6 +990,10 @@ export type Database = {
           spotify_url: string
         }[]
       }
+      get_performance_class_for_source: {
+        Args: { p_source_result_id: string }
+        Returns: string
+      }
       get_performance_dataset: {
         Args: { p_min_age_hours?: number }
         Returns: {
@@ -1000,6 +1013,13 @@ export type Database = {
         }[]
       }
       has_team_access: { Args: never; Returns: boolean }
+      priority_from_performance: {
+        Args: { p_class: string }
+        Returns: {
+          priority: string
+          reason: string
+        }[]
+      }
     }
     Enums: {
       followers_source_type: "spotify_api"

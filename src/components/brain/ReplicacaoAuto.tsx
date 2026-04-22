@@ -236,8 +236,26 @@ export function ReplicacaoAuto({ genreId }: { genreId?: string }) {
                   </div>
                   <ChevronRight className="h-3 w-3 text-muted-foreground" />
                   <div className="text-right min-w-0">
-                    <div className="font-medium truncate">{p.blueprint.name}</div>
-                    <div className="text-muted-foreground text-[11px]">blueprint {p.blueprint.tier}</div>
+                    <div className="font-medium truncate flex items-center gap-1.5 justify-end">
+                      {p.blueprint.name}
+                      {p.blueprint.priority && (
+                        <span
+                          className={cn(
+                            "text-[9px] uppercase font-bold px-1.5 py-0.5 rounded-full border tabular-nums",
+                            p.blueprint.priority === "alta" && "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+                            p.blueprint.priority === "media" && "bg-muted/40 text-muted-foreground border-border",
+                            p.blueprint.priority === "baixa" && "bg-warning/15 text-warning border-warning/30",
+                          )}
+                          title={p.blueprint.reason ?? ""}
+                        >
+                          {p.blueprint.priority}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-muted-foreground text-[11px]">
+                      blueprint {p.blueprint.tier}
+                      {p.blueprint.performance_source && ` · perf: ${p.blueprint.performance_source}`}
+                    </div>
                   </div>
                   <ChevronRight className="h-3 w-3 text-muted-foreground" />
                   <div className="text-right min-w-0">
