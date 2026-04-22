@@ -272,29 +272,7 @@ export function ReplicacaoAuto({ genreId }: { genreId?: string }) {
         )}
       </div>
 
-      {/* Contas */}
-      <section>
-        <div className="flex items-center justify-between mb-3">
-          <h4 className="text-sm font-bold flex items-center gap-2">
-            <Users className="h-4 w-4 text-primary" /> Contas conectadas
-          </h4>
-        </div>
-        {accounts.length === 0 ? (
-          <div className="nx-card text-center py-8 space-y-2">
-            <Users className="h-8 w-8 mx-auto text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">
-              Nenhuma conta Spotify conectada ainda.
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Conecte em Configurações → Spotify. As contas aparecem aqui automaticamente.
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {accounts.map(a => <AccountCard key={a.id} a={a} onChange={load} />)}
-          </div>
-        )}
-      </section>
+      {/* Contas → ficam no módulo Operação. Cérebro só pensa, não gerencia. */}
 
       {/* Histórico */}
       <section>
@@ -342,84 +320,6 @@ function Kpi({ label, value, hint, tone }: {
       <div className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-bold">{label}</div>
       <div className={cn("text-2xl font-bold mt-2 tabular-nums", cls)}>{value}</div>
       {hint && <div className="text-[11px] text-muted-foreground mt-1">{hint}</div>}
-    </div>
-  );
-}
-
-function AccountCard({ a, onChange }: { a: Account; onChange: () => void }) {
-  const [editing, setEditing] = useState(false);
-  const [maxP, setMaxP] = useState(a.max_playlists);
-  const [status, setStatus] = useState(a.status);
-
-  const save = async () => {
-    const { error } = await supabase
-      .from("accounts")
-      .update({ max_playlists: maxP, status })
-      .eq("id", a.id);
-    if (error) { toast.error("Erro", { description: error.message }); return; }
-    toast.success("Conta atualizada");
-    setEditing(false);
-    onChange();
-  };
-
-  const usagePct = a.max_playlists > 0 ? (a.current_playlists / a.max_playlists) * 100 : 0;
-  const statusCls =
-    a.status === "active" ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
-    : a.status === "paused" ? "bg-warning/15 text-warning border-warning/30"
-    : "bg-destructive/15 text-destructive border-destructive/30";
-
-  return (
-    <div className="nx-card">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <div className="text-sm font-bold truncate">{a.display_name ?? a.spotify_user_id}</div>
-          <div className="text-[11px] text-muted-foreground truncate">{a.email ?? a.spotify_user_id}</div>
-        </div>
-        <span className={cn("text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border", statusCls)}>
-          {a.status}
-        </span>
-      </div>
-      <div className="mt-3 space-y-1.5">
-        <div className="flex items-center justify-between text-xs">
-          <span className="text-muted-foreground">Uso</span>
-          <span className="font-mono tabular-nums">{a.current_playlists}/{a.max_playlists}</span>
-        </div>
-        <div className="h-1.5 bg-elevated rounded-full overflow-hidden">
-          <div
-            className={cn("h-full rounded-full transition-all", usagePct > 80 ? "bg-destructive" : "bg-primary")}
-            style={{ width: `${Math.min(100, usagePct)}%` }}
-          />
-        </div>
-      </div>
-      {editing ? (
-        <div className="mt-3 space-y-2">
-          <div className="flex items-center gap-2">
-            <label className="text-[11px] text-muted-foreground w-16">Max</label>
-            <Input type="number" value={maxP} onChange={(e) => setMaxP(Number(e.target.value))} className="h-7 text-xs" />
-          </div>
-          <div className="flex items-center gap-2">
-            <label className="text-[11px] text-muted-foreground w-16">Status</label>
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              className="h-7 text-xs flex-1 rounded-md border border-border bg-background px-2"
-            >
-              <option value="active">active</option>
-              <option value="paused">paused</option>
-              <option value="limited">limited</option>
-              <option value="banned">banned</option>
-            </select>
-          </div>
-          <div className="flex items-center gap-1.5 justify-end">
-            <Button size="sm" variant="ghost" onClick={() => setEditing(false)} className="h-7 text-xs">Cancelar</Button>
-            <Button size="sm" onClick={save} className="h-7 text-xs">Salvar</Button>
-          </div>
-        </div>
-      ) : (
-        <Button variant="ghost" size="sm" onClick={() => setEditing(true)} className="mt-3 h-7 text-xs w-full">
-          Editar limites
-        </Button>
-      )}
     </div>
   );
 }
