@@ -126,7 +126,7 @@ Deno.serve(async (req) => {
     }
   }
 
-  // 4) Persiste resultado
+  // 4) Persiste resultado + baseline de followers (=0 no momento da criação)
   const patch = {
     status: "created",
     spotify_playlist_id: playlistId,
@@ -137,9 +137,18 @@ Deno.serve(async (req) => {
     tracks_failed: failed,
     creation_error: null,
     created_on_spotify_at: new Date().toISOString(),
+    followers_at_creation: 0,
   };
   const { error: upErr } = await supabase.from("playlist_templates").update(patch).eq("id", templateId);
   if (upErr) return jr({ ok: false, error: upErr.message, partial: patch }, 500);
+
+  // Snapshot inicial (baseline t0)
+  await supabase.from("playlist_metrics_snapshots").insert({
+    template_id: templateId,
+    spotify_playlist_id: playlistId,
+    followers: 0,
+    total_tracks: uris.length,
+  }).then(() => {}, () => {});
 
   await supabase.from("collection_logs").insert({
     genre_id: tpl.genre_id, acao: "create-spotify-playlist", status: "sucesso",

@@ -317,6 +317,45 @@ export type Database = {
         }
         Relationships: []
       }
+      performance_insights: {
+        Row: {
+          acoes_sugeridas: Json
+          classificacao: Json
+          created_at: string
+          generated_by_model: string | null
+          genre_id: string | null
+          id: string
+          insights: Json
+          recomendacoes: Json
+          scope: string
+          total_playlists_analisadas: number
+        }
+        Insert: {
+          acoes_sugeridas?: Json
+          classificacao?: Json
+          created_at?: string
+          generated_by_model?: string | null
+          genre_id?: string | null
+          id?: string
+          insights?: Json
+          recomendacoes?: Json
+          scope?: string
+          total_playlists_analisadas?: number
+        }
+        Update: {
+          acoes_sugeridas?: Json
+          classificacao?: Json
+          created_at?: string
+          generated_by_model?: string | null
+          genre_id?: string | null
+          id?: string
+          insights?: Json
+          recomendacoes?: Json
+          scope?: string
+          total_playlists_analisadas?: number
+        }
+        Relationships: []
+      }
       playlist_blueprints: {
         Row: {
           confidence: string
@@ -410,6 +449,33 @@ export type Database = {
         }
         Relationships: []
       }
+      playlist_metrics_snapshots: {
+        Row: {
+          collected_at: string
+          followers: number
+          id: string
+          spotify_playlist_id: string
+          template_id: string
+          total_tracks: number | null
+        }
+        Insert: {
+          collected_at?: string
+          followers?: number
+          id?: string
+          spotify_playlist_id: string
+          template_id: string
+          total_tracks?: number | null
+        }
+        Update: {
+          collected_at?: string
+          followers?: number
+          id?: string
+          spotify_playlist_id?: string
+          template_id?: string
+          total_tracks?: number | null
+        }
+        Relationships: []
+      }
       playlist_templates: {
         Row: {
           approved_at: string | null
@@ -420,11 +486,14 @@ export type Database = {
           created_on_spotify_at: string | null
           creation_error: string | null
           description: string | null
+          followers_at_creation: number | null
           generated_by_model: string | null
           genre_id: string
           id: string
           keywords: Json | null
           name: string
+          performance_class: string | null
+          performance_evaluated_at: string | null
           regras: Json | null
           rejection_reason: string | null
           replication_score: number
@@ -448,11 +517,14 @@ export type Database = {
           created_on_spotify_at?: string | null
           creation_error?: string | null
           description?: string | null
+          followers_at_creation?: number | null
           generated_by_model?: string | null
           genre_id: string
           id?: string
           keywords?: Json | null
           name: string
+          performance_class?: string | null
+          performance_evaluated_at?: string | null
           regras?: Json | null
           rejection_reason?: string | null
           replication_score?: number
@@ -476,11 +548,14 @@ export type Database = {
           created_on_spotify_at?: string | null
           creation_error?: string | null
           description?: string | null
+          followers_at_creation?: number | null
           generated_by_model?: string | null
           genre_id?: string
           id?: string
           keywords?: Json | null
           name?: string
+          performance_class?: string | null
+          performance_evaluated_at?: string | null
           regras?: Json | null
           rejection_reason?: string | null
           replication_score?: number
@@ -904,6 +979,24 @@ export type Database = {
           seguidores: number
           spotify_playlist_id: string
           spotify_url: string
+        }[]
+      }
+      get_performance_dataset: {
+        Args: { p_min_age_hours?: number }
+        Returns: {
+          created_on_spotify_at: string
+          crescimento_absoluto: number
+          crescimento_percentual: number
+          followers_now: number
+          followers_start: number
+          genre_id: string
+          last_snapshot_at: string
+          nome: string
+          spotify_playlist_id: string
+          spotify_url: string
+          template_id: string
+          tempo_horas: number
+          total_tracks: number
         }[]
       }
       has_team_access: { Args: never; Returns: boolean }
