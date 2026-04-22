@@ -49,7 +49,8 @@ Deno.serve(async (req) => {
   }
 
   const termsPerGenre = body.terms_per_genre ?? 10;
-  const maxResults = body.max_results ?? 25;
+  // Apify: custo por chamada → sempre maximizar (default 100, mín 50).
+  const maxResults = Math.max(50, body.max_results ?? 100);
   const delayMs = body.delay_ms ?? 2000;
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);

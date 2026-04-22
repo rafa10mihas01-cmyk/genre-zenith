@@ -17,7 +17,9 @@ interface NxSettings {
   max_results: number;
 }
 
-const DEFAULTS: NxSettings = { delay_ms: 2000, max_results: 20 };
+// Apify cobra por chamada (não por item) → maximizar maxResults é grátis.
+// Mínimo recomendado: 50. Padrão: 100.
+const DEFAULTS: NxSettings = { delay_ms: 2000, max_results: 100 };
 
 function loadSettings(): NxSettings {
   try {
@@ -326,7 +328,7 @@ export default function Settings() {
           <div>
             <Label htmlFor="max">Resultados por termo</Label>
             <Input
-              id="max" type="number" min={5} max={100} step={5}
+              id="max" type="number" min={50} max={200} step={10}
               value={settings.max_results}
               onChange={e => setSettings(s => ({ ...s, max_results: Number(e.target.value) || 0 }))}
               className="mt-1.5"
