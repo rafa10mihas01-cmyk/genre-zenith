@@ -55,8 +55,30 @@ export default function Settings() {
     }
   }, []);
 
-  function openInNewTab() {
-    window.open(window.location.href, "_blank", "noopener,noreferrer");
+  async function openInNewTab() {
+    // Abre uma aba imediatamente (preserva o gesto do usuário) e só depois injeta a URL do Spotify
+    const popup = window.open("about:blank", "_blank", "noopener,noreferrer");
+    try {
+      const redirect = getSpotifyRedirectUri();
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/spotify-auth?mode=login&redirect=${encodeURIComponent(redirect)}`;
+      const resp = await fetch(url, {
+        headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+      });
+      const j = await resp.json();
+      if (!j?.ok) throw new Error(j?.error ?? "Falha ao gerar URL do Spotify");
+      if (popup && !popup.closed) {
+        popup.location.href = j.url;
+      } else {
+        // Popup bloqueado: fallback abrindo via top window
+        window.top!.location.href = j.url;
+      }
+      toast.info("Aba do Spotify aberta", {
+        description: "Aprove o acesso. Depois volte aqui e atualize que a conta aparece.",
+      });
+    } catch (e: any) {
+      popup?.close();
+      toast.error("Erro ao abrir Spotify", { description: e?.message });
+    }
   }
 
   async function testSpotify() {
@@ -311,13 +333,13 @@ export default function Settings() {
               <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium text-foreground">
-                  ⚠️ Abra em nova aba para conectar o Spotify
+                  ⚠️ Conecte direto no Spotify (nova aba)
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  O Spotify bloqueia o login dentro de iframes (preview do editor). Abra o app numa aba normal e clique em <strong>Conectar conta</strong>.
+                  O Spotify bloqueia o login dentro do preview. O botão abaixo já leva direto pra tela de autorização do Spotify — depois de aprovar, volte aqui e atualize a página.
                 </p>
                 <Button size="sm" variant="outline" className="mt-2" onClick={openInNewTab}>
-                  <ExternalLink className="h-3.5 w-3.5" /> Abrir em nova aba
+                  <ExternalLink className="h-3.5 w-3.5" /> Abrir Spotify em nova aba
                 </Button>
               </div>
             </div>
