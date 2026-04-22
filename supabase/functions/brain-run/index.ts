@@ -215,7 +215,7 @@ async function runPipeline(jobId: string, body: StartBody) {
       // 1) Cache: 7 dias, top 150 por priority_score; fallback 100 sem filtro de data
       let { data: cached } = await supabase
         .from("search_results")
-        .select("id,seguidores")
+        .select("id,seguidores,followers_source,followers_verified_at")
         .eq("genre_id", gid)
         .gte("created_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
         .order("priority_score", { ascending: false, nullsFirst: false })
@@ -224,7 +224,7 @@ async function runPipeline(jobId: string, body: StartBody) {
       if (!cached || cached.length === 0) {
         const fb = await supabase
           .from("search_results")
-          .select("id,seguidores")
+          .select("id,seguidores,followers_source,followers_verified_at")
           .eq("genre_id", gid)
           .order("priority_score", { ascending: false, nullsFirst: false })
           .limit(100);
@@ -234,7 +234,7 @@ async function runPipeline(jobId: string, body: StartBody) {
       stages.survival_cache = { source: dataSource, total: cached.length };
 
       // 2) Enrich inteligente: só followers IS NULL, limite 20, ignora se falhar
-      const pendingIds = (cached ?? []).filter((r: any) => r.seguidores == null).slice(0, 20).map((r: any) => r.id);
+      const pendingIds = (cached ?? []).filter((r: any) => r.followers_source !== "spotify_api" || !r.followers_verified_at).slice(0, 20).map((r: any) => r.id);
       if (pendingIds.length > 0) {
         await setJob(supabase, gid, jobId, {
           status: "running",
@@ -661,7 +661,7 @@ async function runPipeline(jobId: string, body: StartBody) {
     async function measureCoverage() {
       const [{ count: total }, { count: enr }] = await Promise.all([
         supabase.from("search_results").select("*", { count: "exact", head: true }).eq("genre_id", gid),
-        supabase.from("search_results").select("*", { count: "exact", head: true }).eq("genre_id", gid).not("seguidores", "is", null),
+        supabase.from("search_results").select("*", { count: "exact", head: true }).eq("genre_id", gid).eq("followers_source", "spotify_api").not("followers_verified_at", "is", null),
       ]);
       totalPls = total ?? 0;
       enrichedCount = enr ?? 0;
@@ -685,7 +685,7 @@ async function runPipeline(jobId: string, body: StartBody) {
         .select("id")
         .eq("genre_id", gid)
         .eq("enrich_failed", false)
-        .is("seguidores", null)
+        .or("followers_source.is.null,followers_verified_at.is.null")
         .order("priority_score", { ascending: false, nullsFirst: false })
         .limit(50);
       const idsToEnrich = (pendIds ?? []).map((r: any) => r.id);
@@ -882,7 +882,7 @@ async function resumePipeline(jobId: string, slug: string) {
     async function measure() {
       const [{ count: t }, { count: e }] = await Promise.all([
         supabase.from("search_results").select("*", { count: "exact", head: true }).eq("genre_id", gid),
-        supabase.from("search_results").select("*", { count: "exact", head: true }).eq("genre_id", gid).not("seguidores", "is", null),
+        supabase.from("search_results").select("*", { count: "exact", head: true }).eq("genre_id", gid).eq("followers_source", "spotify_api").not("followers_verified_at", "is", null),
       ]);
       totalPls = t ?? 0; enrichedCount = e ?? 0;
       coverage = totalPls > 0 ? enrichedCount / totalPls : 1;
