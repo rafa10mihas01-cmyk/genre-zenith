@@ -111,7 +111,7 @@ Deno.serve(async (req) => {
       .order("current_playlists", { ascending: true }),
     supabase
       .from("playlist_blueprints")
-      .select("id,tier,name,replication_score")
+      .select("id,tier,name,replication_score,replication_priority,replication_reason,performance_source")
       .eq("genre_id", body.genre_id)
       .eq("status", "active"),
     supabase
@@ -172,7 +172,12 @@ Deno.serve(async (req) => {
     if (!bp) continue;
     plan.push({
       candidate: { id: cand.id, nome: cand.nome_playlist, seguidores: cand.seguidores, tier: cand._tier, score: Math.round(cand._score) },
-      blueprint: { id: bp.id, name: bp.name, tier: bp.tier },
+      blueprint: {
+        id: bp.id, name: bp.name, tier: bp.tier,
+        priority: bp.replication_priority ?? "media",
+        reason: bp.replication_reason ?? null,
+        performance_source: bp.performance_source ?? null,
+      },
       account: { id: acc.id, spotify_user_id: acc.spotify_user_id, display_name: acc.display_name },
     });
   }
