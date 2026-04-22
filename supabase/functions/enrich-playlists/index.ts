@@ -16,6 +16,9 @@ interface Body {
   prioritize?: boolean; // ordena por posição/relevância
   keyword?: string;     // keyword principal pra boost
   result_ids?: string[]; // modo seletivo: enriquecer apenas estes IDs (ignora prioritize/keyword)
+  revalidate_existing?: boolean; // revalida followers mesmo quando já existem
+  min_followers?: number; // usado no modo de revalidação periódica
+  stale_days?: number; // usado no modo de revalidação periódica
 }
 
 function extractPlaylistId(url: string): string | null {
@@ -106,7 +109,7 @@ Deno.serve(async (req) => {
   const errorSamples: any[] = [];
 
   try {
-    const limit = Math.min(body.limit ?? 50, 100);
+    const limit = Math.min(body.limit ?? 50, 200);
     // 💰 Fase 1: tracks via Apify DESLIGADO por padrão (custo ~70% do enrich).
     // Tracks reais agora vêm via fetch-tracks-spotify (on-demand, custo zero Apify).
     // Mantido como opt-in pra compatibilidade, mas NÃO recomendado.
@@ -119,21 +122,45 @@ Deno.serve(async (req) => {
     const MAX_ENRICH_ATTEMPTS = 3;
     const cooldownIso = new Date(Date.now() - RETRY_COOLDOWN_MS).toISOString();
 
+    const revalidateExisting = body.revalidate_existing === true;
     let pending: any[] | null = null;
     if (body.result_ids && body.result_ids.length > 0) {
       const { data, error: pErr } = await supabase
         .from("search_results")
-        .select("id,genre_id,spotify_url,nome_playlist,posicao,enrich_attempts,descricao,imagem_url")
+        .select("id,genre_id,spotify_url,nome_playlist,posicao,enrich_attempts,descricao,imagem_url,followers_source,followers_verified_at,seguidores,total_musicas")
         .in("id", body.result_ids.slice(0, limit))
         .eq("enrich_failed", false)
-        .is("seguidores", null)
         .not("spotify_url", "is", null);
       if (pErr) throw pErr;
-      pending = data;
+      pending = (data ?? []).filter((row: any) => revalidateExisting || row.seguidores == null);
+    } else if (revalidateExisting) {
+      const minFollowers = Math.max(body.min_followers ?? 10000, 0);
+      const staleDays = Math.max(body.stale_days ?? 7, 1);
+      const { data, error: pErr } = await supabase
+        .rpc("get_followers_revalidation_candidates", {
+          p_limit: limit,
+          p_min_followers: minFollowers,
+          p_stale_before: `${staleDays} days`,
+        });
+      if (pErr) throw pErr;
+      if (!data || data.length === 0) {
+        pending = [];
+      } else {
+        const ids = data.map((row: any) => row.id);
+        const { data: rows, error: rowsErr } = await supabase
+          .from("search_results")
+          .select("id,genre_id,spotify_url,nome_playlist,posicao,enrich_attempts,descricao,imagem_url,followers_source,followers_verified_at,seguidores,total_musicas")
+          .in("id", ids)
+          .eq("enrich_failed", false)
+          .not("spotify_url", "is", null);
+        if (rowsErr) throw rowsErr;
+        const ordered = new Map((rows ?? []).map((row: any) => [row.id, row]));
+        pending = ids.map((id: string) => ordered.get(id)).filter(Boolean);
+      }
     } else {
       let q = supabase
         .from("search_results")
-        .select("id,genre_id,spotify_url,nome_playlist,posicao,enrich_attempts,descricao,imagem_url")
+        .select("id,genre_id,spotify_url,nome_playlist,posicao,enrich_attempts,descricao,imagem_url,followers_source,followers_verified_at,seguidores,total_musicas")
         .eq("enrich_failed", false)
         .is("seguidores", null)
         .not("spotify_url", "is", null)
@@ -165,7 +192,7 @@ Deno.serve(async (req) => {
       if (body.genre_id) {
         const { count: total } = await supabase.from("search_results").select("*", { count: "exact", head: true }).eq("genre_id", body.genre_id);
         const { count: semUrl } = await supabase.from("search_results").select("*", { count: "exact", head: true }).eq("genre_id", body.genre_id).is("spotify_url", null);
-        const { count: jaEnriq } = await supabase.from("search_results").select("*", { count: "exact", head: true }).eq("genre_id", body.genre_id).not("seguidores", "is", null);
+        const { count: jaEnriq } = await supabase.from("search_results").select("*", { count: "exact", head: true }).eq("genre_id", body.genre_id).eq("followers_source", "spotify_api");
         context = { total_no_genero: total, sem_spotify_url: semUrl, ja_enriquecidas: jaEnriq };
       }
       return new Response(
@@ -248,11 +275,14 @@ Deno.serve(async (req) => {
 
       const hasData = info.followers !== null || info.total !== null;
       if (hasData) {
+        const verifiedAt = new Date().toISOString();
         const update: Record<string, unknown> = {
-          enrich_attempted_at: new Date().toISOString(),
+          enrich_attempted_at: verifiedAt,
           enrich_attempts: (p.enrich_attempts ?? 0) + 1,
+          seguidores: info.followers,
+          followers_source: "spotify_api",
+          followers_verified_at: verifiedAt,
         };
-        if (info.followers !== null) update.seguidores = info.followers;
         if (info.total !== null) update.total_musicas = info.total;
 
         // ============ PHASE 2 (POST-ENRICH VALIDATION) ============
@@ -273,6 +303,7 @@ Deno.serve(async (req) => {
         });
         update.quality_score = qualityScore;
         update.needs_enrich = false; // já enriquecida → sai da fila
+        update.enrich_failed = false;
 
         if (phase2Fail) {
           update.is_valid = false;
@@ -306,6 +337,8 @@ Deno.serve(async (req) => {
           playlist: p.nome_playlist,
           followers: info.followers,
           total: info.total,
+          followers_source: "spotify_api",
+          followers_verified_at: verifiedAt,
           quality_score: qualityScore,
           is_valid: !phase2Fail,
           validation_reason: phase2Fail ? "low_quality_post_enrich" : null,
