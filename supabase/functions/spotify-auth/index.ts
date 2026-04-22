@@ -53,14 +53,7 @@ Deno.serve(async (req) => {
       authUrl.searchParams.set("state", state);
       authUrl.searchParams.set("show_dialog", "true");
 
-      // Quando o usuário quer trocar de conta, passamos a URL do authorize por
-      // dentro do logout do Spotify — assim ele desloga a sessão atual do
-      // accounts.spotify.com e cai direto na tela de login da nova conta.
-      const finalUrl = forceLogin
-        ? `https://accounts.spotify.com/logout?continue=${encodeURIComponent(authUrl.toString())}`
-        : authUrl.toString();
-
-      return jr({ ok: true, url: finalUrl, state, force_login: forceLogin });
+      return jr({ ok: true, url: authUrl.toString(), state, force_login: forceLogin });
     }
 
     if (mode === "callback") {

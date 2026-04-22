@@ -138,23 +138,52 @@ export default function Settings() {
     }
     setConnectingSpotify(true);
     const popup = window.open("about:blank", "_blank", "noopener,noreferrer");
+    if (!popup) {
+      setConnectingSpotify(false);
+      toast.error("Pop-up bloqueado", { description: "Permita pop-ups para este site e tente de novo." });
+      return;
+    }
+
     try {
       const redirect = getSpotifyRedirectUri();
-      const qs = new URLSearchParams({ mode: "login", redirect });
-      if (forceLogin) qs.set("force_login", "1");
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/spotify-auth?${qs.toString()}`;
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/spotify-auth?mode=login&redirect=${encodeURIComponent(redirect)}`;
       const resp = await fetch(url, {
         headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
       });
       const j = await resp.json();
       if (!j?.ok) throw new Error(j?.error ?? "Falha");
-      if (popup && !popup.closed) popup.location.href = j.url;
-      else window.location.href = j.url;
-      toast.info(forceLogin ? "Escolha a outra conta no Spotify" : "Autorização aberta em nova aba", {
-        description: forceLogin
-          ? "Vai abrir a tela de login do Spotify pra você entrar com a outra conta. Depois de aprovar, volte aqui."
-          : "Depois de aprovar no Spotify, volte para esta tela que a conta será registrada automaticamente.",
-      });
+
+      if (forceLogin) {
+        // Truque: o Spotify NÃO desloga via URL, mas se a gente carregar
+        // accounts.spotify.com/logout num iframe escondido por ~1.5s antes
+        // de ir pro authorize, a sessão é apagada e a tela de login aparece.
+        popup.document.write(`
+          <html><head><title>Trocando de conta no Spotify…</title>
+          <style>
+            body{margin:0;display:flex;align-items:center;justify-content:center;height:100vh;
+            background:#050505;color:#fff;font-family:Inter,system-ui,sans-serif;flex-direction:column;gap:16px;}
+            .spinner{width:32px;height:32px;border:3px solid #1DB954;border-top-color:transparent;
+            border-radius:50%;animation:spin .8s linear infinite;}
+            @keyframes spin{to{transform:rotate(360deg);}}
+          </style></head>
+          <body>
+            <div class="spinner"></div>
+            <div>Saindo do Spotify para você escolher outra conta…</div>
+            <iframe src="https://accounts.spotify.com/logout" style="display:none" onload="
+              setTimeout(function(){ window.location.href = ${JSON.stringify(j.url)}; }, 1800);
+            "></iframe>
+          </body></html>
+        `);
+        popup.document.close();
+        toast.info("Escolha a outra conta", {
+          description: "Saindo da conta atual. Em seguida vai aparecer a tela de login do Spotify.",
+        });
+      } else {
+        popup.location.href = j.url;
+        toast.info("Autorização aberta em nova aba", {
+          description: "Depois de aprovar no Spotify, volte para esta tela que a conta será registrada automaticamente.",
+        });
+      }
     } catch (e: any) {
       popup?.close();
       toast.error("Erro ao iniciar conexão", { description: e?.message });
