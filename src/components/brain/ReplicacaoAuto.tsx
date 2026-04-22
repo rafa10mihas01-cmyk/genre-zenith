@@ -259,12 +259,16 @@ export function ReplicacaoAuto({ genreId }: { genreId?: string }) {
                       {p.blueprint.performance_source && ` · perf: ${p.blueprint.performance_source}`}
                     </div>
                   </div>
-                  <ChevronRight className="h-3 w-3 text-muted-foreground" />
-                  <div className="text-right min-w-0">
-                    <div className="inline-flex items-center gap-1 text-primary font-medium">
-                      <Users className="h-3 w-3" /> {p.account.display_name ?? p.account.spotify_user_id}
-                    </div>
-                  </div>
+                  {p.account && (
+                    <>
+                      <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                      <div className="text-right min-w-0">
+                        <div className="inline-flex items-center gap-1 text-primary font-medium">
+                          <Users className="h-3 w-3" /> {p.account.display_name ?? p.account.spotify_user_id}
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               ))}
             </div>
