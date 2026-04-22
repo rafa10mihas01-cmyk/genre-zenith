@@ -56,8 +56,6 @@ export default function Settings() {
   }, []);
 
   async function openInNewTab() {
-    // Abre uma aba imediatamente (preserva o gesto do usuário) e só depois injeta a URL do Spotify
-    const popup = window.open("about:blank", "_blank", "noopener,noreferrer");
     try {
       const redirect = getSpotifyRedirectUri();
       const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/spotify-auth?mode=login&redirect=${encodeURIComponent(redirect)}`;
@@ -66,17 +64,18 @@ export default function Settings() {
       });
       const j = await resp.json();
       if (!j?.ok) throw new Error(j?.error ?? "Falha ao gerar URL do Spotify");
-      if (popup && !popup.closed) {
-        popup.location.href = j.url;
-      } else {
-        // Popup bloqueado: fallback abrindo via top window
-        window.top!.location.href = j.url;
+
+      // Abre direto a URL do Spotify (sem popup intermediário, evita bloqueio cross-origin)
+      const opened = window.open(j.url, "_blank", "noopener,noreferrer");
+      if (!opened) {
+        // Fallback: navega a janela top (sai do iframe)
+        if (window.top) window.top.location.href = j.url;
+        else window.location.href = j.url;
       }
       toast.info("Aba do Spotify aberta", {
         description: "Aprove o acesso. Depois volte aqui e atualize que a conta aparece.",
       });
     } catch (e: any) {
-      popup?.close();
       toast.error("Erro ao abrir Spotify", { description: e?.message });
     }
   }
