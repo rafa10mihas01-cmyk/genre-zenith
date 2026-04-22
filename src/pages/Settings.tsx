@@ -333,13 +333,13 @@ export default function Settings() {
               <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium text-foreground">
-                  ⚠️ Abra em nova aba para conectar o Spotify
+                  ⚠️ Conecte direto no Spotify (nova aba)
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  O Spotify bloqueia o login dentro de iframes (preview do editor). Abra o app numa aba normal e clique em <strong>Conectar conta</strong>.
+                  O Spotify bloqueia o login dentro do preview. O botão abaixo já leva direto pra tela de autorização do Spotify — depois de aprovar, volte aqui e atualize a página.
                 </p>
                 <Button size="sm" variant="outline" className="mt-2" onClick={openInNewTab}>
-                  <ExternalLink className="h-3.5 w-3.5" /> Abrir em nova aba
+                  <ExternalLink className="h-3.5 w-3.5" /> Abrir Spotify em nova aba
                 </Button>
               </div>
             </div>
