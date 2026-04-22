@@ -193,6 +193,30 @@ Deno.serve(async (req) => {
     const list = Array.isArray(llmOut?.blueprints) ? llmOut.blueprints : [];
     for (const bp of list) {
       const slug = slugify(`${tier}-${bp.name}`);
+
+      // 🔗 PERFORMANCE → REPLICAÇÃO
+      // Olha a primeira source_id desse blueprint e busca a performance_class herdada.
+      // Se não houver histórico, fallback para classe predominante do gênero (RPC).
+      let perfClass: string | null = null;
+      const firstSourceId = (bp.source_ids ?? [])[0];
+      if (firstSourceId) {
+        try {
+          const { data: pc } = await supabase.rpc("get_performance_class_for_source", {
+            p_source_result_id: firstSourceId,
+          });
+          if (typeof pc === "string") perfClass = pc;
+        } catch (_) { /* segue sem perf */ }
+      }
+      let priority = "media";
+      let reason = "sem histórico de performance — prioridade padrão";
+      try {
+        const { data: pr } = await supabase.rpc("priority_from_performance", { p_class: perfClass });
+        if (Array.isArray(pr) && pr[0]) {
+          priority = pr[0].priority ?? "media";
+          reason = pr[0].reason ?? reason;
+        }
+      } catch (_) { /* fallback default */ }
+
       const row = {
         genre_id: genreId,
         tier,
@@ -215,6 +239,9 @@ Deno.serve(async (req) => {
         replication_score: Math.max(0, Math.min(100, Number(bp.replication_score ?? 0))),
         status: "active",
         generated_by_model: "google/gemini-2.5-flash",
+        performance_source: perfClass,
+        replication_priority: priority,
+        replication_reason: reason,
       };
 
       const { data: existing } = await supabase
