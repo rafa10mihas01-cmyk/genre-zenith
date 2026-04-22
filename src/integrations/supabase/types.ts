@@ -356,6 +356,51 @@ export type Database = {
         }
         Relationships: []
       }
+      playlist_adjustments: {
+        Row: {
+          action_type: string
+          after: Json
+          before: Json
+          created_at: string
+          details: Json
+          error_message: string | null
+          genre_id: string | null
+          id: string
+          spotify_playlist_id: string | null
+          status: string
+          template_id: string
+          triggered_by: string
+        }
+        Insert: {
+          action_type: string
+          after?: Json
+          before?: Json
+          created_at?: string
+          details?: Json
+          error_message?: string | null
+          genre_id?: string | null
+          id?: string
+          spotify_playlist_id?: string | null
+          status?: string
+          template_id: string
+          triggered_by?: string
+        }
+        Update: {
+          action_type?: string
+          after?: Json
+          before?: Json
+          created_at?: string
+          details?: Json
+          error_message?: string | null
+          genre_id?: string | null
+          id?: string
+          spotify_playlist_id?: string | null
+          status?: string
+          template_id?: string
+          triggered_by?: string
+        }
+        Relationships: []
+      }
       playlist_blueprints: {
         Row: {
           confidence: string
@@ -988,6 +1033,23 @@ export type Database = {
           seguidores: number
           spotify_playlist_id: string
           spotify_url: string
+        }[]
+      }
+      get_low_performance_candidates: {
+        Args: {
+          p_cooldown_hours?: number
+          p_limit?: number
+          p_min_age_hours?: number
+        }
+        Returns: {
+          created_on_spotify_at: string
+          genre_id: string
+          name: string
+          performance_class: string
+          spotify_playlist_id: string
+          spotify_url: string
+          template_id: string
+          tempo_horas: number
         }[]
       }
       get_performance_class_for_source: {
