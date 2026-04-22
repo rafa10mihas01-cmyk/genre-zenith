@@ -325,10 +325,18 @@ export default function Settings() {
                 Adicione <span className="font-mono text-foreground">{getSpotifyRedirectUri()}</span> como Redirect URI no app do Spotify.
               </p>
             </div>
-            <Button size="sm" onClick={connectSpotify} disabled={connectingSpotify || isInIframe}>
-              {connectingSpotify ? <Loader2 className="h-4 w-4 animate-spin" /> : <Music2 className="h-4 w-4" />}
-              Conectar conta
-            </Button>
+            <div className="flex items-center gap-2">
+              {spotifyAccounts.length > 0 && (
+                <Button size="sm" variant="outline" onClick={() => connectSpotify(true)} disabled={connectingSpotify || isInIframe}>
+                  {connectingSpotify ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                  Conectar outra conta
+                </Button>
+              )}
+              <Button size="sm" onClick={() => connectSpotify(false)} disabled={connectingSpotify || isInIframe}>
+                {connectingSpotify ? <Loader2 className="h-4 w-4 animate-spin" /> : <Music2 className="h-4 w-4" />}
+                {spotifyAccounts.length > 0 ? "Conectar mesma conta" : "Conectar conta"}
+              </Button>
+            </div>
           </div>
 
           {isInIframe && (
