@@ -160,9 +160,8 @@ Deno.serve(async (req) => {
     } else {
       let q = supabase
         .from("search_results")
-        .select("id,genre_id,spotify_url,nome_playlist,posicao,enrich_attempts,descricao,imagem_url,followers_source,followers_verified_at,seguidores,total_musicas")
+        .select("id,genre_id,spotify_url,nome_playlist,posicao,enrich_attempts,descricao,imagem_url,followers_source,followers_verified_at,seguidores,total_musicas,needs_enrich")
         .eq("enrich_failed", false)
-        .is("seguidores", null)
         .not("spotify_url", "is", null)
         .or(`enrich_attempted_at.is.null,enrich_attempted_at.lt.${cooldownIso}`);
       if (body.genre_id) q = q.eq("genre_id", body.genre_id);
@@ -171,7 +170,7 @@ Deno.serve(async (req) => {
         : q.order("coletado_em", { ascending: false }).limit(limit);
       const { data, error: pErr } = await q;
       if (pErr) throw pErr;
-      pending = data;
+      pending = (data ?? []).filter((row: any) => row.needs_enrich === true || row.followers_source !== "spotify_api" || !row.followers_verified_at);
 
       // Boost: se keyword fornecida, sobe quem tem keyword no nome pro topo
       if (pending && body.keyword) {
