@@ -45,6 +45,19 @@ export default function Settings() {
   const [spotifyResult, setSpotifyResult] = useState<{ ok: boolean; msg: string; meta?: any } | null>(null);
   const [spotifyAccounts, setSpotifyAccounts] = useState<any[]>([]);
   const [connectingSpotify, setConnectingSpotify] = useState(false);
+  const [isInIframe, setIsInIframe] = useState(false);
+
+  useEffect(() => {
+    try {
+      setIsInIframe(window.self !== window.top);
+    } catch {
+      setIsInIframe(true);
+    }
+  }, []);
+
+  function openInNewTab() {
+    window.open(window.location.href, "_blank", "noopener,noreferrer");
+  }
 
   async function testSpotify() {
     setSpotifyTesting(true); setSpotifyResult(null);
