@@ -573,6 +573,10 @@ export type Database = {
           enrich_attempts: number
           enrich_failed: boolean
           first_seen_at: string
+          followers_source:
+            | Database["public"]["Enums"]["followers_source_type"]
+            | null
+          followers_verified_at: string | null
           genre_id: string | null
           id: string
           imagem_url: string | null
@@ -602,6 +606,10 @@ export type Database = {
           enrich_attempts?: number
           enrich_failed?: boolean
           first_seen_at?: string
+          followers_source?:
+            | Database["public"]["Enums"]["followers_source_type"]
+            | null
+          followers_verified_at?: string | null
           genre_id?: string | null
           id?: string
           imagem_url?: string | null
@@ -631,6 +639,10 @@ export type Database = {
           enrich_attempts?: number
           enrich_failed?: boolean
           first_seen_at?: string
+          followers_source?:
+            | Database["public"]["Enums"]["followers_source_type"]
+            | null
+          followers_verified_at?: string | null
           genre_id?: string | null
           id?: string
           imagem_url?: string | null
@@ -879,10 +891,25 @@ export type Database = {
         Args: { p_genre_id: string; p_version_a: number; p_version_b: number }
         Returns: Json
       }
+      get_followers_revalidation_candidates: {
+        Args: {
+          p_limit?: number
+          p_min_followers?: number
+          p_stale_before?: string
+        }
+        Returns: {
+          followers_verified_at: string
+          genre_id: string
+          id: string
+          seguidores: number
+          spotify_playlist_id: string
+          spotify_url: string
+        }[]
+      }
       has_team_access: { Args: never; Returns: boolean }
     }
     Enums: {
-      [_ in never]: never
+      followers_source_type: "spotify_api"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1009,6 +1036,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      followers_source_type: ["spotify_api"],
+    },
   },
 } as const

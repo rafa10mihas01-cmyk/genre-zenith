@@ -118,9 +118,11 @@ Deno.serve(async (req) => {
   // — exige is_valid=true e seguidores não nulo
   const { data: pool, error: poolErr } = await supabase
     .from("search_results")
-    .select("id,nome_playlist,seguidores,quality_score,total_musicas,spotify_url")
+    .select("id,nome_playlist,seguidores,quality_score,total_musicas,spotify_url,followers_source,followers_verified_at")
     .eq("genre_id", body.genre_id)
     .eq("is_valid", true)
+    .eq("followers_source", "spotify_api")
+    .not("followers_verified_at", "is", null)
     .not("seguidores", "is", null)
     .gt("quality_score", 60)
     .order("seguidores", { ascending: false })
