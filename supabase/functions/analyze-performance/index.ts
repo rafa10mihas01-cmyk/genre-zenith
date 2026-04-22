@@ -179,5 +179,28 @@ Regras:
     mensagem: `claude analisou ${rows.length} playlists`,
   });
 
-  return jr({ ok: true, insight_id: inserted.id, analisadas: rows.length, result });
+  // 🔗 INSIGHTS → REGRAS ACIONÁVEIS (Claude vira decisão, não só análise)
+  // Dispara extract-replication-rules em background, replace=true para refletir o estado mais recente.
+  let rulesResult: any = null;
+  try {
+    const rulesResp = await fetch(`${SUPABASE_URL}/functions/v1/extract-replication-rules`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${SERVICE_KEY}`,
+      },
+      body: JSON.stringify({ insight_id: inserted.id, replace: true }),
+    });
+    if (rulesResp.ok) rulesResult = await rulesResp.json();
+  } catch (e) {
+    console.error("extract-replication-rules failed:", (e as Error).message);
+  }
+
+  return jr({
+    ok: true,
+    insight_id: inserted.id,
+    analisadas: rows.length,
+    result,
+    rules: rulesResult,
+  });
 });
