@@ -97,6 +97,7 @@ export default function Settings() {
 
   async function connectSpotify() {
     setConnectingSpotify(true);
+    const popup = window.open("", "_blank", "noopener,noreferrer");
     try {
       const redirect = getSpotifyRedirectUri();
       const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/spotify-auth?mode=login&redirect=${encodeURIComponent(redirect)}`;
@@ -105,11 +106,13 @@ export default function Settings() {
       });
       const j = await resp.json();
       if (!j?.ok) throw new Error(j?.error ?? "Falha");
-      window.open(j.url, "_blank", "noopener,noreferrer");
+      if (popup) popup.location.href = j.url;
+      else window.location.href = j.url;
       toast.info("Autorização aberta em nova aba", {
         description: "Depois de aprovar no Spotify, volte para esta tela que a conta será registrada automaticamente.",
       });
     } catch (e: any) {
+      popup?.close();
       toast.error("Erro ao iniciar conexão", { description: e?.message });
     } finally {
       setConnectingSpotify(false);
