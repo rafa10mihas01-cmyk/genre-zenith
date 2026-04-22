@@ -2,6 +2,7 @@
 // POST { blueprint_id: string, count?: number } → { ok, templates: [...] }
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { loadActiveRules, rulesAsPromptBlock, enforceNamingRules, reorderTracksByRules, summarizeRules } from "../_shared/rules.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -66,11 +67,17 @@ Deno.serve(async (req) => {
   const { data: genre } = await supabase
     .from("genres").select("id,nome,slug").eq("id", bp.genre_id).maybeSingle();
 
-  // Faixas recorrentes do gênero como seed (top 30)
+  // 🧠 Carrega regras aprendidas (Claude → executor)
+  const activeRules = await loadActiveRules(supabase, bp.genre_id);
+  const rulesBlock = rulesAsPromptBlock(activeRules);
+  const rulesSummary = summarizeRules(activeRules);
+
+  // Faixas recorrentes do gênero como seed (top 30) — reordenadas por boost/avoid de regras
   const { data: model } = await supabase
     .from("genre_models").select("musicas_recorrentes,palavras_chave")
     .eq("genre_id", bp.genre_id).maybeSingle();
-  const trackSeeds = (model?.musicas_recorrentes ?? []).slice(0, 30);
+  const trackSeedsRaw = (model?.musicas_recorrentes ?? []).slice(0, 60);
+  const trackSeeds = reorderTracksByRules(trackSeedsRaw, activeRules).slice(0, 30);
   const allKeywords = (model?.palavras_chave ?? []).slice(0, 30);
 
   // Já existem templates? quantos? (usa para variation_index)
@@ -138,8 +145,8 @@ Deno.serve(async (req) => {
   let llmOut: any;
   try {
     llmOut = await callLLM(
-      `Você é um diretor criativo de playlists. Gere variações DISTINTAS de uma playlist seguindo o blueprint fornecido. Mantenha a essência (formato, mood, padrão de nome) mas varie ângulo/sub-tema. Use apenas faixas e keywords do pool. Resposta SEMPRE em português BR.`,
-      `Gere ${count} variações para este blueprint:\n${JSON.stringify(userPayload, null, 2)}\n\nCada variação deve ser comercial, replicável e fiel ao blueprint. Atribua replication_score 0-100 baseado em força do nome, encaixe com o blueprint, e potencial.`,
+      `Você é um diretor criativo de playlists. Gere variações DISTINTAS de uma playlist seguindo o blueprint fornecido. Mantenha a essência (formato, mood, padrão de nome) mas varie ângulo/sub-tema. Use apenas faixas e keywords do pool. Resposta SEMPRE em português BR.${rulesBlock}`,
+      `Gere ${count} variações para este blueprint:\n${JSON.stringify(userPayload, null, 2)}\n\nCada variação deve ser comercial, replicável e fiel ao blueprint. Atribua replication_score 0-100 baseado em força do nome, encaixe com o blueprint, e potencial.\n\nIMPORTANTE: Cumpra TODAS as REGRAS APRENDIDAS acima. Regras 🔴 OBRIGATÓRIO devem aparecer no name e nas regras.obrigatorio.`,
       schema,
     );
   } catch (e) {
@@ -183,14 +190,16 @@ Deno.serve(async (req) => {
       const spotify_track_id = seedIdMap.get(k) ?? null;
       return { nome, artista, spotify_track_id };
     });
+    // 🧠 Aplica regras determinísticas (Claude → execução)
+    const enforcedName = enforceNamingRules(String(t.name), activeRules).slice(0, 200);
     return {
       blueprint_id: blueprintId,
       genre_id: bp.genre_id,
       variation_index: startIdx + i,
-      name: String(t.name).slice(0, 200),
+      name: enforcedName,
       description: t.description ?? null,
       cover_brief: t.cover_brief ?? null,
-      track_seeds: enrichedSeeds,
+      track_seeds: reorderTracksByRules(enrichedSeeds, activeRules),
       keywords: t.keywords ?? [],
       regras: t.regras ?? {},
       replication_score: Math.max(0, Math.min(100, Number(t.replication_score ?? 0))),
@@ -207,8 +216,14 @@ Deno.serve(async (req) => {
 
   await supabase.from("collection_logs").insert({
     genre_id: bp.genre_id, acao: "generate-templates", status: "sucesso",
-    mensagem: `${inserted?.length ?? 0} templates gerados a partir do blueprint "${bp.name}"`,
+    mensagem: `${inserted?.length ?? 0} templates gerados a partir do blueprint "${bp.name}" (regras: ${rulesSummary.total}, alta=${rulesSummary.high})`,
   }).then(() => {}, () => {});
 
-  return jr({ ok: true, blueprint_id: blueprintId, templates: inserted ?? [], count: inserted?.length ?? 0 });
+  return jr({
+    ok: true,
+    blueprint_id: blueprintId,
+    templates: inserted ?? [],
+    count: inserted?.length ?? 0,
+    rules_applied: rulesSummary,
+  });
 });

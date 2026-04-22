@@ -4,6 +4,7 @@
 // POST { genre_id: string, max_per_tier?: number, force?: boolean } → { ok, blueprints: [...] }
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { loadActiveRules, rulesAsPromptBlock, enforceNamingRules, summarizeRules } from "../_shared/rules.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -84,6 +85,11 @@ Deno.serve(async (req) => {
   const { data: genre } = await supabase
     .from("genres").select("id,nome,slug").eq("id", genreId).maybeSingle();
   if (!genre) return jr({ error: "genre not found" }, 404);
+
+  // 🧠 Carrega regras aprendidas pelo Claude (do performance_insights)
+  const activeRules = await loadActiveRules(supabase, genreId);
+  const rulesBlock = rulesAsPromptBlock(activeRules);
+  const rulesSummary = summarizeRules(activeRules);
 
   // Busca playlists válidas, enriquecidas (com seguidores)
   const { data: playlists, error: pErr } = await supabase
@@ -181,8 +187,8 @@ Deno.serve(async (req) => {
     let llmOut: any;
     try {
       llmOut = await callLLM(
-        `Você é um analista de produto musical. Sua tarefa é extrair PADRÕES ESTRUTURAIS REPLICÁVEIS de playlists de sucesso (gênero: ${genre.nome}, tier ${tier}). Identifique de 1 a 3 arquétipos distintos. Cada blueprint = um modelo replicável de playlist. Seja específico, evite genérico.`,
-        `Playlists do tier ${tier} (${tierPlaylists.length} amostras):\n${JSON.stringify(samplePayload, null, 2)}\n\nExtraia 1-3 blueprints. Para cada, atribua replication_score 0-100 baseado em: clareza do padrão de nome, distintividade, presença de tracks consistentes, e potencial comercial.`,
+        `Você é um analista de produto musical. Sua tarefa é extrair PADRÕES ESTRUTURAIS REPLICÁVEIS de playlists de sucesso (gênero: ${genre.nome}, tier ${tier}). Identifique de 1 a 3 arquétipos distintos. Cada blueprint = um modelo replicável de playlist. Seja específico, evite genérico.${rulesBlock}`,
+        `Playlists do tier ${tier} (${tierPlaylists.length} amostras):\n${JSON.stringify(samplePayload, null, 2)}\n\nExtraia 1-3 blueprints. Para cada, atribua replication_score 0-100 baseado em: clareza do padrão de nome, distintividade, presença de tracks consistentes, e potencial comercial.\n\nIMPORTANTE: Respeite as REGRAS APRENDIDAS acima — regras 🔴 OBRIGATÓRIO devem aparecer no name_pattern e no formato.`,
         schema,
       );
     } catch (e) {
@@ -217,10 +223,13 @@ Deno.serve(async (req) => {
         }
       } catch (_) { /* fallback default */ }
 
+      // 🧠 Aplica regras de naming determinísticas (ano, subgênero, prefix/suffix, avoid)
+      const enforcedName = enforceNamingRules(String(bp.name), activeRules);
+
       const row = {
         genre_id: genreId,
         tier,
-        name: String(bp.name).slice(0, 120),
+        name: enforcedName.slice(0, 120),
         slug,
         name_pattern: bp.name_pattern ?? null,
         format: bp.format ?? null,
