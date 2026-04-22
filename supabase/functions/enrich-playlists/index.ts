@@ -107,7 +107,10 @@ Deno.serve(async (req) => {
 
   try {
     const limit = Math.min(body.limit ?? 50, 100);
-    const fetchTracks = body.fetch_tracks ?? true;
+    // 💰 Fase 1: tracks via Apify DESLIGADO por padrão (custo ~70% do enrich).
+    // Tracks reais agora vêm via fetch-tracks-spotify (on-demand, custo zero Apify).
+    // Mantido como opt-in pra compatibilidade, mas NÃO recomendado.
+    const fetchTracks = body.fetch_tracks === true;
 
     // Pega playlists pendentes — modo seletivo (result_ids) tem prioridade
     // 🛡️ filtra enrich_failed=false sempre — zumbis nunca são reprocessadas
