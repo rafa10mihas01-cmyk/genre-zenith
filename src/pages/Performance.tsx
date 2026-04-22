@@ -49,8 +49,8 @@ export default function Performance() {
       supabase.rpc("get_performance_dataset", { p_min_age_hours: 0 }),
       supabase.from("performance_insights").select("*").order("created_at", { ascending: false }).limit(1).maybeSingle(),
     ]);
-    setDataset((ds as DatasetRow[]) ?? []);
-    setInsight((ins as Insight) ?? null);
+    setDataset((ds as unknown as DatasetRow[]) ?? []);
+    setInsight((ins as unknown as Insight) ?? null);
     setLoading(false);
   }
 
