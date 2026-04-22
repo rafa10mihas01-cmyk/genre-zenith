@@ -11,6 +11,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { PageHeader } from "@/components/PageHeader";
 
 const STORAGE_KEY = "nx-collect-settings";
+const SETTINGS_ROUTE = "/configuracoes";
+
+function getSpotifyRedirectUri() {
+  return `${window.location.origin}${SETTINGS_ROUTE}?spotify_callback=1`;
+}
 
 interface NxSettings {
   delay_ms: number;
@@ -59,7 +64,7 @@ export default function Settings() {
       const code = params.get("code");
       const state = params.get("state");
       const error = params.get("error");
-      const redirect = `${window.location.origin}/settings?spotify_callback=1`;
+      const redirect = getSpotifyRedirectUri();
       if (error) {
         toast.error("Conexão Spotify cancelada", { description: error });
       } else if (code) {
@@ -75,7 +80,7 @@ export default function Settings() {
           } else {
             toast.error("Falha ao conectar Spotify", { description: json?.error ?? "" });
           }
-          window.history.replaceState({}, "", "/settings");
+          window.history.replaceState({}, "", SETTINGS_ROUTE);
         })();
       }
     }
@@ -93,16 +98,20 @@ export default function Settings() {
   async function connectSpotify() {
     setConnectingSpotify(true);
     try {
-      const redirect = `${window.location.origin}/settings?spotify_callback=1`;
+      const redirect = getSpotifyRedirectUri();
       const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/spotify-auth?mode=login&redirect=${encodeURIComponent(redirect)}`;
       const resp = await fetch(url, {
         headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
       });
       const j = await resp.json();
       if (!j?.ok) throw new Error(j?.error ?? "Falha");
-      window.location.href = j.url;
+      window.open(j.url, "_blank", "noopener,noreferrer");
+      toast.info("Autorização aberta em nova aba", {
+        description: "Depois de aprovar no Spotify, volte para esta tela que a conta será registrada automaticamente.",
+      });
     } catch (e: any) {
       toast.error("Erro ao iniciar conexão", { description: e?.message });
+    } finally {
       setConnectingSpotify(false);
     }
   }
@@ -266,7 +275,7 @@ export default function Settings() {
               </h3>
               <p className="text-xs text-muted-foreground mt-0.5">
                 Necessário para criar playlists no Spotify a partir de templates aprovados.
-                Adicione <span className="font-mono text-foreground">{`${window.location.origin}/settings?spotify_callback=1`}</span> como Redirect URI no app do Spotify.
+                Adicione <span className="font-mono text-foreground">{getSpotifyRedirectUri()}</span> como Redirect URI no app do Spotify.
               </p>
             </div>
             <Button size="sm" onClick={connectSpotify} disabled={connectingSpotify}>
