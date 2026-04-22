@@ -147,20 +147,57 @@ Deno.serve(async (req) => {
   }
 
   const list = Array.isArray(llmOut?.templates) ? llmOut.templates : [];
-  const rows = list.map((t: any, i: number) => ({
-    blueprint_id: blueprintId,
-    genre_id: bp.genre_id,
-    variation_index: startIdx + i,
-    name: String(t.name).slice(0, 200),
-    description: t.description ?? null,
-    cover_brief: t.cover_brief ?? null,
-    track_seeds: t.track_seeds ?? [],
-    keywords: t.keywords ?? [],
-    regras: t.regras ?? {},
-    replication_score: Math.max(0, Math.min(100, Number(t.replication_score ?? 0))),
-    status: "pending",
-    generated_by_model: "google/gemini-2.5-flash",
-  }));
+
+  // 🎯 Enriquece track_seeds com spotify_track_id quando disponível em search_tracks.
+  // Lookup case-insensitive por (nome, artista) — evita N searches no Spotify depois.
+  const allSeeds: Array<{ nome: string; artista: string }> = [];
+  for (const t of list) {
+    const seeds = Array.isArray(t.track_seeds) ? t.track_seeds : [];
+    for (const s of seeds) {
+      const nome = String(s?.nome ?? "").trim();
+      const artista = String(s?.artista ?? "").trim();
+      if (nome && artista) allSeeds.push({ nome, artista });
+    }
+  }
+  const seedIdMap = new Map<string, string>(); // key = `${nome}|${artista}` lower
+  if (allSeeds.length > 0) {
+    const { data: matches } = await supabase
+      .from("search_tracks")
+      .select("nome_musica,artista,spotify_track_id")
+      .eq("genre_id", bp.genre_id)
+      .not("spotify_track_id", "is", null)
+      .limit(5000);
+    if (matches) {
+      for (const m of matches) {
+        const k = `${(m.nome_musica ?? "").toLowerCase().trim()}|${(m.artista ?? "").toLowerCase().trim()}`;
+        if (!seedIdMap.has(k)) seedIdMap.set(k, m.spotify_track_id);
+      }
+    }
+  }
+
+  const rows = list.map((t: any, i: number) => {
+    const enrichedSeeds = (Array.isArray(t.track_seeds) ? t.track_seeds : []).map((s: any) => {
+      const nome = String(s?.nome ?? "").trim();
+      const artista = String(s?.artista ?? "").trim();
+      const k = `${nome.toLowerCase()}|${artista.toLowerCase()}`;
+      const spotify_track_id = seedIdMap.get(k) ?? null;
+      return { nome, artista, spotify_track_id };
+    });
+    return {
+      blueprint_id: blueprintId,
+      genre_id: bp.genre_id,
+      variation_index: startIdx + i,
+      name: String(t.name).slice(0, 200),
+      description: t.description ?? null,
+      cover_brief: t.cover_brief ?? null,
+      track_seeds: enrichedSeeds,
+      keywords: t.keywords ?? [],
+      regras: t.regras ?? {},
+      replication_score: Math.max(0, Math.min(100, Number(t.replication_score ?? 0))),
+      status: "pending",
+      generated_by_model: "google/gemini-2.5-flash",
+    };
+  });
 
   if (rows.length === 0) return jr({ ok: false, error: "no templates produced" }, 500);
 
