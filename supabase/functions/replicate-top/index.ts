@@ -1,21 +1,17 @@
-// replicate-top — orquestrador de replicação automática.
+// replicate-top — GERADOR DE PACOTE DE REPLICAÇÃO (somente dados).
+//
+// ⚠️ ESTA FUNÇÃO NUNCA CRIA PLAYLIST NO SPOTIFY.
+//    Ela apenas seleciona TOP playlists do gênero, escolhe blueprints compatíveis
+//    e devolve o pacote pra revisão/aprovação manual.
 //
 // Fluxo:
-//   1) Seleciona TOP N playlists do gênero por score composto (followers + quality)
-//      excluindo playlists que JÁ foram replicadas (evita duplicar tema).
-//   2) Pra cada candidata, escolhe um BLUEPRINT compatível (mesmo tier ou tier mais
-//      próximo) e gera 1 TEMPLATE.
-//   3) Aprova automaticamente o template (status=approved).
-//   4) Distribui em ROUND-ROBIN entre as ACCOUNTS ativas (respeitando max_playlists).
-//   5) Cria a playlist via create-spotify-playlist usando o spotify_user_id da account.
-//   6) Registra cada passo em `replications`.
+//   1) Seleciona TOP N playlists do gênero (score = followers * quality).
+//   2) Garante que existam blueprints (auto-roda extract-blueprints se faltar).
+//   3) Pra cada candidata, escolhe um blueprint compatível (mesmo tier ou próximo).
+//   4) Devolve o "plano" — sem criar nada no Spotify, sem aprovar template.
 //
-// POST {
-//   genre_id: string,
-//   top_n?: number = 5,
-//   triggered_by?: 'manual' | 'cron' | 'batch' = 'manual',
-//   dry_run?: boolean = false   // só seleciona e mostra o plano, não executa
-// }
+// POST { genre_id, top_n?=5, triggered_by?='manual' }
+// 🚫 BLOQUEIO: qualquer body com mode==="execute" é rejeitado.
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -26,7 +22,9 @@ interface Body {
   genre_id: string;
   top_n?: number;
   triggered_by?: "manual" | "cron" | "batch";
+  // Compat: aceitos mas IGNORADOS — replicação nunca executa.
   dry_run?: boolean;
+  mode?: string;
 }
 
 function jr(p: unknown, status = 200) {
@@ -43,17 +41,12 @@ function tierFor(followers: number): "mega" | "big" | "medium" | "small" {
 }
 
 const TIER_ORDER = ["mega", "big", "medium", "small"] as const;
-
-// Pesos para ordenar candidatos a blueprint pela prioridade herdada do módulo Performance.
 const PRIORITY_WEIGHT: Record<string, number> = { alta: 2, media: 1, baixa: 0 };
 
 function nearestBlueprint(targetTier: string, blueprints: any[]): any | null {
   if (blueprints.length === 0) return null;
-  // Filtra blueprints "baixa": padrão perdedor — não replicar
   const eligible = blueprints.filter(b => (b.replication_priority ?? "media") !== "baixa");
   if (eligible.length === 0) return null;
-
-  // 1) match exato no tier — ordena por priority desc, depois replication_score desc
   const exact = eligible
     .filter(b => b.tier === targetTier)
     .sort((a, b) =>
@@ -61,8 +54,6 @@ function nearestBlueprint(targetTier: string, blueprints: any[]): any | null {
       (Number(b.replication_score) - Number(a.replication_score))
     );
   if (exact.length > 0) return exact[0];
-
-  // 2) tier mais próximo — empate quebrado por priority + score
   const targetIdx = TIER_ORDER.indexOf(targetTier as any);
   return [...eligible]
     .map(b => ({ b, dist: Math.abs(TIER_ORDER.indexOf(b.tier) - targetIdx) }))
@@ -93,45 +84,54 @@ Deno.serve(async (req) => {
   try { body = await req.json(); } catch { return jr({ error: "invalid json" }, 400); }
   if (!body.genre_id) return jr({ error: "genre_id required" }, 400);
 
+  // 🚫 BLOQUEIO DE SEGURANÇA — replicação NUNCA executa criação no Spotify.
+  if (body.mode === "execute" || body.mode === "create" || body.mode === "publish") {
+    return jr({
+      ok: false,
+      error: "🚫 replicate-top é APENAS gerador de pacote. Use create-spotify-playlist com template aprovado pra publicar no Spotify.",
+    }, 400);
+  }
+
   const topN = Math.max(1, Math.min(body.top_n ?? 5, 20));
   const triggeredBy = body.triggered_by ?? "manual";
-  const dryRun = !!body.dry_run;
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
   const startedAt = Date.now();
 
-  // 1) Carrega contas ativas + blueprints + playlists já replicadas (anti-duplicação)
-  const [{ data: accounts }, { data: blueprints }, { data: alreadyReplicated }] = await Promise.all([
-    supabase
-      .from("accounts")
-      .select("id,spotify_user_id,display_name,max_playlists,current_playlists,status")
-      .eq("status", "active")
-      .order("current_playlists", { ascending: true }),
-    supabase
-      .from("playlist_blueprints")
-      .select("id,tier,name,replication_score,replication_priority,replication_reason,performance_source")
-      .eq("genre_id", body.genre_id)
-      .eq("status", "active"),
-    supabase
-      .from("replications")
-      .select("source_result_id")
-      .eq("genre_id", body.genre_id)
-      .in("status", ["created", "approved", "generating", "pending"]),
-  ]);
+  // 1) Carrega blueprints + replicações já feitas (anti-duplicação)
+  let { data: blueprints } = await supabase
+    .from("playlist_blueprints")
+    .select("id,tier,name,replication_score,replication_priority,replication_reason,performance_source")
+    .eq("genre_id", body.genre_id)
+    .eq("status", "active");
 
-  const eligibleAccounts = (accounts ?? []).filter(a => (a.current_playlists ?? 0) < (a.max_playlists ?? 15));
-  if (eligibleAccounts.length === 0) {
-    return jr({ ok: false, error: "Nenhuma conta ativa com capacidade. Conecte conta Spotify ou aumente max_playlists." }, 400);
-  }
+  // 2) Se não houver blueprints, tenta gerar automaticamente antes de falhar
   if (!blueprints || blueprints.length === 0) {
-    return jr({ ok: false, error: "Nenhum blueprint disponível pra esse gênero. Rode extract-blueprints primeiro." }, 400);
+    const ext = await callFn("extract-blueprints", { genre_id: body.genre_id, max_per_tier: 5, force: false });
+    if (ext.ok && ext.data?.ok !== false) {
+      const { data: refreshed } = await supabase
+        .from("playlist_blueprints")
+        .select("id,tier,name,replication_score,replication_priority,replication_reason,performance_source")
+        .eq("genre_id", body.genre_id)
+        .eq("status", "active");
+      blueprints = refreshed ?? [];
+    }
+    if (!blueprints || blueprints.length === 0) {
+      return jr({
+        ok: false,
+        error: "Nenhum blueprint disponível e extract-blueprints não conseguiu gerar. Rode o Cérebro primeiro pra coletar dados.",
+      }, 400);
+    }
   }
 
+  const { data: alreadyReplicated } = await supabase
+    .from("replications")
+    .select("source_result_id")
+    .eq("genre_id", body.genre_id)
+    .in("status", ["created", "approved", "generating", "pending", "package"]);
   const replicatedIds = new Set((alreadyReplicated ?? []).map(r => r.source_result_id).filter(Boolean));
 
-  // 2) Seleciona top N candidatas (score composto: followers * quality_score)
-  // — exclui as que já foram replicadas
-  // — exige is_valid=true e seguidores não nulo
+  // 3) TOP N candidatas
   const { data: pool, error: poolErr } = await supabase
     .from("search_results")
     .select("id,nome_playlist,seguidores,quality_score,total_musicas,spotify_url,followers_source,followers_verified_at")
@@ -159,124 +159,47 @@ Deno.serve(async (req) => {
     return jr({ ok: false, error: "Nenhuma playlist elegível pra replicação (todas já replicadas ou abaixo do threshold de qualidade)." }, 400);
   }
 
-  // 3) Distribuição em round-robin pelas accounts elegíveis
-  const accountQueue = [...eligibleAccounts];
+  // 4) Monta o pacote: candidata ↔ blueprint compatível
   const plan: any[] = [];
-
-  for (let i = 0; i < candidates.length; i++) {
-    const cand = candidates[i];
-    const acc = accountQueue[i % accountQueue.length];
+  for (const cand of candidates) {
     const bp = nearestBlueprint(cand._tier, blueprints);
     if (!bp) continue;
     plan.push({
-      candidate: { id: cand.id, nome: cand.nome_playlist, seguidores: cand.seguidores, tier: cand._tier, score: Math.round(cand._score) },
+      candidate: {
+        id: cand.id,
+        nome: cand.nome_playlist,
+        seguidores: cand.seguidores,
+        tier: cand._tier,
+        score: Math.round(cand._score),
+        spotify_url: cand.spotify_url,
+      },
       blueprint: {
-        id: bp.id, name: bp.name, tier: bp.tier,
+        id: bp.id,
+        name: bp.name,
+        tier: bp.tier,
         priority: bp.replication_priority ?? "media",
         reason: bp.replication_reason ?? null,
         performance_source: bp.performance_source ?? null,
       },
-      account: { id: acc.id, spotify_user_id: acc.spotify_user_id, display_name: acc.display_name },
     });
   }
 
-  if (dryRun) {
-    return jr({ ok: true, dry_run: true, candidates_found: candidates.length, plan });
-  }
-
-  // 4) Executa o plano: cria replication → gera template → aprova → cria no Spotify
-  const results: any[] = [];
-
-  for (const step of plan) {
-    const { candidate, blueprint, account } = step;
-
-    // Cria registro de replicação
-    const { data: rep, error: repErr } = await supabase.from("replications").insert({
-      genre_id: body.genre_id,
-      source_result_id: candidate.id,
-      blueprint_id: blueprint.id,
-      account_id: account.id,
-      selection_score: candidate.score,
-      status: "generating",
-      triggered_by: triggeredBy,
-    }).select("id").single();
-    if (repErr || !rep) {
-      results.push({ candidate: candidate.nome, error: `replication insert: ${repErr?.message}` });
-      continue;
-    }
-
-    try {
-      // Gera 1 template
-      const gen = await callFn("generate-templates", { blueprint_id: blueprint.id, count: 1 });
-      if (!gen.ok || gen.data?.ok === false) throw new Error(gen.data?.error ?? `generate-templates ${gen.status}`);
-      const tplId = gen.data?.templates?.[0]?.id;
-      if (!tplId) throw new Error("generate-templates retornou sem template id");
-
-      // Aprova automaticamente
-      await supabase.from("playlist_templates").update({
-        status: "approved",
-        approved_at: new Date().toISOString(),
-      }).eq("id", tplId);
-
-      await supabase.from("replications").update({
-        template_id: tplId,
-        status: "approved",
-      }).eq("id", rep.id);
-
-      // Cria no Spotify usando a account específica
-      const create = await callFn("create-spotify-playlist", {
-        template_id: tplId,
-        spotify_user_id: account.spotify_user_id,
-        public: true,
-      });
-      if (!create.ok || create.data?.ok === false) throw new Error(create.data?.error ?? `create-spotify-playlist ${create.status}`);
-
-      const spotifyId = create.data?.spotify_playlist_id;
-      const spotifyUrl = create.data?.spotify_url;
-
-      await supabase.from("replications").update({
-        status: "created",
-        spotify_playlist_id: spotifyId,
-        spotify_url: spotifyUrl,
-      }).eq("id", rep.id);
-
-      // Incrementa contador da account
-      await supabase.from("accounts").update({
-        current_playlists: (eligibleAccounts.find(a => a.id === account.id)?.current_playlists ?? 0) + 1,
-      }).eq("id", account.id);
-
-      results.push({
-        candidate: candidate.nome,
-        account: account.display_name ?? account.spotify_user_id,
-        spotify_url: spotifyUrl,
-        tracks_added: create.data?.tracks_added,
-        status: "created",
-      });
-    } catch (e) {
-      const msg = (e as Error).message;
-      await supabase.from("replications").update({
-        status: "failed",
-        error_message: msg.slice(0, 500),
-      }).eq("id", rep.id);
-      results.push({ candidate: candidate.nome, account: account.display_name, error: msg });
-    }
-  }
-
+  // 5) Log final — REPLICAÇÃO NUNCA TOCA NO SPOTIFY
   await supabase.from("collection_logs").insert({
     genre_id: body.genre_id,
     acao: "replicate-top",
     status: "sucesso",
-    mensagem: `Replicadas ${results.filter(r => r.status === "created").length}/${plan.length} (top ${topN}, gatilho ${triggeredBy})`,
+    mensagem: `REPLICAÇÃO FINALIZADA — pacote gerado com ${plan.length} item(ns) • nenhum envio ao Spotify (gatilho ${triggeredBy})`,
     duracao_ms: Date.now() - startedAt,
   });
 
   return jr({
     ok: true,
+    mode: "package_only",
+    spotify_calls: 0,
     triggered_by: triggeredBy,
     candidates_found: candidates.length,
-    executed: plan.length,
-    succeeded: results.filter(r => r.status === "created").length,
-    failed: results.filter(r => r.error).length,
-    results,
+    plan,
+    message: "Pacote gerado. Nenhuma playlist criada no Spotify.",
   });
 });
