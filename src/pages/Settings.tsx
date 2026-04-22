@@ -55,8 +55,30 @@ export default function Settings() {
     }
   }, []);
 
-  function openInNewTab() {
-    window.open(window.location.href, "_blank", "noopener,noreferrer");
+  async function openInNewTab() {
+    // Abre uma aba imediatamente (preserva o gesto do usuário) e só depois injeta a URL do Spotify
+    const popup = window.open("about:blank", "_blank", "noopener,noreferrer");
+    try {
+      const redirect = getSpotifyRedirectUri();
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/spotify-auth?mode=login&redirect=${encodeURIComponent(redirect)}`;
+      const resp = await fetch(url, {
+        headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+      });
+      const j = await resp.json();
+      if (!j?.ok) throw new Error(j?.error ?? "Falha ao gerar URL do Spotify");
+      if (popup && !popup.closed) {
+        popup.location.href = j.url;
+      } else {
+        // Popup bloqueado: fallback abrindo via top window
+        window.top!.location.href = j.url;
+      }
+      toast.info("Aba do Spotify aberta", {
+        description: "Aprove o acesso. Depois volte aqui e atualize que a conta aparece.",
+      });
+    } catch (e: any) {
+      popup?.close();
+      toast.error("Erro ao abrir Spotify", { description: e?.message });
+    }
   }
 
   async function testSpotify() {
