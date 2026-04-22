@@ -1,0 +1,147 @@
+// fetch-tracks-spotify — busca tracks de uma playlist via Spotify Web API
+// (substitui chamadas Apify mode:"urls" que custavam 1 unidade por playlist).
+//
+// Uso típico (on-demand): chamado pelo extract-blueprints / create-spotify-playlist
+// quando precisa do DNA real (tracks reais) de uma playlist semente.
+//
+// Body: { playlist_id: string, result_id?: string, save?: boolean, max?: number }
+//   - playlist_id: spotify_playlist_id (ID público do Spotify)
+//   - result_id:   se passado + save=true, persiste em search_tracks
+//   - save:        default false (apenas retorna). true = grava em search_tracks
+//   - max:         default 100 (1 página). Use 200/300 pra playlists maiores
+//
+// Retorno: { ok, tracks: [{ spotify_track_id, nome_musica, artista, posicao_na_playlist }], saved }
+import { corsHeaders } from "npm:@supabase/supabase-js/cors";
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { getSpotifyToken } from "../_shared/spotify.ts";
+
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+interface Body {
+  playlist_id: string;
+  result_id?: string;
+  save?: boolean;
+  max?: number;
+}
+
+interface TrackOut {
+  spotify_track_id: string | null;
+  nome_musica: string;
+  artista: string;
+  posicao_na_playlist: number;
+}
+
+async function fetchPlaylistTracks(
+  playlistId: string,
+  token: string,
+  max: number,
+): Promise<TrackOut[]> {
+  const out: TrackOut[] = [];
+  let url: string | null =
+    `https://api.spotify.com/v1/playlists/${playlistId}/tracks` +
+    `?fields=items(track(id,name,artists(name))),next&limit=100`;
+  let pos = 0;
+
+  while (url && out.length < max) {
+    const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    if (!r.ok) {
+      const txt = await r.text();
+      throw new Error(`Spotify ${r.status}: ${txt.slice(0, 200)}`);
+    }
+    const j = await r.json();
+    for (const it of j.items ?? []) {
+      const tr = it?.track;
+      if (!tr) continue;
+      const artists = Array.isArray(tr.artists) ? tr.artists : [];
+      out.push({
+        spotify_track_id: tr.id ?? null,
+        nome_musica: tr.name ?? "Unknown",
+        artista: artists.map((a: any) => a?.name).filter(Boolean).join(", ") || "Unknown",
+        posicao_na_playlist: ++pos,
+      });
+      if (out.length >= max) break;
+    }
+    url = j.next ?? null;
+  }
+  return out;
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const start = Date.now();
+
+  let body: Body;
+  try {
+    body = await req.json();
+  } catch {
+    return new Response(JSON.stringify({ error: "Invalid JSON" }), {
+      status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  if (!body.playlist_id || typeof body.playlist_id !== "string") {
+    return new Response(JSON.stringify({ error: "playlist_id é obrigatório" }), {
+      status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const max = Math.max(1, Math.min(body.max ?? 100, 500));
+  const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+
+  try {
+    const token = await getSpotifyToken();
+    const tracks = await fetchPlaylistTracks(body.playlist_id, token, max);
+
+    let saved = 0;
+    if (body.save && body.result_id && tracks.length > 0) {
+      // Resolve genre_id pelo result_id pra preencher search_tracks consistente
+      const { data: result } = await supabase
+        .from("search_results")
+        .select("genre_id")
+        .eq("id", body.result_id)
+        .maybeSingle();
+
+      // Limpa tracks antigas dessa playlist (snapshot atual)
+      await supabase.from("search_tracks").delete().eq("result_id", body.result_id);
+
+      const rows = tracks.map((t) => ({
+        result_id: body.result_id!,
+        genre_id: result?.genre_id ?? null,
+        spotify_track_id: t.spotify_track_id,
+        nome_musica: t.nome_musica,
+        artista: t.artista,
+        posicao_na_playlist: t.posicao_na_playlist,
+      }));
+      const { error: insErr } = await supabase.from("search_tracks").insert(rows);
+      if (insErr) throw new Error(`save tracks: ${insErr.message}`);
+      saved = rows.length;
+    }
+
+    await supabase.from("collection_logs").insert({
+      acao: "fetch-tracks-spotify",
+      status: "sucesso",
+      mensagem: `playlist ${body.playlist_id}: ${tracks.length} tracks${saved ? ` (saved ${saved})` : ""}`,
+      duracao_ms: Date.now() - start,
+    });
+
+    return new Response(JSON.stringify({
+      ok: true,
+      playlist_id: body.playlist_id,
+      tracks,
+      total: tracks.length,
+      saved,
+    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  } catch (e) {
+    const msg = (e as Error).message;
+    await supabase.from("collection_logs").insert({
+      acao: "fetch-tracks-spotify",
+      status: "erro",
+      mensagem: `playlist ${body.playlist_id}: ${msg}`.slice(0, 500),
+      duracao_ms: Date.now() - start,
+    });
+    return new Response(JSON.stringify({ ok: false, error: msg }), {
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});
