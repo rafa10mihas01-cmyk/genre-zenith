@@ -143,7 +143,7 @@ Deno.serve(async (req) => {
 
   await supabase.from("collection_logs").insert({
     genre_id: tpl.genre_id, acao: "create-spotify-playlist", status: "sucesso",
-    mensagem: `Playlist "${tpl.name}" criada no Spotify (${uris.length} faixas, ${failed} falhas)`,
+    mensagem: `Playlist "${tpl.name}" criada (${uris.length} faixas, ${failed} falhas) • IDs diretos: ${resolvedFromId}, via search: ${resolvedFromSearch}`,
   }).then(() => {}, () => {});
 
   return jr({
@@ -152,5 +152,7 @@ Deno.serve(async (req) => {
     spotify_url: playlistUrl,
     tracks_added: uris.length,
     tracks_failed: failed,
+    resolved_from_id: resolvedFromId,
+    resolved_from_search: resolvedFromSearch,
   });
 });
