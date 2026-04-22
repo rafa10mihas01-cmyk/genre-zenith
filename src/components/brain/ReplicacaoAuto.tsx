@@ -114,21 +114,23 @@ export function ReplicacaoAuto({ genreId }: { genreId?: string }) {
 
   const runReplicate = async () => {
     if (!genreId || running) return;
-    if (!confirm(`Replicar TOP ${topN} agora? Vai criar ${topN} playlists reais nas contas conectadas.`)) return;
     setRunning(true);
     try {
+      // "Replicar" = só gerar o pacote (blueprint/template/plano).
+      // Nada é criado no Spotify aqui — isso fica para a etapa de aprovação manual.
       const { data, error } = await supabase.functions.invoke("replicate-top", {
-        body: { genre_id: genreId, top_n: topN, triggered_by: "manual" },
+        body: { genre_id: genreId, top_n: topN, dry_run: true, triggered_by: "manual" },
       });
       if (error) throw error;
       if (data?.ok === false) throw new Error(data?.error ?? "Falha");
-      toast.success(`${data?.succeeded ?? 0}/${data?.executed ?? 0} replicadas`, {
-        description: data?.failed ? `${data.failed} falhas — ver histórico` : "Sucesso total",
+      const planArr = data?.plan ?? [];
+      setPlan(planArr);
+      toast.success(`Pacote gerado · ${planArr.length} candidatas`, {
+        description: "Nenhuma playlist foi criada no Spotify. Revise o plano antes de aprovar.",
       });
-      setPlan(null);
       await load();
     } catch (e: any) {
-      toast.error("Erro na replicação", { description: e?.message });
+      toast.error("Erro ao gerar pacote", { description: e?.message });
     } finally {
       setRunning(false);
     }
@@ -216,7 +218,7 @@ export function ReplicacaoAuto({ genreId }: { genreId?: string }) {
               disabled={running || activeAccs.length === 0 || !genreId}
             >
               {running ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Rocket className="h-3.5 w-3.5" />}
-              Replicar agora
+              Gerar pacote
             </Button>
           </div>
         </div>
