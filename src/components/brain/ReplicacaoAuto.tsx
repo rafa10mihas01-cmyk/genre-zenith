@@ -272,29 +272,7 @@ export function ReplicacaoAuto({ genreId }: { genreId?: string }) {
         )}
       </div>
 
-      {/* Contas */}
-      <section>
-        <div className="flex items-center justify-between mb-3">
-          <h4 className="text-sm font-bold flex items-center gap-2">
-            <Users className="h-4 w-4 text-primary" /> Contas conectadas
-          </h4>
-        </div>
-        {accounts.length === 0 ? (
-          <div className="nx-card text-center py-8 space-y-2">
-            <Users className="h-8 w-8 mx-auto text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">
-              Nenhuma conta Spotify conectada ainda.
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Conecte em Configurações → Spotify. As contas aparecem aqui automaticamente.
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {accounts.map(a => <AccountCard key={a.id} a={a} onChange={load} />)}
-          </div>
-        )}
-      </section>
+      {/* Contas → ficam no módulo Operação. Cérebro só pensa, não gerencia. */}
 
       {/* Histórico */}
       <section>

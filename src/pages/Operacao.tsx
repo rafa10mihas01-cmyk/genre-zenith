@@ -1,12 +1,13 @@
 import { useState } from "react";
 import {
   Activity, Play, Pause, Pencil, RefreshCw, ArrowDownRight, ArrowUpRight,
-  Music2, FlaskConical, History, ListMusic, Plus, Search, Filter,
+  Music2, FlaskConical, History, ListMusic, Plus, Search, Filter, Users,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/PageHeader";
+import { AccountsManager } from "@/components/operacao/AccountsManager";
 
 /**
  * OPERAÇÃO — painel de controle contínuo das playlists já publicadas.
@@ -30,6 +31,7 @@ const STATUS_META: Record<OpStatus, { label: string; cls: string; icon: any }> =
 const TABS = [
   { id: "playlists", label: "Playlists",      icon: ListMusic },
   { id: "musicas",   label: "Músicas",        icon: Music2 },
+  { id: "contas",    label: "Contas",         icon: Users },
   { id: "manut",     label: "Manutenção",     icon: RefreshCw },
   { id: "historico", label: "Histórico",      icon: History },
 ] as const;
@@ -146,6 +148,25 @@ export default function Operacao() {
             title="Saindo esta semana"
             msg="Músicas removidas das playlists nos últimos 7 dias aparecerão aqui."
           />
+        </section>
+      )}
+
+      {tab === "contas" && (
+        <section className="space-y-4">
+          <div className="nx-card">
+            <div className="flex items-center gap-3 mb-1">
+              <div className="h-9 w-9 rounded-full bg-elevated border border-border flex items-center justify-center">
+                <Users className="h-4 w-4 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-semibold">Contas Spotify em operação</h3>
+                <p className="text-xs text-muted-foreground">
+                  Gerencie status, capacidade e limites das contas usadas pra publicar playlists. Conexão de novas contas é feita em <strong>Configurações</strong>.
+                </p>
+              </div>
+            </div>
+          </div>
+          <AccountsManager />
         </section>
       )}
 
