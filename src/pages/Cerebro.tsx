@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/PageHeader";
 import { Replicacao } from "@/components/brain/Replicacao";
+import { ReplicacaoAuto } from "@/components/brain/ReplicacaoAuto";
 
 /**
  * CÉREBRO — módulo único com 6 abas internas.
@@ -182,8 +183,11 @@ export default function Cerebro() {
         <TabsContent value="visual" className="mt-0">
           <Visual briefing={briefing} loading={loadingBriefing} onAnalyze={analyzeVisualDna} analyzing={analyzingDna} />
         </TabsContent>
-        <TabsContent value="replicacao" className="mt-0">
-          <Replicacao genreId={genre?.id} />
+        <TabsContent value="replicacao" className="mt-0 space-y-8">
+          <ReplicacaoAuto genreId={genre?.id} />
+          <div className="border-t border-border pt-8">
+            <Replicacao genreId={genre?.id} />
+          </div>
         </TabsContent>
       </Tabs>
     </div>
