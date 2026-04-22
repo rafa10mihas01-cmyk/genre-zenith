@@ -300,11 +300,28 @@ export default function Settings() {
                 Adicione <span className="font-mono text-foreground">{getSpotifyRedirectUri()}</span> como Redirect URI no app do Spotify.
               </p>
             </div>
-            <Button size="sm" onClick={connectSpotify} disabled={connectingSpotify}>
+            <Button size="sm" onClick={connectSpotify} disabled={connectingSpotify || isInIframe}>
               {connectingSpotify ? <Loader2 className="h-4 w-4 animate-spin" /> : <Music2 className="h-4 w-4" />}
               Conectar conta
             </Button>
           </div>
+
+          {isInIframe && (
+            <div className="mt-3 p-3 rounded-lg border border-warning/40 bg-warning/10 flex items-start gap-3">
+              <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium text-foreground">
+                  ⚠️ Abra em nova aba para conectar o Spotify
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  O Spotify bloqueia o login dentro de iframes (preview do editor). Abra o app numa aba normal e clique em <strong>Conectar conta</strong>.
+                </p>
+                <Button size="sm" variant="outline" className="mt-2" onClick={openInNewTab}>
+                  <ExternalLink className="h-3.5 w-3.5" /> Abrir em nova aba
+                </Button>
+              </div>
+            </div>
+          )}
 
           {spotifyAccounts.length === 0 ? (
             <p className="text-xs text-muted-foreground mt-3 italic">Nenhuma conta conectada ainda.</p>
