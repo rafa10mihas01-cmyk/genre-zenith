@@ -187,8 +187,8 @@ Deno.serve(async (req) => {
     let llmOut: any;
     try {
       llmOut = await callLLM(
-        `Você é um analista de produto musical. Sua tarefa é extrair PADRÕES ESTRUTURAIS REPLICÁVEIS de playlists de sucesso (gênero: ${genre.nome}, tier ${tier}). Identifique de 1 a 3 arquétipos distintos. Cada blueprint = um modelo replicável de playlist. Seja específico, evite genérico.`,
-        `Playlists do tier ${tier} (${tierPlaylists.length} amostras):\n${JSON.stringify(samplePayload, null, 2)}\n\nExtraia 1-3 blueprints. Para cada, atribua replication_score 0-100 baseado em: clareza do padrão de nome, distintividade, presença de tracks consistentes, e potencial comercial.`,
+        `Você é um analista de produto musical. Sua tarefa é extrair PADRÕES ESTRUTURAIS REPLICÁVEIS de playlists de sucesso (gênero: ${genre.nome}, tier ${tier}). Identifique de 1 a 3 arquétipos distintos. Cada blueprint = um modelo replicável de playlist. Seja específico, evite genérico.${rulesBlock}`,
+        `Playlists do tier ${tier} (${tierPlaylists.length} amostras):\n${JSON.stringify(samplePayload, null, 2)}\n\nExtraia 1-3 blueprints. Para cada, atribua replication_score 0-100 baseado em: clareza do padrão de nome, distintividade, presença de tracks consistentes, e potencial comercial.\n\nIMPORTANTE: Respeite as REGRAS APRENDIDAS acima — regras 🔴 OBRIGATÓRIO devem aparecer no name_pattern e no formato.`,
         schema,
       );
     } catch (e) {
