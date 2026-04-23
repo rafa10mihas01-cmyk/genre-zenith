@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import {
   Brain, Sparkles, Loader2, ListMusic, Music2, TrendingUp, Hash,
   ExternalLink, Image as ImageIcon, Palette, Wand2, FileText, Activity,
-  ArrowRight, Search, Lightbulb, Wrench, Radio, BarChart3, Rocket,
+  ArrowRight, Search, Lightbulb, Wrench, Radio, BarChart3, Rocket, Layers,
 } from "lucide-react";
 import { useBrainModel } from "@/hooks/useBrainModel";
 import { useBriefings } from "@/hooks/useBriefings";
@@ -16,8 +16,8 @@ import { cn } from "@/lib/utils";
 import { genreStyleVars } from "@/lib/genreColors";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
-import { Replicacao } from "@/components/brain/Replicacao";
-import { ReplicacaoAuto } from "@/components/brain/ReplicacaoAuto";
+import { Variacoes, Moldes } from "@/components/brain/Replicacao";
+import { ReplicacaoAuto, ReplicacaoHistorico } from "@/components/brain/ReplicacaoAuto";
 import { KpiBig } from "@/components/KpiBig";
 
 /**
@@ -169,11 +169,22 @@ export default function Cerebro() {
         <TabsContent value="visual" className="mt-0">
           <Visual briefing={briefing} loading={loadingBriefing} onAnalyze={analyzeVisualDna} analyzing={analyzingDna} />
         </TabsContent>
-        <TabsContent value="replicacao" className="mt-0 space-y-8">
-          <ReplicacaoAuto genreId={genre?.id} />
-          <div className="border-t border-border pt-8">
-            <Replicacao genreId={genre?.id} />
-          </div>
+        <TabsContent value="replicacao" className="mt-0 space-y-6">
+          <Section step="1" icon={Rocket} title="Replicar agora" subtitle="Caminho rápido: seleciona top playlists, gera o plano e despacha">
+            <ReplicacaoAuto genreId={genre?.id} />
+          </Section>
+
+          <Section step="2" icon={ListMusic} title="Playlists prontas" subtitle="Variações geradas — aprove e publique no Spotify">
+            <Variacoes genreId={genre?.id} />
+          </Section>
+
+          <Section step="3" icon={Layers} title="Moldes (blueprints)" subtitle="Padrões base extraídos das top playlists">
+            <Moldes genreId={genre?.id} />
+          </Section>
+
+          <Section step="4" icon={Activity} title="Histórico" subtitle="Últimas replicações executadas">
+            <ReplicacaoHistorico genreId={genre?.id} />
+          </Section>
         </TabsContent>
       </Tabs>
     </PageContainer>
