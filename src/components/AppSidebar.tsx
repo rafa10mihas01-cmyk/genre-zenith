@@ -41,16 +41,23 @@ export function AppSidebar() {
           Usamos apenas o mark "N" — o logo completo tem subtítulo em corpo muito pequeno
           que vira ilegível em qualquer tamanho razoável de header. */}
       <SidebarHeader className="h-14 px-4 border-b border-sidebar-border flex flex-row items-center gap-2.5">
-        <NexEngineLogo
-          size={collapsed ? 24 : 28}
-          variant="mark"
-          className={cn(collapsed && "mx-auto")}
-        />
-        {!collapsed && (
-          <span className="text-[15px] font-bold tracking-tight text-sidebar-foreground leading-none">
-            NexEngine
-          </span>
-        )}
+        <button
+          type="button"
+          onClick={handleNav}
+          className="flex items-center gap-2.5 min-w-0 flex-1 text-left rounded-md hover:opacity-80 transition-opacity"
+          aria-label="Fechar menu"
+        >
+          <NexEngineLogo
+            size={collapsed ? 24 : 28}
+            variant="mark"
+            className={cn(collapsed && "mx-auto")}
+          />
+          {!collapsed && (
+            <span className="text-[15px] font-bold tracking-tight text-sidebar-foreground leading-none">
+              NexEngine
+            </span>
+          )}
+        </button>
       </SidebarHeader>
 
       <SidebarContent className="px-2 py-3">
