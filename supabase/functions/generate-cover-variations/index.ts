@@ -443,6 +443,23 @@ const PREMIUM_FINISH_BLOCK = [
   "STRICTLY FORBIDDEN inside premium finish: strong glow, heavy shadows, neon effects, glossy plastic look, 3D bevels, flashy reflections, any effect that pulls attention away from the text.",
 ].join("\n");
 
+// ============================================================
+// LAYOUT RULES (compartilhado pelos 3 estilos)
+// Controla APENAS spacing e alinhamento — NÃO altera texto, cor, fonte ou efeitos.
+// ============================================================
+const LAYOUT_RULES_BLOCK = [
+  "LAYOUT RULES (spacing & alignment — STRICT):",
+  "- Internal padding: exactly 12% of the canvas on every side (top, bottom, left, right). No text or element ever bleeds into this safe area.",
+  "- Title block occupies about 65% of the usable area (the area inside the 12% padding). Never fills 100%.",
+  "- Subtitle is about 30% of the title size — clear visual hierarchy.",
+  "- Vertical placement: title sits slightly ABOVE the geometric center (visual/optical center, around 45–47% from the top), so it feels balanced to the human eye, not just mathematically centered.",
+  "- Subtitle sits below the title with a FIXED gap of about 8% of canvas height — consistent across every cover.",
+  "- Title line-height between 0.9 and 1.0 (tight, editorial).",
+  "- Subtitle line-height looser (about 1.2–1.3) for breathing.",
+  "- Horizontal centering must be OPTICAL, not just mathematical: equal visual weight on left and right, accounting for letter shapes and punctuation.",
+  "- Equal left/right margins. No element off-balance unless the style explicitly allows asymmetry.",
+  "- Consistent, intentional spacing — the layout must feel calm, professional and editorial.",
+].join("\n");
 
 
 // ============================================================
