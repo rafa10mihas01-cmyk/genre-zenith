@@ -368,7 +368,7 @@ function QuickAction({
     <Link
       to={to}
       className={cn(
-        "nx-card-hover p-4 flex items-center gap-3 group transition-all",
+        "nx-card-hover p-4 flex items-center gap-3 group",
         highlight && "ring-1 ring-primary/40",
       )}
     >
