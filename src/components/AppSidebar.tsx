@@ -36,16 +36,17 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
-      <SidebarHeader className="px-4 py-6 border-b border-sidebar-border">
-        <div className={cn("flex items-center w-full", collapsed ? "justify-center" : "justify-start")}>
-          <NexEngineLogo size={collapsed ? 32 : 56} variant="auto" />
+      {/* Header da sidebar: altura idêntica ao topbar (h-14) pra alinhamento perfeito */}
+      <SidebarHeader className="h-14 px-3 border-b border-sidebar-border flex items-center justify-center">
+        <div className={cn("flex items-center w-full", collapsed ? "justify-center" : "justify-start pl-1")}>
+          <NexEngineLogo size={collapsed ? 22 : 28} variant={collapsed ? "mark" : "auto"} />
         </div>
       </SidebarHeader>
 
       <SidebarContent className="px-2 py-3">
         <SidebarGroup>
           <SidebarGroupContent>
-            <SidebarMenu className="gap-1">
+            <SidebarMenu className="gap-0.5">
               {visibleItems.map((item) => {
                 const active = item.end
                   ? location.pathname === item.url
@@ -56,14 +57,14 @@ export function AppSidebar() {
                       asChild
                       isActive={active}
                       className={cn(
-                        "h-10 rounded-lg transition-colors",
-                        "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent",
+                        "h-9 rounded-md transition-colors",
+                        "text-sidebar-foreground/65 hover:text-sidebar-foreground hover:bg-sidebar-accent/60",
                         active && "bg-sidebar-accent text-sidebar-foreground font-semibold",
                       )}
                     >
-                      <NavLink to={item.url} end={item.end} onClick={handleNav} className="flex items-center gap-3 px-3">
-                        <item.icon className={cn("h-[18px] w-[18px] shrink-0", active && "text-primary")} />
-                        {!collapsed && <span className="text-sm">{item.title}</span>}
+                      <NavLink to={item.url} end={item.end} onClick={handleNav} className="flex items-center gap-3 px-2.5">
+                        <item.icon className={cn("h-[17px] w-[17px] shrink-0", active && "text-primary")} />
+                        {!collapsed && <span className="text-[13px] tracking-tight">{item.title}</span>}
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -74,14 +75,14 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-sidebar-border p-3 space-y-2">
+      <SidebarFooter className="border-t border-sidebar-border p-2 space-y-1">
         {!collapsed && user && (
-          <div className="flex items-center gap-2.5 px-2 py-1.5">
-            <div className="h-8 w-8 rounded-full bg-elevated border border-border flex items-center justify-center text-xs font-bold text-foreground shrink-0">
+          <div className="flex items-center gap-2 px-2 py-1.5">
+            <div className="h-7 w-7 rounded-full bg-elevated border border-border flex items-center justify-center text-[10px] font-bold text-foreground shrink-0">
               {(user.email ?? "U").slice(0, 2).toUpperCase()}
             </div>
             <div className="min-w-0 leading-tight">
-              <div className="text-xs font-medium truncate text-sidebar-foreground">{user.email?.split("@")[0]}</div>
+              <div className="text-[12px] font-medium truncate text-sidebar-foreground">{user.email?.split("@")[0]}</div>
               <div className="text-[10px] text-sidebar-foreground/50">Conectado</div>
             </div>
           </div>
@@ -89,10 +90,10 @@ export function AppSidebar() {
         <Button
           variant="ghost"
           size="sm"
-          className="w-full justify-start gap-2 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+          className="w-full justify-start gap-2 h-8 text-[12px] text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/60"
           onClick={signOut}
         >
-          <LogOut className="h-4 w-4" />
+          <LogOut className="h-3.5 w-3.5" />
           {!collapsed && <span>Sair</span>}
         </Button>
       </SidebarFooter>
