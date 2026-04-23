@@ -109,13 +109,19 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               </Button>
             </div>
 
-            <div className="relative flex-1 min-w-0 max-w-md hidden sm:block">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar gêneros, playlists, artistas..."
-                className="pl-9 h-9 bg-elevated border-border rounded-full text-sm focus-visible:ring-1 focus-visible:ring-primary/40"
-              />
-            </div>
+            {/* Busca rápida (⌘K) — botão no desktop, ícone no mobile */}
+            <button
+              type="button"
+              onClick={() => setPaletteOpen(true)}
+              aria-label="Buscar (⌘K)"
+              className="hidden sm:flex items-center gap-2 flex-1 min-w-0 max-w-md h-9 px-3 rounded-full bg-elevated border border-border text-sm text-muted-foreground hover:text-foreground hover:border-border/80 transition-colors"
+            >
+              <Search className="h-4 w-4 shrink-0" />
+              <span className="truncate flex-1 text-left">Buscar gêneros, páginas, ações...</span>
+              <kbd className="hidden md:inline-flex items-center gap-0.5 px-1.5 h-5 rounded bg-background border border-border text-[10px] font-mono text-muted-foreground/70">
+                ⌘K
+              </kbd>
+            </button>
             {/* Spacer mobile para empurrar ações para a direita */}
             <div className="flex-1 sm:hidden" />
 
