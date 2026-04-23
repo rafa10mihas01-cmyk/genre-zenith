@@ -627,7 +627,7 @@ function TemplateCard({
           <img src={t.cover_image_url} alt="" className="w-full h-full object-cover transition-transform group-hover:scale-105" />
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground gap-1.5">
-            {isGenerating || t.auto_cover_requested ? (
+            {isGenerating ? (
               <>
                 <Loader2 className="h-5 w-5 animate-spin text-primary" />
                 <span className="text-[9px] uppercase tracking-wider text-primary font-bold">Gerando capa…</span>
@@ -639,6 +639,11 @@ function TemplateCard({
                 <span className="inline-flex items-center gap-1 px-1.5 h-4 rounded text-[9px] font-bold text-primary bg-primary/15 border border-primary/40 mt-0.5">
                   {t.cover_variations.length} variações
                 </span>
+              </>
+            ) : t.auto_cover_requested ? (
+              <>
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                <span className="text-[9px] uppercase tracking-wider text-primary font-bold">Gerando capa…</span>
               </>
             ) : (
               <>
@@ -1011,7 +1016,7 @@ function TemplateDetailDialog({
                       );
                     })}
                   </div>
-                ) : busy === "cover" || tpl.auto_cover_requested ? (
+                ) : busy === "cover" || (tpl.auto_cover_requested && !(tpl.cover_variations && tpl.cover_variations.length > 0)) ? (
                   <div className="grid grid-cols-4 gap-2">
                     {[0,1,2,3].map(i => (
                       <div key={i} className="aspect-square rounded-lg bg-elevated border border-border flex items-center justify-center">

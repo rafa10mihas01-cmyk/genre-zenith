@@ -863,6 +863,7 @@ Deno.serve(async (req) => {
   await supabase.from("playlist_templates").update({
     cover_variations: variations,
     cover_generated_at: new Date().toISOString(),
+    auto_cover_requested: false,
   }).eq("id", tpl.id);
 
   return jr({
