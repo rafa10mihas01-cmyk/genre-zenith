@@ -3,13 +3,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
-  Settings as SettingsIcon, KeyRound, CheckCircle2, XCircle, Loader2, Zap, RefreshCw, LogOut, Database, CalendarClock, Play, Music2, UserCheck, Star, Trash2, AlertTriangle, ExternalLink,
+  Settings as SettingsIcon, KeyRound, CheckCircle2, XCircle, Loader2, Zap, RefreshCw, LogOut, Database, CalendarClock, Play, Music2, UserCheck, Star, Trash2, AlertTriangle, ExternalLink, Plug, Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
+import { EquipeTab } from "@/components/settings/EquipeTab";
 
 const STORAGE_KEY = "nx-collect-settings";
 const SETTINGS_ROUTE = "/configuracoes";
@@ -282,11 +284,22 @@ export default function Settings() {
         kicker="Sistema"
         icon={SettingsIcon}
         title="Configurações"
-        subtitle="Gerenciar conexões com Apify e Spotify, parâmetros de coleta e dados da conta."
+        subtitle="Conexões, parâmetros de coleta, equipe e conta — tudo em um só lugar."
       />
 
+      <Tabs defaultValue="conexoes" className="mt-6">
+        <TabsList className="grid w-full grid-cols-4 max-w-2xl">
+          <TabsTrigger value="conexoes"><Plug className="h-3.5 w-3.5 mr-1.5" />Conexões</TabsTrigger>
+          <TabsTrigger value="coleta"><Database className="h-3.5 w-3.5 mr-1.5" />Coleta</TabsTrigger>
+          <TabsTrigger value="equipe"><Users className="h-3.5 w-3.5 mr-1.5" />Equipe</TabsTrigger>
+          <TabsTrigger value="conta"><UserCheck className="h-3.5 w-3.5 mr-1.5" />Conta</TabsTrigger>
+        </TabsList>
+
+        {/* ───────────────────────── CONEXÕES ───────────────────────── */}
+        <TabsContent value="conexoes" className="space-y-4 mt-4">
+
       {/* Apify */}
-      <section className="nx-card p-5 mt-6">
+      <section className="nx-card p-5">
         <div className="flex items-center gap-2">
           <Zap className="h-5 w-5 text-accent" />
           <h2 className="font-semibold">Apify</h2>
