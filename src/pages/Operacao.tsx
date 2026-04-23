@@ -270,8 +270,8 @@ export default function Operacao() {
         {/* PLAYLISTS */}
         {tab === "playlists" && (
           <section key="tab-playlists" className="space-y-4 animate-tab-in">
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className="relative flex-1 max-w-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+              <div className="relative w-full sm:max-w-xs">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   value={search}
@@ -280,7 +280,15 @@ export default function Operacao() {
                   className="pl-9 h-9 bg-elevated border-border rounded-full text-sm"
                 />
               </div>
-              <div className="flex items-center gap-1.5 ml-auto flex-wrap">
+              {/* Mobile: chips em uma linha com scroll-x; Desktop: wrap normal à direita */}
+              <div
+                className={cn(
+                  "flex items-center gap-1.5 sm:ml-auto sm:flex-wrap",
+                  "-mx-4 px-4 sm:mx-0 sm:px-0 overflow-x-auto sm:overflow-visible",
+                  "[&::-webkit-scrollbar]:hidden [scrollbar-width:none]",
+                  "[&>*]:shrink-0",
+                )}
+              >
                 <FilterChip active={filter === "todas"}       onClick={() => setFilter("todas")}>Todas</FilterChip>
                 <FilterChip active={filter === "ativa"}       onClick={() => setFilter("ativa")}>Ativas</FilterChip>
                 <FilterChip active={filter === "crescimento"} onClick={() => setFilter("crescimento")}>Crescendo</FilterChip>
@@ -291,7 +299,8 @@ export default function Operacao() {
             </div>
 
             <div className="nx-card !p-0 overflow-hidden">
-              <div className="grid grid-cols-12 gap-3 px-4 py-3 text-[10px] uppercase tracking-wider text-muted-foreground font-bold border-b border-border">
+              {/* Header da tabela: só desktop. No mobile usamos cards. */}
+              <div className="hidden md:grid grid-cols-12 gap-3 px-4 py-3 text-[10px] uppercase tracking-wider text-muted-foreground font-bold border-b border-border">
                 <div className="col-span-4">Playlist</div>
                 <div className="col-span-2">Status</div>
                 <div className="col-span-2 text-right">Seguidores</div>
