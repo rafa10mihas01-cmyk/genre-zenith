@@ -183,7 +183,7 @@ export default function Criacao() {
         emptyTitle={loading ? "" : "Sem médios pendentes"}
         emptyMsg=""
       >
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
           {groups.medium.map(t => (
             <TemplateCard key={t.id} t={t} variant="medium" onOpen={() => setActiveTemplate(t)} />
           ))}
@@ -201,7 +201,7 @@ export default function Criacao() {
           emptyTitle=""
           emptyMsg=""
         >
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
             {groups.published.slice(0, 12).map(t => (
               <TemplateCard key={t.id} t={t} variant="published" onOpen={() => setActiveTemplate(t)} />
             ))}
