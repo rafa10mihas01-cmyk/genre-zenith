@@ -106,7 +106,7 @@ export default function Home() {
       />
 
       {/* KPIs globais */}
-      <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiBig icon={ListMusic} label="Gêneros analisados" value={stats ? `${stats.analyzed}/${stats.totalGenres}` : "—"} hint="Cobertura do sistema" loading={loading} />
         <KpiBig icon={Music2} label="Playlists coletadas" value={formatNumber(stats?.playlists)} hint="Base monitorada" loading={loading} />
         <KpiBig icon={TrendingUp} label="Faixas mapeadas" value={formatNumber(stats?.tracks)} hint="Universo identificado" loading={loading} />
