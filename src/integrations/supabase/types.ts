@@ -350,6 +350,39 @@ export type Database = {
         }
         Relationships: []
       }
+      notifications: {
+        Row: {
+          action_url: string | null
+          created_at: string
+          id: string
+          message: string
+          metadata: Json
+          read: boolean
+          title: string
+          type: Database["public"]["Enums"]["notification_type"]
+        }
+        Insert: {
+          action_url?: string | null
+          created_at?: string
+          id?: string
+          message: string
+          metadata?: Json
+          read?: boolean
+          title: string
+          type?: Database["public"]["Enums"]["notification_type"]
+        }
+        Update: {
+          action_url?: string | null
+          created_at?: string
+          id?: string
+          message?: string
+          metadata?: Json
+          read?: boolean
+          title?: string
+          type?: Database["public"]["Enums"]["notification_type"]
+        }
+        Relationships: []
+      }
       performance_insights: {
         Row: {
           acoes_sugeridas: Json
@@ -1173,6 +1206,16 @@ export type Database = {
         Args: { p_genre_id: string; p_version_a: number; p_version_b: number }
         Returns: Json
       }
+      create_notification: {
+        Args: {
+          p_action_url?: string
+          p_message: string
+          p_metadata?: Json
+          p_title: string
+          p_type: Database["public"]["Enums"]["notification_type"]
+        }
+        Returns: string
+      }
       expire_stale_medium_templates: {
         Args: { p_hours?: number }
         Returns: {
@@ -1269,6 +1312,7 @@ export type Database = {
     Enums: {
       app_role: "admin" | "curador"
       followers_source_type: "spotify_api"
+      notification_type: "critical" | "warning" | "info"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1398,6 +1442,7 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "curador"],
       followers_source_type: ["spotify_api"],
+      notification_type: ["critical", "warning", "info"],
     },
   },
 } as const
