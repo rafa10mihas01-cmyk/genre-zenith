@@ -294,11 +294,27 @@ Deno.serve(async (req) => {
     mensagem: `${inserted?.length ?? 0} templates gerados a partir do blueprint "${bp.name}" (regras: ${rulesSummary.total}, alta=${rulesSummary.high})`,
   }).then(() => {}, () => {});
 
+  // 🎯 Dispara scoring automático dos templates recém-criados.
+  // O score-templates classifica em hot/medium/weak, arquiva os fracos
+  // e dispara generate-cover-variations pros hot. Tudo em background.
+  const newIds = (inserted ?? []).map((r: any) => r.id);
+  if (newIds.length > 0) {
+    fetch(`${SUPABASE_URL}/functions/v1/score-templates`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${SERVICE_KEY}`,
+      },
+      body: JSON.stringify({ template_ids: newIds }),
+    }).catch((e) => console.warn("[generate-templates] score trigger failed:", e.message));
+  }
+
   return jr({
     ok: true,
     blueprint_id: blueprintId,
     templates: inserted ?? [],
     count: inserted?.length ?? 0,
     rules_applied: rulesSummary,
+    scoring_triggered: newIds.length > 0,
   });
 });
