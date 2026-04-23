@@ -12,6 +12,8 @@ import { SidebarContextProvider } from "@/contexts/SidebarContext";
 import { NotificationsBell } from "@/components/NotificationsBell";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { CommandPalette } from "@/components/CommandPalette";
+import { TopProgressBar } from "@/components/TopProgressBar";
+import { SplashLoader } from "@/components/SplashLoader";
 
 // Mapa de rótulos curtos para o título no header mobile
 const ROUTE_TITLES: Record<string, string> = {
