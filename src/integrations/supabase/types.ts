@@ -567,6 +567,8 @@ export type Database = {
         Row: {
           approved_at: string | null
           approved_by: string | null
+          archived_at: string | null
+          archived_reason: string | null
           auto_cover_requested: boolean
           blueprint_id: string
           cover_brief: string | null
@@ -607,6 +609,8 @@ export type Database = {
         Insert: {
           approved_at?: string | null
           approved_by?: string | null
+          archived_at?: string | null
+          archived_reason?: string | null
           auto_cover_requested?: boolean
           blueprint_id: string
           cover_brief?: string | null
@@ -647,6 +651,8 @@ export type Database = {
         Update: {
           approved_at?: string | null
           approved_by?: string | null
+          archived_at?: string | null
+          archived_reason?: string | null
           auto_cover_requested?: boolean
           blueprint_id?: string
           cover_brief?: string | null
@@ -1142,6 +1148,13 @@ export type Database = {
       compare_genre_versions: {
         Args: { p_genre_id: string; p_version_a: number; p_version_b: number }
         Returns: Json
+      }
+      expire_stale_medium_templates: {
+        Args: { p_hours?: number }
+        Returns: {
+          expired_count: number
+          expired_ids: string[]
+        }[]
       }
       get_active_replication_rules: {
         Args: { p_genre_id: string }
