@@ -732,3 +732,57 @@ function TemplateDetailDialog({
     </Dialog>
   );
 }
+
+/* ───────────────── Grids paginados ───────────────── */
+
+function PublishedGrid({ items, onOpen }: { items: Template[]; onOpen: (t: Template) => void }) {
+  const { visibleItems, hasMore, loadMore, total, visible } = usePagination(items, 20);
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+        {visibleItems.map(t => (
+          <TemplateCard key={t.id} t={t} variant="published" onOpen={() => onOpen(t)} />
+        ))}
+      </div>
+      <LoadMore visible={visible} total={total} hasMore={hasMore} onLoadMore={loadMore} itemLabel="publicadas" />
+    </div>
+  );
+}
+
+function ArchivedSection({
+  items, showArchived, setShowArchived, onOpen,
+}: {
+  items: Template[];
+  showArchived: boolean;
+  setShowArchived: (v: boolean | ((prev: boolean) => boolean)) => void;
+  onOpen: (t: Template) => void;
+}) {
+  const { visibleItems, hasMore, loadMore, total, visible } = usePagination(items, 20);
+  return (
+    <section className="nx-card !p-0 overflow-hidden">
+      <button
+        onClick={() => setShowArchived(v => !v)}
+        className="w-full px-4 py-3 flex items-center gap-3 hover:bg-elevated/40 transition-colors text-left"
+      >
+        {showArchived ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+        <Archive className="h-4 w-4 text-muted-foreground" />
+        <div className="flex-1">
+          <div className="text-sm font-semibold">📦 Arquivados</div>
+          <div className="text-xs text-muted-foreground">
+            {items.length} templates auto-arquivados (score &lt; 45)
+          </div>
+        </div>
+      </button>
+      {showArchived && (
+        <div className="border-t border-border p-3 space-y-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+            {visibleItems.map(t => (
+              <TemplateCard key={t.id} t={t} variant="archived" onOpen={() => onOpen(t)} />
+            ))}
+          </div>
+          <LoadMore visible={visible} total={total} hasMore={hasMore} onLoadMore={loadMore} itemLabel="arquivados" />
+        </div>
+      )}
+    </section>
+  );
+}
