@@ -1061,6 +1061,27 @@ export type Database = {
           },
         ]
       }
+      spotify_oauth_states: {
+        Row: {
+          consumed_at: string | null
+          created_at: string
+          state: string
+          user_id: string
+        }
+        Insert: {
+          consumed_at?: string | null
+          created_at?: string
+          state: string
+          user_id: string
+        }
+        Update: {
+          consumed_at?: string | null
+          created_at?: string
+          state?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       spotify_tokens: {
         Row: {
           access_token: string
