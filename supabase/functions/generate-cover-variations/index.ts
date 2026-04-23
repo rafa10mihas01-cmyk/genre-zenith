@@ -402,7 +402,7 @@ function variationHints(index: number): string {
 // ============================================================
 function buildCleanPrompt(template: any, palette: typeof PALETTES[number], index = 0): string {
   const name = sanitizePlaylistTitle(template.name);
-  const subtext = extractSubtext(template.cover_brief);
+  const subtext = extractSubtext(template.cover_brief, template.name);
 
   const textBlock = subtext
     ? [
