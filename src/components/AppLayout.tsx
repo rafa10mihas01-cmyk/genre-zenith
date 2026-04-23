@@ -1,7 +1,6 @@
 import { ReactNode, useEffect, useState } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,6 +11,7 @@ import { NexEngineLogo } from "@/components/NexEngineLogo";
 import { SidebarContextProvider } from "@/contexts/SidebarContext";
 import { NotificationsBell } from "@/components/NotificationsBell";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
+import { CommandPalette } from "@/components/CommandPalette";
 
 // Mapa de rótulos curtos para o título no header mobile
 const ROUTE_TITLES: Record<string, string> = {
@@ -38,6 +38,7 @@ function getRouteTitle(pathname: string): string {
  */
 export default function AppLayout({ children }: { children: ReactNode }) {
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const nav = useNavigate();
   const location = useLocation();
   const pageTitle = getRouteTitle(location.pathname);
@@ -57,6 +58,18 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     refresh();
     const t = setInterval(refresh, 30_000);
     return () => clearInterval(t);
+  }, []);
+
+  // Atalho global ⌘K / Ctrl+K — abre Command Palette de qualquer lugar
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPaletteOpen((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, []);
 
   return (
@@ -96,13 +109,19 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               </Button>
             </div>
 
-            <div className="relative flex-1 min-w-0 max-w-md hidden sm:block">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar gêneros, playlists, artistas..."
-                className="pl-9 h-9 bg-elevated border-border rounded-full text-sm focus-visible:ring-1 focus-visible:ring-primary/40"
-              />
-            </div>
+            {/* Busca rápida (⌘K) — botão no desktop, ícone no mobile */}
+            <button
+              type="button"
+              onClick={() => setPaletteOpen(true)}
+              aria-label="Buscar (⌘K)"
+              className="hidden sm:flex items-center gap-2 flex-1 min-w-0 max-w-md h-9 px-3 rounded-full bg-elevated border border-border text-sm text-muted-foreground hover:text-foreground hover:border-border/80 transition-colors"
+            >
+              <Search className="h-4 w-4 shrink-0" />
+              <span className="truncate flex-1 text-left">Buscar gêneros, páginas, ações...</span>
+              <kbd className="hidden md:inline-flex items-center gap-0.5 px-1.5 h-5 rounded bg-background border border-border text-[10px] font-mono text-muted-foreground/70">
+                ⌘K
+              </kbd>
+            </button>
             {/* Spacer mobile para empurrar ações para a direita */}
             <div className="flex-1 sm:hidden" />
 
@@ -120,6 +139,16 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               >
                 <RefreshCw className="h-3.5 w-3.5" />
                 <span className="hidden md:inline">Atualizar</span>
+              </Button>
+              {/* Lupa mobile — abre Command Palette */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setPaletteOpen(true)}
+                aria-label="Buscar"
+                className="sm:hidden h-9 w-9 text-muted-foreground hover:text-foreground"
+              >
+                <Search className="h-5 w-5" />
               </Button>
               <ThemeToggle />
               <NotificationsBell />
@@ -142,6 +171,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         </div>
         {/* Bottom nav fixa apenas no mobile */}
         <MobileBottomNav />
+        {/* Command Palette global (⌘K) — busca + navegação rápida */}
+        <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
       </div>
       </SidebarContextProvider>
     </SidebarProvider>
