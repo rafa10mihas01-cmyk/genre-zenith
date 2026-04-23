@@ -19,9 +19,26 @@ function getSystemTheme(): "light" | "dark" {
 
 function applyTheme(resolved: "light" | "dark") {
   const root = document.documentElement;
+  // Desabilita transições durante a troca para evitar "fade" arrastado em todos os elementos.
+  // Técnica usada pelo next-themes / theme-change.
+  const css = document.createElement("style");
+  css.appendChild(
+    document.createTextNode(
+      `*,*::before,*::after{transition:none !important;animation:none !important;}`
+    )
+  );
+  document.head.appendChild(css);
+
   root.classList.remove("light", "dark");
   root.classList.add(resolved);
   root.style.colorScheme = resolved;
+
+  // Força reflow + remove o bloqueio no próximo frame.
+  // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+  window.getComputedStyle(css).opacity;
+  requestAnimationFrame(() => {
+    document.head.removeChild(css);
+  });
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
