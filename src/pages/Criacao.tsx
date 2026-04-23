@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Sparkles, Flame, AlertTriangle, Archive, RefreshCw, Loader2,
   Check, Music2, ExternalLink, AlertCircle, ChevronDown, ChevronRight,
-  Send, Image as ImageIcon, Pencil, Play, Inbox, Clock,
+  Send, Image as ImageIcon, Pencil, Play, Inbox, Clock, Search, X, Wand2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -56,7 +56,12 @@ type Template = {
   created_on_spotify_at: string | null;
   genre_id: string;
   blueprint_id: string;
+  created_at: string;
+  genres?: { id: string; nome: string } | null;
 };
+
+type SortKey = "score_desc" | "score_asc" | "recent" | "alpha" | "genre";
+type StatusFilter = "all" | "no_cover" | "with_cover" | "with_error";
 
 export default function Criacao() {
   const { toast } = useToast();
@@ -64,13 +69,20 @@ export default function Criacao() {
   const [loading, setLoading] = useState(true);
   const [scoring, setScoring] = useState(false);
   const [expiring, setExpiring] = useState(false);
+  const [batchCovers, setBatchCovers] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [activeTemplate, setActiveTemplate] = useState<Template | null>(null);
+
+  // Toolbar state
+  const [search, setSearch] = useState("");
+  const [genreFilter, setGenreFilter] = useState<string | null>(null); // null = todos
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [sort, setSort] = useState<SortKey>("score_desc");
 
   async function load() {
     setLoading(true);
     const { data } = await supabase.from("playlist_templates")
-      .select("id,name,description,status,replication_score,final_score,quality_tier,score_breakdown,cover_brief,cover_image_url,cover_variations,cover_selected_index,cover_generated_at,auto_cover_requested,spotify_playlist_id,spotify_url,spotify_owner_id,track_seeds,tracks_added,tracks_failed,creation_error,created_on_spotify_at,genre_id,blueprint_id")
+      .select("id,name,description,status,replication_score,final_score,quality_tier,score_breakdown,cover_brief,cover_image_url,cover_variations,cover_selected_index,cover_generated_at,auto_cover_requested,spotify_playlist_id,spotify_url,spotify_owner_id,track_seeds,tracks_added,tracks_failed,creation_error,created_on_spotify_at,genre_id,blueprint_id,created_at,genres(id,nome)")
       .in("status", ["pending", "approved", "created", "archived"])
       .order("final_score", { ascending: false })
       .limit(300);
@@ -116,20 +128,57 @@ export default function Criacao() {
     await load();
   }
 
-  // ─── grupos por tier ───
+  // ─── Lista de gêneros disponíveis (chips) ───
+  const availableGenres = useMemo(() => {
+    const map = new Map<string, { id: string; nome: string; count: number }>();
+    for (const t of templates) {
+      const g = t.genres;
+      if (!g?.id) continue;
+      const cur = map.get(g.id);
+      if (cur) cur.count++;
+      else map.set(g.id, { id: g.id, nome: g.nome, count: 1 });
+    }
+    return Array.from(map.values()).sort((a, b) => b.count - a.count);
+  }, [templates]);
+
+  // ─── Filtra + ordena (aplicado a todos os grupos) ───
+  const filteredTemplates = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    let arr = templates.filter(t => {
+      if (q && !t.name.toLowerCase().includes(q)) return false;
+      if (genreFilter && t.genre_id !== genreFilter) return false;
+      if (statusFilter === "no_cover" && t.cover_image_url) return false;
+      if (statusFilter === "with_cover" && !t.cover_image_url) return false;
+      if (statusFilter === "with_error" && !t.creation_error) return false;
+      return true;
+    });
+    arr = [...arr].sort((a, b) => {
+      switch (sort) {
+        case "score_asc":  return a.final_score - b.final_score;
+        case "recent":     return new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime();
+        case "alpha":      return a.name.localeCompare(b.name);
+        case "genre":      return (a.genres?.nome ?? "").localeCompare(b.genres?.nome ?? "");
+        case "score_desc":
+        default:           return b.final_score - a.final_score;
+      }
+    });
+    return arr;
+  }, [templates, search, genreFilter, statusFilter, sort]);
+
+  // ─── grupos por tier (sobre o filtrado) ───
   const groups = useMemo(() => {
     const hot: Template[] = [];
     const medium: Template[] = [];
     const archived: Template[] = [];
     const published: Template[] = [];
-    for (const t of templates) {
+    for (const t of filteredTemplates) {
       if (t.status === "created") published.push(t);
       else if (t.status === "archived" || t.quality_tier === "weak") archived.push(t);
       else if (t.quality_tier === "hot") hot.push(t);
       else medium.push(t);
     }
     return { hot, medium, archived, published };
-  }, [templates]);
+  }, [filteredTemplates]);
 
   const kpi = useMemo(() => ({
     hot: groups.hot.length,
@@ -140,6 +189,43 @@ export default function Criacao() {
       return groups.published.filter(t => t.created_on_spotify_at && new Date(t.created_on_spotify_at).getTime() > cutoff).length;
     })(),
   }), [groups]);
+
+  // Quantos hot estão sem capa (alvo da ação em lote)
+  const hotMissingCovers = useMemo(
+    () => groups.hot.filter(t => !t.cover_image_url && !t.auto_cover_requested),
+    [groups.hot],
+  );
+
+  async function generateCoversBatch() {
+    if (hotMissingCovers.length === 0) {
+      toast({ title: "Nenhum hot sem capa", description: "Todos os prontos já têm capa selecionada." });
+      return;
+    }
+    setBatchCovers(true);
+    let ok = 0, fail = 0;
+    for (const t of hotMissingCovers) {
+      const { data, error } = await supabase.functions.invoke("generate-cover-variations", {
+        body: { template_id: t.id },
+      });
+      if (error || !(data as any)?.ok) fail++;
+      else ok++;
+    }
+    setBatchCovers(false);
+    toast({
+      title: `Capas geradas`,
+      description: `✅ ${ok} sucesso${fail > 0 ? ` • ❌ ${fail} falha${fail > 1 ? "s" : ""}` : ""}`,
+      variant: fail > 0 && ok === 0 ? "destructive" : "default",
+    });
+    await load();
+  }
+
+  const hasFilters = !!search || !!genreFilter || statusFilter !== "all" || sort !== "score_desc";
+  function clearFilters() {
+    setSearch("");
+    setGenreFilter(null);
+    setStatusFilter("all");
+    setSort("score_desc");
+  }
 
   return (
     <PageContainer>
@@ -189,6 +275,21 @@ export default function Criacao() {
         <KpiBig icon={Send}          label="Publicadas (7d)"      value={kpi.published7d} tone="primary" hint="Foram pro Spotify" />
         <KpiBig icon={Archive}       label="Arquivados"           value={kpi.archived}   hint="Auto-removidos" />
       </section>
+
+      {/* TOOLBAR */}
+      <Toolbar
+        search={search} setSearch={setSearch}
+        statusFilter={statusFilter} setStatusFilter={setStatusFilter}
+        sort={sort} setSort={setSort}
+        availableGenres={availableGenres}
+        genreFilter={genreFilter} setGenreFilter={setGenreFilter}
+        hasFilters={hasFilters} onClear={clearFilters}
+        hotMissingCovers={hotMissingCovers.length}
+        onBatchCovers={generateCoversBatch}
+        batchCovers={batchCovers}
+        totalShown={filteredTemplates.length}
+        totalAll={templates.length}
+      />
 
       {/* HOT */}
       <Section
@@ -248,6 +349,171 @@ export default function Criacao() {
         onChanged={async () => { await load(); }}
       />
     </PageContainer>
+  );
+}
+
+/* ───────────────── Toolbar (busca, gênero, filtro, ordenação, ação em lote) ───────────────── */
+
+const SORT_LABELS: Record<SortKey, string> = {
+  score_desc: "Score (maior)",
+  score_asc:  "Score (menor)",
+  recent:     "Mais recentes",
+  alpha:      "Alfabético",
+  genre:      "Por gênero",
+};
+
+const STATUS_LABELS: Record<StatusFilter, string> = {
+  all:        "Todos",
+  no_cover:   "Sem capa",
+  with_cover: "Com capa",
+  with_error: "Com erro",
+};
+
+function Toolbar({
+  search, setSearch,
+  statusFilter, setStatusFilter,
+  sort, setSort,
+  availableGenres, genreFilter, setGenreFilter,
+  hasFilters, onClear,
+  hotMissingCovers, onBatchCovers, batchCovers,
+  totalShown, totalAll,
+}: {
+  search: string; setSearch: (v: string) => void;
+  statusFilter: StatusFilter; setStatusFilter: (v: StatusFilter) => void;
+  sort: SortKey; setSort: (v: SortKey) => void;
+  availableGenres: { id: string; nome: string; count: number }[];
+  genreFilter: string | null; setGenreFilter: (v: string | null) => void;
+  hasFilters: boolean; onClear: () => void;
+  hotMissingCovers: number; onBatchCovers: () => void; batchCovers: boolean;
+  totalShown: number; totalAll: number;
+}) {
+  return (
+    <section className="nx-card space-y-3">
+      {/* Linha 1: busca + filtros + ordenação + ação em lote */}
+      <div className="flex flex-wrap items-center gap-2">
+        {/* Busca */}
+        <div className="relative flex-1 min-w-[200px] max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar por nome do template…"
+            className="pl-9 pr-9 h-9 rounded-full"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full hover:bg-elevated flex items-center justify-center"
+              aria-label="Limpar busca"
+            >
+              <X className="h-3.5 w-3.5 text-muted-foreground" />
+            </button>
+          )}
+        </div>
+
+        {/* Status segmented */}
+        <div className="inline-flex items-center bg-elevated border border-border rounded-full p-0.5 h-9">
+          {(Object.keys(STATUS_LABELS) as StatusFilter[]).map((k) => (
+            <button
+              key={k}
+              onClick={() => setStatusFilter(k)}
+              className={cn(
+                "px-3 h-8 rounded-full text-[11px] font-semibold transition-colors",
+                statusFilter === k
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {STATUS_LABELS[k]}
+            </button>
+          ))}
+        </div>
+
+        {/* Ordenação */}
+        <div className="relative">
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as SortKey)}
+            className="appearance-none h-9 rounded-full bg-elevated border border-border px-3 pr-8 text-[12px] font-semibold text-foreground hover:bg-card cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/40"
+          >
+            {(Object.keys(SORT_LABELS) as SortKey[]).map((k) => (
+              <option key={k} value={k}>{SORT_LABELS[k]}</option>
+            ))}
+          </select>
+          <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+        </div>
+
+        {/* Limpar filtros */}
+        {hasFilters && (
+          <Button
+            onClick={onClear}
+            variant="ghost"
+            size="sm"
+            className="rounded-full h-9 gap-1.5 text-muted-foreground hover:text-foreground"
+          >
+            <X className="h-3.5 w-3.5" />
+            Limpar
+          </Button>
+        )}
+
+        <div className="flex-1" />
+
+        {/* Ação em lote */}
+        <Button
+          onClick={onBatchCovers}
+          disabled={batchCovers || hotMissingCovers === 0}
+          variant={hotMissingCovers > 0 ? "premium" : "outline"}
+          size="sm"
+          className="rounded-full h-9 gap-1.5"
+          title={hotMissingCovers === 0
+            ? "Todos os templates 🔥 já têm capa"
+            : `Gera capas pra ${hotMissingCovers} template${hotMissingCovers > 1 ? "s" : ""} 🔥 sem capa`}
+        >
+          {batchCovers ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
+          Gerar capas pendentes {hotMissingCovers > 0 ? `(${hotMissingCovers})` : ""}
+        </Button>
+      </div>
+
+      {/* Linha 2: chips de gênero + contador */}
+      {availableGenres.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold mr-1">Gênero:</span>
+          <button
+            onClick={() => setGenreFilter(null)}
+            className={cn(
+              "px-3 h-7 rounded-full text-[11px] font-semibold transition-colors border",
+              genreFilter === null
+                ? "bg-primary text-primary-foreground border-primary"
+                : "bg-elevated text-muted-foreground border-border hover:text-foreground",
+            )}
+          >
+            Todos
+          </button>
+          {availableGenres.map((g) => (
+            <button
+              key={g.id}
+              onClick={() => setGenreFilter(genreFilter === g.id ? null : g.id)}
+              className={cn(
+                "px-3 h-7 rounded-full text-[11px] font-semibold transition-colors border inline-flex items-center gap-1.5 capitalize",
+                genreFilter === g.id
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-elevated text-muted-foreground border-border hover:text-foreground",
+              )}
+            >
+              {g.nome}
+              <span className={cn(
+                "tabular-nums text-[10px] px-1 rounded",
+                genreFilter === g.id ? "bg-primary-foreground/20" : "bg-background/60",
+              )}>{g.count}</span>
+            </button>
+          ))}
+          <div className="flex-1" />
+          <span className="text-[11px] text-muted-foreground tabular-nums">
+            Mostrando <strong className="text-foreground">{totalShown}</strong> de {totalAll}
+          </span>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -359,6 +625,11 @@ function TemplateCard({
       {/* Info */}
       <div className="p-2 flex-1 flex flex-col gap-1.5">
         <div className="min-w-0">
+          {t.genres?.nome && (
+            <div className="text-[9px] uppercase tracking-wider text-muted-foreground font-bold truncate mb-0.5">
+              {t.genres.nome}
+            </div>
+          )}
           <div className="text-[12px] font-semibold truncate leading-tight" title={t.name}>{t.name}</div>
           <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5">
             <span className="inline-flex items-center gap-0.5">
