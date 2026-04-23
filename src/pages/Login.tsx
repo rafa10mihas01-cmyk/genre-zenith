@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { NexEngineLogo } from "@/components/NexEngineLogo";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +15,7 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   useEffect(() => { if (user) nav("/", { replace: true }); }, [user, nav]);
 
@@ -27,6 +29,25 @@ export default function Login() {
     } else {
       toast.success("Bem-vindo ao NexEngine");
       nav("/", { replace: true });
+    }
+  };
+
+  const handleReset = async () => {
+    if (!email) {
+      toast.error("Informe seu email", { description: "Digite o email da sua conta antes de pedir o reset." });
+      return;
+    }
+    setResetting(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setResetting(false);
+    if (error) {
+      toast.error("Não foi possível enviar", { description: error.message });
+    } else {
+      toast.success("Email enviado", {
+        description: "Cheque sua caixa (e spam) para redefinir a senha.",
+      });
     }
   };
 
@@ -60,6 +81,14 @@ export default function Login() {
           <Button type="submit" disabled={loading} className="w-full">
             {loading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Entrando…</> : "Entrar"}
           </Button>
+          <button
+            type="button"
+            onClick={handleReset}
+            disabled={resetting}
+            className="w-full text-[11px] text-muted-foreground hover:text-foreground transition-colors text-center pt-1 disabled:opacity-50"
+          >
+            {resetting ? "Enviando…" : "Esqueci minha senha"}
+          </button>
           <p className="text-[11px] text-muted-foreground text-center pt-2">
             Acesso interno. Usuários são adicionados pelo painel.
           </p>
