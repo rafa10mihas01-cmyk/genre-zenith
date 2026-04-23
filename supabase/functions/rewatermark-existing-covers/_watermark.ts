@@ -28,15 +28,16 @@ const LOGO_BLACK_URL =
 //   2. Highlight 1px acima (clara, simula relevo)
 //   3. Core do logo em tom adaptado ao fundo (não branco puro), opacidade ~10%
 // Resultado: percebido só no segundo olhar, parece parte do material.
-const LOGO_WIDTH_PCT     = 0.10;  // 10% da largura (mantido)
+const LOGO_WIDTH_PCT     = 0.088; // 8.8% (-12% vs 10%) — assinatura mais discreta
 const MARGIN_PCT         = 0.07;  // 7% das bordas (mantido)
-const LOGO_OPACITY       = 0.08;  // 8% — abaixo do limiar consciente
-// DEBOSS (gravado pra dentro, oposto do emboss tradicional):
+const LOGO_OPACITY       = 0.07;  // 7% — invisível no primeiro olhar
+// DEBOSS PROFUNDO (gravado pra dentro, oposto do emboss tradicional):
 //   sombra ESCURA 1px ACIMA do logo  → simula que a luz vem de cima e a "incisão" causa sombra na borda superior
 //   brilho CLARO  1px ABAIXO do logo → luz refletida na parte inferior da incisão
-const DEBOSS_SHADOW_A    = 0.07;  // alpha da sombra superior (gravação)
-const DEBOSS_HIGHLIGHT_A = 0.04;  // alpha do brilho inferior (reflexo)
-const LOGO_TINT_SHIFT    = 32;    // puxa mais do branco/preto puro pra dentro do tom do fundo
+//   intensificados pra ler como "gravação real" mesmo com core a 7%
+const DEBOSS_SHADOW_A    = 0.11;  // alpha da sombra superior (incisão mais profunda)
+const DEBOSS_HIGHLIGHT_A = 0.06;  // alpha do brilho inferior (reflexo do material)
+const LOGO_TINT_SHIFT    = 48;    // puxa MUITO mais do branco/preto puro pra dentro do tom do fundo
 
 // ============================================================
 // PREMIUM FINISH — calibração visual
@@ -259,14 +260,14 @@ export async function applyWatermark(coverBytes: Uint8Array): Promise<{
     // Em fundos escuros, o logo é um cinza claro tingido com a cor da capa (não branco).
     // Em fundos claros, é um cinza escuro tingido — sempre "do mesmo material".
     const tintR = isDarkBg
-      ? Math.min(255, 215 - LOGO_TINT_SHIFT + Math.round(stats.r * 0.18))
-      : Math.max(0,   40 + LOGO_TINT_SHIFT - Math.round((255 - stats.r) * 0.18));
+      ? Math.min(255, 215 - LOGO_TINT_SHIFT + Math.round(stats.r * 0.28))
+      : Math.max(0,   40 + LOGO_TINT_SHIFT - Math.round((255 - stats.r) * 0.28));
     const tintG = isDarkBg
-      ? Math.min(255, 215 - LOGO_TINT_SHIFT + Math.round(stats.g * 0.18))
-      : Math.max(0,   40 + LOGO_TINT_SHIFT - Math.round((255 - stats.g) * 0.18));
+      ? Math.min(255, 215 - LOGO_TINT_SHIFT + Math.round(stats.g * 0.28))
+      : Math.max(0,   40 + LOGO_TINT_SHIFT - Math.round((255 - stats.g) * 0.28));
     const tintB = isDarkBg
-      ? Math.min(255, 215 - LOGO_TINT_SHIFT + Math.round(stats.b * 0.18))
-      : Math.max(0,   40 + LOGO_TINT_SHIFT - Math.round((255 - stats.b) * 0.18));
+      ? Math.min(255, 215 - LOGO_TINT_SHIFT + Math.round(stats.b * 0.28))
+      : Math.max(0,   40 + LOGO_TINT_SHIFT - Math.round((255 - stats.b) * 0.28));
 
     // Helper: cria uma cópia do logo já redimensionada, com cor uniforme + opacidade.
     // Preserva o canal alpha original (mantém o desenho), só substitui RGB.
