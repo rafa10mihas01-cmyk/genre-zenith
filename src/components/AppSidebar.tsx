@@ -22,12 +22,17 @@ const items = [
 ];
 
 export function AppSidebar() {
-  const { state } = useSidebar();
+  const { state, isMobile, setOpenMobile } = useSidebar();
   const collapsed = state === "collapsed";
   const { signOut, user } = useAuth();
   const { isAdmin } = useUserRole();
   const location = useLocation();
   const visibleItems = items.filter((i) => !i.adminOnly || isAdmin);
+
+  // Fecha o drawer mobile ao escolher um item — comportamento app-like
+  const handleNav = () => {
+    if (isMobile) setOpenMobile(false);
+  };
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
@@ -62,7 +67,7 @@ export function AppSidebar() {
                         active && "bg-sidebar-accent text-sidebar-foreground font-semibold",
                       )}
                     >
-                      <NavLink to={item.url} end={item.end} className="flex items-center gap-3 px-3">
+                      <NavLink to={item.url} end={item.end} onClick={handleNav} className="flex items-center gap-3 px-3">
                         <item.icon className={cn("h-[18px] w-[18px] shrink-0", active && "text-primary")} />
                         {!collapsed && <span className="text-sm">{item.title}</span>}
                       </NavLink>

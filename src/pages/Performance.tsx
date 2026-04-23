@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { usePersistedState } from "@/hooks/usePersistedState";
 
 import { PerformanceKpis } from "@/components/performance/PerformanceKpis";
 import { PriorityActionsCard } from "@/components/performance/PriorityActionsCard";
@@ -22,6 +23,7 @@ export default function Performance() {
   const [loading, setLoading] = useState(false);
   const [tracking, setTracking] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+  const [activeTab, setActiveTab] = usePersistedState<string>("performance:tab", "playlists");
 
   async function load() {
     setLoading(true);
@@ -128,7 +130,7 @@ export default function Performance() {
           <GenreRanking dataset={dataset} genres={genres} />
 
           {/* 4. Detalhe — playlists com filtros e padrões aprendidos */}
-          <Tabs defaultValue="playlists" className="space-y-4">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
             <TabsList>
               <TabsTrigger value="playlists">Playlists ({totalPubs})</TabsTrigger>
               <TabsTrigger value="insights">Padrões aprendidos</TabsTrigger>
