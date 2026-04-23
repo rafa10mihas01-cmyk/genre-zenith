@@ -131,10 +131,13 @@ Deno.serve(async (req) => {
     .in("status", ["created", "approved", "generating", "pending", "package"]);
   const replicatedIds = new Set((alreadyReplicated ?? []).map(r => r.source_result_id).filter(Boolean));
 
-  // 3) TOP N candidatas
+  // 3) TOP N candidatas — score híbrido prioriza:
+  //    a) playlists oficiais Spotify (owner_type='spotify') = curadoria editorial → tendência real
+  //    b) playlists grandes de usuários (100k+) = validação social
+  //    Multipliers ficam inertes se owner_type vier null (compat com dados antigos).
   const { data: pool, error: poolErr } = await supabase
     .from("search_results")
-    .select("id,nome_playlist,seguidores,quality_score,total_musicas,spotify_url,followers_source,followers_verified_at")
+    .select("id,nome_playlist,seguidores,quality_score,total_musicas,spotify_url,followers_source,followers_verified_at,owner_id,owner_type")
     .eq("genre_id", body.genre_id)
     .eq("is_valid", true)
     .eq("followers_source", "spotify_api")
@@ -147,11 +150,19 @@ Deno.serve(async (req) => {
 
   const candidates = (pool ?? [])
     .filter(p => !replicatedIds.has(p.id))
-    .map(p => ({
-      ...p,
-      _score: (p.seguidores ?? 0) * ((Number(p.quality_score) || 50) / 100),
-      _tier: tierFor(p.seguidores ?? 0),
-    }))
+    .map(p => {
+      const baseScore = (p.seguidores ?? 0) * ((Number(p.quality_score) || 50) / 100);
+      // Oficial Spotify vale 2.5× — captura tendência editorial real
+      const sourceMult = p.owner_type === "spotify" ? 2.5 : 1.0;
+      // Bonus por nome editorial (Top, Viral, Hits) — mesmo sendo de usuário, indica padrão de curadoria
+      const editorialBonus = /\b(top|viral|hits|charts|novidades)\b/i.test(p.nome_playlist ?? "") ? 1.2 : 1.0;
+      return {
+        ...p,
+        _score: baseScore * sourceMult * editorialBonus,
+        _tier: tierFor(p.seguidores ?? 0),
+        _source_label: p.owner_type === "spotify" ? "oficial_spotify" : (p.owner_type === "user" ? "user_grande" : "desconhecido"),
+      };
+    })
     .sort((a, b) => b._score - a._score)
     .slice(0, topN);
 
@@ -172,6 +183,8 @@ Deno.serve(async (req) => {
         tier: cand._tier,
         score: Math.round(cand._score),
         spotify_url: cand.spotify_url,
+        source: cand._source_label,
+        owner_id: cand.owner_id ?? null,
       },
       blueprint: {
         id: bp.id,
