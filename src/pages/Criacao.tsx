@@ -125,17 +125,19 @@ export default function Criacao() {
       ? [
           {
             label: "Hot",
-            value: templates.filter((t) => t.quality_tier === "hot" && !t.archived_at).length,
+            value: templates.filter((t) => t.quality_tier === "hot").length,
             intent: "primary",
           },
           {
             label: "Médios",
-            value: templates.filter((t) => t.quality_tier === "medium" && !t.archived_at).length,
+            value: templates.filter((t) => t.quality_tier === "medium").length,
             intent: "warning",
           },
           {
             label: "Sem capa",
-            value: templates.filter((t) => !t.cover_image_url && !t.archived_at && !t.spotify_playlist_id).length,
+            value: templates.filter(
+              (t) => !t.cover_image_url && !t.spotify_playlist_id && t.quality_tier !== "archived",
+            ).length,
             intent: "danger",
           },
         ]
