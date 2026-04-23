@@ -94,6 +94,15 @@ Deno.serve(async (req) => {
   const ts = Date.now();
   const variations: { index: number; url: string }[] = [];
 
+  // 🧹 Cleanup: remove variações antigas do storage antes de gerar novas
+  try {
+    const { data: oldFiles } = await supabase.storage.from("playlist-covers").list(tpl.id);
+    if (oldFiles && oldFiles.length > 0) {
+      const paths = oldFiles.map((f) => `${tpl.id}/${f.name}`);
+      await supabase.storage.from("playlist-covers").remove(paths);
+    }
+  } catch (e) { console.warn("cleanup falhou:", e); }
+
   // Gera em paralelo (4 chamadas)
   const results = await Promise.allSettled(
     Array.from({ length: VARIATION_COUNT }, (_, i) => generateOne(prompt, i + 1)),
