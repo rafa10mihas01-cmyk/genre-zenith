@@ -37,13 +37,20 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
-      {/* Header da sidebar: altura idêntica ao topbar (h-14) — logo enxuto */}
-      <SidebarHeader className="h-14 px-4 border-b border-sidebar-border flex flex-row items-center">
+      {/* Header da sidebar: altura idêntica ao topbar (h-14).
+          Usamos apenas o mark "N" — o logo completo tem subtítulo em corpo muito pequeno
+          que vira ilegível em qualquer tamanho razoável de header. */}
+      <SidebarHeader className="h-14 px-4 border-b border-sidebar-border flex flex-row items-center gap-2.5">
         <NexEngineLogo
-          size={collapsed ? 20 : 24}
-          variant={collapsed ? "mark" : "auto"}
+          size={collapsed ? 24 : 28}
+          variant="mark"
           className={cn(collapsed && "mx-auto")}
         />
+        {!collapsed && (
+          <span className="text-[15px] font-bold tracking-tight text-sidebar-foreground leading-none">
+            NexEngine
+          </span>
+        )}
       </SidebarHeader>
 
       <SidebarContent className="px-2 py-3">
