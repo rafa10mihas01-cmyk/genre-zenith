@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
-  Activity, Play, Pause, Pencil, RefreshCw, ArrowDownRight, ArrowUpRight,
-  Music2, FlaskConical, History, ListMusic, Plus, Search, Filter, Users,
+  Activity, Pause, Pencil, RefreshCw, ArrowDownRight, ArrowUpRight,
+  Music2, FlaskConical, History, ListMusic, Plus, Search, Users,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -61,7 +61,7 @@ export default function Operacao() {
       />
 
       {/* KPIs operacionais (zerados — sem mentir) */}
-      <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      <section className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
         <KpiBig icon={Activity}       label="Total ativas" value="0" hint="Playlists em operação" />
         <KpiBig icon={ArrowUpRight}   label="Crescendo"    value="0" tone="primary"     hint="Variação positiva" />
         <KpiBig icon={ArrowDownRight} label="Em queda"     value="0" tone="destructive" hint="Precisa atenção" />

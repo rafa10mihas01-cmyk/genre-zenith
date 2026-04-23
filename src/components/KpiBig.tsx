@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { ReactNode } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 /**
  * KpiBig — KPI GRANDE padrão (Cérebro / Home / Operação / Criação / Performance).
@@ -18,6 +19,7 @@ export interface KpiBigProps {
   tone?: "default" | "primary" | "destructive" | "warning" | "success";
   className?: string;
   action?: ReactNode;
+  loading?: boolean;
 }
 
 const TONE_CLS: Record<NonNullable<KpiBigProps["tone"]>, string> = {
@@ -36,21 +38,30 @@ export function KpiBig({
   tone = "default",
   className,
   action,
+  loading = false,
 }: KpiBigProps) {
   return (
-    <div className={cn("nx-card p-4", className)}>
-      <div className="flex items-center justify-between gap-2">
+    <div className={cn("nx-card p-4 min-h-[118px] flex flex-col", className)}>
+      <div className="flex items-center justify-between gap-2 min-h-4">
         <span className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-medium">
           {label}
         </span>
         {action ?? (Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground" />)}
       </div>
-      <div className={cn("text-2xl font-bold mt-1.5 tabular-nums leading-tight", TONE_CLS[tone])}>
-        {value}
+      <div className={cn("mt-1.5 min-h-[36px] flex items-end", TONE_CLS[tone])}>
+        {loading ? (
+          <Skeleton className="h-8 w-24 rounded-md bg-muted/80" />
+        ) : (
+          <div className="text-2xl font-bold tabular-nums leading-tight">{value}</div>
+        )}
       </div>
-      {hint && (
-        <div className="text-[11px] text-muted-foreground mt-1 truncate">{hint}</div>
-      )}
+      <div className="mt-1 min-h-[16px]">
+        {loading ? (
+          <Skeleton className="h-3.5 w-32 rounded-md bg-muted/70" />
+        ) : hint ? (
+          <div className="text-[11px] text-muted-foreground truncate">{hint}</div>
+        ) : null}
+      </div>
     </div>
   );
 }

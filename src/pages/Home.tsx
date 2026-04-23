@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Brain, Sparkles, ListMusic, Music2, TrendingUp, ArrowRight, Activity, Loader2 } from "lucide-react";
+import { KpiBig } from "@/components/KpiBig";
+import { Brain, ListMusic, Music2, TrendingUp, ArrowRight, Activity, Sparkles } from "lucide-react";
 import { formatNumber, timeAgo } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { genreStyleVars } from "@/lib/genreColors";
@@ -105,14 +106,15 @@ export default function Home() {
       />
 
       {/* KPIs globais */}
-      <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <KpiCard icon={ListMusic} label="Gêneros analisados" value={stats ? `${stats.analyzed}/${stats.totalGenres}` : "—"} loading={loading} />
-        <KpiCard icon={Music2} label="Playlists coletadas" value={formatNumber(stats?.playlists)} loading={loading} />
-        <KpiCard icon={TrendingUp} label="Faixas mapeadas" value={formatNumber(stats?.tracks)} loading={loading} />
-        <KpiCard
+      <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <KpiBig icon={ListMusic} label="Gêneros analisados" value={stats ? `${stats.analyzed}/${stats.totalGenres}` : "—"} hint="Cobertura do sistema" loading={loading} />
+        <KpiBig icon={Music2} label="Playlists coletadas" value={formatNumber(stats?.playlists)} hint="Base monitorada" loading={loading} />
+        <KpiBig icon={TrendingUp} label="Faixas mapeadas" value={formatNumber(stats?.tracks)} hint="Universo identificado" loading={loading} />
+        <KpiBig
           icon={Activity}
           label="Última atividade"
-          valueRaw={activity[0]?.created_at ? timeAgo(activity[0].created_at) : "—"}
+          value={activity[0]?.created_at ? timeAgo(activity[0].created_at) : "—"}
+          hint="Evento mais recente"
           loading={loading}
         />
       </section>
@@ -178,22 +180,6 @@ export default function Home() {
           ))}
         </div>
       </section>
-    </div>
-  );
-}
-
-function KpiCard({
-  icon: Icon, label, value, valueRaw, loading,
-}: { icon: any; label: string; value?: string; valueRaw?: string; loading?: boolean }) {
-  return (
-    <div className="nx-card p-4">
-      <div className="flex items-center justify-between">
-        <span className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-medium">{label}</span>
-        <Icon className="h-3.5 w-3.5 text-muted-foreground" />
-      </div>
-      <div className="text-2xl font-bold mt-2 tabular-nums">
-        {loading ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : (valueRaw ?? value ?? "—")}
-      </div>
     </div>
   );
 }
