@@ -398,6 +398,24 @@ function variationHints(index: number): string {
 }
 
 // ============================================================
+// ACABAMENTO PREMIUM (compartilhado pelos 3 estilos)
+// Adiciona profundidade/relevo SEM mudar layout, tipografia ou hierarquia.
+// Tudo deve ser SUTIL — quase imperceptível, nunca chamativo.
+// ============================================================
+const PREMIUM_FINISH_BLOCK = [
+  "PREMIUM FINISH (subtle depth — never strong or flashy):",
+  "- Background depth: subtle radial light from center (very soft, almost imperceptible glow). Center slightly more illuminated than edges. Still only 2 base colors — no third color, no extra hue.",
+  "- Surface relief: very faint embossed feeling, soft inner highlight on the top inner edge and a soft inner shadow on the bottom inner edge. Premium material feel, NOT a thick frame.",
+  "- Inner border: extremely thin (1–2px) soft inner border with a subtle light reflection — like a refined card edge. Same hue family as the palette, low opacity.",
+  "- Text finish: clean bold text with a VERY subtle drop shadow (low opacity, tight offset, soft blur) and an almost imperceptible top highlight on the letters. Text must remain ultra readable — depth is felt, not seen.",
+  "- Logo signature: a small embossed wordmark \"NEXENGINE\" in the BOTTOM-RIGHT corner, inside the safe area. Tiny size (about 4–5% of canvas height), opacity 15–25%, low contrast, integrated into the surface like a watermark. Must NOT compete with the title or subtitle. Same font family as the title.",
+  "INTENSITY RULE (CRITICAL): all of the above must be SUBTLE, ELEGANT, ALMOST IMPERCEPTIBLE.",
+  "STRICTLY FORBIDDEN inside premium finish: strong glow, heavy shadows, neon effects, glossy plastic look, 3D bevels, flashy reflections, any effect that pulls attention away from the text.",
+].join("\n");
+
+
+
+// ============================================================
 // PROMPT BUILDERS — 1 por estilo
 // ============================================================
 function buildCleanPrompt(template: any, palette: typeof PALETTES[number], index = 0): string {
