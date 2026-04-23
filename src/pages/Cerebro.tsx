@@ -109,33 +109,18 @@ export default function Cerebro() {
         }
       />
 
-      {/* Seletor de gênero + métricas */}
-      <section className="nx-card p-5 flex flex-col md:flex-row md:items-center gap-5">
-        <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-primary/30 to-elevated border border-border flex items-center justify-center text-2xl font-black text-foreground shrink-0">
-          {(genre?.nome ?? activeSlug).slice(0, 2).toUpperCase()}
-        </div>
-        <div className="flex-1 min-w-0 space-y-2">
-          <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-bold">
-            Gênero ativo
-          </div>
-          <Select value={activeSlug} onValueChange={handleChangeGenre}>
-            <SelectTrigger className="w-auto min-w-[200px] h-auto p-0 border-0 bg-transparent text-2xl font-black tracking-tight capitalize hover:text-primary focus:ring-0 [&>svg]:text-muted-foreground">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {genres.map(g => (
-                <SelectItem key={g.id} value={g.slug} className="capitalize">{g.nome}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
-            <Stat label="Playlists" value={formatNumber(genre?.total_playlists)} />
-            <Stat label="Faixas" value={formatNumber(genre?.total_musicas)} />
-            <Stat label="Termos" value={formatNumber(genre?.total_termos)} />
-            <Stat label="Última análise" valueRaw={model?.ultima_analise ? timeAgo(model.ultima_analise) : "—"} />
-          </div>
-        </div>
-      </section>
+      {/* FAIXA DE GÊNEROS — chips coloridos com scroll horizontal */}
+      <GenreStrip genres={genres} activeSlug={activeSlug} onPick={handleChangeGenre} />
+
+      {/* HERO do gênero ativo — cor própria + KPIs grandes */}
+      <GenreHero genre={genre} model={model} />
+
+      {/* AÇÕES RÁPIDAS — atalhos contextuais do gênero */}
+      <QuickActions slug={activeSlug} />
+
+      {/* MINI-PIPELINE — estado do gênero atual */}
+      <GenrePipeline genre={genre} model={model} />
+
 
       {/* TABS — 6 áreas internas */}
       <Tabs value={tab} onValueChange={setTab} className="space-y-5">
