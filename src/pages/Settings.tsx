@@ -9,6 +9,7 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { PageHeader } from "@/components/PageHeader";
+import { PageContainer } from "@/components/PageContainer";
 
 const STORAGE_KEY = "nx-collect-settings";
 const SETTINGS_ROUTE = "/configuracoes";
@@ -276,7 +277,7 @@ export default function Settings() {
   }
 
   return (
-    <div className="space-y-6 max-w-[1600px] mx-auto">
+    <PageContainer>
       <PageHeader
         kicker="Sistema"
         icon={SettingsIcon}
@@ -537,7 +538,7 @@ export default function Settings() {
           </Button>
         </div>
       </section>
-    </div>
+    </PageContainer>
   );
 }
 

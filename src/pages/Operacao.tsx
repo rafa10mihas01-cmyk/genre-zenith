@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/PageHeader";
 import { KpiBig } from "@/components/KpiBig";
 import { AccountsManager } from "@/components/operacao/AccountsManager";
+import { PageContainer } from "@/components/PageContainer";
 
 /**
  * OPERAÇÃO — painel de controle contínuo das playlists já publicadas.
@@ -47,7 +48,7 @@ export default function Operacao() {
   const playlists: any[] = [];
 
   return (
-    <div className="space-y-6 max-w-[1600px] mx-auto">
+    <PageContainer>
       <PageHeader
         kicker="Módulo de Operação"
         icon={Activity}
@@ -214,7 +215,7 @@ export default function Operacao() {
           <EmptyInline msg="Sem alterações registradas ainda." />
         </section>
       )}
-    </div>
+    </PageContainer>
   );
 }
 

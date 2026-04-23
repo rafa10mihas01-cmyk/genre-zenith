@@ -8,6 +8,7 @@ import { formatNumber, timeAgo } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { genreStyleVars } from "@/lib/genreColors";
 import { PageHeader } from "@/components/PageHeader";
+import { PageContainer } from "@/components/PageContainer";
 
 /**
  * HOME — Resumo executivo do sistema.
@@ -99,7 +100,7 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="space-y-6 max-w-[1600px] mx-auto">
+    <PageContainer>
       <PageHeader
         title="Visão geral"
         subtitle="Acompanhar o estado do sistema e abrir a inteligência completa de cada gênero no Cérebro."
@@ -180,7 +181,7 @@ export default function Home() {
           ))}
         </div>
       </section>
-    </div>
+    </PageContainer>
   );
 }
 

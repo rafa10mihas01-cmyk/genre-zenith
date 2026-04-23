@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { BarChart3, RefreshCw, Sparkles, TrendingUp, TrendingDown, Activity, ExternalLink, Brain } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
+import { PageContainer } from "@/components/PageContainer";
 import { KpiBig } from "@/components/KpiBig";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -92,7 +93,7 @@ export default function Performance() {
   const baixaIds = new Set(insight?.classificacao?.baixa ?? []);
 
   return (
-    <div className="space-y-6 max-w-[1600px] mx-auto">
+    <PageContainer>
       <PageHeader
         kicker="Módulo"
         icon={BarChart3}
@@ -293,7 +294,7 @@ export default function Performance() {
       )}
 
       {loading && <p className="text-xs text-muted-foreground text-center">Carregando…</p>}
-    </div>
+    </PageContainer>
   );
 }
 
