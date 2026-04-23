@@ -313,21 +313,21 @@ export default function Settings() {
         <TabsContent value="conexoes" className="space-y-4 mt-4">
 
       {/* Apify */}
-      <section className="nx-card p-5">
+      <section className="nx-card p-4">
         <div className="flex items-center gap-2">
-          <Zap className="h-5 w-5 text-accent" />
-          <h2 className="font-semibold">Apify</h2>
+          <Zap className="h-4 w-4 text-accent shrink-0" />
+          <h2 className="text-sm font-bold">Apify</h2>
         </div>
-        <p className="text-sm text-muted-foreground mt-1">
+        <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
           Sua APIFY_API_KEY está armazenada no backend (Lovable Cloud) — nunca no navegador.
         </p>
 
-        <div className="flex items-center gap-2 mt-4 flex-wrap">
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-success/15 text-success border border-success/30 text-xs">
-            <KeyRound className="h-3.5 w-3.5" /> APIFY_API_KEY configurada
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-3">
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-success/15 text-success border border-success/30 text-[11px] font-medium w-fit">
+            <KeyRound className="h-3 w-3" /> APIFY_API_KEY configurada
           </div>
-          <Button size="sm" variant="outline" onClick={testConnection} disabled={testing}>
-            {testing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+          <Button size="sm" variant="outline" onClick={testConnection} disabled={testing} className="h-8 text-xs w-full sm:w-auto">
+            {testing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
             Testar conexão
           </Button>
         </div>
