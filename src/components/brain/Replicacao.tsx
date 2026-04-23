@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { formatNumber, timeAgo } from "@/lib/format";
+import { timeAgo } from "@/lib/format";
 
 type Blueprint = {
   id: string;
@@ -234,7 +234,7 @@ export function Variacoes({ genreId }: { genreId?: string }) {
               creating={creating === t.id}
               onToggle={() => setExpanded(prev => {
                 const n = new Set(prev);
-                n.has(t.id) ? n.delete(t.id) : n.add(t.id);
+                if (n.has(t.id)) n.delete(t.id); else n.add(t.id);
                 return n;
               })}
               onApprove={() => updateStatus(t.id, "approved")}
