@@ -2,12 +2,15 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Sparkles, Flame, AlertTriangle, Archive, RefreshCw, Loader2,
   Check, Music2, ExternalLink, AlertCircle, ChevronDown, ChevronRight,
-  Send, Image as ImageIcon, Pencil, Play, Inbox, Clock,
+  Send, Image as ImageIcon, Pencil, Play, Inbox, Clock, Search, X, Wand2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
@@ -56,7 +59,12 @@ type Template = {
   created_on_spotify_at: string | null;
   genre_id: string;
   blueprint_id: string;
+  created_at: string;
+  genres?: { id: string; nome: string } | null;
 };
+
+type SortKey = "score_desc" | "score_asc" | "recent" | "alpha" | "genre";
+type StatusFilter = "all" | "no_cover" | "with_cover" | "with_error";
 
 export default function Criacao() {
   const { toast } = useToast();
