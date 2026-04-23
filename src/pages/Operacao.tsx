@@ -14,6 +14,7 @@ import { AccountsManager } from "@/components/operacao/AccountsManager";
 import { PageContainer } from "@/components/PageContainer";
 import { supabase } from "@/integrations/supabase/client";
 import { formatNumber, timeAgo } from "@/lib/format";
+import { usePersistedState } from "@/hooks/usePersistedState";
 
 /**
  * OPERAÇÃO — painel de controle das playlists já publicadas.
@@ -81,9 +82,9 @@ type AccountSummary = {
 };
 
 export default function Operacao() {
-  const [tab, setTab] = useState<TabId>("playlists");
-  const [filter, setFilter] = useState<"todas" | OpStatus>("todas");
-  const [search, setSearch] = useState("");
+  const [tab, setTab] = usePersistedState<TabId>("operacao:tab", "playlists");
+  const [filter, setFilter] = usePersistedState<"todas" | OpStatus>("operacao:filter", "todas");
+  const [search, setSearch] = usePersistedState<string>("operacao:search", "");
   const [loading, setLoading] = useState(true);
   const [playlistsAll, setPlaylistsAll] = useState<OpPlaylist[]>([]);
   const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
