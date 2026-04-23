@@ -1118,6 +1118,30 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       v_brain_health: {
@@ -1225,7 +1249,15 @@ export type Database = {
           total_tracks: number
         }[]
       }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       has_team_access: { Args: never; Returns: boolean }
+      is_admin: { Args: never; Returns: boolean }
       priority_from_performance: {
         Args: { p_class: string }
         Returns: {
@@ -1235,6 +1267,7 @@ export type Database = {
       }
     }
     Enums: {
+      app_role: "admin" | "curador"
       followers_source_type: "spotify_api"
     }
     CompositeTypes: {
@@ -1363,6 +1396,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_role: ["admin", "curador"],
       followers_source_type: ["spotify_api"],
     },
   },
