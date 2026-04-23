@@ -1,20 +1,19 @@
-import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import {
-  Brain, Sparkles, Loader2, RefreshCw, ListMusic, Music2, TrendingUp, Hash,
-  ExternalLink, Image as ImageIcon, Palette, Wand2, FileText, Activity, Layers,
+  Brain, Sparkles, Loader2, ListMusic, Music2, TrendingUp, Hash,
+  ExternalLink, Image as ImageIcon, Palette, Wand2, FileText, Activity,
+  ArrowRight, Search, Lightbulb, Wrench, Radio, BarChart3, Rocket,
 } from "lucide-react";
 import { useBrainModel } from "@/hooks/useBrainModel";
 import { useBriefings } from "@/hooks/useBriefings";
 import { formatNumber, timeAgo, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { genreStyleVars } from "@/lib/genreColors";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
 import { Replicacao } from "@/components/brain/Replicacao";
@@ -110,33 +109,18 @@ export default function Cerebro() {
         }
       />
 
-      {/* Seletor de gênero + métricas */}
-      <section className="nx-card p-5 flex flex-col md:flex-row md:items-center gap-5">
-        <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-primary/30 to-elevated border border-border flex items-center justify-center text-2xl font-black text-foreground shrink-0">
-          {(genre?.nome ?? activeSlug).slice(0, 2).toUpperCase()}
-        </div>
-        <div className="flex-1 min-w-0 space-y-2">
-          <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-bold">
-            Gênero ativo
-          </div>
-          <Select value={activeSlug} onValueChange={handleChangeGenre}>
-            <SelectTrigger className="w-auto min-w-[200px] h-auto p-0 border-0 bg-transparent text-2xl font-black tracking-tight capitalize hover:text-primary focus:ring-0 [&>svg]:text-muted-foreground">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {genres.map(g => (
-                <SelectItem key={g.id} value={g.slug} className="capitalize">{g.nome}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
-            <Stat label="Playlists" value={formatNumber(genre?.total_playlists)} />
-            <Stat label="Faixas" value={formatNumber(genre?.total_musicas)} />
-            <Stat label="Termos" value={formatNumber(genre?.total_termos)} />
-            <Stat label="Última análise" valueRaw={model?.ultima_analise ? timeAgo(model.ultima_analise) : "—"} />
-          </div>
-        </div>
-      </section>
+      {/* FAIXA DE GÊNEROS — chips coloridos com scroll horizontal */}
+      <GenreStrip genres={genres} activeSlug={activeSlug} onPick={handleChangeGenre} />
+
+      {/* HERO do gênero ativo — cor própria + KPIs grandes */}
+      <GenreHero genre={genre} model={model} />
+
+      {/* AÇÕES RÁPIDAS — atalhos contextuais do gênero */}
+      <QuickActions slug={activeSlug} />
+
+      {/* MINI-PIPELINE — estado do gênero atual */}
+      <GenrePipeline genre={genre} model={model} />
+
 
       {/* TABS — 6 áreas internas */}
       <Tabs value={tab} onValueChange={setTab} className="space-y-5">
@@ -196,14 +180,215 @@ export default function Cerebro() {
   );
 }
 
-function Stat({ label, value, valueRaw }: { label: string; value?: string; valueRaw?: string }) {
+/* ===================== HEADER COMPONENTS (padrão Home) ===================== */
+
+function GenreStrip({
+  genres, activeSlug, onPick,
+}: {
+  genres: (GenreOpt & { total_playlists?: number | null })[];
+  activeSlug: string;
+  onPick: (slug: string) => void;
+}) {
   return (
-    <div className="flex items-center gap-1.5">
-      <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70">{label}</span>
-      <span className="text-sm font-bold text-foreground tabular-nums">{valueRaw ?? value ?? "—"}</span>
+    <section>
+      <div className="flex items-center justify-between mb-2">
+        <h2 className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-bold">
+          Gêneros
+        </h2>
+        <span className="text-[11px] text-muted-foreground">{genres.length} cadastrados</span>
+      </div>
+      <div className="flex gap-2 overflow-x-auto nx-scroll pb-1 -mx-1 px-1">
+        {genres.map(g => {
+          const active = g.slug === activeSlug;
+          return (
+            <button
+              key={g.id}
+              type="button"
+              onClick={() => onPick(g.slug)}
+              style={genreStyleVars(g.slug)}
+              className={cn(
+                "shrink-0 px-3.5 py-2 rounded-full border text-xs font-semibold capitalize transition-all flex items-center gap-2",
+                active
+                  ? "bg-[hsl(var(--g)/0.15)] border-[hsl(var(--g)/0.55)] text-foreground shadow-[0_0_0_1px_hsl(var(--g)/0.25)_inset,0_0_18px_-4px_hsl(var(--g)/0.45)]"
+                  : "bg-card border-border text-muted-foreground hover:text-foreground hover:border-[hsl(var(--g)/0.4)]",
+              )}
+            >
+              <span
+                className="h-1.5 w-1.5 rounded-full"
+                style={{ background: `hsl(var(--g))` }}
+              />
+              {g.nome}
+              <span className="text-[10px] opacity-70 tabular-nums">
+                {formatNumber(g.total_playlists ?? 0)}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function GenreHero({ genre, model }: { genre: any; model: any }) {
+  const slug = genre?.slug ?? "";
+  const initials = (genre?.nome ?? slug).slice(0, 2).toUpperCase();
+  return (
+    <section
+      style={genreStyleVars(slug)}
+      className="nx-card p-5 flex flex-col md:flex-row md:items-center gap-5 relative overflow-hidden"
+    >
+      {/* glow sutil da cor */}
+      <div
+        aria-hidden
+        className="absolute inset-0 opacity-[0.08] pointer-events-none"
+        style={{
+          background:
+            "radial-gradient(circle at 0% 50%, hsl(var(--g)) 0%, transparent 55%)",
+        }}
+      />
+      <div
+        className="relative h-16 w-16 rounded-2xl flex items-center justify-center text-2xl font-black text-foreground shrink-0 border"
+        style={{
+          background:
+            "linear-gradient(135deg, hsl(var(--g)/0.35), hsl(var(--g)/0.05))",
+          borderColor: "hsl(var(--g)/0.4)",
+          boxShadow: "0 0 24px -8px hsl(var(--g)/0.5)",
+        }}
+      >
+        {initials}
+      </div>
+      <div className="relative flex-1 min-w-0 space-y-1">
+        <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-bold">
+          Gênero ativo
+        </div>
+        <h2 className="text-3xl font-black tracking-tight capitalize leading-none">
+          {genre?.nome ?? "—"}
+        </h2>
+      </div>
+      <div className="relative grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 md:min-w-[420px]">
+        <HeroStat label="Playlists" value={formatNumber(genre?.total_playlists)} />
+        <HeroStat label="Faixas" value={formatNumber(genre?.total_musicas)} />
+        <HeroStat label="Termos" value={formatNumber(genre?.total_termos)} />
+        <HeroStat
+          label="Última análise"
+          value={model?.ultima_analise ? timeAgo(model.ultima_analise) : "—"}
+          small
+        />
+      </div>
+    </section>
+  );
+}
+
+function HeroStat({ label, value, small = false }: { label: string; value: string; small?: boolean }) {
+  return (
+    <div>
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground/80 font-medium">
+        {label}
+      </div>
+      <div className={cn("font-bold tabular-nums leading-tight mt-0.5", small ? "text-sm" : "text-xl")}>
+        {value}
+      </div>
     </div>
   );
 }
+
+function QuickActions({ slug }: { slug: string }) {
+  if (!slug) return null;
+  const items = [
+    { to: `/criacao?genre=${slug}`, icon: Wrench, label: "Ver templates", hint: "Templates deste gênero" },
+    { to: `/performance?genre=${slug}`, icon: BarChart3, label: "Ver performance", hint: "Crescimento e ranking" },
+    { to: `/operacao?genre=${slug}`, icon: Radio, label: "Ver publicadas", hint: "Playlists no Spotify" },
+  ];
+  return (
+    <section className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      {items.map(it => (
+        <Link
+          key={it.to}
+          to={it.to}
+          className="nx-card-hover p-4 flex items-center gap-3 group transition-all"
+        >
+          <div className="h-10 w-10 rounded-full flex items-center justify-center shrink-0 bg-muted text-muted-foreground group-hover:text-foreground transition-colors">
+            <it.icon className="h-4 w-4" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-bold leading-tight">{it.label}</div>
+            <div className="text-[11px] text-muted-foreground truncate mt-0.5">{it.hint}</div>
+          </div>
+          <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0 transition-transform group-hover:translate-x-0.5" />
+        </Link>
+      ))}
+    </section>
+  );
+}
+
+function GenrePipeline({ genre, model }: { genre: any; model: any }) {
+  const collected = genre?.total_playlists ?? 0;
+  const analyzed = !!model?.ultima_analise;
+  const palavras = (model?.palavras_chave ?? []).length;
+  const padroes = (model?.padroes_nome ?? []).length;
+  const briefingReady = palavras > 0 || padroes > 0;
+
+  const steps = [
+    {
+      icon: Search,
+      title: "Coletado",
+      primary: collected > 0 ? `${formatNumber(collected)} playlists` : "Sem coleta",
+      sub: genre?.ultima_coleta ? `Última: ${timeAgo(genre.ultima_coleta)}` : "—",
+      ok: collected > 0,
+    },
+    {
+      icon: Lightbulb,
+      title: "Analisado",
+      primary: analyzed ? "Modelo gerado" : "Pendente",
+      sub: analyzed ? `Atualizado ${timeAgo(model.ultima_analise)}` : "Rode 'Atualizar inteligência'",
+      ok: analyzed,
+    },
+    {
+      icon: FileText,
+      title: "Inteligência",
+      primary: briefingReady ? `${palavras} palavras-chave` : "—",
+      sub: briefingReady ? `${padroes} padrões de nome` : "Sem extração",
+      ok: briefingReady,
+    },
+    {
+      icon: Rocket,
+      title: "Pronto p/ criação",
+      primary: briefingReady && analyzed ? "Gerar templates" : "Aguardando",
+      sub: briefingReady && analyzed ? "Vá para Decisões" : "Complete análise primeiro",
+      ok: briefingReady && analyzed,
+    },
+  ];
+
+  return (
+    <section>
+      <h2 className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-bold mb-2">
+        Pipeline do gênero
+      </h2>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {steps.map((s, i) => (
+          <div key={i} className="nx-card p-4 flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <span className={cn(
+                "h-7 w-7 rounded-full flex items-center justify-center",
+                s.ok ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground",
+              )}>
+                <s.icon className="h-3.5 w-3.5" />
+              </span>
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+                {s.title}
+              </span>
+            </div>
+            <div className="text-sm font-bold leading-tight truncate">{s.primary}</div>
+            <div className="text-[11px] text-muted-foreground truncate">{s.sub}</div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/* ===================== ABAS ===================== */
+
 
 /* ===================== ABAS ===================== */
 
