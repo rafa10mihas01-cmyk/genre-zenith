@@ -174,11 +174,8 @@ export default function Settings() {
         toast.error("Conexão Spotify cancelada", { description: error });
       } else if (code) {
         (async () => {
-          const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/spotify-auth?mode=callback&code=${encodeURIComponent(code)}&redirect=${encodeURIComponent(redirect)}&state=${encodeURIComponent(state ?? "")}`;
-          const resp = await fetch(url, {
-            headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
-          });
-          const json = await resp.json();
+          const qs = `mode=callback&code=${encodeURIComponent(code)}&redirect=${encodeURIComponent(redirect)}&state=${encodeURIComponent(state ?? "")}`;
+          const json = await callSpotifyAuth(qs);
           if (json?.ok) {
             toast.success("Conta Spotify conectada", { description: json.display_name ?? json.spotify_user_id });
             await loadSpotifyAccounts();
@@ -192,11 +189,7 @@ export default function Settings() {
   }, []);
 
   async function loadSpotifyAccounts() {
-    const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/spotify-auth?mode=accounts`;
-    const resp = await fetch(url, {
-      headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
-    });
-    const j = await resp.json();
+    const j = await callSpotifyAuth("mode=accounts");
     if (j?.ok) setSpotifyAccounts(j.accounts ?? []);
   }
 
