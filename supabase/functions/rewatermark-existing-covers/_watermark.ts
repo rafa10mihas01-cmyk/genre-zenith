@@ -41,18 +41,21 @@ const LOGO_TINT_SHIFT    = 32;    // puxa mais do branco/preto puro pra dentro d
 // ============================================================
 // PREMIUM FINISH — calibração visual
 // ============================================================
-// Radial glow — ASSINATURA VISUAL DA MARCA.
+// Radial glow — ASSINATURA VISUAL DA MARCA + sensação de material premium.
 // Posição FIXA ligeiramente acima do centro (peso óptico para texto/título),
-// intensidade ÚNICA em todas as capas. Não chama atenção, só dá profundidade.
-const GLOW_CENTER_BOOST   = 9;     // ganho de luz no centro (0-255). 9 = ~+3.5% L (mais sutil)
-const GLOW_EDGE_DARKEN    = 12;    // escurecimento nas bordas (0-255). 12 = ~-4.7% L
-const GLOW_RADIUS_PCT     = 0.50;  // raio do "highlight central" como % da diagonal (consistente)
+// intensidade ÚNICA em todas as capas. Centro mais iluminado, bordas levemente
+// escurecidas → superfície deixa de parecer flat e ganha "corpo".
+const GLOW_CENTER_BOOST   = 10;    // ganho de luz no centro (0-255). 10 = ~+4% L (presente mas sutil)
+const GLOW_EDGE_DARKEN    = 16;    // escurecimento nas bordas (0-255). 16 = ~-6% L (vinheta material)
+const GLOW_RADIUS_PCT     = 0.55;  // raio do highlight central (transição mais suave)
 const GLOW_CENTER_X_PCT   = 0.50;  // X do glow: 50% (centro horizontal exato)
 const GLOW_CENTER_Y_PCT   = 0.42;  // Y do glow: 42% (ligeiramente acima do centro — assinatura)
 
-// Grain
-const GRAIN_AMPLITUDE     = 4;    // ±4 em cada canal RGB. Quase imperceptível em monitor.
-const GRAIN_SEED          = 0x9E3779B1; // golden-ratio-ish (mulberry32)
+// Grain — textura de superfície (não digital flat).
+// Levemente colorido por canal (não monocromático) → simula grão de papel/película.
+const GRAIN_AMPLITUDE     = 5;    // ±5 luma. Quase imperceptível, mas tira o look "render"
+const GRAIN_CHROMA        = 1.5;  // ±1.5 extra por canal RGB (variação cromática microscópica)
+const GRAIN_SEED          = 0x9E3779B1; // golden-ratio-ish (mulberry32) — determinístico
 
 // Inner border — ASSINATURA VISUAL (mesma em TODAS as capas, sem variação).
 // 1px highlight (claro) + 1px sombra (escuro) logo abaixo, posição fixa.
@@ -155,15 +158,17 @@ function applyPremiumFinish(img: Image): void {
 
       const lightDelta = centerBoost - edgeDarken;
 
-      // Grain: ±GRAIN_AMPLITUDE, igual nos 3 canais (mantém croma do pixel)
-      const grain = (rand() - 0.5) * 2 * GRAIN_AMPLITUDE;
-
-      const totalDelta = lightDelta + grain;
+      // Grain orgânico: luma comum + microvariação cromática por canal.
+      // Simula textura de material real (papel/película), não ruído digital.
+      const grainLuma = (rand() - 0.5) * 2 * GRAIN_AMPLITUDE;
+      const grainR = grainLuma + (rand() - 0.5) * 2 * GRAIN_CHROMA;
+      const grainG = grainLuma + (rand() - 0.5) * 2 * GRAIN_CHROMA;
+      const grainB = grainLuma + (rand() - 0.5) * 2 * GRAIN_CHROMA;
 
       const i = (y * W + x) * 4;
-      buf[i]     = clamp(buf[i]     + totalDelta);
-      buf[i + 1] = clamp(buf[i + 1] + totalDelta);
-      buf[i + 2] = clamp(buf[i + 2] + totalDelta);
+      buf[i]     = clamp(buf[i]     + lightDelta + grainR);
+      buf[i + 1] = clamp(buf[i + 1] + lightDelta + grainG);
+      buf[i + 2] = clamp(buf[i + 2] + lightDelta + grainB);
       // alpha intocado
     }
   }
