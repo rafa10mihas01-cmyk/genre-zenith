@@ -393,7 +393,9 @@ function QuickAction({
       </div>
       <div className="min-w-0 flex-1">
         <div className="text-sm font-bold leading-tight">{label}</div>
-        <div className="text-[11px] text-muted-foreground truncate mt-0.5">{hint}</div>
+        {hint && hint !== "—" && (
+          <div className="text-[11px] text-muted-foreground truncate mt-0.5">{hint}</div>
+        )}
       </div>
       <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0 transition-transform group-hover:translate-x-0.5" />
     </Link>
@@ -407,7 +409,7 @@ function DecisionCard({ c, loading }: { c: Cockpit | null; loading: boolean }) {
   const hasWork = hot + med > 0;
 
   return (
-    <Link to="/criacao?tier=hot" className="nx-card-hover p-5 flex flex-col gap-4 group">
+    <Link to="/criacao?tier=hot" className="nx-card-hover p-5 flex flex-col gap-4 group h-full">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Target className="h-4 w-4 text-muted-foreground" />
@@ -422,23 +424,28 @@ function DecisionCard({ c, loading }: { c: Cockpit | null; loading: boolean }) {
         <div className="h-20 rounded-md bg-muted/40 animate-pulse" />
       ) : (
         <>
-          <div className="flex items-end gap-6">
-            <div>
-              <div className="text-3xl font-bold tabular-nums leading-none flex items-baseline gap-1">
-                <span className="text-primary">🔥</span>{hot}
+          <div className={cn(
+            "grid gap-4",
+            opp > 0 ? "grid-cols-3" : "grid-cols-2",
+          )}>
+            <div className="min-w-0">
+              <div className="text-3xl font-bold tabular-nums leading-none flex items-center gap-1.5">
+                <span className="text-primary">🔥</span>
+                <span>{hot}</span>
               </div>
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1.5">Prontos</div>
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-2">Prontos</div>
             </div>
-            <div>
-              <div className="text-3xl font-bold tabular-nums leading-none flex items-baseline gap-1 text-warning">
-                ⚠️{med}
+            <div className="min-w-0">
+              <div className="text-3xl font-bold tabular-nums leading-none flex items-center gap-1.5 text-warning">
+                <span>⚠️</span>
+                <span>{med}</span>
               </div>
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1.5">Médios</div>
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-2">Médios</div>
             </div>
             {opp > 0 && (
-              <div className="ml-auto">
-                <div className="text-2xl font-bold tabular-nums leading-none">+{opp}</div>
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1.5">Oportunidades 24h</div>
+              <div className="min-w-0">
+                <div className="text-3xl font-bold tabular-nums leading-none">+{opp}</div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-2">Oportunidades 24h</div>
               </div>
             )}
           </div>
@@ -457,7 +464,7 @@ function DecisionCard({ c, loading }: { c: Cockpit | null; loading: boolean }) {
 
 function PerformanceCard({ c, loading }: { c: Cockpit | null; loading: boolean }) {
   return (
-    <Link to="/performance" className="nx-card-hover p-5 flex flex-col gap-4 group">
+    <Link to="/performance" className="nx-card-hover p-5 flex flex-col gap-4 group h-full">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Trophy className="h-4 w-4 text-muted-foreground" />
