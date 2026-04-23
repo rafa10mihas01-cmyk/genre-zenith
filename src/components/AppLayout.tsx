@@ -171,6 +171,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         </div>
         {/* Bottom nav fixa apenas no mobile */}
         <MobileBottomNav />
+        {/* Command Palette global (⌘K) — busca + navegação rápida */}
+        <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
       </div>
       </SidebarContextProvider>
     </SidebarProvider>
