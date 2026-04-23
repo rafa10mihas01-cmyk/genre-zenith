@@ -168,18 +168,18 @@ export default function Operacao() {
         title="Operação"
         subtitle="Controlar playlists já publicadas: monitorar status, executar trocas e ajustes do dia-a-dia."
         actions={
-          <Button variant="premium" className="rounded-full h-9 gap-1.5">
-            <Plus className="h-4 w-4" /> Adicionar playlist
+          <Button variant="outline" className="rounded-full h-9 gap-1.5" onClick={load} disabled={loading}>
+            <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} /> Atualizar
           </Button>
         }
       />
 
-      {/* KPIs operacionais (zerados — sem mentir) */}
+      {/* KPIs operacionais — dados reais */}
       <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiBig icon={Activity}       label="Total ativas" value="0" hint="Playlists em operação" />
-        <KpiBig icon={ArrowUpRight}   label="Crescendo"    value="0" tone="primary"     hint="Variação positiva" />
-        <KpiBig icon={ArrowDownRight} label="Em queda"     value="0" tone="destructive" hint="Precisa atenção" />
-        <KpiBig icon={RefreshCw}      label="Trocas (7d)"  value="0"                    hint="Músicas movimentadas" />
+        <KpiBig icon={Activity}       label="Total ativas" value={formatNumber(kpi.total)}     hint="Playlists em operação" loading={loading} />
+        <KpiBig icon={ArrowUpRight}   label="Crescendo"    value={formatNumber(kpi.crescendo)} tone="primary"     hint="Variação positiva"     loading={loading} />
+        <KpiBig icon={ArrowDownRight} label="Em queda"     value={formatNumber(kpi.queda)}     tone="destructive" hint="Precisa atenção"       loading={loading} />
+        <KpiBig icon={RefreshCw}      label="Trocas (7d)"  value={formatNumber(kpi.trocas)}                       hint="Músicas movimentadas"  loading={loading} />
       </section>
 
       {/* TABS */}
@@ -213,6 +213,8 @@ export default function Operacao() {
             <div className="relative flex-1 max-w-xs">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
                 placeholder="Buscar playlist..."
                 className="pl-9 h-9 bg-elevated border-border rounded-full text-sm"
               />
@@ -237,14 +239,18 @@ export default function Operacao() {
               <div className="col-span-1 text-right">Trocas (7d)</div>
               <div className="col-span-2 text-right">Ações</div>
             </div>
-            {playlists.length === 0 ? (
+            {loading && playlists.length === 0 ? (
+              <div className="px-6 py-12 text-center text-xs text-muted-foreground">Carregando…</div>
+            ) : playlists.length === 0 ? (
               <EmptyRow
-                title="Nenhuma playlist em operação"
-                msg="Quando você adicionar uma playlist criada para o sistema operar, ela aparecerá aqui com status, métricas e controles."
-                cta="Adicionar primeira playlist"
+                title={playlistsAll.length === 0 ? "Nenhuma playlist em operação" : "Nada com esse filtro"}
+                msg={playlistsAll.length === 0
+                  ? "Quando uma playlist for publicada no Spotify pelo módulo Criação, ela aparece aqui automaticamente."
+                  : "Tente outro filtro ou limpe a busca."}
+                cta={playlistsAll.length === 0 ? undefined : undefined}
               />
             ) : (
-              playlists.map((p, i) => <PlaylistRow key={i} p={p} />)
+              playlists.map((p) => <PlaylistRow key={p.id} p={p} />)
             )}
           </div>
         </section>
@@ -315,17 +321,36 @@ export default function Operacao() {
       )}
 
       {tab === "historico" && (
-        <section className="nx-card">
-          <div className="flex items-center gap-3 mb-4">
+        <section className="nx-card !p-0 overflow-hidden">
+          <div className="flex items-center gap-3 p-5 border-b border-border">
             <div className="h-9 w-9 rounded-full bg-elevated border border-border flex items-center justify-center">
               <History className="h-4 w-4 text-primary" />
             </div>
             <div>
-              <h3 className="font-semibold">Histórico de alterações</h3>
+              <h3 className="font-semibold">Histórico de alterações (7d)</h3>
               <p className="text-xs text-muted-foreground">Toda mudança feita nas playlists fica registrada aqui</p>
             </div>
           </div>
-          <EmptyInline msg="Sem alterações registradas ainda." />
+          {adjustments.length === 0 ? (
+            <div className="p-6"><EmptyInline msg="Sem alterações registradas nos últimos 7 dias." /></div>
+          ) : (
+            <div className="divide-y divide-border">
+              {adjustments.map(a => {
+                const tpl = playlistsAll.find(p => p.id === a.template_id);
+                return (
+                  <div key={a.id} className="px-5 py-3 text-sm flex items-center gap-3">
+                    <span className={cn(
+                      "h-2 w-2 rounded-full shrink-0",
+                      a.status === "success" ? "bg-primary" : a.status === "error" ? "bg-destructive" : "bg-warning",
+                    )} />
+                    <span className="font-medium text-xs">{a.action_type}</span>
+                    <span className="text-muted-foreground text-xs truncate">{tpl?.nome ?? a.template_id}</span>
+                    <span className="ml-auto text-[11px] text-muted-foreground">{timeAgo(a.created_at)}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </section>
       )}
     </PageContainer>
