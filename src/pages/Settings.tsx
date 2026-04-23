@@ -29,6 +29,22 @@ interface NxSettings {
 // Mínimo recomendado: 50. Padrão: 100.
 const DEFAULTS: NxSettings = { delay_ms: 2000, max_results: 100 };
 
+/**
+ * Tema do popup do Spotify (window.open isolado, sem acesso a CSS vars).
+ * Estes valores DEVEM espelhar os tokens HSL definidos em src/index.css:
+ *   --background: 0 0% 1.96%   → #050505
+ *   --foreground: 0 0% 100%    → #FFFFFF
+ *   --primary:    141 76% 48%  → #1DB954 (Spotify green)
+ *   --muted-foreground: 218 11% 65% → #9CA3AF
+ * Se os tokens mudarem, atualizar aqui também.
+ */
+const POPUP_THEME = {
+  bg: "#050505",
+  fg: "#FFFFFF",
+  accent: "#1DB954",
+  muted: "#9CA3AF",
+} as const;
+
 function loadSettings(): NxSettings {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -70,10 +86,10 @@ export default function Settings() {
         <html><head><title>Trocando conta no Spotify…</title>
         <style>
           body{margin:0;display:flex;align-items:center;justify-content:center;height:100vh;
-          background:#050505;color:#fff;font-family:Inter,system-ui,sans-serif;flex-direction:column;gap:16px;}
-          .spinner{width:32px;height:32px;border:3px solid #1DB954;border-top-color:transparent;
+          background:${POPUP_THEME.bg};color:${POPUP_THEME.fg};font-family:Inter,system-ui,sans-serif;flex-direction:column;gap:16px;}
+          .spinner{width:32px;height:32px;border:3px solid ${POPUP_THEME.accent};border-top-color:transparent;
           border-radius:50%;animation:spin .8s linear infinite;}
-          .hint{max-width:320px;text-align:center;line-height:1.5;color:#9CA3AF;font-size:14px;}
+          .hint{max-width:320px;text-align:center;line-height:1.5;color:${POPUP_THEME.muted};font-size:14px;}
           @keyframes spin{to{transform:rotate(360deg);}}
         </style></head>
         <body>

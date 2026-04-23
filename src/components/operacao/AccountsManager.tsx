@@ -116,7 +116,7 @@ function AccountCard({ a, onChange }: { a: Account; onChange: () => void }) {
         </div>
         <div className="h-1.5 bg-elevated rounded-full overflow-hidden">
           <div
-            className={cn("h-full rounded-full transition-all", usagePct > 80 ? "bg-destructive" : "bg-primary")}
+            className={cn("h-full rounded-full transition-[width,background-color] duration-300", usagePct > 80 ? "bg-destructive" : "bg-primary")}
             style={{ width: `${Math.min(100, usagePct)}%` }}
           />
         </div>

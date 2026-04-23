@@ -44,7 +44,7 @@ const STATUS_META: Record<string, { label: string; cls: string; icon: any }> = {
   pending:    { label: "Pendente",   cls: "bg-muted/40 text-muted-foreground border-border", icon: Clock },
   generating: { label: "Gerando",    cls: "bg-warning/15 text-warning border-warning/30", icon: Loader2 },
   approved:   { label: "Aprovado",   cls: "bg-primary/15 text-primary border-primary/30", icon: CheckCircle2 },
-  created:    { label: "Criado",     cls: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30", icon: CheckCircle2 },
+  created:    { label: "Criado",     cls: "bg-success/15 text-success border-success/30", icon: CheckCircle2 },
   failed:     { label: "Falhou",     cls: "bg-destructive/15 text-destructive border-destructive/30", icon: XCircle },
   skipped:    { label: "Ignorado",   cls: "bg-muted/40 text-muted-foreground border-border", icon: XCircle },
 };
@@ -360,7 +360,7 @@ function ReplicationRow({ r }: { r: Replication }) {
       <div className="col-span-1 text-right">
         {r.spotify_url && (
           <a href={r.spotify_url} target="_blank" rel="noreferrer"
-             className="inline-flex items-center gap-1 text-emerald-400 hover:text-emerald-300 text-xs">
+             className="inline-flex items-center gap-1 text-success hover:opacity-80 text-xs">
             <Music2 className="h-3 w-3" /> <ExternalLink className="h-2.5 w-2.5" />
           </a>
         )}

@@ -25,7 +25,7 @@ export default function ModulePlaceholder({
         subtitle={subtitle}
       />
 
-      <div className="nx-card p-12 text-center max-w-2xl mx-auto">
+      <div className="nx-card p-8 text-center max-w-2xl mx-auto">
         <div className="h-14 w-14 rounded-full bg-elevated border border-border mx-auto flex items-center justify-center">
           <Construction className="h-6 w-6 text-warning" />
         </div>

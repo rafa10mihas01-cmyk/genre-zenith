@@ -69,7 +69,7 @@ const STATUS_META: Record<string, { label: string; cls: string; icon: any }> = {
   pending:  { label: "Pendente",  cls: "bg-warning/15 text-warning border-warning/30",       icon: Clock },
   approved: { label: "Aprovado",  cls: "bg-primary/15 text-primary border-primary/30",       icon: CheckCircle2 },
   rejected: { label: "Rejeitado", cls: "bg-destructive/15 text-destructive border-destructive/30", icon: XCircle },
-  created:  { label: "No Spotify",cls: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30", icon: CheckCircle2 },
+  created:  { label: "No Spotify",cls: "bg-success/15 text-success border-success/30", icon: CheckCircle2 },
 };
 
 const FILTERS: { v: string; label: string }[] = [
@@ -186,7 +186,7 @@ export function Variacoes({ genreId }: { genreId?: string }) {
 
   if (templates.length === 0) {
     return (
-      <div className="nx-card p-10 text-center space-y-2">
+      <div className="nx-card p-8 text-center space-y-2">
         <Wand2 className="h-7 w-7 mx-auto text-muted-foreground" />
         <p className="text-sm text-muted-foreground">
           Nenhuma variação gerada ainda. Vá nos <strong>Moldes</strong> abaixo e clique em <em>Gerar +5</em>.
@@ -329,7 +329,7 @@ function VariationRow({ t, bp, expanded, creating, onToggle, onApprove, onReject
         <div className="flex items-center gap-1 shrink-0">
           {isCreated && t.spotify_url && (
             <a href={t.spotify_url} target="_blank" rel="noreferrer"
-               className="h-8 px-3 text-xs inline-flex items-center gap-1.5 rounded-md border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20">
+               className="h-8 px-3 text-xs inline-flex items-center gap-1.5 rounded-md border border-success/30 bg-success/10 text-success hover:bg-success/20">
               <Music2 className="h-3 w-3" /> Abrir <ExternalLink className="h-2.5 w-2.5" />
             </a>
           )}
@@ -366,7 +366,7 @@ function VariationRow({ t, bp, expanded, creating, onToggle, onApprove, onReject
       {expanded && (
         <div className="border-t border-border bg-elevated/20 p-4 space-y-3">
           {isCreated && (
-            <div className="text-[11px] flex items-center gap-3 px-2 py-1.5 rounded bg-emerald-500/5 border border-emerald-500/20 text-emerald-300">
+            <div className="text-[11px] flex items-center gap-3 px-2 py-1.5 rounded bg-success/5 border border-success/20 text-success">
               <span className="inline-flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Criada no Spotify</span>
               <span className="text-muted-foreground">·</span>
               <span>{t.tracks_added ?? 0} faixas adicionadas</span>
@@ -513,7 +513,7 @@ export function Moldes({ genreId, onAfterGenerate }: { genreId?: string; onAfter
       </div>
 
       {blueprints.length === 0 ? (
-        <div className="nx-card p-10 text-center space-y-2">
+        <div className="nx-card p-8 text-center space-y-2">
           <Layers className="h-7 w-7 mx-auto text-muted-foreground" />
           <p className="text-sm text-muted-foreground">
             Nenhum molde extraído. Clique em <strong>Extrair moldes</strong> pra começar.

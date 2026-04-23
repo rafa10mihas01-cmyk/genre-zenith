@@ -92,7 +92,7 @@ export default function Cerebro() {
 
   if (genres.length === 0) {
     return (
-      <div className="nx-card p-12 text-center">
+      <div className="nx-card p-8 text-center">
         <Loader2 className="h-6 w-6 mx-auto animate-spin text-muted-foreground" />
         <p className="mt-3 text-sm text-muted-foreground">Carregando gêneros…</p>
       </div>
@@ -223,7 +223,7 @@ function GenreStrip({
               onClick={() => onPick(g.slug)}
               style={genreStyleVars(g.slug)}
               className={cn(
-                "shrink-0 px-3.5 py-2 rounded-full border text-xs font-semibold capitalize transition-all flex items-center gap-2",
+                "shrink-0 px-3.5 py-2 rounded-full border text-xs font-semibold capitalize transition-[background-color,border-color,box-shadow,color] duration-200 flex items-center gap-2",
                 active
                   ? "bg-[hsl(var(--g)/0.15)] border-[hsl(var(--g)/0.55)] text-foreground shadow-[0_0_0_1px_hsl(var(--g)/0.25)_inset,0_0_18px_-4px_hsl(var(--g)/0.45)]"
                   : "bg-card border-border text-muted-foreground hover:text-foreground hover:border-[hsl(var(--g)/0.4)]",
@@ -321,7 +321,7 @@ function QuickActions({ slug }: { slug: string }) {
         <Link
           key={it.to}
           to={it.to}
-          className="nx-card-hover p-4 flex items-center gap-3 group transition-all"
+          className="nx-card-hover p-4 flex items-center gap-3 group"
         >
           <div className="h-10 w-10 rounded-full flex items-center justify-center shrink-0 bg-muted text-muted-foreground group-hover:text-foreground transition-colors">
             <it.icon className="h-4 w-4" />
@@ -620,7 +620,7 @@ function VisaoGeral({ model, loading, genre }: any) {
                       </div>
                       <div className="h-1 rounded-full bg-elevated overflow-hidden">
                         <div
-                          className="h-full bg-primary rounded-full transition-all"
+                          className="h-full bg-primary rounded-full transition-[width] duration-300"
                           style={{ width: `${(k.count / maxKw) * 100}%` }}
                         />
                       </div>
@@ -1201,7 +1201,7 @@ function classifyTier(followers?: number | null): "mega" | "big" | "medio" | "sm
 
 const TIER_META: Record<string, { label: string; cls: string }> = {
   mega:  { label: "Mega",  cls: "bg-primary/15 text-primary border-primary/30" },
-  big:   { label: "Big",   cls: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
+  big:   { label: "Big",   cls: "bg-success/15 text-success border-success/30" },
   medio: { label: "Médio", cls: "bg-warning/15 text-warning border-warning/30" },
   small: { label: "Small", cls: "bg-muted/40 text-muted-foreground border-border" },
 };
@@ -1762,7 +1762,7 @@ function Visual({ briefing, loading, onAnalyze, analyzing }: any) {
 
   if (withDna.length === 0) {
     return (
-      <div className="nx-card p-12 text-center space-y-3">
+      <div className="nx-card p-8 text-center space-y-3">
         <Palette className="h-8 w-8 mx-auto text-muted-foreground" />
         <p className="text-sm text-muted-foreground">DNA visual ainda não foi extraído.</p>
         <Button size="sm" onClick={onAnalyze} disabled={analyzing || items.length === 0}>

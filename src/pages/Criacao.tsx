@@ -618,7 +618,7 @@ function TemplateCard({
 
   return (
     <div className={cn(
-      "nx-card !p-0 overflow-hidden flex flex-col group transition-all",
+      "nx-card !p-0 overflow-hidden flex flex-col group transition-[transform,box-shadow,border-color] duration-200",
       isArchived && "opacity-60",
     )}>
       {/* Cover */}
@@ -1003,7 +1003,7 @@ function TemplateDetailDialog({
                           key={v.index}
                           onClick={() => selectCover(v.index, v.url)}
                           className={cn(
-                            "relative aspect-square rounded-lg overflow-hidden border-2 transition-all",
+                            "relative aspect-square rounded-lg overflow-hidden border-2 transition-[border-color,box-shadow] duration-200",
                             isSel ? "border-primary ring-2 ring-primary/30" : "border-border hover:border-muted-foreground",
                           )}
                         >
