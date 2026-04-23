@@ -96,6 +96,15 @@ export function Replicacao({ genreId }: { genreId?: string }) {
         (map[t.blueprint_id] ??= []).push(t);
       }
       setTemplatesByBp(map);
+      // 🔓 Auto-expande blueprints que já têm variações geradas — assim
+      // o usuário enxerga o trabalho ao voltar pra página, sem precisar reabrir.
+      setExpanded(prev => {
+        const next = new Set(prev);
+        for (const bpId of Object.keys(map)) {
+          if (map[bpId].length > 0) next.add(bpId);
+        }
+        return next;
+      });
     } else {
       setTemplatesByBp({});
     }
