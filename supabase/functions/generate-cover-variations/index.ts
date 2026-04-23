@@ -64,23 +64,21 @@ function jr(p: unknown, status = 200) {
 }
 
 // ============================================================
-// SANITIZAÇÃO DE TÍTULO (editorial — máx 3 palavras fortes)
+// SANITIZAÇÃO DE TÍTULO (editorial — variação controlada 70/20/10)
 // ============================================================
-// Regras:
-//   • Remove emojis, símbolos, fillers e palavras repetidas
-//   • Limita a no máximo 3 palavras fortes
-//   • Prioriza por TIER:
-//       Tier 1 (impacto):    TOP, HITS, VIRAL, BRASIL, BR, 2024, 2025, números
-//       Tier 2 (gênero):     SERTANEJO, FUNK, TRAP, PISEIRO, PAGODE, ROCK, POP, RAP, MPB...
-//       Tier 3 (contexto):   RAIZ, MODÃO, NOSTALGIA, CLÁSSICOS, ATUALIZADO...
-//   • Formato ideal final: [FORTE] + [GÊNERO] + [ANO ou CONTEXTO]
-//   • Sem duplicar palavras, sem repetir ano, sem mais de 3 palavras
+// O título final SEMPRE segue um destes 3 formatos:
+//   FORMATO 1 — PRINCIPAL (≈70%): [FORTE] + [GÊNERO] + [ANO]
+//       ex: "TOP SERTANEJO 2024", "HITS FUNK 2025", "MODÃO SERTANEJO 2024"
+//   FORMATO 2 — EDITORIAL (≈20%): [GÊNERO] + [VARIAÇÃO]
+//       ex: "SERTANEJO RAIZ", "FUNK CLÁSSICO", "TRAP ATUAL"
+//   FORMATO 3 — GANCHO    (≈10%): [FORTE] (1–2 palavras curtas)
+//       ex: "TOP HITS", "VIRAL HITS", "HITS 2024"
 //
-// Exemplos:
-//   "TOP SERTANEJO 2024 🎉 MAIS TOCADAS"          → "TOP SERTANEJO 2024"
-//   "SERTANEJO RAIZ 2024 - SÓ AS MELHORES"        → "SERTANEJO RAIZ 2024"
-//   "MODÃO SERTANEJO RAIZ 2024 MAIS TOCADAS"      → "MODÃO SERTANEJO RAIZ"
-//   "playlist oficial do sertanejo atualizada"    → "SERTANEJO ATUALIZADO"
+// A escolha do formato é determinística (hash do nome original) para que:
+//   • a mesma playlist sempre gere o mesmo título
+//   • playlists diferentes recebam variação distribuída
+// Toda regra anterior continua valendo: sem emoji, sem fillers, sem
+// duplicação, máximo 3 palavras, sempre legível.
 const TIER1_WORDS = new Set([
   "TOP", "HITS", "VIRAL", "BRASIL", "BR", "MEGA", "ULTRA", "NOW", "FRESH",
 ]);
