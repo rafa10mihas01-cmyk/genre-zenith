@@ -151,9 +151,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 size="icon"
                 onClick={() => setPaletteOpen(true)}
                 aria-label="Buscar"
-                className="sm:hidden h-9 w-9 text-muted-foreground hover:text-foreground"
+                className="sm:hidden h-9 w-9 rounded-md text-muted-foreground hover:text-foreground hover:bg-elevated/60"
               >
-                <Search className="h-5 w-5" />
+                <Search className="h-[18px] w-[18px]" />
               </Button>
               <ThemeToggle />
               <NotificationsBell />

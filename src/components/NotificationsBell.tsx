@@ -56,14 +56,14 @@ export function NotificationsBell() {
         <Button
           variant="ghost"
           size="icon"
-          className="relative h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
+          className="relative h-9 w-9 rounded-md text-muted-foreground hover:text-foreground hover:bg-elevated/60"
           aria-label={`Notificações${unreadCount > 0 ? ` (${unreadCount} não lidas)` : ""}`}
         >
-          <Bell className="h-4 w-4" />
+          <Bell className="h-[18px] w-[18px]" />
           {unreadCount > 0 && (
             <span
               className={cn(
-                "absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] px-1 rounded-full",
+                "absolute top-1 right-1 min-w-[16px] h-[16px] px-1 rounded-full",
                 "bg-destructive text-destructive-foreground text-[10px] font-semibold",
                 "flex items-center justify-center leading-none",
                 "ring-2 ring-background"
