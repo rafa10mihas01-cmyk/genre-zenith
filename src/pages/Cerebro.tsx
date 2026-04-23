@@ -161,7 +161,7 @@ export default function Cerebro() {
 
       {/* TABS — 6 áreas internas */}
       <Tabs value={tab} onValueChange={setTab} className="space-y-5">
-        <TabsList className="bg-transparent p-0 h-auto gap-6 border-b border-border rounded-none w-full justify-start">
+        <TabsList className="bg-transparent p-0 h-auto gap-4 sm:gap-6 border-b border-border rounded-none w-full justify-start nx-tabs-scroll flex-nowrap">
           {[
             { v: "visao", label: "Visão Geral" },
             { v: "decisoes", label: "Decisões" },
@@ -174,7 +174,7 @@ export default function Cerebro() {
             <TabsTrigger
               key={t.v}
               value={t.v}
-              className="bg-transparent rounded-none px-0 pb-3 text-sm font-medium text-muted-foreground data-[state=active]:text-foreground data-[state=active]:shadow-none data-[state=active]:bg-transparent border-b-2 border-transparent data-[state=active]:border-primary transition-colors"
+              className="bg-transparent rounded-none px-0 pb-3 text-sm font-medium text-muted-foreground data-[state=active]:text-foreground data-[state=active]:shadow-none data-[state=active]:bg-transparent border-b-2 border-transparent data-[state=active]:border-primary transition-colors shrink-0 whitespace-nowrap"
             >
               {t.label}
             </TabsTrigger>
@@ -1271,14 +1271,14 @@ function Base({ model, loading }: any) {
       </div>
 
       <Tabs defaultValue="playlists" className="space-y-4">
-        <TabsList className="bg-elevated border border-border h-9 p-1">
-          <TabsTrigger value="playlists" className="text-xs h-7 data-[state=active]:bg-card">
+        <TabsList className="bg-elevated border border-border h-9 p-1 nx-tabs-scroll max-w-full">
+          <TabsTrigger value="playlists" className="text-xs h-7 data-[state=active]:bg-card shrink-0 whitespace-nowrap">
             Playlists ({playlists.length})
           </TabsTrigger>
-          <TabsTrigger value="faixas" className="text-xs h-7 data-[state=active]:bg-card">
+          <TabsTrigger value="faixas" className="text-xs h-7 data-[state=active]:bg-card shrink-0 whitespace-nowrap">
             Faixas ({tracks.length})
           </TabsTrigger>
-          <TabsTrigger value="artistas" className="text-xs h-7 data-[state=active]:bg-card">
+          <TabsTrigger value="artistas" className="text-xs h-7 data-[state=active]:bg-card shrink-0 whitespace-nowrap">
             Artistas ({artists.length})
           </TabsTrigger>
         </TabsList>

@@ -47,11 +47,11 @@
     --destructive-foreground: 0 0% 100%;
     --neutral: 0 0% 45%;
 
-    /* Spacing scale (px reais) */
-    --space-page-x: 24px;             /* padding horizontal padrão */
-    --space-page-y: 24px;             /* padding vertical padrão */
-    --space-section: 32px;            /* gap entre seções */
-    --space-card: 20px;               /* padding interno de cards */
+    /* Spacing scale (px reais) — mobile first */
+    --space-page-x: 16px;             /* padding horizontal mobile */
+    --space-page-y: 16px;             /* padding vertical mobile */
+    --space-section: 24px;            /* gap entre seções no mobile */
+    --space-card: 16px;               /* padding interno de cards no mobile */
 
     /* Radius / shadows */
     --radius: 1rem;                   /* 16px = padrão de cards */
@@ -111,6 +111,9 @@
   html, body, #root {
     @apply bg-background text-foreground;
     min-height: 100vh;
+    /* GLOBAL ANTI-OVERFLOW: nada pode estourar a viewport horizontalmente. */
+    max-width: 100%;
+    overflow-x: hidden;
   }
   body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
@@ -149,13 +152,35 @@
     transform: translateY(-2px);
     box-shadow: var(--shadow-elevated);
   }
-  /* === WRAPPER DE PÁGINA === aplica padding + gap entre seções automaticamente */
+  /* === WRAPPER DE PÁGINA === aplica padding + gap entre seções automaticamente.
+     Padding aumenta progressivamente: 16px mobile → 24px tablet → 32px desktop. */
   .nx-page {
     padding: var(--space-page-y) var(--space-page-x);
     display: flex;
     flex-direction: column;
     gap: var(--space-section);
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
   }
+  @media (min-width: 768px) {
+    .nx-page {
+      padding: 24px 24px;
+      gap: 32px;
+    }
+  }
+  @media (min-width: 1024px) {
+    .nx-page {
+      padding: 28px 32px;
+    }
+  }
+  /* Scroll horizontal seguro p/ tabs e listas longas */
+  .nx-tabs-scroll {
+    @apply flex w-full overflow-x-auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .nx-tabs-scroll::-webkit-scrollbar { display: none; }
   /* Card de gênero: usa a variável --g (HSL) injetada via style. Borda + glow tingidos. */
   .genre-card {
     border-color: hsl(var(--g) / 0.18);

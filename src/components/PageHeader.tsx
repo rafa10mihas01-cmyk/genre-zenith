@@ -34,23 +34,27 @@ export function PageHeader({
   return (
     <header
       className={cn(
-        "flex items-end justify-between gap-4 flex-wrap mb-2",
+        "flex flex-col md:flex-row md:items-end md:justify-between gap-3 md:gap-4 mb-2 w-full min-w-0",
         className,
       )}
     >
-      <div className="space-y-1 min-w-0">
+      <div className="space-y-1 min-w-0 flex-1">
         {kicker && (
           <div className="inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-bold">
             {Icon && <Icon className="h-3 w-3 text-primary" />}
             {kicker}
           </div>
         )}
-        <h1 className="text-2xl md:text-3xl font-semibold tracking-tight leading-tight">
+        <h1 className="text-2xl md:text-3xl font-semibold tracking-tight leading-tight break-words">
           {title}
         </h1>
         <p className="text-sm text-muted-foreground max-w-2xl">{subtitle}</p>
       </div>
-      {actions && <div className="flex items-center gap-2">{actions}</div>}
+      {actions && (
+        <div className="flex items-center gap-2 flex-wrap md:flex-nowrap md:shrink-0">
+          {actions}
+        </div>
+      )}
     </header>
   );
 }

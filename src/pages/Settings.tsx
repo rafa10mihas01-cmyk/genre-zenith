@@ -302,11 +302,11 @@ export default function Settings() {
       />
 
       <Tabs defaultValue="conexoes" className="mt-6">
-        <TabsList className="grid w-full grid-cols-4 max-w-2xl">
-          <TabsTrigger value="conexoes"><Plug className="h-3.5 w-3.5 mr-1.5" />Conexões</TabsTrigger>
-          <TabsTrigger value="coleta"><Database className="h-3.5 w-3.5 mr-1.5" />Coleta</TabsTrigger>
-          <TabsTrigger value="equipe"><Users className="h-3.5 w-3.5 mr-1.5" />Equipe</TabsTrigger>
-          <TabsTrigger value="conta"><UserCheck className="h-3.5 w-3.5 mr-1.5" />Conta</TabsTrigger>
+        <TabsList className="w-full max-w-2xl flex sm:grid sm:grid-cols-4 nx-tabs-scroll">
+          <TabsTrigger value="conexoes" className="shrink-0 whitespace-nowrap"><Plug className="h-3.5 w-3.5 mr-1.5" />Conexões</TabsTrigger>
+          <TabsTrigger value="coleta" className="shrink-0 whitespace-nowrap"><Database className="h-3.5 w-3.5 mr-1.5" />Coleta</TabsTrigger>
+          <TabsTrigger value="equipe" className="shrink-0 whitespace-nowrap"><Users className="h-3.5 w-3.5 mr-1.5" />Equipe</TabsTrigger>
+          <TabsTrigger value="conta" className="shrink-0 whitespace-nowrap"><UserCheck className="h-3.5 w-3.5 mr-1.5" />Conta</TabsTrigger>
         </TabsList>
 
         {/* ───────────────────────── CONEXÕES ───────────────────────── */}
