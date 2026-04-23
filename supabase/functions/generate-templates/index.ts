@@ -15,13 +15,30 @@ function jr(p: unknown, status = 200) {
   });
 }
 
-async function callLLM(system: string, user: string, schema: any, model = "google/gemini-2.5-flash") {
+function tryExtractJson(text: string): any | null {
+  if (!text) return null;
+  let cleaned = text.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
+  const start = cleaned.search(/[\{\[]/);
+  if (start === -1) return null;
+  const openChar = cleaned[start];
+  const closeChar = openChar === "[" ? "]" : "}";
+  const end = cleaned.lastIndexOf(closeChar);
+  if (end === -1 || end < start) return null;
+  cleaned = cleaned.substring(start, end + 1);
+  try { return JSON.parse(cleaned); } catch {}
+  try {
+    const fixed = cleaned.replace(/,\s*}/g, "}").replace(/,\s*]/g, "]").replace(/[\x00-\x1F\x7F]/g, "");
+    return JSON.parse(fixed);
+  } catch { return null; }
+}
+
+async function callLLMOnce(system: string, user: string, schema: any, model: string) {
   const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
     headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       model,
-      max_tokens: 2500,
+      max_tokens: 8000,
       messages: [
         { role: "system", content: system },
         { role: "user", content: user },
@@ -42,9 +59,30 @@ async function callLLM(system: string, user: string, schema: any, model = "googl
     throw new Error(`Lovable AI ${resp.status}: ${t.slice(0, 300)}`);
   }
   const j = await resp.json();
-  const args = j?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
-  if (!args) throw new Error("LLM returned no tool_call");
-  return JSON.parse(args);
+  const msg = j?.choices?.[0]?.message;
+  const args = msg?.tool_calls?.[0]?.function?.arguments;
+  if (args) {
+    try { return JSON.parse(args); } catch { /* fallthrough */ }
+  }
+  // Fallback: alguns modelos devolvem JSON em content quando deveriam usar tool_call
+  const fromContent = tryExtractJson(typeof msg?.content === "string" ? msg.content : "");
+  if (fromContent) return fromContent;
+  const finish = j?.choices?.[0]?.finish_reason;
+  throw new Error(`LLM returned no tool_call (finish=${finish ?? "?"}, model=${model})`);
+}
+
+async function callLLM(system: string, user: string, schema: any) {
+  const models = ["google/gemini-2.5-flash", "google/gemini-2.5-pro"];
+  let lastErr: unknown;
+  for (const m of models) {
+    try {
+      return await callLLMOnce(system, user, schema, m);
+    } catch (e) {
+      lastErr = e;
+      console.warn(`[generate-templates] model ${m} failed:`, (e as Error).message);
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error("LLM failed");
 }
 
 Deno.serve(async (req) => {
