@@ -194,36 +194,122 @@ function sanitizePlaylistTitle(name: string | null | undefined): string {
 }
 
 // ============================================================
-// SUBTEXTO EDITORIAL (frases curtas e fortes, sem genéricos)
+// SUBTEXTO EDITORIAL (frases que comunicam VALOR — nunca decorativas)
 // ============================================================
-// Whitelist de frases prontas — sempre 1-3 palavras, em CAIXA ALTA.
-// Se o brief não bater com nenhum tema → retorna null (não força nada).
-const SUBTEXT_PHRASES: { match: RegExp; phrase: string }[] = [
-  { match: /\b(mais\s+tocad[oa]s?|tocad[oa]s?)\b/i, phrase: "AS MAIS TOCADAS" },
-  { match: /\b(cl[aá]ssic[oa]s?|atemporais?)\b/i, phrase: "CLÁSSICOS" },
-  { match: /\b(top\s+brasil|brasil)\b/i, phrase: "TOP BRASIL" },
-  { match: /\b(nost[aá]lgic[oa]?|nostalgia|saudade)\b/i, phrase: "NOSTALGIA" },
-  { match: /\b(rom[aâ]ntic[oa]s?|romance|amor)\b/i, phrase: "SÓ ROMANCE" },
-  { match: /\b(festa|balada|agitad[oa]s?)\b/i, phrase: "MODO FESTA" },
-  { match: /\b(ver[aã]o|praia|viagem)\b/i, phrase: "VIBE DE VERÃO" },
-  { match: /\b(novidades?|lan[cç]amentos?|fresh|novo)\b/i, phrase: "NOVIDADES" },
-  { match: /\b(viral|viralizou|tiktok)\b/i, phrase: "VIRAL AGORA" },
-  { match: /\b(hits?)\b/i, phrase: "HITS" },
-  { match: /\b(modão|modao|raiz)\b/i, phrase: "RAIZ" },
-  { match: /\b(sofr[eê]ncia)\b/i, phrase: "SOFRÊNCIA" },
-  { match: /\b(relax|calm[oa]|chill)\b/i, phrase: "MODO CHILL" },
+// Estratégia em 2 passos:
+//   1. Detecta GÊNERO musical no contexto (brief + nome da playlist)
+//   2. Detecta CONTEXTO/MOOD no brief
+//   3. Combina em frase editorial (ex: "CLÁSSICOS DO SERTANEJO")
+// Se não houver contexto musical claro → retorna null (não força nada).
+// PROIBIDO: termos genéricos, palavras decorativas, frases sem valor.
+
+const GENRE_MAP: { match: RegExp; label: string; preposition: "DO" | "DA" | "DOS" }[] = [
+  { match: /\bsertanej[oa]s?\b/i,            label: "SERTANEJO",   preposition: "DO" },
+  { match: /\bfunk(s|ão|eiros?)?\b/i,        label: "FUNK",        preposition: "DO" },
+  { match: /\bpiseiros?\b/i,                 label: "PISEIRO",     preposition: "DO" },
+  { match: /\bpagodes?\b/i,                  label: "PAGODE",      preposition: "DO" },
+  { match: /\bsambas?\b/i,                   label: "SAMBA",       preposition: "DO" },
+  { match: /\bforr[oó]s?\b/i,                label: "FORRÓ",       preposition: "DO" },
+  { match: /\brock\b/i,                      label: "ROCK",        preposition: "DO" },
+  { match: /\bpop\b/i,                       label: "POP",         preposition: "DO" },
+  { match: /\brap\b/i,                       label: "RAP",         preposition: "DO" },
+  { match: /\btraps?\b/i,                    label: "TRAP",        preposition: "DO" },
+  { match: /\bmpb\b/i,                       label: "MPB",         preposition: "DA" },
+  { match: /\breggaes?\b/i,                  label: "REGGAE",      preposition: "DO" },
+  { match: /\bgospel\b/i,                    label: "GOSPEL",      preposition: "DO" },
+  { match: /\belectr[oô]nicas?|eletr[oô]nicas?|edm|house\b/i, label: "ELETRÔNICA", preposition: "DA" },
 ];
 
-function extractSubtext(brief: string | null | undefined): string | null {
-  if (!brief || typeof brief !== "string") return null;
-  const text = brief.trim();
-  if (text.length < 4) return null;
+// Contextos detectáveis → frase pronta (sem gênero) OU template (com gênero)
+type ContextRule =
+  | { match: RegExp; standalone: string }                                   // frase fixa quando NÃO há gênero
+  | { match: RegExp; standalone: string; withGenre: (g: string, prep: string) => string }; // muda quando há gênero
 
-  // tenta casar na ordem da whitelist (a primeira ganha)
-  for (const { match, phrase } of SUBTEXT_PHRASES) {
-    if (match.test(text)) return phrase;
+const CONTEXT_RULES: ContextRule[] = [
+  // hits / sucessos
+  { match: /\b(mais\s+tocad[oa]s?|tocad[oa]s?|sucessos?)\b/i,
+    standalone: "AS MAIS TOCADAS",
+    withGenre: (g) => `SUCESSOS DO ${g}` },
+  // clássicos / atemporais
+  { match: /\b(cl[aá]ssic[oa]s?|atemporais?)\b/i,
+    standalone: "OS CLÁSSICOS",
+    withGenre: (g, p) => `CLÁSSICOS ${p} ${g}` },
+  // raiz / tradicional
+  { match: /\b(raiz|tradicional|raízes?|raizes)\b/i,
+    standalone: "RAIZ DO BRASIL",
+    withGenre: (g, p) => `RAIZ ${p} ${g}` },
+  // momento / agora / atual
+  { match: /\b(do\s+momento|agora|atual|atualizad[oa]s?|recentes?)\b/i,
+    standalone: "SUCESSOS DO MOMENTO",
+    withGenre: (g) => `${g} DO MOMENTO` },
+  // novidades / lançamentos
+  { match: /\b(novidades?|lan[cç]amentos?|fresh|nov[oa]s?)\b/i,
+    standalone: "NOVIDADES",
+    withGenre: (g) => `${g} NOVO` },
+  // viral
+  { match: /\b(viral|viralizou|tiktok|trending)\b/i,
+    standalone: "VIRAL AGORA",
+    withGenre: (g) => `${g} VIRAL` },
+  // top
+  { match: /\b(top\s+brasil|brasil|nacional|br\b)/i,
+    standalone: "TOP BRASIL",
+    withGenre: (g) => `TOP ${g}` },
+  // nostalgia / antigas
+  { match: /\b(nost[aá]lgic[oa]?|nostalgia|saudade|antigas?|relíquia|reliquia)\b/i,
+    standalone: "NOSTALGIA PURA",
+    withGenre: (g, p) => `NOSTALGIA ${p} ${g}` },
+  // romance
+  { match: /\b(rom[aâ]ntic[oa]s?|romance|amor|paix[aã]o)\b/i,
+    standalone: "SÓ ROMANCE",
+    withGenre: (g) => `${g} ROMÂNTICO` },
+  // sofrência
+  { match: /\b(sofr[eê]ncia|chorar|término|termino)\b/i,
+    standalone: "SOFRÊNCIA",
+    withGenre: (g) => `${g} SOFRÊNCIA` },
+  // festa
+  { match: /\b(festa|balada|agitad[oa]s?|pra\s+dan[cç]ar)\b/i,
+    standalone: "MODO FESTA",
+    withGenre: (g) => `${g} NA FESTA` },
+  // verão
+  { match: /\b(ver[aã]o|praia|viagem|piscina)\b/i,
+    standalone: "VIBE DE VERÃO",
+    withGenre: (g) => `${g} DE VERÃO` },
+  // chill / relax
+  { match: /\b(relax|calm[oa]|chill|tranquilo|leve)\b/i,
+    standalone: "MODO CHILL",
+    withGenre: (g) => `${g} LEVE` },
+];
+
+function detectGenre(text: string): { label: string; preposition: string } | null {
+  for (const g of GENRE_MAP) {
+    if (g.match.test(text)) return { label: g.label, preposition: g.preposition };
   }
-  // sem match editorial → não força nada
+  return null;
+}
+
+function extractSubtext(
+  brief: string | null | undefined,
+  playlistName: string | null | undefined = null,
+): string | null {
+  const briefText = (brief ?? "").toString().trim();
+  const nameText = (playlistName ?? "").toString().trim();
+  // Procura gênero em ambos (brief tem prioridade), contexto APENAS no brief.
+  const genreSrc = `${briefText} ${nameText}`.trim();
+  if (briefText.length < 4 && nameText.length < 3) return null;
+
+  const genre = detectGenre(genreSrc);
+
+  // procura contexto no brief
+  for (const rule of CONTEXT_RULES) {
+    if (!rule.match.test(briefText)) continue;
+    if (genre && "withGenre" in rule) {
+      return rule.withGenre(genre.label, genre.preposition).toUpperCase().trim();
+    }
+    return rule.standalone;
+  }
+
+  // sem contexto explícito → só usa subtítulo se houver GÊNERO claro
+  // (assim "CLÁSSICOS DO SERTANEJO" só aparece com contexto; gênero sozinho não vira subtítulo)
   return null;
 }
 
