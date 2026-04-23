@@ -93,8 +93,12 @@ export function ReplicacaoAuto({ genreId }: { genreId?: string }) {
 
   const runDryRun = async () => {
     if (!genreId || previewing) return;
+    // Toggle: se já tem plano visível, fecha
+    if (plan) {
+      setPlan(null);
+      return;
+    }
     setPreviewing(true);
-    setPlan(null);
     try {
       const { data, error } = await supabase.functions.invoke("replicate-top", {
         body: { genre_id: genreId, top_n: topN, dry_run: true },
