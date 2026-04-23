@@ -1,20 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import {
   Brain, Sparkles, Loader2, RefreshCw, ListMusic, Music2, TrendingUp, Hash,
   ExternalLink, Image as ImageIcon, Palette, Wand2, FileText, Activity, Layers,
+  ArrowRight, Search, Lightbulb, Wrench, Radio, BarChart3, Rocket,
 } from "lucide-react";
 import { useBrainModel } from "@/hooks/useBrainModel";
 import { useBriefings } from "@/hooks/useBriefings";
 import { formatNumber, timeAgo, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { genreStyleVars } from "@/lib/genreColors";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
 import { Replicacao } from "@/components/brain/Replicacao";
