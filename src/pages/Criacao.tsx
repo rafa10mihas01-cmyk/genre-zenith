@@ -275,12 +275,11 @@ export default function Criacao() {
       />
 
       {/* KPIs */}
-      <section className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
-        <KpiBig icon={ListChecks}  label="Na fila"         value={kpi.naFila}        hint="Aguardando edição" />
-        <KpiBig icon={ImageIcon}   label="Sem capa"        value={kpi.semCapa}       tone="warning"     hint="Faltam capas" />
-        <KpiBig icon={Check}       label="Com capa"        value={kpi.comCapa}       tone="primary"     hint="Prontas pra publicar" />
-        <KpiBig icon={Send}        label="Publicadas (7d)" value={kpi.publicadas7d}  tone="primary"     hint="Foram pro Spotify" />
-        <KpiBig icon={AlertCircle} label="Falhas"          value={kpi.falhas}        tone="destructive" hint="Erros de criação" />
+      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiBig icon={ListChecks}  label="Na fila"         value={kpi.naFila}       hint="Aguardando edição" />
+        <KpiBig icon={ImageIcon}   label="Sem capa"        value={kpi.semCapa}      tone="warning"     hint="Faltam capas" />
+        <KpiBig icon={Check}       label="Com capa"        value={kpi.comCapa}      tone="primary"     hint="Prontas pra publicar" />
+        <KpiBig icon={Send}        label="Publicadas (7d)" value={kpi.publicadas7d} tone="primary"     hint="Foram pro Spotify" />
       </section>
 
       {/* TABS */}
