@@ -260,14 +260,14 @@ export async function applyWatermark(coverBytes: Uint8Array): Promise<{
     // Em fundos escuros, o logo é um cinza claro tingido com a cor da capa (não branco).
     // Em fundos claros, é um cinza escuro tingido — sempre "do mesmo material".
     const tintR = isDarkBg
-      ? Math.min(255, 215 - LOGO_TINT_SHIFT + Math.round(stats.r * 0.18))
-      : Math.max(0,   40 + LOGO_TINT_SHIFT - Math.round((255 - stats.r) * 0.18));
+      ? Math.min(255, 215 - LOGO_TINT_SHIFT + Math.round(stats.r * 0.28))
+      : Math.max(0,   40 + LOGO_TINT_SHIFT - Math.round((255 - stats.r) * 0.28));
     const tintG = isDarkBg
-      ? Math.min(255, 215 - LOGO_TINT_SHIFT + Math.round(stats.g * 0.18))
-      : Math.max(0,   40 + LOGO_TINT_SHIFT - Math.round((255 - stats.g) * 0.18));
+      ? Math.min(255, 215 - LOGO_TINT_SHIFT + Math.round(stats.g * 0.28))
+      : Math.max(0,   40 + LOGO_TINT_SHIFT - Math.round((255 - stats.g) * 0.28));
     const tintB = isDarkBg
-      ? Math.min(255, 215 - LOGO_TINT_SHIFT + Math.round(stats.b * 0.18))
-      : Math.max(0,   40 + LOGO_TINT_SHIFT - Math.round((255 - stats.b) * 0.18));
+      ? Math.min(255, 215 - LOGO_TINT_SHIFT + Math.round(stats.b * 0.28))
+      : Math.max(0,   40 + LOGO_TINT_SHIFT - Math.round((255 - stats.b) * 0.28));
 
     // Helper: cria uma cópia do logo já redimensionada, com cor uniforme + opacidade.
     // Preserva o canal alpha original (mantém o desenho), só substitui RGB.
