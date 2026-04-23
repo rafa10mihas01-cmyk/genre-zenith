@@ -39,10 +39,10 @@ export function PageHeader({
   return (
     <header
       className={cn(
-        // Sticky logo abaixo do topbar global (h-14 = 56px). Em TODAS as telas.
-        // z-40 < topbar (z-50) > conteúdo. Background sólido + blur para nunca
-        // ficar transparente no scroll.
-        "sticky top-14 z-40 -mx-4 md:-mx-6 lg:-mx-8 px-4 md:px-6 lg:px-8 py-2.5 md:py-3",
+        // Sticky no TOPO do container scrollável (<main>). O topbar global
+        // já está FORA do scroll, então aqui usamos top-0 (não top-14).
+        // z-40 < topbar (z-50) > conteúdo. Background sólido + blur opaco.
+        "sticky top-0 z-40 -mx-4 md:-mx-6 lg:-mx-8 px-4 md:px-6 lg:px-8 py-2.5 md:py-3",
         "bg-background/90 backdrop-blur-md supports-[backdrop-filter]:bg-background/75",
         "border-b border-border/60",
         // Layout: stack no mobile (título em cima, ações em scroll embaixo)
