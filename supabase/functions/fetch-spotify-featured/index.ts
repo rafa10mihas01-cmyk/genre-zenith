@@ -10,6 +10,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getSpotifyToken } from "../_shared/spotify.ts";
+import { classifyOwner } from "../_shared/labels.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -133,11 +134,13 @@ Deno.serve(async (req) => {
     let oficiais = 0;
     for (const it of items) {
       if (!it?.id || seen.has(it.id)) continue;
-      const isOfficial = it.owner?.id === "spotify";
-      if (!isOfficial && !alsoUserBig) continue;
+      const ownerCls = classifyOwner(it.owner?.id);
+      // tier 1: oficiais Spotify OU selos majors (filtr.br, somlivre, digster_brasil, ...)
+      const isTier1 = ownerCls === "spotify" || ownerCls === "label";
+      if (!isTier1 && !alsoUserBig) continue;
       seen.add(it.id);
       candidates.push({ playlist: it, query: q });
-      if (isOfficial) oficiais++;
+      if (isTier1) oficiais++;
     }
     queryStats.push({ q, total: items.length, oficiais });
   }
@@ -178,7 +181,7 @@ Deno.serve(async (req) => {
   for (const c of hydrated) {
     const playlistId = c.playlist.id;
     const ownerId = c.playlist.owner?.id ?? null;
-    const ownerType = ownerId === "spotify" ? "spotify" : "user";
+    const ownerType = classifyOwner(ownerId); // spotify | label | user
     const followers = c.followers;
     const tracks = c.tracks;
     const spotifyUrl = c.playlist.external_urls?.spotify ?? `https://open.spotify.com/playlist/${playlistId}`;
