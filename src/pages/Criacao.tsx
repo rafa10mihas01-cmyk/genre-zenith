@@ -1063,19 +1063,21 @@ function PagedTemplateGrid({
   variant,
   itemLabel,
   resetKey,
+  generatingIds,
 }: {
   items: Template[];
   onOpen: (t: Template) => void;
   variant: CardVariant;
   itemLabel: string;
   resetKey?: unknown;
+  generatingIds?: Set<string>;
 }) {
   const { visibleItems, hasMore, canCollapse, loadMore, collapse, total, visible } = usePagination(items, 20, resetKey ?? items);
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
         {visibleItems.map(t => (
-          <TemplateCard key={t.id} t={t} variant={variant} onOpen={() => onOpen(t)} />
+          <TemplateCard key={t.id} t={t} variant={variant} onOpen={() => onOpen(t)} isGenerating={generatingIds?.has(t.id) ?? false} />
         ))}
       </div>
       <LoadMore visible={visible} total={total} hasMore={hasMore} canCollapse={canCollapse} onLoadMore={loadMore} onCollapse={collapse} itemLabel={itemLabel} />
