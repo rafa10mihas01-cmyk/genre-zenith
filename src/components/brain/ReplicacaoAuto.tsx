@@ -205,8 +205,13 @@ export function ReplicacaoAuto({ genreId }: { genreId?: string }) {
 
         {plan && plan.length > 0 && (
           <div className="mt-4 border-t border-border/60 pt-4 space-y-2">
-            <div className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-bold">
-              Plano gerado ({plan.length} replicações)
+            <div className="flex items-center justify-between">
+              <div className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-bold">
+                Plano gerado ({plan.length} replicações)
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => setPlan(null)} className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground">
+                <X className="h-3 w-3" /> Fechar
+              </Button>
             </div>
             <div className="space-y-1.5">
               {plan.map((p, i) => (
