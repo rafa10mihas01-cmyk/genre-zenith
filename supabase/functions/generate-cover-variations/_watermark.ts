@@ -158,15 +158,17 @@ function applyPremiumFinish(img: Image): void {
 
       const lightDelta = centerBoost - edgeDarken;
 
-      // Grain: ±GRAIN_AMPLITUDE, igual nos 3 canais (mantém croma do pixel)
-      const grain = (rand() - 0.5) * 2 * GRAIN_AMPLITUDE;
-
-      const totalDelta = lightDelta + grain;
+      // Grain orgânico: luma comum + microvariação cromática por canal.
+      // Simula textura de material real (papel/película), não ruído digital.
+      const grainLuma = (rand() - 0.5) * 2 * GRAIN_AMPLITUDE;
+      const grainR = grainLuma + (rand() - 0.5) * 2 * GRAIN_CHROMA;
+      const grainG = grainLuma + (rand() - 0.5) * 2 * GRAIN_CHROMA;
+      const grainB = grainLuma + (rand() - 0.5) * 2 * GRAIN_CHROMA;
 
       const i = (y * W + x) * 4;
-      buf[i]     = clamp(buf[i]     + totalDelta);
-      buf[i + 1] = clamp(buf[i + 1] + totalDelta);
-      buf[i + 2] = clamp(buf[i + 2] + totalDelta);
+      buf[i]     = clamp(buf[i]     + lightDelta + grainR);
+      buf[i + 1] = clamp(buf[i + 1] + lightDelta + grainG);
+      buf[i + 2] = clamp(buf[i + 2] + lightDelta + grainB);
       // alpha intocado
     }
   }
