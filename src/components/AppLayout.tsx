@@ -77,6 +77,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <SidebarProvider>
       <SidebarContextProvider>
+      {/* Loading global: barra fina no topo + splash full-screen */}
+      <TopProgressBar />
+      <SplashLoader />
       <div className="min-h-screen flex w-full bg-background">
         <AppSidebar />
         <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden shadow-[-1px_0_0_rgba(255,255,255,0.04)]">
