@@ -1,4 +1,14 @@
-// generate-cover-variations — gera 4 variações de capa via Nano Banana
+// generate-cover-variations — gera 4 variações de capa estilo Spotify profissional.
+//
+// Padrão visual FIXO (não varia por template):
+//   • Fundo simples: gradiente diagonal 2 cores
+//   • Nome da playlist em destaque (grande, central, bold)
+//   • Subtexto opcional menor (extraído do cover_brief)
+//   • SEM rostos humanos, SEM cenas complexas, SEM poluição visual
+//   • Tipografia bold sans-serif, alto contraste
+//
+// Variação = APENAS paleta de cor (mesma estrutura).
+//
 // POST { template_id: string, custom_prompt?: string }
 // → { ok, variations: [{ index, url }] }
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
@@ -8,8 +18,31 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
 
-const VARIATION_COUNT = 4;
-const MODEL = "google/gemini-2.5-flash-image";
+const MODEL = "google/gemini-3-pro-image-preview"; // melhor legibilidade de texto
+
+// 4 paletas — estrutura idêntica, só muda cor. Geram diversidade visual previsível.
+const PALETTES = [
+  {
+    name: "spotify-green",
+    description: "vibrant Spotify green gradient from #1DB954 (top-left) to #0d6b30 (bottom-right)",
+    text: "white text with very subtle dark shadow for readability",
+  },
+  {
+    name: "deep-purple",
+    description: "deep purple gradient from #7b2cbf (top-left) to #2d0a4e (bottom-right)",
+    text: "bright white text with subtle glow",
+  },
+  {
+    name: "vibrant-orange",
+    description: "warm vibrant gradient from #ff6b35 (top-left) to #c2410c (bottom-right)",
+    text: "white text with subtle dark outline",
+  },
+  {
+    name: "midnight-blue",
+    description: "deep night blue gradient from #1e3a8a (top-left) to #0c1733 (bottom-right)",
+    text: "bright white text with subtle blue glow",
+  },
+];
 
 function jr(p: unknown, status = 200) {
   return new Response(JSON.stringify(p), {
@@ -18,30 +51,84 @@ function jr(p: unknown, status = 200) {
   });
 }
 
-function buildPrompt(template: any, customPrompt?: string): string {
-  if (customPrompt && customPrompt.trim().length > 10) return customPrompt.trim();
+/**
+ * Extrai subtexto curto a partir do cover_brief.
+ * Pega 2-4 palavras temáticas, em maiúsculas, sem pontuação.
+ * Ex: "Capa em tons terrosos com violão evocando nostalgia" → "TONS NOSTÁLGICOS"
+ * Se não houver brief útil, devolve null (sem subtexto).
+ */
+function extractSubtext(brief: string | null | undefined): string | null {
+  if (!brief || typeof brief !== "string") return null;
+  const cleaned = brief
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+  if (cleaned.length < 8) return null;
 
-  const brief = (template.cover_brief ?? "").trim();
-  const name = template.name ?? "playlist";
-  const keywords = Array.isArray(template.keywords)
-    ? template.keywords.slice(0, 5).map((k: any) => k.value ?? k).join(", ")
-    : "";
-
-  const base = brief
-    ? brief
-    : `Capa de playlist do Spotify chamada "${name}". Estilo visual relacionado a: ${keywords}.`;
-
-  return [
-    base,
-    "Formato quadrado 1:1, alta qualidade, composição centralizada.",
-    "Sem texto, sem letras, sem palavras na imagem.",
-    "Cores vibrantes, contraste forte, leitura clara em thumbnails pequenos.",
-    "Estética profissional de capa de playlist musical brasileira.",
-  ].join(" ");
+  // palavras-chave temáticas comuns que viram subtexto bom
+  const themeWords = [
+    "nostálgico", "nostálgica", "nostalgia",
+    "romântico", "romântica", "romance",
+    "festa", "balada", "agitado", "agitada",
+    "sertanejo", "sertaneja", "raiz",
+    "modão", "sofrência",
+    "verão", "viagem",
+    "clássicos", "clássicas", "atemporais",
+    "novidades", "lançamentos",
+    "top", "hits", "melhores",
+    "relax", "calmo", "calma",
+  ];
+  const tokens = cleaned.split(" ");
+  const matched = tokens.filter((t) => themeWords.includes(t));
+  let phrase: string;
+  if (matched.length >= 2) {
+    phrase = matched.slice(0, 3).join(" ");
+  } else if (matched.length === 1) {
+    phrase = matched[0];
+  } else {
+    // fallback: pega 2 primeiras palavras significativas (length > 4)
+    const meaningful = tokens.filter((t) => t.length > 4);
+    if (meaningful.length === 0) return null;
+    phrase = meaningful.slice(0, 2).join(" ");
+  }
+  const upper = phrase.toUpperCase().trim();
+  return upper.length > 0 && upper.length <= 28 ? upper : null;
 }
 
-async function generateOne(prompt: string, seed: number): Promise<string> {
-  const variedPrompt = `${prompt} [variação ${seed}: explore composição e paleta de forma única]`;
+function buildPrompt(template: any, palette: typeof PALETTES[number], customPrompt?: string): string {
+  if (customPrompt && customPrompt.trim().length > 10) return customPrompt.trim();
+
+  const name = (template.name ?? "PLAYLIST").toString().trim().toUpperCase();
+  const subtext = extractSubtext(template.cover_brief);
+
+  const textBlock = subtext
+    ? `Two text elements:\n  • Main title: "${name}" — large, bold, centered, sans-serif, takes ~70% width\n  • Subtitle: "${subtext}" — smaller (about 35% of title size), centered, placed below the title, same font family, slightly lower opacity`
+    : `One text element:\n  • Title: "${name}" — large, bold, centered, sans-serif, takes ~75% width`;
+
+  return [
+    "Professional Spotify-style playlist cover, square format 1:1, high quality.",
+    "",
+    "BACKGROUND:",
+    `Simple smooth ${palette.description}. No textures, no patterns, no images, no objects.`,
+    "",
+    "TEXT (MUST BE PERFECTLY LEGIBLE):",
+    textBlock,
+    `${palette.text}. Use a strong modern bold sans-serif font (Helvetica Bold, Inter Black, or Montserrat ExtraBold style).`,
+    "Spelling MUST be exactly as written above. No typos, no extra letters, no decorations on the text.",
+    "",
+    "COMPOSITION:",
+    "Centered layout with comfortable padding. Clean, minimal, modern. High contrast. Easily readable on a small mobile thumbnail (64x64).",
+    "",
+    "STRICTLY FORBIDDEN:",
+    "No human faces, no human bodies, no people, no portraits, no characters.",
+    "No complex scenes, no landscapes, no instruments, no musical notes, no logos, no icons.",
+    "No additional text beyond the title (and subtitle if specified). No watermarks, no signatures, no decorative elements.",
+    "No gradients with more than 2 colors. No noise, no grain, no vignette.",
+  ].join("\n");
+}
+
+async function generateOne(prompt: string): Promise<string> {
   const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -50,7 +137,7 @@ async function generateOne(prompt: string, seed: number): Promise<string> {
     },
     body: JSON.stringify({
       model: MODEL,
-      messages: [{ role: "user", content: variedPrompt }],
+      messages: [{ role: "user", content: prompt }],
       modalities: ["image", "text"],
     }),
   });
@@ -90,9 +177,8 @@ Deno.serve(async (req) => {
     .from("playlist_templates").select("*").eq("id", body.template_id).maybeSingle();
   if (tplErr || !tpl) return jr({ error: "template not found" }, 404);
 
-  const prompt = buildPrompt(tpl, body.custom_prompt);
   const ts = Date.now();
-  const variations: { index: number; url: string }[] = [];
+  const variations: { index: number; url: string; palette?: string }[] = [];
 
   // 🧹 Cleanup: remove variações antigas do storage antes de gerar novas
   try {
@@ -103,15 +189,14 @@ Deno.serve(async (req) => {
     }
   } catch (e) { console.warn("cleanup falhou:", e); }
 
-  // Gera em paralelo (4 chamadas)
-  const results = await Promise.allSettled(
-    Array.from({ length: VARIATION_COUNT }, (_, i) => generateOne(prompt, i + 1)),
-  );
+  // Gera 1 variação por paleta — em paralelo
+  const prompts = PALETTES.map((p) => buildPrompt(tpl, p, body.custom_prompt));
+  const results = await Promise.allSettled(prompts.map((p) => generateOne(p)));
 
   for (let i = 0; i < results.length; i++) {
     const r = results[i];
     if (r.status !== "fulfilled") {
-      console.error(`variação ${i} falhou:`, r.reason);
+      console.error(`variação ${i} (${PALETTES[i].name}) falhou:`, r.reason);
       continue;
     }
     try {
@@ -123,7 +208,7 @@ Deno.serve(async (req) => {
         .upload(path, bytes, { contentType, upsert: true });
       if (upErr) { console.error("upload err:", upErr); continue; }
       const { data: pub } = supabase.storage.from("playlist-covers").getPublicUrl(path);
-      variations.push({ index: i, url: pub.publicUrl });
+      variations.push({ index: i, url: pub.publicUrl, palette: PALETTES[i].name });
     } catch (e) {
       console.error("processing err:", e);
     }
@@ -138,5 +223,10 @@ Deno.serve(async (req) => {
     cover_generated_at: new Date().toISOString(),
   }).eq("id", tpl.id);
 
-  return jr({ ok: true, variations, prompt_used: prompt });
+  return jr({
+    ok: true,
+    variations,
+    palettes_used: variations.map((v) => v.palette),
+    subtext_extracted: extractSubtext(tpl.cover_brief),
+  });
 });
