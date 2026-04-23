@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/PageHeader";
 import { KpiBig } from "@/components/KpiBig";
 import { AccountsManager } from "@/components/operacao/AccountsManager";
+import { EditorialSeederCard } from "@/components/operacao/EditorialSeederCard";
 import { PageContainer } from "@/components/PageContainer";
 import { supabase } from "@/integrations/supabase/client";
 import { formatNumber, timeAgo } from "@/lib/format";
@@ -292,6 +293,8 @@ export default function Operacao() {
 
       {tab === "manut" && (
         <section className="space-y-4">
+          <EditorialSeederCard />
+
           <div className="nx-card">
             <div className="flex items-center gap-3 mb-4">
               <div className="h-9 w-9 rounded-full bg-elevated border border-border flex items-center justify-center">
