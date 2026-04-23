@@ -20,6 +20,15 @@ function getSpotifyRedirectUri() {
   return `${window.location.origin}${SETTINGS_ROUTE}?spotify_callback=1`;
 }
 
+/** Chama spotify-auth com o JWT do usuário logado (necessário após hardening). */
+async function callSpotifyAuth(qs: string): Promise<any> {
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/spotify-auth?${qs}`;
+  const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  return resp.json();
+}
+
 interface NxSettings {
   delay_ms: number;
   max_results: number;
