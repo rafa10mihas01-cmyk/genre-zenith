@@ -19,5 +19,14 @@ export function PageContainer({
   children: ReactNode;
   className?: string;
 }) {
-  return <div className={cn("w-full space-y-6", className)}>{children}</div>;
+  return (
+    <div
+      className={cn(
+        "w-full space-y-6 min-h-[calc(100vh-3.5rem)] animate-page-in",
+        className,
+      )}
+    >
+      {children}
+    </div>
+  );
 }

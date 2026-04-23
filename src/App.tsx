@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AdminRoute from "@/components/AdminRoute";
 import AppLayout from "@/components/AppLayout";
+import ScrollToTop from "@/components/ScrollToTop";
 import Login from "./pages/Login";
 import Home from "./pages/Home";
 import Cerebro from "./pages/Cerebro";
@@ -30,6 +31,7 @@ const App = () => (
       <Toaster />
       <Sonner theme="dark" position="top-right" />
       <BrowserRouter>
+        <ScrollToTop />
         <AuthProvider>
           <Routes>
             <Route path="/login" element={<Login />} />

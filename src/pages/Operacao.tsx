@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Activity, Pause, Pencil, RefreshCw, ArrowDownRight, ArrowUpRight,
   Music2, FlaskConical, History, ListMusic, Search, Users, ExternalLink,
@@ -241,94 +242,97 @@ export default function Operacao() {
         })}
       </div>
 
-      {/* PLAYLISTS */}
-      {tab === "playlists" && (
-        <section className="space-y-4">
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="relative flex-1 max-w-xs">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Buscar playlist..."
-                className="pl-9 h-9 bg-elevated border-border rounded-full text-sm"
-              />
-            </div>
-            <div className="flex items-center gap-1.5 ml-auto flex-wrap">
-              <FilterChip active={filter === "todas"}       onClick={() => setFilter("todas")}>Todas</FilterChip>
-              <FilterChip active={filter === "ativa"}       onClick={() => setFilter("ativa")}>Ativas</FilterChip>
-              <FilterChip active={filter === "crescimento"} onClick={() => setFilter("crescimento")}>Crescendo</FilterChip>
-              <FilterChip active={filter === "queda"}       onClick={() => setFilter("queda")}>Em queda</FilterChip>
-              <FilterChip active={filter === "teste"}       onClick={() => setFilter("teste")}>Teste</FilterChip>
-              <FilterChip active={filter === "pausada"}     onClick={() => setFilter("pausada")}>Pausadas</FilterChip>
-            </div>
-          </div>
-
-          <div className="nx-card !p-0 overflow-hidden">
-            <div className="grid grid-cols-12 gap-3 px-4 py-3 text-[10px] uppercase tracking-wider text-muted-foreground font-bold border-b border-border">
-              <div className="col-span-4">Playlist</div>
-              <div className="col-span-2">Status</div>
-              <div className="col-span-2 text-right">Seguidores</div>
-              <div className="col-span-1 text-right">Faixas</div>
-              <div className="col-span-1 text-right">Trocas (7d)</div>
-              <div className="col-span-2 text-right">Ações</div>
-            </div>
-            {loading && playlists.length === 0 ? (
-              <div className="px-6 py-12 text-center text-xs text-muted-foreground">Carregando…</div>
-            ) : playlists.length === 0 ? (
-              <EmptyRow
-                title={playlistsAll.length === 0 ? "Nenhuma playlist em operação" : "Nada com esse filtro"}
-                msg={playlistsAll.length === 0
-                  ? "Quando uma playlist for publicada no Spotify pelo módulo Criação, ela aparece aqui automaticamente."
-                  : "Tente outro filtro ou limpe a busca."}
-              />
-            ) : (
-              playlists.map((p) => <PlaylistRow key={p.id} p={p} />)
-            )}
-          </div>
-
-          {/* Histórico colapsável no rodapé */}
-          <HistoryDrawer adjustments={adjustments} playlistsAll={playlistsAll} />
-        </section>
-      )}
-
-      {/* AJUSTES — manutenção do dia-a-dia */}
-      {tab === "ajustes" && (
-        <section className="space-y-4">
-          <div className="nx-card">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="h-9 w-9 rounded-full bg-elevated border border-border flex items-center justify-center">
-                <RefreshCw className="h-4 w-4 text-primary" />
+      {/* Container das tabs com altura mínima estável (evita layout shift) */}
+      <div className="min-h-[640px]">
+        {/* PLAYLISTS */}
+        {tab === "playlists" && (
+          <section key="tab-playlists" className="space-y-4 animate-tab-in">
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="relative flex-1 max-w-xs">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Buscar playlist..."
+                  className="pl-9 h-9 bg-elevated border-border rounded-full text-sm"
+                />
               </div>
-              <div>
-                <h3 className="font-semibold">Trocas pendentes</h3>
-                <p className="text-xs text-muted-foreground">Sugestões de troca baseadas em performance</p>
+              <div className="flex items-center gap-1.5 ml-auto flex-wrap">
+                <FilterChip active={filter === "todas"}       onClick={() => setFilter("todas")}>Todas</FilterChip>
+                <FilterChip active={filter === "ativa"}       onClick={() => setFilter("ativa")}>Ativas</FilterChip>
+                <FilterChip active={filter === "crescimento"} onClick={() => setFilter("crescimento")}>Crescendo</FilterChip>
+                <FilterChip active={filter === "queda"}       onClick={() => setFilter("queda")}>Em queda</FilterChip>
+                <FilterChip active={filter === "teste"}       onClick={() => setFilter("teste")}>Teste</FilterChip>
+                <FilterChip active={filter === "pausada"}     onClick={() => setFilter("pausada")}>Pausadas</FilterChip>
               </div>
             </div>
-            <EmptyInline msg="Nenhuma troca sugerida no momento. Rode uma análise no Cérebro para gerar recomendações." />
-          </div>
 
-          <div className="nx-card">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="h-9 w-9 rounded-full bg-elevated border border-border flex items-center justify-center">
-                <FlaskConical className="h-4 w-4 text-warning" />
+            <div className="nx-card !p-0 overflow-hidden">
+              <div className="grid grid-cols-12 gap-3 px-4 py-3 text-[10px] uppercase tracking-wider text-muted-foreground font-bold border-b border-border">
+                <div className="col-span-4">Playlist</div>
+                <div className="col-span-2">Status</div>
+                <div className="col-span-2 text-right">Seguidores</div>
+                <div className="col-span-1 text-right">Faixas</div>
+                <div className="col-span-1 text-right">Trocas (7d)</div>
+                <div className="col-span-2 text-right">Ações</div>
               </div>
-              <div>
-                <h3 className="font-semibold">Ajustes em teste</h3>
-                <p className="text-xs text-muted-foreground">Mudanças em validação antes de promover</p>
-              </div>
+              {loading && playlistsAll.length === 0 ? (
+                <SkeletonRows />
+              ) : playlists.length === 0 ? (
+                <EmptyRow
+                  title={playlistsAll.length === 0 ? "Nenhuma playlist em operação" : "Nada com esse filtro"}
+                  msg={playlistsAll.length === 0
+                    ? "Quando uma playlist for publicada no Spotify pelo módulo Criação, ela aparece aqui automaticamente."
+                    : "Tente outro filtro ou limpe a busca."}
+                />
+              ) : (
+                playlists.map((p) => <PlaylistRow key={p.id} p={p} />)
+              )}
             </div>
-            <EmptyInline msg="Nenhum teste ativo." />
-          </div>
-        </section>
-      )}
 
-      {/* CONTAS — sem o card explicativo redundante */}
-      {tab === "contas" && (
-        <section>
-          <AccountsManager />
-        </section>
-      )}
+            {/* Histórico colapsável no rodapé */}
+            <HistoryDrawer adjustments={adjustments} playlistsAll={playlistsAll} />
+          </section>
+        )}
+
+        {/* AJUSTES — manutenção do dia-a-dia */}
+        {tab === "ajustes" && (
+          <section key="tab-ajustes" className="space-y-4 animate-tab-in">
+            <div className="nx-card">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="h-9 w-9 rounded-full bg-elevated border border-border flex items-center justify-center">
+                  <RefreshCw className="h-4 w-4 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-semibold">Trocas pendentes</h3>
+                  <p className="text-xs text-muted-foreground">Sugestões de troca baseadas em performance</p>
+                </div>
+              </div>
+              <EmptyInline msg="Nenhuma troca sugerida no momento. Rode uma análise no Cérebro para gerar recomendações." />
+            </div>
+
+            <div className="nx-card">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="h-9 w-9 rounded-full bg-elevated border border-border flex items-center justify-center">
+                  <FlaskConical className="h-4 w-4 text-warning" />
+                </div>
+                <div>
+                  <h3 className="font-semibold">Ajustes em teste</h3>
+                  <p className="text-xs text-muted-foreground">Mudanças em validação antes de promover</p>
+                </div>
+              </div>
+              <EmptyInline msg="Nenhum teste ativo." />
+            </div>
+          </section>
+        )}
+
+        {/* CONTAS — sem o card explicativo redundante */}
+        {tab === "contas" && (
+          <section key="tab-contas" className="animate-tab-in">
+            <AccountsManager />
+          </section>
+        )}
+      </div>
     </PageContainer>
   );
 }
@@ -363,7 +367,7 @@ function StatusPill({ status }: { status: OpStatus }) {
   );
 }
 
-function PlaylistRow({ p }: { p: OpPlaylist }) {
+const PlaylistRow = memo(function PlaylistRow({ p }: { p: OpPlaylist }) {
   return (
     <div className="grid grid-cols-12 gap-3 px-4 py-3 items-center border-b border-border last:border-0 hover:bg-elevated/40 transition-colors">
       <div className="col-span-4 flex items-center gap-3 min-w-0">
@@ -391,6 +395,33 @@ function PlaylistRow({ p }: { p: OpPlaylist }) {
         <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" title="Trocar faixas"><RefreshCw className="h-3.5 w-3.5" /></Button>
         <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" title="Pausar"><Pause className="h-3.5 w-3.5" /></Button>
       </div>
+    </div>
+  );
+});
+
+/** Skeleton de linhas — preserva altura do container e evita "salto" visual durante o load. */
+function SkeletonRows() {
+  return (
+    <div>
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="grid grid-cols-12 gap-3 px-4 py-3 items-center border-b border-border last:border-0">
+          <div className="col-span-4 flex items-center gap-3">
+            <Skeleton className="h-10 w-10 rounded-md bg-muted/60" />
+            <div className="space-y-1.5 flex-1 min-w-0">
+              <Skeleton className="h-3.5 w-3/4 bg-muted/60" />
+              <Skeleton className="h-2.5 w-1/2 bg-muted/40" />
+            </div>
+          </div>
+          <div className="col-span-2"><Skeleton className="h-5 w-20 rounded-full bg-muted/50" /></div>
+          <div className="col-span-2 flex justify-end"><Skeleton className="h-3.5 w-14 bg-muted/50" /></div>
+          <div className="col-span-1 flex justify-end"><Skeleton className="h-3.5 w-8 bg-muted/40" /></div>
+          <div className="col-span-1 flex justify-end"><Skeleton className="h-3.5 w-6 bg-muted/40" /></div>
+          <div className="col-span-2 flex justify-end gap-1">
+            <Skeleton className="h-8 w-8 rounded-md bg-muted/40" />
+            <Skeleton className="h-8 w-8 rounded-md bg-muted/40" />
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
