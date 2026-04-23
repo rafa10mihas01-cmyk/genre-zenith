@@ -12,6 +12,7 @@ import {
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { useBrainModel } from "@/hooks/useBrainModel";
 import { useBriefings } from "@/hooks/useBriefings";
+import { LoadMore, usePagination } from "@/components/LoadMore";
 import { formatNumber, timeAgo, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -1174,13 +1175,16 @@ function Base({ model, loading }: any) {
   const playlists = model.playlists_dominantes ?? [];
   const tracks = model.musicas_recorrentes ?? [];
 
+  const pl = usePagination<any>(playlists, 20);
+  const tr = usePagination<any>(tracks, 20);
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <div className="nx-card p-5">
         <h3 className="font-bold mb-3">Playlists dominantes ({playlists.length})</h3>
-        <div className="space-y-1.5 max-h-[60vh] overflow-y-auto nx-scroll">
+        <div className="space-y-1.5">
           {playlists.length === 0 ? <Empty msg="—" />
-            : playlists.map((p: any, i: number) => (
+            : pl.visibleItems.map((p: any, i: number) => (
               <a key={i} href={p.url} target="_blank" rel="noreferrer"
                  className="flex items-center gap-2 p-2 rounded hover:bg-elevated text-sm">
                 <span className="text-xs text-muted-foreground w-6 tabular-nums">{i + 1}</span>
@@ -1189,12 +1193,13 @@ function Base({ model, loading }: any) {
               </a>
             ))}
         </div>
+        <LoadMore visible={pl.visible} total={pl.total} hasMore={pl.hasMore} onLoadMore={pl.loadMore} itemLabel="playlists" />
       </div>
       <div className="nx-card p-5">
         <h3 className="font-bold mb-3">Faixas recorrentes ({tracks.length})</h3>
-        <div className="space-y-1.5 max-h-[60vh] overflow-y-auto nx-scroll">
+        <div className="space-y-1.5">
           {tracks.length === 0 ? <Empty msg="—" />
-            : tracks.map((t: any, i: number) => (
+            : tr.visibleItems.map((t: any, i: number) => (
               <div key={i} className="flex items-center gap-2 py-1.5 text-sm">
                 <span className="text-xs text-muted-foreground w-6 tabular-nums">{i + 1}</span>
                 <div className="flex-1 min-w-0">
