@@ -398,6 +398,24 @@ function variationHints(index: number): string {
 }
 
 // ============================================================
+// ACABAMENTO PREMIUM (compartilhado pelos 3 estilos)
+// Adiciona profundidade/relevo SEM mudar layout, tipografia ou hierarquia.
+// Tudo deve ser SUTIL — quase imperceptível, nunca chamativo.
+// ============================================================
+const PREMIUM_FINISH_BLOCK = [
+  "PREMIUM FINISH (subtle depth — never strong or flashy):",
+  "- Background depth: subtle radial light from center (very soft, almost imperceptible glow). Center slightly more illuminated than edges. Still only 2 base colors — no third color, no extra hue.",
+  "- Surface relief: very faint embossed feeling, soft inner highlight on the top inner edge and a soft inner shadow on the bottom inner edge. Premium material feel, NOT a thick frame.",
+  "- Inner border: extremely thin (1–2px) soft inner border with a subtle light reflection — like a refined card edge. Same hue family as the palette, low opacity.",
+  "- Text finish: clean bold text with a VERY subtle drop shadow (low opacity, tight offset, soft blur) and an almost imperceptible top highlight on the letters. Text must remain ultra readable — depth is felt, not seen.",
+  "- Logo signature: a small embossed wordmark \"NEXENGINE\" in the BOTTOM-RIGHT corner, inside the safe area. Tiny size (about 4–5% of canvas height), opacity 15–25%, low contrast, integrated into the surface like a watermark. Must NOT compete with the title or subtitle. Same font family as the title.",
+  "INTENSITY RULE (CRITICAL): all of the above must be SUBTLE, ELEGANT, ALMOST IMPERCEPTIBLE.",
+  "STRICTLY FORBIDDEN inside premium finish: strong glow, heavy shadows, neon effects, glossy plastic look, 3D bevels, flashy reflections, any effect that pulls attention away from the text.",
+].join("\n");
+
+
+
+// ============================================================
 // PROMPT BUILDERS — 1 por estilo
 // ============================================================
 function buildCleanPrompt(template: any, palette: typeof PALETTES[number], index = 0): string {
@@ -445,6 +463,8 @@ function buildCleanPrompt(template: any, palette: typeof PALETTES[number], index
     "VARIATION (subtle, this card only):",
     variationHints(index),
     "",
+    PREMIUM_FINISH_BLOCK,
+    "",
     "LAYOUT RULES (STRICT GRID):",
     "- Perfect horizontal centering",
     "- Equal margins left and right",
@@ -466,11 +486,11 @@ function buildCleanPrompt(template: any, palette: typeof PALETTES[number], index
     "- No long sentences, no more than 2 lines of title",
     "- No ugly word-breaks",
     "- No humans, no faces, no people, no portraits, no characters",
-    "- No icons, no logos, no objects, no instruments, no musical notes",
+    "- No icons, no objects, no instruments, no musical notes (the only allowed wordmark is the small NEXENGINE signature in the bottom-right corner)",
     "- No textures, no noise, no grain, no vignette",
-    "- No shadows, no glow, no effects",
+    "- No STRONG shadows, no STRONG glow, no neon, no chromatic effects (the subtle premium finish above is the ONLY allowed depth)",
     "- No perspective, no rotation, no tilt",
-    "- No additional text beyond title/subtitle",
+    "- No additional text beyond title, subtitle and the small NEXENGINE signature",
     "- No decorative elements",
     "- No more than 2 colors in background",
     "",
@@ -508,10 +528,11 @@ function buildViralHitsPrompt(template: any, palette: typeof PALETTES[number], i
     "VARIATION (subtle, this card only):",
     variationHints(index),
     "",
+    PREMIUM_FINISH_BLOCK,
+    "",
     "COMPOSITION:",
     "- Centered with confident editorial weight — NOT chaotic",
     "- Very subtle tilt allowed (max 3°), or perfectly straight",
-    "- Optional very soft depth: a faint shadow OR a subtle chromatic offset (never both)",
     "- High energy, modern, designed — feels like a trending Spotify HITS / TOP / VIRAL editorial cover",
     "",
     "READABILITY (FINAL TEST — must pass):",
@@ -523,9 +544,10 @@ function buildViralHitsPrompt(template: any, palette: typeof PALETTES[number], i
     "- No long sentences, no more than 2 lines",
     "- No ugly word-breaks",
     "- No human faces, no human bodies, no people, no portraits",
-    "- No complex scenes, no landscapes, no instruments, no musical notes, no logos",
-    "- No additional text beyond what is specified",
-    "- No watermarks, no signatures",
+    "- No complex scenes, no landscapes, no instruments, no musical notes, no logos (the only allowed wordmark is the small NEXENGINE signature in the bottom-right corner)",
+    "- No additional text beyond what is specified plus the small NEXENGINE signature",
+    "- No watermarks, no signatures other than the small NEXENGINE wordmark",
+    "- No STRONG shadows, no STRONG glow, no neon (the subtle premium finish above is the ONLY allowed depth)",
     "- No gradients with more than 2 colors, no grain, no vignette",
   ].join("\n");
 }
@@ -574,6 +596,8 @@ function buildDynamicPrompt(template: any, palette: typeof PALETTES[number], ind
     "VARIATION (subtle, this card only):",
     variationHints(index),
     "",
+    PREMIUM_FINISH_BLOCK,
+    "",
     "READABILITY (FINAL TEST — must pass):",
     "- Readable in under 1 second at 64x64 thumbnail",
     "- High contrast between text and background",
@@ -603,11 +627,11 @@ function buildDynamicPrompt(template: any, palette: typeof PALETTES[number], ind
     "- Strong distortion of letters, exaggerated rotation (anything beyond 5°)",
     "- Visual pollution or busy backgrounds, loss of legibility",
     "- No humans, no faces, no people, no portraits, no characters",
-    "- No icons, no logos, no objects, no instruments, no musical notes",
+    "- No icons, no objects, no instruments, no musical notes (the only allowed wordmark is the small NEXENGINE signature in the bottom-right corner)",
     "- No textures, no noise, no grain, no vignette",
-    "- No drop shadows, no glow, no chromatic effects",
+    "- No STRONG drop shadows, no STRONG glow, no chromatic effects (the subtle premium finish above is the ONLY allowed depth)",
     "- No perspective, no 3D",
-    "- No additional text beyond what is specified above",
+    "- No additional text beyond what is specified above plus the small NEXENGINE signature",
     "- No more than 2 colors in the background",
     "",
     "SPELLING:",
