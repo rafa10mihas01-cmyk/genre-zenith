@@ -15,13 +15,23 @@ function jr(p: unknown, status = 200) {
 }
 
 async function searchTrackUri(token: string, nome: string, artista: string): Promise<string | null> {
+  // 🎯 Busca top 5 e escolhe pela maior popularidade — evita remix/cover errado
   const q = `track:${nome} artist:${artista}`;
-  const url = `https://api.spotify.com/v1/search?type=track&limit=1&q=${encodeURIComponent(q)}`;
+  const url = `https://api.spotify.com/v1/search?type=track&limit=5&q=${encodeURIComponent(q)}`;
   const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
   if (!r.ok) return null;
   const j = await r.json();
-  const item = j?.tracks?.items?.[0];
-  return item?.uri ?? null;
+  const items: any[] = j?.tracks?.items ?? [];
+  if (items.length === 0) return null;
+  // Penaliza variantes ruins (remix/sped up/slowed) no nome
+  const bad = /\b(remix|sped\s*up|slowed|reverb|cover|karaoke|tiktok)\b/i;
+  const ranked = items
+    .map((t) => ({
+      uri: t.uri as string,
+      pop: (t.popularity ?? 0) - (bad.test(t.name ?? "") ? 30 : 0),
+    }))
+    .sort((a, b) => b.pop - a.pop);
+  return ranked[0]?.uri ?? null;
 }
 
 Deno.serve(async (req) => {
