@@ -5,6 +5,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { loadActiveRules, rulesAsPromptBlock, enforceNamingRules, summarizeRules } from "../_shared/rules.ts";
+import { sourceMultiplier } from "../_shared/labels.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -108,11 +109,11 @@ Deno.serve(async (req) => {
     return jr({ ok: false, error: "no enriched playlists available" }, 400);
   }
 
-  // Score híbrido: oficiais Spotify (2.5×) e nomes editoriais (1.2×) sobem no ranking
+  // Score híbrido: oficiais Spotify + selos majors (2.5×) e nomes editoriais (1.2×) sobem
   // Inerte se owner_type for null (compat com playlists ainda não re-enriquecidas)
   function hybridScore(p: any): number {
     const base = (p.seguidores ?? 0) * ((Number(p.quality_score) || 50) / 100);
-    const sourceMult = p.owner_type === "spotify" ? 2.5 : 1.0;
+    const sourceMult = sourceMultiplier(p.owner_type); // spotify|label=2.5x · user=1.0x
     const editorialBonus = /\b(top|viral|hits|charts|novidades)\b/i.test(p.nome_playlist ?? "") ? 1.2 : 1.0;
     return base * sourceMult * editorialBonus;
   }

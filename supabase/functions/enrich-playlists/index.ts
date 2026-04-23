@@ -3,6 +3,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getSpotifyToken } from "../_shared/spotify.ts";
+import { classifyOwner } from "../_shared/labels.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -66,7 +67,7 @@ type SpotifyResp = {
   total: number | null;
   status: number;
   owner_id: string | null;
-  owner_type: "spotify" | "user" | null;
+  owner_type: "spotify" | "label" | "user" | null;
 };
 
 async function fetchSpotifyPlaylist(id: string, token: string): Promise<SpotifyResp> {
@@ -87,9 +88,9 @@ async function fetchSpotifyPlaylist(id: string, token: string): Promise<SpotifyR
   }
   const j = await r.json();
   const ownerId: string | null = j?.owner?.id ?? null;
-  const ownerType: "spotify" | "user" | null = ownerId
-    ? (ownerId === "spotify" ? "spotify" : "user")
-    : null;
+  // classifyOwner detecta selos majors (filtr.br, somlivre, digster_brasil, ...) como 'label'
+  // — equivalentes a oficiais Spotify pra fins de scoring.
+  const ownerType: "spotify" | "label" | "user" | null = ownerId ? classifyOwner(ownerId) : null;
   return {
     followers: j?.followers?.total ?? null,
     total: j?.tracks?.total ?? null,

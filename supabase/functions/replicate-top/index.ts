@@ -152,15 +152,15 @@ Deno.serve(async (req) => {
     .filter(p => !replicatedIds.has(p.id))
     .map(p => {
       const baseScore = (p.seguidores ?? 0) * ((Number(p.quality_score) || 50) / 100);
-      // Oficial Spotify vale 2.5× — captura tendência editorial real
-      const sourceMult = p.owner_type === "spotify" ? 2.5 : 1.0;
-      // Bonus por nome editorial (Top, Viral, Hits) — mesmo sendo de usuário, indica padrão de curadoria
+      // Oficial Spotify + selo major valem 2.5× — curadoria editorial profissional
+      const sourceMult = sourceMultiplier(p.owner_type);
+      // Bonus por nome editorial (Top, Viral, Hits) — mesmo de usuário, sinaliza padrão
       const editorialBonus = /\b(top|viral|hits|charts|novidades)\b/i.test(p.nome_playlist ?? "") ? 1.2 : 1.0;
       return {
         ...p,
         _score: baseScore * sourceMult * editorialBonus,
         _tier: tierFor(p.seguidores ?? 0),
-        _source_label: p.owner_type === "spotify" ? "oficial_spotify" : (p.owner_type === "user" ? "user_grande" : "desconhecido"),
+        _source_label: sourceLabel(p.owner_type),
       };
     })
     .sort((a, b) => b._score - a._score)
