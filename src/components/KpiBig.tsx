@@ -54,29 +54,51 @@ export function KpiBig({
   loading = false,
 }: KpiBigProps) {
   return (
-    <div className={cn("nx-card p-4 min-h-[118px] flex flex-col", className)}>
-      <div className="flex items-center justify-between gap-2 min-h-4">
-        <span className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-medium">
+    <div
+      className={cn(
+        // Card com altura fixa garantida + estrutura em 3 zonas verticais.
+        // gap-2 (8px) entre cada zona = ritmo idêntico em todos os cards.
+        "nx-card p-4 h-[120px] flex flex-col gap-2",
+        className,
+      )}
+    >
+      {/* ZONA 1 — HEADER: label à esquerda, ícone à direita.
+          Altura fixa de 16px e items-center garante baseline idêntico
+          mesmo quando o card não tem ícone. */}
+      <div className="h-4 flex items-center justify-between gap-2">
+        <span className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-medium leading-none">
           {label}
         </span>
-        {action ?? (Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground" />)}
+        <div className="h-4 w-4 flex items-center justify-center shrink-0">
+          {action ?? (Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground" />)}
+        </div>
       </div>
-      <div className={cn("mt-1.5 min-h-[36px] flex items-end", TONE_CLS[tone])}>
+
+      {/* ZONA 2 — VALOR: ocupa o espaço flexível, sempre centralizado
+          verticalmente. Tabular-nums alinha dígitos perfeitamente entre cards. */}
+      <div className={cn("flex-1 flex items-center", TONE_CLS[tone])}>
         {loading ? (
-          <Skeleton className="h-8 w-24 rounded-md bg-muted/80" />
+          <Skeleton className="h-7 w-24 rounded-md bg-muted/80" />
         ) : isEmptyValue(value) ? (
-          <div className="text-sm font-medium text-muted-foreground leading-tight">
+          <span className="text-sm font-medium text-muted-foreground leading-none">
             Sem dados ainda
-          </div>
+          </span>
         ) : (
-          <div className="text-2xl font-bold tabular-nums leading-tight">{value}</div>
+          <span className="text-2xl font-bold tabular-nums leading-none">
+            {value}
+          </span>
         )}
       </div>
-      <div className="mt-1 min-h-[16px]">
+
+      {/* ZONA 3 — HINT: altura fixa de 14px reservada SEMPRE (mesmo sem hint),
+          para garantir que valor fique no mesmo Y em todos os cards. */}
+      <div className="h-[14px] flex items-center">
         {loading ? (
-          <Skeleton className="h-3.5 w-32 rounded-md bg-muted/70" />
+          <Skeleton className="h-3 w-32 rounded-md bg-muted/70" />
         ) : hint ? (
-          <div className="text-[11px] text-muted-foreground truncate">{hint}</div>
+          <span className="text-[11px] text-muted-foreground truncate leading-none">
+            {hint}
+          </span>
         ) : null}
       </div>
     </div>
