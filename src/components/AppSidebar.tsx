@@ -38,7 +38,7 @@ export function AppSidebar() {
     <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
       <SidebarHeader className="px-4 py-6 border-b border-sidebar-border">
         <div className={cn("flex items-center w-full", collapsed ? "justify-center" : "justify-start")}>
-          <NexEngineLogo size={collapsed ? 30 : 44} variant="auto" />
+          <NexEngineLogo size={collapsed ? 32 : 56} variant="auto" />
         </div>
       </SidebarHeader>
 
