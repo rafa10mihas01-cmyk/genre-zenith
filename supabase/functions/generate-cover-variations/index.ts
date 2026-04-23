@@ -766,6 +766,6 @@ Deno.serve(async (req) => {
     variations,
     palettes_used: variations.map((v) => v.palette),
     styles_used: variations.map((v) => v.style),
-    subtext_extracted: extractSubtext(tpl.cover_brief),
+    subtext_extracted: extractSubtext(tpl.cover_brief, tpl.name),
   });
 });
