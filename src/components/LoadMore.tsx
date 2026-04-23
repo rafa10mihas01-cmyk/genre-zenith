@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -15,11 +15,10 @@ import { cn } from "@/lib/utils";
  */
 export function usePagination<T>(items: T[], pageSize = 20) {
   const [page, setPage] = useState(1);
-
-  // Reseta quando o array muda de tamanho (ex: filtro novo).
-  // Usa o tamanho como "chave" — barato e bate na maioria dos casos.
   const len = items.length;
-  useMemo(() => { setPage(1); /* reset */ }, [len]);
+
+  // Reseta quando o tamanho do array muda (ex: filtro novo).
+  useEffect(() => { setPage(1); }, [len]);
 
   const visible = Math.min(page * pageSize, items.length);
   const visibleItems = items.slice(0, visible);
