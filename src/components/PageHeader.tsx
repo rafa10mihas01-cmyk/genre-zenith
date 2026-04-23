@@ -34,7 +34,7 @@ export function PageHeader({
   return (
     <header
       className={cn(
-        "flex items-end justify-between gap-4 flex-wrap",
+        "flex items-end justify-between gap-4 flex-wrap mb-2",
         className,
       )}
     >
@@ -45,7 +45,7 @@ export function PageHeader({
             {kicker}
           </div>
         )}
-        <h1 className="text-3xl font-bold tracking-tight leading-tight">
+        <h1 className="text-2xl md:text-3xl font-semibold tracking-tight leading-tight">
           {title}
         </h1>
         <p className="text-sm text-muted-foreground max-w-2xl">{subtitle}</p>
