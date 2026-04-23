@@ -38,10 +38,14 @@ const LOGO_TINT_SHIFT    = 24;    // quanto puxar do branco/preto puro pra dentr
 // ============================================================
 // PREMIUM FINISH — calibração visual
 // ============================================================
-// Radial glow / vignette sutil
-const GLOW_CENTER_BOOST   = 14;   // ganho de luz no centro (0-255). 14 = +5% L
-const GLOW_EDGE_DARKEN    = 18;   // escurecimento nas bordas (0-255). 18 = -7% L
-const GLOW_RADIUS_PCT     = 0.55; // raio do "highlight central" como % da diagonal
+// Radial glow — ASSINATURA VISUAL DA MARCA.
+// Posição FIXA ligeiramente acima do centro (peso óptico para texto/título),
+// intensidade ÚNICA em todas as capas. Não chama atenção, só dá profundidade.
+const GLOW_CENTER_BOOST   = 9;     // ganho de luz no centro (0-255). 9 = ~+3.5% L (mais sutil)
+const GLOW_EDGE_DARKEN    = 12;    // escurecimento nas bordas (0-255). 12 = ~-4.7% L
+const GLOW_RADIUS_PCT     = 0.50;  // raio do "highlight central" como % da diagonal (consistente)
+const GLOW_CENTER_X_PCT   = 0.50;  // X do glow: 50% (centro horizontal exato)
+const GLOW_CENTER_Y_PCT   = 0.42;  // Y do glow: 42% (ligeiramente acima do centro — assinatura)
 
 // Grain
 const GRAIN_AMPLITUDE     = 4;    // ±4 em cada canal RGB. Quase imperceptível em monitor.
@@ -103,9 +107,15 @@ function regionStats(img: Image, x: number, y: number, w: number, h: number): {
 function applyPremiumFinish(img: Image): void {
   const W = img.width;
   const H = img.height;
+
+  // Centro geométrico (usado pra vinheta de borda — consistente em qualquer aspecto)
   const cx = W / 2;
   const cy = H / 2;
   const maxDist = Math.sqrt(cx * cx + cy * cy);
+
+  // Centro do GLOW radial — FIXO ligeiramente acima do centro (assinatura visual)
+  const gx = W * GLOW_CENTER_X_PCT;
+  const gy = H * GLOW_CENTER_Y_PCT;
   const glowRadius = maxDist * GLOW_RADIUS_PCT;
 
   // Mulberry32 PRNG — determinístico (mesma capa = mesmo grain a cada re-encode)
@@ -120,27 +130,24 @@ function applyPremiumFinish(img: Image): void {
 
   const clamp = (v: number) => (v < 0 ? 0 : v > 255 ? 255 : v) | 0;
 
-  // Walker direto sobre o buffer interno (imagescript expõe `bitmap` Uint8ClampedArray RGBA).
-  // Cada pixel = 4 bytes (R,G,B,A). Iterar manualmente é ~10x mais rápido que getPixelAt.
   const buf = img.bitmap;
   for (let y = 0; y < H; y++) {
-    const dy = y - cy;
+    const dyEdge = y - cy;       // p/ vinheta (centro geométrico)
+    const dyGlow = y - gy;       // p/ glow assinatura (centro deslocado)
     for (let x = 0; x < W; x++) {
-      const dx = x - cx;
-      const dist = Math.sqrt(dx * dx + dy * dy);
+      const dxEdge = x - cx;
+      const dxGlow = x - gx;
 
-      // Radial glow: centro fica mais claro, bordas mais escuras.
-      // Curva suave (smoothstep-like) entre 0 (centro) e 1 (canto).
-      const t = Math.min(1, dist / maxDist);
-      // smoothstep
-      const s = t * t * (3 - 2 * t);
+      // Vinheta de borda: usa distância ao centro geométrico (consistência radial)
+      const distEdge = Math.sqrt(dxEdge * dxEdge + dyEdge * dyEdge);
+      const tE = Math.min(1, distEdge / maxDist);
+      const sE = tE * tE * (3 - 2 * tE); // smoothstep
+      const edgeDarken = GLOW_EDGE_DARKEN * sE;
 
-      // Center boost (decai do centro até glowRadius)
-      const centerFactor = Math.max(0, 1 - dist / glowRadius);
+      // Glow assinatura: posição fixa acima do centro, intensidade única
+      const distGlow = Math.sqrt(dxGlow * dxGlow + dyGlow * dyGlow);
+      const centerFactor = Math.max(0, 1 - distGlow / glowRadius);
       const centerBoost = GLOW_CENTER_BOOST * centerFactor * centerFactor;
-
-      // Edge darken (cresce do centro até o canto)
-      const edgeDarken = GLOW_EDGE_DARKEN * s;
 
       const lightDelta = centerBoost - edgeDarken;
 
