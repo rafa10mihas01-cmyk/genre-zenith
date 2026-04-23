@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Activity, Pause, Pencil, RefreshCw, ArrowDownRight, ArrowUpRight,
-  Music2, FlaskConical, History, ListMusic, Plus, Search, Users,
+  Music2, FlaskConical, History, ListMusic, Plus, Search, Users, ExternalLink,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -10,14 +10,13 @@ import { PageHeader } from "@/components/PageHeader";
 import { KpiBig } from "@/components/KpiBig";
 import { AccountsManager } from "@/components/operacao/AccountsManager";
 import { PageContainer } from "@/components/PageContainer";
+import { supabase } from "@/integrations/supabase/client";
+import { formatNumber, timeAgo } from "@/lib/format";
 
 /**
  * OPERAÇÃO — painel de controle contínuo das playlists já publicadas.
- * NÃO é criação. NÃO é análise. É manutenção/operação no dia-a-dia.
- *
- * Sem dados fake: como não existem tabelas `operated_playlists` /
- * `playlist_changes` ainda, mostramos a ESTRUTURA real com estado vazio
- * honesto. Quando a tabela for criada, basta plugar a query no lugar.
+ * Fonte de verdade: `playlist_templates` (status='created' + spotify_playlist_id)
+ * + último snapshot em `playlist_metrics_snapshots` p/ derivar status.
  */
 
 type OpStatus = "ativa" | "crescimento" | "queda" | "teste" | "pausada";
@@ -40,12 +39,126 @@ const TABS = [
 
 type TabId = typeof TABS[number]["id"];
 
+type OpPlaylist = {
+  id: string;
+  nome: string;
+  genero: string;
+  status: OpStatus;
+  seguidores: number;
+  faixas: number;
+  trocas7d: number;
+  spotify_url: string | null;
+  spotify_playlist_id: string | null;
+  created_on_spotify_at: string | null;
+};
+
+type Adjustment = {
+  id: string;
+  template_id: string;
+  action_type: string;
+  status: string;
+  created_at: string;
+  details: any;
+};
+
 export default function Operacao() {
   const [tab, setTab] = useState<TabId>("playlists");
   const [filter, setFilter] = useState<"todas" | OpStatus>("todas");
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [playlistsAll, setPlaylistsAll] = useState<OpPlaylist[]>([]);
+  const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
 
-  // Dados reais ainda não modelados → começamos vazios.
-  const playlists: any[] = [];
+  const load = async () => {
+    setLoading(true);
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
+
+    const [{ data: tpls }, { data: snaps }, { data: adjs }, { data: genres }] = await Promise.all([
+      supabase
+        .from("playlist_templates")
+        .select("id,name,genre_id,status,spotify_playlist_id,spotify_url,created_on_spotify_at,followers_at_creation,tracks_added,performance_class")
+        .not("spotify_playlist_id", "is", null)
+        .order("created_on_spotify_at", { ascending: false, nullsFirst: false }),
+      supabase
+        .from("playlist_metrics_snapshots")
+        .select("template_id,followers,total_tracks,collected_at")
+        .order("collected_at", { ascending: false }),
+      supabase
+        .from("playlist_adjustments")
+        .select("id,template_id,action_type,status,created_at,details")
+        .gte("created_at", sevenDaysAgo)
+        .order("created_at", { ascending: false }),
+      supabase.from("genres").select("id,nome"),
+    ]);
+
+    // último snapshot por template
+    const lastSnap = new Map<string, { followers: number; total_tracks: number | null }>();
+    for (const s of snaps ?? []) {
+      if (!lastSnap.has(s.template_id)) {
+        lastSnap.set(s.template_id, { followers: s.followers, total_tracks: s.total_tracks });
+      }
+    }
+    const genreMap = new Map((genres ?? []).map(g => [g.id, g.nome]));
+    const trocasPorTpl = new Map<string, number>();
+    for (const a of adjs ?? []) {
+      if (a.action_type === "swap_tracks" || a.action_type === "swap" || a.action_type === "track_change") {
+        trocasPorTpl.set(a.template_id, (trocasPorTpl.get(a.template_id) ?? 0) + 1);
+      }
+    }
+
+    const list: OpPlaylist[] = (tpls ?? []).map(t => {
+      const snap = lastSnap.get(t.id);
+      const followersNow = snap?.followers ?? t.followers_at_creation ?? 0;
+      const followersStart = t.followers_at_creation ?? 0;
+      const delta = followersNow - followersStart;
+
+      let status: OpStatus = "ativa";
+      if (t.performance_class === "alta" || delta > 5) status = "crescimento";
+      else if (t.performance_class === "baixa" || delta < -5) status = "queda";
+      else if (!t.created_on_spotify_at || (Date.now() - new Date(t.created_on_spotify_at).getTime()) < 48 * 3600 * 1000) status = "teste";
+
+      return {
+        id: t.id,
+        nome: t.name,
+        genero: genreMap.get(t.genre_id) ?? "—",
+        status,
+        seguidores: followersNow,
+        faixas: snap?.total_tracks ?? t.tracks_added ?? 0,
+        trocas7d: trocasPorTpl.get(t.id) ?? 0,
+        spotify_url: t.spotify_url,
+        spotify_playlist_id: t.spotify_playlist_id,
+        created_on_spotify_at: t.created_on_spotify_at,
+      };
+    });
+
+    setPlaylistsAll(list);
+    setAdjustments((adjs ?? []) as Adjustment[]);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    load();
+    const t = setInterval(load, 60_000);
+    return () => clearInterval(t);
+  }, []);
+
+  const playlists = useMemo(() => {
+    return playlistsAll.filter(p => {
+      if (filter !== "todas" && p.status !== filter) return false;
+      if (search && !p.nome.toLowerCase().includes(search.toLowerCase())) return false;
+      return true;
+    });
+  }, [playlistsAll, filter, search]);
+
+  const kpi = useMemo(() => {
+    return {
+      total: playlistsAll.length,
+      crescendo: playlistsAll.filter(p => p.status === "crescimento").length,
+      queda: playlistsAll.filter(p => p.status === "queda").length,
+      trocas: playlistsAll.reduce((s, p) => s + p.trocas7d, 0),
+    };
+  }, [playlistsAll]);
+
 
   return (
     <PageContainer>
