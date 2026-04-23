@@ -1201,7 +1201,7 @@ function classifyTier(followers?: number | null): "mega" | "big" | "medio" | "sm
 
 const TIER_META: Record<string, { label: string; cls: string }> = {
   mega:  { label: "Mega",  cls: "bg-primary/15 text-primary border-primary/30" },
-  big:   { label: "Big",   cls: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
+  big:   { label: "Big",   cls: "bg-success/15 text-success border-success/30" },
   medio: { label: "Médio", cls: "bg-warning/15 text-warning border-warning/30" },
   small: { label: "Small", cls: "bg-muted/40 text-muted-foreground border-border" },
 };
