@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { BarChart3, RefreshCw, Brain } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { BarChart3, RefreshCw, Brain, Activity } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
 import { Button } from "@/components/ui/button";
@@ -85,6 +85,27 @@ export default function Performance() {
   const altaIds = new Set(insight?.classificacao?.alta ?? []);
   const baixaIds = new Set(insight?.classificacao?.baixa ?? []);
 
+  // Hero status: estado do sistema de performance
+  const heroStatus = useMemo(() => {
+    if (loading && totalPubs === 0) {
+      return { label: "Carregando dados", tone: "info" as const, pulse: true };
+    }
+    if (tracking) {
+      return { label: "Coletando dados…", tone: "info" as const, pulse: true };
+    }
+    if (analyzing) {
+      return { label: "Analisando com Claude…", tone: "primary" as const, pulse: true };
+    }
+    if (totalPubs === 0) {
+      return { label: "Sem dados ainda", tone: "muted" as const, pulse: false };
+    }
+    const withData = dataset.filter((d) => (d.followers_now ?? 0) > 0).length;
+    if (withData === 0) {
+      return { label: "Aguardando histórico", tone: "warning" as const, pulse: true };
+    }
+    return { label: "Sistema ativo", tone: "success" as const, pulse: false };
+  }, [loading, tracking, analyzing, totalPubs, dataset]);
+
   return (
     <PageContainer>
       <PageHeader
@@ -94,21 +115,24 @@ export default function Performance() {
           <>
             <Button variant="outline" size="sm" onClick={runTrack} disabled={tracking}>
               <RefreshCw className={`h-4 w-4 mr-2 ${tracking ? "animate-spin" : ""}`} />
-              Coletar agora
+              Coletar dados
             </Button>
             <Button size="sm" onClick={runAnalyze} disabled={analyzing || totalPubs === 0}>
               <Brain className={`h-4 w-4 mr-2 ${analyzing ? "animate-pulse" : ""}`} />
-              Analisar com Claude
+              Analisar agora
             </Button>
           </>
         }
       />
 
+      {/* Hero status — estado do sistema (mobile-first) */}
+      <HeroStatus status={heroStatus} totalPubs={totalPubs} />
+
       {totalPubs === 0 && !loading ? (
-        <Card className="p-8 text-center">
+        <Card className="p-6 md:p-8 text-center">
           <BarChart3 className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
-          <h3 className="font-bold text-lg">Nenhuma playlist publicada ainda</h3>
-          <p className="text-sm text-muted-foreground mt-1.5 max-w-md mx-auto">
+          <h3 className="font-bold text-base md:text-lg">Nenhuma playlist publicada ainda</h3>
+          <p className="text-xs md:text-sm text-muted-foreground mt-1.5 max-w-md mx-auto">
             Quando o módulo Operação publicar playlists no Spotify, elas aparecerão aqui com métricas e análise do Claude.
           </p>
         </Card>
@@ -118,11 +142,11 @@ export default function Performance() {
           <PerformanceKpis dataset={dataset} loading={loading && totalPubs === 0} />
 
           {/* 2. Próximas ações + última análise — o que fazer agora */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-4">
             <PriorityActionsCard insight={insight} />
-            <Card className="p-5 flex items-center gap-4 min-h-[96px]">
-              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                <Brain className="h-5 w-5 text-primary" />
+            <Card className="p-4 md:p-5 flex items-center gap-3 md:gap-4 min-h-[88px] md:min-h-[96px]">
+              <div className="h-9 w-9 md:h-10 md:w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                <Brain className="h-4 w-4 md:h-5 md:w-5 text-primary" />
               </div>
               <div className="min-w-0 flex-1">
                 <h3 className="font-bold text-sm">Última análise</h3>
@@ -144,10 +168,10 @@ export default function Performance() {
           <GenreRanking dataset={dataset} genres={genres} />
 
           {/* 4. Detalhe — playlists com filtros e padrões aprendidos */}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-3 md:space-y-4">
             <TabsList>
               <TabsTrigger value="playlists">Playlists ({totalPubs})</TabsTrigger>
-              <TabsTrigger value="insights">Padrões aprendidos</TabsTrigger>
+              <TabsTrigger value="insights">Padrões</TabsTrigger>
             </TabsList>
             {/* min-h estável para evitar layout shift na troca de aba */}
             <TabsContent value="playlists" className="min-h-[480px] animate-tab-in mt-0">
@@ -160,5 +184,70 @@ export default function Performance() {
         </>
       )}
     </PageContainer>
+  );
+}
+
+/* ----------------------------------------------------------- */
+/* HeroStatus — bloco compacto que comunica o estado do sistema */
+/* ----------------------------------------------------------- */
+type HeroTone = "info" | "primary" | "success" | "warning" | "muted";
+
+const TONE_DOT: Record<HeroTone, string> = {
+  info:    "bg-info",
+  primary: "bg-primary",
+  success: "bg-success",
+  warning: "bg-warning",
+  muted:   "bg-muted-foreground",
+};
+
+const TONE_TEXT: Record<HeroTone, string> = {
+  info:    "text-info",
+  primary: "text-primary",
+  success: "text-success",
+  warning: "text-warning",
+  muted:   "text-muted-foreground",
+};
+
+function HeroStatus({
+  status,
+  totalPubs,
+}: {
+  status: { label: string; tone: HeroTone; pulse: boolean };
+  totalPubs: number;
+}) {
+  return (
+    <Card className="p-3 md:p-4 flex items-center gap-3 md:gap-4">
+      <div className="relative shrink-0">
+        <span
+          className={`block h-2.5 w-2.5 rounded-full ${TONE_DOT[status.tone]}`}
+          aria-hidden
+        />
+        {status.pulse && (
+          <span
+            className={`absolute inset-0 rounded-full ${TONE_DOT[status.tone]} opacity-60 animate-ping`}
+            aria-hidden
+          />
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <Activity className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-bold">
+            Estado do sistema
+          </span>
+        </div>
+        <div className={`text-sm md:text-base font-semibold leading-tight mt-0.5 ${TONE_TEXT[status.tone]}`}>
+          {status.label}
+        </div>
+      </div>
+      <div className="hidden sm:flex flex-col items-end shrink-0">
+        <span className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">
+          Publicadas
+        </span>
+        <span className="text-base md:text-lg font-bold tabular-nums leading-tight">
+          {totalPubs}
+        </span>
+      </div>
+    </Card>
   );
 }
