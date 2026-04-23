@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -1289,7 +1289,7 @@ function BasePlaylistsTab({ playlists }: { playlists: BasePlaylist[] }) {
     return arr;
   }, [playlists, q, tier, sort]);
 
-  const pg = usePagination(filtered, 20, `${q}-${tier}-${sort}`);
+  const pg = usePagination<BasePlaylist>(filtered, 20, `${q}-${tier}-${sort}`);
 
   return (
     <div className="space-y-3">
@@ -1386,7 +1386,7 @@ function BaseTracksTab({ tracks, totalPlaylists }: { tracks: BaseTrack[]; totalP
     return arr;
   }, [tracks, q, sort]);
 
-  const pg = usePagination(filtered, 25, `${q}-${sort}`);
+  const pg = usePagination<BaseTrack>(filtered, 25, `${q}-${sort}`);
 
   return (
     <div className="space-y-3">
@@ -1454,7 +1454,7 @@ function BaseArtistsTab({ artists, totalTracks }: { artists: ArtistAgg[]; totalT
     return arr;
   }, [artists, q, sort]);
 
-  const pg = usePagination(filtered, 20, `${q}-${sort}`);
+  const pg = usePagination<ArtistAgg>(filtered, 20, `${q}-${sort}`);
   const maxAp = filtered[0]?.aparicoes ?? 1;
 
   return (
