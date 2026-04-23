@@ -161,7 +161,7 @@ export default function Cerebro() {
 
       {/* TABS — 6 áreas internas */}
       <Tabs value={tab} onValueChange={setTab} className="space-y-5">
-        <TabsList className="bg-transparent p-0 h-auto gap-6 border-b border-border rounded-none w-full justify-start">
+        <TabsList className="bg-transparent p-0 h-auto gap-4 sm:gap-6 border-b border-border rounded-none w-full justify-start nx-tabs-scroll flex-nowrap">
           {[
             { v: "visao", label: "Visão Geral" },
             { v: "decisoes", label: "Decisões" },
@@ -174,7 +174,7 @@ export default function Cerebro() {
             <TabsTrigger
               key={t.v}
               value={t.v}
-              className="bg-transparent rounded-none px-0 pb-3 text-sm font-medium text-muted-foreground data-[state=active]:text-foreground data-[state=active]:shadow-none data-[state=active]:bg-transparent border-b-2 border-transparent data-[state=active]:border-primary transition-colors"
+              className="bg-transparent rounded-none px-0 pb-3 text-sm font-medium text-muted-foreground data-[state=active]:text-foreground data-[state=active]:shadow-none data-[state=active]:bg-transparent border-b-2 border-transparent data-[state=active]:border-primary transition-colors shrink-0 whitespace-nowrap"
             >
               {t.label}
             </TabsTrigger>
