@@ -152,6 +152,16 @@ export default function Criacao() {
             <Button
               variant="outline"
               className="rounded-full h-9 gap-1.5"
+              onClick={expireStale}
+              disabled={expiring}
+              title="Arquiva templates ⚠️ médios parados há mais de 72h"
+            >
+              {expiring ? <Loader2 className="h-4 w-4 animate-spin" /> : <Clock className="h-4 w-4" />}
+              Expirar 72h
+            </Button>
+            <Button
+              variant="outline"
+              className="rounded-full h-9 gap-1.5"
               onClick={rescoreAll}
               disabled={scoring}
             >
