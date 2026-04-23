@@ -12,6 +12,7 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { timeAgo } from "@/lib/format";
+import { LoadMore, usePagination } from "@/components/LoadMore";
 
 type Blueprint = {
   id: string;
@@ -219,34 +220,68 @@ export function Variacoes({ genreId }: { genreId?: string }) {
       </div>
 
       {/* Lista */}
-      {filtered.length === 0 ? (
-        <div className="nx-card p-8 text-center text-sm text-muted-foreground">
-          Nenhuma variação com esse filtro.
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {filtered.map(t => (
-            <VariationRow
-              key={t.id}
-              t={t}
-              bp={bpMap.get(t.blueprint_id)}
-              expanded={expanded.has(t.id)}
-              creating={creating === t.id}
-              onToggle={() => setExpanded(prev => {
-                const n = new Set(prev);
-                if (n.has(t.id)) n.delete(t.id); else n.add(t.id);
-                return n;
-              })}
-              onApprove={() => updateStatus(t.id, "approved")}
-              onReject={() => updateStatus(t.id, "rejected")}
-              onReset={() => updateStatus(t.id, "pending")}
-              onDelete={() => removeTemplate(t.id)}
-              onCreate={() => createOnSpotify(t.id)}
-            />
-          ))}
-        </div>
-      )}
+      <VariacoesList
+        filtered={filtered}
+        bpMap={bpMap}
+        expanded={expanded}
+        creating={creating}
+        setExpanded={setExpanded}
+        updateStatus={updateStatus}
+        removeTemplate={removeTemplate}
+        createOnSpotify={createOnSpotify}
+      />
     </div>
+  );
+}
+
+function VariacoesList({
+  filtered, bpMap, expanded, creating,
+  setExpanded, updateStatus, removeTemplate, createOnSpotify,
+}: {
+  filtered: Template[];
+  bpMap: Map<string, Blueprint>;
+  expanded: Set<string>;
+  creating: string | null;
+  setExpanded: React.Dispatch<React.SetStateAction<Set<string>>>;
+  updateStatus: (id: string, status: "approved" | "rejected" | "pending") => void;
+  removeTemplate: (id: string) => void;
+  createOnSpotify: (id: string) => void;
+}) {
+  const { visibleItems, hasMore, loadMore, total, visible } = usePagination(filtered, 20);
+
+  if (filtered.length === 0) {
+    return (
+      <div className="nx-card p-8 text-center text-sm text-muted-foreground">
+        Nenhuma variação com esse filtro.
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="space-y-2">
+        {visibleItems.map(t => (
+          <VariationRow
+            key={t.id}
+            t={t}
+            bp={bpMap.get(t.blueprint_id)}
+            expanded={expanded.has(t.id)}
+            creating={creating === t.id}
+            onToggle={() => setExpanded(prev => {
+              const n = new Set(prev);
+              if (n.has(t.id)) n.delete(t.id); else n.add(t.id);
+              return n;
+            })}
+            onApprove={() => updateStatus(t.id, "approved")}
+            onReject={() => updateStatus(t.id, "rejected")}
+            onReset={() => updateStatus(t.id, "pending")}
+            onDelete={() => removeTemplate(t.id)}
+            onCreate={() => createOnSpotify(t.id)}
+          />
+        ))}
+      </div>
+      <LoadMore visible={visible} total={total} hasMore={hasMore} onLoadMore={loadMore} itemLabel="variações" />
+    </>
   );
 }
 
