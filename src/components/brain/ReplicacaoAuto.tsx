@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Loader2, Rocket, Users, ExternalLink, CheckCircle2, XCircle, Clock,
-  Eye, AlertTriangle, RefreshCw, ChevronRight, Music2,
+  Eye, EyeOff, AlertTriangle, RefreshCw, ChevronRight, Music2, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
