@@ -367,7 +367,7 @@ function StatusPill({ status }: { status: OpStatus }) {
   );
 }
 
-function PlaylistRow({ p }: { p: OpPlaylist }) {
+const PlaylistRow = memo(function PlaylistRow({ p }: { p: OpPlaylist }) {
   return (
     <div className="grid grid-cols-12 gap-3 px-4 py-3 items-center border-b border-border last:border-0 hover:bg-elevated/40 transition-colors">
       <div className="col-span-4 flex items-center gap-3 min-w-0">
@@ -395,6 +395,33 @@ function PlaylistRow({ p }: { p: OpPlaylist }) {
         <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" title="Trocar faixas"><RefreshCw className="h-3.5 w-3.5" /></Button>
         <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" title="Pausar"><Pause className="h-3.5 w-3.5" /></Button>
       </div>
+    </div>
+  );
+});
+
+/** Skeleton de linhas — preserva altura do container e evita "salto" visual durante o load. */
+function SkeletonRows() {
+  return (
+    <div>
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="grid grid-cols-12 gap-3 px-4 py-3 items-center border-b border-border last:border-0">
+          <div className="col-span-4 flex items-center gap-3">
+            <Skeleton className="h-10 w-10 rounded-md bg-muted/60" />
+            <div className="space-y-1.5 flex-1 min-w-0">
+              <Skeleton className="h-3.5 w-3/4 bg-muted/60" />
+              <Skeleton className="h-2.5 w-1/2 bg-muted/40" />
+            </div>
+          </div>
+          <div className="col-span-2"><Skeleton className="h-5 w-20 rounded-full bg-muted/50" /></div>
+          <div className="col-span-2 flex justify-end"><Skeleton className="h-3.5 w-14 bg-muted/50" /></div>
+          <div className="col-span-1 flex justify-end"><Skeleton className="h-3.5 w-8 bg-muted/40" /></div>
+          <div className="col-span-1 flex justify-end"><Skeleton className="h-3.5 w-6 bg-muted/40" /></div>
+          <div className="col-span-2 flex justify-end gap-1">
+            <Skeleton className="h-8 w-8 rounded-md bg-muted/40" />
+            <Skeleton className="h-8 w-8 rounded-md bg-muted/40" />
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
