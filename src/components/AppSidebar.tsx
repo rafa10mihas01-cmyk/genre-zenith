@@ -36,11 +36,13 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
-      {/* Header da sidebar: altura idêntica ao topbar (h-14) pra alinhamento perfeito */}
-      <SidebarHeader className="h-14 px-3 border-b border-sidebar-border flex items-center justify-center">
-        <div className={cn("flex items-center w-full", collapsed ? "justify-center" : "justify-start pl-1")}>
-          <NexEngineLogo size={collapsed ? 22 : 28} variant={collapsed ? "mark" : "auto"} />
-        </div>
+      {/* Header da sidebar: altura idêntica ao topbar (h-14) — logo enxuto */}
+      <SidebarHeader className="h-14 px-4 border-b border-sidebar-border flex flex-row items-center">
+        <NexEngineLogo
+          size={collapsed ? 20 : 24}
+          variant={collapsed ? "mark" : "auto"}
+          className={cn(collapsed && "mx-auto")}
+        />
       </SidebarHeader>
 
       <SidebarContent className="px-2 py-3">
@@ -57,14 +59,18 @@ export function AppSidebar() {
                       asChild
                       isActive={active}
                       className={cn(
-                        "h-9 rounded-md transition-colors",
-                        "text-sidebar-foreground/65 hover:text-sidebar-foreground hover:bg-sidebar-accent/60",
-                        active && "bg-sidebar-accent text-sidebar-foreground font-semibold",
+                        "h-9 rounded-md transition-colors relative",
+                        "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/60",
+                        active && "bg-sidebar-accent !text-sidebar-foreground font-medium",
                       )}
                     >
-                      <NavLink to={item.url} end={item.end} onClick={handleNav} className="flex items-center gap-3 px-2.5">
-                        <item.icon className={cn("h-[17px] w-[17px] shrink-0", active && "text-primary")} />
-                        {!collapsed && <span className="text-[13px] tracking-tight">{item.title}</span>}
+                      <NavLink to={item.url} end={item.end} onClick={handleNav} className="flex items-center gap-3 px-3">
+                        {/* Barra verde à esquerda quando ativo (estilo Spotify) */}
+                        {active && !collapsed && (
+                          <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r bg-primary" />
+                        )}
+                        <item.icon className={cn("h-[18px] w-[18px] shrink-0", active ? "text-primary" : "text-sidebar-foreground/60")} />
+                        {!collapsed && <span className="text-[14px]">{item.title}</span>}
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -75,27 +81,44 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-sidebar-border p-2 space-y-1">
-        {!collapsed && user && (
-          <div className="flex items-center gap-2 px-2 py-1.5">
-            <div className="h-7 w-7 rounded-full bg-elevated border border-border flex items-center justify-center text-[10px] font-bold text-foreground shrink-0">
-              {(user.email ?? "U").slice(0, 2).toUpperCase()}
-            </div>
-            <div className="min-w-0 leading-tight">
-              <div className="text-[12px] font-medium truncate text-sidebar-foreground">{user.email?.split("@")[0]}</div>
-              <div className="text-[10px] text-sidebar-foreground/50">Conectado</div>
-            </div>
+      {/* Footer: uma linha só, avatar + nome + botão sair inline (estilo Spotify) */}
+      <SidebarFooter className="border-t border-sidebar-border p-2">
+        {collapsed ? (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="w-full h-9 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/60"
+            onClick={signOut}
+            aria-label="Sair"
+          >
+            <LogOut className="h-4 w-4" />
+          </Button>
+        ) : (
+          <div className="flex items-center gap-2 px-2 h-10 rounded-md hover:bg-sidebar-accent/40 transition-colors group">
+            {user && (
+              <>
+                <div className="h-7 w-7 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center text-[10px] font-bold text-primary shrink-0">
+                  {(user.email ?? "U").slice(0, 2).toUpperCase()}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[13px] font-medium truncate text-sidebar-foreground leading-tight">
+                    {user.email?.split("@")[0]}
+                  </div>
+                </div>
+              </>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 shrink-0 text-sidebar-foreground/50 hover:text-sidebar-foreground opacity-60 group-hover:opacity-100 transition-opacity"
+              onClick={signOut}
+              aria-label="Sair"
+              title="Sair"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+            </Button>
           </div>
         )}
-        <Button
-          variant="ghost"
-          size="sm"
-          className="w-full justify-start gap-2 h-8 text-[12px] text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/60"
-          onClick={signOut}
-        >
-          <LogOut className="h-3.5 w-3.5" />
-          {!collapsed && <span>Sair</span>}
-        </Button>
       </SidebarFooter>
     </Sidebar>
   );
