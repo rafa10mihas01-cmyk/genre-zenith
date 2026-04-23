@@ -931,18 +931,29 @@ function TemplateDetailDialog({
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <h4 className="text-sm font-semibold">Capa</h4>
-                  {(!tpl.cover_variations || tpl.cover_variations.length === 0) && (
-                    <Button
-                      onClick={generateCovers}
-                      disabled={busy === "cover"}
-                      size="sm"
-                      variant="premium"
-                      className="rounded-full h-8 gap-1.5"
-                    >
-                      {busy === "cover" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-                      Gerar 4 variações
-                    </Button>
-                  )}
+                  {(() => {
+                    const hasCovers = !!(tpl.cover_variations && tpl.cover_variations.length > 0);
+                    const isBusy = busy === "cover";
+                    return (
+                      <Button
+                        onClick={generateCovers}
+                        disabled={isBusy}
+                        size="sm"
+                        variant={hasCovers ? "outline" : "premium"}
+                        className="rounded-full h-8 gap-1.5"
+                        title={hasCovers ? "Gerar 4 novas variações usando o sistema atualizado" : "Gerar 4 variações de capa"}
+                      >
+                        {isBusy ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : hasCovers ? (
+                          <RefreshCw className="h-3.5 w-3.5" />
+                        ) : (
+                          <Sparkles className="h-3.5 w-3.5" />
+                        )}
+                        {isBusy ? "Gerando…" : hasCovers ? "Regenerar capas" : "Gerar 4 variações"}
+                      </Button>
+                    );
+                  })()}
                 </div>
                 {tpl.cover_variations && tpl.cover_variations.length > 0 ? (
                   <div className="grid grid-cols-4 gap-2">
