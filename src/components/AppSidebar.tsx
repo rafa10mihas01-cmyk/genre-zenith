@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { SidebarSmartPanel } from "@/components/SidebarSmartPanel";
 
 // Módulos do sistema. Padrão fixo, escalável.
 // `adminOnly` esconde o item para quem não é admin.
@@ -80,6 +81,9 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+
+      {/* Painel inteligente: KPIs contextuais + Quick Actions + Alertas */}
+      <SidebarSmartPanel />
 
       {/* Footer: uma linha só, avatar + nome + botão sair inline (estilo Spotify) */}
       <SidebarFooter className="border-t border-sidebar-border p-2">
