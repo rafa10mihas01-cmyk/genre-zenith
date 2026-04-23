@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/contexts/ThemeContext";
 import logoLight from "@/assets/nexengine-logo.png";
@@ -22,6 +23,19 @@ export type NexEngineLogoVariant = "auto" | "light" | "dark" | "mark";
 const ASPECT_FULL = 1489 / 473; // logo completo
 const ASPECT_MARK = 732 / 473;  // só o símbolo
 
+let logosPreloaded = false;
+
+function preloadLogos() {
+  if (typeof window === "undefined" || logosPreloaded) return;
+  logosPreloaded = true;
+
+  [logoLight, logoDark, logoMark].forEach((src) => {
+    const img = new Image();
+    img.src = src;
+    img.decode?.().catch(() => undefined);
+  });
+}
+
 export function NexEngineLogo({
   className,
   size = 40,
@@ -33,6 +47,11 @@ export function NexEngineLogo({
   variant?: NexEngineLogoVariant;
 }) {
   const { resolvedTheme } = useTheme();
+
+  useEffect(() => {
+    preloadLogos();
+  }, []);
+
   const resolved =
     variant === "auto" ? resolvedTheme : variant;
 
@@ -49,6 +68,9 @@ export function NexEngineLogo({
       alt="NexEngine"
       width={width}
       height={height}
+      loading="eager"
+      decoding="sync"
+      fetchPriority="high"
       className={cn("shrink-0 select-none", className)}
       draggable={false}
     />
