@@ -963,7 +963,7 @@ function Visual({ briefing, loading, onAnalyze, analyzing }: any) {
   return (
     <div className="space-y-6">
       {/* ===== FASE 1 — DNA visual dominante ===== */}
-      <Section phase={1} icon={Palette} title="DNA visual dominante" subtitle={`Padrão consolidado a partir de ${withDna.length} capas analisadas`}>
+      <Section step="1" icon={Palette} title="DNA visual dominante" subtitle={`Padrão consolidado a partir de ${withDna.length} capas analisadas`}>
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
           {/* Paleta dominante - ocupa 2 colunas */}
           <div className="lg:col-span-2 space-y-2">
