@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Loader2, Rocket, Users, ExternalLink, CheckCircle2, XCircle, Clock,
-  Eye, AlertTriangle, RefreshCw, ChevronRight, Music2,
+  Eye, EyeOff, AlertTriangle, RefreshCw, ChevronRight, Music2, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -93,8 +93,12 @@ export function ReplicacaoAuto({ genreId }: { genreId?: string }) {
 
   const runDryRun = async () => {
     if (!genreId || previewing) return;
+    // Toggle: se já tem plano visível, fecha
+    if (plan) {
+      setPlan(null);
+      return;
+    }
     setPreviewing(true);
-    setPlan(null);
     try {
       const { data, error } = await supabase.functions.invoke("replicate-top", {
         body: { genre_id: genreId, top_n: topN, dry_run: true },
@@ -189,8 +193,8 @@ export function ReplicacaoAuto({ genreId }: { genreId?: string }) {
           </div>
           <div className="ml-auto flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={runDryRun} disabled={previewing || !genreId}>
-              {previewing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />}
-              Pré-visualizar
+              {previewing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : plan ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+              {plan ? "Ocultar prévia" : "Pré-visualizar"}
             </Button>
             <Button size="sm" onClick={runReplicate} disabled={running || activeAccs.length === 0 || !genreId} className="nx-pill">
               {running ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Rocket className="h-3.5 w-3.5" />}
@@ -201,8 +205,13 @@ export function ReplicacaoAuto({ genreId }: { genreId?: string }) {
 
         {plan && plan.length > 0 && (
           <div className="mt-4 border-t border-border/60 pt-4 space-y-2">
-            <div className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-bold">
-              Plano gerado ({plan.length} replicações)
+            <div className="flex items-center justify-between">
+              <div className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-bold">
+                Plano gerado ({plan.length} replicações)
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => setPlan(null)} className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground">
+                <X className="h-3 w-3" /> Fechar
+              </Button>
             </div>
             <div className="space-y-1.5">
               {plan.map((p, i) => (
