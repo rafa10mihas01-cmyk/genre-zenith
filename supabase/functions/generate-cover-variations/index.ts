@@ -252,31 +252,48 @@ function pickDominantWord(name: string): { dominant: string; secondary: string }
 }
 
 // ============================================================
+// VARIAÇÃO CONTROLADA POR ÍNDICE (4 capas do mesmo template)
+// Varia LEVEMENTE: posição vertical, peso da fonte, intensidade do gradiente.
+// NUNCA muda layout base, alinhamento ou composição.
+// ============================================================
+function variationHints(index: number): string {
+  const hints = [
+    "- Vertical position: text block perfectly centered on the canvas\n- Font weight: ExtraBold (heavy)\n- Gradient intensity: balanced, mid contrast between the two colors",
+    "- Vertical position: text block slightly above center (about 45% from top)\n- Font weight: Black (heaviest)\n- Gradient intensity: smooth, soft transition between the two colors",
+    "- Vertical position: text block perfectly centered on the canvas\n- Font weight: Bold (slightly lighter than ExtraBold, still strong)\n- Gradient intensity: stronger contrast, more dramatic transition",
+    "- Vertical position: text block slightly above center (about 47% from top)\n- Font weight: ExtraBold (heavy)\n- Gradient intensity: balanced, mid contrast",
+  ];
+  return hints[index % hints.length];
+}
+
+// ============================================================
 // PROMPT BUILDERS — 1 por estilo
 // ============================================================
-function buildCleanPrompt(template: any, palette: typeof PALETTES[number]): string {
-  const name = (template.name ?? "PLAYLIST").toString().trim().toUpperCase();
+function buildCleanPrompt(template: any, palette: typeof PALETTES[number], index = 0): string {
+  const name = sanitizePlaylistTitle(template.name);
   const subtext = extractSubtext(template.cover_brief);
 
   const textBlock = subtext
     ? [
-        "Two text elements ONLY:",
+        "Two text elements ONLY (clear hierarchy):",
         `  • Main title: "${name}"`,
-        "    - Large, bold, centered",
-        "    - Takes 65–75% of width",
+        "    - Bold, centered",
+        "    - Title block must occupy 60–70% of the card width (NEVER fill 100%)",
         "    - Strong sans-serif (Helvetica Bold / Inter Black / Montserrat ExtraBold)",
+        "    - Maximum 2 lines, broken naturally on word boundaries (never ugly mid-word breaks)",
         `  • Subtitle: "${subtext}"`,
-        "    - Smaller (30–40% of title size)",
-        "    - Centered below title",
+        "    - Smaller — about 30% of the title size (clear visual hierarchy)",
+        "    - Lighter weight, slightly looser letter-spacing",
+        "    - Centered below the title with 8% of canvas height as gap between title and subtitle",
         "    - Same font family",
-        "    - Lower visual weight",
       ].join("\n")
     : [
         "One text element ONLY:",
         `  • Title: "${name}"`,
-        "    - Large, bold, centered",
-        "    - Takes 70–80% of width",
+        "    - Bold, centered",
+        "    - Title block must occupy 60–70% of the card width (NEVER fill 100%)",
         "    - Strong sans-serif (Helvetica Bold / Inter Black / Montserrat ExtraBold)",
+        "    - Maximum 2 lines, broken naturally",
       ].join("\n");
 
   return [
@@ -289,29 +306,34 @@ function buildCleanPrompt(template: any, palette: typeof PALETTES[number]): stri
     textBlock,
     `${palette.text}.`,
     "",
+    "SAFE AREA (CRITICAL — never violate):",
+    "- Internal padding: minimum 12% of the card on every side (top, bottom, left, right)",
+    "- No text element ever touches or bleeds into the edges",
+    "- Generous breathing space around the entire text block",
+    "",
+    "VARIATION (subtle, this card only):",
+    variationHints(index),
+    "",
     "LAYOUT RULES (STRICT GRID):",
-    "- Perfect vertical and horizontal centering",
-    "- Equal margins on all sides",
-    "- Consistent spacing between title and subtitle",
-    "- No overlap",
-    "- No stacking effects",
-    "- No perspective",
-    "- No tilt",
-    "- No distortion",
+    "- Perfect horizontal centering",
+    "- Equal margins left and right",
+    "- Consistent spacing between title and subtitle (8% of canvas height)",
+    "- No overlap, no stacking effects, no perspective, no tilt, no distortion",
     "",
     "VISUAL STYLE:",
-    "- Minimal",
-    "- Editorial",
-    "- Clean",
-    "- Professional",
-    "- Feels like an official Spotify playlist cover",
+    "- Minimal, editorial, clean, professional",
+    "- Feels like an OFFICIAL Spotify playlist cover",
+    "- Does NOT look AI-generated",
     "",
-    "READABILITY:",
-    "- Must be readable at 64x64 thumbnail",
+    "READABILITY (FINAL TEST — must pass):",
+    "- Readable in under 1 second at 64x64 thumbnail",
     "- High contrast between text and background",
     "- No thin fonts, no light weights",
     "",
     "STRICTLY FORBIDDEN:",
+    "- No emojis, no decorative symbols",
+    "- No long sentences, no more than 2 lines of title",
+    "- No ugly word-breaks",
     "- No humans, no faces, no people, no portraits, no characters",
     "- No icons, no logos, no objects, no instruments, no musical notes",
     "- No textures, no noise, no grain, no vignette",
@@ -322,18 +344,17 @@ function buildCleanPrompt(template: any, palette: typeof PALETTES[number]): stri
     "- No more than 2 colors in background",
     "",
     "SPELLING:",
-    "- Text must be EXACTLY as provided above",
-    "- No typos, no variations, no stylization of letters",
+    "- Text must be EXACTLY as provided above — no typos, no variations, no stylization of letters",
   ].join("\n");
 }
 
-function buildViralHitsPrompt(template: any, palette: typeof PALETTES[number]): string {
-  const fullName = (template.name ?? "PLAYLIST").toString().trim().toUpperCase();
-  const { dominant, secondary } = pickDominantWord(fullName);
+function buildViralHitsPrompt(template: any, palette: typeof PALETTES[number], index = 0): string {
+  const sanitized = sanitizePlaylistTitle(template.name);
+  const { dominant, secondary } = pickDominantWord(sanitized);
 
   const secondaryBlock = secondary
-    ? `  • Secondary text: "${secondary}" — much smaller (about 20-25% of dominant size), placed slightly overlapping the bottom of the dominant word OR right below it with very tight spacing. Same font family, slightly lower weight, integrated into the composition.`
-    : "  • No secondary text. The dominant word fills the canvas alone.";
+    ? `  • Secondary text: "${secondary}" — much smaller (about 25–30% of dominant size), placed right below the dominant word with comfortable spacing (about 8% of canvas height between them). Same font family, slightly lower weight, integrated into the composition.`
+    : "  • No secondary text. The dominant word stands alone with full breathing space.";
 
   return [
     "Trending Spotify viral playlist cover, square format 1:1, high quality. STYLE: VIRAL HITS TYPOGRAPHY.",
@@ -341,28 +362,46 @@ function buildViralHitsPrompt(template: any, palette: typeof PALETTES[number]): 
     "BACKGROUND:",
     `Simple ${palette.description}. Clean background — the typography is the hero, not the background.`,
     "",
-    "TEXT (TYPOGRAPHY IS THE MAIN ART):",
-    "Two text elements with strong hierarchy:",
-    `  • Dominant word: "${dominant}" — EXTREMELY bold and dominant, fills 80-90% of the canvas width, ultra-heavy weight (Black/ExtraBold), tight letter-spacing, takes most of the visual weight.`,
+    "TEXT (TYPOGRAPHY IS THE MAIN ART — clear hierarchy):",
+    "Two text elements with strong, controlled hierarchy:",
+    `  • Dominant word: "${dominant}" — bold and dominant, fills 65–75% of the canvas width (NEVER 100%, always with breathing space). Ultra-heavy weight (Black/ExtraBold), tight letter-spacing.`,
     secondaryBlock,
     `${palette.text}. Use a powerful display sans-serif (Anton, Bebas Neue, Druk, Helvetica Black, or similar high-impact fonts).`,
     "Spelling MUST be EXACTLY as written. No typos, no extra letters.",
     "",
+    "SAFE AREA (CRITICAL):",
+    "- Internal padding: minimum 12% of the card on every side",
+    "- No text element ever touches or bleeds into the edges",
+    "- Generous breathing space around the typography block",
+    "",
+    "VARIATION (subtle, this card only):",
+    variationHints(index),
+    "",
     "COMPOSITION:",
-    "Text fills most of the canvas. Centered but with dynamic feel — NOT static. Slight perspective or very subtle tilt allowed (max 3-5°). Add subtle depth: a soft shadow, glow, or slight chromatic offset behind the dominant word. High energy, modern, designed — not typed.",
-    "Looks like a trending Spotify editorial playlist cover (HITS, TOP, VIRAL style). Text feels designed and intentional.",
+    "- Centered with confident editorial weight — NOT chaotic",
+    "- Very subtle tilt allowed (max 3°), or perfectly straight",
+    "- Optional very soft depth: a faint shadow OR a subtle chromatic offset (never both)",
+    "- High energy, modern, designed — feels like a trending Spotify HITS / TOP / VIRAL editorial cover",
+    "",
+    "READABILITY (FINAL TEST — must pass):",
+    "- Readable in under 1 second at 64x64 thumbnail",
+    "- High contrast between text and background",
     "",
     "STRICTLY FORBIDDEN:",
-    "No human faces, no human bodies, no people, no portraits.",
-    "No complex scenes, no landscapes, no instruments, no musical notes, no logos.",
-    "No additional text beyond what is specified. No watermarks, no signatures.",
-    "No gradients with more than 2 colors. No grain, no vignette.",
+    "- No emojis, no decorative symbols",
+    "- No long sentences, no more than 2 lines",
+    "- No ugly word-breaks",
+    "- No human faces, no human bodies, no people, no portraits",
+    "- No complex scenes, no landscapes, no instruments, no musical notes, no logos",
+    "- No additional text beyond what is specified",
+    "- No watermarks, no signatures",
+    "- No gradients with more than 2 colors, no grain, no vignette",
   ].join("\n");
 }
 
-function buildDynamicPrompt(template: any, palette: typeof PALETTES[number]): string {
-  const fullName = (template.name ?? "PLAYLIST").toString().trim().toUpperCase();
-  const { dominant, secondary } = pickDominantWord(fullName);
+function buildDynamicPrompt(template: any, palette: typeof PALETTES[number], index = 0): string {
+  const sanitized = sanitizePlaylistTitle(template.name);
+  const { dominant, secondary } = pickDominantWord(sanitized);
   const subtext = extractSubtext(template.cover_brief);
 
   // Decide the secondary line: palavra secundária da tipografia OU subtitle do brief
@@ -371,12 +410,12 @@ function buildDynamicPrompt(template: any, palette: typeof PALETTES[number]): st
   const textBlock = secondLine
     ? [
         "Two text elements with a fresh, designed hierarchy:",
-        `  • Main word: "${dominant}" — large, bold, dominant. Allowed treatments (pick ONE subtly): split into two stacked lines, slight alignment shift (left or right of center), or a thin underline accent below the word.`,
-        `  • Secondary line: "${secondLine}" — smaller (about 30–40% of main size), same font family, placed with a slight asymmetric offset relative to the main word (e.g. shifted left/right, or tucked just under one edge — NOT perfectly centered, but still balanced).`,
+        `  • Main word: "${dominant}" — bold, dominant. Title block occupies 60–70% of the card width (NEVER 100%). Allowed treatments (pick exactly ONE subtly): split into two stacked lines, slight alignment shift (left or right of perfect center), or a thin underline accent below the word.`,
+        `  • Secondary line: "${secondLine}" — about 30% of main size, same font family, placed with a slight asymmetric offset (shifted left/right or tucked under one edge — NOT perfectly centered, but still balanced and breathing). Gap of about 8% of canvas height between main and secondary.`,
       ].join("\n")
     : [
         "One text element with a fresh, designed treatment:",
-        `  • Title: "${fullName}" — large, bold. Allowed treatments (pick ONE subtly): split into two stacked lines, slight alignment shift off perfect center, or a thin underline accent.`,
+        `  • Title: "${sanitized}" — bold. Title block occupies 60–70% of the card width. Allowed treatments (pick exactly ONE subtly): split into two stacked lines, slight alignment shift off perfect center, or a thin underline accent.`,
       ].join("\n");
 
   return [
@@ -390,32 +429,32 @@ function buildDynamicPrompt(template: any, palette: typeof PALETTES[number]): st
     `${palette.text}. Use a strong modern bold sans-serif font (Helvetica Bold, Inter Black, Montserrat ExtraBold or similar). High weight only — no thin or light fonts.`,
     "",
     "VISUAL VARIATION TECHNIQUE (CRITICAL — pick exactly ONE, never combine):",
-    "Use ONLY ONE of the following techniques per cover:",
     "  • OR slight rotation of the text block (max 5°, very subtle)",
     "  • OR asymmetrical alignment (text shifted off perfect center to the left or right)",
     "  • OR a thin underline accent under the main word",
     "  • OR light text layering / stacking (mild, never illegible)",
     "Never combine multiple techniques in the same cover.",
     "",
-    "SAFE AREA:",
-    "- Keep all text inside safe margins",
+    "SAFE AREA (CRITICAL):",
+    "- Internal padding: minimum 12% of the card on every side",
     "- No text touching or bleeding into the edges",
-    "- Maintain comfortable spacing and breathing space around every element",
+    "- Comfortable spacing and generous breathing space around every element",
     "",
-    "READABILITY (CRITICAL):",
-    "- Must be readable in under 1 second at small size (64x64 thumbnail)",
+    "VARIATION (subtle, this card only):",
+    variationHints(index),
+    "",
+    "READABILITY (FINAL TEST — must pass):",
+    "- Readable in under 1 second at 64x64 thumbnail",
     "- High contrast between text and background",
     "- Clarity over creativity — if a treatment hurts legibility, drop it",
     "",
     "SHAPE CONTROL (only if a shape is used at all):",
-    "- Use a maximum of 1 or 2 simple geometric shapes (circle, line, rectangle)",
-    "- Keep shapes within the same color palette",
-    "- Avoid overlap chaos; shapes must NEVER compete with the text",
+    "- Maximum 1 or 2 simple geometric shapes (circle, line, rectangle)",
+    "- Same color palette, no overlap chaos, never compete with the text",
     "- Shapes are optional — most covers should rely on typography alone",
     "",
     "COMPOSITION (Dynamic essence — preserve all of this):",
-    "- Light asymmetry",
-    "- Subtle movement and rhythm",
+    "- Light asymmetry, subtle movement and rhythm",
     "- Modern composition with a human-designed feel",
     "- Always clean, intentional and balanced — never messy",
     "- Generous negative space; should feel fresh and updated, not repetitive",
@@ -426,11 +465,12 @@ function buildDynamicPrompt(template: any, palette: typeof PALETTES[number]): st
     "- Maintain editorial balance and structure at all times",
     "",
     "STRICTLY FORBIDDEN:",
-    "- Multiple visual techniques combined at the same time",
-    "- Strong distortion of letters",
-    "- Exaggerated rotation (anything beyond 5°)",
-    "- Visual pollution or busy backgrounds",
-    "- Loss of legibility for the sake of style",
+    "- No emojis, no decorative symbols",
+    "- No long sentences, no more than 2 lines",
+    "- No ugly word-breaks",
+    "- Multiple visual techniques combined at once",
+    "- Strong distortion of letters, exaggerated rotation (anything beyond 5°)",
+    "- Visual pollution or busy backgrounds, loss of legibility",
     "- No humans, no faces, no people, no portraits, no characters",
     "- No icons, no logos, no objects, no instruments, no musical notes",
     "- No textures, no noise, no grain, no vignette",
@@ -440,8 +480,7 @@ function buildDynamicPrompt(template: any, palette: typeof PALETTES[number]): st
     "- No more than 2 colors in the background",
     "",
     "SPELLING:",
-    "- Text must be EXACTLY as provided above",
-    "- No typos, no variations, no stylization of letters",
+    "- Text must be EXACTLY as provided above — no typos, no variations, no stylization of letters",
   ].join("\n");
 }
 
@@ -449,12 +488,13 @@ function buildPrompt(
   template: any,
   palette: typeof PALETTES[number],
   style: Style,
+  index: number,
   customPrompt?: string,
 ): string {
   if (customPrompt && customPrompt.trim().length > 10) return customPrompt.trim();
-  if (style === "viral") return buildViralHitsPrompt(template, palette);
-  if (style === "dynamic") return buildDynamicPrompt(template, palette);
-  return buildCleanPrompt(template, palette);
+  if (style === "viral") return buildViralHitsPrompt(template, palette, index);
+  if (style === "dynamic") return buildDynamicPrompt(template, palette, index);
+  return buildCleanPrompt(template, palette, index);
 }
 
 // ============================================================
