@@ -52,6 +52,7 @@
     --space-page-y: 16px;             /* padding vertical mobile */
     --space-section: 24px;            /* gap entre seções no mobile */
     --space-card: 16px;               /* padding interno de cards no mobile */
+    --space-card-stack: 12px;         /* gap vertical entre elementos dentro do card */
 
     /* Radius / shadows */
     --radius: 1rem;                   /* 16px = padrão de cards */
@@ -139,12 +140,24 @@
 }
 
 @layer components {
-  /* === CARD PADRÃO DO SISTEMA === padding 20px, radius 16px, sombra leve */
+  /* === CARD PADRÃO DO SISTEMA ===
+     Padding consistente: 16px mobile → 20px desktop (alinhado ao design system).
+     Toda altura útil interna idêntica em todos os cards. */
   .nx-card {
     @apply bg-card rounded-2xl transition-all duration-200;
     padding: var(--space-card);
     border: 1px solid rgba(255, 255, 255, 0.04);
     box-shadow: var(--shadow-soft);
+  }
+  @media (min-width: 768px) {
+    .nx-card { padding: 20px; }
+  }
+  /* Stack vertical padrão dentro de cards: ícone → título → conteúdo → descrição.
+     Use em qualquer card que NÃO seja um KpiBig (que já tem layout próprio).
+     Garante que TODOS os cards do sistema tenham o mesmo ritmo interno. */
+  .nx-card-stack {
+    @apply flex flex-col;
+    gap: var(--space-card-stack);
   }
   .nx-card-hover {
     @apply nx-card cursor-pointer;
@@ -202,6 +215,9 @@
     @apply bg-[hsl(var(--elevated))] rounded-2xl;
     padding: var(--space-card);
     border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+  @media (min-width: 768px) {
+    .nx-elevated { padding: 20px; }
   }
   .nx-glow {
     box-shadow: 0 0 0 1px hsl(var(--primary) / 0.4), 0 0 40px hsl(var(--primary) / 0.15);
