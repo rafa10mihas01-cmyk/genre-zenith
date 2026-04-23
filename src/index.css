@@ -153,9 +153,11 @@
     box-shadow: var(--shadow-elevated);
   }
   /* === WRAPPER DE PÁGINA === aplica padding + gap entre seções automaticamente.
-     Padding aumenta progressivamente: 16px mobile → 24px tablet → 32px desktop. */
+     Padding aumenta progressivamente: 16px mobile → 24px tablet → 32px desktop.
+     No mobile, reserva espaço para o bottom nav (60px + safe-area). */
   .nx-page {
     padding: var(--space-page-y) var(--space-page-x);
+    padding-bottom: calc(60px + env(safe-area-inset-bottom) + 16px);
     display: flex;
     flex-direction: column;
     gap: var(--space-section);

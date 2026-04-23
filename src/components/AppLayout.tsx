@@ -6,11 +6,29 @@ import { Button } from "@/components/ui/button";
 import { Search, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { timeAgo } from "@/lib/format";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { NexEngineLogo } from "@/components/NexEngineLogo";
 import { SidebarContextProvider } from "@/contexts/SidebarContext";
 import { NotificationsBell } from "@/components/NotificationsBell";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
+
+// Mapa de rótulos curtos para o título no header mobile
+const ROUTE_TITLES: Record<string, string> = {
+  "/": "Cockpit",
+  "/cerebro": "Cérebro",
+  "/criacao": "Criação",
+  "/operacao": "Operação",
+  "/performance": "Performance",
+  "/configuracoes": "Configurações",
+};
+function getRouteTitle(pathname: string): string {
+  if (ROUTE_TITLES[pathname]) return ROUTE_TITLES[pathname];
+  const match = Object.keys(ROUTE_TITLES)
+    .filter((k) => k !== "/" && pathname.startsWith(k))
+    .sort((a, b) => b.length - a.length)[0];
+  return match ? ROUTE_TITLES[match] : "NexEngine";
+}
 
 /**
  * Layout global do sistema. Toda página renderizada DEVE estar dentro dele.
