@@ -276,7 +276,7 @@ export default function Settings() {
   }
 
   return (
-    <div className="max-w-[900px] mx-auto space-y-6">
+    <div className="space-y-6 max-w-[1600px] mx-auto">
       <PageHeader
         kicker="Sistema"
         icon={SettingsIcon}

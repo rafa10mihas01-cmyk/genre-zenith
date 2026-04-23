@@ -99,7 +99,7 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="space-y-8 max-w-[1600px] mx-auto">
+    <div className="space-y-6 max-w-[1600px] mx-auto">
       <PageHeader
         title="Visão geral"
         subtitle="Acompanhar o estado do sistema e abrir a inteligência completa de cada gênero no Cérebro."

@@ -61,11 +61,10 @@ export default function Operacao() {
       />
 
       {/* KPIs operacionais (zerados — sem mentir) */}
-      <section className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiBig icon={Activity}       label="Total ativas" value="0" hint="Playlists em operação" />
         <KpiBig icon={ArrowUpRight}   label="Crescendo"    value="0" tone="primary"     hint="Variação positiva" />
         <KpiBig icon={ArrowDownRight} label="Em queda"     value="0" tone="destructive" hint="Precisa atenção" />
-        <KpiBig icon={FlaskConical}   label="Em teste"     value="0" tone="warning"     hint="Validando hipótese" />
         <KpiBig icon={RefreshCw}      label="Trocas (7d)"  value="0"                    hint="Músicas movimentadas" />
       </section>
 
