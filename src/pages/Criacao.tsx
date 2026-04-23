@@ -719,8 +719,8 @@ function TemplateCard({
 /* ───────────────── Detail Dialog (fluxo híbrido inline) ───────────────── */
 
 function TemplateDetailDialog({
-  template, onClose, onChanged,
-}: { template: Template | null; onClose: () => void; onChanged: () => Promise<void> }) {
+  template, onClose, onChanged, onGeneratingChange,
+}: { template: Template | null; onClose: () => void; onChanged: () => Promise<void>; onGeneratingChange?: (id: string, on: boolean) => void }) {
   const { toast } = useToast();
   const [tpl, setTpl] = useState<Template | null>(template);
   const [editName, setEditName] = useState("");
