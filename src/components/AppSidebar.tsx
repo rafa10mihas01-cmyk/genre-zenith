@@ -6,25 +6,28 @@ import {
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, SidebarFooter, useSidebar,
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUserRole } from "@/hooks/useUserRole";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-// 6 módulos do sistema. Padrão fixo, escalável.
-// Para adicionar um novo módulo: criar página + rota em App.tsx + entrada aqui.
+// Módulos do sistema. Padrão fixo, escalável.
+// `adminOnly` esconde o item para quem não é admin.
 const items = [
   { title: "Home", url: "/", icon: Home, end: true },
   { title: "Cérebro", url: "/cerebro", icon: Brain },
   { title: "Criação", url: "/criacao", icon: Sparkles },
   { title: "Operação", url: "/operacao", icon: Activity },
   { title: "Performance", url: "/performance", icon: BarChart3 },
-  { title: "Configurações", url: "/configuracoes", icon: Settings },
+  { title: "Configurações", url: "/configuracoes", icon: Settings, adminOnly: true },
 ];
 
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const { signOut, user } = useAuth();
+  const { isAdmin } = useUserRole();
   const location = useLocation();
+  const visibleItems = items.filter((i) => !i.adminOnly || isAdmin);
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
@@ -44,7 +47,7 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu className="gap-1">
-              {items.map((item) => {
+              {visibleItems.map((item) => {
                 const active = item.end
                   ? location.pathname === item.url
                   : location.pathname.startsWith(item.url);
