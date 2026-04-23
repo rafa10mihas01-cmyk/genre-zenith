@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { timeAgo } from "@/lib/format";
 import { useNavigate } from "react-router-dom";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { NexEngineLogo } from "@/components/NexEngineLogo";
 
 /**
  * Layout global do sistema. Toda página renderizada DEVE estar dentro dele.
@@ -44,6 +45,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           {/* TOPBAR GLOBAL — todas as páginas herdam */}
           <header className="h-14 flex items-center gap-3 border-b border-border bg-background/95 backdrop-blur sticky top-0 z-30 px-4">
             <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
+            {/* Logo no mobile (sidebar está colapsada como drawer) */}
+            <div className="md:hidden flex items-center pl-1 pr-1">
+              <NexEngineLogo size={26} variant="mark" />
+            </div>
             <div className="hidden md:flex items-center gap-1">
               <Button
                 variant="ghost"
