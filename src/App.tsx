@@ -10,6 +10,7 @@ import AppLayout from "@/components/AppLayout";
 import ScrollManager from "@/components/ScrollManager";
 import { LoadingProvider } from "@/contexts/LoadingContext";
 import Login from "./pages/Login";
+import ResetPassword from "./pages/ResetPassword";
 import Home from "./pages/Home";
 import Cerebro from "./pages/Cerebro";
 import Criacao from "./pages/Criacao";
@@ -37,6 +38,7 @@ const App = () => (
           <AuthProvider>
             <Routes>
               <Route path="/login" element={<Login />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
               {/* 5 módulos do sistema. Toda página dentro de <Protected> herda o layout global. */}
               <Route path="/" element={<Protected><Home /></Protected>} />
               <Route path="/cerebro" element={<Protected><Cerebro /></Protected>} />
