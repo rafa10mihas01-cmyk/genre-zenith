@@ -166,7 +166,7 @@ export default function Criacao() {
         emptyTitle={loading ? "Carregando…" : "Nenhum template pronto"}
         emptyMsg={loading ? "" : "Quando o Cérebro gerar templates fortes, eles aparecem aqui."}
       >
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
           {groups.hot.map(t => (
             <TemplateCard key={t.id} t={t} variant="hot" onOpen={() => setActiveTemplate(t)} />
           ))}
@@ -183,7 +183,7 @@ export default function Criacao() {
         emptyTitle={loading ? "" : "Sem médios pendentes"}
         emptyMsg=""
       >
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
           {groups.medium.map(t => (
             <TemplateCard key={t.id} t={t} variant="medium" onOpen={() => setActiveTemplate(t)} />
           ))}
@@ -201,7 +201,7 @@ export default function Criacao() {
           emptyTitle=""
           emptyMsg=""
         >
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
             {groups.published.slice(0, 12).map(t => (
               <TemplateCard key={t.id} t={t} variant="published" onOpen={() => setActiveTemplate(t)} />
             ))}
@@ -226,7 +226,7 @@ export default function Criacao() {
             </div>
           </button>
           {showArchived && (
-            <div className="border-t border-border p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className="border-t border-border p-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
               {groups.archived.slice(0, 30).map(t => (
                 <TemplateCard key={t.id} t={t} variant="archived" onOpen={() => setActiveTemplate(t)} />
               ))}
@@ -335,37 +335,37 @@ function TemplateCard({
             ))}
           </div>
         ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground gap-2">
+          <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground gap-1.5">
             {t.auto_cover_requested ? (
               <>
-                <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                <span className="text-[10px] uppercase tracking-wider">Gerando capas…</span>
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                <span className="text-[9px] uppercase tracking-wider">Gerando…</span>
               </>
             ) : (
               <>
-                <ImageIcon className="h-8 w-8" />
-                <span className="text-[10px] uppercase tracking-wider">Sem capa</span>
+                <ImageIcon className="h-5 w-5" />
+                <span className="text-[9px] uppercase tracking-wider">Sem capa</span>
               </>
             )}
           </div>
         )}
-        <div className="absolute top-2 left-2">{tierBadge}</div>
-        <div className="absolute top-2 right-2 inline-flex items-center gap-1 px-1.5 h-5 rounded text-[10px] font-bold text-foreground bg-background/80 backdrop-blur border border-border tabular-nums">
+        <div className="absolute top-1.5 left-1.5">{tierBadge}</div>
+        <div className="absolute top-1.5 right-1.5 inline-flex items-center gap-1 px-1.5 h-4 rounded text-[9px] font-bold text-foreground bg-background/80 backdrop-blur border border-border tabular-nums">
           {score}
         </div>
       </button>
 
       {/* Info */}
-      <div className="p-3 flex-1 flex flex-col gap-2">
+      <div className="p-2 flex-1 flex flex-col gap-1.5">
         <div className="min-w-0">
-          <div className="text-sm font-semibold truncate" title={t.name}>{t.name}</div>
-          <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-0.5">
-            <span className="inline-flex items-center gap-1">
-              <Music2 className="h-3 w-3" /> {tracksCount}
+          <div className="text-[12px] font-semibold truncate leading-tight" title={t.name}>{t.name}</div>
+          <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5">
+            <span className="inline-flex items-center gap-0.5">
+              <Music2 className="h-2.5 w-2.5" /> {tracksCount}
             </span>
             {t.creation_error && (
-              <span className="inline-flex items-center gap-1 text-destructive">
-                <AlertCircle className="h-3 w-3" /> erro
+              <span className="inline-flex items-center gap-0.5 text-destructive">
+                <AlertCircle className="h-2.5 w-2.5" /> erro
               </span>
             )}
             {isPublished && t.spotify_url && (
@@ -373,10 +373,10 @@ function TemplateCard({
                 href={t.spotify_url}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-1 hover:text-primary ml-auto"
+                className="inline-flex items-center gap-0.5 hover:text-primary ml-auto"
                 onClick={(e) => e.stopPropagation()}
               >
-                Spotify <ExternalLink className="h-2.5 w-2.5" />
+                <ExternalLink className="h-2.5 w-2.5" />
               </a>
             )}
           </div>
@@ -386,19 +386,19 @@ function TemplateCard({
           onClick={onOpen}
           variant={isHot ? "premium" : isPublished ? "outline" : "secondary"}
           size="sm"
-          className="w-full rounded-full h-8 text-xs gap-1.5 mt-auto"
+          className="w-full rounded-full h-7 text-[11px] gap-1 mt-auto px-2"
         >
           {isPublished ? (
-            <><Check className="h-3.5 w-3.5" /> Detalhes</>
+            <><Check className="h-3 w-3" /> Detalhes</>
           ) : isHot ? (
             <>
-              {t.cover_image_url ? <Send className="h-3.5 w-3.5" /> : <ImageIcon className="h-3.5 w-3.5" />}
-              {t.cover_image_url ? "Publicar" : "Escolher capa"}
+              {t.cover_image_url ? <Send className="h-3 w-3" /> : <ImageIcon className="h-3 w-3" />}
+              {t.cover_image_url ? "Publicar" : "Capa"}
             </>
           ) : isArchived ? (
-            <><Pencil className="h-3.5 w-3.5" /> Revisar</>
+            <><Pencil className="h-3 w-3" /> Revisar</>
           ) : (
-            <><Check className="h-3.5 w-3.5" /> Aprovar</>
+            <><Check className="h-3 w-3" /> Aprovar</>
           )}
         </Button>
       </div>
