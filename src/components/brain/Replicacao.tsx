@@ -161,7 +161,8 @@ export function Replicacao({ genreId }: { genreId?: string }) {
 
     // 🎨 Auto-gera capa em background ao aprovar (se ainda não tiver)
     if (status === "approved") {
-      const tpl: any = templates.find(x => x.id === id);
+      const allTemplates = Object.values(templatesByBp).flat();
+      const tpl: any = allTemplates.find(x => x.id === id);
       if (tpl && !tpl.cover_image_url && !(tpl.cover_variations?.length)) {
         supabase.functions.invoke("generate-cover-variations", { body: { template_id: id } })
           .then(({ error }) => { if (!error) toast.success("Capas sendo geradas em background"); })
