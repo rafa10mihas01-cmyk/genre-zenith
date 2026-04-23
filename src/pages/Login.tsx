@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Loader2 } from "lucide-react";
+import { KeyRound, Loader2 } from "lucide-react";
 import { NexEngineLogo } from "@/components/NexEngineLogo";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -25,7 +25,11 @@ export default function Login() {
     const { error } = await signIn(email, password);
     setLoading(false);
     if (error) {
-      toast.error("Falha no login", { description: error });
+      toast.error("Falha no login", {
+        description: error.includes("Invalid login credentials")
+          ? "Senha incorreta. Se preferir, use o botão de recuperação logo abaixo."
+          : error,
+      });
     } else {
       toast.success("Bem-vindo ao NexEngine");
       nav("/", { replace: true });
@@ -81,14 +85,16 @@ export default function Login() {
           <Button type="submit" disabled={loading} className="w-full">
             {loading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Entrando…</> : "Entrar"}
           </Button>
-          <button
-            type="button"
-            onClick={handleReset}
-            disabled={resetting}
-            className="w-full text-[11px] text-muted-foreground hover:text-foreground transition-colors text-center pt-1 disabled:opacity-50"
-          >
-            {resetting ? "Enviando…" : "Esqueci minha senha"}
-          </button>
+          <Button type="button" variant="outline" onClick={handleReset} disabled={resetting} className="w-full gap-2">
+            {resetting ? (
+              <><Loader2 className="h-4 w-4 animate-spin" /> Enviando link…</>
+            ) : (
+              <><KeyRound className="h-4 w-4" /> Esqueci minha senha</>
+            )}
+          </Button>
+          <p className="text-[11px] text-muted-foreground text-center leading-relaxed">
+            Digite seu email acima e use este botão para receber o link de redefinição.
+          </p>
           <p className="text-[11px] text-muted-foreground text-center pt-2">
             Acesso interno. Usuários são adicionados pelo painel.
           </p>
