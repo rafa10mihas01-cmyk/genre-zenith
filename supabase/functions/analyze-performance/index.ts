@@ -164,13 +164,36 @@ Regras:
 
   // Atualiza performance_class por playlist (alta/media/baixa)
   const cls = result.classificacao ?? {};
+  let altaCount = 0, baixaCount = 0;
   for (const [klass, ids] of Object.entries(cls) as [string, string[]][]) {
     if (Array.isArray(ids) && ids.length) {
       await supabase
         .from("playlist_templates")
         .update({ performance_class: klass, performance_evaluated_at: new Date().toISOString() })
         .in("id", ids);
+      if (klass === "alta") altaCount = ids.length;
+      if (klass === "baixa") baixaCount = ids.length;
     }
+  }
+
+  // 🔔 Notificações de performance
+  if (altaCount > 0) {
+    await supabase.rpc("create_notification", {
+      p_type: "info",
+      p_title: altaCount === 1 ? "Playlist com alta performance 📈" : `${altaCount} playlists com alta performance 📈`,
+      p_message: "Padrões vencedores identificados — prontos para replicar.",
+      p_action_url: "/performance",
+      p_metadata: { count: altaCount, scope: body.genre_id ? "genre" : "global" },
+    }).then(() => {}, () => {});
+  }
+  if (baixaCount > 0) {
+    await supabase.rpc("create_notification", {
+      p_type: "warning",
+      p_title: baixaCount === 1 ? "Playlist com baixa performance ⚠️" : `${baixaCount} playlists com baixa performance ⚠️`,
+      p_message: "Recomendado ajustar nome, capa ou tracks.",
+      p_action_url: "/performance",
+      p_metadata: { count: baixaCount, scope: body.genre_id ? "genre" : "global" },
+    }).then(() => {}, () => {});
   }
 
   await supabase.from("collection_logs").insert({

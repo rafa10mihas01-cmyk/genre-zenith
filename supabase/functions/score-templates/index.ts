@@ -292,6 +292,17 @@ Deno.serve(async (req) => {
     mensagem: `${updates.length} pontuados | cap ${Math.round(hotCap * 100)}% (max ${maxHotAllowed}, slots ${remainingHotSlots}) | 🔥 ${countHot} / ⚠️ ${countMed} / ❌ ${countWeak}`,
   }).then(() => {}, () => {});
 
+  // 🔔 Notificação INFO para cada template HOT criado
+  if (countHot > 0) {
+    await supabase.rpc("create_notification", {
+      p_type: "info",
+      p_title: countHot === 1 ? "Novo template HOT 🔥" : `${countHot} templates HOT criados 🔥`,
+      p_message: `Score alto detectado. Pronto para revisar e publicar.`,
+      p_action_url: "/criacao",
+      p_metadata: { hot_count: countHot, total_scored: updates.length },
+    }).then(() => {}, () => {});
+  }
+
   return jr({
     ok: true,
     scored: updates.length,
