@@ -45,10 +45,10 @@ export function PageHeader({
             {kicker}
           </div>
         )}
-        <h1 className="text-2xl md:text-3xl font-semibold tracking-tight leading-tight break-words">
+        <h1 className="text-xl md:text-3xl font-semibold tracking-tight leading-tight break-words">
           {title}
         </h1>
-        <p className="text-sm text-muted-foreground max-w-2xl">{subtitle}</p>
+        <p className="hidden md:block text-sm text-muted-foreground max-w-2xl">{subtitle}</p>
       </div>
       {actions && (
         <div className="flex items-center gap-2 flex-wrap md:flex-nowrap md:shrink-0">

@@ -30,6 +30,19 @@ const TONE_CLS: Record<NonNullable<KpiBigProps["tone"]>, string> = {
   success:     "text-success",
 };
 
+/** Detecta valores "vazios" (0, "0", "0%", "0/dia", etc) para mostrar fallback. */
+function isEmptyValue(v: string | number): boolean {
+  if (v === 0) return true;
+  if (typeof v === "string") {
+    const s = v.trim();
+    if (!s) return true;
+    const digits = s.replace(/[^\d]/g, "");
+    if (!digits) return false;
+    return Number(digits) === 0;
+  }
+  return false;
+}
+
 export function KpiBig({
   label,
   value,
@@ -51,6 +64,10 @@ export function KpiBig({
       <div className={cn("mt-1.5 min-h-[36px] flex items-end", TONE_CLS[tone])}>
         {loading ? (
           <Skeleton className="h-8 w-24 rounded-md bg-muted/80" />
+        ) : isEmptyValue(value) ? (
+          <div className="text-sm font-medium text-muted-foreground leading-tight">
+            Sem dados ainda
+          </div>
         ) : (
           <div className="text-2xl font-bold tabular-nums leading-tight">{value}</div>
         )}
