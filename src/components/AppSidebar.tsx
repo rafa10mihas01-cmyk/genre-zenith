@@ -37,14 +37,8 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
       <SidebarHeader className="px-4 py-5 border-b border-sidebar-border">
-        <div className="flex items-center gap-2.5">
-          <NexEngineLogo size={36} />
-          {!collapsed && (
-            <div className="leading-tight">
-              <div className="font-bold text-[15px] tracking-tight text-sidebar-foreground">NexEngine</div>
-              <div className="text-[10px] text-sidebar-foreground/50 uppercase tracking-[0.15em]">Playlist Intelligence</div>
-            </div>
-          )}
+        <div className="flex items-center justify-center">
+          <NexEngineLogo size={collapsed ? 28 : 32} variant="auto" />
         </div>
       </SidebarHeader>
 
