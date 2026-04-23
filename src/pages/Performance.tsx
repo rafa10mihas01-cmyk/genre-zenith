@@ -8,6 +8,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { usePersistedState } from "@/hooks/usePersistedState";
+import { useSetSidebarKpis } from "@/contexts/SidebarContext";
 
 import { PerformanceKpis } from "@/components/performance/PerformanceKpis";
 import { PriorityActionsCard } from "@/components/performance/PriorityActionsCard";
@@ -39,6 +40,21 @@ export default function Performance() {
   }
 
   useEffect(() => { load(); }, []);
+
+  // Sidebar KPIs: com dados / aguardando
+  useSetSidebarKpis([
+    {
+      label: "Com dados",
+      value: dataset.filter((d) => (d.followers_now ?? 0) > 0).length,
+      intent: "primary",
+    },
+    {
+      label: "Aguardando",
+      value: dataset.filter((d) => !d.followers_now || d.followers_now === 0).length,
+      intent: "warning",
+    },
+    { label: "Total", value: dataset.length, intent: "default" },
+  ]);
 
   async function runTrack() {
     setTracking(true);
