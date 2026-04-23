@@ -469,9 +469,13 @@ export default function Settings() {
           )}
         </div>
       </section>
+        </TabsContent>
+
+        {/* ───────────────────────── COLETA ───────────────────────── */}
+        <TabsContent value="coleta" className="space-y-4 mt-4">
 
       {/* Parâmetros */}
-      <section className="nx-card p-5 mt-4">
+      <section className="nx-card p-5">
         <h2 className="font-semibold">Parâmetros de coleta</h2>
         <p className="text-sm text-muted-foreground mt-1">Salvo localmente. Aplicado automaticamente pelo motor.</p>
 
@@ -537,20 +541,29 @@ export default function Settings() {
           <DbStat label="Músicas" value={stats?.tracks} />
         </div>
       </section>
+        </TabsContent>
 
-      {/* Conta */}
-      <section className="nx-card p-5 mt-4">
-        <h2 className="font-semibold">Conta</h2>
-        <div className="flex items-center justify-between mt-3 flex-wrap gap-3">
-          <div className="text-sm">
-            <div className="text-muted-foreground text-xs">Logado como</div>
-            <div className="font-mono">{user?.email ?? "—"}</div>
-          </div>
-          <Button variant="outline" size="sm" onClick={signOut}>
-            <LogOut className="h-4 w-4" /> Sair
-          </Button>
-        </div>
-      </section>
+        {/* ───────────────────────── EQUIPE ───────────────────────── */}
+        <TabsContent value="equipe" className="mt-4">
+          <EquipeTab />
+        </TabsContent>
+
+        {/* ───────────────────────── CONTA ───────────────────────── */}
+        <TabsContent value="conta" className="space-y-4 mt-4">
+          <section className="nx-card p-5">
+            <h2 className="font-semibold">Conta</h2>
+            <div className="flex items-center justify-between mt-3 flex-wrap gap-3">
+              <div className="text-sm">
+                <div className="text-muted-foreground text-xs">Logado como</div>
+                <div className="font-mono">{user?.email ?? "—"}</div>
+              </div>
+              <Button variant="outline" size="sm" onClick={signOut}>
+                <LogOut className="h-4 w-4" /> Sair
+              </Button>
+            </div>
+          </section>
+        </TabsContent>
+      </Tabs>
     </PageContainer>
   );
 }
