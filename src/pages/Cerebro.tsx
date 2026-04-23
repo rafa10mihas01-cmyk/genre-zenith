@@ -988,7 +988,7 @@ function Visual({ briefing, loading, onAnalyze, analyzing }: any) {
       </Section>
 
       {/* ===== FASE 2 — DNA por playlist ===== */}
-      <Section phase={2} icon={ImageIcon} title="DNA por playlist" subtitle={`${withDna.length} análises individuais`}>
+      <Section step="2" icon={ImageIcon} title="DNA por playlist" subtitle={`${withDna.length} análises individuais`}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {withDna.map((b: any, i: number) => {
             const dna = b.dna_capa;
