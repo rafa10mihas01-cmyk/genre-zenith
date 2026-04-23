@@ -443,6 +443,23 @@ const PREMIUM_FINISH_BLOCK = [
   "STRICTLY FORBIDDEN inside premium finish: strong glow, heavy shadows, neon effects, glossy plastic look, 3D bevels, flashy reflections, any effect that pulls attention away from the text.",
 ].join("\n");
 
+// ============================================================
+// LAYOUT RULES (compartilhado pelos 3 estilos)
+// Controla APENAS spacing e alinhamento — NÃO altera texto, cor, fonte ou efeitos.
+// ============================================================
+const LAYOUT_RULES_BLOCK = [
+  "LAYOUT RULES (spacing & alignment — STRICT):",
+  "- Internal padding: exactly 12% of the canvas on every side (top, bottom, left, right). No text or element ever bleeds into this safe area.",
+  "- Title block occupies about 65% of the usable area (the area inside the 12% padding). Never fills 100%.",
+  "- Subtitle is about 30% of the title size — clear visual hierarchy.",
+  "- Vertical placement: title sits slightly ABOVE the geometric center (visual/optical center, around 45–47% from the top), so it feels balanced to the human eye, not just mathematically centered.",
+  "- Subtitle sits below the title with a FIXED gap of about 8% of canvas height — consistent across every cover.",
+  "- Title line-height between 0.9 and 1.0 (tight, editorial).",
+  "- Subtitle line-height looser (about 1.2–1.3) for breathing.",
+  "- Horizontal centering must be OPTICAL, not just mathematical: equal visual weight on left and right, accounting for letter shapes and punctuation.",
+  "- Equal left/right margins. No element off-balance unless the style explicitly allows asymmetry.",
+  "- Consistent, intentional spacing — the layout must feel calm, professional and editorial.",
+].join("\n");
 
 
 // ============================================================
@@ -485,21 +502,12 @@ function buildCleanPrompt(template: any, palette: typeof PALETTES[number], index
     textBlock,
     `${palette.text}.`,
     "",
-    "SAFE AREA (CRITICAL — never violate):",
-    "- Internal padding: minimum 12% of the card on every side (top, bottom, left, right)",
-    "- No text element ever touches or bleeds into the edges",
-    "- Generous breathing space around the entire text block",
+    LAYOUT_RULES_BLOCK,
     "",
     "VARIATION (subtle, this card only):",
     variationHints(index),
     "",
     PREMIUM_FINISH_BLOCK,
-    "",
-    "LAYOUT RULES (STRICT GRID):",
-    "- Perfect horizontal centering",
-    "- Equal margins left and right",
-    "- Consistent spacing between title and subtitle (8% of canvas height)",
-    "- No overlap, no stacking effects, no perspective, no tilt, no distortion",
     "",
     "VISUAL STYLE:",
     "- Minimal, editorial, clean, professional",
@@ -550,10 +558,7 @@ function buildViralHitsPrompt(template: any, palette: typeof PALETTES[number], i
     `${palette.text}. Use a powerful display sans-serif (Anton, Bebas Neue, Druk, Helvetica Black, or similar high-impact fonts).`,
     "Spelling MUST be EXACTLY as written. No typos, no extra letters.",
     "",
-    "SAFE AREA (CRITICAL):",
-    "- Internal padding: minimum 12% of the card on every side",
-    "- No text element ever touches or bleeds into the edges",
-    "- Generous breathing space around the typography block",
+    LAYOUT_RULES_BLOCK,
     "",
     "VARIATION (subtle, this card only):",
     variationHints(index),
@@ -618,10 +623,7 @@ function buildDynamicPrompt(template: any, palette: typeof PALETTES[number], ind
     "  • OR light text layering / stacking (mild, never illegible)",
     "Never combine multiple techniques in the same cover.",
     "",
-    "SAFE AREA (CRITICAL):",
-    "- Internal padding: minimum 12% of the card on every side",
-    "- No text touching or bleeding into the edges",
-    "- Comfortable spacing and generous breathing space around every element",
+    LAYOUT_RULES_BLOCK,
     "",
     "VARIATION (subtle, this card only):",
     variationHints(index),
