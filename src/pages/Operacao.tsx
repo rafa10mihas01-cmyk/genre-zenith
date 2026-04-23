@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Activity, Pause, Pencil, Plus, RefreshCw, ArrowDownRight, ArrowUpRight,
+  Activity, Pause, Pencil, RefreshCw, ArrowDownRight, ArrowUpRight,
   Music2, FlaskConical, History, ListMusic, Search, Users, ExternalLink,
+  AlertCircle, Wrench, ChevronDown, ChevronUp, Server,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -9,15 +10,13 @@ import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/PageHeader";
 import { KpiBig } from "@/components/KpiBig";
 import { AccountsManager } from "@/components/operacao/AccountsManager";
-import { EditorialSeederCard } from "@/components/operacao/EditorialSeederCard";
 import { PageContainer } from "@/components/PageContainer";
 import { supabase } from "@/integrations/supabase/client";
 import { formatNumber, timeAgo } from "@/lib/format";
 
 /**
- * OPERAÇÃO — painel de controle contínuo das playlists já publicadas.
- * Fonte de verdade: `playlist_templates` (status='created' + spotify_playlist_id)
- * + último snapshot em `playlist_metrics_snapshots` p/ derivar status.
+ * OPERAÇÃO — painel de controle das playlists já publicadas.
+ * 3 abas: Playlists · Ajustes · Contas. Histórico fica colapsável no rodapé das Playlists.
  */
 
 type OpStatus = "ativa" | "crescimento" | "queda" | "teste" | "pausada";
@@ -30,12 +29,23 @@ const STATUS_META: Record<OpStatus, { label: string; cls: string; icon: any }> =
   pausada:      { label: "Pausada",     cls: "text-muted-foreground bg-muted/30 border-border", icon: Pause },
 };
 
+// rótulos amigáveis para tipos técnicos do histórico
+const ACTION_LABEL: Record<string, string> = {
+  swap_tracks: "Troca de músicas",
+  swap: "Troca",
+  track_change: "Mudança de faixa",
+  pause: "Pausada",
+  resume: "Retomada",
+  rename: "Renomeada",
+  description_update: "Descrição atualizada",
+  cover_update: "Capa atualizada",
+};
+const labelAction = (a: string) => ACTION_LABEL[a] ?? a.replace(/_/g, " ");
+
 const TABS = [
-  { id: "playlists", label: "Playlists",      icon: ListMusic },
-  { id: "musicas",   label: "Músicas",        icon: Music2 },
-  { id: "contas",    label: "Contas",         icon: Users },
-  { id: "manut",     label: "Manutenção",     icon: RefreshCw },
-  { id: "historico", label: "Histórico",      icon: History },
+  { id: "playlists", label: "Playlists", icon: ListMusic },
+  { id: "ajustes",   label: "Ajustes",   icon: Wrench },
+  { id: "contas",    label: "Contas",    icon: Users },
 ] as const;
 
 type TabId = typeof TABS[number]["id"];
@@ -62,6 +72,13 @@ type Adjustment = {
   details: any;
 };
 
+type AccountSummary = {
+  total: number;
+  active: number;
+  capacity_used: number;
+  capacity_max: number;
+};
+
 export default function Operacao() {
   const [tab, setTab] = useState<TabId>("playlists");
   const [filter, setFilter] = useState<"todas" | OpStatus>("todas");
@@ -69,12 +86,13 @@ export default function Operacao() {
   const [loading, setLoading] = useState(true);
   const [playlistsAll, setPlaylistsAll] = useState<OpPlaylist[]>([]);
   const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
+  const [accountsSummary, setAccountsSummary] = useState<AccountSummary>({ total: 0, active: 0, capacity_used: 0, capacity_max: 0 });
 
   const load = async () => {
     setLoading(true);
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
 
-    const [{ data: tpls }, { data: snaps }, { data: adjs }, { data: genres }] = await Promise.all([
+    const [{ data: tpls }, { data: snaps }, { data: adjs }, { data: genres }, { data: accs }] = await Promise.all([
       supabase
         .from("playlist_templates")
         .select("id,name,genre_id,status,spotify_playlist_id,spotify_url,created_on_spotify_at,followers_at_creation,tracks_added,performance_class")
@@ -90,6 +108,7 @@ export default function Operacao() {
         .gte("created_at", sevenDaysAgo)
         .order("created_at", { ascending: false }),
       supabase.from("genres").select("id,nome"),
+      supabase.from("accounts").select("status,current_playlists,max_playlists"),
     ]);
 
     // último snapshot por template
@@ -132,6 +151,15 @@ export default function Operacao() {
       };
     });
 
+    // resumo das contas
+    const accList = accs ?? [];
+    setAccountsSummary({
+      total: accList.length,
+      active: accList.filter(a => a.status === "active").length,
+      capacity_used: accList.reduce((s, a) => s + (a.current_playlists ?? 0), 0),
+      capacity_max: accList.reduce((s, a) => s + (a.max_playlists ?? 0), 0),
+    });
+
     setPlaylistsAll(list);
     setAdjustments((adjs ?? []) as Adjustment[]);
     setLoading(false);
@@ -152,13 +180,20 @@ export default function Operacao() {
   }, [playlistsAll, filter, search]);
 
   const kpi = useMemo(() => {
+    const queda = playlistsAll.filter(p => p.status === "queda").length;
+    const crescendo = playlistsAll.filter(p => p.status === "crescimento").length;
     return {
       total: playlistsAll.length,
-      crescendo: playlistsAll.filter(p => p.status === "crescimento").length,
-      queda: playlistsAll.filter(p => p.status === "queda").length,
-      trocas: playlistsAll.reduce((s, p) => s + p.trocas7d, 0),
+      crescendo,
+      atencao: queda,
+      capacidade: accountsSummary.capacity_max > 0
+        ? `${accountsSummary.capacity_used}/${accountsSummary.capacity_max}`
+        : "—",
+      capacidadePct: accountsSummary.capacity_max > 0
+        ? (accountsSummary.capacity_used / accountsSummary.capacity_max) * 100
+        : 0,
     };
-  }, [playlistsAll]);
+  }, [playlistsAll, accountsSummary]);
 
 
   return (
@@ -175,15 +210,15 @@ export default function Operacao() {
         }
       />
 
-      {/* KPIs operacionais — dados reais */}
+      {/* KPIs operacionais — focados em decisão */}
       <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiBig icon={Activity}       label="Total ativas" value={formatNumber(kpi.total)}     hint="Playlists em operação" loading={loading} />
-        <KpiBig icon={ArrowUpRight}   label="Crescendo"    value={formatNumber(kpi.crescendo)} tone="primary"     hint="Variação positiva"     loading={loading} />
-        <KpiBig icon={ArrowDownRight} label="Em queda"     value={formatNumber(kpi.queda)}     tone="destructive" hint="Precisa atenção"       loading={loading} />
-        <KpiBig icon={RefreshCw}      label="Trocas (7d)"  value={formatNumber(kpi.trocas)}                       hint="Músicas movimentadas"  loading={loading} />
+        <KpiBig icon={Activity}      label="Total ativas"  value={formatNumber(kpi.total)}     hint="Playlists em operação" loading={loading} />
+        <KpiBig icon={ArrowUpRight}  label="Crescendo"     value={formatNumber(kpi.crescendo)} tone="primary"     hint="Variação positiva"     loading={loading} />
+        <KpiBig icon={AlertCircle}   label="Precisa atenção" value={formatNumber(kpi.atencao)} tone={kpi.atencao > 0 ? "destructive" : "default"} hint="Playlists em queda" loading={loading} />
+        <KpiBig icon={Server}        label="Capacidade"    value={kpi.capacidade}              tone={kpi.capacidadePct >= 80 ? "warning" : "default"} hint={`${accountsSummary.active} contas ativas`} loading={loading} />
       </section>
 
-      {/* TABS */}
+      {/* TABS — 3 abas operacionais */}
       <div className="flex items-center gap-1 border-b border-border">
         {TABS.map(t => {
           const Icon = t.icon;
@@ -206,10 +241,9 @@ export default function Operacao() {
         })}
       </div>
 
-      {/* CONTEÚDO POR TAB */}
+      {/* PLAYLISTS */}
       {tab === "playlists" && (
         <section className="space-y-4">
-          {/* Filtros + busca */}
           <div className="flex items-center gap-2 flex-wrap">
             <div className="relative flex-1 max-w-xs">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -220,7 +254,7 @@ export default function Operacao() {
                 className="pl-9 h-9 bg-elevated border-border rounded-full text-sm"
               />
             </div>
-            <div className="flex items-center gap-1.5 ml-auto">
+            <div className="flex items-center gap-1.5 ml-auto flex-wrap">
               <FilterChip active={filter === "todas"}       onClick={() => setFilter("todas")}>Todas</FilterChip>
               <FilterChip active={filter === "ativa"}       onClick={() => setFilter("ativa")}>Ativas</FilterChip>
               <FilterChip active={filter === "crescimento"} onClick={() => setFilter("crescimento")}>Crescendo</FilterChip>
@@ -230,7 +264,6 @@ export default function Operacao() {
             </div>
           </div>
 
-          {/* Tabela / lista */}
           <div className="nx-card !p-0 overflow-hidden">
             <div className="grid grid-cols-12 gap-3 px-4 py-3 text-[10px] uppercase tracking-wider text-muted-foreground font-bold border-b border-border">
               <div className="col-span-4">Playlist</div>
@@ -248,53 +281,20 @@ export default function Operacao() {
                 msg={playlistsAll.length === 0
                   ? "Quando uma playlist for publicada no Spotify pelo módulo Criação, ela aparece aqui automaticamente."
                   : "Tente outro filtro ou limpe a busca."}
-                cta={playlistsAll.length === 0 ? undefined : undefined}
               />
             ) : (
               playlists.map((p) => <PlaylistRow key={p.id} p={p} />)
             )}
           </div>
+
+          {/* Histórico colapsável no rodapé */}
+          <HistoryDrawer adjustments={adjustments} playlistsAll={playlistsAll} />
         </section>
       )}
 
-      {tab === "musicas" && (
-        <section className="grid lg:grid-cols-2 gap-4">
-          <PanelEmpty
-            icon={ArrowUpRight}
-            title="Entrando esta semana"
-            msg="Músicas adicionadas nas playlists nos últimos 7 dias aparecerão aqui."
-          />
-          <PanelEmpty
-            icon={ArrowDownRight}
-            title="Saindo esta semana"
-            msg="Músicas removidas das playlists nos últimos 7 dias aparecerão aqui."
-          />
-        </section>
-      )}
-
-      {tab === "contas" && (
+      {/* AJUSTES — manutenção do dia-a-dia */}
+      {tab === "ajustes" && (
         <section className="space-y-4">
-          <div className="nx-card">
-            <div className="flex items-center gap-3 mb-1">
-              <div className="h-9 w-9 rounded-full bg-elevated border border-border flex items-center justify-center">
-                <Users className="h-4 w-4 text-primary" />
-              </div>
-              <div>
-                <h3 className="font-semibold">Contas Spotify em operação</h3>
-                <p className="text-xs text-muted-foreground">
-                  Gerencie status, capacidade e limites das contas usadas pra publicar playlists. Conexão de novas contas é feita em <strong>Configurações</strong>.
-                </p>
-              </div>
-            </div>
-          </div>
-          <AccountsManager />
-        </section>
-      )}
-
-      {tab === "manut" && (
-        <section className="space-y-4">
-          <EditorialSeederCard />
-
           <div className="nx-card">
             <div className="flex items-center gap-3 mb-4">
               <div className="h-9 w-9 rounded-full bg-elevated border border-border flex items-center justify-center">
@@ -323,37 +323,10 @@ export default function Operacao() {
         </section>
       )}
 
-      {tab === "historico" && (
-        <section className="nx-card !p-0 overflow-hidden">
-          <div className="flex items-center gap-3 p-5 border-b border-border">
-            <div className="h-9 w-9 rounded-full bg-elevated border border-border flex items-center justify-center">
-              <History className="h-4 w-4 text-primary" />
-            </div>
-            <div>
-              <h3 className="font-semibold">Histórico de alterações (7d)</h3>
-              <p className="text-xs text-muted-foreground">Toda mudança feita nas playlists fica registrada aqui</p>
-            </div>
-          </div>
-          {adjustments.length === 0 ? (
-            <div className="p-6"><EmptyInline msg="Sem alterações registradas nos últimos 7 dias." /></div>
-          ) : (
-            <div className="divide-y divide-border">
-              {adjustments.map(a => {
-                const tpl = playlistsAll.find(p => p.id === a.template_id);
-                return (
-                  <div key={a.id} className="px-5 py-3 text-sm flex items-center gap-3">
-                    <span className={cn(
-                      "h-2 w-2 rounded-full shrink-0",
-                      a.status === "success" ? "bg-primary" : a.status === "error" ? "bg-destructive" : "bg-warning",
-                    )} />
-                    <span className="font-medium text-xs">{a.action_type}</span>
-                    <span className="text-muted-foreground text-xs truncate">{tpl?.nome ?? a.template_id}</span>
-                    <span className="ml-auto text-[11px] text-muted-foreground">{timeAgo(a.created_at)}</span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+      {/* CONTAS — sem o card explicativo redundante */}
+      {tab === "contas" && (
+        <section>
+          <AccountsManager />
         </section>
       )}
     </PageContainer>
@@ -422,7 +395,56 @@ function PlaylistRow({ p }: { p: OpPlaylist }) {
   );
 }
 
-function EmptyRow({ title, msg, cta }: { title: string; msg: string; cta?: string }) {
+function HistoryDrawer({
+  adjustments, playlistsAll,
+}: { adjustments: Adjustment[]; playlistsAll: OpPlaylist[] }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="nx-card !p-0 overflow-hidden">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center gap-3 p-4 hover:bg-elevated/40 transition-colors"
+      >
+        <div className="h-9 w-9 rounded-full bg-elevated border border-border flex items-center justify-center shrink-0">
+          <History className="h-4 w-4 text-primary" />
+        </div>
+        <div className="text-left flex-1 min-w-0">
+          <h3 className="font-semibold text-sm">Histórico de alterações (7d)</h3>
+          <p className="text-xs text-muted-foreground">
+            {adjustments.length === 0 ? "Sem alterações nos últimos 7 dias." : `${adjustments.length} alteração(ões) registrada(s)`}
+          </p>
+        </div>
+        {open ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+      </button>
+      {open && (
+        adjustments.length === 0 ? (
+          <div className="p-6 border-t border-border">
+            <EmptyInline msg="Sem alterações registradas nos últimos 7 dias." />
+          </div>
+        ) : (
+          <div className="divide-y divide-border border-t border-border">
+            {adjustments.map(a => {
+              const tpl = playlistsAll.find(p => p.id === a.template_id);
+              return (
+                <div key={a.id} className="px-5 py-3 text-sm flex items-center gap-3">
+                  <span className={cn(
+                    "h-2 w-2 rounded-full shrink-0",
+                    a.status === "success" ? "bg-primary" : a.status === "error" ? "bg-destructive" : "bg-warning",
+                  )} />
+                  <span className="font-medium text-xs capitalize">{labelAction(a.action_type)}</span>
+                  <span className="text-muted-foreground text-xs truncate">{tpl?.nome ?? "Playlist removida"}</span>
+                  <span className="ml-auto text-[11px] text-muted-foreground shrink-0">{timeAgo(a.created_at)}</span>
+                </div>
+              );
+            })}
+          </div>
+        )
+      )}
+    </div>
+  );
+}
+
+function EmptyRow({ title, msg }: { title: string; msg: string }) {
   return (
     <div className="px-6 py-12 text-center">
       <div className="h-10 w-10 rounded-full bg-elevated border border-border mx-auto flex items-center justify-center">
@@ -430,25 +452,6 @@ function EmptyRow({ title, msg, cta }: { title: string; msg: string; cta?: strin
       </div>
       <h4 className="mt-3 font-semibold text-sm">{title}</h4>
       <p className="text-xs text-muted-foreground mt-1.5 max-w-md mx-auto">{msg}</p>
-      {cta && (
-        <Button variant="premium" size="sm" className="mt-4 rounded-full gap-1.5">
-          <Plus className="h-3.5 w-3.5" /> {cta}
-        </Button>
-      )}
-    </div>
-  );
-}
-
-function PanelEmpty({ icon: Icon, title, msg }: { icon: any; title: string; msg: string }) {
-  return (
-    <div className="nx-card">
-      <div className="flex items-center gap-3 mb-4">
-        <div className="h-9 w-9 rounded-full bg-elevated border border-border flex items-center justify-center">
-          <Icon className="h-4 w-4 text-primary" />
-        </div>
-        <h3 className="font-semibold">{title}</h3>
-      </div>
-      <EmptyInline msg={msg} />
     </div>
   );
 }
