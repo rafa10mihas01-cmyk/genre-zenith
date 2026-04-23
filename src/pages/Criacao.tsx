@@ -577,8 +577,8 @@ function Section({
 type CardVariant = "hot" | "medium" | "archived" | "published";
 
 function TemplateCard({
-  t, variant, onOpen,
-}: { t: Template; variant: CardVariant; onOpen: () => void }) {
+  t, variant, onOpen, isGenerating = false,
+}: { t: Template; variant: CardVariant; onOpen: () => void; isGenerating?: boolean }) {
   const isHot = variant === "hot";
   const isPublished = variant === "published";
   const isArchived = variant === "archived";
@@ -613,18 +613,20 @@ function TemplateCard({
       <button onClick={onOpen} className="relative aspect-square bg-elevated overflow-hidden">
         {t.cover_image_url ? (
           <img src={t.cover_image_url} alt="" className="w-full h-full object-cover transition-transform group-hover:scale-105" />
-        ) : t.cover_variations && t.cover_variations.length > 0 ? (
-          <div className="grid grid-cols-2 grid-rows-2 w-full h-full">
-            {t.cover_variations.slice(0, 4).map(v => (
-              <img key={v.index} src={v.url} alt="" className="w-full h-full object-cover" />
-            ))}
-          </div>
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground gap-1.5">
-            {t.auto_cover_requested ? (
+            {isGenerating || t.auto_cover_requested ? (
               <>
-                <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                <span className="text-[9px] uppercase tracking-wider">Gerando…</span>
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                <span className="text-[9px] uppercase tracking-wider text-primary font-bold">Gerando capa…</span>
+              </>
+            ) : t.cover_variations && t.cover_variations.length > 0 ? (
+              <>
+                <ImageIcon className="h-5 w-5" />
+                <span className="text-[9px] uppercase tracking-wider">Escolher capa</span>
+                <span className="inline-flex items-center gap-1 px-1.5 h-4 rounded text-[9px] font-bold text-primary bg-primary/15 border border-primary/40 mt-0.5">
+                  {t.cover_variations.length} variações
+                </span>
               </>
             ) : (
               <>
@@ -632,6 +634,12 @@ function TemplateCard({
                 <span className="text-[9px] uppercase tracking-wider">Sem capa</span>
               </>
             )}
+          </div>
+        )}
+        {isGenerating && t.cover_image_url && (
+          <div className="absolute inset-0 bg-background/70 backdrop-blur-sm flex flex-col items-center justify-center gap-1.5">
+            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            <span className="text-[10px] uppercase tracking-wider text-primary font-bold">Gerando capa…</span>
           </div>
         )}
         <div className="absolute top-1.5 left-1.5">{tierBadge}</div>
