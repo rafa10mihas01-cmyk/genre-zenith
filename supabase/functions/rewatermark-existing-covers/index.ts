@@ -90,13 +90,24 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return jr({ error: "POST only" }, 405);
 
+  // Body opcional: { template_ids?: string[], limit?: number }
+  let body: { template_ids?: string[]; limit?: number } = {};
+  try { body = await req.json(); } catch { /* ok, body vazio */ }
+
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
-  // Pega todos os templates que têm pelo menos uma variação
-  const { data: templates, error } = await supabase
+  let query = supabase
     .from("playlist_templates")
     .select("id, name, cover_variations, cover_image_url")
     .not("cover_variations", "is", null);
+
+  if (body.template_ids && body.template_ids.length > 0) {
+    query = query.in("id", body.template_ids);
+  } else {
+    query = query.limit(Math.min(Math.max(body.limit ?? 2, 1), 5));
+  }
+
+  const { data: templates, error } = await query;
 
   if (error) return jr({ error: error.message }, 500);
   if (!templates || templates.length === 0) {
@@ -113,7 +124,6 @@ Deno.serve(async (req) => {
   let processed = 0;
   let failed = 0;
 
-  // Processa em série para não estourar memória/CPU do isolate
   for (const t of templates) {
     const variations = (t.cover_variations as any[] | null) ?? [];
     if (!Array.isArray(variations) || variations.length === 0) continue;
