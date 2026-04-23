@@ -23,9 +23,17 @@ const LOGO_WHITE_URL =
 const LOGO_BLACK_URL =
   "https://xtxxjmkijeyxkdyxtvsf.supabase.co/storage/v1/object/public/playlist-covers/_brand/nexengine-mono-black.png";
 
-const LOGO_WIDTH_PCT = 0.18;   // 18% da largura da capa (discreto mas legível)
-const MARGIN_PCT     = 0.06;   // 6% das bordas
-const OPACITY        = 0.45;   // 45% — visível em qualquer fundo, ainda discreto
+// Logo "gravado na superfície" — emboss premium (estilo Apple/Spotify):
+//   1. Sombra 1px abaixo (escura, integra ao fundo)
+//   2. Highlight 1px acima (clara, simula relevo)
+//   3. Core do logo em tom adaptado ao fundo (não branco puro), opacidade ~10%
+// Resultado: percebido só no segundo olhar, parece parte do material.
+const LOGO_WIDTH_PCT     = 0.10;  // 10% da largura (menor, mais discreto — antes 18%)
+const MARGIN_PCT         = 0.07;  // 7% das bordas (offset confortável)
+const LOGO_OPACITY       = 0.10;  // 10% — limiar do "gravado", não colado
+const EMBOSS_HIGHLIGHT_A = 0.06;  // alpha do brilho (relevo superior)
+const EMBOSS_SHADOW_A    = 0.08;  // alpha da sombra (relevo inferior)
+const LOGO_TINT_SHIFT    = 24;    // quanto puxar do branco/preto puro pra dentro do tom do fundo
 
 // ============================================================
 // PREMIUM FINISH — calibração visual
