@@ -72,13 +72,20 @@ export default function Criacao() {
   const [loading, setLoading] = useState(true);
   const [scoring, setScoring] = useState(false);
   const [expiring, setExpiring] = useState(false);
+  const [batchCovers, setBatchCovers] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [activeTemplate, setActiveTemplate] = useState<Template | null>(null);
+
+  // Toolbar state
+  const [search, setSearch] = useState("");
+  const [genreFilter, setGenreFilter] = useState<string | null>(null); // null = todos
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [sort, setSort] = useState<SortKey>("score_desc");
 
   async function load() {
     setLoading(true);
     const { data } = await supabase.from("playlist_templates")
-      .select("id,name,description,status,replication_score,final_score,quality_tier,score_breakdown,cover_brief,cover_image_url,cover_variations,cover_selected_index,cover_generated_at,auto_cover_requested,spotify_playlist_id,spotify_url,spotify_owner_id,track_seeds,tracks_added,tracks_failed,creation_error,created_on_spotify_at,genre_id,blueprint_id")
+      .select("id,name,description,status,replication_score,final_score,quality_tier,score_breakdown,cover_brief,cover_image_url,cover_variations,cover_selected_index,cover_generated_at,auto_cover_requested,spotify_playlist_id,spotify_url,spotify_owner_id,track_seeds,tracks_added,tracks_failed,creation_error,created_on_spotify_at,genre_id,blueprint_id,created_at,genres(id,nome)")
       .in("status", ["pending", "approved", "created", "archived"])
       .order("final_score", { ascending: false })
       .limit(300);
@@ -124,20 +131,57 @@ export default function Criacao() {
     await load();
   }
 
-  // ─── grupos por tier ───
+  // ─── Lista de gêneros disponíveis (chips) ───
+  const availableGenres = useMemo(() => {
+    const map = new Map<string, { id: string; nome: string; count: number }>();
+    for (const t of templates) {
+      const g = t.genres;
+      if (!g?.id) continue;
+      const cur = map.get(g.id);
+      if (cur) cur.count++;
+      else map.set(g.id, { id: g.id, nome: g.nome, count: 1 });
+    }
+    return Array.from(map.values()).sort((a, b) => b.count - a.count);
+  }, [templates]);
+
+  // ─── Filtra + ordena (aplicado a todos os grupos) ───
+  const filteredTemplates = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    let arr = templates.filter(t => {
+      if (q && !t.name.toLowerCase().includes(q)) return false;
+      if (genreFilter && t.genre_id !== genreFilter) return false;
+      if (statusFilter === "no_cover" && t.cover_image_url) return false;
+      if (statusFilter === "with_cover" && !t.cover_image_url) return false;
+      if (statusFilter === "with_error" && !t.creation_error) return false;
+      return true;
+    });
+    arr = [...arr].sort((a, b) => {
+      switch (sort) {
+        case "score_asc":  return a.final_score - b.final_score;
+        case "recent":     return new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime();
+        case "alpha":      return a.name.localeCompare(b.name);
+        case "genre":      return (a.genres?.nome ?? "").localeCompare(b.genres?.nome ?? "");
+        case "score_desc":
+        default:           return b.final_score - a.final_score;
+      }
+    });
+    return arr;
+  }, [templates, search, genreFilter, statusFilter, sort]);
+
+  // ─── grupos por tier (sobre o filtrado) ───
   const groups = useMemo(() => {
     const hot: Template[] = [];
     const medium: Template[] = [];
     const archived: Template[] = [];
     const published: Template[] = [];
-    for (const t of templates) {
+    for (const t of filteredTemplates) {
       if (t.status === "created") published.push(t);
       else if (t.status === "archived" || t.quality_tier === "weak") archived.push(t);
       else if (t.quality_tier === "hot") hot.push(t);
       else medium.push(t);
     }
     return { hot, medium, archived, published };
-  }, [templates]);
+  }, [filteredTemplates]);
 
   const kpi = useMemo(() => ({
     hot: groups.hot.length,
@@ -148,6 +192,43 @@ export default function Criacao() {
       return groups.published.filter(t => t.created_on_spotify_at && new Date(t.created_on_spotify_at).getTime() > cutoff).length;
     })(),
   }), [groups]);
+
+  // Quantos hot estão sem capa (alvo da ação em lote)
+  const hotMissingCovers = useMemo(
+    () => groups.hot.filter(t => !t.cover_image_url && !t.auto_cover_requested),
+    [groups.hot],
+  );
+
+  async function generateCoversBatch() {
+    if (hotMissingCovers.length === 0) {
+      toast({ title: "Nenhum hot sem capa", description: "Todos os prontos já têm capa selecionada." });
+      return;
+    }
+    setBatchCovers(true);
+    let ok = 0, fail = 0;
+    for (const t of hotMissingCovers) {
+      const { data, error } = await supabase.functions.invoke("generate-cover-variations", {
+        body: { template_id: t.id },
+      });
+      if (error || !(data as any)?.ok) fail++;
+      else ok++;
+    }
+    setBatchCovers(false);
+    toast({
+      title: `Capas geradas`,
+      description: `✅ ${ok} sucesso${fail > 0 ? ` • ❌ ${fail} falha${fail > 1 ? "s" : ""}` : ""}`,
+      variant: fail > 0 && ok === 0 ? "destructive" : "default",
+    });
+    await load();
+  }
+
+  const hasFilters = !!search || !!genreFilter || statusFilter !== "all" || sort !== "score_desc";
+  function clearFilters() {
+    setSearch("");
+    setGenreFilter(null);
+    setStatusFilter("all");
+    setSort("score_desc");
+  }
 
   return (
     <PageContainer>
@@ -197,6 +278,21 @@ export default function Criacao() {
         <KpiBig icon={Send}          label="Publicadas (7d)"      value={kpi.published7d} tone="primary" hint="Foram pro Spotify" />
         <KpiBig icon={Archive}       label="Arquivados"           value={kpi.archived}   hint="Auto-removidos" />
       </section>
+
+      {/* TOOLBAR */}
+      <Toolbar
+        search={search} setSearch={setSearch}
+        statusFilter={statusFilter} setStatusFilter={setStatusFilter}
+        sort={sort} setSort={setSort}
+        availableGenres={availableGenres}
+        genreFilter={genreFilter} setGenreFilter={setGenreFilter}
+        hasFilters={hasFilters} onClear={clearFilters}
+        hotMissingCovers={hotMissingCovers.length}
+        onBatchCovers={generateCoversBatch}
+        batchCovers={batchCovers}
+        totalShown={filteredTemplates.length}
+        totalAll={templates.length}
+      />
 
       {/* HOT */}
       <Section
