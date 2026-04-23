@@ -352,6 +352,171 @@ export default function Criacao() {
   );
 }
 
+/* ───────────────── Toolbar (busca, gênero, filtro, ordenação, ação em lote) ───────────────── */
+
+const SORT_LABELS: Record<SortKey, string> = {
+  score_desc: "Score (maior)",
+  score_asc:  "Score (menor)",
+  recent:     "Mais recentes",
+  alpha:      "Alfabético",
+  genre:      "Por gênero",
+};
+
+const STATUS_LABELS: Record<StatusFilter, string> = {
+  all:        "Todos",
+  no_cover:   "Sem capa",
+  with_cover: "Com capa",
+  with_error: "Com erro",
+};
+
+function Toolbar({
+  search, setSearch,
+  statusFilter, setStatusFilter,
+  sort, setSort,
+  availableGenres, genreFilter, setGenreFilter,
+  hasFilters, onClear,
+  hotMissingCovers, onBatchCovers, batchCovers,
+  totalShown, totalAll,
+}: {
+  search: string; setSearch: (v: string) => void;
+  statusFilter: StatusFilter; setStatusFilter: (v: StatusFilter) => void;
+  sort: SortKey; setSort: (v: SortKey) => void;
+  availableGenres: { id: string; nome: string; count: number }[];
+  genreFilter: string | null; setGenreFilter: (v: string | null) => void;
+  hasFilters: boolean; onClear: () => void;
+  hotMissingCovers: number; onBatchCovers: () => void; batchCovers: boolean;
+  totalShown: number; totalAll: number;
+}) {
+  return (
+    <section className="nx-card space-y-3">
+      {/* Linha 1: busca + filtros + ordenação + ação em lote */}
+      <div className="flex flex-wrap items-center gap-2">
+        {/* Busca */}
+        <div className="relative flex-1 min-w-[200px] max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar por nome do template…"
+            className="pl-9 pr-9 h-9 rounded-full"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full hover:bg-elevated flex items-center justify-center"
+              aria-label="Limpar busca"
+            >
+              <X className="h-3.5 w-3.5 text-muted-foreground" />
+            </button>
+          )}
+        </div>
+
+        {/* Status segmented */}
+        <div className="inline-flex items-center bg-elevated border border-border rounded-full p-0.5 h-9">
+          {(Object.keys(STATUS_LABELS) as StatusFilter[]).map((k) => (
+            <button
+              key={k}
+              onClick={() => setStatusFilter(k)}
+              className={cn(
+                "px-3 h-8 rounded-full text-[11px] font-semibold transition-colors",
+                statusFilter === k
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {STATUS_LABELS[k]}
+            </button>
+          ))}
+        </div>
+
+        {/* Ordenação */}
+        <div className="relative">
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as SortKey)}
+            className="appearance-none h-9 rounded-full bg-elevated border border-border px-3 pr-8 text-[12px] font-semibold text-foreground hover:bg-card cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/40"
+          >
+            {(Object.keys(SORT_LABELS) as SortKey[]).map((k) => (
+              <option key={k} value={k}>{SORT_LABELS[k]}</option>
+            ))}
+          </select>
+          <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+        </div>
+
+        {/* Limpar filtros */}
+        {hasFilters && (
+          <Button
+            onClick={onClear}
+            variant="ghost"
+            size="sm"
+            className="rounded-full h-9 gap-1.5 text-muted-foreground hover:text-foreground"
+          >
+            <X className="h-3.5 w-3.5" />
+            Limpar
+          </Button>
+        )}
+
+        <div className="flex-1" />
+
+        {/* Ação em lote */}
+        <Button
+          onClick={onBatchCovers}
+          disabled={batchCovers || hotMissingCovers === 0}
+          variant={hotMissingCovers > 0 ? "premium" : "outline"}
+          size="sm"
+          className="rounded-full h-9 gap-1.5"
+          title={hotMissingCovers === 0
+            ? "Todos os templates 🔥 já têm capa"
+            : `Gera capas pra ${hotMissingCovers} template${hotMissingCovers > 1 ? "s" : ""} 🔥 sem capa`}
+        >
+          {batchCovers ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
+          Gerar capas pendentes {hotMissingCovers > 0 ? `(${hotMissingCovers})` : ""}
+        </Button>
+      </div>
+
+      {/* Linha 2: chips de gênero + contador */}
+      {availableGenres.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold mr-1">Gênero:</span>
+          <button
+            onClick={() => setGenreFilter(null)}
+            className={cn(
+              "px-3 h-7 rounded-full text-[11px] font-semibold transition-colors border",
+              genreFilter === null
+                ? "bg-primary text-primary-foreground border-primary"
+                : "bg-elevated text-muted-foreground border-border hover:text-foreground",
+            )}
+          >
+            Todos
+          </button>
+          {availableGenres.map((g) => (
+            <button
+              key={g.id}
+              onClick={() => setGenreFilter(genreFilter === g.id ? null : g.id)}
+              className={cn(
+                "px-3 h-7 rounded-full text-[11px] font-semibold transition-colors border inline-flex items-center gap-1.5 capitalize",
+                genreFilter === g.id
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-elevated text-muted-foreground border-border hover:text-foreground",
+              )}
+            >
+              {g.nome}
+              <span className={cn(
+                "tabular-nums text-[10px] px-1 rounded",
+                genreFilter === g.id ? "bg-primary-foreground/20" : "bg-background/60",
+              )}>{g.count}</span>
+            </button>
+          ))}
+          <div className="flex-1" />
+          <span className="text-[11px] text-muted-foreground tabular-nums">
+            Mostrando <strong className="text-foreground">{totalShown}</strong> de {totalAll}
+          </span>
+        </div>
+      )}
+    </section>
+  );
+}
+
 /* ───────────────── Section wrapper ───────────────── */
 
 function Section({
