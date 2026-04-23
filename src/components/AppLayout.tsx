@@ -130,7 +130,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             {/* Spacer mobile para empurrar ações para a direita */}
             <div className="flex-1 sm:hidden" />
 
-            <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
+            <div className="ml-auto flex items-center gap-1">
               <div className="hidden sm:inline-flex items-center gap-1.5 px-3 h-8 rounded-full bg-elevated border border-border text-xs text-muted-foreground">
                 <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
                 {lastUpdate ? `Atualizado ${timeAgo(lastUpdate)}` : "Aguardando dados"}
