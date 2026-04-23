@@ -270,8 +270,8 @@ export default function Operacao() {
         {/* PLAYLISTS */}
         {tab === "playlists" && (
           <section key="tab-playlists" className="space-y-4 animate-tab-in">
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className="relative flex-1 max-w-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+              <div className="relative w-full sm:max-w-xs">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   value={search}
@@ -280,7 +280,15 @@ export default function Operacao() {
                   className="pl-9 h-9 bg-elevated border-border rounded-full text-sm"
                 />
               </div>
-              <div className="flex items-center gap-1.5 ml-auto flex-wrap">
+              {/* Mobile: chips em uma linha com scroll-x; Desktop: wrap normal à direita */}
+              <div
+                className={cn(
+                  "flex items-center gap-1.5 sm:ml-auto sm:flex-wrap",
+                  "-mx-4 px-4 sm:mx-0 sm:px-0 overflow-x-auto sm:overflow-visible",
+                  "[&::-webkit-scrollbar]:hidden [scrollbar-width:none]",
+                  "[&>*]:shrink-0",
+                )}
+              >
                 <FilterChip active={filter === "todas"}       onClick={() => setFilter("todas")}>Todas</FilterChip>
                 <FilterChip active={filter === "ativa"}       onClick={() => setFilter("ativa")}>Ativas</FilterChip>
                 <FilterChip active={filter === "crescimento"} onClick={() => setFilter("crescimento")}>Crescendo</FilterChip>
@@ -291,7 +299,8 @@ export default function Operacao() {
             </div>
 
             <div className="nx-card !p-0 overflow-hidden">
-              <div className="grid grid-cols-12 gap-3 px-4 py-3 text-[10px] uppercase tracking-wider text-muted-foreground font-bold border-b border-border">
+              {/* Header da tabela: só desktop. No mobile usamos cards. */}
+              <div className="hidden md:grid grid-cols-12 gap-3 px-4 py-3 text-[10px] uppercase tracking-wider text-muted-foreground font-bold border-b border-border">
                 <div className="col-span-4">Playlist</div>
                 <div className="col-span-2">Status</div>
                 <div className="col-span-2 text-right">Seguidores</div>
@@ -392,33 +401,68 @@ function StatusPill({ status }: { status: OpStatus }) {
 
 const PlaylistRow = memo(function PlaylistRow({ p }: { p: OpPlaylist }) {
   return (
-    <div className="grid grid-cols-12 gap-3 px-4 py-3 items-center border-b border-border last:border-0 hover:bg-elevated/40 transition-colors">
-      <div className="col-span-4 flex items-center gap-3 min-w-0">
-        <div className="h-10 w-10 rounded-md bg-elevated border border-border shrink-0 flex items-center justify-center">
-          <Music2 className="h-4 w-4 text-muted-foreground" />
+    <>
+      {/* MOBILE: card empilhado */}
+      <div className="md:hidden px-4 py-3 border-b border-border last:border-0 hover:bg-elevated/40 transition-colors">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="h-10 w-10 rounded-md bg-elevated border border-border shrink-0 flex items-center justify-center">
+            <Music2 className="h-4 w-4 text-muted-foreground" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-medium truncate">{p.nome}</div>
+            <div className="text-[11px] text-muted-foreground truncate capitalize">
+              {p.genero}
+            </div>
+          </div>
+          <StatusPill status={p.status} />
         </div>
-        <div className="min-w-0">
-          <div className="text-sm font-medium truncate">{p.nome}</div>
-          <div className="text-[11px] text-muted-foreground truncate capitalize">
-            {p.genero}{p.created_on_spotify_at && ` · publicada ${timeAgo(p.created_on_spotify_at)}`}
+        <div className="mt-2.5 flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+          <div className="flex items-center gap-3">
+            <span><span className="text-foreground font-medium tabular-nums">{formatNumber(p.seguidores)}</span> seguidores</span>
+            <span><span className="text-foreground font-medium tabular-nums">{p.faixas ?? "—"}</span> faixas</span>
+            <span><span className="text-foreground font-medium tabular-nums">{p.trocas7d ?? 0}</span> trocas</span>
+          </div>
+          <div className="flex items-center gap-0.5 -mr-1.5">
+            {p.spotify_url && (
+              <a href={p.spotify_url} target="_blank" rel="noreferrer" className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:text-primary" title="Abrir no Spotify">
+                <ExternalLink className="h-4 w-4" />
+              </a>
+            )}
+            <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground" title="Editar"><Pencil className="h-4 w-4" /></Button>
+            <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground" title="Pausar"><Pause className="h-4 w-4" /></Button>
           </div>
         </div>
       </div>
-      <div className="col-span-2"><StatusPill status={p.status} /></div>
-      <div className="col-span-2 text-right text-sm tabular-nums">{formatNumber(p.seguidores)}</div>
-      <div className="col-span-1 text-right text-sm tabular-nums">{p.faixas ?? "—"}</div>
-      <div className="col-span-1 text-right text-sm tabular-nums">{p.trocas7d ?? 0}</div>
-      <div className="col-span-2 flex items-center justify-end gap-1">
-        {p.spotify_url && (
-          <a href={p.spotify_url} target="_blank" rel="noreferrer" className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:text-primary" title="Abrir no Spotify">
-            <ExternalLink className="h-3.5 w-3.5" />
-          </a>
-        )}
-        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" title="Editar"><Pencil className="h-3.5 w-3.5" /></Button>
-        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" title="Trocar faixas"><RefreshCw className="h-3.5 w-3.5" /></Button>
-        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" title="Pausar"><Pause className="h-3.5 w-3.5" /></Button>
+
+      {/* DESKTOP: linha em grid (mantida) */}
+      <div className="hidden md:grid grid-cols-12 gap-3 px-4 py-3 items-center border-b border-border last:border-0 hover:bg-elevated/40 transition-colors">
+        <div className="col-span-4 flex items-center gap-3 min-w-0">
+          <div className="h-10 w-10 rounded-md bg-elevated border border-border shrink-0 flex items-center justify-center">
+            <Music2 className="h-4 w-4 text-muted-foreground" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-sm font-medium truncate">{p.nome}</div>
+            <div className="text-[11px] text-muted-foreground truncate capitalize">
+              {p.genero}{p.created_on_spotify_at && ` · publicada ${timeAgo(p.created_on_spotify_at)}`}
+            </div>
+          </div>
+        </div>
+        <div className="col-span-2"><StatusPill status={p.status} /></div>
+        <div className="col-span-2 text-right text-sm tabular-nums">{formatNumber(p.seguidores)}</div>
+        <div className="col-span-1 text-right text-sm tabular-nums">{p.faixas ?? "—"}</div>
+        <div className="col-span-1 text-right text-sm tabular-nums">{p.trocas7d ?? 0}</div>
+        <div className="col-span-2 flex items-center justify-end gap-1">
+          {p.spotify_url && (
+            <a href={p.spotify_url} target="_blank" rel="noreferrer" className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:text-primary" title="Abrir no Spotify">
+              <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+          )}
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" title="Editar"><Pencil className="h-3.5 w-3.5" /></Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" title="Trocar faixas"><RefreshCw className="h-3.5 w-3.5" /></Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" title="Pausar"><Pause className="h-3.5 w-3.5" /></Button>
+        </div>
       </div>
-    </div>
+    </>
   );
 });
 

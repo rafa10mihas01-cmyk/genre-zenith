@@ -402,27 +402,27 @@ export default function Settings() {
 
         {/* Contas conectadas (OAuth) */}
         <div className="mt-5 pt-5 border-t border-border">
-          <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex flex-col gap-3">
             <div>
               <h3 className="text-sm font-semibold flex items-center gap-1.5">
                 <UserCheck className="h-4 w-4 text-primary" /> Contas Spotify conectadas
               </h3>
               <p className="text-xs text-muted-foreground mt-0.5">
                 Necessário para criar playlists no Spotify a partir de templates aprovados.
-                Adicione <span className="font-mono text-foreground">{getSpotifyRedirectUri()}</span> como Redirect URI no app do Spotify.
+                Adicione <span className="font-mono text-foreground break-all">{getSpotifyRedirectUri()}</span> como Redirect URI no app do Spotify.
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+              <Button size="sm" onClick={() => connectSpotify(false)} disabled={connectingSpotify || isInIframe} className="w-full sm:w-auto justify-center">
+                {connectingSpotify ? <Loader2 className="h-4 w-4 animate-spin" /> : <Music2 className="h-4 w-4" />}
+                {spotifyAccounts.length > 0 ? "Conectar mesma conta" : "Conectar conta"}
+              </Button>
               {spotifyAccounts.length > 0 && (
-                <Button size="sm" variant="outline" onClick={() => connectSpotify(true)} disabled={connectingSpotify || isInIframe}>
+                <Button size="sm" variant="outline" onClick={() => connectSpotify(true)} disabled={connectingSpotify || isInIframe} className="w-full sm:w-auto justify-center">
                   {connectingSpotify ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                   Conectar outra conta
                 </Button>
               )}
-              <Button size="sm" onClick={() => connectSpotify(false)} disabled={connectingSpotify || isInIframe}>
-                {connectingSpotify ? <Loader2 className="h-4 w-4 animate-spin" /> : <Music2 className="h-4 w-4" />}
-                {spotifyAccounts.length > 0 ? "Conectar mesma conta" : "Conectar conta"}
-              </Button>
             </div>
           </div>
 
