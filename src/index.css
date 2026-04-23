@@ -111,9 +111,15 @@
   html, body, #root {
     @apply bg-background text-foreground;
     min-height: 100vh;
-    /* GLOBAL ANTI-OVERFLOW: nada pode estourar a viewport horizontalmente. */
+    /* GLOBAL ANTI-OVERFLOW: nada pode estourar a viewport horizontalmente.
+       IMPORTANTE: usamos `overflow-x: clip` (não `hidden`) porque `hidden`
+       cria um contexto de scroll que QUEBRA `position: sticky` em todos os
+       descendentes (header global, PageHeader). `clip` previne o overflow
+       horizontal sem criar esse contexto. Fallback `hidden` para browsers
+       muito antigos é aceitável. */
     max-width: 100%;
-    overflow-x: hidden;
+    overflow-x: hidden;     /* fallback */
+    overflow-x: clip;       /* moderno: não quebra sticky */
   }
   body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
