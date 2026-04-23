@@ -23,6 +23,7 @@ import { PageContainer } from "@/components/PageContainer";
 import { Variacoes, Moldes } from "@/components/brain/Replicacao";
 import { ReplicacaoAuto, ReplicacaoHistorico } from "@/components/brain/ReplicacaoAuto";
 import { KpiBig } from "@/components/KpiBig";
+import { usePersistedState } from "@/hooks/usePersistedState";
 
 /**
  * CÉREBRO — módulo único com 6 abas internas.
@@ -40,7 +41,7 @@ export default function Cerebro() {
   const navigate = useNavigate();
   const [genres, setGenres] = useState<GenreOpt[]>([]);
   const [activeSlug, setActiveSlug] = useState<string>(paramSlug ?? "");
-  const [tab, setTab] = useState("visao");
+  const [tab, setTab] = usePersistedState<string>("cerebro:tab", "visao");
   const [running, setRunning] = useState(false);
 
   // Carrega lista de gêneros (para o dropdown) e seleciona default
