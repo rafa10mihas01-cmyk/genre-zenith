@@ -129,11 +129,7 @@ export default function Settings() {
       const redirect = getSpotifyRedirectUri();
       const qs = new URLSearchParams({ mode: "login", redirect });
       if (forceLogin) qs.set("force_login", "1");
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/spotify-auth?${qs.toString()}`;
-      const resp = await fetch(url, {
-        headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
-      });
-      const j = await resp.json();
+      const j = await callSpotifyAuth(qs.toString());
       if (!j?.ok) throw new Error(j?.error ?? "Falha ao gerar URL do Spotify");
 
       const opened = openSpotifyPopup(j.url, forceLogin);
@@ -210,11 +206,7 @@ export default function Settings() {
       const redirect = getSpotifyRedirectUri();
       const qs = new URLSearchParams({ mode: "login", redirect });
       if (forceLogin) qs.set("force_login", "1");
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/spotify-auth?${qs.toString()}`;
-      const resp = await fetch(url, {
-        headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
-      });
-      const j = await resp.json();
+      const j = await callSpotifyAuth(qs.toString());
       if (!j?.ok) throw new Error(j?.error ?? "Falha");
 
       if (forceLogin) {
