@@ -762,6 +762,13 @@ function TemplateDetailDialog({
   async function generateCovers() {
     if (!tpl) return;
     setBusy("cover");
+    // Limpa a capa "oficial" anterior para o usuário escolher de novo entre as variações novas.
+    // Se já tinha uma seleção antiga, ela some até que uma nova variação seja escolhida.
+    if (tpl.cover_image_url || tpl.cover_selected_index !== null) {
+      await supabase.from("playlist_templates")
+        .update({ cover_image_url: null, cover_selected_index: null })
+        .eq("id", tpl.id);
+    }
     const { data, error } = await supabase.functions.invoke("generate-cover-variations", {
       body: { template_id: tpl.id },
     });
@@ -959,6 +966,9 @@ function TemplateDetailDialog({
                   <div className="grid grid-cols-4 gap-2">
                     {tpl.cover_variations.map(v => {
                       const isSel = tpl.cover_selected_index === v.index;
+                      // Cache-busting: força o navegador a baixar a versão recém-gerada.
+                      const ver = tpl.cover_generated_at ? new Date(tpl.cover_generated_at).getTime() : 0;
+                      const imgSrc = ver ? `${v.url}${v.url.includes("?") ? "&" : "?"}v=${ver}` : v.url;
                       return (
                         <button
                           key={v.index}
@@ -968,7 +978,7 @@ function TemplateDetailDialog({
                             isSel ? "border-primary ring-2 ring-primary/30" : "border-border hover:border-muted-foreground",
                           )}
                         >
-                          <img src={v.url} alt="" className="w-full h-full object-cover" />
+                          <img src={imgSrc} alt="" className="w-full h-full object-cover" />
                           {isSel && (
                             <div className="absolute top-1.5 right-1.5 bg-primary text-primary-foreground rounded-full p-0.5">
                               <Check className="h-3 w-3" />
