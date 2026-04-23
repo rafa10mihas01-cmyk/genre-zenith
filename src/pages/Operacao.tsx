@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
-  Activity, Play, Pause, Pencil, RefreshCw, ArrowDownRight, ArrowUpRight,
-  Music2, FlaskConical, History, ListMusic, Plus, Search, Filter, Users,
+  Activity, Pause, Pencil, RefreshCw, ArrowDownRight, ArrowUpRight,
+  Music2, FlaskConical, History, ListMusic, Plus, Search, Users,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
