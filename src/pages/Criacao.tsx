@@ -625,32 +625,33 @@ function TemplateCard({
       <button onClick={onOpen} className="relative aspect-square bg-elevated overflow-hidden">
         {t.cover_image_url ? (
           <img src={t.cover_image_url} alt="" className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+        ) : isGenerating ? (
+          <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground gap-1.5">
+            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            <span className="text-[9px] uppercase tracking-wider text-primary font-bold">Gerando capa…</span>
+          </div>
+        ) : t.cover_variations && t.cover_variations.length > 0 ? (
+          <>
+            <div className="grid grid-cols-2 grid-rows-2 w-full h-full">
+              {t.cover_variations.slice(0, 4).map(v => {
+                const ver = t.cover_generated_at ? new Date(t.cover_generated_at).getTime() : 0;
+                const imgSrc = ver ? `${v.url}${v.url.includes("?") ? "&" : "?"}v=${ver}` : v.url;
+                return <img key={v.index} src={imgSrc} alt="" className="w-full h-full object-cover" />;
+              })}
+            </div>
+            <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 inline-flex items-center gap-1 px-1.5 h-4 rounded text-[9px] font-bold text-primary bg-background/85 backdrop-blur border border-primary/40">
+              {t.cover_variations.length} variações
+            </div>
+          </>
+        ) : t.auto_cover_requested ? (
+          <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground gap-1.5">
+            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            <span className="text-[9px] uppercase tracking-wider text-primary font-bold">Gerando capa…</span>
+          </div>
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground gap-1.5">
-            {isGenerating ? (
-              <>
-                <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                <span className="text-[9px] uppercase tracking-wider text-primary font-bold">Gerando capa…</span>
-              </>
-            ) : t.cover_variations && t.cover_variations.length > 0 ? (
-              <>
-                <ImageIcon className="h-5 w-5" />
-                <span className="text-[9px] uppercase tracking-wider">Escolher capa</span>
-                <span className="inline-flex items-center gap-1 px-1.5 h-4 rounded text-[9px] font-bold text-primary bg-primary/15 border border-primary/40 mt-0.5">
-                  {t.cover_variations.length} variações
-                </span>
-              </>
-            ) : t.auto_cover_requested ? (
-              <>
-                <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                <span className="text-[9px] uppercase tracking-wider text-primary font-bold">Gerando capa…</span>
-              </>
-            ) : (
-              <>
-                <ImageIcon className="h-5 w-5" />
-                <span className="text-[9px] uppercase tracking-wider">Sem capa</span>
-              </>
-            )}
+            <ImageIcon className="h-5 w-5" />
+            <span className="text-[9px] uppercase tracking-wider">Sem capa</span>
           </div>
         )}
         {isGenerating && t.cover_image_url && (
