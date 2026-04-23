@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { BarChart3, RefreshCw, Sparkles, TrendingUp, TrendingDown, Activity, ExternalLink, Brain } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
+import { PageContainer } from "@/components/PageContainer";
 import { KpiBig } from "@/components/KpiBig";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
