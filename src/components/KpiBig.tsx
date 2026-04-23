@@ -30,6 +30,19 @@ const TONE_CLS: Record<NonNullable<KpiBigProps["tone"]>, string> = {
   success:     "text-success",
 };
 
+/** Detecta valores "vazios" (0, "0", "0%", "0/dia", etc) para mostrar fallback. */
+function isEmptyValue(v: string | number): boolean {
+  if (v === 0) return true;
+  if (typeof v === "string") {
+    const s = v.trim();
+    if (!s) return true;
+    const digits = s.replace(/[^\d]/g, "");
+    if (!digits) return false;
+    return Number(digits) === 0;
+  }
+  return false;
+}
+
 export function KpiBig({
   label,
   value,
