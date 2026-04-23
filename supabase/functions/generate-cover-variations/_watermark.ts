@@ -21,9 +21,9 @@ const LOGO_WHITE_URL =
 const LOGO_BLACK_URL =
   "https://xtxxjmkijeyxkdyxtvsf.supabase.co/storage/v1/object/public/playlist-covers/_brand/nexengine-mono-black.png";
 
-const LOGO_WIDTH_PCT = 0.22;   // 22% da largura da capa
+const LOGO_WIDTH_PCT = 0.18;   // 18% da largura da capa (discreto mas legível)
 const MARGIN_PCT     = 0.06;   // 6% das bordas
-const OPACITY        = 0.22;   // 22%
+const OPACITY        = 0.45;   // 45% — visível em qualquer fundo, ainda discreto
 
 // Cache em memória (a edge function pode reusar entre requests no mesmo isolate)
 let cachedWhite: Image | null = null;
