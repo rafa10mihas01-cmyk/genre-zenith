@@ -61,10 +61,18 @@ function computeQualityScore(opts: {
   return Math.min(100, Math.max(0, q));
 }
 
-type SpotifyResp = { followers: number | null; total: number | null; status: number };
+type SpotifyResp = {
+  followers: number | null;
+  total: number | null;
+  status: number;
+  owner_id: string | null;
+  owner_type: "spotify" | "user" | null;
+};
 
 async function fetchSpotifyPlaylist(id: string, token: string): Promise<SpotifyResp> {
-  const url = `https://api.spotify.com/v1/playlists/${id}?fields=followers(total),tracks(total)`;
+  // Inclui owner(id) → permite distinguir playlists oficiais Spotify (owner.id='spotify')
+  // de playlists de usuários comuns. Usado depois pra priorizar tendência editorial.
+  const url = `https://api.spotify.com/v1/playlists/${id}?fields=followers(total),tracks(total),owner(id)`;
   const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
   if (r.status === 401) { await r.text().catch(() => ""); throw new Error("TOKEN_EXPIRED"); }
   if (r.status === 429) {
@@ -72,16 +80,22 @@ async function fetchSpotifyPlaylist(id: string, token: string): Promise<SpotifyR
     await r.text().catch(() => "");
     throw new Error(`RATE_LIMIT:${retry}`);
   }
-  if (r.status === 404) { await r.text().catch(() => ""); return { followers: null, total: null, status: 404 }; }
+  if (r.status === 404) { await r.text().catch(() => ""); return { followers: null, total: null, status: 404, owner_id: null, owner_type: null }; }
   if (!r.ok) {
     const t = await r.text();
     throw new Error(`Spotify ${r.status}: ${t.slice(0, 200)}`);
   }
   const j = await r.json();
+  const ownerId: string | null = j?.owner?.id ?? null;
+  const ownerType: "spotify" | "user" | null = ownerId
+    ? (ownerId === "spotify" ? "spotify" : "user")
+    : null;
   return {
     followers: j?.followers?.total ?? null,
     total: j?.tracks?.total ?? null,
     status: 200,
+    owner_id: ownerId,
+    owner_type: ownerType,
   };
 }
 
@@ -283,6 +297,9 @@ Deno.serve(async (req) => {
           followers_verified_at: verifiedAt,
         };
         if (info.total !== null) update.total_musicas = info.total;
+        // owner_* só sobrescreve se a API retornou — nunca apaga dado existente
+        if (info.owner_id) update.owner_id = info.owner_id;
+        if (info.owner_type) update.owner_type = info.owner_type;
 
         // ============ PHASE 2 (POST-ENRICH VALIDATION) ============
         // Agora temos números reais → escreve is_valid + validation_reason DEFINITIVOS.

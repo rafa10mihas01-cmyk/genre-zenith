@@ -92,9 +92,10 @@ Deno.serve(async (req) => {
   const rulesSummary = summarizeRules(activeRules);
 
   // Busca playlists válidas, enriquecidas (com seguidores)
+  // owner_type permite priorizar oficiais Spotify (curadoria editorial = tendência)
   const { data: playlists, error: pErr } = await supabase
     .from("search_results")
-    .select("id,nome_playlist,descricao,seguidores,total_musicas,spotify_url,imagem_url,quality_score,followers_source,followers_verified_at")
+    .select("id,nome_playlist,descricao,seguidores,total_musicas,spotify_url,imagem_url,quality_score,followers_source,followers_verified_at,owner_id,owner_type")
     .eq("genre_id", genreId)
     .eq("is_valid", true)
     .eq("followers_source", "spotify_api")
@@ -107,9 +108,19 @@ Deno.serve(async (req) => {
     return jr({ ok: false, error: "no enriched playlists available" }, 400);
   }
 
-  // Agrupa por tier e seleciona top N por tier
+  // Score híbrido: oficiais Spotify (2.5×) e nomes editoriais (1.2×) sobem no ranking
+  // Inerte se owner_type for null (compat com playlists ainda não re-enriquecidas)
+  function hybridScore(p: any): number {
+    const base = (p.seguidores ?? 0) * ((Number(p.quality_score) || 50) / 100);
+    const sourceMult = p.owner_type === "spotify" ? 2.5 : 1.0;
+    const editorialBonus = /\b(top|viral|hits|charts|novidades)\b/i.test(p.nome_playlist ?? "") ? 1.2 : 1.0;
+    return base * sourceMult * editorialBonus;
+  }
+  const ranked = [...playlists].sort((a, b) => hybridScore(b) - hybridScore(a));
+
+  // Agrupa por tier e seleciona top N por tier — usando ranked (não a ordem de seguidores pura)
   const byTier: Record<string, any[]> = { mega: [], big: [], medium: [], small: [] };
-  for (const p of playlists) {
+  for (const p of ranked) {
     const t = tierFor(p.seguidores ?? 0);
     if (byTier[t].length < maxPerTier) byTier[t].push(p);
   }

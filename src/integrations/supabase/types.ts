@@ -815,6 +815,8 @@ export type Database = {
           last_seen_at: string
           needs_enrich: boolean
           nome_playlist: string
+          owner_id: string | null
+          owner_type: string | null
           posicao: number
           priority_score: number | null
           quality_flag: string | null
@@ -848,6 +850,8 @@ export type Database = {
           last_seen_at?: string
           needs_enrich?: boolean
           nome_playlist: string
+          owner_id?: string | null
+          owner_type?: string | null
           posicao: number
           priority_score?: number | null
           quality_flag?: string | null
@@ -881,6 +885,8 @@ export type Database = {
           last_seen_at?: string
           needs_enrich?: boolean
           nome_playlist?: string
+          owner_id?: string | null
+          owner_type?: string | null
           posicao?: number
           priority_score?: number | null
           quality_flag?: string | null
