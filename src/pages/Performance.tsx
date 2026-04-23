@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { BarChart3, RefreshCw, Sparkles, TrendingUp, TrendingDown, Activity, ExternalLink, Brain } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
+import { KpiBig } from "@/components/KpiBig";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -112,11 +113,11 @@ export default function Performance() {
       />
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <KpiCard label="Playlists publicadas" value={totalPubs} icon={Activity} />
-        <KpiCard label="Seguidores ganhos (total)" value={totalGrowth.toLocaleString("pt-BR")} icon={TrendingUp} accent="success" />
-        <KpiCard label="Crescimento médio (%)" value={`${avgPct.toFixed(1)}%`} icon={Sparkles} accent="primary" />
-        <KpiCard label="Última análise"
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <KpiBig label="Playlists publicadas"       value={totalPubs} icon={Activity} />
+        <KpiBig label="Seguidores ganhos (total)"  value={totalGrowth.toLocaleString("pt-BR")} icon={TrendingUp} tone="success" />
+        <KpiBig label="Crescimento médio (%)"      value={`${avgPct.toFixed(1)}%`} icon={Sparkles} tone="primary" />
+        <KpiBig label="Última análise"
           value={insight ? new Date(insight.created_at).toLocaleDateString("pt-BR") : "—"}
           icon={Brain} />
       </div>
@@ -296,15 +297,3 @@ export default function Performance() {
   );
 }
 
-function KpiCard({ label, value, icon: Icon, accent }: { label: string; value: string | number; icon: any; accent?: "success" | "primary" }) {
-  const color = accent === "success" ? "text-success" : accent === "primary" ? "text-primary" : "text-foreground";
-  return (
-    <Card className="p-4">
-      <div className="flex items-center justify-between">
-        <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">{label}</span>
-        <Icon className={`h-4 w-4 ${color}`} />
-      </div>
-      <div className={`mt-2 text-2xl font-bold tabular-nums ${color}`}>{value}</div>
-    </Card>
-  );
-}
