@@ -140,6 +140,16 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 <RefreshCw className="h-3.5 w-3.5" />
                 <span className="hidden md:inline">Atualizar</span>
               </Button>
+              {/* Lupa mobile — abre Command Palette */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setPaletteOpen(true)}
+                aria-label="Buscar"
+                className="sm:hidden h-9 w-9 text-muted-foreground hover:text-foreground"
+              >
+                <Search className="h-5 w-5" />
+              </Button>
               <ThemeToggle />
               <NotificationsBell />
             </div>
