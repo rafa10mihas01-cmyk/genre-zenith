@@ -752,60 +752,173 @@ function Base({ model, loading }: any) {
   );
 }
 
-function Insights({ model, loading, onReload }: any) {
+function Insights({ model, loading }: any) {
   if (loading) return <SkeletonGrid />;
   if (!model) return <Empty msg="Sem insights." />;
+
   const ai = model.insights?.ai;
-  const kws = model.palavras_chave ?? [];
-  const padroes = model.padroes_nome ?? [];
+  const kws: { value: string; count: number }[] = model.palavras_chave ?? [];
+  const padroes: { value: string; count: number }[] = model.padroes_nome ?? [];
+  const tendencias: string[] = ai?.tendencias ?? [];
+  const oportunidades: string[] = ai?.oportunidades_seo ?? ai?.oportunidades ?? [];
+  const sugestoesNomes: string[] = ai?.sugestoes_nomes ?? ai?.sugestoes ?? [];
+
+  const topKws = [...kws].sort((a, b) => b.count - a.count).slice(0, 24);
+  const maxKw = topKws[0]?.count ?? 1;
+  const topPadroes = [...padroes].sort((a, b) => b.count - a.count).slice(0, 12);
 
   return (
-    <div className="space-y-4">
-      {ai && (
-        <div className="nx-card p-5">
-          <div className="flex items-center gap-2 mb-2">
-            <Wand2 className="h-4 w-4 text-primary" />
-            <h3 className="font-bold">Resumo IA</h3>
-            <span className="ml-auto text-[10px] text-muted-foreground">gerado {timeAgo(ai.generated_at)}</span>
-          </div>
-          <p className="text-sm leading-relaxed">{ai.resumo || "—"}</p>
-          {ai.tendencias?.length > 0 && (
-            <div className="mt-3">
-              <div className="text-[10px] uppercase text-muted-foreground tracking-wider mb-1.5">Tendências</div>
-              <ul className="text-sm space-y-1">{ai.tendencias.map((s: string, i: number) => <li key={i}>• {s}</li>)}</ul>
-            </div>
+    <div className="space-y-6">
+      {/* FASE 1 — RESUMO */}
+      {ai?.resumo && (
+        <Section
+          step="1"
+          icon={Wand2}
+          title="O que a IA aprendeu"
+          subtitle={ai.generated_at ? `Atualizado ${timeAgo(ai.generated_at)}` : undefined}
+        >
+          <p className="text-[15px] leading-relaxed text-foreground/90">{ai.resumo}</p>
+        </Section>
+      )}
+
+      {/* FASE 2 — TENDÊNCIAS + OPORTUNIDADES (lado a lado) */}
+      {(tendencias.length > 0 || oportunidades.length > 0) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {tendencias.length > 0 && (
+            <Section step="2" icon={TrendingUp} title="Tendências" subtitle={`${tendencias.length} sinais`}>
+              <BulletList items={tendencias} tone="primary" />
+            </Section>
+          )}
+          {oportunidades.length > 0 && (
+            <Section step="3" icon={Lightbulb} title="Oportunidades" subtitle={`${oportunidades.length} ideias`}>
+              <BulletList items={oportunidades} tone="warning" />
+            </Section>
           )}
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="nx-card p-5">
-          <h3 className="font-bold mb-3 flex items-center gap-2"><Hash className="h-4 w-4 text-primary" /> Palavras-chave</h3>
-          {kws.length === 0 ? <Empty msg="—" />
-            : <div className="flex flex-wrap gap-1.5">
-                {kws.slice(0, 30).map((k: any) => (
-                  <span key={k.value} className="px-2 py-1 rounded-full bg-elevated border border-border text-xs">
-                    {k.value} <span className="text-muted-foreground">·{k.count}</span>
-                  </span>
+      {/* FASE 3 — VOCABULÁRIO (palavras-chave com barras) */}
+      {topKws.length > 0 && (
+        <Section
+          step="4"
+          icon={Hash}
+          title="Vocabulário do gênero"
+          subtitle={`${kws.length} palavras • mostrando top ${topKws.length}`}
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-5 gap-y-1.5">
+            {topKws.map(k => (
+              <KeywordBar key={k.value} label={k.value} count={k.count} max={maxKw} />
+            ))}
+          </div>
+        </Section>
+      )}
+
+      {/* FASE 4 — PADRÕES + SUGESTÕES DE NOMES */}
+      {(topPadroes.length > 0 || sugestoesNomes.length > 0) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {topPadroes.length > 0 && (
+            <Section step="5" icon={Sparkles} title="Padrões de nome" subtitle="Combinações mais usadas">
+              <ul className="divide-y divide-border -mx-1">
+                {topPadroes.map((p, i) => (
+                  <li key={p.value} className="flex items-center justify-between py-2 px-1">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-[10px] text-muted-foreground tabular-nums w-5">{i + 1}</span>
+                      <span className="text-sm font-medium truncate">{p.value}</span>
+                    </div>
+                    <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">{p.count}×</span>
+                  </li>
                 ))}
-              </div>}
-        </div>
-        <div className="nx-card p-5">
-          <h3 className="font-bold mb-3 flex items-center gap-2"><Sparkles className="h-4 w-4 text-primary" /> Padrões de nome</h3>
-          {padroes.length === 0 ? <Empty msg="—" />
-            : <div className="space-y-1.5">
-                {padroes.slice(0, 15).map((p: any) => (
-                  <div key={p.value} className="flex items-center justify-between text-sm">
-                    <span className="truncate">{p.value}</span>
-                    <span className="text-xs text-muted-foreground tabular-nums">{p.count}</span>
-                  </div>
+              </ul>
+            </Section>
+          )}
+          {sugestoesNomes.length > 0 && (
+            <Section
+              step="6"
+              icon={FileText}
+              title="Nomes sugeridos pela IA"
+              subtitle={`${sugestoesNomes.length} ideias prontas`}
+            >
+              <ul className="space-y-1.5">
+                {sugestoesNomes.map((n, i) => (
+                  <li
+                    key={i}
+                    className="text-sm px-3 py-2 rounded-lg bg-elevated/50 border border-border/60 text-foreground/90"
+                  >
+                    {n}
+                  </li>
                 ))}
-              </div>}
+              </ul>
+            </Section>
+          )}
         </div>
-      </div>
+      )}
     </div>
   );
 }
+
+/* ---------- subcomponentes da aba Insights ---------- */
+
+function Section({
+  step, icon: Icon, title, subtitle, children,
+}: {
+  step?: string;
+  icon: any;
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="nx-card p-5">
+      <header className="flex items-center gap-3 mb-4">
+        <div className="h-9 w-9 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
+          <Icon className="h-4 w-4" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            {step && (
+              <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-bold">
+                Fase {step}
+              </span>
+            )}
+          </div>
+          <h3 className="text-base font-bold leading-tight">{title}</h3>
+          {subtitle && (
+            <p className="text-[11px] text-muted-foreground mt-0.5">{subtitle}</p>
+          )}
+        </div>
+      </header>
+      {children}
+    </section>
+  );
+}
+
+function BulletList({ items, tone = "primary" }: { items: string[]; tone?: "primary" | "warning" }) {
+  const dot = tone === "warning" ? "bg-warning" : "bg-primary";
+  return (
+    <ul className="space-y-2.5">
+      {items.map((s, i) => (
+        <li key={i} className="flex items-start gap-2.5 text-sm leading-relaxed text-foreground/90">
+          <span className={cn("mt-[7px] h-1.5 w-1.5 rounded-full shrink-0", dot)} />
+          <span>{s}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function KeywordBar({ label, count, max }: { label: string; count: number; max: number }) {
+  const pct = Math.max(8, Math.round((count / max) * 100));
+  return (
+    <div className="flex items-center gap-2 py-1">
+      <span className="text-sm font-medium truncate flex-1">{label}</span>
+      <div className="w-24 h-1.5 rounded-full bg-elevated overflow-hidden shrink-0">
+        <div className="h-full bg-primary/70 rounded-full" style={{ width: `${pct}%` }} />
+      </div>
+      <span className="text-[11px] text-muted-foreground tabular-nums w-7 text-right shrink-0">{count}</span>
+    </div>
+  );
+}
+
 
 function Visual({ briefing, loading, onAnalyze, analyzing }: any) {
   if (loading) return <SkeletonGrid />;
