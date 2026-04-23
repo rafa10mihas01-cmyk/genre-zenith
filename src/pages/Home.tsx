@@ -2,10 +2,9 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { KpiBig } from "@/components/KpiBig";
 import {
-  Brain, ListMusic, Music2, TrendingUp, ArrowRight, Activity,
-  Sparkles, Rocket, Image as ImageIcon, BarChart3,
+  Brain, ArrowRight, Activity,
+  Rocket, Image as ImageIcon, BarChart3,
   Search, Lightbulb, Target, Wrench, Radio, Trophy,
 } from "lucide-react";
 import { formatNumber, timeAgo } from "@/lib/format";
