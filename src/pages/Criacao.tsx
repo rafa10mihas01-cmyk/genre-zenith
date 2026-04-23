@@ -226,7 +226,7 @@ export default function Criacao() {
             </div>
           </button>
           {showArchived && (
-            <div className="border-t border-border p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className="border-t border-border p-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
               {groups.archived.slice(0, 30).map(t => (
                 <TemplateCard key={t.id} t={t} variant="archived" onOpen={() => setActiveTemplate(t)} />
               ))}
