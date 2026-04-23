@@ -38,6 +38,7 @@ function getRouteTitle(pathname: string): string {
  */
 export default function AppLayout({ children }: { children: ReactNode }) {
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const nav = useNavigate();
   const location = useLocation();
   const pageTitle = getRouteTitle(location.pathname);
@@ -57,6 +58,18 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     refresh();
     const t = setInterval(refresh, 30_000);
     return () => clearInterval(t);
+  }, []);
+
+  // Atalho global ⌘K / Ctrl+K — abre Command Palette de qualquer lugar
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPaletteOpen((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, []);
 
   return (
