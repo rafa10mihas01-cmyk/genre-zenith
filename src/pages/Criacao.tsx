@@ -81,12 +81,30 @@ export default function Criacao() {
 
   async function load() {
     setLoading(true);
-    const { data } = await supabase.from("playlist_templates")
-      .select("id,name,description,status,replication_score,final_score,quality_tier,score_breakdown,cover_brief,cover_image_url,cover_variations,cover_selected_index,cover_generated_at,auto_cover_requested,spotify_playlist_id,spotify_url,spotify_owner_id,track_seeds,tracks_added,tracks_failed,creation_error,created_on_spotify_at,genre_id,blueprint_id,created_at,genres(id,nome)")
+    const { data, error } = await supabase.from("playlist_templates")
+      .select("id,name,description,status,replication_score,final_score,quality_tier,score_breakdown,cover_brief,cover_image_url,cover_variations,cover_selected_index,cover_generated_at,auto_cover_requested,spotify_playlist_id,spotify_url,spotify_owner_id,track_seeds,tracks_added,tracks_failed,creation_error,created_on_spotify_at,genre_id,blueprint_id,created_at")
       .in("status", ["pending", "approved", "created", "archived"])
       .order("final_score", { ascending: false })
       .limit(300);
-    if (data) setTemplates(data as any);
+
+    if (error) {
+      toast({ title: "Erro ao carregar", description: error.message, variant: "destructive" });
+      setTemplates([]);
+      setLoading(false);
+      return;
+    }
+
+    const rows = (data ?? []) as any[];
+    // Busca gêneros em separado (não há FK direta de playlist_templates pra genres)
+    const genreIds = Array.from(new Set(rows.map(r => r.genre_id).filter(Boolean)));
+    let genreMap = new Map<string, { id: string; nome: string }>();
+    if (genreIds.length > 0) {
+      const { data: gData } = await supabase.from("genres").select("id,nome").in("id", genreIds);
+      genreMap = new Map((gData ?? []).map(g => [g.id, g]));
+    }
+
+    const enriched = rows.map(r => ({ ...r, genres: genreMap.get(r.genre_id) ?? null }));
+    setTemplates(enriched as any);
     setLoading(false);
   }
   useEffect(() => { load(); }, []);
