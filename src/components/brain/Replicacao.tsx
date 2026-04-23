@@ -186,7 +186,7 @@ export function Variacoes({ genreId }: { genreId?: string }) {
 
   if (templates.length === 0) {
     return (
-      <div className="nx-card p-10 text-center space-y-2">
+      <div className="nx-card p-8 text-center space-y-2">
         <Wand2 className="h-7 w-7 mx-auto text-muted-foreground" />
         <p className="text-sm text-muted-foreground">
           Nenhuma variação gerada ainda. Vá nos <strong>Moldes</strong> abaixo e clique em <em>Gerar +5</em>.
@@ -513,7 +513,7 @@ export function Moldes({ genreId, onAfterGenerate }: { genreId?: string; onAfter
       </div>
 
       {blueprints.length === 0 ? (
-        <div className="nx-card p-10 text-center space-y-2">
+        <div className="nx-card p-8 text-center space-y-2">
           <Layers className="h-7 w-7 mx-auto text-muted-foreground" />
           <p className="text-sm text-muted-foreground">
             Nenhum molde extraído. Clique em <strong>Extrair moldes</strong> pra começar.

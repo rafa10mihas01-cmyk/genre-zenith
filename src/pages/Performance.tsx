@@ -91,7 +91,7 @@ export default function Performance() {
       />
 
       {totalPubs === 0 && !loading ? (
-        <Card className="p-12 text-center">
+        <Card className="p-8 text-center">
           <BarChart3 className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
           <h3 className="font-bold text-lg">Nenhuma playlist publicada ainda</h3>
           <p className="text-sm text-muted-foreground mt-1.5 max-w-md mx-auto">

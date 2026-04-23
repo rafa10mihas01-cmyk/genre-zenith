@@ -92,7 +92,7 @@ export default function Cerebro() {
 
   if (genres.length === 0) {
     return (
-      <div className="nx-card p-12 text-center">
+      <div className="nx-card p-8 text-center">
         <Loader2 className="h-6 w-6 mx-auto animate-spin text-muted-foreground" />
         <p className="mt-3 text-sm text-muted-foreground">Carregando gêneros…</p>
       </div>
@@ -1762,7 +1762,7 @@ function Visual({ briefing, loading, onAnalyze, analyzing }: any) {
 
   if (withDna.length === 0) {
     return (
-      <div className="nx-card p-12 text-center space-y-3">
+      <div className="nx-card p-8 text-center space-y-3">
         <Palette className="h-8 w-8 mx-auto text-muted-foreground" />
         <p className="text-sm text-muted-foreground">DNA visual ainda não foi extraído.</p>
         <Button size="sm" onClick={onAnalyze} disabled={analyzing || items.length === 0}>
