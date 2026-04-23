@@ -64,23 +64,21 @@ function jr(p: unknown, status = 200) {
 }
 
 // ============================================================
-// SANITIZAÇÃO DE TÍTULO (editorial — máx 3 palavras fortes)
+// SANITIZAÇÃO DE TÍTULO (editorial — variação controlada 70/20/10)
 // ============================================================
-// Regras:
-//   • Remove emojis, símbolos, fillers e palavras repetidas
-//   • Limita a no máximo 3 palavras fortes
-//   • Prioriza por TIER:
-//       Tier 1 (impacto):    TOP, HITS, VIRAL, BRASIL, BR, 2024, 2025, números
-//       Tier 2 (gênero):     SERTANEJO, FUNK, TRAP, PISEIRO, PAGODE, ROCK, POP, RAP, MPB...
-//       Tier 3 (contexto):   RAIZ, MODÃO, NOSTALGIA, CLÁSSICOS, ATUALIZADO...
-//   • Formato ideal final: [FORTE] + [GÊNERO] + [ANO ou CONTEXTO]
-//   • Sem duplicar palavras, sem repetir ano, sem mais de 3 palavras
+// O título final SEMPRE segue um destes 3 formatos:
+//   FORMATO 1 — PRINCIPAL (≈70%): [FORTE] + [GÊNERO] + [ANO]
+//       ex: "TOP SERTANEJO 2024", "HITS FUNK 2025", "MODÃO SERTANEJO 2024"
+//   FORMATO 2 — EDITORIAL (≈20%): [GÊNERO] + [VARIAÇÃO]
+//       ex: "SERTANEJO RAIZ", "FUNK CLÁSSICO", "TRAP ATUAL"
+//   FORMATO 3 — GANCHO    (≈10%): [FORTE] (1–2 palavras curtas)
+//       ex: "TOP HITS", "VIRAL HITS", "HITS 2024"
 //
-// Exemplos:
-//   "TOP SERTANEJO 2024 🎉 MAIS TOCADAS"          → "TOP SERTANEJO 2024"
-//   "SERTANEJO RAIZ 2024 - SÓ AS MELHORES"        → "SERTANEJO RAIZ 2024"
-//   "MODÃO SERTANEJO RAIZ 2024 MAIS TOCADAS"      → "MODÃO SERTANEJO RAIZ"
-//   "playlist oficial do sertanejo atualizada"    → "SERTANEJO ATUALIZADO"
+// A escolha do formato é determinística (hash do nome original) para que:
+//   • a mesma playlist sempre gere o mesmo título
+//   • playlists diferentes recebam variação distribuída
+// Toda regra anterior continua valendo: sem emoji, sem fillers, sem
+// duplicação, máximo 3 palavras, sempre legível.
 const TIER1_WORDS = new Set([
   "TOP", "HITS", "VIRAL", "BRASIL", "BR", "MEGA", "ULTRA", "NOW", "FRESH",
 ]);
@@ -120,77 +118,109 @@ function tierOf(t: string): 0 | 1 | 2 | 3 | 4 {
   return 4; // outras palavras com 3+ letras
 }
 
+// Listas controladas para os 3 formatos
+const STRONG_WORDS = ["TOP", "HITS", "VIRAL", "MODÃO"] as const;
+const VARIATION_WORDS = ["RAIZ", "CLÁSSICO", "ATUAL"] as const;
+// Mapeia palavra detectada no input → variação canônica permitida
+const VARIATION_ALIASES: Record<string, typeof VARIATION_WORDS[number]> = {
+  "RAIZ": "RAIZ",
+  "CLÁSSICO": "CLÁSSICO", "CLASSICO": "CLÁSSICO",
+  "CLÁSSICOS": "CLÁSSICO", "CLASSICOS": "CLÁSSICO",
+  "ATUAL": "ATUAL", "ATUALIZADO": "ATUAL", "ATUALIZADA": "ATUAL",
+  "NOSTALGIA": "CLÁSSICO",
+};
+// Hash determinístico simples (djb2) para escolher formato a partir do nome
+function hashString(s: string): number {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+// Distribuição alvo: 70% F1, 20% F2, 10% F3
+function pickFormat(seed: string): 1 | 2 | 3 {
+  const bucket = hashString(seed) % 100;
+  if (bucket < 70) return 1;
+  if (bucket < 90) return 2;
+  return 3;
+}
+
 function sanitizePlaylistTitle(name: string | null | undefined): string {
   const raw = (name ?? "").toString();
-  if (!raw.trim()) return "PLAYLIST";
+  if (!raw.trim()) return "TOP HITS";
 
-  // 1. remove emojis e símbolos decorativos
+  // 1. Limpa emojis/símbolos e normaliza
   const cleaned = raw
     .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{1F000}-\u{1F2FF}]/gu, " ")
     .replace(/[^\p{L}\p{N}\s]/gu, " ")
     .replace(/\s+/g, " ")
     .trim()
     .toUpperCase();
-  if (!cleaned) return "PLAYLIST";
+  if (!cleaned) return "TOP HITS";
 
-  // 2. tokeniza preservando ordem
+  // 2. Tokeniza preservando ordem
   const rawTokens = cleaned.split(" ").filter(Boolean);
-
-  // 3. dedupe (preservando primeira ocorrência) + filtro filler/curtas
-  const seen = new Set<string>();
   const tokens: string[] = [];
+  const seen = new Set<string>();
   for (const t of rawTokens) {
-    if (seen.has(t)) continue;             // remove duplicações
-    if (TITLE_FILLER.has(t)) continue;     // remove fillers
-    if (t.length < 3 && !isYearOrNumber(t)) continue;
+    if (seen.has(t)) continue;
+    if (TITLE_FILLER.has(t)) continue;
+    if (t.length < 2) continue;
     seen.add(t);
     tokens.push(t);
   }
-  if (tokens.length === 0) return "PLAYLIST";
 
-  // 4. classifica por tier preservando primeira ocorrência
-  const t1 = tokens.filter((t) => tierOf(t) === 1);
-  const t2 = tokens.filter((t) => tierOf(t) === 2);
-  const t3 = tokens.filter((t) => tierOf(t) === 3);
-  const tOther = tokens.filter((t) => tierOf(t) === 4);
+  // 3. Detecta componentes presentes no input
+  const detectedStrong = tokens.find((t) => (STRONG_WORDS as readonly string[]).includes(t)) ?? null;
+  const detectedGenre = tokens.find((t) => TIER2_WORDS.has(t)) ?? null;
+  const detectedYear = tokens.find((t) => isYearOrNumber(t) && /^\d{4}$/.test(t)) ?? null;
+  const detectedVariationRaw = tokens.find((t) => VARIATION_ALIASES[t]) ?? null;
+  const detectedVariation = detectedVariationRaw ? VARIATION_ALIASES[detectedVariationRaw] : null;
 
-  // separa números (ano) do resto do tier-1 — ano vai sempre no fim
-  const years = t1.filter(isYearOrNumber);
-  const t1Words = t1.filter((t) => !isYearOrNumber(t));
-  const year = years[0] ?? null; // só 1 ano no máximo
+  // 4. Escolhe formato (determinístico por nome) — com fallback inteligente
+  let format = pickFormat(raw);
+  // Se faltam ingredientes para o formato sorteado, faz fallback coerente
+  if (format === 1 && !detectedGenre) format = detectedVariation ? 2 : 3;
+  if (format === 2 && !detectedGenre) format = 3;
 
-  // 5. seleciona até 3 palavras prioritárias (sem ano), preservando ordem original:
-  //    prioridade: Tier1 (não-ano) → Tier2 → Tier3 → Outras
-  //    O ano (se houver) é reservado e adicionado SEMPRE no fim.
-  const orderIndex = new Map(tokens.map((t, i) => [t, i]));
-  const sortByOriginal = (arr: string[]) =>
-    [...arr].sort((a, b) => (orderIndex.get(a) ?? 0) - (orderIndex.get(b) ?? 0));
+  // 5. Constrói o título conforme o formato
+  const seed = hashString(raw);
+  const pickFrom = <T extends readonly string[]>(arr: T, offset = 0): T[number] =>
+    arr[(seed + offset) % arr.length];
 
-  const yearReserved = year ? 1 : 0;
-  const wordBudget = 3 - yearReserved; // 2 palavras se houver ano, 3 se não
+  let parts: string[] = [];
 
-  const ranked: string[] = [];
-  const pushUnique = (list: string[]) => {
-    for (const t of sortByOriginal(list)) {
-      if (ranked.length >= wordBudget) return;
-      if (!ranked.includes(t)) ranked.push(t);
-    }
-  };
-  pushUnique(t1Words);
-  pushUnique(t2);
-  pushUnique(t3);
-  pushUnique(tOther);
+  if (format === 1) {
+    // [FORTE] + [GÊNERO] + [ANO]
+    const strong = detectedStrong ?? pickFrom(STRONG_WORDS);
+    const genre = detectedGenre!; // garantido pelo fallback
+    const year = detectedYear ?? "2024";
+    parts = [strong, genre, year];
+  } else if (format === 2) {
+    // [GÊNERO] + [VARIAÇÃO]
+    const genre = detectedGenre!;
+    const variation = detectedVariation ?? pickFrom(VARIATION_WORDS, 1);
+    parts = [genre, variation];
+  } else {
+    // FORMATO 3 — GANCHO: [FORTE] sozinho ou [FORTE] + [HITS/ANO]
+    const strong = detectedStrong ?? pickFrom(STRONG_WORDS);
+    // pequena variação para não cair sempre em "TOP HITS"
+    const tail = detectedYear
+      ? detectedYear
+      : strong === "HITS"
+        ? pickFrom(["2024", "VIRAL", "BRASIL"] as const, 2)
+        : "HITS";
+    parts = strong === tail ? [strong] : [strong, tail];
+  }
 
-  // reordena as palavras escolhidas pela ordem original do título
-  const slots = sortByOriginal(ranked);
-  if (year) slots.push(year); // ano sempre por último
-
-  // 6. fallback raro
-  if (slots.length === 0) slots.push(tokens[0]);
-
-  // garante limite rígido de 3 palavras
-  const result = slots.slice(0, 3).join(" ").trim();
-  return result.length > 0 ? result : "PLAYLIST";
+  // 6. Sanidade final: dedupe, máx 3 palavras, nunca vazio
+  const finalParts: string[] = [];
+  for (const p of parts) {
+    if (!p) continue;
+    if (finalParts.includes(p)) continue;
+    finalParts.push(p);
+    if (finalParts.length >= 3) break;
+  }
+  const result = finalParts.join(" ").trim();
+  return result.length > 0 ? result : "TOP HITS";
 }
 
 // ============================================================
