@@ -1271,14 +1271,14 @@ function Base({ model, loading }: any) {
       </div>
 
       <Tabs defaultValue="playlists" className="space-y-4">
-        <TabsList className="bg-elevated border border-border h-9 p-1">
-          <TabsTrigger value="playlists" className="text-xs h-7 data-[state=active]:bg-card">
+        <TabsList className="bg-elevated border border-border h-9 p-1 nx-tabs-scroll max-w-full">
+          <TabsTrigger value="playlists" className="text-xs h-7 data-[state=active]:bg-card shrink-0 whitespace-nowrap">
             Playlists ({playlists.length})
           </TabsTrigger>
-          <TabsTrigger value="faixas" className="text-xs h-7 data-[state=active]:bg-card">
+          <TabsTrigger value="faixas" className="text-xs h-7 data-[state=active]:bg-card shrink-0 whitespace-nowrap">
             Faixas ({tracks.length})
           </TabsTrigger>
-          <TabsTrigger value="artistas" className="text-xs h-7 data-[state=active]:bg-card">
+          <TabsTrigger value="artistas" className="text-xs h-7 data-[state=active]:bg-card shrink-0 whitespace-nowrap">
             Artistas ({artists.length})
           </TabsTrigger>
         </TabsList>
