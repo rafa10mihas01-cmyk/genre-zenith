@@ -39,14 +39,14 @@ export function PageHeader({
   return (
     <header
       className={cn(
-        // Sticky no TOPO do container scrollável (<main>). O topbar global
-        // já está FORA do scroll, então aqui usamos top-0 (não top-14).
-        // z-40 < topbar (z-50) > conteúdo. Background sólido + blur opaco.
+        // No MOBILE: o título já aparece no topbar global → escondemos o PageHeader
+        // inteiro pra não duplicar e nem causar a sensação de "shift" no scroll.
+        // No DESKTOP (md+): mantém sticky no topo do <main> com background opaco.
+        "hidden md:flex",
         "sticky top-0 z-40 -mx-4 md:-mx-6 lg:-mx-8 px-4 md:px-6 lg:px-8 py-2.5 md:py-3",
         "bg-background/90 backdrop-blur-md supports-[backdrop-filter]:bg-background/75",
         "border-b border-border/60",
-        // Layout: stack no mobile (título em cima, ações em scroll embaixo)
-        "flex flex-col md:flex-row md:items-center md:justify-between gap-2 md:gap-4 mb-3 md:mb-4 w-full min-w-0",
+        "md:flex-row md:items-center md:justify-between gap-2 md:gap-4 mb-3 md:mb-4 w-full min-w-0",
         className,
       )}
     >
@@ -65,11 +65,8 @@ export function PageHeader({
       {actions && (
         <div
           className={cn(
-            // Mobile: scroll horizontal sem barra → nenhuma ação some na borda
-            "flex items-center gap-2 -mx-4 px-4 md:mx-0 md:px-0",
-            "overflow-x-auto md:overflow-visible md:flex-wrap md:flex-nowrap md:shrink-0",
-            "[&::-webkit-scrollbar]:hidden [scrollbar-width:none]",
-            // Garante que cada filho não encolha e mantém o ritmo dos botões
+            "flex items-center gap-2",
+            "md:overflow-visible md:flex-wrap md:flex-nowrap md:shrink-0",
             "[&>*]:shrink-0",
           )}
         >
