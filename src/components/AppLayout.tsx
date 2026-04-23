@@ -65,8 +65,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       <div className="min-h-screen flex w-full bg-background">
         <AppSidebar />
         <div className="flex-1 flex flex-col min-w-0 shadow-[-1px_0_0_rgba(255,255,255,0.04)]">
-          {/* TOPBAR GLOBAL — todas as páginas herdam */}
-          <header className="h-14 flex items-center gap-3 border-b border-border bg-background/95 backdrop-blur sticky top-0 z-30 px-4">
+          {/* TOPBAR GLOBAL — todas as páginas herdam (sempre fixo, nunca some) */}
+          <header className="h-14 min-h-14 max-h-14 flex items-center gap-3 border-b border-border bg-background/90 backdrop-blur-md supports-[backdrop-filter]:bg-background/75 sticky top-0 z-50 px-4 transition-none">
             <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
             {/* Mobile: logo + título dinâmico (estilo app nativo) */}
             <div className="md:hidden flex items-center gap-2 min-w-0">
