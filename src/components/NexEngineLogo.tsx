@@ -32,9 +32,9 @@ export function NexEngineLogo({
   size?: number;
   variant?: NexEngineLogoVariant;
 }) {
-  const { theme } = useTheme();
+  const { resolvedTheme } = useTheme();
   const resolved =
-    variant === "auto" ? (theme === "dark" ? "dark" : "light") : variant;
+    variant === "auto" ? resolvedTheme : variant;
 
   const src =
     resolved === "mark" ? logoMark : resolved === "dark" ? logoDark : logoLight;
