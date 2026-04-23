@@ -285,10 +285,8 @@ export default function Criacao() {
   return (
     <PageContainer>
       <PageHeader
-        kicker="Módulo de Criação"
-        icon={Sparkles}
-        title="Cockpit de Execução"
-        subtitle="Templates ranqueados pelo sistema. Aprovar, escolher capa e publicar em poucos cliques."
+        title="Criação"
+        subtitle="Gerar e preparar playlists"
         actions={
           <div className="flex items-center gap-2">
             <Button

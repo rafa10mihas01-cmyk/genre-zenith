@@ -136,10 +136,8 @@ export default function Cerebro() {
   return (
     <PageContainer>
       <PageHeader
-        kicker="Módulo de Inteligência"
-        icon={Brain}
         title="Cérebro"
-        subtitle="Analisar um gênero a fundo: coletar playlists, gerar modelo, briefing criativo e DNA visual."
+        subtitle="Analisar dados e gerar inteligência"
         actions={
           <Button onClick={runBrain} disabled={running} className="nx-pill">
             {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}

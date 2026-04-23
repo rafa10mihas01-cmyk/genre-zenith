@@ -297,10 +297,8 @@ export default function Settings() {
   return (
     <PageContainer>
       <PageHeader
-        kicker="Sistema"
-        icon={SettingsIcon}
         title="Configurações"
-        subtitle="Conexões, parâmetros de coleta, equipe e conta — tudo em um só lugar."
+        subtitle="Ajustes do sistema"
       />
 
       <Tabs defaultValue="conexoes" className="mt-6">

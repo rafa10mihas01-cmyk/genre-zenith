@@ -88,10 +88,8 @@ export default function Performance() {
   return (
     <PageContainer>
       <PageHeader
-        kicker="Módulo"
-        icon={BarChart3}
         title="Performance"
-        subtitle="Acompanhar saúde, ranking de gêneros e ações prioritárias para crescer mais rápido."
+        subtitle="Monitorar crescimento e resultados"
         actions={
           <>
             <Button variant="outline" size="sm" onClick={runTrack} disabled={tracking}>
