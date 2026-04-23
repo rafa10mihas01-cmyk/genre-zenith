@@ -1170,13 +1170,15 @@ function LogRow({ log }: { log: any }) {
 
 
 function Base({ model, loading }: any) {
+  const playlists = model?.playlists_dominantes ?? [];
+  const tracks = model?.musicas_recorrentes ?? [];
+  const resetKey = model?.updated_at ?? model?.ultima_analise ?? `${playlists.length}-${tracks.length}`;
+
+  const pl = usePagination<any>(playlists, 20, `${resetKey}-playlists`);
+  const tr = usePagination<any>(tracks, 20, `${resetKey}-tracks`);
+
   if (loading) return <SkeletonGrid />;
   if (!model) return <Empty msg="Sem dados de base." />;
-  const playlists = model.playlists_dominantes ?? [];
-  const tracks = model.musicas_recorrentes ?? [];
-
-  const pl = usePagination<any>(playlists, 20, model?.updated_at ?? model?.ultima_analise ?? playlists.length);
-  const tr = usePagination<any>(tracks, 20, model?.updated_at ?? model?.ultima_analise ?? tracks.length);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

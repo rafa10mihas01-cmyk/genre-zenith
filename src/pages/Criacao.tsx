@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Sparkles, Flame, AlertTriangle, Archive, RefreshCw, Loader2,
   Check, Music2, ExternalLink, AlertCircle, ChevronDown, ChevronRight,
-  Send, Image as ImageIcon, Pencil, X, Play, Inbox, Clock,
+  Send, Image as ImageIcon, Pencil, Play, Inbox, Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
