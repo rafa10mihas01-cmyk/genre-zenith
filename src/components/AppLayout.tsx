@@ -1,7 +1,6 @@
 import { ReactNode, useEffect, useState } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,6 +11,7 @@ import { NexEngineLogo } from "@/components/NexEngineLogo";
 import { SidebarContextProvider } from "@/contexts/SidebarContext";
 import { NotificationsBell } from "@/components/NotificationsBell";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
+import { CommandPalette } from "@/components/CommandPalette";
 
 // Mapa de rótulos curtos para o título no header mobile
 const ROUTE_TITLES: Record<string, string> = {
