@@ -24,6 +24,7 @@ import { Variacoes, Moldes } from "@/components/brain/Replicacao";
 import { ReplicacaoAuto, ReplicacaoHistorico } from "@/components/brain/ReplicacaoAuto";
 import { KpiBig } from "@/components/KpiBig";
 import { usePersistedState } from "@/hooks/usePersistedState";
+import { useSetSidebarKpis } from "@/contexts/SidebarContext";
 
 /**
  * CÉREBRO — módulo único com 6 abas internas.
@@ -43,6 +44,39 @@ export default function Cerebro() {
   const [activeSlug, setActiveSlug] = useState<string>(paramSlug ?? "");
   const [tab, setTab] = usePersistedState<string>("cerebro:tab", "visao");
   const [running, setRunning] = useState(false);
+  const [sbStats, setSbStats] = useState<{ active: number; analyzed: number; needsAttention: number } | null>(null);
+
+  // Stats leves dedicadas pro sidebar (evita reaproveitar queries pesadas das abas)
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      const [aRes, anRes, attRes] = await Promise.all([
+        supabase.from("genres").select("id", { count: "exact", head: true }).eq("ativo", true),
+        supabase.from("genre_models").select("id", { count: "exact", head: true }).not("ultima_analise", "is", null),
+        supabase.from("genres").select("id", { count: "exact", head: true }).eq("needs_attention", true),
+      ]);
+      if (!cancelled) {
+        setSbStats({
+          active: aRes.count ?? 0,
+          analyzed: anRes.count ?? 0,
+          needsAttention: attRes.count ?? 0,
+        });
+      }
+    };
+    load();
+    const t = setInterval(load, 60_000);
+    return () => { cancelled = true; clearInterval(t); };
+  }, []);
+
+  useSetSidebarKpis(
+    sbStats
+      ? [
+          { label: "Gêneros ativos", value: sbStats.active, intent: "primary" },
+          { label: "Analisados", value: sbStats.analyzed, intent: "success" },
+          { label: "Problemas", value: sbStats.needsAttention, intent: sbStats.needsAttention > 0 ? "warning" : "default" },
+        ]
+      : [],
+  );
 
   // Carrega lista de gêneros (para o dropdown) e seleciona default
   useEffect(() => {

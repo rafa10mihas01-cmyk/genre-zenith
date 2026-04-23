@@ -15,6 +15,7 @@ import { PageContainer } from "@/components/PageContainer";
 import { supabase } from "@/integrations/supabase/client";
 import { formatNumber, timeAgo } from "@/lib/format";
 import { usePersistedState } from "@/hooks/usePersistedState";
+import { useSetSidebarKpis } from "@/contexts/SidebarContext";
 
 /**
  * OPERAÇÃO — painel de controle das playlists já publicadas.
@@ -172,6 +173,29 @@ export default function Operacao() {
     const t = setInterval(load, 60_000);
     return () => clearInterval(t);
   }, []);
+
+  // Sidebar KPIs: publicadas / em teste / em queda
+  useSetSidebarKpis(
+    playlistsAll.length > 0
+      ? [
+          {
+            label: "Publicadas",
+            value: playlistsAll.filter((p) => p.status === "ativa" || p.status === "crescimento").length,
+            intent: "success",
+          },
+          {
+            label: "Em teste",
+            value: playlistsAll.filter((p) => p.status === "teste").length,
+            intent: "warning",
+          },
+          {
+            label: "Em queda",
+            value: playlistsAll.filter((p) => p.status === "queda").length,
+            intent: "danger",
+          },
+        ]
+      : [],
+  );
 
   const playlists = useMemo(() => {
     return playlistsAll.filter(p => {

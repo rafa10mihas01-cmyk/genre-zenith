@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { genreStyleVars } from "@/lib/genreColors";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
+import { useSetSidebarKpis } from "@/contexts/SidebarContext";
 
 /**
  * HOME — Cockpit do sistema, organizado pelo PIPELINE:
@@ -175,6 +176,18 @@ export default function Home() {
     const t = setInterval(load, 30_000);
     return () => clearInterval(t);
   }, []);
+
+  // Alimenta sidebar smart panel: prontos / médios / total
+  useSetSidebarKpis(
+    c
+      ? [
+          { label: "Prontos", value: c.hotPending, intent: "primary" },
+          { label: "Médios", value: c.mediumPending, intent: "warning" },
+          { label: "Publicadas", value: c.published, intent: "success" },
+          { label: "Total playlists", value: c.totalPlaylists, intent: "default" },
+        ]
+      : [],
+  );
 
   return (
     <PageContainer>

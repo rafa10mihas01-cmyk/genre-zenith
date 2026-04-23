@@ -18,6 +18,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { LoadMore, usePagination } from "@/components/LoadMore";
+import { useSetSidebarKpis } from "@/contexts/SidebarContext";
 
 /**
  * CRIAÇÃO — Cockpit de Execução.
@@ -117,6 +118,31 @@ export default function Criacao() {
     setLoading(false);
   }
   useEffect(() => { load(); }, []);
+
+  // Sidebar KPIs: hot / médios / sem capa
+  useSetSidebarKpis(
+    templates.length > 0
+      ? [
+          {
+            label: "Hot",
+            value: templates.filter((t) => t.quality_tier === "hot").length,
+            intent: "primary",
+          },
+          {
+            label: "Médios",
+            value: templates.filter((t) => t.quality_tier === "medium").length,
+            intent: "warning",
+          },
+          {
+            label: "Sem capa",
+            value: templates.filter(
+              (t) => !t.cover_image_url && !t.spotify_playlist_id && t.quality_tier !== "archived",
+            ).length,
+            intent: "danger",
+          },
+        ]
+      : [],
+  );
 
   async function rescoreAll() {
     setScoring(true);
