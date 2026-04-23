@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { LoadMore, usePagination } from "@/components/LoadMore";
 
 /**
  * CRIAÇÃO — Cockpit de Execução.
@@ -234,43 +235,18 @@ export default function Criacao() {
           emptyTitle=""
           emptyMsg=""
         >
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-            {groups.published.slice(0, 12).map(t => (
-              <TemplateCard key={t.id} t={t} variant="published" onOpen={() => setActiveTemplate(t)} />
-            ))}
-          </div>
+          <PublishedGrid items={groups.published} onOpen={setActiveTemplate} />
         </Section>
       )}
 
       {/* ARCHIVED — colapsado */}
       {groups.archived.length > 0 && (
-        <section className="nx-card !p-0 overflow-hidden">
-          <button
-            onClick={() => setShowArchived(v => !v)}
-            className="w-full px-4 py-3 flex items-center gap-3 hover:bg-elevated/40 transition-colors text-left"
-          >
-            {showArchived ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
-            <Archive className="h-4 w-4 text-muted-foreground" />
-            <div className="flex-1">
-              <div className="text-sm font-semibold">📦 Arquivados</div>
-              <div className="text-xs text-muted-foreground">
-                {groups.archived.length} templates auto-arquivados (score &lt; 45)
-              </div>
-            </div>
-          </button>
-          {showArchived && (
-            <div className="border-t border-border p-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-              {groups.archived.slice(0, 30).map(t => (
-                <TemplateCard key={t.id} t={t} variant="archived" onOpen={() => setActiveTemplate(t)} />
-              ))}
-              {groups.archived.length > 30 && (
-                <div className="col-span-full text-center text-xs text-muted-foreground py-2">
-                  +{groups.archived.length - 30} mais
-                </div>
-              )}
-            </div>
-          )}
-        </section>
+        <ArchivedSection
+          items={groups.archived}
+          showArchived={showArchived}
+          setShowArchived={setShowArchived}
+          onOpen={setActiveTemplate}
+        />
       )}
 
       {/* DETAIL DIALOG */}
