@@ -88,7 +88,7 @@ export default function Performance() {
         }
       />
 
-      {totalPubs === 0 ? (
+      {totalPubs === 0 && !loading ? (
         <Card className="p-12 text-center">
           <BarChart3 className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
           <h3 className="font-bold text-lg">Nenhuma playlist publicada ainda</h3>
@@ -98,13 +98,13 @@ export default function Performance() {
         </Card>
       ) : (
         <>
-          {/* 1. KPIs principais — o que está acontecendo */}
-          <PerformanceKpis dataset={dataset} />
+          {/* 1. KPIs principais — o que está acontecendo (com skeletons enquanto carrega) */}
+          <PerformanceKpis dataset={dataset} loading={loading && totalPubs === 0} />
 
           {/* 2. Próximas ações + última análise — o que fazer agora */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <PriorityActionsCard insight={insight} />
-            <Card className="p-5 flex items-center gap-4">
+            <Card className="p-5 flex items-center gap-4 min-h-[96px]">
               <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                 <Brain className="h-5 w-5 text-primary" />
               </div>
@@ -133,17 +133,16 @@ export default function Performance() {
               <TabsTrigger value="playlists">Playlists ({totalPubs})</TabsTrigger>
               <TabsTrigger value="insights">Padrões aprendidos</TabsTrigger>
             </TabsList>
-            <TabsContent value="playlists">
+            {/* min-h estável para evitar layout shift na troca de aba */}
+            <TabsContent value="playlists" className="min-h-[480px] animate-tab-in mt-0">
               <PlaylistsTable dataset={dataset} genres={genres} altaIds={altaIds} baixaIds={baixaIds} />
             </TabsContent>
-            <TabsContent value="insights">
+            <TabsContent value="insights" className="min-h-[480px] animate-tab-in mt-0">
               <InsightsPanel insight={insight} />
             </TabsContent>
           </Tabs>
         </>
       )}
-
-      {loading && <p className="text-xs text-muted-foreground text-center">Carregando…</p>}
     </PageContainer>
   );
 }
