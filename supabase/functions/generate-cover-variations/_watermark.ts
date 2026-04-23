@@ -72,11 +72,12 @@ async function getLogos(): Promise<{ white: Image; black: Image }> {
 }
 
 // ============================================================
-// LUMINANCE (pra escolher a cor da watermark)
+// LUMINANCE + AVG COLOR (pra escolher e tonalizar a watermark)
 // ============================================================
-function regionLuminance(img: Image, x: number, y: number, w: number, h: number): number {
-  let total = 0;
-  let count = 0;
+function regionStats(img: Image, x: number, y: number, w: number, h: number): {
+  lum: number; r: number; g: number; b: number;
+} {
+  let tr = 0, tg = 0, tb = 0, total = 0, count = 0;
   const stepX = Math.max(1, Math.floor(w / 8));
   const stepY = Math.max(1, Math.floor(h / 8));
   for (let py = y; py < y + h && py < img.height; py += stepY) {
@@ -85,11 +86,13 @@ function regionLuminance(img: Image, x: number, y: number, w: number, h: number)
       const r = (pixel >>> 24) & 0xff;
       const g = (pixel >>> 16) & 0xff;
       const b = (pixel >>> 8) & 0xff;
+      tr += r; tg += g; tb += b;
       total += 0.2126 * r + 0.7152 * g + 0.0722 * b;
       count++;
     }
   }
-  return count > 0 ? total / count : 128;
+  if (count === 0) return { lum: 128, r: 128, g: 128, b: 128 };
+  return { lum: total / count, r: tr / count, g: tg / count, b: tb / count };
 }
 
 // ============================================================
