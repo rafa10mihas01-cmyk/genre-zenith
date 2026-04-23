@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import {
   Brain, Sparkles, Loader2, ListMusic, Music2, TrendingUp, Hash,
   ExternalLink, Image as ImageIcon, Palette, Wand2, FileText, Activity,
-  ArrowRight, Search, Lightbulb, Wrench, Radio, BarChart3, Rocket,
+  ArrowRight, Search, Lightbulb, Wrench, Radio, BarChart3, Rocket, Layers,
 } from "lucide-react";
 import { useBrainModel } from "@/hooks/useBrainModel";
 import { useBriefings } from "@/hooks/useBriefings";
