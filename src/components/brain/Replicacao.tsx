@@ -247,7 +247,7 @@ function VariacoesList({
   removeTemplate: (id: string) => void;
   createOnSpotify: (id: string) => void;
 }) {
-  const { visibleItems, hasMore, canCollapse, loadMore, collapse, total, visible } = usePagination(filtered, 20, filter);
+  const { visibleItems, hasMore, canCollapse, loadMore, collapse, total, visible } = usePagination(filtered, 20, filtered);
 
   if (filtered.length === 0) {
     return (

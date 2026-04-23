@@ -200,11 +200,7 @@ export default function Criacao() {
         emptyTitle={loading ? "Carregando…" : "Nenhum template pronto"}
         emptyMsg={loading ? "" : "Quando o Cérebro gerar templates fortes, eles aparecem aqui."}
       >
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-          {groups.hot.map(t => (
-            <TemplateCard key={t.id} t={t} variant="hot" onOpen={() => setActiveTemplate(t)} />
-          ))}
-        </div>
+        <PagedTemplateGrid items={groups.hot} variant="hot" itemLabel="templates prontos" onOpen={setActiveTemplate} />
       </Section>
 
       {/* MEDIUM */}
@@ -217,11 +213,7 @@ export default function Criacao() {
         emptyTitle={loading ? "" : "Sem médios pendentes"}
         emptyMsg=""
       >
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-          {groups.medium.map(t => (
-            <TemplateCard key={t.id} t={t} variant="medium" onOpen={() => setActiveTemplate(t)} />
-          ))}
-        </div>
+        <PagedTemplateGrid items={groups.medium} variant="medium" itemLabel="templates médios" onOpen={setActiveTemplate} />
       </Section>
 
       {/* PUBLISHED (info, sem ação principal) */}
@@ -735,18 +727,34 @@ function TemplateDetailDialog({
 
 /* ───────────────── Grids paginados ───────────────── */
 
-function PublishedGrid({ items, onOpen }: { items: Template[]; onOpen: (t: Template) => void }) {
-  const { visibleItems, hasMore, loadMore, total, visible } = usePagination(items, 20);
+function PagedTemplateGrid({
+  items,
+  onOpen,
+  variant,
+  itemLabel,
+  resetKey,
+}: {
+  items: Template[];
+  onOpen: (t: Template) => void;
+  variant: CardVariant;
+  itemLabel: string;
+  resetKey?: unknown;
+}) {
+  const { visibleItems, hasMore, canCollapse, loadMore, collapse, total, visible } = usePagination(items, 20, resetKey ?? items);
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
         {visibleItems.map(t => (
-          <TemplateCard key={t.id} t={t} variant="published" onOpen={() => onOpen(t)} />
+          <TemplateCard key={t.id} t={t} variant={variant} onOpen={() => onOpen(t)} />
         ))}
       </div>
-      <LoadMore visible={visible} total={total} hasMore={hasMore} onLoadMore={loadMore} itemLabel="publicadas" />
+      <LoadMore visible={visible} total={total} hasMore={hasMore} canCollapse={canCollapse} onLoadMore={loadMore} onCollapse={collapse} itemLabel={itemLabel} />
     </div>
   );
+}
+
+function PublishedGrid({ items, onOpen }: { items: Template[]; onOpen: (t: Template) => void }) {
+  return <PagedTemplateGrid items={items} variant="published" itemLabel="publicadas" onOpen={onOpen} />;
 }
 
 function ArchivedSection({
@@ -757,7 +765,7 @@ function ArchivedSection({
   setShowArchived: (v: boolean | ((prev: boolean) => boolean)) => void;
   onOpen: (t: Template) => void;
 }) {
-  const { visibleItems, hasMore, loadMore, total, visible } = usePagination(items, 20);
+  const { visibleItems, hasMore, canCollapse, loadMore, collapse, total, visible } = usePagination(items, 20, showArchived ? "open" : "closed");
   return (
     <section className="nx-card !p-0 overflow-hidden">
       <button
@@ -780,7 +788,7 @@ function ArchivedSection({
               <TemplateCard key={t.id} t={t} variant="archived" onOpen={() => onOpen(t)} />
             ))}
           </div>
-          <LoadMore visible={visible} total={total} hasMore={hasMore} onLoadMore={loadMore} itemLabel="arquivados" />
+          <LoadMore visible={visible} total={total} hasMore={hasMore} canCollapse={canCollapse} onLoadMore={loadMore} onCollapse={collapse} itemLabel="arquivados" />
         </div>
       )}
     </section>
