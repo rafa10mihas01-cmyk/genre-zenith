@@ -193,8 +193,8 @@ export function ReplicacaoAuto({ genreId }: { genreId?: string }) {
           </div>
           <div className="ml-auto flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={runDryRun} disabled={previewing || !genreId}>
-              {previewing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />}
-              Pré-visualizar
+              {previewing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : plan ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+              {plan ? "Ocultar prévia" : "Pré-visualizar"}
             </Button>
             <Button size="sm" onClick={runReplicate} disabled={running || activeAccs.length === 0 || !genreId} className="nx-pill">
               {running ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Rocket className="h-3.5 w-3.5" />}
