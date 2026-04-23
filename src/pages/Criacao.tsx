@@ -62,6 +62,7 @@ export default function Criacao() {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [scoring, setScoring] = useState(false);
+  const [expiring, setExpiring] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [activeTemplate, setActiveTemplate] = useState<Template | null>(null);
 
@@ -88,7 +89,29 @@ export default function Criacao() {
       return;
     }
     const b = (data as any).breakdown;
-    toast({ title: `Ranqueamento concluído`, description: `🔥 ${b.hot} • ⚠️ ${b.medium} • ❌ ${b.weak}` });
+    const cap = (data as any).cap;
+    toast({
+      title: `Ranqueamento concluído`,
+      description: `🔥 ${b.hot} (cap ${Math.round((cap?.pct ?? 0.3) * 100)}% = max ${cap?.max_allowed ?? "?"}) • ⚠️ ${b.medium} • ❌ ${b.weak}`,
+    });
+    await load();
+  }
+
+  async function expireStale() {
+    setExpiring(true);
+    const { data, error } = await supabase.functions.invoke("expire-stale-templates", {
+      body: { hours: 72 },
+    });
+    setExpiring(false);
+    if (error || !(data as any)?.ok) {
+      toast({ title: "Falha ao expirar", description: error?.message || (data as any)?.error || "Erro", variant: "destructive" });
+      return;
+    }
+    const n = (data as any).expired ?? 0;
+    toast({
+      title: n > 0 ? `${n} médios expirados` : "Nada pra expirar",
+      description: n > 0 ? "Templates ⚠️ parados há 72h foram arquivados." : "Nenhum template medium ultrapassou 72h.",
+    });
     await load();
   }
 
