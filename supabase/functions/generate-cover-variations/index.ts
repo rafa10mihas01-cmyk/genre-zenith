@@ -18,6 +18,7 @@
 // → { ok, variations: [{ index, url, palette, style }] }
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { applyWatermark } from "./_watermark.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -837,12 +838,17 @@ Deno.serve(async (req) => {
       continue;
     }
     try {
-      const { bytes, contentType } = dataUrlToBytes(r.value);
-      const ext = contentType.split("/")[1].replace("+xml", "");
+      const { bytes: rawBytes } = dataUrlToBytes(r.value);
+      // Aplica watermark NexEngine (logo monocromático adaptativo) antes do upload.
+      // Falha-segura: se algo der errado, devolve a capa original sem watermark.
+      const wm = await applyWatermark(rawBytes);
+      const finalBytes = wm.bytes;
+      const finalType = wm.contentType;
+      const ext = finalType.split("/")[1].replace("+xml", "");
       const path = `${tpl.id}/${ts}-${i}.${ext}`;
       const { error: upErr } = await supabase.storage
         .from("playlist-covers")
-        .upload(path, bytes, { contentType, upsert: true });
+        .upload(path, finalBytes, { contentType: finalType, upsert: true });
       if (upErr) { console.error("upload err:", upErr); continue; }
       const { data: pub } = supabase.storage.from("playlist-covers").getPublicUrl(path);
       variations.push({
