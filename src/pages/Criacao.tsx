@@ -275,7 +275,7 @@ export default function Criacao() {
       />
 
       {/* KPIs */}
-      <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      <section className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <KpiBig icon={ListChecks}  label="Na fila"         value={kpi.naFila}        hint="Aguardando edição" />
         <KpiBig icon={ImageIcon}   label="Sem capa"        value={kpi.semCapa}       tone="warning"     hint="Faltam capas" />
         <KpiBig icon={Check}       label="Com capa"        value={kpi.comCapa}       tone="primary"     hint="Prontas pra publicar" />

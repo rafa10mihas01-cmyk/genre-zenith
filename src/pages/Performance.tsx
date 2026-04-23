@@ -113,7 +113,7 @@ export default function Performance() {
       />
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiBig label="Playlists publicadas"       value={totalPubs} icon={Activity} />
         <KpiBig label="Seguidores ganhos (total)"  value={totalGrowth.toLocaleString("pt-BR")} icon={TrendingUp} tone="success" />
         <KpiBig label="Crescimento médio (%)"      value={`${avgPct.toFixed(1)}%`} icon={Sparkles} tone="primary" />
