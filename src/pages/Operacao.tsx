@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Activity, Pause, Pencil, RefreshCw, ArrowDownRight, ArrowUpRight,
-  Music2, FlaskConical, History, ListMusic, Plus, Search, Users, ExternalLink,
+  Music2, FlaskConical, History, ListMusic, Search, Users, ExternalLink,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -387,24 +387,33 @@ function StatusPill({ status }: { status: OpStatus }) {
   );
 }
 
-function PlaylistRow({ p }: { p: any }) {
+function PlaylistRow({ p }: { p: OpPlaylist }) {
   return (
     <div className="grid grid-cols-12 gap-3 px-4 py-3 items-center border-b border-border last:border-0 hover:bg-elevated/40 transition-colors">
       <div className="col-span-4 flex items-center gap-3 min-w-0">
-        <div className="h-10 w-10 rounded-md bg-elevated border border-border shrink-0" />
+        <div className="h-10 w-10 rounded-md bg-elevated border border-border shrink-0 flex items-center justify-center">
+          <Music2 className="h-4 w-4 text-muted-foreground" />
+        </div>
         <div className="min-w-0">
           <div className="text-sm font-medium truncate">{p.nome}</div>
-          <div className="text-[11px] text-muted-foreground truncate">{p.genero}</div>
+          <div className="text-[11px] text-muted-foreground truncate capitalize">
+            {p.genero}{p.created_on_spotify_at && ` · publicada ${timeAgo(p.created_on_spotify_at)}`}
+          </div>
         </div>
       </div>
       <div className="col-span-2"><StatusPill status={p.status} /></div>
-      <div className="col-span-2 text-right text-sm tabular-nums">{p.seguidores ?? "—"}</div>
+      <div className="col-span-2 text-right text-sm tabular-nums">{formatNumber(p.seguidores)}</div>
       <div className="col-span-1 text-right text-sm tabular-nums">{p.faixas ?? "—"}</div>
       <div className="col-span-1 text-right text-sm tabular-nums">{p.trocas7d ?? 0}</div>
       <div className="col-span-2 flex items-center justify-end gap-1">
-        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></Button>
-        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground"><RefreshCw className="h-3.5 w-3.5" /></Button>
-        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground"><Pause className="h-3.5 w-3.5" /></Button>
+        {p.spotify_url && (
+          <a href={p.spotify_url} target="_blank" rel="noreferrer" className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:text-primary" title="Abrir no Spotify">
+            <ExternalLink className="h-3.5 w-3.5" />
+          </a>
+        )}
+        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" title="Editar"><Pencil className="h-3.5 w-3.5" /></Button>
+        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" title="Trocar faixas"><RefreshCw className="h-3.5 w-3.5" /></Button>
+        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" title="Pausar"><Pause className="h-3.5 w-3.5" /></Button>
       </div>
     </div>
   );
