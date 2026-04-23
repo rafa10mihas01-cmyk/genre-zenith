@@ -409,7 +409,7 @@ function DecisionCard({ c, loading }: { c: Cockpit | null; loading: boolean }) {
   const hasWork = hot + med > 0;
 
   return (
-    <Link to="/criacao?tier=hot" className="nx-card-hover p-5 flex flex-col gap-4 group">
+    <Link to="/criacao?tier=hot" className="nx-card-hover p-5 flex flex-col gap-4 group h-full">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Target className="h-4 w-4 text-muted-foreground" />
@@ -464,7 +464,7 @@ function DecisionCard({ c, loading }: { c: Cockpit | null; loading: boolean }) {
 
 function PerformanceCard({ c, loading }: { c: Cockpit | null; loading: boolean }) {
   return (
-    <Link to="/performance" className="nx-card-hover p-5 flex flex-col gap-4 group">
+    <Link to="/performance" className="nx-card-hover p-5 flex flex-col gap-4 group h-full">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Trophy className="h-4 w-4 text-muted-foreground" />
