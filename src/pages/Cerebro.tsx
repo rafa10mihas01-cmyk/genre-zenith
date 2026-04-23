@@ -7,7 +7,9 @@ import {
   Brain, Sparkles, Loader2, ListMusic, Music2, TrendingUp, Hash,
   ExternalLink, Image as ImageIcon, Palette, Wand2, FileText, Activity,
   ArrowRight, Search, Lightbulb, Wrench, Radio, BarChart3, Rocket, Layers,
+  X, CheckCircle2, AlertTriangle, Quote, Users,
 } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { useBrainModel } from "@/hooks/useBrainModel";
 import { useBriefings } from "@/hooks/useBriefings";
 import { formatNumber, timeAgo, formatDate } from "@/lib/format";
