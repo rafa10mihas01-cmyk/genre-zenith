@@ -13,6 +13,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/PageHeader";
+import { PageContainer } from "@/components/PageContainer";
 import { KpiBig } from "@/components/KpiBig";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -255,7 +256,7 @@ export default function Criacao() {
   }
 
   return (
-    <div className="space-y-6 max-w-[1600px] mx-auto">
+    <PageContainer>
       <PageHeader
         kicker="Módulo de Criação"
         icon={Sparkles}

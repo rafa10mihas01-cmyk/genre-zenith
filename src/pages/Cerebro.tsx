@@ -16,6 +16,7 @@ import { formatNumber, timeAgo, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/PageHeader";
+import { PageContainer } from "@/components/PageContainer";
 import { Replicacao } from "@/components/brain/Replicacao";
 import { ReplicacaoAuto } from "@/components/brain/ReplicacaoAuto";
 import { KpiBig } from "@/components/KpiBig";
@@ -95,7 +96,7 @@ export default function Cerebro() {
   }
 
   return (
-    <div className="space-y-6 max-w-[1600px] mx-auto">
+    <PageContainer>
       <PageHeader
         kicker="Módulo de Inteligência"
         icon={Brain}
@@ -191,7 +192,7 @@ export default function Cerebro() {
           </div>
         </TabsContent>
       </Tabs>
-    </div>
+    </PageContainer>
   );
 }
 

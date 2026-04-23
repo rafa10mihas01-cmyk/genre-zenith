@@ -17,7 +17,7 @@ export default function ModulePlaceholder({
   phase?: string;
 }) {
   return (
-    <div className="space-y-6 max-w-[1600px] mx-auto">
+    <div className="w-full space-y-6">
       <PageHeader
         kicker="Módulo"
         icon={Icon}

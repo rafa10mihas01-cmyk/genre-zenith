@@ -92,7 +92,7 @@ export default function Performance() {
   const baixaIds = new Set(insight?.classificacao?.baixa ?? []);
 
   return (
-    <div className="space-y-6 max-w-[1600px] mx-auto">
+    <PageContainer>
       <PageHeader
         kicker="Módulo"
         icon={BarChart3}
