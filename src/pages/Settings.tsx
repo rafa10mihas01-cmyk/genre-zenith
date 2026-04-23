@@ -360,12 +360,12 @@ export default function Settings() {
       </section>
 
       {/* Spotify Web API */}
-      <section className="nx-card p-5 mt-4">
+      <section className="nx-card p-4 mt-3">
         <div className="flex items-center gap-2">
-          <Music2 className="h-5 w-5 text-accent" />
-          <h2 className="font-semibold">Spotify Web API</h2>
+          <Music2 className="h-4 w-4 text-accent shrink-0" />
+          <h2 className="text-sm font-bold">Spotify Web API</h2>
         </div>
-        <p className="text-sm text-muted-foreground mt-1">
+        <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
           Usado para buscar contagem real de seguidores das playlists. Crie um app gratuito em{" "}
           <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noreferrer"
              className="text-accent underline-offset-2 hover:underline">
@@ -373,12 +373,12 @@ export default function Settings() {
           </a>
           . Copie o Client ID e Client Secret e configure como secrets do projeto.
         </p>
-        <div className="flex items-center gap-2 mt-4 flex-wrap">
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-success/15 text-success border border-success/30 text-xs">
-            <KeyRound className="h-3.5 w-3.5" /> SPOTIFY_CLIENT_ID + SECRET configurados
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-3">
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-success/15 text-success border border-success/30 text-[11px] font-medium w-fit">
+            <KeyRound className="h-3 w-3" /> SPOTIFY_CLIENT_ID + SECRET configurados
           </div>
-          <Button size="sm" variant="outline" onClick={testSpotify} disabled={spotifyTesting}>
-            {spotifyTesting ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+          <Button size="sm" variant="outline" onClick={testSpotify} disabled={spotifyTesting} className="h-8 text-xs w-full sm:w-auto">
+            {spotifyTesting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
             Testar conexão
           </Button>
         </div>
