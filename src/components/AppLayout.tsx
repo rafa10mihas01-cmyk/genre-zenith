@@ -9,6 +9,7 @@ import { timeAgo } from "@/lib/format";
 import { useNavigate } from "react-router-dom";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { NexEngineLogo } from "@/components/NexEngineLogo";
+import { SidebarContextProvider } from "@/contexts/SidebarContext";
 
 /**
  * Layout global do sistema. Toda página renderizada DEVE estar dentro dele.
@@ -39,6 +40,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
   return (
     <SidebarProvider>
+      <SidebarContextProvider>
       <div className="min-h-screen flex w-full bg-background">
         <AppSidebar />
         <div className="flex-1 flex flex-col min-w-0 shadow-[-1px_0_0_rgba(255,255,255,0.04)]">
@@ -115,6 +117,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           </main>
         </div>
       </div>
+      </SidebarContextProvider>
     </SidebarProvider>
   );
 }
