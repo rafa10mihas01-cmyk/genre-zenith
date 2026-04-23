@@ -64,6 +64,85 @@ function jr(p: unknown, status = 200) {
 }
 
 // ============================================================
+// SANITIZAÇÃO DE TÍTULO (editorial — máx 3-4 palavras fortes)
+// ============================================================
+// Remove emojis, símbolos decorativos, ano de cauda inútil, palavras descritivas
+// fracas e mantém SOMENTE as 3-4 palavras de maior impacto. Resultado em CAIXA ALTA.
+//
+// Exemplos:
+//   "MODÃO SERTANEJO RAIZ 2024 - SÓ AS MELHORES 🎉" → "MODÃO RAIZ 2024" / "SERTANEJO RAIZ"
+//   "playlist oficial do sertanejo atualizada"      → "SERTANEJO"
+//   "TOP HITS BRASIL 2025 PRA ESCUTAR AGORA"        → "TOP HITS BRASIL"
+const TITLE_FILLER = new Set([
+  // artigos / conectivos
+  "DE", "DO", "DA", "DOS", "DAS", "E", "A", "O", "OS", "AS", "PARA", "PRA",
+  "EM", "COM", "POR", "QUE", "UM", "UMA", "NO", "NA", "NOS", "NAS", "AO", "AOS",
+  // descritivos fracos
+  "PLAYLIST", "OFICIAL", "ATUALIZADA", "ATUALIZADO", "SELEÇÃO", "SELECAO",
+  "COLETÂNEA", "COLETANEA", "COLEÇÃO", "COLECAO", "MIX",
+  // ruído promocional
+  "SÓ", "SO", "AGORA", "ESCUTAR", "OUVIR", "TOCAR", "CURTIR",
+  "MELHORES", "MELHOR", "TODAS", "TODOS", "MAIS",
+  // inglês comum
+  "THE", "OF", "FOR", "TO", "AND", "PLAYLIST", "OFFICIAL",
+]);
+// palavras que sempre valem como "fortes" (não devem cair no filtro de tamanho)
+const TITLE_STRONG = new Set([
+  "TOP", "HITS", "VIRAL", "BR", "BRASIL", "RAIZ", "MODÃO", "MODAO",
+  "SERTANEJO", "FUNK", "PAGODE", "ROCK", "POP", "RAP", "TRAP", "MPB",
+  "CLÁSSICOS", "CLASSICOS", "NOSTALGIA", "ROMÂNTICAS", "ROMANTICAS",
+  "FESTA", "BALADA", "VERÃO", "VERAO", "NOW", "FRESH", "MEGA",
+]);
+
+function sanitizePlaylistTitle(name: string | null | undefined): string {
+  const raw = (name ?? "").toString();
+  if (!raw.trim()) return "PLAYLIST";
+
+  // 1. remove emojis e símbolos decorativos, mantém letras/números/espaço
+  const cleaned = raw
+    .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{1F000}-\u{1F2FF}]/gu, " ")
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toUpperCase();
+
+  if (!cleaned) return "PLAYLIST";
+
+  // 2. tokeniza
+  const tokens = cleaned.split(" ").filter(Boolean);
+  if (tokens.length === 0) return "PLAYLIST";
+
+  // 3. filtra fillers + curtos fracos, preserva fortes e números
+  const isYearOrNumber = (t: string) => /^\d{2,4}$/.test(t);
+  const strong = tokens.filter((t) => {
+    if (TITLE_FILLER.has(t)) return false;
+    if (TITLE_STRONG.has(t)) return true;
+    if (isYearOrNumber(t)) return true;
+    return t.length >= 3; // descarta "SÓ", "É", etc não listados
+  });
+
+  const final = strong.length > 0 ? strong : tokens;
+
+  // 4. máximo 4 palavras (preferimos 3); cortar do fim
+  // se sobrou número (ano) e temos >3 palavras, mantemos o ano por último
+  let limited: string[];
+  if (final.length <= 3) {
+    limited = final;
+  } else {
+    const yearIdx = final.findIndex(isYearOrNumber);
+    if (yearIdx >= 0 && yearIdx >= 3) {
+      // mantém 2 primeiras palavras + ano
+      limited = [final[0], final[1], final[yearIdx]];
+    } else {
+      limited = final.slice(0, 3);
+    }
+  }
+
+  const result = limited.join(" ").trim();
+  return result.length > 0 ? result : "PLAYLIST";
+}
+
+// ============================================================
 // SUBTEXTO TEMÁTICO (mantido — usado pelo Clean / Dynamic)
 // ============================================================
 function extractSubtext(brief: string | null | undefined): string | null {
