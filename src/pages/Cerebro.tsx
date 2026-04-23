@@ -387,10 +387,77 @@ function GenrePipeline({ genre, model }: { genre: any; model: any }) {
   );
 }
 
+/* ===================== HELPERS DE LOGS (Coleta) ===================== */
+
+/** Mapeia o nome técnico da função para um título humano + ícone + descrição curta. */
+const ACTION_META: Record<
+  string,
+  { title: string; desc: string; icon: any }
+> = {
+  "analyze-genre":          { title: "Análise de gênero",        desc: "Modelo aprendeu padrões da base",   icon: Lightbulb },
+  "analyze-visual-dna":     { title: "Análise visual",           desc: "Identificou estilo das capas",      icon: Palette },
+  "analyze-genre-visual-dna":{ title: "Análise visual",          desc: "Identificou estilo das capas",      icon: Palette },
+  "genre-insights":         { title: "Resumo da IA",             desc: "Tendências e oportunidades",        icon: Wand2 },
+  "create-spotify-playlist":{ title: "Playlist publicada",       desc: "Nova playlist enviada ao Spotify",  icon: Rocket },
+  "generate-templates":     { title: "Templates gerados",        desc: "Variações criadas a partir do blueprint", icon: FileText },
+  "extract-blueprints":     { title: "Blueprints extraídos",     desc: "Padrões fortes consolidados",       icon: Sparkles },
+  "extract-replication-rules":{ title: "Regras aprendidas",      desc: "Aprendizados do que dá resultado",  icon: Sparkles },
+  "replicate-top":          { title: "Replicação top",           desc: "Pacote das melhores playlists",     icon: Radio },
+  "auto-replicate-playlists":{ title: "Replicação automática",   desc: "Sistema replicou sozinho",          icon: Radio },
+  "auto-adjust-playlists":  { title: "Ajuste automático",        desc: "Sistema corrigiu playlists",        icon: Wrench },
+  "enrich-playlists":       { title: "Enriquecimento",           desc: "Buscou seguidores e faixas",        icon: TrendingUp },
+  "fetch-tracks-spotify":   { title: "Coleta de faixas",         desc: "Faixas das playlists baixadas",     icon: Music2 },
+  "collect-batch":          { title: "Coleta em lote",           desc: "Lote de playlists coletado",        icon: Search },
+  "daily-collect":          { title: "Coleta diária",            desc: "Rotina diária de descoberta",       icon: Search },
+  "run-search":             { title: "Busca por termo",          desc: "Termo executado no Spotify",        icon: Search },
+  "fetch-spotify-featured": { title: "Destaques Spotify",        desc: "Playlists em destaque coletadas",   icon: Search },
+  "score-templates":        { title: "Score de templates",       desc: "Recalculou pontuação",              icon: TrendingUp },
+  "track-playlist-metrics": { title: "Métricas das playlists",   desc: "Snapshot de seguidores",            icon: TrendingUp },
+  "audit-brain":            { title: "Auditoria do sistema",     desc: "Verificação de saúde",              icon: Activity },
+  "cleanup-brain":          { title: "Limpeza do sistema",       desc: "Removeu dados obsoletos",           icon: Activity },
+  "learning-loop":          { title: "Ciclo de aprendizado",     desc: "Iteração completa do sistema",      icon: Brain },
+  "generate-cover-variations":{ title: "Variações de capa",      desc: "Gerou opções de capa",              icon: ImageIcon },
+  "upload-playlist-cover":  { title: "Capa enviada",             desc: "Capa aplicada na playlist",         icon: ImageIcon },
+  "generate-playlists-briefing":{ title: "Briefing de criação",  desc: "Briefing pronto p/ produzir",       icon: FileText },
+  "seed-editorial-terms":   { title: "Termos editoriais",        desc: "Sementes de busca semeadas",        icon: Hash },
+  "generate-terms":         { title: "Geração de termos",        desc: "Novos termos sugeridos pela IA",    icon: Hash },
+  "expire-stale-templates": { title: "Expiração de templates",   desc: "Templates velhos arquivados",       icon: Activity },
+  "revalidate-dataset":     { title: "Revalidação",              desc: "Base reconferida",                  icon: Activity },
+  "spotify-auth":           { title: "Conexão Spotify",          desc: "Token renovado",                    icon: Activity },
+};
+
+function actionMeta(acao: string) {
+  return ACTION_META[acao] ?? {
+    title: acao.replace(/[-_]/g, " ").replace(/\b\w/g, c => c.toUpperCase()),
+    desc: "—",
+    icon: Activity,
+  };
+}
+
+/** Limpa a mensagem técnica: corta JSON, remove `[global]`, encurta duração. */
+function cleanLogMessage(msg: string | null): string {
+  if (!msg) return "";
+  let out = String(msg);
+  // Remove prefixos tipo "[global] " ou "[piseiro] "
+  out = out.replace(/^\[[^\]]+\]\s*/, "");
+  // Se tem JSON gigante no meio, corta antes do primeiro "{"
+  const firstBrace = out.indexOf("{");
+  if (firstBrace > 0 && out.length - firstBrace > 80) {
+    out = out.slice(0, firstBrace).trim().replace(/[|·•]\s*$/, "").trim();
+  }
+  // Limita tamanho
+  if (out.length > 180) out = out.slice(0, 177).trim() + "…";
+  return out;
+}
+
+function statusLabel(status: string) {
+  if (status === "sucesso") return { label: "OK", cls: "bg-primary/15 text-primary" };
+  if (status === "erro")    return { label: "Erro", cls: "bg-destructive/15 text-destructive" };
+  return { label: "Aviso", cls: "bg-warning/15 text-warning" };
+}
+
 /* ===================== ABAS ===================== */
 
-
-/* ===================== ABAS ===================== */
 
 function VisaoGeral({ model, loading, genre }: any) {
   if (loading) return <SkeletonGrid />;
