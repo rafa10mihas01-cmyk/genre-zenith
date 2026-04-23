@@ -8,6 +8,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import AdminRoute from "@/components/AdminRoute";
 import AppLayout from "@/components/AppLayout";
 import ScrollManager from "@/components/ScrollManager";
+import { LoadingProvider } from "@/contexts/LoadingContext";
 import Login from "./pages/Login";
 import Home from "./pages/Home";
 import Cerebro from "./pages/Cerebro";
@@ -32,21 +33,23 @@ const App = () => (
       <Sonner theme="dark" position="top-right" />
       <BrowserRouter>
         <ScrollManager />
-        <AuthProvider>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            {/* 5 módulos do sistema. Toda página dentro de <Protected> herda o layout global. */}
-            <Route path="/" element={<Protected><Home /></Protected>} />
-            <Route path="/cerebro" element={<Protected><Cerebro /></Protected>} />
-            <Route path="/cerebro/:slug" element={<Protected><Cerebro /></Protected>} />
-            <Route path="/criacao" element={<Protected><Criacao /></Protected>} />
-            <Route path="/operacao" element={<Protected><Operacao /></Protected>} />
-            <Route path="/performance" element={<Protected><Performance /></Protected>} />
-            <Route path="/settings" element={<Protected><AdminRoute><Settings /></AdminRoute></Protected>} />
-            <Route path="/configuracoes" element={<Protected><AdminRoute><Settings /></AdminRoute></Protected>} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </AuthProvider>
+        <LoadingProvider>
+          <AuthProvider>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              {/* 5 módulos do sistema. Toda página dentro de <Protected> herda o layout global. */}
+              <Route path="/" element={<Protected><Home /></Protected>} />
+              <Route path="/cerebro" element={<Protected><Cerebro /></Protected>} />
+              <Route path="/cerebro/:slug" element={<Protected><Cerebro /></Protected>} />
+              <Route path="/criacao" element={<Protected><Criacao /></Protected>} />
+              <Route path="/operacao" element={<Protected><Operacao /></Protected>} />
+              <Route path="/performance" element={<Protected><Performance /></Protected>} />
+              <Route path="/settings" element={<Protected><AdminRoute><Settings /></AdminRoute></Protected>} />
+              <Route path="/configuracoes" element={<Protected><AdminRoute><Settings /></AdminRoute></Protected>} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </AuthProvider>
+        </LoadingProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
