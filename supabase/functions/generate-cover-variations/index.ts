@@ -533,7 +533,7 @@ function buildViralHitsPrompt(template: any, palette: typeof PALETTES[number], i
 function buildDynamicPrompt(template: any, palette: typeof PALETTES[number], index = 0): string {
   const sanitized = sanitizePlaylistTitle(template.name);
   const { dominant, secondary } = pickDominantWord(sanitized);
-  const subtext = extractSubtext(template.cover_brief);
+  const subtext = extractSubtext(template.cover_brief, template.name);
 
   // Decide the secondary line: palavra secundária da tipografia OU subtitle do brief
   const secondLine = secondary || subtext;
