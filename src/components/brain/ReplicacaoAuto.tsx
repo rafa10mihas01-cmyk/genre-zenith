@@ -252,7 +252,7 @@ export function ReplicacaoAuto({ genreId }: { genreId?: string }) {
 export function ReplicacaoHistorico({ genreId }: { genreId?: string }) {
   const [reps, setReps] = useState<Replication[]>([]);
   const [loading, setLoading] = useState(true);
-  const { visibleItems, hasMore, loadMore, total, visible } = usePagination(reps, 20);
+  const { visibleItems, hasMore, canCollapse, loadMore, collapse, total, visible } = usePagination(reps, 20, genreId);
 
   const load = async () => {
     if (!genreId) return;
@@ -311,7 +311,7 @@ export function ReplicacaoHistorico({ genreId }: { genreId?: string }) {
         </div>
         {visibleItems.map(r => <ReplicationRow key={r.id} r={r} />)}
       </div>
-      <LoadMore visible={visible} total={total} hasMore={hasMore} onLoadMore={loadMore} itemLabel="replicações" />
+      <LoadMore visible={visible} total={total} hasMore={hasMore} canCollapse={canCollapse} onLoadMore={loadMore} onCollapse={collapse} itemLabel="replicações" />
     </div>
   );
 }

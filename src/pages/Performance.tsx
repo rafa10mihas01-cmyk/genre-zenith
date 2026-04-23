@@ -257,7 +257,7 @@ function PlaylistsTable({
   const sorted = dataset
     .slice()
     .sort((a, b) => (b.crescimento_percentual ?? -1) - (a.crescimento_percentual ?? -1));
-  const { visibleItems, hasMore, loadMore, total, visible } = usePagination(sorted, 20);
+  const { visibleItems, hasMore, canCollapse, loadMore, collapse, total, visible } = usePagination(sorted, 20, dataset.length);
 
   return (
     <div className="space-y-3">
@@ -311,7 +311,7 @@ function PlaylistsTable({
           </table>
         </div>
       </Card>
-      <LoadMore visible={visible} total={total} hasMore={hasMore} onLoadMore={loadMore} itemLabel="playlists" />
+      <LoadMore visible={visible} total={total} hasMore={hasMore} canCollapse={canCollapse} onLoadMore={loadMore} onCollapse={collapse} itemLabel="playlists" />
     </div>
   );
 }

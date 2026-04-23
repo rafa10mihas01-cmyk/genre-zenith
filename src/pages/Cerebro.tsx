@@ -1175,8 +1175,8 @@ function Base({ model, loading }: any) {
   const playlists = model.playlists_dominantes ?? [];
   const tracks = model.musicas_recorrentes ?? [];
 
-  const pl = usePagination<any>(playlists, 20);
-  const tr = usePagination<any>(tracks, 20);
+  const pl = usePagination<any>(playlists, 20, model?.updated_at ?? model?.ultima_analise ?? playlists.length);
+  const tr = usePagination<any>(tracks, 20, model?.updated_at ?? model?.ultima_analise ?? tracks.length);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -1193,7 +1193,7 @@ function Base({ model, loading }: any) {
               </a>
             ))}
         </div>
-        <LoadMore visible={pl.visible} total={pl.total} hasMore={pl.hasMore} onLoadMore={pl.loadMore} itemLabel="playlists" />
+        <LoadMore visible={pl.visible} total={pl.total} hasMore={pl.hasMore} canCollapse={pl.canCollapse} onLoadMore={pl.loadMore} onCollapse={pl.collapse} itemLabel="playlists" />
       </div>
       <div className="nx-card p-5">
         <h3 className="font-bold mb-3">Faixas recorrentes ({tracks.length})</h3>
@@ -1210,7 +1210,7 @@ function Base({ model, loading }: any) {
               </div>
             ))}
         </div>
-        <LoadMore visible={tr.visible} total={tr.total} hasMore={tr.hasMore} onLoadMore={tr.loadMore} itemLabel="faixas" />
+        <LoadMore visible={tr.visible} total={tr.total} hasMore={tr.hasMore} canCollapse={tr.canCollapse} onLoadMore={tr.loadMore} onCollapse={tr.collapse} itemLabel="faixas" />
       </div>
     </div>
   );
