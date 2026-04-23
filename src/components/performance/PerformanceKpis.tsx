@@ -2,7 +2,13 @@ import { Activity, TrendingUp, Gauge, Sparkles } from "lucide-react";
 import { KpiBig } from "@/components/KpiBig";
 import type { DatasetRow } from "./types";
 
-export function PerformanceKpis({ dataset }: { dataset: DatasetRow[] }) {
+export function PerformanceKpis({
+  dataset,
+  loading = false,
+}: {
+  dataset: DatasetRow[];
+  loading?: boolean;
+}) {
   const total = dataset.length;
   const totalGrowth = dataset.reduce((s, r) => s + (r.crescimento_absoluto || 0), 0);
 
@@ -23,6 +29,7 @@ export function PerformanceKpis({ dataset }: { dataset: DatasetRow[] }) {
         value={total}
         icon={Activity}
         hint={total > 0 ? `${growing} crescendo` : "Nenhuma publicada ainda"}
+        loading={loading}
       />
       <KpiBig
         label="Seguidores ganhos"
@@ -30,6 +37,7 @@ export function PerformanceKpis({ dataset }: { dataset: DatasetRow[] }) {
         icon={TrendingUp}
         tone={totalGrowth > 0 ? "success" : "default"}
         hint="Soma de todas as playlists"
+        loading={loading}
       />
       <KpiBig
         label="Velocidade média"
@@ -37,6 +45,7 @@ export function PerformanceKpis({ dataset }: { dataset: DatasetRow[] }) {
         icon={Gauge}
         tone="primary"
         hint="Seguidores por dia (média)"
+        loading={loading}
       />
       <KpiBig
         label="Taxa de sucesso"
@@ -44,6 +53,7 @@ export function PerformanceKpis({ dataset }: { dataset: DatasetRow[] }) {
         icon={Sparkles}
         tone={growthRate >= 60 ? "success" : growthRate >= 30 ? "warning" : "destructive"}
         hint="Playlists com crescimento positivo"
+        loading={loading}
       />
     </div>
   );
