@@ -569,6 +569,10 @@ export type Database = {
           approved_by: string | null
           blueprint_id: string
           cover_brief: string | null
+          cover_generated_at: string | null
+          cover_image_url: string | null
+          cover_selected_index: number | null
+          cover_variations: Json | null
           created_at: string
           created_on_spotify_at: string | null
           creation_error: string | null
@@ -600,6 +604,10 @@ export type Database = {
           approved_by?: string | null
           blueprint_id: string
           cover_brief?: string | null
+          cover_generated_at?: string | null
+          cover_image_url?: string | null
+          cover_selected_index?: number | null
+          cover_variations?: Json | null
           created_at?: string
           created_on_spotify_at?: string | null
           creation_error?: string | null
@@ -631,6 +639,10 @@ export type Database = {
           approved_by?: string | null
           blueprint_id?: string
           cover_brief?: string | null
+          cover_generated_at?: string | null
+          cover_image_url?: string | null
+          cover_selected_index?: number | null
+          cover_variations?: Json | null
           created_at?: string
           created_on_spotify_at?: string | null
           creation_error?: string | null
