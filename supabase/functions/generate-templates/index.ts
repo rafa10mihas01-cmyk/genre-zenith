@@ -220,6 +220,43 @@ Deno.serve(async (req) => {
     }
   }
 
+  // 🎯 Fallback: faixas sem ID após lookup → busca no Spotify (1 req/faixa única).
+  // Garante 100% coverage e evita "remix errado" no momento da publicação.
+  const missing = new Set<string>();
+  for (const t of list) {
+    const seeds = Array.isArray(t.track_seeds) ? t.track_seeds : [];
+    for (const s of seeds) {
+      const nome = String(s?.nome ?? "").trim();
+      const artista = String(s?.artista ?? "").trim();
+      if (!nome || !artista) continue;
+      const k = `${nome.toLowerCase()}|${artista.toLowerCase()}`;
+      if (!seedIdMap.has(k)) missing.add(k);
+    }
+  }
+  if (missing.size > 0) {
+    try {
+      const { getSpotifyToken } = await import("../_shared/spotify.ts");
+      const spToken = await getSpotifyToken();
+      const items = Array.from(missing).slice(0, 200); // hard cap
+      for (const k of items) {
+        const [nome, artista] = k.split("|");
+        try {
+          const q = `track:${nome} artist:${artista}`;
+          const r = await fetch(
+            `https://api.spotify.com/v1/search?type=track&limit=1&q=${encodeURIComponent(q)}`,
+            { headers: { Authorization: `Bearer ${spToken}` } }
+          );
+          if (!r.ok) continue;
+          const j = await r.json();
+          const id = j?.tracks?.items?.[0]?.id;
+          if (id) seedIdMap.set(k, id);
+        } catch { /* skip */ }
+      }
+    } catch (e) {
+      console.warn("[generate-templates] spotify fallback failed:", (e as Error).message);
+    }
+  }
+
   const rows = list.map((t: any, i: number) => {
     const enrichedSeeds = (Array.isArray(t.track_seeds) ? t.track_seeds : []).map((s: any) => {
       const nome = String(s?.nome ?? "").trim();

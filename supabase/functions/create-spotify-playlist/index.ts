@@ -142,6 +142,20 @@ Deno.serve(async (req) => {
   const { error: upErr } = await supabase.from("playlist_templates").update(patch).eq("id", templateId);
   if (upErr) return jr({ ok: false, error: upErr.message, partial: patch }, 500);
 
+  // 🎯 Incrementa contador da conta usada (respeita max_playlists nas próximas operações)
+  const { data: acc } = await supabase
+    .from("accounts")
+    .select("id,current_playlists")
+    .eq("spotify_user_id", ownerId)
+    .maybeSingle();
+  if (acc) {
+    await supabase
+      .from("accounts")
+      .update({ current_playlists: (acc.current_playlists ?? 0) + 1 })
+      .eq("id", acc.id)
+      .then(() => {}, () => {});
+  }
+
   // Snapshot inicial (baseline t0)
   await supabase.from("playlist_metrics_snapshots").insert({
     template_id: templateId,
