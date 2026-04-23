@@ -1210,6 +1210,7 @@ function Base({ model, loading }: any) {
               </div>
             ))}
         </div>
+        <LoadMore visible={tr.visible} total={tr.total} hasMore={tr.hasMore} onLoadMore={tr.loadMore} itemLabel="faixas" />
       </div>
     </div>
   );

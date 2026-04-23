@@ -11,6 +11,7 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { formatNumber, timeAgo } from "@/lib/format";
+import { LoadMore, usePagination } from "@/components/LoadMore";
 
 type Account = {
   id: string;
@@ -251,6 +252,7 @@ export function ReplicacaoAuto({ genreId }: { genreId?: string }) {
 export function ReplicacaoHistorico({ genreId }: { genreId?: string }) {
   const [reps, setReps] = useState<Replication[]>([]);
   const [loading, setLoading] = useState(true);
+  const { visibleItems, hasMore, loadMore, total, visible } = usePagination(reps, 20);
 
   const load = async () => {
     if (!genreId) return;
@@ -260,7 +262,7 @@ export function ReplicacaoHistorico({ genreId }: { genreId?: string }) {
       .select("*")
       .eq("genre_id", genreId)
       .order("created_at", { ascending: false })
-      .limit(50);
+      .limit(200);
     let repsData = (repRes ?? []) as Replication[];
     const sourceIds = [...new Set(repsData.map(r => r.source_result_id).filter(Boolean))] as string[];
     const accountIds = [...new Set(repsData.map(r => r.account_id).filter(Boolean))] as string[];
@@ -307,8 +309,9 @@ export function ReplicacaoHistorico({ genreId }: { genreId?: string }) {
           <div className="col-span-2">Quando</div>
           <div className="col-span-1 text-right">Link</div>
         </div>
-        {reps.map(r => <ReplicationRow key={r.id} r={r} />)}
+        {visibleItems.map(r => <ReplicationRow key={r.id} r={r} />)}
       </div>
+      <LoadMore visible={visible} total={total} hasMore={hasMore} onLoadMore={loadMore} itemLabel="replicações" />
     </div>
   );
 }
