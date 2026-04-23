@@ -61,10 +61,26 @@ Deno.serve(async (req) => {
     });
   }
 
+  // 🎯 Auto-seleção de conta: se não veio spotify_user_id, escolhe a conta ativa
+  // com mais espaço disponível (current_playlists asc).
+  let chosenUserId = body.spotify_user_id;
+  if (!chosenUserId) {
+    const { data: acc } = await supabase
+      .from("accounts")
+      .select("spotify_user_id,current_playlists,max_playlists")
+      .eq("status", "active")
+      .order("current_playlists", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (acc && acc.current_playlists < acc.max_playlists) {
+      chosenUserId = acc.spotify_user_id;
+    }
+  }
+
   let token: string;
   let ownerId: string;
   try {
-    const t = await getUserAccessToken(body.spotify_user_id);
+    const t = await getUserAccessToken(chosenUserId);
     token = t.token;
     ownerId = t.row.spotify_user_id;
   } catch (e) {

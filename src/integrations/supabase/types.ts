@@ -567,6 +567,7 @@ export type Database = {
         Row: {
           approved_at: string | null
           approved_by: string | null
+          auto_cover_requested: boolean
           blueprint_id: string
           cover_brief: string | null
           cover_generated_at: string | null
@@ -577,6 +578,7 @@ export type Database = {
           created_on_spotify_at: string | null
           creation_error: string | null
           description: string | null
+          final_score: number
           followers_at_creation: number | null
           generated_by_model: string | null
           genre_id: string
@@ -585,9 +587,12 @@ export type Database = {
           name: string
           performance_class: string | null
           performance_evaluated_at: string | null
+          quality_tier: string
           regras: Json | null
           rejection_reason: string | null
           replication_score: number
+          score_breakdown: Json
+          scored_at: string | null
           spotify_owner_id: string | null
           spotify_playlist_id: string | null
           spotify_snapshot_id: string | null
@@ -602,6 +607,7 @@ export type Database = {
         Insert: {
           approved_at?: string | null
           approved_by?: string | null
+          auto_cover_requested?: boolean
           blueprint_id: string
           cover_brief?: string | null
           cover_generated_at?: string | null
@@ -612,6 +618,7 @@ export type Database = {
           created_on_spotify_at?: string | null
           creation_error?: string | null
           description?: string | null
+          final_score?: number
           followers_at_creation?: number | null
           generated_by_model?: string | null
           genre_id: string
@@ -620,9 +627,12 @@ export type Database = {
           name: string
           performance_class?: string | null
           performance_evaluated_at?: string | null
+          quality_tier?: string
           regras?: Json | null
           rejection_reason?: string | null
           replication_score?: number
+          score_breakdown?: Json
+          scored_at?: string | null
           spotify_owner_id?: string | null
           spotify_playlist_id?: string | null
           spotify_snapshot_id?: string | null
@@ -637,6 +647,7 @@ export type Database = {
         Update: {
           approved_at?: string | null
           approved_by?: string | null
+          auto_cover_requested?: boolean
           blueprint_id?: string
           cover_brief?: string | null
           cover_generated_at?: string | null
@@ -647,6 +658,7 @@ export type Database = {
           created_on_spotify_at?: string | null
           creation_error?: string | null
           description?: string | null
+          final_score?: number
           followers_at_creation?: number | null
           generated_by_model?: string | null
           genre_id?: string
@@ -655,9 +667,12 @@ export type Database = {
           name?: string
           performance_class?: string | null
           performance_evaluated_at?: string | null
+          quality_tier?: string
           regras?: Json | null
           rejection_reason?: string | null
           replication_score?: number
+          score_breakdown?: Json
+          scored_at?: string | null
           spotify_owner_id?: string | null
           spotify_playlist_id?: string | null
           spotify_snapshot_id?: string | null
