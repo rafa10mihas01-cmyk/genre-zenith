@@ -330,7 +330,7 @@ export default function Criacao() {
         emptyTitle={loading ? "Carregando…" : "Nenhum template pronto"}
         emptyMsg={loading ? "" : "Quando o Cérebro gerar templates fortes, eles aparecem aqui."}
       >
-        <PagedTemplateGrid items={groups.hot} variant="hot" itemLabel="templates prontos" onOpen={setActiveTemplate} />
+        <PagedTemplateGrid items={groups.hot} variant="hot" itemLabel="templates prontos" onOpen={setActiveTemplate} generatingIds={generatingCoverIds} />
       </Section>
 
       {/* MEDIUM */}
@@ -343,7 +343,7 @@ export default function Criacao() {
         emptyTitle={loading ? "" : "Sem médios pendentes"}
         emptyMsg=""
       >
-        <PagedTemplateGrid items={groups.medium} variant="medium" itemLabel="templates médios" onOpen={setActiveTemplate} />
+        <PagedTemplateGrid items={groups.medium} variant="medium" itemLabel="templates médios" onOpen={setActiveTemplate} generatingIds={generatingCoverIds} />
       </Section>
 
       {/* PUBLISHED (info, sem ação principal) */}
@@ -376,6 +376,7 @@ export default function Criacao() {
         template={activeTemplate}
         onClose={() => setActiveTemplate(null)}
         onChanged={async () => { await load(); }}
+        onGeneratingChange={markGenerating}
       />
     </PageContainer>
   );
