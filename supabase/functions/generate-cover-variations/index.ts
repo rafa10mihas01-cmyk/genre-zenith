@@ -159,31 +159,34 @@ function sanitizePlaylistTitle(name: string | null | undefined): string {
   const t1Words = t1.filter((t) => !isYearOrNumber(t));
   const year = years[0] ?? null; // só 1 ano no máximo
 
-  // 5. monta formato ideal: [FORTE] + [GÊNERO] + [ANO ou CONTEXTO]
-  const slots: string[] = [];
+  // 5. seleciona até 3 palavras prioritárias (sem ano), preservando ordem original:
+  //    prioridade: Tier1 (não-ano) → Tier2 → Tier3 → Outras
+  //    O ano (se houver) é reservado e adicionado SEMPRE no fim.
+  const orderIndex = new Map(tokens.map((t, i) => [t, i]));
+  const sortByOriginal = (arr: string[]) =>
+    [...arr].sort((a, b) => (orderIndex.get(a) ?? 0) - (orderIndex.get(b) ?? 0));
 
-  // slot 1: palavra forte (Tier 1 não-numérica) > Tier 3 contexto > Outra
-  if (t1Words.length > 0) slots.push(t1Words[0]);
-  else if (t3.length > 0) slots.push(t3[0]);
-  else if (tOther.length > 0) slots.push(tOther[0]);
+  const yearReserved = year ? 1 : 0;
+  const wordBudget = 3 - yearReserved; // 2 palavras se houver ano, 3 se não
 
-  // slot 2: gênero (Tier 2)
-  if (t2.length > 0 && !slots.includes(t2[0])) slots.push(t2[0]);
+  const ranked: string[] = [];
+  const pushUnique = (list: string[]) => {
+    for (const t of sortByOriginal(list)) {
+      if (ranked.length >= wordBudget) return;
+      if (!ranked.includes(t)) ranked.push(t);
+    }
+  };
+  pushUnique(t1Words);
+  pushUnique(t2);
+  pushUnique(t3);
+  pushUnique(tOther);
 
-  // slot 3: ano > tier-3 contexto > 2º forte > outra
-  if (year && !slots.includes(year)) {
-    slots.push(year);
-  } else {
-    const fallback = [...t3, ...t1Words.slice(1), ...tOther.slice(1)]
-      .find((t) => !slots.includes(t));
-    if (fallback) slots.push(fallback);
-  }
+  // reordena as palavras escolhidas pela ordem original do título
+  const slots = sortByOriginal(ranked);
+  if (year) slots.push(year); // ano sempre por último
 
-  // 6. se ficou vazio (raro), preenche com a primeira disponível
-  if (slots.length === 0) {
-    const first = tokens[0];
-    slots.push(first);
-  }
+  // 6. fallback raro
+  if (slots.length === 0) slots.push(tokens[0]);
 
   // garante limite rígido de 3 palavras
   const result = slots.slice(0, 3).join(" ").trim();
