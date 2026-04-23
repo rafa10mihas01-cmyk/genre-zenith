@@ -72,6 +72,15 @@ export default function Criacao() {
   const [batchCovers, setBatchCovers] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [activeTemplate, setActiveTemplate] = useState<Template | null>(null);
+  // IDs de templates atualmente gerando capa (mostra overlay no card correto)
+  const [generatingCoverIds, setGeneratingCoverIds] = useState<Set<string>>(new Set());
+  const markGenerating = (id: string, on: boolean) => {
+    setGeneratingCoverIds(prev => {
+      const next = new Set(prev);
+      if (on) next.add(id); else next.delete(id);
+      return next;
+    });
+  };
 
   // Toolbar state
   const [search, setSearch] = useState("");
