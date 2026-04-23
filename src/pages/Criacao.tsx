@@ -231,9 +231,11 @@ export default function Criacao() {
     setBatchCovers(true);
     let ok = 0, fail = 0;
     for (const t of hotMissingCovers) {
+      markGenerating(t.id, true);
       const { data, error } = await supabase.functions.invoke("generate-cover-variations", {
         body: { template_id: t.id },
       });
+      markGenerating(t.id, false);
       if (error || !(data as any)?.ok) fail++;
       else ok++;
     }
