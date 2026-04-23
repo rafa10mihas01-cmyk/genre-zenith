@@ -318,7 +318,13 @@ export default function Settings() {
               <div className="mt-2 text-xs text-muted-foreground space-y-0.5">
                 {testResult.meta.username && <div>Usuário: <span className="font-mono text-foreground">{testResult.meta.username}</span></div>}
                 {testResult.meta.email && <div>Email: <span className="font-mono text-foreground">{testResult.meta.email}</span></div>}
-                {testResult.meta.plan && <div>Plano: <span className="font-mono text-foreground">{testResult.meta.plan}</span></div>}
+                {testResult.meta.plan && (
+                  <div>Plano: <span className="font-mono text-foreground">{
+                    typeof testResult.meta.plan === "string"
+                      ? testResult.meta.plan
+                      : (testResult.meta.plan?.id ?? testResult.meta.plan?.tier ?? "—")
+                  }</span></div>
+                )}
               </div>
             )}
           </div>
