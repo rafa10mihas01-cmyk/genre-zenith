@@ -12,6 +12,8 @@ import { SidebarContextProvider } from "@/contexts/SidebarContext";
 import { NotificationsBell } from "@/components/NotificationsBell";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { CommandPalette } from "@/components/CommandPalette";
+import { TopProgressBar } from "@/components/TopProgressBar";
+import { SplashLoader } from "@/components/SplashLoader";
 
 // Mapa de rótulos curtos para o título no header mobile
 const ROUTE_TITLES: Record<string, string> = {
@@ -75,6 +77,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <SidebarProvider>
       <SidebarContextProvider>
+      {/* Loading global: barra fina no topo + splash full-screen */}
+      <TopProgressBar />
+      <SplashLoader />
       <div className="min-h-screen flex w-full bg-background">
         <AppSidebar />
         <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden shadow-[-1px_0_0_rgba(255,255,255,0.04)]">
