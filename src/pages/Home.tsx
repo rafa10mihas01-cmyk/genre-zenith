@@ -273,7 +273,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Lista compacta de gêneros */}
+      {/* Gêneros — cards grandes coloridos (identidade do sistema) */}
       <section className="space-y-3">
         <div className="flex items-end justify-between">
           <div>
@@ -289,9 +289,9 @@ export default function Home() {
           </Button>
         </div>
         {loading ? (
-          <div className="flex flex-wrap gap-2">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-9 w-32 rounded-full bg-muted/40 animate-pulse" />
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="h-[118px] rounded-2xl bg-muted/40 animate-pulse" />
             ))}
           </div>
         ) : genres.length === 0 ? (
@@ -300,41 +300,52 @@ export default function Home() {
             <p className="mt-2 text-xs text-muted-foreground">Nenhum gênero cadastrado.</p>
           </div>
         ) : (
-          <div className="flex flex-wrap gap-2">
-            {genres.map(g => <GenreChip key={g.id} g={g} />)}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            {genres.map(g => <GenreCard key={g.id} g={g} />)}
           </div>
         )}
       </section>
 
-      {/* Atividade recente */}
+      {/* Atividade recente — limpa, com ícone colorido e mensagem suave */}
       <section className="space-y-3">
         <h2 className="text-xs uppercase tracking-[0.15em] text-muted-foreground font-semibold">
           Atividade recente
         </h2>
-        <div className="nx-card p-2 divide-y divide-border">
+        <div className="nx-card overflow-hidden">
           {loading && activity.length === 0 && (
             <div className="p-6 text-center text-xs text-muted-foreground">Carregando…</div>
           )}
           {!loading && activity.length === 0 && (
             <div className="p-6 text-center text-xs text-muted-foreground">Sem atividade registrada.</div>
           )}
-          {activity.map(l => (
-            <div key={l.id} className="flex items-center justify-between gap-3 px-3 py-2.5 text-sm">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <span className={cn(
-                  "h-2 w-2 rounded-full shrink-0",
-                  l.status === "sucesso" ? "bg-primary"
-                  : l.status === "erro" ? "bg-destructive"
-                  : "bg-warning",
-                )} />
-                <span className="font-medium text-xs">{prettyAction(l.acao)}</span>
-                {l.mensagem && (
-                  <span className="text-muted-foreground text-xs truncate hidden md:inline">— {l.mensagem}</span>
-                )}
-              </div>
-              <span className="text-[11px] text-muted-foreground shrink-0">{timeAgo(l.created_at)}</span>
-            </div>
-          ))}
+          <ul className="divide-y divide-border">
+            {activity.map(l => {
+              const tone =
+                l.status === "sucesso" ? "text-primary bg-primary/10"
+                : l.status === "erro" ? "text-destructive bg-destructive/10"
+                : "text-warning bg-warning/10";
+              return (
+                <li key={l.id} className="flex items-center gap-3 px-4 py-3">
+                  <span className={cn("h-7 w-7 rounded-full flex items-center justify-center shrink-0", tone)}>
+                    <Activity className="h-3.5 w-3.5" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-semibold leading-tight truncate">
+                      {prettyAction(l.acao)}
+                    </div>
+                    {l.mensagem && (
+                      <div className="text-[11px] text-muted-foreground truncate mt-0.5">
+                        {l.mensagem}
+                      </div>
+                    )}
+                  </div>
+                  <span className="text-[11px] text-muted-foreground shrink-0 tabular-nums">
+                    {timeAgo(l.created_at)}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
         </div>
       </section>
     </PageContainer>
