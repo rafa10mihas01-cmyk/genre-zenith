@@ -1,12 +1,11 @@
-// ReplicacaoAuto — painel de replicação automática (top N + distribuição em contas).
-// Separado de Replicacao.tsx (que cuida de blueprints/templates manualmente).
-// Aqui é one-click: "replicar top 5 agora" → executa fluxo completo via replicate-top.
+// ReplicacaoAuto — Fase 1 da aba Replicação: o caminho rápido (one-click).
+// Foco: rodar top-N, ver o plano, despachar.
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Loader2, Rocket, Users, Plus, ExternalLink, CheckCircle2, XCircle, Clock,
+  Loader2, Rocket, Users, ExternalLink, CheckCircle2, XCircle, Clock,
   Eye, AlertTriangle, RefreshCw, ChevronRight, Music2,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -72,7 +71,6 @@ export function ReplicacaoAuto({ genreId }: { genreId?: string }) {
     ]);
     const accs = (accRes.data ?? []) as Account[];
     let repsData = (repRes.data ?? []) as Replication[];
-    // Resolve nomes (source playlist + account) com 2 lookups baratos
     const sourceIds = [...new Set(repsData.map(r => r.source_result_id).filter(Boolean))] as string[];
     const accountIds = [...new Set(repsData.map(r => r.account_id).filter(Boolean))] as string[];
     const [sourcesQ, accsQ] = await Promise.all([
@@ -91,7 +89,7 @@ export function ReplicacaoAuto({ genreId }: { genreId?: string }) {
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, [genreId]);
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [genreId]);
 
   const runDryRun = async () => {
     if (!genreId || previewing) return;
@@ -116,8 +114,6 @@ export function ReplicacaoAuto({ genreId }: { genreId?: string }) {
     if (!genreId || running) return;
     setRunning(true);
     try {
-      // "Replicar" = só gerar o pacote (blueprint/template/plano).
-      // Nada é criado no Spotify aqui — isso fica para a etapa de aprovação manual.
       const { data, error } = await supabase.functions.invoke("replicate-top", {
         body: { genre_id: genreId, top_n: topN, dry_run: true, triggered_by: "manual" },
       });
@@ -126,7 +122,7 @@ export function ReplicacaoAuto({ genreId }: { genreId?: string }) {
       const planArr = data?.plan ?? [];
       setPlan(planArr);
       toast.success(`Pacote gerado · ${planArr.length} candidatas`, {
-        description: "Nenhuma playlist foi criada no Spotify. Revise o plano antes de aprovar.",
+        description: "Revise abaixo. Aprove e envie pro Spotify na seção 'Playlists prontas'.",
       });
       await load();
     } catch (e: any) {
@@ -138,134 +134,96 @@ export function ReplicacaoAuto({ genreId }: { genreId?: string }) {
 
   const totalCapacity = accounts.reduce((s, a) => s + (a.status === "active" ? a.max_playlists - a.current_playlists : 0), 0);
   const activeAccs = accounts.filter(a => a.status === "active");
+  const failedCount = reps.filter(r => r.status === "failed").length;
 
   if (loading) {
     return (
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="nx-card h-32 animate-pulse" />
-        ))}
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {Array.from({ length: 4 }).map((_, i) => <div key={i} className="nx-card h-24 animate-pulse" />)}
+        </div>
+        <div className="nx-card h-32 animate-pulse" />
       </div>
     );
   }
 
   return (
     <div className="space-y-5">
-      {/* Header + status */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h3 className="font-bold flex items-center gap-2">
-            <Rocket className="h-4 w-4 text-primary" />
-            Replicação automática
-          </h3>
-          <p className="text-xs text-muted-foreground">
-            Seleciona top playlists por score, gera variações e distribui nas contas. One-click.
-          </p>
-        </div>
+      {/* KPIs operacionais */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Kpi label="Contas ativas" value={String(activeAccs.length)} hint={`${accounts.length} total`} />
+        <Kpi label="Slots livres" value={String(totalCapacity)} hint="Pra novas playlists" tone="primary" />
+        <Kpi label="Já criadas" value={String(reps.filter(r => r.status === "created").length)} hint="Total no histórico" />
+        <Kpi label="Falhas" value={String(failedCount)} hint="Precisam atenção" tone={failedCount > 0 ? "destructive" : undefined} />
       </div>
 
-      {/* KPIs operacionais */}
-      <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Kpi label="Contas ativas" value={String(activeAccs.length)} hint={`${accounts.length} total`} />
-        <Kpi label="Capacidade livre" value={String(totalCapacity)} hint="Slots pra novas playlists" tone="primary" />
-        <Kpi label="Replicadas (todas)" value={String(reps.filter(r => r.status === "created").length)} hint="Total no histórico" />
-        <Kpi label="Falhas pendentes" value={String(reps.filter(r => r.status === "failed").length)} hint="Precisam atenção" tone={reps.some(r => r.status === "failed") ? "destructive" : undefined} />
-      </section>
-
-      {/* Bloqueios óbvios */}
+      {/* Bloqueio: sem conta ativa */}
       {activeAccs.length === 0 && (
-        <div className="nx-card border-warning/30 bg-warning/5">
+        <div className="nx-card border border-warning/30 bg-warning/5">
           <div className="flex items-start gap-3">
             <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
             <div className="flex-1 text-sm">
               <p className="font-medium">Nenhuma conta Spotify ativa</p>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Vá em <strong>Configurações → Spotify</strong> e conecte pelo menos uma conta antes de replicar.
+                Vá em <strong>Operação → Contas</strong> e conecte ao menos uma antes de replicar.
               </p>
             </div>
           </div>
         </div>
       )}
 
-      {/* Painel de execução */}
-      <div className="nx-card">
+      {/* Painel de execução — destacado */}
+      <div className="nx-card border-primary/20 bg-primary/[0.03]">
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-2">
-            <label className="text-xs text-muted-foreground uppercase tracking-wider font-bold">Top</label>
+            <label className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-bold">Top</label>
             <Input
               type="number"
               min={1}
               max={20}
               value={topN}
               onChange={(e) => setTopN(Math.max(1, Math.min(20, Number(e.target.value) || 1)))}
-              className="w-20 h-9"
+              className="w-16 h-9 text-center"
             />
             <span className="text-xs text-muted-foreground">playlists do gênero</span>
           </div>
           <div className="ml-auto flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={runDryRun}
-              disabled={previewing || !genreId}
-            >
+            <Button variant="outline" size="sm" onClick={runDryRun} disabled={previewing || !genreId}>
               {previewing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />}
               Pré-visualizar
             </Button>
-            <Button
-              size="sm"
-              onClick={runReplicate}
-              disabled={running || activeAccs.length === 0 || !genreId}
-            >
+            <Button size="sm" onClick={runReplicate} disabled={running || activeAccs.length === 0 || !genreId} className="nx-pill">
               {running ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Rocket className="h-3.5 w-3.5" />}
-              Gerar pacote
+              Replicar agora
             </Button>
           </div>
         </div>
 
         {plan && plan.length > 0 && (
-          <div className="mt-4 border-t border-border pt-4 space-y-2">
-            <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Plano gerado ({plan.length} replicações)</div>
+          <div className="mt-4 border-t border-border/60 pt-4 space-y-2">
+            <div className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-bold">
+              Plano gerado ({plan.length} replicações)
+            </div>
             <div className="space-y-1.5">
               {plan.map((p, i) => (
-                <div key={i} className="flex items-center gap-3 text-xs p-2 rounded-md bg-elevated border border-border">
+                <div key={i} className="flex items-center gap-3 text-xs p-2.5 rounded-md bg-elevated border border-border">
                   <span className="text-muted-foreground font-mono w-5 text-right">#{i + 1}</span>
                   <div className="flex-1 min-w-0">
                     <div className="font-medium truncate">{p.candidate.nome}</div>
                     <div className="text-muted-foreground text-[11px]">
-                      {formatNumber(p.candidate.seguidores)} seguidores · tier {p.candidate.tier} · score {formatNumber(p.candidate.score)}
+                      {formatNumber(p.candidate.seguidores)} seguidores · tier {p.candidate.tier}
                     </div>
                   </div>
-                  <ChevronRight className="h-3 w-3 text-muted-foreground" />
-                  <div className="text-right min-w-0">
-                    <div className="font-medium truncate flex items-center gap-1.5 justify-end">
-                      {p.blueprint.name}
-                      {p.blueprint.priority && (
-                        <span
-                          className={cn(
-                            "text-[9px] uppercase font-bold px-1.5 py-0.5 rounded-full border tabular-nums",
-                            p.blueprint.priority === "alta" && "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
-                            p.blueprint.priority === "media" && "bg-muted/40 text-muted-foreground border-border",
-                            p.blueprint.priority === "baixa" && "bg-warning/15 text-warning border-warning/30",
-                          )}
-                          title={p.blueprint.reason ?? ""}
-                        >
-                          {p.blueprint.priority}
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-muted-foreground text-[11px]">
-                      blueprint {p.blueprint.tier}
-                      {p.blueprint.performance_source && ` · perf: ${p.blueprint.performance_source}`}
-                    </div>
+                  <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />
+                  <div className="text-right min-w-0 flex-1">
+                    <div className="font-medium truncate">{p.blueprint.name}</div>
+                    <div className="text-muted-foreground text-[11px]">blueprint {p.blueprint.tier}</div>
                   </div>
                   {p.account && (
                     <>
-                      <ChevronRight className="h-3 w-3 text-muted-foreground" />
-                      <div className="text-right min-w-0">
-                        <div className="inline-flex items-center gap-1 text-primary font-medium">
-                          <Users className="h-3 w-3" /> {p.account.display_name ?? p.account.spotify_user_id}
-                        </div>
+                      <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />
+                      <div className="inline-flex items-center gap-1 text-primary font-medium text-xs shrink-0">
+                        <Users className="h-3 w-3" /> {p.account.display_name ?? p.account.spotify_user_id}
                       </div>
                     </>
                   )}
@@ -275,37 +233,73 @@ export function ReplicacaoAuto({ genreId }: { genreId?: string }) {
           </div>
         )}
       </div>
+    </div>
+  );
+}
 
-      {/* Contas → ficam no módulo Operação. Cérebro só pensa, não gerencia. */}
+/* ===================== HISTÓRICO (componente exportado, usado lá embaixo) ===================== */
 
-      {/* Histórico */}
-      <section>
-        <div className="flex items-center justify-between mb-3">
-          <h4 className="text-sm font-bold flex items-center gap-2">
-            <RefreshCw className="h-4 w-4 text-primary" /> Histórico de replicações
-          </h4>
-          <Button variant="ghost" size="sm" onClick={load} className="h-7 text-xs">
-            <RefreshCw className="h-3 w-3" /> Atualizar
-          </Button>
+export function ReplicacaoHistorico({ genreId }: { genreId?: string }) {
+  const [reps, setReps] = useState<Replication[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = async () => {
+    if (!genreId) return;
+    setLoading(true);
+    const { data: repRes } = await supabase
+      .from("replications")
+      .select("*")
+      .eq("genre_id", genreId)
+      .order("created_at", { ascending: false })
+      .limit(50);
+    let repsData = (repRes ?? []) as Replication[];
+    const sourceIds = [...new Set(repsData.map(r => r.source_result_id).filter(Boolean))] as string[];
+    const accountIds = [...new Set(repsData.map(r => r.account_id).filter(Boolean))] as string[];
+    const [sourcesQ, accsQ] = await Promise.all([
+      sourceIds.length ? supabase.from("search_results").select("id,nome_playlist").in("id", sourceIds) : Promise.resolve({ data: [] as any[] }),
+      accountIds.length ? supabase.from("accounts").select("id,display_name,spotify_user_id").in("id", accountIds) : Promise.resolve({ data: [] as any[] }),
+    ]);
+    const sourceMap = new Map((sourcesQ.data ?? []).map((s: any) => [s.id, s.nome_playlist]));
+    const accMap = new Map((accsQ.data ?? []).map((a: any) => [a.id, a.display_name ?? a.spotify_user_id]));
+    repsData = repsData.map(r => ({
+      ...r,
+      source_name: r.source_result_id ? (sourceMap.get(r.source_result_id) as string) : undefined,
+      account_name: r.account_id ? (accMap.get(r.account_id) as string) : undefined,
+    }));
+    setReps(repsData);
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [genreId]);
+
+  if (loading) return <div className="nx-card h-32 animate-pulse" />;
+
+  if (reps.length === 0) {
+    return (
+      <div className="nx-card text-center py-8">
+        <p className="text-sm text-muted-foreground">Nenhuma replicação executada ainda.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex justify-end">
+        <Button variant="ghost" size="sm" onClick={load} className="h-7 text-xs">
+          <RefreshCw className="h-3 w-3" /> Atualizar
+        </Button>
+      </div>
+      <div className="nx-card !p-0 overflow-hidden">
+        <div className="grid grid-cols-12 gap-2 px-4 py-2 text-[10px] uppercase tracking-wider text-muted-foreground font-bold border-b border-border">
+          <div className="col-span-4">Origem</div>
+          <div className="col-span-2">Conta</div>
+          <div className="col-span-1 text-right">Score</div>
+          <div className="col-span-2">Status</div>
+          <div className="col-span-2">Quando</div>
+          <div className="col-span-1 text-right">Link</div>
         </div>
-        {reps.length === 0 ? (
-          <div className="nx-card text-center py-8">
-            <p className="text-sm text-muted-foreground">Nenhuma replicação executada ainda.</p>
-          </div>
-        ) : (
-          <div className="nx-card !p-0 overflow-hidden">
-            <div className="grid grid-cols-12 gap-2 px-4 py-2 text-[10px] uppercase tracking-wider text-muted-foreground font-bold border-b border-border">
-              <div className="col-span-4">Origem → Destino</div>
-              <div className="col-span-2">Conta</div>
-              <div className="col-span-1 text-right">Score</div>
-              <div className="col-span-2">Status</div>
-              <div className="col-span-2">Quando</div>
-              <div className="col-span-1 text-right">Link</div>
-            </div>
-            {reps.map(r => <ReplicationRow key={r.id} r={r} />)}
-          </div>
-        )}
-      </section>
+        {reps.map(r => <ReplicationRow key={r.id} r={r} />)}
+      </div>
     </div>
   );
 }
