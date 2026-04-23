@@ -39,13 +39,14 @@ export function PageHeader({
   return (
     <header
       className={cn(
-        // Mobile: sticky logo abaixo do topbar (h-14). Background sólido para
-        // não vazar conteúdo por baixo durante o scroll.
-        "sticky top-14 z-20 -mx-4 md:mx-0 px-4 md:px-0 py-2 md:py-0",
-        "bg-background/95 backdrop-blur md:bg-transparent md:backdrop-blur-none",
-        "border-b border-border md:border-0",
+        // Sticky logo abaixo do topbar global (h-14 = 56px). Em TODAS as telas.
+        // z-40 < topbar (z-50) > conteúdo. Background sólido + blur para nunca
+        // ficar transparente no scroll.
+        "sticky top-14 z-40 -mx-4 md:-mx-6 lg:-mx-8 px-4 md:px-6 lg:px-8 py-2.5 md:py-3",
+        "bg-background/90 backdrop-blur-md supports-[backdrop-filter]:bg-background/75",
+        "border-b border-border/60",
         // Layout: stack no mobile (título em cima, ações em scroll embaixo)
-        "flex flex-col md:flex-row md:items-end md:justify-between gap-2 md:gap-4 mb-2 w-full min-w-0",
+        "flex flex-col md:flex-row md:items-center md:justify-between gap-2 md:gap-4 mb-3 md:mb-4 w-full min-w-0",
         className,
       )}
     >
