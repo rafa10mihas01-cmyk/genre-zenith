@@ -225,10 +225,8 @@ export default function Operacao() {
   return (
     <PageContainer>
       <PageHeader
-        kicker="Módulo de Operação"
-        icon={Activity}
         title="Operação"
-        subtitle="Controlar playlists já publicadas: monitorar status, executar trocas e ajustes do dia-a-dia."
+        subtitle="Executar e gerenciar playlists"
         actions={
           <Button variant="outline" className="rounded-full h-9 gap-1.5" onClick={load} disabled={loading}>
             <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} /> Atualizar

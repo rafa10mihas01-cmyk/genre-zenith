@@ -193,7 +193,7 @@ export default function Home() {
     <PageContainer>
       <PageHeader
         title="Cockpit"
-        subtitle="Acompanhar o pipeline e decidir a próxima ação em segundos."
+        subtitle="Acompanhe o pipeline e tome decisões rápidas"
       />
 
       {/* AÇÕES RÁPIDAS — sempre visível, decide tudo */}
