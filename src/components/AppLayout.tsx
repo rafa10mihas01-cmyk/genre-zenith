@@ -6,11 +6,29 @@ import { Button } from "@/components/ui/button";
 import { Search, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { timeAgo } from "@/lib/format";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { NexEngineLogo } from "@/components/NexEngineLogo";
 import { SidebarContextProvider } from "@/contexts/SidebarContext";
 import { NotificationsBell } from "@/components/NotificationsBell";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
+
+// Mapa de rótulos curtos para o título no header mobile
+const ROUTE_TITLES: Record<string, string> = {
+  "/": "Cockpit",
+  "/cerebro": "Cérebro",
+  "/criacao": "Criação",
+  "/operacao": "Operação",
+  "/performance": "Performance",
+  "/configuracoes": "Configurações",
+};
+function getRouteTitle(pathname: string): string {
+  if (ROUTE_TITLES[pathname]) return ROUTE_TITLES[pathname];
+  const match = Object.keys(ROUTE_TITLES)
+    .filter((k) => k !== "/" && pathname.startsWith(k))
+    .sort((a, b) => b.length - a.length)[0];
+  return match ? ROUTE_TITLES[match] : "NexEngine";
+}
 
 /**
  * Layout global do sistema. Toda página renderizada DEVE estar dentro dele.
@@ -21,6 +39,8 @@ import { NotificationsBell } from "@/components/NotificationsBell";
 export default function AppLayout({ children }: { children: ReactNode }) {
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
   const nav = useNavigate();
+  const location = useLocation();
+  const pageTitle = getRouteTitle(location.pathname);
 
   // Puxa "última atividade global" pra exibir no topbar (dado real, não fake)
   const refresh = async () => {
@@ -48,9 +68,12 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           {/* TOPBAR GLOBAL — todas as páginas herdam */}
           <header className="h-14 flex items-center gap-3 border-b border-border bg-background/95 backdrop-blur sticky top-0 z-30 px-4">
             <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
-            {/* Logo no mobile (sidebar está colapsada como drawer) */}
-            <div className="md:hidden flex items-center pl-1 pr-1">
-              <NexEngineLogo size={26} variant="mark" />
+            {/* Mobile: logo + título dinâmico (estilo app nativo) */}
+            <div className="md:hidden flex items-center gap-2 min-w-0">
+              <NexEngineLogo size={24} variant="mark" />
+              <span className="text-[15px] font-semibold text-foreground truncate">
+                {pageTitle}
+              </span>
             </div>
             <div className="hidden md:flex items-center gap-1">
               <Button
@@ -83,7 +106,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             {/* Spacer mobile para empurrar ações para a direita */}
             <div className="flex-1 sm:hidden" />
 
-            <div className="ml-auto flex items-center gap-2">
+            <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
               <div className="hidden sm:inline-flex items-center gap-1.5 px-3 h-8 rounded-full bg-elevated border border-border text-xs text-muted-foreground">
                 <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
                 {lastUpdate ? `Atualizado ${timeAgo(lastUpdate)}` : "Aguardando dados"}
@@ -92,7 +115,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 size="sm"
                 variant="premium"
                 onClick={refresh}
-                className="rounded-full h-8 gap-1.5"
+                className="rounded-full h-8 gap-1.5 hidden sm:inline-flex"
+                aria-label="Atualizar"
               >
                 <RefreshCw className="h-3.5 w-3.5" />
                 <span className="hidden md:inline">Atualizar</span>
@@ -116,6 +140,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             <div className="nx-page relative z-10">{children}</div>
           </main>
         </div>
+        {/* Bottom nav fixa apenas no mobile */}
+        <MobileBottomNav />
       </div>
       </SidebarContextProvider>
     </SidebarProvider>
