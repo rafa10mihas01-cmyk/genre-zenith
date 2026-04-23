@@ -64,122 +64,167 @@ function jr(p: unknown, status = 200) {
 }
 
 // ============================================================
-// SANITIZAÇÃO DE TÍTULO (editorial — máx 3-4 palavras fortes)
+// SANITIZAÇÃO DE TÍTULO (editorial — máx 3 palavras fortes)
 // ============================================================
-// Remove emojis, símbolos decorativos, ano de cauda inútil, palavras descritivas
-// fracas e mantém SOMENTE as 3-4 palavras de maior impacto. Resultado em CAIXA ALTA.
+// Regras:
+//   • Remove emojis, símbolos, fillers e palavras repetidas
+//   • Limita a no máximo 3 palavras fortes
+//   • Prioriza por TIER:
+//       Tier 1 (impacto):    TOP, HITS, VIRAL, BRASIL, BR, 2024, 2025, números
+//       Tier 2 (gênero):     SERTANEJO, FUNK, TRAP, PISEIRO, PAGODE, ROCK, POP, RAP, MPB...
+//       Tier 3 (contexto):   RAIZ, MODÃO, NOSTALGIA, CLÁSSICOS, ATUALIZADO...
+//   • Formato ideal final: [FORTE] + [GÊNERO] + [ANO ou CONTEXTO]
+//   • Sem duplicar palavras, sem repetir ano, sem mais de 3 palavras
 //
 // Exemplos:
-//   "MODÃO SERTANEJO RAIZ 2024 - SÓ AS MELHORES 🎉" → "MODÃO RAIZ 2024" / "SERTANEJO RAIZ"
-//   "playlist oficial do sertanejo atualizada"      → "SERTANEJO"
-//   "TOP HITS BRASIL 2025 PRA ESCUTAR AGORA"        → "TOP HITS BRASIL"
+//   "TOP SERTANEJO 2024 🎉 MAIS TOCADAS"          → "TOP SERTANEJO 2024"
+//   "SERTANEJO RAIZ 2024 - SÓ AS MELHORES"        → "SERTANEJO RAIZ 2024"
+//   "MODÃO SERTANEJO RAIZ 2024 MAIS TOCADAS"      → "MODÃO SERTANEJO RAIZ"
+//   "playlist oficial do sertanejo atualizada"    → "SERTANEJO ATUALIZADO"
+const TIER1_WORDS = new Set([
+  "TOP", "HITS", "VIRAL", "BRASIL", "BR", "MEGA", "ULTRA", "NOW", "FRESH",
+]);
+const TIER2_WORDS = new Set([
+  "SERTANEJO", "FUNK", "TRAP", "PISEIRO", "PAGODE", "ROCK", "POP",
+  "RAP", "MPB", "FORRÓ", "FORRO", "SAMBA", "REGGAE", "GOSPEL",
+  "ELETRÔNICA", "ELETRONICA", "RAVE",
+]);
+const TIER3_WORDS = new Set([
+  "RAIZ", "MODÃO", "MODAO", "NOSTALGIA", "CLÁSSICOS", "CLASSICOS",
+  "ATUALIZADO", "ATUALIZADA", "ROMÂNTICAS", "ROMANTICAS",
+  "FESTA", "BALADA", "VERÃO", "VERAO", "SOFRÊNCIA", "SOFRENCIA",
+]);
 const TITLE_FILLER = new Set([
   // artigos / conectivos
   "DE", "DO", "DA", "DOS", "DAS", "E", "A", "O", "OS", "AS", "PARA", "PRA",
   "EM", "COM", "POR", "QUE", "UM", "UMA", "NO", "NA", "NOS", "NAS", "AO", "AOS",
   // descritivos fracos
-  "PLAYLIST", "OFICIAL", "ATUALIZADA", "ATUALIZADO", "SELEÇÃO", "SELECAO",
+  "PLAYLIST", "OFICIAL", "SELEÇÃO", "SELECAO",
   "COLETÂNEA", "COLETANEA", "COLEÇÃO", "COLECAO", "MIX",
   // ruído promocional
   "SÓ", "SO", "AGORA", "ESCUTAR", "OUVIR", "TOCAR", "CURTIR",
-  "MELHORES", "MELHOR", "TODAS", "TODOS", "MAIS",
+  "MELHORES", "MELHOR", "TODAS", "TODOS", "MAIS", "TOCADAS", "TOCADOS",
   // inglês comum
-  "THE", "OF", "FOR", "TO", "AND", "PLAYLIST", "OFFICIAL",
+  "THE", "OF", "FOR", "TO", "AND", "OFFICIAL",
 ]);
-// palavras que sempre valem como "fortes" (não devem cair no filtro de tamanho)
-const TITLE_STRONG = new Set([
-  "TOP", "HITS", "VIRAL", "BR", "BRASIL", "RAIZ", "MODÃO", "MODAO",
-  "SERTANEJO", "FUNK", "PAGODE", "ROCK", "POP", "RAP", "TRAP", "MPB",
-  "CLÁSSICOS", "CLASSICOS", "NOSTALGIA", "ROMÂNTICAS", "ROMANTICAS",
-  "FESTA", "BALADA", "VERÃO", "VERAO", "NOW", "FRESH", "MEGA",
-]);
+
+function isYearOrNumber(t: string): boolean {
+  return /^\d{2,4}$/.test(t);
+}
+
+function tierOf(t: string): 0 | 1 | 2 | 3 | 4 {
+  if (TITLE_FILLER.has(t)) return 0;
+  if (TIER1_WORDS.has(t) || isYearOrNumber(t)) return 1;
+  if (TIER2_WORDS.has(t)) return 2;
+  if (TIER3_WORDS.has(t)) return 3;
+  return 4; // outras palavras com 3+ letras
+}
 
 function sanitizePlaylistTitle(name: string | null | undefined): string {
   const raw = (name ?? "").toString();
   if (!raw.trim()) return "PLAYLIST";
 
-  // 1. remove emojis e símbolos decorativos, mantém letras/números/espaço
+  // 1. remove emojis e símbolos decorativos
   const cleaned = raw
     .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{1F000}-\u{1F2FF}]/gu, " ")
     .replace(/[^\p{L}\p{N}\s]/gu, " ")
     .replace(/\s+/g, " ")
     .trim()
     .toUpperCase();
-
   if (!cleaned) return "PLAYLIST";
 
-  // 2. tokeniza
-  const tokens = cleaned.split(" ").filter(Boolean);
+  // 2. tokeniza preservando ordem
+  const rawTokens = cleaned.split(" ").filter(Boolean);
+
+  // 3. dedupe (preservando primeira ocorrência) + filtro filler/curtas
+  const seen = new Set<string>();
+  const tokens: string[] = [];
+  for (const t of rawTokens) {
+    if (seen.has(t)) continue;             // remove duplicações
+    if (TITLE_FILLER.has(t)) continue;     // remove fillers
+    if (t.length < 3 && !isYearOrNumber(t)) continue;
+    seen.add(t);
+    tokens.push(t);
+  }
   if (tokens.length === 0) return "PLAYLIST";
 
-  // 3. filtra fillers + curtos fracos, preserva fortes e números
-  const isYearOrNumber = (t: string) => /^\d{2,4}$/.test(t);
-  const strong = tokens.filter((t) => {
-    if (TITLE_FILLER.has(t)) return false;
-    if (TITLE_STRONG.has(t)) return true;
-    if (isYearOrNumber(t)) return true;
-    return t.length >= 3; // descarta "SÓ", "É", etc não listados
-  });
+  // 4. classifica por tier preservando primeira ocorrência
+  const t1 = tokens.filter((t) => tierOf(t) === 1);
+  const t2 = tokens.filter((t) => tierOf(t) === 2);
+  const t3 = tokens.filter((t) => tierOf(t) === 3);
+  const tOther = tokens.filter((t) => tierOf(t) === 4);
 
-  const final = strong.length > 0 ? strong : tokens;
+  // separa números (ano) do resto do tier-1 — ano vai sempre no fim
+  const years = t1.filter(isYearOrNumber);
+  const t1Words = t1.filter((t) => !isYearOrNumber(t));
+  const year = years[0] ?? null; // só 1 ano no máximo
 
-  // 4. máximo 4 palavras (preferimos 3); cortar do fim
-  // se sobrou número (ano) e temos >3 palavras, mantemos o ano por último
-  let limited: string[];
-  if (final.length <= 3) {
-    limited = final;
-  } else {
-    const yearIdx = final.findIndex(isYearOrNumber);
-    if (yearIdx >= 0 && yearIdx >= 3) {
-      // mantém 2 primeiras palavras + ano
-      limited = [final[0], final[1], final[yearIdx]];
-    } else {
-      limited = final.slice(0, 3);
+  // 5. seleciona até 3 palavras prioritárias (sem ano), preservando ordem original:
+  //    prioridade: Tier1 (não-ano) → Tier2 → Tier3 → Outras
+  //    O ano (se houver) é reservado e adicionado SEMPRE no fim.
+  const orderIndex = new Map(tokens.map((t, i) => [t, i]));
+  const sortByOriginal = (arr: string[]) =>
+    [...arr].sort((a, b) => (orderIndex.get(a) ?? 0) - (orderIndex.get(b) ?? 0));
+
+  const yearReserved = year ? 1 : 0;
+  const wordBudget = 3 - yearReserved; // 2 palavras se houver ano, 3 se não
+
+  const ranked: string[] = [];
+  const pushUnique = (list: string[]) => {
+    for (const t of sortByOriginal(list)) {
+      if (ranked.length >= wordBudget) return;
+      if (!ranked.includes(t)) ranked.push(t);
     }
-  }
+  };
+  pushUnique(t1Words);
+  pushUnique(t2);
+  pushUnique(t3);
+  pushUnique(tOther);
 
-  const result = limited.join(" ").trim();
+  // reordena as palavras escolhidas pela ordem original do título
+  const slots = sortByOriginal(ranked);
+  if (year) slots.push(year); // ano sempre por último
+
+  // 6. fallback raro
+  if (slots.length === 0) slots.push(tokens[0]);
+
+  // garante limite rígido de 3 palavras
+  const result = slots.slice(0, 3).join(" ").trim();
   return result.length > 0 ? result : "PLAYLIST";
 }
 
 // ============================================================
-// SUBTEXTO TEMÁTICO (mantido — usado pelo Clean / Dynamic)
+// SUBTEXTO EDITORIAL (frases curtas e fortes, sem genéricos)
 // ============================================================
+// Whitelist de frases prontas — sempre 1-3 palavras, em CAIXA ALTA.
+// Se o brief não bater com nenhum tema → retorna null (não força nada).
+const SUBTEXT_PHRASES: { match: RegExp; phrase: string }[] = [
+  { match: /\b(mais\s+tocad[oa]s?|tocad[oa]s?)\b/i, phrase: "AS MAIS TOCADAS" },
+  { match: /\b(cl[aá]ssic[oa]s?|atemporais?)\b/i, phrase: "CLÁSSICOS" },
+  { match: /\b(top\s+brasil|brasil)\b/i, phrase: "TOP BRASIL" },
+  { match: /\b(nost[aá]lgic[oa]?|nostalgia|saudade)\b/i, phrase: "NOSTALGIA" },
+  { match: /\b(rom[aâ]ntic[oa]s?|romance|amor)\b/i, phrase: "SÓ ROMANCE" },
+  { match: /\b(festa|balada|agitad[oa]s?)\b/i, phrase: "MODO FESTA" },
+  { match: /\b(ver[aã]o|praia|viagem)\b/i, phrase: "VIBE DE VERÃO" },
+  { match: /\b(novidades?|lan[cç]amentos?|fresh|novo)\b/i, phrase: "NOVIDADES" },
+  { match: /\b(viral|viralizou|tiktok)\b/i, phrase: "VIRAL AGORA" },
+  { match: /\b(hits?)\b/i, phrase: "HITS" },
+  { match: /\b(modão|modao|raiz)\b/i, phrase: "RAIZ" },
+  { match: /\b(sofr[eê]ncia)\b/i, phrase: "SOFRÊNCIA" },
+  { match: /\b(relax|calm[oa]|chill)\b/i, phrase: "MODO CHILL" },
+];
+
 function extractSubtext(brief: string | null | undefined): string | null {
   if (!brief || typeof brief !== "string") return null;
-  const cleaned = brief
-    .replace(/[^\p{L}\p{N}\s]/gu, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .toLowerCase();
-  if (cleaned.length < 8) return null;
+  const text = brief.trim();
+  if (text.length < 4) return null;
 
-  const themeWords = [
-    "nostálgico", "nostálgica", "nostalgia",
-    "romântico", "romântica", "romance",
-    "festa", "balada", "agitado", "agitada",
-    "sertanejo", "sertaneja", "raiz",
-    "modão", "sofrência",
-    "verão", "viagem",
-    "clássicos", "clássicas", "atemporais",
-    "novidades", "lançamentos",
-    "top", "hits", "melhores",
-    "relax", "calmo", "calma",
-  ];
-  const tokens = cleaned.split(" ");
-  const matched = tokens.filter((t) => themeWords.includes(t));
-  let phrase: string;
-  if (matched.length >= 2) {
-    phrase = matched.slice(0, 3).join(" ");
-  } else if (matched.length === 1) {
-    phrase = matched[0];
-  } else {
-    const meaningful = tokens.filter((t) => t.length > 4);
-    if (meaningful.length === 0) return null;
-    phrase = meaningful.slice(0, 2).join(" ");
+  // tenta casar na ordem da whitelist (a primeira ganha)
+  for (const { match, phrase } of SUBTEXT_PHRASES) {
+    if (match.test(text)) return phrase;
   }
-  const upper = phrase.toUpperCase().trim();
-  return upper.length > 0 && upper.length <= 28 ? upper : null;
+  // sem match editorial → não força nada
+  return null;
 }
 
 // ============================================================
