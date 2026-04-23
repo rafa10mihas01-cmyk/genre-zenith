@@ -461,6 +461,25 @@ const LAYOUT_RULES_BLOCK = [
   "- Consistent, intentional spacing — the layout must feel calm, professional and editorial.",
 ].join("\n");
 
+// ============================================================
+// HIERARCHY RULES (compartilhado pelos 3 estilos)
+// Controla APENAS hierarquia e tamanho relativo — NÃO altera tipografia, cor ou estilo.
+// ============================================================
+const HIERARCHY_RULES_BLOCK = [
+  "HIERARCHY & SCALE RULES (STRICT — same standard across every cover):",
+  "- There is ALWAYS exactly ONE dominant element (the main title). It is clearly the largest piece of text on the canvas.",
+  "- The secondary element (subtitle / secondary line) is at MOST 40% of the dominant element's size. Never close to the same size.",
+  "- Two elements with similar size COMPETING for attention is STRICTLY FORBIDDEN — the eye must immediately know what to read first.",
+  "- Main title: large, prominent, optically centered. It is the visual anchor of the cover.",
+  "- Secondary text: clearly smaller, placed below (or above) the title with strong, obvious size contrast.",
+  "- No text element may be too small to read at a 64x64 thumbnail — if it cannot be read, it should not exist.",
+  "- Visual weight must feel CONSISTENT across all generated covers (same dominant/secondary ratio every time).",
+  "NUMBER INTEGRITY (CRITICAL):",
+  "- Numbers (especially years like 2024, 2025) must NEVER be broken across lines or split into parts (e.g. \"20\" / \"24\" is FORBIDDEN).",
+  "- Years and multi-digit numbers always render as a single, unbroken token on the same line.",
+  "- If the layout cannot fit the full number on one line, shrink the number slightly or rebalance the title — never split the digits.",
+].join("\n");
+
 
 // ============================================================
 // PROMPT BUILDERS — 1 por estilo
@@ -503,6 +522,8 @@ function buildCleanPrompt(template: any, palette: typeof PALETTES[number], index
     `${palette.text}.`,
     "",
     LAYOUT_RULES_BLOCK,
+    "",
+    HIERARCHY_RULES_BLOCK,
     "",
     "VARIATION (subtle, this card only):",
     variationHints(index),
@@ -559,6 +580,8 @@ function buildViralHitsPrompt(template: any, palette: typeof PALETTES[number], i
     "Spelling MUST be EXACTLY as written. No typos, no extra letters.",
     "",
     LAYOUT_RULES_BLOCK,
+    "",
+    HIERARCHY_RULES_BLOCK,
     "",
     "VARIATION (subtle, this card only):",
     variationHints(index),
@@ -624,6 +647,8 @@ function buildDynamicPrompt(template: any, palette: typeof PALETTES[number], ind
     "Never combine multiple techniques in the same cover.",
     "",
     LAYOUT_RULES_BLOCK,
+    "",
+    HIERARCHY_RULES_BLOCK,
     "",
     "VARIATION (subtle, this card only):",
     variationHints(index),
