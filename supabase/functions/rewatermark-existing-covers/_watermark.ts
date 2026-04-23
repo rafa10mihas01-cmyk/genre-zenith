@@ -28,12 +28,15 @@ const LOGO_BLACK_URL =
 //   2. Highlight 1px acima (clara, simula relevo)
 //   3. Core do logo em tom adaptado ao fundo (não branco puro), opacidade ~10%
 // Resultado: percebido só no segundo olhar, parece parte do material.
-const LOGO_WIDTH_PCT     = 0.10;  // 10% da largura (menor, mais discreto — antes 18%)
-const MARGIN_PCT         = 0.07;  // 7% das bordas (offset confortável)
-const LOGO_OPACITY       = 0.10;  // 10% — limiar do "gravado", não colado
-const EMBOSS_HIGHLIGHT_A = 0.06;  // alpha do brilho (relevo superior)
-const EMBOSS_SHADOW_A    = 0.08;  // alpha da sombra (relevo inferior)
-const LOGO_TINT_SHIFT    = 24;    // quanto puxar do branco/preto puro pra dentro do tom do fundo
+const LOGO_WIDTH_PCT     = 0.10;  // 10% da largura (mantido)
+const MARGIN_PCT         = 0.07;  // 7% das bordas (mantido)
+const LOGO_OPACITY       = 0.08;  // 8% — abaixo do limiar consciente
+// DEBOSS (gravado pra dentro, oposto do emboss tradicional):
+//   sombra ESCURA 1px ACIMA do logo  → simula que a luz vem de cima e a "incisão" causa sombra na borda superior
+//   brilho CLARO  1px ABAIXO do logo → luz refletida na parte inferior da incisão
+const DEBOSS_SHADOW_A    = 0.07;  // alpha da sombra superior (gravação)
+const DEBOSS_HIGHLIGHT_A = 0.04;  // alpha do brilho inferior (reflexo)
+const LOGO_TINT_SHIFT    = 32;    // puxa mais do branco/preto puro pra dentro do tom do fundo
 
 // ============================================================
 // PREMIUM FINISH — calibração visual
@@ -246,17 +249,18 @@ export async function applyWatermark(coverBytes: Uint8Array): Promise<{
     const aspect = baseLogo.height / baseLogo.width;
     const targetHeight = Math.round(targetWidth * aspect);
 
-    // Calcula tom adaptado: puxa do branco/preto puro em direção ao tom do fundo,
-    // pra parecer "parte do material" e não um adesivo.
+    // Calcula tom adaptado: puxa MAIS do branco/preto puro em direção ao tom do fundo.
+    // Em fundos escuros, o logo é um cinza claro tingido com a cor da capa (não branco).
+    // Em fundos claros, é um cinza escuro tingido — sempre "do mesmo material".
     const tintR = isDarkBg
-      ? Math.min(255, 235 - LOGO_TINT_SHIFT + Math.round(stats.r * 0.10))
-      : Math.max(0, 20 + LOGO_TINT_SHIFT - Math.round((255 - stats.r) * 0.10));
+      ? Math.min(255, 215 - LOGO_TINT_SHIFT + Math.round(stats.r * 0.18))
+      : Math.max(0,   40 + LOGO_TINT_SHIFT - Math.round((255 - stats.r) * 0.18));
     const tintG = isDarkBg
-      ? Math.min(255, 235 - LOGO_TINT_SHIFT + Math.round(stats.g * 0.10))
-      : Math.max(0, 20 + LOGO_TINT_SHIFT - Math.round((255 - stats.g) * 0.10));
+      ? Math.min(255, 215 - LOGO_TINT_SHIFT + Math.round(stats.g * 0.18))
+      : Math.max(0,   40 + LOGO_TINT_SHIFT - Math.round((255 - stats.g) * 0.18));
     const tintB = isDarkBg
-      ? Math.min(255, 235 - LOGO_TINT_SHIFT + Math.round(stats.b * 0.10))
-      : Math.max(0, 20 + LOGO_TINT_SHIFT - Math.round((255 - stats.b) * 0.10));
+      ? Math.min(255, 215 - LOGO_TINT_SHIFT + Math.round(stats.b * 0.18))
+      : Math.max(0,   40 + LOGO_TINT_SHIFT - Math.round((255 - stats.b) * 0.18));
 
     // Helper: cria uma cópia do logo já redimensionada, com cor uniforme + opacidade.
     // Preserva o canal alpha original (mantém o desenho), só substitui RGB.
@@ -274,20 +278,21 @@ export async function applyWatermark(coverBytes: Uint8Array): Promise<{
       return clone;
     };
 
-    // 3 camadas para efeito emboss "gravado":
-    //   • shadow: 1px abaixo, escura  → relevo inferior
-    //   • highlight: 1px acima, clara → relevo superior
-    //   • core: cor adaptada ao fundo, opacidade principal
-    const shadowLayer    = makeTintedLogo(0,   0,   0,   EMBOSS_SHADOW_A);
-    const highlightLayer = makeTintedLogo(255, 255, 255, EMBOSS_HIGHLIGHT_A);
+    // DEBOSS — logo gravado pra dentro da superfície (luz vem de cima):
+    //   • shadow ESCURA 1px ACIMA  → borda superior da incisão recebe sombra
+    //   • highlight CLARO 1px ABAIXO → fundo da incisão reflete um pouco de luz
+    //   • core: tom adaptado ao fundo, opacidade muito baixa (~8%)
+    // A ordem importa: shadow e highlight primeiro, core por cima atenuando o conjunto.
+    const shadowLayer    = makeTintedLogo(0,   0,   0,   DEBOSS_SHADOW_A);
+    const highlightLayer = makeTintedLogo(255, 255, 255, DEBOSS_HIGHLIGHT_A);
     const coreLayer      = makeTintedLogo(tintR, tintG, tintB, LOGO_OPACITY);
 
     const x = cover.width - targetWidth - margin;
     const y = cover.height - targetHeight - margin;
 
-    cover.composite(shadowLayer,    x,     y + 1);
-    cover.composite(highlightLayer, x,     y - 1);
-    cover.composite(coreLayer,      x,     y);
+    cover.composite(shadowLayer,    x,     y - 1);  // sombra ACIMA (gravação)
+    cover.composite(highlightLayer, x,     y + 1);  // brilho ABAIXO (reflexo)
+    cover.composite(coreLayer,      x,     y);      // logo no centro
 
     const out = await cover.encode();
     return { bytes: out, contentType: "image/png", applied: true };
