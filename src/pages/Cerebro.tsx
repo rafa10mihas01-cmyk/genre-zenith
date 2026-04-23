@@ -554,11 +554,16 @@ function Empty({ msg }: { msg: string }) {
 }
 
 function SkeletonGrid() {
+  // Reflete o layout real da Visão Geral: 3 KPIs em cima + bloco grande
+  // Top playlists ao lado do Resumo do modelo. Sem skeleton "achatado" que
+  // depois pula pra o tamanho real (causava sensação de "abre pequeno e expande").
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} className="nx-card p-5 h-32 animate-pulse" />
-      ))}
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="nx-card p-4 h-[92px] animate-pulse" />
+      <div className="nx-card p-4 h-[92px] animate-pulse" />
+      <div className="nx-card p-4 h-[92px] animate-pulse" />
+      <div className="nx-card p-5 lg:col-span-2 h-[440px] animate-pulse" />
+      <div className="nx-card p-5 h-[440px] animate-pulse" />
     </div>
   );
 }
