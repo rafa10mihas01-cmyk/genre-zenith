@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Sparkles, Flame, AlertTriangle, Archive, RefreshCw, Loader2,
   Check, Music2, ExternalLink, AlertCircle, ChevronDown, ChevronRight,
-  Send, Image as ImageIcon, Pencil, X, Play, Inbox,
+  Send, Image as ImageIcon, Pencil, X, Play, Inbox, Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -62,6 +62,7 @@ export default function Criacao() {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [scoring, setScoring] = useState(false);
+  const [expiring, setExpiring] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [activeTemplate, setActiveTemplate] = useState<Template | null>(null);
 
@@ -88,7 +89,29 @@ export default function Criacao() {
       return;
     }
     const b = (data as any).breakdown;
-    toast({ title: `Ranqueamento concluído`, description: `🔥 ${b.hot} • ⚠️ ${b.medium} • ❌ ${b.weak}` });
+    const cap = (data as any).cap;
+    toast({
+      title: `Ranqueamento concluído`,
+      description: `🔥 ${b.hot} (cap ${Math.round((cap?.pct ?? 0.3) * 100)}% = max ${cap?.max_allowed ?? "?"}) • ⚠️ ${b.medium} • ❌ ${b.weak}`,
+    });
+    await load();
+  }
+
+  async function expireStale() {
+    setExpiring(true);
+    const { data, error } = await supabase.functions.invoke("expire-stale-templates", {
+      body: { hours: 72 },
+    });
+    setExpiring(false);
+    if (error || !(data as any)?.ok) {
+      toast({ title: "Falha ao expirar", description: error?.message || (data as any)?.error || "Erro", variant: "destructive" });
+      return;
+    }
+    const n = (data as any).expired ?? 0;
+    toast({
+      title: n > 0 ? `${n} médios expirados` : "Nada pra expirar",
+      description: n > 0 ? "Templates ⚠️ parados há 72h foram arquivados." : "Nenhum template medium ultrapassou 72h.",
+    });
     await load();
   }
 
@@ -126,6 +149,16 @@ export default function Criacao() {
         subtitle="Templates ranqueados pelo sistema. Aprovar, escolher capa e publicar em poucos cliques."
         actions={
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              className="rounded-full h-9 gap-1.5"
+              onClick={expireStale}
+              disabled={expiring}
+              title="Arquiva templates ⚠️ médios parados há mais de 72h"
+            >
+              {expiring ? <Loader2 className="h-4 w-4 animate-spin" /> : <Clock className="h-4 w-4" />}
+              Expirar 72h
+            </Button>
             <Button
               variant="outline"
               className="rounded-full h-9 gap-1.5"
