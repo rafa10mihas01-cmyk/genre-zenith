@@ -247,7 +247,7 @@ function VariacoesList({
   removeTemplate: (id: string) => void;
   createOnSpotify: (id: string) => void;
 }) {
-  const { visibleItems, hasMore, loadMore, total, visible } = usePagination(filtered, 20);
+  const { visibleItems, hasMore, canCollapse, loadMore, collapse, total, visible } = usePagination(filtered, 20, filtered);
 
   if (filtered.length === 0) {
     return (
@@ -280,7 +280,7 @@ function VariacoesList({
           />
         ))}
       </div>
-      <LoadMore visible={visible} total={total} hasMore={hasMore} onLoadMore={loadMore} itemLabel="variações" />
+      <LoadMore visible={visible} total={total} hasMore={hasMore} canCollapse={canCollapse} onLoadMore={loadMore} onCollapse={collapse} itemLabel="variações" />
     </>
   );
 }
