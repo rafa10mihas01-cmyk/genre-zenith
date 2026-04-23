@@ -23,9 +23,17 @@ const LOGO_WHITE_URL =
 const LOGO_BLACK_URL =
   "https://xtxxjmkijeyxkdyxtvsf.supabase.co/storage/v1/object/public/playlist-covers/_brand/nexengine-mono-black.png";
 
-const LOGO_WIDTH_PCT = 0.18;   // 18% da largura da capa (discreto mas legível)
-const MARGIN_PCT     = 0.06;   // 6% das bordas
-const OPACITY        = 0.45;   // 45% — visível em qualquer fundo, ainda discreto
+// Logo "gravado na superfície" — emboss premium (estilo Apple/Spotify):
+//   1. Sombra 1px abaixo (escura, integra ao fundo)
+//   2. Highlight 1px acima (clara, simula relevo)
+//   3. Core do logo em tom adaptado ao fundo (não branco puro), opacidade ~10%
+// Resultado: percebido só no segundo olhar, parece parte do material.
+const LOGO_WIDTH_PCT     = 0.10;  // 10% da largura (menor, mais discreto — antes 18%)
+const MARGIN_PCT         = 0.07;  // 7% das bordas (offset confortável)
+const LOGO_OPACITY       = 0.10;  // 10% — limiar do "gravado", não colado
+const EMBOSS_HIGHLIGHT_A = 0.06;  // alpha do brilho (relevo superior)
+const EMBOSS_SHADOW_A    = 0.08;  // alpha da sombra (relevo inferior)
+const LOGO_TINT_SHIFT    = 24;    // quanto puxar do branco/preto puro pra dentro do tom do fundo
 
 // ============================================================
 // PREMIUM FINISH — calibração visual
@@ -64,11 +72,12 @@ async function getLogos(): Promise<{ white: Image; black: Image }> {
 }
 
 // ============================================================
-// LUMINANCE (pra escolher a cor da watermark)
+// LUMINANCE + AVG COLOR (pra escolher e tonalizar a watermark)
 // ============================================================
-function regionLuminance(img: Image, x: number, y: number, w: number, h: number): number {
-  let total = 0;
-  let count = 0;
+function regionStats(img: Image, x: number, y: number, w: number, h: number): {
+  lum: number; r: number; g: number; b: number;
+} {
+  let tr = 0, tg = 0, tb = 0, total = 0, count = 0;
   const stepX = Math.max(1, Math.floor(w / 8));
   const stepY = Math.max(1, Math.floor(h / 8));
   for (let py = y; py < y + h && py < img.height; py += stepY) {
@@ -77,11 +86,13 @@ function regionLuminance(img: Image, x: number, y: number, w: number, h: number)
       const r = (pixel >>> 24) & 0xff;
       const g = (pixel >>> 16) & 0xff;
       const b = (pixel >>> 8) & 0xff;
+      tr += r; tg += g; tb += b;
       total += 0.2126 * r + 0.7152 * g + 0.0722 * b;
       count++;
     }
   }
-  return count > 0 ? total / count : 128;
+  if (count === 0) return { lum: 128, r: 128, g: 128, b: 128 };
+  return { lum: total / count, r: tr / count, g: tg / count, b: tb / count };
 }
 
 // ============================================================
@@ -211,7 +222,7 @@ export async function applyWatermark(coverBytes: Uint8Array): Promise<{
     try { drawInnerBorder(cover); }
     catch (e) { console.warn("[inner-border] pulou:", e); }
 
-    // 3. Watermark adaptativa
+    // 3. Watermark "gravada" — emboss + tint adaptado ao fundo
     const { white, black } = await getLogos();
     const targetWidth = Math.round(cover.width * LOGO_WIDTH_PCT);
     const margin = Math.round(cover.width * MARGIN_PCT);
@@ -220,18 +231,56 @@ export async function applyWatermark(coverBytes: Uint8Array): Promise<{
     const sampleY = Math.max(0, cover.height - Math.round(targetWidth * 0.5) - margin);
     const sampleW = Math.min(cover.width - sampleX, targetWidth);
     const sampleH = Math.min(cover.height - sampleY, Math.round(targetWidth * 0.5));
-    const lum = regionLuminance(cover, sampleX, sampleY, sampleW, sampleH);
+    const stats = regionStats(cover, sampleX, sampleY, sampleW, sampleH);
+    const isDarkBg = stats.lum < 128;
 
-    const logo = lum < 128 ? white : black;
-
-    const aspect = logo.height / logo.width;
+    // Logo base (branco para fundo escuro, preto para fundo claro)
+    const baseLogo = isDarkBg ? white : black;
+    const aspect = baseLogo.height / baseLogo.width;
     const targetHeight = Math.round(targetWidth * aspect);
-    logo.resize(targetWidth, targetHeight);
-    logo.opacity(OPACITY);
+
+    // Calcula tom adaptado: puxa do branco/preto puro em direção ao tom do fundo,
+    // pra parecer "parte do material" e não um adesivo.
+    const tintR = isDarkBg
+      ? Math.min(255, 235 - LOGO_TINT_SHIFT + Math.round(stats.r * 0.10))
+      : Math.max(0, 20 + LOGO_TINT_SHIFT - Math.round((255 - stats.r) * 0.10));
+    const tintG = isDarkBg
+      ? Math.min(255, 235 - LOGO_TINT_SHIFT + Math.round(stats.g * 0.10))
+      : Math.max(0, 20 + LOGO_TINT_SHIFT - Math.round((255 - stats.g) * 0.10));
+    const tintB = isDarkBg
+      ? Math.min(255, 235 - LOGO_TINT_SHIFT + Math.round(stats.b * 0.10))
+      : Math.max(0, 20 + LOGO_TINT_SHIFT - Math.round((255 - stats.b) * 0.10));
+
+    // Helper: cria uma cópia do logo já redimensionada, com cor uniforme + opacidade.
+    // Preserva o canal alpha original (mantém o desenho), só substitui RGB.
+    const makeTintedLogo = (r: number, g: number, b: number, opacity: number): Image => {
+      const clone = baseLogo.clone();
+      clone.resize(targetWidth, targetHeight);
+      const buf = clone.bitmap;
+      for (let i = 0; i < buf.length; i += 4) {
+        if (buf[i + 3] === 0) continue; // pixel transparente, ignora
+        buf[i]     = r;
+        buf[i + 1] = g;
+        buf[i + 2] = b;
+        buf[i + 3] = (buf[i + 3] * opacity) | 0;
+      }
+      return clone;
+    };
+
+    // 3 camadas para efeito emboss "gravado":
+    //   • shadow: 1px abaixo, escura  → relevo inferior
+    //   • highlight: 1px acima, clara → relevo superior
+    //   • core: cor adaptada ao fundo, opacidade principal
+    const shadowLayer    = makeTintedLogo(0,   0,   0,   EMBOSS_SHADOW_A);
+    const highlightLayer = makeTintedLogo(255, 255, 255, EMBOSS_HIGHLIGHT_A);
+    const coreLayer      = makeTintedLogo(tintR, tintG, tintB, LOGO_OPACITY);
 
     const x = cover.width - targetWidth - margin;
     const y = cover.height - targetHeight - margin;
-    cover.composite(logo, x, y);
+
+    cover.composite(shadowLayer,    x,     y + 1);
+    cover.composite(highlightLayer, x,     y - 1);
+    cover.composite(coreLayer,      x,     y);
 
     const out = await cover.encode();
     return { bytes: out, contentType: "image/png", applied: true };
