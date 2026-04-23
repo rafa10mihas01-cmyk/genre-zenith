@@ -624,7 +624,7 @@ export default function Criacao() {
           )
         ) : <EmptySelection onBack={() => setTab("fila")} />
       )}
-    </div>
+    </PageContainer>
   );
 }
 

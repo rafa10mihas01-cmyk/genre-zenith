@@ -538,7 +538,7 @@ export default function Settings() {
           </Button>
         </div>
       </section>
-    </div>
+    </PageContainer>
   );
 }
 

@@ -293,7 +293,7 @@ export default function Performance() {
       )}
 
       {loading && <p className="text-xs text-muted-foreground text-center">Carregando…</p>}
-    </div>
+    </PageContainer>
   );
 }
 
