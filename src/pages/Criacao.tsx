@@ -72,6 +72,15 @@ export default function Criacao() {
   const [batchCovers, setBatchCovers] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [activeTemplate, setActiveTemplate] = useState<Template | null>(null);
+  // IDs de templates atualmente gerando capa (mostra overlay no card correto)
+  const [generatingCoverIds, setGeneratingCoverIds] = useState<Set<string>>(new Set());
+  const markGenerating = (id: string, on: boolean) => {
+    setGeneratingCoverIds(prev => {
+      const next = new Set(prev);
+      if (on) next.add(id); else next.delete(id);
+      return next;
+    });
+  };
 
   // Toolbar state
   const [search, setSearch] = useState("");
@@ -222,9 +231,11 @@ export default function Criacao() {
     setBatchCovers(true);
     let ok = 0, fail = 0;
     for (const t of hotMissingCovers) {
+      markGenerating(t.id, true);
       const { data, error } = await supabase.functions.invoke("generate-cover-variations", {
         body: { template_id: t.id },
       });
+      markGenerating(t.id, false);
       if (error || !(data as any)?.ok) fail++;
       else ok++;
     }
@@ -319,7 +330,7 @@ export default function Criacao() {
         emptyTitle={loading ? "Carregando…" : "Nenhum template pronto"}
         emptyMsg={loading ? "" : "Quando o Cérebro gerar templates fortes, eles aparecem aqui."}
       >
-        <PagedTemplateGrid items={groups.hot} variant="hot" itemLabel="templates prontos" onOpen={setActiveTemplate} />
+        <PagedTemplateGrid items={groups.hot} variant="hot" itemLabel="templates prontos" onOpen={setActiveTemplate} generatingIds={generatingCoverIds} />
       </Section>
 
       {/* MEDIUM */}
@@ -332,7 +343,7 @@ export default function Criacao() {
         emptyTitle={loading ? "" : "Sem médios pendentes"}
         emptyMsg=""
       >
-        <PagedTemplateGrid items={groups.medium} variant="medium" itemLabel="templates médios" onOpen={setActiveTemplate} />
+        <PagedTemplateGrid items={groups.medium} variant="medium" itemLabel="templates médios" onOpen={setActiveTemplate} generatingIds={generatingCoverIds} />
       </Section>
 
       {/* PUBLISHED (info, sem ação principal) */}
@@ -365,6 +376,7 @@ export default function Criacao() {
         template={activeTemplate}
         onClose={() => setActiveTemplate(null)}
         onChanged={async () => { await load(); }}
+        onGeneratingChange={markGenerating}
       />
     </PageContainer>
   );
@@ -577,8 +589,8 @@ function Section({
 type CardVariant = "hot" | "medium" | "archived" | "published";
 
 function TemplateCard({
-  t, variant, onOpen,
-}: { t: Template; variant: CardVariant; onOpen: () => void }) {
+  t, variant, onOpen, isGenerating = false,
+}: { t: Template; variant: CardVariant; onOpen: () => void; isGenerating?: boolean }) {
   const isHot = variant === "hot";
   const isPublished = variant === "published";
   const isArchived = variant === "archived";
@@ -613,18 +625,20 @@ function TemplateCard({
       <button onClick={onOpen} className="relative aspect-square bg-elevated overflow-hidden">
         {t.cover_image_url ? (
           <img src={t.cover_image_url} alt="" className="w-full h-full object-cover transition-transform group-hover:scale-105" />
-        ) : t.cover_variations && t.cover_variations.length > 0 ? (
-          <div className="grid grid-cols-2 grid-rows-2 w-full h-full">
-            {t.cover_variations.slice(0, 4).map(v => (
-              <img key={v.index} src={v.url} alt="" className="w-full h-full object-cover" />
-            ))}
-          </div>
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground gap-1.5">
-            {t.auto_cover_requested ? (
+            {isGenerating || t.auto_cover_requested ? (
               <>
-                <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                <span className="text-[9px] uppercase tracking-wider">Gerando…</span>
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                <span className="text-[9px] uppercase tracking-wider text-primary font-bold">Gerando capa…</span>
+              </>
+            ) : t.cover_variations && t.cover_variations.length > 0 ? (
+              <>
+                <ImageIcon className="h-5 w-5" />
+                <span className="text-[9px] uppercase tracking-wider">Escolher capa</span>
+                <span className="inline-flex items-center gap-1 px-1.5 h-4 rounded text-[9px] font-bold text-primary bg-primary/15 border border-primary/40 mt-0.5">
+                  {t.cover_variations.length} variações
+                </span>
               </>
             ) : (
               <>
@@ -632,6 +646,12 @@ function TemplateCard({
                 <span className="text-[9px] uppercase tracking-wider">Sem capa</span>
               </>
             )}
+          </div>
+        )}
+        {isGenerating && t.cover_image_url && (
+          <div className="absolute inset-0 bg-background/70 backdrop-blur-sm flex flex-col items-center justify-center gap-1.5">
+            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            <span className="text-[10px] uppercase tracking-wider text-primary font-bold">Gerando capa…</span>
           </div>
         )}
         <div className="absolute top-1.5 left-1.5">{tierBadge}</div>
@@ -699,8 +719,8 @@ function TemplateCard({
 /* ───────────────── Detail Dialog (fluxo híbrido inline) ───────────────── */
 
 function TemplateDetailDialog({
-  template, onClose, onChanged,
-}: { template: Template | null; onClose: () => void; onChanged: () => Promise<void> }) {
+  template, onClose, onChanged, onGeneratingChange,
+}: { template: Template | null; onClose: () => void; onChanged: () => Promise<void>; onGeneratingChange?: (id: string, on: boolean) => void }) {
   const { toast } = useToast();
   const [tpl, setTpl] = useState<Template | null>(template);
   const [editName, setEditName] = useState("");
@@ -761,18 +781,21 @@ function TemplateDetailDialog({
 
   async function generateCovers() {
     if (!tpl) return;
+    const targetId = tpl.id;
     setBusy("cover");
+    onGeneratingChange?.(targetId, true);
     // Limpa a capa "oficial" anterior para o usuário escolher de novo entre as variações novas.
     // Se já tinha uma seleção antiga, ela some até que uma nova variação seja escolhida.
     if (tpl.cover_image_url || tpl.cover_selected_index !== null) {
       await supabase.from("playlist_templates")
         .update({ cover_image_url: null, cover_selected_index: null })
-        .eq("id", tpl.id);
+        .eq("id", targetId);
     }
     const { data, error } = await supabase.functions.invoke("generate-cover-variations", {
-      body: { template_id: tpl.id },
+      body: { template_id: targetId },
     });
     setBusy(null);
+    onGeneratingChange?.(targetId, false);
     if (error || !(data as any)?.ok) {
       toast({ title: "Falha ao gerar capas", description: error?.message || (data as any)?.error || "Erro", variant: "destructive" });
       return;
@@ -1043,19 +1066,21 @@ function PagedTemplateGrid({
   variant,
   itemLabel,
   resetKey,
+  generatingIds,
 }: {
   items: Template[];
   onOpen: (t: Template) => void;
   variant: CardVariant;
   itemLabel: string;
   resetKey?: unknown;
+  generatingIds?: Set<string>;
 }) {
   const { visibleItems, hasMore, canCollapse, loadMore, collapse, total, visible } = usePagination(items, 20, resetKey ?? items);
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
         {visibleItems.map(t => (
-          <TemplateCard key={t.id} t={t} variant={variant} onOpen={() => onOpen(t)} />
+          <TemplateCard key={t.id} t={t} variant={variant} onOpen={() => onOpen(t)} isGenerating={generatingIds?.has(t.id) ?? false} />
         ))}
       </div>
       <LoadMore visible={visible} total={total} hasMore={hasMore} canCollapse={canCollapse} onLoadMore={loadMore} onCollapse={collapse} itemLabel={itemLabel} />
