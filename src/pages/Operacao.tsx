@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Activity, Pause, Pencil, RefreshCw, ArrowDownRight, ArrowUpRight,
+  Activity, Pause, Pencil, Plus, RefreshCw, ArrowDownRight, ArrowUpRight,
   Music2, FlaskConical, History, ListMusic, Search, Users, ExternalLink,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
