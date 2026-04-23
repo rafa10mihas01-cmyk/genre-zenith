@@ -625,6 +625,11 @@ function TemplateCard({
       {/* Info */}
       <div className="p-2 flex-1 flex flex-col gap-1.5">
         <div className="min-w-0">
+          {t.genres?.nome && (
+            <div className="text-[9px] uppercase tracking-wider text-muted-foreground font-bold truncate mb-0.5">
+              {t.genres.nome}
+            </div>
+          )}
           <div className="text-[12px] font-semibold truncate leading-tight" title={t.name}>{t.name}</div>
           <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5">
             <span className="inline-flex items-center gap-0.5">
