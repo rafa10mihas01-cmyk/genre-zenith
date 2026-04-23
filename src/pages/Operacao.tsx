@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/PageHeader";
+import { KpiBig } from "@/components/KpiBig";
 import { AccountsManager } from "@/components/operacao/AccountsManager";
 
 /**
@@ -60,12 +61,12 @@ export default function Operacao() {
       />
 
       {/* KPIs operacionais (zerados — sem mentir) */}
-      <section className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <KpiBox label="Total ativas" value="0" hint="Playlists em operação" />
-        <KpiBox label="Crescendo" value="0" tone="primary" hint="Variação positiva" />
-        <KpiBox label="Em queda" value="0" tone="destructive" hint="Precisa atenção" />
-        <KpiBox label="Em teste" value="0" tone="warning" hint="Validando hipótese" />
-        <KpiBox label="Trocas (7d)" value="0" hint="Músicas movimentadas" />
+      <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        <KpiBig icon={Activity}       label="Total ativas" value="0" hint="Playlists em operação" />
+        <KpiBig icon={ArrowUpRight}   label="Crescendo"    value="0" tone="primary"     hint="Variação positiva" />
+        <KpiBig icon={ArrowDownRight} label="Em queda"     value="0" tone="destructive" hint="Precisa atenção" />
+        <KpiBig icon={FlaskConical}   label="Em teste"     value="0" tone="warning"     hint="Validando hipótese" />
+        <KpiBig icon={RefreshCw}      label="Trocas (7d)"  value="0"                    hint="Músicas movimentadas" />
       </section>
 
       {/* TABS */}
@@ -219,23 +220,6 @@ export default function Operacao() {
 }
 
 /* ---------------- helpers UI ---------------- */
-
-function KpiBox({
-  label, value, hint, tone,
-}: { label: string; value: string; hint?: string; tone?: "primary" | "destructive" | "warning" }) {
-  const cls =
-    tone === "primary"     ? "text-primary"
-    : tone === "destructive" ? "text-destructive"
-    : tone === "warning"   ? "text-warning"
-    : "text-foreground";
-  return (
-    <div className="nx-card">
-      <div className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-bold">{label}</div>
-      <div className={cn("text-2xl font-bold mt-2 tabular-nums", cls)}>{value}</div>
-      {hint && <div className="text-[11px] text-muted-foreground mt-1">{hint}</div>}
-    </div>
-  );
-}
 
 function FilterChip({
   active, onClick, children,

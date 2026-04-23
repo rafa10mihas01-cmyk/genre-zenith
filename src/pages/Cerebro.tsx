@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/PageHeader";
 import { Replicacao } from "@/components/brain/Replicacao";
 import { ReplicacaoAuto } from "@/components/brain/ReplicacaoAuto";
+import { KpiBig } from "@/components/KpiBig";
 
 /**
  * CÉREBRO — módulo único com 6 abas internas.
@@ -547,18 +548,6 @@ function Visual({ briefing, loading, onAnalyze, analyzing }: any) {
 }
 
 /* ===================== HELPERS ===================== */
-
-function KpiBig({ icon: Icon, label, value }: any) {
-  return (
-    <div className="nx-card p-4">
-      <div className="flex items-center justify-between">
-        <span className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-medium">{label}</span>
-        <Icon className="h-3.5 w-3.5 text-muted-foreground" />
-      </div>
-      <div className="text-2xl font-bold mt-1.5 tabular-nums">{value}</div>
-    </div>
-  );
-}
 
 function Empty({ msg }: { msg: string }) {
   return <div className="text-xs text-muted-foreground py-8 text-center">{msg}</div>;

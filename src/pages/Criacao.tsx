@@ -13,6 +13,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/PageHeader";
+import { KpiBig } from "@/components/KpiBig";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -274,12 +275,12 @@ export default function Criacao() {
       />
 
       {/* KPIs */}
-      <section className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <KpiBox label="Na fila"        value={String(kpi.naFila)}        hint="Aguardando edição" />
-        <KpiBox label="Sem capa"       value={String(kpi.semCapa)}       tone="warning"     hint="Faltam capas" />
-        <KpiBox label="Com capa"       value={String(kpi.comCapa)}       tone="primary"     hint="Prontas pra publicar" />
-        <KpiBox label="Publicadas (7d)" value={String(kpi.publicadas7d)}  tone="primary"     hint="Foram pro Spotify" />
-        <KpiBox label="Falhas"         value={String(kpi.falhas)}        tone="destructive" hint="Erros de criação" />
+      <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        <KpiBig icon={ListChecks}  label="Na fila"         value={kpi.naFila}        hint="Aguardando edição" />
+        <KpiBig icon={ImageIcon}   label="Sem capa"        value={kpi.semCapa}       tone="warning"     hint="Faltam capas" />
+        <KpiBig icon={Check}       label="Com capa"        value={kpi.comCapa}       tone="primary"     hint="Prontas pra publicar" />
+        <KpiBig icon={Send}        label="Publicadas (7d)" value={kpi.publicadas7d}  tone="primary"     hint="Foram pro Spotify" />
+        <KpiBig icon={AlertCircle} label="Falhas"          value={kpi.falhas}        tone="destructive" hint="Erros de criação" />
       </section>
 
       {/* TABS */}
@@ -628,23 +629,6 @@ export default function Criacao() {
 }
 
 /* ---------------- helpers UI ---------------- */
-
-function KpiBox({
-  label, value, hint, tone,
-}: { label: string; value: string; hint?: string; tone?: "primary" | "destructive" | "warning" }) {
-  const cls =
-    tone === "primary"     ? "text-primary"
-    : tone === "destructive" ? "text-destructive"
-    : tone === "warning"   ? "text-warning"
-    : "text-foreground";
-  return (
-    <div className="nx-card">
-      <div className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-bold">{label}</div>
-      <div className={cn("text-2xl font-bold mt-2 tabular-nums", cls)}>{value}</div>
-      {hint && <div className="text-[11px] text-muted-foreground mt-1">{hint}</div>}
-    </div>
-  );
-}
 
 function FilterChip({
   active, onClick, children,
