@@ -592,7 +592,7 @@ Deno.serve(async (req) => {
   const styleMix = pickStyleMix();
 
   // Gera 1 variação por (paleta + estilo) — em paralelo
-  const prompts = PALETTES.map((p, i) => buildPrompt(tpl, p, styleMix[i], body.custom_prompt));
+  const prompts = PALETTES.map((p, i) => buildPrompt(tpl, p, styleMix[i], i, body.custom_prompt));
   const results = await Promise.allSettled(prompts.map((p) => generateOne(p)));
 
   for (let i = 0; i < results.length; i++) {
