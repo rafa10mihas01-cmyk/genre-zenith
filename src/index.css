@@ -192,6 +192,14 @@
   .animate-pulse-soft {
     animation: nx-pulse 1.6s ease-in-out infinite;
   }
+  /* Transição de página — fade puro (sem translate = zero layout shift) */
+  .animate-page-in {
+    animation: nx-page-in 180ms ease-out both;
+  }
+  /* Transição de troca de aba — leve e instantânea */
+  .animate-tab-in {
+    animation: nx-tab-in 140ms ease-out both;
+  }
   /* scrollbar discreta (estilo Spotify) */
   .nx-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
   .nx-scroll::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 8px; }
@@ -202,7 +210,24 @@
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
 }
+@keyframes nx-page-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes nx-tab-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
 @keyframes nx-pulse {
   0%, 100% { opacity: 1; box-shadow: 0 0 0 0 hsl(var(--primary) / 0.5); }
   50% { opacity: 0.85; box-shadow: 0 0 0 6px hsl(var(--primary) / 0); }
+}
+
+/* Reduz motion para usuários que preferem */
+@media (prefers-reduced-motion: reduce) {
+  .animate-page-in,
+  .animate-tab-in,
+  .animate-fade-in {
+    animation: none !important;
+  }
 }
