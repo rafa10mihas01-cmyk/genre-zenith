@@ -9,6 +9,7 @@ import {
   ArrowRight, Search, Lightbulb, Wrench, Radio, BarChart3, Rocket, Layers,
   X, CheckCircle2, AlertTriangle, Quote, Users,
 } from "lucide-react";
+import { EditorialSeederCard } from "@/components/operacao/EditorialSeederCard";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { useBrainModel } from "@/hooks/useBrainModel";
 import { useBriefings } from "@/hooks/useBriefings";
@@ -1069,6 +1070,9 @@ function Coleta({ genreId }: { genreId?: string }) {
 
   return (
     <div className="space-y-4">
+      {/* Coletar oficiais Spotify — descoberta de fontes (movido da Operação) */}
+      <EditorialSeederCard />
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <KpiBig icon={Activity} label="Eventos recentes" value={String(logs.length)} hint="Últimas 40 ações" />
         <KpiBig icon={Music2} label="Aguardando enriquecer" value={String(pending)} hint="Playlists sem dados completos" />
