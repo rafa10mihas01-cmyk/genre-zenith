@@ -99,12 +99,13 @@ Deno.serve(async (req) => {
   let query = supabase
     .from("playlist_templates")
     .select("id, name, cover_variations, cover_image_url")
-    .not("cover_variations", "is", null);
+    .not("cover_variations", "is", null)
+    .not("cover_variations", "eq", "[]");
 
   if (body.template_ids && body.template_ids.length > 0) {
     query = query.in("id", body.template_ids);
   } else {
-    query = query.limit(Math.min(Math.max(body.limit ?? 2, 1), 5));
+    query = query.limit(Math.min(Math.max(body.limit ?? 50, 1), 200));
   }
 
   const { data: templates, error } = await query;
