@@ -781,18 +781,21 @@ function TemplateDetailDialog({
 
   async function generateCovers() {
     if (!tpl) return;
+    const targetId = tpl.id;
     setBusy("cover");
+    onGeneratingChange?.(targetId, true);
     // Limpa a capa "oficial" anterior para o usuário escolher de novo entre as variações novas.
     // Se já tinha uma seleção antiga, ela some até que uma nova variação seja escolhida.
     if (tpl.cover_image_url || tpl.cover_selected_index !== null) {
       await supabase.from("playlist_templates")
         .update({ cover_image_url: null, cover_selected_index: null })
-        .eq("id", tpl.id);
+        .eq("id", targetId);
     }
     const { data, error } = await supabase.functions.invoke("generate-cover-variations", {
-      body: { template_id: tpl.id },
+      body: { template_id: targetId },
     });
     setBusy(null);
+    onGeneratingChange?.(targetId, false);
     if (error || !(data as any)?.ok) {
       toast({ title: "Falha ao gerar capas", description: error?.message || (data as any)?.error || "Erro", variant: "destructive" });
       return;
