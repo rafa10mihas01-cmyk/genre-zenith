@@ -54,10 +54,11 @@ const GLOW_CENTER_Y_PCT   = 0.42;  // Y do glow: 42% (ligeiramente acima do cent
 const GRAIN_AMPLITUDE     = 4;    // ±4 em cada canal RGB. Quase imperceptível em monitor.
 const GRAIN_SEED          = 0x9E3779B1; // golden-ratio-ish (mulberry32)
 
-// Inner border (refinada — 1px highlight branco + 1px sombra preto)
-const BORDER_INSET_PCT    = 0.012; // 1.2% da largura → ~12px em 1024
-const BORDER_HIGHLIGHT_A  = 38;    // alpha (0-255) do traço claro (~15%)
-const BORDER_SHADOW_A     = 50;    // alpha (0-255) do traço escuro (~20%)
+// Inner border — ASSINATURA VISUAL (mesma em TODAS as capas, sem variação).
+// 1px highlight (claro) + 1px sombra (escuro) logo abaixo, posição fixa.
+const BORDER_INSET_PCT    = 0.014; // 1.4% da largura → ~14px em 1024 (respiro consistente)
+const BORDER_HIGHLIGHT_A  = 28;    // ~11% — traço claro discreto
+const BORDER_SHADOW_A     = 36;    // ~14% — traço escuro discreto, levemente mais forte (peso óptico)
 
 // ============================================================
 // LOGO CACHE
