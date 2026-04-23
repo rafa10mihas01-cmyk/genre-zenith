@@ -247,3 +247,73 @@ export default function Performance() {
   );
 }
 
+function PlaylistsTable({
+  dataset, altaIds, baixaIds,
+}: {
+  dataset: DatasetRow[];
+  altaIds: Set<string>;
+  baixaIds: Set<string>;
+}) {
+  const sorted = dataset
+    .slice()
+    .sort((a, b) => (b.crescimento_percentual ?? -1) - (a.crescimento_percentual ?? -1));
+  const { visibleItems, hasMore, loadMore, total, visible } = usePagination(sorted, 20);
+
+  return (
+    <div className="space-y-3">
+      <Card className="overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-elevated text-xs uppercase text-muted-foreground">
+              <tr>
+                <th className="text-left p-3">Playlist</th>
+                <th className="text-right p-3">Seguidores</th>
+                <th className="text-right p-3">Crescimento</th>
+                <th className="text-right p-3">%</th>
+                <th className="text-right p-3">Idade</th>
+                <th className="text-center p-3">Classe</th>
+                <th className="p-3"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {visibleItems.map((r) => {
+                const cls = altaIds.has(r.template_id) ? "alta"
+                  : baixaIds.has(r.template_id) ? "baixa" : "media";
+                return (
+                  <tr key={r.template_id} className="border-t border-border hover:bg-elevated/40">
+                    <td className="p-3 font-medium truncate max-w-[280px]">{r.nome}</td>
+                    <td className="p-3 text-right tabular-nums">{r.followers_now.toLocaleString("pt-BR")}</td>
+                    <td className={`p-3 text-right tabular-nums font-bold ${r.crescimento_absoluto > 0 ? "text-success" : r.crescimento_absoluto < 0 ? "text-destructive" : ""}`}>
+                      {r.crescimento_absoluto > 0 ? "+" : ""}{r.crescimento_absoluto.toLocaleString("pt-BR")}
+                    </td>
+                    <td className="p-3 text-right tabular-nums">
+                      {r.crescimento_percentual != null ? `${r.crescimento_percentual}%` : "—"}
+                    </td>
+                    <td className="p-3 text-right tabular-nums text-muted-foreground">
+                      {r.tempo_horas != null ? `${r.tempo_horas}h` : "—"}
+                    </td>
+                    <td className="p-3 text-center">
+                      <Badge variant={cls === "alta" ? "default" : cls === "baixa" ? "destructive" : "secondary"} className="text-[10px]">
+                        {cls.toUpperCase()}
+                      </Badge>
+                    </td>
+                    <td className="p-3 text-right">
+                      {r.spotify_url && (
+                        <a href={r.spotify_url} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-primary inline-flex">
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </a>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+      <LoadMore visible={visible} total={total} hasMore={hasMore} onLoadMore={loadMore} itemLabel="playlists" />
+    </div>
+  );
+}
+
+
