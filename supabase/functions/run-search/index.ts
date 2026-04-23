@@ -578,6 +578,14 @@ Deno.serve(async (req) => {
         mensagem: "Apify limit exceeded - circuit breaker activated",
         duracao_ms: Date.now() - start,
       });
+      // 🔔 Notificação CRITICAL
+      await supabase.rpc("create_notification", {
+        p_type: "critical",
+        p_title: "Apify bloqueado",
+        p_message: "Limite do Apify atingido. Coletas pausadas pelo circuit breaker (24h).",
+        p_action_url: "/operacao",
+        p_metadata: { reason: msg.slice(0, 300) },
+      }).then(() => {}, () => {});
       return new Response(JSON.stringify({ ok: false, blocked: true, reason: "APIFY_LIMIT" }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
