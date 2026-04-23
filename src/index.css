@@ -119,9 +119,9 @@
     -webkit-font-smoothing: antialiased;
     color: hsl(var(--foreground));
   }
-  /* Tipografia padrão: títulos = semibold (sem precisar adicionar classe) */
+  /* Tipografia padrão: títulos = bold (700) — alinhado à prática real do projeto */
   h1, h2, h3, h4, h5, h6 {
-    font-weight: 600;
+    font-weight: 700;
     letter-spacing: -0.01em;
     color: hsl(var(--foreground));
   }
