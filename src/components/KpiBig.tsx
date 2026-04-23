@@ -51,6 +51,10 @@ export function KpiBig({
       <div className={cn("mt-1.5 min-h-[36px] flex items-end", TONE_CLS[tone])}>
         {loading ? (
           <Skeleton className="h-8 w-24 rounded-md bg-muted/80" />
+        ) : isEmptyValue(value) ? (
+          <div className="text-sm font-medium text-muted-foreground leading-tight">
+            Sem dados ainda
+          </div>
         ) : (
           <div className="text-2xl font-bold tabular-nums leading-tight">{value}</div>
         )}
