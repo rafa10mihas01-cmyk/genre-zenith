@@ -195,6 +195,15 @@ Deno.serve(async (req) => {
     mensagem: `Playlist "${tpl.name}" criada (${uris.length} faixas, ${failed} falhas) • IDs diretos: ${resolvedFromId}, via search: ${resolvedFromSearch}`,
   }).then(() => {}, () => {});
 
+  // 🔔 Notificação INFO: playlist publicada no Spotify
+  await supabase.rpc("create_notification", {
+    p_type: "info",
+    p_title: "Playlist publicada no Spotify",
+    p_message: `"${tpl.name}" — ${uris.length} faixas adicionadas${failed > 0 ? ` (${failed} falhas)` : ""}.`,
+    p_action_url: playlistUrl,
+    p_metadata: { template_id: templateId, spotify_playlist_id: playlistId, tracks_added: uris.length },
+  }).then(() => {}, () => {});
+
   return jr({
     ok: true,
     spotify_playlist_id: playlistId,

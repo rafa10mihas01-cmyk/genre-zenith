@@ -3,13 +3,14 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Bell, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { timeAgo } from "@/lib/format";
 import { useNavigate } from "react-router-dom";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { NexEngineLogo } from "@/components/NexEngineLogo";
 import { SidebarContextProvider } from "@/contexts/SidebarContext";
+import { NotificationsBell } from "@/components/NotificationsBell";
 
 /**
  * Layout global do sistema. Toda página renderizada DEVE estar dentro dele.
@@ -97,10 +98,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 <span className="hidden md:inline">Atualizar</span>
               </Button>
               <ThemeToggle />
-              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground" aria-label="Notificações">
-                <Bell className="h-4 w-4" />
-                <span className="sr-only">Notificações</span>
-              </Button>
+              <NotificationsBell />
             </div>
           </header>
 
