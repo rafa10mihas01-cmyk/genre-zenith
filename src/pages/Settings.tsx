@@ -489,66 +489,69 @@ export default function Settings() {
         <TabsContent value="coleta" className="space-y-4 mt-4">
 
       {/* Parâmetros */}
-      <section className="nx-card p-5">
-        <h2 className="font-semibold">Parâmetros de coleta</h2>
-        <p className="text-sm text-muted-foreground mt-1">Salvo localmente. Aplicado automaticamente pelo motor.</p>
+      <section className="nx-card p-4">
+        <div className="flex items-center gap-2">
+          <SettingsIcon className="h-4 w-4 text-accent shrink-0" />
+          <h2 className="text-sm font-bold">Parâmetros de coleta</h2>
+        </div>
+        <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">Salvo localmente. Aplicado automaticamente pelo motor.</p>
 
-        <div className="grid sm:grid-cols-2 gap-4 mt-4">
+        <div className="grid sm:grid-cols-2 gap-3 mt-3">
           <div>
-            <Label htmlFor="delay">Delay entre termos (ms)</Label>
+            <Label htmlFor="delay" className="text-xs">Delay entre termos (ms)</Label>
             <Input
               id="delay" type="number" min={500} max={10000} step={250}
               value={settings.delay_ms}
               onChange={e => setSettings(s => ({ ...s, delay_ms: Number(e.target.value) || 0 }))}
-              className="mt-1.5"
+              className="mt-1.5 h-9 text-sm"
             />
-            <p className="text-xs text-muted-foreground mt-1">Recomendado: 2000ms para evitar rate limit.</p>
+            <p className="text-[11px] text-muted-foreground mt-1">Recomendado: 2000ms para evitar rate limit.</p>
           </div>
           <div>
-            <Label htmlFor="max">Resultados por termo</Label>
+            <Label htmlFor="max" className="text-xs">Resultados por termo</Label>
             <Input
               id="max" type="number" min={50} max={200} step={10}
               value={settings.max_results}
               onChange={e => setSettings(s => ({ ...s, max_results: Number(e.target.value) || 0 }))}
-              className="mt-1.5"
+              className="mt-1.5 h-9 text-sm"
             />
-            <p className="text-xs text-muted-foreground mt-1">Máximo de playlists por busca (5-100).</p>
+            <p className="text-[11px] text-muted-foreground mt-1">Máximo de playlists por busca (5-100).</p>
           </div>
         </div>
 
-        <div className="mt-4 flex justify-end">
-          <Button size="sm" onClick={saveSettings}>Salvar</Button>
+        <div className="mt-3 flex justify-end">
+          <Button size="sm" onClick={saveSettings} className="h-8 text-xs">Salvar</Button>
         </div>
       </section>
 
       {/* Coleta automática */}
-      <section className="nx-card p-5 mt-4">
+      <section className="nx-card p-4 mt-3">
         <div className="flex items-center gap-2">
-          <CalendarClock className="h-5 w-5 text-accent" />
-          <h2 className="font-semibold">Coleta automática</h2>
+          <CalendarClock className="h-4 w-4 text-accent shrink-0" />
+          <h2 className="text-sm font-bold">Coleta automática</h2>
         </div>
-        <p className="text-sm text-muted-foreground mt-1">
+        <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
           Cron diário às <span className="font-mono text-foreground">03:00 UTC</span> percorre todos os gêneros ativos,
           executa termos pendentes (até 3/gênero) e re-analisa os modelos.
         </p>
-        <div className="mt-4 flex items-center gap-2 flex-wrap">
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-success/15 text-success border border-success/30 text-xs">
-            <CheckCircle2 className="h-3.5 w-3.5" /> Agendado
+        <div className="mt-3 flex flex-col sm:flex-row sm:items-center gap-2">
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-success/15 text-success border border-success/30 text-[11px] font-medium w-fit">
+            <CheckCircle2 className="h-3 w-3" /> Agendado
           </div>
-          <Button size="sm" variant="outline" onClick={runCronNow} disabled={runningCron}>
-            {runningCron ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+          <Button size="sm" variant="outline" onClick={runCronNow} disabled={runningCron} className="h-8 text-xs w-full sm:w-auto">
+            {runningCron ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
             Executar agora
           </Button>
         </div>
       </section>
 
       {/* Banco */}
-      <section className="nx-card p-5 mt-4">
+      <section className="nx-card p-4 mt-3">
         <div className="flex items-center gap-2">
-          <Database className="h-5 w-5 text-accent" />
-          <h2 className="font-semibold">Estado do banco</h2>
+          <Database className="h-4 w-4 text-accent shrink-0" />
+          <h2 className="text-sm font-bold">Estado do banco</h2>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mt-3">
           <DbStat label="Gêneros" value={stats?.genres} />
           <DbStat label="Termos" value={stats?.terms} />
           <DbStat label="Playlists" value={stats?.results} />
@@ -564,15 +567,18 @@ export default function Settings() {
 
         {/* ───────────────────────── CONTA ───────────────────────── */}
         <TabsContent value="conta" className="space-y-4 mt-4">
-          <section className="nx-card p-5">
-            <h2 className="font-semibold">Conta</h2>
+          <section className="nx-card p-4">
+            <div className="flex items-center gap-2">
+              <UserCheck className="h-4 w-4 text-accent shrink-0" />
+              <h2 className="text-sm font-bold">Conta</h2>
+            </div>
             <div className="flex items-center justify-between mt-3 flex-wrap gap-3">
-              <div className="text-sm">
-                <div className="text-muted-foreground text-xs">Logado como</div>
-                <div className="font-mono">{user?.email ?? "—"}</div>
+              <div className="text-sm min-w-0">
+                <div className="text-muted-foreground text-[11px]">Logado como</div>
+                <div className="font-mono text-xs truncate">{user?.email ?? "—"}</div>
               </div>
-              <Button variant="outline" size="sm" onClick={signOut}>
-                <LogOut className="h-4 w-4" /> Sair
+              <Button variant="outline" size="sm" onClick={signOut} className="h-8 text-xs">
+                <LogOut className="h-3.5 w-3.5" /> Sair
               </Button>
             </div>
           </section>
