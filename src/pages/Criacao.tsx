@@ -166,7 +166,7 @@ export default function Criacao() {
         emptyTitle={loading ? "Carregando…" : "Nenhum template pronto"}
         emptyMsg={loading ? "" : "Quando o Cérebro gerar templates fortes, eles aparecem aqui."}
       >
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
           {groups.hot.map(t => (
             <TemplateCard key={t.id} t={t} variant="hot" onOpen={() => setActiveTemplate(t)} />
           ))}
