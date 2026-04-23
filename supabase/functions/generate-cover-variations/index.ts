@@ -282,32 +282,62 @@ function buildViralHitsPrompt(template: any, palette: typeof PALETTES[number]): 
 }
 
 function buildDynamicPrompt(template: any, palette: typeof PALETTES[number]): string {
-  const name = (template.name ?? "PLAYLIST").toString().trim().toUpperCase();
+  const fullName = (template.name ?? "PLAYLIST").toString().trim().toUpperCase();
+  const { dominant, secondary } = pickDominantWord(fullName);
   const subtext = extractSubtext(template.cover_brief);
 
-  const textBlock = subtext
-    ? `Two text elements:\n  • Title: "${name}" — large, bold, asymmetrically positioned (off-center, e.g. left-aligned or rotated slightly)\n  • Subtitle: "${subtext}" — smaller, placed creatively (e.g. vertical, opposite corner, or tucked under the title)`
-    : `One text element:\n  • Title: "${name}" — large, bold, placed asymmetrically (off-center or rotated 5-10°)`;
+  // Decide the secondary line: palavra secundária da tipografia OU subtitle do brief
+  const secondLine = secondary || subtext;
+
+  const textBlock = secondLine
+    ? [
+        "Two text elements with a fresh, designed hierarchy:",
+        `  • Main word: "${dominant}" — large, bold, dominant. Allowed treatments (pick ONE subtly): split into two stacked lines, slight alignment shift (left or right of center), or a thin underline accent below the word.`,
+        `  • Secondary line: "${secondLine}" — smaller (about 30–40% of main size), same font family, placed with a slight asymmetric offset relative to the main word (e.g. shifted left/right, or tucked just under one edge — NOT perfectly centered, but still balanced).`,
+      ].join("\n")
+    : [
+        "One text element with a fresh, designed treatment:",
+        `  • Title: "${fullName}" — large, bold. Allowed treatments (pick ONE subtly): split into two stacked lines, slight alignment shift off perfect center, or a thin underline accent.`,
+      ].join("\n");
 
   return [
-    "Editorial Spotify-style playlist cover, square format 1:1, high quality. STYLE: DYNAMIC ASYMMETRIC.",
+    "Editorial Spotify-style playlist cover, square format 1:1, high quality. STYLE: DYNAMIC MODERN TYPOGRAPHY.",
     "",
     "BACKGROUND:",
-    `Simple ${palette.description}. May include 1-2 abstract geometric shapes (circle, stripe, triangle) in solid color from the same palette family for visual interest. No textures, no photographs.`,
+    `Simple smooth gradient using ONLY 2 colors from this palette: ${palette.description}. No textures, no patterns, no photographs, no objects.`,
     "",
     "TEXT (MUST BE PERFECTLY LEGIBLE):",
     textBlock,
-    `${palette.text}. Use a strong modern bold sans-serif font (Helvetica Bold, Inter Black, or Montserrat ExtraBold style).`,
-    "Spelling MUST be exactly as written above.",
+    `${palette.text}. Use a strong modern bold sans-serif font (Helvetica Bold, Inter Black, Montserrat ExtraBold or similar). High weight only — no thin or light fonts.`,
+    "",
+    "TYPOGRAPHIC TREATMENT (subtle movement, not chaos):",
+    "- Bold text with slight movement and rhythm",
+    "- Subtle layering or stacking of lines is allowed (very mild overlap, never illegible)",
+    "- Optional: a thin underline under the main word, OR a split into 2 stacked lines, OR a small horizontal alignment shift",
+    "- Pick AT MOST ONE of these treatments per cover — do not combine all of them",
     "",
     "COMPOSITION:",
-    "Asymmetric, designed feel — NOT centered. Use bold negative space and unexpected placement. Slight perspective or rotation allowed. Modern editorial energy. Still clean and readable on a 64x64 thumbnail.",
+    "- Slight asymmetry allowed (off-center balance, not perfectly centered)",
+    "- Still clean and intentional — less rigid than the editorial style, but never messy",
+    "- Generous negative space; the layout should feel designed, fresh and updated, not repetitive",
+    "- No tilt or rotation of the text. No perspective. No 3D.",
+    "",
+    "READABILITY:",
+    "- Must be readable at 64x64 thumbnail",
+    "- High contrast between text and background",
     "",
     "STRICTLY FORBIDDEN:",
-    "No human faces, no human bodies, no people, no portraits, no characters.",
-    "No complex scenes, no landscapes, no instruments, no musical notes, no logos.",
-    "No additional text beyond what is specified. No watermarks, no signatures.",
-    "No gradients with more than 2 colors. No grain, no vignette.",
+    "- No humans, no faces, no people, no portraits, no characters",
+    "- No icons, no logos, no objects, no instruments, no musical notes",
+    "- No textures, no noise, no grain, no vignette",
+    "- No drop shadows, no glow, no chromatic effects",
+    "- No tilt, no rotation, no perspective, no distortion of letters",
+    "- No additional text beyond what is specified above",
+    "- No more than 2 colors in the background",
+    "",
+    "SPELLING:",
+    "- Text must be EXACTLY as provided above",
+    "- No typos, no variations, no stylization of letters",
   ].join("\n");
 }
 
