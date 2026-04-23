@@ -222,7 +222,7 @@ export async function applyWatermark(coverBytes: Uint8Array): Promise<{
     try { drawInnerBorder(cover); }
     catch (e) { console.warn("[inner-border] pulou:", e); }
 
-    // 3. Watermark adaptativa
+    // 3. Watermark "gravada" — emboss + tint adaptado ao fundo
     const { white, black } = await getLogos();
     const targetWidth = Math.round(cover.width * LOGO_WIDTH_PCT);
     const margin = Math.round(cover.width * MARGIN_PCT);
@@ -231,18 +231,56 @@ export async function applyWatermark(coverBytes: Uint8Array): Promise<{
     const sampleY = Math.max(0, cover.height - Math.round(targetWidth * 0.5) - margin);
     const sampleW = Math.min(cover.width - sampleX, targetWidth);
     const sampleH = Math.min(cover.height - sampleY, Math.round(targetWidth * 0.5));
-    const lum = regionLuminance(cover, sampleX, sampleY, sampleW, sampleH);
+    const stats = regionStats(cover, sampleX, sampleY, sampleW, sampleH);
+    const isDarkBg = stats.lum < 128;
 
-    const logo = lum < 128 ? white : black;
-
-    const aspect = logo.height / logo.width;
+    // Logo base (branco para fundo escuro, preto para fundo claro)
+    const baseLogo = isDarkBg ? white : black;
+    const aspect = baseLogo.height / baseLogo.width;
     const targetHeight = Math.round(targetWidth * aspect);
-    logo.resize(targetWidth, targetHeight);
-    logo.opacity(OPACITY);
+
+    // Calcula tom adaptado: puxa do branco/preto puro em direção ao tom do fundo,
+    // pra parecer "parte do material" e não um adesivo.
+    const tintR = isDarkBg
+      ? Math.min(255, 235 - LOGO_TINT_SHIFT + Math.round(stats.r * 0.10))
+      : Math.max(0, 20 + LOGO_TINT_SHIFT - Math.round((255 - stats.r) * 0.10));
+    const tintG = isDarkBg
+      ? Math.min(255, 235 - LOGO_TINT_SHIFT + Math.round(stats.g * 0.10))
+      : Math.max(0, 20 + LOGO_TINT_SHIFT - Math.round((255 - stats.g) * 0.10));
+    const tintB = isDarkBg
+      ? Math.min(255, 235 - LOGO_TINT_SHIFT + Math.round(stats.b * 0.10))
+      : Math.max(0, 20 + LOGO_TINT_SHIFT - Math.round((255 - stats.b) * 0.10));
+
+    // Helper: cria uma cópia do logo já redimensionada, com cor uniforme + opacidade.
+    // Preserva o canal alpha original (mantém o desenho), só substitui RGB.
+    const makeTintedLogo = (r: number, g: number, b: number, opacity: number): Image => {
+      const clone = baseLogo.clone();
+      clone.resize(targetWidth, targetHeight);
+      const buf = clone.bitmap;
+      for (let i = 0; i < buf.length; i += 4) {
+        if (buf[i + 3] === 0) continue; // pixel transparente, ignora
+        buf[i]     = r;
+        buf[i + 1] = g;
+        buf[i + 2] = b;
+        buf[i + 3] = (buf[i + 3] * opacity) | 0;
+      }
+      return clone;
+    };
+
+    // 3 camadas para efeito emboss "gravado":
+    //   • shadow: 1px abaixo, escura  → relevo inferior
+    //   • highlight: 1px acima, clara → relevo superior
+    //   • core: cor adaptada ao fundo, opacidade principal
+    const shadowLayer    = makeTintedLogo(0,   0,   0,   EMBOSS_SHADOW_A);
+    const highlightLayer = makeTintedLogo(255, 255, 255, EMBOSS_HIGHLIGHT_A);
+    const coreLayer      = makeTintedLogo(tintR, tintG, tintB, LOGO_OPACITY);
 
     const x = cover.width - targetWidth - margin;
     const y = cover.height - targetHeight - margin;
-    cover.composite(logo, x, y);
+
+    cover.composite(shadowLayer,    x,     y + 1);
+    cover.composite(highlightLayer, x,     y - 1);
+    cover.composite(coreLayer,      x,     y);
 
     const out = await cover.encode();
     return { bytes: out, contentType: "image/png", applied: true };
