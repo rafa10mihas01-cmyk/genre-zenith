@@ -4,6 +4,11 @@
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getUserAccessToken } from "../_shared/spotify.ts";
+// WASM puro — funciona no edge runtime do Deno (sem libs nativas)
+import decodePng from "npm:@jsquash/png@3.1.0/decode.js";
+import decodeJpeg from "npm:@jsquash/jpeg@1.5.0/decode.js";
+import encodeJpeg from "npm:@jsquash/jpeg@1.5.0/encode.js";
+import resize from "npm:@jsquash/resize@2.1.0";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -16,20 +21,50 @@ function jr(p: unknown, status = 200) {
   });
 }
 
+function uint8ToBase64(buf: Uint8Array): string {
+  let binary = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < buf.length; i += chunk) {
+    binary += String.fromCharCode(...buf.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
+// Decodifica (PNG/JPEG), redimensiona e re-encoda em JPEG
+// reduzindo qualidade/tamanho até caber em MAX_BYTES.
+async function imageToJpegUnderLimit(buf: Uint8Array, contentType: string): Promise<Uint8Array> {
+  const isPng = /png/i.test(contentType) || (buf[0] === 0x89 && buf[1] === 0x50);
+  const imageData = isPng ? await decodePng(buf) : await decodeJpeg(buf);
+
+  const sizes = [640, 512, 400, 320];
+  const qualities = [85, 75, 65, 55, 45, 35];
+
+  for (const size of sizes) {
+    const resized = (imageData.width === size && imageData.height === size)
+      ? imageData
+      : await resize(imageData, { width: size, height: size, method: "lanczos3" });
+    for (const quality of qualities) {
+      const out = await encodeJpeg(resized, { quality });
+      const bytes = new Uint8Array(out);
+      if (bytes.byteLength <= MAX_BYTES) {
+        console.log(`[cover] OK ${size}x${size} q=${quality} → ${(bytes.byteLength/1024).toFixed(1)}KB`);
+        return bytes;
+      }
+    }
+  }
+  throw new Error("não foi possível comprimir a capa abaixo de 256KB");
+}
+
 async function fetchAsBase64Jpeg(url: string): Promise<string> {
   const r = await fetch(url);
   if (!r.ok) throw new Error(`fetch image ${r.status}`);
   const buf = new Uint8Array(await r.arrayBuffer());
-  // Spotify exige JPEG ≤ 256KB. Se já estiver dentro, manda direto.
-  // (a Nano Banana retorna PNG; convertemos via re-encode "best-effort" mantendo bytes brutos
-  // — Spotify aceita base64 cru de PNG na maioria dos casos via Content-Type image/jpeg
-  // mas para garantir, abortamos quando muito grande)
-  if (buf.byteLength > MAX_BYTES) {
-    throw new Error(`Imagem ${(buf.byteLength / 1024).toFixed(0)}KB excede limite de 256KB do Spotify`);
+  const ct = r.headers.get("content-type") ?? "image/png";
+  if (/jpeg|jpg/i.test(ct) && buf.byteLength <= MAX_BYTES) {
+    return uint8ToBase64(buf);
   }
-  let binary = "";
-  for (let i = 0; i < buf.length; i++) binary += String.fromCharCode(buf[i]);
-  return btoa(binary);
+  const jpeg = await imageToJpegUnderLimit(buf, ct);
+  return uint8ToBase64(jpeg);
 }
 
 Deno.serve(async (req) => {
