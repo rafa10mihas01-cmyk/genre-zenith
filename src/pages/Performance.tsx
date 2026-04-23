@@ -130,7 +130,7 @@ export default function Performance() {
           <GenreRanking dataset={dataset} genres={genres} />
 
           {/* 4. Detalhe — playlists com filtros e padrões aprendidos */}
-          <Tabs defaultValue="playlists" className="space-y-4">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
             <TabsList>
               <TabsTrigger value="playlists">Playlists ({totalPubs})</TabsTrigger>
               <TabsTrigger value="insights">Padrões aprendidos</TabsTrigger>
