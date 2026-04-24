@@ -1,18 +1,13 @@
-// generate-cover-variations — gera 4 variações de capa estilo Spotify profissional.
+// generate-cover-variations — gera 1 capa profissional estilo Spotify (padrão validado).
 //
-// Distribuição híbrida de estilos (alvo por lote de 4 capas):
-//   • 60% CLEAN EDITORIAL  → capa limpa, tipo Spotify oficial (default seguro)
-//   • 30% VIRAL HITS TYPO  → palavra dominante gigante, peso visual forte
-//   • 10% DYNAMIC          → composição assimétrica/com perspectiva
+// 🎯 ECONOMIA: 1 imagem por chamada (não 4) — formato CLEAN EDITORIAL já aprovado
+// nas capas publicadas (ex: MODÃO SERTANEJO 2024, TOP SERTANEJO 2024).
 //
-// Regras de mistura por lote (4 capas):
-//   • mínimo 2 CLEAN
-//   • máximo 1 VIRAL HITS (≈25%, próximo de 30%)
-//   • DYNAMIC: 0 ou 1, sorteado (~10%)
-//   • o resto completa com CLEAN
+// Paleta determinística por template_id (mesma capa = mesma cor sempre);
+// templates diferentes recebem cores distintas (verde, roxo, laranja, azul).
+// Estilo SEMPRE clean. Watermark NexEngine + premium finish aplicados.
 //
-// Cada variação carrega: index, url, palette, style.
-// Persiste em playlist_templates.cover_variations (jsonb, sem migration).
+// Persiste em playlist_templates.cover_variations (jsonb, 1 item).
 //
 // POST { template_id: string, custom_prompt?: string }
 // → { ok, variations: [{ index, url, palette, style }] }
