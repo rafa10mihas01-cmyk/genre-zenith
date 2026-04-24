@@ -208,7 +208,7 @@ Regras:
       recomendacoes: result.recomendacoes ?? [],
       acoes_sugeridas: result.acoes_sugeridas ?? [],
       classificacao: result.classificacao ?? {},
-      generated_by_model: CLAUDE_MODEL,
+      generated_by_model: modelUsed,
     })
     .select()
     .single();
