@@ -221,6 +221,13 @@ export function FluxoVisual({ compact = false }: { compact?: boolean }) {
     setDrawerOpen(true);
   };
 
+  const focusNodeById = (id: string) => {
+    const n = nodes.find((x) => x.id === id);
+    if (n) openDrawer(n);
+  };
+
+  const criticalAlerts = useMemo(() => extractCriticalAlerts(nodes), [nodes]);
+
   if (loading) {
     return (
       <div className="nx-card p-12 flex items-center justify-center text-sm text-muted-foreground gap-2">
