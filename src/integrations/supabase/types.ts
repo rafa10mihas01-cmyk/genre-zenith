@@ -171,35 +171,44 @@ export type Database = {
       }
       genre_filters: {
         Row: {
+          base_daily: number
           blacklist: string[]
           briefing_mode: string
           created_at: string
           genre_id: string
           id: string
+          max_daily: number
           max_playlists: number
           max_search_calls: number | null
+          min_daily: number
           min_followers: number | null
           updated_at: string
         }
         Insert: {
+          base_daily?: number
           blacklist?: string[]
           briefing_mode?: string
           created_at?: string
           genre_id: string
           id?: string
+          max_daily?: number
           max_playlists?: number
           max_search_calls?: number | null
+          min_daily?: number
           min_followers?: number | null
           updated_at?: string
         }
         Update: {
+          base_daily?: number
           blacklist?: string[]
           briefing_mode?: string
           created_at?: string
           genre_id?: string
           id?: string
+          max_daily?: number
           max_playlists?: number
           max_search_calls?: number | null
+          min_daily?: number
           min_followers?: number | null
           updated_at?: string
         }
@@ -1328,6 +1337,21 @@ export type Database = {
           seguidores: number
           spotify_playlist_id: string
           spotify_url: string
+        }[]
+      }
+      get_genre_daily_target: {
+        Args: { p_genre_id: string }
+        Returns: {
+          base_daily: number
+          evaluated_count: number
+          generated_today: number
+          max_daily: number
+          min_daily: number
+          pct_alta: number
+          pct_baixa: number
+          performance_tier: string
+          remaining: number
+          target_today: number
         }[]
       }
       get_learning_loop_status: { Args: never; Returns: Json }
