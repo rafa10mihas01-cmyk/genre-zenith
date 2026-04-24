@@ -25,6 +25,7 @@ import { ReplicacaoAuto, ReplicacaoHistorico } from "@/components/brain/Replicac
 import { KpiBig } from "@/components/KpiBig";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { useSetSidebarKpis } from "@/contexts/SidebarContext";
+import { useAutopilot } from "@/hooks/useAutopilot";
 
 /**
  * CÉREBRO — módulo único com 6 abas internas.
@@ -103,22 +104,21 @@ export default function Cerebro() {
   const { loading: loadingBriefing, briefing, generating, regenerate, analyzeVisualDna, analyzingDna } =
     useBriefings(genre?.id);
 
+  // ✅ Audit #15 — botão dispara o pipeline COMPLETO (genre-autopilot):
+  // analyze-genre → briefing → blueprints → templates → covers.
+  // Antes chamava brain-run (só análise) e gerava autopilot_runs "success" zeradas.
+  const { isRunning: autopilotRunning, start: startAutopilot } = useAutopilot(genre?.id);
+
   const handleChangeGenre = (s: string) => {
     setActiveSlug(s);
     navigate(`/cerebro/${s}`);
   };
 
   const runBrain = async () => {
-    if (!activeSlug || running) return;
+    if (!genre?.id || autopilotRunning || running) return;
     setRunning(true);
     try {
-      const { data, error } = await supabase.functions.invoke("brain-run", {
-        body: { slug: activeSlug, intensity: "normal", max_playlists: 50 },
-      });
-      if (error) throw error;
-      toast.success("Análise iniciada", { description: "Acompanhe pela aba Decisões em alguns minutos." });
-    } catch (e: any) {
-      toast.error("Erro ao iniciar", { description: e?.message });
+      await startAutopilot(5);
     } finally {
       setRunning(false);
     }
@@ -139,9 +139,9 @@ export default function Cerebro() {
         title="Cérebro"
         subtitle="Analisar dados e gerar inteligência"
         actions={
-          <Button onClick={runBrain} disabled={running} className="nx-pill">
-            {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-            Atualizar inteligência
+          <Button onClick={runBrain} disabled={running || autopilotRunning || !genre?.id} className="nx-pill">
+            {(running || autopilotRunning) ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            {autopilotRunning ? "Rodando..." : "Atualizar inteligência"}
           </Button>
         }
       />

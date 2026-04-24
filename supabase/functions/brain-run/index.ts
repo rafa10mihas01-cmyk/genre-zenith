@@ -237,33 +237,12 @@ async function runPipeline(jobId: string, body: StartBody) {
     return;
   }
 
-  // 🚨 Audit #9 A.2 / #10 A.4 — observabilidade: registra run no autopilot_runs
-  // Falha de insert agora gera log persistente (antes era console.warn silencioso)
-  let autopilotRunId: string | null = null;
-  try {
-    const { data: arRow, error: arErr } = await supabase
-      .from("autopilot_runs")
-      .insert({
-        genre_id: gid,
-        status: "running",
-        current_step: "brain-run",
-        progress_pct: 0,
-        triggered_by: `brain-run:${body.action ?? "start"}`,
-      })
-      .select("id")
-      .single();
-    if (arErr) throw new Error(arErr.message);
-    autopilotRunId = arRow?.id ?? null;
-  } catch (e) {
-    const msg = (e as Error).message;
-    console.warn("[brain-run] autopilot_runs insert failed:", msg);
-    await supabase.from("collection_logs").insert({
-      genre_id: gid,
-      acao: "autopilot_runs_insert_failed",
-      status: "erro",
-      mensagem: msg.slice(0, 300),
-    }).then(() => {}, (e) => console.error("[brain-run] log insert failed:", e?.message));
-  }
+  // ⚠️ Audit #15 — brain-run NÃO escreve mais em autopilot_runs.
+  // Essa tabela é exclusiva do pipeline completo (genre-autopilot), que gera
+  // templates + capas. brain-run é só análise/coleta — rastreia via collection_logs.
+  // Antes: criava autopilot_runs e marcava success com templates_generated=0,
+  // induzindo a UI a interpretar como "autopilot completo OK".
+  const autopilotRunId: string | null = null;
 
   await setJob(supabase, gid, jobId, autopilotRunId, {
     status: "running",
@@ -945,20 +924,8 @@ async function resumePipeline(jobId: string, slug: string) {
     return;
   }
   const gid = genre.id;
-  // 🚨 Audit #9 A.2 — também rastreia resume em autopilot_runs
-  let autopilotRunId: string | null = null;
-  try {
-    const { data: arRow } = await supabase
-      .from("autopilot_runs")
-      .insert({
-        genre_id: gid, status: "running", current_step: "brain-run:resume",
-        progress_pct: 70, triggered_by: "brain-run:resume",
-      })
-      .select("id").single();
-    autopilotRunId = arRow?.id ?? null;
-  } catch (e) {
-    console.warn("[resumePipeline] autopilot_runs insert failed:", (e as Error).message);
-  }
+  // ⚠️ Audit #15 — resume também não toca autopilot_runs (ver comentário acima)
+  const autopilotRunId: string | null = null;
   await setJob(supabase, gid, jobId, autopilotRunId, { status: "running", stage: "Retomando enriquecimento...", progress: 70 });
 
   try {
