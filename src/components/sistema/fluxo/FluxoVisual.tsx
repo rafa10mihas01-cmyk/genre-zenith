@@ -238,6 +238,9 @@ export function FluxoVisual({ compact = false }: { compact?: boolean }) {
 
   return (
     <div className="space-y-4">
+      {/* Alertas críticos no topo (prioridade visual máxima) */}
+      <FluxoCriticalAlerts alerts={criticalAlerts} onFocusNode={focusNodeById} />
+
       {/* Header: seletor de execução + status global */}
       <div className="nx-card p-3 sm:p-4">
         <div className="flex items-center justify-between gap-3 flex-wrap">
