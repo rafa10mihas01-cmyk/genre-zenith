@@ -1,11 +1,14 @@
 // AoVivoFeed — feed cronológico em tempo real de TUDO que está acontecendo
 // no sistema. Junta autopilot_runs, collection_logs e playlist_adjustments
 // em um só stream PT-BR, com ícones e linguagem para leigo.
+// - Agrupa eventos repetidos consecutivos (ex: "create-spotify-playlist-lock ×5")
+// - Filtros rápidos: tudo / erros / cérebro / coleta / ajustes
+// - Mostra 20 por vez; "carregar mais" até 200; container com scroll interno
 import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Brain, Music2, Wrench, CheckCircle2, AlertTriangle, Loader2,
-  Activity, Clock, RefreshCw,
+  Activity, Clock, RefreshCw, Filter,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,7 +25,12 @@ type FeedItem = {
   meta?: string;
   timestamp: string;
   genre_nome?: string;
+  groupKey?: string; // para agrupar repetições consecutivas
+  count?: number;    // quantos eventos esse item agrupa (default 1)
 };
+
+type FilterKey = "all" | "errors" | "cerebro" | "coleta" | "ajustes";
+const PAGE_SIZE = 20;
 
 const STEP_LABELS_PT: Record<string, string> = {
   analyze: "analisando o gênero",
@@ -122,6 +130,7 @@ export function AoVivoFeed() {
         meta: l.duracao_ms ? `${(l.duracao_ms / 1000).toFixed(1)}s` : undefined,
         timestamp: l.created_at,
         genre_nome: genreNome,
+        groupKey: `coleta:${l.acao}:${l.genre_id ?? "g"}:${l.status}`,
       });
     });
 
@@ -138,11 +147,24 @@ export function AoVivoFeed() {
         detail: a.error_message ?? `Disparado por ${a.triggered_by}`,
         timestamp: a.created_at,
         genre_nome: genreNome,
+        groupKey: `ajuste:${a.action_type}:${a.genre_id ?? "g"}:${a.status}`,
       });
     });
 
     all.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-    setItems(all.slice(0, 100));
+
+    // Agrupar repetições consecutivas (mesmo groupKey seguidos)
+    const grouped: FeedItem[] = [];
+    for (const item of all) {
+      const last = grouped[grouped.length - 1];
+      if (last && item.groupKey && last.groupKey === item.groupKey) {
+        last.count = (last.count ?? 1) + 1;
+      } else {
+        grouped.push({ ...item, count: 1 });
+      }
+    }
+
+    setItems(grouped.slice(0, 200));
     setLoading(false);
   };
 
@@ -168,13 +190,37 @@ export function AoVivoFeed() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [genres]);
 
-  const stats = useMemo(() => {
-    return {
-      total: items.length,
-      running: items.filter((i) => i.status === "running").length,
-      errors: items.filter((i) => i.status === "error").length,
-    };
-  }, [items]);
+  const [filter, setFilter] = useState<FilterKey>("all");
+  const [visible, setVisible] = useState<number>(PAGE_SIZE);
+
+  // Reset paginação ao trocar filtro
+  useEffect(() => { setVisible(PAGE_SIZE); }, [filter]);
+
+  const filtered = useMemo(() => {
+    if (filter === "all") return items;
+    if (filter === "errors") return items.filter((i) => i.status === "error");
+    if (filter === "cerebro") return items.filter((i) => i.source === "autopilot");
+    if (filter === "coleta") return items.filter((i) => i.source === "coleta");
+    if (filter === "ajustes") return items.filter((i) => i.source === "ajuste");
+    return items;
+  }, [items, filter]);
+
+  const stats = useMemo(() => ({
+    total: items.length,
+    running: items.filter((i) => i.status === "running").length,
+    errors: items.filter((i) => i.status === "error").length,
+  }), [items]);
+
+  const visibleItems = filtered.slice(0, visible);
+  const hasMore = visible < filtered.length;
+
+  const FILTERS: { key: FilterKey; label: string; count: number }[] = [
+    { key: "all", label: "Tudo", count: items.length },
+    { key: "errors", label: "Erros", count: stats.errors },
+    { key: "cerebro", label: "Cérebro", count: items.filter((i) => i.source === "autopilot").length },
+    { key: "coleta", label: "Coleta", count: items.filter((i) => i.source === "coleta").length },
+    { key: "ajustes", label: "Ajustes", count: items.filter((i) => i.source === "ajuste").length },
+  ];
 
   return (
     <div className="space-y-3">
@@ -203,22 +249,62 @@ export function AoVivoFeed() {
         </Button>
       </div>
 
-      {/* Feed */}
+      {/* Filtros rápidos */}
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <Filter className="h-3 w-3 text-muted-foreground shrink-0" />
+        {FILTERS.map((f) => (
+          <button
+            key={f.key}
+            type="button"
+            onClick={() => setFilter(f.key)}
+            className={cn(
+              "px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wider border transition-all",
+              filter === f.key
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-border bg-card text-muted-foreground hover:text-foreground hover:border-foreground/20",
+            )}
+          >
+            {f.label}
+            <span className="ml-1.5 tabular-nums opacity-70">{f.count}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Feed com altura limitada + scroll interno */}
       {loading ? (
         <div className="nx-card p-6 flex items-center justify-center text-sm text-muted-foreground gap-2">
           <Loader2 className="h-4 w-4 animate-spin" /> Carregando atividade…
         </div>
-      ) : items.length === 0 ? (
+      ) : filtered.length === 0 ? (
         <div className="nx-card p-8 text-center">
           <Clock className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
-          <p className="text-sm text-muted-foreground">Nenhuma atividade nas últimas 24 horas.</p>
+          <p className="text-sm text-muted-foreground">
+            {filter === "all" ? "Nenhuma atividade nas últimas 24 horas." : "Nenhum evento nesse filtro."}
+          </p>
         </div>
       ) : (
-        <ol className="space-y-1.5">
-          {items.map((item) => (
-            <FeedRow key={item.id} item={item} />
-          ))}
-        </ol>
+        <div className="nx-card p-2 sm:p-3">
+          <ol className="space-y-1.5 max-h-[560px] overflow-y-auto nx-scroll pr-1">
+            {visibleItems.map((item) => (
+              <FeedRow key={item.id} item={item} />
+            ))}
+          </ol>
+          {hasMore && (
+            <div className="pt-2 mt-2 border-t border-border/40 flex items-center justify-between gap-2">
+              <span className="text-[11px] text-muted-foreground tabular-nums">
+                Mostrando {visibleItems.length} de {filtered.length}
+              </span>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setVisible((v) => Math.min(v + PAGE_SIZE, filtered.length))}
+                className="h-7 text-xs"
+              >
+                Carregar mais {Math.min(PAGE_SIZE, filtered.length - visible)}
+              </Button>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
@@ -233,6 +319,7 @@ function FeedRow({ item }: { item: FeedItem }) {
     warning: "border-warning/40 bg-warning/5 text-warning",
     info: "border-border bg-card text-foreground",
   };
+  const count = item.count ?? 1;
   return (
     <li className={cn("nx-card border p-3 flex items-start gap-3", colorMap[item.status])}>
       <div className="shrink-0 mt-0.5">
@@ -244,7 +331,14 @@ function FeedRow({ item }: { item: FeedItem }) {
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-2 flex-wrap">
-          <p className="text-sm font-semibold text-foreground leading-tight">{item.title}</p>
+          <p className="text-sm font-semibold text-foreground leading-tight flex items-center gap-1.5">
+            {item.title}
+            {count > 1 && (
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-elevated border border-border text-[10px] font-bold tabular-nums text-muted-foreground">
+                ×{count}
+              </span>
+            )}
+          </p>
           <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">
             {timeAgo(item.timestamp)}
           </span>
