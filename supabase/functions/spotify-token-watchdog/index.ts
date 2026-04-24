@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
     return jr({ error: "unauthorized" }, 401);
   }
 
-  const sb = createClient(SUPABASE_URL, SERVICE_KEY);
+  const sb = sbAuth;
   const startedAt = Date.now();
   const threshold = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
