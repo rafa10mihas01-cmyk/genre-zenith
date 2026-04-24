@@ -459,13 +459,14 @@ Deno.serve(async (req) => {
     if (r.status === "running") {
       return jr({ ok: false, error: "Já existe uma execução em andamento", run_id: r.id }, 409);
     }
-    if (r.status === "success") {
+    if (r.status === "success" && !force) {
       const minutesAgo = Math.round((Date.now() - new Date(r.started_at).getTime()) / 60000);
       return jr(
         {
           ok: false,
           error: `Cooldown ativo: última execução bem-sucedida foi há ${minutesAgo}min. Aguarde ${60 - minutesAgo}min.`,
           run_id: r.id,
+          cooldown: true,
         },
         429,
       );
