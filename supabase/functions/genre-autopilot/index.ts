@@ -24,7 +24,9 @@ const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const COOLDOWN_MS = 60 * 60 * 1000;        // 1h
 const ANALYZE_CACHE_MS = 24 * 60 * 60 * 1000; // 24h
 const BRIEFING_CACHE_MS = 7 * 24 * 60 * 60 * 1000; // 7d
-const DEFAULT_MAX_TEMPLATES = 5;
+// Teto de segurança quando o body força um número (ou quando algo der errado no cálculo dinâmico).
+const HARD_CAP_TEMPLATES = 10;
+const FALLBACK_TEMPLATES = 4; // mesmo valor de base_daily padrão
 
 // Auto-aprovação — 25 tracks é apenas critério de VALIDAÇÃO do template.
 // O tamanho real da playlist é definido em generate-templates (proporção da playlist base ±20%, ou 40-60 se não houver base).
