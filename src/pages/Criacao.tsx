@@ -715,8 +715,31 @@ function TemplateCard({
           </div>
         )}
         <div className="absolute top-1.5 left-1.5">{tierBadge}</div>
-        <div className="absolute top-1.5 right-1.5 inline-flex items-center gap-1 px-1.5 h-4 rounded text-[9px] font-bold text-foreground bg-background/80 backdrop-blur border border-border tabular-nums">
-          {score}
+        <div className="absolute top-1.5 right-1.5 flex items-center gap-1">
+          {/* 🔄 Regenerar capa — só pra não-publicadas, só quando tem capa pra refazer */}
+          {onRegenerate && !isPublished && (t.cover_image_url || (t.cover_variations && t.cover_variations.length > 0)) && (
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={(e) => { e.stopPropagation(); e.preventDefault(); if (!isGenerating) onRegenerate(t); }}
+              onKeyDown={(e) => {
+                if ((e.key === "Enter" || e.key === " ") && !isGenerating) {
+                  e.stopPropagation(); e.preventDefault(); onRegenerate(t);
+                }
+              }}
+              title="Regenerar capa (descarta a atual e gera uma nova)"
+              aria-label="Regenerar capa"
+              className={cn(
+                "inline-flex items-center justify-center h-5 w-5 rounded text-foreground bg-background/85 backdrop-blur border border-border transition-colors cursor-pointer hover:bg-primary hover:text-primary-foreground hover:border-primary",
+                isGenerating && "opacity-50 cursor-not-allowed",
+              )}
+            >
+              {isGenerating ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <Wand2 className="h-2.5 w-2.5" />}
+            </span>
+          )}
+          <span className="inline-flex items-center gap-1 px-1.5 h-4 rounded text-[9px] font-bold text-foreground bg-background/80 backdrop-blur border border-border tabular-nums">
+            {score}
+          </span>
         </div>
       </button>
 
