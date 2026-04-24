@@ -290,11 +290,11 @@ export function FluxoVisual({ compact = false }: { compact?: boolean }) {
       </div>
 
       {/* Pipeline visual */}
-      <div className="nx-card p-3 sm:p-5 overflow-x-auto nx-scroll">
+      <div className="nx-card p-4 sm:p-8 overflow-x-auto nx-scroll">
         {/* Mobile: vertical | Desktop: horizontal */}
-        <div className="flex flex-col lg:hidden gap-0">
+        <div className="flex flex-col lg:hidden gap-0 max-w-md mx-auto">
           {nodes.map((n, idx) => (
-            <div key={n.id}>
+            <div key={n.id} className="animate-fade-in" style={{ animationDelay: `${idx * 60}ms` }}>
               <FluxoNode node={n} onClick={() => openDrawer(n)} selected={selectedNode?.id === n.id && drawerOpen} />
               {idx < nodes.length - 1 && (
                 <FluxoConnector status={n.status} vertical />
@@ -303,14 +303,18 @@ export function FluxoVisual({ compact = false }: { compact?: boolean }) {
           ))}
         </div>
 
-        <div className="hidden lg:flex items-stretch gap-0 min-w-[1100px]">
+        <div className="hidden lg:flex items-stretch gap-0 min-w-[1280px] mx-auto">
           {nodes.map((n, idx) => (
-            <div key={n.id} className="flex items-stretch flex-1">
-              <div className="flex-1 min-w-[140px]">
+            <div
+              key={n.id}
+              className="flex items-stretch flex-1 animate-fade-in"
+              style={{ animationDelay: `${idx * 60}ms` }}
+            >
+              <div className="flex-1 min-w-[150px]">
                 <FluxoNode node={n} onClick={() => openDrawer(n)} selected={selectedNode?.id === n.id && drawerOpen} />
               </div>
               {idx < nodes.length - 1 && (
-                <div className="flex items-center w-12 shrink-0 px-1">
+                <div className="flex items-center w-16 shrink-0 px-1.5">
                   <FluxoConnector status={n.status} />
                 </div>
               )}
@@ -325,7 +329,7 @@ export function FluxoVisual({ compact = false }: { compact?: boolean }) {
         <LegendDot color="bg-warning animate-pulse" label="rodando" />
         <LegendDot color="bg-destructive" label="erro" />
         <LegendDot color="bg-muted-foreground/40" label="aguardando" />
-        <span className="ml-auto">Clique em qualquer etapa para ver detalhes →</span>
+        <span className="ml-auto hidden sm:inline">Clique em qualquer etapa para ver detalhes →</span>
       </div>
 
       <FluxoNodeDrawer node={selectedNode} open={drawerOpen} onOpenChange={setDrawerOpen} />
