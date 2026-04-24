@@ -26,11 +26,11 @@ export async function getSpotifyToken(forceRefresh = false): Promise<string> {
   const supabase = db();
 
   if (!forceRefresh) {
+    // 🚨 Audit #9 A.4 — lê singleton row diretamente (usa idx_spotify_tokens_singleton)
     const { data } = await supabase
       .from("spotify_tokens")
       .select("access_token,expires_at")
-      .order("expires_at", { ascending: false })
-      .limit(1)
+      .eq("singleton_key", "app")
       .maybeSingle();
     if (data && new Date(data.expires_at).getTime() > Date.now() + 60_000) {
       return data.access_token;
