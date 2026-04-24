@@ -113,9 +113,11 @@ async function auditGenre(supabase: any, genre: { id: string; nome: string; slug
     }
   }
 
-  m.false_positive_pct = +((invalidCount / total) * 100).toFixed(2);
-  m.no_followers_pct = +((noFollowersCount / total) * 100).toFixed(2);
-  m.blacklist_pct = +((blacklistHits / total) * 100).toFixed(2);
+  // 🛡️ Audit #14 F1: proteção div-zero (defesa em profundidade)
+  const safeTotal = total > 0 ? total : 1;
+  m.false_positive_pct = +((invalidCount / safeTotal) * 100).toFixed(2);
+  m.no_followers_pct = +((noFollowersCount / safeTotal) * 100).toFixed(2);
+  m.blacklist_pct = +((blacklistHits / safeTotal) * 100).toFixed(2);
 
   // Keyword noise: tokens frequentes (≥10% das playlists) que NÃO são esperados
   const noiseThreshold = Math.max(2, Math.floor(total * 0.1));

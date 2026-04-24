@@ -295,7 +295,7 @@ Deno.serve(async (req) => {
     acao: "score-templates",
     status: "sucesso",
     mensagem: `${updates.length} pontuados | cap ${Math.round(hotCap * 100)}% (max ${maxHotAllowed}, slots ${remainingHotSlots}) | 🔥 ${countHot} / ⚠️ ${countMed} / ❌ ${countWeak}`,
-  }).then(() => {}, () => {});
+  }).then(() => {}, (e) => console.error("[score-templates] log/op failed:", e?.message ?? e));
 
   // 🔔 Notificação INFO para cada template HOT criado
   if (countHot > 0) {
@@ -305,7 +305,7 @@ Deno.serve(async (req) => {
       p_message: `Score alto detectado. Pronto para revisar e publicar.`,
       p_action_url: "/criacao",
       p_metadata: { hot_count: countHot, total_scored: updates.length },
-    }).then(() => {}, () => {});
+    }).then(() => {}, (e) => console.error("[score-templates] log/op failed:", e?.message ?? e));
   }
 
   return jr({

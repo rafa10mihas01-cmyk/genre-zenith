@@ -582,7 +582,7 @@ Deno.serve(async (req) => {
         p_message: "Limite do Apify atingido. Coletas pausadas pelo circuit breaker (24h).",
         p_action_url: "/operacao",
         p_metadata: { reason: msg.slice(0, 300) },
-      }).then(() => {}, () => {});
+      }).then(() => {}, (e) => console.error("[run-search] log/op failed:", e?.message ?? e));
       return new Response(JSON.stringify({ ok: false, blocked: true, reason: "APIFY_LIMIT" }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

@@ -366,7 +366,7 @@ Deno.serve(async (req) => {
   await supabase.from("collection_logs").insert({
     genre_id: genreId, acao: "extract-blueprints", status: "sucesso",
     mensagem: `Extraídos ${created.length} novos blueprints, ${updated.length} atualizados`,
-  }).then(() => {}, () => {});
+  }).then(() => {}, (e) => console.error("[extract-blueprints] log/op failed:", e?.message ?? e));
 
   return jr({
     ok: true,

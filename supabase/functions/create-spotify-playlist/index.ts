@@ -119,7 +119,7 @@ Deno.serve(async (req) => {
   await supabase.from("collection_logs").insert({
     acao: "create-spotify-playlist-lock", status: "lock",
     mensagem: `template=${templateId}`,
-  }).then(() => {}, () => {});
+  }).then(() => {}, (e) => console.error("[create-spotify-playlist] log/op failed:", e?.message ?? e));
 
   // 🎯 Auto-seleção de conta: se não veio spotify_user_id, escolhe a conta ativa
   // com mais espaço disponível (current_playlists asc).
@@ -243,12 +243,12 @@ Deno.serve(async (req) => {
     spotify_playlist_id: playlistId,
     followers: followersAtCreation,
     total_tracks: uris.length,
-  }).then(() => {}, () => {});
+  }).then(() => {}, (e) => console.error("[create-spotify-playlist] log/op failed:", e?.message ?? e));
 
   await supabase.from("collection_logs").insert({
     genre_id: tpl.genre_id, acao: "create-spotify-playlist", status: "sucesso",
     mensagem: `Playlist "${tpl.name}" criada (${uris.length} faixas, ${failed} falhas) • IDs diretos: ${resolvedFromId}, via search: ${resolvedFromSearch}`,
-  }).then(() => {}, () => {});
+  }).then(() => {}, (e) => console.error("[create-spotify-playlist] log/op failed:", e?.message ?? e));
 
   // 🔔 Notificação INFO: playlist publicada no Spotify
   await supabase.rpc("create_notification", {
@@ -257,7 +257,7 @@ Deno.serve(async (req) => {
     p_message: `"${tpl.name}" — ${uris.length} faixas adicionadas${failed > 0 ? ` (${failed} falhas)` : ""}.`,
     p_action_url: playlistUrl,
     p_metadata: { template_id: templateId, spotify_playlist_id: playlistId, tracks_added: uris.length },
-  }).then(() => {}, () => {});
+  }).then(() => {}, (e) => console.error("[create-spotify-playlist] log/op failed:", e?.message ?? e));
 
   return jr({
     ok: true,

@@ -204,7 +204,7 @@ Converta isso em regras estruturadas que o replicador vai executar automaticamen
     acao: "extract-replication-rules",
     status: "sucesso",
     mensagem: `Claude gerou ${inserted?.length ?? 0} regras a partir do insight ${insight.id}`,
-  }).then(() => {}, () => {});
+  }).then(() => {}, (e) => console.error("[extract-replication-rules] log/op failed:", e?.message ?? e));
 
   return jr({
     ok: true,

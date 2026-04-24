@@ -62,7 +62,7 @@ Deno.serve(async (req) => {
     await sb.from("collection_logs").insert({
       acao: "spotify_token_watchdog", status: "erro",
       mensagem: `query failed: ${error.message}`,
-    }).then(() => {}, () => {});
+    }).then(() => {}, (e) => console.error("[spotify-token-watchdog] log/op failed:", e?.message ?? e));
     return jr({ error: error.message }, 500);
   }
 
@@ -98,7 +98,7 @@ Deno.serve(async (req) => {
           p_message: `Conta ${acc.spotify_user_id} precisa reconectar (HTTP ${r.status}).`,
           p_action_url: "/configuracoes",
           p_metadata: { account: acc.spotify_user_id, http: r.status },
-        }).then(() => {}, () => {});
+        }).then(() => {}, (e) => console.error("[spotify-token-watchdog] log/op failed:", e?.message ?? e));
         results.push({ account: acc.spotify_user_id, ok: false, status: r.status });
         continue;
       }
@@ -166,7 +166,7 @@ Deno.serve(async (req) => {
     status: failCount > 0 || appTokenError ? "warning" : "sucesso",
     duracao_ms: dur,
     mensagem: `checked=${accounts?.length ?? 0} ok=${okCount} fail=${failCount} app_refreshed=${appTokenRefreshed}${appTokenError ? ` app_err=${appTokenError}` : ""}`,
-  }).then(() => {}, () => {});
+  }).then(() => {}, (e) => console.error("[spotify-token-watchdog] log/op failed:", e?.message ?? e));
 
   return jr({ ok: true, checked: accounts?.length ?? 0, ok_count: okCount, fail_count: failCount, app_token_refreshed: appTokenRefreshed, app_token_error: appTokenError, results });
 });

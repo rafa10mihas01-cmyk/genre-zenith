@@ -164,7 +164,7 @@ Deno.serve(async (req) => {
     status: status === "success" ? "sucesso" : status === "partial" ? "parcial" : "erro",
     mensagem: summary.slice(0, 500),
     duracao_ms: duracaoMs,
-  }).then(() => {}, () => {});
+  }).then(() => {}, (e) => console.error("[learning-loop] log/op failed:", e?.message ?? e));
 
   return jr({
     ok: status !== "failed",

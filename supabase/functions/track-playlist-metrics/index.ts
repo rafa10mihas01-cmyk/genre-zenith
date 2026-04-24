@@ -130,7 +130,7 @@ Deno.serve(async (req) => {
       p_message: `${failed}/${totalProcessed} snapshots falharam (${Math.round(failureRate * 100)}%). Verificar Spotify API/token.`,
       p_action_url: "/cerebro",
       p_metadata: { failed, total: totalProcessed, failure_rate: failureRate },
-    }).then(() => {}, () => {});
+    }).then(() => {}, (e) => console.error("[track-playlist-metrics] log/op failed:", e?.message ?? e));
   }
 
   return jr({
