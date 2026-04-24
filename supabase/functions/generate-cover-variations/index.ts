@@ -803,6 +803,16 @@ async function generateOne(prompt: string): Promise<string> {
   });
   if (!resp.ok) {
     const t = await resp.text();
+    if (resp.status === 402) {
+      const err: any = new Error("AI_PAYMENT_REQUIRED");
+      err.code = "AI_PAYMENT_REQUIRED";
+      throw err;
+    }
+    if (resp.status === 429) {
+      const err: any = new Error("AI_RATE_LIMITED");
+      err.code = "AI_RATE_LIMITED";
+      throw err;
+    }
     throw new Error(`AI ${resp.status}: ${t.slice(0, 200)}`);
   }
   const data = await resp.json();
