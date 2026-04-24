@@ -1,5 +1,5 @@
 // FluxoNode — bloco visual de uma etapa do pipeline.
-// Mostra: ícone, label, status com cor semântica, contadores in→out, tempo.
+// Estados: idle (apagado), running (glow pulsante), success (glow leve), error (glow vermelho), warning.
 import { Loader2, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { FluxoNodeData } from "./types";
@@ -7,43 +7,48 @@ import type { FluxoNodeData } from "./types";
 const STATUS_STYLES = {
   idle: {
     border: "border-border",
-    bg: "bg-card",
+    bg: "bg-card/60",
     iconBg: "bg-elevated",
     iconColor: "text-muted-foreground",
     glow: "",
-    badge: "text-muted-foreground border-border",
+    badge: "text-muted-foreground border-border bg-card",
+    valueColor: "text-foreground/80",
   },
   running: {
-    border: "border-warning/60",
-    bg: "bg-warning/5",
+    border: "border-warning/70",
+    bg: "bg-warning/[0.04]",
     iconBg: "bg-warning/15",
     iconColor: "text-warning",
-    glow: "shadow-[0_0_0_1px_hsl(var(--warning)/0.5),0_0_30px_hsl(var(--warning)/0.25)] animate-pulse-soft",
+    glow: "fluxo-active-glow",
     badge: "text-warning border-warning/40 bg-warning/10",
+    valueColor: "text-warning",
   },
   success: {
-    border: "border-success/40",
+    border: "border-success/45",
     bg: "bg-card",
     iconBg: "bg-success/15",
     iconColor: "text-success",
-    glow: "",
+    glow: "fluxo-success-glow",
     badge: "text-success border-success/40 bg-success/10",
+    valueColor: "text-foreground",
   },
   error: {
-    border: "border-destructive/60",
-    bg: "bg-destructive/5",
+    border: "border-destructive/70",
+    bg: "bg-destructive/[0.04]",
     iconBg: "bg-destructive/15",
     iconColor: "text-destructive",
-    glow: "shadow-[0_0_0_1px_hsl(var(--destructive)/0.5),0_0_30px_hsl(var(--destructive)/0.25)]",
+    glow: "fluxo-error-glow",
     badge: "text-destructive border-destructive/40 bg-destructive/10",
+    valueColor: "text-destructive",
   },
   warning: {
-    border: "border-warning/40",
+    border: "border-warning/45",
     bg: "bg-card",
     iconBg: "bg-warning/15",
     iconColor: "text-warning",
     glow: "",
     badge: "text-warning border-warning/40 bg-warning/10",
+    valueColor: "text-warning",
   },
 } as const;
 
@@ -58,7 +63,7 @@ function StatusIcon({ status }: { status: FluxoNodeData["status"] }) {
   if (status === "running") return <Loader2 className="h-3 w-3 animate-spin" />;
   if (status === "error") return <AlertTriangle className="h-3 w-3" />;
   if (status === "success") return <CheckCircle2 className="h-3 w-3" />;
-  return <span className="h-1.5 w-1.5 rounded-full bg-current opacity-50" />;
+  return <span className="h-1.5 w-1.5 rounded-full bg-current opacity-60" />;
 }
 
 const STATUS_LABEL: Record<FluxoNodeData["status"], string> = {
@@ -82,21 +87,35 @@ export function FluxoNode({
   const Icon = node.icon;
   const time = fmtTime(node.durationMs);
   const showCounters = node.inputCount != null || node.outputCount != null;
+  const isRunning = node.status === "running";
 
   return (
     <button
       type="button"
       onClick={onClick}
       className={cn(
-        "group relative w-full text-left rounded-2xl border-2 transition-all duration-200",
-        "p-3 sm:p-3.5 hover:scale-[1.02] active:scale-100",
+        "fluxo-node-hover group relative w-full text-left rounded-2xl border-2",
+        "p-3.5 sm:p-4 active:scale-[0.99]",
         s.border, s.bg, s.glow,
-        selected && "ring-2 ring-primary ring-offset-2 ring-offset-background scale-[1.02]",
+        selected && "ring-2 ring-primary ring-offset-2 ring-offset-background",
+        isRunning && "scale-[1.02]",
       )}
     >
+      {/* Indicador "AO VIVO" no canto quando running */}
+      {isRunning && (
+        <span className="absolute -top-2 left-1/2 -translate-x-1/2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-warning text-[8px] font-bold uppercase tracking-widest text-background shadow-lg z-10">
+          <span className="fluxo-live-dot h-1.5 w-1.5 rounded-full bg-background" />
+          ao vivo
+        </span>
+      )}
+
       {/* Header: ícone + status badge */}
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <div className={cn("h-9 w-9 rounded-xl flex items-center justify-center shrink-0", s.iconBg)}>
+      <div className="flex items-start justify-between gap-2 mb-2.5">
+        <div className={cn(
+          "h-10 w-10 rounded-xl flex items-center justify-center shrink-0 transition-transform",
+          s.iconBg,
+          isRunning && "animate-pulse-soft",
+        )}>
           <Icon className={cn("h-5 w-5", s.iconColor)} />
         </div>
         <span className={cn(
@@ -109,7 +128,7 @@ export function FluxoNode({
       </div>
 
       {/* Nome */}
-      <div className="mb-1">
+      <div className="mb-1.5">
         <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold leading-none mb-0.5">
           {node.shortLabel}
         </p>
@@ -126,10 +145,7 @@ export function FluxoNode({
             <span className="text-muted-foreground/60 text-xs">→</span>
           )}
           {node.outputCount != null && (
-            <span className={cn(
-              "text-base font-bold leading-none",
-              node.status === "error" ? "text-destructive" : "text-foreground",
-            )}>
+            <span className={cn("text-base font-bold leading-none", s.valueColor)}>
               {node.outputCount}
             </span>
           )}
@@ -143,8 +159,8 @@ export function FluxoNode({
       </div>
 
       {/* Hint clique */}
-      <div className="absolute bottom-1 right-2 text-[8px] text-muted-foreground/40 uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity">
-        ver detalhes
+      <div className="absolute bottom-1.5 right-2.5 text-[8px] text-muted-foreground/40 uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity">
+        ver detalhes →
       </div>
     </button>
   );
