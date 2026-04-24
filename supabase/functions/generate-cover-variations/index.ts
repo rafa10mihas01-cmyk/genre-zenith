@@ -829,43 +829,50 @@ Deno.serve(async (req) => {
     }
   } catch (e) { console.warn("cleanup falhou:", e); }
 
-  // Sorteia o mix de estilos para o lote (1 estilo por paleta)
-  const styleMix = pickStyleMix();
+  // 🎯 ECONOMIA: gera 1 ÚNICA capa (não 4) — padrão já validado nas capas publicadas.
+  // Paleta determinística por template_id (mesma capa = mesma cor sempre).
+  // Estilo SEMPRE "clean" — formato que ficou aprovado visualmente.
+  const paletteIdx = hashString(tpl.id) % PALETTES.length;
+  const palette = PALETTES[paletteIdx];
+  const style: Style = "clean";
+  const prompt = buildPrompt(tpl, palette, style, 0, body.custom_prompt);
 
-  // Gera 1 variação por (paleta + estilo) — em paralelo
-  const prompts = PALETTES.map((p, i) => buildPrompt(tpl, p, styleMix[i], i, body.custom_prompt));
-  const results = await Promise.allSettled(prompts.map((p) => generateOne(p)));
+  let genResult: PromiseSettledResult<string>;
+  try {
+    genResult = { status: "fulfilled", value: await generateOne(prompt) };
+  } catch (e) {
+    genResult = { status: "rejected", reason: e };
+  }
 
-  for (let i = 0; i < results.length; i++) {
-    const r = results[i];
-    if (r.status !== "fulfilled") {
-      console.error(`variação ${i} (${PALETTES[i].name} / ${styleMix[i]}) falhou:`, r.reason);
-      continue;
-    }
+  if (genResult.status === "fulfilled") {
     try {
-      const { bytes: rawBytes } = dataUrlToBytes(r.value);
-      // Aplica watermark NexEngine (logo monocromático adaptativo) antes do upload.
-      // Falha-segura: se algo der errado, devolve a capa original sem watermark.
+      const { bytes: rawBytes } = dataUrlToBytes(genResult.value);
       const wm = await applyWatermark(rawBytes);
       const finalBytes = wm.bytes;
       const finalType = wm.contentType;
       const ext = finalType.split("/")[1].replace("+xml", "");
-      const path = `${tpl.id}/${ts}-${i}.${ext}`;
+      const path = `${tpl.id}/${ts}-0.${ext}`;
       const { error: upErr } = await supabase.storage
         .from("playlist-covers")
         .upload(path, finalBytes, { contentType: finalType, upsert: true });
-      if (upErr) { console.error("upload err:", upErr); continue; }
-      const { data: pub } = supabase.storage.from("playlist-covers").getPublicUrl(path);
-      variations.push({
-        index: i,
-        url: pub.publicUrl,
-        palette: PALETTES[i].name,
-        style: styleMix[i],
-      });
+      if (upErr) {
+        console.error("upload err:", upErr);
+      } else {
+        const { data: pub } = supabase.storage.from("playlist-covers").getPublicUrl(path);
+        variations.push({
+          index: 0,
+          url: pub.publicUrl,
+          palette: palette.name,
+          style,
+        });
+      }
     } catch (e) {
       console.error("processing err:", e);
     }
+  } else {
+    console.error(`geração falhou (${palette.name}/${style}):`, genResult.reason);
   }
+
 
   if (variations.length === 0) {
     return jr({ ok: false, error: "Nenhuma variação foi gerada com sucesso" }, 500);
