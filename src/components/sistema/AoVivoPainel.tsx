@@ -11,6 +11,7 @@ import { timeAgo } from "@/lib/format";
 import { toast } from "sonner";
 import { FluxoVisual } from "@/components/sistema/fluxo/FluxoVisual";
 import { AoVivoFeed } from "@/components/sistema/AoVivoFeed";
+import { RegrasVsExecucao } from "@/components/sistema/RegrasVsExecucao";
 
 type LiveRun = {
   id: string;
