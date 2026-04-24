@@ -99,7 +99,7 @@ export default function Operacao() {
     const [{ data: tpls }, { data: snaps }, { data: adjs }, { data: genres }, { data: accs }] = await Promise.all([
       supabase
         .from("playlist_templates")
-        .select("id,name,genre_id,status,spotify_playlist_id,spotify_url,created_on_spotify_at,followers_at_creation,tracks_added,performance_class")
+        .select("id,name,genre_id,status,spotify_playlist_id,spotify_url,created_on_spotify_at,followers_at_creation,tracks_added,performance_class,cover_image_url,cover_variations,cover_selected_index")
         .not("spotify_playlist_id", "is", null)
         .order("created_on_spotify_at", { ascending: false, nullsFirst: false }),
       supabase
@@ -130,7 +130,7 @@ export default function Operacao() {
       }
     }
 
-    const list: OpPlaylist[] = (tpls ?? []).map(t => {
+    const list: OpPlaylist[] = (tpls ?? []).map((t: any) => {
       const snap = lastSnap.get(t.id);
       const followersNow = snap?.followers ?? t.followers_at_creation ?? 0;
       const followersStart = t.followers_at_creation ?? 0;
@@ -140,6 +140,14 @@ export default function Operacao() {
       if (t.performance_class === "alta" || delta > 5) status = "crescimento";
       else if (t.performance_class === "baixa" || delta < -5) status = "queda";
       else if (!t.created_on_spotify_at || (Date.now() - new Date(t.created_on_spotify_at).getTime()) < 48 * 3600 * 1000) status = "teste";
+
+      // Resolve a capa: cover_image_url > variation selecionada > primeira variation
+      let cover: string | null = t.cover_image_url ?? null;
+      if (!cover && Array.isArray(t.cover_variations) && t.cover_variations.length > 0) {
+        const idx = typeof t.cover_selected_index === "number" ? t.cover_selected_index : 0;
+        const v = t.cover_variations[idx] ?? t.cover_variations[0];
+        cover = (typeof v === "string" ? v : v?.url ?? v?.image_url) ?? null;
+      }
 
       return {
         id: t.id,
@@ -152,6 +160,7 @@ export default function Operacao() {
         spotify_url: t.spotify_url,
         spotify_playlist_id: t.spotify_playlist_id,
         created_on_spotify_at: t.created_on_spotify_at,
+        cover_image_url: cover,
       };
     });
 
