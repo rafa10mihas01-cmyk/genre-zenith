@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Sparkles, Flame, AlertTriangle, Archive, RefreshCw, Loader2,
   Check, Music2, ExternalLink, AlertCircle, ChevronDown, ChevronRight,
-  Send, Image as ImageIcon, Pencil, Play, Inbox, Clock, Search, X, Wand2,
+  Send, Image as ImageIcon, Pencil, Play, Inbox, Clock, Search, X, Wand2, Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -952,6 +952,76 @@ function TemplateDetailDialog({
     await onChanged();
   }
 
+  async function removeCover() {
+    if (!tpl) return;
+
+    const variations = tpl.cover_variations ?? [];
+    const activeVariation = (tpl.cover_selected_index !== null
+      ? variations.find((v) => v.index === tpl.cover_selected_index)
+      : null) ?? variations.find((v) => v.url === tpl.cover_image_url) ?? null;
+
+    const remainingVariations = activeVariation
+      ? variations.filter((v) => v.index !== activeVariation.index)
+      : variations;
+
+    const fallbackVariation = remainingVariations[0] ?? null;
+
+    setBusy("remove_cover");
+    const { error } = await supabase.from("playlist_templates")
+      .update({
+        cover_variations: remainingVariations,
+        cover_image_url: fallbackVariation?.url ?? null,
+        cover_selected_index: fallbackVariation?.index ?? null,
+      })
+      .eq("id", tpl.id);
+    setBusy(null);
+
+    if (error) {
+      toast({ title: "Erro ao excluir capa", description: error.message, variant: "destructive" });
+      return;
+    }
+
+    toast({
+      title: activeVariation || tpl.cover_image_url ? "Capa excluída" : "Sem capa para excluir",
+      description: fallbackVariation ? "A próxima variação foi selecionada automaticamente." : undefined,
+    });
+    await refreshOne();
+    await onChanged();
+  }
+
+  async function regenerateCoverFromScratch() {
+    if (!tpl) return;
+    if (tpl.spotify_playlist_id) {
+      toast({
+        title: "Não é possível regenerar",
+        description: "Esta playlist já está publicada no Spotify.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setBusy("regenerate_cover");
+    onGeneratingChange?.(tpl.id, true);
+    const { data, error } = await supabase.functions.invoke("generate-cover-variations", {
+      body: { template_id: tpl.id, force: true },
+    });
+    onGeneratingChange?.(tpl.id, false);
+    setBusy(null);
+
+    if (error || !(data as any)?.ok) {
+      toast({
+        title: "Falha ao gerar outra capa",
+        description: error?.message || (data as any)?.error || "Erro",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({ title: "Nova capa gerada" });
+    await refreshOne();
+    await onChanged();
+  }
+
   async function publish() {
     if (!tpl) return;
     setBusy("publish");
@@ -1110,14 +1180,16 @@ function TemplateDetailDialog({
                   ];
                   const variations = tpl.cover_variations ?? [];
                   const hasAny = variations.length > 0;
-                  const isBusy = busy === "cover";
+                  const hasSelectedCover = !!tpl.cover_image_url;
+                  const isBusy = ["cover", "remove_cover", "regenerate_cover"].includes(busy ?? "");
                   const ver = tpl.cover_generated_at ? new Date(tpl.cover_generated_at).getTime() : 0;
                   // Capa "ativa" para preview grande: a selecionada, ou a 1ª gerada
                   const active = (tpl.cover_selected_index !== null
                     ? variations.find(v => v.index === tpl.cover_selected_index)
                     : null) ?? variations[0] ?? null;
-                  const activeSrc = active
-                    ? `${active.url}${active.url.includes("?") ? "&" : "?"}v=${ver}`
+                  const previewUrl = active?.url ?? tpl.cover_image_url ?? null;
+                  const activeSrc = previewUrl
+                    ? `${previewUrl}${previewUrl.includes("?") ? "&" : "?"}v=${ver}`
                     : null;
 
                   return (
@@ -1186,6 +1258,33 @@ function TemplateDetailDialog({
                           );
                         })}
                       </div>
+
+                      {(hasAny || hasSelectedCover) && (
+                        <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="rounded-full gap-1.5"
+                            onClick={removeCover}
+                            disabled={isBusy}
+                          >
+                            {busy === "remove_cover" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                            Excluir capa
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="rounded-full gap-1.5"
+                            onClick={regenerateCoverFromScratch}
+                            disabled={isBusy}
+                          >
+                            {busy === "regenerate_cover" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                            Gerar outra
+                          </Button>
+                        </div>
+                      )}
 
                       <p className="text-[11px] text-center text-muted-foreground">
                         {hasAny
