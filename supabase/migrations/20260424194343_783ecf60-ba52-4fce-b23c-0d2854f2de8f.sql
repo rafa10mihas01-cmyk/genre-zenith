@@ -1,0 +1,1 @@
+UPDATE search_terms SET executado = false WHERE genre_id IN ('ef75ef4d-24a0-4249-94be-5881f3a1b9ea','121377cd-9f84-4275-bfca-e5813738d1bc','eaa75c4e-e37d-4070-98cd-4db8f3fba1b8');
