@@ -809,28 +809,34 @@ function TemplateDetailDialog({
     await onChanged();
   }
 
-  async function generateCovers() {
+  // Gera 1 capa. Se palette for passada, gera/recupera só aquela cor (cache).
+  // Quando vier de cache (cached:true), nem chama a IA — custo zero.
+  async function generateCovers(palette?: string) {
     if (!tpl) return;
     const targetId = tpl.id;
     setBusy("cover");
     onGeneratingChange?.(targetId, true);
-    // Limpa a capa "oficial" anterior para o usuário escolher de novo entre as variações novas.
-    // Se já tinha uma seleção antiga, ela some até que uma nova variação seja escolhida.
-    if (tpl.cover_image_url || tpl.cover_selected_index !== null) {
-      await supabase.from("playlist_templates")
-        .update({ cover_image_url: null, cover_selected_index: null })
-        .eq("id", targetId);
-    }
     const { data, error } = await supabase.functions.invoke("generate-cover-variations", {
-      body: { template_id: targetId },
+      body: { template_id: targetId, ...(palette ? { palette } : {}) },
     });
     setBusy(null);
     onGeneratingChange?.(targetId, false);
     if (error || !(data as any)?.ok) {
-      toast({ title: "Falha ao gerar capas", description: error?.message || (data as any)?.error || "Erro", variant: "destructive" });
+      toast({ title: "Falha ao gerar capa", description: error?.message || (data as any)?.error || "Erro", variant: "destructive" });
       return;
     }
-    toast({ title: "Capas geradas" });
+    const variation = (data as any)?.variation as { index: number; url: string; palette?: string } | undefined;
+    const wasCached = (data as any)?.cached === true;
+    // Auto-seleciona a capa recém-gerada (ou recém-trocada do cache)
+    if (variation) {
+      await supabase.from("playlist_templates")
+        .update({ cover_selected_index: variation.index, cover_image_url: variation.url })
+        .eq("id", targetId);
+    }
+    toast({
+      title: wasCached ? "Cor trocada" : "Capa gerada",
+      description: wasCached ? "Reutilizada do cache (sem custo)." : undefined,
+    });
     await refreshOne();
     await onChanged();
   }
