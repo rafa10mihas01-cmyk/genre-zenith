@@ -105,6 +105,26 @@ Deno.serve(async (req) => {
   const { data: genre } = await supabase
     .from("genres").select("id,nome,slug").eq("id", bp.genre_id).maybeSingle();
 
+  // 🎯 Target de faixas — replicação deve manter aparência natural:
+  //   • Se houver playlists base no blueprint: média ±20% (faixa min/max).
+  //   • Caso contrário: 40–60 faixas (default seguro do gênero).
+  // O cap final no Spotify continua 100 (em create-spotify-playlist),
+  // mas o LLM precisa gerar o suficiente pra honrar o target.
+  function computeTrackTarget(sources: any[]): { min: number; max: number; ideal: number; basis: string } {
+    const counts = (Array.isArray(sources) ? sources : [])
+      .map((p) => Number(p?.total_musicas ?? p?.total_tracks ?? 0))
+      .filter((n) => Number.isFinite(n) && n > 0);
+    if (counts.length === 0) {
+      return { min: 40, max: 60, ideal: 50, basis: "default (sem playlist base)" };
+    }
+    const avg = counts.reduce((s, n) => s + n, 0) / counts.length;
+    const min = Math.max(25, Math.round(avg * 0.8));
+    const max = Math.max(min + 5, Math.round(avg * 1.2));
+    const ideal = Math.round(avg);
+    return { min, max, ideal, basis: `média de ${counts.length} playlist(s) base = ${ideal}` };
+  }
+  const trackTarget = computeTrackTarget(bp.source_playlists ?? []);
+
   // 🧠 Carrega regras aprendidas (Claude → executor)
   const activeRules = await loadActiveRules(supabase, bp.genre_id);
   const rulesBlock = rulesAsPromptBlock(activeRules);
