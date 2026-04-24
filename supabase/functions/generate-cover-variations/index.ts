@@ -803,7 +803,7 @@ Deno.serve(async (req) => {
   const guard = await requireTeamAccess(req);
   if (!guard.ok) return guard.resp;
 
-  let body: { template_id?: string; custom_prompt?: string };
+  let body: { template_id?: string; custom_prompt?: string; palette?: string };
   try { body = await req.json(); } catch { return jr({ error: "invalid json" }, 400); }
   if (!body.template_id) return jr({ error: "template_id required" }, 400);
 
@@ -813,77 +813,86 @@ Deno.serve(async (req) => {
   if (tplErr || !tpl) return jr({ error: "template not found" }, 404);
 
   const ts = Date.now();
-  const variations: { index: number; url: string; palette?: string; style?: Style }[] = [];
 
-  // 🧹 Cleanup: remove variações antigas do storage antes de gerar novas
-  try {
-    const { data: oldFiles } = await supabase.storage.from("playlist-covers").list(tpl.id);
-    if (oldFiles && oldFiles.length > 0) {
-      const paths = oldFiles.map((f) => `${tpl.id}/${f.name}`);
-      await supabase.storage.from("playlist-covers").remove(paths);
-    }
-  } catch (e) { console.warn("cleanup falhou:", e); }
-
-  // 🎯 ECONOMIA: gera 1 ÚNICA capa (não 4) — padrão já validado nas capas publicadas.
-  // Paleta determinística por template_id (mesma capa = mesma cor sempre).
-  // Estilo SEMPRE "clean" — formato que ficou aprovado visualmente.
-  const paletteIdx = hashString(tpl.id) % PALETTES.length;
-  const palette = PALETTES[paletteIdx];
+  // 🎯 ESCOLHA DA PALETA:
+  // - Se body.palette vier → gera SÓ aquela cor (sob demanda, 1 crédito).
+  // - Senão → paleta padrão determinística por template_id (1ª geração).
+  let palette = body.palette
+    ? PALETTES.find((p) => p.name === body.palette)
+    : null;
+  if (!palette) {
+    const paletteIdx = hashString(tpl.id) % PALETTES.length;
+    palette = PALETTES[paletteIdx];
+  }
   const style: Style = "clean";
+
+  // 📦 Cache acumulativo: NÃO apaga variações antigas. Se a paleta solicitada
+  // já existir em cover_variations, devolve direto (0 crédito gasto).
+  const existing = (tpl.cover_variations as Array<{ index: number; url: string; palette?: string; style?: Style }> | null) ?? [];
+  const cached = existing.find((v) => v.palette === palette.name);
+  if (cached) {
+    return jr({
+      ok: true,
+      cached: true,
+      variation: cached,
+      variations: existing,
+      palette_used: palette.name,
+    });
+  }
+
+  // 🆕 Gera só essa cor
   const prompt = buildPrompt(tpl, palette, style, 0, body.custom_prompt);
-
-  let genResult: PromiseSettledResult<string>;
+  let dataUrl: string;
   try {
-    genResult = { status: "fulfilled", value: await generateOne(prompt) };
+    dataUrl = await generateOne(prompt);
   } catch (e) {
-    genResult = { status: "rejected", reason: e };
+    console.error(`geração falhou (${palette.name}/${style}):`, e);
+    return jr({ ok: false, error: `Falha ao gerar capa: ${e instanceof Error ? e.message : String(e)}` }, 500);
   }
 
-  if (genResult.status === "fulfilled") {
-    try {
-      const { bytes: rawBytes } = dataUrlToBytes(genResult.value);
-      const wm = await applyWatermark(rawBytes);
-      const finalBytes = wm.bytes;
-      const finalType = wm.contentType;
-      const ext = finalType.split("/")[1].replace("+xml", "");
-      const path = `${tpl.id}/${ts}-0.${ext}`;
-      const { error: upErr } = await supabase.storage
-        .from("playlist-covers")
-        .upload(path, finalBytes, { contentType: finalType, upsert: true });
-      if (upErr) {
-        console.error("upload err:", upErr);
-      } else {
-        const { data: pub } = supabase.storage.from("playlist-covers").getPublicUrl(path);
-        variations.push({
-          index: 0,
-          url: pub.publicUrl,
-          palette: palette.name,
-          style,
-        });
-      }
-    } catch (e) {
-      console.error("processing err:", e);
+  let newVariation: { index: number; url: string; palette: string; style: Style };
+  try {
+    const { bytes: rawBytes } = dataUrlToBytes(dataUrl);
+    const wm = await applyWatermark(rawBytes);
+    const finalType = wm.contentType;
+    const ext = finalType.split("/")[1].replace("+xml", "");
+    // path inclui paleta → arquivos não colidem, fácil de auditar
+    const path = `${tpl.id}/${palette.name}-${ts}.${ext}`;
+    const { error: upErr } = await supabase.storage
+      .from("playlist-covers")
+      .upload(path, wm.bytes, { contentType: finalType, upsert: true });
+    if (upErr) {
+      console.error("upload err:", upErr);
+      return jr({ ok: false, error: `Falha no upload: ${upErr.message}` }, 500);
     }
-  } else {
-    console.error(`geração falhou (${palette.name}/${style}):`, genResult.reason);
+    const { data: pub } = supabase.storage.from("playlist-covers").getPublicUrl(path);
+    // próximo index disponível
+    const nextIndex = existing.length > 0 ? Math.max(...existing.map((v) => v.index)) + 1 : 0;
+    newVariation = {
+      index: nextIndex,
+      url: pub.publicUrl,
+      palette: palette.name,
+      style,
+    };
+  } catch (e) {
+    console.error("processing err:", e);
+    return jr({ ok: false, error: `Falha no processamento: ${e instanceof Error ? e.message : String(e)}` }, 500);
   }
 
-
-  if (variations.length === 0) {
-    return jr({ ok: false, error: "Nenhuma variação foi gerada com sucesso" }, 500);
-  }
+  // Adiciona ao cache (preserva as outras paletas já geradas)
+  const updatedVariations = [...existing, newVariation];
 
   await supabase.from("playlist_templates").update({
-    cover_variations: variations,
+    cover_variations: updatedVariations,
     cover_generated_at: new Date().toISOString(),
     auto_cover_requested: false,
   }).eq("id", tpl.id);
 
   return jr({
     ok: true,
-    variations,
-    palettes_used: variations.map((v) => v.palette),
-    styles_used: variations.map((v) => v.style),
-    subtext_extracted: extractSubtext(tpl.cover_brief, tpl.name),
+    cached: false,
+    variation: newVariation,
+    variations: updatedVariations,
+    palette_used: palette.name,
   });
 });
