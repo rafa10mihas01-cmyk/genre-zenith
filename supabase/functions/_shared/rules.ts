@@ -48,23 +48,28 @@ export function rulesAsPromptBlock(rules: ReplicationRule[]): string {
   return `\n\n# REGRAS APRENDIDAS DE PERFORMANCE (Claude → executar)\n${blocks.join("\n\n")}\n`;
 }
 
-/** Aplica regras de naming determinísticas em cima do nome retornado pela LLM. */
+/** Aplica regras de naming determinísticas em cima do nome retornado pela LLM.
+ *
+ * 🚫 IMPORTANTE — política atual (abr/2026):
+ *   • `naming.year`     → DESATIVADO. Sobrescrevia "Sertanejo 2026" da IA por "2024" e
+ *                         empobrecia toda a variação. O ano agora vem 100% da IA.
+ *   • `naming.subgenre` → DESATIVADO. Forçava subgêneros canônicos (ex: "PISEIRO") em
+ *                         nomes que a IA já tinha contextualizado melhor.
+ *
+ * Permanecem ativas: `naming.prefix`, `naming.suffix`, `avoid.words`. Essas são
+ * complementos legítimos (adicionam algo à IA) e não substituem o nome.
+ */
 export function enforceNamingRules(name: string, rules: ReplicationRule[]): string {
   let out = name.trim();
   const naming = rules.filter((r) => r.rule_type === "naming" && r.priority === "alta");
 
   for (const r of naming) {
-    // naming.year → força ano no nome
-    if (r.target === "naming.year") {
-      const year = r.value?.year ?? new Date().getFullYear();
-      const yearRegex = /\b(20\d{2})\b/;
-      if (!yearRegex.test(out)) {
-        out = `${out} ${year}`;
-      } else {
-        out = out.replace(yearRegex, String(year));
-      }
-    }
-    // naming.suffix / naming.prefix → adiciona texto se ausente
+    // 🚫 naming.year → desativado: a IA escolhe o ano (ou nenhum)
+    if (r.target === "naming.year") continue;
+    // 🚫 naming.subgenre → desativado: a IA escolhe o subgênero correto pelo contexto
+    if (r.target === "naming.subgenre") continue;
+
+    // ✅ naming.suffix / naming.prefix → adiciona texto se ausente (complemento, não override)
     if (r.target === "naming.suffix" && typeof r.value?.text === "string") {
       const sfx = r.value.text.trim();
       if (sfx && !out.toLowerCase().includes(sfx.toLowerCase())) out = `${out} ${sfx}`;
@@ -73,15 +78,9 @@ export function enforceNamingRules(name: string, rules: ReplicationRule[]): stri
       const pfx = r.value.text.trim();
       if (pfx && !out.toLowerCase().includes(pfx.toLowerCase())) out = `${pfx} ${out}`;
     }
-    // naming.subgenre → garante subgênero presente
-    if (r.target === "naming.subgenre" && typeof r.value?.subgenre === "string") {
-      const sg = r.value.subgenre.trim();
-      if (sg && !out.toLowerCase().includes(sg.toLowerCase())) out = `${out} ${sg}`;
-    }
-    // avoid.words → remove palavras proibidas (rule_type=avoid também)
   }
 
-  // avoid.words (qualquer prioridade): remove
+  // avoid.words (qualquer prioridade): remove palavras proibidas — continua válido
   for (const r of rules) {
     if (r.rule_type === "avoid" && r.target === "avoid.words") {
       const words: string[] = Array.isArray(r.value?.words) ? r.value.words : [];
