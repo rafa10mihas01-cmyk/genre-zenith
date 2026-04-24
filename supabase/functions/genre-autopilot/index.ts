@@ -98,7 +98,10 @@ async function pushCompleted(
 async function invokeFn<T = any>(
   fnName: string,
   body: Record<string, unknown>,
-): Promise<{ ok: boolean; data?: T; error?: string }> {
+  timeoutMs = 60000,
+): Promise<{ ok: boolean; data?: T; error?: string; status?: number }> {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
     const resp = await fetch(`${SUPABASE_URL}/functions/v1/${fnName}`, {
       method: "POST",
@@ -107,14 +110,18 @@ async function invokeFn<T = any>(
         "Content-Type": "application/json",
       },
       body: JSON.stringify(body),
+      signal: ctrl.signal,
     });
     const text = await resp.text();
     let data: any;
     try { data = JSON.parse(text); } catch { data = { raw: text }; }
-    if (!resp.ok) return { ok: false, error: data?.error ?? `HTTP ${resp.status}` };
-    return { ok: true, data };
+    if (!resp.ok) return { ok: false, error: data?.error ?? `HTTP ${resp.status}`, status: resp.status };
+    return { ok: true, data, status: resp.status };
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+    const isAbort = e instanceof Error && e.name === "AbortError";
+    return { ok: false, error: isAbort ? `timeout após ${timeoutMs}ms` : (e instanceof Error ? e.message : String(e)) };
+  } finally {
+    clearTimeout(t);
   }
 }
 
