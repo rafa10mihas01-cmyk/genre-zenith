@@ -195,7 +195,10 @@ Deno.serve(async (req) => {
     }
   }
 
-  // 4) Persiste resultado + baseline de followers (=0 no momento da criação)
+  // 4) Persiste resultado + baseline REAL de followers (busca da API do Spotify)
+  // 🎯 FIX: era hardcoded `0` — corrompia o cálculo de crescimento e o score V2.
+  const followersAtCreation = await fetchPlaylistFollowers(token, playlistId);
+
   const patch = {
     status: "created",
     spotify_playlist_id: playlistId,
@@ -206,30 +209,20 @@ Deno.serve(async (req) => {
     tracks_failed: failed,
     creation_error: null,
     created_on_spotify_at: new Date().toISOString(),
-    followers_at_creation: 0,
+    followers_at_creation: followersAtCreation,
   };
   const { error: upErr } = await supabase.from("playlist_templates").update(patch).eq("id", templateId);
   if (upErr) return jr({ ok: false, error: upErr.message, partial: patch }, 500);
 
-  // 🎯 Incrementa contador da conta usada (respeita max_playlists nas próximas operações)
-  const { data: acc } = await supabase
-    .from("accounts")
-    .select("id,current_playlists")
-    .eq("spotify_user_id", ownerId)
-    .maybeSingle();
-  if (acc) {
-    await supabase
-      .from("accounts")
-      .update({ current_playlists: (acc.current_playlists ?? 0) + 1 })
-      .eq("id", acc.id)
-      .then(() => {}, () => {});
-  }
+  // 🔒 Incremento ATÔMICO via RPC (evita race condition entre execuções paralelas)
+  await supabase.rpc("increment_account_playlists", { p_spotify_user_id: ownerId })
+    .then(() => {}, (e) => console.warn("[create-spotify-playlist] increment failed:", e?.message));
 
-  // Snapshot inicial (baseline t0)
+  // Snapshot inicial (baseline t0 com followers reais)
   await supabase.from("playlist_metrics_snapshots").insert({
     template_id: templateId,
     spotify_playlist_id: playlistId,
-    followers: 0,
+    followers: followersAtCreation,
     total_tracks: uris.length,
   }).then(() => {}, () => {});
 
