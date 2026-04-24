@@ -432,13 +432,20 @@ function VariationRow({ t, bp, expanded, creating, onToggle, onApprove, onReject
  *  MOLDES — Fase 3: lista compacta de blueprints, 1 linha cada
  * ============================================================================ */
 
-export function Moldes({ genreId, onAfterGenerate }: { genreId?: string; onAfterGenerate?: () => void }) {
+// Cota padrão de variações por molde — evita gerar duplicado / queimar crédito de IA.
+// Pode ser ajustada por molde no futuro (regra de replicação).
+const COTA_POR_MOLDE = 5;
+
+type TplStats = { total: number; published: number; pending: number };
+
+export function Moldes({ genreId, onAfterGenerate, hideEmpty = false }: { genreId?: string; onAfterGenerate?: () => void; hideEmpty?: boolean }) {
   const [blueprints, setBlueprints] = useState<Blueprint[]>([]);
-  const [tplCounts, setTplCounts] = useState<Record<string, number>>({});
+  const [tplStats, setTplStats] = useState<Record<string, TplStats>>({});
   const [loading, setLoading] = useState(true);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [extracting, setExtracting] = useState(false);
   const [generating, setGenerating] = useState<string | null>(null);
+  const [showSaturated, setShowSaturated] = useState(false);
 
   const load = async (showSkeleton = false) => {
     if (!genreId) return;
@@ -454,15 +461,19 @@ export function Moldes({ genreId, onAfterGenerate }: { genreId?: string; onAfter
       const ids = list.map(b => b.id);
       const { data: tps } = await supabase
         .from("playlist_templates")
-        .select("blueprint_id")
+        .select("blueprint_id, status, spotify_playlist_id")
         .in("blueprint_id", ids);
-      const counts: Record<string, number> = {};
+      const stats: Record<string, TplStats> = {};
       for (const t of (tps ?? []) as any[]) {
-        counts[t.blueprint_id] = (counts[t.blueprint_id] ?? 0) + 1;
+        const s = stats[t.blueprint_id] ?? { total: 0, published: 0, pending: 0 };
+        s.total += 1;
+        if (t.spotify_playlist_id || t.status === "created") s.published += 1;
+        if (t.status === "pending") s.pending += 1;
+        stats[t.blueprint_id] = s;
       }
-      setTplCounts(counts);
+      setTplStats(stats);
     } else {
-      setTplCounts({});
+      setTplStats({});
     }
     setLoading(false);
     setHasLoadedOnce(true);
@@ -516,6 +527,20 @@ export function Moldes({ genreId, onAfterGenerate }: { genreId?: string; onAfter
     }
   };
 
+  // Separa moldes em "ativos" (ainda dentro da cota) e "saturados" (já cumpriram)
+  const { active, saturated } = useMemo(() => {
+    const a: Blueprint[] = [];
+    const s: Blueprint[] = [];
+    for (const bp of blueprints) {
+      const stat = tplStats[bp.id] ?? { total: 0, published: 0, pending: 0 };
+      if (stat.total >= COTA_POR_MOLDE) s.push(bp);
+      else a.push(bp);
+    }
+    return { active: a, saturated: s };
+  }, [blueprints, tplStats]);
+
+  const visibleSaturated = hideEmpty || showSaturated ? saturated : [];
+
   if (loading && !hasLoadedOnce) return <div className="grid gap-2">{Array.from({ length: 3 }).map((_, i) => <div key={i} className="nx-card h-14 animate-pulse" />)}</div>;
 
   return (
@@ -539,25 +564,71 @@ export function Moldes({ genreId, onAfterGenerate }: { genreId?: string; onAfter
           </p>
         </div>
       ) : (
-        <div className="space-y-1.5">
-          {blueprints.map(bp => (
-            <BlueprintRow
-              key={bp.id}
-              bp={bp}
-              variations={tplCounts[bp.id] ?? 0}
-              generating={generating === bp.id}
-              onGenerate={() => runGenerate(bp.id)}
-            />
-          ))}
-        </div>
+        <>
+          {/* Resumo do funil */}
+          <div className="flex items-center gap-3 text-[11px] text-muted-foreground tabular-nums">
+            <span><strong className="text-foreground">{blueprints.length}</strong> moldes</span>
+            <span>·</span>
+            <span><strong className="text-foreground">{active.length}</strong> pendentes</span>
+            <span>·</span>
+            <span><strong className="text-success">{saturated.length}</strong> com cota cheia</span>
+          </div>
+
+          {/* Ativos — ainda precisam gerar */}
+          {active.length > 0 && (
+            <div className="space-y-1.5">
+              {active.map(bp => (
+                <BlueprintRow
+                  key={bp.id}
+                  bp={bp}
+                  stats={tplStats[bp.id] ?? { total: 0, published: 0, pending: 0 }}
+                  generating={generating === bp.id}
+                  onGenerate={() => runGenerate(bp.id)}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Saturados — colapsável */}
+          {saturated.length > 0 && !hideEmpty && (
+            <button
+              onClick={() => setShowSaturated(v => !v)}
+              className="w-full text-[11px] text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center gap-1.5 py-2 border-t border-border/50"
+            >
+              {showSaturated ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+              {showSaturated ? "Esconder" : "Mostrar"} {saturated.length} {saturated.length === 1 ? "molde já saturado" : "moldes já saturados"}
+            </button>
+          )}
+
+          {visibleSaturated.length > 0 && (
+            <div className="space-y-1.5 opacity-70">
+              {visibleSaturated.map(bp => (
+                <BlueprintRow
+                  key={bp.id}
+                  bp={bp}
+                  stats={tplStats[bp.id] ?? { total: 0, published: 0, pending: 0 }}
+                  generating={generating === bp.id}
+                  onGenerate={() => runGenerate(bp.id)}
+                />
+              ))}
+            </div>
+          )}
+
+          {active.length === 0 && saturated.length > 0 && !showSaturated && !hideEmpty && (
+            <div className="nx-card p-6 text-center text-sm text-muted-foreground">
+              <CheckCircle2 className="h-6 w-6 mx-auto text-success mb-2" />
+              Todos os moldes já têm variações suficientes. Aprove e publique na seção <strong>Variações</strong> acima.
+            </div>
+          )}
+        </>
       )}
     </div>
   );
 }
 
-function BlueprintRow({ bp, variations, generating, onGenerate }: {
+function BlueprintRow({ bp, stats, generating, onGenerate }: {
   bp: Blueprint;
-  variations: number;
+  stats: TplStats;
   generating: boolean;
   onGenerate: () => void;
 }) {
@@ -568,6 +639,9 @@ function BlueprintRow({ bp, variations, generating, onGenerate }: {
     bp.confidence && `Confiança: ${bp.confidence}`,
     bp.performance_source && `Performance: ${bp.performance_source}`,
   ].filter(Boolean).join(" · ");
+
+  const saturated = stats.total >= COTA_POR_MOLDE;
+  const progressPct = Math.min(100, (stats.total / COTA_POR_MOLDE) * 100);
 
   return (
     <div className="nx-card !p-3 flex items-center gap-3 hover:border-foreground/20 transition-colors">
@@ -588,14 +662,39 @@ function BlueprintRow({ bp, variations, generating, onGenerate }: {
         </div>
       </div>
 
+      {/* Progresso da cota */}
+      <div className="hidden sm:flex flex-col items-end gap-1 shrink-0 w-24">
+        <div className="text-[10px] tabular-nums text-muted-foreground">
+          <span className={cn("font-bold", saturated ? "text-success" : "text-foreground")}>{stats.total}</span>
+          <span>/{COTA_POR_MOLDE}</span>
+          {stats.published > 0 && <span className="text-success ml-1">· {stats.published} pub</span>}
+        </div>
+        <div className="h-1 w-full rounded-full bg-elevated overflow-hidden">
+          <div
+            className={cn("h-full transition-all", saturated ? "bg-success" : "bg-primary")}
+            style={{ width: `${progressPct}%` }}
+          />
+        </div>
+      </div>
+
       <div className="flex items-center gap-2 shrink-0">
-        <span className="text-[11px] text-muted-foreground tabular-nums">
-          {variations} {variations === 1 ? "variação" : "variações"}
-        </span>
-        <Button size="sm" onClick={onGenerate} disabled={generating} className="h-8 px-3 text-xs">
-          {generating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Wand2 className="h-3 w-3" />}
-          Gerar +5
-        </Button>
+        {saturated ? (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled
+            className="h-8 px-3 text-xs gap-1.5 cursor-not-allowed"
+            title="Cota cheia. Vá em 'Variações' para aprovar/publicar antes de gerar mais."
+          >
+            <CheckCircle2 className="h-3 w-3 text-success" />
+            Cota cheia
+          </Button>
+        ) : (
+          <Button size="sm" onClick={onGenerate} disabled={generating} className="h-8 px-3 text-xs">
+            {generating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Wand2 className="h-3 w-3" />}
+            Gerar +{Math.min(5, COTA_POR_MOLDE - stats.total)}
+          </Button>
+        )}
       </div>
     </div>
   );

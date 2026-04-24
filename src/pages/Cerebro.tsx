@@ -7,7 +7,7 @@ import {
   Brain, Sparkles, Loader2, ListMusic, Music2, TrendingUp, Hash,
   ExternalLink, Image as ImageIcon, Palette, Wand2, FileText, Activity,
   ArrowRight, Search, Lightbulb, Wrench, Radio, BarChart3, Rocket, Layers,
-  X, CheckCircle2, AlertTriangle, Quote, Users,
+  X, CheckCircle2, AlertTriangle, Quote, Users, ChevronDown, ChevronRight,
 } from "lucide-react";
 import { EditorialSeederCard } from "@/components/operacao/EditorialSeederCard";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
@@ -222,21 +222,22 @@ export default function Cerebro() {
           <Visual briefing={briefing} loading={loadingBriefing} onAnalyze={analyzeVisualDna} analyzing={analyzingDna} />
         </TabsContent>
         <TabsContent value="replicacao" className="mt-0 space-y-6">
-          <Section step="1" icon={Rocket} title="Replicar agora" subtitle="Caminho rápido: seleciona top playlists, gera o plano e despacha">
-            <ReplicacaoAuto genreId={genre?.id} />
-          </Section>
-
-          <Section step="2" icon={ListMusic} title="Playlists prontas" subtitle="Variações geradas — aprove e publique no Spotify">
-            <Variacoes genreId={genre?.id} />
-          </Section>
-
-          <Section step="3" icon={Layers} title="Moldes (blueprints)" subtitle="Padrões base extraídos das top playlists">
+          {/* FUNIL: Moldes (origem) → Variações (geradas) → Histórico (publicadas) */}
+          <Section step="1" icon={Layers} title="Moldes" subtitle="Padrões base — gere até 5 variações por molde">
             <Moldes genreId={genre?.id} />
           </Section>
 
-          <Section step="4" icon={Activity} title="Histórico" subtitle="Últimas replicações executadas">
-            <ReplicacaoHistorico genreId={genre?.id} />
+          <Section step="2" icon={ListMusic} title="Variações" subtitle="Aprove e publique no Spotify">
+            <Variacoes genreId={genre?.id} />
           </Section>
+
+          <CollapsibleSection icon={Rocket} title="Replicar agora (atalho)" subtitle="Caminho rápido: top playlists → plano → despacha">
+            <ReplicacaoAuto genreId={genre?.id} />
+          </CollapsibleSection>
+
+          <CollapsibleSection icon={Activity} title="Histórico" subtitle="Últimas replicações executadas">
+            <ReplicacaoHistorico genreId={genre?.id} />
+          </CollapsibleSection>
         </TabsContent>
       </Tabs>
     </PageContainer>
@@ -1742,13 +1743,7 @@ function Insights({ model, loading }: any) {
 
 function Section({
   step, icon: Icon, title, subtitle, children,
-}: {
-  step?: string;
-  icon: any;
-  title: string;
-  subtitle?: string;
-  children: React.ReactNode;
-}) {
+}: any /* keep loose for brevity */) {
   return (
     <section className="nx-card p-5">
       <header className="flex items-center gap-3 mb-4">
@@ -1764,15 +1759,44 @@ function Section({
             )}
           </div>
           <h3 className="text-base font-bold leading-tight">{title}</h3>
-          {subtitle && (
-            <p className="text-[11px] text-muted-foreground mt-0.5">{subtitle}</p>
-          )}
+          {subtitle && <p className="text-[11px] text-muted-foreground mt-0.5">{subtitle}</p>}
         </div>
       </header>
       {children}
     </section>
   );
 }
+
+/**
+ * Mesma anatomia do Section, mas colapsado por padrão. Reduz ruído visual em
+ * conteúdo secundário (atalhos, histórico) sem esconder funcionalidade.
+ */
+function CollapsibleSection({
+  icon: Icon, title, subtitle, defaultOpen = false, children,
+}: {
+  icon: any; title: string; subtitle?: string; defaultOpen?: boolean; children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <section className="nx-card overflow-hidden">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center gap-3 p-4 hover:bg-elevated/40 transition-colors text-left"
+      >
+        <div className="h-8 w-8 rounded-full bg-muted/30 text-muted-foreground flex items-center justify-center shrink-0">
+          <Icon className="h-3.5 w-3.5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <h3 className="text-sm font-bold leading-tight">{title}</h3>
+          {subtitle && <p className="text-[11px] text-muted-foreground mt-0.5">{subtitle}</p>}
+        </div>
+        {open ? <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" /> : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
+      </button>
+      {open && <div className="px-5 pb-5 border-t border-border pt-4">{children}</div>}
+    </section>
+  );
+}
+
 
 function BulletList({ items, tone = "primary" }: { items: string[]; tone?: "primary" | "warning" }) {
   const dot = tone === "warning" ? "bg-warning" : "bg-primary";
