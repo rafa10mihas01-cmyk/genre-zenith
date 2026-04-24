@@ -206,6 +206,12 @@ export async function classifySubgenre(
 // MÉTODO B — generateBriefing
 // Gera regras de nome, capa, descrição e subgênero pra um card.
 // ─────────────────────────────────────────────────────────────
+export const IDENTIDADES_VALIDAS = [
+  "festa", "sofrência", "estrada", "romântico",
+  "resenha", "treino", "noite", "saudade", "fé",
+] as const;
+export type Identidade = typeof IDENTIDADES_VALIDAS[number];
+
 export type BriefingCardInput = {
   formato: string;
   nome_base: string;
@@ -216,6 +222,8 @@ export type BriefingCardInput = {
   artistas: string[];
   playlists_referencia: string[];
   dna_visual?: any;
+  /** Nomes JÁ existentes nesse gênero — a IA NÃO pode repetir nem fazer variação trivial */
+  nomes_existentes?: string[];
 };
 export type BriefingCardOutput = {
   nome: string;
@@ -224,35 +232,144 @@ export type BriefingCardOutput = {
   descricao: string;
   subgenero: string | null;
   regras_obrigatorias: string[];
+  // Novos campos de identidade / contexto
+  identidade: Identidade;
+  gatilho_emocional: string;
+  momento_consumo: string;
+  diferencial: string;
 };
+
+const ANO_PROIBIDO_REGEX = /\b(2024|2025|2026)\b/;
+
+function normalizeNome(s: string): string {
+  return (s || "")
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
 
 export async function generateBriefing(
   card: BriefingCardInput,
   provider?: AiProvider,
 ): Promise<BriefingCardOutput> {
-  const raw = await chat({
-    provider,
-    maxTokens: 800,
-    system: `Você é um diretor criativo de playlists do Spotify para o gênero ${card.genero} no Brasil. Gera regras CURTAS, acionáveis e fiéis ao formato detectado. Nunca invente conceitos fora das keywords. Resposta SEMPRE em português BR.`,
-    user: `Gere o briefing pra esta playlist:\n${JSON.stringify(card, null, 2)}\n\nRegras:\n- nome: 3-6 palavras, máximo 1 emoji, soa natural\n- regras_nome: 2-4 bullets curtos\n- capa_instrucao: 1 frase prática pro designer (use o DNA visual se houver)\n- descricao: 1-2 frases pro Spotify (≤150 chars)\n- subgenero: confirma ou retorna null\n- regras_obrigatorias: 2-4 bullets do que NÃO fazer`,
-    jsonSchema: {
-      name: "generate_briefing",
-      schema: {
-        type: "object",
-        properties: {
-          nome: { type: "string" },
-          regras_nome: { type: "array", items: { type: "string" } },
-          capa_instrucao: { type: "string" },
-          descricao: { type: "string" },
-          subgenero: { type: ["string", "null"] },
-          regras_obrigatorias: { type: "array", items: { type: "string" } },
-        },
-        required: ["nome", "regras_nome", "capa_instrucao", "descricao", "subgenero", "regras_obrigatorias"],
-      },
-    },
-  });
+  const nomesExistentes = (card.nomes_existentes ?? []).slice(0, 50);
+  const nomesNorm = new Set(nomesExistentes.map(normalizeNome));
 
-  return JSON.parse(raw);
+  const contextoReal = {
+    genero: card.genero,
+    subgenero: card.subgenero ?? null,
+    formato: card.formato,
+    nome_base: card.nome_base,
+    keywords_top: card.keywords.slice(0, 8),
+    artistas_principais: card.artistas.slice(0, 8),
+    top_tracks: card.top_tracks.slice(0, 8),
+    playlists_referencia: card.playlists_referencia.slice(0, 8),
+    dna_visual: card.dna_visual ?? null,
+    nomes_proibidos: nomesExistentes,
+  };
+
+  const permiteAno = card.formato === "ano_corrente";
+
+  const systemPrompt = `Você é um especialista em criação de playlists virais para Spotify no Brasil, gênero ${card.genero}.
+
+OBJETIVO: criar uma playlist com alto potencial de crescimento orgânico — nome natural, identidade clara e momento de consumo definido.
+
+REGRAS OBRIGATÓRIAS DE NOME:
+- Nome natural, atrativo e atual (NUNCA genérico tipo "Hits", "Top", "Mix" isolados)
+- Máximo 60 caracteres, 3-6 palavras, no máximo 1 emoji
+- Linguagem brasileira coloquial, sem clichê de marketing
+- ${permiteAno ? "Pode usar ano (formato detectado: ano_corrente)" : "PROIBIDO usar 2024, 2025 ou 2026 no nome"}
+- PROIBIDO repetir ou ser variação trivial dos nomes_proibidos (ex: trocar 1 palavra, plural/singular, acento)
+- Criar identidade clara (festa, sofrência, estrada, romântico, resenha, treino, noite, saudade, fé)
+
+REGRAS DE CONTEÚDO:
+- Use APENAS as keywords/artistas/tracks fornecidos como base — nunca invente conceitos fora deles
+- Respostas SEMPRE em português BR
+- JSON estritamente válido`;
+
+  const userPrompt = `Crie o briefing desta playlist usando o CONTEXTO REAL abaixo:
+
+${JSON.stringify(contextoReal, null, 2)}
+
+Campos obrigatórios:
+- nome: 3-6 palavras, ≤60 chars, ≤1 emoji, NÃO pode estar em nomes_proibidos
+- identidade: UMA de [${IDENTIDADES_VALIDAS.join(", ")}]
+- gatilho_emocional: 1 frase do que a playlist faz o ouvinte sentir
+- momento_consumo: 1 frase de quando/onde se ouve (ex: "domingo de churrasco", "estrada de madrugada")
+- diferencial: 1 frase do que essa playlist tem que as outras do gênero não têm
+- regras_nome: 2-4 bullets curtos
+- capa_instrucao: 1 frase prática pro designer (use o dna_visual se houver)
+- descricao: 1-2 frases pro Spotify (≤150 chars)
+- subgenero: confirma o subgenero recebido OU retorna null
+- regras_obrigatorias: 2-4 bullets do que NÃO fazer nessa playlist`;
+
+  // Tenta até 2x se cair em ano proibido ou nome duplicado
+  let lastErr: Error | null = null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const raw = await chat({
+      provider,
+      maxTokens: 900,
+      system: systemPrompt,
+      user: attempt === 0
+        ? userPrompt
+        : `${userPrompt}\n\nTENTATIVA ANTERIOR FALHOU: ${lastErr?.message}. Gere um nome COMPLETAMENTE diferente.`,
+      jsonSchema: {
+        name: "generate_briefing",
+        schema: {
+          type: "object",
+          properties: {
+            nome: { type: "string", maxLength: 60 },
+            identidade: { type: "string", enum: [...IDENTIDADES_VALIDAS] },
+            gatilho_emocional: { type: "string", maxLength: 200 },
+            momento_consumo: { type: "string", maxLength: 200 },
+            diferencial: { type: "string", maxLength: 200 },
+            regras_nome: { type: "array", items: { type: "string" } },
+            capa_instrucao: { type: "string" },
+            descricao: { type: "string", maxLength: 200 },
+            subgenero: { type: ["string", "null"] },
+            regras_obrigatorias: { type: "array", items: { type: "string" } },
+          },
+          required: [
+            "nome", "identidade", "gatilho_emocional", "momento_consumo",
+            "diferencial", "regras_nome", "capa_instrucao", "descricao",
+            "subgenero", "regras_obrigatorias",
+          ],
+        },
+      },
+    });
+
+    let parsed: BriefingCardOutput;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      lastErr = new Error("JSON inválido retornado pela IA");
+      continue;
+    }
+
+    // Fallback identidade
+    if (!IDENTIDADES_VALIDAS.includes(parsed.identidade as Identidade)) {
+      parsed.identidade = "resenha";
+    }
+
+    // Validação de ano
+    if (!permiteAno && ANO_PROIBIDO_REGEX.test(parsed.nome)) {
+      lastErr = new Error("Nome inválido: contém ano proibido (2024/2025/2026)");
+      if (attempt === 1) throw lastErr;
+      continue;
+    }
+
+    // Anti-duplicação
+    if (nomesNorm.has(normalizeNome(parsed.nome))) {
+      lastErr = new Error(`Nome duplicado: "${parsed.nome}" já existe nesse gênero`);
+      if (attempt === 1) throw lastErr;
+      continue;
+    }
+
+    return parsed;
+  }
+
+  throw lastErr ?? new Error("generateBriefing: falha desconhecida");
 }
 
 // ─────────────────────────────────────────────────────────────
