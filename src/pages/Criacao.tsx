@@ -43,7 +43,7 @@ type Template = {
   score_breakdown: Record<string, number> | null;
   cover_brief: string | null;
   cover_image_url: string | null;
-  cover_variations: Array<{ index: number; url: string }> | null;
+  cover_variations: Array<{ index: number; url: string; palette?: string; style?: string }> | null;
   cover_selected_index: number | null;
   cover_generated_at: string | null;
   auto_cover_requested: boolean;
