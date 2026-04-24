@@ -477,7 +477,10 @@ async function runPipeline(
         Number(t.tracks_added ?? 0) ||
         (Array.isArray(t.track_seeds) ? t.track_seeds.length : 0);
 
-      if (score >= APPROVE_MIN_SCORE && tier === APPROVE_TIER && tracksCount >= APPROVE_MIN_TRACKS) {
+      // ✅ Aprovação afrouxada: hot≥75 OU medium≥80 (resgata templates bons que ficavam em limbo)
+      const passesHot = tier === "hot" && score >= APPROVE_HOT_MIN_SCORE;
+      const passesMedium = tier === "medium" && score >= APPROVE_MEDIUM_MIN_SCORE;
+      if ((passesHot || passesMedium) && tracksCount >= APPROVE_MIN_TRACKS) {
         const { error } = await sb
           .from("playlist_templates")
           .update({
