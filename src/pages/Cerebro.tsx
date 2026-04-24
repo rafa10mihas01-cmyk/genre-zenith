@@ -7,7 +7,7 @@ import {
   Brain, Sparkles, Loader2, ListMusic, Music2, TrendingUp, Hash,
   ExternalLink, Image as ImageIcon, Palette, Wand2, FileText, Activity,
   ArrowRight, Search, Lightbulb, Wrench, Radio, BarChart3, Rocket, Layers,
-  X, CheckCircle2, AlertTriangle, Quote, Users,
+  X, CheckCircle2, AlertTriangle, Quote, Users, ChevronDown, ChevronRight,
 } from "lucide-react";
 import { EditorialSeederCard } from "@/components/operacao/EditorialSeederCard";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
