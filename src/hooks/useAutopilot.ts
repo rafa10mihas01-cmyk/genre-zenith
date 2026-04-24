@@ -73,7 +73,7 @@ export function useAutopilot(genreId: string | null | undefined) {
   useEffect(() => {
     if (!genreId) return;
     const channel = supabase
-      .channel(`autopilot:${genreId}`)
+      .channel(`autopilot:${genreId}:${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         {
