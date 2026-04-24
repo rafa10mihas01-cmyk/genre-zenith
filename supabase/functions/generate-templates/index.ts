@@ -169,6 +169,26 @@ Deno.serve(async (req) => {
   const trackSeeds = reorderTracksByRules(trackSeedsRaw, activeRules).slice(0, Math.max(120, trackTarget.max + 30));
   const allKeywords = (model?.palavras_chave ?? []).slice(0, 30);
 
+  // 🔁 ANTI-REPETIÇÃO: nomes recentes do gênero (últimos 30d) → anti-exemplos no prompt + dedup pós-LLM.
+  // Resolve "MODÃO RAIZ 2024 - SÓ AS MELHORES 🎉" aparecendo 3x no mesmo dia.
+  const { data: recentTpls } = await supabase
+    .from("playlist_templates")
+    .select("name")
+    .eq("genre_id", bp.genre_id)
+    .gte("created_at", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+    .not("status", "eq", "archived")
+    .order("created_at", { ascending: false })
+    .limit(40);
+  const recentNames: string[] = (recentTpls ?? []).map((r) => String(r.name ?? "")).filter(Boolean);
+  // Normalização canônica para comparação (lowercase, sem emoji, sem pontuação, espaços colapsados)
+  const normalizeName = (s: string) =>
+    s.toLowerCase()
+      .replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, "")
+      .replace(/[^\p{L}\p{N}\s]/gu, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  const recentCanonSet = new Set(recentNames.map(normalizeName));
+
   // Já existem templates? quantos? (usa para variation_index)
   const { count: existingCount } = await supabase
     .from("playlist_templates").select("*", { count: "exact", head: true }).eq("blueprint_id", blueprintId);
@@ -232,13 +252,18 @@ Deno.serve(async (req) => {
     keyword_pool: allKeywords,
     quantidade: count,
     track_target: trackTarget,
+    nomes_recentes_ja_usados: recentNames.slice(0, 25),
   };
+
+  const antiRepeatBlock = recentNames.length > 0
+    ? `\n\n🚫 ANTI-REPETIÇÃO — OBRIGATÓRIO:\nNão repita NENHUM destes nomes (ou variações próximas) que já existem no gênero nos últimos 30 dias:\n${recentNames.slice(0, 25).map((n) => `  • ${n}`).join("\n")}\n\nVarie estrutura, ângulo, sub-tema, sentimento, ocasião — NÃO use o mesmo template de nome.`
+    : "";
 
   let llmOut: any;
   try {
     llmOut = await callLLM(
-      `Você é um diretor criativo de playlists. Gere variações DISTINTAS de uma playlist seguindo o blueprint fornecido. Mantenha a essência (formato, mood, padrão de nome) mas varie ângulo/sub-tema. Use apenas faixas e keywords do pool. Resposta SEMPRE em português BR.${rulesBlock}`,
-      `Gere ${count} variações para este blueprint:\n${JSON.stringify(userPayload, null, 2)}\n\nCada variação deve ser comercial, replicável e fiel ao blueprint. Atribua replication_score 0-100 baseado em força do nome, encaixe com o blueprint, e potencial.\n\n🎯 QUANTIDADE DE FAIXAS — OBRIGATÓRIO:\n• Cada variação DEVE ter entre ${trackTarget.min} e ${trackTarget.max} faixas (ideal ≈ ${trackTarget.ideal}).\n• Base do alvo: ${trackTarget.basis}.\n• Selecione faixas variadas do track_pool, sem duplicar nome+artista dentro da mesma variação.\n• Aparência natural e competitiva no algoritmo do Spotify — playlist curta demais perde no ranking.\n\nIMPORTANTE: Cumpra TODAS as REGRAS APRENDIDAS acima. Regras 🔴 OBRIGATÓRIO devem aparecer no name e nas regras.obrigatorio.`,
+      `Você é um diretor criativo de playlists. Gere variações DISTINTAS de uma playlist seguindo o blueprint fornecido. Mantenha a essência (formato, mood, padrão de nome) mas varie ângulo/sub-tema. Use apenas faixas e keywords do pool. Resposta SEMPRE em português BR.${rulesBlock}${antiRepeatBlock}`,
+      `Gere ${count} variações para este blueprint:\n${JSON.stringify(userPayload, null, 2)}\n\nCada variação deve ser comercial, replicável e fiel ao blueprint. Atribua replication_score 0-100 baseado em força do nome, encaixe com o blueprint, e potencial.\n\n🎯 QUANTIDADE DE FAIXAS — OBRIGATÓRIO:\n• Cada variação DEVE ter entre ${trackTarget.min} e ${trackTarget.max} faixas (ideal ≈ ${trackTarget.ideal}).\n• Base do alvo: ${trackTarget.basis}.\n• Selecione faixas variadas do track_pool, sem duplicar nome+artista dentro da mesma variação.\n• Aparência natural e competitiva no algoritmo do Spotify — playlist curta demais perde no ranking.\n\nIMPORTANTE: Cumpra TODAS as REGRAS APRENDIDAS acima. Regras 🔴 OBRIGATÓRIO devem aparecer no name e nas regras.obrigatorio.${antiRepeatBlock ? "\n\n⚠️ Se gerar nome igual/similar a algum em nomes_recentes_ja_usados, a variação será DESCARTADA pelo sistema." : ""}`,
       schema,
     );
   } catch (e) {
@@ -370,15 +395,40 @@ Deno.serve(async (req) => {
     };
   });
 
-  if (rows.length === 0) return jr({ ok: false, error: "no templates produced" }, 500);
+  // 🚫 DEDUP FINAL: descarta linhas cujo nome canônico já existe nos últimos 30d
+  // OU duplicado dentro do próprio batch atual.
+  const batchSeen = new Set<string>();
+  const dedupedRows: any[] = [];
+  let droppedDuplicates = 0;
+  for (const row of rows) {
+    const canon = normalizeName(String(row.name ?? ""));
+    if (!canon) { droppedDuplicates++; continue; }
+    if (recentCanonSet.has(canon) || batchSeen.has(canon)) {
+      droppedDuplicates++;
+      continue;
+    }
+    batchSeen.add(canon);
+    dedupedRows.push(row);
+  }
+  if (droppedDuplicates > 0) {
+    console.log(`[generate-templates] anti-repetição descartou ${droppedDuplicates}/${rows.length} templates duplicados`);
+  }
+
+  if (dedupedRows.length === 0) {
+    return jr({
+      ok: false,
+      error: `Todos os ${rows.length} nomes gerados pela IA já existem nos últimos 30 dias — anti-repetição bloqueou todos. Tente novamente.`,
+      dropped_names: rows.map((r) => r.name),
+    }, 422);
+  }
 
   const { data: inserted, error: insErr } = await supabase
-    .from("playlist_templates").insert(rows).select("id,name,replication_score,variation_index");
+    .from("playlist_templates").insert(dedupedRows).select("id,name,replication_score,variation_index");
   if (insErr) return jr({ error: insErr.message }, 500);
 
   await supabase.from("collection_logs").insert({
     genre_id: bp.genre_id, acao: "generate-templates", status: "sucesso",
-    mensagem: `${inserted?.length ?? 0} templates gerados a partir do blueprint "${bp.name}" (regras: ${rulesSummary.total}, alta=${rulesSummary.high})`,
+    mensagem: `${inserted?.length ?? 0} templates gerados a partir do blueprint "${bp.name}" (regras: ${rulesSummary.total}, alta=${rulesSummary.high}${droppedDuplicates > 0 ? `, dedup=${droppedDuplicates}` : ""})`,
   }).then(() => {}, (e) => console.error("[generate-templates] log/op failed:", e?.message ?? e));
 
   // 🎯 Dispara scoring automático dos templates recém-criados.
