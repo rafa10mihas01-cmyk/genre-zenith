@@ -99,9 +99,10 @@ async function refreshUserToken(row: SpotifyUserToken): Promise<string> {
   const expires_at = new Date(Date.now() + (j.expires_in ?? 3600) * 1000).toISOString();
   const newRefresh: string = j.refresh_token ?? row.refresh_token;
 
+  // 🔧 Audit #10 B.2: atualiza updated_at (afeta ordering em getUserAccessToken)
   await db()
     .from("spotify_user_tokens")
-    .update({ access_token, refresh_token: newRefresh, expires_at })
+    .update({ access_token, refresh_token: newRefresh, expires_at, updated_at: new Date().toISOString() })
     .eq("id", row.id);
 
   return access_token;

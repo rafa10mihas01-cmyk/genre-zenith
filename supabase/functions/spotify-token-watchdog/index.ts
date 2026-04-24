@@ -1,6 +1,6 @@
 // spotify-token-watchdog — força refresh preemptivo dos tokens de usuário Spotify.
-// Cron-friendly. Sem auth (chamado via cron com service_role no body opcional).
-// POST → checa todas as contas, refresha as que vencem em <10min, alerta as que falharem.
+// 🔐 Audit #10 A.2: exige header x-cron-secret OU service_role JWT.
+// 📊 Audit #10 A.1: heartbeat sempre logado (mesmo quando 0 contas a refrescar).
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -8,6 +8,7 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const CLIENT_ID = Deno.env.get("SPOTIFY_CLIENT_ID")!;
 const CLIENT_SECRET = Deno.env.get("SPOTIFY_CLIENT_SECRET")!;
+const CRON_SECRET = Deno.env.get("CRON_SECRET") ?? "";
 
 function jr(p: unknown, status = 200) {
   return new Response(JSON.stringify(p), {
@@ -15,10 +16,23 @@ function jr(p: unknown, status = 200) {
   });
 }
 
+function authorized(req: Request): boolean {
+  const cs = req.headers.get("x-cron-secret");
+  if (CRON_SECRET && cs && cs === CRON_SECRET) return true;
+  const auth = req.headers.get("Authorization") ?? "";
+  if (auth === `Bearer ${SERVICE_KEY}`) return true;
+  return false;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
+  if (!authorized(req)) {
+    return jr({ error: "unauthorized" }, 401);
+  }
+
   const sb = createClient(SUPABASE_URL, SERVICE_KEY);
+  const startedAt = Date.now();
   const threshold = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
   const { data: accounts, error } = await sb
@@ -26,10 +40,18 @@ Deno.serve(async (req) => {
     .select("id, spotify_user_id, refresh_token, expires_at")
     .lt("expires_at", threshold);
 
-  if (error) return jr({ error: error.message }, 500);
+  if (error) {
+    await sb.from("collection_logs").insert({
+      acao: "spotify_token_watchdog", status: "erro",
+      mensagem: `query failed: ${error.message}`,
+    }).then(() => {}, () => {});
+    return jr({ error: error.message }, 500);
+  }
 
   const results: any[] = [];
   const basic = btoa(`${CLIENT_ID}:${CLIENT_SECRET}`);
+  let okCount = 0;
+  let failCount = 0;
 
   for (const acc of accounts ?? []) {
     try {
@@ -46,6 +68,7 @@ Deno.serve(async (req) => {
       });
       if (!r.ok) {
         const txt = await r.text();
+        failCount++;
         await sb.from("collection_logs").insert({
           acao: "spotify_refresh_failed",
           status: "erro",
@@ -65,12 +88,15 @@ Deno.serve(async (req) => {
       const access_token: string = j.access_token;
       const expires_at = new Date(Date.now() + (j.expires_in ?? 3600) * 1000).toISOString();
       const refresh_token: string = j.refresh_token ?? acc.refresh_token;
+      // 🔧 Audit #10 B.2: atualiza updated_at também (afeta ordering em getUserAccessToken)
       await sb.from("spotify_user_tokens").update({
-        access_token, refresh_token, expires_at,
+        access_token, refresh_token, expires_at, updated_at: new Date().toISOString(),
       }).eq("id", acc.id);
+      okCount++;
       results.push({ account: acc.spotify_user_id, ok: true, expires_at });
     } catch (e) {
       const msg = (e as Error).message;
+      failCount++;
       await sb.from("collection_logs").insert({
         acao: "spotify_refresh_failed", status: "erro",
         mensagem: `${acc.spotify_user_id}: ${msg.slice(0, 200)}`,
@@ -79,5 +105,14 @@ Deno.serve(async (req) => {
     }
   }
 
-  return jr({ ok: true, checked: accounts?.length ?? 0, results });
+  // 📊 Heartbeat sempre — prova que o cron rodou
+  const dur = Date.now() - startedAt;
+  await sb.from("collection_logs").insert({
+    acao: "spotify_token_watchdog",
+    status: failCount > 0 ? "warning" : "sucesso",
+    duracao_ms: dur,
+    mensagem: `checked=${accounts?.length ?? 0} ok=${okCount} fail=${failCount}`,
+  }).then(() => {}, () => {});
+
+  return jr({ ok: true, checked: accounts?.length ?? 0, ok_count: okCount, fail_count: failCount, results });
 });

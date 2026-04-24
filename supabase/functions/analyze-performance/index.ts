@@ -56,7 +56,7 @@ const SCHEMA = {
   required: ["classificacao", "insights", "recomendacoes", "acoes_sugeridas"],
 };
 
-async function callClaude(systemPrompt: string, userPayload: any) {
+async function callClaudeWithModel(systemPrompt: string, userPayload: any, model: string) {
   if (!CLAUDE_API_KEY) throw new Error("CLAUDE_API_KEY ausente");
   const resp = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -66,7 +66,7 @@ async function callClaude(systemPrompt: string, userPayload: any) {
       "content-type": "application/json",
     },
     body: JSON.stringify({
-      model: CLAUDE_MODEL,
+      model,
       max_tokens: 2500,
       system: systemPrompt,
       messages: [{
@@ -89,6 +89,10 @@ async function callClaude(systemPrompt: string, userPayload: any) {
   const tool = (json?.content ?? []).find((c: any) => c.type === "tool_use");
   if (!tool?.input) throw new Error("Claude não retornou tool_use");
   return tool.input;
+}
+
+async function callClaude(systemPrompt: string, userPayload: any) {
+  return callClaudeWithModel(systemPrompt, userPayload, CLAUDE_MODEL);
 }
 
 Deno.serve(async (req) => {
@@ -166,11 +170,31 @@ Regras:
 - Sugira ações concretas: replicar padrão vencedor, ajustar nome de playlist específica, pausar fracas.
 - Seja direto e técnico. Sem firula.`;
 
+  // 💸 Audit #10 C.1: fallback selectivo — em 5xx/timeout, tenta haiku (mais barato)
   let result: any;
+  let modelUsed = CLAUDE_MODEL;
   try {
     result = await callClaude(system, { total: rows.length, amostra: playlists });
   } catch (e) {
-    return jr({ error: `claude_failed: ${(e as Error).message}` }, 500);
+    const msg = (e as Error).message ?? "";
+    const m = msg.match(/HTTP (\d{3})/);
+    const status = m ? Number(m[1]) : null;
+    // 5xx/network → fallback. 4xx (não 429) → fail fast (modelo não resolve).
+    if (status === null || status >= 500 || status === 429) {
+      const FALLBACK = "claude-haiku-4-5-20250514";
+      console.warn(`[analyze-performance] sonnet falhou (${status ?? "net"}) — fallback ${FALLBACK}`);
+      try {
+        const original = (globalThis as any).__claude_model;
+        (globalThis as any).__claude_model = FALLBACK;
+        // re-chama com modelo override via param interno simples
+        result = await callClaudeWithModel(system, { total: rows.length, amostra: playlists }, FALLBACK);
+        modelUsed = FALLBACK;
+      } catch (e2) {
+        return jr({ error: `claude_failed_with_fallback: ${(e2 as Error).message}` }, 500);
+      }
+    } else {
+      return jr({ error: `claude_failed: ${msg}` }, 500);
+    }
   }
 
   // Persiste insights
@@ -184,7 +208,7 @@ Regras:
       recomendacoes: result.recomendacoes ?? [],
       acoes_sugeridas: result.acoes_sugeridas ?? [],
       classificacao: result.classificacao ?? {},
-      generated_by_model: CLAUDE_MODEL,
+      generated_by_model: modelUsed,
     })
     .select()
     .single();
@@ -192,17 +216,22 @@ Regras:
   if (insErr) return jr({ error: insErr.message }, 500);
 
   // Atualiza performance_class por playlist (alta/media/baixa)
+  // 🛡️ Audit #10 A.3: whitelist por genre_id quando informado; senão valida ids contra dataset.
   const cls = result.classificacao ?? {};
+  const validIds = new Set(rows.map((r) => r.template_id));
   let altaCount = 0, baixaCount = 0;
   for (const [klass, ids] of Object.entries(cls) as [string, string[]][]) {
-    if (Array.isArray(ids) && ids.length) {
-      await supabase
-        .from("playlist_templates")
-        .update({ performance_class: klass, performance_evaluated_at: new Date().toISOString() })
-        .in("id", ids);
-      if (klass === "alta") altaCount = ids.length;
-      if (klass === "baixa") baixaCount = ids.length;
-    }
+    if (!Array.isArray(ids) || !ids.length) continue;
+    const safeIds = ids.filter((id) => validIds.has(id));
+    if (safeIds.length === 0) continue;
+    let q = supabase
+      .from("playlist_templates")
+      .update({ performance_class: klass, performance_evaluated_at: new Date().toISOString() })
+      .in("id", safeIds);
+    if (body.genre_id) q = q.eq("genre_id", body.genre_id);
+    await q;
+    if (klass === "alta") altaCount = safeIds.length;
+    if (klass === "baixa") baixaCount = safeIds.length;
   }
 
   // 🔔 Notificações de performance
