@@ -383,7 +383,7 @@ export default function Criacao() {
         emptyTitle={loading ? "Carregando…" : "Nenhum template pronto"}
         emptyMsg={loading ? "" : "Quando o Cérebro gerar templates fortes, eles aparecem aqui."}
       >
-        <PagedTemplateGrid items={groups.hot} variant="hot" itemLabel="templates prontos" onOpen={setActiveTemplate} generatingIds={generatingCoverIds} />
+        <PagedTemplateGrid items={groups.hot} variant="hot" itemLabel="templates prontos" onOpen={setActiveTemplate} generatingIds={generatingCoverIds} onRegenerate={regenerateCover} />
       </Section>
 
       {/* MEDIUM */}
@@ -396,7 +396,7 @@ export default function Criacao() {
         emptyTitle={loading ? "" : "Sem médios pendentes"}
         emptyMsg=""
       >
-        <PagedTemplateGrid items={groups.medium} variant="medium" itemLabel="templates médios" onOpen={setActiveTemplate} generatingIds={generatingCoverIds} />
+        <PagedTemplateGrid items={groups.medium} variant="medium" itemLabel="templates médios" onOpen={setActiveTemplate} generatingIds={generatingCoverIds} onRegenerate={regenerateCover} />
       </Section>
 
       {/* PUBLISHED (info, sem ação principal) */}
@@ -421,6 +421,7 @@ export default function Criacao() {
           showArchived={showArchived}
           setShowArchived={setShowArchived}
           onOpen={setActiveTemplate}
+          onRegenerate={regenerateCover}
         />
       )}
 
