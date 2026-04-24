@@ -190,13 +190,37 @@ export function AoVivoFeed() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [genres]);
 
-  const stats = useMemo(() => {
-    return {
-      total: items.length,
-      running: items.filter((i) => i.status === "running").length,
-      errors: items.filter((i) => i.status === "error").length,
-    };
-  }, [items]);
+  const [filter, setFilter] = useState<FilterKey>("all");
+  const [visible, setVisible] = useState<number>(PAGE_SIZE);
+
+  // Reset paginação ao trocar filtro
+  useEffect(() => { setVisible(PAGE_SIZE); }, [filter]);
+
+  const filtered = useMemo(() => {
+    if (filter === "all") return items;
+    if (filter === "errors") return items.filter((i) => i.status === "error");
+    if (filter === "cerebro") return items.filter((i) => i.source === "autopilot");
+    if (filter === "coleta") return items.filter((i) => i.source === "coleta");
+    if (filter === "ajustes") return items.filter((i) => i.source === "ajuste");
+    return items;
+  }, [items, filter]);
+
+  const stats = useMemo(() => ({
+    total: items.length,
+    running: items.filter((i) => i.status === "running").length,
+    errors: items.filter((i) => i.status === "error").length,
+  }), [items]);
+
+  const visibleItems = filtered.slice(0, visible);
+  const hasMore = visible < filtered.length;
+
+  const FILTERS: { key: FilterKey; label: string; count: number }[] = [
+    { key: "all", label: "Tudo", count: items.length },
+    { key: "errors", label: "Erros", count: stats.errors },
+    { key: "cerebro", label: "Cérebro", count: items.filter((i) => i.source === "autopilot").length },
+    { key: "coleta", label: "Coleta", count: items.filter((i) => i.source === "coleta").length },
+    { key: "ajustes", label: "Ajustes", count: items.filter((i) => i.source === "ajuste").length },
+  ];
 
   return (
     <div className="space-y-3">
@@ -225,22 +249,62 @@ export function AoVivoFeed() {
         </Button>
       </div>
 
-      {/* Feed */}
+      {/* Filtros rápidos */}
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <Filter className="h-3 w-3 text-muted-foreground shrink-0" />
+        {FILTERS.map((f) => (
+          <button
+            key={f.key}
+            type="button"
+            onClick={() => setFilter(f.key)}
+            className={cn(
+              "px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wider border transition-all",
+              filter === f.key
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-border bg-card text-muted-foreground hover:text-foreground hover:border-foreground/20",
+            )}
+          >
+            {f.label}
+            <span className="ml-1.5 tabular-nums opacity-70">{f.count}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Feed com altura limitada + scroll interno */}
       {loading ? (
         <div className="nx-card p-6 flex items-center justify-center text-sm text-muted-foreground gap-2">
           <Loader2 className="h-4 w-4 animate-spin" /> Carregando atividade…
         </div>
-      ) : items.length === 0 ? (
+      ) : filtered.length === 0 ? (
         <div className="nx-card p-8 text-center">
           <Clock className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
-          <p className="text-sm text-muted-foreground">Nenhuma atividade nas últimas 24 horas.</p>
+          <p className="text-sm text-muted-foreground">
+            {filter === "all" ? "Nenhuma atividade nas últimas 24 horas." : "Nenhum evento nesse filtro."}
+          </p>
         </div>
       ) : (
-        <ol className="space-y-1.5">
-          {items.map((item) => (
-            <FeedRow key={item.id} item={item} />
-          ))}
-        </ol>
+        <div className="nx-card p-2 sm:p-3">
+          <ol className="space-y-1.5 max-h-[560px] overflow-y-auto nx-scroll pr-1">
+            {visibleItems.map((item) => (
+              <FeedRow key={item.id} item={item} />
+            ))}
+          </ol>
+          {hasMore && (
+            <div className="pt-2 mt-2 border-t border-border/40 flex items-center justify-between gap-2">
+              <span className="text-[11px] text-muted-foreground tabular-nums">
+                Mostrando {visibleItems.length} de {filtered.length}
+              </span>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setVisible((v) => Math.min(v + PAGE_SIZE, filtered.length))}
+                className="h-7 text-xs"
+              >
+                Carregar mais {Math.min(PAGE_SIZE, filtered.length - visible)}
+              </Button>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
@@ -255,6 +319,7 @@ function FeedRow({ item }: { item: FeedItem }) {
     warning: "border-warning/40 bg-warning/5 text-warning",
     info: "border-border bg-card text-foreground",
   };
+  const count = item.count ?? 1;
   return (
     <li className={cn("nx-card border p-3 flex items-start gap-3", colorMap[item.status])}>
       <div className="shrink-0 mt-0.5">
@@ -266,7 +331,14 @@ function FeedRow({ item }: { item: FeedItem }) {
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-2 flex-wrap">
-          <p className="text-sm font-semibold text-foreground leading-tight">{item.title}</p>
+          <p className="text-sm font-semibold text-foreground leading-tight flex items-center gap-1.5">
+            {item.title}
+            {count > 1 && (
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-elevated border border-border text-[10px] font-bold tabular-nums text-muted-foreground">
+                ×{count}
+              </span>
+            )}
+          </p>
           <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">
             {timeAgo(item.timestamp)}
           </span>
