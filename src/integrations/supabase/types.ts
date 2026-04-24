@@ -1354,6 +1354,23 @@ export type Database = {
           target_today: number
         }[]
       }
+      get_genre_daily_target_v2: {
+        Args: { p_genre_id: string }
+        Returns: {
+          base_daily: number
+          evaluated_3d: number
+          evaluated_7d: number
+          final_score: number
+          generated_today: number
+          max_daily: number
+          min_daily: number
+          performance_tier: string
+          remaining: number
+          score_3d: number
+          score_7d: number
+          target_today: number
+        }[]
+      }
       get_learning_loop_status: { Args: never; Returns: Json }
       get_low_performance_candidates: {
         Args: {
