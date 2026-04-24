@@ -105,17 +105,38 @@ Deno.serve(async (req) => {
   const { data: genre } = await supabase
     .from("genres").select("id,nome,slug").eq("id", bp.genre_id).maybeSingle();
 
+  // 🎯 Target de faixas — replicação deve manter aparência natural:
+  //   • Se houver playlists base no blueprint: média ±20% (faixa min/max).
+  //   • Caso contrário: 40–60 faixas (default seguro do gênero).
+  // O cap final no Spotify continua 100 (em create-spotify-playlist),
+  // mas o LLM precisa gerar o suficiente pra honrar o target.
+  function computeTrackTarget(sources: any[]): { min: number; max: number; ideal: number; basis: string } {
+    const counts = (Array.isArray(sources) ? sources : [])
+      .map((p) => Number(p?.total_musicas ?? p?.total_tracks ?? 0))
+      .filter((n) => Number.isFinite(n) && n > 0);
+    if (counts.length === 0) {
+      return { min: 40, max: 60, ideal: 50, basis: "default (sem playlist base)" };
+    }
+    const avg = counts.reduce((s, n) => s + n, 0) / counts.length;
+    const min = Math.max(25, Math.round(avg * 0.8));
+    const max = Math.max(min + 5, Math.round(avg * 1.2));
+    const ideal = Math.round(avg);
+    return { min, max, ideal, basis: `média de ${counts.length} playlist(s) base = ${ideal}` };
+  }
+  const trackTarget = computeTrackTarget(bp.source_playlists ?? []);
+
   // 🧠 Carrega regras aprendidas (Claude → executor)
   const activeRules = await loadActiveRules(supabase, bp.genre_id);
   const rulesBlock = rulesAsPromptBlock(activeRules);
   const rulesSummary = summarizeRules(activeRules);
 
-  // Faixas recorrentes do gênero como seed (top 30) — reordenadas por boost/avoid de regras
+  // Faixas recorrentes do gênero como pool — pool grande pra LLM montar 40-60 faixas naturais.
   const { data: model } = await supabase
     .from("genre_models").select("musicas_recorrentes,palavras_chave")
     .eq("genre_id", bp.genre_id).maybeSingle();
-  const trackSeedsRaw = (model?.musicas_recorrentes ?? []).slice(0, 60);
-  const trackSeeds = reorderTracksByRules(trackSeedsRaw, activeRules).slice(0, 30);
+  const trackSeedsRaw = (model?.musicas_recorrentes ?? []).slice(0, 200);
+  // Garante pool ≥ trackTarget.max + folga; se faltar, mantém o que tem (LLM repete com cuidado).
+  const trackSeeds = reorderTracksByRules(trackSeedsRaw, activeRules).slice(0, Math.max(120, trackTarget.max + 30));
   const allKeywords = (model?.palavras_chave ?? []).slice(0, 30);
 
   // Já existem templates? quantos? (usa para variation_index)
@@ -137,6 +158,8 @@ Deno.serve(async (req) => {
             keywords: { type: "array", items: { type: "string" }, description: "5-8 keywords da playlist" },
             track_seeds: {
               type: "array",
+              minItems: trackTarget.min,
+              maxItems: trackTarget.max,
               items: {
                 type: "object",
                 properties: {
@@ -145,7 +168,7 @@ Deno.serve(async (req) => {
                 },
                 required: ["nome", "artista"],
               },
-              description: "10-15 faixas iniciais selecionadas das recorrentes do gênero",
+              description: `Entre ${trackTarget.min} e ${trackTarget.max} faixas (ideal ≈ ${trackTarget.ideal}). Aparência natural e competitiva. Selecionadas do track_pool, sem duplicatas.`,
             },
             regras: {
               type: "object",
@@ -178,13 +201,14 @@ Deno.serve(async (req) => {
     track_pool: trackSeeds,
     keyword_pool: allKeywords,
     quantidade: count,
+    track_target: trackTarget,
   };
 
   let llmOut: any;
   try {
     llmOut = await callLLM(
       `Você é um diretor criativo de playlists. Gere variações DISTINTAS de uma playlist seguindo o blueprint fornecido. Mantenha a essência (formato, mood, padrão de nome) mas varie ângulo/sub-tema. Use apenas faixas e keywords do pool. Resposta SEMPRE em português BR.${rulesBlock}`,
-      `Gere ${count} variações para este blueprint:\n${JSON.stringify(userPayload, null, 2)}\n\nCada variação deve ser comercial, replicável e fiel ao blueprint. Atribua replication_score 0-100 baseado em força do nome, encaixe com o blueprint, e potencial.\n\nIMPORTANTE: Cumpra TODAS as REGRAS APRENDIDAS acima. Regras 🔴 OBRIGATÓRIO devem aparecer no name e nas regras.obrigatorio.`,
+      `Gere ${count} variações para este blueprint:\n${JSON.stringify(userPayload, null, 2)}\n\nCada variação deve ser comercial, replicável e fiel ao blueprint. Atribua replication_score 0-100 baseado em força do nome, encaixe com o blueprint, e potencial.\n\n🎯 QUANTIDADE DE FAIXAS — OBRIGATÓRIO:\n• Cada variação DEVE ter entre ${trackTarget.min} e ${trackTarget.max} faixas (ideal ≈ ${trackTarget.ideal}).\n• Base do alvo: ${trackTarget.basis}.\n• Selecione faixas variadas do track_pool, sem duplicar nome+artista dentro da mesma variação.\n• Aparência natural e competitiva no algoritmo do Spotify — playlist curta demais perde no ranking.\n\nIMPORTANTE: Cumpra TODAS as REGRAS APRENDIDAS acima. Regras 🔴 OBRIGATÓRIO devem aparecer no name e nas regras.obrigatorio.`,
       schema,
     );
   } catch (e) {
@@ -258,13 +282,46 @@ Deno.serve(async (req) => {
   }
 
   const rows = list.map((t: any, i: number) => {
-    const enrichedSeeds = (Array.isArray(t.track_seeds) ? t.track_seeds : []).map((s: any) => {
-      const nome = String(s?.nome ?? "").trim();
-      const artista = String(s?.artista ?? "").trim();
-      const k = `${nome.toLowerCase()}|${artista.toLowerCase()}`;
-      const spotify_track_id = seedIdMap.get(k) ?? null;
-      return { nome, artista, spotify_track_id };
+    // Dedup por nome|artista (case-insensitive)
+    const seen = new Set<string>();
+    let enrichedSeeds = (Array.isArray(t.track_seeds) ? t.track_seeds : [])
+      .map((s: any) => {
+        const nome = String(s?.nome ?? "").trim();
+        const artista = String(s?.artista ?? "").trim();
+        return { nome, artista };
+      })
+      .filter((s) => {
+        if (!s.nome || !s.artista) return false;
+        const k = `${s.nome.toLowerCase()}|${s.artista.toLowerCase()}`;
+        if (seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      });
+
+    // 🛡️ Safety net: se LLM devolveu menos que o mínimo, completa com pool ordenado.
+    if (enrichedSeeds.length < trackTarget.min) {
+      for (const cand of trackSeeds) {
+        if (enrichedSeeds.length >= trackTarget.ideal) break;
+        const nome = String(cand?.nome ?? cand?.nome_musica ?? "").trim();
+        const artista = String(cand?.artista ?? "").trim();
+        if (!nome || !artista) continue;
+        const k = `${nome.toLowerCase()}|${artista.toLowerCase()}`;
+        if (seen.has(k)) continue;
+        seen.add(k);
+        enrichedSeeds.push({ nome, artista });
+      }
+    }
+    // 🛡️ Cap superior — nunca passa do max, mantém aparência natural.
+    if (enrichedSeeds.length > trackTarget.max) {
+      enrichedSeeds = enrichedSeeds.slice(0, trackTarget.max);
+    }
+
+    // Anexa spotify_track_id quando temos
+    const seedsWithIds = enrichedSeeds.map((s) => {
+      const k = `${s.nome.toLowerCase()}|${s.artista.toLowerCase()}`;
+      return { nome: s.nome, artista: s.artista, spotify_track_id: seedIdMap.get(k) ?? null };
     });
+
     // 🧠 Aplica regras determinísticas (Claude → execução)
     const enforcedName = enforceNamingRules(String(t.name), activeRules).slice(0, 200);
     return {
@@ -274,7 +331,7 @@ Deno.serve(async (req) => {
       name: enforcedName,
       description: t.description ?? null,
       cover_brief: t.cover_brief ?? null,
-      track_seeds: reorderTracksByRules(enrichedSeeds, activeRules),
+      track_seeds: reorderTracksByRules(seedsWithIds, activeRules),
       keywords: t.keywords ?? [],
       regras: t.regras ?? {},
       replication_score: Math.max(0, Math.min(100, Number(t.replication_score ?? 0))),
