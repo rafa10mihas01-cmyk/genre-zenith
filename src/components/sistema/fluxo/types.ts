@@ -12,6 +12,29 @@ export type FluxoNodeId =
   | "capas"
   | "playlist";
 
+export type KV = { label: string; value: string | number; hint?: string };
+
+export type DecisionItem = {
+  kind: "aceito" | "descartado" | "ajustado";
+  label: string;
+  count?: number | string;
+  reason: string; // motivo claro em PT-BR
+};
+
+export type AlertItem = {
+  level: "info" | "warning" | "error";
+  message: string;
+  hint?: string;
+};
+
+export type LogPretty = {
+  ts: string;
+  status: string;
+  raw: string;        // mensagem técnica
+  pretty: string;     // tradução em PT-BR
+  durationMs?: number | null;
+};
+
 export type FluxoNodeData = {
   id: FluxoNodeId;
   label: string;
@@ -22,13 +45,16 @@ export type FluxoNodeData = {
   outputCount?: number;  // o que saiu
   durationMs?: number | null;
   description?: string;  // sub-texto curto
-  // Detalhes para o drawer
+  // Detalhes ricos para o drawer (7 seções)
   details: {
-    input: { label: string; value: string | number }[];
-    output: { label: string; value: string | number }[];
-    rules: string[];
-    logs: { ts: string; status: string; message: string; durationMs?: number | null }[];
-    errors: string[];
+    summary: string;                 // 1-2 linhas: o que essa etapa fez
+    variables: KV[];                 // VARIÁVEIS UTILIZADAS (parâmetros, limites, filtros)
+    process: string[];               // PROCESSO EXECUTADO (passos internos + APIs)
+    decisions: DecisionItem[];       // DECISÕES TOMADAS (aceito / descartado / motivo)
+    output: KV[];                    // SAÍDA DETALHADA (quantidade + resumo)
+    quality: KV[];                   // QUALIDADE DOS DADOS (médias, volume, aproveitamento)
+    alerts: AlertItem[];             // ALERTAS (erros, falhas, comportamento estranho)
+    logs: LogPretty[];               // LOG EXPLICADO (técnico + tradução)
   };
 };
 
