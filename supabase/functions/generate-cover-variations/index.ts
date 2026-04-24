@@ -895,14 +895,23 @@ Deno.serve(async (req) => {
     return jr({ ok: false, error: `Falha no processamento: ${e instanceof Error ? e.message : String(e)}` }, 500);
   }
 
-  // Adiciona ao cache (preserva as outras paletas já geradas)
+  // Adiciona ao cache (preserva as outras paletas já geradas).
+  // Em modo force=true, `existing` já foi zerado no início do handler,
+  // então `updatedVariations` contém só a capa nova — capa antiga é descartada.
   const updatedVariations = [...existing, newVariation];
 
-  await supabase.from("playlist_templates").update({
+  const updatePayload: Record<string, unknown> = {
     cover_variations: updatedVariations,
     cover_generated_at: new Date().toISOString(),
     auto_cover_requested: false,
-  }).eq("id", tpl.id);
+  };
+  // Se foi um force-regen, já seleciona a capa nova como ativa
+  // (a antiga em cover_image_url ficaria pendurada caso contrário).
+  if (body.force) {
+    updatePayload.cover_image_url = newVariation.url;
+    updatePayload.cover_selected_index = newVariation.index;
+  }
+  await supabase.from("playlist_templates").update(updatePayload).eq("id", tpl.id);
 
   return jr({
     ok: true,
