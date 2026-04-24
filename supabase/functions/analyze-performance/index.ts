@@ -122,7 +122,7 @@ Deno.serve(async (req) => {
       acao: "analyze_performance",
       status: "alerta",
       mensagem: `dataset vazio: nenhuma playlist com idade>=${minAge}h e created_on_spotify_at preenchido`,
-    }).then(() => {}, () => {});
+    }).then(() => {}, (e) => console.error("[analyze-performance] log/op failed:", e?.message ?? e));
     return jr({
       ok: true,
       empty: true,
@@ -138,7 +138,7 @@ Deno.serve(async (req) => {
       acao: "analyze_performance",
       status: "alerta",
       mensagem: `amostra insuficiente: ${rows.length}/${MIN_SAMPLE} playlists. Skip Claude.`,
-    }).then(() => {}, () => {});
+    }).then(() => {}, (e) => console.error("[analyze-performance] log/op failed:", e?.message ?? e));
     return jr({
       ok: true,
       empty: true,
@@ -242,7 +242,7 @@ Regras:
       p_message: "Padrões vencedores identificados — prontos para replicar.",
       p_action_url: "/performance",
       p_metadata: { count: altaCount, scope: body.genre_id ? "genre" : "global" },
-    }).then(() => {}, () => {});
+    }).then(() => {}, (e) => console.error("[analyze-performance] log/op failed:", e?.message ?? e));
   }
   if (baixaCount > 0) {
     await supabase.rpc("create_notification", {
@@ -251,7 +251,7 @@ Regras:
       p_message: "Recomendado ajustar nome, capa ou tracks.",
       p_action_url: "/performance",
       p_metadata: { count: baixaCount, scope: body.genre_id ? "genre" : "global" },
-    }).then(() => {}, () => {});
+    }).then(() => {}, (e) => console.error("[analyze-performance] log/op failed:", e?.message ?? e));
   }
 
   await supabase.from("collection_logs").insert({

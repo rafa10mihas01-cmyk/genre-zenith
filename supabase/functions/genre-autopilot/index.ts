@@ -336,7 +336,7 @@ async function runPipeline(
         p_message: `${templatesGenerated} gerados, 0 aprovados. ${reason}.`,
         p_action_url: "/cerebro",
         p_metadata: { run_id: runId, genre_id: genreId, generated: templatesGenerated, all_scored: allScored },
-      }).then(() => {}, () => {});
+      }).then(() => {}, (e) => console.error("[genre-autopilot] log/op failed:", e?.message ?? e));
     }
 
     // ─── 7. REPLICATE-TOP (pacote, não publica) ─────────────────

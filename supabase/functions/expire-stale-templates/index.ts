@@ -43,7 +43,7 @@ Deno.serve(async (req) => {
     acao: "expire-stale-templates",
     status: "sucesso",
     mensagem: `${expiredCount} templates medium expiraram (>${hours}h sem uso)`,
-  }).then(() => {}, () => {});
+  }).then(() => {}, (e) => console.error("[expire-stale-templates] log/op failed:", e?.message ?? e));
 
   return jr({ ok: true, expired: expiredCount, hours });
 });

@@ -495,7 +495,7 @@ Deno.serve(async (req) => {
         p_type: "critical",
         p_title: "Apify bloqueado",
         p_message: "Limite do Apify atingido em enrich-playlists. Coletas pausadas (24h).",
-      }).then(() => {}, () => {});
+      }).then(() => {}, (e) => console.error("[enrich-playlists] log/op failed:", e?.message ?? e));
     }
 
     await supabase.from("collection_logs").insert({
