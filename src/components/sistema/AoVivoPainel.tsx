@@ -11,6 +11,7 @@ import { timeAgo } from "@/lib/format";
 import { toast } from "sonner";
 import { FluxoVisual } from "@/components/sistema/fluxo/FluxoVisual";
 import { AoVivoFeed } from "@/components/sistema/AoVivoFeed";
+import { RegrasVsExecucao } from "@/components/sistema/RegrasVsExecucao";
 
 type LiveRun = {
   id: string;
@@ -297,6 +298,9 @@ export function AoVivoPainel() {
           color={aggMetrics.eficiencia >= 60 ? "success" : aggMetrics.eficiencia >= 30 ? "warning" : "destructive"}
         />
       </div>
+
+      {/* ============ REGRAS VS EXECUÇÃO (validação por gênero) ============ */}
+      <RegrasVsExecucao />
 
       {/* ============ FEED AO VIVO ============ */}
       <div id="feed-ao-vivo" className="scroll-mt-4">
