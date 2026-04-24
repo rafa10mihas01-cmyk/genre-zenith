@@ -282,13 +282,46 @@ Deno.serve(async (req) => {
   }
 
   const rows = list.map((t: any, i: number) => {
-    const enrichedSeeds = (Array.isArray(t.track_seeds) ? t.track_seeds : []).map((s: any) => {
-      const nome = String(s?.nome ?? "").trim();
-      const artista = String(s?.artista ?? "").trim();
-      const k = `${nome.toLowerCase()}|${artista.toLowerCase()}`;
-      const spotify_track_id = seedIdMap.get(k) ?? null;
-      return { nome, artista, spotify_track_id };
+    // Dedup por nome|artista (case-insensitive)
+    const seen = new Set<string>();
+    let enrichedSeeds = (Array.isArray(t.track_seeds) ? t.track_seeds : [])
+      .map((s: any) => {
+        const nome = String(s?.nome ?? "").trim();
+        const artista = String(s?.artista ?? "").trim();
+        return { nome, artista };
+      })
+      .filter((s) => {
+        if (!s.nome || !s.artista) return false;
+        const k = `${s.nome.toLowerCase()}|${s.artista.toLowerCase()}`;
+        if (seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      });
+
+    // 🛡️ Safety net: se LLM devolveu menos que o mínimo, completa com pool ordenado.
+    if (enrichedSeeds.length < trackTarget.min) {
+      for (const cand of trackSeeds) {
+        if (enrichedSeeds.length >= trackTarget.ideal) break;
+        const nome = String(cand?.nome ?? cand?.nome_musica ?? "").trim();
+        const artista = String(cand?.artista ?? "").trim();
+        if (!nome || !artista) continue;
+        const k = `${nome.toLowerCase()}|${artista.toLowerCase()}`;
+        if (seen.has(k)) continue;
+        seen.add(k);
+        enrichedSeeds.push({ nome, artista });
+      }
+    }
+    // 🛡️ Cap superior — nunca passa do max, mantém aparência natural.
+    if (enrichedSeeds.length > trackTarget.max) {
+      enrichedSeeds = enrichedSeeds.slice(0, trackTarget.max);
+    }
+
+    // Anexa spotify_track_id quando temos
+    const seedsWithIds = enrichedSeeds.map((s) => {
+      const k = `${s.nome.toLowerCase()}|${s.artista.toLowerCase()}`;
+      return { nome: s.nome, artista: s.artista, spotify_track_id: seedIdMap.get(k) ?? null };
     });
+
     // 🧠 Aplica regras determinísticas (Claude → execução)
     const enforcedName = enforceNamingRules(String(t.name), activeRules).slice(0, 200);
     return {
@@ -298,7 +331,7 @@ Deno.serve(async (req) => {
       name: enforcedName,
       description: t.description ?? null,
       cover_brief: t.cover_brief ?? null,
-      track_seeds: reorderTracksByRules(enrichedSeeds, activeRules),
+      track_seeds: reorderTracksByRules(seedsWithIds, activeRules),
       keywords: t.keywords ?? [],
       regras: t.regras ?? {},
       replication_score: Math.max(0, Math.min(100, Number(t.replication_score ?? 0))),
