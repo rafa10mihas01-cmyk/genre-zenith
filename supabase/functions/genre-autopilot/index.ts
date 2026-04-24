@@ -433,6 +433,9 @@ Deno.serve(async (req) => {
     ? Math.min(Math.max(1, Number(body.max_templates)), HARD_CAP_TEMPLATES)
     : null;
 
+  // Permite ignorar o cooldown via flag explícita do client
+  const force = body.force === true;
+
   const sb = createClient(SUPABASE_URL, SERVICE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
