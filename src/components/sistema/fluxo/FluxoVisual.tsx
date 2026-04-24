@@ -14,6 +14,7 @@ import { timeAgo } from "@/lib/format";
 import { FluxoNode } from "./FluxoNode";
 import { FluxoConnector } from "./FluxoConnector";
 import { FluxoNodeDrawer } from "./FluxoNodeDrawer";
+import { FluxoCriticalAlerts, extractCriticalAlerts } from "./FluxoCriticalAlerts";
 import { buildFluxoNodes } from "./buildFluxo";
 import type { FluxoNodeData, FluxoRun } from "./types";
 
