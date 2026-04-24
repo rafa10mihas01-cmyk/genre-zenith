@@ -490,18 +490,14 @@ function Metric({ label, value, tone = "default" }: { label: string; value: stri
 /** Skeleton em formato de grid de cards — mantém altura estável durante o load. */
 function PlaylistGridSkeleton() {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-      {Array.from({ length: 6 }).map((_, i) => (
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-6 gap-2.5">
+      {Array.from({ length: 10 }).map((_, i) => (
         <div key={i} className="nx-card !p-0 overflow-hidden">
-          <Skeleton className="aspect-[16/7] w-full rounded-none bg-muted/40" />
-          <div className="p-3.5 space-y-3">
-            <Skeleton className="h-4 w-3/4 bg-muted/50" />
-            <Skeleton className="h-3 w-1/2 bg-muted/40" />
-            <div className="grid grid-cols-3 gap-2 pt-2">
-              <Skeleton className="h-6 bg-muted/40" />
-              <Skeleton className="h-6 bg-muted/40" />
-              <Skeleton className="h-6 bg-muted/40" />
-            </div>
+          <Skeleton className="aspect-square w-full rounded-none bg-muted/40" />
+          <div className="p-2.5 space-y-2">
+            <Skeleton className="h-3.5 w-3/4 bg-muted/50" />
+            <Skeleton className="h-2.5 w-1/2 bg-muted/40" />
+            <Skeleton className="h-3 w-full bg-muted/40 mt-1" />
           </div>
         </div>
       ))}
