@@ -63,12 +63,13 @@ function jr(p: unknown, status = 200) {
 // SANITIZAÇÃO DE TÍTULO (editorial — variação controlada 70/20/10)
 // ============================================================
 // O título final SEMPRE segue um destes 3 formatos:
-//   FORMATO 1 — PRINCIPAL (≈70%): [FORTE] + [GÊNERO] + [ANO]
-//       ex: "TOP SERTANEJO 2024", "HITS FUNK 2025", "MODÃO SERTANEJO 2024"
+//   FORMATO 1 — PRINCIPAL (≈70%): [FORTE] + [GÊNERO] + [ANO?]
+//       ex: "TOP SERTANEJO", "HITS FUNK 2026", "MODÃO SERTANEJO"
+//       ⚠️ ANO só aparece se a IA tiver passado um ano no nome — nunca forçamos.
 //   FORMATO 2 — EDITORIAL (≈20%): [GÊNERO] + [VARIAÇÃO]
 //       ex: "SERTANEJO RAIZ", "FUNK CLÁSSICO", "TRAP ATUAL"
 //   FORMATO 3 — GANCHO    (≈10%): [FORTE] (1–2 palavras curtas)
-//       ex: "TOP HITS", "VIRAL HITS", "HITS 2024"
+//       ex: "TOP HITS", "VIRAL HITS", "HITS BR"
 //
 // A escolha do formato é determinística (hash do nome original) para que:
 //   • a mesma playlist sempre gere o mesmo título
@@ -185,24 +186,25 @@ function sanitizePlaylistTitle(name: string | null | undefined): string {
   let parts: string[] = [];
 
   if (format === 1) {
-    // [FORTE] + [GÊNERO] + [ANO]
+    // [FORTE] + [GÊNERO] + [ANO opcional]
+    // 🚫 ANO: só usa se a IA tiver passado um ano no nome. NUNCA forçamos default.
+    // O ano nas capas vinha hardcoded "2024" — agora respeita 100% o nome do template.
     const strong = detectedStrong ?? pickFrom(STRONG_WORDS);
     const genre = detectedGenre!; // garantido pelo fallback
-    const year = detectedYear ?? "2024";
-    parts = [strong, genre, year];
+    parts = detectedYear ? [strong, genre, detectedYear] : [strong, genre];
   } else if (format === 2) {
     // [GÊNERO] + [VARIAÇÃO]
     const genre = detectedGenre!;
     const variation = detectedVariation ?? pickFrom(VARIATION_WORDS, 1);
     parts = [genre, variation];
   } else {
-    // FORMATO 3 — GANCHO: [FORTE] sozinho ou [FORTE] + [HITS/ANO]
+    // FORMATO 3 — GANCHO: [FORTE] sozinho ou [FORTE] + [HITS/VIRAL/BRASIL]
+    // 🚫 ANO: removido do pool de fallback — só entra se vier do nome original.
     const strong = detectedStrong ?? pickFrom(STRONG_WORDS);
-    // pequena variação para não cair sempre em "TOP HITS"
     const tail = detectedYear
       ? detectedYear
       : strong === "HITS"
-        ? pickFrom(["2024", "VIRAL", "BRASIL"] as const, 2)
+        ? pickFrom(["VIRAL", "BRASIL", "BR"] as const, 2)
         : "HITS";
     parts = strong === tail ? [strong] : [strong, tail];
   }
@@ -488,7 +490,7 @@ const HIERARCHY_RULES_BLOCK = [
   "- No text element may be too small to read at a 64x64 thumbnail — if it cannot be read, it should not exist.",
   "- Visual weight must feel CONSISTENT across all generated covers (same dominant/secondary ratio every time).",
   "NUMBER INTEGRITY (CRITICAL):",
-  "- Numbers (especially years like 2024, 2025) must NEVER be broken across lines or split into parts (e.g. \"20\" / \"24\" is FORBIDDEN).",
+  "- Numbers (especially years) must NEVER be broken across lines or split into parts (e.g. \"20\" / \"26\" is FORBIDDEN).",
   "- Years and multi-digit numbers always render as a single, unbroken token on the same line.",
   "- If the layout cannot fit the full number on one line, shrink the number slightly or rebalance the title — never split the digits.",
 ].join("\n");
@@ -803,7 +805,7 @@ Deno.serve(async (req) => {
   const guard = await requireTeamAccess(req);
   if (!guard.ok) return guard.resp;
 
-  let body: { template_id?: string; custom_prompt?: string; palette?: string };
+  let body: { template_id?: string; custom_prompt?: string; palette?: string; force?: boolean };
   try { body = await req.json(); } catch { return jr({ error: "invalid json" }, 400); }
   if (!body.template_id) return jr({ error: "template_id required" }, 400);
 
@@ -811,6 +813,15 @@ Deno.serve(async (req) => {
   const { data: tpl, error: tplErr } = await supabase
     .from("playlist_templates").select("*").eq("id", body.template_id).maybeSingle();
   if (tplErr || !tpl) return jr({ error: "template not found" }, 404);
+
+  // 🛡️ Proteção: NUNCA regenerar capa de playlist já publicada no Spotify.
+  // Mesmo com force=true. Quem está no ar fica como está.
+  if (body.force && tpl.spotify_playlist_id) {
+    return jr({
+      ok: false,
+      error: "Não é possível regenerar capa de playlist já publicada no Spotify",
+    }, 409);
+  }
 
   const ts = Date.now();
 
@@ -828,16 +839,21 @@ Deno.serve(async (req) => {
 
   // 📦 Cache acumulativo: NÃO apaga variações antigas. Se a paleta solicitada
   // já existir em cover_variations, devolve direto (0 crédito gasto).
-  const existing = (tpl.cover_variations as Array<{ index: number; url: string; palette?: string; style?: Style }> | null) ?? [];
-  const cached = existing.find((v) => v.palette === palette.name);
-  if (cached) {
-    return jr({
-      ok: true,
-      cached: true,
-      variation: cached,
-      variations: existing,
-      palette_used: palette.name,
-    });
+  // 🔄 EXCEÇÃO: force=true ignora o cache E LIMPA todas as variações antigas
+  //   (caso de uso: capa antiga com "2024" hardcoded — quero regenerar do zero).
+  const existingRaw = (tpl.cover_variations as Array<{ index: number; url: string; palette?: string; style?: Style }> | null) ?? [];
+  const existing = body.force ? [] : existingRaw;
+  if (!body.force) {
+    const cached = existing.find((v) => v.palette === palette.name);
+    if (cached) {
+      return jr({
+        ok: true,
+        cached: true,
+        variation: cached,
+        variations: existing,
+        palette_used: palette.name,
+      });
+    }
   }
 
   // 🆕 Gera só essa cor
@@ -879,14 +895,23 @@ Deno.serve(async (req) => {
     return jr({ ok: false, error: `Falha no processamento: ${e instanceof Error ? e.message : String(e)}` }, 500);
   }
 
-  // Adiciona ao cache (preserva as outras paletas já geradas)
+  // Adiciona ao cache (preserva as outras paletas já geradas).
+  // Em modo force=true, `existing` já foi zerado no início do handler,
+  // então `updatedVariations` contém só a capa nova — capa antiga é descartada.
   const updatedVariations = [...existing, newVariation];
 
-  await supabase.from("playlist_templates").update({
+  const updatePayload: Record<string, unknown> = {
     cover_variations: updatedVariations,
     cover_generated_at: new Date().toISOString(),
     auto_cover_requested: false,
-  }).eq("id", tpl.id);
+  };
+  // Se foi um force-regen, já seleciona a capa nova como ativa
+  // (a antiga em cover_image_url ficaria pendurada caso contrário).
+  if (body.force) {
+    updatePayload.cover_image_url = newVariation.url;
+    updatePayload.cover_selected_index = newVariation.index;
+  }
+  await supabase.from("playlist_templates").update(updatePayload).eq("id", tpl.id);
 
   return jr({
     ok: true,

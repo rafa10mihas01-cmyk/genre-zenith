@@ -274,6 +274,35 @@ export default function Criacao() {
     await load();
   }
 
+  // 🔄 Regenera capa do zero (force=true descarta variações antigas e gera nova).
+  // Usado pra capas com "2024" antigo que precisam ser refeitas.
+  // Bloqueado no backend pra playlists já publicadas no Spotify.
+  async function regenerateCover(t: Template) {
+    if (t.spotify_playlist_id) {
+      toast({
+        title: "Não é possível regenerar",
+        description: "Esta playlist já está publicada no Spotify.",
+        variant: "destructive",
+      });
+      return;
+    }
+    markGenerating(t.id, true);
+    const { data, error } = await supabase.functions.invoke("generate-cover-variations", {
+      body: { template_id: t.id, force: true },
+    });
+    markGenerating(t.id, false);
+    if (error || !(data as any)?.ok) {
+      toast({
+        title: "Falha ao regenerar capa",
+        description: error?.message || (data as any)?.error || "Erro desconhecido",
+        variant: "destructive",
+      });
+      return;
+    }
+    toast({ title: "Capa regenerada", description: "Nova capa pronta — nome atualizado." });
+    await load();
+  }
+
   const hasFilters = !!search || !!genreFilter || statusFilter !== "all" || sort !== "score_desc";
   function clearFilters() {
     setSearch("");
@@ -354,7 +383,7 @@ export default function Criacao() {
         emptyTitle={loading ? "Carregando…" : "Nenhum template pronto"}
         emptyMsg={loading ? "" : "Quando o Cérebro gerar templates fortes, eles aparecem aqui."}
       >
-        <PagedTemplateGrid items={groups.hot} variant="hot" itemLabel="templates prontos" onOpen={setActiveTemplate} generatingIds={generatingCoverIds} />
+        <PagedTemplateGrid items={groups.hot} variant="hot" itemLabel="templates prontos" onOpen={setActiveTemplate} generatingIds={generatingCoverIds} onRegenerate={regenerateCover} />
       </Section>
 
       {/* MEDIUM */}
@@ -367,7 +396,7 @@ export default function Criacao() {
         emptyTitle={loading ? "" : "Sem médios pendentes"}
         emptyMsg=""
       >
-        <PagedTemplateGrid items={groups.medium} variant="medium" itemLabel="templates médios" onOpen={setActiveTemplate} generatingIds={generatingCoverIds} />
+        <PagedTemplateGrid items={groups.medium} variant="medium" itemLabel="templates médios" onOpen={setActiveTemplate} generatingIds={generatingCoverIds} onRegenerate={regenerateCover} />
       </Section>
 
       {/* PUBLISHED (info, sem ação principal) */}
@@ -392,6 +421,7 @@ export default function Criacao() {
           showArchived={showArchived}
           setShowArchived={setShowArchived}
           onOpen={setActiveTemplate}
+          onRegenerate={regenerateCover}
         />
       )}
 
@@ -613,8 +643,8 @@ function Section({
 type CardVariant = "hot" | "medium" | "archived" | "published";
 
 function TemplateCard({
-  t, variant, onOpen, isGenerating = false,
-}: { t: Template; variant: CardVariant; onOpen: () => void; isGenerating?: boolean }) {
+  t, variant, onOpen, isGenerating = false, onRegenerate,
+}: { t: Template; variant: CardVariant; onOpen: () => void; isGenerating?: boolean; onRegenerate?: (t: Template) => void | Promise<void> }) {
   const isHot = variant === "hot";
   const isPublished = variant === "published";
   const isArchived = variant === "archived";
@@ -685,8 +715,31 @@ function TemplateCard({
           </div>
         )}
         <div className="absolute top-1.5 left-1.5">{tierBadge}</div>
-        <div className="absolute top-1.5 right-1.5 inline-flex items-center gap-1 px-1.5 h-4 rounded text-[9px] font-bold text-foreground bg-background/80 backdrop-blur border border-border tabular-nums">
-          {score}
+        <div className="absolute top-1.5 right-1.5 flex items-center gap-1">
+          {/* 🔄 Regenerar capa — só pra não-publicadas, só quando tem capa pra refazer */}
+          {onRegenerate && !isPublished && (t.cover_image_url || (t.cover_variations && t.cover_variations.length > 0)) && (
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={(e) => { e.stopPropagation(); e.preventDefault(); if (!isGenerating) onRegenerate(t); }}
+              onKeyDown={(e) => {
+                if ((e.key === "Enter" || e.key === " ") && !isGenerating) {
+                  e.stopPropagation(); e.preventDefault(); onRegenerate(t);
+                }
+              }}
+              title="Regenerar capa (descarta a atual e gera uma nova)"
+              aria-label="Regenerar capa"
+              className={cn(
+                "inline-flex items-center justify-center h-5 w-5 rounded text-foreground bg-background/85 backdrop-blur border border-border transition-colors cursor-pointer hover:bg-primary hover:text-primary-foreground hover:border-primary",
+                isGenerating && "opacity-50 cursor-not-allowed",
+              )}
+            >
+              {isGenerating ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <Wand2 className="h-2.5 w-2.5" />}
+            </span>
+          )}
+          <span className="inline-flex items-center gap-1 px-1.5 h-4 rounded text-[9px] font-bold text-foreground bg-background/80 backdrop-blur border border-border tabular-nums">
+            {score}
+          </span>
         </div>
       </button>
 
@@ -1140,6 +1193,7 @@ function PagedTemplateGrid({
   itemLabel,
   resetKey,
   generatingIds,
+  onRegenerate,
 }: {
   items: Template[];
   onOpen: (t: Template) => void;
@@ -1147,13 +1201,21 @@ function PagedTemplateGrid({
   itemLabel: string;
   resetKey?: unknown;
   generatingIds?: Set<string>;
+  onRegenerate?: (t: Template) => void | Promise<void>;
 }) {
   const { visibleItems, hasMore, canCollapse, loadMore, collapse, total, visible } = usePagination(items, 20, resetKey ?? items);
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
         {visibleItems.map(t => (
-          <TemplateCard key={t.id} t={t} variant={variant} onOpen={() => onOpen(t)} isGenerating={generatingIds?.has(t.id) ?? false} />
+          <TemplateCard
+            key={t.id}
+            t={t}
+            variant={variant}
+            onOpen={() => onOpen(t)}
+            isGenerating={generatingIds?.has(t.id) ?? false}
+            onRegenerate={onRegenerate}
+          />
         ))}
       </div>
       <LoadMore visible={visible} total={total} hasMore={hasMore} canCollapse={canCollapse} onLoadMore={loadMore} onCollapse={collapse} itemLabel={itemLabel} />
@@ -1166,12 +1228,13 @@ function PublishedGrid({ items, onOpen }: { items: Template[]; onOpen: (t: Templ
 }
 
 function ArchivedSection({
-  items, showArchived, setShowArchived, onOpen,
+  items, showArchived, setShowArchived, onOpen, onRegenerate,
 }: {
   items: Template[];
   showArchived: boolean;
   setShowArchived: (v: boolean | ((prev: boolean) => boolean)) => void;
   onOpen: (t: Template) => void;
+  onRegenerate?: (t: Template) => void | Promise<void>;
 }) {
   const { visibleItems, hasMore, canCollapse, loadMore, collapse, total, visible } = usePagination(items, 20, showArchived ? "open" : "closed");
   return (
@@ -1193,7 +1256,7 @@ function ArchivedSection({
         <div className="border-t border-border p-3 space-y-3">
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
             {visibleItems.map(t => (
-              <TemplateCard key={t.id} t={t} variant="archived" onOpen={() => onOpen(t)} />
+              <TemplateCard key={t.id} t={t} variant="archived" onOpen={() => onOpen(t)} onRegenerate={onRegenerate} />
             ))}
           </div>
           <LoadMore visible={visible} total={total} hasMore={hasMore} canCollapse={canCollapse} onLoadMore={loadMore} onCollapse={collapse} itemLabel="arquivados" />
