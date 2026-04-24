@@ -64,6 +64,63 @@ export type Database = {
           },
         ]
       }
+      autopilot_runs: {
+        Row: {
+          cache_hits: Json
+          covers_generated: number
+          current_step: string | null
+          duracao_ms: number | null
+          error_message: string | null
+          finished_at: string | null
+          genre_id: string
+          id: string
+          progress_pct: number
+          started_at: string
+          status: string
+          steps_completed: Json
+          summary: string | null
+          templates_approved: number
+          templates_generated: number
+          triggered_by: string
+        }
+        Insert: {
+          cache_hits?: Json
+          covers_generated?: number
+          current_step?: string | null
+          duracao_ms?: number | null
+          error_message?: string | null
+          finished_at?: string | null
+          genre_id: string
+          id?: string
+          progress_pct?: number
+          started_at?: string
+          status?: string
+          steps_completed?: Json
+          summary?: string | null
+          templates_approved?: number
+          templates_generated?: number
+          triggered_by?: string
+        }
+        Update: {
+          cache_hits?: Json
+          covers_generated?: number
+          current_step?: string | null
+          duracao_ms?: number | null
+          error_message?: string | null
+          finished_at?: string | null
+          genre_id?: string
+          id?: string
+          progress_pct?: number
+          started_at?: string
+          status?: string
+          steps_completed?: Json
+          summary?: string | null
+          templates_approved?: number
+          templates_generated?: number
+          triggered_by?: string
+        }
+        Relationships: []
+      }
       collection_logs: {
         Row: {
           acao: string
