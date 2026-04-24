@@ -289,21 +289,17 @@ export async function applyWatermark(coverBytes: Uint8Array): Promise<{
       return clone;
     };
 
-    // DEBOSS — logo gravado pra dentro da superfície (luz vem de cima):
-    //   • shadow ESCURA 1px ACIMA  → borda superior da incisão recebe sombra
-    //   • highlight CLARO 1px ABAIXO → fundo da incisão reflete um pouco de luz
-    //   • core: tom adaptado ao fundo, opacidade muito baixa (~8%)
-    // A ordem importa: shadow e highlight primeiro, core por cima atenuando o conjunto.
+    // DROP SHADOW + LOGO — assinatura visível com profundidade:
+    //   • shadow escura 2px abaixo/direita → cria pop sobre fundos coloridos
+    //   • core: branco/preto puro com opacidade alta (~55%) → marca legível
     const shadowLayer    = makeTintedLogo(0,   0,   0,   DEBOSS_SHADOW_A);
-    const highlightLayer = makeTintedLogo(255, 255, 255, DEBOSS_HIGHLIGHT_A);
     const coreLayer      = makeTintedLogo(tintR, tintG, tintB, LOGO_OPACITY);
 
     const x = cover.width - targetWidth - margin;
     const y = cover.height - targetHeight - margin;
 
-    cover.composite(shadowLayer,    x,     y - 1);  // sombra ACIMA (gravação)
-    cover.composite(highlightLayer, x,     y + 1);  // brilho ABAIXO (reflexo)
-    cover.composite(coreLayer,      x,     y);      // logo no centro
+    cover.composite(shadowLayer, x + 2, y + 2);  // drop shadow profundidade
+    cover.composite(coreLayer,   x,     y);      // logo no canto
 
     const out = await cover.encode();
     return { bytes: out, contentType: "image/png", applied: true };
