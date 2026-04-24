@@ -260,18 +260,11 @@ export async function applyWatermark(coverBytes: Uint8Array): Promise<{
     const aspect = baseLogo.height / baseLogo.width;
     const targetHeight = Math.round(targetWidth * aspect);
 
-    // Calcula tom adaptado: puxa MAIS do branco/preto puro em direção ao tom do fundo.
-    // Em fundos escuros, o logo é um cinza claro tingido com a cor da capa (não branco).
-    // Em fundos claros, é um cinza escuro tingido — sempre "do mesmo material".
-    const tintR = isDarkBg
-      ? Math.min(255, 215 - LOGO_TINT_SHIFT + Math.round(stats.r * 0.28))
-      : Math.max(0,   40 + LOGO_TINT_SHIFT - Math.round((255 - stats.r) * 0.28));
-    const tintG = isDarkBg
-      ? Math.min(255, 215 - LOGO_TINT_SHIFT + Math.round(stats.g * 0.28))
-      : Math.max(0,   40 + LOGO_TINT_SHIFT - Math.round((255 - stats.g) * 0.28));
-    const tintB = isDarkBg
-      ? Math.min(255, 215 - LOGO_TINT_SHIFT + Math.round(stats.b * 0.28))
-      : Math.max(0,   40 + LOGO_TINT_SHIFT - Math.round((255 - stats.b) * 0.28));
+    // Logo em branco puro (fundo escuro) ou preto puro (fundo claro).
+    // Sem tint: assinatura nítida e consistente, como nas capas de referência.
+    const tintR = isDarkBg ? 255 : 0;
+    const tintG = isDarkBg ? 255 : 0;
+    const tintB = isDarkBg ? 255 : 0;
 
     // Helper: cria uma cópia do logo já redimensionada, com cor uniforme + opacidade.
     // Preserva o canal alpha original (mantém o desenho), só substitui RGB.
