@@ -6,6 +6,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { loadActiveRules, rulesAsPromptBlock, enforceNamingRules, summarizeRules } from "../_shared/rules.ts";
 import { sourceMultiplier } from "../_shared/labels.ts";
+import { requireTeamAccess } from "../_shared/auth.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -72,6 +73,10 @@ async function callLLM(system: string, user: string, schema: any, model = "googl
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method !== "OPTIONS") {
+    const guard = await requireTeamAccess(req);
+    if (!guard.ok) return guard.resp;
+  }
   if (req.method !== "POST") return jr({ error: "POST only" }, 405);
 
   let body: { genre_id?: string; max_per_tier?: number; force?: boolean };

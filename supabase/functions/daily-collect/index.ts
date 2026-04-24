@@ -1,6 +1,7 @@
 // Coleta automática diária: para cada gênero ativo, executa run-search
 // para os termos pendentes e re-analisa o modelo.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { requireTeamAccess } from "../_shared/auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,6 +11,10 @@ const corsHeaders = {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  if (req.method !== "OPTIONS") {
+    const guard = await requireTeamAccess(req);
+    if (!guard.ok) return guard.resp;
+  }
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const supabase = createClient(supabaseUrl, serviceKey);

@@ -1,6 +1,7 @@
 // generate-terms — gera termos de busca para um gênero (ou todos)
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { requireTeamAccess } from "../_shared/auth.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -51,6 +52,10 @@ function buildTerms(nome: string): { termo: string; tipo: string }[] {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method !== "OPTIONS") {
+    const guard = await requireTeamAccess(req);
+    if (!guard.ok) return guard.resp;
+  }
   try {
     const body: Body = req.method === "POST" ? await req.json() : {};
     const supabase = createClient(SUPABASE_URL, SERVICE_KEY);

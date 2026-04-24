@@ -1,10 +1,15 @@
 // test-apify — valida a APIFY_API_KEY chamando /users/me
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
+import { requireTeamAccess } from "../_shared/auth.ts";
 
 const APIFY_API_KEY = Deno.env.get("APIFY_API_KEY");
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method !== "OPTIONS") {
+    const guard = await requireTeamAccess(req);
+    if (!guard.ok) return guard.resp;
+  }
   const start = Date.now();
 
   if (!APIFY_API_KEY) {
