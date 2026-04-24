@@ -1449,6 +1449,15 @@ export type Database = {
           reason: string
         }[]
       }
+      reconcile_account_playlist_counts: {
+        Args: never
+        Returns: {
+          after_count: number
+          before_count: number
+          drift: number
+          spotify_user_id: string
+        }[]
+      }
     }
     Enums: {
       app_role: "admin" | "curador"

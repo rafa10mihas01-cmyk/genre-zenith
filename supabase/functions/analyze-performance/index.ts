@@ -113,6 +113,12 @@ Deno.serve(async (req) => {
   if (body.genre_id) rows = rows.filter((r) => r.genre_id === body.genre_id);
 
   if (rows.length === 0) {
+    // 🚨 Audit #9 A.3 — log explícito, antes era no-op silencioso
+    await supabase.from("collection_logs").insert({
+      acao: "analyze_performance",
+      status: "alerta",
+      mensagem: `dataset vazio: nenhuma playlist com idade>=${minAge}h e created_on_spotify_at preenchido`,
+    }).then(() => {}, () => {});
     return jr({
       ok: true,
       empty: true,
@@ -121,9 +127,14 @@ Deno.serve(async (req) => {
   }
 
   // C.1 — Early-exit: amostra estatística mínima para não desperdiçar Claude.
-  // Análise com <5 playlists gera classificação enviesada e custa tokens à toa.
   const MIN_SAMPLE = 5;
   if (rows.length < MIN_SAMPLE) {
+    // 🚨 Audit #9 A.3 — log explícito de skip por amostra insuficiente
+    await supabase.from("collection_logs").insert({
+      acao: "analyze_performance",
+      status: "alerta",
+      mensagem: `amostra insuficiente: ${rows.length}/${MIN_SAMPLE} playlists. Skip Claude.`,
+    }).then(() => {}, () => {});
     return jr({
       ok: true,
       empty: true,

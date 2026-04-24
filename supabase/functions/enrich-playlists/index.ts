@@ -154,8 +154,7 @@ Deno.serve(async (req) => {
       const { data: flag } = await supabase
         .from("system_flags")
         .select("apify_blocked,apify_blocked_at")
-        .order("created_at", { ascending: true })
-        .limit(1)
+        .eq("singleton_key", "app")
         .maybeSingle();
       if (flag?.apify_blocked) {
         const ageMs = flag.apify_blocked_at
@@ -479,18 +478,13 @@ Deno.serve(async (req) => {
 
     // 🚨 Audit #8 A.1 — Circuit breaker: ativa apify_blocked global em 403/limit
     if (e instanceof ApifyBlockedError) {
-      const { data: f } = await supabase
-        .from("system_flags").select("id").order("created_at", { ascending: true }).limit(1).maybeSingle();
-      const breakerPayload = {
+      // 🚨 Audit #9 — usa singleton UPSERT (antes: SELECT+UPDATE/INSERT separados)
+      await supabase.from("system_flags").upsert({
+        singleton_key: "app",
         apify_blocked: true,
         apify_blocked_at: new Date().toISOString(),
         apify_blocked_reason: msg.slice(0, 300),
-      };
-      if (f?.id) {
-        await supabase.from("system_flags").update(breakerPayload).eq("id", f.id);
-      } else {
-        await supabase.from("system_flags").insert(breakerPayload);
-      }
+      }, { onConflict: "singleton_key" });
       await supabase.from("collection_logs").insert({
         genre_id: body.genre_id ?? null,
         acao: "apify-blocked", status: "erro",
