@@ -643,8 +643,8 @@ function Section({
 type CardVariant = "hot" | "medium" | "archived" | "published";
 
 function TemplateCard({
-  t, variant, onOpen, isGenerating = false,
-}: { t: Template; variant: CardVariant; onOpen: () => void; isGenerating?: boolean }) {
+  t, variant, onOpen, isGenerating = false, onRegenerate,
+}: { t: Template; variant: CardVariant; onOpen: () => void; isGenerating?: boolean; onRegenerate?: (t: Template) => void | Promise<void> }) {
   const isHot = variant === "hot";
   const isPublished = variant === "published";
   const isArchived = variant === "archived";
@@ -1170,6 +1170,7 @@ function PagedTemplateGrid({
   itemLabel,
   resetKey,
   generatingIds,
+  onRegenerate,
 }: {
   items: Template[];
   onOpen: (t: Template) => void;
@@ -1177,13 +1178,21 @@ function PagedTemplateGrid({
   itemLabel: string;
   resetKey?: unknown;
   generatingIds?: Set<string>;
+  onRegenerate?: (t: Template) => void | Promise<void>;
 }) {
   const { visibleItems, hasMore, canCollapse, loadMore, collapse, total, visible } = usePagination(items, 20, resetKey ?? items);
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
         {visibleItems.map(t => (
-          <TemplateCard key={t.id} t={t} variant={variant} onOpen={() => onOpen(t)} isGenerating={generatingIds?.has(t.id) ?? false} />
+          <TemplateCard
+            key={t.id}
+            t={t}
+            variant={variant}
+            onOpen={() => onOpen(t)}
+            isGenerating={generatingIds?.has(t.id) ?? false}
+            onRegenerate={onRegenerate}
+          />
         ))}
       </div>
       <LoadMore visible={visible} total={total} hasMore={hasMore} canCollapse={canCollapse} onLoadMore={loadMore} onCollapse={collapse} itemLabel={itemLabel} />
@@ -1196,12 +1205,13 @@ function PublishedGrid({ items, onOpen }: { items: Template[]; onOpen: (t: Templ
 }
 
 function ArchivedSection({
-  items, showArchived, setShowArchived, onOpen,
+  items, showArchived, setShowArchived, onOpen, onRegenerate,
 }: {
   items: Template[];
   showArchived: boolean;
   setShowArchived: (v: boolean | ((prev: boolean) => boolean)) => void;
   onOpen: (t: Template) => void;
+  onRegenerate?: (t: Template) => void | Promise<void>;
 }) {
   const { visibleItems, hasMore, canCollapse, loadMore, collapse, total, visible } = usePagination(items, 20, showArchived ? "open" : "closed");
   return (
@@ -1223,7 +1233,7 @@ function ArchivedSection({
         <div className="border-t border-border p-3 space-y-3">
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
             {visibleItems.map(t => (
-              <TemplateCard key={t.id} t={t} variant="archived" onOpen={() => onOpen(t)} />
+              <TemplateCard key={t.id} t={t} variant="archived" onOpen={() => onOpen(t)} onRegenerate={onRegenerate} />
             ))}
           </div>
           <LoadMore visible={visible} total={total} hasMore={hasMore} canCollapse={canCollapse} onLoadMore={loadMore} onCollapse={collapse} itemLabel="arquivados" />
