@@ -192,17 +192,22 @@ Regras:
   if (insErr) return jr({ error: insErr.message }, 500);
 
   // Atualiza performance_class por playlist (alta/media/baixa)
+  // 🛡️ Audit #10 A.3: whitelist por genre_id quando informado; senão valida ids contra dataset.
   const cls = result.classificacao ?? {};
+  const validIds = new Set(rows.map((r) => r.template_id));
   let altaCount = 0, baixaCount = 0;
   for (const [klass, ids] of Object.entries(cls) as [string, string[]][]) {
-    if (Array.isArray(ids) && ids.length) {
-      await supabase
-        .from("playlist_templates")
-        .update({ performance_class: klass, performance_evaluated_at: new Date().toISOString() })
-        .in("id", ids);
-      if (klass === "alta") altaCount = ids.length;
-      if (klass === "baixa") baixaCount = ids.length;
-    }
+    if (!Array.isArray(ids) || !ids.length) continue;
+    const safeIds = ids.filter((id) => validIds.has(id));
+    if (safeIds.length === 0) continue;
+    let q = supabase
+      .from("playlist_templates")
+      .update({ performance_class: klass, performance_evaluated_at: new Date().toISOString() })
+      .in("id", safeIds);
+    if (body.genre_id) q = q.eq("genre_id", body.genre_id);
+    await q;
+    if (klass === "alta") altaCount = safeIds.length;
+    if (klass === "baixa") baixaCount = safeIds.length;
   }
 
   // 🔔 Notificações de performance
