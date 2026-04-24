@@ -130,6 +130,7 @@ export function AoVivoFeed() {
         meta: l.duracao_ms ? `${(l.duracao_ms / 1000).toFixed(1)}s` : undefined,
         timestamp: l.created_at,
         genre_nome: genreNome,
+        groupKey: `coleta:${l.acao}:${l.genre_id ?? "g"}:${l.status}`,
       });
     });
 
@@ -146,11 +147,24 @@ export function AoVivoFeed() {
         detail: a.error_message ?? `Disparado por ${a.triggered_by}`,
         timestamp: a.created_at,
         genre_nome: genreNome,
+        groupKey: `ajuste:${a.action_type}:${a.genre_id ?? "g"}:${a.status}`,
       });
     });
 
     all.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-    setItems(all.slice(0, 100));
+
+    // Agrupar repetições consecutivas (mesmo groupKey seguidos)
+    const grouped: FeedItem[] = [];
+    for (const item of all) {
+      const last = grouped[grouped.length - 1];
+      if (last && item.groupKey && last.groupKey === item.groupKey) {
+        last.count = (last.count ?? 1) + 1;
+      } else {
+        grouped.push({ ...item, count: 1 });
+      }
+    }
+
+    setItems(grouped.slice(0, 200));
     setLoading(false);
   };
 
