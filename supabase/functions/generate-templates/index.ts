@@ -158,6 +158,8 @@ Deno.serve(async (req) => {
             keywords: { type: "array", items: { type: "string" }, description: "5-8 keywords da playlist" },
             track_seeds: {
               type: "array",
+              minItems: trackTarget.min,
+              maxItems: trackTarget.max,
               items: {
                 type: "object",
                 properties: {
@@ -166,7 +168,7 @@ Deno.serve(async (req) => {
                 },
                 required: ["nome", "artista"],
               },
-              description: "10-15 faixas iniciais selecionadas das recorrentes do gênero",
+              description: `Entre ${trackTarget.min} e ${trackTarget.max} faixas (ideal ≈ ${trackTarget.ideal}). Aparência natural e competitiva. Selecionadas do track_pool, sem duplicatas.`,
             },
             regras: {
               type: "object",
