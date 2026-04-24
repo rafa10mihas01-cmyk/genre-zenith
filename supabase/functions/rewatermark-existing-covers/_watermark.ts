@@ -32,21 +32,16 @@ const _storageClient = createClient(SUPABASE_URL, SRK, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
 
-// Logo "gravado na superfície" — emboss premium (estilo Apple/Spotify):
-//   1. Sombra 1px abaixo (escura, integra ao fundo)
-//   2. Highlight 1px acima (clara, simula relevo)
-//   3. Core do logo em tom adaptado ao fundo (não branco puro), opacidade ~10%
-// Resultado: percebido só no segundo olhar, parece parte do material.
-const LOGO_WIDTH_PCT     = 0.088; // 8.8% (-12% vs 10%) — assinatura mais discreta
-const MARGIN_PCT         = 0.07;  // 7% das bordas (mantido)
-const LOGO_OPACITY       = 0.07;  // 7% — invisível no primeiro olhar
-// DEBOSS PROFUNDO (gravado pra dentro, oposto do emboss tradicional):
-//   sombra ESCURA 1px ACIMA do logo  → simula que a luz vem de cima e a "incisão" causa sombra na borda superior
-//   brilho CLARO  1px ABAIXO do logo → luz refletida na parte inferior da incisão
-//   intensificados pra ler como "gravação real" mesmo com core a 7%
-const DEBOSS_SHADOW_A    = 0.11;  // alpha da sombra superior (incisão mais profunda)
-const DEBOSS_HIGHLIGHT_A = 0.06;  // alpha do brilho inferior (reflexo do material)
-const LOGO_TINT_SHIFT    = 48;    // puxa MUITO mais do branco/preto puro pra dentro do tom do fundo
+// Logo NexEngine — assinatura visível da marca (canto inferior direito).
+// Restaurado: logo branco/preto puro, bem legível, com sombra de profundidade.
+// Referência: capa "MODÃO SERTANEJO 2024" (verde) — logo claro e identificável.
+const LOGO_WIDTH_PCT     = 0.11;  // 11% da largura — presença clara como assinatura
+const MARGIN_PCT         = 0.06;  // 6% das bordas
+const LOGO_OPACITY       = 0.55;  // 55% — VISÍVEL como marca, sem competir com título
+// Sombra de profundidade (drop shadow sutil) — destaca o logo do fundo:
+const DEBOSS_SHADOW_A    = 0.35;  // sombra escura mais forte (pop visual)
+const DEBOSS_HIGHLIGHT_A = 0.0;   // sem highlight inferior (estilo logo flat sobre fundo)
+const LOGO_TINT_SHIFT    = 0;     // SEM tint — logo em branco/preto puro
 
 // ============================================================
 // PREMIUM FINISH — calibração visual
@@ -265,18 +260,11 @@ export async function applyWatermark(coverBytes: Uint8Array): Promise<{
     const aspect = baseLogo.height / baseLogo.width;
     const targetHeight = Math.round(targetWidth * aspect);
 
-    // Calcula tom adaptado: puxa MAIS do branco/preto puro em direção ao tom do fundo.
-    // Em fundos escuros, o logo é um cinza claro tingido com a cor da capa (não branco).
-    // Em fundos claros, é um cinza escuro tingido — sempre "do mesmo material".
-    const tintR = isDarkBg
-      ? Math.min(255, 215 - LOGO_TINT_SHIFT + Math.round(stats.r * 0.28))
-      : Math.max(0,   40 + LOGO_TINT_SHIFT - Math.round((255 - stats.r) * 0.28));
-    const tintG = isDarkBg
-      ? Math.min(255, 215 - LOGO_TINT_SHIFT + Math.round(stats.g * 0.28))
-      : Math.max(0,   40 + LOGO_TINT_SHIFT - Math.round((255 - stats.g) * 0.28));
-    const tintB = isDarkBg
-      ? Math.min(255, 215 - LOGO_TINT_SHIFT + Math.round(stats.b * 0.28))
-      : Math.max(0,   40 + LOGO_TINT_SHIFT - Math.round((255 - stats.b) * 0.28));
+    // Logo em branco puro (fundo escuro) ou preto puro (fundo claro).
+    // Sem tint: assinatura nítida e consistente, como nas capas de referência.
+    const tintR = isDarkBg ? 255 : 0;
+    const tintG = isDarkBg ? 255 : 0;
+    const tintB = isDarkBg ? 255 : 0;
 
     // Helper: cria uma cópia do logo já redimensionada, com cor uniforme + opacidade.
     // Preserva o canal alpha original (mantém o desenho), só substitui RGB.
@@ -294,21 +282,17 @@ export async function applyWatermark(coverBytes: Uint8Array): Promise<{
       return clone;
     };
 
-    // DEBOSS — logo gravado pra dentro da superfície (luz vem de cima):
-    //   • shadow ESCURA 1px ACIMA  → borda superior da incisão recebe sombra
-    //   • highlight CLARO 1px ABAIXO → fundo da incisão reflete um pouco de luz
-    //   • core: tom adaptado ao fundo, opacidade muito baixa (~8%)
-    // A ordem importa: shadow e highlight primeiro, core por cima atenuando o conjunto.
+    // DROP SHADOW + LOGO — assinatura visível com profundidade:
+    //   • shadow escura 2px abaixo/direita → cria pop sobre fundos coloridos
+    //   • core: branco/preto puro com opacidade alta (~55%) → marca legível
     const shadowLayer    = makeTintedLogo(0,   0,   0,   DEBOSS_SHADOW_A);
-    const highlightLayer = makeTintedLogo(255, 255, 255, DEBOSS_HIGHLIGHT_A);
     const coreLayer      = makeTintedLogo(tintR, tintG, tintB, LOGO_OPACITY);
 
     const x = cover.width - targetWidth - margin;
     const y = cover.height - targetHeight - margin;
 
-    cover.composite(shadowLayer,    x,     y - 1);  // sombra ACIMA (gravação)
-    cover.composite(highlightLayer, x,     y + 1);  // brilho ABAIXO (reflexo)
-    cover.composite(coreLayer,      x,     y);      // logo no centro
+    cover.composite(shadowLayer, x + 2, y + 2);  // drop shadow profundidade
+    cover.composite(coreLayer,   x,     y);      // logo no canto
 
     const out = await cover.encode();
     return { bytes: out, contentType: "image/png", applied: true };
