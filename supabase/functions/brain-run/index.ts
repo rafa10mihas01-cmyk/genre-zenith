@@ -165,8 +165,8 @@ async function setJob(
   supabase: any,
   genreId: string,
   jobId: string,
+  autopilotRunId: string | null,
   payload: { status: "running" | "done" | "error"; stage: string; progress: number; result?: unknown; error?: string },
-  autopilotRunId?: string | null,
 ) {
   await supabase.from("collection_logs").insert({
     genre_id: genreId,
