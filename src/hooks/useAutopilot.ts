@@ -98,18 +98,24 @@ export function useAutopilot(genreId: string | null | undefined) {
     return () => { supabase.removeChannel(channel); };
   }, [genreId]);
 
-  const start = useCallback(async (maxTemplates = 5) => {
+  const start = useCallback(async (maxTemplates = 5, opts?: { force?: boolean }) => {
     if (!genreId) return;
     setStarting(true);
     setError(null);
     try {
       const { data, error: invokeErr } = await supabase.functions.invoke("genre-autopilot", {
-        body: { genre_id: genreId, max_templates: maxTemplates },
+        body: { genre_id: genreId, max_templates: maxTemplates, force: opts?.force === true },
       });
       if (invokeErr) throw new Error(invokeErr.message);
       if (data?.ok === false) {
         setError(data.error ?? "Erro desconhecido");
-        toast.error(data.error ?? "Não foi possível iniciar a inteligência");
+        if (data?.cooldown) {
+          toast.error(data.error ?? "Cooldown ativo", {
+            description: "Use 'Forçar execução' para ignorar o cooldown.",
+          });
+        } else {
+          toast.error(data.error ?? "Não foi possível iniciar a inteligência");
+        }
         return null;
       }
       toast.success("Inteligência iniciada", { description: "Acompanhe o progresso em tempo real" });
