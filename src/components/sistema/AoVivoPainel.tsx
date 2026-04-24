@@ -299,6 +299,9 @@ export function AoVivoPainel() {
         />
       </div>
 
+      {/* ============ REGRAS VS EXECUÇÃO (validação por gênero) ============ */}
+      <RegrasVsExecucao />
+
       {/* ============ FEED AO VIVO ============ */}
       <div id="feed-ao-vivo" className="scroll-mt-4">
         <AoVivoFeed />
