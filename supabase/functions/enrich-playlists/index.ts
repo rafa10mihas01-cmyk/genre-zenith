@@ -404,6 +404,8 @@ Deno.serve(async (req) => {
             else console.error(`[enrich] insert tracks falhou:`, tErr.message);
           }
         } catch (e) {
+          // 🚨 Audit #8 A.1 — re-throw breaker pra catch externo ativar system_flags
+          if (e instanceof ApifyBlockedError) throw e;
           console.error(`[enrich] apify tracks falhou em ${p.nome_playlist}:`, (e as Error).message);
         }
       }
