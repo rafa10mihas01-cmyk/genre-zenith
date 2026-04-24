@@ -1,18 +1,13 @@
-// generate-cover-variations — gera 4 variações de capa estilo Spotify profissional.
+// generate-cover-variations — gera 1 capa profissional estilo Spotify (padrão validado).
 //
-// Distribuição híbrida de estilos (alvo por lote de 4 capas):
-//   • 60% CLEAN EDITORIAL  → capa limpa, tipo Spotify oficial (default seguro)
-//   • 30% VIRAL HITS TYPO  → palavra dominante gigante, peso visual forte
-//   • 10% DYNAMIC          → composição assimétrica/com perspectiva
+// 🎯 ECONOMIA: 1 imagem por chamada (não 4) — formato CLEAN EDITORIAL já aprovado
+// nas capas publicadas (ex: MODÃO SERTANEJO 2024, TOP SERTANEJO 2024).
 //
-// Regras de mistura por lote (4 capas):
-//   • mínimo 2 CLEAN
-//   • máximo 1 VIRAL HITS (≈25%, próximo de 30%)
-//   • DYNAMIC: 0 ou 1, sorteado (~10%)
-//   • o resto completa com CLEAN
+// Paleta determinística por template_id (mesma capa = mesma cor sempre);
+// templates diferentes recebem cores distintas (verde, roxo, laranja, azul).
+// Estilo SEMPRE clean. Watermark NexEngine + premium finish aplicados.
 //
-// Cada variação carrega: index, url, palette, style.
-// Persiste em playlist_templates.cover_variations (jsonb, sem migration).
+// Persiste em playlist_templates.cover_variations (jsonb, 1 item).
 //
 // POST { template_id: string, custom_prompt?: string }
 // → { ok, variations: [{ index, url, palette, style }] }
@@ -829,43 +824,50 @@ Deno.serve(async (req) => {
     }
   } catch (e) { console.warn("cleanup falhou:", e); }
 
-  // Sorteia o mix de estilos para o lote (1 estilo por paleta)
-  const styleMix = pickStyleMix();
+  // 🎯 ECONOMIA: gera 1 ÚNICA capa (não 4) — padrão já validado nas capas publicadas.
+  // Paleta determinística por template_id (mesma capa = mesma cor sempre).
+  // Estilo SEMPRE "clean" — formato que ficou aprovado visualmente.
+  const paletteIdx = hashString(tpl.id) % PALETTES.length;
+  const palette = PALETTES[paletteIdx];
+  const style: Style = "clean";
+  const prompt = buildPrompt(tpl, palette, style, 0, body.custom_prompt);
 
-  // Gera 1 variação por (paleta + estilo) — em paralelo
-  const prompts = PALETTES.map((p, i) => buildPrompt(tpl, p, styleMix[i], i, body.custom_prompt));
-  const results = await Promise.allSettled(prompts.map((p) => generateOne(p)));
+  let genResult: PromiseSettledResult<string>;
+  try {
+    genResult = { status: "fulfilled", value: await generateOne(prompt) };
+  } catch (e) {
+    genResult = { status: "rejected", reason: e };
+  }
 
-  for (let i = 0; i < results.length; i++) {
-    const r = results[i];
-    if (r.status !== "fulfilled") {
-      console.error(`variação ${i} (${PALETTES[i].name} / ${styleMix[i]}) falhou:`, r.reason);
-      continue;
-    }
+  if (genResult.status === "fulfilled") {
     try {
-      const { bytes: rawBytes } = dataUrlToBytes(r.value);
-      // Aplica watermark NexEngine (logo monocromático adaptativo) antes do upload.
-      // Falha-segura: se algo der errado, devolve a capa original sem watermark.
+      const { bytes: rawBytes } = dataUrlToBytes(genResult.value);
       const wm = await applyWatermark(rawBytes);
       const finalBytes = wm.bytes;
       const finalType = wm.contentType;
       const ext = finalType.split("/")[1].replace("+xml", "");
-      const path = `${tpl.id}/${ts}-${i}.${ext}`;
+      const path = `${tpl.id}/${ts}-0.${ext}`;
       const { error: upErr } = await supabase.storage
         .from("playlist-covers")
         .upload(path, finalBytes, { contentType: finalType, upsert: true });
-      if (upErr) { console.error("upload err:", upErr); continue; }
-      const { data: pub } = supabase.storage.from("playlist-covers").getPublicUrl(path);
-      variations.push({
-        index: i,
-        url: pub.publicUrl,
-        palette: PALETTES[i].name,
-        style: styleMix[i],
-      });
+      if (upErr) {
+        console.error("upload err:", upErr);
+      } else {
+        const { data: pub } = supabase.storage.from("playlist-covers").getPublicUrl(path);
+        variations.push({
+          index: 0,
+          url: pub.publicUrl,
+          palette: palette.name,
+          style,
+        });
+      }
     } catch (e) {
       console.error("processing err:", e);
     }
+  } else {
+    console.error(`geração falhou (${palette.name}/${style}):`, genResult.reason);
   }
+
 
   if (variations.length === 0) {
     return jr({ ok: false, error: "Nenhuma variação foi gerada com sucesso" }, 500);
