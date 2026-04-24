@@ -56,7 +56,7 @@ const SCHEMA = {
   required: ["classificacao", "insights", "recomendacoes", "acoes_sugeridas"],
 };
 
-async function callClaude(systemPrompt: string, userPayload: any) {
+async function callClaudeWithModel(systemPrompt: string, userPayload: any, model: string) {
   if (!CLAUDE_API_KEY) throw new Error("CLAUDE_API_KEY ausente");
   const resp = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -66,7 +66,7 @@ async function callClaude(systemPrompt: string, userPayload: any) {
       "content-type": "application/json",
     },
     body: JSON.stringify({
-      model: CLAUDE_MODEL,
+      model,
       max_tokens: 2500,
       system: systemPrompt,
       messages: [{
@@ -89,6 +89,10 @@ async function callClaude(systemPrompt: string, userPayload: any) {
   const tool = (json?.content ?? []).find((c: any) => c.type === "tool_use");
   if (!tool?.input) throw new Error("Claude não retornou tool_use");
   return tool.input;
+}
+
+async function callClaude(systemPrompt: string, userPayload: any) {
+  return callClaudeWithModel(systemPrompt, userPayload, CLAUDE_MODEL);
 }
 
 Deno.serve(async (req) => {
