@@ -803,6 +803,11 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return jr({ error: "POST only" }, 405);
 
+  // 🔐 Exige service_role (chamada interna) ou usuário admin/curador
+  const { requireTeamAccess } = await import("../_shared/auth.ts");
+  const guard = await requireTeamAccess(req);
+  if (!guard.ok) return guard.resp;
+
   let body: { template_id?: string; custom_prompt?: string };
   try { body = await req.json(); } catch { return jr({ error: "invalid json" }, 400); }
   if (!body.template_id) return jr({ error: "template_id required" }, 400);

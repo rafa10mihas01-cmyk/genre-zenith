@@ -20,6 +20,29 @@ import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+// 🔐 Auth guard — exige usuário logado com role admin/curador
+async function requireTeamAccess(req: Request): Promise<{ ok: true } | { ok: false; resp: Response }> {
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader?.startsWith("Bearer ")) {
+    return { ok: false, resp: jr({ error: "unauthorized" }, 401) };
+  }
+  const supabaseAuth = createClient(SUPABASE_URL, ANON_KEY, {
+    global: { headers: { Authorization: authHeader } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const token = authHeader.replace("Bearer ", "");
+  const { data: claims, error: claimsErr } = await supabaseAuth.auth.getClaims(token);
+  if (claimsErr || !claims?.claims) {
+    return { ok: false, resp: jr({ error: "unauthorized" }, 401) };
+  }
+  const { data: hasAccess } = await supabaseAuth.rpc("has_team_access");
+  if (!hasAccess) {
+    return { ok: false, resp: jr({ error: "forbidden" }, 403) };
+  }
+  return { ok: true };
+}
 
 const COOLDOWN_MS = 60 * 60 * 1000;        // 1h
 const ANALYZE_CACHE_MS = 24 * 60 * 60 * 1000; // 24h
@@ -274,11 +297,20 @@ async function runPipeline(
     await pushCompleted(sb, runId, "covers", { count: coversGenerated });
 
     // ─── 6. AUTO-APROVAR ─────────────────────────────────────────
+    // 🎯 score-templates roda em background (disparado por generate-templates).
+    // Aguarda até ~30s pelos scores (poll a cada 2s). Sem isso, lê final_score=0 e nada é aprovado.
     await setStep(sb, runId, "approve");
-    const { data: candidates } = await sb
-      .from("playlist_templates")
-      .select("id, final_score, quality_tier, tracks_added, track_seeds, status")
-      .in("id", generated);
+    let candidates: any[] | null = null;
+    for (let attempt = 0; attempt < 15; attempt++) {
+      const { data } = await sb
+        .from("playlist_templates")
+        .select("id, final_score, quality_tier, tracks_added, track_seeds, status, scored_at")
+        .in("id", generated);
+      candidates = data ?? [];
+      const allScored = candidates.length > 0 && candidates.every((t) => t.scored_at != null);
+      if (allScored) break;
+      await new Promise((r) => setTimeout(r, 2000));
+    }
 
     for (const t of candidates ?? []) {
       if (t.status !== "pending") continue;
@@ -363,6 +395,10 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return jr({ error: "method not allowed" }, 405);
 
+  // 🔐 Exige sessão válida com role admin/curador (evita disparo anônimo de IA cara)
+  const guard = await requireTeamAccess(req);
+  if (!guard.ok) return guard.resp;
+
   let body: { genre_id?: string; max_templates?: number };
   try {
     body = await req.json();
@@ -384,7 +420,11 @@ Deno.serve(async (req) => {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  // ─ Cooldown: já tem run em <1h? ─
+  // 🧹 Limpa runs zumbis antes de checar concorrência (>30min sem update vira 'error')
+  await sb.rpc("cleanup_stale_autopilot_runs", { p_minutes: 30 })
+    .then(() => {}, (e) => console.warn("[autopilot] cleanup_stale failed:", e?.message));
+
+  // ─ Cooldown + lock: já tem run em <1h? ─
   const since = new Date(Date.now() - COOLDOWN_MS).toISOString();
   const { data: recent } = await sb
     .from("autopilot_runs")

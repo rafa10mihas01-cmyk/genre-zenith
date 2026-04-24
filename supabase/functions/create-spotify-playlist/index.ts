@@ -7,11 +7,48 @@ import { getUserAccessToken } from "../_shared/spotify.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 
 function jr(p: unknown, status = 200) {
   return new Response(JSON.stringify(p), {
     status, headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
+}
+
+// 🔐 Auth guard — exige usuário logado com role admin/curador (has_team_access)
+async function requireTeamAccess(req: Request): Promise<{ ok: true } | { ok: false; resp: Response }> {
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader?.startsWith("Bearer ")) {
+    return { ok: false, resp: jr({ error: "unauthorized" }, 401) };
+  }
+  const supabaseAuth = createClient(SUPABASE_URL, ANON_KEY, {
+    global: { headers: { Authorization: authHeader } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const token = authHeader.replace("Bearer ", "");
+  const { data: claims, error: claimsErr } = await supabaseAuth.auth.getClaims(token);
+  if (claimsErr || !claims?.claims) {
+    return { ok: false, resp: jr({ error: "unauthorized" }, 401) };
+  }
+  const { data: hasAccess } = await supabaseAuth.rpc("has_team_access");
+  if (!hasAccess) {
+    return { ok: false, resp: jr({ error: "forbidden" }, 403) };
+  }
+  return { ok: true };
+}
+
+// 🎯 Busca followers atuais da playlist no Spotify (usado p/ baseline correto t0)
+async function fetchPlaylistFollowers(token: string, playlistId: string): Promise<number> {
+  try {
+    const r = await fetch(`https://api.spotify.com/v1/playlists/${playlistId}?fields=followers.total`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!r.ok) return 0;
+    const j = await r.json();
+    return Number(j?.followers?.total ?? 0);
+  } catch {
+    return 0;
+  }
 }
 
 async function searchTrackUri(token: string, nome: string, artista: string): Promise<string | null> {
@@ -37,6 +74,10 @@ async function searchTrackUri(token: string, nome: string, artista: string): Pro
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return jr({ error: "POST only" }, 405);
+
+  // 🔐 Exige sessão válida com role admin/curador
+  const guard = await requireTeamAccess(req);
+  if (!guard.ok) return guard.resp;
 
   let body: { template_id?: string; spotify_user_id?: string; public?: boolean };
   try { body = await req.json(); } catch { return jr({ error: "invalid json" }, 400); }
@@ -154,7 +195,10 @@ Deno.serve(async (req) => {
     }
   }
 
-  // 4) Persiste resultado + baseline de followers (=0 no momento da criação)
+  // 4) Persiste resultado + baseline REAL de followers (busca da API do Spotify)
+  // 🎯 FIX: era hardcoded `0` — corrompia o cálculo de crescimento e o score V2.
+  const followersAtCreation = await fetchPlaylistFollowers(token, playlistId);
+
   const patch = {
     status: "created",
     spotify_playlist_id: playlistId,
@@ -165,30 +209,20 @@ Deno.serve(async (req) => {
     tracks_failed: failed,
     creation_error: null,
     created_on_spotify_at: new Date().toISOString(),
-    followers_at_creation: 0,
+    followers_at_creation: followersAtCreation,
   };
   const { error: upErr } = await supabase.from("playlist_templates").update(patch).eq("id", templateId);
   if (upErr) return jr({ ok: false, error: upErr.message, partial: patch }, 500);
 
-  // 🎯 Incrementa contador da conta usada (respeita max_playlists nas próximas operações)
-  const { data: acc } = await supabase
-    .from("accounts")
-    .select("id,current_playlists")
-    .eq("spotify_user_id", ownerId)
-    .maybeSingle();
-  if (acc) {
-    await supabase
-      .from("accounts")
-      .update({ current_playlists: (acc.current_playlists ?? 0) + 1 })
-      .eq("id", acc.id)
-      .then(() => {}, () => {});
-  }
+  // 🔒 Incremento ATÔMICO via RPC (evita race condition entre execuções paralelas)
+  await supabase.rpc("increment_account_playlists", { p_spotify_user_id: ownerId })
+    .then(() => {}, (e) => console.warn("[create-spotify-playlist] increment failed:", e?.message));
 
-  // Snapshot inicial (baseline t0)
+  // Snapshot inicial (baseline t0 com followers reais)
   await supabase.from("playlist_metrics_snapshots").insert({
     template_id: templateId,
     spotify_playlist_id: playlistId,
-    followers: 0,
+    followers: followersAtCreation,
     total_tracks: uris.length,
   }).then(() => {}, () => {});
 
