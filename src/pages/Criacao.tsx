@@ -997,69 +997,106 @@ function TemplateDetailDialog({
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <h4 className="text-sm font-semibold">Capa</h4>
-                  {(() => {
-                    const hasCovers = !!(tpl.cover_variations && tpl.cover_variations.length > 0);
-                    const isBusy = busy === "cover";
-                    return (
-                      <Button
-                        onClick={generateCovers}
-                        disabled={isBusy}
-                        size="sm"
-                        variant={hasCovers ? "outline" : "premium"}
-                        className="rounded-full h-8 gap-1.5"
-                        title={hasCovers ? "Gerar 4 novas variações usando o sistema atualizado" : "Gerar 4 variações de capa"}
-                      >
-                        {isBusy ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : hasCovers ? (
-                          <RefreshCw className="h-3.5 w-3.5" />
-                        ) : (
-                          <Sparkles className="h-3.5 w-3.5" />
-                        )}
-                        {isBusy ? "Gerando…" : hasCovers ? "Regenerar capas" : "Gerar 4 variações"}
-                      </Button>
-                    );
-                  })()}
+                  <span className="text-[11px] text-muted-foreground">
+                    {tpl.cover_variations?.length ?? 0}/4 cores geradas
+                  </span>
                 </div>
-                {tpl.cover_variations && tpl.cover_variations.length > 0 ? (
-                  <div className="grid grid-cols-4 gap-2">
-                    {tpl.cover_variations.map(v => {
-                      const isSel = tpl.cover_selected_index === v.index;
-                      // Cache-busting: força o navegador a baixar a versão recém-gerada.
-                      const ver = tpl.cover_generated_at ? new Date(tpl.cover_generated_at).getTime() : 0;
-                      const imgSrc = ver ? `${v.url}${v.url.includes("?") ? "&" : "?"}v=${ver}` : v.url;
-                      return (
-                        <button
-                          key={v.index}
-                          onClick={() => selectCover(v.index, v.url)}
-                          className={cn(
-                            "relative aspect-square rounded-lg overflow-hidden border-2 transition-[border-color,box-shadow] duration-200",
-                            isSel ? "border-primary ring-2 ring-primary/30" : "border-border hover:border-muted-foreground",
-                          )}
-                        >
-                          <img src={imgSrc} alt="" className="w-full h-full object-cover" />
-                          {isSel && (
-                            <div className="absolute top-1.5 right-1.5 bg-primary text-primary-foreground rounded-full p-0.5">
-                              <Check className="h-3 w-3" />
-                            </div>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : busy === "cover" || (tpl.auto_cover_requested && !(tpl.cover_variations && tpl.cover_variations.length > 0)) ? (
-                  <div className="grid grid-cols-4 gap-2">
-                    {[0,1,2,3].map(i => (
-                      <div key={i} className="aspect-square rounded-lg bg-elevated border border-border flex items-center justify-center">
-                        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+
+                {(() => {
+                  // Definição visual das 4 paletas (mesma ordem do backend)
+                  const PALETTE_OPTIONS = [
+                    { name: "spotify-green",  label: "Verde",   gradient: "linear-gradient(135deg,#1DB954,#0d6b30)" },
+                    { name: "deep-purple",    label: "Roxo",    gradient: "linear-gradient(135deg,#7b2cbf,#2d0a4e)" },
+                    { name: "vibrant-orange", label: "Laranja", gradient: "linear-gradient(135deg,#ff6b35,#c2410c)" },
+                    { name: "midnight-blue",  label: "Azul",    gradient: "linear-gradient(135deg,#1e3a8a,#0c1733)" },
+                  ];
+                  const variations = tpl.cover_variations ?? [];
+                  const hasAny = variations.length > 0;
+                  const isBusy = busy === "cover";
+                  const ver = tpl.cover_generated_at ? new Date(tpl.cover_generated_at).getTime() : 0;
+                  // Capa "ativa" para preview grande: a selecionada, ou a 1ª gerada
+                  const active = (tpl.cover_selected_index !== null
+                    ? variations.find(v => v.index === tpl.cover_selected_index)
+                    : null) ?? variations[0] ?? null;
+                  const activeSrc = active
+                    ? `${active.url}${active.url.includes("?") ? "&" : "?"}v=${ver}`
+                    : null;
+
+                  return (
+                    <div className="space-y-3">
+                      {/* Preview grande da capa ativa */}
+                      <div className="aspect-square w-full max-w-[280px] mx-auto rounded-xl overflow-hidden border border-border bg-elevated relative">
+                        {activeSrc ? (
+                          <img src={activeSrc} alt="" className="w-full h-full object-cover" />
+                        ) : isBusy ? (
+                          <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-muted-foreground">
+                            <Loader2 className="h-6 w-6 animate-spin" />
+                            <span className="text-xs">Gerando capa…</span>
+                          </div>
+                        ) : (
+                          <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-muted-foreground p-4 text-center">
+                            <ImageIcon className="h-6 w-6" />
+                            <span className="text-xs">Clique numa cor abaixo<br/>para gerar a capa</span>
+                          </div>
+                        )}
+                        {isBusy && activeSrc && (
+                          <div className="absolute inset-0 bg-background/60 backdrop-blur-sm flex items-center justify-center">
+                            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                          </div>
+                        )}
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="aspect-[4/1] rounded-lg border border-dashed border-border flex items-center justify-center text-xs text-muted-foreground">
-                    Sem capas geradas. Clique em Gerar 4 variações.
-                  </div>
-                )}
+
+                      {/* 4 swatches de cor — clica e troca/gera */}
+                      <div className="flex items-center justify-center gap-3">
+                        {PALETTE_OPTIONS.map(opt => {
+                          const v = variations.find(x => x.palette === opt.name);
+                          const isGenerated = !!v;
+                          const isActive = active?.palette === opt.name;
+                          const handleClick = () => {
+                            if (isBusy) return;
+                            if (v) {
+                              // já existe → seleção instantânea (0 crédito)
+                              selectCover(v.index, v.url);
+                            } else {
+                              // ainda não → gera essa cor (1 crédito)
+                              generateCovers(opt.name);
+                            }
+                          };
+                          return (
+                            <button
+                              key={opt.name}
+                              onClick={handleClick}
+                              disabled={isBusy}
+                              title={isGenerated ? `Trocar para ${opt.label} (sem custo)` : `Gerar capa ${opt.label} (1 crédito)`}
+                              className={cn(
+                                "relative h-10 w-10 rounded-full transition-transform border-2",
+                                isActive ? "border-primary scale-110 ring-2 ring-primary/30" : "border-border hover:scale-105",
+                                isBusy && "opacity-50 cursor-not-allowed",
+                              )}
+                              style={{ background: opt.gradient }}
+                            >
+                              {isGenerated ? (
+                                isActive && (
+                                  <Check className="absolute inset-0 m-auto h-4 w-4 text-white drop-shadow" />
+                                )
+                              ) : (
+                                <span className="absolute inset-0 flex items-center justify-center text-white text-lg font-light drop-shadow">
+                                  +
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <p className="text-[11px] text-center text-muted-foreground">
+                        {hasAny
+                          ? "Cores com ✓ = trocar não gasta crédito. Cores com + = gera nova (1 crédito)."
+                          : "Escolha uma cor pra gerar a capa (1 crédito por cor)."}
+                      </p>
+                    </div>
+                  );
+                })()}
               </div>
             )}
 
