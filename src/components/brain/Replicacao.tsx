@@ -432,13 +432,20 @@ function VariationRow({ t, bp, expanded, creating, onToggle, onApprove, onReject
  *  MOLDES — Fase 3: lista compacta de blueprints, 1 linha cada
  * ============================================================================ */
 
-export function Moldes({ genreId, onAfterGenerate }: { genreId?: string; onAfterGenerate?: () => void }) {
+// Cota padrão de variações por molde — evita gerar duplicado / queimar crédito de IA.
+// Pode ser ajustada por molde no futuro (regra de replicação).
+const COTA_POR_MOLDE = 5;
+
+type TplStats = { total: number; published: number; pending: number };
+
+export function Moldes({ genreId, onAfterGenerate, hideEmpty = false }: { genreId?: string; onAfterGenerate?: () => void; hideEmpty?: boolean }) {
   const [blueprints, setBlueprints] = useState<Blueprint[]>([]);
-  const [tplCounts, setTplCounts] = useState<Record<string, number>>({});
+  const [tplStats, setTplStats] = useState<Record<string, TplStats>>({});
   const [loading, setLoading] = useState(true);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [extracting, setExtracting] = useState(false);
   const [generating, setGenerating] = useState<string | null>(null);
+  const [showSaturated, setShowSaturated] = useState(false);
 
   const load = async (showSkeleton = false) => {
     if (!genreId) return;
@@ -454,15 +461,19 @@ export function Moldes({ genreId, onAfterGenerate }: { genreId?: string; onAfter
       const ids = list.map(b => b.id);
       const { data: tps } = await supabase
         .from("playlist_templates")
-        .select("blueprint_id")
+        .select("blueprint_id, status, spotify_playlist_id")
         .in("blueprint_id", ids);
-      const counts: Record<string, number> = {};
+      const stats: Record<string, TplStats> = {};
       for (const t of (tps ?? []) as any[]) {
-        counts[t.blueprint_id] = (counts[t.blueprint_id] ?? 0) + 1;
+        const s = stats[t.blueprint_id] ?? { total: 0, published: 0, pending: 0 };
+        s.total += 1;
+        if (t.spotify_playlist_id || t.status === "created") s.published += 1;
+        if (t.status === "pending") s.pending += 1;
+        stats[t.blueprint_id] = s;
       }
-      setTplCounts(counts);
+      setTplStats(stats);
     } else {
-      setTplCounts({});
+      setTplStats({});
     }
     setLoading(false);
     setHasLoadedOnce(true);
