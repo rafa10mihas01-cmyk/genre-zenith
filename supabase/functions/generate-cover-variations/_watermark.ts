@@ -72,16 +72,17 @@ const BORDER_SHADOW_A     = 36;    // ~14% — traço escuro discreto, levemente
 let cachedWhite: Image | null = null;
 let cachedBlack: Image | null = null;
 
-async function loadLogo(url: string): Promise<Image> {
-  const resp = await fetch(url);
-  if (!resp.ok) throw new Error(`logo fetch ${resp.status}: ${url}`);
+async function loadLogo(path: string): Promise<Image> {
+  const url = `${SUPABASE_URL}/storage/v1/object/brand-assets/${path}`;
+  const resp = await fetch(url, { headers: { Authorization: `Bearer ${SRK}` } });
+  if (!resp.ok) throw new Error(`logo fetch ${resp.status}: ${path}`);
   const buf = new Uint8Array(await resp.arrayBuffer());
   return await Image.decode(buf);
 }
 
 async function getLogos(): Promise<{ white: Image; black: Image }> {
-  if (!cachedWhite) cachedWhite = await loadLogo(LOGO_WHITE_URL);
-  if (!cachedBlack) cachedBlack = await loadLogo(LOGO_BLACK_URL);
+  if (!cachedWhite) cachedWhite = await loadLogo(LOGO_WHITE_PATH);
+  if (!cachedBlack) cachedBlack = await loadLogo(LOGO_BLACK_PATH);
   return { white: cachedWhite.clone(), black: cachedBlack.clone() };
 }
 
