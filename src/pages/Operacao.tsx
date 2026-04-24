@@ -1,7 +1,7 @@
 import { memo, useEffect, useMemo, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Activity, Pause, Pencil, RefreshCw, ArrowDownRight, ArrowUpRight,
+  Activity, Pause, RefreshCw, ArrowDownRight, ArrowUpRight,
   Music2, FlaskConical, History, ListMusic, Search, Users, ExternalLink,
   AlertCircle, Wrench, ChevronDown, ChevronUp, Server,
 } from "lucide-react";
