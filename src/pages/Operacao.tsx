@@ -1,7 +1,7 @@
 import { memo, useEffect, useMemo, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Activity, Pause, Pencil, RefreshCw, ArrowDownRight, ArrowUpRight,
+  Activity, Pause, RefreshCw, ArrowDownRight, ArrowUpRight,
   Music2, FlaskConical, History, ListMusic, Search, Users, ExternalLink,
   AlertCircle, Wrench, ChevronDown, ChevronUp, Server,
 } from "lucide-react";
@@ -325,7 +325,7 @@ export default function Operacao() {
                 <div className="text-[11px] text-muted-foreground tabular-nums px-1">
                   Mostrando <strong className="text-foreground">{playlists.length}</strong> de {playlistsAll.length} playlists
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-6 gap-2.5">
                   {playlists.map((p) => <PlaylistCard key={p.id} p={p} />)}
                 </div>
               </>
@@ -416,8 +416,8 @@ const PlaylistCard = memo(function PlaylistCard({ p }: { p: OpPlaylist }) {
 
   return (
     <article className="nx-card !p-0 overflow-hidden group hover:border-foreground/25 transition-colors flex flex-col">
-      {/* Header com capa + status sobreposto */}
-      <div className="relative aspect-[16/7] bg-elevated overflow-hidden">
+      {/* Capa quadrada compacta */}
+      <div className="relative aspect-square bg-elevated overflow-hidden">
         {showImage ? (
           <img
             src={p.cover_image_url!}
@@ -428,57 +428,48 @@ const PlaylistCard = memo(function PlaylistCard({ p }: { p: OpPlaylist }) {
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-elevated to-muted/40">
-            <Music2 className="h-8 w-8 text-muted-foreground/40" />
+            <Music2 className="h-7 w-7 text-muted-foreground/40" />
           </div>
         )}
-        {/* Gradient overlay pra legibilidade do status */}
-        <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-background/0 to-background/0 pointer-events-none" />
-        <div className="absolute top-2 right-2">
+        <div className="absolute inset-0 bg-gradient-to-t from-background/85 via-background/0 to-background/0 pointer-events-none" />
+        <div className="absolute top-1.5 right-1.5">
           <StatusPill status={p.status} />
         </div>
+        {p.spotify_url && (
+          <a
+            href={p.spotify_url}
+            target="_blank"
+            rel="noreferrer"
+            className="absolute bottom-1.5 right-1.5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-success/90 text-success-foreground hover:bg-success shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
+            title="Abrir no Spotify"
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+          </a>
+        )}
       </div>
 
-      {/* Corpo */}
-      <div className="p-3.5 flex-1 flex flex-col gap-2.5">
+      {/* Corpo enxuto */}
+      <div className="p-2.5 flex-1 flex flex-col gap-1.5">
         <div className="min-w-0">
-          <h4 className="text-sm font-semibold leading-tight line-clamp-2" title={p.nome}>
+          <h4 className="text-[13px] font-semibold leading-tight line-clamp-1" title={p.nome}>
             {p.nome}
           </h4>
-          <p className="text-[11px] text-muted-foreground mt-0.5 truncate capitalize">
+          <p className="text-[10px] text-muted-foreground mt-0.5 truncate capitalize">
             {p.genero}
-            {p.created_on_spotify_at && <> · publicada {timeAgo(p.created_on_spotify_at)}</>}
           </p>
         </div>
 
-        {/* Métricas em mini-grid */}
-        <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border/60">
-          <Metric label="Seguidores" value={formatNumber(p.seguidores)} />
-          <Metric label="Faixas" value={p.faixas ?? "—"} />
-          <Metric label="Trocas 7d" value={p.trocas7d ?? 0} tone={p.trocas7d > 0 ? "primary" : "default"} />
-        </div>
-
-        {/* Ações */}
-        <div className="flex items-center gap-1 pt-1 mt-auto">
-          {p.spotify_url && (
-            <a
-              href={p.spotify_url}
-              target="_blank"
-              rel="noreferrer"
-              className="flex-1 inline-flex h-8 items-center justify-center gap-1.5 rounded-md border border-success/30 bg-success/10 text-success hover:bg-success/20 text-xs font-medium transition-colors"
-              title="Abrir no Spotify"
-            >
-              <ExternalLink className="h-3 w-3" /> Abrir
-            </a>
-          )}
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" title="Editar">
-            <Pencil className="h-3.5 w-3.5" />
-          </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" title="Trocar faixas">
-            <RefreshCw className="h-3.5 w-3.5" />
-          </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" title="Pausar">
-            <Pause className="h-3.5 w-3.5" />
-          </Button>
+        {/* Métricas em linha única */}
+        <div className="flex items-center justify-between gap-1 pt-1.5 border-t border-border/60 text-[11px] tabular-nums">
+          <span className="text-muted-foreground" title="Seguidores">
+            <span className="font-semibold text-foreground">{formatNumber(p.seguidores)}</span> seg.
+          </span>
+          <span className="text-muted-foreground" title="Faixas">
+            <span className="font-semibold text-foreground">{p.faixas ?? "—"}</span> fx
+          </span>
+          <span className={cn("text-muted-foreground", p.trocas7d > 0 && "text-primary")} title="Trocas 7d">
+            <span className="font-semibold">{p.trocas7d ?? 0}</span> 7d
+          </span>
         </div>
       </div>
     </article>
@@ -499,18 +490,14 @@ function Metric({ label, value, tone = "default" }: { label: string; value: stri
 /** Skeleton em formato de grid de cards — mantém altura estável durante o load. */
 function PlaylistGridSkeleton() {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-      {Array.from({ length: 6 }).map((_, i) => (
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-6 gap-2.5">
+      {Array.from({ length: 10 }).map((_, i) => (
         <div key={i} className="nx-card !p-0 overflow-hidden">
-          <Skeleton className="aspect-[16/7] w-full rounded-none bg-muted/40" />
-          <div className="p-3.5 space-y-3">
-            <Skeleton className="h-4 w-3/4 bg-muted/50" />
-            <Skeleton className="h-3 w-1/2 bg-muted/40" />
-            <div className="grid grid-cols-3 gap-2 pt-2">
-              <Skeleton className="h-6 bg-muted/40" />
-              <Skeleton className="h-6 bg-muted/40" />
-              <Skeleton className="h-6 bg-muted/40" />
-            </div>
+          <Skeleton className="aspect-square w-full rounded-none bg-muted/40" />
+          <div className="p-2.5 space-y-2">
+            <Skeleton className="h-3.5 w-3/4 bg-muted/50" />
+            <Skeleton className="h-2.5 w-1/2 bg-muted/40" />
+            <Skeleton className="h-3 w-full bg-muted/40 mt-1" />
           </div>
         </div>
       ))}
