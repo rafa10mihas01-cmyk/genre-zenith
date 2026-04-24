@@ -1289,6 +1289,10 @@ export type Database = {
       }
     }
     Functions: {
+      cleanup_stale_autopilot_runs: {
+        Args: { p_minutes?: number }
+        Returns: number
+      }
       compare_genre_versions: {
         Args: { p_genre_id: string; p_version_a: number; p_version_b: number }
         Returns: Json
@@ -1419,6 +1423,10 @@ export type Database = {
         Returns: boolean
       }
       has_team_access: { Args: never; Returns: boolean }
+      increment_account_playlists: {
+        Args: { p_spotify_user_id: string }
+        Returns: number
+      }
       is_admin: { Args: never; Returns: boolean }
       priority_from_performance: {
         Args: { p_class: string }
