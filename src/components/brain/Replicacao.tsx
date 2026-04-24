@@ -89,13 +89,14 @@ export function Variacoes({ genreId }: { genreId?: string }) {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [blueprints, setBlueprints] = useState<Blueprint[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [creating, setCreating] = useState<string | null>(null);
   const [filter, setFilter] = useState<string>("all");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
-  const load = async () => {
+  const load = async (showSkeleton = false) => {
     if (!genreId) return;
-    setLoading(true);
+    if (showSkeleton) setLoading(true);
     const { data: bps } = await supabase
       .from("playlist_blueprints")
       .select("*")
@@ -115,9 +116,14 @@ export function Variacoes({ genreId }: { genreId?: string }) {
       setTemplates([]);
     }
     setLoading(false);
+    setHasLoadedOnce(true);
   };
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [genreId]);
+  useEffect(() => {
+    setHasLoadedOnce(false);
+    load(true);
+    /* eslint-disable-next-line */
+  }, [genreId]);
 
   const updateStatus = async (id: string, status: "approved" | "rejected" | "pending") => {
     const patch: any = { status };
@@ -134,14 +140,14 @@ export function Variacoes({ genreId }: { genreId?: string }) {
           .catch(() => {});
       }
     }
-    await load();
+    await load(false);
   };
 
   const removeTemplate = async (id: string) => {
     const { error } = await supabase.from("playlist_templates").delete().eq("id", id);
     if (error) { toast.error("Erro"); return; }
     toast.success("Removida");
-    await load();
+    await load(false);
   };
 
   const createOnSpotify = async (id: string) => {
@@ -156,7 +162,7 @@ export function Variacoes({ genreId }: { genreId?: string }) {
         description: `${data?.tracks_added ?? 0} faixas · ${data?.tracks_failed ?? 0} falhas`,
         action: data?.spotify_url ? { label: "Abrir", onClick: () => window.open(data.spotify_url, "_blank") } : undefined,
       });
-      await load();
+      await load(false);
     } catch (e: any) {
       const msg = e?.message ?? "Erro";
       toast.error("Erro ao criar", {
@@ -183,7 +189,7 @@ export function Variacoes({ genreId }: { genreId?: string }) {
     return templates.filter(t => t.status === filter);
   }, [templates, filter]);
 
-  if (loading) return <div className="grid gap-2">{Array.from({ length: 3 }).map((_, i) => <div key={i} className="nx-card h-16 animate-pulse" />)}</div>;
+  if (loading && !hasLoadedOnce) return <div className="grid gap-2">{Array.from({ length: 3 }).map((_, i) => <div key={i} className="nx-card h-16 animate-pulse" />)}</div>;
 
   if (templates.length === 0) {
     return (
@@ -430,12 +436,13 @@ export function Moldes({ genreId, onAfterGenerate }: { genreId?: string; onAfter
   const [blueprints, setBlueprints] = useState<Blueprint[]>([]);
   const [tplCounts, setTplCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [extracting, setExtracting] = useState(false);
   const [generating, setGenerating] = useState<string | null>(null);
 
-  const load = async () => {
+  const load = async (showSkeleton = false) => {
     if (!genreId) return;
-    setLoading(true);
+    if (showSkeleton) setLoading(true);
     const { data: bps } = await supabase
       .from("playlist_blueprints")
       .select("*")
@@ -458,9 +465,16 @@ export function Moldes({ genreId, onAfterGenerate }: { genreId?: string; onAfter
       setTplCounts({});
     }
     setLoading(false);
+    setHasLoadedOnce(true);
   };
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [genreId]);
+  useEffect(() => {
+    // Mostra skeleton só no primeiro load por gênero. Recarregamentos posteriores
+    // (depois de gerar/extrair) atualizam silenciosamente sem piscar.
+    setHasLoadedOnce(false);
+    load(true);
+    /* eslint-disable-next-line */
+  }, [genreId]);
 
   const runExtract = async () => {
     if (!genreId || extracting) return;
@@ -474,7 +488,7 @@ export function Moldes({ genreId, onAfterGenerate }: { genreId?: string; onAfter
       toast.success(`${data?.total ?? 0} moldes`, {
         description: `${data?.created?.length ?? 0} novos · ${data?.updated?.length ?? 0} atualizados`,
       });
-      await load();
+      await load(false);
     } catch (e: any) {
       toast.error("Erro ao atualizar moldes", { description: e?.message });
     } finally {
@@ -493,7 +507,7 @@ export function Moldes({ genreId, onAfterGenerate }: { genreId?: string; onAfter
       toast.success(`${data?.count ?? 0} variações geradas`, {
         description: "Veja na seção 'Playlists prontas' acima.",
       });
-      await load();
+      await load(false);
       onAfterGenerate?.();
     } catch (e: any) {
       toast.error("Erro ao gerar", { description: e?.message });
@@ -502,7 +516,7 @@ export function Moldes({ genreId, onAfterGenerate }: { genreId?: string; onAfter
     }
   };
 
-  if (loading) return <div className="grid gap-2">{Array.from({ length: 3 }).map((_, i) => <div key={i} className="nx-card h-14 animate-pulse" />)}</div>;
+  if (loading && !hasLoadedOnce) return <div className="grid gap-2">{Array.from({ length: 3 }).map((_, i) => <div key={i} className="nx-card h-14 animate-pulse" />)}</div>;
 
   return (
     <div className="space-y-3">
