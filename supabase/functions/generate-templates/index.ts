@@ -89,6 +89,11 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return jr({ error: "POST only" }, 405);
 
+  // 🔐 Exige service_role (chamada interna) ou usuário admin/curador
+  const { requireTeamAccess } = await import("../_shared/auth.ts");
+  const guard = await requireTeamAccess(req);
+  if (!guard.ok) return guard.resp;
+
   let body: { blueprint_id?: string; count?: number };
   try { body = await req.json(); } catch { return jr({ error: "invalid json" }, 400); }
   const blueprintId = body.blueprint_id;
