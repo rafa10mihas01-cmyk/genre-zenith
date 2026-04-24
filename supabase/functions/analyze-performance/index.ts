@@ -120,6 +120,19 @@ Deno.serve(async (req) => {
     });
   }
 
+  // C.1 — Early-exit: amostra estatística mínima para não desperdiçar Claude.
+  // Análise com <5 playlists gera classificação enviesada e custa tokens à toa.
+  const MIN_SAMPLE = 5;
+  if (rows.length < MIN_SAMPLE) {
+    return jr({
+      ok: true,
+      empty: true,
+      reason: "amostra_insuficiente",
+      message: `Apenas ${rows.length} playlist(s) com idade >= ${minAge}h. Mínimo: ${MIN_SAMPLE}. Pulando análise.`,
+      total: rows.length,
+    });
+  }
+
   // Compacta payload para Claude (só dados, ele só interpreta)
   const playlists = rows.slice(0, 80).map((r) => ({
     id: r.template_id,
