@@ -1221,6 +1221,7 @@ export type Database = {
           apify_blocked_reason: string | null
           created_at: string
           id: string
+          singleton_key: string
           updated_at: string
         }
         Insert: {
@@ -1229,6 +1230,7 @@ export type Database = {
           apify_blocked_reason?: string | null
           created_at?: string
           id?: string
+          singleton_key?: string
           updated_at?: string
         }
         Update: {
@@ -1237,6 +1239,7 @@ export type Database = {
           apify_blocked_reason?: string | null
           created_at?: string
           id?: string
+          singleton_key?: string
           updated_at?: string
         }
         Relationships: []
