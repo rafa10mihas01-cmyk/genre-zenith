@@ -169,6 +169,26 @@ Deno.serve(async (req) => {
   const trackSeeds = reorderTracksByRules(trackSeedsRaw, activeRules).slice(0, Math.max(120, trackTarget.max + 30));
   const allKeywords = (model?.palavras_chave ?? []).slice(0, 30);
 
+  // 🔁 ANTI-REPETIÇÃO: nomes recentes do gênero (últimos 30d) → anti-exemplos no prompt + dedup pós-LLM.
+  // Resolve "MODÃO RAIZ 2024 - SÓ AS MELHORES 🎉" aparecendo 3x no mesmo dia.
+  const { data: recentTpls } = await supabase
+    .from("playlist_templates")
+    .select("name")
+    .eq("genre_id", bp.genre_id)
+    .gte("created_at", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+    .not("status", "eq", "archived")
+    .order("created_at", { ascending: false })
+    .limit(40);
+  const recentNames: string[] = (recentTpls ?? []).map((r) => String(r.name ?? "")).filter(Boolean);
+  // Normalização canônica para comparação (lowercase, sem emoji, sem pontuação, espaços colapsados)
+  const normalizeName = (s: string) =>
+    s.toLowerCase()
+      .replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, "")
+      .replace(/[^\p{L}\p{N}\s]/gu, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  const recentCanonSet = new Set(recentNames.map(normalizeName));
+
   // Já existem templates? quantos? (usa para variation_index)
   const { count: existingCount } = await supabase
     .from("playlist_templates").select("*", { count: "exact", head: true }).eq("blueprint_id", blueprintId);
