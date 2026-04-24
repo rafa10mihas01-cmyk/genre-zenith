@@ -262,22 +262,59 @@ async function runPipeline(
       const hasCover = tpl.cover_image_url || (Array.isArray(tpl.cover_variations) && tpl.cover_variations.length > 0);
       if (hasCover) continue;
       const r = await invokeFn("generate-cover-variations", { template_id: tpl.id });
-      if (r.ok) {
-        coversGenerated++;
-        // Seleciona index 0 automaticamente
-        const variations = (r.data as any)?.variations ?? [];
-        const first = variations[0];
-        if (first?.url) {
-          await sb.from("playlist_templates")
-            .update({
-              cover_image_url: first.url,
-              cover_selected_index: 0,
-            })
-            .eq("id", tpl.id);
-        }
-      } else {
+      if (!r.ok) {
         console.warn(`[autopilot] generate-cover-variations falhou pro template ${tpl.id}: ${r.error}`);
+        continue;
       }
+
+      // 🔧 FIX race condition: NÃO confia no retorno da função.
+      // Relê cover_variations do banco (fonte de verdade) — generate-cover-variations
+      // já persistiu o append antes de retornar. Só então faz o update do main URL.
+      // Pequeno retry pra cobrir lag de replicação.
+      let firstUrl: string | null = null;
+      let firstIndex = 0;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const { data: fresh } = await sb
+          .from("playlist_templates")
+          .select("cover_variations, cover_image_url")
+          .eq("id", tpl.id)
+          .maybeSingle();
+        const variations = Array.isArray(fresh?.cover_variations) ? fresh!.cover_variations : [];
+        if (variations.length > 0) {
+          // Usa a variação mais recente que tem url válida
+          for (let i = variations.length - 1; i >= 0; i--) {
+            const url = (variations[i] as any)?.url;
+            if (typeof url === "string" && url.length > 0) {
+              firstUrl = url;
+              firstIndex = i;
+              break;
+            }
+          }
+          if (firstUrl) break;
+        }
+        if (attempt < 2) await new Promise((res) => setTimeout(res, 800));
+      }
+
+      if (!firstUrl) {
+        console.warn(`[autopilot] template ${tpl.id}: cover_variations vazio após retry — pulando update do main URL`);
+        continue;
+      }
+
+      const { error: updErr } = await sb
+        .from("playlist_templates")
+        .update({
+          cover_image_url: firstUrl,
+          cover_selected_index: firstIndex,
+        })
+        .eq("id", tpl.id);
+
+      if (updErr) {
+        console.warn(`[autopilot] update cover_image_url falhou pro template ${tpl.id}: ${updErr.message}`);
+        continue;
+      }
+
+      // ✅ Só incrementa quando capa foi efetivamente persistida + linkada
+      coversGenerated++;
     }
     await updateRun(sb, runId, { covers_generated: coversGenerated });
     await pushCompleted(sb, runId, "covers", { count: coversGenerated });
