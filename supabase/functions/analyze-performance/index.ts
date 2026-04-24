@@ -166,11 +166,31 @@ Regras:
 - Sugira ações concretas: replicar padrão vencedor, ajustar nome de playlist específica, pausar fracas.
 - Seja direto e técnico. Sem firula.`;
 
+  // 💸 Audit #10 C.1: fallback selectivo — em 5xx/timeout, tenta haiku (mais barato)
   let result: any;
+  let modelUsed = CLAUDE_MODEL;
   try {
     result = await callClaude(system, { total: rows.length, amostra: playlists });
   } catch (e) {
-    return jr({ error: `claude_failed: ${(e as Error).message}` }, 500);
+    const msg = (e as Error).message ?? "";
+    const m = msg.match(/HTTP (\d{3})/);
+    const status = m ? Number(m[1]) : null;
+    // 5xx/network → fallback. 4xx (não 429) → fail fast (modelo não resolve).
+    if (status === null || status >= 500 || status === 429) {
+      const FALLBACK = "claude-haiku-4-5-20250514";
+      console.warn(`[analyze-performance] sonnet falhou (${status ?? "net"}) — fallback ${FALLBACK}`);
+      try {
+        const original = (globalThis as any).__claude_model;
+        (globalThis as any).__claude_model = FALLBACK;
+        // re-chama com modelo override via param interno simples
+        result = await callClaudeWithModel(system, { total: rows.length, amostra: playlists }, FALLBACK);
+        modelUsed = FALLBACK;
+      } catch (e2) {
+        return jr({ error: `claude_failed_with_fallback: ${(e2 as Error).message}` }, 500);
+      }
+    } else {
+      return jr({ error: `claude_failed: ${msg}` }, 500);
+    }
   }
 
   // Persiste insights
