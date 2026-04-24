@@ -1459,6 +1459,18 @@ export type Database = {
           spotify_user_id: string
         }[]
       }
+      reconcile_genre_counts: {
+        Args: never
+        Returns: {
+          after_musicas: number
+          after_playlists: number
+          after_termos: number
+          before_musicas: number
+          before_playlists: number
+          before_termos: number
+          genre_id: string
+        }[]
+      }
     }
     Enums: {
       app_role: "admin" | "curador"

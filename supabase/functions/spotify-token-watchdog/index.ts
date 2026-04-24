@@ -123,14 +123,50 @@ Deno.serve(async (req) => {
     }
   }
 
+  // 🚨 Audit #11 P2: também refresca app token (client_credentials) se expirado/<10min restantes
+  let appTokenRefreshed = false;
+  let appTokenError: string | null = null;
+  try {
+    const { data: appRow } = await sb
+      .from("spotify_tokens")
+      .select("expires_at")
+      .eq("singleton_key", "app")
+      .maybeSingle();
+    const expSoon = !appRow || new Date(appRow.expires_at).getTime() - Date.now() < 10 * 60 * 1000;
+    if (expSoon) {
+      const ar = await fetch("https://accounts.spotify.com/api/token", {
+        method: "POST",
+        headers: {
+          Authorization: `Basic ${basic}`,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: "grant_type=client_credentials",
+      });
+      if (ar.ok) {
+        const aj = await ar.json();
+        const access_token: string = aj.access_token;
+        const expires_at = new Date(Date.now() + (aj.expires_in ?? 3600) * 1000).toISOString();
+        await sb.from("spotify_tokens").upsert(
+          { singleton_key: "app", access_token, expires_at },
+          { onConflict: "singleton_key" },
+        );
+        appTokenRefreshed = true;
+      } else {
+        appTokenError = `HTTP ${ar.status}`;
+      }
+    }
+  } catch (e) {
+    appTokenError = (e as Error).message;
+  }
+
   // 📊 Heartbeat sempre — prova que o cron rodou
   const dur = Date.now() - startedAt;
   await sb.from("collection_logs").insert({
     acao: "spotify_token_watchdog",
-    status: failCount > 0 ? "warning" : "sucesso",
+    status: failCount > 0 || appTokenError ? "warning" : "sucesso",
     duracao_ms: dur,
-    mensagem: `checked=${accounts?.length ?? 0} ok=${okCount} fail=${failCount}`,
+    mensagem: `checked=${accounts?.length ?? 0} ok=${okCount} fail=${failCount} app_refreshed=${appTokenRefreshed}${appTokenError ? ` app_err=${appTokenError}` : ""}`,
   }).then(() => {}, () => {});
 
-  return jr({ ok: true, checked: accounts?.length ?? 0, ok_count: okCount, fail_count: failCount, results });
+  return jr({ ok: true, checked: accounts?.length ?? 0, ok_count: okCount, fail_count: failCount, app_token_refreshed: appTokenRefreshed, app_token_error: appTokenError, results });
 });

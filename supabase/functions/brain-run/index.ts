@@ -227,6 +227,16 @@ async function runPipeline(jobId: string, body: StartBody) {
   }
   const gid = genre.id;
 
+  // 🚨 Audit #11 P5 — lock genre-scoped p/ evitar runs paralelos do mesmo gênero (10min)
+  const gotRunLock = await acquireLock(supabase, gid, "brain-run-start", 600);
+  if (!gotRunLock) {
+    await supabase.from("collection_logs").insert({
+      genre_id: gid, acao: `brain-job:${jobId}`, status: "warning",
+      mensagem: JSON.stringify({ status: "error", stage: "init", progress: 0, error: "Run já em andamento para este gênero (lock 10min). Aguarde a anterior terminar." }),
+    }).then(() => {}, () => {});
+    return;
+  }
+
   // 🚨 Audit #9 A.2 / #10 A.4 — observabilidade: registra run no autopilot_runs
   // Falha de insert agora gera log persistente (antes era console.warn silencioso)
   let autopilotRunId: string | null = null;
