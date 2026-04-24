@@ -227,7 +227,7 @@ async function runPipeline(
     // Sempre gera novos. Distribui maxTemplates entre top blueprints (1-2 por blueprint).
     await setStep(sb, runId, "templates");
     const remaining = maxTemplates;
-    const generated: string[] = [];
+    const generated: string[] = generatedIds; // alias — escreve no array compartilhado
     let perBp = Math.max(1, Math.ceil(remaining / Math.min(ranked.length, 3)));
     for (const bp of ranked) {
       if (generated.length >= maxTemplates) break;
@@ -377,6 +377,21 @@ async function runPipeline(
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error("[autopilot] pipeline error:", msg);
+
+    // 🔄 B.3 — arquiva templates 'pending' órfãos criados nesta run
+    if (generatedIds.length > 0) {
+      await sb
+        .from("playlist_templates")
+        .update({
+          status: "archived",
+          archived_at: new Date().toISOString(),
+          archived_reason: `autopilot_failed: ${msg.slice(0, 120)}`,
+        })
+        .in("id", generatedIds)
+        .eq("status", "pending")
+        .then(() => {}, (err) => console.warn("[autopilot] cleanup pending failed:", err?.message));
+    }
+
     await updateRun(sb, runId, {
       status: "error",
       error_message: msg,
