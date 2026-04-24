@@ -1358,21 +1358,6 @@ export type Database = {
           spotify_url: string
         }[]
       }
-      get_genre_daily_target: {
-        Args: { p_genre_id: string }
-        Returns: {
-          base_daily: number
-          evaluated_count: number
-          generated_today: number
-          max_daily: number
-          min_daily: number
-          pct_alta: number
-          pct_baixa: number
-          performance_tier: string
-          remaining: number
-          target_today: number
-        }[]
-      }
       get_genre_daily_target_v2: {
         Args: { p_genre_id: string }
         Returns: {

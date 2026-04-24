@@ -36,6 +36,26 @@ function slugify(s: string) {
     .slice(0, 60) || `blueprint-${Date.now()}`;
 }
 
+// 💸 Audit #13 F4 — hash do payload pra evitar LLM call redundante (cache 6h)
+async function payloadHash(input: unknown): Promise<string> {
+  const enc = new TextEncoder().encode(JSON.stringify(input));
+  const buf = await crypto.subtle.digest("SHA-256", enc);
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("").slice(0, 16);
+}
+
+async function isCachedRecently(supabase: any, genreId: string, hash: string, windowHours = 6): Promise<boolean> {
+  const since = new Date(Date.now() - windowHours * 3600 * 1000).toISOString();
+  const { data } = await supabase
+    .from("collection_logs")
+    .select("id")
+    .eq("genre_id", genreId)
+    .eq("acao", "extract-blueprints-cache")
+    .ilike("mensagem", `%${hash}%`)
+    .gte("created_at", since)
+    .limit(1);
+  return Array.isArray(data) && data.length > 0;
+}
+
 // 🚨 Audit #8 A.2 — retry seletivo + fallback de modelo
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -237,6 +257,17 @@ Deno.serve(async (req) => {
     };
 
     let llmOut: any;
+    // 💸 Cache hash: se mesmo conjunto (tier + sample_ids + rules) rodou nas últimas 6h, pula LLM
+    const cacheKey = await payloadHash({
+      tier,
+      ids: tierPlaylists.map((p: any) => p.id).sort(),
+      rules: rulesSummary ?? "",
+      max_per_tier: maxPerTier,
+    });
+    if (!body.force && await isCachedRecently(supabase, genreId, cacheKey)) {
+      console.log(`[cache] extract-blueprints SKIP tier=${tier} hash=${cacheKey}`);
+      continue;
+    }
     try {
       llmOut = await callLLM(
         `Você é um analista de produto musical. Sua tarefa é extrair PADRÕES ESTRUTURAIS REPLICÁVEIS de playlists de sucesso (gênero: ${genre.nome}, tier ${tier}). Identifique de 1 a 3 arquétipos distintos. Cada blueprint = um modelo replicável de playlist. Seja específico, evite genérico.${rulesBlock}`,
@@ -247,6 +278,13 @@ Deno.serve(async (req) => {
       console.error(`LLM error tier=${tier}`, (e as Error).message);
       continue;
     }
+    // 💸 Marca cache hash após sucesso
+    await supabase.from("collection_logs").insert({
+      genre_id: genreId,
+      acao: "extract-blueprints-cache",
+      status: "sucesso",
+      mensagem: `hash=${cacheKey} tier=${tier} samples=${tierPlaylists.length}`,
+    }).then(() => {}, (err: any) => console.error("[cache] log insert failed", err?.message));
 
     const list = Array.isArray(llmOut?.blueprints) ? llmOut.blueprints : [];
     for (const bp of list) {
