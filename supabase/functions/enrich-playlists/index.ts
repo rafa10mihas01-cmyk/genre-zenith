@@ -147,7 +147,25 @@ Deno.serve(async (req) => {
     // 💰 Fase 1: tracks via Apify DESLIGADO por padrão (custo ~70% do enrich).
     // Tracks reais agora vêm via fetch-tracks-spotify (on-demand, custo zero Apify).
     // Mantido como opt-in pra compatibilidade, mas NÃO recomendado.
-    const fetchTracks = body.fetch_tracks === true;
+    let fetchTracks = body.fetch_tracks === true;
+
+    // 🚨 Audit #8 A.1 — pre-check breaker: se Apify já bloqueado, força fetchTracks=false
+    if (fetchTracks) {
+      const { data: flag } = await supabase
+        .from("system_flags")
+        .select("apify_blocked,apify_blocked_at")
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (flag?.apify_blocked) {
+        const ageMs = flag.apify_blocked_at
+          ? Date.now() - new Date(flag.apify_blocked_at).getTime()
+          : 0;
+        if (ageMs < 24 * 60 * 60 * 1000) {
+          fetchTracks = false; // continua o enrich (Spotify API), só pula Apify
+        }
+      }
+    }
 
     // Pega playlists pendentes — modo seletivo (result_ids) tem prioridade
     // 🛡️ filtra enrich_failed=false sempre — zumbis nunca são reprocessadas
