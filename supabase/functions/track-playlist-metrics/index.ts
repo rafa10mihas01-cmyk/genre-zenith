@@ -104,11 +104,33 @@ Deno.serve(async (req) => {
     }
   }
 
+  // C.1 — falha sistêmica vira alerta visível
+  const totalProcessed = tpls.length;
+  const failureRate = totalProcessed > 0 ? failed / totalProcessed : 0;
+  const isSystemicFailure = totalProcessed >= 5 && failureRate > 0.5;
+
   await supabase.from("collection_logs").insert({
     acao: "track_playlist_metrics",
-    status: failed === 0 ? "ok" : "parcial",
-    mensagem: `snapshots ok=${ok} failed=${failed} total=${tpls.length}`,
+    status: isSystemicFailure ? "error" : (failed === 0 ? "ok" : "parcial"),
+    mensagem: `snapshots ok=${ok} failed=${failed} total=${totalProcessed}` +
+      (isSystemicFailure ? ` ⚠️ FALHA SISTÊMICA (${Math.round(failureRate * 100)}% falharam)` : ""),
   });
 
-  return jr({ ok: true, processed: tpls.length, snapshots_ok: ok, failed });
+  if (isSystemicFailure) {
+    await supabase.rpc("create_notification", {
+      p_type: "warning",
+      p_title: "Coleta de métricas com falha sistêmica",
+      p_message: `${failed}/${totalProcessed} snapshots falharam (${Math.round(failureRate * 100)}%). Verificar Spotify API/token.`,
+      p_action_url: "/cerebro",
+      p_metadata: { failed, total: totalProcessed, failure_rate: failureRate },
+    }).then(() => {}, () => {});
+  }
+
+  return jr({
+    ok: !isSystemicFailure,
+    processed: totalProcessed,
+    snapshots_ok: ok,
+    failed,
+    systemic_failure: isSystemicFailure,
+  });
 });
