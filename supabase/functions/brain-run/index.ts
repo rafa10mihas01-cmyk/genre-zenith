@@ -208,6 +208,26 @@ async function runPipeline(jobId: string, body: StartBody) {
     return;
   }
   const gid = genre.id;
+
+  // 🚨 Audit #9 A.2 — observabilidade: registra run no autopilot_runs
+  let autopilotRunId: string | null = null;
+  try {
+    const { data: arRow } = await supabase
+      .from("autopilot_runs")
+      .insert({
+        genre_id: gid,
+        status: "running",
+        current_step: "brain-run",
+        progress_pct: 0,
+        triggered_by: `brain-run:${body.action ?? "start"}`,
+      })
+      .select("id")
+      .single();
+    autopilotRunId = arRow?.id ?? null;
+  } catch (e) {
+    console.warn("[brain-run] autopilot_runs insert failed:", (e as Error).message);
+  }
+
   await setJob(supabase, gid, jobId, {
     status: "running",
     stage: survivalMode ? "⚠️ Modo sobrevivência — usando dados existentes" : "Gerando termos...",
