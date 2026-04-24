@@ -23,6 +23,13 @@ interface Body {
   stale_days?: number; // usado no modo de revalidação periódica
 }
 
+// 🚨 Audit #8 A.1 — Apify circuit breaker para enrich-playlists
+class ApifyBlockedError extends Error {
+  reason = "APIFY_LIMIT";
+  status = 403;
+  constructor(msg: string) { super(msg); this.name = "ApifyBlockedError"; }
+}
+
 function extractPlaylistId(url: string): string | null {
   const m = url.match(/playlist\/([A-Za-z0-9]+)/);
   return m?.[1] ?? null;
@@ -108,7 +115,14 @@ async function fetchApifyTracks(playlistUrl: string): Promise<any[]> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ mode: "urls", urls: [playlistUrl], proxy: { useApifyProxy: true } }),
   });
-  if (!r.ok) { await r.text().catch(() => ""); return []; }
+  if (!r.ok) {
+    const txt = await r.text().catch(() => "");
+    // 🚨 Audit #8 A.1 — propaga 403/limit pra ativar circuit breaker no catch externo
+    if (r.status === 403 || /monthly usage hard limit exceeded/i.test(txt)) {
+      throw new ApifyBlockedError(`Apify ${r.status}: ${txt.slice(0, 300)}`);
+    }
+    return [];
+  }
   const items = await r.json();
   if (!Array.isArray(items) || !items[0]) return [];
   return Array.isArray(items[0].tracks) ? items[0].tracks : [];
