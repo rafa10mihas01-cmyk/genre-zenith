@@ -803,6 +803,16 @@ async function generateOne(prompt: string): Promise<string> {
   });
   if (!resp.ok) {
     const t = await resp.text();
+    if (resp.status === 402) {
+      const err: any = new Error("AI_PAYMENT_REQUIRED");
+      err.code = "AI_PAYMENT_REQUIRED";
+      throw err;
+    }
+    if (resp.status === 429) {
+      const err: any = new Error("AI_RATE_LIMITED");
+      err.code = "AI_RATE_LIMITED";
+      throw err;
+    }
     throw new Error(`AI ${resp.status}: ${t.slice(0, 200)}`);
   }
   const data = await resp.json();
@@ -908,8 +918,22 @@ Deno.serve(async (req) => {
   let dataUrl: string;
   try {
     dataUrl = await generateOne(prompt);
-  } catch (e) {
+  } catch (e: any) {
     console.error(`geração falhou (${palette.name}/${style}):`, e);
+    if (e?.code === "AI_PAYMENT_REQUIRED") {
+      return jr({
+        ok: false,
+        code: "AI_PAYMENT_REQUIRED",
+        error: "Sem créditos de IA. Adicione saldo em Settings → Workspace → Usage para gerar novas capas.",
+      }, 402);
+    }
+    if (e?.code === "AI_RATE_LIMITED") {
+      return jr({
+        ok: false,
+        code: "AI_RATE_LIMITED",
+        error: "Muitas requisições à IA. Aguarde alguns segundos e tente novamente.",
+      }, 429);
+    }
     return jr({ ok: false, error: `Falha ao gerar capa: ${e instanceof Error ? e.message : String(e)}` }, 500);
   }
 
