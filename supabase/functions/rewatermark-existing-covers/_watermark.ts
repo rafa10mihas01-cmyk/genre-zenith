@@ -17,11 +17,13 @@ import { Image } from "https://deno.land/x/imagescript@1.2.17/mod.ts";
 
 // ============================================================
 // WATERMARK
+// 🔐 Audit #14 F2C: logos servidos do bucket PRIVADO `brand-assets`
+// via service role (não expostos publicamente).
 // ============================================================
-const LOGO_WHITE_URL =
-  "https://xtxxjmkijeyxkdyxtvsf.supabase.co/storage/v1/object/public/playlist-covers/_brand/nexengine-mono-white.png";
-const LOGO_BLACK_URL =
-  "https://xtxxjmkijeyxkdyxtvsf.supabase.co/storage/v1/object/public/playlist-covers/_brand/nexengine-mono-black.png";
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SRK = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const LOGO_WHITE_PATH = "_brand/nexengine-mono-white.png";
+const LOGO_BLACK_PATH = "_brand/nexengine-mono-black.png";
 
 // Logo "gravado na superfície" — emboss premium (estilo Apple/Spotify):
 //   1. Sombra 1px abaixo (escura, integra ao fundo)
