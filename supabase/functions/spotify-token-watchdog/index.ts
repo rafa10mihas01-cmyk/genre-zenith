@@ -16,9 +16,26 @@ function jr(p: unknown, status = 200) {
   });
 }
 
-function authorized(req: Request): boolean {
+// Cache do segredo do vault (in-memory por instância)
+let _vaultCronSecret: string | null = null;
+async function getVaultCronSecret(sb: any): Promise<string> {
+  if (_vaultCronSecret !== null) return _vaultCronSecret;
+  try {
+    const { data } = await sb.rpc("get_cron_secret");
+    _vaultCronSecret = (data as string) ?? "";
+  } catch { _vaultCronSecret = ""; }
+  return _vaultCronSecret;
+}
+
+async function authorized(req: Request, sb: any): Promise<boolean> {
   const cs = req.headers.get("x-cron-secret");
+  // Edge env match
   if (CRON_SECRET && cs && cs === CRON_SECRET) return true;
+  // Vault match (cron usa este)
+  if (cs) {
+    const vaultSecret = await getVaultCronSecret(sb);
+    if (vaultSecret && cs === vaultSecret) return true;
+  }
   const auth = req.headers.get("Authorization") ?? "";
   if (auth === `Bearer ${SERVICE_KEY}`) return true;
   return false;
@@ -27,7 +44,8 @@ function authorized(req: Request): boolean {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
-  if (!authorized(req)) {
+  const sbAuth = createClient(SUPABASE_URL, SERVICE_KEY);
+  if (!(await authorized(req, sbAuth))) {
     return jr({ error: "unauthorized" }, 401);
   }
 
