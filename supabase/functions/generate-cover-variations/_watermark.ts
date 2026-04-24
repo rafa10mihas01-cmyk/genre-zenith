@@ -14,16 +14,23 @@
 // Constantes calibradas para "premium discreto" — ajustar com extremo cuidado.
 
 import { Image } from "https://deno.land/x/imagescript@1.2.17/mod.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 // ============================================================
 // WATERMARK
 // 🔐 Audit #14 F2C: logos servidos do bucket PRIVADO `brand-assets`
-// via service role (não expostos publicamente).
+// via Supabase SDK (download autenticado com service role).
+// Fix Audit #15: fetch direto retornava 400; SDK trata auth corretamente.
 // ============================================================
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SRK = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const LOGO_WHITE_PATH = "_brand/nexengine-mono-white.png";
 const LOGO_BLACK_PATH = "_brand/nexengine-mono-black.png";
+const BRAND_BUCKET = "brand-assets";
+
+const _storageClient = createClient(SUPABASE_URL, SRK, {
+  auth: { persistSession: false, autoRefreshToken: false },
+});
 
 // Logo "gravado na superfície" — emboss premium (estilo Apple/Spotify):
 //   1. Sombra 1px abaixo (escura, integra ao fundo)
@@ -73,10 +80,9 @@ let cachedWhite: Image | null = null;
 let cachedBlack: Image | null = null;
 
 async function loadLogo(path: string): Promise<Image> {
-  const url = `${SUPABASE_URL}/storage/v1/object/brand-assets/${path}`;
-  const resp = await fetch(url, { headers: { Authorization: `Bearer ${SRK}` } });
-  if (!resp.ok) throw new Error(`logo fetch ${resp.status}: ${path}`);
-  const buf = new Uint8Array(await resp.arrayBuffer());
+  const { data, error } = await _storageClient.storage.from(BRAND_BUCKET).download(path);
+  if (error || !data) throw new Error(`logo download failed: ${path} — ${error?.message ?? "no data"}`);
+  const buf = new Uint8Array(await data.arrayBuffer());
   return await Image.decode(buf);
 }
 
