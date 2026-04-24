@@ -1076,17 +1076,17 @@ Deno.serve(async (req) => {
   const { data: flag } = await supabaseCheck
     .from("system_flags")
     .select("id,apify_blocked,apify_blocked_at,apify_blocked_reason")
-    .order("created_at", { ascending: true })
-    .limit(1)
+    .eq("singleton_key", "app")
     .maybeSingle();
   let survivalMode = false;
   if (flag?.apify_blocked) {
     const blockedAt = flag.apify_blocked_at ? new Date(flag.apify_blocked_at).getTime() : 0;
     const ageMs = Date.now() - blockedAt;
     if (ageMs > 24 * 60 * 60 * 1000) {
-      await supabaseCheck.from("system_flags").update({
+      await supabaseCheck.from("system_flags").upsert({
+        singleton_key: "app",
         apify_blocked: false, apify_blocked_at: null, apify_blocked_reason: null,
-      }).eq("id", flag.id);
+      }, { onConflict: "singleton_key" });
     } else {
       // 🛟 MODO SOBREVIVÊNCIA: Apify bloqueado, mas seguimos com cache + IA
       survivalMode = true;
