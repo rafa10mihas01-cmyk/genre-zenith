@@ -1154,18 +1154,21 @@ export type Database = {
           created_at: string
           expires_at: string
           id: string
+          singleton_key: string
         }
         Insert: {
           access_token: string
           created_at?: string
           expires_at: string
           id?: string
+          singleton_key?: string
         }
         Update: {
           access_token?: string
           created_at?: string
           expires_at?: string
           id?: string
+          singleton_key?: string
         }
         Relationships: []
       }
