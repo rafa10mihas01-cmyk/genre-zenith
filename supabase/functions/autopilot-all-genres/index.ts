@@ -57,12 +57,20 @@ async function callGenreAutopilot(genreId: string, force: boolean) {
   return { status: r.status, ok: r.ok, data, raw: text };
 }
 
+const CRON_SECRET = Deno.env.get("CRON_SECRET") ?? "";
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return jr({ error: "POST only" }, 405);
 
-  const guard = await requireTeamAccess(req);
-  if (!guard.ok) return guard.resp;
+  // Aceita CRON_SECRET via header x-cron-secret (chamadas agendadas pg_cron),
+  // OU service_role / usuário admin via Authorization Bearer.
+  const cronHeader = req.headers.get("x-cron-secret");
+  const isCron = CRON_SECRET && cronHeader && cronHeader === CRON_SECRET;
+  if (!isCron) {
+    const guard = await requireTeamAccess(req);
+    if (!guard.ok) return guard.resp;
+  }
 
   let body: Body = {};
   try { body = await req.json(); } catch { /* body opcional */ }
