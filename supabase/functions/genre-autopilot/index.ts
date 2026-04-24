@@ -480,9 +480,10 @@ Deno.serve(async (req) => {
   }
 
   // ─ Dispara pipeline em background e responde imediatamente ─
-  // @ts-ignore — EdgeRuntime existe no runtime Supabase
-  if (typeof EdgeRuntime !== "undefined" && (EdgeRuntime as any).waitUntil) {
-    (EdgeRuntime as any).waitUntil(runPipeline(sb, run.id, genreId, toGenerate, targetMeta));
+  // deno-lint-ignore no-explicit-any
+  const ER: any = (globalThis as any).EdgeRuntime;
+  if (ER && typeof ER.waitUntil === "function") {
+    ER.waitUntil(runPipeline(sb, run.id, genreId, toGenerate, targetMeta));
   } else {
     // Fallback (não deveria ocorrer no Supabase Edge)
     runPipeline(sb, run.id, genreId, toGenerate, targetMeta);
