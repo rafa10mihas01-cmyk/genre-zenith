@@ -157,6 +157,9 @@ export default function Cerebro() {
         }
       />
 
+      {/* PAINEL DE PROGRESSO AO VIVO — aparece quando autopilot está rodando */}
+      <AutopilotLivePanel genreId={genre?.id} />
+
       {/* FAIXA DE GÊNEROS — chips coloridos com scroll horizontal */}
       <GenreStrip genres={genres} activeSlug={activeSlug} onPick={handleChangeGenre} />
 
