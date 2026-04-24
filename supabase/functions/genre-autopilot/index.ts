@@ -125,9 +125,12 @@ async function runPipeline(
   runId: string,
   genreId: string,
   maxTemplates: number,
+  targetMeta: Record<string, unknown> = {},
 ) {
   const startedAt = Date.now();
-  const cacheHits: Record<string, boolean> = {};
+  const cacheHits: Record<string, boolean> = { ...(targetMeta ? { __target: true } : {}) };
+  // remove flag interna depois (apenas marcador que houve cálculo dinâmico)
+  delete cacheHits.__target;
   let templatesGenerated = 0;
   let templatesApproved = 0;
   let coversGenerated = 0;
