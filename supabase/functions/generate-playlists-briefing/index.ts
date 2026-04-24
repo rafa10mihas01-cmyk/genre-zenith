@@ -730,13 +730,21 @@ Deno.serve(async (req) => {
           artistas: c.base_musical.artistas_principais,
           playlists_referencia: (c.playlists_referencia ?? []).map((p: any) => p.nome),
           dna_visual: dnaVisual,
+          nomes_existentes: [...nomesExistentes, ...nomesNaRun],
         });
-        if (brief.nome) c.nome = brief.nome;
+        if (brief.nome) {
+          c.nome = brief.nome;
+          nomesNaRun.push(brief.nome);
+        }
         c.briefing_ai = {
           regras_nome: brief.regras_nome,
           capa_instrucao: brief.capa_instrucao,
           descricao: brief.descricao,
           regras_obrigatorias: brief.regras_obrigatorias,
+          identidade: brief.identidade,
+          gatilho_emocional: brief.gatilho_emocional,
+          momento_consumo: brief.momento_consumo,
+          diferencial: brief.diferencial,
           provider: aiStats.provider,
         };
         c.origem_ia = true;
