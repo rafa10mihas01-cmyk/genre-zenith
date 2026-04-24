@@ -926,6 +926,20 @@ async function resumePipeline(jobId: string, slug: string) {
     return;
   }
   const gid = genre.id;
+  // 🚨 Audit #9 A.2 — também rastreia resume em autopilot_runs
+  let autopilotRunId: string | null = null;
+  try {
+    const { data: arRow } = await supabase
+      .from("autopilot_runs")
+      .insert({
+        genre_id: gid, status: "running", current_step: "brain-run:resume",
+        progress_pct: 70, triggered_by: "brain-run:resume",
+      })
+      .select("id").single();
+    autopilotRunId = arRow?.id ?? null;
+  } catch (e) {
+    console.warn("[resumePipeline] autopilot_runs insert failed:", (e as Error).message);
+  }
   await setJob(supabase, gid, jobId, autopilotRunId, { status: "running", stage: "Retomando enriquecimento...", progress: 70 });
 
   try {
