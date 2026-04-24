@@ -80,10 +80,9 @@ let cachedWhite: Image | null = null;
 let cachedBlack: Image | null = null;
 
 async function loadLogo(path: string): Promise<Image> {
-  const url = `${SUPABASE_URL}/storage/v1/object/brand-assets/${path}`;
-  const resp = await fetch(url, { headers: { Authorization: `Bearer ${SRK}` } });
-  if (!resp.ok) throw new Error(`logo fetch ${resp.status}: ${path}`);
-  const buf = new Uint8Array(await resp.arrayBuffer());
+  const { data, error } = await _storageClient.storage.from(BRAND_BUCKET).download(path);
+  if (error || !data) throw new Error(`logo download failed: ${path} — ${error?.message ?? "no data"}`);
+  const buf = new Uint8Array(await data.arrayBuffer());
   return await Image.decode(buf);
 }
 
