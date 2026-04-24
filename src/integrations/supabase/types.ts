@@ -1289,6 +1289,14 @@ export type Database = {
       }
     }
     Functions: {
+      cleanup_old_logs_and_snapshots: {
+        Args: never
+        Returns: {
+          logs_deleted: number
+          snapshots_deleted: number
+          tracks_deleted: number
+        }[]
+      }
       cleanup_stale_autopilot_runs: {
         Args: { p_minutes?: number }
         Returns: number
