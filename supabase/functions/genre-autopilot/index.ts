@@ -323,8 +323,13 @@ async function runPipeline(
     }
 
     // ─── DONE ────────────────────────────────────────────────────
+    const tierLabel = targetMeta.performance_tier ? ` · perf=${targetMeta.performance_tier}` : "";
+    const targetLabel = targetMeta.target_today != null
+      ? ` · alvo=${targetMeta.target_today}/dia (gerar=${maxTemplates})`
+      : ` · gerar=${maxTemplates}`;
     const summary =
       `${templatesGenerated} templates gerados · ${templatesApproved} aprovados automaticamente · ${coversGenerated} capas criadas` +
+      targetLabel + tierLabel +
       (Object.keys(cacheHits).length ? ` · cache: ${Object.keys(cacheHits).join(", ")}` : "");
 
     await updateRun(sb, runId, {
