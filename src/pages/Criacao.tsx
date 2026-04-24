@@ -931,7 +931,11 @@ function TemplateDetailDialog({
     setBusy(null);
     onGeneratingChange?.(targetId, false);
     if (error || !(data as any)?.ok) {
-      toast({ title: "Falha ao gerar capa", description: error?.message || (data as any)?.error || "Erro", variant: "destructive" });
+      toast({
+        title: "Falha ao gerar capa",
+        description: getCoverGenerationErrorMessage(error, data),
+        variant: "destructive",
+      });
       return;
     }
     const variation = (data as any)?.variation as { index: number; url: string; palette?: string } | undefined;
@@ -1020,22 +1024,9 @@ function TemplateDetailDialog({
     setBusy(null);
 
     if (error || !(data as any)?.ok) {
-      // Tenta extrair body JSON do erro (ex.: 402 / 429)
-      let parsed: any = data;
-      const ctx: any = (error as any)?.context;
-      if (ctx?.json) {
-        try { parsed = await ctx.json(); } catch { /* ignore */ }
-      }
-      const code = parsed?.code;
-      const description =
-        code === "AI_PAYMENT_REQUIRED"
-          ? "Sem créditos de IA. Adicione saldo em Settings → Workspace → Usage."
-          : code === "AI_RATE_LIMITED"
-          ? "Muitas requisições. Aguarde alguns segundos e tente de novo."
-          : parsed?.error || error?.message || "Erro desconhecido";
       toast({
         title: "Falha ao gerar outra capa",
-        description,
+        description: getCoverGenerationErrorMessage(error, data),
         variant: "destructive",
       });
       return;
