@@ -114,11 +114,11 @@ export default function Cerebro() {
     navigate(`/cerebro/${s}`);
   };
 
-  const runBrain = async () => {
+  const runBrain = async (force = false) => {
     if (!genre?.id || autopilotRunning || running) return;
     setRunning(true);
     try {
-      await startAutopilot(5);
+      await startAutopilot(5, { force });
     } finally {
       setRunning(false);
     }
@@ -139,10 +139,21 @@ export default function Cerebro() {
         title="Cérebro"
         subtitle="Analisar dados e gerar inteligência"
         actions={
-          <Button onClick={runBrain} disabled={running || autopilotRunning || !genre?.id} className="nx-pill">
-            {(running || autopilotRunning) ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-            {autopilotRunning ? "Rodando..." : "Atualizar inteligência"}
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => runBrain(true)}
+              disabled={running || autopilotRunning || !genre?.id}
+              className="nx-pill"
+              title="Ignora o cooldown de 1h"
+            >
+              Forçar execução
+            </Button>
+            <Button onClick={() => runBrain(false)} disabled={running || autopilotRunning || !genre?.id} className="nx-pill">
+              {(running || autopilotRunning) ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              {autopilotRunning ? "Rodando..." : "Atualizar inteligência"}
+            </Button>
+          </div>
         }
       />
 
