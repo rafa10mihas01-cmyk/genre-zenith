@@ -93,6 +93,8 @@ Deno.serve(async (req) => {
   if (tpl.status !== "approved" && tpl.status !== "created") {
     return jr({ error: `template não aprovado (status=${tpl.status})` }, 400);
   }
+  // 🔒 Idempotência: se já tem spotify_playlist_id, retorna o existente (não recria).
+  // UNIQUE index (Audit #12) também bloqueia no nível do DB caso passe.
   if (tpl.spotify_playlist_id) {
     return jr({
       ok: true, already_created: true,
@@ -101,6 +103,23 @@ Deno.serve(async (req) => {
       tracks_added: tpl.tracks_added, tracks_failed: tpl.tracks_failed,
     });
   }
+
+  // 🔒 Audit #12 — Lock por template (evita 2 chamadas simultâneas criando 2 playlists no Spotify)
+  const lockSince = new Date(Date.now() - 120_000).toISOString();
+  const { data: recentCreate } = await supabase
+    .from("collection_logs")
+    .select("id")
+    .eq("acao", "create-spotify-playlist-lock")
+    .ilike("mensagem", `%${templateId}%`)
+    .gte("created_at", lockSince)
+    .limit(1);
+  if (recentCreate && recentCreate.length > 0) {
+    return jr({ ok: false, error: "criação já em andamento para este template (lock 120s)" }, 409);
+  }
+  await supabase.from("collection_logs").insert({
+    acao: "create-spotify-playlist-lock", status: "lock",
+    mensagem: `template=${templateId}`,
+  }).then(() => {}, () => {});
 
   // 🎯 Auto-seleção de conta: se não veio spotify_user_id, escolhe a conta ativa
   // com mais espaço disponível (current_playlists asc).

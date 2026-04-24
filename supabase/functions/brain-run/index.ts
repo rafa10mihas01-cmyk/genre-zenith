@@ -93,7 +93,7 @@ async function acquireLock(
       acao,
       status: "warning",
       mensagem: `lock skip: já executou nos últimos ${windowSec}s`,
-    }).then(() => {}, () => {});
+    }).then(() => {}, (e) => console.error("[brain-run] log insert failed:", e?.message));
     return false;
   }
   // Reserva o slot — mesmo se a função demorar, runs paralelos vão ver este lock.
@@ -102,7 +102,7 @@ async function acquireLock(
     acao,
     status: "lock",
     mensagem: `lock acquired (window ${windowSec}s)`,
-  }).then(() => {}, () => {});
+  }).then(() => {}, (e) => console.error("[brain-run] log insert failed:", e?.message));
   return true;
 }
 
@@ -118,7 +118,7 @@ async function ensureBriefing(supabase: any, gid: string, stages: Record<string,
     await supabase.from("collection_logs").insert({
       genre_id: gid, acao: "generate-briefing", status: "erro",
       mensagem: "Briefing pulado: genre_model inexistente",
-    }).then(() => {}, () => {});
+    }).then(() => {}, (e) => console.error("[brain-run] log insert failed:", e?.message));
     return;
   }
   // 🔒 Lock: se outro pipeline já gerou briefing nos últimos 5 min, pula
@@ -143,7 +143,7 @@ async function ensureBriefing(supabase: any, gid: string, stages: Record<string,
         await supabase.from("collection_logs").insert({
           genre_id: gid, acao: "generate-briefing", status: "erro",
           mensagem: `Briefing falhou após 2 tentativas: ${(d?.error ?? `HTTP ${br.status}`).toString().slice(0, 400)}`,
-        }).then(() => {}, () => {});
+        }).then(() => {}, (e) => console.error("[brain-run] log insert failed:", e?.message));
       }
     } catch (e) {
       stages.briefing = { ok: false, attempt, error: (e as Error).message };
@@ -151,7 +151,7 @@ async function ensureBriefing(supabase: any, gid: string, stages: Record<string,
         await supabase.from("collection_logs").insert({
           genre_id: gid, acao: "generate-briefing", status: "erro",
           mensagem: `Briefing exception: ${(e as Error).message.slice(0, 400)}`,
-        }).then(() => {}, () => {});
+        }).then(() => {}, (e) => console.error("[brain-run] log insert failed:", e?.message));
       }
     }
     if (attempt === 1) await new Promise((r) => setTimeout(r, 1500));
@@ -188,7 +188,7 @@ async function setJob(
       arPatch.error_message = (payload.error ?? "").slice(0, 500);
     }
     await supabase.from("autopilot_runs").update(arPatch).eq("id", autopilotRunId)
-      .then(() => {}, () => {});
+      .then(() => {}, (e) => console.error("[brain-run] log insert failed:", e?.message));
   }
 }
 
@@ -233,7 +233,7 @@ async function runPipeline(jobId: string, body: StartBody) {
     await supabase.from("collection_logs").insert({
       genre_id: gid, acao: `brain-job:${jobId}`, status: "warning",
       mensagem: JSON.stringify({ status: "error", stage: "init", progress: 0, error: "Run já em andamento para este gênero (lock 10min). Aguarde a anterior terminar." }),
-    }).then(() => {}, () => {});
+    }).then(() => {}, (e) => console.error("[brain-run] log insert failed:", e?.message));
     return;
   }
 
@@ -262,7 +262,7 @@ async function runPipeline(jobId: string, body: StartBody) {
       acao: "autopilot_runs_insert_failed",
       status: "erro",
       mensagem: msg.slice(0, 300),
-    }).then(() => {}, () => {});
+    }).then(() => {}, (e) => console.error("[brain-run] log insert failed:", e?.message));
   }
 
   await setJob(supabase, gid, jobId, autopilotRunId, {
@@ -437,7 +437,7 @@ async function runPipeline(jobId: string, body: StartBody) {
           await supabase.from("collection_logs").insert({
             genre_id: gid, acao: "brain-run", status: "erro",
             mensagem: `generate-terms falhou: ${(gt.data as any)?.error ?? `HTTP ${gt.status}`}`,
-          }).then(() => {}, () => {});
+          }).then(() => {}, (e) => console.error("[brain-run] log insert failed:", e?.message));
         }
       }
       // Seleciona top N termos priorizando: completo > variacao > contextual > prefixo
@@ -1112,7 +1112,7 @@ Deno.serve(async (req) => {
       await supabaseCheck.from("collection_logs").insert({
         acao: "survival-mode", status: "ok",
         mensagem: "Pipeline iniciado em modo sobrevivência (Apify bloqueado) — usando cache + IA",
-      }).then(() => {}, () => {});
+      }).then(() => {}, (e) => console.error("[brain-run] log insert failed:", e?.message));
     }
   }
 
