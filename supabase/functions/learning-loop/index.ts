@@ -12,6 +12,7 @@
 // POST { skip?: string[], dry_run?: boolean } → { ok, run_id, status, steps }
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { requireTeamAccess } from "../_shared/auth.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -77,6 +78,10 @@ function summarizeStep(name: string, r: StepResult): string {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
+  if (req.method !== "OPTIONS") {
+    const guard = await requireTeamAccess(req);
+    if (!guard.ok) return guard.resp;
+  }
   let body: { skip?: string[]; dry_run?: boolean; triggered_by?: string } = {};
   try { if (req.method === "POST") body = await req.json(); } catch {}
   const skip = new Set(body.skip ?? []);

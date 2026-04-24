@@ -4,6 +4,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getUserAccessToken } from "../_shared/spotify.ts";
+import { requireTeamAccess } from "../_shared/auth.ts";
 // WASM puro — funciona no edge runtime do Deno (sem libs nativas)
 import decodePng from "npm:@jsquash/png@3.1.0/decode.js";
 import decodeJpeg from "npm:@jsquash/jpeg@1.5.0/decode.js";
@@ -55,6 +56,19 @@ async function imageToJpegUnderLimit(buf: Uint8Array, contentType: string): Prom
   throw new Error("não foi possível comprimir a capa abaixo de 256KB");
 }
 
+// A.2 — SSRF guard: só aceita URLs do storage interno do Lovable Cloud
+function isAllowedImageUrl(url: string): boolean {
+  try {
+    const u = new URL(url);
+    if (u.protocol !== "https:") return false;
+    // Whitelist: hostname do próprio Supabase storage do projeto
+    const supaHost = new URL(SUPABASE_URL).hostname;
+    return u.hostname === supaHost;
+  } catch {
+    return false;
+  }
+}
+
 async function fetchAsBase64Jpeg(url: string): Promise<string> {
   const r = await fetch(url);
   if (!r.ok) throw new Error(`fetch image ${r.status}`);
@@ -71,9 +85,15 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return jr({ error: "POST only" }, 405);
 
+  const guard = await requireTeamAccess(req);
+  if (!guard.ok) return guard.resp;
+
   let body: { template_id?: string; image_url?: string };
   try { body = await req.json(); } catch { return jr({ error: "invalid json" }, 400); }
   if (!body.template_id || !body.image_url) return jr({ error: "template_id e image_url obrigatórios" }, 400);
+  if (!isAllowedImageUrl(body.image_url)) {
+    return jr({ error: "image_url não permitida (apenas storage interno)" }, 400);
+  }
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
   const { data: tpl } = await supabase

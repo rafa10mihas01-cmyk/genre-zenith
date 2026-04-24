@@ -3,6 +3,7 @@
 // Claude NÃO calcula nada. Só interpreta o dataset.
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { requireTeamAccess } from "../_shared/auth.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -93,6 +94,10 @@ async function callClaude(systemPrompt: string, userPayload: any) {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
+  if (req.method !== "OPTIONS") {
+    const guard = await requireTeamAccess(req);
+    if (!guard.ok) return guard.resp;
+  }
   let body: { genre_id?: string; min_age_hours?: number } = {};
   try { if (req.method === "POST") body = await req.json(); } catch {}
 
