@@ -27,6 +27,23 @@ export type AuthGuardResult =
   | { ok: true; via: "service_role" | "user"; userId?: string }
   | { ok: false; resp: Response };
 
+// Comparação constant-time para evitar timing attacks na validação do SERVICE_KEY.
+// Bytes diferentes ou tamanhos diferentes → false (sem early return baseado em conteúdo).
+function safeEqual(a: string, b: string): boolean {
+  const enc = new TextEncoder();
+  const ab = enc.encode(a);
+  const bb = enc.encode(b);
+  if (ab.length !== bb.length) {
+    // Compara mesmo assim com tamanho fixo pra reduzir leak de length
+    let diff = ab.length ^ bb.length;
+    for (let i = 0; i < Math.min(ab.length, bb.length); i++) diff |= ab[i] ^ bb[i];
+    return diff === 0;
+  }
+  let diff = 0;
+  for (let i = 0; i < ab.length; i++) diff |= ab[i] ^ bb[i];
+  return diff === 0;
+}
+
 /**
  * Garante que a chamada vem do service role OU de um usuário admin/curador.
  * Use no início de qualquer edge function que dispara IA cara, publica no Spotify
@@ -39,8 +56,8 @@ export async function requireTeamAccess(req: Request): Promise<AuthGuardResult> 
   }
   const token = authHeader.replace("Bearer ", "").trim();
 
-  // Caminho 1: service role (chamadas internas)
-  if (token === SERVICE_KEY) {
+  // Caminho 1: service role (chamadas internas) — comparação constant-time
+  if (safeEqual(token, SERVICE_KEY)) {
     return { ok: true, via: "service_role" };
   }
 
