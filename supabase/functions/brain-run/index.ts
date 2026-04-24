@@ -577,7 +577,7 @@ async function runPipeline(jobId: string, body: StartBody) {
 
     const { data: kept } = await supabase
       .from("search_results")
-      .select("id,posicao,seguidores,times_seen")
+      .select("id,posicao,seguidores,times_seen,priority_score")
       .eq("genre_id", gid);
     const keptArr = kept ?? [];
 
@@ -602,7 +602,7 @@ async function runPipeline(jobId: string, body: StartBody) {
         ? Math.min(1, Math.log10(r.seguidores + 1) / LOG_MAX) : 0;
       const seenScore = Math.min(5, r.times_seen ?? 1) / 5;
       const score = posScore * 0.4 + folScore * 0.4 + seenScore * 0.2;
-      return { id: r.id, seguidores: r.seguidores, score };
+      return { id: r.id, seguidores: r.seguidores, score, prevScore: r.priority_score ?? null };
     });
     // Aplica threshold (quem ainda não tem followers passa pra ser enriquecido depois)
     const passing = dynamicMin > 0
@@ -613,10 +613,15 @@ async function runPipeline(jobId: string, body: StartBody) {
     const selectedSet = new Set(selectedIds);
     const droppedIds = keptArr.filter((r: any) => !selectedSet.has(r.id)).map((r: any) => r.id);
 
-    // Persiste score em paralelo (chunks) — antes era N updates em série (~60-90s, fazia o job parecer travado)
+    // 🟢 C.2 — só atualiza scores que mudaram (evita churn em search_results)
+    //   Antes: ~9k updates em 123 rows por loop. Agora: só toca quando delta > 0.001.
+    const SCORE_EPSILON = 0.001;
+    const dirty = scored.filter(s =>
+      s.prevScore == null || Math.abs((s.prevScore as number) - s.score) > SCORE_EPSILON
+    );
     const CHUNK = 25;
-    for (let i = 0; i < scored.length; i += CHUNK) {
-      const slice = scored.slice(i, i + CHUNK);
+    for (let i = 0; i < dirty.length; i += CHUNK) {
+      const slice = dirty.slice(i, i + CHUNK);
       await Promise.all(slice.map(s =>
         supabase.from("search_results").update({ priority_score: s.score }).eq("id", s.id)
       ));
@@ -624,11 +629,12 @@ async function runPipeline(jobId: string, body: StartBody) {
       if (i > 0 && i % (CHUNK * 4) === 0) {
         await setJob(supabase, gid, jobId, {
           status: "running",
-          stage: `Priorizando playlists... (${Math.min(i + CHUNK, scored.length)}/${scored.length})`,
+          stage: `Priorizando playlists... (${Math.min(i + CHUNK, dirty.length)}/${dirty.length})`,
           progress: 65,
         });
       }
     }
+    stages.prioritize_skipped = scored.length - dirty.length;
     // Descarte das não-selecionadas em chunks (evita payload gigante no .in())
     if (droppedIds.length > 0) {
       await setJob(supabase, gid, jobId, {
