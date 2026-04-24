@@ -64,6 +64,7 @@ type OpPlaylist = {
   spotify_url: string | null;
   spotify_playlist_id: string | null;
   created_on_spotify_at: string | null;
+  cover_image_url: string | null;
 };
 
 type Adjustment = {
@@ -98,7 +99,7 @@ export default function Operacao() {
     const [{ data: tpls }, { data: snaps }, { data: adjs }, { data: genres }, { data: accs }] = await Promise.all([
       supabase
         .from("playlist_templates")
-        .select("id,name,genre_id,status,spotify_playlist_id,spotify_url,created_on_spotify_at,followers_at_creation,tracks_added,performance_class")
+        .select("id,name,genre_id,status,spotify_playlist_id,spotify_url,created_on_spotify_at,followers_at_creation,tracks_added,performance_class,cover_image_url,cover_variations,cover_selected_index")
         .not("spotify_playlist_id", "is", null)
         .order("created_on_spotify_at", { ascending: false, nullsFirst: false }),
       supabase
@@ -129,7 +130,7 @@ export default function Operacao() {
       }
     }
 
-    const list: OpPlaylist[] = (tpls ?? []).map(t => {
+    const list: OpPlaylist[] = (tpls ?? []).map((t: any) => {
       const snap = lastSnap.get(t.id);
       const followersNow = snap?.followers ?? t.followers_at_creation ?? 0;
       const followersStart = t.followers_at_creation ?? 0;
@@ -139,6 +140,14 @@ export default function Operacao() {
       if (t.performance_class === "alta" || delta > 5) status = "crescimento";
       else if (t.performance_class === "baixa" || delta < -5) status = "queda";
       else if (!t.created_on_spotify_at || (Date.now() - new Date(t.created_on_spotify_at).getTime()) < 48 * 3600 * 1000) status = "teste";
+
+      // Resolve a capa: cover_image_url > variation selecionada > primeira variation
+      let cover: string | null = t.cover_image_url ?? null;
+      if (!cover && Array.isArray(t.cover_variations) && t.cover_variations.length > 0) {
+        const idx = typeof t.cover_selected_index === "number" ? t.cover_selected_index : 0;
+        const v = t.cover_variations[idx] ?? t.cover_variations[0];
+        cover = (typeof v === "string" ? v : v?.url ?? v?.image_url) ?? null;
+      }
 
       return {
         id: t.id,
@@ -151,6 +160,7 @@ export default function Operacao() {
         spotify_url: t.spotify_url,
         spotify_playlist_id: t.spotify_playlist_id,
         created_on_spotify_at: t.created_on_spotify_at,
+        cover_image_url: cover,
       };
     });
 
@@ -298,29 +308,28 @@ export default function Operacao() {
               </div>
             </div>
 
-            <div className="nx-card !p-0 overflow-hidden">
-              {/* Header da tabela: só desktop. No mobile usamos cards. */}
-              <div className="hidden md:grid grid-cols-12 gap-3 px-4 py-3 text-[10px] uppercase tracking-wider text-muted-foreground font-bold border-b border-border">
-                <div className="col-span-4">Playlist</div>
-                <div className="col-span-2">Status</div>
-                <div className="col-span-2 text-right">Seguidores</div>
-                <div className="col-span-1 text-right">Faixas</div>
-                <div className="col-span-1 text-right">Trocas (7d)</div>
-                <div className="col-span-2 text-right">Ações</div>
-              </div>
-              {loading && playlistsAll.length === 0 ? (
-                <SkeletonRows />
-              ) : playlists.length === 0 ? (
+            {/* Lista em CARDS — grid responsivo (1 / 2 / 3 colunas) */}
+            {loading && playlistsAll.length === 0 ? (
+              <PlaylistGridSkeleton />
+            ) : playlists.length === 0 ? (
+              <div className="nx-card">
                 <EmptyRow
                   title={playlistsAll.length === 0 ? "Nenhuma playlist em operação" : "Nada com esse filtro"}
                   msg={playlistsAll.length === 0
                     ? "Quando uma playlist for publicada no Spotify pelo módulo Criação, ela aparece aqui automaticamente."
                     : "Tente outro filtro ou limpe a busca."}
                 />
-              ) : (
-                playlists.map((p) => <PlaylistRow key={p.id} p={p} />)
-              )}
-            </div>
+              </div>
+            ) : (
+              <>
+                <div className="text-[11px] text-muted-foreground tabular-nums px-1">
+                  Mostrando <strong className="text-foreground">{playlists.length}</strong> de {playlistsAll.length} playlists
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                  {playlists.map((p) => <PlaylistCard key={p.id} p={p} />)}
+                </div>
+              </>
+            )}
 
             {/* Histórico colapsável no rodapé */}
             <HistoryDrawer adjustments={adjustments} playlistsAll={playlistsAll} />
@@ -399,93 +408,109 @@ function StatusPill({ status }: { status: OpStatus }) {
   );
 }
 
-const PlaylistRow = memo(function PlaylistRow({ p }: { p: OpPlaylist }) {
+/* ---------------- Playlist CARD (novo formato) ---------------- */
+
+const PlaylistCard = memo(function PlaylistCard({ p }: { p: OpPlaylist }) {
+  const [imgError, setImgError] = useState(false);
+  const showImage = p.cover_image_url && !imgError;
+
   return (
-    <>
-      {/* MOBILE: card empilhado */}
-      <div className="md:hidden px-4 py-3 border-b border-border last:border-0 hover:bg-elevated/40 transition-colors">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="h-10 w-10 rounded-md bg-elevated border border-border shrink-0 flex items-center justify-center">
-            <Music2 className="h-4 w-4 text-muted-foreground" />
+    <article className="nx-card !p-0 overflow-hidden group hover:border-foreground/25 transition-colors flex flex-col">
+      {/* Header com capa + status sobreposto */}
+      <div className="relative aspect-[16/7] bg-elevated overflow-hidden">
+        {showImage ? (
+          <img
+            src={p.cover_image_url!}
+            alt={p.nome}
+            loading="lazy"
+            onError={() => setImgError(true)}
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-elevated to-muted/40">
+            <Music2 className="h-8 w-8 text-muted-foreground/40" />
           </div>
-          <div className="min-w-0 flex-1">
-            <div className="text-sm font-medium truncate">{p.nome}</div>
-            <div className="text-[11px] text-muted-foreground truncate capitalize">
-              {p.genero}
-            </div>
-          </div>
+        )}
+        {/* Gradient overlay pra legibilidade do status */}
+        <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-background/0 to-background/0 pointer-events-none" />
+        <div className="absolute top-2 right-2">
           <StatusPill status={p.status} />
-        </div>
-        <div className="mt-2.5 flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
-          <div className="flex items-center gap-3">
-            <span><span className="text-foreground font-medium tabular-nums">{formatNumber(p.seguidores)}</span> seguidores</span>
-            <span><span className="text-foreground font-medium tabular-nums">{p.faixas ?? "—"}</span> faixas</span>
-            <span><span className="text-foreground font-medium tabular-nums">{p.trocas7d ?? 0}</span> trocas</span>
-          </div>
-          <div className="flex items-center gap-0.5 -mr-1.5">
-            {p.spotify_url && (
-              <a href={p.spotify_url} target="_blank" rel="noreferrer" className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:text-primary" title="Abrir no Spotify">
-                <ExternalLink className="h-4 w-4" />
-              </a>
-            )}
-            <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground" title="Editar"><Pencil className="h-4 w-4" /></Button>
-            <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground" title="Pausar"><Pause className="h-4 w-4" /></Button>
-          </div>
         </div>
       </div>
 
-      {/* DESKTOP: linha em grid (mantida) */}
-      <div className="hidden md:grid grid-cols-12 gap-3 px-4 py-3 items-center border-b border-border last:border-0 hover:bg-elevated/40 transition-colors">
-        <div className="col-span-4 flex items-center gap-3 min-w-0">
-          <div className="h-10 w-10 rounded-md bg-elevated border border-border shrink-0 flex items-center justify-center">
-            <Music2 className="h-4 w-4 text-muted-foreground" />
-          </div>
-          <div className="min-w-0">
-            <div className="text-sm font-medium truncate">{p.nome}</div>
-            <div className="text-[11px] text-muted-foreground truncate capitalize">
-              {p.genero}{p.created_on_spotify_at && ` · publicada ${timeAgo(p.created_on_spotify_at)}`}
-            </div>
-          </div>
+      {/* Corpo */}
+      <div className="p-3.5 flex-1 flex flex-col gap-2.5">
+        <div className="min-w-0">
+          <h4 className="text-sm font-semibold leading-tight line-clamp-2" title={p.nome}>
+            {p.nome}
+          </h4>
+          <p className="text-[11px] text-muted-foreground mt-0.5 truncate capitalize">
+            {p.genero}
+            {p.created_on_spotify_at && <> · publicada {timeAgo(p.created_on_spotify_at)}</>}
+          </p>
         </div>
-        <div className="col-span-2"><StatusPill status={p.status} /></div>
-        <div className="col-span-2 text-right text-sm tabular-nums">{formatNumber(p.seguidores)}</div>
-        <div className="col-span-1 text-right text-sm tabular-nums">{p.faixas ?? "—"}</div>
-        <div className="col-span-1 text-right text-sm tabular-nums">{p.trocas7d ?? 0}</div>
-        <div className="col-span-2 flex items-center justify-end gap-1">
+
+        {/* Métricas em mini-grid */}
+        <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border/60">
+          <Metric label="Seguidores" value={formatNumber(p.seguidores)} />
+          <Metric label="Faixas" value={p.faixas ?? "—"} />
+          <Metric label="Trocas 7d" value={p.trocas7d ?? 0} tone={p.trocas7d > 0 ? "primary" : "default"} />
+        </div>
+
+        {/* Ações */}
+        <div className="flex items-center gap-1 pt-1 mt-auto">
           {p.spotify_url && (
-            <a href={p.spotify_url} target="_blank" rel="noreferrer" className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:text-primary" title="Abrir no Spotify">
-              <ExternalLink className="h-3.5 w-3.5" />
+            <a
+              href={p.spotify_url}
+              target="_blank"
+              rel="noreferrer"
+              className="flex-1 inline-flex h-8 items-center justify-center gap-1.5 rounded-md border border-success/30 bg-success/10 text-success hover:bg-success/20 text-xs font-medium transition-colors"
+              title="Abrir no Spotify"
+            >
+              <ExternalLink className="h-3 w-3" /> Abrir
             </a>
           )}
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" title="Editar"><Pencil className="h-3.5 w-3.5" /></Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" title="Trocar faixas"><RefreshCw className="h-3.5 w-3.5" /></Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" title="Pausar"><Pause className="h-3.5 w-3.5" /></Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" title="Editar">
+            <Pencil className="h-3.5 w-3.5" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" title="Trocar faixas">
+            <RefreshCw className="h-3.5 w-3.5" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" title="Pausar">
+            <Pause className="h-3.5 w-3.5" />
+          </Button>
         </div>
       </div>
-    </>
+    </article>
   );
 });
 
-/** Skeleton de linhas — preserva altura do container e evita "salto" visual durante o load. */
-function SkeletonRows() {
+function Metric({ label, value, tone = "default" }: { label: string; value: string | number; tone?: "default" | "primary" }) {
   return (
-    <div>
+    <div className="min-w-0">
+      <div className="text-[9px] uppercase tracking-wider text-muted-foreground font-bold truncate">{label}</div>
+      <div className={cn("text-sm font-semibold tabular-nums truncate", tone === "primary" ? "text-primary" : "text-foreground")}>
+        {value}
+      </div>
+    </div>
+  );
+}
+
+/** Skeleton em formato de grid de cards — mantém altura estável durante o load. */
+function PlaylistGridSkeleton() {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
       {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} className="grid grid-cols-12 gap-3 px-4 py-3 items-center border-b border-border last:border-0">
-          <div className="col-span-4 flex items-center gap-3">
-            <Skeleton className="h-10 w-10 rounded-md bg-muted/60" />
-            <div className="space-y-1.5 flex-1 min-w-0">
-              <Skeleton className="h-3.5 w-3/4 bg-muted/60" />
-              <Skeleton className="h-2.5 w-1/2 bg-muted/40" />
+        <div key={i} className="nx-card !p-0 overflow-hidden">
+          <Skeleton className="aspect-[16/7] w-full rounded-none bg-muted/40" />
+          <div className="p-3.5 space-y-3">
+            <Skeleton className="h-4 w-3/4 bg-muted/50" />
+            <Skeleton className="h-3 w-1/2 bg-muted/40" />
+            <div className="grid grid-cols-3 gap-2 pt-2">
+              <Skeleton className="h-6 bg-muted/40" />
+              <Skeleton className="h-6 bg-muted/40" />
+              <Skeleton className="h-6 bg-muted/40" />
             </div>
-          </div>
-          <div className="col-span-2"><Skeleton className="h-5 w-20 rounded-full bg-muted/50" /></div>
-          <div className="col-span-2 flex justify-end"><Skeleton className="h-3.5 w-14 bg-muted/50" /></div>
-          <div className="col-span-1 flex justify-end"><Skeleton className="h-3.5 w-8 bg-muted/40" /></div>
-          <div className="col-span-1 flex justify-end"><Skeleton className="h-3.5 w-6 bg-muted/40" /></div>
-          <div className="col-span-2 flex justify-end gap-1">
-            <Skeleton className="h-8 w-8 rounded-md bg-muted/40" />
-            <Skeleton className="h-8 w-8 rounded-md bg-muted/40" />
           </div>
         </div>
       ))}
