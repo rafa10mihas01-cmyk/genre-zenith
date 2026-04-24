@@ -22,17 +22,24 @@ import { requireTeamAccess } from "../_shared/auth.ts";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-const COOLDOWN_MS = 60 * 60 * 1000;        // 1h
-const ANALYZE_CACHE_MS = 24 * 60 * 60 * 1000; // 24h
-const BRIEFING_CACHE_MS = 7 * 24 * 60 * 60 * 1000; // 7d
-// Teto de segurança quando o body força um número (ou quando algo der errado no cálculo dinâmico).
+// Cooldown adaptativo: 6h padrão, mas reduz pra 1h se houve coleta nova desde a última run.
+const COOLDOWN_MS_DEFAULT = 6 * 60 * 60 * 1000;     // 6h sem coleta nova
+const COOLDOWN_MS_AFTER_COLLECT = 60 * 60 * 1000;   // 1h se houve coleta
+const ANALYZE_CACHE_MS = 24 * 60 * 60 * 1000;       // 24h
+const BRIEFING_CACHE_MS = 7 * 24 * 60 * 60 * 1000;  // 7d
 const HARD_CAP_TEMPLATES = 10;
-const FALLBACK_TEMPLATES = 4; // mesmo valor de base_daily padrão
+const FALLBACK_TEMPLATES = 4;
 
-// Auto-aprovação — 25 tracks é apenas critério de VALIDAÇÃO do template.
-// O tamanho real da playlist é definido em generate-templates (proporção da playlist base ±20%, ou 40-60 se não houver base).
-const APPROVE_MIN_SCORE = 75;
-const APPROVE_TIER = "hot";
+// 🔒 GATE DE MASSA — bloqueia IA quando dados são insuficientes
+const MIN_TERMS_EXECUTED = 30;
+const MIN_PLAYLISTS_VALID = 50;
+// Auto-coleta: máximo de termos por run (cap de Apify pra não estourar)
+const AUTO_COLLECT_MAX_TERMS = 15;
+
+// Aprovação — afrouxada pra resgatar templates 'medium' bons que ficavam em limbo.
+// Aprova se: (tier=hot AND score≥75) OR (tier=medium AND score≥80). Sempre exige ≥25 tracks.
+const APPROVE_HOT_MIN_SCORE = 75;
+const APPROVE_MEDIUM_MIN_SCORE = 80;
 const APPROVE_MIN_TRACKS = 25;
 
 type Step =
