@@ -1154,18 +1154,21 @@ export type Database = {
           created_at: string
           expires_at: string
           id: string
+          singleton_key: string
         }
         Insert: {
           access_token: string
           created_at?: string
           expires_at: string
           id?: string
+          singleton_key?: string
         }
         Update: {
           access_token?: string
           created_at?: string
           expires_at?: string
           id?: string
+          singleton_key?: string
         }
         Relationships: []
       }
@@ -1218,6 +1221,7 @@ export type Database = {
           apify_blocked_reason: string | null
           created_at: string
           id: string
+          singleton_key: string
           updated_at: string
         }
         Insert: {
@@ -1226,6 +1230,7 @@ export type Database = {
           apify_blocked_reason?: string | null
           created_at?: string
           id?: string
+          singleton_key?: string
           updated_at?: string
         }
         Update: {
@@ -1234,6 +1239,7 @@ export type Database = {
           apify_blocked_reason?: string | null
           created_at?: string
           id?: string
+          singleton_key?: string
           updated_at?: string
         }
         Relationships: []

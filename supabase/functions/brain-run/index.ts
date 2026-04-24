@@ -87,6 +87,13 @@ async function acquireLock(
     .limit(1);
   if (recent && recent.length > 0) {
     console.log(`[lock] SKIP ${acao} for genre=${genreId} — already ran in last ${windowSec}s`);
+    // 🚨 Audit #8 B.5 — log warning (antes era silencioso) + notificação se padrão recorrente
+    await supabase.from("collection_logs").insert({
+      genre_id: genreId,
+      acao,
+      status: "warning",
+      mensagem: `lock skip: já executou nos últimos ${windowSec}s`,
+    }).then(() => {}, () => {});
     return false;
   }
   // Reserva o slot — mesmo se a função demorar, runs paralelos vão ver este lock.

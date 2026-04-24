@@ -54,8 +54,11 @@ export async function getSpotifyToken(forceRefresh = false): Promise<string> {
   const access_token: string = json.access_token;
   const expires_at = new Date(Date.now() + (json.expires_in ?? 3600) * 1000).toISOString();
 
-  await supabase.from("spotify_tokens").insert({ access_token, expires_at });
-  await supabase.from("spotify_tokens").delete().lt("expires_at", new Date().toISOString());
+  // 🚨 Audit #8 B.2 — UPSERT atômico em singleton row (elimina race condition INSERT+DELETE)
+  await supabase.from("spotify_tokens").upsert(
+    { singleton_key: "app", access_token, expires_at },
+    { onConflict: "singleton_key" },
+  );
 
   return access_token;
 }
