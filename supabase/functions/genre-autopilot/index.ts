@@ -502,7 +502,7 @@ async function runPipeline(
     if (templatesGenerated > 0 && templatesApproved === 0) {
       const allScored = (candidates ?? []).every((t) => t.scored_at != null);
       const reason = allScored
-        ? "Templates pontuados mas nenhum atingiu critério (score≥75 + tier=hot + ≥25 tracks)"
+        ? "Templates pontuados mas nenhum atingiu critério (hot≥75 ou medium≥80, ≥25 tracks)"
         : "score-templates não concluiu em 30s — templates ficaram sem score";
       await sb.rpc("create_notification", {
         p_type: "warning",
