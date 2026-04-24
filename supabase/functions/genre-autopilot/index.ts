@@ -375,10 +375,11 @@ Deno.serve(async (req) => {
   if (!genreId || typeof genreId !== "string") {
     return jr({ error: "genre_id obrigatório" }, 400);
   }
-  const maxTemplates = Math.min(
-    Math.max(1, Number(body.max_templates ?? DEFAULT_MAX_TEMPLATES)),
-    10,
-  );
+
+  // Override opcional do client (limitado a 1..HARD_CAP). Quando ausente, target é 100% dinâmico.
+  const explicitMax = body.max_templates != null
+    ? Math.min(Math.max(1, Number(body.max_templates)), HARD_CAP_TEMPLATES)
+    : null;
 
   const sb = createClient(SUPABASE_URL, SERVICE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
@@ -421,6 +422,46 @@ Deno.serve(async (req) => {
     .maybeSingle();
   if (!genre) return jr({ error: "Gênero não encontrado" }, 404);
 
+  // ─ Calcula target dinâmico (janela 7d + contagem hoje em SP) ─
+  let targetMeta: Record<string, unknown> = {};
+  let dynamicRemaining: number | null = null;
+  try {
+    const { data: targetRows, error: targetErr } = await sb.rpc("get_genre_daily_target", {
+      p_genre_id: genreId,
+    });
+    if (targetErr) {
+      console.warn("[autopilot] get_genre_daily_target erro:", targetErr.message);
+    } else if (Array.isArray(targetRows) && targetRows.length > 0) {
+      targetMeta = targetRows[0] as Record<string, unknown>;
+      dynamicRemaining = Number(targetMeta.remaining ?? 0);
+    }
+  } catch (e) {
+    console.warn("[autopilot] get_genre_daily_target exception:", e instanceof Error ? e.message : String(e));
+  }
+
+  // Se já atingiu o alvo do dia (e não é override manual), não cria run nem gasta IA
+  if (explicitMax == null && dynamicRemaining != null && dynamicRemaining <= 0) {
+    return jr({
+      ok: false,
+      error: `Meta diária já atingida (${targetMeta.generated_today}/${targetMeta.target_today}). Tente novamente após 00h (horário de Brasília).`,
+      target: targetMeta,
+    }, 200);
+  }
+
+  // Decide quanto gerar:
+  //   - explicit override → respeita (clampado pelo HARD_CAP)
+  //   - senão usa o `remaining` do dia
+  //   - fallback se RPC falhou
+  let toGenerate: number;
+  if (explicitMax != null) {
+    toGenerate = explicitMax;
+  } else if (dynamicRemaining != null) {
+    toGenerate = dynamicRemaining;
+  } else {
+    toGenerate = FALLBACK_TEMPLATES;
+  }
+  toGenerate = Math.min(Math.max(1, toGenerate), HARD_CAP_TEMPLATES);
+
   // ─ Cria run ─
   const { data: run, error: createErr } = await sb
     .from("autopilot_runs")
@@ -441,11 +482,11 @@ Deno.serve(async (req) => {
   // ─ Dispara pipeline em background e responde imediatamente ─
   // @ts-ignore — EdgeRuntime existe no runtime Supabase
   if (typeof EdgeRuntime !== "undefined" && (EdgeRuntime as any).waitUntil) {
-    (EdgeRuntime as any).waitUntil(runPipeline(sb, run.id, genreId, maxTemplates));
+    (EdgeRuntime as any).waitUntil(runPipeline(sb, run.id, genreId, toGenerate, targetMeta));
   } else {
     // Fallback (não deveria ocorrer no Supabase Edge)
-    runPipeline(sb, run.id, genreId, maxTemplates);
+    runPipeline(sb, run.id, genreId, toGenerate, targetMeta);
   }
 
-  return jr({ ok: true, run_id: run.id });
+  return jr({ ok: true, run_id: run.id, target: targetMeta, will_generate: toGenerate });
 });
