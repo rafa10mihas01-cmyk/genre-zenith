@@ -25,6 +25,7 @@ import { ReplicacaoAuto, ReplicacaoHistorico } from "@/components/brain/Replicac
 import { KpiBig } from "@/components/KpiBig";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { useSetSidebarKpis } from "@/contexts/SidebarContext";
+import { useAutopilot } from "@/hooks/useAutopilot";
 
 /**
  * CÉREBRO — módulo único com 6 abas internas.
