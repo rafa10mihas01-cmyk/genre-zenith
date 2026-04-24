@@ -297,11 +297,20 @@ async function runPipeline(
     await pushCompleted(sb, runId, "covers", { count: coversGenerated });
 
     // ─── 6. AUTO-APROVAR ─────────────────────────────────────────
+    // 🎯 score-templates roda em background (disparado por generate-templates).
+    // Aguarda até ~30s pelos scores (poll a cada 2s). Sem isso, lê final_score=0 e nada é aprovado.
     await setStep(sb, runId, "approve");
-    const { data: candidates } = await sb
-      .from("playlist_templates")
-      .select("id, final_score, quality_tier, tracks_added, track_seeds, status")
-      .in("id", generated);
+    let candidates: any[] | null = null;
+    for (let attempt = 0; attempt < 15; attempt++) {
+      const { data } = await sb
+        .from("playlist_templates")
+        .select("id, final_score, quality_tier, tracks_added, track_seeds, status, scored_at")
+        .in("id", generated);
+      candidates = data ?? [];
+      const allScored = candidates.length > 0 && candidates.every((t) => t.scored_at != null);
+      if (allScored) break;
+      await new Promise((r) => setTimeout(r, 2000));
+    }
 
     for (const t of candidates ?? []) {
       if (t.status !== "pending") continue;
