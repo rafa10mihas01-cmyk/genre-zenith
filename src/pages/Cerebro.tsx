@@ -21,6 +21,7 @@ import { genreStyleVars } from "@/lib/genreColors";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
 import { Variacoes, Moldes } from "@/components/brain/Replicacao";
+import { AutopilotLivePanel } from "@/components/brain/AutopilotLivePanel";
 import { ReplicacaoAuto, ReplicacaoHistorico } from "@/components/brain/ReplicacaoAuto";
 import { KpiBig } from "@/components/KpiBig";
 import { usePersistedState } from "@/hooks/usePersistedState";
@@ -156,6 +157,9 @@ export default function Cerebro() {
           </div>
         }
       />
+
+      {/* PAINEL DE PROGRESSO AO VIVO — aparece quando autopilot está rodando */}
+      <AutopilotLivePanel genreId={genre?.id} />
 
       {/* FAIXA DE GÊNEROS — chips coloridos com scroll horizontal */}
       <GenreStrip genres={genres} activeSlug={activeSlug} onPick={handleChangeGenre} />
