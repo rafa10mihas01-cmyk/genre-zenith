@@ -28,16 +28,26 @@ function jr(p: unknown, status = 200) {
   });
 }
 
-async function callFn(name: string, body: unknown) {
-  const r = await fetch(`${SUPABASE_URL}/functions/v1/${name}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${SERVICE_KEY}` },
-    body: JSON.stringify(body),
-  });
-  const txt = await r.text();
-  let data: any = null;
-  try { data = JSON.parse(txt); } catch { /* ignore */ }
-  return { ok: r.ok, status: r.status, data };
+async function callFn(name: string, body: unknown, timeoutMs = 60000) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const r = await fetch(`${SUPABASE_URL}/functions/v1/${name}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${SERVICE_KEY}` },
+      body: JSON.stringify(body),
+      signal: ctrl.signal,
+    });
+    const txt = await r.text();
+    let data: any = null;
+    try { data = JSON.parse(txt); } catch { /* ignore */ }
+    return { ok: r.ok, status: r.status, data };
+  } catch (e) {
+    const msg = (e as Error).name === "AbortError" ? `timeout após ${timeoutMs}ms` : (e as Error).message;
+    return { ok: false, status: 0, data: { error: msg } };
+  } finally {
+    clearTimeout(t);
+  }
 }
 
 Deno.serve(async (req) => {

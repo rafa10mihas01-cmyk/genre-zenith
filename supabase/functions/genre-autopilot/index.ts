@@ -98,7 +98,10 @@ async function pushCompleted(
 async function invokeFn<T = any>(
   fnName: string,
   body: Record<string, unknown>,
-): Promise<{ ok: boolean; data?: T; error?: string }> {
+  timeoutMs = 60000,
+): Promise<{ ok: boolean; data?: T; error?: string; status?: number }> {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
     const resp = await fetch(`${SUPABASE_URL}/functions/v1/${fnName}`, {
       method: "POST",
@@ -107,14 +110,18 @@ async function invokeFn<T = any>(
         "Content-Type": "application/json",
       },
       body: JSON.stringify(body),
+      signal: ctrl.signal,
     });
     const text = await resp.text();
     let data: any;
     try { data = JSON.parse(text); } catch { data = { raw: text }; }
-    if (!resp.ok) return { ok: false, error: data?.error ?? `HTTP ${resp.status}` };
-    return { ok: true, data };
+    if (!resp.ok) return { ok: false, error: data?.error ?? `HTTP ${resp.status}`, status: resp.status };
+    return { ok: true, data, status: resp.status };
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+    const isAbort = e instanceof Error && e.name === "AbortError";
+    return { ok: false, error: isAbort ? `timeout após ${timeoutMs}ms` : (e instanceof Error ? e.message : String(e)) };
+  } finally {
+    clearTimeout(t);
   }
 }
 
@@ -133,6 +140,7 @@ async function runPipeline(
   let templatesGenerated = 0;
   let templatesApproved = 0;
   let coversGenerated = 0;
+  const generatedIds: string[] = []; // 🔄 rastreia ids p/ cleanup em caso de falha
 
   try {
     // ─── 1. ANALYZE ──────────────────────────────────────────────
@@ -219,7 +227,7 @@ async function runPipeline(
     // Sempre gera novos. Distribui maxTemplates entre top blueprints (1-2 por blueprint).
     await setStep(sb, runId, "templates");
     const remaining = maxTemplates;
-    const generated: string[] = [];
+    const generated: string[] = generatedIds; // alias — escreve no array compartilhado
     let perBp = Math.max(1, Math.ceil(remaining / Math.min(ranked.length, 3)));
     for (const bp of ranked) {
       if (generated.length >= maxTemplates) break;
@@ -315,6 +323,22 @@ async function runPipeline(
       total: candidates?.length ?? 0,
     });
 
+    // B.4 — alerta quando geramos templates mas nenhum foi aprovado
+    // (sintoma de score-templates não rodou a tempo, ou critérios não atingidos)
+    if (templatesGenerated > 0 && templatesApproved === 0) {
+      const allScored = (candidates ?? []).every((t) => t.scored_at != null);
+      const reason = allScored
+        ? "Templates pontuados mas nenhum atingiu critério (score≥75 + tier=hot + ≥25 tracks)"
+        : "score-templates não concluiu em 30s — templates ficaram sem score";
+      await sb.rpc("create_notification", {
+        p_type: "warning",
+        p_title: "Autopilot: 0 templates aprovados",
+        p_message: `${templatesGenerated} gerados, 0 aprovados. ${reason}.`,
+        p_action_url: "/cerebro",
+        p_metadata: { run_id: runId, genre_id: genreId, generated: templatesGenerated, all_scored: allScored },
+      }).then(() => {}, () => {});
+    }
+
     // ─── 7. REPLICATE-TOP (pacote, não publica) ─────────────────
     await setStep(sb, runId, "replicate");
     const r = await invokeFn("replicate-top", {
@@ -353,6 +377,21 @@ async function runPipeline(
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error("[autopilot] pipeline error:", msg);
+
+    // 🔄 B.3 — arquiva templates 'pending' órfãos criados nesta run
+    if (generatedIds.length > 0) {
+      await sb
+        .from("playlist_templates")
+        .update({
+          status: "archived",
+          archived_at: new Date().toISOString(),
+          archived_reason: `autopilot_failed: ${msg.slice(0, 120)}`,
+        })
+        .in("id", generatedIds)
+        .eq("status", "pending")
+        .then(() => {}, (err) => console.warn("[autopilot] cleanup pending failed:", err?.message));
+    }
+
     await updateRun(sb, runId, {
       status: "error",
       error_message: msg,
