@@ -395,10 +395,35 @@ Deno.serve(async (req) => {
     };
   });
 
-  if (rows.length === 0) return jr({ ok: false, error: "no templates produced" }, 500);
+  // 🚫 DEDUP FINAL: descarta linhas cujo nome canônico já existe nos últimos 30d
+  // OU duplicado dentro do próprio batch atual.
+  const batchSeen = new Set<string>();
+  const dedupedRows: any[] = [];
+  let droppedDuplicates = 0;
+  for (const row of rows) {
+    const canon = normalizeName(String(row.name ?? ""));
+    if (!canon) { droppedDuplicates++; continue; }
+    if (recentCanonSet.has(canon) || batchSeen.has(canon)) {
+      droppedDuplicates++;
+      continue;
+    }
+    batchSeen.add(canon);
+    dedupedRows.push(row);
+  }
+  if (droppedDuplicates > 0) {
+    console.log(`[generate-templates] anti-repetição descartou ${droppedDuplicates}/${rows.length} templates duplicados`);
+  }
+
+  if (dedupedRows.length === 0) {
+    return jr({
+      ok: false,
+      error: `Todos os ${rows.length} nomes gerados pela IA já existem nos últimos 30 dias — anti-repetição bloqueou todos. Tente novamente.`,
+      dropped_names: rows.map((r) => r.name),
+    }, 422);
+  }
 
   const { data: inserted, error: insErr } = await supabase
-    .from("playlist_templates").insert(rows).select("id,name,replication_score,variation_index");
+    .from("playlist_templates").insert(dedupedRows).select("id,name,replication_score,variation_index");
   if (insErr) return jr({ error: insErr.message }, 500);
 
   await supabase.from("collection_logs").insert({
