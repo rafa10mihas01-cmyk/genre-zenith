@@ -116,6 +116,15 @@ Deno.serve(async (req) => {
     ? skipResult("analyze-performance")
     : await callFn("analyze-performance", { min_age_hours: 24 }, 180_000);
 
+  // 🚨 Audit #11: marcar como skipped quando analyze retorna empty (sem dados),
+  // para que NÃO conte como sucesso falso no status final.
+  {
+    const ap = steps["analyze-performance"];
+    if (ap.ok && ap.data?.empty === true) {
+      ap.skipped = true;
+    }
+  }
+
   await supabase.from("learning_loop_runs").update({ steps }).eq("id", runId);
 
   // ─────── STEP 3: AUTO-REPLICATE (escala vencedores) ───────
