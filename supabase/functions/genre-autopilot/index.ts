@@ -17,32 +17,10 @@
 // Cooldown: 1 execução por gênero por hora.
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2";
+import { requireTeamAccess } from "../_shared/auth.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
-
-// 🔐 Auth guard — exige usuário logado com role admin/curador
-async function requireTeamAccess(req: Request): Promise<{ ok: true } | { ok: false; resp: Response }> {
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    return { ok: false, resp: jr({ error: "unauthorized" }, 401) };
-  }
-  const supabaseAuth = createClient(SUPABASE_URL, ANON_KEY, {
-    global: { headers: { Authorization: authHeader } },
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-  const token = authHeader.replace("Bearer ", "");
-  const { data: claims, error: claimsErr } = await supabaseAuth.auth.getClaims(token);
-  if (claimsErr || !claims?.claims) {
-    return { ok: false, resp: jr({ error: "unauthorized" }, 401) };
-  }
-  const { data: hasAccess } = await supabaseAuth.rpc("has_team_access");
-  if (!hasAccess) {
-    return { ok: false, resp: jr({ error: "forbidden" }, 403) };
-  }
-  return { ok: true };
-}
 
 const COOLDOWN_MS = 60 * 60 * 1000;        // 1h
 const ANALYZE_CACHE_MS = 24 * 60 * 60 * 1000; // 24h
@@ -501,7 +479,7 @@ Deno.serve(async (req) => {
   }
   toGenerate = Math.min(Math.max(1, toGenerate), HARD_CAP_TEMPLATES);
 
-  // ─ Cria run ─
+  // ─ Cria run (com lock atômico via unique partial index em status='running') ─
   const { data: run, error: createErr } = await sb
     .from("autopilot_runs")
     .insert({
@@ -515,6 +493,11 @@ Deno.serve(async (req) => {
     .single();
 
   if (createErr || !run) {
+    // 23505 = unique_violation → outra run já está 'running' pra esse gênero (corrida)
+    const isLock = (createErr as any)?.code === "23505";
+    if (isLock) {
+      return jr({ ok: false, error: "Já existe uma execução em andamento", lock: true }, 409);
+    }
     return jr({ error: `Falha ao criar run: ${createErr?.message ?? "unknown"}` }, 500);
   }
 
