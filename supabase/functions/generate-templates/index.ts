@@ -130,12 +130,13 @@ Deno.serve(async (req) => {
   const rulesBlock = rulesAsPromptBlock(activeRules);
   const rulesSummary = summarizeRules(activeRules);
 
-  // Faixas recorrentes do gênero como seed (top 30) — reordenadas por boost/avoid de regras
+  // Faixas recorrentes do gênero como pool — pool grande pra LLM montar 40-60 faixas naturais.
   const { data: model } = await supabase
     .from("genre_models").select("musicas_recorrentes,palavras_chave")
     .eq("genre_id", bp.genre_id).maybeSingle();
-  const trackSeedsRaw = (model?.musicas_recorrentes ?? []).slice(0, 60);
-  const trackSeeds = reorderTracksByRules(trackSeedsRaw, activeRules).slice(0, 30);
+  const trackSeedsRaw = (model?.musicas_recorrentes ?? []).slice(0, 200);
+  // Garante pool ≥ trackTarget.max + folga; se faltar, mantém o que tem (LLM repete com cuidado).
+  const trackSeeds = reorderTracksByRules(trackSeedsRaw, activeRules).slice(0, Math.max(120, trackTarget.max + 30));
   const allKeywords = (model?.palavras_chave ?? []).slice(0, 30);
 
   // Já existem templates? quantos? (usa para variation_index)
