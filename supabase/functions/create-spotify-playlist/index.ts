@@ -119,7 +119,9 @@ Deno.serve(async (req) => {
   let failed = 0;
   let resolvedFromId = 0;
   let resolvedFromSearch = 0;
-  for (const s of seeds.slice(0, 80)) {
+  // Cap de segurança em 100 — playlists naturais ficam entre 25-80; 100 é teto pra evitar
+  // ruído. A regra de tamanho real é honrada lá em generate-templates (proporção da base ±20%).
+  for (const s of seeds.slice(0, 100)) {
     const trackId = String(s?.spotify_track_id ?? "").trim();
     if (trackId && /^[A-Za-z0-9]{16,}$/.test(trackId)) {
       uris.push(`spotify:track:${trackId}`);
