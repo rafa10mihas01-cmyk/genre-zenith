@@ -122,8 +122,31 @@ Deno.serve(async (req) => {
         .maybeSingle();
       if (stErr) return jr({ ok: false, error: `state lookup: ${stErr.message}` }, 500);
       if (!stRow) return jr({ ok: false, error: "state inválido" }, 400);
-      if (stRow.consumed_at) return jr({ ok: false, error: "state já utilizado" }, 400);
       if (stRow.user_id !== auth.userId) return jr({ ok: false, error: "state não pertence ao usuário" }, 403);
+
+      // IDEMPOTÊNCIA: se o state já foi consumido há ≤ 2min pelo mesmo user,
+      // é o React StrictMode/duplo-disparo. Retorna sucesso buscando a conta mais recente
+      // ao invés de erro 400 que confunde o usuário.
+      if (stRow.consumed_at) {
+        const consumedAgeMs = Date.now() - new Date(stRow.consumed_at).getTime();
+        if (consumedAgeMs <= 2 * 60 * 1000) {
+          const { data: latest } = await supabase
+            .from("spotify_user_tokens")
+            .select("spotify_user_id, display_name, email, scope")
+            .order("updated_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          return jr({
+            ok: true,
+            idempotent: true,
+            spotify_user_id: latest?.spotify_user_id,
+            display_name: latest?.display_name,
+            email: latest?.email,
+            scope: latest?.scope,
+          });
+        }
+        return jr({ ok: false, error: "state já utilizado" }, 400);
+      }
       const ageMs = Date.now() - new Date(stRow.created_at).getTime();
       if (ageMs > 30 * 60 * 1000) return jr({ ok: false, error: "state expirado" }, 400);
 
