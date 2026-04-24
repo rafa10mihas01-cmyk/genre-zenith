@@ -257,6 +257,17 @@ Deno.serve(async (req) => {
     };
 
     let llmOut: any;
+    // 💸 Cache hash: se mesmo conjunto (tier + sample_ids + rules) rodou nas últimas 6h, pula LLM
+    const cacheKey = await payloadHash({
+      tier,
+      ids: tierPlaylists.map((p: any) => p.id).sort(),
+      rules: rulesSummary ?? "",
+      max_per_tier: maxPerTier,
+    });
+    if (!body.force && await isCachedRecently(supabase, genreId, cacheKey)) {
+      console.log(`[cache] extract-blueprints SKIP tier=${tier} hash=${cacheKey}`);
+      continue;
+    }
     try {
       llmOut = await callLLM(
         `Você é um analista de produto musical. Sua tarefa é extrair PADRÕES ESTRUTURAIS REPLICÁVEIS de playlists de sucesso (gênero: ${genre.nome}, tier ${tier}). Identifique de 1 a 3 arquétipos distintos. Cada blueprint = um modelo replicável de playlist. Seja específico, evite genérico.${rulesBlock}`,
