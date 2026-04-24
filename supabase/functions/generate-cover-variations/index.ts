@@ -490,7 +490,7 @@ const HIERARCHY_RULES_BLOCK = [
   "- No text element may be too small to read at a 64x64 thumbnail — if it cannot be read, it should not exist.",
   "- Visual weight must feel CONSISTENT across all generated covers (same dominant/secondary ratio every time).",
   "NUMBER INTEGRITY (CRITICAL):",
-  "- Numbers (especially years like 2024, 2025) must NEVER be broken across lines or split into parts (e.g. \"20\" / \"24\" is FORBIDDEN).",
+  "- Numbers (especially years) must NEVER be broken across lines or split into parts (e.g. \"20\" / \"26\" is FORBIDDEN).",
   "- Years and multi-digit numbers always render as a single, unbroken token on the same line.",
   "- If the layout cannot fit the full number on one line, shrink the number slightly or rebalance the title — never split the digits.",
 ].join("\n");
@@ -805,7 +805,7 @@ Deno.serve(async (req) => {
   const guard = await requireTeamAccess(req);
   if (!guard.ok) return guard.resp;
 
-  let body: { template_id?: string; custom_prompt?: string; palette?: string };
+  let body: { template_id?: string; custom_prompt?: string; palette?: string; force?: boolean };
   try { body = await req.json(); } catch { return jr({ error: "invalid json" }, 400); }
   if (!body.template_id) return jr({ error: "template_id required" }, 400);
 
@@ -813,6 +813,15 @@ Deno.serve(async (req) => {
   const { data: tpl, error: tplErr } = await supabase
     .from("playlist_templates").select("*").eq("id", body.template_id).maybeSingle();
   if (tplErr || !tpl) return jr({ error: "template not found" }, 404);
+
+  // 🛡️ Proteção: NUNCA regenerar capa de playlist já publicada no Spotify.
+  // Mesmo com force=true. Quem está no ar fica como está.
+  if (body.force && tpl.spotify_playlist_id) {
+    return jr({
+      ok: false,
+      error: "Não é possível regenerar capa de playlist já publicada no Spotify",
+    }, 409);
+  }
 
   const ts = Date.now();
 
@@ -830,16 +839,21 @@ Deno.serve(async (req) => {
 
   // 📦 Cache acumulativo: NÃO apaga variações antigas. Se a paleta solicitada
   // já existir em cover_variations, devolve direto (0 crédito gasto).
-  const existing = (tpl.cover_variations as Array<{ index: number; url: string; palette?: string; style?: Style }> | null) ?? [];
-  const cached = existing.find((v) => v.palette === palette.name);
-  if (cached) {
-    return jr({
-      ok: true,
-      cached: true,
-      variation: cached,
-      variations: existing,
-      palette_used: palette.name,
-    });
+  // 🔄 EXCEÇÃO: force=true ignora o cache E LIMPA todas as variações antigas
+  //   (caso de uso: capa antiga com "2024" hardcoded — quero regenerar do zero).
+  const existingRaw = (tpl.cover_variations as Array<{ index: number; url: string; palette?: string; style?: Style }> | null) ?? [];
+  const existing = body.force ? [] : existingRaw;
+  if (!body.force) {
+    const cached = existing.find((v) => v.palette === palette.name);
+    if (cached) {
+      return jr({
+        ok: true,
+        cached: true,
+        variation: cached,
+        variations: existing,
+        palette_used: palette.name,
+      });
+    }
   }
 
   // 🆕 Gera só essa cor
