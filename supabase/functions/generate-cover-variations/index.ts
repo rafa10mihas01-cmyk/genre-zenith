@@ -1,16 +1,16 @@
-// generate-cover-variations — gera 1 capa profissional estilo Spotify (padrão validado).
+// generate-cover-variations — gera 1 capa por chamada, com cache acumulativo por cor.
 //
-// 🎯 ECONOMIA: 1 imagem por chamada (não 4) — formato CLEAN EDITORIAL já aprovado
-// nas capas publicadas (ex: MODÃO SERTANEJO 2024, TOP SERTANEJO 2024).
+// 🎯 ECONOMIA MÁXIMA:
+//   - Sem palette no body → gera a paleta padrão (determinística por template_id).
+//   - Com palette no body → gera APENAS aquela cor (sob demanda).
+//   - Se a cor solicitada já estiver em cover_variations → devolve do cache (0 crédito).
+//   - NÃO apaga variações antigas: vai acumulando as 4 cores ao longo do tempo.
 //
-// Paleta determinística por template_id (mesma capa = mesma cor sempre);
-// templates diferentes recebem cores distintas (verde, roxo, laranja, azul).
-// Estilo SEMPRE clean. Watermark NexEngine + premium finish aplicados.
+// Paletas disponíveis: "spotify-green", "deep-purple", "vibrant-orange", "midnight-blue".
+// Estilo SEMPRE clean (padrão aprovado visualmente). Watermark + premium finish aplicados.
 //
-// Persiste em playlist_templates.cover_variations (jsonb, 1 item).
-//
-// POST { template_id: string, custom_prompt?: string }
-// → { ok, variations: [{ index, url, palette, style }] }
+// POST { template_id: string, palette?: string, custom_prompt?: string }
+// → { ok, cached, variation: {index,url,palette,style}, variations: [...] }
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { applyWatermark } from "./_watermark.ts";
