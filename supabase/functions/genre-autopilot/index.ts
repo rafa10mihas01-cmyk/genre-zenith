@@ -618,13 +618,32 @@ Deno.serve(async (req) => {
   await sb.rpc("cleanup_stale_autopilot_runs", { p_minutes: 30 })
     .then(() => {}, (e) => console.warn("[autopilot] cleanup_stale failed:", e?.message));
 
-  // ─ Cooldown + lock: já tem run em <1h? ─
-  const since = new Date(Date.now() - COOLDOWN_MS).toISOString();
+  // ─ Cooldown ADAPTATIVO: 6h padrão, 1h se houve coleta nova desde a última run ─
+  // Pega última run de sucesso pra comparar com data da última coleta
+  const { data: lastSuccessRun } = await sb
+    .from("autopilot_runs")
+    .select("id, started_at")
+    .eq("genre_id", genreId)
+    .eq("status", "success")
+    .order("started_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  // Última coleta de playlist deste gênero
+  const lastCollect = await lastCollectionAt(sb, genreId);
+  const hadFreshCollection = lastSuccessRun?.started_at && lastCollect
+    ? lastCollect.getTime() > new Date(lastSuccessRun.started_at).getTime()
+    : !lastSuccessRun; // se nunca rodou com sucesso, considera "fresca"
+
+  const cooldownMs = hadFreshCollection ? COOLDOWN_MS_AFTER_COLLECT : COOLDOWN_MS_DEFAULT;
+  const cooldownLabel = hadFreshCollection ? "1h (coleta recente)" : "6h (sem coleta nova)";
+
+  // Bloqueia se há run RUNNING (sempre) ou run SUCCESS dentro da janela adaptativa
   const { data: recent } = await sb
     .from("autopilot_runs")
     .select("id, status, started_at")
     .eq("genre_id", genreId)
-    .gte("started_at", since)
+    .in("status", ["running", "waiting_collection", "success"])
     .order("started_at", { ascending: false })
     .limit(1);
 
@@ -633,19 +652,26 @@ Deno.serve(async (req) => {
     if (r.status === "running") {
       return jr({ ok: false, error: "Já existe uma execução em andamento", run_id: r.id }, 409);
     }
-    if (r.status === "success" && !force) {
-      const minutesAgo = Math.round((Date.now() - new Date(r.started_at).getTime()) / 60000);
-      return jr(
-        {
-          ok: false,
-          error: `Cooldown ativo: última execução bem-sucedida foi há ${minutesAgo}min. Aguarde ${60 - minutesAgo}min.`,
-          run_id: r.id,
-          cooldown: true,
-        },
-        429,
-      );
+    if (r.status === "waiting_collection") {
+      return jr({ ok: false, error: "Coleta automática em andamento — aguarde concluir", run_id: r.id }, 409);
     }
-    // status === 'error' → permite tentar de novo
+    if (r.status === "success" && !force) {
+      const ageMs = Date.now() - new Date(r.started_at).getTime();
+      if (ageMs < cooldownMs) {
+        const minutesAgo = Math.round(ageMs / 60000);
+        const minutesLeft = Math.max(1, Math.round((cooldownMs - ageMs) / 60000));
+        return jr(
+          {
+            ok: false,
+            error: `Cooldown ativo (${cooldownLabel}): última run há ${minutesAgo}min. Aguarde ${minutesLeft}min.`,
+            run_id: r.id,
+            cooldown: true,
+            cooldown_type: hadFreshCollection ? "after_collect" : "default",
+          },
+          429,
+        );
+      }
+    }
   }
 
   // ─ Valida gênero ─
