@@ -272,6 +272,18 @@
   50% { opacity: 0.85; box-shadow: 0 0 0 6px hsl(var(--primary) / 0); }
 }
 
+/* Fluxo visual — partículas correndo nas linhas conectoras */
+@keyframes fluxo-flow-h {
+  from { stroke-dashoffset: 16; }
+  to { stroke-dashoffset: 0; }
+}
+@keyframes fluxo-flow-v {
+  from { stroke-dashoffset: 16; }
+  to { stroke-dashoffset: 0; }
+}
+.fluxo-flow-h { animation: fluxo-flow-h 0.6s linear infinite; }
+.fluxo-flow-v { animation: fluxo-flow-v 0.6s linear infinite; }
+
 /* Reduz motion para usuários que preferem */
 @media (prefers-reduced-motion: reduce) {
   .animate-page-in,
