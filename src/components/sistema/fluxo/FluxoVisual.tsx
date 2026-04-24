@@ -14,6 +14,7 @@ import { timeAgo } from "@/lib/format";
 import { FluxoNode } from "./FluxoNode";
 import { FluxoConnector } from "./FluxoConnector";
 import { FluxoNodeDrawer } from "./FluxoNodeDrawer";
+import { FluxoCriticalAlerts, extractCriticalAlerts } from "./FluxoCriticalAlerts";
 import { buildFluxoNodes } from "./buildFluxo";
 import type { FluxoNodeData, FluxoRun } from "./types";
 
@@ -220,6 +221,13 @@ export function FluxoVisual({ compact = false }: { compact?: boolean }) {
     setDrawerOpen(true);
   };
 
+  const focusNodeById = (id: string) => {
+    const n = nodes.find((x) => x.id === id);
+    if (n) openDrawer(n);
+  };
+
+  const criticalAlerts = useMemo(() => extractCriticalAlerts(nodes), [nodes]);
+
   if (loading) {
     return (
       <div className="nx-card p-12 flex items-center justify-center text-sm text-muted-foreground gap-2">
@@ -230,6 +238,9 @@ export function FluxoVisual({ compact = false }: { compact?: boolean }) {
 
   return (
     <div className="space-y-4">
+      {/* Alertas críticos no topo (prioridade visual máxima) */}
+      <FluxoCriticalAlerts alerts={criticalAlerts} onFocusNode={focusNodeById} />
+
       {/* Header: seletor de execução + status global */}
       <div className="nx-card p-3 sm:p-4">
         <div className="flex items-center justify-between gap-3 flex-wrap">
