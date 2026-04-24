@@ -139,9 +139,9 @@ export default function Cerebro() {
         title="Cérebro"
         subtitle="Analisar dados e gerar inteligência"
         actions={
-          <Button onClick={runBrain} disabled={running} className="nx-pill">
-            {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-            Atualizar inteligência
+          <Button onClick={runBrain} disabled={running || autopilotRunning || !genre?.id} className="nx-pill">
+            {(running || autopilotRunning) ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            {autopilotRunning ? "Rodando..." : "Atualizar inteligência"}
           </Button>
         }
       />
