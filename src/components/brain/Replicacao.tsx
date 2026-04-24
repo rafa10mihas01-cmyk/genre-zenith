@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { timeAgo } from "@/lib/format";
 import { LoadMore, usePagination } from "@/components/LoadMore";
+import { AutopilotButton } from "@/components/brain/AutopilotButton";
 
 type Blueprint = {
   id: string;
@@ -505,7 +506,11 @@ export function Moldes({ genreId, onAfterGenerate }: { genreId?: string; onAfter
 
   return (
     <div className="space-y-3">
-      <div className="flex justify-end">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <AutopilotButton
+          genreId={genreId}
+          onComplete={() => { load(); onAfterGenerate?.(); }}
+        />
         <Button size="sm" variant="outline" onClick={runExtract} disabled={extracting || !genreId}>
           {extracting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
           {blueprints.length > 0 ? "Atualizar moldes" : "Extrair moldes"}
