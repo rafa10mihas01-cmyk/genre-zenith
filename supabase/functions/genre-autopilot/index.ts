@@ -479,7 +479,7 @@ Deno.serve(async (req) => {
   }
   toGenerate = Math.min(Math.max(1, toGenerate), HARD_CAP_TEMPLATES);
 
-  // ─ Cria run ─
+  // ─ Cria run (com lock atômico via unique partial index em status='running') ─
   const { data: run, error: createErr } = await sb
     .from("autopilot_runs")
     .insert({
@@ -493,6 +493,11 @@ Deno.serve(async (req) => {
     .single();
 
   if (createErr || !run) {
+    // 23505 = unique_violation → outra run já está 'running' pra esse gênero (corrida)
+    const isLock = (createErr as any)?.code === "23505";
+    if (isLock) {
+      return jr({ ok: false, error: "Já existe uma execução em andamento", lock: true }, 409);
+    }
     return jr({ error: `Falha ao criar run: ${createErr?.message ?? "unknown"}` }, 500);
   }
 
