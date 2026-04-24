@@ -274,6 +274,35 @@ export default function Criacao() {
     await load();
   }
 
+  // 🔄 Regenera capa do zero (force=true descarta variações antigas e gera nova).
+  // Usado pra capas com "2024" antigo que precisam ser refeitas.
+  // Bloqueado no backend pra playlists já publicadas no Spotify.
+  async function regenerateCover(t: Template) {
+    if (t.spotify_playlist_id) {
+      toast({
+        title: "Não é possível regenerar",
+        description: "Esta playlist já está publicada no Spotify.",
+        variant: "destructive",
+      });
+      return;
+    }
+    markGenerating(t.id, true);
+    const { data, error } = await supabase.functions.invoke("generate-cover-variations", {
+      body: { template_id: t.id, force: true },
+    });
+    markGenerating(t.id, false);
+    if (error || !(data as any)?.ok) {
+      toast({
+        title: "Falha ao regenerar capa",
+        description: error?.message || (data as any)?.error || "Erro desconhecido",
+        variant: "destructive",
+      });
+      return;
+    }
+    toast({ title: "Capa regenerada", description: "Nova capa pronta — nome atualizado." });
+    await load();
+  }
+
   const hasFilters = !!search || !!genreFilter || statusFilter !== "all" || sort !== "score_desc";
   function clearFilters() {
     setSearch("");
