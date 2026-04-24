@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -158,30 +158,38 @@ export default function Settings() {
 
   useEffect(() => { void loadStats(); void loadSpotifyAccounts(); }, []);
 
-  // Trata retorno do OAuth do Spotify
+  // Trata retorno do OAuth do Spotify (guard contra StrictMode/duplo-disparo)
+  const spotifyCallbackHandled = useRef(false);
   useEffect(() => {
+    if (spotifyCallbackHandled.current) return;
     const params = new URLSearchParams(window.location.search);
-    if (params.get("spotify_callback") === "1") {
-      const code = params.get("code");
-      const state = params.get("state");
-      const error = params.get("error");
-      const redirect = getSpotifyRedirectUri();
-      if (error) {
-        toast.error("Conexão Spotify cancelada", { description: error });
-      } else if (code) {
-        (async () => {
-          const qs = `mode=callback&code=${encodeURIComponent(code)}&redirect=${encodeURIComponent(redirect)}&state=${encodeURIComponent(state ?? "")}`;
-          const json = await callSpotifyAuth(qs);
-          if (json?.ok) {
-            toast.success("Conta Spotify conectada", { description: json.display_name ?? json.spotify_user_id });
-            await loadSpotifyAccounts();
-          } else {
-            toast.error("Falha ao conectar Spotify", { description: json?.error ?? "" });
-          }
-          window.history.replaceState({}, "", SETTINGS_ROUTE);
-        })();
-      }
+    if (params.get("spotify_callback") !== "1") return;
+
+    const code = params.get("code");
+    const state = params.get("state");
+    const error = params.get("error");
+    const redirect = getSpotifyRedirectUri();
+
+    // Marca como tratado E limpa a URL ANTES de qualquer await — impede re-entrada
+    spotifyCallbackHandled.current = true;
+    window.history.replaceState({}, "", SETTINGS_ROUTE);
+
+    if (error) {
+      toast.error("Conexão Spotify cancelada", { description: error });
+      return;
     }
+    if (!code) return;
+
+    (async () => {
+      const qs = `mode=callback&code=${encodeURIComponent(code)}&redirect=${encodeURIComponent(redirect)}&state=${encodeURIComponent(state ?? "")}`;
+      const json = await callSpotifyAuth(qs);
+      if (json?.ok) {
+        toast.success("Conta Spotify conectada", { description: json.display_name ?? json.spotify_user_id });
+        await loadSpotifyAccounts();
+      } else {
+        toast.error("Falha ao conectar Spotify", { description: json?.error ?? "" });
+      }
+    })();
   }, []);
 
   async function loadSpotifyAccounts() {
