@@ -16,6 +16,7 @@ import Cerebro from "./pages/Cerebro";
 import Criacao from "./pages/Criacao";
 import Operacao from "./pages/Operacao";
 import Performance from "./pages/Performance";
+import Sistema from "./pages/Sistema";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
@@ -46,6 +47,7 @@ const App = () => (
               <Route path="/criacao" element={<Protected><Criacao /></Protected>} />
               <Route path="/operacao" element={<Protected><Operacao /></Protected>} />
               <Route path="/performance" element={<Protected><Performance /></Protected>} />
+              <Route path="/sistema" element={<Protected><Sistema /></Protected>} />
               <Route path="/settings" element={<Protected><AdminRoute><Settings /></AdminRoute></Protected>} />
               <Route path="/configuracoes" element={<Protected><AdminRoute><Settings /></AdminRoute></Protected>} />
               <Route path="*" element={<NotFound />} />
