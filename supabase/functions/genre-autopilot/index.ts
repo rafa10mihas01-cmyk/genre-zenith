@@ -766,7 +766,7 @@ Deno.serve(async (req) => {
     if (r.status === "running") {
       return jr({ ok: false, error: "Já existe uma execução em andamento", run_id: r.id }, 409);
     }
-    if (r.status === "waiting_collection") {
+    if (r.status === "waiting_collection" && !force) {
       return jr({ ok: false, error: "Coleta automática em andamento — aguarde concluir", run_id: r.id }, 409);
     }
     if (r.status === "success" && !force) {
