@@ -140,14 +140,14 @@ export function Variacoes({ genreId }: { genreId?: string }) {
           .catch(() => {});
       }
     }
-    await load();
+    await load(false);
   };
 
   const removeTemplate = async (id: string) => {
     const { error } = await supabase.from("playlist_templates").delete().eq("id", id);
     if (error) { toast.error("Erro"); return; }
     toast.success("Removida");
-    await load();
+    await load(false);
   };
 
   const createOnSpotify = async (id: string) => {
@@ -162,7 +162,7 @@ export function Variacoes({ genreId }: { genreId?: string }) {
         description: `${data?.tracks_added ?? 0} faixas · ${data?.tracks_failed ?? 0} falhas`,
         action: data?.spotify_url ? { label: "Abrir", onClick: () => window.open(data.spotify_url, "_blank") } : undefined,
       });
-      await load();
+      await load(false);
     } catch (e: any) {
       const msg = e?.message ?? "Erro";
       toast.error("Erro ao criar", {
