@@ -66,6 +66,17 @@ type Template = {
 type SortKey = "score_desc" | "score_asc" | "recent" | "alpha" | "genre";
 type StatusFilter = "all" | "no_cover" | "with_cover" | "with_error";
 
+function getCoverGenerationErrorMessage(error: any, data: any) {
+  const code = data?.code;
+  if (code === "AI_PAYMENT_REQUIRED") {
+    return "Sem créditos de IA. Adicione saldo em Settings → Workspace → Usage.";
+  }
+  if (code === "AI_RATE_LIMITED") {
+    return "Muitas requisições. Aguarde alguns segundos e tente de novo.";
+  }
+  return data?.error || error?.message || "Erro desconhecido";
+}
+
 export default function Criacao() {
   const { toast } = useToast();
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -296,7 +307,7 @@ export default function Criacao() {
     if (error || !(data as any)?.ok) {
       toast({
         title: "Falha ao regenerar capa",
-        description: error?.message || (data as any)?.error || "Erro desconhecido",
+        description: getCoverGenerationErrorMessage(error, data),
         variant: "destructive",
       });
       return;
