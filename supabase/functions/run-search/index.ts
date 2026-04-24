@@ -562,21 +562,13 @@ Deno.serve(async (req) => {
     // Circuit breaker: bloqueio do Apify (limit exceeded / 403)
     if (e instanceof ApifyBlockedError) {
       // Ativa flag global
-      const { data: f } = await supabase
-        .from("system_flags").select("id").order("created_at", { ascending: true }).limit(1).maybeSingle();
-      if (f?.id) {
-        await supabase.from("system_flags").update({
-          apify_blocked: true,
-          apify_blocked_at: new Date().toISOString(),
-          apify_blocked_reason: msg.slice(0, 300),
-        }).eq("id", f.id);
-      } else {
-        await supabase.from("system_flags").insert({
-          apify_blocked: true,
-          apify_blocked_at: new Date().toISOString(),
-          apify_blocked_reason: msg.slice(0, 300),
-        });
-      }
+      // 🚨 Audit #9 — singleton UPSERT
+      await supabase.from("system_flags").upsert({
+        singleton_key: "app",
+        apify_blocked: true,
+        apify_blocked_at: new Date().toISOString(),
+        apify_blocked_reason: msg.slice(0, 300),
+      }, { onConflict: "singleton_key" });
       await supabase.from("collection_logs").insert({
         genre_id: body.genre_id, term_id: body.term_id,
         acao: "apify-blocked", status: "erro",
