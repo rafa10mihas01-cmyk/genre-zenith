@@ -252,13 +252,18 @@ Deno.serve(async (req) => {
     keyword_pool: allKeywords,
     quantidade: count,
     track_target: trackTarget,
+    nomes_recentes_ja_usados: recentNames.slice(0, 25),
   };
+
+  const antiRepeatBlock = recentNames.length > 0
+    ? `\n\n🚫 ANTI-REPETIÇÃO — OBRIGATÓRIO:\nNão repita NENHUM destes nomes (ou variações próximas) que já existem no gênero nos últimos 30 dias:\n${recentNames.slice(0, 25).map((n) => `  • ${n}`).join("\n")}\n\nVarie estrutura, ângulo, sub-tema, sentimento, ocasião — NÃO use o mesmo template de nome.`
+    : "";
 
   let llmOut: any;
   try {
     llmOut = await callLLM(
-      `Você é um diretor criativo de playlists. Gere variações DISTINTAS de uma playlist seguindo o blueprint fornecido. Mantenha a essência (formato, mood, padrão de nome) mas varie ângulo/sub-tema. Use apenas faixas e keywords do pool. Resposta SEMPRE em português BR.${rulesBlock}`,
-      `Gere ${count} variações para este blueprint:\n${JSON.stringify(userPayload, null, 2)}\n\nCada variação deve ser comercial, replicável e fiel ao blueprint. Atribua replication_score 0-100 baseado em força do nome, encaixe com o blueprint, e potencial.\n\n🎯 QUANTIDADE DE FAIXAS — OBRIGATÓRIO:\n• Cada variação DEVE ter entre ${trackTarget.min} e ${trackTarget.max} faixas (ideal ≈ ${trackTarget.ideal}).\n• Base do alvo: ${trackTarget.basis}.\n• Selecione faixas variadas do track_pool, sem duplicar nome+artista dentro da mesma variação.\n• Aparência natural e competitiva no algoritmo do Spotify — playlist curta demais perde no ranking.\n\nIMPORTANTE: Cumpra TODAS as REGRAS APRENDIDAS acima. Regras 🔴 OBRIGATÓRIO devem aparecer no name e nas regras.obrigatorio.`,
+      `Você é um diretor criativo de playlists. Gere variações DISTINTAS de uma playlist seguindo o blueprint fornecido. Mantenha a essência (formato, mood, padrão de nome) mas varie ângulo/sub-tema. Use apenas faixas e keywords do pool. Resposta SEMPRE em português BR.${rulesBlock}${antiRepeatBlock}`,
+      `Gere ${count} variações para este blueprint:\n${JSON.stringify(userPayload, null, 2)}\n\nCada variação deve ser comercial, replicável e fiel ao blueprint. Atribua replication_score 0-100 baseado em força do nome, encaixe com o blueprint, e potencial.\n\n🎯 QUANTIDADE DE FAIXAS — OBRIGATÓRIO:\n• Cada variação DEVE ter entre ${trackTarget.min} e ${trackTarget.max} faixas (ideal ≈ ${trackTarget.ideal}).\n• Base do alvo: ${trackTarget.basis}.\n• Selecione faixas variadas do track_pool, sem duplicar nome+artista dentro da mesma variação.\n• Aparência natural e competitiva no algoritmo do Spotify — playlist curta demais perde no ranking.\n\nIMPORTANTE: Cumpra TODAS as REGRAS APRENDIDAS acima. Regras 🔴 OBRIGATÓRIO devem aparecer no name e nas regras.obrigatorio.${antiRepeatBlock ? "\n\n⚠️ Se gerar nome igual/similar a algum em nomes_recentes_ja_usados, a variação será DESCARTADA pelo sistema." : ""}`,
       schema,
     );
   } catch (e) {
