@@ -36,7 +36,10 @@ function slugify(s: string) {
     .slice(0, 60) || `blueprint-${Date.now()}`;
 }
 
-async function callLLM(system: string, user: string, schema: any, model = "google/gemini-2.5-flash") {
+// 🚨 Audit #8 A.2 — retry seletivo + fallback de modelo
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function callLLMOnce(system: string, user: string, schema: any, model: string) {
   const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -61,14 +64,46 @@ async function callLLM(system: string, user: string, schema: any, model = "googl
       tool_choice: { type: "function", function: { name: "extract_blueprints" } },
     }),
   });
-  if (!resp.ok) {
+  return resp;
+}
+
+async function callLLM(system: string, user: string, schema: any, primary = "google/gemini-2.5-flash") {
+  // Modelos por ordem de preferência (custo crescente apenas em última opção)
+  const fallbackModel = "google/gemini-2.5-flash-lite";
+  let lastErr = "";
+
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const model = attempt === 3 ? fallbackModel : primary;
+    const resp = await callLLMOnce(system, user, schema, model);
+
+    if (resp.ok) {
+      const j = await resp.json();
+      const args = j?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
+      if (!args) throw new Error("LLM returned no tool_call");
+      return JSON.parse(args);
+    }
+
     const t = await resp.text();
-    throw new Error(`Lovable AI ${resp.status}: ${t.slice(0, 300)}`);
+    lastErr = `Lovable AI ${resp.status}: ${t.slice(0, 200)}`;
+
+    // 429 (rate limit) ou 402 (payment required) → backoff e retry no mesmo modelo
+    if (resp.status === 429 || resp.status === 402) {
+      if (attempt < 3) {
+        await sleep(1000 * attempt);
+        continue;
+      }
+    }
+    // 5xx → fallback imediato pra modelo lite
+    if (resp.status >= 500 && attempt < 3) {
+      await sleep(500);
+      continue;
+    }
+    // 4xx outros (400, 401, 403) → não adianta retry, lança
+    if (resp.status < 500 && resp.status !== 429 && resp.status !== 402) {
+      throw new Error(lastErr);
+    }
   }
-  const j = await resp.json();
-  const args = j?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
-  if (!args) throw new Error("LLM returned no tool_call");
-  return JSON.parse(args);
+  throw new Error(`LLM exhausted retries: ${lastErr}`);
 }
 
 Deno.serve(async (req) => {
