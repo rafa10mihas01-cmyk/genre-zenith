@@ -189,7 +189,7 @@ export function Variacoes({ genreId }: { genreId?: string }) {
     return templates.filter(t => t.status === filter);
   }, [templates, filter]);
 
-  if (loading) return <div className="grid gap-2">{Array.from({ length: 3 }).map((_, i) => <div key={i} className="nx-card h-16 animate-pulse" />)}</div>;
+  if (loading && !hasLoadedOnce) return <div className="grid gap-2">{Array.from({ length: 3 }).map((_, i) => <div key={i} className="nx-card h-16 animate-pulse" />)}</div>;
 
   if (templates.length === 0) {
     return (
