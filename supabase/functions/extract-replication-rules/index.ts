@@ -136,17 +136,19 @@ PRINCÍPIOS:
 - Limite-se a 4-10 regras (qualidade > quantidade).
 
 FORMATOS DE TARGET ACEITOS:
-- naming.year   → value: {year: 2026}                     (força ano em nomes novos)
-- naming.subgenre → value: {subgenre: "mandelão"}         (força subgênero no nome)
-- naming.suffix  → value: {text: "🔥"} ou {text: "BR"}    (sufixo obrigatório)
-- naming.prefix  → value: {text: "TOP"}                   (prefixo obrigatório)
+- naming.suffix  → value: {text: "🔥"} ou {text: "BR"}    (sufixo opcional, complementa nome da IA)
+- naming.prefix  → value: {text: "TOP"}                   (prefixo opcional, complementa nome da IA)
 - tracks.artist_boost → value: {artists: ["MC X","MC Y"]} (priorizar tracks desses artistas)
 - format.subgenre → value: {subgenre: "mandelão"}         (forçar subgênero do blueprint)
 - structure.size → value: {min: 30, max: 60}              (faixa de tracks ideal)
 - avoid.words    → value: {words: ["workout","gym"]}      (proibir essas palavras no nome)
 - avoid.artists  → value: {artists: ["..."]}              (excluir esses artistas)
 
-Use APENAS esses targets. Cada regra precisa de evidência curta (1 frase).`;
+🚫 PROIBIDO gerar:
+- naming.year     → o ano vem 100% da IA contextualmente. NÃO crie regras forçando ano.
+- naming.subgenre → o subgênero vem da IA pelo blueprint. NÃO crie regras forçando subgênero no nome.
+
+Use APENAS os targets listados acima. Cada regra precisa de evidência curta (1 frase).`;
 
   const user =
     `GÊNERO: ${genreName ?? "global"}
