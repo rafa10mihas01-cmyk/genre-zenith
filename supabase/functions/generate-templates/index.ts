@@ -71,18 +71,43 @@ async function callLLMOnce(system: string, user: string, schema: any, model: str
   throw new Error(`LLM returned no tool_call (finish=${finish ?? "?"}, model=${model})`);
 }
 
+// Fallback seletivo C.4:
+//   • 429 (rate limit) ou 402 (sem créditos) → backoff e RETENTA o mesmo modelo (não troca)
+//   • 5xx, network, timeout → troca pra modelo "pro" (mais caro mas mais robusto)
+//   • Outros 4xx (400 schema, 401 auth) → falha imediato, não adianta trocar
 async function callLLM(system: string, user: string, schema: any) {
-  const models = ["google/gemini-2.5-flash", "google/gemini-2.5-pro"];
+  const flash = "google/gemini-2.5-flash";
+  const pro = "google/gemini-2.5-pro";
   let lastErr: unknown;
-  for (const m of models) {
-    try {
-      return await callLLMOnce(system, user, schema, m);
-    } catch (e) {
-      lastErr = e;
-      console.warn(`[generate-templates] model ${m} failed:`, (e as Error).message);
+
+  // Tentativa 1: flash
+  try {
+    return await callLLMOnce(system, user, schema, flash);
+  } catch (e) {
+    lastErr = e;
+    const msg = (e as Error).message ?? "";
+    const m = msg.match(/HTTP (\d{3})/);
+    const status = m ? Number(m[1]) : null;
+
+    // 429/402 → backoff e retenta MESMO modelo (rate limit/quota não some trocando)
+    if (status === 429 || status === 402) {
+      console.warn(`[generate-templates] ${status} no flash — backoff 3s e retentando flash`);
+      await new Promise((r) => setTimeout(r, 3000));
+      try { return await callLLMOnce(system, user, schema, flash); }
+      catch (e2) { lastErr = e2; throw lastErr; }
     }
+
+    // 4xx (não-429/402) → falha imediato; trocar de modelo não resolve
+    if (status !== null && status >= 400 && status < 500) {
+      console.warn(`[generate-templates] ${status} no flash — fatal, sem fallback`);
+      throw lastErr;
+    }
+
+    // 5xx, timeout, network → fallback pro modelo pro
+    console.warn(`[generate-templates] flash falhou (${msg.slice(0, 80)}) — fallback pra pro`);
+    try { return await callLLMOnce(system, user, schema, pro); }
+    catch (e2) { lastErr = e2; throw lastErr; }
   }
-  throw lastErr instanceof Error ? lastErr : new Error("LLM failed");
 }
 
 Deno.serve(async (req) => {
