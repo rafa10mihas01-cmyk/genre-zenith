@@ -1259,32 +1259,32 @@ function TemplateDetailDialog({
                         })}
                       </div>
 
-                      {(hasAny || hasSelectedCover) && (
-                        <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            className="rounded-full gap-1.5"
-                            onClick={removeCover}
-                            disabled={isBusy}
-                          >
-                            {busy === "remove_cover" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-                            Excluir capa
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            className="rounded-full gap-1.5"
-                            onClick={regenerateCoverFromScratch}
-                            disabled={isBusy}
-                          >
-                            {busy === "regenerate_cover" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-                            Gerar outra
-                          </Button>
-                        </div>
-                      )}
+                      <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="rounded-full gap-1.5"
+                          onClick={removeCover}
+                          disabled={isBusy || (!hasAny && !hasSelectedCover)}
+                          title={!hasAny && !hasSelectedCover ? "Não há capa para excluir" : "Excluir capa atual"}
+                        >
+                          {busy === "remove_cover" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                          Excluir capa
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="rounded-full gap-1.5"
+                          onClick={regenerateCoverFromScratch}
+                          disabled={isBusy || !!tpl.spotify_playlist_id}
+                          title={tpl.spotify_playlist_id ? "Playlist já publicada não pode regenerar capa" : "Descartar a atual e gerar outra"}
+                        >
+                          {busy === "regenerate_cover" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                          Gerar outra
+                        </Button>
+                      </div>
 
                       <p className="text-[11px] text-center text-muted-foreground">
                         {hasAny
