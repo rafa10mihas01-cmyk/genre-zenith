@@ -322,6 +322,22 @@ async function runPipeline(
       total: candidates?.length ?? 0,
     });
 
+    // B.4 — alerta quando geramos templates mas nenhum foi aprovado
+    // (sintoma de score-templates não rodou a tempo, ou critérios não atingidos)
+    if (templatesGenerated > 0 && templatesApproved === 0) {
+      const allScored = (candidates ?? []).every((t) => t.scored_at != null);
+      const reason = allScored
+        ? "Templates pontuados mas nenhum atingiu critério (score≥75 + tier=hot + ≥25 tracks)"
+        : "score-templates não concluiu em 30s — templates ficaram sem score";
+      await sb.rpc("create_notification", {
+        p_type: "warning",
+        p_title: "Autopilot: 0 templates aprovados",
+        p_message: `${templatesGenerated} gerados, 0 aprovados. ${reason}.`,
+        p_action_url: "/cerebro",
+        p_metadata: { run_id: runId, genre_id: genreId, generated: templatesGenerated, all_scored: allScored },
+      }).then(() => {}, () => {});
+    }
+
     // ─── 7. REPLICATE-TOP (pacote, não publica) ─────────────────
     await setStep(sb, runId, "replicate");
     const r = await invokeFn("replicate-top", {
