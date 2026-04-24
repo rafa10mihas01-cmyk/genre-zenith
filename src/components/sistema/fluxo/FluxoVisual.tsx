@@ -289,8 +289,8 @@ export function FluxoVisual({ compact = false }: { compact?: boolean }) {
         )}
       </div>
 
-      {/* Pipeline visual */}
-      <div className="nx-card p-4 sm:p-8 overflow-x-auto nx-scroll">
+      {/* Pipeline visual — palco premium */}
+      <div className="nx-card fluxo-stage p-4 sm:p-8 overflow-x-auto nx-scroll">
         {/* Mobile: vertical | Desktop: horizontal */}
         <div className="flex flex-col lg:hidden gap-0 max-w-md mx-auto">
           {nodes.map((n, idx) => (
