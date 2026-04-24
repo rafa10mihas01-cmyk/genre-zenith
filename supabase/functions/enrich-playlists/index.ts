@@ -154,8 +154,7 @@ Deno.serve(async (req) => {
       const { data: flag } = await supabase
         .from("system_flags")
         .select("apify_blocked,apify_blocked_at")
-        .order("created_at", { ascending: true })
-        .limit(1)
+        .eq("singleton_key", "app")
         .maybeSingle();
       if (flag?.apify_blocked) {
         const ageMs = flag.apify_blocked_at
