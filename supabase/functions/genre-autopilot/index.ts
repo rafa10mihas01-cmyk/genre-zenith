@@ -704,7 +704,7 @@ Deno.serve(async (req) => {
   const guard = await requireTeamAccess(req);
   if (!guard.ok) return guard.resp;
 
-  let body: { genre_id?: string; max_templates?: number };
+  let body: { genre_id?: string; max_templates?: number; force?: boolean };
   try {
     body = await req.json();
   } catch {
