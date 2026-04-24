@@ -7,11 +7,48 @@ import { getUserAccessToken } from "../_shared/spotify.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 
 function jr(p: unknown, status = 200) {
   return new Response(JSON.stringify(p), {
     status, headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
+}
+
+// 🔐 Auth guard — exige usuário logado com role admin/curador (has_team_access)
+async function requireTeamAccess(req: Request): Promise<{ ok: true } | { ok: false; resp: Response }> {
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader?.startsWith("Bearer ")) {
+    return { ok: false, resp: jr({ error: "unauthorized" }, 401) };
+  }
+  const supabaseAuth = createClient(SUPABASE_URL, ANON_KEY, {
+    global: { headers: { Authorization: authHeader } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const token = authHeader.replace("Bearer ", "");
+  const { data: claims, error: claimsErr } = await supabaseAuth.auth.getClaims(token);
+  if (claimsErr || !claims?.claims) {
+    return { ok: false, resp: jr({ error: "unauthorized" }, 401) };
+  }
+  const { data: hasAccess } = await supabaseAuth.rpc("has_team_access");
+  if (!hasAccess) {
+    return { ok: false, resp: jr({ error: "forbidden" }, 403) };
+  }
+  return { ok: true };
+}
+
+// 🎯 Busca followers atuais da playlist no Spotify (usado p/ baseline correto t0)
+async function fetchPlaylistFollowers(token: string, playlistId: string): Promise<number> {
+  try {
+    const r = await fetch(`https://api.spotify.com/v1/playlists/${playlistId}?fields=followers.total`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!r.ok) return 0;
+    const j = await r.json();
+    return Number(j?.followers?.total ?? 0);
+  } catch {
+    return 0;
+  }
 }
 
 async function searchTrackUri(token: string, nome: string, artista: string): Promise<string | null> {
