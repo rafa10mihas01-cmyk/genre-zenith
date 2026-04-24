@@ -181,8 +181,22 @@ Converta isso em regras estruturadas que o replicador vai executar automaticamen
   }
 
   // 4) Insere novas regras (expira em 30d por padrão)
+  // 🚫 Filtro defensivo: bloqueia naming.year e naming.subgenre mesmo que o Claude tente.
+  const FORBIDDEN_TARGETS = new Set(["naming.year", "naming.subgenre"]);
+  const filteredRules = rules.filter((r: any) => {
+    const tgt = String(r?.target ?? "");
+    if (FORBIDDEN_TARGETS.has(tgt)) {
+      console.warn(`[extract-replication-rules] descartada regra proibida: ${tgt}`);
+      return false;
+    }
+    return true;
+  });
+  if (filteredRules.length === 0) {
+    return jr({ ok: true, inserted: 0, message: "Todas as regras foram filtradas (proibidas)" });
+  }
+
   const expires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-  const rows = rules.map((r: any) => ({
+  const rows = filteredRules.map((r: any) => ({
     genre_id: genreId,
     scope: genreId ? "genre" : "global",
     rule_type: String(r.rule_type),
