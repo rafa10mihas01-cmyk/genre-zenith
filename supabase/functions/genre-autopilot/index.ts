@@ -420,21 +420,21 @@ Deno.serve(async (req) => {
     .maybeSingle();
   if (!genre) return jr({ error: "Gênero não encontrado" }, 404);
 
-  // ─ Calcula target dinâmico (janela 7d + contagem hoje em SP) ─
+  // ─ Calcula target dinâmico v2 (média ponderada por followers, mix 3d+7d, contagem hoje em SP) ─
   let targetMeta: Record<string, unknown> = {};
   let dynamicRemaining: number | null = null;
   try {
-    const { data: targetRows, error: targetErr } = await sb.rpc("get_genre_daily_target", {
+    const { data: targetRows, error: targetErr } = await sb.rpc("get_genre_daily_target_v2", {
       p_genre_id: genreId,
     });
     if (targetErr) {
-      console.warn("[autopilot] get_genre_daily_target erro:", targetErr.message);
+      console.warn("[autopilot] get_genre_daily_target_v2 erro:", targetErr.message);
     } else if (Array.isArray(targetRows) && targetRows.length > 0) {
       targetMeta = targetRows[0] as Record<string, unknown>;
       dynamicRemaining = Number(targetMeta.remaining ?? 0);
     }
   } catch (e) {
-    console.warn("[autopilot] get_genre_daily_target exception:", e instanceof Error ? e.message : String(e));
+    console.warn("[autopilot] get_genre_daily_target_v2 exception:", e instanceof Error ? e.message : String(e));
   }
 
   // Se já atingiu o alvo do dia (e não é override manual), não cria run nem gasta IA
