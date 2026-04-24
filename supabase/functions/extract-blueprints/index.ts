@@ -278,6 +278,13 @@ Deno.serve(async (req) => {
       console.error(`LLM error tier=${tier}`, (e as Error).message);
       continue;
     }
+    // 💸 Marca cache hash após sucesso
+    await supabase.from("collection_logs").insert({
+      genre_id: genreId,
+      acao: "extract-blueprints-cache",
+      status: "sucesso",
+      mensagem: `hash=${cacheKey} tier=${tier} samples=${tierPlaylists.length}`,
+    }).then(() => {}, (err: any) => console.error("[cache] log insert failed", err?.message));
 
     const list = Array.isArray(llmOut?.blueprints) ? llmOut.blueprints : [];
     for (const bp of list) {
