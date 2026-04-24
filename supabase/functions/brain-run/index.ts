@@ -246,7 +246,7 @@ async function runPipeline(jobId: string, body: StartBody) {
     console.warn("[brain-run] autopilot_runs insert failed:", (e as Error).message);
   }
 
-  await setJob(supabase, gid, jobId, {
+  await setJob(supabase, gid, jobId, autopilotRunId, {
     status: "running",
     stage: survivalMode ? "⚠️ Modo sobrevivência — usando dados existentes" : "Gerando termos...",
     progress: 5,
@@ -282,7 +282,7 @@ async function runPipeline(jobId: string, body: StartBody) {
       // 2) Enrich inteligente: só followers IS NULL, limite 20, ignora se falhar
       const pendingIds = (cached ?? []).filter((r: any) => r.followers_source !== "spotify_api" || !r.followers_verified_at).slice(0, 20).map((r: any) => r.id);
       if (pendingIds.length > 0) {
-        await setJob(supabase, gid, jobId, {
+        await setJob(supabase, gid, jobId, autopilotRunId, {
           status: "running",
           stage: `⚠️ Modo sobrevivência — enriquecendo ${pendingIds.length} pendentes...`,
           progress: 35,
@@ -301,7 +301,7 @@ async function runPipeline(jobId: string, body: StartBody) {
       }
 
       // 3) Analyze normal
-      await setJob(supabase, gid, jobId, {
+      await setJob(supabase, gid, jobId, autopilotRunId, {
         status: "running",
         stage: "⚠️ Modo sobrevivência — analisando padrões...",
         progress: 60,
@@ -314,7 +314,7 @@ async function runPipeline(jobId: string, body: StartBody) {
       }
 
       // 3.5) DNA Visual (best-effort) — survival mode também extrai padrão visual
-      await setJob(supabase, gid, jobId, {
+      await setJob(supabase, gid, jobId, autopilotRunId, {
         status: "running",
         stage: "⚠️ Modo sobrevivência — analisando DNA visual...",
         progress: 80,
@@ -336,7 +336,7 @@ async function runPipeline(jobId: string, body: StartBody) {
       }
 
       // 4) Briefing SEMPRE (com survival_mode → filtros relaxados + metadata)
-      await setJob(supabase, gid, jobId, {
+      await setJob(supabase, gid, jobId, autopilotRunId, {
         status: "running",
         stage: "⚠️ Modo sobrevivência — gerando briefing...",
         progress: 90,
@@ -366,7 +366,7 @@ async function runPipeline(jobId: string, body: StartBody) {
       const { data: model } = await supabase
         .from("genre_models").select("*").eq("genre_id", gid).maybeSingle();
 
-      await setJob(supabase, gid, jobId, {
+      await setJob(supabase, gid, jobId, autopilotRunId, {
         status: "done",
         stage: "⚠️ Modo sobrevivência — concluído com dados existentes",
         progress: 100,
@@ -499,7 +499,7 @@ async function runPipeline(jobId: string, body: StartBody) {
           } else searchedErr++;
         }
         processed += batch.length;
-        await setJob(supabase, gid, jobId, {
+        await setJob(supabase, gid, jobId, autopilotRunId, {
           status: "running",
           stage: apifyBlocked
             ? "⚠️ Coleta pausada — limite de API atingido"
@@ -516,7 +516,7 @@ async function runPipeline(jobId: string, body: StartBody) {
     if (cacheHit) {
       callsAvoided = Math.min(allTerms.length, MAX_CALLS);
       playlistsReused = freshCount ?? 0;
-      await setJob(supabase, gid, jobId, {
+      await setJob(supabase, gid, jobId, autopilotRunId, {
         status: "running",
         stage: `♻️ Cache fresco (${playlistsReused} playlists em ${CACHE_WINDOW_DAYS}d) — pulando coleta`,
         progress: 55,
@@ -526,7 +526,7 @@ async function runPipeline(jobId: string, body: StartBody) {
         mensagem: `Coleta pulada — ${playlistsReused} playlists reaproveitadas, ${callsAvoided} chamadas Apify evitadas`,
       });
     } else {
-      await setJob(supabase, gid, jobId, { status: "running", stage: "Buscando playlists... (Wave 1)", progress: 15 });
+      await setJob(supabase, gid, jobId, autopilotRunId, { status: "running", stage: "Buscando playlists... (Wave 1)", progress: 15 });
 
       // Wave 1
       await runWave(0, Math.min(WAVE_1_CALLS, allTerms.length));
@@ -535,7 +535,7 @@ async function runPipeline(jobId: string, body: StartBody) {
       const wave1Saved = totalSavedResults;
       const hasMoreTerms = allTerms.length > WAVE_1_CALLS;
       if (!apifyBlocked && hasMoreTerms && wave1Saved < MIN_RESULTS_FOR_STOP) {
-        await setJob(supabase, gid, jobId, {
+        await setJob(supabase, gid, jobId, autopilotRunId, {
           status: "running",
           stage: `Wave 1 trouxe ${wave1Saved} (< ${MIN_RESULTS_FOR_STOP}) — expandindo (Wave 2)`,
           progress: 35,
@@ -569,7 +569,7 @@ async function runPipeline(jobId: string, body: StartBody) {
         mensagem: "Pipeline interrompido por limite do Apify",
         duracao_ms: Date.now() - start,
       });
-      await setJob(supabase, gid, jobId, {
+      await setJob(supabase, gid, jobId, autopilotRunId, {
         status: "error",
         stage: "⚠️ Coleta pausada — limite de API atingido",
         progress: 0,
@@ -583,7 +583,7 @@ async function runPipeline(jobId: string, body: StartBody) {
 
     // 3) Filtro relaxado: relevante se nome OU descrição OU termo de origem contém o slug,
     //    o nome do gênero, OU qualquer termo selecionado nesta rodada (kit OU dinâmico).
-    await setJob(supabase, gid, jobId, { status: "running", stage: "Filtrando resultados...", progress: 60 });
+    await setJob(supabase, gid, jobId, autopilotRunId, { status: "running", stage: "Filtrando resultados...", progress: 60 });
     const { data: allResults } = await supabase
       .from("search_results")
       .select("id,nome_playlist,descricao,term_id")
@@ -613,7 +613,7 @@ async function runPipeline(jobId: string, body: StartBody) {
 
     // 3.5) PRIORIZAÇÃO INTELIGENTE — calcular score, threshold dinâmico, cap em max_playlists
     //   score = (1/posição)*0.4 + log10(seg+1)/log10(1e7)*0.4 + min(times_seen,5)/5*0.2 + bonusBR(0.1)
-    await setJob(supabase, gid, jobId, { status: "running", stage: "Priorizando playlists...", progress: 65 });
+    await setJob(supabase, gid, jobId, autopilotRunId, { status: "running", stage: "Priorizando playlists...", progress: 65 });
     const { data: filt } = await supabase
       .from("genre_filters").select("max_playlists,min_followers")
       .eq("genre_id", gid).maybeSingle();
@@ -672,7 +672,7 @@ async function runPipeline(jobId: string, body: StartBody) {
       ));
       // Heartbeat a cada 4 chunks (100 updates) pra UI saber que o job tá vivo
       if (i > 0 && i % (CHUNK * 4) === 0) {
-        await setJob(supabase, gid, jobId, {
+        await setJob(supabase, gid, jobId, autopilotRunId, {
           status: "running",
           stage: `Priorizando playlists... (${Math.min(i + CHUNK, dirty.length)}/${dirty.length})`,
           progress: 65,
@@ -682,7 +682,7 @@ async function runPipeline(jobId: string, body: StartBody) {
     stages.prioritize_skipped = scored.length - dirty.length;
     // Descarte das não-selecionadas em chunks (evita payload gigante no .in())
     if (droppedIds.length > 0) {
-      await setJob(supabase, gid, jobId, {
+      await setJob(supabase, gid, jobId, autopilotRunId, {
         status: "running", stage: `Descartando ${droppedIds.length} de baixa prioridade...`, progress: 68,
       });
       const DEL_CHUNK = 100;
@@ -725,7 +725,7 @@ async function runPipeline(jobId: string, body: StartBody) {
     let zeroProgressStreak = 0;
     while (coverage < COVERAGE_TARGET && cycles < MAX_CYCLES) {
       cycles++;
-      await setJob(supabase, gid, jobId, {
+      await setJob(supabase, gid, jobId, autopilotRunId, {
         status: "running",
         stage: `Enriquecendo seleção... (${enrichedCount}/${totalPls} • ${Math.round(coverage * 100)}%) ciclo ${cycles}/${MAX_CYCLES}`,
         progress: 70 + Math.min(15, Math.round(coverage * 20)),
@@ -778,7 +778,7 @@ async function runPipeline(jobId: string, body: StartBody) {
       enriched_count: enrichedCount, total_playlists: totalPls,
       partial, max_cycles: MAX_CYCLES, target: COVERAGE_TARGET,
     };
-    await setJob(supabase, gid, jobId, {
+    await setJob(supabase, gid, jobId, autopilotRunId, {
       status: "running",
       stage: partial
         ? `Cobertura parcial (${Math.round(coverage * 100)}%) — analisando mesmo assim`
@@ -787,7 +787,7 @@ async function runPipeline(jobId: string, body: StartBody) {
     });
 
     // 5) Analisar (best-effort)
-    await setJob(supabase, gid, jobId, { status: "running", stage: "Analisando padrões...", progress: 87 });
+    await setJob(supabase, gid, jobId, autopilotRunId, { status: "running", stage: "Analisando padrões...", progress: 87 });
     try {
       const a = await callFn("analyze-genre", { genre_id: gid });
       stages.analyze = (a.data as any)?.insights ?? { ok: a.ok };
@@ -796,7 +796,7 @@ async function runPipeline(jobId: string, body: StartBody) {
     }
 
     // 6) Insights IA (best-effort — não bloqueia briefing)
-    await setJob(supabase, gid, jobId, { status: "running", stage: "Gerando insights...", progress: 90 });
+    await setJob(supabase, gid, jobId, autopilotRunId, { status: "running", stage: "Gerando insights...", progress: 90 });
     try {
       const ia = await callFn("genre-insights", { genre_id: gid });
       stages.insights = (ia.data as any)?.ai ?? { ok: ia.ok, error: (ia.data as any)?.error };
@@ -805,7 +805,7 @@ async function runPipeline(jobId: string, body: StartBody) {
     }
 
     // 6.4) DNA Visual das capas (best-effort, antes do briefing pra que ele injete dna_capa)
-    await setJob(supabase, gid, jobId, { status: "running", stage: "Analisando DNA visual das capas...", progress: 92 });
+    await setJob(supabase, gid, jobId, autopilotRunId, { status: "running", stage: "Analisando DNA visual das capas...", progress: 92 });
     // 🔒 Lock: previne race com runs concorrentes para o mesmo gênero
     const gotLockDna = await acquireLock(supabase, gid, "analyze-visual-dna", 300);
     if (!gotLockDna) {
@@ -823,11 +823,11 @@ async function runPipeline(jobId: string, body: StartBody) {
     }
 
     // 6.5) Gerar briefing — SEMPRE tenta, com retry. Não pode pular.
-    await setJob(supabase, gid, jobId, { status: "running", stage: "Gerando briefing de playlists...", progress: 95 });
+    await setJob(supabase, gid, jobId, autopilotRunId, { status: "running", stage: "Gerando briefing de playlists...", progress: 95 });
     await ensureBriefing(supabase, gid, stages);
 
     // 6.7) Extrair blueprints (replicação) — best-effort
-    await setJob(supabase, gid, jobId, { status: "running", stage: "Extraindo blueprints replicáveis...", progress: 97 });
+    await setJob(supabase, gid, jobId, autopilotRunId, { status: "running", stage: "Extraindo blueprints replicáveis...", progress: 97 });
     const gotLockBp = await acquireLock(supabase, gid, "extract-blueprints", 600);
     if (!gotLockBp) {
       stages.blueprints = { ok: true, skipped: true, reason: "lock — extração recente" };
@@ -886,7 +886,7 @@ async function runPipeline(jobId: string, body: StartBody) {
       body: JSON.stringify({ trigger: "brain-run" }),
     }).catch((e) => console.error("cleanup-brain hook failed", e));
 
-    await setJob(supabase, gid, jobId, {
+    await setJob(supabase, gid, jobId, autopilotRunId, {
       status: "done",
       stage: partial ? `Concluído (parcial — ${coveragePct}%)` : `Concluído — ${summary}`,
       progress: 100,
@@ -906,7 +906,7 @@ async function runPipeline(jobId: string, body: StartBody) {
     console.error("pipeline error", msg);
     // Antes de marcar erro, tenta gerar briefing se já existir modelo (não deixa análise sem output)
     try { await ensureBriefing(supabase, gid, stages); } catch (_) {}
-    await setJob(supabase, gid, jobId, {
+    await setJob(supabase, gid, jobId, autopilotRunId, {
       status: "error", stage: "Erro", progress: 0, error: msg.slice(0, 500),
     });
   }
@@ -926,7 +926,7 @@ async function resumePipeline(jobId: string, slug: string) {
     return;
   }
   const gid = genre.id;
-  await setJob(supabase, gid, jobId, { status: "running", stage: "Retomando enriquecimento...", progress: 70 });
+  await setJob(supabase, gid, jobId, autopilotRunId, { status: "running", stage: "Retomando enriquecimento...", progress: 70 });
 
   try {
     let totalPls = 0, enrichedCount = 0, coverage = 0;
@@ -944,7 +944,7 @@ async function resumePipeline(jobId: string, slug: string) {
     const TARGET = totalPls > 500 ? 0.5 : totalPls > 200 ? 0.7 : 0.85;
     while (coverage < TARGET && cycles < MAX_CYCLES) {
       cycles++;
-      await setJob(supabase, gid, jobId, {
+      await setJob(supabase, gid, jobId, autopilotRunId, {
         status: "running",
         stage: `Retomando... (${enrichedCount}/${totalPls} • ${Math.round(coverage * 100)}%) ciclo ${cycles}/${MAX_CYCLES}`,
         progress: 70 + Math.min(15, Math.round(coverage * 20)),
@@ -962,11 +962,11 @@ async function resumePipeline(jobId: string, slug: string) {
     }
     const partial = coverage < 0.7;
     const stages: Record<string, unknown> = {};
-    await setJob(supabase, gid, jobId, { status: "running", stage: "Analisando padrões...", progress: 85 });
+    await setJob(supabase, gid, jobId, autopilotRunId, { status: "running", stage: "Analisando padrões...", progress: 85 });
     try { await callFn("analyze-genre", { genre_id: gid }); } catch (_) {}
-    await setJob(supabase, gid, jobId, { status: "running", stage: "Gerando insights...", progress: 90 });
+    await setJob(supabase, gid, jobId, autopilotRunId, { status: "running", stage: "Gerando insights...", progress: 90 });
     try { await callFn("genre-insights", { genre_id: gid }); } catch (_) {}
-    await setJob(supabase, gid, jobId, { status: "running", stage: "Analisando DNA visual das capas...", progress: 92 });
+    await setJob(supabase, gid, jobId, autopilotRunId, { status: "running", stage: "Analisando DNA visual das capas...", progress: 92 });
     // 🔒 Lock: evita race com runPipeline concorrente
     const gotLockResume = await acquireLock(supabase, gid, "analyze-visual-dna", 300);
     if (!gotLockResume) {
@@ -982,7 +982,7 @@ async function resumePipeline(jobId: string, slug: string) {
         (stages as any).visual_dna = { ok: false, error: (e as Error).message };
       }
     }
-    await setJob(supabase, gid, jobId, { status: "running", stage: "Gerando briefing de playlists...", progress: 95 });
+    await setJob(supabase, gid, jobId, autopilotRunId, { status: "running", stage: "Gerando briefing de playlists...", progress: 95 });
     await ensureBriefing(supabase, gid, stages);
 
     const [pCnt, tCnt, teCnt] = await Promise.all([
@@ -1003,7 +1003,7 @@ async function resumePipeline(jobId: string, slug: string) {
       mensagem: `Retomada concluída — ${summary}, +${enrichedTotal} enriquecidas, +${tracksTotal} faixas, ${cycles} ciclos`,
       duracao_ms: Date.now() - start,
     });
-    await setJob(supabase, gid, jobId, {
+    await setJob(supabase, gid, jobId, autopilotRunId, {
       status: "done",
       stage: partial ? `Concluído (parcial — ${coveragePct}%)` : `Concluído — ${summary}`,
       progress: 100,
@@ -1015,7 +1015,7 @@ async function resumePipeline(jobId: string, slug: string) {
     const msg = (e as Error).message ?? String(e);
     // Garante briefing mesmo em erro de retomada
     try { await ensureBriefing(supabase, gid, {}); } catch (_) {}
-    await setJob(supabase, gid, jobId, { status: "error", stage: "Erro retomando", progress: 0, error: msg.slice(0, 500) });
+    await setJob(supabase, gid, jobId, autopilotRunId, { status: "error", stage: "Erro retomando", progress: 0, error: msg.slice(0, 500) });
   }
 }
 
