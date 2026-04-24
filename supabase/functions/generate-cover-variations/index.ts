@@ -531,8 +531,8 @@ const HIERARCHY_RULES_BLOCK = [
 // PROMPT BUILDERS — 1 por estilo
 // ============================================================
 function buildCleanPrompt(template: any, palette: typeof PALETTES[number], index = 0): string {
-  const name = sanitizePlaylistTitle(template.name);
-  const subtext = extractSubtext(template.cover_brief, template.name);
+  const name = sanitizePlaylistTitle(template.name, template.__promptOptions);
+  const subtext = extractSubtext(template.__cover_brief_override ?? template.cover_brief, name);
 
   const textBlock = subtext
     ? [
@@ -607,7 +607,7 @@ function buildCleanPrompt(template: any, palette: typeof PALETTES[number], index
 }
 
 function buildViralHitsPrompt(template: any, palette: typeof PALETTES[number], index = 0): string {
-  const sanitized = sanitizePlaylistTitle(template.name);
+  const sanitized = sanitizePlaylistTitle(template.name, template.__promptOptions);
   const { dominant, secondary } = pickDominantWord(sanitized);
 
   const secondaryBlock = secondary
@@ -661,9 +661,9 @@ function buildViralHitsPrompt(template: any, palette: typeof PALETTES[number], i
 }
 
 function buildDynamicPrompt(template: any, palette: typeof PALETTES[number], index = 0): string {
-  const sanitized = sanitizePlaylistTitle(template.name);
+  const sanitized = sanitizePlaylistTitle(template.name, template.__promptOptions);
   const { dominant, secondary } = pickDominantWord(sanitized);
-  const subtext = extractSubtext(template.cover_brief, template.name);
+  const subtext = extractSubtext(template.__cover_brief_override ?? template.cover_brief, sanitized);
 
   // Decide the secondary line: palavra secundária da tipografia OU subtitle do brief
   const secondLine = secondary || subtext;
