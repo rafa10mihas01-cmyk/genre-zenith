@@ -386,6 +386,10 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return jr({ error: "method not allowed" }, 405);
 
+  // 🔐 Exige sessão válida com role admin/curador (evita disparo anônimo de IA cara)
+  const guard = await requireTeamAccess(req);
+  if (!guard.ok) return guard.resp;
+
   let body: { genre_id?: string; max_templates?: number };
   try {
     body = await req.json();
@@ -407,7 +411,11 @@ Deno.serve(async (req) => {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  // ─ Cooldown: já tem run em <1h? ─
+  // 🧹 Limpa runs zumbis antes de checar concorrência (>30min sem update vira 'error')
+  await sb.rpc("cleanup_stale_autopilot_runs", { p_minutes: 30 })
+    .then(() => {}, (e) => console.warn("[autopilot] cleanup_stale failed:", e?.message));
+
+  // ─ Cooldown + lock: já tem run em <1h? ─
   const since = new Date(Date.now() - COOLDOWN_MS).toISOString();
   const { data: recent } = await sb
     .from("autopilot_runs")
