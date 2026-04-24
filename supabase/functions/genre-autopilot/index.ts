@@ -140,6 +140,7 @@ async function runPipeline(
   let templatesGenerated = 0;
   let templatesApproved = 0;
   let coversGenerated = 0;
+  const generatedIds: string[] = []; // 🔄 rastreia ids p/ cleanup em caso de falha
 
   try {
     // ─── 1. ANALYZE ──────────────────────────────────────────────
