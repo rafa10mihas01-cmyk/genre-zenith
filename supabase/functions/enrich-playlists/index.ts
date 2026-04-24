@@ -458,6 +458,34 @@ Deno.serve(async (req) => {
   } catch (e) {
     const msg = (e as Error).message ?? String(e);
     console.error("enrich-playlists fatal", msg);
+
+    // 🚨 Audit #8 A.1 — Circuit breaker: ativa apify_blocked global em 403/limit
+    if (e instanceof ApifyBlockedError) {
+      const { data: f } = await supabase
+        .from("system_flags").select("id").order("created_at", { ascending: true }).limit(1).maybeSingle();
+      const breakerPayload = {
+        apify_blocked: true,
+        apify_blocked_at: new Date().toISOString(),
+        apify_blocked_reason: msg.slice(0, 300),
+      };
+      if (f?.id) {
+        await supabase.from("system_flags").update(breakerPayload).eq("id", f.id);
+      } else {
+        await supabase.from("system_flags").insert(breakerPayload);
+      }
+      await supabase.from("collection_logs").insert({
+        genre_id: body.genre_id ?? null,
+        acao: "apify-blocked", status: "erro",
+        mensagem: "Apify limit exceeded - circuit breaker activated (enrich-playlists)",
+        duracao_ms: Date.now() - start,
+      });
+      await supabase.rpc("create_notification", {
+        p_type: "critical",
+        p_title: "Apify bloqueado",
+        p_message: "Limite do Apify atingido em enrich-playlists. Coletas pausadas (24h).",
+      }).then(() => {}, () => {});
+    }
+
     await supabase.from("collection_logs").insert({
       genre_id: body.genre_id ?? null,
       acao: "enrich-playlists",
