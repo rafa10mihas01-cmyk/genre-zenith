@@ -344,7 +344,15 @@
   transition: transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 220ms ease, border-color 220ms ease;
 }
 .fluxo-node-hover:hover {
-  transform: translateY(-2px) scale(1.015);
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 12px 28px -12px hsl(var(--primary) / 0.25), 0 0 0 1px hsl(var(--primary) / 0.15);
+}
+
+/* Stage / palco do pipeline — gradiente radial sutil atrás dos nós */
+.fluxo-stage {
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 50%, hsl(var(--primary) / 0.06), transparent 70%),
+    linear-gradient(180deg, hsl(var(--card)) 0%, hsl(var(--elevated) / 0.4) 100%);
 }
 
 /* Reduz motion para fluxo */
