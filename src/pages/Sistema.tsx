@@ -5,7 +5,7 @@ import { Activity, Workflow, Music2, HeartPulse } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
 import { usePersistedState } from "@/hooks/usePersistedState";
-import { AoVivoFeed } from "@/components/sistema/AoVivoFeed";
+import { AoVivoPainel } from "@/components/sistema/AoVivoPainel";
 import { FluxoVisual } from "@/components/sistema/fluxo/FluxoVisual";
 import { ColetaPanel } from "@/components/sistema/ColetaPanel";
 import { SaudeSistema } from "@/components/sistema/SaudeSistema";
@@ -48,10 +48,7 @@ export default function Sistema() {
         </TabsContent>
 
         <TabsContent value="ao-vivo" className="mt-0">
-          <div className="space-y-4">
-            <FluxoVisual compact />
-            <AoVivoFeed />
-          </div>
+          <AoVivoPainel />
         </TabsContent>
 
         <TabsContent value="coleta" className="mt-0">
