@@ -222,21 +222,22 @@ export default function Cerebro() {
           <Visual briefing={briefing} loading={loadingBriefing} onAnalyze={analyzeVisualDna} analyzing={analyzingDna} />
         </TabsContent>
         <TabsContent value="replicacao" className="mt-0 space-y-6">
-          <Section step="1" icon={Rocket} title="Replicar agora" subtitle="Caminho rápido: seleciona top playlists, gera o plano e despacha">
-            <ReplicacaoAuto genreId={genre?.id} />
-          </Section>
-
-          <Section step="2" icon={ListMusic} title="Playlists prontas" subtitle="Variações geradas — aprove e publique no Spotify">
-            <Variacoes genreId={genre?.id} />
-          </Section>
-
-          <Section step="3" icon={Layers} title="Moldes (blueprints)" subtitle="Padrões base extraídos das top playlists">
+          {/* FUNIL: Moldes (origem) → Variações (geradas) → Histórico (publicadas) */}
+          <Section step="1" icon={Layers} title="Moldes" subtitle="Padrões base — gere até 5 variações por molde">
             <Moldes genreId={genre?.id} />
           </Section>
 
-          <Section step="4" icon={Activity} title="Histórico" subtitle="Últimas replicações executadas">
-            <ReplicacaoHistorico genreId={genre?.id} />
+          <Section step="2" icon={ListMusic} title="Variações" subtitle="Aprove e publique no Spotify">
+            <Variacoes genreId={genre?.id} />
           </Section>
+
+          <CollapsibleSection icon={Rocket} title="Replicar agora (atalho)" subtitle="Caminho rápido: top playlists → plano → despacha">
+            <ReplicacaoAuto genreId={genre?.id} />
+          </CollapsibleSection>
+
+          <CollapsibleSection icon={Activity} title="Histórico" subtitle="Últimas replicações executadas">
+            <ReplicacaoHistorico genreId={genre?.id} />
+          </CollapsibleSection>
         </TabsContent>
       </Tabs>
     </PageContainer>
