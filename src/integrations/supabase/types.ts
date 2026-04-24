@@ -1342,6 +1342,7 @@ export type Database = {
           value: Json
         }[]
       }
+      get_cron_secret: { Args: never; Returns: string }
       get_followers_revalidation_candidates: {
         Args: {
           p_limit?: number
