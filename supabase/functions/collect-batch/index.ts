@@ -92,13 +92,19 @@ Deno.serve(async (req) => {
         await callFn("generate-terms", { genre_id: g.id });
       }
 
-      // 2) Pegar próximos N termos pendentes (prefixo → completo → variacao → contextual)
+      // 2) Pegar próximos N termos pendentes — priorização inteligente:
+      //    a) tipo (prefixo > completo > variacao > contextual — ordem alfabética casa)
+      //    b) total_resultados ASC NULLS FIRST → termos nunca rodados primeiro
+      //    c) ultima_execucao ASC NULLS FIRST → mais antigos antes (revalida termos parados)
+      //    d) created_at ASC → tiebreak determinístico
       const { data: terms, error: tErr } = await supabase
         .from("search_terms")
-        .select("id, termo, tipo")
+        .select("id, termo, tipo, total_resultados, ultima_execucao")
         .eq("genre_id", g.id)
         .eq("executado", false)
         .order("tipo", { ascending: true })
+        .order("total_resultados", { ascending: true, nullsFirst: true })
+        .order("ultima_execucao", { ascending: true, nullsFirst: true })
         .order("created_at", { ascending: true })
         .limit(termsPerGenre);
 
