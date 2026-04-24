@@ -133,6 +133,101 @@ async function invokeFn<T = any>(
 }
 
 // ============================================================
+// HELPERS — gate de massa, coleta nova, auto-coleta
+// ============================================================
+async function checkMassa(sb: SupabaseClient, genreId: string): Promise<{
+  ok: boolean;
+  termsExecuted: number;
+  playlistsValid: number;
+  reason?: string;
+}> {
+  const [{ count: termsExecuted }, { count: playlistsValid }] = await Promise.all([
+    sb.from("search_terms").select("id", { count: "exact", head: true })
+      .eq("genre_id", genreId).eq("executado", true),
+    sb.from("search_results").select("id", { count: "exact", head: true })
+      .eq("genre_id", genreId).eq("is_valid", true),
+  ]);
+  const t = termsExecuted ?? 0;
+  const p = playlistsValid ?? 0;
+  const reasons: string[] = [];
+  if (t < MIN_TERMS_EXECUTED) reasons.push(`termos executados ${t}/${MIN_TERMS_EXECUTED}`);
+  if (p < MIN_PLAYLISTS_VALID) reasons.push(`playlists válidas ${p}/${MIN_PLAYLISTS_VALID}`);
+  return {
+    ok: reasons.length === 0,
+    termsExecuted: t,
+    playlistsValid: p,
+    reason: reasons.length > 0 ? `Massa insuficiente: ${reasons.join(" + ")}` : undefined,
+  };
+}
+
+async function lastCollectionAt(sb: SupabaseClient, genreId: string): Promise<Date | null> {
+  const { data } = await sb
+    .from("search_results")
+    .select("coletado_em")
+    .eq("genre_id", genreId)
+    .order("coletado_em", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data?.coletado_em ? new Date(data.coletado_em) : null;
+}
+
+/**
+ * Dispara auto-coleta em background usando collect-batch (1 gênero, N termos pendentes).
+ * Não aguarda — autopilot retorna imediatamente. Quando coleta termina, autopilot é re-disparado.
+ */
+async function triggerAutoCollect(
+  sb: SupabaseClient,
+  runId: string,
+  genreId: string,
+  templatesToGenerate: number,
+): Promise<void> {
+  // Garante que existem termos pendentes (gera se não tem nenhum)
+  const { count: pendingTerms } = await sb
+    .from("search_terms")
+    .select("id", { count: "exact", head: true })
+    .eq("genre_id", genreId)
+    .eq("executado", false);
+
+  if ((pendingTerms ?? 0) < AUTO_COLLECT_MAX_TERMS) {
+    await invokeFn("generate-terms", { genre_id: genreId }, 30000)
+      .catch((e) => console.warn("[autopilot] generate-terms falhou:", e?.message ?? e));
+  }
+
+  // Dispara collect-batch e depois re-invoca o próprio autopilot (chained)
+  // deno-lint-ignore no-explicit-any
+  const ER: any = (globalThis as any).EdgeRuntime;
+  const work = (async () => {
+    try {
+      const r = await invokeFn("collect-batch", {
+        genre_ids: [genreId],
+        terms_per_genre: AUTO_COLLECT_MAX_TERMS,
+        max_results: 100,
+        delay_ms: 1500,
+      }, 20 * 60 * 1000); // até 20min
+
+      await sb.from("collection_logs").insert({
+        genre_id: genreId,
+        acao: "autopilot:auto-collect",
+        status: r.ok ? "sucesso" : "erro",
+        mensagem: `Auto-coleta concluída (run autopilot ${runId}). ${r.ok ? "Re-disparando IA." : "Falhou."}`,
+      });
+
+      if (r.ok) {
+        // Re-dispara autopilot — agora deve passar no gate
+        await invokeFn("genre-autopilot", {
+          genre_id: genreId,
+          max_templates: templatesToGenerate,
+        }, 10000).catch((e) => console.warn("[autopilot] re-trigger falhou:", e?.message ?? e));
+      }
+    } catch (e) {
+      console.error("[autopilot] auto-collect background error:", e instanceof Error ? e.message : String(e));
+    }
+  })();
+
+  if (ER && typeof ER.waitUntil === "function") ER.waitUntil(work);
+}
+
+// ============================================================
 // PIPELINE — roda em background depois que respondemos ao cliente
 // ============================================================
 async function runPipeline(
