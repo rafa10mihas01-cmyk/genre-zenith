@@ -75,6 +75,10 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return jr({ error: "POST only" }, 405);
 
+  // 🔐 Exige sessão válida com role admin/curador
+  const guard = await requireTeamAccess(req);
+  if (!guard.ok) return guard.resp;
+
   let body: { template_id?: string; spotify_user_id?: string; public?: boolean };
   try { body = await req.json(); } catch { return jr({ error: "invalid json" }, 400); }
   const templateId = body.template_id;
