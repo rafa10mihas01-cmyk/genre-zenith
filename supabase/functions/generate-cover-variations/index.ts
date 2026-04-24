@@ -844,6 +844,11 @@ Deno.serve(async (req) => {
   const { data: tpl, error: tplErr } = await supabase
     .from("playlist_templates").select("*").eq("id", body.template_id).maybeSingle();
   if (tplErr || !tpl) return jr({ error: "template not found" }, 404);
+  const { data: genreRow } = await supabase
+    .from("genres")
+    .select("nome")
+    .eq("id", tpl.genre_id)
+    .maybeSingle();
 
   // 🛡️ Proteção: NUNCA regenerar capa de playlist já publicada no Spotify.
   // Mesmo com force=true. Quem está no ar fica como está.
@@ -893,7 +898,7 @@ Deno.serve(async (req) => {
   const promptTemplate = {
     ...tpl,
     __promptOptions: {
-      genreHint: tpl.genre_id === "ef75ef4d-24a0-4249-94be-5881f3a1b9ea" ? "funk" : undefined,
+      genreHint: genreRow?.nome ?? null,
       stripYear: Boolean(body.force),
       forceGenre: Boolean(body.force),
     },
