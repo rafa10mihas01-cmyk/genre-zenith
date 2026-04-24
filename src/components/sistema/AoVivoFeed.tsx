@@ -1,11 +1,14 @@
 // AoVivoFeed — feed cronológico em tempo real de TUDO que está acontecendo
 // no sistema. Junta autopilot_runs, collection_logs e playlist_adjustments
 // em um só stream PT-BR, com ícones e linguagem para leigo.
+// - Agrupa eventos repetidos consecutivos (ex: "create-spotify-playlist-lock ×5")
+// - Filtros rápidos: tudo / erros / cérebro / coleta / ajustes
+// - Mostra 20 por vez; "carregar mais" até 200; container com scroll interno
 import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Brain, Music2, Wrench, CheckCircle2, AlertTriangle, Loader2,
-  Activity, Clock, RefreshCw,
+  Activity, Clock, RefreshCw, Filter,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,7 +25,12 @@ type FeedItem = {
   meta?: string;
   timestamp: string;
   genre_nome?: string;
+  groupKey?: string; // para agrupar repetições consecutivas
+  count?: number;    // quantos eventos esse item agrupa (default 1)
 };
+
+type FilterKey = "all" | "errors" | "cerebro" | "coleta" | "ajustes";
+const PAGE_SIZE = 20;
 
 const STEP_LABELS_PT: Record<string, string> = {
   analyze: "analisando o gênero",
