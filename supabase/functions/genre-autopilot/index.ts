@@ -245,6 +245,38 @@ async function runPipeline(
   const generatedIds: string[] = []; // 🔄 rastreia ids p/ cleanup em caso de falha
 
   try {
+    // ─── 0. GATE DE MASSA ────────────────────────────────────────
+    // Bloqueia IA se gênero não tem dados mínimos. Dispara auto-coleta em background
+    // e marca run como 'waiting_collection' (será re-disparada quando coleta concluir).
+    const massa = await checkMassa(sb, genreId);
+    if (!massa.ok) {
+      await pushCompleted(sb, runId, "analyze", {
+        gate: "massa",
+        terms: massa.termsExecuted,
+        playlists: massa.playlistsValid,
+        action: "auto-collect",
+      });
+      const summary = `📡 Coleta automática iniciada — ${massa.reason}. IA roda quando atingir ${MIN_PLAYLISTS_VALID} playlists.`;
+      await updateRun(sb, runId, {
+        status: "waiting_collection",
+        current_step: "analyze",
+        summary,
+        finished_at: new Date().toISOString(),
+        duracao_ms: Date.now() - startedAt,
+      });
+      await sb.rpc("create_notification", {
+        p_type: "info",
+        p_title: "Autopilot: coleta automática iniciada",
+        p_message: `${massa.reason}. Sistema vai coletar e re-disparar IA automaticamente.`,
+        p_action_url: "/cerebro",
+        p_metadata: { run_id: runId, genre_id: genreId, terms: massa.termsExecuted, playlists: massa.playlistsValid },
+      }).then(() => {}, (e) => console.error("[autopilot] notif failed:", e?.message ?? e));
+
+      // Dispara auto-coleta + re-trigger em background
+      await triggerAutoCollect(sb, runId, genreId, maxTemplates);
+      return;
+    }
+
     // ─── 1. ANALYZE ──────────────────────────────────────────────
     await setStep(sb, runId, "analyze");
     const { data: model } = await sb
