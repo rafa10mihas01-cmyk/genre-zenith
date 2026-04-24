@@ -160,11 +160,13 @@ async function ensureBriefing(supabase: any, gid: string, stages: Record<string,
 
 // ---------- Job state via collection_logs ----------
 // acao = `brain-job:${jobId}`, mensagem = JSON {status, stage, progress, result?, error?}
+// 🚨 Audit #9 A.2 — também atualiza autopilot_runs quando autopilotRunId fornecido
 async function setJob(
   supabase: any,
   genreId: string,
   jobId: string,
   payload: { status: "running" | "done" | "error"; stage: string; progress: number; result?: unknown; error?: string },
+  autopilotRunId?: string | null,
 ) {
   await supabase.from("collection_logs").insert({
     genre_id: genreId,
@@ -172,6 +174,22 @@ async function setJob(
     status: payload.status === "error" ? "erro" : "sucesso",
     mensagem: JSON.stringify(payload).slice(0, 8000),
   });
+  if (autopilotRunId) {
+    const arPatch: Record<string, unknown> = {
+      current_step: payload.stage.slice(0, 100),
+      progress_pct: Math.min(100, Math.max(0, payload.progress)),
+    };
+    if (payload.status === "done") {
+      arPatch.status = "success";
+      arPatch.finished_at = new Date().toISOString();
+    } else if (payload.status === "error") {
+      arPatch.status = "error";
+      arPatch.finished_at = new Date().toISOString();
+      arPatch.error_message = (payload.error ?? "").slice(0, 500);
+    }
+    await supabase.from("autopilot_runs").update(arPatch).eq("id", autopilotRunId)
+      .then(() => {}, () => {});
+  }
 }
 
 async function getJob(supabase: any, jobId: string) {
