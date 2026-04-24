@@ -22,17 +22,24 @@ import { requireTeamAccess } from "../_shared/auth.ts";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-const COOLDOWN_MS = 60 * 60 * 1000;        // 1h
-const ANALYZE_CACHE_MS = 24 * 60 * 60 * 1000; // 24h
-const BRIEFING_CACHE_MS = 7 * 24 * 60 * 60 * 1000; // 7d
-// Teto de segurança quando o body força um número (ou quando algo der errado no cálculo dinâmico).
+// Cooldown adaptativo: 6h padrão, mas reduz pra 1h se houve coleta nova desde a última run.
+const COOLDOWN_MS_DEFAULT = 6 * 60 * 60 * 1000;     // 6h sem coleta nova
+const COOLDOWN_MS_AFTER_COLLECT = 60 * 60 * 1000;   // 1h se houve coleta
+const ANALYZE_CACHE_MS = 24 * 60 * 60 * 1000;       // 24h
+const BRIEFING_CACHE_MS = 7 * 24 * 60 * 60 * 1000;  // 7d
 const HARD_CAP_TEMPLATES = 10;
-const FALLBACK_TEMPLATES = 4; // mesmo valor de base_daily padrão
+const FALLBACK_TEMPLATES = 4;
 
-// Auto-aprovação — 25 tracks é apenas critério de VALIDAÇÃO do template.
-// O tamanho real da playlist é definido em generate-templates (proporção da playlist base ±20%, ou 40-60 se não houver base).
-const APPROVE_MIN_SCORE = 75;
-const APPROVE_TIER = "hot";
+// 🔒 GATE DE MASSA — bloqueia IA quando dados são insuficientes
+const MIN_TERMS_EXECUTED = 30;
+const MIN_PLAYLISTS_VALID = 50;
+// Auto-coleta: máximo de termos por run (cap de Apify pra não estourar)
+const AUTO_COLLECT_MAX_TERMS = 15;
+
+// Aprovação — afrouxada pra resgatar templates 'medium' bons que ficavam em limbo.
+// Aprova se: (tier=hot AND score≥75) OR (tier=medium AND score≥80). Sempre exige ≥25 tracks.
+const APPROVE_HOT_MIN_SCORE = 75;
+const APPROVE_MEDIUM_MIN_SCORE = 80;
 const APPROVE_MIN_TRACKS = 25;
 
 type Step =
@@ -126,6 +133,101 @@ async function invokeFn<T = any>(
 }
 
 // ============================================================
+// HELPERS — gate de massa, coleta nova, auto-coleta
+// ============================================================
+async function checkMassa(sb: SupabaseClient, genreId: string): Promise<{
+  ok: boolean;
+  termsExecuted: number;
+  playlistsValid: number;
+  reason?: string;
+}> {
+  const [{ count: termsExecuted }, { count: playlistsValid }] = await Promise.all([
+    sb.from("search_terms").select("id", { count: "exact", head: true })
+      .eq("genre_id", genreId).eq("executado", true),
+    sb.from("search_results").select("id", { count: "exact", head: true })
+      .eq("genre_id", genreId).eq("is_valid", true),
+  ]);
+  const t = termsExecuted ?? 0;
+  const p = playlistsValid ?? 0;
+  const reasons: string[] = [];
+  if (t < MIN_TERMS_EXECUTED) reasons.push(`termos executados ${t}/${MIN_TERMS_EXECUTED}`);
+  if (p < MIN_PLAYLISTS_VALID) reasons.push(`playlists válidas ${p}/${MIN_PLAYLISTS_VALID}`);
+  return {
+    ok: reasons.length === 0,
+    termsExecuted: t,
+    playlistsValid: p,
+    reason: reasons.length > 0 ? `Massa insuficiente: ${reasons.join(" + ")}` : undefined,
+  };
+}
+
+async function lastCollectionAt(sb: SupabaseClient, genreId: string): Promise<Date | null> {
+  const { data } = await sb
+    .from("search_results")
+    .select("coletado_em")
+    .eq("genre_id", genreId)
+    .order("coletado_em", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data?.coletado_em ? new Date(data.coletado_em) : null;
+}
+
+/**
+ * Dispara auto-coleta em background usando collect-batch (1 gênero, N termos pendentes).
+ * Não aguarda — autopilot retorna imediatamente. Quando coleta termina, autopilot é re-disparado.
+ */
+async function triggerAutoCollect(
+  sb: SupabaseClient,
+  runId: string,
+  genreId: string,
+  templatesToGenerate: number,
+): Promise<void> {
+  // Garante que existem termos pendentes (gera se não tem nenhum)
+  const { count: pendingTerms } = await sb
+    .from("search_terms")
+    .select("id", { count: "exact", head: true })
+    .eq("genre_id", genreId)
+    .eq("executado", false);
+
+  if ((pendingTerms ?? 0) < AUTO_COLLECT_MAX_TERMS) {
+    await invokeFn("generate-terms", { genre_id: genreId }, 30000)
+      .catch((e) => console.warn("[autopilot] generate-terms falhou:", e?.message ?? e));
+  }
+
+  // Dispara collect-batch e depois re-invoca o próprio autopilot (chained)
+  // deno-lint-ignore no-explicit-any
+  const ER: any = (globalThis as any).EdgeRuntime;
+  const work = (async () => {
+    try {
+      const r = await invokeFn("collect-batch", {
+        genre_ids: [genreId],
+        terms_per_genre: AUTO_COLLECT_MAX_TERMS,
+        max_results: 100,
+        delay_ms: 1500,
+      }, 20 * 60 * 1000); // até 20min
+
+      await sb.from("collection_logs").insert({
+        genre_id: genreId,
+        acao: "autopilot:auto-collect",
+        status: r.ok ? "sucesso" : "erro",
+        mensagem: `Auto-coleta concluída (run autopilot ${runId}). ${r.ok ? "Re-disparando IA." : "Falhou."}`,
+      });
+
+      if (r.ok) {
+        // Re-dispara autopilot — agora deve passar no gate
+        await invokeFn("genre-autopilot", {
+          genre_id: genreId,
+          max_templates: templatesToGenerate,
+        }, 10000).catch((e) => console.warn("[autopilot] re-trigger falhou:", e?.message ?? e));
+      }
+    } catch (e) {
+      console.error("[autopilot] auto-collect background error:", e instanceof Error ? e.message : String(e));
+    }
+  })();
+
+  if (ER && typeof ER.waitUntil === "function") ER.waitUntil(work);
+}
+
+// ============================================================
 // PIPELINE — roda em background depois que respondemos ao cliente
 // ============================================================
 async function runPipeline(
@@ -143,6 +245,38 @@ async function runPipeline(
   const generatedIds: string[] = []; // 🔄 rastreia ids p/ cleanup em caso de falha
 
   try {
+    // ─── 0. GATE DE MASSA ────────────────────────────────────────
+    // Bloqueia IA se gênero não tem dados mínimos. Dispara auto-coleta em background
+    // e marca run como 'waiting_collection' (será re-disparada quando coleta concluir).
+    const massa = await checkMassa(sb, genreId);
+    if (!massa.ok) {
+      await pushCompleted(sb, runId, "analyze", {
+        gate: "massa",
+        terms: massa.termsExecuted,
+        playlists: massa.playlistsValid,
+        action: "auto-collect",
+      });
+      const summary = `📡 Coleta automática iniciada — ${massa.reason}. IA roda quando atingir ${MIN_PLAYLISTS_VALID} playlists.`;
+      await updateRun(sb, runId, {
+        status: "waiting_collection",
+        current_step: "analyze",
+        summary,
+        finished_at: new Date().toISOString(),
+        duracao_ms: Date.now() - startedAt,
+      });
+      await sb.rpc("create_notification", {
+        p_type: "info",
+        p_title: "Autopilot: coleta automática iniciada",
+        p_message: `${massa.reason}. Sistema vai coletar e re-disparar IA automaticamente.`,
+        p_action_url: "/cerebro",
+        p_metadata: { run_id: runId, genre_id: genreId, terms: massa.termsExecuted, playlists: massa.playlistsValid },
+      }).then(() => {}, (e) => console.error("[autopilot] notif failed:", e?.message ?? e));
+
+      // Dispara auto-coleta + re-trigger em background
+      await triggerAutoCollect(sb, runId, genreId, maxTemplates);
+      return;
+    }
+
     // ─── 1. ANALYZE ──────────────────────────────────────────────
     await setStep(sb, runId, "analyze");
     const { data: model } = await sb
@@ -343,7 +477,10 @@ async function runPipeline(
         Number(t.tracks_added ?? 0) ||
         (Array.isArray(t.track_seeds) ? t.track_seeds.length : 0);
 
-      if (score >= APPROVE_MIN_SCORE && tier === APPROVE_TIER && tracksCount >= APPROVE_MIN_TRACKS) {
+      // ✅ Aprovação afrouxada: hot≥75 OU medium≥80 (resgata templates bons que ficavam em limbo)
+      const passesHot = tier === "hot" && score >= APPROVE_HOT_MIN_SCORE;
+      const passesMedium = tier === "medium" && score >= APPROVE_MEDIUM_MIN_SCORE;
+      if ((passesHot || passesMedium) && tracksCount >= APPROVE_MIN_TRACKS) {
         const { error } = await sb
           .from("playlist_templates")
           .update({
@@ -365,7 +502,7 @@ async function runPipeline(
     if (templatesGenerated > 0 && templatesApproved === 0) {
       const allScored = (candidates ?? []).every((t) => t.scored_at != null);
       const reason = allScored
-        ? "Templates pontuados mas nenhum atingiu critério (score≥75 + tier=hot + ≥25 tracks)"
+        ? "Templates pontuados mas nenhum atingiu critério (hot≥75 ou medium≥80, ≥25 tracks)"
         : "score-templates não concluiu em 30s — templates ficaram sem score";
       await sb.rpc("create_notification", {
         p_type: "warning",
@@ -481,13 +618,32 @@ Deno.serve(async (req) => {
   await sb.rpc("cleanup_stale_autopilot_runs", { p_minutes: 30 })
     .then(() => {}, (e) => console.warn("[autopilot] cleanup_stale failed:", e?.message));
 
-  // ─ Cooldown + lock: já tem run em <1h? ─
-  const since = new Date(Date.now() - COOLDOWN_MS).toISOString();
+  // ─ Cooldown ADAPTATIVO: 6h padrão, 1h se houve coleta nova desde a última run ─
+  // Pega última run de sucesso pra comparar com data da última coleta
+  const { data: lastSuccessRun } = await sb
+    .from("autopilot_runs")
+    .select("id, started_at")
+    .eq("genre_id", genreId)
+    .eq("status", "success")
+    .order("started_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  // Última coleta de playlist deste gênero
+  const lastCollect = await lastCollectionAt(sb, genreId);
+  const hadFreshCollection = lastSuccessRun?.started_at && lastCollect
+    ? lastCollect.getTime() > new Date(lastSuccessRun.started_at).getTime()
+    : !lastSuccessRun; // se nunca rodou com sucesso, considera "fresca"
+
+  const cooldownMs = hadFreshCollection ? COOLDOWN_MS_AFTER_COLLECT : COOLDOWN_MS_DEFAULT;
+  const cooldownLabel = hadFreshCollection ? "1h (coleta recente)" : "6h (sem coleta nova)";
+
+  // Bloqueia se há run RUNNING (sempre) ou run SUCCESS dentro da janela adaptativa
   const { data: recent } = await sb
     .from("autopilot_runs")
     .select("id, status, started_at")
     .eq("genre_id", genreId)
-    .gte("started_at", since)
+    .in("status", ["running", "waiting_collection", "success"])
     .order("started_at", { ascending: false })
     .limit(1);
 
@@ -496,19 +652,26 @@ Deno.serve(async (req) => {
     if (r.status === "running") {
       return jr({ ok: false, error: "Já existe uma execução em andamento", run_id: r.id }, 409);
     }
-    if (r.status === "success" && !force) {
-      const minutesAgo = Math.round((Date.now() - new Date(r.started_at).getTime()) / 60000);
-      return jr(
-        {
-          ok: false,
-          error: `Cooldown ativo: última execução bem-sucedida foi há ${minutesAgo}min. Aguarde ${60 - minutesAgo}min.`,
-          run_id: r.id,
-          cooldown: true,
-        },
-        429,
-      );
+    if (r.status === "waiting_collection") {
+      return jr({ ok: false, error: "Coleta automática em andamento — aguarde concluir", run_id: r.id }, 409);
     }
-    // status === 'error' → permite tentar de novo
+    if (r.status === "success" && !force) {
+      const ageMs = Date.now() - new Date(r.started_at).getTime();
+      if (ageMs < cooldownMs) {
+        const minutesAgo = Math.round(ageMs / 60000);
+        const minutesLeft = Math.max(1, Math.round((cooldownMs - ageMs) / 60000));
+        return jr(
+          {
+            ok: false,
+            error: `Cooldown ativo (${cooldownLabel}): última run há ${minutesAgo}min. Aguarde ${minutesLeft}min.`,
+            run_id: r.id,
+            cooldown: true,
+            cooldown_type: hadFreshCollection ? "after_collect" : "default",
+          },
+          429,
+        );
+      }
+    }
   }
 
   // ─ Valida gênero ─
