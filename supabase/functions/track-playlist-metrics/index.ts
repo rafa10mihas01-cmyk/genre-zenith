@@ -44,11 +44,12 @@ Deno.serve(async (req) => {
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
-  // Carrega templates publicados
+  // Carrega templates publicados (exclui archived — Audit #13 F5)
   let q = supabase
     .from("playlist_templates")
     .select("id, spotify_playlist_id, created_on_spotify_at, followers_at_creation")
-    .not("spotify_playlist_id", "is", null);
+    .not("spotify_playlist_id", "is", null)
+    .neq("status", "archived");
 
   if (body.template_ids?.length) q = q.in("id", body.template_ids);
   q = q.limit(body.limit ?? 200);
