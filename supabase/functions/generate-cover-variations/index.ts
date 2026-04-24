@@ -888,7 +888,18 @@ Deno.serve(async (req) => {
   }
 
   // 🆕 Gera só essa cor
-  const prompt = buildPrompt(tpl, palette, style, 0, body.custom_prompt);
+  // force=true = regeneração corretiva: usa o gênero do template como verdade,
+  // ignora ano legado do nome e evita contaminar a capa com briefing antigo.
+  const promptTemplate = {
+    ...tpl,
+    __promptOptions: {
+      genreHint: tpl.genre_id === "ef75ef4d-24a0-4249-94be-5881f3a1b9ea" ? "funk" : undefined,
+      stripYear: Boolean(body.force),
+      forceGenre: Boolean(body.force),
+    },
+    __cover_brief_override: body.force ? null : tpl.cover_brief,
+  };
+  const prompt = buildPrompt(promptTemplate, palette, style, 0, body.custom_prompt);
   let dataUrl: string;
   try {
     dataUrl = await generateOne(prompt);
