@@ -87,12 +87,18 @@ Deno.serve(async (req) => {
       const { error: insErr } = await supabase.from("playlist_metrics_snapshots").insert(row);
       if (insErr) { failed++; continue; }
 
-      // Backfill followers_at_creation se ainda não existir
-      if (tpl.followers_at_creation == null) {
-        await supabase
-          .from("playlist_templates")
-          .update({ followers_at_creation: meta.followers })
-          .eq("id", tpl.id);
+      // Backfill followers_at_creation APENAS se template foi criado há <1h.
+      // Acima disso, capturar followers atuais como "baseline" enviesa o cálculo
+      // de crescimento (já houve tempo pra ganhar seguidores).
+      // create-spotify-playlist popula corretamente no momento da criação.
+      if (tpl.followers_at_creation == null && tpl.created_on_spotify_at) {
+        const ageMs = Date.now() - new Date(tpl.created_on_spotify_at).getTime();
+        if (ageMs < 60 * 60 * 1000) {
+          await supabase
+            .from("playlist_templates")
+            .update({ followers_at_creation: meta.followers })
+            .eq("id", tpl.id);
+        }
       }
       snapshots.push(row);
       ok++;
