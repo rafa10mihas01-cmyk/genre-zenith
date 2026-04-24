@@ -308,29 +308,28 @@ export default function Operacao() {
               </div>
             </div>
 
-            <div className="nx-card !p-0 overflow-hidden">
-              {/* Header da tabela: só desktop. No mobile usamos cards. */}
-              <div className="hidden md:grid grid-cols-12 gap-3 px-4 py-3 text-[10px] uppercase tracking-wider text-muted-foreground font-bold border-b border-border">
-                <div className="col-span-4">Playlist</div>
-                <div className="col-span-2">Status</div>
-                <div className="col-span-2 text-right">Seguidores</div>
-                <div className="col-span-1 text-right">Faixas</div>
-                <div className="col-span-1 text-right">Trocas (7d)</div>
-                <div className="col-span-2 text-right">Ações</div>
-              </div>
-              {loading && playlistsAll.length === 0 ? (
-                <SkeletonRows />
-              ) : playlists.length === 0 ? (
+            {/* Lista em CARDS — grid responsivo (1 / 2 / 3 colunas) */}
+            {loading && playlistsAll.length === 0 ? (
+              <PlaylistGridSkeleton />
+            ) : playlists.length === 0 ? (
+              <div className="nx-card">
                 <EmptyRow
                   title={playlistsAll.length === 0 ? "Nenhuma playlist em operação" : "Nada com esse filtro"}
                   msg={playlistsAll.length === 0
                     ? "Quando uma playlist for publicada no Spotify pelo módulo Criação, ela aparece aqui automaticamente."
                     : "Tente outro filtro ou limpe a busca."}
                 />
-              ) : (
-                playlists.map((p) => <PlaylistRow key={p.id} p={p} />)
-              )}
-            </div>
+              </div>
+            ) : (
+              <>
+                <div className="text-[11px] text-muted-foreground tabular-nums px-1">
+                  Mostrando <strong className="text-foreground">{playlists.length}</strong> de {playlistsAll.length} playlists
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                  {playlists.map((p) => <PlaylistCard key={p.id} p={p} />)}
+                </div>
+              </>
+            )}
 
             {/* Histórico colapsável no rodapé */}
             <HistoryDrawer adjustments={adjustments} playlistsAll={playlistsAll} />
