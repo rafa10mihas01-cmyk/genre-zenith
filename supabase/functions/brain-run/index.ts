@@ -227,10 +227,11 @@ async function runPipeline(jobId: string, body: StartBody) {
   }
   const gid = genre.id;
 
-  // 🚨 Audit #9 A.2 — observabilidade: registra run no autopilot_runs
+  // 🚨 Audit #9 A.2 / #10 A.4 — observabilidade: registra run no autopilot_runs
+  // Falha de insert agora gera log persistente (antes era console.warn silencioso)
   let autopilotRunId: string | null = null;
   try {
-    const { data: arRow } = await supabase
+    const { data: arRow, error: arErr } = await supabase
       .from("autopilot_runs")
       .insert({
         genre_id: gid,
@@ -241,9 +242,17 @@ async function runPipeline(jobId: string, body: StartBody) {
       })
       .select("id")
       .single();
+    if (arErr) throw new Error(arErr.message);
     autopilotRunId = arRow?.id ?? null;
   } catch (e) {
-    console.warn("[brain-run] autopilot_runs insert failed:", (e as Error).message);
+    const msg = (e as Error).message;
+    console.warn("[brain-run] autopilot_runs insert failed:", msg);
+    await supabase.from("collection_logs").insert({
+      genre_id: gid,
+      acao: "autopilot_runs_insert_failed",
+      status: "erro",
+      mensagem: msg.slice(0, 300),
+    }).then(() => {}, () => {});
   }
 
   await setJob(supabase, gid, jobId, autopilotRunId, {
