@@ -35,6 +35,9 @@ const MIN_TERMS_EXECUTED = 30;
 const MIN_PLAYLISTS_VALID = 50;
 // Auto-coleta: máximo de termos por run (cap de Apify pra não estourar)
 const AUTO_COLLECT_MAX_TERMS = 15;
+// 🛡️ LOOP PROTECTION — máximo de auto-coletas disparadas por gênero em janela de 24h
+const AUTO_COLLECT_MAX_PER_DAY = 3;
+const AUTO_COLLECT_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 // Aprovação — afrouxada pra resgatar templates 'medium' bons que ficavam em limbo.
 // Aprova se: (tier=hot AND score≥75) OR (tier=medium AND score≥80). Sempre exige ≥25 tracks.
@@ -172,8 +175,24 @@ async function lastCollectionAt(sb: SupabaseClient, genreId: string): Promise<Da
 }
 
 /**
+ * Conta auto-coletas disparadas pelo autopilot nas últimas 24h pra esse gênero.
+ * Usado pra evitar loop infinito quando coleta sucessiva não traz playlists novas.
+ */
+async function countRecentAutoCollects(sb: SupabaseClient, genreId: string): Promise<number> {
+  const since = new Date(Date.now() - AUTO_COLLECT_WINDOW_MS).toISOString();
+  const { count } = await sb
+    .from("collection_logs")
+    .select("id", { count: "exact", head: true })
+    .eq("genre_id", genreId)
+    .eq("acao", "autopilot:auto-collect")
+    .gte("created_at", since);
+  return count ?? 0;
+}
+
+/**
  * Dispara auto-coleta em background usando collect-batch (1 gênero, N termos pendentes).
- * Não aguarda — autopilot retorna imediatamente. Quando coleta termina, autopilot é re-disparado.
+ * Não aguarda — autopilot retorna imediatamente. Quando coleta termina, autopilot é re-disparado
+ * SOMENTE se a massa atingir o mínimo (evita loop infinito sobre mesmo cache).
  */
 async function triggerAutoCollect(
   sb: SupabaseClient,
@@ -193,32 +212,83 @@ async function triggerAutoCollect(
       .catch((e) => console.warn("[autopilot] generate-terms falhou:", e?.message ?? e));
   }
 
+  // 📋 Log estruturado: início da auto-coleta
+  await sb.from("collection_logs").insert({
+    genre_id: genreId,
+    acao: "autopilot:auto-collect",
+    status: "iniciado",
+    mensagem: JSON.stringify({
+      event: "auto_collect_start",
+      run_id: runId,
+      max_terms: AUTO_COLLECT_MAX_TERMS,
+      pending_terms: pendingTerms ?? 0,
+      target_templates: templatesToGenerate,
+    }),
+  }).then(() => {}, (e) => console.warn("[autopilot] log start failed:", e?.message));
+
   // Dispara collect-batch e depois re-invoca o próprio autopilot (chained)
   // deno-lint-ignore no-explicit-any
   const ER: any = (globalThis as any).EdgeRuntime;
   const work = (async () => {
+    const tStart = Date.now();
     try {
-      const r = await invokeFn("collect-batch", {
+      const r = await invokeFn<{
+        total_terms_run?: number;
+        total_playlists?: number;
+        total_tracks?: number;
+      }>("collect-batch", {
         genre_ids: [genreId],
         terms_per_genre: AUTO_COLLECT_MAX_TERMS,
         max_results: 100,
         delay_ms: 1500,
       }, 20 * 60 * 1000); // até 20min
 
+      // 🔒 BLOQUEIO REFORÇADO PÓS-COLETA — revalida massa antes de re-disparar IA
+      const massaPos = await checkMassa(sb, genreId);
+
+      // 📋 Log estruturado: fim da auto-coleta
       await sb.from("collection_logs").insert({
         genre_id: genreId,
         acao: "autopilot:auto-collect",
         status: r.ok ? "sucesso" : "erro",
-        mensagem: `Auto-coleta concluída (run autopilot ${runId}). ${r.ok ? "Re-disparando IA." : "Falhou."}`,
+        duracao_ms: Date.now() - tStart,
+        mensagem: JSON.stringify({
+          event: "auto_collect_end",
+          run_id: runId,
+          ok: r.ok,
+          terms_run: r.data?.total_terms_run ?? 0,
+          playlists_saved: r.data?.total_playlists ?? 0,
+          tracks_saved: r.data?.total_tracks ?? 0,
+          massa_pos: {
+            terms: massaPos.termsExecuted,
+            playlists: massaPos.playlistsValid,
+            ok: massaPos.ok,
+          },
+          will_retrigger: r.ok && massaPos.ok,
+          error: r.ok ? null : (r.error ?? null),
+        }),
       });
 
-      if (r.ok) {
-        // Re-dispara autopilot — agora deve passar no gate
-        await invokeFn("genre-autopilot", {
-          genre_id: genreId,
-          max_templates: templatesToGenerate,
-        }, 10000).catch((e) => console.warn("[autopilot] re-trigger falhou:", e?.message ?? e));
+      if (!r.ok) return;
+
+      // Se massa AINDA insuficiente após coleta → não re-dispara IA, notifica usuário
+      if (!massaPos.ok) {
+        await sb.rpc("create_notification", {
+          p_type: "warning",
+          p_title: "Autopilot: coleta insuficiente",
+          p_message: `Após auto-coleta, ainda faltam dados (termos ${massaPos.termsExecuted}/${MIN_TERMS_EXECUTED}, playlists ${massaPos.playlistsValid}/${MIN_PLAYLISTS_VALID}). IA não será disparada — colete manualmente ou aguarde próxima execução.`,
+          p_action_url: "/cerebro",
+          p_metadata: { run_id: runId, genre_id: genreId, terms: massaPos.termsExecuted, playlists: massaPos.playlistsValid },
+        }).then(() => {}, (e) => console.error("[autopilot] notif failed:", e?.message));
+        return;
       }
+
+      // ✅ Massa OK — re-dispara autopilot
+      await invokeFn("genre-autopilot", {
+        genre_id: genreId,
+        max_templates: templatesToGenerate,
+        force: true, // bypass cooldown — já passamos pelo gate
+      }, 10000).catch((e) => console.warn("[autopilot] re-trigger falhou:", e?.message ?? e));
     } catch (e) {
       console.error("[autopilot] auto-collect background error:", e instanceof Error ? e.message : String(e));
     }
@@ -250,13 +320,57 @@ async function runPipeline(
     // e marca run como 'waiting_collection' (será re-disparada quando coleta concluir).
     const massa = await checkMassa(sb, genreId);
     if (!massa.ok) {
+      // 🛡️ LOOP PROTECTION — se já houve N auto-coletas em 24h e ainda falta massa,
+      // para de coletar (provavelmente Apify não está trazendo playlists novas).
+      const recentCollects = await countRecentAutoCollects(sb, genreId);
+      if (recentCollects >= AUTO_COLLECT_MAX_PER_DAY) {
+        const blockMsg = `🛑 Auto-coleta bloqueada: ${recentCollects} tentativas em 24h sem atingir mínimo (${massa.reason}). Verifique termos manualmente.`;
+        await pushCompleted(sb, runId, "analyze", {
+          gate: "massa",
+          terms: massa.termsExecuted,
+          playlists: massa.playlistsValid,
+          action: "blocked_loop_protection",
+          recent_auto_collects: recentCollects,
+        });
+        await updateRun(sb, runId, {
+          status: "error",
+          current_step: "analyze",
+          error_message: blockMsg,
+          summary: blockMsg,
+          finished_at: new Date().toISOString(),
+          duracao_ms: Date.now() - startedAt,
+        });
+        await sb.from("collection_logs").insert({
+          genre_id: genreId,
+          acao: "autopilot:auto-collect",
+          status: "bloqueado",
+          mensagem: JSON.stringify({
+            event: "loop_protection_triggered",
+            run_id: runId,
+            recent_auto_collects: recentCollects,
+            window_hours: AUTO_COLLECT_WINDOW_MS / 3600000,
+            terms: massa.termsExecuted,
+            playlists: massa.playlistsValid,
+          }),
+        }).then(() => {}, (e) => console.warn("[autopilot] log block failed:", e?.message));
+        await sb.rpc("create_notification", {
+          p_type: "error",
+          p_title: "Autopilot: loop de coleta bloqueado",
+          p_message: `${recentCollects} auto-coletas em 24h não trouxeram playlists suficientes. Revise termos manualmente em /cerebro.`,
+          p_action_url: "/cerebro",
+          p_metadata: { run_id: runId, genre_id: genreId, recent_auto_collects: recentCollects },
+        }).then(() => {}, (e) => console.error("[autopilot] notif failed:", e?.message));
+        return;
+      }
+
       await pushCompleted(sb, runId, "analyze", {
         gate: "massa",
         terms: massa.termsExecuted,
         playlists: massa.playlistsValid,
         action: "auto-collect",
+        recent_auto_collects: recentCollects,
       });
-      const summary = `📡 Coleta automática iniciada — ${massa.reason}. IA roda quando atingir ${MIN_PLAYLISTS_VALID} playlists.`;
+      const summary = `📡 Coleta automática iniciada (${recentCollects + 1}/${AUTO_COLLECT_MAX_PER_DAY} em 24h) — ${massa.reason}.`;
       await updateRun(sb, runId, {
         status: "waiting_collection",
         current_step: "analyze",
@@ -267,7 +381,7 @@ async function runPipeline(
       await sb.rpc("create_notification", {
         p_type: "info",
         p_title: "Autopilot: coleta automática iniciada",
-        p_message: `${massa.reason}. Sistema vai coletar e re-disparar IA automaticamente.`,
+        p_message: `${massa.reason}. Tentativa ${recentCollects + 1}/${AUTO_COLLECT_MAX_PER_DAY} em 24h.`,
         p_action_url: "/cerebro",
         p_metadata: { run_id: runId, genre_id: genreId, terms: massa.termsExecuted, playlists: massa.playlistsValid },
       }).then(() => {}, (e) => console.error("[autopilot] notif failed:", e?.message ?? e));
@@ -590,7 +704,7 @@ Deno.serve(async (req) => {
   const guard = await requireTeamAccess(req);
   if (!guard.ok) return guard.resp;
 
-  let body: { genre_id?: string; max_templates?: number };
+  let body: { genre_id?: string; max_templates?: number; force?: boolean };
   try {
     body = await req.json();
   } catch {
@@ -652,7 +766,7 @@ Deno.serve(async (req) => {
     if (r.status === "running") {
       return jr({ ok: false, error: "Já existe uma execução em andamento", run_id: r.id }, 409);
     }
-    if (r.status === "waiting_collection") {
+    if (r.status === "waiting_collection" && !force) {
       return jr({ ok: false, error: "Coleta automática em andamento — aguarde concluir", run_id: r.id }, 409);
     }
     if (r.status === "success" && !force) {
