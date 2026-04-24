@@ -136,17 +136,19 @@ PRINCÍPIOS:
 - Limite-se a 4-10 regras (qualidade > quantidade).
 
 FORMATOS DE TARGET ACEITOS:
-- naming.year   → value: {year: 2026}                     (força ano em nomes novos)
-- naming.subgenre → value: {subgenre: "mandelão"}         (força subgênero no nome)
-- naming.suffix  → value: {text: "🔥"} ou {text: "BR"}    (sufixo obrigatório)
-- naming.prefix  → value: {text: "TOP"}                   (prefixo obrigatório)
+- naming.suffix  → value: {text: "🔥"} ou {text: "BR"}    (sufixo opcional, complementa nome da IA)
+- naming.prefix  → value: {text: "TOP"}                   (prefixo opcional, complementa nome da IA)
 - tracks.artist_boost → value: {artists: ["MC X","MC Y"]} (priorizar tracks desses artistas)
 - format.subgenre → value: {subgenre: "mandelão"}         (forçar subgênero do blueprint)
 - structure.size → value: {min: 30, max: 60}              (faixa de tracks ideal)
 - avoid.words    → value: {words: ["workout","gym"]}      (proibir essas palavras no nome)
 - avoid.artists  → value: {artists: ["..."]}              (excluir esses artistas)
 
-Use APENAS esses targets. Cada regra precisa de evidência curta (1 frase).`;
+🚫 PROIBIDO gerar:
+- naming.year     → o ano vem 100% da IA contextualmente. NÃO crie regras forçando ano.
+- naming.subgenre → o subgênero vem da IA pelo blueprint. NÃO crie regras forçando subgênero no nome.
+
+Use APENAS os targets listados acima. Cada regra precisa de evidência curta (1 frase).`;
 
   const user =
     `GÊNERO: ${genreName ?? "global"}
@@ -179,8 +181,22 @@ Converta isso em regras estruturadas que o replicador vai executar automaticamen
   }
 
   // 4) Insere novas regras (expira em 30d por padrão)
+  // 🚫 Filtro defensivo: bloqueia naming.year e naming.subgenre mesmo que o Claude tente.
+  const FORBIDDEN_TARGETS = new Set(["naming.year", "naming.subgenre"]);
+  const filteredRules = rules.filter((r: any) => {
+    const tgt = String(r?.target ?? "");
+    if (FORBIDDEN_TARGETS.has(tgt)) {
+      console.warn(`[extract-replication-rules] descartada regra proibida: ${tgt}`);
+      return false;
+    }
+    return true;
+  });
+  if (filteredRules.length === 0) {
+    return jr({ ok: true, inserted: 0, message: "Todas as regras foram filtradas (proibidas)" });
+  }
+
   const expires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-  const rows = rules.map((r: any) => ({
+  const rows = filteredRules.map((r: any) => ({
     genre_id: genreId,
     scope: genreId ? "genre" : "global",
     rule_type: String(r.rule_type),
