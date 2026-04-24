@@ -272,7 +272,8 @@
   50% { opacity: 0.85; box-shadow: 0 0 0 6px hsl(var(--primary) / 0); }
 }
 
-/* Fluxo visual — partículas correndo nas linhas conectoras */
+/* ===== FLUXO VISUAL — pipeline animado ===== */
+/* Partículas (dashoffset) correndo nas linhas */
 @keyframes fluxo-flow-h {
   from { stroke-dashoffset: 16; }
   to { stroke-dashoffset: 0; }
@@ -283,6 +284,74 @@
 }
 .fluxo-flow-h { animation: fluxo-flow-h 0.6s linear infinite; }
 .fluxo-flow-v { animation: fluxo-flow-v 0.6s linear infinite; }
+
+/* Orb (bolinha) percorrendo a linha */
+@keyframes fluxo-orb-h {
+  0%   { left: 0%;   opacity: 0; transform: translate(-50%, -50%) scale(0.6); }
+  15%  { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  85%  { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { left: 100%; opacity: 0; transform: translate(-50%, -50%) scale(0.6); }
+}
+@keyframes fluxo-orb-v {
+  0%   { top: 0%;   opacity: 0; transform: translate(-50%, -50%) scale(0.6); }
+  15%  { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  85%  { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { top: 100%; opacity: 0; transform: translate(-50%, -50%) scale(0.6); }
+}
+.fluxo-orb-h { animation: fluxo-orb-h 1.6s ease-in-out infinite; }
+.fluxo-orb-v { animation: fluxo-orb-v 1.6s ease-in-out infinite; }
+
+/* Glow pulsante de etapa ativa (mais marcante) */
+@keyframes fluxo-active-glow {
+  0%, 100% {
+    box-shadow:
+      0 0 0 1px hsl(var(--warning) / 0.6),
+      0 0 0 6px hsl(var(--warning) / 0),
+      0 0 24px hsl(var(--warning) / 0.35);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px hsl(var(--warning) / 0.8),
+      0 0 0 10px hsl(var(--warning) / 0.1),
+      0 0 44px hsl(var(--warning) / 0.55);
+  }
+}
+.fluxo-active-glow { animation: fluxo-active-glow 1.8s ease-in-out infinite; }
+
+/* Glow leve sucesso (estático, suave) */
+.fluxo-success-glow {
+  box-shadow:
+    0 0 0 1px hsl(var(--success) / 0.3),
+    0 0 22px hsl(var(--success) / 0.18);
+}
+
+/* Glow erro (chamativo) */
+@keyframes fluxo-error-glow {
+  0%, 100% { box-shadow: 0 0 0 1px hsl(var(--destructive) / 0.55), 0 0 24px hsl(var(--destructive) / 0.25); }
+  50%      { box-shadow: 0 0 0 1px hsl(var(--destructive) / 0.9), 0 0 40px hsl(var(--destructive) / 0.5); }
+}
+.fluxo-error-glow { animation: fluxo-error-glow 1.6s ease-in-out infinite; }
+
+/* Indicador "live" no canto */
+@keyframes fluxo-live-dot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50%      { transform: scale(1.5); opacity: 0.55; }
+}
+.fluxo-live-dot { animation: fluxo-live-dot 1.2s ease-in-out infinite; }
+
+/* Hover lift suave dos nós */
+.fluxo-node-hover {
+  transition: transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 220ms ease, border-color 220ms ease;
+}
+.fluxo-node-hover:hover {
+  transform: translateY(-2px) scale(1.015);
+}
+
+/* Reduz motion para fluxo */
+@media (prefers-reduced-motion: reduce) {
+  .fluxo-flow-h, .fluxo-flow-v, .fluxo-orb-h, .fluxo-orb-v,
+  .fluxo-active-glow, .fluxo-error-glow, .fluxo-live-dot { animation: none !important; }
+}
 
 /* Reduz motion para usuários que preferem */
 @media (prefers-reduced-motion: reduce) {
