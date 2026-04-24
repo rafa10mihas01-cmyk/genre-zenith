@@ -64,6 +64,7 @@ type OpPlaylist = {
   spotify_url: string | null;
   spotify_playlist_id: string | null;
   created_on_spotify_at: string | null;
+  cover_image_url: string | null;
 };
 
 type Adjustment = {
