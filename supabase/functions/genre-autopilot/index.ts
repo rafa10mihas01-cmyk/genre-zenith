@@ -35,6 +35,9 @@ const MIN_TERMS_EXECUTED = 30;
 const MIN_PLAYLISTS_VALID = 50;
 // Auto-coleta: máximo de termos por run (cap de Apify pra não estourar)
 const AUTO_COLLECT_MAX_TERMS = 15;
+// 🛡️ LOOP PROTECTION — máximo de auto-coletas disparadas por gênero em janela de 24h
+const AUTO_COLLECT_MAX_PER_DAY = 3;
+const AUTO_COLLECT_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 // Aprovação — afrouxada pra resgatar templates 'medium' bons que ficavam em limbo.
 // Aprova se: (tier=hot AND score≥75) OR (tier=medium AND score≥80). Sempre exige ≥25 tracks.
