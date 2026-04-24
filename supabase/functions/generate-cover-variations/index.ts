@@ -116,16 +116,39 @@ function tierOf(t: string): 0 | 1 | 2 | 3 | 4 {
 }
 
 // Listas controladas para os 3 formatos
-const STRONG_WORDS = ["TOP", "HITS", "VIRAL", "MODÃO"] as const;
+const STRONG_WORDS = ["TOP", "HITS", "VIRAL"] as const;
 const VARIATION_WORDS = ["RAIZ", "CLÁSSICO", "ATUAL"] as const;
 // Mapeia palavra detectada no input → variação canônica permitida
-const VARIATION_ALIASES: Record<string, typeof VARIATION_WORDS[number]> = {
+const VARIATION_ALIASES: Record<string, string> = {
   "RAIZ": "RAIZ",
   "CLÁSSICO": "CLÁSSICO", "CLASSICO": "CLÁSSICO",
   "CLÁSSICOS": "CLÁSSICO", "CLASSICOS": "CLÁSSICO",
   "ATUAL": "ATUAL", "ATUALIZADO": "ATUAL", "ATUALIZADA": "ATUAL",
   "NOSTALGIA": "CLÁSSICO",
+  "MANDELÃO": "MANDELÃO", "MANDELAO": "MANDELÃO",
 };
+
+function canonicalGenre(input: string | null | undefined): string | null {
+  const v = (input ?? "").toString().trim().toUpperCase();
+  if (!v) return null;
+  if (v.includes("FUNK")) return "FUNK";
+  if (v.includes("SERTANEJO")) return "SERTANEJO";
+  if (v.includes("TRAP")) return "TRAP";
+  if (v.includes("PAGODE")) return "PAGODE";
+  if (v.includes("FORRÓ") || v.includes("FORRO")) return "FORRÓ";
+  if (v.includes("SAMBA")) return "SAMBA";
+  if (v.includes("POP")) return "POP";
+  if (v.includes("ROCK")) return "ROCK";
+  if (v.includes("RAP")) return "RAP";
+  if (v.includes("PISEIRO")) return "PISEIRO";
+  return v;
+}
+
+function strongWordsForGenre(genre: string | null): readonly string[] {
+  if (genre === "SERTANEJO") return ["MODÃO", "TOP", "HITS"] as const;
+  if (genre === "FUNK") return ["HITS", "TOP", "VIRAL"] as const;
+  return STRONG_WORDS;
+}
 // Hash determinístico simples (djb2) para escolher formato a partir do nome
 function hashString(s: string): number {
   let h = 5381;
@@ -140,7 +163,10 @@ function pickFormat(seed: string): 1 | 2 | 3 {
   return 3;
 }
 
-function sanitizePlaylistTitle(name: string | null | undefined): string {
+function sanitizePlaylistTitle(
+  name: string | null | undefined,
+  options?: { genreHint?: string | null; stripYear?: boolean; forceGenre?: boolean },
+): string {
   const raw = (name ?? "").toString();
   if (!raw.trim()) return "TOP HITS";
 
@@ -166,9 +192,13 @@ function sanitizePlaylistTitle(name: string | null | undefined): string {
   }
 
   // 3. Detecta componentes presentes no input
-  const detectedStrong = tokens.find((t) => (STRONG_WORDS as readonly string[]).includes(t)) ?? null;
-  const detectedGenre = tokens.find((t) => TIER2_WORDS.has(t)) ?? null;
-  const detectedYear = tokens.find((t) => isYearOrNumber(t) && /^\d{4}$/.test(t)) ?? null;
+  const hintedGenre = canonicalGenre(options?.genreHint);
+  const detectedStrong = tokens.find((t) => (STRONG_WORDS as readonly string[]).includes(t) || t === "MODÃO") ?? null;
+  const tokenGenre = tokens.find((t) => TIER2_WORDS.has(t)) ?? null;
+  const detectedGenre = options?.forceGenre && hintedGenre ? hintedGenre : (tokenGenre ?? hintedGenre);
+  const detectedYear = options?.stripYear
+    ? null
+    : tokens.find((t) => isYearOrNumber(t) && /^\d{4}$/.test(t)) ?? null;
   const detectedVariationRaw = tokens.find((t) => VARIATION_ALIASES[t]) ?? null;
   const detectedVariation = detectedVariationRaw ? VARIATION_ALIASES[detectedVariationRaw] : null;
 
@@ -189,7 +219,8 @@ function sanitizePlaylistTitle(name: string | null | undefined): string {
     // [FORTE] + [GÊNERO] + [ANO opcional]
     // 🚫 ANO: só usa se a IA tiver passado um ano no nome. NUNCA forçamos default.
     // O ano nas capas vinha hardcoded "2024" — agora respeita 100% o nome do template.
-    const strong = detectedStrong ?? pickFrom(STRONG_WORDS);
+    const strongPool = strongWordsForGenre(detectedGenre);
+    const strong = detectedStrong ?? pickFrom(strongPool);
     const genre = detectedGenre!; // garantido pelo fallback
     parts = detectedYear ? [strong, genre, detectedYear] : [strong, genre];
   } else if (format === 2) {
@@ -500,8 +531,8 @@ const HIERARCHY_RULES_BLOCK = [
 // PROMPT BUILDERS — 1 por estilo
 // ============================================================
 function buildCleanPrompt(template: any, palette: typeof PALETTES[number], index = 0): string {
-  const name = sanitizePlaylistTitle(template.name);
-  const subtext = extractSubtext(template.cover_brief, template.name);
+  const name = sanitizePlaylistTitle(template.name, template.__promptOptions);
+  const subtext = extractSubtext(template.__cover_brief_override ?? template.cover_brief, name);
 
   const textBlock = subtext
     ? [
@@ -576,7 +607,7 @@ function buildCleanPrompt(template: any, palette: typeof PALETTES[number], index
 }
 
 function buildViralHitsPrompt(template: any, palette: typeof PALETTES[number], index = 0): string {
-  const sanitized = sanitizePlaylistTitle(template.name);
+  const sanitized = sanitizePlaylistTitle(template.name, template.__promptOptions);
   const { dominant, secondary } = pickDominantWord(sanitized);
 
   const secondaryBlock = secondary
@@ -630,9 +661,9 @@ function buildViralHitsPrompt(template: any, palette: typeof PALETTES[number], i
 }
 
 function buildDynamicPrompt(template: any, palette: typeof PALETTES[number], index = 0): string {
-  const sanitized = sanitizePlaylistTitle(template.name);
+  const sanitized = sanitizePlaylistTitle(template.name, template.__promptOptions);
   const { dominant, secondary } = pickDominantWord(sanitized);
-  const subtext = extractSubtext(template.cover_brief, template.name);
+  const subtext = extractSubtext(template.__cover_brief_override ?? template.cover_brief, sanitized);
 
   // Decide the secondary line: palavra secundária da tipografia OU subtitle do brief
   const secondLine = secondary || subtext;
@@ -813,6 +844,11 @@ Deno.serve(async (req) => {
   const { data: tpl, error: tplErr } = await supabase
     .from("playlist_templates").select("*").eq("id", body.template_id).maybeSingle();
   if (tplErr || !tpl) return jr({ error: "template not found" }, 404);
+  const { data: genreRow } = await supabase
+    .from("genres")
+    .select("nome")
+    .eq("id", tpl.genre_id)
+    .maybeSingle();
 
   // 🛡️ Proteção: NUNCA regenerar capa de playlist já publicada no Spotify.
   // Mesmo com force=true. Quem está no ar fica como está.
@@ -857,7 +893,18 @@ Deno.serve(async (req) => {
   }
 
   // 🆕 Gera só essa cor
-  const prompt = buildPrompt(tpl, palette, style, 0, body.custom_prompt);
+  // force=true = regeneração corretiva: usa o gênero do template como verdade,
+  // ignora ano legado do nome e evita contaminar a capa com briefing antigo.
+  const promptTemplate = {
+    ...tpl,
+    __promptOptions: {
+      genreHint: genreRow?.nome ?? null,
+      stripYear: Boolean(body.force),
+      forceGenre: Boolean(body.force),
+    },
+    __cover_brief_override: body.force ? null : tpl.cover_brief,
+  };
+  const prompt = buildPrompt(promptTemplate, palette, style, 0, body.custom_prompt);
   let dataUrl: string;
   try {
     dataUrl = await generateOne(prompt);
