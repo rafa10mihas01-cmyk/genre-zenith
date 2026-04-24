@@ -89,13 +89,14 @@ export function Variacoes({ genreId }: { genreId?: string }) {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [blueprints, setBlueprints] = useState<Blueprint[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [creating, setCreating] = useState<string | null>(null);
   const [filter, setFilter] = useState<string>("all");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
-  const load = async () => {
+  const load = async (showSkeleton = false) => {
     if (!genreId) return;
-    setLoading(true);
+    if (showSkeleton) setLoading(true);
     const { data: bps } = await supabase
       .from("playlist_blueprints")
       .select("*")
@@ -115,9 +116,14 @@ export function Variacoes({ genreId }: { genreId?: string }) {
       setTemplates([]);
     }
     setLoading(false);
+    setHasLoadedOnce(true);
   };
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [genreId]);
+  useEffect(() => {
+    setHasLoadedOnce(false);
+    load(true);
+    /* eslint-disable-next-line */
+  }, [genreId]);
 
   const updateStatus = async (id: string, status: "approved" | "rejected" | "pending") => {
     const patch: any = { status };
