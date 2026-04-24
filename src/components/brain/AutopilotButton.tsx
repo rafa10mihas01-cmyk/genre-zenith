@@ -1,5 +1,6 @@
 // AutopilotButton — Botão "Usar inteligência" com progresso em tempo real.
 // Executa o pipeline completo de um gênero em 1 clique.
+import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Sparkles, Loader2, CheckCircle2, AlertTriangle } from "lucide-react";
@@ -19,14 +20,23 @@ export function AutopilotButton({
 }) {
   const { run, isRunning, starting, start } = useAutopilot(genreId ?? null);
 
-  // Dispara callback quando termina com sucesso (transição running → success)
-  // Simples: avalia no render; idempotente porque parent geralmente recarrega listas
-  const justFinished = run?.status === "success" && run?.progress_pct === 100;
-  if (justFinished && onComplete) {
-    // Não dispara em loop: parent é responsável por desmontar/remountar caso necessário.
-    // Usamos microtask pra não disparar durante o render.
-    queueMicrotask(() => onComplete());
-  }
+  // 🐛 FIX: dispara onComplete APENAS UMA VEZ por run.id (não a cada render).
+  // Bug anterior: queueMicrotask em todo render → onComplete → parent.load()
+  // → re-render → microtask de novo → loop infinito de requests + piscamento.
+  const lastNotifiedRunId = useRef<string | null>(null);
+  useEffect(() => {
+    if (
+      run?.status === "success" &&
+      run?.progress_pct === 100 &&
+      run.id &&
+      lastNotifiedRunId.current !== run.id &&
+      onComplete
+    ) {
+      lastNotifiedRunId.current = run.id;
+      onComplete();
+    }
+  }, [run?.id, run?.status, run?.progress_pct, onComplete]);
+
 
   // ── Estado: rodando ──────────────────────────────────────────
   if (run?.status === "running" || starting) {
