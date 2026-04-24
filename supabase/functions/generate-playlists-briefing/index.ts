@@ -673,6 +673,19 @@ Deno.serve(async (req) => {
     // ═══════════════ IA: BRIEFING + VALIDAÇÃO (ai_service) ═══════════════
     const aiStats = { briefing_ok: 0, briefing_fail: 0, validated: 0, incoerente_ajustado: 0, incoerente_descartado: 0, provider: activeProvider() };
 
+    // 🔒 Anti-duplicação: nomes JÁ existentes nesse gênero (templates ativos)
+    const { data: existingTpls } = await supabase
+      .from("playlist_templates")
+      .select("name")
+      .eq("genre_id", body.genre_id)
+      .not("name", "is", null)
+      .limit(200);
+    const nomesExistentes: string[] = (existingTpls ?? [])
+      .map((r: any) => String(r.name || "").trim())
+      .filter(Boolean);
+    // Acrescenta nomes gerados na própria run pra evitar colisão entre cards
+    const nomesNaRun: string[] = [];
+
     for (let i = valid.length - 1; i >= 0; i--) {
       const c = valid[i];
 
