@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
@@ -373,57 +375,100 @@ export default function Criacao() {
         totalAll={templates.length}
       />
 
-      {/* HOT */}
-      <Section
-        icon={Flame}
-        iconClass="text-primary"
-        title="🔥 Prontos pra publicar"
-        subtitle="Score ≥ 75 — capas auto-geradas, fluxo de 2 cliques"
-        count={groups.hot.length}
-        emptyTitle={loading ? "Carregando…" : "Nenhum template pronto"}
-        emptyMsg={loading ? "" : "Quando o Cérebro gerar templates fortes, eles aparecem aqui."}
-      >
-        <PagedTemplateGrid items={groups.hot} variant="hot" itemLabel="templates prontos" onOpen={setActiveTemplate} generatingIds={generatingCoverIds} onRegenerate={regenerateCover} />
-      </Section>
+      {/* TABS — separa "trabalho do dia" do que já foi publicado/arquivado */}
+      <Tabs defaultValue="work" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-3 h-11 bg-card/50 border border-border/50 p-1">
+          <TabsTrigger value="work" className="gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
+            <Flame className="h-4 w-4" />
+            <span>Trabalho</span>
+            <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px] font-bold">
+              {groups.hot.length + groups.medium.length}
+            </Badge>
+          </TabsTrigger>
+          <TabsTrigger value="published" className="gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
+            <Check className="h-4 w-4" />
+            <span>Publicadas</span>
+            <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px] font-bold">
+              {groups.published.length}
+            </Badge>
+          </TabsTrigger>
+          <TabsTrigger value="archived" className="gap-2 data-[state=active]:bg-muted data-[state=active]:text-foreground">
+            <Archive className="h-4 w-4" />
+            <span>Arquivados</span>
+            <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px] font-bold">
+              {groups.archived.length}
+            </Badge>
+          </TabsTrigger>
+        </TabsList>
 
-      {/* MEDIUM */}
-      <Section
-        icon={AlertTriangle}
-        iconClass="text-warning"
-        title="⚠️ Médios"
-        subtitle="Precisam aprovação manual antes de publicar"
-        count={groups.medium.length}
-        emptyTitle={loading ? "" : "Sem médios pendentes"}
-        emptyMsg=""
-      >
-        <PagedTemplateGrid items={groups.medium} variant="medium" itemLabel="templates médios" onOpen={setActiveTemplate} generatingIds={generatingCoverIds} onRegenerate={regenerateCover} />
-      </Section>
+        {/* ABA: TRABALHO (Hot + Médios) */}
+        <TabsContent value="work" className="space-y-6 mt-6">
+          <Section
+            icon={Flame}
+            iconClass="text-primary"
+            title="🔥 Prontos pra publicar"
+            subtitle="Score ≥ 75 — capas auto-geradas, fluxo de 2 cliques"
+            count={groups.hot.length}
+            emptyTitle={loading ? "Carregando…" : "Nenhum template pronto"}
+            emptyMsg={loading ? "" : "Quando o Cérebro gerar templates fortes, eles aparecem aqui."}
+          >
+            <PagedTemplateGrid items={groups.hot} variant="hot" itemLabel="templates prontos" onOpen={setActiveTemplate} generatingIds={generatingCoverIds} onRegenerate={regenerateCover} />
+          </Section>
 
-      {/* PUBLISHED (info, sem ação principal) */}
-      {groups.published.length > 0 && (
-        <Section
-          icon={Check}
-          iconClass="text-primary"
-          title="Publicadas"
-          subtitle="No ar no Spotify"
-          count={groups.published.length}
-          emptyTitle=""
-          emptyMsg=""
-        >
-          <PublishedGrid items={groups.published} onOpen={setActiveTemplate} />
-        </Section>
-      )}
+          <Section
+            icon={AlertTriangle}
+            iconClass="text-warning"
+            title="⚠️ Médios"
+            subtitle="Precisam aprovação manual antes de publicar"
+            count={groups.medium.length}
+            emptyTitle={loading ? "" : "Sem médios pendentes"}
+            emptyMsg=""
+          >
+            <PagedTemplateGrid items={groups.medium} variant="medium" itemLabel="templates médios" onOpen={setActiveTemplate} generatingIds={generatingCoverIds} onRegenerate={regenerateCover} />
+          </Section>
+        </TabsContent>
 
-      {/* ARCHIVED — colapsado */}
-      {groups.archived.length > 0 && (
-        <ArchivedSection
-          items={groups.archived}
-          showArchived={showArchived}
-          setShowArchived={setShowArchived}
-          onOpen={setActiveTemplate}
-          onRegenerate={regenerateCover}
-        />
-      )}
+        {/* ABA: PUBLICADAS */}
+        <TabsContent value="published" className="mt-6">
+          {groups.published.length > 0 ? (
+            <Section
+              icon={Check}
+              iconClass="text-primary"
+              title="Publicadas"
+              subtitle="No ar no Spotify"
+              count={groups.published.length}
+              emptyTitle=""
+              emptyMsg=""
+            >
+              <PublishedGrid items={groups.published} onOpen={setActiveTemplate} />
+            </Section>
+          ) : (
+            <div className="text-center py-16 text-muted-foreground">
+              <Check className="h-10 w-10 mx-auto mb-3 opacity-30" />
+              <p className="text-sm">Nenhuma playlist publicada ainda.</p>
+            </div>
+          )}
+        </TabsContent>
+
+        {/* ABA: ARQUIVADOS */}
+        <TabsContent value="archived" className="mt-6">
+          {groups.archived.length > 0 ? (
+            <ArchivedSection
+              items={groups.archived}
+              showArchived={true}
+              setShowArchived={setShowArchived}
+              onOpen={setActiveTemplate}
+              onRegenerate={regenerateCover}
+            />
+          ) : (
+            <div className="text-center py-16 text-muted-foreground">
+              <Archive className="h-10 w-10 mx-auto mb-3 opacity-30" />
+              <p className="text-sm">Nada arquivado.</p>
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+
 
       {/* DETAIL DIALOG */}
       <TemplateDetailDialog
