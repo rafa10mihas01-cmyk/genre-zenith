@@ -428,7 +428,7 @@ Deno.serve(async (req) => {
 
   await supabase.from("collection_logs").insert({
     genre_id: bp.genre_id, acao: "generate-templates", status: "sucesso",
-    mensagem: `${inserted?.length ?? 0} templates gerados a partir do blueprint "${bp.name}" (regras: ${rulesSummary.total}, alta=${rulesSummary.high})`,
+    mensagem: `${inserted?.length ?? 0} templates gerados a partir do blueprint "${bp.name}" (regras: ${rulesSummary.total}, alta=${rulesSummary.high}${droppedDuplicates > 0 ? `, dedup=${droppedDuplicates}` : ""})`,
   }).then(() => {}, (e) => console.error("[generate-templates] log/op failed:", e?.message ?? e));
 
   // 🎯 Dispara scoring automático dos templates recém-criados.
