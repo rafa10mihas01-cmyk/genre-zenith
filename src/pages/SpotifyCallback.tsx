@@ -197,6 +197,39 @@ export default function SpotifyCallback() {
             </>
           )}
 
+          {status === "unauthorized" && (
+            <>
+              <div className="mx-auto mb-6 grid h-14 w-14 place-items-center rounded-full bg-yellow-400/10 border border-yellow-400/20 shadow-[0_0_28px_-8px_hsl(48_96%_53%/0.5)]">
+                <ShieldAlert className="h-7 w-7 text-yellow-400" />
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight mb-3">
+                Conta não autorizada
+              </h1>
+              <p className="text-muted-foreground mb-3 leading-relaxed">
+                Este aplicativo está em <span className="text-foreground font-medium">fase de testes</span>.
+              </p>
+              <p className="text-sm text-muted-foreground mb-8 leading-relaxed">
+                No momento, apenas usuários autorizados podem conectar.
+                Se você precisa de acesso, entre em contato com o suporte.
+              </p>
+
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                <Button asChild size="lg" className="nx-cta-btn gap-2 min-w-[200px] h-11 text-sm">
+                  <a href="mailto:suporte@nexcreatorx.com?subject=Solicitação%20de%20acesso%20NexEngine">
+                    <Mail className="h-4 w-4" />
+                    Falar com o suporte
+                  </a>
+                </Button>
+                <Button asChild variant="outline" size="lg" className="gap-2 min-w-[180px] h-11 text-sm border-white/10 bg-white/[0.03] hover:bg-white/[0.06]">
+                  <Link to="/">
+                    <Home className="h-4 w-4" />
+                    Voltar ao início
+                  </Link>
+                </Button>
+              </div>
+            </>
+          )}
+
           {status === "error" && (
             <>
               <div className="mx-auto mb-6 grid h-14 w-14 place-items-center rounded-full bg-destructive/10 border border-destructive/20">
