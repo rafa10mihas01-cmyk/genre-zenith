@@ -18,7 +18,19 @@ export function getSpotifyRedirectUri(): string {
 export async function handleSpotifyLogin(): Promise<void> {
   const redirect = getSpotifyRedirectUri();
   const isEmbedded = window.self !== window.top;
-  const popup = isEmbedded ? window.open("about:blank", "_blank", "noopener,noreferrer") : null;
+  // Em mobile/preview, o Spotify precisa abrir em uma aba criada pelo clique do usuário.
+  // Não use `noopener/noreferrer` aqui: isso quebra a referência do popup e deixa a aba presa em about:blank.
+  const popup = isEmbedded ? window.open("", "_blank") : null;
+
+  if (isEmbedded && !popup) {
+    throw new Error("O navegador bloqueou a nova aba. Permita pop-ups para abrir o login do Spotify.");
+  }
+
+  if (popup) {
+    popup.document.write(
+      "<html><head><title>Abrindo Spotify…</title></head><body style='font-family:system-ui,sans-serif;padding:32px;text-align:center'><p>Abrindo Spotify…</p></body></html>",
+    );
+  }
 
   // supabase-js v2 não passa query params em GET via invoke,
   // então usamos fetch direto para esse caso simples.
@@ -38,7 +50,7 @@ export async function handleSpotifyLogin(): Promise<void> {
   sessionStorage.setItem(STATE_KEY, json.state);
 
   if (popup) {
-    popup.location.href = json.url;
+    popup.location.replace(json.url);
     return;
   }
 
