@@ -38,6 +38,25 @@ export function AutopilotButton({
   }, [run?.id, run?.status, run?.progress_pct, onComplete]);
 
 
+  // ── Estado: aguardando auto-coleta ──────────────────────────
+  if (run?.status === "waiting_collection") {
+    return (
+      <div className="flex flex-col gap-1.5 min-w-[260px]">
+        <div className="flex items-center justify-between gap-2 text-xs">
+          <span className="flex items-center gap-1.5 text-foreground font-medium">
+            <Loader2 className="h-3 w-3 animate-spin text-primary" />
+            Coletando dados…
+          </span>
+          <span className="text-muted-foreground">auto</span>
+        </div>
+        <Progress value={15} className="h-1.5" />
+        <div className="text-[11px] text-muted-foreground line-clamp-2">
+          {run.summary ?? "Massa insuficiente — coleta automática em andamento. IA será disparada ao concluir."}
+        </div>
+      </div>
+    );
+  }
+
   // ── Estado: rodando ──────────────────────────────────────────
   if (run?.status === "running" || starting) {
     const stepLabel = run?.current_step ? STEP_LABELS[run.current_step] : "Iniciando";
