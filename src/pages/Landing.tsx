@@ -73,20 +73,21 @@ export default function Landing() {
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <Button asChild size="lg" className="nx-cta-btn gap-2 min-w-[220px] h-12 text-sm">
-              <Link to="/login">
-                Conectar Spotify
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </Button>
-            <Button
-              asChild
-              size="lg"
-              variant="outline"
-              className="min-w-[220px] h-12 text-sm border-white/10 bg-white/[0.02] hover:bg-white/[0.06] hover:border-white/20"
-            >
-              <Link to="/login">Acessar painel</Link>
-            </Button>
+            {user ? (
+              <Button asChild size="lg" className="nx-cta-btn gap-2 min-w-[240px] h-12 text-sm">
+                <Link to="/operacao">
+                  <LayoutDashboard className="h-4 w-4" />
+                  Entrar no painel
+                </Link>
+              </Button>
+            ) : (
+              <Button asChild size="lg" className="nx-cta-btn gap-2 min-w-[240px] h-12 text-sm">
+                <Link to="/login">
+                  Conectar Spotify
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+            )}
           </div>
 
           {/* Trust badges abaixo do CTA */}
@@ -233,12 +234,21 @@ export default function Landing() {
           <p className="text-muted-foreground mb-10 text-base sm:text-lg">
             Leva menos de um minuto. Sem cartão de crédito, sem instalação.
           </p>
-          <Button asChild size="lg" className="nx-cta-btn gap-2 min-w-[240px] h-12 text-sm">
-            <Link to="/login">
-              Conectar Spotify
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </Button>
+          {user ? (
+            <Button asChild size="lg" className="nx-cta-btn gap-2 min-w-[240px] h-12 text-sm">
+              <Link to="/operacao">
+                <LayoutDashboard className="h-4 w-4" />
+                Entrar no painel
+              </Link>
+            </Button>
+          ) : (
+            <Button asChild size="lg" className="nx-cta-btn gap-2 min-w-[240px] h-12 text-sm">
+              <Link to="/login">
+                Conectar Spotify
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </Button>
+          )}
         </div>
       </section>
     </PublicShell>
