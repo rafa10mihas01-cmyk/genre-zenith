@@ -323,29 +323,36 @@
     transform: translateY(0);
   }
 
-  /* Conic gradient border (premium hero badge / pill) */
+  /* Conic gradient border (premium hero badge / pill).
+     Borda verde "respirando" suavemente ao redor do pill.
+     IMPORTANTE: gradient com fade longo dos dois lados pra evitar que a
+     "ponta" do arco escape visualmente nas bordas arredondadas. */
   .nx-conic-pill {
     position: relative;
     isolation: isolate;
     border-radius: 9999px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    overflow: hidden;
   }
   .nx-conic-pill::before {
     content: "";
     position: absolute;
-    inset: -1px;
-    border-radius: 9999px;
+    inset: 0;
+    border-radius: inherit;
     padding: 1px;
     background: conic-gradient(
       from 0deg,
-      hsl(141 76% 48% / 0.0) 0deg,
-      hsl(141 76% 48% / 0.6) 60deg,
-      hsl(141 76% 48% / 0.0) 120deg,
-      hsl(141 76% 48% / 0.0) 360deg
+      hsl(141 76% 48% / 0)    0deg,
+      hsl(141 76% 48% / 0.05) 30deg,
+      hsl(141 76% 48% / 0.55) 90deg,
+      hsl(141 76% 48% / 0.05) 150deg,
+      hsl(141 76% 48% / 0)    180deg,
+      hsl(141 76% 48% / 0)    360deg
     );
     -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
     -webkit-mask-composite: xor;
             mask-composite: exclude;
-    animation: nx-conic-spin 6s linear infinite;
+    animation: nx-conic-spin 8s linear infinite;
     z-index: -1;
   }
   @keyframes nx-conic-spin {
