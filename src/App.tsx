@@ -11,7 +11,8 @@ import ScrollManager from "@/components/ScrollManager";
 import { LoadingProvider } from "@/contexts/LoadingContext";
 import Login from "./pages/Login";
 import ResetPassword from "./pages/ResetPassword";
-import Home from "./pages/Home";
+import Privacy from "./pages/Privacy";
+import RootRoute from "./components/RootRoute";
 import Cerebro from "./pages/Cerebro";
 import Criacao from "./pages/Criacao";
 import Operacao from "./pages/Operacao";
@@ -40,8 +41,9 @@ const App = () => (
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/reset-password" element={<ResetPassword />} />
-              {/* 5 módulos do sistema. Toda página dentro de <Protected> herda o layout global. */}
-              <Route path="/" element={<Protected><Home /></Protected>} />
+              <Route path="/privacy" element={<Privacy />} />
+              {/* "/" decide entre landing pública (visitantes) e Cockpit/Home (logados). */}
+              <Route path="/" element={<RootRoute />} />
               <Route path="/cerebro" element={<Protected><Cerebro /></Protected>} />
               <Route path="/cerebro/:slug" element={<Protected><Cerebro /></Protected>} />
               <Route path="/criacao" element={<Protected><Criacao /></Protected>} />
