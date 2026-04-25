@@ -11,7 +11,7 @@ import { PublicShell } from "@/components/public/PublicShell";
 import { consumeStoredState, getSpotifyRedirectUri } from "@/lib/spotifyPublicAuth";
 import { supabase } from "@/integrations/supabase/client";
 
-type Status = "loading" | "signing_in" | "success" | "pending" | "error";
+type Status = "loading" | "signing_in" | "success" | "pending" | "unauthorized" | "error";
 
 interface Result {
   display_name?: string | null;
