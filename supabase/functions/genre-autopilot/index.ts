@@ -248,6 +248,9 @@ async function triggerAutoCollect(
 
       // 🔒 BLOQUEIO REFORÇADO PÓS-COLETA — revalida massa antes de re-disparar IA
       const massaPos = await checkMassa(sb, genreId);
+      // Critério relaxado pós-coleta: se playlists ≥ mínimo, IA já tem dados pra trabalhar
+      // (termos é só proxy de cobertura — Apify pode trazer 100+ playlists em poucos termos).
+      const hasEnoughPostCollect = massaPos.playlistsValid >= MIN_PLAYLISTS_VALID;
 
       // 📋 Log estruturado: fim da auto-coleta
       await sb.from("collection_logs").insert({
@@ -266,8 +269,9 @@ async function triggerAutoCollect(
             terms: massaPos.termsExecuted,
             playlists: massaPos.playlistsValid,
             ok: massaPos.ok,
+            relaxed_ok: hasEnoughPostCollect,
           },
-          will_retrigger: r.ok && massaPos.ok,
+          will_retrigger: r.ok && hasEnoughPostCollect,
           error: r.ok ? null : (r.error ?? null),
         }),
       });
@@ -275,11 +279,11 @@ async function triggerAutoCollect(
       if (!r.ok) return;
 
       // Se massa AINDA insuficiente após coleta → não re-dispara IA, notifica usuário
-      if (!massaPos.ok) {
+      if (!hasEnoughPostCollect) {
         await sb.rpc("create_notification", {
           p_type: "warning",
           p_title: "Autopilot: coleta insuficiente",
-          p_message: `Após auto-coleta, ainda faltam dados (termos ${massaPos.termsExecuted}/${MIN_TERMS_EXECUTED}, playlists ${massaPos.playlistsValid}/${MIN_PLAYLISTS_VALID}). IA não será disparada — colete manualmente ou aguarde próxima execução.`,
+          p_message: `Após auto-coleta, ainda faltam playlists (${massaPos.playlistsValid}/${MIN_PLAYLISTS_VALID}). IA não será disparada — colete manualmente ou aguarde próxima execução.`,
           p_action_url: "/cerebro",
           p_metadata: { run_id: runId, genre_id: genreId, terms: massaPos.termsExecuted, playlists: massaPos.playlistsValid },
         }).then(() => {}, (e) => console.error("[autopilot] notif failed:", e?.message));
