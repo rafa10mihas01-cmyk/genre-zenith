@@ -30,9 +30,9 @@ const BRIEFING_CACHE_MS = 7 * 24 * 60 * 60 * 1000;  // 7d
 const HARD_CAP_TEMPLATES = 10;
 const FALLBACK_TEMPLATES = 4;
 
-// 🔒 GATE DE MASSA — bloqueia IA quando dados são insuficientes
-// Pré-coleta: gate completo (termos AND playlists). Pós-coleta: gate relaxado
-// — basta ter playlists suficientes (termos é só proxy de cobertura).
+// 🔒 GATE DE MASSA — playlists válidas são a métrica principal.
+// Termos executados continuam como telemetria/cobertura, mas não bloqueiam a IA
+// quando já existe massa suficiente de playlists no gênero.
 const MIN_TERMS_EXECUTED = 30;
 const MIN_PLAYLISTS_VALID = 50;
 // Auto-coleta: máximo de termos por run. Precisa ser ≥ MIN_TERMS_EXECUTED
@@ -156,10 +156,12 @@ async function checkMassa(sb: SupabaseClient, genreId: string): Promise<{
   const t = termsExecuted ?? 0;
   const p = playlistsValid ?? 0;
   const reasons: string[] = [];
-  if (t < MIN_TERMS_EXECUTED) reasons.push(`termos executados ${t}/${MIN_TERMS_EXECUTED}`);
-  if (p < MIN_PLAYLISTS_VALID) reasons.push(`playlists válidas ${p}/${MIN_PLAYLISTS_VALID}`);
+  if (p < MIN_PLAYLISTS_VALID) {
+    reasons.push(`playlists válidas ${p}/${MIN_PLAYLISTS_VALID}`);
+    if (t < MIN_TERMS_EXECUTED) reasons.push(`termos executados ${t}/${MIN_TERMS_EXECUTED}`);
+  }
   return {
-    ok: reasons.length === 0,
+    ok: p >= MIN_PLAYLISTS_VALID,
     termsExecuted: t,
     playlistsValid: p,
     reason: reasons.length > 0 ? `Massa insuficiente: ${reasons.join(" + ")}` : undefined,
@@ -252,6 +254,9 @@ async function triggerAutoCollect(
       // (termos é só proxy de cobertura — Apify pode trazer 100+ playlists em poucos termos).
       const hasEnoughPostCollect = massaPos.playlistsValid >= MIN_PLAYLISTS_VALID;
 
+      const shouldRetrigger = hasEnoughPostCollect;
+      const collectionError = r.error ?? "Falha desconhecida na auto-coleta";
+
       // 📋 Log estruturado: fim da auto-coleta
       await sb.from("collection_logs").insert({
         genre_id: genreId,
@@ -271,23 +276,45 @@ async function triggerAutoCollect(
             ok: massaPos.ok,
             relaxed_ok: hasEnoughPostCollect,
           },
-          will_retrigger: r.ok && hasEnoughPostCollect,
-          error: r.ok ? null : (r.error ?? null),
+          will_retrigger: shouldRetrigger,
+          error: r.ok ? null : collectionError,
         }),
       });
 
-      if (!r.ok) return;
-
-      // Se massa AINDA insuficiente após coleta → não re-dispara IA, notifica usuário
+      // Se massa AINDA insuficiente após coleta → não re-dispara IA.
+      // Se a coleta ainda falhou, converte a run órfã em erro claro pra liberar retry manual.
       if (!hasEnoughPostCollect) {
+        const failMsg = r.ok
+          ? `Após auto-coleta, ainda faltam playlists (${massaPos.playlistsValid}/${MIN_PLAYLISTS_VALID}). IA não será disparada — colete manualmente ou aguarde próxima execução.`
+          : `Auto-coleta falhou (${collectionError}) e a massa ainda é insuficiente (${massaPos.playlistsValid}/${MIN_PLAYLISTS_VALID} playlists válidas). Tente novamente mais tarde.`;
+
+        await updateRun(sb, runId, {
+          status: "error",
+          current_step: "analyze",
+          error_message: failMsg,
+          summary: failMsg,
+          finished_at: new Date().toISOString(),
+          duracao_ms: Date.now() - tStart,
+        });
+
         await sb.rpc("create_notification", {
-          p_type: "warning",
-          p_title: "Autopilot: coleta insuficiente",
-          p_message: `Após auto-coleta, ainda faltam playlists (${massaPos.playlistsValid}/${MIN_PLAYLISTS_VALID}). IA não será disparada — colete manualmente ou aguarde próxima execução.`,
+          p_type: r.ok ? "warning" : "error",
+          p_title: r.ok ? "Autopilot: coleta insuficiente" : "Autopilot: coleta falhou",
+          p_message: failMsg,
           p_action_url: "/cerebro",
           p_metadata: { run_id: runId, genre_id: genreId, terms: massaPos.termsExecuted, playlists: massaPos.playlistsValid },
         }).then(() => {}, (e) => console.error("[autopilot] notif failed:", e?.message));
         return;
+      }
+
+      if (!r.ok) {
+        await sb.rpc("create_notification", {
+          p_type: "warning",
+          p_title: "Autopilot: coleta parcial aproveitada",
+          p_message: `A coleta retornou erro (${collectionError}), mas a massa já está suficiente (${massaPos.playlistsValid} playlists válidas). Prosseguindo com a IA.`,
+          p_action_url: "/cerebro",
+          p_metadata: { run_id: runId, genre_id: genreId, terms: massaPos.termsExecuted, playlists: massaPos.playlistsValid },
+        }).then(() => {}, (e) => console.error("[autopilot] notif failed:", e?.message));
       }
 
       // ✅ Massa OK — re-dispara autopilot
