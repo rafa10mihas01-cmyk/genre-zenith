@@ -166,7 +166,7 @@ export default function Landing() {
           ].map((b) => (
             <div key={b.step} className="nx-premium-card group">
               <div className="flex items-center justify-between mb-6">
-                <span className="text-xs font-mono text-muted-foreground/60 tracking-widest">{b.step}</span>
+                <span className="nx-step-number">{b.step}</span>
                 <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary border border-primary/20 transition-all duration-300 group-hover:bg-primary/20 group-hover:scale-110 group-hover:shadow-[0_0_24px_hsl(141_76%_48%/0.4)]">
                   <b.icon className="h-4 w-4" />
                 </div>
