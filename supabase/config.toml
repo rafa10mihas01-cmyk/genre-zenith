@@ -2,3 +2,6 @@ project_id = "xtxxjmkijeyxkdyxtvsf"
 
 [functions.daily-collect]
 verify_jwt = false
+
+[functions.spotify-public-auth]
+verify_jwt = false

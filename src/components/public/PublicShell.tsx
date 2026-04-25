@@ -3,16 +3,30 @@
 // fundo em camadas (base preta + radial glow + grid sutil), footer.
 // Header é inteligente: visitante vê "Conectar Spotify"; logado vê "Entrar no painel".
 import { Link, useLocation } from "react-router-dom";
-import { ArrowRight, LayoutDashboard } from "lucide-react";
+import { ArrowRight, LayoutDashboard, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NexEngineLogo } from "@/components/NexEngineLogo";
-import { ReactNode } from "react";
+import { ReactNode, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { handleSpotifyLogin } from "@/lib/spotifyPublicAuth";
+import { toast } from "sonner";
 
 export function PublicShell({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
   const isPrivacy = pathname.startsWith("/privacy");
   const { user } = useAuth();
+  const [connecting, setConnecting] = useState(false);
+
+  async function onConnectSpotify() {
+    if (connecting) return;
+    setConnecting(true);
+    try {
+      await handleSpotifyLogin();
+    } catch (err) {
+      setConnecting(false);
+      toast.error((err as Error)?.message ?? "Falha ao iniciar a conexão com o Spotify.");
+    }
+  }
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#050505] text-foreground antialiased">
@@ -79,11 +93,23 @@ export function PublicShell({ children }: { children: ReactNode }) {
                 </Link>
               </Button>
             ) : (
-              // Visitante → CTA público de conexão (login fica oculto)
-              <Button asChild size="sm" className="nx-cta-btn gap-1.5">
-                <Link to="/login">
-                  Conectar Spotify <ArrowRight className="h-3.5 w-3.5" />
-                </Link>
+              // Visitante → CTA público de conexão (OAuth Spotify direto)
+              <Button
+                onClick={onConnectSpotify}
+                disabled={connecting}
+                size="sm"
+                className="nx-cta-btn gap-1.5"
+              >
+                {connecting ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Redirecionando…
+                  </>
+                ) : (
+                  <>
+                    Conectar Spotify <ArrowRight className="h-3.5 w-3.5" />
+                  </>
+                )}
               </Button>
             )}
           </nav>
