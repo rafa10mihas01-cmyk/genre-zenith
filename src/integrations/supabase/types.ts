@@ -1127,24 +1127,51 @@ export type Database = {
           },
         ]
       }
+      spotify_email_allowlist: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          email: string
+          id: string
+          note: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          email: string
+          id?: string
+          note?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          email?: string
+          id?: string
+          note?: string | null
+        }
+        Relationships: []
+      }
       spotify_oauth_states: {
         Row: {
           consumed_at: string | null
           created_at: string
+          flow: string
           state: string
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           consumed_at?: string | null
           created_at?: string
+          flow?: string
           state: string
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           consumed_at?: string | null
           created_at?: string
+          flow?: string
           state?: string
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: []
       }
