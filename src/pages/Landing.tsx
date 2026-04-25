@@ -73,7 +73,7 @@ export default function Landing() {
             Automação inteligente de catálogo musical
           </div>
 
-          <h1 className="text-6xl sm:text-8xl font-bold tracking-tight leading-[1.0] mb-6 bg-gradient-to-b from-white via-white to-white/60 bg-clip-text text-transparent">
+          <h1 className="text-6xl sm:text-8xl font-bold tracking-tight leading-[1.15] pb-2 mb-6 bg-gradient-to-b from-white via-white to-white/60 bg-clip-text text-transparent">
             NexEngine
           </h1>
 
