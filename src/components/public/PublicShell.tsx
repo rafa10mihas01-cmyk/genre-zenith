@@ -148,7 +148,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
               to="/privacy"
               className="text-muted-foreground hover:text-foreground transition-colors"
             >
-              Privacy Policy
+              Política de Privacidade
             </Link>
             <Link
               to={user ? "/operacao" : "/login"}
