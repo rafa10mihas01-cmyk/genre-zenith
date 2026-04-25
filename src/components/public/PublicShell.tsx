@@ -80,15 +80,21 @@ export function PublicShell({ children }: { children: ReactNode }) {
 
       {/* ── Header global ────────────────────────────────────────── */}
       <header className="sticky top-0 z-40 border-b border-white/5 bg-[#050505]/70 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6 sm:py-4">
           <Link
             to="/"
-            className="flex items-center gap-2 transition-opacity hover:opacity-90"
+            className="flex items-center gap-2 transition-opacity hover:opacity-90 shrink-0"
             aria-label="NexEngine — Home"
           >
-            <NexEngineLogo variant="dark" size={28} />
+            {/* Logo menor no mobile pra evitar quebra/aperto no header */}
+            <span className="block sm:hidden">
+              <NexEngineLogo variant="dark" size={22} />
+            </span>
+            <span className="hidden sm:block">
+              <NexEngineLogo variant="dark" size={28} />
+            </span>
           </Link>
-          <nav className="flex items-center gap-1 sm:gap-2">
+          <nav className="flex items-center gap-1 sm:gap-2 shrink-0">
             <Link
               to="/privacy"
               className={`hidden sm:inline-block text-sm transition-colors px-3 py-2 rounded-md ${
@@ -101,10 +107,11 @@ export function PublicShell({ children }: { children: ReactNode }) {
             </Link>
             {user ? (
               // Usuário logado → botão único para entrar no painel
-              <Button asChild size="sm" className="nx-cta-btn gap-1.5">
+              <Button asChild size="sm" className="nx-cta-btn gap-1.5 px-3 sm:px-4 text-xs sm:text-sm">
                 <Link to="/operacao">
                   <LayoutDashboard className="h-3.5 w-3.5" />
-                  Entrar no painel
+                  <span className="hidden sm:inline">Entrar no painel</span>
+                  <span className="sm:hidden">Painel</span>
                 </Link>
               </Button>
             ) : (
@@ -113,16 +120,19 @@ export function PublicShell({ children }: { children: ReactNode }) {
                 onClick={onConnectSpotify}
                 disabled={connecting}
                 size="sm"
-                className="nx-cta-btn gap-1.5"
+                className="nx-cta-btn gap-1.5 px-3 sm:px-4 text-xs sm:text-sm"
               >
                 {connecting ? (
                   <>
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    Redirecionando…
+                    <span className="hidden sm:inline">Redirecionando…</span>
+                    <span className="sm:hidden">Aguarde…</span>
                   </>
                 ) : (
                   <>
-                    Conectar Spotify <ArrowRight className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Conectar Spotify</span>
+                    <span className="sm:hidden">Conectar</span>
+                    <ArrowRight className="h-3.5 w-3.5" />
                   </>
                 )}
               </Button>
