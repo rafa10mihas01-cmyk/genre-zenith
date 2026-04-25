@@ -31,10 +31,13 @@ const HARD_CAP_TEMPLATES = 10;
 const FALLBACK_TEMPLATES = 4;
 
 // 🔒 GATE DE MASSA — bloqueia IA quando dados são insuficientes
+// Pré-coleta: gate completo (termos AND playlists). Pós-coleta: gate relaxado
+// — basta ter playlists suficientes (termos é só proxy de cobertura).
 const MIN_TERMS_EXECUTED = 30;
 const MIN_PLAYLISTS_VALID = 50;
-// Auto-coleta: máximo de termos por run (cap de Apify pra não estourar)
-const AUTO_COLLECT_MAX_TERMS = 15;
+// Auto-coleta: máximo de termos por run. Precisa ser ≥ MIN_TERMS_EXECUTED
+// pra um único ciclo conseguir bater o gate completo. Cap de Apify ≈ 30 chamadas/run.
+const AUTO_COLLECT_MAX_TERMS = 30;
 // 🛡️ LOOP PROTECTION — máximo de auto-coletas disparadas por gênero em janela de 24h
 const AUTO_COLLECT_MAX_PER_DAY = 3;
 const AUTO_COLLECT_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -245,6 +248,9 @@ async function triggerAutoCollect(
 
       // 🔒 BLOQUEIO REFORÇADO PÓS-COLETA — revalida massa antes de re-disparar IA
       const massaPos = await checkMassa(sb, genreId);
+      // Critério relaxado pós-coleta: se playlists ≥ mínimo, IA já tem dados pra trabalhar
+      // (termos é só proxy de cobertura — Apify pode trazer 100+ playlists em poucos termos).
+      const hasEnoughPostCollect = massaPos.playlistsValid >= MIN_PLAYLISTS_VALID;
 
       // 📋 Log estruturado: fim da auto-coleta
       await sb.from("collection_logs").insert({
@@ -263,8 +269,9 @@ async function triggerAutoCollect(
             terms: massaPos.termsExecuted,
             playlists: massaPos.playlistsValid,
             ok: massaPos.ok,
+            relaxed_ok: hasEnoughPostCollect,
           },
-          will_retrigger: r.ok && massaPos.ok,
+          will_retrigger: r.ok && hasEnoughPostCollect,
           error: r.ok ? null : (r.error ?? null),
         }),
       });
@@ -272,11 +279,11 @@ async function triggerAutoCollect(
       if (!r.ok) return;
 
       // Se massa AINDA insuficiente após coleta → não re-dispara IA, notifica usuário
-      if (!massaPos.ok) {
+      if (!hasEnoughPostCollect) {
         await sb.rpc("create_notification", {
           p_type: "warning",
           p_title: "Autopilot: coleta insuficiente",
-          p_message: `Após auto-coleta, ainda faltam dados (termos ${massaPos.termsExecuted}/${MIN_TERMS_EXECUTED}, playlists ${massaPos.playlistsValid}/${MIN_PLAYLISTS_VALID}). IA não será disparada — colete manualmente ou aguarde próxima execução.`,
+          p_message: `Após auto-coleta, ainda faltam playlists (${massaPos.playlistsValid}/${MIN_PLAYLISTS_VALID}). IA não será disparada — colete manualmente ou aguarde próxima execução.`,
           p_action_url: "/cerebro",
           p_metadata: { run_id: runId, genre_id: genreId, terms: massaPos.termsExecuted, playlists: massaPos.playlistsValid },
         }).then(() => {}, (e) => console.error("[autopilot] notif failed:", e?.message));
@@ -763,27 +770,38 @@ Deno.serve(async (req) => {
 
   if (recent && recent.length > 0) {
     const r = recent[0];
-    if (r.status === "running") {
-      return jr({ ok: false, error: "Já existe uma execução em andamento", run_id: r.id }, 409);
-    }
-    if (r.status === "waiting_collection" && !force) {
-      return jr({ ok: false, error: "Coleta automática em andamento — aguarde concluir", run_id: r.id }, 409);
-    }
-    if (r.status === "success" && !force) {
-      const ageMs = Date.now() - new Date(r.started_at).getTime();
-      if (ageMs < cooldownMs) {
-        const minutesAgo = Math.round(ageMs / 60000);
-        const minutesLeft = Math.max(1, Math.round((cooldownMs - ageMs) / 60000));
-        return jr(
-          {
-            ok: false,
-            error: `Cooldown ativo (${cooldownLabel}): última run há ${minutesAgo}min. Aguarde ${minutesLeft}min.`,
-            run_id: r.id,
-            cooldown: true,
-            cooldown_type: hadFreshCollection ? "after_collect" : "default",
-          },
-          429,
-        );
+    const ageMs = Date.now() - new Date(r.started_at).getTime();
+    // Runs em "running" ou "waiting_collection" há mais de 15min são consideradas
+    // abandonadas (auto-coleta máx ~12min). Marca como erro e libera nova execução.
+    const STALE_MS = 15 * 60 * 1000;
+    if ((r.status === "running" || r.status === "waiting_collection") && ageMs > STALE_MS) {
+      await sb.from("autopilot_runs").update({
+        status: "error",
+        error_message: `Run abandonada (${Math.round(ageMs / 60000)}min sem progresso) — liberada automaticamente.`,
+        finished_at: new Date().toISOString(),
+      }).eq("id", r.id);
+    } else {
+      if (r.status === "running") {
+        return jr({ ok: false, error: "Já existe uma execução em andamento", run_id: r.id }, 409);
+      }
+      if (r.status === "waiting_collection" && !force) {
+        return jr({ ok: false, error: "Coleta automática em andamento — aguarde concluir", run_id: r.id }, 409);
+      }
+      if (r.status === "success" && !force) {
+        if (ageMs < cooldownMs) {
+          const minutesAgo = Math.round(ageMs / 60000);
+          const minutesLeft = Math.max(1, Math.round((cooldownMs - ageMs) / 60000));
+          return jr(
+            {
+              ok: false,
+              error: `Cooldown ativo (${cooldownLabel}): última run há ${minutesAgo}min. Aguarde ${minutesLeft}min.`,
+              run_id: r.id,
+              cooldown: true,
+              cooldown_type: hadFreshCollection ? "after_collect" : "default",
+            },
+            429,
+          );
+        }
       }
     }
   }
