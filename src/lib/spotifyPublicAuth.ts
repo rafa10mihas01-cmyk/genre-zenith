@@ -1,7 +1,7 @@
 // Helper client-side para iniciar o OAuth público do Spotify a partir da landing.
 // Chama a edge function `spotify-public-auth` (que mantém o CLIENT_SECRET
 // no servidor) para obter a URL de autorização e redirecionar.
-import { supabase } from "@/integrations/supabase/client";
+
 
 const STATE_KEY = "nx:spotify_oauth_state";
 
