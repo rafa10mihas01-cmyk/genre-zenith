@@ -16,6 +16,8 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
       </div>
     );
   }
-  if (!user) return <Navigate to="/login" replace />;
+  // Visitantes vão para a Landing (rota /), não para /login.
+  // /login fica reservado para uso interno/admin.
+  if (!user) return <Navigate to="/" replace />;
   return <>{children}</>;
 }
