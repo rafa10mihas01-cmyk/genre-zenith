@@ -2,11 +2,13 @@
 // Página institucional voltada para a aprovação do Spotify OAuth.
 // Identidade visual SaaS premium (Stripe / Linear / Vercel).
 import { Link } from "react-router-dom";
-import { ArrowRight, Sparkles, BarChart3, Plug, Wand2, ShieldCheck, Zap, Lock, LineChart, LayoutDashboard } from "lucide-react";
+import { ArrowRight, Sparkles, BarChart3, Plug, Wand2, ShieldCheck, Zap, Lock, LineChart, LayoutDashboard, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { PublicShell } from "@/components/public/PublicShell";
 import { useAuth } from "@/contexts/AuthContext";
+import { handleSpotifyLogin } from "@/lib/spotifyPublicAuth";
+import { toast } from "sonner";
 
 function setMeta(name: string, content: string) {
   let tag = document.querySelector(`meta[name="${name}"]`);
@@ -20,6 +22,7 @@ function setMeta(name: string, content: string) {
 
 export default function Landing() {
   const { user } = useAuth();
+  const [connecting, setConnecting] = useState(false);
 
   useEffect(() => {
     document.title = "NexEngine — Automação inteligente de playlists no Spotify";
@@ -28,6 +31,17 @@ export default function Landing() {
       "Conecte sua conta Spotify e crie playlists automaticamente com base em dados reais, tendências e comportamento de audiência.",
     );
   }, []);
+
+  async function onConnectSpotify() {
+    if (connecting) return;
+    setConnecting(true);
+    try {
+      await handleSpotifyLogin();
+    } catch (err) {
+      setConnecting(false);
+      toast.error((err as Error)?.message ?? "Falha ao iniciar a conexão com o Spotify.");
+    }
+  }
 
   return (
     <PublicShell>
