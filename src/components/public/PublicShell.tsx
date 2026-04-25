@@ -1,15 +1,18 @@
 // Shell compartilhado pelas páginas públicas (Landing + Privacy).
 // Garante identidade visual única: header global com logo oficial,
 // fundo em camadas (base preta + radial glow + grid sutil), footer.
+// Header é inteligente: visitante vê "Conectar Spotify"; logado vê "Entrar no painel".
 import { Link, useLocation } from "react-router-dom";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NexEngineLogo } from "@/components/NexEngineLogo";
 import { ReactNode } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 
 export function PublicShell({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
   const isPrivacy = pathname.startsWith("/privacy");
+  const { user } = useAuth();
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#050505] text-foreground antialiased">
@@ -67,14 +70,22 @@ export function PublicShell({ children }: { children: ReactNode }) {
             >
               Privacy
             </Link>
-            <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
-              <Link to="/login">Acessar painel</Link>
-            </Button>
-            <Button asChild size="sm" className="nx-cta-btn gap-1.5">
-              <Link to="/login">
-                Conectar Spotify <ArrowRight className="h-3.5 w-3.5" />
-              </Link>
-            </Button>
+            {user ? (
+              // Usuário logado → botão único para entrar no painel
+              <Button asChild size="sm" className="nx-cta-btn gap-1.5">
+                <Link to="/operacao">
+                  <LayoutDashboard className="h-3.5 w-3.5" />
+                  Entrar no painel
+                </Link>
+              </Button>
+            ) : (
+              // Visitante → CTA público de conexão (login fica oculto)
+              <Button asChild size="sm" className="nx-cta-btn gap-1.5">
+                <Link to="/login">
+                  Conectar Spotify <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              </Button>
+            )}
           </nav>
         </div>
       </header>
@@ -99,10 +110,10 @@ export function PublicShell({ children }: { children: ReactNode }) {
               Privacy Policy
             </Link>
             <Link
-              to="/login"
+              to={user ? "/operacao" : "/login"}
               className="text-muted-foreground hover:text-foreground transition-colors"
             >
-              Acessar painel
+              {user ? "Entrar no painel" : "Conectar Spotify"}
             </Link>
           </div>
         </div>
