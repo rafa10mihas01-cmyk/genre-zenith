@@ -12,6 +12,7 @@ import { LoadingProvider } from "@/contexts/LoadingContext";
 import Login from "./pages/Login";
 import ResetPassword from "./pages/ResetPassword";
 import Privacy from "./pages/Privacy";
+import Landing from "./pages/Landing";
 import RootRoute from "./components/RootRoute";
 import Cerebro from "./pages/Cerebro";
 import Criacao from "./pages/Criacao";
@@ -42,6 +43,7 @@ const App = () => (
               <Route path="/login" element={<Login />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/privacy" element={<Privacy />} />
+              <Route path="/landing" element={<Landing />} />
               {/* "/" decide entre landing pública (visitantes) e Cockpit/Home (logados). */}
               <Route path="/" element={<RootRoute />} />
               <Route path="/cerebro" element={<Protected><Cerebro /></Protected>} />
