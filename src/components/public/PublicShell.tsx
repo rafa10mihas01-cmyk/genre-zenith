@@ -97,7 +97,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              Privacy
+              Privacidade
             </Link>
             {user ? (
               // Usuário logado → botão único para entrar no painel
