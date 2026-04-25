@@ -105,6 +105,14 @@ export function PublicShell({ children }: { children: ReactNode }) {
             >
               Privacidade
             </Link>
+            {!user && (
+              <Link
+                to="/login"
+                className="text-sm transition-colors px-2 sm:px-3 py-2 rounded-md text-muted-foreground hover:text-foreground"
+              >
+                Entrar
+              </Link>
+            )}
             {user ? (
               // Usuário logado → botão único para entrar no painel
               <Button asChild size="sm" className="nx-cta-btn gap-1.5 px-3 sm:px-4 text-xs sm:text-sm">
