@@ -1,0 +1,112 @@
+// Shell compartilhado pelas páginas públicas (Landing + Privacy).
+// Garante identidade visual única: header global com logo oficial,
+// fundo em camadas (base preta + radial glow + grid sutil), footer.
+import { Link, useLocation } from "react-router-dom";
+import { ArrowRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { NexEngineLogo } from "@/components/NexEngineLogo";
+import { ReactNode } from "react";
+
+export function PublicShell({ children }: { children: ReactNode }) {
+  const { pathname } = useLocation();
+  const isPrivacy = pathname.startsWith("/privacy");
+
+  return (
+    <div className="relative min-h-screen overflow-hidden bg-[#050505] text-foreground antialiased">
+      {/* ── Camada 1: gradiente base ─────────────────────────────── */}
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 -z-30"
+        style={{
+          background:
+            "radial-gradient(ellipse 90% 60% at 50% -10%, hsl(141 76% 48% / 0.10), transparent 60%), linear-gradient(180deg, #050505 0%, #0a0a0a 100%)",
+        }}
+      />
+      {/* ── Camada 2: grid sutil ─────────────────────────────────── */}
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 -z-20 opacity-[0.07]"
+        style={{
+          backgroundImage:
+            "linear-gradient(to right, rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.6) 1px, transparent 1px)",
+          backgroundSize: "56px 56px",
+          maskImage:
+            "radial-gradient(ellipse 80% 70% at 50% 30%, black, transparent 75%)",
+          WebkitMaskImage:
+            "radial-gradient(ellipse 80% 70% at 50% 30%, black, transparent 75%)",
+        }}
+      />
+      {/* ── Camada 3: noise leve ─────────────────────────────────── */}
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 -z-10 opacity-[0.025] mix-blend-overlay"
+        style={{
+          backgroundImage:
+            "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.6'/></svg>\")",
+        }}
+      />
+
+      {/* ── Header global ────────────────────────────────────────── */}
+      <header className="sticky top-0 z-40 border-b border-white/5 bg-[#050505]/70 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+          <Link
+            to="/"
+            className="flex items-center gap-2 transition-opacity hover:opacity-90"
+            aria-label="NexEngine — Home"
+          >
+            <NexEngineLogo variant="dark" size={28} />
+          </Link>
+          <nav className="flex items-center gap-1 sm:gap-2">
+            <Link
+              to="/privacy"
+              className={`hidden sm:inline-block text-sm transition-colors px-3 py-2 rounded-md ${
+                isPrivacy
+                  ? "text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Privacy
+            </Link>
+            <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
+              <Link to="/login">Acessar painel</Link>
+            </Button>
+            <Button asChild size="sm" className="nx-cta-btn gap-1.5">
+              <Link to="/login">
+                Conectar Spotify <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </Button>
+          </nav>
+        </div>
+      </header>
+
+      {/* ── Conteúdo da página ───────────────────────────────────── */}
+      <main className="relative">{children}</main>
+
+      {/* ── Footer global ────────────────────────────────────────── */}
+      <footer className="relative border-t border-white/5 mt-12">
+        <div className="mx-auto flex max-w-6xl flex-col sm:flex-row items-center justify-between gap-4 px-6 py-10">
+          <div className="flex items-center gap-3">
+            <NexEngineLogo variant="dark" size={20} />
+            <span className="text-xs text-muted-foreground">
+              © {new Date().getFullYear()} NexEngine. Todos os direitos reservados.
+            </span>
+          </div>
+          <div className="flex items-center gap-5 text-xs">
+            <Link
+              to="/privacy"
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Privacy Policy
+            </Link>
+            <Link
+              to="/login"
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Acessar painel
+            </Link>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+}
