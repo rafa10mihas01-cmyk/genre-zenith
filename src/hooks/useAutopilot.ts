@@ -20,7 +20,7 @@ export type AutopilotStep =
 export type AutopilotRun = {
   id: string;
   genre_id: string;
-  status: "running" | "success" | "error" | "partial";
+  status: "running" | "waiting_collection" | "success" | "error" | "partial";
   current_step: AutopilotStep | null;
   progress_pct: number;
   steps_completed: Array<{ step: AutopilotStep; at: string; [k: string]: unknown }>;
