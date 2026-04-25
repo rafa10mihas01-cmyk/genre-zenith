@@ -95,11 +95,23 @@ export default function Landing() {
                 </Link>
               </Button>
             ) : (
-              <Button asChild size="lg" className="nx-cta-btn gap-2 min-w-[240px] h-12 text-sm">
-                <Link to="/login">
-                  Conectar Spotify
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
+              <Button
+                onClick={onConnectSpotify}
+                disabled={connecting}
+                size="lg"
+                className="nx-cta-btn gap-2 min-w-[240px] h-12 text-sm"
+              >
+                {connecting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Redirecionando…
+                  </>
+                ) : (
+                  <>
+                    Conectar Spotify
+                    <ArrowRight className="h-4 w-4" />
+                  </>
+                )}
               </Button>
             )}
           </div>
@@ -256,11 +268,23 @@ export default function Landing() {
               </Link>
             </Button>
           ) : (
-            <Button asChild size="lg" className="nx-cta-btn gap-2 min-w-[240px] h-12 text-sm">
-              <Link to="/login">
-                Conectar Spotify
-                <ArrowRight className="h-4 w-4" />
-              </Link>
+            <Button
+              onClick={onConnectSpotify}
+              disabled={connecting}
+              size="lg"
+              className="nx-cta-btn gap-2 min-w-[240px] h-12 text-sm"
+            >
+              {connecting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Redirecionando…
+                </>
+              ) : (
+                <>
+                  Conectar Spotify
+                  <ArrowRight className="h-4 w-4" />
+                </>
+              )}
             </Button>
           )}
         </div>
