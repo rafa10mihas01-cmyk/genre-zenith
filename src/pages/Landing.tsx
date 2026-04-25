@@ -19,6 +19,8 @@ function setMeta(name: string, content: string) {
 }
 
 export default function Landing() {
+  const { user } = useAuth();
+
   useEffect(() => {
     document.title = "NexEngine — Automação inteligente de playlists no Spotify";
     setMeta(
