@@ -73,8 +73,14 @@ export default function SpotifyCallback() {
         });
         const json = await resp.json();
         if (!json.ok) {
+          const raw = String(json.error || "");
+          // Spotify devolve 403 quando o e-mail não está na lista de testers do app
+          if (/not registered/i.test(raw) || /403/.test(raw)) {
+            setStatus("unauthorized");
+            return;
+          }
           setStatus("error");
-          setError(json.error || "Falha ao concluir a conexão.");
+          setError(raw || "Falha ao concluir a conexão.");
           return;
         }
 
