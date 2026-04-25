@@ -1,4 +1,4 @@
-// Privacy Policy pública — exigida para aprovação do Spotify OAuth.
+// Política de Privacidade pública — exigida para aprovação do Spotify OAuth.
 // Mesma identidade visual premium da landing (PublicShell).
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
@@ -32,27 +32,27 @@ function setMeta(name: string, content: string) {
 const SECTIONS = [
   {
     icon: KeyRound,
-    title: "Spotify Access Tokens",
+    title: "Tokens de acesso do Spotify",
     text:
-      "We store Spotify access tokens securely and use them only to create and manage playlists on behalf of the user. Tokens are encrypted at rest and never exposed to third parties.",
+      "Armazenamos os tokens de acesso do Spotify de forma segura e os utilizamos exclusivamente para criar e gerenciar playlists em nome do usuário. Os tokens são criptografados em repouso e nunca são compartilhados com terceiros.",
   },
   {
     icon: Database,
-    title: "Data Sharing",
+    title: "Compartilhamento de dados",
     text:
-      "We do not sell or share user data. All information collected is used exclusively to power the playlist automation features inside NexEngine.",
+      "Não vendemos nem compartilhamos dados de usuários. Todas as informações coletadas são utilizadas exclusivamente para alimentar os recursos de automação de playlists do NexEngine.",
   },
   {
     icon: UserMinus,
-    title: "Revoking Access",
+    title: "Revogação de acesso",
     text:
-      "Users can revoke access at any time via their Spotify account settings. Once revoked, all related tokens are invalidated and removed from our systems.",
+      "O usuário pode revogar o acesso a qualquer momento nas configurações da sua conta Spotify. Após a revogação, todos os tokens relacionados são invalidados e removidos dos nossos sistemas.",
   },
   {
     icon: ShieldCheck,
-    title: "Permission Scope",
+    title: "Escopo de permissões",
     text:
-      "We only request permissions strictly necessary for playlist creation and management. No additional scopes are requested without explicit user consent.",
+      "Solicitamos apenas as permissões estritamente necessárias para a criação e gestão de playlists. Nenhum escopo adicional é solicitado sem o consentimento explícito do usuário.",
   },
 ];
 
@@ -61,10 +61,10 @@ export default function Privacy() {
   const [connecting, setConnecting] = useState(false);
 
   useEffect(() => {
-    document.title = "Privacy Policy — NexEngine";
+    document.title = "Política de Privacidade — NexEngine";
     setMeta(
       "description",
-      "How NexEngine handles Spotify access tokens, user data, and permissions.",
+      "Como o NexEngine trata os tokens de acesso do Spotify, dados do usuário e permissões.",
     );
   }, []);
 
@@ -94,26 +94,26 @@ export default function Privacy() {
         <div className="relative mx-auto max-w-3xl px-6 pt-20 sm:pt-28 pb-10 text-center animate-fade-in">
           <div className="nx-conic-pill inline-flex items-center gap-2 bg-white/[0.03] backdrop-blur-md px-3.5 py-1.5 text-xs font-medium text-muted-foreground mb-7 shadow-[0_0_24px_-8px_hsl(141_76%_48%/0.4)]">
             <FileText className="h-3.5 w-3.5 text-primary" />
-            Legal · Updated April 2026
+            Documento legal · Atualizado em abril de 2026
           </div>
-          <h1 className="text-5xl sm:text-7xl font-bold tracking-tight leading-[1.0] mb-5 bg-gradient-to-b from-white via-white to-white/60 bg-clip-text text-transparent">
-            Privacy Policy
+          <h1 className="text-5xl sm:text-7xl font-bold tracking-tight leading-[1.15] pb-2 mb-5 bg-gradient-to-b from-white via-white to-white/60 bg-clip-text text-transparent">
+            Política de Privacidade
           </h1>
           <p className="mx-auto max-w-2xl text-base sm:text-lg text-muted-foreground leading-relaxed">
-            How NexEngine handles Spotify access tokens, user data and permissions —
-            with privacy and consent at the center.
+            Como o NexEngine trata os tokens de acesso do Spotify, os dados do usuário e
+            as permissões — com privacidade e consentimento no centro de tudo.
           </p>
 
           {/* Trust badges abaixo do hero */}
           <div className="mt-10 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-xs text-muted-foreground/80">
             <div className="inline-flex items-center gap-1.5">
-              <Lock className="h-3.5 w-3.5 text-primary/80" /> Encrypted at rest
+              <Lock className="h-3.5 w-3.5 text-primary/80" /> Criptografado em repouso
             </div>
             <div className="inline-flex items-center gap-1.5">
-              <ShieldCheck className="h-3.5 w-3.5 text-primary/80" /> Minimum scopes
+              <ShieldCheck className="h-3.5 w-3.5 text-primary/80" /> Permissões mínimas
             </div>
             <div className="inline-flex items-center gap-1.5">
-              <UserMinus className="h-3.5 w-3.5 text-primary/80" /> Revocable anytime
+              <UserMinus className="h-3.5 w-3.5 text-primary/80" /> Revogável a qualquer momento
             </div>
           </div>
         </div>
@@ -128,10 +128,10 @@ export default function Privacy() {
       <section className="relative mx-auto max-w-4xl px-6 py-12 sm:py-16">
         <div className="text-center mb-12">
           <p className="text-xs font-mono uppercase tracking-[0.18em] text-primary/80 mb-3">
-            How we handle your data
+            Como tratamos seus dados
           </p>
           <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
-            Privacy at the core
+            Privacidade no centro de tudo
           </h2>
         </div>
 
@@ -153,11 +153,12 @@ export default function Privacy() {
             <Lock className="h-5 w-5" />
           </div>
           <h2 className="text-lg font-semibold mb-2 tracking-tight">
-            Questions about your data?
+            Dúvidas sobre seus dados?
           </h2>
           <p className="text-sm text-muted-foreground leading-relaxed max-w-lg mx-auto">
-            Reach out through your account settings inside NexEngine. We respond to all
-            privacy-related inquiries promptly and transparently.
+            Entre em contato pelas configurações da sua conta dentro do NexEngine.
+            Respondemos a todas as solicitações relacionadas à privacidade de forma
+            rápida e transparente.
           </p>
         </div>
       </section>
@@ -174,10 +175,10 @@ export default function Privacy() {
         />
         <div className="relative mx-auto max-w-3xl px-6 py-24 sm:py-32 text-center">
           <h2 className="text-3xl sm:text-5xl font-bold tracking-tight mb-5 leading-[1.1]">
-            Ready to connect your Spotify?
+            Pronto para conectar sua conta Spotify?
           </h2>
           <p className="text-muted-foreground mb-10 text-base sm:text-lg">
-            Same security standards. Same privacy-first design. Less than a minute.
+            Mesmos padrões de segurança. Mesmo design centrado em privacidade. Em menos de um minuto.
           </p>
           {user ? (
             <Button asChild size="lg" className="nx-cta-btn gap-2 min-w-[240px] h-12 text-sm">
