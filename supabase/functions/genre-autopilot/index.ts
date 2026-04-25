@@ -30,9 +30,9 @@ const BRIEFING_CACHE_MS = 7 * 24 * 60 * 60 * 1000;  // 7d
 const HARD_CAP_TEMPLATES = 10;
 const FALLBACK_TEMPLATES = 4;
 
-// 🔒 GATE DE MASSA — bloqueia IA quando dados são insuficientes
-// Pré-coleta: gate completo (termos AND playlists). Pós-coleta: gate relaxado
-// — basta ter playlists suficientes (termos é só proxy de cobertura).
+// 🔒 GATE DE MASSA — playlists válidas são a métrica principal.
+// Termos executados continuam como telemetria/cobertura, mas não bloqueiam a IA
+// quando já existe massa suficiente de playlists no gênero.
 const MIN_TERMS_EXECUTED = 30;
 const MIN_PLAYLISTS_VALID = 50;
 // Auto-coleta: máximo de termos por run. Precisa ser ≥ MIN_TERMS_EXECUTED
@@ -156,10 +156,12 @@ async function checkMassa(sb: SupabaseClient, genreId: string): Promise<{
   const t = termsExecuted ?? 0;
   const p = playlistsValid ?? 0;
   const reasons: string[] = [];
-  if (t < MIN_TERMS_EXECUTED) reasons.push(`termos executados ${t}/${MIN_TERMS_EXECUTED}`);
-  if (p < MIN_PLAYLISTS_VALID) reasons.push(`playlists válidas ${p}/${MIN_PLAYLISTS_VALID}`);
+  if (p < MIN_PLAYLISTS_VALID) {
+    reasons.push(`playlists válidas ${p}/${MIN_PLAYLISTS_VALID}`);
+    if (t < MIN_TERMS_EXECUTED) reasons.push(`termos executados ${t}/${MIN_TERMS_EXECUTED}`);
+  }
   return {
-    ok: reasons.length === 0,
+    ok: p >= MIN_PLAYLISTS_VALID,
     termsExecuted: t,
     playlistsValid: p,
     reason: reasons.length > 0 ? `Massa insuficiente: ${reasons.join(" + ")}` : undefined,
