@@ -284,9 +284,10 @@
     transform: translateX(2px);
   }
 
-  /* CTA premium: gradiente verde + glow externo + leve lift */
+  /* CTA premium: gradiente verde + glow externo + leve lift + sheen no hover */
   .nx-cta-btn {
     position: relative;
+    overflow: hidden;
     background: linear-gradient(180deg, hsl(141 76% 52%) 0%, hsl(141 76% 42%) 100%) !important;
     color: #000 !important;
     font-weight: 600 !important;
@@ -298,6 +299,15 @@
       0 0 32px -4px hsl(141 76% 48% / 0.35);
     transition: transform 220ms ease, box-shadow 220ms ease, filter 220ms ease;
   }
+  .nx-cta-btn::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.35) 50%, transparent 70%);
+    transform: translateX(-120%);
+    transition: transform 700ms cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+  }
   .nx-cta-btn:hover {
     transform: translateY(-1px);
     filter: brightness(1.06);
@@ -306,9 +316,87 @@
       0 12px 32px -10px hsl(141 76% 48% / 0.65),
       0 0 48px -4px hsl(141 76% 48% / 0.55);
   }
+  .nx-cta-btn:hover::after {
+    transform: translateX(120%);
+  }
   .nx-cta-btn:active {
     transform: translateY(0);
   }
+
+  /* Conic gradient border (premium hero badge / pill) */
+  .nx-conic-pill {
+    position: relative;
+    isolation: isolate;
+    border-radius: 9999px;
+  }
+  .nx-conic-pill::before {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border-radius: 9999px;
+    padding: 1px;
+    background: conic-gradient(
+      from 0deg,
+      hsl(141 76% 48% / 0.0) 0deg,
+      hsl(141 76% 48% / 0.6) 60deg,
+      hsl(141 76% 48% / 0.0) 120deg,
+      hsl(141 76% 48% / 0.0) 360deg
+    );
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+            mask-composite: exclude;
+    animation: nx-conic-spin 6s linear infinite;
+    z-index: -1;
+  }
+  @keyframes nx-conic-spin {
+    to { transform: rotate(360deg); }
+  }
+
+  /* Step number premium: gradient verde + glow */
+  .nx-step-number {
+    @apply text-3xl sm:text-4xl font-bold tracking-tight;
+    background: linear-gradient(180deg, hsl(141 76% 60%) 0%, hsl(141 76% 30%) 100%);
+    -webkit-background-clip: text;
+            background-clip: text;
+    color: transparent;
+    text-shadow: 0 0 30px hsl(141 76% 48% / 0.25);
+  }
+
+  /* Divider premium com fade nas pontas */
+  .nx-divider-fade {
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      hsl(141 76% 48% / 0.35) 50%,
+      transparent 100%
+    );
+  }
+}
+
+/* ============================================================
+   AURORA — fundo animado das páginas públicas (Landing/Privacy)
+   Blobs verdes que respiram e se movem lentamente. Perf-friendly.
+   ============================================================ */
+@keyframes nx-aurora-1 {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.55; }
+  50%      { transform: translate(40px, -30px) scale(1.15); opacity: 0.75; }
+}
+@keyframes nx-aurora-2 {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.4; }
+  50%      { transform: translate(-50px, 40px) scale(1.2); opacity: 0.65; }
+}
+@keyframes nx-aurora-3 {
+  0%, 100% { transform: translate(0, 0) scale(0.9); opacity: 0.3; }
+  50%      { transform: translate(30px, 30px) scale(1.05); opacity: 0.5; }
+}
+.nx-aurora-1 { animation: nx-aurora-1 14s ease-in-out infinite; }
+.nx-aurora-2 { animation: nx-aurora-2 18s ease-in-out infinite; }
+.nx-aurora-3 { animation: nx-aurora-3 22s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .nx-aurora-1, .nx-aurora-2, .nx-aurora-3 { animation: none !important; }
+  .nx-conic-pill::before { animation: none !important; }
 }
 
 @layer utilities {
