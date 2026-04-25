@@ -770,27 +770,38 @@ Deno.serve(async (req) => {
 
   if (recent && recent.length > 0) {
     const r = recent[0];
-    if (r.status === "running") {
-      return jr({ ok: false, error: "Já existe uma execução em andamento", run_id: r.id }, 409);
-    }
-    if (r.status === "waiting_collection" && !force) {
-      return jr({ ok: false, error: "Coleta automática em andamento — aguarde concluir", run_id: r.id }, 409);
-    }
-    if (r.status === "success" && !force) {
-      const ageMs = Date.now() - new Date(r.started_at).getTime();
-      if (ageMs < cooldownMs) {
-        const minutesAgo = Math.round(ageMs / 60000);
-        const minutesLeft = Math.max(1, Math.round((cooldownMs - ageMs) / 60000));
-        return jr(
-          {
-            ok: false,
-            error: `Cooldown ativo (${cooldownLabel}): última run há ${minutesAgo}min. Aguarde ${minutesLeft}min.`,
-            run_id: r.id,
-            cooldown: true,
-            cooldown_type: hadFreshCollection ? "after_collect" : "default",
-          },
-          429,
-        );
+    const ageMs = Date.now() - new Date(r.started_at).getTime();
+    // Runs em "running" ou "waiting_collection" há mais de 15min são consideradas
+    // abandonadas (auto-coleta máx ~12min). Marca como erro e libera nova execução.
+    const STALE_MS = 15 * 60 * 1000;
+    if ((r.status === "running" || r.status === "waiting_collection") && ageMs > STALE_MS) {
+      await sb.from("autopilot_runs").update({
+        status: "error",
+        error_message: `Run abandonada (${Math.round(ageMs / 60000)}min sem progresso) — liberada automaticamente.`,
+        finished_at: new Date().toISOString(),
+      }).eq("id", r.id);
+    } else {
+      if (r.status === "running") {
+        return jr({ ok: false, error: "Já existe uma execução em andamento", run_id: r.id }, 409);
+      }
+      if (r.status === "waiting_collection" && !force) {
+        return jr({ ok: false, error: "Coleta automática em andamento — aguarde concluir", run_id: r.id }, 409);
+      }
+      if (r.status === "success" && !force) {
+        if (ageMs < cooldownMs) {
+          const minutesAgo = Math.round(ageMs / 60000);
+          const minutesLeft = Math.max(1, Math.round((cooldownMs - ageMs) / 60000));
+          return jr(
+            {
+              ok: false,
+              error: `Cooldown ativo (${cooldownLabel}): última run há ${minutesAgo}min. Aguarde ${minutesLeft}min.`,
+              run_id: r.id,
+              cooldown: true,
+              cooldown_type: hadFreshCollection ? "after_collect" : "default",
+            },
+            429,
+          );
+        }
       }
     }
   }
