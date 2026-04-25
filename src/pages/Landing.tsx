@@ -2,10 +2,11 @@
 // Página institucional voltada para a aprovação do Spotify OAuth.
 // Identidade visual SaaS premium (Stripe / Linear / Vercel).
 import { Link } from "react-router-dom";
-import { ArrowRight, Sparkles, BarChart3, Plug, Wand2, ShieldCheck, Zap, Lock, LineChart } from "lucide-react";
+import { ArrowRight, Sparkles, BarChart3, Plug, Wand2, ShieldCheck, Zap, Lock, LineChart, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect } from "react";
 import { PublicShell } from "@/components/public/PublicShell";
+import { useAuth } from "@/contexts/AuthContext";
 
 function setMeta(name: string, content: string) {
   let tag = document.querySelector(`meta[name="${name}"]`);
