@@ -31,10 +31,13 @@ const HARD_CAP_TEMPLATES = 10;
 const FALLBACK_TEMPLATES = 4;
 
 // 🔒 GATE DE MASSA — bloqueia IA quando dados são insuficientes
+// Pré-coleta: gate completo (termos AND playlists). Pós-coleta: gate relaxado
+// — basta ter playlists suficientes (termos é só proxy de cobertura).
 const MIN_TERMS_EXECUTED = 30;
 const MIN_PLAYLISTS_VALID = 50;
-// Auto-coleta: máximo de termos por run (cap de Apify pra não estourar)
-const AUTO_COLLECT_MAX_TERMS = 15;
+// Auto-coleta: máximo de termos por run. Precisa ser ≥ MIN_TERMS_EXECUTED
+// pra um único ciclo conseguir bater o gate completo. Cap de Apify ≈ 30 chamadas/run.
+const AUTO_COLLECT_MAX_TERMS = 30;
 // 🛡️ LOOP PROTECTION — máximo de auto-coletas disparadas por gênero em janela de 24h
 const AUTO_COLLECT_MAX_PER_DAY = 3;
 const AUTO_COLLECT_WINDOW_MS = 24 * 60 * 60 * 1000;
