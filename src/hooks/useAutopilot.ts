@@ -130,7 +130,7 @@ export function useAutopilot(genreId: string | null | undefined) {
     }
   }, [genreId]);
 
-  const isRunning = run?.status === "running" || starting;
+  const isRunning = run?.status === "running" || run?.status === "waiting_collection" || starting;
 
   return { run, isRunning, starting, start, error };
 }
