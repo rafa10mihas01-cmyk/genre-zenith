@@ -18,17 +18,8 @@ export function getSpotifyRedirectUri(): string {
 export async function handleSpotifyLogin(): Promise<void> {
   const redirect = getSpotifyRedirectUri();
 
-  const { data, error } = await supabase.functions.invoke("spotify-public-auth", {
-    method: "GET",
-    // edge function lê tudo de query string
-    headers: {},
-    body: undefined as unknown as Record<string, unknown>,
-  });
-
   // supabase-js v2 não passa query params em GET via invoke,
   // então usamos fetch direto para esse caso simples.
-  void data; void error;
-
   const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/spotify-public-auth?mode=login&redirect=${encodeURIComponent(redirect)}`;
   const resp = await fetch(url, {
     headers: {
