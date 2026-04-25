@@ -41,8 +41,9 @@ const App = () => (
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/reset-password" element={<ResetPassword />} />
-              {/* 5 módulos do sistema. Toda página dentro de <Protected> herda o layout global. */}
-              <Route path="/" element={<Protected><Home /></Protected>} />
+              <Route path="/privacy" element={<Privacy />} />
+              {/* "/" decide entre landing pública (visitantes) e Cockpit/Home (logados). */}
+              <Route path="/" element={<RootRoute />} />
               <Route path="/cerebro" element={<Protected><Cerebro /></Protected>} />
               <Route path="/cerebro/:slug" element={<Protected><Cerebro /></Protected>} />
               <Route path="/criacao" element={<Protected><Criacao /></Protected>} />
