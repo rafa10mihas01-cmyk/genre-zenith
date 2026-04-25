@@ -5,13 +5,13 @@
 //   • caso contrário → mostra tela "acesso pendente"
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { CheckCircle2, AlertCircle, Loader2, ArrowRight, Home, Clock } from "lucide-react";
+import { CheckCircle2, AlertCircle, Loader2, ArrowRight, Home, Clock, ShieldAlert, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PublicShell } from "@/components/public/PublicShell";
 import { consumeStoredState, getSpotifyRedirectUri } from "@/lib/spotifyPublicAuth";
 import { supabase } from "@/integrations/supabase/client";
 
-type Status = "loading" | "signing_in" | "success" | "pending" | "error";
+type Status = "loading" | "signing_in" | "success" | "pending" | "unauthorized" | "error";
 
 interface Result {
   display_name?: string | null;
@@ -73,8 +73,14 @@ export default function SpotifyCallback() {
         });
         const json = await resp.json();
         if (!json.ok) {
+          const raw = String(json.error || "");
+          // Spotify devolve 403 quando o e-mail não está na lista de testers do app
+          if (/not registered/i.test(raw) || /403/.test(raw)) {
+            setStatus("unauthorized");
+            return;
+          }
           setStatus("error");
-          setError(json.error || "Falha ao concluir a conexão.");
+          setError(raw || "Falha ao concluir a conexão.");
           return;
         }
 
@@ -185,6 +191,39 @@ export default function SpotifyCallback() {
                   <Link to="/">
                     <Home className="h-4 w-4" />
                     Voltar para a página inicial
+                  </Link>
+                </Button>
+              </div>
+            </>
+          )}
+
+          {status === "unauthorized" && (
+            <>
+              <div className="mx-auto mb-6 grid h-14 w-14 place-items-center rounded-full bg-yellow-400/10 border border-yellow-400/20 shadow-[0_0_28px_-8px_hsl(48_96%_53%/0.5)]">
+                <ShieldAlert className="h-7 w-7 text-yellow-400" />
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight mb-3">
+                Conta não autorizada
+              </h1>
+              <p className="text-muted-foreground mb-3 leading-relaxed">
+                Este aplicativo está em <span className="text-foreground font-medium">fase de testes</span>.
+              </p>
+              <p className="text-sm text-muted-foreground mb-8 leading-relaxed">
+                No momento, apenas usuários autorizados podem conectar.
+                Se você precisa de acesso, entre em contato com o suporte.
+              </p>
+
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                <Button asChild size="lg" className="nx-cta-btn gap-2 min-w-[200px] h-11 text-sm">
+                  <a href="mailto:suporte@nexcreatorx.com?subject=Solicitação%20de%20acesso%20NexEngine">
+                    <Mail className="h-4 w-4" />
+                    Falar com o suporte
+                  </a>
+                </Button>
+                <Button asChild variant="outline" size="lg" className="gap-2 min-w-[180px] h-11 text-sm border-white/10 bg-white/[0.03] hover:bg-white/[0.06]">
+                  <Link to="/">
+                    <Home className="h-4 w-4" />
+                    Voltar ao início
                   </Link>
                 </Button>
               </div>
