@@ -33,12 +33,27 @@ export function PublicShell({ children }: { children: ReactNode }) {
       {/* ── Camada 1: gradiente base ─────────────────────────────── */}
       <div
         aria-hidden
-        className="pointer-events-none fixed inset-0 -z-30"
+        className="pointer-events-none fixed inset-0 -z-40"
         style={{
           background:
             "radial-gradient(ellipse 90% 60% at 50% -10%, hsl(141 76% 48% / 0.10), transparent 60%), linear-gradient(180deg, #050505 0%, #0a0a0a 100%)",
         }}
       />
+      {/* ── Camada 2: aurora animada (3 blobs verdes respirando) ── */}
+      <div aria-hidden className="pointer-events-none fixed inset-0 -z-30 overflow-hidden">
+        <div
+          className="nx-aurora-1 absolute -top-32 left-[10%] h-[520px] w-[520px] rounded-full blur-3xl"
+          style={{ background: "radial-gradient(closest-side, hsl(141 76% 48% / 0.32), transparent 70%)" }}
+        />
+        <div
+          className="nx-aurora-2 absolute top-[40%] -right-20 h-[480px] w-[480px] rounded-full blur-3xl"
+          style={{ background: "radial-gradient(closest-side, hsl(141 76% 48% / 0.24), transparent 70%)" }}
+        />
+        <div
+          className="nx-aurora-3 absolute bottom-0 left-[30%] h-[560px] w-[560px] rounded-full blur-3xl"
+          style={{ background: "radial-gradient(closest-side, hsl(141 76% 48% / 0.20), transparent 70%)" }}
+        />
+      </div>
       {/* ── Camada 2: grid sutil ─────────────────────────────────── */}
       <div
         aria-hidden

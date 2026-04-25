@@ -65,7 +65,7 @@ export default function Landing() {
         />
 
         <div className="relative mx-auto max-w-5xl px-6 py-24 sm:py-36 text-center animate-fade-in">
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] backdrop-blur-md px-3.5 py-1.5 text-xs font-medium text-muted-foreground mb-8 shadow-[0_0_24px_-8px_hsl(141_76%_48%/0.4)]">
+          <div className="nx-conic-pill inline-flex items-center gap-2 bg-white/[0.03] backdrop-blur-md px-3.5 py-1.5 text-xs font-medium text-muted-foreground mb-8 shadow-[0_0_24px_-8px_hsl(141_76%_48%/0.4)]">
             <span className="relative flex h-2 w-2">
               <span className="absolute inset-0 animate-ping rounded-full bg-primary/60" />
               <span className="relative h-2 w-2 rounded-full bg-primary" />
@@ -166,7 +166,7 @@ export default function Landing() {
           ].map((b) => (
             <div key={b.step} className="nx-premium-card group">
               <div className="flex items-center justify-between mb-6">
-                <span className="text-xs font-mono text-muted-foreground/60 tracking-widest">{b.step}</span>
+                <span className="nx-step-number">{b.step}</span>
                 <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary border border-primary/20 transition-all duration-300 group-hover:bg-primary/20 group-hover:scale-110 group-hover:shadow-[0_0_24px_hsl(141_76%_48%/0.4)]">
                   <b.icon className="h-4 w-4" />
                 </div>
