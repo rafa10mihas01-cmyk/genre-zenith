@@ -1,15 +1,17 @@
 // Página de callback do OAuth público do Spotify.
-// Recebe ?code=…&state=… do Spotify, chama a edge function pra trocar
-// o code por token e mostra o resultado da conexão. NÃO loga o usuário
-// no sistema — é um fluxo demonstrativo conforme exigido pela revisão Spotify.
-import { useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
-import { CheckCircle2, AlertCircle, Loader2, ArrowRight, Home } from "lucide-react";
+// Recebe ?code=…&state=… do Spotify, troca pelo token via edge function e:
+//   • se email estiver na allowlist → cria sessão Supabase via magic link e
+//     redireciona para /operacao
+//   • caso contrário → mostra tela "acesso pendente"
+import { useEffect, useRef, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { CheckCircle2, AlertCircle, Loader2, ArrowRight, Home, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PublicShell } from "@/components/public/PublicShell";
 import { consumeStoredState, getSpotifyRedirectUri } from "@/lib/spotifyPublicAuth";
+import { supabase } from "@/integrations/supabase/client";
 
-type Status = "loading" | "success" | "error";
+type Status = "loading" | "signing_in" | "success" | "pending" | "error";
 
 interface Result {
   display_name?: string | null;
@@ -19,12 +21,18 @@ interface Result {
 
 export default function SpotifyCallback() {
   const [params] = useSearchParams();
+  const navigate = useNavigate();
+  const ranRef = useRef(false);
   const [status, setStatus] = useState<Status>("loading");
   const [error, setError] = useState<string>("");
   const [result, setResult] = useState<Result>({});
 
   useEffect(() => {
     document.title = "Conectando ao Spotify — NexEngine";
+
+    // 🛡️ React StrictMode dispara o efeito 2x em dev — guard
+    if (ranRef.current) return;
+    ranRef.current = true;
 
     const code = params.get("code");
     const state = params.get("state");
@@ -58,45 +66,73 @@ export default function SpotifyCallback() {
       code,
     )}&state=${encodeURIComponent(state)}&redirect=${encodeURIComponent(redirect)}`;
 
-    fetch(url, {
-      headers: {
-        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-      },
-    })
-      .then((r) => r.json())
-      .then((json) => {
+    (async () => {
+      try {
+        const resp = await fetch(url, {
+          headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
+        });
+        const json = await resp.json();
         if (!json.ok) {
           setStatus("error");
           setError(json.error || "Falha ao concluir a conexão.");
           return;
         }
+
         setResult({
           display_name: json.display_name,
           email: json.email,
           spotify_user_id: json.spotify_user_id,
         });
+
+        // Email não está na allowlist → tela "acesso pendente"
+        if (json.allowed === false) {
+          setStatus("pending");
+          return;
+        }
+
+        // Allowlist OK → cria sessão a partir do magic link
+        if (!json.magic_link) {
+          setStatus("error");
+          setError("Servidor não devolveu link de acesso.");
+          return;
+        }
+
+        setStatus("signing_in");
+        const ok = await consumeMagicLink(json.magic_link);
+        if (!ok) {
+          setStatus("error");
+          setError("Não conseguimos criar a sessão. Tente novamente.");
+          return;
+        }
+
         setStatus("success");
-      })
-      .catch((e) => {
+        // Pequeno delay pra mostrar a tela de sucesso, depois entra no painel
+        setTimeout(() => navigate("/operacao", { replace: true }), 900);
+      } catch (e) {
         setStatus("error");
-        setError(e?.message ?? "Erro de rede ao concluir a conexão.");
-      });
-  }, [params]);
+        setError((e as Error)?.message ?? "Erro de rede ao concluir a conexão.");
+      }
+    })();
+  }, [params, navigate]);
 
   return (
     <PublicShell>
       <section className="relative mx-auto flex min-h-[70vh] max-w-2xl items-center justify-center px-6 py-20">
         <div className="nx-premium-card w-full p-10 text-center">
-          {status === "loading" && (
+          {(status === "loading" || status === "signing_in") && (
             <>
               <div className="mx-auto mb-6 grid h-14 w-14 place-items-center rounded-full bg-primary/10 border border-primary/20">
                 <Loader2 className="h-6 w-6 text-primary animate-spin" />
               </div>
               <h1 className="text-2xl font-semibold tracking-tight mb-2">
-                Concluindo conexão com o Spotify…
+                {status === "signing_in"
+                  ? "Criando sua sessão…"
+                  : "Concluindo conexão com o Spotify…"}
               </h1>
               <p className="text-sm text-muted-foreground">
-                Validando autorização e buscando dados da sua conta.
+                {status === "signing_in"
+                  ? "Quase lá — preparando o painel."
+                  : "Validando autorização e buscando dados da sua conta."}
               </p>
             </>
           )}
@@ -107,21 +143,34 @@ export default function SpotifyCallback() {
                 <CheckCircle2 className="h-7 w-7 text-primary" />
               </div>
               <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight mb-3">
-                Conta Spotify conectada com sucesso
+                Tudo pronto, {result.display_name ?? "bem-vindo"}!
+              </h1>
+              <p className="text-muted-foreground mb-2">
+                Sua conta Spotify foi conectada e você já está autenticado.
+              </p>
+              <p className="text-xs text-muted-foreground/70">
+                Redirecionando para o painel…
+              </p>
+            </>
+          )}
+
+          {status === "pending" && (
+            <>
+              <div className="mx-auto mb-6 grid h-14 w-14 place-items-center rounded-full bg-yellow-400/10 border border-yellow-400/20">
+                <Clock className="h-7 w-7 text-yellow-400" />
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight mb-3">
+                Conexão recebida — aguardando aprovação
               </h1>
               <p className="text-muted-foreground mb-6 leading-relaxed">
+                Recebemos sua autorização do Spotify
                 {result.display_name ? (
                   <>
-                    Olá, <span className="text-foreground font-medium">{result.display_name}</span>! Recebemos
-                    sua autorização. Agora sua conexão entrará em <span className="text-foreground">análise</span> pela
-                    nossa equipe antes de liberar o painel.
+                    {" "}como <span className="text-foreground font-medium">{result.display_name}</span>
                   </>
-                ) : (
-                  <>
-                    Recebemos sua autorização. Agora sua conexão entrará em análise pela nossa equipe antes de
-                    liberar o painel.
-                  </>
-                )}
+                ) : null}
+                . Sua conta entrou na fila de revisão. Você receberá acesso ao painel assim que
+                for aprovado pela nossa equipe.
               </p>
 
               {(result.email || result.spotify_user_id) && (
@@ -150,9 +199,7 @@ export default function SpotifyCallback() {
               <h1 className="text-2xl font-semibold tracking-tight mb-3">
                 Não conseguimos concluir a conexão
               </h1>
-              <p className="text-sm text-muted-foreground mb-8 leading-relaxed">
-                {error}
-              </p>
+              <p className="text-sm text-muted-foreground mb-8 leading-relaxed">{error}</p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
                 <Button asChild size="lg" className="nx-cta-btn gap-2 min-w-[200px] h-11 text-sm">
                   <Link to="/">
@@ -167,4 +214,26 @@ export default function SpotifyCallback() {
       </section>
     </PublicShell>
   );
+}
+
+/**
+ * Recebe um magic link do Supabase (URL completa) e materializa a sessão
+ * usando verifyOtp com o token_hash extraído da query string.
+ */
+async function consumeMagicLink(actionLink: string): Promise<boolean> {
+  try {
+    const u = new URL(actionLink);
+    // Magic links usam ?token_hash=…&type=magiclink
+    const tokenHash = u.searchParams.get("token_hash");
+    const type = (u.searchParams.get("type") as "magiclink" | "email" | null) ?? "magiclink";
+    if (!tokenHash) return false;
+
+    const { error } = await supabase.auth.verifyOtp({
+      token_hash: tokenHash,
+      type,
+    });
+    return !error;
+  } catch {
+    return false;
+  }
 }
