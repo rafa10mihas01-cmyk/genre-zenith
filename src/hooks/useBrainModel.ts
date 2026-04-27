@@ -1,7 +1,19 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-export type Genre = { id: string; nome: string; slug: string; total_playlists: number | null; total_musicas: number | null; total_termos: number | null; ultima_coleta: string | null };
+export type GenreHealth = "healthy" | "stale" | "dead" | "unknown";
+export type Genre = {
+  id: string;
+  nome: string;
+  slug: string;
+  total_playlists: number | null;
+  total_musicas: number | null;
+  total_termos: number | null;
+  ultima_coleta: string | null;
+  health_status: GenreHealth;
+  health_last_seen_at: string | null;
+  health_hours_since: number | null;
+};
 export type GenreModel = {
   id: string;
   genre_id: string | null;
