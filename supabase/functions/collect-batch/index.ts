@@ -170,8 +170,7 @@ Deno.serve(async (req) => {
           prioritize: true,
         });
         if (e.ok) {
-          const stats = (e.data as { stats?: { enriched?: number } })?.stats;
-          item.enriched = stats?.enriched ?? 0;
+          item.enriched = (e.data as { enriched?: number })?.enriched ?? 0;
         }
         // enrich falhar não aborta o lote — apenas loga. analyze ainda roda.
       }
