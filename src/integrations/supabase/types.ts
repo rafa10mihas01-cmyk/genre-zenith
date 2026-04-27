@@ -176,6 +176,42 @@ export type Database = {
           },
         ]
       }
+      genre_backfill_attempts: {
+        Row: {
+          details: Json
+          duracao_ms: number | null
+          finished_at: string | null
+          genre_id: string
+          id: string
+          reason: string | null
+          started_at: string
+          status: string
+          triggered_by: string
+        }
+        Insert: {
+          details?: Json
+          duracao_ms?: number | null
+          finished_at?: string | null
+          genre_id: string
+          id?: string
+          reason?: string | null
+          started_at?: string
+          status?: string
+          triggered_by?: string
+        }
+        Update: {
+          details?: Json
+          duracao_ms?: number | null
+          finished_at?: string | null
+          genre_id?: string
+          id?: string
+          reason?: string | null
+          started_at?: string
+          status?: string
+          triggered_by?: string
+        }
+        Relationships: []
+      }
       genre_filters: {
         Row: {
           base_daily: number
@@ -1401,6 +1437,10 @@ export type Database = {
       compare_genre_versions: {
         Args: { p_genre_id: string; p_version_a: number; p_version_b: number }
         Returns: Json
+      }
+      count_recent_backfill_attempts: {
+        Args: { p_genre_id: string; p_hours?: number }
+        Returns: number
       }
       create_notification: {
         Args: {
