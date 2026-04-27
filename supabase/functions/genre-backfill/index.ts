@@ -172,7 +172,7 @@ Deno.serve(async (req) => {
     steps.enrich = {
       ok: enrich.ok,
       status: enrich.status,
-      summary: (enrich.data as { stats?: unknown })?.stats ?? enrich.raw,
+      summary: (enrich.data as Record<string, unknown>) ?? enrich.raw,
     };
     // enrich falhar não é fatal (pode estar bloqueado por circuit breaker do Apify)
     if (!enrich.ok) {
