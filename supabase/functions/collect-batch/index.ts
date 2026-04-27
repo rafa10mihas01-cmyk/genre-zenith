@@ -63,6 +63,9 @@ Deno.serve(async (req) => {
   // Apify: custo por chamada → sempre maximizar (default 100, mín 50).
   const maxResults = Math.max(50, body.max_results ?? 100);
   const delayMs = body.delay_ms ?? 2000;
+  const force = body.force === true;
+  const skipEnrich = body.skip_enrich === true;
+  const enrichLimit = Math.max(5, body.enrich_limit ?? 30);
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
   const startedAt = Date.now();
@@ -73,6 +76,7 @@ Deno.serve(async (req) => {
     terms_run: number;
     playlists_saved: number;
     tracks_saved: number;
+    enriched: number;
     analyzed: boolean;
     error?: string;
   }> = [];
