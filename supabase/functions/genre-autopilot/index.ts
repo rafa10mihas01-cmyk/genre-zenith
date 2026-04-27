@@ -404,11 +404,12 @@ async function runPipeline(
     // e marca run como 'waiting_collection' (será re-disparada quando coleta concluir).
     const massa = await checkMassa(sb, genreId);
 
-    // 🆕 GATE DE FRESCOR — se não há atividade recente (zero playlists vistas em 14d),
-    // aborta SEM disparar auto-coleta. Pipeline não pode marcar success sobre dataset stale.
+    // 🆕 GATE DE FRESCOR — em modo normal, aborta se não houver atividade recente.
+    // Em recovery (< 50 frescas em 14d), só aborta se NÃO houver nenhum dado histórico
+    // (gênero 100% vazio). Isso permite destravar gêneros com playlists antigas.
     if (massa.stale) {
       const staleMsg =
-        `🛑 Pipeline abortado: sem dados recentes em ${FRESHNESS_WINDOW_DAYS} dias` +
+        `🛑 Pipeline abortado: gênero sem dados históricos` +
         (massa.lastSeenAt
           ? ` (última coleta: ${new Date(massa.lastSeenAt).toISOString().slice(0, 10)})`
           : " (gênero nunca coletado)") +
@@ -419,7 +420,9 @@ async function runPipeline(
         fresh_playlists: massa.freshPlaylists,
         last_seen_at: massa.lastSeenAt,
         window_days: FRESHNESS_WINDOW_DAYS,
-        action: "aborted_no_fresh_data",
+        recovery: massa.recovery,
+        has_historical: massa.hasHistorical,
+        action: "aborted_no_data",
       });
       await updateRun(sb, runId, {
         status: "error",
