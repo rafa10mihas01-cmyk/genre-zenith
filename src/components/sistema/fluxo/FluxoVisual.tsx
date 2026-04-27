@@ -112,85 +112,46 @@ export function FluxoVisual({ compact = false }: { compact?: boolean }) {
       since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     }
 
-    let logsQ = supabase.from("collection_logs").select("*").gte("created_at", since).order("created_at", { ascending: false }).limit(200);
-    if (until) logsQ = logsQ.lte("created_at", until);
-    if (fluxoRun) logsQ = logsQ.or(`genre_id.eq.${fluxoRun.genreId},genre_id.is.null`);
+    // Uma única chamada agrega todas as 11 queries antes feitas no client.
+    const { data: stats, error: statsErr } = await supabase.functions.invoke("get-sistema-stats", {
+      body: {
+        genre_id: fluxoRun?.genreId ?? null,
+        run_id:   selectedRunId === "live" ? null : selectedRunId,
+        since,
+        until,
+      },
+    });
+    if (statsErr) {
+      console.error("[FluxoVisual] get-sistema-stats falhou:", statsErr);
+      setLoading(false);
+      return;
+    }
 
-    let adjQ = supabase.from("playlist_adjustments").select("*").gte("created_at", since).order("created_at", { ascending: false }).limit(50);
-    if (until) adjQ = adjQ.lte("created_at", until);
-
-    const [logsRes, adjRes, flagsRes, termsRes, gfRes, accRes] = await Promise.all([
-      logsQ,
-      adjQ,
-      supabase.from("system_flags").select("apify_blocked, apify_blocked_reason").eq("singleton_key", "app").maybeSingle(),
-      fluxoRun
-        ? supabase.from("search_terms").select("id", { count: "exact", head: true }).eq("genre_id", fluxoRun.genreId)
-        : supabase.from("search_terms").select("id", { count: "exact", head: true }),
-      fluxoRun
-        ? supabase.from("genre_filters").select("min_followers, max_playlists, min_daily, base_daily, max_daily, briefing_mode, blacklist").eq("genre_id", fluxoRun.genreId).maybeSingle()
-        : Promise.resolve({ data: null }),
-      supabase.from("accounts").select("status, current_playlists, max_playlists"),
-    ]);
-
-    // Stats de search_results
-    const validBase = fluxoRun
-      ? supabase.from("search_results").select("seguidores", { count: "exact" }).eq("genre_id", fluxoRun.genreId).eq("is_valid", true)
-      : supabase.from("search_results").select("seguidores", { count: "exact" }).eq("is_valid", true);
-    const [allRes, validRes, invalidRes] = await Promise.all([
-      fluxoRun
-        ? supabase.from("search_results").select("id", { count: "exact", head: true }).eq("genre_id", fluxoRun.genreId)
-        : supabase.from("search_results").select("id", { count: "exact", head: true }),
-      validBase,
-      fluxoRun
-        ? supabase.from("search_results").select("id", { count: "exact", head: true }).eq("genre_id", fluxoRun.genreId).eq("is_valid", false)
-        : supabase.from("search_results").select("id", { count: "exact", head: true }).eq("is_valid", false),
-    ]);
-    const validRows = (validRes.data ?? []) as Array<{ seguidores: number | null }>;
-    const avgFollowersValid = validRows.length > 0
-      ? validRows.reduce((acc, r) => acc + (r.seguidores ?? 0), 0) / validRows.length
-      : null;
-
-    // Templates publicados + tiers
-    const tBase = fluxoRun
-      ? supabase.from("playlist_templates").select("id, quality_tier, spotify_playlist_id").eq("genre_id", fluxoRun.genreId)
-      : supabase.from("playlist_templates").select("id, quality_tier, spotify_playlist_id");
-    const tRes = await tBase;
-    const tRows = (tRes.data ?? []) as Array<{ quality_tier: string | null; spotify_playlist_id: string | null }>;
-    const publishedPlaylists = tRows.filter((r) => !!r.spotify_playlist_id).length;
-    const templatesHot = tRows.filter((r) => r.quality_tier === "hot").length;
-    const templatesMedium = tRows.filter((r) => r.quality_tier === "medium").length;
-    const templatesWeak = tRows.filter((r) => r.quality_tier === "weak").length;
-
-    // Accounts (capacidade total)
-    const accRows = (accRes.data ?? []) as Array<{ status: string; current_playlists: number; max_playlists: number }>;
-    const accountStat = {
-      total: accRows.length,
-      active: accRows.filter((a) => a.status === "active").length,
-      capacityUsed: accRows.reduce((s, a) => s + (a.current_playlists ?? 0), 0),
-      capacityMax: accRows.reduce((s, a) => s + (a.max_playlists ?? 0), 0),
-    };
+    const accountStat = stats?.accounts ?? { total: 0, active: 0, capacityUsed: 0, capacityMax: 0 };
+    const tpl = stats?.templateStats ?? { total: 0, hot: 0, medium: 0, weak: 0, published: 0 };
+    const sr  = stats?.searchStats ?? { total: 0, valid: 0, invalid: 0, avgFollowersValid: null };
 
     const built = buildFluxoNodes({
       run: fluxoRun,
-      logs: logsRes.data ?? [],
-      adjusts: adjRes.data ?? [],
+      logs: stats?.logs ?? [],
+      adjusts: stats?.adjustments ?? [],
       searchStats: {
-        termsCount: termsRes.count ?? 0,
-        rawPlaylists: allRes.count ?? 0,
-        validPlaylists: validRes.count ?? 0,
-        invalidPlaylists: invalidRes.count ?? 0,
-        publishedPlaylists,
-        avgFollowersValid,
-        templatesTotal: tRows.length,
-        templatesHot,
-        templatesMedium,
-        templatesWeak,
+        termsCount:        stats?.termsCount ?? 0,
+        rawPlaylists:      sr.total,
+        validPlaylists:    sr.valid,
+        invalidPlaylists:  sr.invalid,
+        publishedPlaylists: tpl.published,
+        avgFollowersValid: sr.avgFollowersValid,
+        templatesTotal:    tpl.total,
+        templatesHot:      tpl.hot,
+        templatesMedium:   tpl.medium,
+        templatesWeak:     tpl.weak,
       },
       apifyBlocked: {
-        blocked: flagsRes.data?.apify_blocked ?? false,
-        reason: flagsRes.data?.apify_blocked_reason ?? undefined,
+        blocked: stats?.systemFlags?.apify_blocked ?? false,
+        reason:  stats?.systemFlags?.apify_blocked_reason ?? undefined,
       },
-      genreFilter: gfRes.data ?? null,
+      genreFilter: stats?.genreFilter ?? null,
       accountStat,
     });
     setNodes(built);
