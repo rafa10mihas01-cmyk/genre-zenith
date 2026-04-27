@@ -119,7 +119,7 @@ Deno.serve(async (req) => {
       genre_id: c.genre.id,
       slug: c.genre.slug,
       nome: c.genre.nome,
-      status: "error" as const,
+      status: "skipped_stale" as const,
       error: `sem dados recentes em ${FRESHNESS_WINDOW_DAYS}d — pulado`,
     }));
 
