@@ -46,6 +46,9 @@ const AUTO_COLLECT_MAX_TERMS = 30;
 // 🛡️ LOOP PROTECTION — máximo de auto-coletas disparadas por gênero em janela de 24h
 const AUTO_COLLECT_MAX_PER_DAY = 3;
 const AUTO_COLLECT_WINDOW_MS = 24 * 60 * 60 * 1000;
+// 🆕 COLD START — anti-loop pra disparo inicial de coleta
+const COLD_START_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutos
+const COLD_START_ACAO = "autopilot:cold-start";
 
 // Aprovação — afrouxada pra resgatar templates 'medium' bons que ficavam em limbo.
 // Aprova se: (tier=hot AND score≥75) OR (tier=medium AND score≥80). Sempre exige ≥25 tracks.
@@ -403,6 +406,88 @@ async function runPipeline(
     // Bloqueia IA se gênero não tem dados mínimos. Dispara auto-coleta em background
     // e marca run como 'waiting_collection' (será re-disparada quando coleta concluir).
     const massa = await checkMassa(sb, genreId);
+
+    // ─── 0a. COLD START ─────────────────────────────────────────
+    // Gênero 100% zerado (nenhuma playlist válida no histórico) → dispara coleta
+    // inicial automática e marca run como waiting_collection (sem error, sem retry no front).
+    const isColdStart = massa.playlistsValid === 0;
+    if (isColdStart) {
+      // Anti-loop: só dispara se não houve coleta nos últimos 5min
+      const since = new Date(Date.now() - COLD_START_COOLDOWN_MS).toISOString();
+      const { count: recentColdCollects } = await sb
+        .from("collection_logs")
+        .select("id", { count: "exact", head: true })
+        .eq("genre_id", genreId)
+        .eq("acao", COLD_START_ACAO)
+        .gte("created_at", since);
+
+      const skipCollect = (recentColdCollects ?? 0) > 0;
+      const summary = skipCollect
+        ? "Coletando dados iniciais… (aguardando coleta em andamento)"
+        : "Coletando dados iniciais…";
+
+      await pushCompleted(sb, runId, "analyze", {
+        gate: "cold_start",
+        playlists: massa.playlistsValid,
+        action: skipCollect ? "skip_recent_collect" : "trigger_initial_collect",
+      });
+      await updateRun(sb, runId, {
+        status: "waiting_collection",
+        current_step: "analyze",
+        summary,
+        finished_at: new Date().toISOString(),
+        duracao_ms: Date.now() - startedAt,
+      });
+
+      if (!skipCollect) {
+        await sb.from("collection_logs").insert({
+          genre_id: genreId,
+          acao: COLD_START_ACAO,
+          status: "iniciado",
+          mensagem: JSON.stringify({
+            event: "cold_start_collect",
+            run_id: runId,
+            playlists_before: massa.playlistsValid,
+          }),
+        }).then(() => {}, (e) => console.warn("[autopilot] cold-start log failed:", e?.message));
+
+        await invokeFn("generate-terms", { genre_id: genreId }, 30000)
+          .catch((e) => console.warn("[autopilot] cold-start generate-terms failed:", e?.message ?? e));
+
+        // deno-lint-ignore no-explicit-any
+        const ER: any = (globalThis as any).EdgeRuntime;
+        const work = (async () => {
+          try {
+            const { data: term } = await sb
+              .from("search_terms")
+              .select("id, termo")
+              .eq("genre_id", genreId)
+              .eq("executado", false)
+              .order("created_at")
+              .limit(1)
+              .maybeSingle();
+            if (term) {
+              await invokeFn("run-search", {
+                genre_id: genreId,
+                term_id: term.id,
+                search_term: term.termo,
+                max_results: 50,
+              }, 5 * 60 * 1000);
+            }
+            await invokeFn("enrich-playlists", {
+              genre_id: genreId,
+              limit: 50,
+              fetch_tracks: false,
+            }, 5 * 60 * 1000);
+          } catch (e) {
+            console.error("[autopilot] cold-start background error:",
+              e instanceof Error ? e.message : String(e));
+          }
+        })();
+        if (ER && typeof ER.waitUntil === "function") ER.waitUntil(work);
+      }
+      return;
+    }
 
     // 🆕 GATE DE FRESCOR — em modo normal, aborta se não houver atividade recente.
     // Em recovery (< 50 frescas em 14d), só aborta se NÃO houver nenhum dado histórico
@@ -932,6 +1017,15 @@ Deno.serve(async (req) => {
   const cooldownMs = hadFreshCollection ? COOLDOWN_MS_AFTER_COLLECT : COOLDOWN_MS_DEFAULT;
   const cooldownLabel = hadFreshCollection ? "1h (coleta recente)" : "6h (sem coleta nova)";
 
+  // 🆕 COLD START — gênero zerado bypassa cooldown automaticamente.
+  // Checa apenas presença mínima de playlists válidas (head count, barato).
+  const { count: coldCheckPlaylists } = await sb
+    .from("search_results")
+    .select("id", { count: "exact", head: true })
+    .eq("genre_id", genreId)
+    .eq("is_valid", true);
+  const isColdStart = (coldCheckPlaylists ?? 0) === 0;
+
   // Bloqueia se há run RUNNING (sempre) ou run SUCCESS dentro da janela adaptativa
   const { data: recent } = await sb
     .from("autopilot_runs")
@@ -960,7 +1054,7 @@ Deno.serve(async (req) => {
       if (r.status === "waiting_collection" && !force) {
         return jr({ ok: false, error: "Coleta automática em andamento — aguarde concluir", run_id: r.id }, 409);
       }
-      if (r.status === "success" && !force) {
+      if (r.status === "success" && !force && !isColdStart) {
         if (ageMs < cooldownMs) {
           const minutesAgo = Math.round(ageMs / 60000);
           const minutesLeft = Math.max(1, Math.round((cooldownMs - ageMs) / 60000));
