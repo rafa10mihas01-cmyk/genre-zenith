@@ -186,7 +186,7 @@ Deno.serve(async (req) => {
       .eq("id", body.genre_id)
       .single();
 
-    const finalStatus = enrich.ok ? "success" : "success"; // collect ok já é sucesso
+    const finalStatus = enrich.ok ? "success" : "partial"; // collect ok; enrich falhou = parcial
     await sb.from("genre_backfill_attempts").update({
       status: finalStatus,
       details: {
