@@ -160,7 +160,50 @@ Deno.serve(async (req) => {
   const rulesBlock = rulesAsPromptBlock(activeRules);
   const rulesSummary = summarizeRules(activeRules);
 
+  // 🆕 TTL DO MODELO (24h) — alinhado com ANALYZE_CACHE_MS do genre-autopilot.
+  // Se ultima_analise está stale ou modelo nem existe, renova on-demand chamando
+  // analyze-genre antes de gerar. Evita templates baseados em modelo antigo/vazio
+  // sem quebrar o fluxo (auto-cura ao invés de throw).
+  const MODEL_TTL_MS = 24 * 60 * 60 * 1000;
+  const { data: modelMeta } = await supabase
+    .from("genre_models")
+    .select("ultima_analise")
+    .eq("genre_id", bp.genre_id)
+    .maybeSingle();
+
+  const modelAge = modelMeta?.ultima_analise
+    ? Date.now() - new Date(modelMeta.ultima_analise).getTime()
+    : Number.POSITIVE_INFINITY;
+
+  if (modelAge > MODEL_TTL_MS) {
+    const reason = modelMeta?.ultima_analise
+      ? `modelo stale (${Math.round(modelAge / 3600000)}h > 24h)`
+      : "modelo nunca analisado";
+    console.log(`[generate-templates] Auto-renovando genre_models — ${reason}`);
+    try {
+      const refreshResp = await fetch(`${SUPABASE_URL}/functions/v1/analyze-genre`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${SERVICE_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ genre_id: bp.genre_id }),
+      });
+      if (!refreshResp.ok) {
+        const txt = await refreshResp.text();
+        return jr({
+          error: `Não foi possível renovar genre_models (${reason}): analyze-genre HTTP ${refreshResp.status} — ${txt.slice(0, 200)}`,
+        }, 503);
+      }
+    } catch (e) {
+      return jr({
+        error: `Falha ao renovar genre_models (${reason}): ${e instanceof Error ? e.message : String(e)}`,
+      }, 503);
+    }
+  }
+
   // Faixas recorrentes do gênero como pool — pool grande pra LLM montar 40-60 faixas naturais.
+  // (Re-leitura após possível auto-renovação acima.)
   const { data: model } = await supabase
     .from("genre_models").select("musicas_recorrentes,palavras_chave")
     .eq("genre_id", bp.genre_id).maybeSingle();
