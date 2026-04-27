@@ -16,6 +16,7 @@ interface Body {
   term_id: string;
   search_term: string;
   max_results?: number;
+  recovery?: boolean; // 🆕 caller pode forçar modo recovery (ex: collect-batch)
 }
 
 const APIFY_ACTOR = "automation-lab~spotify-scraper";
