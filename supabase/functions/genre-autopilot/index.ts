@@ -560,6 +560,33 @@ async function runPipeline(
       cacheHits.analyze = true;
       await pushCompleted(sb, runId, "analyze", { cached: true });
     } else {
+      // Pre-enrich guard: garante massa mínima de playlists verificadas antes de analisar.
+      // Sem isso, analyze-genre pode rodar em cima de dados crus de busca (followers do Apify).
+      const { count: enrichedCount } = await sb
+        .from("search_results")
+        .select("id", { count: "exact", head: true })
+        .eq("genre_id", genreId)
+        .eq("is_valid", true)
+        .eq("followers_source", "spotify_api");
+
+      if ((enrichedCount ?? 0) < 30) {
+        const preEnrich = await invokeFn("enrich-playlists", {
+          genre_id: genreId,
+          limit: 50,
+          fetch_tracks: false,
+        });
+        const enrichedNow = (preEnrich.data as { enriched?: number } | null)?.enriched ?? 0;
+        await sb.from("collection_logs").insert({
+          genre_id: genreId,
+          acao: "autopilot:pre-enrich",
+          status: "sucesso",
+          mensagem: `pre-enrich: ${enrichedNow} playlists enriquecidas (tinha ${enrichedCount ?? 0}/30 verificadas)`,
+        });
+        if (!preEnrich.ok) {
+          console.warn(`[autopilot] pre-enrich não-ok (${preEnrich.error}) — seguindo para analyze mesmo assim`);
+        }
+      }
+
       const r = await invokeFn("analyze-genre", { genre_id: genreId });
       if (!r.ok) throw new Error(`analyze-genre falhou: ${r.error}`);
       await pushCompleted(sb, runId, "analyze", { cached: false });
