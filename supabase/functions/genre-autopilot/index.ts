@@ -509,6 +509,7 @@ async function runPipeline(
         gate: "massa",
         terms: massa.termsExecuted,
         playlists: massa.playlistsValid,
+        recovery: massa.recovery,
         action: "auto-collect",
         recent_auto_collects: recentCollects,
       });
