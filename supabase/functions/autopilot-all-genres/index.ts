@@ -27,7 +27,7 @@ interface GenreResult {
   genre_id: string;
   slug: string;
   nome: string;
-  status: "started" | "skipped_meta" | "skipped_cooldown" | "skipped_lock" | "error";
+  status: "started" | "skipped_meta" | "skipped_cooldown" | "skipped_lock" | "skipped_stale" | "error";
   run_id?: string;
   will_generate?: number;
   target?: Record<string, unknown>;
@@ -98,11 +98,50 @@ Deno.serve(async (req) => {
     return jr({ ok: true, results: [], message: "Nenhum gênero ativo para processar" });
   }
 
-  const results: GenreResult[] = [];
+  // 🆕 PRÉ-FILTRO DE FRESCOR — descarta gêneros sem playlists vistas nos últimos 14 dias.
+  // Evita HTTP wasteful pro genre-autopilot, que abortaria de qualquer jeito no gate.
+  const FRESHNESS_WINDOW_DAYS = 14;
+  const sinceISO = new Date(Date.now() - FRESHNESS_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
+
+  const freshChecks = await Promise.all(targets.map(async (g) => {
+    const { count } = await sb
+      .from("search_results")
+      .select("id", { count: "exact", head: true })
+      .eq("genre_id", g.id)
+      .eq("is_valid", true)
+      .gte("last_seen_at", sinceISO);
+    return { genre: g, fresh: (count ?? 0) > 0 };
+  }));
+
+  const skippedStale: GenreResult[] = freshChecks
+    .filter((c) => !c.fresh)
+    .map((c) => ({
+      genre_id: c.genre.id,
+      slug: c.genre.slug,
+      nome: c.genre.nome,
+      status: "skipped_stale" as const,
+      error: `sem dados recentes em ${FRESHNESS_WINDOW_DAYS}d — pulado`,
+    }));
+
+  // Log skipped em batch (sem bloquear)
+  if (skippedStale.length > 0) {
+    sb.from("collection_logs").insert(
+      skippedStale.map((s) => ({
+        genre_id: s.genre_id,
+        acao: "autopilot-all-genres",
+        status: "info",
+        mensagem: `${s.slug}: skipped_stale — ${s.error}`.slice(0, 500),
+      }))
+    ).then(() => {}, () => {});
+  }
+
+  const freshTargets = freshChecks.filter((c) => c.fresh).map((c) => c.genre);
+
+  const results: GenreResult[] = [...skippedStale];
   const startedAt = Date.now();
 
-  for (let i = 0; i < targets.length; i++) {
-    const g = targets[i];
+  for (let i = 0; i < freshTargets.length; i++) {
+    const g = freshTargets[i];
     const item: GenreResult = { genre_id: g.id, slug: g.slug, nome: g.nome, status: "error" };
 
     try {
@@ -154,7 +193,7 @@ Deno.serve(async (req) => {
     }).then(() => {}, () => {});
 
     // Delay entre gêneros para não saturar IA / evitar rate limit
-    if (i < targets.length - 1 && delayMs > 0) {
+    if (i < freshTargets.length - 1 && delayMs > 0) {
       await new Promise((res) => setTimeout(res, delayMs));
     }
   }
@@ -163,10 +202,12 @@ Deno.serve(async (req) => {
     ok: true,
     duration_ms: Date.now() - startedAt,
     total_genres: targets.length,
+    fresh_genres: freshTargets.length,
     started: results.filter((r) => r.status === "started").length,
     skipped_meta: results.filter((r) => r.status === "skipped_meta").length,
     skipped_cooldown: results.filter((r) => r.status === "skipped_cooldown").length,
     skipped_lock: results.filter((r) => r.status === "skipped_lock").length,
+    skipped_stale: skippedStale.length,
     errors: results.filter((r) => r.status === "error").length,
     results,
   };

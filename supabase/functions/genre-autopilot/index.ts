@@ -35,6 +35,11 @@ const FALLBACK_TEMPLATES = 4;
 // quando já existe massa suficiente de playlists no gênero.
 const MIN_TERMS_EXECUTED = 30;
 const MIN_PLAYLISTS_VALID = 50;
+// 🆕 GATE DE FRESCOR — exige atividade recente (alguma playlist vista nos últimos N dias).
+// Evita rodar pipeline em "modo vazio" sobre dataset stale, marcando run como success
+// sem trabalho real. Tolera 1-2 falhas semanais de daily-collect sem travar tudo.
+const FRESHNESS_WINDOW_DAYS = 14;
+const FRESHNESS_WINDOW_MS = FRESHNESS_WINDOW_DAYS * 24 * 60 * 60 * 1000;
 // Auto-coleta: máximo de termos por run. Precisa ser ≥ MIN_TERMS_EXECUTED
 // pra um único ciclo conseguir bater o gate completo. Cap de Apify ≈ 30 chamadas/run.
 const AUTO_COLLECT_MAX_TERMS = 30;
@@ -145,26 +150,53 @@ async function checkMassa(sb: SupabaseClient, genreId: string): Promise<{
   ok: boolean;
   termsExecuted: number;
   playlistsValid: number;
+  freshPlaylists: number;
+  lastSeenAt: string | null;
+  stale: boolean;
   reason?: string;
 }> {
-  const [{ count: termsExecuted }, { count: playlistsValid }] = await Promise.all([
+  const sinceISO = new Date(Date.now() - FRESHNESS_WINDOW_MS).toISOString();
+  const [
+    { count: termsExecuted },
+    { count: playlistsValid },
+    { count: freshPlaylists },
+    { data: lastSeenRow },
+  ] = await Promise.all([
     sb.from("search_terms").select("id", { count: "exact", head: true })
       .eq("genre_id", genreId).eq("executado", true),
     sb.from("search_results").select("id", { count: "exact", head: true })
       .eq("genre_id", genreId).eq("is_valid", true),
+    sb.from("search_results").select("id", { count: "exact", head: true })
+      .eq("genre_id", genreId).eq("is_valid", true)
+      .gte("last_seen_at", sinceISO),
+    sb.from("search_results").select("last_seen_at")
+      .eq("genre_id", genreId).eq("is_valid", true)
+      .order("last_seen_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
   const t = termsExecuted ?? 0;
   const p = playlistsValid ?? 0;
+  const f = freshPlaylists ?? 0;
+  const lastSeenAt = lastSeenRow?.last_seen_at ?? null;
+  const stale = f === 0;
   const reasons: string[] = [];
+  if (stale) {
+    reasons.push(
+      `sem playlists vistas nos últimos ${FRESHNESS_WINDOW_DAYS}d` +
+      (lastSeenAt ? ` (última: ${new Date(lastSeenAt).toISOString().slice(0,10)})` : " (nunca coletado)")
+    );
+  }
   if (p < MIN_PLAYLISTS_VALID) {
     reasons.push(`playlists válidas ${p}/${MIN_PLAYLISTS_VALID}`);
     if (t < MIN_TERMS_EXECUTED) reasons.push(`termos executados ${t}/${MIN_TERMS_EXECUTED}`);
   }
   return {
-    ok: p >= MIN_PLAYLISTS_VALID,
+    ok: !stale && p >= MIN_PLAYLISTS_VALID,
     termsExecuted: t,
     playlistsValid: p,
-    reason: reasons.length > 0 ? `Massa insuficiente: ${reasons.join(" + ")}` : undefined,
+    freshPlaylists: f,
+    lastSeenAt,
+    stale,
+    reason: reasons.length > 0 ? reasons.join(" + ") : undefined,
   };
 }
 
@@ -353,6 +385,60 @@ async function runPipeline(
     // Bloqueia IA se gênero não tem dados mínimos. Dispara auto-coleta em background
     // e marca run como 'waiting_collection' (será re-disparada quando coleta concluir).
     const massa = await checkMassa(sb, genreId);
+
+    // 🆕 GATE DE FRESCOR — se não há atividade recente (zero playlists vistas em 14d),
+    // aborta SEM disparar auto-coleta. Pipeline não pode marcar success sobre dataset stale.
+    if (massa.stale) {
+      const staleMsg =
+        `🛑 Pipeline abortado: sem dados recentes em ${FRESHNESS_WINDOW_DAYS} dias` +
+        (massa.lastSeenAt
+          ? ` (última coleta: ${new Date(massa.lastSeenAt).toISOString().slice(0, 10)})`
+          : " (gênero nunca coletado)") +
+        `. Rode coleta manual em /sistema antes de tentar autopilot.`;
+
+      await pushCompleted(sb, runId, "analyze", {
+        gate: "frescor",
+        fresh_playlists: massa.freshPlaylists,
+        last_seen_at: massa.lastSeenAt,
+        window_days: FRESHNESS_WINDOW_DAYS,
+        action: "aborted_no_fresh_data",
+      });
+      await updateRun(sb, runId, {
+        status: "error",
+        current_step: "analyze",
+        error_message: staleMsg,
+        summary: staleMsg,
+        finished_at: new Date().toISOString(),
+        duracao_ms: Date.now() - startedAt,
+      });
+      await sb.from("collection_logs").insert({
+        genre_id: genreId,
+        acao: "autopilot:freshness-gate",
+        status: "bloqueado",
+        mensagem: JSON.stringify({
+          event: "no_fresh_data",
+          run_id: runId,
+          window_days: FRESHNESS_WINDOW_DAYS,
+          fresh_playlists: massa.freshPlaylists,
+          last_seen_at: massa.lastSeenAt,
+          total_playlists_valid: massa.playlistsValid,
+        }),
+      }).then(() => {}, (e) => console.warn("[autopilot] log stale failed:", e?.message));
+      await sb.rpc("create_notification", {
+        p_type: "error",
+        p_title: "Autopilot: sem dados recentes",
+        p_message: staleMsg,
+        p_action_url: "/sistema",
+        p_metadata: {
+          run_id: runId,
+          genre_id: genreId,
+          window_days: FRESHNESS_WINDOW_DAYS,
+          last_seen_at: massa.lastSeenAt,
+        },
+      }).then(() => {}, (e) => console.error("[autopilot] notif failed:", e?.message));
+      return;
+    }
+
     if (!massa.ok) {
       // 🛡️ LOOP PROTECTION — se já houve N auto-coletas em 24h e ainda falta massa,
       // para de coletar (provavelmente Apify não está trazendo playlists novas).
