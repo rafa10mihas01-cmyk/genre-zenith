@@ -23,6 +23,7 @@ import { PageContainer } from "@/components/PageContainer";
 import { Variacoes, Moldes } from "@/components/brain/Replicacao";
 import { AutopilotLivePanel } from "@/components/brain/AutopilotLivePanel";
 import { ReplicacaoAuto, ReplicacaoHistorico } from "@/components/brain/ReplicacaoAuto";
+import { GenreHealthBanner } from "@/components/brain/GenreHealthBanner";
 import { KpiBig } from "@/components/KpiBig";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { useSetSidebarKpis } from "@/contexts/SidebarContext";
