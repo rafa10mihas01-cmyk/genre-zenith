@@ -1109,7 +1109,16 @@ function Coleta({ genreId }: { genreId?: string }) {
       setPending(count ?? 0);
     }
   };
-  useEffect(() => { if (genreId) load(); const t = setInterval(load, 10_000); return () => clearInterval(t); }, [genreId]);
+  useEffect(() => {
+    if (!genreId) return;
+    load();
+    const ch = supabase
+      .channel(`coleta:${genreId}:${Math.random().toString(36).slice(2)}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "collection_logs", filter: `genre_id=eq.${genreId}` }, () => load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "search_results", filter: `genre_id=eq.${genreId}` }, () => load())
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [genreId]);
 
   const runEnrich = async () => {
     if (!genreId) return;
