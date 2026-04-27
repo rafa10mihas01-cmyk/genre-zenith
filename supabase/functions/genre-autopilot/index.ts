@@ -153,6 +153,8 @@ async function checkMassa(sb: SupabaseClient, genreId: string): Promise<{
   freshPlaylists: number;
   lastSeenAt: string | null;
   stale: boolean;
+  recovery: boolean;
+  hasHistorical: boolean;
   reason?: string;
 }> {
   const sinceISO = new Date(Date.now() - FRESHNESS_WINDOW_MS).toISOString();
@@ -177,7 +179,17 @@ async function checkMassa(sb: SupabaseClient, genreId: string): Promise<{
   const p = playlistsValid ?? 0;
   const f = freshPlaylists ?? 0;
   const lastSeenAt = lastSeenRow?.last_seen_at ?? null;
-  const stale = f === 0;
+  // 🚑 RECOVERY MODE — alinhado com collect-batch/run-search:
+  // < 50 playlists frescas em 14d ⇒ gênero "starving", relaxa validações de cobertura.
+  const recovery = f < 50;
+  // hasHistorical = QUALQUER playlist válida no histórico (mesmo fora da janela de 14d).
+  const hasHistorical = p > 0;
+  // Freshness gate: padrão = sem playlist fresca na janela.
+  // Em recovery, só barra se também não houver NENHUM dado histórico
+  // (gênero 100% vazio continua bloqueado para evitar runs sem trabalho real).
+  const stale = recovery
+    ? (f === 0 && !hasHistorical)
+    : f === 0;
   const reasons: string[] = [];
   if (stale) {
     reasons.push(
@@ -187,7 +199,11 @@ async function checkMassa(sb: SupabaseClient, genreId: string): Promise<{
   }
   if (p < MIN_PLAYLISTS_VALID) {
     reasons.push(`playlists válidas ${p}/${MIN_PLAYLISTS_VALID}`);
-    if (t < MIN_TERMS_EXECUTED) reasons.push(`termos executados ${t}/${MIN_TERMS_EXECUTED}`);
+    // Em recovery, "termos executados" sai da lista de motivos —
+    // não deve bloquear gêneros novos/zerados que ainda nem rodaram massa de termos.
+    if (!recovery && t < MIN_TERMS_EXECUTED) {
+      reasons.push(`termos executados ${t}/${MIN_TERMS_EXECUTED}`);
+    }
   }
   return {
     ok: !stale && p >= MIN_PLAYLISTS_VALID,
@@ -196,6 +212,8 @@ async function checkMassa(sb: SupabaseClient, genreId: string): Promise<{
     freshPlaylists: f,
     lastSeenAt,
     stale,
+    recovery,
+    hasHistorical,
     reason: reasons.length > 0 ? reasons.join(" + ") : undefined,
   };
 }
@@ -386,11 +404,12 @@ async function runPipeline(
     // e marca run como 'waiting_collection' (será re-disparada quando coleta concluir).
     const massa = await checkMassa(sb, genreId);
 
-    // 🆕 GATE DE FRESCOR — se não há atividade recente (zero playlists vistas em 14d),
-    // aborta SEM disparar auto-coleta. Pipeline não pode marcar success sobre dataset stale.
+    // 🆕 GATE DE FRESCOR — em modo normal, aborta se não houver atividade recente.
+    // Em recovery (< 50 frescas em 14d), só aborta se NÃO houver nenhum dado histórico
+    // (gênero 100% vazio). Isso permite destravar gêneros com playlists antigas.
     if (massa.stale) {
       const staleMsg =
-        `🛑 Pipeline abortado: sem dados recentes em ${FRESHNESS_WINDOW_DAYS} dias` +
+        `🛑 Pipeline abortado: gênero sem dados históricos` +
         (massa.lastSeenAt
           ? ` (última coleta: ${new Date(massa.lastSeenAt).toISOString().slice(0, 10)})`
           : " (gênero nunca coletado)") +
@@ -401,7 +420,9 @@ async function runPipeline(
         fresh_playlists: massa.freshPlaylists,
         last_seen_at: massa.lastSeenAt,
         window_days: FRESHNESS_WINDOW_DAYS,
-        action: "aborted_no_fresh_data",
+        recovery: massa.recovery,
+        has_historical: massa.hasHistorical,
+        action: "aborted_no_data",
       });
       await updateRun(sb, runId, {
         status: "error",
@@ -449,6 +470,7 @@ async function runPipeline(
           gate: "massa",
           terms: massa.termsExecuted,
           playlists: massa.playlistsValid,
+          recovery: massa.recovery,
           action: "blocked_loop_protection",
           recent_auto_collects: recentCollects,
         });
@@ -487,6 +509,7 @@ async function runPipeline(
         gate: "massa",
         terms: massa.termsExecuted,
         playlists: massa.playlistsValid,
+        recovery: massa.recovery,
         action: "auto-collect",
         recent_auto_collects: recentCollects,
       });
