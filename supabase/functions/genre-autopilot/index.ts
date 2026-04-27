@@ -35,6 +35,11 @@ const FALLBACK_TEMPLATES = 4;
 // quando já existe massa suficiente de playlists no gênero.
 const MIN_TERMS_EXECUTED = 30;
 const MIN_PLAYLISTS_VALID = 50;
+// 🆕 GATE DE FRESCOR — exige atividade recente (alguma playlist vista nos últimos N dias).
+// Evita rodar pipeline em "modo vazio" sobre dataset stale, marcando run como success
+// sem trabalho real. Tolera 1-2 falhas semanais de daily-collect sem travar tudo.
+const FRESHNESS_WINDOW_DAYS = 14;
+const FRESHNESS_WINDOW_MS = FRESHNESS_WINDOW_DAYS * 24 * 60 * 60 * 1000;
 // Auto-coleta: máximo de termos por run. Precisa ser ≥ MIN_TERMS_EXECUTED
 // pra um único ciclo conseguir bater o gate completo. Cap de Apify ≈ 30 chamadas/run.
 const AUTO_COLLECT_MAX_TERMS = 30;
