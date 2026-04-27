@@ -137,11 +137,11 @@ Deno.serve(async (req) => {
 
   const freshTargets = freshChecks.filter((c) => c.fresh).map((c) => c.genre);
 
-  const results: GenreResult[] = [];
+  const results: GenreResult[] = [...skippedStale];
   const startedAt = Date.now();
 
-  for (let i = 0; i < targets.length; i++) {
-    const g = targets[i];
+  for (let i = 0; i < freshTargets.length; i++) {
+    const g = freshTargets[i];
     const item: GenreResult = { genre_id: g.id, slug: g.slug, nome: g.nome, status: "error" };
 
     try {
@@ -193,7 +193,7 @@ Deno.serve(async (req) => {
     }).then(() => {}, () => {});
 
     // Delay entre gêneros para não saturar IA / evitar rate limit
-    if (i < targets.length - 1 && delayMs > 0) {
+    if (i < freshTargets.length - 1 && delayMs > 0) {
       await new Promise((res) => setTimeout(res, delayMs));
     }
   }
@@ -202,10 +202,12 @@ Deno.serve(async (req) => {
     ok: true,
     duration_ms: Date.now() - startedAt,
     total_genres: targets.length,
+    fresh_genres: freshTargets.length,
     started: results.filter((r) => r.status === "started").length,
     skipped_meta: results.filter((r) => r.status === "skipped_meta").length,
     skipped_cooldown: results.filter((r) => r.status === "skipped_cooldown").length,
     skipped_lock: results.filter((r) => r.status === "skipped_lock").length,
+    skipped_stale: skippedStale.length,
     errors: results.filter((r) => r.status === "error").length,
     results,
   };
