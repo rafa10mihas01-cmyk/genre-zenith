@@ -149,6 +149,7 @@ Deno.serve(async (req) => {
           search_term: t.termo,
           max_results: maxResults,
           recovery: isRecovery, // 🆕 propaga modo
+          force,                // 🆕 P2: ignora cooldown quando backfill manda
         });
         if (r.ok && r.data?.ok) {
           item.terms_run++;
@@ -156,6 +157,23 @@ Deno.serve(async (req) => {
           item.tracks_saved += r.data.savedTracks ?? 0;
         }
         if (i < terms!.length - 1) await new Promise((res) => setTimeout(res, delayMs));
+      }
+
+      // 🆕 P0 (Enrichment Hole fix): enriquecer playlists novas ANTES de analisar.
+      // Sem isso, analyze-genre roda sobre dados brutos do Apify (sem followers
+      // verificados), e a saúde do gênero nunca atinge "healthy".
+      if (!skipEnrich && item.playlists_saved > 0) {
+        const e = await callFn("enrich-playlists", {
+          genre_id: g.id,
+          limit: enrichLimit,
+          fetch_tracks: true,
+          prioritize: true,
+        });
+        if (e.ok) {
+          const stats = (e.data as { stats?: { enriched?: number } })?.stats;
+          item.enriched = stats?.enriched ?? 0;
+        }
+        // enrich falhar não aborta o lote — apenas loga. analyze ainda roda.
       }
 
       // 4) Analyze-genre automático
