@@ -549,7 +549,7 @@ Deno.serve(async (req) => {
       ? rejectedTop.map((s, i) => `  #${i+1} ${fmt(s)}`).join("\n")
       : "  —";
     const diag =
-      `"${body.search_term}" | mode=${isExpansionTerm ? "EXPANSION" : "STRICT"} thr=${effectiveThreshold} | ` +
+      `"${body.search_term}" | mode=${isExpansionTerm ? "EXPANSION" : "STRICT"}${isRecovery ? "+RECOVERY" : ""} thr=${effectiveThreshold} | ` +
       `${savedResults} novas, ${updatedResults} atualizadas, ${filteredOut} filtradas, ${savedTracks} músicas (${scoreLog.length} avaliadas)\n` +
       `TOP 3 ACEITAS:\n${acceptedBlock}\n` +
       `TOP 3 REJEITADAS:\n${rejectedBlock}`;
