@@ -457,6 +457,16 @@ async function runPipeline(
           last_seen_at: massa.lastSeenAt,
         },
       }).then(() => {}, (e) => console.error("[autopilot] notif failed:", e?.message));
+
+      // 🆕 HOOK: agendar backfill automático (fire-and-forget, respeita rate limit interno).
+      // Não bloqueia o autopilot — só dispara reprocessamento em background pra próxima rodada.
+      invokeFn("genre-backfill", {
+        genre_id: genreId,
+        triggered_by: "autopilot_hook",
+      }, 5000).then(
+        (r) => console.log("[autopilot] backfill scheduled:", r.ok, r.status),
+        (e) => console.warn("[autopilot] backfill schedule failed:", e?.message),
+      );
       return;
     }
 
