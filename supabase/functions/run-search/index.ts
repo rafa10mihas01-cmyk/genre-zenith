@@ -567,7 +567,12 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         ok: true, savedResults, updatedResults, filteredOut, savedTracks, runId,
-        scoring: { mode: isExpansionTerm ? "expansion" : "strict", threshold: effectiveThreshold, evaluated: scoreLog.length },
+        scoring: {
+          mode: isExpansionTerm ? "expansion" : "strict",
+          recovery: isRecovery,
+          threshold: effectiveThreshold,
+          evaluated: scoreLog.length,
+        },
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
