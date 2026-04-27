@@ -27,7 +27,7 @@ interface GenreResult {
   genre_id: string;
   slug: string;
   nome: string;
-  status: "started" | "skipped_meta" | "skipped_cooldown" | "skipped_lock" | "error";
+  status: "started" | "skipped_meta" | "skipped_cooldown" | "skipped_lock" | "skipped_stale" | "error";
   run_id?: string;
   will_generate?: number;
   target?: Record<string, unknown>;
