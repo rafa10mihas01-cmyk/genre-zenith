@@ -211,6 +211,7 @@ Deno.serve(async (req) => {
     total_terms_run: results.reduce((s, r) => s + r.terms_run, 0),
     total_playlists: results.reduce((s, r) => s + r.playlists_saved, 0),
     total_tracks: results.reduce((s, r) => s + r.tracks_saved, 0),
+    total_enriched: results.reduce((s, r) => s + (r.enriched ?? 0), 0),
     errors: results.filter((r) => r.error).length,
     results,
   };
