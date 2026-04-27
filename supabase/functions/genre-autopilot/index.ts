@@ -935,6 +935,15 @@ Deno.serve(async (req) => {
   const cooldownMs = hadFreshCollection ? COOLDOWN_MS_AFTER_COLLECT : COOLDOWN_MS_DEFAULT;
   const cooldownLabel = hadFreshCollection ? "1h (coleta recente)" : "6h (sem coleta nova)";
 
+  // 🆕 COLD START — gênero zerado bypassa cooldown automaticamente.
+  // Checa apenas presença mínima de playlists válidas (head count, barato).
+  const { count: coldCheckPlaylists } = await sb
+    .from("search_results")
+    .select("id", { count: "exact", head: true })
+    .eq("genre_id", genreId)
+    .eq("is_valid", true);
+  const isColdStart = (coldCheckPlaylists ?? 0) === 0;
+
   // Bloqueia se há run RUNNING (sempre) ou run SUCCESS dentro da janela adaptativa
   const { data: recent } = await sb
     .from("autopilot_runs")
