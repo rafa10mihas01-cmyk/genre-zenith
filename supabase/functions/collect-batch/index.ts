@@ -197,7 +197,7 @@ Deno.serve(async (req) => {
       genre_id: g.id,
       acao: "collect-batch",
       status: item.error ? "erro" : "sucesso",
-      mensagem: `${item.nome}: ${item.terms_run} termos, ${item.playlists_saved} playlists, ${item.tracks_saved} tracks${item.analyzed ? " (analisado)" : ""}${item.recovery ? " 🆘 [recovery]" : ""}`,
+      mensagem: `${item.nome}: ${item.terms_run} termos, ${item.playlists_saved} playlists, ${item.tracks_saved} tracks, ${item.enriched} enriched${item.analyzed ? " (analisado)" : ""}${item.recovery ? " 🆘 [recovery]" : ""}${force ? " [force]" : ""}`,
       duracao_ms: Date.now() - gStart,
     });
 
