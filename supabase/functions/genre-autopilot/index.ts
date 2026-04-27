@@ -46,6 +46,9 @@ const AUTO_COLLECT_MAX_TERMS = 30;
 // 🛡️ LOOP PROTECTION — máximo de auto-coletas disparadas por gênero em janela de 24h
 const AUTO_COLLECT_MAX_PER_DAY = 3;
 const AUTO_COLLECT_WINDOW_MS = 24 * 60 * 60 * 1000;
+// 🆕 COLD START — anti-loop pra disparo inicial de coleta
+const COLD_START_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutos
+const COLD_START_ACAO = "autopilot:cold-start";
 
 // Aprovação — afrouxada pra resgatar templates 'medium' bons que ficavam em limbo.
 // Aprova se: (tier=hot AND score≥75) OR (tier=medium AND score≥80). Sempre exige ≥25 tracks.
