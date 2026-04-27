@@ -84,7 +84,7 @@ Deno.serve(async (req) => {
       continue;
     }
 
-    const item = { genre_id: g.id, nome: g.nome, terms_run: 0, playlists_saved: 0, tracks_saved: 0, analyzed: false, error: undefined as string | undefined };
+    const item = { genre_id: g.id, nome: g.nome, terms_run: 0, playlists_saved: 0, tracks_saved: 0, analyzed: false, recovery: false, error: undefined as string | undefined };
 
     try {
       // 1) Garantir termos
@@ -92,21 +92,41 @@ Deno.serve(async (req) => {
         await callFn("generate-terms", { genre_id: g.id });
       }
 
+      // 🆕 RECOVERY MODE — gênero esfomeado: < 50 playlists vistas em 14d.
+      // Quando ativo: dobra termos consumidos no batch e prioriza termos de expansão
+      // (que costumam trazer playlists de nicho/borderline). Threshold de score em
+      // run-search também relaxa (60→50) automaticamente via mesma checagem.
+      const RECOVERY_WINDOW_DAYS = 14;
+      const RECOVERY_MIN_FRESH = 50;
+      const sinceISO = new Date(Date.now() - RECOVERY_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
+      const { count: freshCount } = await supabase
+        .from("search_results")
+        .select("id", { count: "exact", head: true })
+        .eq("genre_id", g.id)
+        .eq("is_valid", true)
+        .gte("last_seen_at", sinceISO);
+      const isRecovery = (freshCount ?? 0) < RECOVERY_MIN_FRESH;
+      item.recovery = isRecovery;
+      const effectiveTerms = isRecovery ? Math.min(termsPerGenre * 2, 30) : termsPerGenre;
+
       // 2) Pegar próximos N termos pendentes — priorização inteligente:
-      //    a) tipo (prefixo > completo > variacao > contextual — ordem alfabética casa)
+      //    - Em modo NORMAL: tipo (prefixo > completo > variacao > contextual) primeiro
+      //    - Em modo RECOVERY: variacao/contextual primeiro (termos amplos pra ampliar cobertura)
+      //    Demais critérios:
       //    b) total_resultados ASC NULLS FIRST → termos nunca rodados primeiro
       //    c) ultima_execucao ASC NULLS FIRST → mais antigos antes (revalida termos parados)
       //    d) created_at ASC → tiebreak determinístico
-      const { data: terms, error: tErr } = await supabase
+      const termsQuery = supabase
         .from("search_terms")
         .select("id, termo, tipo, total_resultados, ultima_execucao")
         .eq("genre_id", g.id)
         .eq("executado", false)
-        .order("tipo", { ascending: true })
+        .order("tipo", { ascending: !isRecovery }) // recovery: desc (variacao/contextual antes)
         .order("total_resultados", { ascending: true, nullsFirst: true })
         .order("ultima_execucao", { ascending: true, nullsFirst: true })
         .order("created_at", { ascending: true })
-        .limit(termsPerGenre);
+        .limit(effectiveTerms);
+      const { data: terms, error: tErr } = await termsQuery;
 
       if (tErr) throw tErr;
 
@@ -118,6 +138,7 @@ Deno.serve(async (req) => {
           term_id: t.id,
           search_term: t.termo,
           max_results: maxResults,
+          recovery: isRecovery, // 🆕 propaga modo
         });
         if (r.ok && r.data?.ok) {
           item.terms_run++;
@@ -148,7 +169,7 @@ Deno.serve(async (req) => {
       genre_id: g.id,
       acao: "collect-batch",
       status: item.error ? "erro" : "sucesso",
-      mensagem: `${item.nome}: ${item.terms_run} termos, ${item.playlists_saved} playlists, ${item.tracks_saved} tracks${item.analyzed ? " (analisado)" : ""}`,
+      mensagem: `${item.nome}: ${item.terms_run} termos, ${item.playlists_saved} playlists, ${item.tracks_saved} tracks${item.analyzed ? " (analisado)" : ""}${item.recovery ? " 🆘 [recovery]" : ""}`,
       duracao_ms: Date.now() - gStart,
     });
 

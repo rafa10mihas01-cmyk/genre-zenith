@@ -16,6 +16,7 @@ interface Body {
   term_id: string;
   search_term: string;
   max_results?: number;
+  recovery?: boolean; // 🆕 caller pode forçar modo recovery (ex: collect-batch)
 }
 
 const APIFY_ACTOR = "automation-lab~spotify-scraper";
@@ -260,15 +261,31 @@ Deno.serve(async (req) => {
       return subs.map((s: any) => [s?.slug, s?.nome].filter(Boolean)).flat().map((x: string) => String(x).toLowerCase());
     })();
 
+    // 🆕 RECOVERY MODE — gênero esfomeado: < 50 playlists vistas em 14d.
+    // Pode vir explícito do caller (collect-batch) ou ser auto-detectado.
+    // Em recovery: relaxa SCORE_THRESHOLD_STRICT (60→50) — aceita borderline,
+    // mantendo STRONG_BLACKLIST e gate de nome (relevância) intactos.
+    let isRecovery = body.recovery === true;
+    if (!isRecovery) {
+      const sinceISO = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
+      const { count: freshCount } = await supabase
+        .from("search_results")
+        .select("id", { count: "exact", head: true })
+        .eq("genre_id", body.genre_id)
+        .eq("is_valid", true)
+        .gte("last_seen_at", sinceISO);
+      isRecovery = (freshCount ?? 0) < 50;
+    }
+
     // Detecta termo de expansão (sinais semânticos amplos, não vinculados ao gênero core)
     const EXPANSION_MARKERS = ["remix", "viral", "cover", "tiktok", "tik tok", "edit", "phonk", "2026", "2025", "mashup"];
     const isExpansionTerm = EXPANSION_MARKERS.some(m => termLower.includes(m));
-    const SCORE_THRESHOLD_STRICT = 60;
-    const SCORE_THRESHOLD_EXPANSION = 50;
+    const SCORE_THRESHOLD_STRICT = isRecovery ? 50 : 60;       // 🆕 recovery: 60→50
+    const SCORE_THRESHOLD_EXPANSION = isRecovery ? 40 : 50;    // 🆕 recovery: 50→40
     const EXPANSION_BONUS = 10; // reduz threshold efetivo em 10 pra termos de expansão
     const effectiveThreshold = isExpansionTerm
-      ? SCORE_THRESHOLD_EXPANSION - EXPANSION_BONUS  // = 40
-      : SCORE_THRESHOLD_STRICT;                       // = 60
+      ? SCORE_THRESHOLD_EXPANSION - EXPANSION_BONUS  // strict=40, recovery=30
+      : SCORE_THRESHOLD_STRICT;                       // strict=60, recovery=50
     const FOLLOWERS_THRESHOLD = 5000;
 
     function scorePlaylist(opts: { nomePl: string; descricao: string | null; followers: number | null; }) {
@@ -532,7 +549,7 @@ Deno.serve(async (req) => {
       ? rejectedTop.map((s, i) => `  #${i+1} ${fmt(s)}`).join("\n")
       : "  —";
     const diag =
-      `"${body.search_term}" | mode=${isExpansionTerm ? "EXPANSION" : "STRICT"} thr=${effectiveThreshold} | ` +
+      `"${body.search_term}" | mode=${isExpansionTerm ? "EXPANSION" : "STRICT"}${isRecovery ? "+RECOVERY" : ""} thr=${effectiveThreshold} | ` +
       `${savedResults} novas, ${updatedResults} atualizadas, ${filteredOut} filtradas, ${savedTracks} músicas (${scoreLog.length} avaliadas)\n` +
       `TOP 3 ACEITAS:\n${acceptedBlock}\n` +
       `TOP 3 REJEITADAS:\n${rejectedBlock}`;
@@ -550,7 +567,12 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         ok: true, savedResults, updatedResults, filteredOut, savedTracks, runId,
-        scoring: { mode: isExpansionTerm ? "expansion" : "strict", threshold: effectiveThreshold, evaluated: scoreLog.length },
+        scoring: {
+          mode: isExpansionTerm ? "expansion" : "strict",
+          recovery: isRecovery,
+          threshold: effectiveThreshold,
+          evaluated: scoreLog.length,
+        },
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
