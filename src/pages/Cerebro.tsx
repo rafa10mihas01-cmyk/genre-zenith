@@ -23,6 +23,7 @@ import { PageContainer } from "@/components/PageContainer";
 import { Variacoes, Moldes } from "@/components/brain/Replicacao";
 import { AutopilotLivePanel } from "@/components/brain/AutopilotLivePanel";
 import { ReplicacaoAuto, ReplicacaoHistorico } from "@/components/brain/ReplicacaoAuto";
+import { GenreHealthBanner } from "@/components/brain/GenreHealthBanner";
 import { KpiBig } from "@/components/KpiBig";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { useSetSidebarKpis } from "@/contexts/SidebarContext";
@@ -166,6 +167,13 @@ export default function Cerebro() {
 
       {/* HERO do gênero ativo — cor própria + KPIs grandes */}
       <GenreHero genre={genre} model={model} />
+
+      {/* AVISO DE SAÚDE — visível quando dataset não está fresh */}
+      <GenreHealthBanner
+        status={genre?.health_status}
+        lastSeenAt={genre?.health_last_seen_at}
+        hoursSince={genre?.health_hours_since}
+      />
 
       {/* AÇÕES RÁPIDAS — atalhos contextuais do gênero */}
       <QuickActions slug={activeSlug} />

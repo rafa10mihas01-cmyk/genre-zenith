@@ -1,7 +1,19 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-export type Genre = { id: string; nome: string; slug: string; total_playlists: number | null; total_musicas: number | null; total_termos: number | null; ultima_coleta: string | null };
+export type GenreHealth = "healthy" | "stale" | "dead" | "unknown";
+export type Genre = {
+  id: string;
+  nome: string;
+  slug: string;
+  total_playlists: number | null;
+  total_musicas: number | null;
+  total_termos: number | null;
+  ultima_coleta: string | null;
+  health_status: GenreHealth;
+  health_last_seen_at: string | null;
+  health_hours_since: number | null;
+};
 export type GenreModel = {
   id: string;
   genre_id: string | null;
@@ -26,8 +38,8 @@ export function useBrainModel(slug: string | undefined) {
     setError(null);
     try {
       const { data: g, error: ge } = await supabase
-        .from("genres")
-        .select("id,nome,slug,total_playlists,total_musicas,total_termos,ultima_coleta")
+        .from("genres_with_health")
+        .select("id,nome,slug,total_playlists,total_musicas,total_termos,ultima_coleta,health_status,health_last_seen_at,health_hours_since")
         .eq("slug", slug)
         .maybeSingle();
       if (ge) throw ge;
@@ -36,7 +48,7 @@ export function useBrainModel(slug: string | undefined) {
         setModel(null);
         return;
       }
-      setGenre(g as Genre);
+      setGenre({ ...g, health_status: (g.health_status ?? "unknown") as GenreHealth } as Genre);
       const { data: m } = await supabase
         .from("genre_models")
         .select("*")
