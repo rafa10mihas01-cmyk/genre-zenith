@@ -161,6 +161,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "collection_logs_genre_id_fkey"
+            columns: ["genre_id"]
+            isOneToOne: false
+            referencedRelation: "genres_with_health"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "collection_logs_term_id_fkey"
             columns: ["term_id"]
             isOneToOne: false
@@ -220,6 +227,13 @@ export type Database = {
             referencedRelation: "genres"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "genre_filters_genre_id_fkey"
+            columns: ["genre_id"]
+            isOneToOne: true
+            referencedRelation: "genres_with_health"
+            referencedColumns: ["id"]
+          },
         ]
       }
       genre_models: {
@@ -262,6 +276,13 @@ export type Database = {
             columns: ["genre_id"]
             isOneToOne: true
             referencedRelation: "genres"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "genre_models_genre_id_fkey"
+            columns: ["genre_id"]
+            isOneToOne: true
+            referencedRelation: "genres_with_health"
             referencedColumns: ["id"]
           },
         ]
@@ -1030,6 +1051,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "search_results_genre_id_fkey"
+            columns: ["genre_id"]
+            isOneToOne: false
+            referencedRelation: "genres_with_health"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "search_results_term_id_fkey"
             columns: ["term_id"]
             isOneToOne: false
@@ -1077,6 +1105,13 @@ export type Database = {
             referencedRelation: "genres"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "search_terms_genre_id_fkey"
+            columns: ["genre_id"]
+            isOneToOne: false
+            referencedRelation: "genres_with_health"
+            referencedColumns: ["id"]
+          },
         ]
       }
       search_tracks: {
@@ -1116,6 +1151,13 @@ export type Database = {
             columns: ["genre_id"]
             isOneToOne: false
             referencedRelation: "genres"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "search_tracks_genre_id_fkey"
+            columns: ["genre_id"]
+            isOneToOne: false
+            referencedRelation: "genres_with_health"
             referencedColumns: ["id"]
           },
           {
@@ -1297,6 +1339,28 @@ export type Database = {
       }
     }
     Views: {
+      genres_with_health: {
+        Row: {
+          ativo: boolean | null
+          attention_flagged_at: string | null
+          attention_reason: string | null
+          created_at: string | null
+          health_hours_since: number | null
+          health_last_seen_at: string | null
+          health_status: string | null
+          id: string | null
+          last_audit_metrics: Json | null
+          needs_attention: boolean | null
+          nome: string | null
+          slug: string | null
+          status: string | null
+          total_musicas: number | null
+          total_playlists: number | null
+          total_termos: number | null
+          ultima_coleta: string | null
+        }
+        Relationships: []
+      }
       v_brain_health: {
         Row: {
           analyzed_genres: number | null
@@ -1400,6 +1464,14 @@ export type Database = {
           score_3d: number
           score_7d: number
           target_today: number
+        }[]
+      }
+      get_genre_health: {
+        Args: { p_genre_id: string }
+        Returns: {
+          health_status: string
+          hours_since: number
+          last_seen_at: string
         }[]
       }
       get_learning_loop_status: { Args: never; Returns: Json }
