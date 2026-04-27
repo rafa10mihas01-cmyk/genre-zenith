@@ -7,7 +7,7 @@ import { formatNumber, timeAgo } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { genreStyleVars } from "@/lib/genreColors";
 import { KpiBig } from "@/components/KpiBig";
-import { Empty, SkeletonGrid, humanizeAttentionReason, type GenreOpt } from "@/pages/Cerebro";
+import { Empty, SkeletonGrid, humanizeAttentionReason, type GenreOpt } from "@/components/cerebro/_shared";
 
 /* ===================== HEADER COMPONENTS (padrão Home) ===================== */
 
