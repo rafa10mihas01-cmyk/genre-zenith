@@ -385,6 +385,60 @@ async function runPipeline(
     // Bloqueia IA se gênero não tem dados mínimos. Dispara auto-coleta em background
     // e marca run como 'waiting_collection' (será re-disparada quando coleta concluir).
     const massa = await checkMassa(sb, genreId);
+
+    // 🆕 GATE DE FRESCOR — se não há atividade recente (zero playlists vistas em 14d),
+    // aborta SEM disparar auto-coleta. Pipeline não pode marcar success sobre dataset stale.
+    if (massa.stale) {
+      const staleMsg =
+        `🛑 Pipeline abortado: sem dados recentes em ${FRESHNESS_WINDOW_DAYS} dias` +
+        (massa.lastSeenAt
+          ? ` (última coleta: ${new Date(massa.lastSeenAt).toISOString().slice(0, 10)})`
+          : " (gênero nunca coletado)") +
+        `. Rode coleta manual em /sistema antes de tentar autopilot.`;
+
+      await pushCompleted(sb, runId, "analyze", {
+        gate: "frescor",
+        fresh_playlists: massa.freshPlaylists,
+        last_seen_at: massa.lastSeenAt,
+        window_days: FRESHNESS_WINDOW_DAYS,
+        action: "aborted_no_fresh_data",
+      });
+      await updateRun(sb, runId, {
+        status: "error",
+        current_step: "analyze",
+        error_message: staleMsg,
+        summary: staleMsg,
+        finished_at: new Date().toISOString(),
+        duracao_ms: Date.now() - startedAt,
+      });
+      await sb.from("collection_logs").insert({
+        genre_id: genreId,
+        acao: "autopilot:freshness-gate",
+        status: "bloqueado",
+        mensagem: JSON.stringify({
+          event: "no_fresh_data",
+          run_id: runId,
+          window_days: FRESHNESS_WINDOW_DAYS,
+          fresh_playlists: massa.freshPlaylists,
+          last_seen_at: massa.lastSeenAt,
+          total_playlists_valid: massa.playlistsValid,
+        }),
+      }).then(() => {}, (e) => console.warn("[autopilot] log stale failed:", e?.message));
+      await sb.rpc("create_notification", {
+        p_type: "error",
+        p_title: "Autopilot: sem dados recentes",
+        p_message: staleMsg,
+        p_action_url: "/sistema",
+        p_metadata: {
+          run_id: runId,
+          genre_id: genreId,
+          window_days: FRESHNESS_WINDOW_DAYS,
+          last_seen_at: massa.lastSeenAt,
+        },
+      }).then(() => {}, (e) => console.error("[autopilot] notif failed:", e?.message));
+      return;
+    }
+
     if (!massa.ok) {
       // 🛡️ LOOP PROTECTION — se já houve N auto-coletas em 24h e ainda falta massa,
       // para de coletar (provavelmente Apify não está trazendo playlists novas).
