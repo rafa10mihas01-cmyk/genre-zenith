@@ -140,21 +140,29 @@ Deno.serve(async (req) => {
   const steps: Record<string, unknown> = {};
 
   try {
-    // 4. STEP 1 — collect-batch (single genre, recovery mode habilitado dentro dele)
+    // 4. STEP 1 — collect-batch (single genre, recovery mode habilitado dentro dele).
+    // P2: backfill SEMPRE força (ignora cooldown de termos do run-search) — sem isso,
+    // gêneros dead com termos "frescos" do ponto de vista do cooldown não se mexem.
+    // P0: collect-batch agora chama enrich-playlists internamente, então não precisamos
+    // mais de um STEP 2 separado aqui.
     const collect = await callFn("collect-batch", {
       genre_ids: [body.genre_id],
       terms_per_genre: TERMS_PER_GENRE,
       max_results: 100,
       delay_ms: 1500,
+      force: true,
+      enrich_limit: ENRICH_LIMIT,
     });
     steps.collect = {
       ok: collect.ok,
       status: collect.status,
       summary: (collect.data as { results?: unknown })?.results ?? collect.raw,
+      total_enriched: (collect.data as { total_enriched?: number })?.total_enriched ?? 0,
     };
     if (!collect.ok) throw new Error(`collect-batch failed (${collect.status})`);
 
-    // 5. STEP 2 — enrich-playlists para os recém-coletados
+    // 5. STEP 2 — enrich extra (best-effort): pega quaisquer playlists que ainda
+    // restaram pendentes de enrich (ex: limit do collect-batch foi atingido).
     const enrich = await callFn("enrich-playlists", {
       genre_id: body.genre_id,
       limit: ENRICH_LIMIT,
@@ -164,7 +172,7 @@ Deno.serve(async (req) => {
     steps.enrich = {
       ok: enrich.ok,
       status: enrich.status,
-      summary: (enrich.data as { stats?: unknown })?.stats ?? enrich.raw,
+      summary: (enrich.data as Record<string, unknown>) ?? enrich.raw,
     };
     // enrich falhar não é fatal (pode estar bloqueado por circuit breaker do Apify)
     if (!enrich.ok) {

@@ -13,6 +13,12 @@ interface Body {
   terms_per_genre?: number;
   max_results?: number;
   delay_ms?: number;
+  /** P2: ignora cooldown de termos no run-search (usado pelo backfill de gêneros dead). */
+  force?: boolean;
+  /** P0: pular enrich-playlists no fim do batch (default false = sempre enriquecer). */
+  skip_enrich?: boolean;
+  /** P0: limite de playlists a enriquecer por gênero neste batch. */
+  enrich_limit?: number;
 }
 
 async function callFn(name: string, body: unknown) {
@@ -57,6 +63,9 @@ Deno.serve(async (req) => {
   // Apify: custo por chamada → sempre maximizar (default 100, mín 50).
   const maxResults = Math.max(50, body.max_results ?? 100);
   const delayMs = body.delay_ms ?? 2000;
+  const force = body.force === true;
+  const skipEnrich = body.skip_enrich === true;
+  const enrichLimit = Math.max(5, body.enrich_limit ?? 30);
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
   const startedAt = Date.now();
@@ -67,6 +76,7 @@ Deno.serve(async (req) => {
     terms_run: number;
     playlists_saved: number;
     tracks_saved: number;
+    enriched: number;
     analyzed: boolean;
     error?: string;
   }> = [];
@@ -80,11 +90,11 @@ Deno.serve(async (req) => {
       .single();
 
     if (!g) {
-      results.push({ genre_id: genreId, nome: "?", terms_run: 0, playlists_saved: 0, tracks_saved: 0, analyzed: false, error: "genre not found" });
+      results.push({ genre_id: genreId, nome: "?", terms_run: 0, playlists_saved: 0, tracks_saved: 0, enriched: 0, analyzed: false, error: "genre not found" });
       continue;
     }
 
-    const item = { genre_id: g.id, nome: g.nome, terms_run: 0, playlists_saved: 0, tracks_saved: 0, analyzed: false, recovery: false, error: undefined as string | undefined };
+    const item = { genre_id: g.id, nome: g.nome, terms_run: 0, playlists_saved: 0, tracks_saved: 0, enriched: 0, analyzed: false, recovery: false, error: undefined as string | undefined };
 
     try {
       // 1) Garantir termos
@@ -139,6 +149,7 @@ Deno.serve(async (req) => {
           search_term: t.termo,
           max_results: maxResults,
           recovery: isRecovery, // 🆕 propaga modo
+          force,                // 🆕 P2: ignora cooldown quando backfill manda
         });
         if (r.ok && r.data?.ok) {
           item.terms_run++;
@@ -146,6 +157,22 @@ Deno.serve(async (req) => {
           item.tracks_saved += r.data.savedTracks ?? 0;
         }
         if (i < terms!.length - 1) await new Promise((res) => setTimeout(res, delayMs));
+      }
+
+      // 🆕 P0 (Enrichment Hole fix): enriquecer playlists novas ANTES de analisar.
+      // Sem isso, analyze-genre roda sobre dados brutos do Apify (sem followers
+      // verificados), e a saúde do gênero nunca atinge "healthy".
+      if (!skipEnrich && item.playlists_saved > 0) {
+        const e = await callFn("enrich-playlists", {
+          genre_id: g.id,
+          limit: enrichLimit,
+          fetch_tracks: true,
+          prioritize: true,
+        });
+        if (e.ok) {
+          item.enriched = (e.data as { enriched?: number })?.enriched ?? 0;
+        }
+        // enrich falhar não aborta o lote — apenas loga. analyze ainda roda.
       }
 
       // 4) Analyze-genre automático
@@ -169,7 +196,7 @@ Deno.serve(async (req) => {
       genre_id: g.id,
       acao: "collect-batch",
       status: item.error ? "erro" : "sucesso",
-      mensagem: `${item.nome}: ${item.terms_run} termos, ${item.playlists_saved} playlists, ${item.tracks_saved} tracks${item.analyzed ? " (analisado)" : ""}${item.recovery ? " 🆘 [recovery]" : ""}`,
+      mensagem: `${item.nome}: ${item.terms_run} termos, ${item.playlists_saved} playlists, ${item.tracks_saved} tracks, ${item.enriched} enriched${item.analyzed ? " (analisado)" : ""}${item.recovery ? " 🆘 [recovery]" : ""}${force ? " [force]" : ""}`,
       duracao_ms: Date.now() - gStart,
     });
 
@@ -183,6 +210,7 @@ Deno.serve(async (req) => {
     total_terms_run: results.reduce((s, r) => s + r.terms_run, 0),
     total_playlists: results.reduce((s, r) => s + r.playlists_saved, 0),
     total_tracks: results.reduce((s, r) => s + r.tracks_saved, 0),
+    total_enriched: results.reduce((s, r) => s + (r.enriched ?? 0), 0),
     errors: results.filter((r) => r.error).length,
     results,
   };
