@@ -972,7 +972,7 @@ Deno.serve(async (req) => {
       if (r.status === "waiting_collection" && !force) {
         return jr({ ok: false, error: "Coleta automática em andamento — aguarde concluir", run_id: r.id }, 409);
       }
-      if (r.status === "success" && !force) {
+      if (r.status === "success" && !force && !isColdStart) {
         if (ageMs < cooldownMs) {
           const minutesAgo = Math.round(ageMs / 60000);
           const minutesLeft = Math.max(1, Math.round((cooldownMs - ageMs) / 60000));
