@@ -13,6 +13,12 @@ interface Body {
   terms_per_genre?: number;
   max_results?: number;
   delay_ms?: number;
+  /** P2: ignora cooldown de termos no run-search (usado pelo backfill de gêneros dead). */
+  force?: boolean;
+  /** P0: pular enrich-playlists no fim do batch (default false = sempre enriquecer). */
+  skip_enrich?: boolean;
+  /** P0: limite de playlists a enriquecer por gênero neste batch. */
+  enrich_limit?: number;
 }
 
 async function callFn(name: string, body: unknown) {
