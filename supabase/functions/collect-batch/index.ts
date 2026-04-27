@@ -90,11 +90,11 @@ Deno.serve(async (req) => {
       .single();
 
     if (!g) {
-      results.push({ genre_id: genreId, nome: "?", terms_run: 0, playlists_saved: 0, tracks_saved: 0, analyzed: false, error: "genre not found" });
+      results.push({ genre_id: genreId, nome: "?", terms_run: 0, playlists_saved: 0, tracks_saved: 0, enriched: 0, analyzed: false, error: "genre not found" });
       continue;
     }
 
-    const item = { genre_id: g.id, nome: g.nome, terms_run: 0, playlists_saved: 0, tracks_saved: 0, analyzed: false, recovery: false, error: undefined as string | undefined };
+    const item = { genre_id: g.id, nome: g.nome, terms_run: 0, playlists_saved: 0, tracks_saved: 0, enriched: 0, analyzed: false, recovery: false, error: undefined as string | undefined };
 
     try {
       // 1) Garantir termos
