@@ -86,7 +86,7 @@ export function CuratorDealCard({
         </div>
 
         {/* Datas */}
-        <div className="flex items-center gap-2 text-xs text-muted-foreground -mt-2">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <CalendarIcon className="h-3 w-3" />
           <span>
             {format(new Date(deal.started_at), "dd MMM", { locale: ptBR })}
