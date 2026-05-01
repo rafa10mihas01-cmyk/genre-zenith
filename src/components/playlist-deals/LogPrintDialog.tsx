@@ -85,6 +85,21 @@ function parsePlaylistNames(raw: string): string[] {
     .filter((s) => s.length > 0);
 }
 
+function extractSpotifyPlaylistIdLocal(url: string | null | undefined): string | null {
+  if (!url || typeof url !== "string") return null;
+  const m = url.match(/playlist[/:]([a-zA-Z0-9]{16,})/);
+  return m ? m[1] : null;
+}
+
+function normalizeName(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
 export function LogPrintDialog({
   open,
   deal,
