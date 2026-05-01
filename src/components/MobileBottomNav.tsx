@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { Home, Brain, Sparkles, BarChart3, Activity } from "lucide-react";
+import { Home, Brain, Sparkles, BarChart3, Activity, ListMusic } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const items = [
@@ -8,6 +8,7 @@ const items = [
   { to: "/criacao", label: "Criação", icon: Sparkles },
   { to: "/operacao", label: "Operação", icon: Activity },
   { to: "/performance", label: "Performance", icon: BarChart3 },
+  { to: "/playlist-deals", label: "Deals", icon: ListMusic },
 ];
 
 /**
