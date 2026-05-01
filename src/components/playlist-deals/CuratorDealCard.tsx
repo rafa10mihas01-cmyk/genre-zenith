@@ -33,13 +33,16 @@ export function CuratorDealCard({
   deal, logs, playlists, songs = [], onLog, onDetail, onDelete,
 }: CuratorDealCardProps) {
   const stats = computeCuratorStats(deal, logs, playlists);
-  const { earned, pct, vel, eta, latestPlays, todayPlays, todayPct, hasBaseline, newPlaylists } = stats;
+  const { earned, pct, vel, eta, latestPlays, todayPlays, hasBaseline, newPlaylists } = stats;
   const target = Number(deal.target_plays ?? 0);
   const dailyGoal = Number(deal.daily_goal ?? 0);
   const isDone = target > 0 && earned >= target;
   const totalDailyGoal = songs.length > 0
     ? songs.reduce((sum, s) => sum + Number(s.daily_goal ?? 0), 0)
     : dailyGoal;
+  const todayPct = totalDailyGoal > 0
+    ? Math.min(100, Math.round((todayPlays / totalDailyGoal) * 100))
+    : 0;
   const showSongList = songs.length > 1;
 
   const statusLabel = !hasBaseline
