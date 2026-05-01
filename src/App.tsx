@@ -20,6 +20,7 @@ import Criacao from "./pages/Criacao";
 import Operacao from "./pages/Operacao";
 import Performance from "./pages/Performance";
 import PlaylistDeals from "./pages/PlaylistDeals";
+import CuratorPage from "./pages/CuratorPage";
 import Sistema from "./pages/Sistema";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
@@ -47,6 +48,7 @@ const App = () => (
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/landing" element={<Landing />} />
               <Route path="/spotify/callback" element={<SpotifyCallback />} />
+              <Route path="/curador/:token" element={<CuratorPage />} />
               {/* "/" decide entre landing pública (visitantes) e Cockpit/Home (logados). */}
               <Route path="/" element={<RootRoute />} />
               <Route path="/cerebro" element={<Protected><Cerebro /></Protected>} />
