@@ -156,6 +156,7 @@ export function useCuratorDeals() {
       dealId: string,
       plays: number,
       baselinePlaylists: BaselinePlaylistInput[],
+      printUrls: string[] = [],
     ) => {
       // 1. Log baseline
       const { error: logErr } = await supabase
@@ -165,6 +166,7 @@ export function useCuratorDeals() {
           total_plays: plays,
           is_baseline: true,
           note: null,
+          print_urls: printUrls,
         });
       if (logErr) throw logErr;
 
