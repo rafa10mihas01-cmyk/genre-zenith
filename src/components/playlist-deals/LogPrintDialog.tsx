@@ -219,10 +219,32 @@ export function LogPrintDialog({
     setExtracted(null);
   };
 
+  const uploadPrintsToStorage = async (): Promise<string[]> => {
+    if (!deal || items.length === 0) return [];
+    const urls: string[] = [];
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i];
+      const ext = (it.file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+      const path = `${deal.id}/${Date.now()}-${i}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("deal-prints")
+        .upload(path, it.file, {
+          contentType: it.file.type || "image/jpeg",
+          upsert: false,
+        });
+      if (upErr) throw upErr;
+      const { data: pub } = supabase.storage.from("deal-prints").getPublicUrl(path);
+      urls.push(pub.publicUrl);
+    }
+    return urls;
+  };
+
   const handleSave = async () => {
     if (!deal || !hasFinal) return;
     setSaving(true);
     try {
+      const printUrls = await uploadPrintsToStorage();
+
       if (isBaseline) {
         const names = parsePlaylistNames(playlistsRaw);
         // Se a IA já achou playlists nos prints (matches), usa elas;
@@ -240,15 +262,16 @@ export function LogPrintDialog({
           followers: null,
         }));
         const baselinePlaylists = fromAi.length > 0 ? fromAi : fromManual;
-        await addBaseline(deal.id, finalValue as number, baselinePlaylists);
+        await addBaseline(deal.id, finalValue as number, baselinePlaylists, printUrls);
         toast.success("Baseline registrada", {
-          description: `${formatPlays(finalValue as number)} plays · ${baselinePlaylists.length} playlist(s) iniciais`,
+          description: `${formatPlays(finalValue as number)} plays · ${baselinePlaylists.length} playlist(s) iniciais · ${printUrls.length} print(s)`,
         });
       } else {
         await addLog({
           deal_id: deal.id,
           total_plays: finalValue as number,
           note: note.trim() || null,
+          print_urls: printUrls,
         });
 
         if (hasNewPlaylists) {
@@ -270,7 +293,7 @@ export function LogPrintDialog({
 
         toast.success("Registro salvo", {
           description: stats
-            ? `+${formatPlays(Math.max(0, delta))} plays desde o último registro`
+            ? `+${formatPlays(Math.max(0, delta))} plays · ${printUrls.length} print(s) anexado(s)`
             : undefined,
         });
       }
