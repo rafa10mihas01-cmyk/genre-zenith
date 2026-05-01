@@ -1,34 +1,132 @@
-import { ListMusic } from "lucide-react";
+import { useMemo } from "react";
+import { ListMusic, Plus } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
-import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { usePersistedState } from "@/hooks/usePersistedState";
+import { usePlaylistDeals } from "@/hooks/usePlaylistDeals";
+import { computeStats } from "@/lib/playlistDealsUtils";
+import { DealCard } from "@/components/playlist-deals/DealCard";
 
-/**
- * Playlist Deals — módulo de acompanhamento de deals com curadores.
- * Segue o padrão obrigatório do projeto: PageHeader + tokens semânticos +
- * componentes shadcn. Conteúdo real será implementado em iteração seguinte.
- */
+type DealsTab = "active" | "done" | "all";
+
+const TABS: { id: DealsTab; label: string }[] = [
+  { id: "active", label: "Ativos" },
+  { id: "done",   label: "Concluídos" },
+  { id: "all",    label: "Todos" },
+];
+
 export default function PlaylistDeals() {
+  const [tab, setTab] = usePersistedState<DealsTab>("playlistdeals:tab", "active");
+  const { deals, logs, loading, deleteDeal } = usePlaylistDeals();
+
+  const filtered = useMemo(() => {
+    if (tab === "all") return deals;
+    return deals.filter((d) => {
+      const { earned } = computeStats(d, logs);
+      const isDone = Number(d.target ?? 0) > 0 && earned >= Number(d.target);
+      return tab === "done" ? isDone : !isDone;
+    });
+  }, [deals, logs, tab]);
+
+  const handleNew = () => {
+    // Modal de criação será adicionado em iteração seguinte.
+    console.log("[PlaylistDeals] novo deal — UI de formulário pendente");
+  };
+
+  const handleLog = () => {
+    console.log("[PlaylistDeals] enviar print — UI de upload pendente");
+  };
+
+  const handleDetail = () => {
+    console.log("[PlaylistDeals] histórico — UI de drawer pendente");
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Excluir este deal e todo o histórico?")) return;
+    try {
+      await deleteDeal(id);
+    } catch (e) {
+      console.error("[PlaylistDeals] delete error", e);
+    }
+  };
+
   return (
     <div className="w-full space-y-6">
       <PageHeader
         kicker="Módulo"
         icon={ListMusic}
         title="Playlist Deals"
-        subtitle="Acompanhe seus deals com curadores"
+        subtitle="Acompanhar deals com curadores"
+        actions={
+          <Button className="rounded-full h-9 gap-1.5" onClick={handleNew}>
+            <Plus className="h-4 w-4" /> Novo Deal
+          </Button>
+        }
       />
 
-      <Card className="max-w-2xl mx-auto">
-        <CardContent className="p-8 text-center">
-          <div className="h-14 w-14 rounded-full bg-elevated border border-border mx-auto flex items-center justify-center">
-            <ListMusic className="h-6 w-6 text-muted-foreground" />
+      {/* Tabs */}
+      <div className="flex items-center gap-1 border-b border-border">
+        {TABS.map((t) => {
+          const active = tab === t.id;
+          return (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={cn(
+                "px-4 h-10 inline-flex items-center gap-2 text-sm font-medium border-b-2 transition-colors -mb-px",
+                active
+                  ? "border-primary text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Content */}
+      <div className="min-h-[400px]">
+        {loading && deals.length === 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="nx-card h-48 animate-pulse" />
+            ))}
           </div>
-          <h2 className="mt-4 font-bold text-lg text-foreground">Em breve</h2>
-          <p className="text-sm text-muted-foreground mt-1.5 max-w-md mx-auto leading-relaxed">
-            O módulo de Playlist Deals está sendo preparado. Em breve você poderá
-            registrar deals, metas de plays e acompanhar o progresso por curador.
-          </p>
-        </CardContent>
-      </Card>
+        ) : filtered.length === 0 ? (
+          <div className="nx-card">
+            <div className="py-10 flex flex-col items-center text-center gap-3">
+              <div className="h-12 w-12 rounded-full bg-elevated border border-border flex items-center justify-center">
+                <ListMusic className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <div>
+                <div className="font-semibold text-foreground">
+                  {deals.length === 0 ? "Nenhum deal ainda" : "Nada nesta aba"}
+                </div>
+                <div className="text-sm text-muted-foreground mt-1">
+                  {deals.length === 0
+                    ? "Clique em + Novo para começar"
+                    : "Tente outra aba"}
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filtered.map((d) => (
+              <DealCard
+                key={d.id}
+                deal={d}
+                logs={logs}
+                onLog={handleLog}
+                onDetail={handleDetail}
+                onDelete={(deal) => handleDelete(deal.id)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
