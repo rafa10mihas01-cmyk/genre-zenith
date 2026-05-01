@@ -288,7 +288,7 @@ export default function CuratorPage() {
   const isDone = stats.target > 0 && stats.earned >= stats.target;
 
   return (
-    <div className="min-h-screen bg-background px-3 sm:px-4 py-5 sm:py-7">
+    <div className="min-h-screen bg-black px-3 sm:px-4 py-5 sm:py-7">
       <div className="max-w-xl mx-auto space-y-4">
         {/* Logo NexEngine */}
         <div className="flex justify-center pb-1">
@@ -296,7 +296,7 @@ export default function CuratorPage() {
         </div>
 
         {/* Header — música + curador */}
-        <Card className="shadow-lg shadow-black/40 ring-1 ring-white/[0.06] border-white/[0.04]">
+        <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               {deal.song_cover_url ? (
@@ -325,7 +325,7 @@ export default function CuratorPage() {
                     className={
                       "text-[10px] px-1.5 py-0 h-4 border-0 " +
                       (isDone
-                        ? "bg-success text-success-foreground hover:bg-success/90"
+                        ? "bg-primary text-black hover:bg-primary/90 font-semibold"
                         : !stats.hasBaseline
                         ? "bg-warning/15 text-warning hover:bg-warning/15"
                         : "bg-primary/15 text-primary hover:bg-primary/15")
@@ -353,7 +353,7 @@ export default function CuratorPage() {
         </Card>
 
         {/* Progresso da campanha */}
-        <Card className="shadow-lg shadow-black/40 ring-1 ring-white/[0.06] border-white/[0.04]">
+        <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
           <CardContent className="p-4 space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold">Progresso</h2>
@@ -441,7 +441,7 @@ export default function CuratorPage() {
         </Card>
 
         {/* Suas playlists */}
-        <Card className="shadow-lg shadow-black/40 ring-1 ring-white/[0.06] border-white/[0.04]">
+        <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
           <CardContent className="p-4 space-y-2.5">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold inline-flex items-center gap-1.5">
@@ -484,7 +484,7 @@ export default function CuratorPage() {
                         Inicial
                       </Badge>
                     ) : (
-                      <Badge className="bg-success text-success-foreground hover:bg-success/90 shrink-0 text-[10px] px-1.5 py-0 h-4 border-0">
+                      <Badge className="bg-primary text-black hover:bg-primary/90 shrink-0 text-[10px] px-1.5 py-0 h-4 border-0 font-semibold">
                         Nova
                       </Badge>
                     )}
@@ -496,7 +496,7 @@ export default function CuratorPage() {
         </Card>
 
         {/* Adicionar playlist */}
-        <Card className="shadow-lg shadow-black/40 ring-1 ring-white/[0.06] border-white/[0.04]">
+        <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
           <CardContent className="p-4 space-y-2.5">
             <div>
               <h2 className="text-sm font-semibold">Adicionar playlist</h2>
