@@ -186,7 +186,81 @@ export default function CuratorPage() {
     await load();
   };
 
-  if (loading) {
+  const handleDownloadTemplate = () => {
+    const ws = XLSX.utils.aoa_to_sheet([
+      ["URL da playlist"],
+      ["https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M"],
+      ["https://open.spotify.com/playlist/37i9dQZF1DX0XUsuxWHRQd"],
+    ]);
+    ws["!cols"] = [{ wch: 70 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Playlists");
+    XLSX.writeFile(wb, "playlists-template.xlsx");
+  };
+
+  const extractUrlsFromSheet = (file: File): Promise<string[]> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = new Uint8Array(e.target?.result as ArrayBuffer);
+          const wb = XLSX.read(data, { type: "array" });
+          const ws = wb.Sheets[wb.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json<unknown[]>(ws, {
+            header: 1,
+            blankrows: false,
+          });
+          const urls: string[] = [];
+          for (const row of rows) {
+            for (const cell of row as unknown[]) {
+              if (typeof cell === "string" && cell.includes("spotify.com")) {
+                urls.push(cell.trim());
+              }
+            }
+          }
+          resolve(urls);
+        } catch (err) {
+          reject(err);
+        }
+      };
+      reader.onerror = () => reject(reader.error);
+      reader.readAsArrayBuffer(file);
+    });
+
+  const handleImportFile = async (file: File) => {
+    if (!token) return;
+    setImporting(true);
+    try {
+      const urls = await extractUrlsFromSheet(file);
+      if (urls.length === 0) {
+        toast.error("Nenhuma URL do Spotify encontrada na planilha");
+        return;
+      }
+      if (urls.length > 200) {
+        toast.error("Máximo de 200 playlists por importação");
+        return;
+      }
+      const { data, error: fnErr } = await supabase.functions.invoke(
+        "add-curator-playlists-batch",
+        { body: { public_token: token, urls } },
+      );
+      if (fnErr || !data?.ok) {
+        toast.error(data?.error || fnErr?.message || "Erro ao importar");
+        return;
+      }
+      const parts: string[] = [`${data.added} adicionadas`];
+      if (data.skipped_duplicate) parts.push(`${data.skipped_duplicate} já existiam`);
+      if (data.skipped_invalid) parts.push(`${data.skipped_invalid} inválidas`);
+      toast.success("Importação concluída", { description: parts.join(" · ") });
+      await load();
+    } catch (err) {
+      toast.error("Não foi possível ler o arquivo");
+      console.error(err);
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
