@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
     const { data: deal, error: dealErr } = await admin
       .from("curator_deals")
       .select(
-        "id, curator_name, song_spotify_url, song_name, song_artist, song_cover_url, target_plays, baseline_plays, started_at, public_token, created_at",
+        "id, curator_name, song_spotify_url, song_name, song_artist, song_cover_url, target_plays, baseline_plays, cost, started_at, public_token, created_at",
       )
       .eq("public_token", token)
       .maybeSingle();
@@ -40,15 +40,23 @@ Deno.serve(async (req) => {
     if (dealErr) return jr({ ok: false, error: dealErr.message }, 200);
     if (!deal) return jr({ ok: false, error: "not found" }, 404);
 
-    const { data: playlists, error: plErr } = await admin
-      .from("curator_playlists")
-      .select("id, deal_id, spotify_url, playlist_name, followers, is_baseline, added_at")
-      .eq("deal_id", deal.id)
-      .order("added_at", { ascending: true });
+    const [{ data: playlists, error: plErr }, { data: logs, error: logErr }] = await Promise.all([
+      admin
+        .from("curator_playlists")
+        .select("id, deal_id, spotify_url, playlist_name, followers, is_baseline, added_at")
+        .eq("deal_id", deal.id)
+        .order("added_at", { ascending: true }),
+      admin
+        .from("curator_deal_logs")
+        .select("id, deal_id, total_plays, note, is_baseline, created_at")
+        .eq("deal_id", deal.id)
+        .order("created_at", { ascending: true }),
+    ]);
 
     if (plErr) return jr({ ok: false, error: plErr.message }, 200);
+    if (logErr) return jr({ ok: false, error: logErr.message }, 200);
 
-    return jr({ ok: true, deal, playlists: playlists ?? [] });
+    return jr({ ok: true, deal, playlists: playlists ?? [], logs: logs ?? [] });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return jr({ ok: false, error: msg }, 200);
