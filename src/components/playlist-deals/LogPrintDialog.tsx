@@ -132,6 +132,9 @@ export function LogPrintDialog({
     setSaving(false);
     setPlaylistsRaw("");
     setHasNewPlaylists(false);
+    setMode("image");
+    setPasteText("");
+    setParsedPaste(null);
   };
 
   const handleClose = () => {
