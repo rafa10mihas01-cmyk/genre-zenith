@@ -25,6 +25,7 @@ export type NewCuratorLogInput = {
   total_plays: number;
   note?: string | null;
   is_baseline?: boolean;
+  print_urls?: string[];
 };
 
 export type BaselinePlaylistInput = {
@@ -139,6 +140,7 @@ export function useCuratorDeals() {
           total_plays: input.total_plays,
           note: input.note ?? null,
           is_baseline: input.is_baseline ?? false,
+          print_urls: input.print_urls ?? [],
         })
         .select()
         .single();
