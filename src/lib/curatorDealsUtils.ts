@@ -9,6 +9,7 @@ export type CuratorDeal = {
   song_artist: string | null;
   song_cover_url: string | null;
   target_plays: number;
+  daily_goal: number;
   baseline_plays: number;
   cost: number | null;
   started_at: string;
