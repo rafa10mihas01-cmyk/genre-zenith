@@ -176,6 +176,127 @@ export type Database = {
           },
         ]
       }
+      curator_deal_logs: {
+        Row: {
+          created_at: string
+          deal_id: string
+          id: string
+          is_baseline: boolean
+          note: string | null
+          total_plays: number
+        }
+        Insert: {
+          created_at?: string
+          deal_id: string
+          id?: string
+          is_baseline?: boolean
+          note?: string | null
+          total_plays: number
+        }
+        Update: {
+          created_at?: string
+          deal_id?: string
+          id?: string
+          is_baseline?: boolean
+          note?: string | null
+          total_plays?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "curator_deal_logs_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "curator_deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      curator_deals: {
+        Row: {
+          baseline_plays: number
+          cost: number | null
+          created_at: string
+          curator_name: string
+          id: string
+          public_token: string
+          song_artist: string | null
+          song_cover_url: string | null
+          song_name: string
+          song_spotify_url: string
+          started_at: string
+          target_plays: number
+          user_id: string
+        }
+        Insert: {
+          baseline_plays?: number
+          cost?: number | null
+          created_at?: string
+          curator_name: string
+          id?: string
+          public_token?: string
+          song_artist?: string | null
+          song_cover_url?: string | null
+          song_name: string
+          song_spotify_url: string
+          started_at?: string
+          target_plays: number
+          user_id: string
+        }
+        Update: {
+          baseline_plays?: number
+          cost?: number | null
+          created_at?: string
+          curator_name?: string
+          id?: string
+          public_token?: string
+          song_artist?: string | null
+          song_cover_url?: string | null
+          song_name?: string
+          song_spotify_url?: string
+          started_at?: string
+          target_plays?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      curator_playlists: {
+        Row: {
+          added_at: string
+          deal_id: string
+          followers: number | null
+          id: string
+          is_baseline: boolean
+          playlist_name: string
+          spotify_url: string
+        }
+        Insert: {
+          added_at?: string
+          deal_id: string
+          followers?: number | null
+          id?: string
+          is_baseline?: boolean
+          playlist_name: string
+          spotify_url: string
+        }
+        Update: {
+          added_at?: string
+          deal_id?: string
+          followers?: number | null
+          id?: string
+          is_baseline?: boolean
+          playlist_name?: string
+          spotify_url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "curator_playlists_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "curator_deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       genre_backfill_attempts: {
         Row: {
           details: Json
