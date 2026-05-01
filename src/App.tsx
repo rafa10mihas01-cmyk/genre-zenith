@@ -48,6 +48,7 @@ const App = () => (
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/landing" element={<Landing />} />
               <Route path="/spotify/callback" element={<SpotifyCallback />} />
+              <Route path="/curador/:token" element={<CuratorPage />} />
               {/* "/" decide entre landing pública (visitantes) e Cockpit/Home (logados). */}
               <Route path="/" element={<RootRoute />} />
               <Route path="/cerebro" element={<Protected><Cerebro /></Protected>} />
