@@ -86,7 +86,7 @@ export default function PlaylistDeals() {
       {/* Content */}
       <div className="min-h-[400px]">
         {loading && deals.length === 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[0, 1, 2].map((i) => (
               <div key={i} className="nx-card h-48 animate-pulse" />
             ))}
@@ -110,7 +110,7 @@ export default function PlaylistDeals() {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filtered.map((d) => (
               <CuratorDealCard
                 key={d.id}
