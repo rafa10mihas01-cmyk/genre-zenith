@@ -26,6 +26,9 @@ import type {
 
 type Step = "upload" | "analyzing" | "review" | "playlists" | "confirm";
 
+const MAX_FILES = 40;
+const MAX_FILE_BYTES = 10 * 1024 * 1024;
+
 export interface LogPrintDialogProps {
   open: boolean;
   deal: CuratorDeal | null;
@@ -44,6 +47,18 @@ export interface LogPrintDialogProps {
     playlistName: string,
   ) => Promise<void>;
 }
+
+type PrintItem = {
+  file: File;
+  url: string;
+};
+
+type Match = {
+  playlist_name: string;
+  plays: number | null;
+  found: boolean;
+  source_index: number | null;
+};
 
 function formatPlays(n: number): string {
   if (!Number.isFinite(n)) return "0";
@@ -79,8 +94,8 @@ export function LogPrintDialog({
 }: LogPrintDialogProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState<Step>("upload");
-  const [file, setFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [items, setItems] = useState<PrintItem[]>([]);
+  const [matches, setMatches] = useState<Match[]>([]);
   const [extracted, setExtracted] = useState<number | null>(null);
   const [manualValue, setManualValue] = useState<string>("");
   const [aiError, setAiError] = useState<string | null>(null);
@@ -100,9 +115,9 @@ export function LogPrintDialog({
 
   const reset = () => {
     setStep("upload");
-    setFile(null);
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    setPreviewUrl(null);
+    items.forEach((it) => URL.revokeObjectURL(it.url));
+    setItems([]);
+    setMatches([]);
     setExtracted(null);
     setManualValue("");
     setAiError(null);
@@ -117,40 +132,78 @@ export function LogPrintDialog({
     onClose();
   };
 
-  const handlePickFile = (f: File | null) => {
-    if (!f) return;
-    if (!f.type.startsWith("image/")) {
-      toast.error("Envie um arquivo de imagem");
+  const handlePickFiles = (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const incoming = Array.from(files);
+    const remaining = MAX_FILES - items.length;
+    if (remaining <= 0) {
+      toast.error(`Máximo de ${MAX_FILES} prints por envio`);
       return;
     }
-    if (f.size > 10 * 1024 * 1024) {
-      toast.error("Imagem muito grande", { description: "Tamanho máximo: 10MB" });
-      return;
+    const accepted: PrintItem[] = [];
+    let rejectedType = 0;
+    let rejectedSize = 0;
+    for (const f of incoming.slice(0, remaining)) {
+      if (!f.type.startsWith("image/")) { rejectedType++; continue; }
+      if (f.size > MAX_FILE_BYTES) { rejectedSize++; continue; }
+      accepted.push({ file: f, url: URL.createObjectURL(f) });
     }
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    setFile(f);
-    setPreviewUrl(URL.createObjectURL(f));
+    if (accepted.length > 0) {
+      setItems((prev) => [...prev, ...accepted]);
+    }
+    if (rejectedType > 0) toast.error(`${rejectedType} arquivo(s) ignorado(s) — não é imagem`);
+    if (rejectedSize > 0) toast.error(`${rejectedSize} arquivo(s) acima de 10MB`);
+    if (incoming.length > remaining) {
+      toast.message(`Limite de ${MAX_FILES} prints atingido`, {
+        description: `${incoming.length - remaining} arquivo(s) não foram adicionados`,
+      });
+    }
     setExtracted(null);
+    setMatches([]);
     setAiError(null);
     setManualValue("");
   };
 
+  const removeItem = (idx: number) => {
+    setItems((prev) => {
+      const it = prev[idx];
+      if (it) URL.revokeObjectURL(it.url);
+      return prev.filter((_, i) => i !== idx);
+    });
+  };
+
   const handleAnalyze = async () => {
-    if (!file) return;
+    if (!deal || items.length === 0) return;
     setStep("analyzing");
     setAiError(null);
     try {
-      const base64 = await fileToBase64(file);
-      const { data, error } = await supabase.functions.invoke("analyze-deal-print", {
-        body: { image_base64: base64, mime_type: file.type },
+      const images = await Promise.all(
+        items.map(async (it) => ({
+          base64: await fileToBase64(it.file),
+          mime_type: it.file.type,
+        })),
+      );
+
+      const dealPlaylists = allPlaylists.filter((p) => p.deal_id === deal.id);
+      const playlistNames = dealPlaylists.map((p) => p.playlist_name);
+
+      const { data, error } = await supabase.functions.invoke("analyze-deal-prints", {
+        body: {
+          images,
+          playlists: playlistNames,
+          mode: isBaseline ? "baseline" : "update",
+        },
       });
       if (error) throw new Error(error.message);
       if (!data?.ok) {
-        setAiError(data?.error ?? "Falha ao analisar imagem");
+        setAiError(data?.error ?? "Falha ao analisar imagens");
         setStep("review");
         return;
       }
-      setExtracted(Number(data.count));
+      const m: Match[] = Array.isArray(data.matches) ? data.matches : [];
+      setMatches(m);
+      const total = Number(data.total_plays ?? 0);
+      setExtracted(Number.isFinite(total) && total > 0 ? total : null);
       setStep("review");
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -159,8 +212,6 @@ export function LogPrintDialog({
     }
   };
 
-  // Em baseline mode, "Confirmar" leva à etapa de playlists.
-  // Em update mode, "Confirmar" leva ao toggle/lista de playlists novas.
   const handleConfirmCount = () => setStep("playlists");
 
   const handleCorrect = () => {
@@ -174,14 +225,24 @@ export function LogPrintDialog({
     try {
       if (isBaseline) {
         const names = parsePlaylistNames(playlistsRaw);
-        const baselinePlaylists: BaselinePlaylistInput[] = names.map((name) => ({
+        // Se a IA já achou playlists nos prints (matches), usa elas;
+        // caso contrário, usa as digitadas pelo usuário.
+        const fromAi: BaselinePlaylistInput[] = matches
+          .filter((m) => m.playlist_name)
+          .map((m) => ({
+            spotify_url: "",
+            playlist_name: m.playlist_name,
+            followers: null,
+          }));
+        const fromManual: BaselinePlaylistInput[] = names.map((name) => ({
           spotify_url: "",
           playlist_name: name,
           followers: null,
         }));
+        const baselinePlaylists = fromAi.length > 0 ? fromAi : fromManual;
         await addBaseline(deal.id, finalValue as number, baselinePlaylists);
         toast.success("Baseline registrada", {
-          description: `${formatPlays(finalValue as number)} plays · ${names.length} playlist(s) iniciais`,
+          description: `${formatPlays(finalValue as number)} plays · ${baselinePlaylists.length} playlist(s) iniciais`,
         });
       } else {
         await addLog({
@@ -224,9 +285,12 @@ export function LogPrintDialog({
 
   if (!deal) return null;
 
+  const foundCount = matches.filter((m) => m.found).length;
+  const notFound = matches.filter((m) => !m.found);
+
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); }}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="truncate">{deal.song_name}</DialogTitle>
           <DialogDescription className="truncate">
@@ -240,11 +304,10 @@ export function LogPrintDialog({
             <Info className="h-4 w-4 text-primary mt-0.5 shrink-0" />
             <div className="space-y-0.5">
               <div className="text-sm font-medium text-foreground">
-                Primeiro passo: envie o print inicial
+                Primeiro passo: envie os prints iniciais
               </div>
               <div className="text-xs text-muted-foreground leading-snug">
-                Este print define os plays e playlists existentes antes do deal começar.
-                Obrigatório antes de qualquer atualização.
+                Esses prints definem o estado inicial — playlists existentes e plays atuais — antes do deal começar.
               </div>
             </div>
           </div>
@@ -272,10 +335,15 @@ export function LogPrintDialog({
                 ref={fileInputRef}
                 type="file"
                 accept="image/*"
+                multiple
                 className="hidden"
-                onChange={(e) => handlePickFile(e.target.files?.[0] ?? null)}
+                onChange={(e) => {
+                  handlePickFiles(e.target.files);
+                  // permite re-selecionar os mesmos arquivos
+                  e.target.value = "";
+                }}
               />
-              {!previewUrl ? (
+              {items.length === 0 ? (
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
@@ -288,32 +356,53 @@ export function LogPrintDialog({
                   <div className="h-10 w-10 rounded-full bg-elevated border border-border flex items-center justify-center">
                     <ImagePlus className="h-5 w-5 text-primary" />
                   </div>
-                  <div className="text-sm font-medium text-foreground">Toque para enviar o print</div>
-                  <div className="text-xs text-muted-foreground">Screenshot do Spotify for Artists</div>
+                  <div className="text-sm font-medium text-foreground">Toque para enviar os prints</div>
+                  <div className="text-xs text-muted-foreground">
+                    Até {MAX_FILES} imagens · Spotify for Artists
+                  </div>
                 </button>
               ) : (
                 <div className="space-y-3">
-                  <div className="relative">
-                    <img
-                      src={previewUrl}
-                      alt="Preview do print"
-                      className="w-full max-h-40 object-cover rounded-lg border border-border"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (previewUrl) URL.revokeObjectURL(previewUrl);
-                        setPreviewUrl(null);
-                        setFile(null);
-                      }}
-                      className="absolute top-2 right-2 h-7 w-7 rounded-full bg-background/80 border border-border flex items-center justify-center hover:bg-background"
-                      aria-label="Remover imagem"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
+                  <div className="grid grid-cols-3 gap-2">
+                    {items.map((it, idx) => (
+                      <div key={idx} className="relative">
+                        <img
+                          src={it.url}
+                          alt={`Print ${idx + 1}`}
+                          className="w-full aspect-square object-cover rounded-md border border-border"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeItem(idx)}
+                          className="absolute top-1 right-1 h-6 w-6 rounded-full bg-background/90 border border-border flex items-center justify-center hover:bg-background"
+                          aria-label="Remover imagem"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                        <div className="absolute bottom-1 left-1 h-5 px-1.5 rounded bg-background/80 border border-border text-[10px] tabular-nums flex items-center">
+                          {idx + 1}
+                        </div>
+                      </div>
+                    ))}
+                    {items.length < MAX_FILES && (
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="aspect-square rounded-md border-2 border-dashed border-border bg-elevated/40 hover:bg-elevated flex flex-col items-center justify-center gap-1 text-muted-foreground"
+                      >
+                        <ImagePlus className="h-4 w-4" />
+                        <span className="text-[10px]">Adicionar</span>
+                      </button>
+                    )}
+                  </div>
+                  <div className="text-xs text-muted-foreground text-center">
+                    {items.length} / {MAX_FILES} prints
                   </div>
                   <Button className="w-full gap-1.5" onClick={handleAnalyze}>
-                    <Sparkles className="h-4 w-4" /> Analisar com IA
+                    <Sparkles className="h-4 w-4" />
+                    {isBaseline
+                      ? "Analisar prints iniciais"
+                      : "Analisar e casar com playlists"}
                   </Button>
                 </div>
               )}
@@ -324,8 +413,14 @@ export function LogPrintDialog({
           {step === "analyzing" && (
             <div className="py-8 flex flex-col items-center gap-3 text-center">
               <Loader2 className="h-6 w-6 text-primary animate-spin" />
-              <div className="text-sm font-medium">Lendo o print com IA...</div>
-              <div className="text-xs text-muted-foreground">Isso costuma levar alguns segundos</div>
+              <div className="text-sm font-medium">
+                Lendo {items.length} print{items.length === 1 ? "" : "s"} com IA...
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {isBaseline
+                  ? "Identificando playlists e plays iniciais"
+                  : "Casando cada playlist do deal com os prints"}
+              </div>
             </div>
           )}
 
@@ -335,11 +430,17 @@ export function LogPrintDialog({
               {extracted != null ? (
                 <div className="rounded-lg border border-success/30 bg-success/10 px-4 py-3 space-y-1">
                   <div className="flex items-center gap-2 text-xs text-success font-medium">
-                    <CheckCircle2 className="h-3.5 w-3.5" /> Número detectado
+                    <CheckCircle2 className="h-3.5 w-3.5" /> Total detectado
                   </div>
                   <div className="text-2xl font-semibold tabular-nums text-foreground">
                     {formatPlays(extracted)}
                   </div>
+                  {matches.length > 0 && (
+                    <div className="text-xs text-muted-foreground">
+                      Soma de {foundCount} playlist{foundCount === 1 ? "" : "s"} encontrada{foundCount === 1 ? "" : "s"}
+                      {notFound.length > 0 && ` · ${notFound.length} não encontrada(s)`}
+                    </div>
+                  )}
                   {!isBaseline && stats && (
                     <div className={cn("text-xs tabular-nums", delta > 0 ? "text-success" : "text-muted-foreground")}>
                       {delta > 0 ? `+${formatPlays(delta)} plays desde o último registro` : "Sem variação desde o último registro"}
@@ -349,15 +450,39 @@ export function LogPrintDialog({
               ) : (
                 <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 space-y-2">
                   <div className="flex items-center gap-2 text-xs text-destructive font-medium">
-                    <AlertCircle className="h-3.5 w-3.5" /> {aiError ?? "Não foi possível ler o número"}
+                    <AlertCircle className="h-3.5 w-3.5" /> {aiError ?? "Não foi possível ler os prints"}
                   </div>
-                  <div className="text-xs text-muted-foreground">Digite o valor manualmente:</div>
+                  <div className="text-xs text-muted-foreground">Digite o total manualmente:</div>
+                </div>
+              )}
+
+              {/* Detalhes por playlist */}
+              {matches.length > 0 && (
+                <div className="rounded-lg border border-border bg-muted/30 max-h-56 overflow-y-auto divide-y divide-border">
+                  {matches.map((m, i) => (
+                    <div key={i} className="px-3 py-2 flex items-center justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs font-medium truncate">{m.playlist_name}</div>
+                        {!m.found && (
+                          <div className="text-[10px] text-muted-foreground">
+                            Não encontrada nos prints
+                          </div>
+                        )}
+                      </div>
+                      <div className={cn(
+                        "text-sm font-semibold tabular-nums shrink-0",
+                        m.found ? "text-foreground" : "text-muted-foreground"
+                      )}>
+                        {m.found && m.plays != null ? formatPlays(m.plays) : "—"}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
 
               {extracted == null && (
                 <div className="space-y-1.5">
-                  <Label htmlFor="manual-count">Valor manual</Label>
+                  <Label htmlFor="manual-count">Valor total manual</Label>
                   <Input
                     id="manual-count"
                     type="number"
@@ -390,20 +515,30 @@ export function LogPrintDialog({
             <div className="space-y-3">
               {isBaseline ? (
                 <>
+                  {matches.length > 0 ? (
+                    <div className="rounded-lg border border-success/30 bg-success/10 px-4 py-3">
+                      <div className="text-xs text-success font-medium mb-1">
+                        Playlists detectadas pela IA
+                      </div>
+                      <div className="text-xs text-muted-foreground leading-snug">
+                        {matches.length} playlist(s) serão registradas como baseline.
+                        Você pode adicionar outras manualmente abaixo se faltou alguma.
+                      </div>
+                    </div>
+                  ) : null}
                   <div className="space-y-1.5">
                     <Label htmlFor="baseline-playlists" className="text-sm font-medium">
-                      Playlists existentes agora
+                      Playlists adicionais (opcional)
                     </Label>
                     <Textarea
                       id="baseline-playlists"
-                      placeholder="Cole os nomes das playlists que aparecem no print"
+                      placeholder="Cole nomes de playlists que a IA não pegou"
                       value={playlistsRaw}
                       onChange={(e) => setPlaylistsRaw(e.target.value)}
-                      rows={5}
+                      rows={4}
                     />
                     <p className="text-xs text-muted-foreground leading-snug">
-                      Essas são as playlists "baseline" — novas que aparecerem depois serão
-                      marcadas automaticamente. Uma por linha ou separadas por vírgula.
+                      Uma por linha ou separadas por vírgula.
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -420,10 +555,10 @@ export function LogPrintDialog({
                   <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 flex items-center justify-between gap-3">
                     <div>
                       <div className="text-sm font-medium">
-                        Apareceu alguma playlist nova neste print?
+                        Apareceu alguma playlist nova nestes prints?
                       </div>
                       <div className="text-xs text-muted-foreground leading-snug mt-0.5">
-                        Compare com as playlists já registradas no deal
+                        Que ainda não está cadastrada no deal
                       </div>
                     </div>
                     <Switch
@@ -465,7 +600,7 @@ export function LogPrintDialog({
             <div className="space-y-3">
               <div className="rounded-lg bg-muted/40 border border-border px-4 py-3">
                 <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                  {isBaseline ? "Plays iniciais" : "Plays a registrar"}
+                  {isBaseline ? "Plays iniciais (total)" : "Plays a registrar (total)"}
                 </div>
                 <div className="text-2xl font-semibold tabular-nums text-foreground">
                   {hasFinal ? formatPlays(finalValue as number) : "—"}
@@ -475,10 +610,16 @@ export function LogPrintDialog({
                     {delta > 0 ? `+${formatPlays(delta)} plays desde o último registro` : "Sem variação desde o último registro"}
                   </div>
                 )}
-                {(isBaseline || hasNewPlaylists) && parsePlaylistNames(playlistsRaw).length > 0 && (
+                {isBaseline && matches.length > 0 && (
                   <div className="text-xs text-muted-foreground mt-1">
-                    {parsePlaylistNames(playlistsRaw).length} playlist(s){" "}
-                    {isBaseline ? "iniciais" : "novas"}
+                    {matches.length} playlist(s) detectada(s) pela IA
+                    {parsePlaylistNames(playlistsRaw).length > 0 &&
+                      ` · +${parsePlaylistNames(playlistsRaw).length} manual(is)`}
+                  </div>
+                )}
+                {!isBaseline && hasNewPlaylists && parsePlaylistNames(playlistsRaw).length > 0 && (
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {parsePlaylistNames(playlistsRaw).length} playlist(s) novas
                   </div>
                 )}
               </div>
