@@ -13,8 +13,25 @@ export type CuratorDeal = {
   baseline_plays: number;
   cost: number | null;
   started_at: string;
+  ends_at: string | null;
   public_token: string;
   created_at: string;
+};
+
+export type CuratorDealSong = {
+  id: string;
+  deal_id: string;
+  song_spotify_url: string;
+  spotify_track_id: string | null;
+  song_name: string;
+  song_artist: string | null;
+  song_cover_url: string | null;
+  daily_goal: number;
+  target_plays: number | null;
+  baseline_plays: number;
+  position: number;
+  created_at: string;
+  updated_at: string;
 };
 
 export type CuratorPlaylist = {
