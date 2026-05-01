@@ -7,10 +7,23 @@ import type {
   CuratorDeal,
   CuratorDealLog,
   CuratorPlaylist,
+  CuratorDealSong,
 } from "@/lib/curatorDealsUtils";
+
+export type DealSongInput = {
+  song_spotify_url: string;
+  spotify_track_id?: string | null;
+  song_name: string;
+  song_artist?: string | null;
+  song_cover_url?: string | null;
+  daily_goal?: number;
+  target_plays?: number | null;
+  position?: number;
+};
 
 export type NewCuratorDealInput = {
   curator_name: string;
+  // música primária (legacy/compat) — primeira da lista
   song_spotify_url: string;
   song_name: string;
   song_artist?: string | null;
@@ -19,6 +32,10 @@ export type NewCuratorDealInput = {
   daily_goal?: number;
   baseline_plays?: number;
   cost?: number | null;
+  started_at?: string | null;
+  ends_at?: string | null;
+  // lista de músicas adicionais (além da primária)
+  extra_songs?: DealSongInput[];
 };
 
 export type NewCuratorLogInput = {
@@ -27,6 +44,7 @@ export type NewCuratorLogInput = {
   note?: string | null;
   is_baseline?: boolean;
   print_urls?: string[];
+  song_id?: string | null;
 };
 
 export type BaselinePlaylistInput = {
