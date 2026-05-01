@@ -19,6 +19,7 @@ const items = [
   { title: "Criação", url: "/criacao", icon: Sparkles },
   { title: "Operação", url: "/operacao", icon: Activity },
   { title: "Performance", url: "/performance", icon: BarChart3 },
+  { title: "Playlist Deals", url: "/playlist-deals", icon: ListMusic },
   { title: "Sistema", url: "/sistema", icon: Monitor },
   { title: "Landing Page", url: "/landing", icon: Globe },
   { title: "Configurações", url: "/configuracoes", icon: Settings, adminOnly: true },
