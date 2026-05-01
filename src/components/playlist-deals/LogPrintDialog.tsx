@@ -40,6 +40,7 @@ export interface LogPrintDialogProps {
     dealId: string,
     plays: number,
     baselinePlaylists: BaselinePlaylistInput[],
+    printUrls?: string[],
   ) => Promise<void>;
   addNewPlaylist?: (
     dealId: string,
