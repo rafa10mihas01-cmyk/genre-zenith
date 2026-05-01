@@ -29,6 +29,12 @@ const schema = z.object({
     .number({ invalid_type_error: "Informe um número" })
     .int("Use um valor inteiro")
     .min(1, "Meta deve ser pelo menos 1"),
+  daily_goal: z.coerce
+    .number({ invalid_type_error: "Informe um número" })
+    .int("Use um valor inteiro")
+    .min(0, "Não pode ser negativo")
+    .optional()
+    .or(z.nan().transform(() => undefined)),
   cost: z.coerce
     .number({ invalid_type_error: "Informe um número" })
     .min(0, "Não pode ser negativo")
@@ -72,6 +78,7 @@ export function NewDealDialog({ open, onOpenChange }: NewDealDialogProps) {
       curator_name: "",
       song_spotify_url: "",
       target_plays: undefined as unknown as number,
+      daily_goal: undefined,
       cost: undefined,
     },
   });
@@ -120,6 +127,10 @@ export function NewDealDialog({ open, onOpenChange }: NewDealDialogProps) {
         song_artist: meta.artist,
         song_cover_url: meta.thumbnail_url,
         target_plays: values.target_plays,
+        daily_goal:
+          typeof values.daily_goal === "number" && !Number.isNaN(values.daily_goal)
+            ? values.daily_goal
+            : 0,
         baseline_plays: 0,
         cost:
           typeof values.cost === "number" && !Number.isNaN(values.cost)
@@ -255,7 +266,7 @@ export function NewDealDialog({ open, onOpenChange }: NewDealDialogProps) {
                 name="target_plays"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Meta de plays</FormLabel>
+                    <FormLabel>Combinado total (plays)</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
@@ -273,9 +284,30 @@ export function NewDealDialog({ open, onOpenChange }: NewDealDialogProps) {
 
               <FormField
                 control={form.control}
-                name="cost"
+                name="daily_goal"
                 render={({ field }) => (
                   <FormItem>
+                    <FormLabel>Combinado por dia (plays)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        inputMode="numeric"
+                        min={0}
+                        placeholder="ex: 800"
+                        {...field}
+                        value={field.value ?? ""}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="cost"
+                render={({ field }) => (
+                  <FormItem className="sm:col-span-2">
                     <FormLabel>Custo do deal (R$)</FormLabel>
                     <FormControl>
                       <Input
