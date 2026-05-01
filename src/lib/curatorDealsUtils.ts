@@ -43,6 +43,8 @@ export type CuratorDealStats = {
   vel: number | null;
   eta: number | null;
   latestPlays: number;
+  todayPlays: number;
+  todayPct: number;
   hasBaseline: boolean;
   newPlaylists: CuratorPlaylist[];
   baselinePlaylists: CuratorPlaylist[];
@@ -106,12 +108,29 @@ export function computeCuratorStats(
   const newPlaylists = dealPlaylists.filter((p) => !p.is_baseline);
   const baselinePlaylists = dealPlaylists.filter((p) => p.is_baseline);
 
+  // todayPlays = ganho desde o último registro de OUTRO dia (ou baseline).
+  // Útil pra mostrar "hoje x / combinado_diário".
+  let todayPlays = 0;
+  if (nonBaselineLogs.length > 0) {
+    const todayKey = new Date().toISOString().slice(0, 10);
+    const lastBefore = [...dealLogs]
+      .reverse()
+      .find((l) => l.created_at.slice(0, 10) !== todayKey);
+    const lastBeforeVal = lastBefore ? Number(lastBefore.total_plays) : baseline;
+    todayPlays = Math.max(0, latestPlays - lastBeforeVal);
+  }
+  const dailyGoal = Number((deal as unknown as { daily_goal?: number }).daily_goal ?? 0);
+  const todayPct =
+    dailyGoal > 0 ? Math.min(100, Math.round((todayPlays / dailyGoal) * 100)) : 0;
+
   return {
     earned,
     pct,
     vel,
     eta,
     latestPlays,
+    todayPlays,
+    todayPct,
     hasBaseline,
     newPlaylists,
     baselinePlaylists,
