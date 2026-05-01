@@ -8,6 +8,8 @@ import { usePlaylistDeals } from "@/hooks/usePlaylistDeals";
 import { computeStats } from "@/lib/playlistDealsUtils";
 import { DealCard } from "@/components/playlist-deals/DealCard";
 import { NewDealDialog } from "@/components/playlist-deals/NewDealDialog";
+import { LogPrintDialog } from "@/components/playlist-deals/LogPrintDialog";
+import type { PlaylistDeal } from "@/lib/playlistDealsUtils";
 
 type DealsTab = "active" | "done" | "all";
 
@@ -20,7 +22,8 @@ const TABS: { id: DealsTab; label: string }[] = [
 export default function PlaylistDeals() {
   const [tab, setTab] = usePersistedState<DealsTab>("playlistdeals:tab", "active");
   const [newOpen, setNewOpen] = useState(false);
-  const { deals, logs, loading, deleteDeal } = usePlaylistDeals();
+  const [logDeal, setLogDeal] = useState<PlaylistDeal | null>(null);
+  const { deals, logs, loading, deleteDeal, addLog } = usePlaylistDeals();
 
   const filtered = useMemo(() => {
     if (tab === "all") return deals;
@@ -118,7 +121,7 @@ export default function PlaylistDeals() {
                 key={d.id}
                 deal={d}
                 logs={logs}
-                onLog={handleLog}
+                onLog={(deal) => setLogDeal(deal)}
                 onDetail={handleDetail}
                 onDelete={(deal) => handleDelete(deal.id)}
               />
@@ -128,6 +131,14 @@ export default function PlaylistDeals() {
       </div>
 
       <NewDealDialog open={newOpen} onOpenChange={setNewOpen} />
+
+      <LogPrintDialog
+        open={logDeal !== null}
+        deal={logDeal}
+        allLogs={logs}
+        onClose={() => setLogDeal(null)}
+        addLog={addLog}
+      />
     </div>
   );
 }
