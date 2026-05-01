@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { ImagePlus, Loader2, Sparkles, CheckCircle2, AlertCircle, X, Info } from "lucide-react";
+import { ImagePlus, Loader2, Sparkles, CheckCircle2, AlertCircle, X, Info, FileText, FileImage, ClipboardPaste } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { buildDealPdf, uploadDealPdf, type ParsedDealData } from "@/lib/dealPdf";
 
 import {
   computeCuratorStats,
@@ -94,6 +95,7 @@ export function LogPrintDialog({
   addBaseline,
 }: LogPrintDialogProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [mode, setMode] = useState<"image" | "paste">("image");
   const [step, setStep] = useState<Step>("upload");
   const [items, setItems] = useState<PrintItem[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
@@ -102,6 +104,10 @@ export function LogPrintDialog({
   const [aiError, setAiError] = useState<string | null>(null);
   const [note, setNote] = useState<string>("");
   const [saving, setSaving] = useState(false);
+
+  // Paste mode
+  const [pasteText, setPasteText] = useState<string>("");
+  const [parsedPaste, setParsedPaste] = useState<ParsedDealData | null>(null);
 
   // Playlists step (baseline OR new playlists in update mode)
   const [playlistsRaw, setPlaylistsRaw] = useState<string>("");
