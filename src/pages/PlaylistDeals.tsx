@@ -126,6 +126,8 @@ export default function PlaylistDeals() {
           </div>
         )}
       </div>
+
+      <NewDealDialog open={newOpen} onOpenChange={setNewOpen} />
     </div>
   );
 }
