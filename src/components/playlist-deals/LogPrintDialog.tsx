@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { ImagePlus, Loader2, Sparkles, CheckCircle2, AlertCircle, X } from "lucide-react";
+import { ImagePlus, Loader2, Sparkles, CheckCircle2, AlertCircle, X, Info } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -8,20 +8,41 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 
-import { computeStats, type PlaylistDeal, type PlaylistDealLog } from "@/lib/playlistDealsUtils";
-import type { NewLogInput } from "@/hooks/usePlaylistDeals";
+import {
+  computeCuratorStats,
+  type CuratorDeal,
+  type CuratorDealLog,
+  type CuratorPlaylist,
+} from "@/lib/curatorDealsUtils";
+import type {
+  NewCuratorLogInput,
+  BaselinePlaylistInput,
+} from "@/hooks/useCuratorDeals";
 
-type Step = "upload" | "analyzing" | "review" | "confirm";
+type Step = "upload" | "analyzing" | "review" | "playlists" | "confirm";
 
 export interface LogPrintDialogProps {
   open: boolean;
-  deal: PlaylistDeal | null;
-  allLogs: PlaylistDealLog[];
+  deal: CuratorDeal | null;
+  allLogs: CuratorDealLog[];
+  allPlaylists: CuratorPlaylist[];
   onClose: () => void;
-  addLog: (input: NewLogInput) => Promise<PlaylistDealLog>;
+  addLog: (input: NewCuratorLogInput) => Promise<CuratorDealLog>;
+  addBaseline: (
+    dealId: string,
+    plays: number,
+    baselinePlaylists: BaselinePlaylistInput[],
+  ) => Promise<void>;
+  addNewPlaylist?: (
+    dealId: string,
+    spotifyUrl: string,
+    playlistName: string,
+  ) => Promise<void>;
 }
 
 function formatPlays(n: number): string {
@@ -40,7 +61,22 @@ async function fileToBase64(file: File): Promise<string> {
   return btoa(binary);
 }
 
-export function LogPrintDialog({ open, deal, allLogs, onClose, addLog }: LogPrintDialogProps) {
+function parsePlaylistNames(raw: string): string[] {
+  return raw
+    .split(/[\n,]/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+}
+
+export function LogPrintDialog({
+  open,
+  deal,
+  allLogs,
+  allPlaylists,
+  onClose,
+  addLog,
+  addBaseline,
+}: LogPrintDialogProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState<Step>("upload");
   const [file, setFile] = useState<File | null>(null);
@@ -51,10 +87,16 @@ export function LogPrintDialog({ open, deal, allLogs, onClose, addLog }: LogPrin
   const [note, setNote] = useState<string>("");
   const [saving, setSaving] = useState(false);
 
-  const stats = deal ? computeStats(deal, allLogs) : null;
+  // Playlists step (baseline OR new playlists in update mode)
+  const [playlistsRaw, setPlaylistsRaw] = useState<string>("");
+  const [hasNewPlaylists, setHasNewPlaylists] = useState(false);
+
+  const stats = deal ? computeCuratorStats(deal, allLogs, allPlaylists) : null;
+  const isBaseline = stats ? !stats.hasBaseline : false;
+
   const finalValue = extracted ?? (manualValue ? parseInt(manualValue.replace(/\D/g, ""), 10) : NaN);
   const hasFinal = Number.isFinite(finalValue) && finalValue > 0;
-  const delta = hasFinal && stats ? finalValue - stats.latestCount : 0;
+  const delta = hasFinal && stats ? finalValue - stats.latestPlays : 0;
 
   const reset = () => {
     setStep("upload");
@@ -66,6 +108,8 @@ export function LogPrintDialog({ open, deal, allLogs, onClose, addLog }: LogPrin
     setAiError(null);
     setNote("");
     setSaving(false);
+    setPlaylistsRaw("");
+    setHasNewPlaylists(false);
   };
 
   const handleClose = () => {
@@ -115,7 +159,9 @@ export function LogPrintDialog({ open, deal, allLogs, onClose, addLog }: LogPrin
     }
   };
 
-  const handleConfirm = () => setStep("confirm");
+  // Em baseline mode, "Confirmar" leva à etapa de playlists.
+  // Em update mode, "Confirmar" leva ao toggle/lista de playlists novas.
+  const handleConfirmCount = () => setStep("playlists");
 
   const handleCorrect = () => {
     setManualValue(extracted != null ? String(extracted) : "");
@@ -126,14 +172,47 @@ export function LogPrintDialog({ open, deal, allLogs, onClose, addLog }: LogPrin
     if (!deal || !hasFinal) return;
     setSaving(true);
     try {
-      await addLog({
-        deal_id: deal.id,
-        count: finalValue as number,
-        note: note.trim() || null,
-      });
-      toast.success("Registro salvo", {
-        description: stats ? `+${formatPlays(Math.max(0, delta))} plays desde o último registro` : undefined,
-      });
+      if (isBaseline) {
+        const names = parsePlaylistNames(playlistsRaw);
+        const baselinePlaylists: BaselinePlaylistInput[] = names.map((name) => ({
+          spotify_url: "",
+          playlist_name: name,
+          followers: null,
+        }));
+        await addBaseline(deal.id, finalValue as number, baselinePlaylists);
+        toast.success("Baseline registrada", {
+          description: `${formatPlays(finalValue as number)} plays · ${names.length} playlist(s) iniciais`,
+        });
+      } else {
+        await addLog({
+          deal_id: deal.id,
+          total_plays: finalValue as number,
+          note: note.trim() || null,
+        });
+
+        if (hasNewPlaylists) {
+          const names = parsePlaylistNames(playlistsRaw);
+          if (names.length > 0) {
+            const rows = names.map((name) => ({
+              deal_id: deal.id,
+              spotify_url: "",
+              playlist_name: name,
+              followers: null,
+              is_baseline: false,
+            }));
+            const { error: plErr } = await supabase
+              .from("curator_playlists")
+              .insert(rows);
+            if (plErr) throw plErr;
+          }
+        }
+
+        toast.success("Registro salvo", {
+          description: stats
+            ? `+${formatPlays(Math.max(0, delta))} plays desde o último registro`
+            : undefined,
+        });
+      }
       handleClose();
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -149,16 +228,34 @@ export function LogPrintDialog({ open, deal, allLogs, onClose, addLog }: LogPrin
     <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="truncate">{deal.song}</DialogTitle>
-          <DialogDescription className="truncate">{deal.playlist}</DialogDescription>
+          <DialogTitle className="truncate">{deal.song_name}</DialogTitle>
+          <DialogDescription className="truncate">
+            {deal.song_artist ?? deal.curator_name}
+          </DialogDescription>
         </DialogHeader>
 
-        {/* Resumo */}
-        {stats && (
+        {/* Banner Baseline */}
+        {isBaseline && (
+          <div className="rounded-lg border border-primary/30 bg-primary/10 px-4 py-3 flex gap-3">
+            <Info className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+            <div className="space-y-0.5">
+              <div className="text-sm font-medium text-foreground">
+                Primeiro passo: envie o print inicial
+              </div>
+              <div className="text-xs text-muted-foreground leading-snug">
+                Este print define os plays e playlists existentes antes do deal começar.
+                Obrigatório antes de qualquer atualização.
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Resumo (somente em update mode) */}
+        {!isBaseline && stats && (
           <div className="rounded-lg bg-muted/40 border border-border px-4 py-3 flex items-center justify-between gap-3">
             <div>
               <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Último registro</div>
-              <div className="text-base font-semibold tabular-nums">{formatPlays(stats.latestCount)}</div>
+              <div className="text-base font-semibold tabular-nums">{formatPlays(stats.latestPlays)}</div>
             </div>
             <div className="text-right">
               <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Progresso</div>
@@ -243,7 +340,7 @@ export function LogPrintDialog({ open, deal, allLogs, onClose, addLog }: LogPrin
                   <div className="text-2xl font-semibold tabular-nums text-foreground">
                     {formatPlays(extracted)}
                   </div>
-                  {stats && (
+                  {!isBaseline && stats && (
                     <div className={cn("text-xs tabular-nums", delta > 0 ? "text-success" : "text-muted-foreground")}>
                       {delta > 0 ? `+${formatPlays(delta)} plays desde o último registro` : "Sem variação desde o último registro"}
                     </div>
@@ -270,26 +367,17 @@ export function LogPrintDialog({ open, deal, allLogs, onClose, addLog }: LogPrin
                     value={manualValue}
                     onChange={(e) => setManualValue(e.target.value)}
                   />
-                  {hasFinal && stats && (
-                    <div className={cn("text-xs tabular-nums", delta > 0 ? "text-success" : "text-muted-foreground")}>
-                      {delta > 0 ? `+${formatPlays(delta)} plays desde o último registro` : "Sem variação desde o último registro"}
-                    </div>
-                  )}
                 </div>
               )}
 
               <div className="flex items-center gap-2">
                 {extracted != null ? (
                   <>
-                    <Button className="flex-1" onClick={handleConfirm}>Confirmar</Button>
+                    <Button className="flex-1" onClick={handleConfirmCount}>Confirmar</Button>
                     <Button variant="outline" className="flex-1" onClick={handleCorrect}>Corrigir</Button>
                   </>
                 ) : (
-                  <Button
-                    className="flex-1"
-                    onClick={handleConfirm}
-                    disabled={!hasFinal}
-                  >
+                  <Button className="flex-1" onClick={handleConfirmCount} disabled={!hasFinal}>
                     Continuar
                   </Button>
                 )}
@@ -297,31 +385,116 @@ export function LogPrintDialog({ open, deal, allLogs, onClose, addLog }: LogPrin
             </div>
           )}
 
+          {/* STEP PLAYLISTS — baseline OR new playlists toggle */}
+          {step === "playlists" && (
+            <div className="space-y-3">
+              {isBaseline ? (
+                <>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="baseline-playlists" className="text-sm font-medium">
+                      Playlists existentes agora
+                    </Label>
+                    <Textarea
+                      id="baseline-playlists"
+                      placeholder="Cole os nomes das playlists que aparecem no print"
+                      value={playlistsRaw}
+                      onChange={(e) => setPlaylistsRaw(e.target.value)}
+                      rows={5}
+                    />
+                    <p className="text-xs text-muted-foreground leading-snug">
+                      Essas são as playlists "baseline" — novas que aparecerem depois serão
+                      marcadas automaticamente. Uma por linha ou separadas por vírgula.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" className="flex-1" onClick={() => setStep("review")}>
+                      Voltar
+                    </Button>
+                    <Button className="flex-1" onClick={() => setStep("confirm")}>
+                      Continuar
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-medium">
+                        Apareceu alguma playlist nova neste print?
+                      </div>
+                      <div className="text-xs text-muted-foreground leading-snug mt-0.5">
+                        Compare com as playlists já registradas no deal
+                      </div>
+                    </div>
+                    <Switch
+                      checked={hasNewPlaylists}
+                      onCheckedChange={setHasNewPlaylists}
+                    />
+                  </div>
+
+                  {hasNewPlaylists && (
+                    <div className="space-y-1.5">
+                      <Label htmlFor="new-playlists" className="text-sm font-medium">
+                        Nomes das playlists novas
+                      </Label>
+                      <Textarea
+                        id="new-playlists"
+                        placeholder="Uma por linha ou separadas por vírgula"
+                        value={playlistsRaw}
+                        onChange={(e) => setPlaylistsRaw(e.target.value)}
+                        rows={4}
+                      />
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" className="flex-1" onClick={() => setStep("review")}>
+                      Voltar
+                    </Button>
+                    <Button className="flex-1" onClick={() => setStep("confirm")}>
+                      Continuar
+                    </Button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
           {/* STEP CONFIRM */}
           {step === "confirm" && (
             <div className="space-y-3">
               <div className="rounded-lg bg-muted/40 border border-border px-4 py-3">
-                <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Plays a registrar</div>
+                <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                  {isBaseline ? "Plays iniciais" : "Plays a registrar"}
+                </div>
                 <div className="text-2xl font-semibold tabular-nums text-foreground">
                   {hasFinal ? formatPlays(finalValue as number) : "—"}
                 </div>
-                {stats && hasFinal && (
+                {!isBaseline && stats && hasFinal && (
                   <div className={cn("text-xs tabular-nums mt-0.5", delta > 0 ? "text-success" : "text-muted-foreground")}>
                     {delta > 0 ? `+${formatPlays(delta)} plays desde o último registro` : "Sem variação desde o último registro"}
                   </div>
                 )}
+                {(isBaseline || hasNewPlaylists) && parsePlaylistNames(playlistsRaw).length > 0 && (
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {parsePlaylistNames(playlistsRaw).length} playlist(s){" "}
+                    {isBaseline ? "iniciais" : "novas"}
+                  </div>
+                )}
               </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="note">Observação (opcional)</Label>
-                <Input
-                  id="note"
-                  placeholder="Observação opcional"
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  maxLength={300}
-                />
-              </div>
+              {!isBaseline && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="note">Observação (opcional)</Label>
+                  <Input
+                    id="note"
+                    placeholder="Observação opcional"
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    maxLength={300}
+                  />
+                </div>
+              )}
 
               <Button
                 className="w-full"
@@ -329,7 +502,7 @@ export function LogPrintDialog({ open, deal, allLogs, onClose, addLog }: LogPrin
                 disabled={saving || !hasFinal}
               >
                 {saving && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
-                Salvar registro
+                {isBaseline ? "Salvar baseline" : "Salvar registro"}
               </Button>
             </div>
           )}

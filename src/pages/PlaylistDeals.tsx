@@ -134,8 +134,12 @@ export default function PlaylistDeals() {
         open={false}
         deal={null}
         allLogs={[]}
+        allPlaylists={[]}
         onClose={() => setLogDeal(null)}
         addLog={async () => {
+          throw new Error("Migração pendente");
+        }}
+        addBaseline={async () => {
           throw new Error("Migração pendente");
         }}
       />
