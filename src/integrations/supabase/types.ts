@@ -183,6 +183,7 @@ export type Database = {
           id: string
           is_baseline: boolean
           note: string | null
+          print_urls: string[]
           total_plays: number
         }
         Insert: {
@@ -191,6 +192,7 @@ export type Database = {
           id?: string
           is_baseline?: boolean
           note?: string | null
+          print_urls?: string[]
           total_plays: number
         }
         Update: {
@@ -199,6 +201,7 @@ export type Database = {
           id?: string
           is_baseline?: boolean
           note?: string | null
+          print_urls?: string[]
           total_plays?: number
         }
         Relationships: [

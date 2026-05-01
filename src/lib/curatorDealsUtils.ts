@@ -33,6 +33,7 @@ export type CuratorDealLog = {
   note: string | null;
   is_baseline: boolean;
   created_at: string;
+  print_urls?: string[] | null;
 };
 
 export type CuratorDealStats = {

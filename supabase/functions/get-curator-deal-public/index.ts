@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
         .order("added_at", { ascending: true }),
       admin
         .from("curator_deal_logs")
-        .select("id, deal_id, total_plays, note, is_baseline, created_at")
+        .select("id, deal_id, total_plays, note, is_baseline, created_at, print_urls")
         .eq("deal_id", deal.id)
         .order("created_at", { ascending: true }),
     ]);
