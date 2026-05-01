@@ -484,7 +484,7 @@ export default function CuratorPage() {
                         Inicial
                       </Badge>
                     ) : (
-                      <Badge className="bg-success text-success-foreground hover:bg-success/90 shrink-0 text-[10px] px-1.5 py-0 h-4 border-0">
+                      <Badge className="bg-primary text-black hover:bg-primary/90 shrink-0 text-[10px] px-1.5 py-0 h-4 border-0 font-semibold">
                         Nova
                       </Badge>
                     )}
