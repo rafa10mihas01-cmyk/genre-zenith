@@ -229,9 +229,66 @@ export function LogPrintDialog({
     setExtracted(null);
   };
 
+  const handleAnalyzePaste = async () => {
+    if (!deal || pasteText.trim().length < 5) {
+      toast.error("Cole o texto antes de analisar");
+      return;
+    }
+    setStep("analyzing");
+    setAiError(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("parse-deal-paste", {
+        body: { text: pasteText },
+      });
+      if (error) throw new Error(error.message);
+      if (!data?.ok) {
+        setAiError(data?.error ?? "Falha ao processar texto");
+        setStep("review");
+        return;
+      }
+      const parsed: ParsedDealData = {
+        song_name: data.song_name ?? null,
+        song_artist: data.song_artist ?? null,
+        total_plays: data.total_plays ?? null,
+        playlists: Array.isArray(data.playlists) ? data.playlists : [],
+      };
+      setParsedPaste(parsed);
+      // Alimenta os mesmos campos usados no review/save
+      const m: Match[] = parsed.playlists.map((p, i) => ({
+        playlist_name: p.name,
+        plays: p.plays,
+        found: p.plays !== null,
+        source_index: i,
+      }));
+      setMatches(m);
+      const total = parsed.total_plays;
+      setExtracted(Number.isFinite(total ?? NaN) && (total ?? 0) > 0 ? (total as number) : null);
+      setStep("review");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setAiError(msg);
+      setStep("review");
+    }
+  };
+
   const uploadPrintsToStorage = async (): Promise<string[]> => {
-    if (!deal || items.length === 0) return [];
+    if (!deal) return [];
     const urls: string[] = [];
+
+    // Modo paste: gera PDF a partir do texto estruturado
+    if (mode === "paste" && parsedPaste) {
+      const blob = buildDealPdf(parsedPaste, {
+        dealId: deal.id,
+        curatorName: deal.curator_name,
+        songFallbackName: deal.song_name,
+        isBaseline,
+      });
+      const url = await uploadDealPdf(blob, deal.id);
+      urls.push(url);
+      return urls;
+    }
+
+    // Modo image: upload das imagens
     for (let i = 0; i < items.length; i++) {
       const it = items[i];
       const ext = (it.file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
