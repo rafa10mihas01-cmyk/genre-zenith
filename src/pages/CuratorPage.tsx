@@ -200,7 +200,7 @@ export default function CuratorPage() {
 
   return (
     <div className="min-h-screen bg-background px-3 sm:px-4 py-5 sm:py-7">
-      <div className="max-w-md mx-auto space-y-4">
+      <div className="max-w-xl mx-auto space-y-4">
         {/* Logo NexEngine */}
         <div className="flex justify-center pb-1">
           <NexEngineLogo variant="dark" size={28} />
