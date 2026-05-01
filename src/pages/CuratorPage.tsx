@@ -369,7 +369,7 @@ export default function CuratorPage() {
                 Nenhuma playlist adicionada ainda
               </p>
             ) : (
-              <ul className="space-y-1.5">
+              <ul className="space-y-1.5 max-h-[280px] overflow-y-auto pr-1 -mr-1 scroll-smooth">
                 {playlists.map((p) => (
                   <li
                     key={p.id}
