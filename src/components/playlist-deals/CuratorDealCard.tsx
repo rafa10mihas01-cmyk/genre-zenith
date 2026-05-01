@@ -1,7 +1,9 @@
-import { Camera, History, Trash2, Link2, Zap, Clock, AlertTriangle } from "lucide-react";
+import { Camera, History, Trash2, Link2, Zap, Clock, AlertTriangle, Calendar as CalendarIcon, Music2 } from "lucide-react";
 import { toast } from "sonner";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
-import type { CuratorDeal, CuratorDealLog, CuratorPlaylist } from "@/lib/curatorDealsUtils";
+import type { CuratorDeal, CuratorDealLog, CuratorDealSong, CuratorPlaylist } from "@/lib/curatorDealsUtils";
 import { computeCuratorStats } from "@/lib/curatorDealsUtils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,6 +15,7 @@ export interface CuratorDealCardProps {
   deal: CuratorDeal;
   logs: CuratorDealLog[];
   playlists: CuratorPlaylist[];
+  songs?: CuratorDealSong[];
   onLog: (deal: CuratorDeal) => void;
   onDetail: (deal: CuratorDeal) => void;
   onDelete: (deal: CuratorDeal) => void;
