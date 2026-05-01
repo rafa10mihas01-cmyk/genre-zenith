@@ -325,7 +325,7 @@ export default function CuratorPage() {
                     className={
                       "text-[10px] px-1.5 py-0 h-4 border-0 " +
                       (isDone
-                        ? "bg-success text-success-foreground hover:bg-success/90"
+                        ? "bg-primary text-black hover:bg-primary/90 font-semibold"
                         : !stats.hasBaseline
                         ? "bg-warning/15 text-warning hover:bg-warning/15"
                         : "bg-primary/15 text-primary hover:bg-primary/15")
