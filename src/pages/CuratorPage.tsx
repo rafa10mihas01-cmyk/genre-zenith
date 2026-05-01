@@ -288,7 +288,7 @@ export default function CuratorPage() {
   const isDone = stats.target > 0 && stats.earned >= stats.target;
 
   return (
-    <div className="min-h-screen bg-background px-3 sm:px-4 py-5 sm:py-7">
+    <div className="min-h-screen bg-black px-3 sm:px-4 py-5 sm:py-7">
       <div className="max-w-xl mx-auto space-y-4">
         {/* Logo NexEngine */}
         <div className="flex justify-center pb-1">
