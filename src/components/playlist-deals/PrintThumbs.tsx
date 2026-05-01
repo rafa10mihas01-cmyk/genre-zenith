@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { FileText } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
@@ -6,6 +7,10 @@ export interface PrintThumbsProps {
   urls: string[];
   className?: string;
   size?: "sm" | "md";
+}
+
+function isPdf(url: string): boolean {
+  return /\.pdf(\?|$)/i.test(url);
 }
 
 export function PrintThumbs({ urls, className, size = "md" }: PrintThumbsProps) {
@@ -18,25 +23,42 @@ export function PrintThumbs({ urls, className, size = "md" }: PrintThumbsProps) 
   return (
     <>
       <div className={cn("flex flex-wrap gap-1.5", className)}>
-        {urls.map((u) => (
-          <button
-            key={u}
-            type="button"
-            onClick={() => setOpen(u)}
-            className={cn(
-              dim,
-              "rounded-md overflow-hidden ring-1 ring-border bg-muted/40 hover:ring-primary/60 transition-all shrink-0",
-            )}
-            title="Ampliar print"
-          >
-            <img
-              src={u}
-              alt="Print"
-              loading="lazy"
-              className="h-full w-full object-cover"
-            />
-          </button>
-        ))}
+        {urls.map((u) => {
+          const pdf = isPdf(u);
+          return (
+            <a
+              key={u}
+              href={pdf ? u : undefined}
+              target={pdf ? "_blank" : undefined}
+              rel={pdf ? "noreferrer" : undefined}
+              onClick={(e) => {
+                if (!pdf) {
+                  e.preventDefault();
+                  setOpen(u);
+                }
+              }}
+              className={cn(
+                dim,
+                "rounded-md overflow-hidden ring-1 ring-border bg-muted/40 hover:ring-primary/60 transition-all shrink-0 inline-flex items-center justify-center cursor-pointer",
+              )}
+              title={pdf ? "Abrir PDF" : "Ampliar print"}
+            >
+              {pdf ? (
+                <div className="flex flex-col items-center justify-center text-primary">
+                  <FileText className="h-4 w-4" />
+                  <span className="text-[8px] font-semibold mt-0.5">PDF</span>
+                </div>
+              ) : (
+                <img
+                  src={u}
+                  alt="Print"
+                  loading="lazy"
+                  className="h-full w-full object-cover"
+                />
+              )}
+            </a>
+          );
+        })}
       </div>
 
       <Dialog open={open !== null} onOpenChange={(v) => { if (!v) setOpen(null); }}>

@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { ImagePlus, Loader2, Sparkles, CheckCircle2, AlertCircle, X, Info } from "lucide-react";
+import { ImagePlus, Loader2, Sparkles, CheckCircle2, AlertCircle, X, Info, FileText, FileImage, ClipboardPaste } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { buildDealPdf, uploadDealPdf, type ParsedDealData } from "@/lib/dealPdf";
 
 import {
   computeCuratorStats,
@@ -94,6 +95,7 @@ export function LogPrintDialog({
   addBaseline,
 }: LogPrintDialogProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [mode, setMode] = useState<"image" | "paste">("image");
   const [step, setStep] = useState<Step>("upload");
   const [items, setItems] = useState<PrintItem[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
@@ -102,6 +104,10 @@ export function LogPrintDialog({
   const [aiError, setAiError] = useState<string | null>(null);
   const [note, setNote] = useState<string>("");
   const [saving, setSaving] = useState(false);
+
+  // Paste mode
+  const [pasteText, setPasteText] = useState<string>("");
+  const [parsedPaste, setParsedPaste] = useState<ParsedDealData | null>(null);
 
   // Playlists step (baseline OR new playlists in update mode)
   const [playlistsRaw, setPlaylistsRaw] = useState<string>("");
@@ -126,6 +132,9 @@ export function LogPrintDialog({
     setSaving(false);
     setPlaylistsRaw("");
     setHasNewPlaylists(false);
+    setMode("image");
+    setPasteText("");
+    setParsedPaste(null);
   };
 
   const handleClose = () => {
@@ -220,9 +229,66 @@ export function LogPrintDialog({
     setExtracted(null);
   };
 
+  const handleAnalyzePaste = async () => {
+    if (!deal || pasteText.trim().length < 5) {
+      toast.error("Cole o texto antes de analisar");
+      return;
+    }
+    setStep("analyzing");
+    setAiError(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("parse-deal-paste", {
+        body: { text: pasteText },
+      });
+      if (error) throw new Error(error.message);
+      if (!data?.ok) {
+        setAiError(data?.error ?? "Falha ao processar texto");
+        setStep("review");
+        return;
+      }
+      const parsed: ParsedDealData = {
+        song_name: data.song_name ?? null,
+        song_artist: data.song_artist ?? null,
+        total_plays: data.total_plays ?? null,
+        playlists: Array.isArray(data.playlists) ? data.playlists : [],
+      };
+      setParsedPaste(parsed);
+      // Alimenta os mesmos campos usados no review/save
+      const m: Match[] = parsed.playlists.map((p, i) => ({
+        playlist_name: p.name,
+        plays: p.plays,
+        found: p.plays !== null,
+        source_index: i,
+      }));
+      setMatches(m);
+      const total = parsed.total_plays;
+      setExtracted(Number.isFinite(total ?? NaN) && (total ?? 0) > 0 ? (total as number) : null);
+      setStep("review");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setAiError(msg);
+      setStep("review");
+    }
+  };
+
   const uploadPrintsToStorage = async (): Promise<string[]> => {
-    if (!deal || items.length === 0) return [];
+    if (!deal) return [];
     const urls: string[] = [];
+
+    // Modo paste: gera PDF a partir do texto estruturado
+    if (mode === "paste" && parsedPaste) {
+      const blob = buildDealPdf(parsedPaste, {
+        dealId: deal.id,
+        curatorName: deal.curator_name,
+        songFallbackName: deal.song_name,
+        isBaseline,
+      });
+      const url = await uploadDealPdf(blob, deal.id);
+      urls.push(url);
+      return urls;
+    }
+
+    // Modo image: upload das imagens
     for (let i = 0; i < items.length; i++) {
       const it = items[i];
       const ext = (it.file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
@@ -355,78 +421,139 @@ export function LogPrintDialog({
           {/* STEP UPLOAD */}
           {step === "upload" && (
             <>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                multiple
-                className="hidden"
-                onChange={(e) => {
-                  handlePickFiles(e.target.files);
-                  // permite re-selecionar os mesmos arquivos
-                  e.target.value = "";
-                }}
-              />
-              {items.length === 0 ? (
+              {/* Seletor de modo */}
+              <div className="grid grid-cols-2 gap-2 p-1 bg-muted/30 rounded-lg border border-border">
                 <button
                   type="button"
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={() => setMode("image")}
                   className={cn(
-                    "w-full rounded-xl border-2 border-dashed border-border",
-                    "bg-elevated/40 hover:bg-elevated transition-colors",
-                    "py-10 px-4 flex flex-col items-center gap-2 text-center",
+                    "h-9 rounded-md text-xs font-medium inline-flex items-center justify-center gap-1.5 transition-colors",
+                    mode === "image"
+                      ? "bg-card text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  <div className="h-10 w-10 rounded-full bg-elevated border border-border flex items-center justify-center">
-                    <ImagePlus className="h-5 w-5 text-primary" />
-                  </div>
-                  <div className="text-sm font-medium text-foreground">Toque para enviar os prints</div>
-                  <div className="text-xs text-muted-foreground">
-                    Até {MAX_FILES} imagens · Spotify for Artists
-                  </div>
+                  <FileImage className="h-3.5 w-3.5" /> Print
                 </button>
-              ) : (
-                <div className="space-y-3">
-                  <div className="grid grid-cols-3 gap-2">
-                    {items.map((it, idx) => (
-                      <div key={idx} className="relative">
-                        <img
-                          src={it.url}
-                          alt={`Print ${idx + 1}`}
-                          className="w-full aspect-square object-cover rounded-md border border-border"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeItem(idx)}
-                          className="absolute top-1 right-1 h-6 w-6 rounded-full bg-background/90 border border-border flex items-center justify-center hover:bg-background"
-                          aria-label="Remover imagem"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                        <div className="absolute bottom-1 left-1 h-5 px-1.5 rounded bg-background/80 border border-border text-[10px] tabular-nums flex items-center">
-                          {idx + 1}
-                        </div>
+                <button
+                  type="button"
+                  onClick={() => setMode("paste")}
+                  className={cn(
+                    "h-9 rounded-md text-xs font-medium inline-flex items-center justify-center gap-1.5 transition-colors",
+                    mode === "paste"
+                      ? "bg-card text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <ClipboardPaste className="h-3.5 w-3.5" /> Colar texto
+                </button>
+              </div>
+
+              {/* MODO IMAGEM */}
+              {mode === "image" && (
+                <>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => {
+                      handlePickFiles(e.target.files);
+                      e.target.value = "";
+                    }}
+                  />
+                  {items.length === 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className={cn(
+                        "w-full rounded-xl border-2 border-dashed border-border",
+                        "bg-elevated/40 hover:bg-elevated transition-colors",
+                        "py-10 px-4 flex flex-col items-center gap-2 text-center",
+                      )}
+                    >
+                      <div className="h-10 w-10 rounded-full bg-elevated border border-border flex items-center justify-center">
+                        <ImagePlus className="h-5 w-5 text-primary" />
                       </div>
-                    ))}
-                    {items.length < MAX_FILES && (
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="aspect-square rounded-md border-2 border-dashed border-border bg-elevated/40 hover:bg-elevated flex flex-col items-center justify-center gap-1 text-muted-foreground"
-                      >
-                        <ImagePlus className="h-4 w-4" />
-                        <span className="text-[10px]">Adicionar</span>
-                      </button>
-                    )}
+                      <div className="text-sm font-medium text-foreground">Toque para enviar os prints</div>
+                      <div className="text-xs text-muted-foreground">
+                        Até {MAX_FILES} imagens · Spotify for Artists
+                      </div>
+                    </button>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-3 gap-2">
+                        {items.map((it, idx) => (
+                          <div key={idx} className="relative">
+                            <img
+                              src={it.url}
+                              alt={`Print ${idx + 1}`}
+                              className="w-full aspect-square object-cover rounded-md border border-border"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeItem(idx)}
+                              className="absolute top-1 right-1 h-6 w-6 rounded-full bg-background/90 border border-border flex items-center justify-center hover:bg-background"
+                              aria-label="Remover imagem"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                            <div className="absolute bottom-1 left-1 h-5 px-1.5 rounded bg-background/80 border border-border text-[10px] tabular-nums flex items-center">
+                              {idx + 1}
+                            </div>
+                          </div>
+                        ))}
+                        {items.length < MAX_FILES && (
+                          <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            className="aspect-square rounded-md border-2 border-dashed border-border bg-elevated/40 hover:bg-elevated flex flex-col items-center justify-center gap-1 text-muted-foreground"
+                          >
+                            <ImagePlus className="h-4 w-4" />
+                            <span className="text-[10px]">Adicionar</span>
+                          </button>
+                        )}
+                      </div>
+                      <div className="text-xs text-muted-foreground text-center">
+                        {items.length} / {MAX_FILES} prints
+                      </div>
+                      <Button className="w-full gap-1.5" onClick={handleAnalyze}>
+                        <Sparkles className="h-4 w-4" />
+                        {isBaseline
+                          ? "Analisar prints iniciais"
+                          : "Analisar e casar com playlists"}
+                      </Button>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* MODO PASTE */}
+              {mode === "paste" && (
+                <div className="space-y-3">
+                  <div className="rounded-lg border border-border bg-muted/30 px-3 py-2.5 flex gap-2">
+                    <Info className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
+                    <div className="text-[11px] text-muted-foreground leading-snug">
+                      Cole o conteúdo direto do Spotify for Artists (playlists, plays, total). A IA limpa o lixo, organiza os números e gera um PDF que fica anexado ao registro.
+                    </div>
                   </div>
-                  <div className="text-xs text-muted-foreground text-center">
-                    {items.length} / {MAX_FILES} prints
+                  <Textarea
+                    value={pasteText}
+                    onChange={(e) => setPasteText(e.target.value)}
+                    placeholder="Cole aqui o texto bruto — pode estar bagunçado, com cabeçalhos, emojis, etc."
+                    className="min-h-[180px] font-mono text-xs"
+                  />
+                  <div className="text-[11px] text-muted-foreground text-right">
+                    {pasteText.length.toLocaleString("pt-BR")} caracteres
                   </div>
-                  <Button className="w-full gap-1.5" onClick={handleAnalyze}>
+                  <Button
+                    className="w-full gap-1.5"
+                    onClick={handleAnalyzePaste}
+                    disabled={pasteText.trim().length < 5}
+                  >
                     <Sparkles className="h-4 w-4" />
-                    {isBaseline
-                      ? "Analisar prints iniciais"
-                      : "Analisar e casar com playlists"}
+                    Estruturar com IA e gerar PDF
                   </Button>
                 </div>
               )}
@@ -438,10 +565,14 @@ export function LogPrintDialog({
             <div className="py-8 flex flex-col items-center gap-3 text-center">
               <Loader2 className="h-6 w-6 text-primary animate-spin" />
               <div className="text-sm font-medium">
-                Lendo {items.length} print{items.length === 1 ? "" : "s"} com IA...
+                {mode === "paste"
+                  ? "Estruturando texto com IA..."
+                  : `Lendo ${items.length} print${items.length === 1 ? "" : "s"} com IA...`}
               </div>
               <div className="text-xs text-muted-foreground">
-                {isBaseline
+                {mode === "paste"
+                  ? "Limpando lixo, identificando playlists e plays"
+                  : isBaseline
                   ? "Identificando playlists e plays iniciais"
                   : "Casando cada playlist do deal com os prints"}
               </div>
