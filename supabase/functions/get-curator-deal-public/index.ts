@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
     const { data: deal, error: dealErr } = await admin
       .from("curator_deals")
       .select(
-        "id, curator_name, song_spotify_url, song_name, song_artist, song_cover_url, target_plays, baseline_plays, cost, started_at, public_token, created_at",
+        "id, curator_name, song_spotify_url, song_name, song_artist, song_cover_url, target_plays, daily_goal, baseline_plays, cost, started_at, public_token, created_at",
       )
       .eq("public_token", token)
       .maybeSingle();

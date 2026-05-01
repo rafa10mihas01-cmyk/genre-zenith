@@ -16,6 +16,7 @@ export type NewCuratorDealInput = {
   song_artist?: string | null;
   song_cover_url?: string | null;
   target_plays: number;
+  daily_goal?: number;
   baseline_plays?: number;
   cost?: number | null;
 };
@@ -107,6 +108,7 @@ export function useCuratorDeals() {
           song_artist: input.song_artist ?? null,
           song_cover_url: input.song_cover_url ?? null,
           target_plays: input.target_plays,
+          daily_goal: input.daily_goal ?? 0,
           baseline_plays: input.baseline_plays ?? 0,
           cost: input.cost ?? null,
         })

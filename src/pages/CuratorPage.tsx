@@ -32,6 +32,7 @@ type Deal = {
   song_artist: string | null;
   song_cover_url: string | null;
   target_plays: number | null;
+  daily_goal: number | null;
   baseline_plays: number | null;
   cost: number | null;
   started_at: string | null;
@@ -122,11 +123,14 @@ export default function CuratorPage() {
     if (!deal) {
       return {
         target: 0,
+        dailyGoal: 0,
         baseline: 0,
         latest: 0,
         earned: 0,
         remaining: 0,
         pct: 0,
+        todayPlays: 0,
+        todayPct: 0,
         vel: null as number | null,
         eta: null as number | null,
         hasBaseline: false,
@@ -134,6 +138,7 @@ export default function CuratorPage() {
       };
     }
     const target = Number(deal.target_plays ?? 0);
+    const dailyGoal = Number(deal.daily_goal ?? 0);
     const baseline = Number(deal.baseline_plays ?? 0);
     const sorted = [...logs].sort(
       (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
@@ -144,6 +149,18 @@ export default function CuratorPage() {
     const earned = nonBase.length > 0 ? Math.max(0, latest - baseline) : 0;
     const remaining = Math.max(0, target - earned);
     const pct = target > 0 ? Math.min(100, Math.round((earned / target) * 100)) : 0;
+
+    let todayPlays = 0;
+    if (nonBase.length > 0) {
+      const todayKey = new Date().toISOString().slice(0, 10);
+      const lastBefore = [...sorted]
+        .reverse()
+        .find((l) => l.created_at.slice(0, 10) !== todayKey);
+      const lastBeforeVal = lastBefore ? Number(lastBefore.total_plays) : baseline;
+      todayPlays = Math.max(0, latest - lastBeforeVal);
+    }
+    const todayPct =
+      dailyGoal > 0 ? Math.min(100, Math.round((todayPlays / dailyGoal) * 100)) : 0;
 
     let vel: number | null = null;
     if (nonBase.length >= 2) {
@@ -168,7 +185,7 @@ export default function CuratorPage() {
         )
       : 0;
 
-    return { target, baseline, latest, earned, remaining, pct, vel, eta, hasBaseline, daysRunning };
+    return { target, dailyGoal, baseline, latest, earned, remaining, pct, todayPlays, todayPct, vel, eta, hasBaseline, daysRunning };
   }, [deal, logs]);
 
   const handleAdd = async () => {
@@ -354,11 +371,41 @@ export default function CuratorPage() {
           </CardContent>
         </Card>
 
+        {/* Plays hoje vs combinado diário */}
+        {stats.hasBaseline && (
+          <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
+            <CardContent className="p-4 grid grid-cols-2 gap-3">
+              <div>
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
+                  Plays totais hoje
+                </div>
+                <div className="text-2xl font-semibold tabular-nums text-foreground">
+                  {formatPlays(stats.latest)}
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
+                  Hoje / combinado
+                </div>
+                <div className="text-2xl font-semibold tabular-nums">
+                  <span className="text-primary">{formatPlays(stats.todayPlays)}</span>
+                  <span className="text-muted-foreground text-base"> / {formatPlays(stats.dailyGoal)}</span>
+                </div>
+                {stats.dailyGoal > 0 && (
+                  <div className="text-[11px] text-muted-foreground mt-0.5">
+                    {stats.todayPct}% do combinado do dia
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Progresso da campanha */}
         <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
           <CardContent className="p-4 space-y-3">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold">Progresso</h2>
+              <h2 className="text-sm font-semibold">Combinado total</h2>
               <span className="text-lg font-semibold tabular-nums">{stats.pct}%</span>
             </div>
 
@@ -369,7 +416,7 @@ export default function CuratorPage() {
                   {formatPlays(stats.earned)} plays
                 </span>
                 <span className="text-muted-foreground">
-                  meta: {formatPlays(stats.target)}
+                  combinado: {formatPlays(stats.target)}
                 </span>
               </div>
             </div>

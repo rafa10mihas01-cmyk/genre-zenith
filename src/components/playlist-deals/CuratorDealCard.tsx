@@ -30,8 +30,9 @@ export function CuratorDealCard({
   deal, logs, playlists, onLog, onDetail, onDelete,
 }: CuratorDealCardProps) {
   const stats = computeCuratorStats(deal, logs, playlists);
-  const { earned, pct, vel, eta, hasBaseline, newPlaylists } = stats;
+  const { earned, pct, vel, eta, latestPlays, todayPlays, todayPct, hasBaseline, newPlaylists } = stats;
   const target = Number(deal.target_plays ?? 0);
+  const dailyGoal = Number(deal.daily_goal ?? 0);
   const isDone = target > 0 && earned >= target;
 
   const statusLabel = !hasBaseline
@@ -98,8 +99,38 @@ export function CuratorDealCard({
           </div>
         )}
 
-        {/* Progresso */}
+        {/* KPIs: total atual da música + hoje */}
+        {hasBaseline && (
+          <div className="grid grid-cols-2 gap-2">
+            <div className="rounded-lg bg-muted/40 border border-border px-3 py-2.5">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                Plays totais hoje
+              </div>
+              <div className="text-base font-semibold tabular-nums text-foreground">
+                {formatPlays(latestPlays)}
+              </div>
+            </div>
+            <div className="rounded-lg bg-muted/40 border border-border px-3 py-2.5">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                Hoje / combinado
+              </div>
+              <div className="text-base font-semibold tabular-nums">
+                <span className="text-primary">{formatPlays(todayPlays)}</span>
+                <span className="text-muted-foreground"> / {formatPlays(dailyGoal)}</span>
+                {dailyGoal > 0 && (
+                  <span className="text-[11px] text-muted-foreground ml-1">({todayPct}%)</span>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Progresso total */}
         <div className="space-y-1.5">
+          <div className="flex items-center justify-between text-[11px] uppercase tracking-wider text-muted-foreground">
+            <span>Combinado total</span>
+            <span className="tabular-nums normal-case">{pct}%</span>
+          </div>
           <Progress value={pct} className="h-2" />
           <div className="flex items-center justify-between text-xs text-muted-foreground tabular-nums">
             <span>
@@ -107,7 +138,6 @@ export function CuratorDealCard({
               {" / "}
               {formatPlays(target)} plays
             </span>
-            <span className="font-medium text-foreground">{pct}%</span>
           </div>
         </div>
 
