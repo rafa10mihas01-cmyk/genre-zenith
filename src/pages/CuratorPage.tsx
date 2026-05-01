@@ -199,41 +199,53 @@ export default function CuratorPage() {
   const isDone = stats.target > 0 && stats.earned >= stats.target;
 
   return (
-    <div className="min-h-screen bg-background px-4 py-8">
-      <div className="max-w-xl mx-auto space-y-5">
+    <div className="min-h-screen bg-background px-3 sm:px-4 py-5 sm:py-7">
+      <div className="max-w-md mx-auto space-y-4">
+        {/* Logo NexEngine */}
+        <div className="flex justify-center pb-1">
+          <NexEngineLogo variant="dark" size={28} />
+        </div>
+
         {/* Header — música + curador */}
-        <Card>
-          <CardContent className="p-5">
-            <div className="flex items-center gap-4">
+        <Card className="shadow-lg shadow-black/40 ring-1 ring-white/[0.06] border-white/[0.04]">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
               {deal.song_cover_url ? (
                 <img
                   src={deal.song_cover_url}
                   alt={deal.song_name}
-                  className="w-20 h-20 rounded-lg object-cover shrink-0"
+                  className="w-14 h-14 rounded-md object-cover shrink-0"
                 />
               ) : (
-                <div className="w-20 h-20 rounded-lg bg-muted shrink-0" />
+                <div className="w-14 h-14 rounded-md bg-muted shrink-0" />
               )}
               <div className="flex-1 min-w-0">
-                <h1 className="text-xl font-semibold truncate">{deal.song_name}</h1>
+                <h1 className="text-base font-semibold truncate leading-tight">
+                  {deal.song_name}
+                </h1>
                 {deal.song_artist && (
-                  <p className="text-muted-foreground truncate text-sm">{deal.song_artist}</p>
+                  <p className="text-muted-foreground truncate text-xs mt-0.5">
+                    {deal.song_artist}
+                  </p>
                 )}
-                <div className="flex items-center gap-2 mt-2 flex-wrap">
-                  <Badge variant="secondary">Curador: {deal.curator_name}</Badge>
+                <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
+                    {deal.curator_name}
+                  </Badge>
                   <Badge
                     className={
-                      isDone
+                      "text-[10px] px-1.5 py-0 h-4 border-0 " +
+                      (isDone
                         ? "bg-success text-success-foreground hover:bg-success/90"
                         : !stats.hasBaseline
-                        ? "bg-warning/15 text-warning hover:bg-warning/15 border-0"
-                        : "bg-primary/15 text-primary hover:bg-primary/15 border-0"
+                        ? "bg-warning/15 text-warning hover:bg-warning/15"
+                        : "bg-primary/15 text-primary hover:bg-primary/15")
                     }
                   >
                     {isDone
                       ? "Concluído"
                       : !stats.hasBaseline
-                      ? "Aguardando início"
+                      ? "Aguardando"
                       : "Em progresso"}
                   </Badge>
                 </div>
@@ -243,25 +255,25 @@ export default function CuratorPage() {
               href={deal.song_spotify_url}
               target="_blank"
               rel="noreferrer"
-              className="mt-4 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+              className="mt-3 inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
             >
-              <ExternalLink className="h-3 w-3" />
-              Abrir música no Spotify
+              <ExternalLink className="h-2.5 w-2.5" />
+              Abrir no Spotify
             </a>
           </CardContent>
         </Card>
 
         {/* Progresso da campanha */}
-        <Card>
-          <CardContent className="p-5 space-y-4">
+        <Card className="shadow-lg shadow-black/40 ring-1 ring-white/[0.06] border-white/[0.04]">
+          <CardContent className="p-4 space-y-3">
             <div className="flex items-center justify-between">
-              <h2 className="text-base font-semibold">Progresso da campanha</h2>
-              <span className="text-2xl font-semibold tabular-nums">{stats.pct}%</span>
+              <h2 className="text-sm font-semibold">Progresso</h2>
+              <span className="text-lg font-semibold tabular-nums">{stats.pct}%</span>
             </div>
 
-            <div className="space-y-2">
-              <Progress value={stats.pct} className="h-2.5" />
-              <div className="flex items-center justify-between text-sm tabular-nums">
+            <div className="space-y-1.5">
+              <Progress value={stats.pct} className="h-2" />
+              <div className="flex items-center justify-between text-xs tabular-nums">
                 <span className="text-foreground font-medium">
                   {formatPlays(stats.earned)} plays
                 </span>
@@ -274,55 +286,55 @@ export default function CuratorPage() {
             <Separator />
 
             {/* Grid de KPIs */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-md border border-white/[0.04] bg-card/50 p-3">
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
-                  <Target className="h-3 w-3" />
+            <div className="grid grid-cols-2 gap-2">
+              <div className="rounded-md bg-muted/30 ring-1 ring-white/[0.04] p-2.5">
+                <div className="flex items-center gap-1 text-[10px] text-muted-foreground mb-0.5 uppercase tracking-wide">
+                  <Target className="h-2.5 w-2.5" />
                   Faltam
                 </div>
-                <div className="text-base font-semibold tabular-nums">
-                  {formatPlays(stats.remaining)} plays
+                <div className="text-sm font-semibold tabular-nums">
+                  {formatPlays(stats.remaining)}
                 </div>
               </div>
 
-              <div className="rounded-md border border-white/[0.04] bg-card/50 p-3">
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
-                  <Clock className="h-3 w-3" />
-                  Tempo decorrido
+              <div className="rounded-md bg-muted/30 ring-1 ring-white/[0.04] p-2.5">
+                <div className="flex items-center gap-1 text-[10px] text-muted-foreground mb-0.5 uppercase tracking-wide">
+                  <Clock className="h-2.5 w-2.5" />
+                  Decorrido
                 </div>
-                <div className="text-base font-semibold tabular-nums">
+                <div className="text-sm font-semibold tabular-nums">
                   {stats.daysRunning} {stats.daysRunning === 1 ? "dia" : "dias"}
                 </div>
               </div>
 
-              <div className="rounded-md border border-white/[0.04] bg-card/50 p-3">
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
-                  <Zap className="h-3 w-3 text-primary" />
+              <div className="rounded-md bg-muted/30 ring-1 ring-white/[0.04] p-2.5">
+                <div className="flex items-center gap-1 text-[10px] text-muted-foreground mb-0.5 uppercase tracking-wide">
+                  <Zap className="h-2.5 w-2.5 text-primary" />
                   Velocidade
                 </div>
-                <div className="text-base font-semibold tabular-nums">
+                <div className="text-sm font-semibold tabular-nums">
                   {stats.vel !== null ? `${formatPlays(stats.vel)}/dia` : "—"}
                 </div>
               </div>
 
-              <div className="rounded-md border border-white/[0.04] bg-card/50 p-3">
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
-                  <TrendingUp className="h-3 w-3" />
+              <div className="rounded-md bg-muted/30 ring-1 ring-white/[0.04] p-2.5">
+                <div className="flex items-center gap-1 text-[10px] text-muted-foreground mb-0.5 uppercase tracking-wide">
+                  <TrendingUp className="h-2.5 w-2.5" />
                   ETA
                 </div>
-                <div className="text-base font-semibold tabular-nums">
+                <div className="text-sm font-semibold tabular-nums">
                   {stats.eta === null
                     ? "—"
                     : stats.eta === 0
-                    ? "Concluído"
-                    : `~${stats.eta} ${stats.eta === 1 ? "dia" : "dias"}`}
+                    ? "✓"
+                    : `~${stats.eta}d`}
                 </div>
               </div>
             </div>
 
             <Separator />
 
-            <div className="grid grid-cols-2 gap-3 text-xs">
+            <div className="grid grid-cols-2 gap-2 text-[11px]">
               <div>
                 <div className="text-muted-foreground">Início</div>
                 <div className="text-foreground font-medium mt-0.5">
@@ -339,49 +351,51 @@ export default function CuratorPage() {
           </CardContent>
         </Card>
 
-        {/* Suas playlists com performance */}
-        <Card>
-          <CardContent className="p-5 space-y-3">
+        {/* Suas playlists */}
+        <Card className="shadow-lg shadow-black/40 ring-1 ring-white/[0.06] border-white/[0.04]">
+          <CardContent className="p-4 space-y-2.5">
             <div className="flex items-center justify-between">
-              <h2 className="text-base font-semibold inline-flex items-center gap-2">
-                <ListMusic className="h-4 w-4" />
+              <h2 className="text-sm font-semibold inline-flex items-center gap-1.5">
+                <ListMusic className="h-3.5 w-3.5" />
                 Suas playlists
               </h2>
-              <span className="text-xs text-muted-foreground">
-                {playlists.length} no total
+              <span className="text-[10px] text-muted-foreground">
+                {playlists.length} {playlists.length === 1 ? "playlist" : "playlists"}
               </span>
             </div>
 
             {playlists.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">
+              <p className="text-xs text-muted-foreground py-3 text-center">
                 Nenhuma playlist adicionada ainda
               </p>
             ) : (
-              <ul className="space-y-2">
+              <ul className="space-y-1.5">
                 {playlists.map((p) => (
                   <li
                     key={p.id}
-                    className="flex items-center justify-between gap-2 rounded-md border border-white/[0.04] p-3"
+                    className="flex items-center justify-between gap-2 rounded-md bg-muted/30 ring-1 ring-white/[0.04] px-2.5 py-2"
                   >
                     <div className="min-w-0 flex-1">
                       <a
                         href={p.spotify_url}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-sm font-medium truncate hover:underline block"
+                        className="text-xs font-medium truncate hover:underline block"
                       >
                         {p.playlist_name}
                       </a>
                       {p.followers !== null && (
-                        <div className="text-xs text-muted-foreground mt-0.5 tabular-nums">
+                        <div className="text-[10px] text-muted-foreground mt-0.5 tabular-nums">
                           {formatPlays(p.followers)} seguidores
                         </div>
                       )}
                     </div>
                     {p.is_baseline ? (
-                      <Badge variant="secondary" className="shrink-0">Inicial</Badge>
+                      <Badge variant="secondary" className="shrink-0 text-[10px] px-1.5 py-0 h-4">
+                        Inicial
+                      </Badge>
                     ) : (
-                      <Badge className="bg-success text-success-foreground hover:bg-success/90 shrink-0">
+                      <Badge className="bg-success text-success-foreground hover:bg-success/90 shrink-0 text-[10px] px-1.5 py-0 h-4 border-0">
                         Nova
                       </Badge>
                     )}
@@ -393,12 +407,12 @@ export default function CuratorPage() {
         </Card>
 
         {/* Adicionar playlist */}
-        <Card>
-          <CardContent className="p-5 space-y-3">
+        <Card className="shadow-lg shadow-black/40 ring-1 ring-white/[0.06] border-white/[0.04]">
+          <CardContent className="p-4 space-y-2.5">
             <div>
-              <h2 className="text-base font-semibold">Adicionar playlist</h2>
-              <p className="text-xs text-muted-foreground mt-1">
-                Cole o link de uma playlist do Spotify onde a música foi adicionada
+              <h2 className="text-sm font-semibold">Adicionar playlist</h2>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Cole o link da playlist do Spotify
               </p>
             </div>
             <Input
@@ -406,17 +420,26 @@ export default function CuratorPage() {
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               disabled={submitting}
+              className="h-9 text-sm"
             />
             <Button
               onClick={handleAdd}
               disabled={submitting || !url.trim()}
-              className="w-full"
+              className="w-full h-9"
+              size="sm"
             >
-              {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              {submitting && <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" />}
               Adicionar
             </Button>
           </CardContent>
         </Card>
+
+        {/* Footer minimalista */}
+        <div className="text-center pt-2 pb-4">
+          <p className="text-[10px] text-muted-foreground">
+            Powered by NexEngine
+          </p>
+        </div>
       </div>
     </div>
   );
