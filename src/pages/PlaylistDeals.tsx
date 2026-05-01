@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { ListMusic, Plus } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { usePersistedState } from "@/hooks/usePersistedState";
 import { usePlaylistDeals } from "@/hooks/usePlaylistDeals";
 import { computeStats } from "@/lib/playlistDealsUtils";
 import { DealCard } from "@/components/playlist-deals/DealCard";
+import { NewDealDialog } from "@/components/playlist-deals/NewDealDialog";
 
 type DealsTab = "active" | "done" | "all";
 
@@ -18,6 +19,7 @@ const TABS: { id: DealsTab; label: string }[] = [
 
 export default function PlaylistDeals() {
   const [tab, setTab] = usePersistedState<DealsTab>("playlistdeals:tab", "active");
+  const [newOpen, setNewOpen] = useState(false);
   const { deals, logs, loading, deleteDeal } = usePlaylistDeals();
 
   const filtered = useMemo(() => {
@@ -29,10 +31,7 @@ export default function PlaylistDeals() {
     });
   }, [deals, logs, tab]);
 
-  const handleNew = () => {
-    // Modal de criação será adicionado em iteração seguinte.
-    console.log("[PlaylistDeals] novo deal — UI de formulário pendente");
-  };
+  const handleNew = () => setNewOpen(true);
 
   const handleLog = () => {
     console.log("[PlaylistDeals] enviar print — UI de upload pendente");
