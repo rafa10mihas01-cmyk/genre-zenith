@@ -565,10 +565,14 @@ export function LogPrintDialog({
             <div className="py-8 flex flex-col items-center gap-3 text-center">
               <Loader2 className="h-6 w-6 text-primary animate-spin" />
               <div className="text-sm font-medium">
-                Lendo {items.length} print{items.length === 1 ? "" : "s"} com IA...
+                {mode === "paste"
+                  ? "Estruturando texto com IA..."
+                  : `Lendo ${items.length} print${items.length === 1 ? "" : "s"} com IA...`}
               </div>
               <div className="text-xs text-muted-foreground">
-                {isBaseline
+                {mode === "paste"
+                  ? "Limpando lixo, identificando playlists e plays"
+                  : isBaseline
                   ? "Identificando playlists e plays iniciais"
                   : "Casando cada playlist do deal com os prints"}
               </div>
