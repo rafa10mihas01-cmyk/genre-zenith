@@ -10,7 +10,8 @@ function jr(p: unknown, status = 200) {
   });
 }
 
-const SPOTIFY_URL_RE = /spotify\.com\/(track|playlist|album)\/([A-Za-z0-9]+)/;
+// Aceita URLs com prefixo de localização (ex: /intl-pt/) e variações de host
+const SPOTIFY_URL_RE = /spotify\.com\/(?:intl-[a-z]{2}\/)?(track|playlist|album)\/([A-Za-z0-9]+)/i;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
