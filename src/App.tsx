@@ -20,6 +20,7 @@ import Criacao from "./pages/Criacao";
 import Operacao from "./pages/Operacao";
 import Performance from "./pages/Performance";
 import PlaylistDeals from "./pages/PlaylistDeals";
+import CuratorPage from "./pages/CuratorPage";
 import Sistema from "./pages/Sistema";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
