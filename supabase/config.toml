@@ -5,3 +5,12 @@ verify_jwt = false
 
 [functions.spotify-public-auth]
 verify_jwt = false
+
+[functions.fetch-spotify-meta]
+verify_jwt = false
+
+[functions.get-curator-deal-public]
+verify_jwt = false
+
+[functions.add-curator-playlist]
+verify_jwt = false
