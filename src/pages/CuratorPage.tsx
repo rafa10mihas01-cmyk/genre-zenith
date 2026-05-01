@@ -371,11 +371,41 @@ export default function CuratorPage() {
           </CardContent>
         </Card>
 
+        {/* Plays hoje vs combinado diário */}
+        {stats.hasBaseline && (
+          <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
+            <CardContent className="p-4 grid grid-cols-2 gap-3">
+              <div>
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
+                  Plays totais hoje
+                </div>
+                <div className="text-2xl font-semibold tabular-nums text-foreground">
+                  {formatPlays(stats.latest)}
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
+                  Hoje / combinado
+                </div>
+                <div className="text-2xl font-semibold tabular-nums">
+                  <span className="text-primary">{formatPlays(stats.todayPlays)}</span>
+                  <span className="text-muted-foreground text-base"> / {formatPlays(stats.dailyGoal)}</span>
+                </div>
+                {stats.dailyGoal > 0 && (
+                  <div className="text-[11px] text-muted-foreground mt-0.5">
+                    {stats.todayPct}% do combinado do dia
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Progresso da campanha */}
         <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
           <CardContent className="p-4 space-y-3">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold">Progresso</h2>
+              <h2 className="text-sm font-semibold">Combinado total</h2>
               <span className="text-lg font-semibold tabular-nums">{stats.pct}%</span>
             </div>
 
@@ -386,7 +416,7 @@ export default function CuratorPage() {
                   {formatPlays(stats.earned)} plays
                 </span>
                 <span className="text-muted-foreground">
-                  meta: {formatPlays(stats.target)}
+                  combinado: {formatPlays(stats.target)}
                 </span>
               </div>
             </div>
