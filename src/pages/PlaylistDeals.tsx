@@ -128,26 +128,21 @@ export default function PlaylistDeals() {
 
       <NewDealDialog open={newOpen} onOpenChange={setNewOpen} />
 
-      {/* LogPrintDialog e DealHistorySheet serão migrados para o novo
-          modelo nos próximos prompts; por ora mantemos fechados. */}
       <LogPrintDialog
-        open={false}
-        deal={null}
-        allLogs={[]}
-        allPlaylists={[]}
+        open={logDeal !== null}
+        deal={logDeal}
+        allLogs={logs}
+        allPlaylists={playlists}
         onClose={() => setLogDeal(null)}
-        addLog={async () => {
-          throw new Error("Migração pendente");
-        }}
-        addBaseline={async () => {
-          throw new Error("Migração pendente");
-        }}
+        addLog={addLog}
+        addBaseline={addBaseline}
       />
 
       <DealHistorySheet
-        open={false}
-        deal={null}
-        allLogs={[]}
+        open={detailDeal !== null}
+        deal={detailDeal}
+        allLogs={logs}
+        allPlaylists={playlists}
         onClose={() => setDetailDeal(null)}
       />
     </div>
