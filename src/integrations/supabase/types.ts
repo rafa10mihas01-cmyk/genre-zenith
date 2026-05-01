@@ -220,6 +220,7 @@ export type Database = {
           cost: number | null
           created_at: string
           curator_name: string
+          daily_goal: number
           id: string
           public_token: string
           song_artist: string | null
@@ -235,6 +236,7 @@ export type Database = {
           cost?: number | null
           created_at?: string
           curator_name: string
+          daily_goal?: number
           id?: string
           public_token?: string
           song_artist?: string | null
@@ -250,6 +252,7 @@ export type Database = {
           cost?: number | null
           created_at?: string
           curator_name?: string
+          daily_goal?: number
           id?: string
           public_token?: string
           song_artist?: string | null
