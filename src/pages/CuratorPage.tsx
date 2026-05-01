@@ -1,7 +1,18 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Loader2, Target, Clock, Zap, TrendingUp, ListMusic, ExternalLink } from "lucide-react";
+import {
+  Loader2,
+  Target,
+  Clock,
+  Zap,
+  TrendingUp,
+  ListMusic,
+  ExternalLink,
+  Upload,
+  Download,
+} from "lucide-react";
 import { toast } from "sonner";
+import * as XLSX from "xlsx";
 
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
