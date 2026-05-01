@@ -256,6 +256,7 @@ export function useCuratorDeals() {
     deals,
     logs,
     playlists,
+    songs,
     loading,
     error,
     addDeal,
