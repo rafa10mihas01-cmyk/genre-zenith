@@ -4,13 +4,12 @@ import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { usePersistedState } from "@/hooks/usePersistedState";
-import { usePlaylistDeals } from "@/hooks/usePlaylistDeals";
-import { computeStats } from "@/lib/playlistDealsUtils";
-import { DealCard } from "@/components/playlist-deals/DealCard";
+import { useCuratorDeals } from "@/hooks/useCuratorDeals";
+import { computeCuratorStats, type CuratorDeal } from "@/lib/curatorDealsUtils";
+import { CuratorDealCard } from "@/components/playlist-deals/CuratorDealCard";
 import { NewDealDialog } from "@/components/playlist-deals/NewDealDialog";
 import { LogPrintDialog } from "@/components/playlist-deals/LogPrintDialog";
 import { DealHistorySheet } from "@/components/playlist-deals/DealHistorySheet";
-import type { PlaylistDeal } from "@/lib/playlistDealsUtils";
 
 type DealsTab = "active" | "done" | "all";
 
@@ -23,28 +22,22 @@ const TABS: { id: DealsTab; label: string }[] = [
 export default function PlaylistDeals() {
   const [tab, setTab] = usePersistedState<DealsTab>("playlistdeals:tab", "active");
   const [newOpen, setNewOpen] = useState(false);
-  const [logDeal, setLogDeal] = useState<PlaylistDeal | null>(null);
-  const [detailDeal, setDetailDeal] = useState<PlaylistDeal | null>(null);
-  const { deals, logs, loading, deleteDeal, addLog } = usePlaylistDeals();
+  const [logDeal, setLogDeal] = useState<CuratorDeal | null>(null);
+  const [detailDeal, setDetailDeal] = useState<CuratorDeal | null>(null);
+
+  const { deals, logs, playlists, loading, deleteDeal } = useCuratorDeals();
 
   const filtered = useMemo(() => {
     if (tab === "all") return deals;
     return deals.filter((d) => {
-      const { earned } = computeStats(d, logs);
-      const isDone = Number(d.target ?? 0) > 0 && earned >= Number(d.target);
+      const { earned } = computeCuratorStats(d, logs, playlists);
+      const isDone =
+        Number(d.target_plays ?? 0) > 0 && earned >= Number(d.target_plays);
       return tab === "done" ? isDone : !isDone;
     });
-  }, [deals, logs, tab]);
+  }, [deals, logs, playlists, tab]);
 
   const handleNew = () => setNewOpen(true);
-
-  const handleLog = () => {
-    console.log("[PlaylistDeals] enviar print — UI de upload pendente");
-  };
-
-  const handleDetail = () => {
-    console.log("[PlaylistDeals] histórico — UI de drawer pendente");
-  };
 
   const handleDelete = async (id: string) => {
     if (!confirm("Excluir este deal e todo o histórico?")) return;
@@ -119,10 +112,11 @@ export default function PlaylistDeals() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filtered.map((d) => (
-              <DealCard
+              <CuratorDealCard
                 key={d.id}
                 deal={d}
                 logs={logs}
+                playlists={playlists}
                 onLog={(deal) => setLogDeal(deal)}
                 onDetail={(deal) => setDetailDeal(deal)}
                 onDelete={(deal) => handleDelete(deal.id)}
@@ -134,18 +128,22 @@ export default function PlaylistDeals() {
 
       <NewDealDialog open={newOpen} onOpenChange={setNewOpen} />
 
+      {/* LogPrintDialog e DealHistorySheet serão migrados para o novo
+          modelo nos próximos prompts; por ora mantemos fechados. */}
       <LogPrintDialog
-        open={logDeal !== null}
-        deal={logDeal}
-        allLogs={logs}
+        open={false}
+        deal={null}
+        allLogs={[]}
         onClose={() => setLogDeal(null)}
-        addLog={addLog}
+        addLog={async () => {
+          throw new Error("Migração pendente");
+        }}
       />
 
       <DealHistorySheet
-        open={detailDeal !== null}
-        deal={detailDeal}
-        allLogs={logs}
+        open={false}
+        deal={null}
+        allLogs={[]}
         onClose={() => setDetailDeal(null)}
       />
     </div>
