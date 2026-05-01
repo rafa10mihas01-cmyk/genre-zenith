@@ -491,7 +491,7 @@ export default function CuratorPage() {
 
         {/* Suas playlists */}
         <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
-          <CardContent className="p-5 space-y-3">
+          <CardContent className="p-7 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold inline-flex items-center gap-1.5">
                 <ListMusic className="h-3.5 w-3.5" />
@@ -546,7 +546,7 @@ export default function CuratorPage() {
 
         {/* Adicionar playlist */}
         <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
-          <CardContent className="p-5 space-y-3">
+          <CardContent className="p-7 space-y-4">
             <div>
               <h2 className="text-sm font-semibold">Adicionar playlist</h2>
               <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -626,7 +626,7 @@ export default function CuratorPage() {
         {/* Histórico de prints */}
         {logs.length > 0 && (
           <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
-            <CardContent className="p-5 space-y-3">
+            <CardContent className="p-7 space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-sm font-semibold">Histórico</h2>
                 <span className="text-[10px] text-muted-foreground">
