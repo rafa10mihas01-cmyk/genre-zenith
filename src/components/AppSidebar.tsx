@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { Home, Brain, Sparkles, BarChart3, Settings, LogOut, Activity, Monitor, Globe } from "lucide-react";
+import { Home, Brain, Sparkles, BarChart3, Settings, LogOut, Activity, Monitor, Globe, ListMusic } from "lucide-react";
 import { NexEngineLogo } from "@/components/NexEngineLogo";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
