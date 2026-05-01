@@ -36,8 +36,231 @@ function j(payload: unknown, status = 200) {
 
 const MAX_IMAGES = 40;
 const MAX_BASE64_LEN = 14_000_000; // ~10MB cada
+const BASELINE_IMAGE_CHUNK_SIZE = 4;
+const UPDATE_PLAYLIST_CHUNK_SIZE = 25;
+
+const jsonObjectInstruction =
+  `Regra obrigatória: responda somente com UM objeto JSON válido começando em { e terminando em }. ` +
+  `Não use markdown, não use bloco de código, não escreva explicações.`;
 
 type ImageInput = { base64: string; mime_type: string };
+type AiItem = {
+  playlist_name?: string;
+  plays?: number | string | null;
+  found?: boolean;
+  source_index?: number | null;
+};
+type ParsedAiResponse = { items?: AiItem[] };
+
+function buildImageParts(images: ImageInput[]) {
+  return images.map((img) => ({
+    type: "image_url" as const,
+    image_url: { url: `data:${img.mime_type};base64,${img.base64}` },
+  }));
+}
+
+function parsePlays(value: unknown): number | null {
+  if (value == null) return null;
+  if (typeof value === "number") return Number.isFinite(value) ? Math.round(value) : null;
+  const onlyDigits = String(value).replace(/\D/g, "");
+  if (!onlyDigits) return null;
+  const parsed = Number(onlyDigits);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function stripJsonEnvelope(raw: string): string {
+  return raw
+    .replace(/^\s*```(?:json)?\s*/i, "")
+    .replace(/\s*```\s*$/i, "")
+    .replace(/^\s*'''(?:json)?\s*/i, "")
+    .replace(/\s*'''\s*$/i, "")
+    .trim();
+}
+
+function firstBalancedJsonObject(raw: string): string | null {
+  const text = stripJsonEnvelope(raw);
+  const start = text.indexOf("{");
+  if (start < 0) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let i = start; i < text.length; i += 1) {
+    const ch = text[i];
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (ch === "\\") {
+        escaped = true;
+      } else if (ch === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (ch === '"') {
+      inString = true;
+      continue;
+    }
+    if (ch === "{") depth += 1;
+    if (ch === "}") {
+      depth -= 1;
+      if (depth === 0) return text.slice(start, i + 1);
+    }
+  }
+
+  return null;
+}
+
+function extractCompleteObjectsFromItems(raw: string): AiItem[] {
+  const text = stripJsonEnvelope(raw);
+  const itemsStart = text.indexOf("[");
+  if (itemsStart < 0) return [];
+
+  const objects: AiItem[] = [];
+  let depth = 0;
+  let objectStart = -1;
+  let inString = false;
+  let escaped = false;
+
+  for (let i = itemsStart; i < text.length; i += 1) {
+    const ch = text[i];
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (ch === "\\") {
+        escaped = true;
+      } else if (ch === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (ch === '"') {
+      inString = true;
+      continue;
+    }
+    if (ch === "{") {
+      if (depth === 0) objectStart = i;
+      depth += 1;
+    } else if (ch === "}") {
+      depth -= 1;
+      if (depth === 0 && objectStart >= 0) {
+        try {
+          objects.push(JSON.parse(text.slice(objectStart, i + 1)) as AiItem);
+        } catch {
+          // ignora objeto individual inválido
+        }
+        objectStart = -1;
+      }
+    }
+  }
+
+  return objects;
+}
+
+function parseAiJson(raw: string): ParsedAiResponse {
+  const balanced = firstBalancedJsonObject(raw);
+  const candidates = [balanced, stripJsonEnvelope(raw)].filter(Boolean) as string[];
+
+  for (const candidate of candidates) {
+    const cleaned = candidate
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "")
+      .replace(/,\s*}/g, "}")
+      .replace(/,\s*]/g, "]")
+      .trim();
+    try {
+      return JSON.parse(cleaned) as ParsedAiResponse;
+    } catch {
+      // tenta o próximo candidato
+    }
+  }
+
+  const recoveredItems = extractCompleteObjectsFromItems(raw);
+  if (recoveredItems.length > 0) return { items: recoveredItems };
+
+  throw new Error("IA não retornou JSON válido");
+}
+
+function buildPrompt(mode: "baseline" | "update", imagesCount: number, playlists: string[]) {
+  if (mode === "baseline") {
+    return `${jsonObjectInstruction}\n\n` +
+      `Você está analisando ${imagesCount} screenshot(s) do Spotify for Artists. ` +
+      `Para CADA print, identifique a playlist e o número de streams/plays mostrado. ` +
+      `Retorne no formato exato:\n` +
+      `{"items":[{"playlist_name":"nome exato como no print","plays":12345,"source_index":0}]}\n\n` +
+      `- "source_index" = índice local 0-based do print neste lote.\n` +
+      `- "plays" = inteiro, sem pontos ou vírgulas.\n` +
+      `- Inclua somente playlists realmente visíveis nos prints deste lote.\n` +
+      `- Se houver muitas linhas, ainda assim retorne um JSON completo e fechado.`;
+  }
+
+  const playlistList = playlists.map((p, i) => `${i + 1}. "${p}"`).join("\n");
+  return `${jsonObjectInstruction}\n\n` +
+    `Você está analisando ${imagesCount} screenshot(s) do Spotify for Artists. ` +
+    `Estas são as playlists já cadastradas neste lote:\n${playlistList}\n\n` +
+    `Sua missão: para CADA playlist da lista acima, procure-a nos prints (o nome pode aparecer ` +
+    `parcial, abreviado ou com pequenas variações de capitalização/acentos) e extraia o número ` +
+    `de streams/plays atual mostrado ao lado dela. Se uma playlist da lista NÃO aparecer em ` +
+    `nenhum print, retorne plays=null e found=false.\n\n` +
+    `Retorne no formato exato:\n` +
+    `{"items":[{"playlist_name":"nome EXATO da lista cadastrada","plays":12345,"found":true,"source_index":0}]}\n\n` +
+    `- Use exatamente os nomes da lista cadastrada em "playlist_name".\n` +
+    `- "source_index" = índice 0-based do print onde encontrou (ou null se não encontrou).\n` +
+    `- "plays" = inteiro sem pontos/vírgulas (ou null se não encontrou).`;
+}
+
+async function callAi(images: ImageInput[], mode: "baseline" | "update", playlists: string[]) {
+  const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${LOVABLE_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "google/gemini-2.5-flash",
+      temperature: 0,
+      max_tokens: 8192,
+      messages: [
+        {
+          role: "user",
+          content: [
+            ...buildImageParts(images),
+            { type: "text", text: buildPrompt(mode, images.length, playlists) },
+          ],
+        },
+      ],
+    }),
+  });
+
+  if (!resp.ok) {
+    const txt = await resp.text();
+    if (resp.status === 429) throw new Error("Limite de uso atingido. Tente em alguns minutos.");
+    if (resp.status === 402) throw new Error("Créditos de IA esgotados.");
+    console.error("[analyze-deal-prints] gateway error", resp.status, txt);
+    throw new Error("Falha ao analisar imagens");
+  }
+
+  const data = await resp.json();
+  const raw: string = data?.choices?.[0]?.message?.content ?? "";
+  return { raw, parsed: parseAiJson(raw) };
+}
+
+function normalizeItems(items: AiItem[], sourceOffset = 0) {
+  return items
+    .filter((it) => typeof it.playlist_name === "string" && it.playlist_name!.trim().length > 0)
+    .map((it) => {
+      const sourceIndex = typeof it.source_index === "number" ? it.source_index + sourceOffset : null;
+      const plays = parsePlays(it.plays);
+      return {
+        playlist_name: String(it.playlist_name).trim(),
+        plays,
+        found: it.found !== false && plays != null,
+        source_index: sourceIndex,
+      };
+    });
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -85,91 +308,8 @@ Deno.serve(async (req) => {
     return j({ ok: false, error: "Lista de playlists do deal está vazia" }, 400);
   }
 
-  const imageParts = images.map((img) => ({
-    type: "image_url" as const,
-    image_url: { url: `data:${img.mime_type};base64,${img.base64}` },
-  }));
-
-  const playlistList = playlists.map((p, i) => `${i + 1}. "${p}"`).join("\n");
-
-  const promptText =
-    mode === "baseline"
-      ? `Você está analisando ${images.length} screenshot(s) do Spotify for Artists. ` +
-        `Para CADA print, identifique a playlist e o número de streams/plays mostrado. ` +
-        `Retorne APENAS um JSON válido neste formato exato, sem nenhum texto antes ou depois:\n` +
-        `{"items":[{"playlist_name":"nome exato como no print","plays":12345,"source_index":0}]}\n\n` +
-        `- "source_index" = índice (0-based) do print onde a playlist foi encontrada.\n` +
-        `- "plays" = inteiro, sem pontos ou vírgulas.\n` +
-        `- Inclua TODAS as playlists visíveis nos prints.`
-      : `Você está analisando ${images.length} screenshot(s) do Spotify for Artists. ` +
-        `Estas são as playlists já cadastradas neste deal:\n${playlistList}\n\n` +
-        `Sua missão: para CADA playlist da lista acima, procure-a nos prints (o nome pode aparecer ` +
-        `parcial, abreviado ou com pequenas variações de capitalização/acentos) e extraia o número ` +
-        `de streams/plays atual mostrado ao lado dela. Se uma playlist da lista NÃO aparecer em ` +
-        `nenhum print, retorne plays=null e found=false.\n\n` +
-        `Retorne APENAS um JSON válido neste formato exato, sem texto antes ou depois:\n` +
-        `{"items":[{"playlist_name":"nome EXATO da lista cadastrada","plays":12345,"found":true,"source_index":0}]}\n\n` +
-        `- Use exatamente os nomes da lista cadastrada em "playlist_name".\n` +
-        `- "source_index" = índice 0-based do print onde encontrou (ou null se não encontrou).\n` +
-        `- "plays" = inteiro sem pontos/vírgulas (ou null se não encontrou).`;
-
   try {
-    const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        max_tokens: 2000,
-        messages: [
-          {
-            role: "user",
-            content: [
-              ...imageParts,
-              { type: "text", text: promptText },
-            ],
-          },
-        ],
-      }),
-    });
-
-    if (!resp.ok) {
-      const txt = await resp.text();
-      if (resp.status === 429) {
-        return j({ ok: false, error: "Limite de uso atingido. Tente em alguns minutos." }, 429);
-      }
-      if (resp.status === 402) {
-        return j({ ok: false, error: "Créditos de IA esgotados." }, 402);
-      }
-      console.error("[analyze-deal-prints] gateway error", resp.status, txt);
-      return j({ ok: false, error: "Falha ao analisar imagens" }, 502);
-    }
-
-    const data = await resp.json();
-    const raw: string = data?.choices?.[0]?.message?.content ?? "";
-
-    // Extrai bloco JSON do retorno (a IA pode envelopar com ```json ... ```)
-    let jsonStr = raw.trim();
-    const fence = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (fence) jsonStr = fence[1].trim();
-    const firstBrace = jsonStr.indexOf("{");
-    const lastBrace = jsonStr.lastIndexOf("}");
-    if (firstBrace >= 0 && lastBrace > firstBrace) {
-      jsonStr = jsonStr.slice(firstBrace, lastBrace + 1);
-    }
-
-    let parsed: { items?: Array<{ playlist_name?: string; plays?: number | null; found?: boolean; source_index?: number | null }> };
-    try {
-      parsed = JSON.parse(jsonStr);
-    } catch (e) {
-      console.error("[analyze-deal-prints] parse fail", e, raw);
-      return j({ ok: false, error: "IA não retornou JSON válido", raw }, 422);
-    }
-
-    const items = Array.isArray(parsed.items) ? parsed.items : [];
-
+    let raw = "";
     let matches: Array<{
       playlist_name: string;
       plays: number | null;
@@ -178,20 +318,13 @@ Deno.serve(async (req) => {
     }> = [];
 
     if (mode === "baseline") {
-      matches = items
-        .filter((it) => typeof it.playlist_name === "string" && it.playlist_name!.trim().length > 0)
-        .map((it) => {
-          const playsNum = it.plays != null ? Number(it.plays) : null;
-          return {
-            playlist_name: String(it.playlist_name).trim(),
-            plays: Number.isFinite(playsNum as number) ? (playsNum as number) : null,
-            found: it.plays != null,
-            source_index:
-              typeof it.source_index === "number" ? it.source_index : null,
-          };
-        });
+      for (let i = 0; i < images.length; i += BASELINE_IMAGE_CHUNK_SIZE) {
+        const imageChunk = images.slice(i, i + BASELINE_IMAGE_CHUNK_SIZE);
+        const result = await callAi(imageChunk, "baseline", []);
+        raw += `${raw ? "\n\n" : ""}[prints ${i}-${i + imageChunk.length - 1}]\n${result.raw.slice(0, 4000)}`;
+        matches.push(...normalizeItems(Array.isArray(result.parsed.items) ? result.parsed.items : [], i));
+      }
     } else {
-      // update: garante todas as playlists cadastradas no resultado
       const map = new Map<string, { playlist_name: string; plays: number | null; found: boolean; source_index: number | null }>();
       for (const p of playlists) {
         map.set(p.toLowerCase(), {
@@ -201,21 +334,26 @@ Deno.serve(async (req) => {
           source_index: null,
         });
       }
-      for (const it of items) {
-        const name = String(it.playlist_name ?? "").trim();
-        if (!name) continue;
-        const key = name.toLowerCase();
-        const target = map.get(key);
-        const playsNum = it.plays != null ? Number(it.plays) : null;
-        const validPlays = Number.isFinite(playsNum as number) ? (playsNum as number) : null;
-        if (target) {
-          target.plays = validPlays;
-          target.found = it.found !== false && validPlays != null;
-          target.source_index =
-            typeof it.source_index === "number" ? it.source_index : null;
-        } else {
-          // Nome retornado pela IA não bateu exatamente — tenta match fuzzy simples
-          const fuzzy = playlists.find(
+
+      for (let i = 0; i < playlists.length; i += UPDATE_PLAYLIST_CHUNK_SIZE) {
+        const playlistChunk = playlists.slice(i, i + UPDATE_PLAYLIST_CHUNK_SIZE);
+        const result = await callAi(images, "update", playlistChunk);
+        raw += `${raw ? "\n\n" : ""}[playlists ${i}-${i + playlistChunk.length - 1}]\n${result.raw.slice(0, 4000)}`;
+        const normalized = normalizeItems(Array.isArray(result.parsed.items) ? result.parsed.items : []);
+
+        for (const it of normalized) {
+          const name = it.playlist_name.trim();
+          if (!name) continue;
+          const key = name.toLowerCase();
+          const target = map.get(key);
+          if (target) {
+            target.plays = it.plays;
+            target.found = it.found;
+            target.source_index = it.source_index;
+            continue;
+          }
+
+          const fuzzy = playlistChunk.find(
             (p) =>
               p.toLowerCase().includes(name.toLowerCase()) ||
               name.toLowerCase().includes(p.toLowerCase()),
@@ -223,14 +361,14 @@ Deno.serve(async (req) => {
           if (fuzzy) {
             const t = map.get(fuzzy.toLowerCase());
             if (t && !t.found) {
-              t.plays = validPlays;
-              t.found = it.found !== false && validPlays != null;
-              t.source_index =
-                typeof it.source_index === "number" ? it.source_index : null;
+              t.plays = it.plays;
+              t.found = it.found;
+              t.source_index = it.source_index;
             }
           }
         }
       }
+
       matches = Array.from(map.values());
     }
 
@@ -240,9 +378,9 @@ Deno.serve(async (req) => {
     );
     const not_found = matches.filter((m) => !m.found).map((m) => m.playlist_name);
 
-    return j({ ok: true, matches, total_plays, not_found, raw });
+    return j({ ok: true, matches, total_plays, not_found, raw: raw.slice(0, 20_000) });
   } catch (e) {
     console.error("[analyze-deal-prints] exception", e);
-    return j({ ok: false, error: e instanceof Error ? e.message : String(e) }, 500);
+    return j({ ok: false, error: e instanceof Error ? e.message : String(e) });
   }
 });
