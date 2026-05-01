@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { PrintThumbs } from "./PrintThumbs";
 
 import {
   computeCuratorStats,
@@ -174,41 +175,46 @@ export function DealHistorySheet({
                   return (
                     <div
                       key={log.id}
-                      className="flex items-start justify-between gap-3 py-3 border-b border-border/50 last:border-b-0"
+                      className="flex flex-col gap-2 py-3 border-b border-border/50 last:border-b-0"
                     >
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <div className="text-sm font-medium text-foreground">
-                            {Number(log.total_plays).toLocaleString("pt-BR")} plays
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <div className="text-sm font-medium text-foreground">
+                              {Number(log.total_plays).toLocaleString("pt-BR")} plays
+                            </div>
+                            {log.is_baseline && (
+                              <Badge variant="secondary" className="text-[10px] h-4 px-1.5">
+                                Baseline
+                              </Badge>
+                            )}
                           </div>
-                          {log.is_baseline && (
-                            <Badge variant="secondary" className="text-[10px] h-4 px-1.5">
-                              Baseline
-                            </Badge>
+                          {log.note && (
+                            <div className="text-xs text-muted-foreground mt-0.5 truncate">
+                              {log.note}
+                            </div>
                           )}
                         </div>
-                        {log.note && (
-                          <div className="text-xs text-muted-foreground mt-0.5 truncate">
-                            {log.note}
+                        <div className="text-right shrink-0">
+                          <div className="text-xs text-muted-foreground">
+                            {format(new Date(log.created_at), "dd/MM HH:mm")}
                           </div>
-                        )}
-                      </div>
-                      <div className="text-right shrink-0">
-                        <div className="text-xs text-muted-foreground">
-                          {format(new Date(log.created_at), "dd/MM HH:mm")}
+                          {!isFirstChronological && !log.is_baseline && (
+                            <div
+                              className={cn(
+                                "text-xs mt-0.5",
+                                deltaPositive ? "text-success" : "text-destructive",
+                              )}
+                            >
+                              {deltaPositive ? "+" : "−"}
+                              {Math.abs(delta).toLocaleString("pt-BR")} plays
+                            </div>
+                          )}
                         </div>
-                        {!isFirstChronological && !log.is_baseline && (
-                          <div
-                            className={cn(
-                              "text-xs mt-0.5",
-                              deltaPositive ? "text-success" : "text-destructive",
-                            )}
-                          >
-                            {deltaPositive ? "+" : "−"}
-                            {Math.abs(delta).toLocaleString("pt-BR")} plays
-                          </div>
-                        )}
                       </div>
+                      {log.print_urls && log.print_urls.length > 0 && (
+                        <PrintThumbs urls={log.print_urls} size="sm" />
+                      )}
                     </div>
                   );
                 })}
