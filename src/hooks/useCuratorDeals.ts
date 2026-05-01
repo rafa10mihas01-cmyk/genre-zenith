@@ -58,6 +58,7 @@ export function useCuratorDeals() {
   const [deals, setDeals] = useState<CuratorDeal[]>([]);
   const [logs, setLogs] = useState<CuratorDealLog[]>([]);
   const [playlists, setPlaylists] = useState<CuratorPlaylist[]>([]);
+  const [songs, setSongs] = useState<CuratorDealSong[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -66,6 +67,7 @@ export function useCuratorDeals() {
       setDeals([]);
       setLogs([]);
       setPlaylists([]);
+      setSongs([]);
       setLoading(false);
       return;
     }
@@ -84,8 +86,9 @@ export function useCuratorDeals() {
       if (dealIds.length === 0) {
         setLogs([]);
         setPlaylists([]);
+        setSongs([]);
       } else {
-        const [logsRes, plRes] = await Promise.all([
+        const [logsRes, plRes, songsRes] = await Promise.all([
           supabase
             .from("curator_deal_logs")
             .select("*")
@@ -96,11 +99,18 @@ export function useCuratorDeals() {
             .select("*")
             .in("deal_id", dealIds)
             .order("added_at", { ascending: true }),
+          supabase
+            .from("curator_deal_songs")
+            .select("*")
+            .in("deal_id", dealIds)
+            .order("position", { ascending: true }),
         ]);
         if (logsRes.error) throw logsRes.error;
         if (plRes.error) throw plRes.error;
+        if (songsRes.error) throw songsRes.error;
         setLogs((logsRes.data ?? []) as CuratorDealLog[]);
         setPlaylists((plRes.data ?? []) as CuratorPlaylist[]);
+        setSongs((songsRes.data ?? []) as CuratorDealSong[]);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
