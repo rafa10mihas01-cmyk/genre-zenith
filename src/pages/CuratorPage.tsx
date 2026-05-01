@@ -1,7 +1,18 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Loader2, Target, Clock, Zap, TrendingUp, ListMusic, ExternalLink } from "lucide-react";
+import {
+  Loader2,
+  Target,
+  Clock,
+  Zap,
+  TrendingUp,
+  ListMusic,
+  ExternalLink,
+  Upload,
+  Download,
+} from "lucide-react";
 import { toast } from "sonner";
+import * as XLSX from "xlsx";
 
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -76,6 +87,8 @@ export default function CuratorPage() {
   const [logs, setLogs] = useState<DealLog[]>([]);
   const [url, setUrl] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const load = async () => {
     if (!token) return;
@@ -171,6 +184,82 @@ export default function CuratorPage() {
     toast.success("Playlist adicionada");
     setUrl("");
     await load();
+  };
+
+  const handleDownloadTemplate = () => {
+    const ws = XLSX.utils.aoa_to_sheet([
+      ["URL da playlist"],
+      ["https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M"],
+      ["https://open.spotify.com/playlist/37i9dQZF1DX0XUsuxWHRQd"],
+    ]);
+    ws["!cols"] = [{ wch: 70 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Playlists");
+    XLSX.writeFile(wb, "playlists-template.xlsx");
+  };
+
+  const extractUrlsFromSheet = (file: File): Promise<string[]> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = new Uint8Array(e.target?.result as ArrayBuffer);
+          const wb = XLSX.read(data, { type: "array" });
+          const ws = wb.Sheets[wb.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json<unknown[]>(ws, {
+            header: 1,
+            blankrows: false,
+          });
+          const urls: string[] = [];
+          for (const row of rows) {
+            for (const cell of row as unknown[]) {
+              if (typeof cell === "string" && cell.includes("spotify.com")) {
+                urls.push(cell.trim());
+              }
+            }
+          }
+          resolve(urls);
+        } catch (err) {
+          reject(err);
+        }
+      };
+      reader.onerror = () => reject(reader.error);
+      reader.readAsArrayBuffer(file);
+    });
+
+  const handleImportFile = async (file: File) => {
+    if (!token) return;
+    setImporting(true);
+    try {
+      const urls = await extractUrlsFromSheet(file);
+      if (urls.length === 0) {
+        toast.error("Nenhuma URL do Spotify encontrada na planilha");
+        return;
+      }
+      if (urls.length > 200) {
+        toast.error("Máximo de 200 playlists por importação");
+        return;
+      }
+      const { data, error: fnErr } = await supabase.functions.invoke(
+        "add-curator-playlists-batch",
+        { body: { public_token: token, urls } },
+      );
+      if (fnErr || !data?.ok) {
+        toast.error(data?.error || fnErr?.message || "Erro ao importar");
+        return;
+      }
+      const parts: string[] = [`${data.added} adicionadas`];
+      if (data.skipped_duplicate) parts.push(`${data.skipped_duplicate} já existiam`);
+      if (data.skipped_invalid) parts.push(`${data.skipped_invalid} inválidas`);
+      toast.success("Importação concluída", { description: parts.join(" · ") });
+      await load();
+    } catch (err) {
+      toast.error("Não foi possível ler o arquivo");
+      console.error(err);
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
   };
 
   if (loading) {
@@ -412,27 +501,78 @@ export default function CuratorPage() {
             <div>
               <h2 className="text-sm font-semibold">Adicionar playlist</h2>
               <p className="text-[11px] text-muted-foreground mt-0.5">
-                Cole o link da playlist do Spotify
+                Cole o link ou importe um lote em planilha
               </p>
             </div>
             <Input
               placeholder="https://open.spotify.com/playlist/..."
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              disabled={submitting}
+              disabled={submitting || importing}
               className="h-9 text-sm"
             />
             <Button
               onClick={handleAdd}
-              disabled={submitting || !url.trim()}
+              disabled={submitting || importing || !url.trim()}
               className="w-full h-9"
               size="sm"
             >
               {submitting && <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" />}
               Adicionar
             </Button>
+
+            <div className="flex items-center gap-2 pt-1">
+              <div className="flex-1 h-px bg-border" />
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                ou em lote
+              </span>
+              <div className="flex-1 h-px bg-border" />
+            </div>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) handleImportFile(f);
+              }}
+            />
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-9"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={submitting || importing}
+              >
+                {importing ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                ) : (
+                  <Upload className="h-3.5 w-3.5 mr-1.5" />
+                )}
+                Importar planilha
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-9"
+                onClick={handleDownloadTemplate}
+                disabled={importing}
+              >
+                <Download className="h-3.5 w-3.5 mr-1.5" />
+                Baixar modelo
+              </Button>
+            </div>
+            <p className="text-[10px] text-muted-foreground text-center">
+              Aceita .xlsx, .xls ou .csv · até 200 playlists
+            </p>
           </CardContent>
         </Card>
+
 
         {/* Footer minimalista */}
         <div className="text-center pt-2 pb-4">
