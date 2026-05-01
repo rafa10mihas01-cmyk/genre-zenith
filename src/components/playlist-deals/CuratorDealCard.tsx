@@ -183,8 +183,8 @@ export function CuratorDealCard({
               </div>
               <div className="text-base font-semibold tabular-nums">
                 <span className="text-primary">{formatPlays(todayPlays)}</span>
-                <span className="text-muted-foreground"> / {formatPlays(dailyGoal)}</span>
-                {dailyGoal > 0 && (
+                <span className="text-muted-foreground"> / {formatPlays(totalDailyGoal)}</span>
+                {totalDailyGoal > 0 && (
                   <span className="text-[11px] text-muted-foreground ml-1">({todayPct}%)</span>
                 )}
               </div>
