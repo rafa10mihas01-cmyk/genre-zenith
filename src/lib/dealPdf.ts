@@ -4,16 +4,25 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { supabase } from "@/integrations/supabase/client";
 
+export type ParsedDealPlaylist = {
+  name: string;
+  plays: number | null;
+  spotify_url: string | null;
+  spotify_id?: string | null;
+};
+
 export type ParsedDealData = {
   song_name: string | null;
   song_artist: string | null;
   total_plays: number | null;
-  playlists: Array<{
-    name: string;
-    plays: number | null;
-    spotify_url: string | null;
-  }>;
+  playlists: ParsedDealPlaylist[];
 };
+
+export function extractSpotifyPlaylistId(url: string | null | undefined): string | null {
+  if (!url || typeof url !== "string") return null;
+  const m = url.match(/playlist[/:]([a-zA-Z0-9]{16,})/);
+  return m ? m[1] : null;
+}
 
 export type DealPdfContext = {
   dealId: string;

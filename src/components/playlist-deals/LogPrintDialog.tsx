@@ -85,6 +85,21 @@ function parsePlaylistNames(raw: string): string[] {
     .filter((s) => s.length > 0);
 }
 
+function extractSpotifyPlaylistIdLocal(url: string | null | undefined): string | null {
+  if (!url || typeof url !== "string") return null;
+  const m = url.match(/playlist[/:]([a-zA-Z0-9]{16,})/);
+  return m ? m[1] : null;
+}
+
+function normalizeName(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
 export function LogPrintDialog({
   open,
   deal,
@@ -314,8 +329,14 @@ export function LogPrintDialog({
 
       if (isBaseline) {
         const names = parsePlaylistNames(playlistsRaw);
-        // Se a IA já achou playlists nos prints (matches), usa elas;
-        // caso contrário, usa as digitadas pelo usuário.
+        // Modo paste: usa playlists vindas da IA com link do Spotify (chave de identidade)
+        const fromPaste: BaselinePlaylistInput[] = (parsedPaste?.playlists ?? [])
+          .filter((p) => p.name)
+          .map((p) => ({
+            spotify_url: p.spotify_url ?? "",
+            playlist_name: p.name,
+            followers: null,
+          }));
         const fromAi: BaselinePlaylistInput[] = matches
           .filter((m) => m.playlist_name)
           .map((m) => ({
@@ -328,7 +349,8 @@ export function LogPrintDialog({
           playlist_name: name,
           followers: null,
         }));
-        const baselinePlaylists = fromAi.length > 0 ? fromAi : fromManual;
+        const baselinePlaylists =
+          fromPaste.length > 0 ? fromPaste : fromAi.length > 0 ? fromAi : fromManual;
         await addBaseline(deal.id, finalValue as number, baselinePlaylists, printUrls);
         toast.success("Baseline registrada", {
           description: `${formatPlays(finalValue as number)} plays · ${baselinePlaylists.length} playlist(s) iniciais · ${printUrls.length} print(s)`,
@@ -341,7 +363,38 @@ export function LogPrintDialog({
           print_urls: printUrls,
         });
 
-        if (hasNewPlaylists) {
+        // Detecta playlists NOVAS pelo link do Spotify (chave de identidade).
+        // Em modo paste: cruza spotify_id contra as playlists já cadastradas do deal.
+        const dealPlaylists = allPlaylists.filter((p) => p.deal_id === deal.id);
+        const knownIds = new Set(
+          dealPlaylists
+            .map((p) => extractSpotifyPlaylistIdLocal(p.spotify_url))
+            .filter((x): x is string => !!x),
+        );
+        const knownNames = new Set(
+          dealPlaylists.map((p) => normalizeName(p.playlist_name)),
+        );
+
+        const autoNewFromPaste = (parsedPaste?.playlists ?? []).filter((p) => {
+          const id = extractSpotifyPlaylistIdLocal(p.spotify_url);
+          if (id) return !knownIds.has(id);
+          // sem link: cai no nome normalizado
+          return !knownNames.has(normalizeName(p.name));
+        });
+
+        if (autoNewFromPaste.length > 0) {
+          const rows = autoNewFromPaste.map((p) => ({
+            deal_id: deal.id,
+            spotify_url: p.spotify_url ?? "",
+            playlist_name: p.name,
+            followers: null,
+            is_baseline: false,
+          }));
+          const { error: plErr } = await supabase
+            .from("curator_playlists")
+            .insert(rows);
+          if (plErr) throw plErr;
+        } else if (hasNewPlaylists) {
           const names = parsePlaylistNames(playlistsRaw);
           if (names.length > 0) {
             const rows = names.map((name) => ({
