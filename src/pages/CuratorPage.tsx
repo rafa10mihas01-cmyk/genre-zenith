@@ -123,11 +123,14 @@ export default function CuratorPage() {
     if (!deal) {
       return {
         target: 0,
+        dailyGoal: 0,
         baseline: 0,
         latest: 0,
         earned: 0,
         remaining: 0,
         pct: 0,
+        todayPlays: 0,
+        todayPct: 0,
         vel: null as number | null,
         eta: null as number | null,
         hasBaseline: false,
@@ -135,6 +138,7 @@ export default function CuratorPage() {
       };
     }
     const target = Number(deal.target_plays ?? 0);
+    const dailyGoal = Number(deal.daily_goal ?? 0);
     const baseline = Number(deal.baseline_plays ?? 0);
     const sorted = [...logs].sort(
       (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
@@ -145,6 +149,18 @@ export default function CuratorPage() {
     const earned = nonBase.length > 0 ? Math.max(0, latest - baseline) : 0;
     const remaining = Math.max(0, target - earned);
     const pct = target > 0 ? Math.min(100, Math.round((earned / target) * 100)) : 0;
+
+    let todayPlays = 0;
+    if (nonBase.length > 0) {
+      const todayKey = new Date().toISOString().slice(0, 10);
+      const lastBefore = [...sorted]
+        .reverse()
+        .find((l) => l.created_at.slice(0, 10) !== todayKey);
+      const lastBeforeVal = lastBefore ? Number(lastBefore.total_plays) : baseline;
+      todayPlays = Math.max(0, latest - lastBeforeVal);
+    }
+    const todayPct =
+      dailyGoal > 0 ? Math.min(100, Math.round((todayPlays / dailyGoal) * 100)) : 0;
 
     let vel: number | null = null;
     if (nonBase.length >= 2) {
@@ -169,7 +185,7 @@ export default function CuratorPage() {
         )
       : 0;
 
-    return { target, baseline, latest, earned, remaining, pct, vel, eta, hasBaseline, daysRunning };
+    return { target, dailyGoal, baseline, latest, earned, remaining, pct, todayPlays, todayPct, vel, eta, hasBaseline, daysRunning };
   }, [deal, logs]);
 
   const handleAdd = async () => {
