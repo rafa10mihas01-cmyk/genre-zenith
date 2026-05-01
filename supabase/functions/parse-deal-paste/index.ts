@@ -118,7 +118,8 @@ Deno.serve(async (req) => {
 
     const totalFromAi = typeof p.total_plays === "number" && Number.isFinite(p.total_plays)
       ? Math.round(p.total_plays as number) : null;
-    const total_plays = totalFromAi ?? playlists.reduce((acc, x) => acc + (x.plays ?? 0), 0) || null;
+    const sumPlays = playlists.reduce((acc, x) => acc + (x.plays ?? 0), 0);
+    const total_plays = totalFromAi ?? (sumPlays > 0 ? sumPlays : null);
 
     return jr({
       ok: true,
