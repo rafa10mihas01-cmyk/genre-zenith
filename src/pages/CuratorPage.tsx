@@ -307,16 +307,16 @@ export default function CuratorPage() {
   const isDone = stats.target > 0 && stats.earned >= stats.target;
 
   return (
-    <div className="min-h-screen bg-black px-3 sm:px-4 py-5 sm:py-7">
-      <div className="max-w-xl mx-auto space-y-4">
+    <div className="min-h-screen bg-black px-4 sm:px-6 py-8 sm:py-12">
+      <div className="max-w-xl mx-auto space-y-6">
         {/* Logo NexEngine */}
-        <div className="flex justify-center pb-1">
+        <div className="flex justify-center pb-2">
           <NexEngineLogo variant="dark" size={28} />
         </div>
 
         {/* Header — música + curador */}
         <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
-          <CardContent className="p-4">
+          <CardContent className="p-5">
             <div className="flex items-center gap-3">
               {deal.song_cover_url ? (
                 <img
@@ -374,7 +374,7 @@ export default function CuratorPage() {
         {/* Plays hoje vs combinado diário */}
         {stats.hasBaseline && (
           <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
-            <CardContent className="p-4 grid grid-cols-2 gap-3">
+            <CardContent className="p-5 grid grid-cols-2 gap-4">
               <div>
                 <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
                   Plays totais hoje
@@ -403,7 +403,7 @@ export default function CuratorPage() {
 
         {/* Progresso da campanha */}
         <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
-          <CardContent className="p-4 space-y-3">
+          <CardContent className="p-5 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold">Combinado total</h2>
               <span className="text-lg font-semibold tabular-nums">{stats.pct}%</span>
@@ -491,7 +491,7 @@ export default function CuratorPage() {
 
         {/* Suas playlists */}
         <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
-          <CardContent className="p-4 space-y-2.5">
+          <CardContent className="p-5 space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold inline-flex items-center gap-1.5">
                 <ListMusic className="h-3.5 w-3.5" />
@@ -546,7 +546,7 @@ export default function CuratorPage() {
 
         {/* Adicionar playlist */}
         <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
-          <CardContent className="p-4 space-y-2.5">
+          <CardContent className="p-5 space-y-3">
             <div>
               <h2 className="text-sm font-semibold">Adicionar playlist</h2>
               <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -626,7 +626,7 @@ export default function CuratorPage() {
         {/* Histórico de prints */}
         {logs.length > 0 && (
           <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
-            <CardContent className="p-4 space-y-2.5">
+            <CardContent className="p-5 space-y-3">
               <div className="flex items-center justify-between">
                 <h2 className="text-sm font-semibold">Histórico</h2>
                 <span className="text-[10px] text-muted-foreground">
