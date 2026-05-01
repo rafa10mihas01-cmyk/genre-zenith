@@ -87,6 +87,8 @@ export default function CuratorPage() {
   const [logs, setLogs] = useState<DealLog[]>([]);
   const [url, setUrl] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const load = async () => {
     if (!token) return;
