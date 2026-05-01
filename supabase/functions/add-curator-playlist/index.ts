@@ -9,7 +9,8 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-const SPOTIFY_URL_RE = /spotify\.com\/(track|playlist|album)\/([A-Za-z0-9]+)/;
+// Aceita URLs com prefixo de localização (ex: /intl-pt/)
+const SPOTIFY_URL_RE = /spotify\.com\/(?:intl-[a-z]{2}\/)?(track|playlist|album)\/([A-Za-z0-9]+)/i;
 
 function jr(p: unknown, status = 200) {
   return new Response(JSON.stringify(p), {
