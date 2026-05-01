@@ -7,10 +7,23 @@ import type {
   CuratorDeal,
   CuratorDealLog,
   CuratorPlaylist,
+  CuratorDealSong,
 } from "@/lib/curatorDealsUtils";
+
+export type DealSongInput = {
+  song_spotify_url: string;
+  spotify_track_id?: string | null;
+  song_name: string;
+  song_artist?: string | null;
+  song_cover_url?: string | null;
+  daily_goal?: number;
+  target_plays?: number | null;
+  position?: number;
+};
 
 export type NewCuratorDealInput = {
   curator_name: string;
+  // música primária (legacy/compat) — primeira da lista
   song_spotify_url: string;
   song_name: string;
   song_artist?: string | null;
@@ -19,6 +32,10 @@ export type NewCuratorDealInput = {
   daily_goal?: number;
   baseline_plays?: number;
   cost?: number | null;
+  started_at?: string | null;
+  ends_at?: string | null;
+  // lista de músicas adicionais (além da primária)
+  extra_songs?: DealSongInput[];
 };
 
 export type NewCuratorLogInput = {
@@ -27,6 +44,7 @@ export type NewCuratorLogInput = {
   note?: string | null;
   is_baseline?: boolean;
   print_urls?: string[];
+  song_id?: string | null;
 };
 
 export type BaselinePlaylistInput = {
@@ -40,6 +58,7 @@ export function useCuratorDeals() {
   const [deals, setDeals] = useState<CuratorDeal[]>([]);
   const [logs, setLogs] = useState<CuratorDealLog[]>([]);
   const [playlists, setPlaylists] = useState<CuratorPlaylist[]>([]);
+  const [songs, setSongs] = useState<CuratorDealSong[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -48,6 +67,7 @@ export function useCuratorDeals() {
       setDeals([]);
       setLogs([]);
       setPlaylists([]);
+      setSongs([]);
       setLoading(false);
       return;
     }
@@ -66,8 +86,9 @@ export function useCuratorDeals() {
       if (dealIds.length === 0) {
         setLogs([]);
         setPlaylists([]);
+        setSongs([]);
       } else {
-        const [logsRes, plRes] = await Promise.all([
+        const [logsRes, plRes, songsRes] = await Promise.all([
           supabase
             .from("curator_deal_logs")
             .select("*")
@@ -78,11 +99,18 @@ export function useCuratorDeals() {
             .select("*")
             .in("deal_id", dealIds)
             .order("added_at", { ascending: true }),
+          supabase
+            .from("curator_deal_songs")
+            .select("*")
+            .in("deal_id", dealIds)
+            .order("position", { ascending: true }),
         ]);
         if (logsRes.error) throw logsRes.error;
         if (plRes.error) throw plRes.error;
+        if (songsRes.error) throw songsRes.error;
         setLogs((logsRes.data ?? []) as CuratorDealLog[]);
         setPlaylists((plRes.data ?? []) as CuratorPlaylist[]);
+        setSongs((songsRes.data ?? []) as CuratorDealSong[]);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -111,12 +139,44 @@ export function useCuratorDeals() {
           daily_goal: input.daily_goal ?? 0,
           baseline_plays: input.baseline_plays ?? 0,
           cost: input.cost ?? null,
+          started_at: input.started_at ?? new Date().toISOString(),
+          ends_at: input.ends_at ?? null,
         })
         .select()
         .single();
       if (insertErr) throw insertErr;
+
+      const deal = data as CuratorDeal;
+
+      // Sempre cria a primeira música em curator_deal_songs
+      const primarySong: DealSongInput = {
+        song_spotify_url: input.song_spotify_url,
+        song_name: input.song_name,
+        song_artist: input.song_artist ?? null,
+        song_cover_url: input.song_cover_url ?? null,
+        daily_goal: input.daily_goal ?? 0,
+        target_plays: input.target_plays,
+        position: 0,
+      };
+      const allSongs = [primarySong, ...(input.extra_songs ?? [])];
+      const songRows = allSongs.map((s, i) => ({
+        deal_id: deal.id,
+        song_spotify_url: s.song_spotify_url,
+        spotify_track_id: s.spotify_track_id ?? null,
+        song_name: s.song_name,
+        song_artist: s.song_artist ?? null,
+        song_cover_url: s.song_cover_url ?? null,
+        daily_goal: s.daily_goal ?? 0,
+        target_plays: s.target_plays ?? null,
+        position: s.position ?? i,
+      }));
+      const { error: songsErr } = await supabase
+        .from("curator_deal_songs")
+        .insert(songRows);
+      if (songsErr) throw songsErr;
+
       await load();
-      return data as CuratorDeal;
+      return deal;
     },
     [user, load],
   );
@@ -196,6 +256,7 @@ export function useCuratorDeals() {
     deals,
     logs,
     playlists,
+    songs,
     loading,
     error,
     addDeal,

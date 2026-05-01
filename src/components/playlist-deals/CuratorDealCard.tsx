@@ -1,7 +1,9 @@
-import { Camera, History, Trash2, Link2, Zap, Clock, AlertTriangle } from "lucide-react";
+import { Camera, History, Trash2, Link2, Zap, Clock, AlertTriangle, Calendar as CalendarIcon, Music2 } from "lucide-react";
 import { toast } from "sonner";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
-import type { CuratorDeal, CuratorDealLog, CuratorPlaylist } from "@/lib/curatorDealsUtils";
+import type { CuratorDeal, CuratorDealLog, CuratorDealSong, CuratorPlaylist } from "@/lib/curatorDealsUtils";
 import { computeCuratorStats } from "@/lib/curatorDealsUtils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,6 +15,7 @@ export interface CuratorDealCardProps {
   deal: CuratorDeal;
   logs: CuratorDealLog[];
   playlists: CuratorPlaylist[];
+  songs?: CuratorDealSong[];
   onLog: (deal: CuratorDeal) => void;
   onDetail: (deal: CuratorDeal) => void;
   onDelete: (deal: CuratorDeal) => void;
@@ -27,13 +30,20 @@ function formatPlays(n: number): string {
 }
 
 export function CuratorDealCard({
-  deal, logs, playlists, onLog, onDetail, onDelete,
+  deal, logs, playlists, songs = [], onLog, onDetail, onDelete,
 }: CuratorDealCardProps) {
   const stats = computeCuratorStats(deal, logs, playlists);
-  const { earned, pct, vel, eta, latestPlays, todayPlays, todayPct, hasBaseline, newPlaylists } = stats;
+  const { earned, pct, vel, eta, latestPlays, todayPlays, hasBaseline, newPlaylists } = stats;
   const target = Number(deal.target_plays ?? 0);
   const dailyGoal = Number(deal.daily_goal ?? 0);
   const isDone = target > 0 && earned >= target;
+  const totalDailyGoal = songs.length > 0
+    ? songs.reduce((sum, s) => sum + Number(s.daily_goal ?? 0), 0)
+    : dailyGoal;
+  const todayPct = totalDailyGoal > 0
+    ? Math.min(100, Math.round((todayPlays / totalDailyGoal) * 100))
+    : 0;
+  const showSongList = songs.length > 1;
 
   const statusLabel = !hasBaseline
     ? "Sem baseline"
@@ -54,24 +64,15 @@ export function CuratorDealCard({
   return (
     <Card className="overflow-hidden hover:border-foreground/25 transition-colors">
       <CardContent className="p-5 flex flex-col gap-4">
-        {/* Linha 1: capa + nome + artista + status */}
+        {/* Header: curador + status */}
         <div className="flex items-start gap-3 min-w-0">
-          {deal.song_cover_url ? (
-            <img
-              src={deal.song_cover_url}
-              alt={deal.song_name}
-              className="h-10 w-10 rounded-md object-cover shrink-0"
-            />
-          ) : (
-            <div className="h-10 w-10 rounded-md bg-muted shrink-0" />
-          )}
           <div className="min-w-0 flex-1">
-            <div className="font-medium text-foreground truncate">{deal.song_name}</div>
-            {deal.song_artist && (
-              <div className="text-xs text-muted-foreground truncate">
-                {deal.song_artist}
-              </div>
-            )}
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
+              Curador
+            </div>
+            <div className="font-semibold text-foreground truncate">
+              {deal.curator_name}
+            </div>
           </div>
           <Badge
             variant={isDone ? "default" : "secondary"}
@@ -84,10 +85,79 @@ export function CuratorDealCard({
           </Badge>
         </div>
 
-        {/* Curador */}
-        <div className="text-sm text-muted-foreground -mt-1">
-          Curador: <span className="text-foreground">{deal.curator_name}</span>
+        {/* Datas */}
+        <div className="flex items-center gap-2 text-xs text-muted-foreground -mt-2">
+          <CalendarIcon className="h-3 w-3" />
+          <span>
+            {format(new Date(deal.started_at), "dd MMM", { locale: ptBR })}
+            {deal.ends_at && (
+              <>
+                {" → "}
+                {format(new Date(deal.ends_at), "dd MMM", { locale: ptBR })}
+              </>
+            )}
+          </span>
         </div>
+
+        {/* Música única (header destacado) ou contador de músicas */}
+        {!showSongList ? (
+          <div className="flex items-center gap-3 min-w-0">
+            {deal.song_cover_url ? (
+              <img
+                src={deal.song_cover_url}
+                alt={deal.song_name}
+                className="h-9 w-9 rounded-md object-cover shrink-0"
+              />
+            ) : (
+              <div className="h-9 w-9 rounded-md bg-muted shrink-0" />
+            )}
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-medium text-foreground truncate">
+                {deal.song_name}
+              </div>
+              {deal.song_artist && (
+                <div className="text-xs text-muted-foreground truncate">
+                  {deal.song_artist}
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-1.5">
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+              <Music2 className="h-3 w-3" />
+              {songs.length} músicas no deal
+            </div>
+            <div className="space-y-1">
+              {songs.map((s) => (
+                <div
+                  key={s.id}
+                  className="flex items-center gap-2 rounded-md bg-muted/30 px-2 py-1.5 min-w-0"
+                >
+                  {s.song_cover_url ? (
+                    <img
+                      src={s.song_cover_url}
+                      alt={s.song_name}
+                      className="h-6 w-6 rounded object-cover shrink-0"
+                    />
+                  ) : (
+                    <div className="h-6 w-6 rounded bg-muted shrink-0" />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs text-foreground truncate">
+                      {s.song_name}
+                    </div>
+                  </div>
+                  {Number(s.daily_goal) > 0 && (
+                    <span className="text-[10px] tabular-nums text-muted-foreground shrink-0">
+                      {formatPlays(Number(s.daily_goal))}/dia
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Aviso sem baseline */}
         {!hasBaseline && (
@@ -116,8 +186,8 @@ export function CuratorDealCard({
               </div>
               <div className="text-base font-semibold tabular-nums">
                 <span className="text-primary">{formatPlays(todayPlays)}</span>
-                <span className="text-muted-foreground"> / {formatPlays(dailyGoal)}</span>
-                {dailyGoal > 0 && (
+                <span className="text-muted-foreground"> / {formatPlays(totalDailyGoal)}</span>
+                {totalDailyGoal > 0 && (
                   <span className="text-[11px] text-muted-foreground ml-1">({todayPct}%)</span>
                 )}
               </div>

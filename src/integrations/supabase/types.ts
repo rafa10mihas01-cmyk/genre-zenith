@@ -184,6 +184,7 @@ export type Database = {
           is_baseline: boolean
           note: string | null
           print_urls: string[]
+          song_id: string | null
           total_plays: number
         }
         Insert: {
@@ -193,6 +194,7 @@ export type Database = {
           is_baseline?: boolean
           note?: string | null
           print_urls?: string[]
+          song_id?: string | null
           total_plays: number
         }
         Update: {
@@ -202,11 +204,75 @@ export type Database = {
           is_baseline?: boolean
           note?: string | null
           print_urls?: string[]
+          song_id?: string | null
           total_plays?: number
         }
         Relationships: [
           {
             foreignKeyName: "curator_deal_logs_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "curator_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curator_deal_logs_song_id_fkey"
+            columns: ["song_id"]
+            isOneToOne: false
+            referencedRelation: "curator_deal_songs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      curator_deal_songs: {
+        Row: {
+          baseline_plays: number
+          created_at: string
+          daily_goal: number
+          deal_id: string
+          id: string
+          position: number
+          song_artist: string | null
+          song_cover_url: string | null
+          song_name: string
+          song_spotify_url: string
+          spotify_track_id: string | null
+          target_plays: number | null
+          updated_at: string
+        }
+        Insert: {
+          baseline_plays?: number
+          created_at?: string
+          daily_goal?: number
+          deal_id: string
+          id?: string
+          position?: number
+          song_artist?: string | null
+          song_cover_url?: string | null
+          song_name: string
+          song_spotify_url: string
+          spotify_track_id?: string | null
+          target_plays?: number | null
+          updated_at?: string
+        }
+        Update: {
+          baseline_plays?: number
+          created_at?: string
+          daily_goal?: number
+          deal_id?: string
+          id?: string
+          position?: number
+          song_artist?: string | null
+          song_cover_url?: string | null
+          song_name?: string
+          song_spotify_url?: string
+          spotify_track_id?: string | null
+          target_plays?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "curator_deal_songs_deal_id_fkey"
             columns: ["deal_id"]
             isOneToOne: false
             referencedRelation: "curator_deals"
@@ -221,6 +287,7 @@ export type Database = {
           created_at: string
           curator_name: string
           daily_goal: number
+          ends_at: string | null
           id: string
           public_token: string
           song_artist: string | null
@@ -237,6 +304,7 @@ export type Database = {
           created_at?: string
           curator_name: string
           daily_goal?: number
+          ends_at?: string | null
           id?: string
           public_token?: string
           song_artist?: string | null
@@ -253,6 +321,7 @@ export type Database = {
           created_at?: string
           curator_name?: string
           daily_goal?: number
+          ends_at?: string | null
           id?: string
           public_token?: string
           song_artist?: string | null
@@ -273,6 +342,7 @@ export type Database = {
           id: string
           is_baseline: boolean
           playlist_name: string
+          song_id: string | null
           spotify_url: string
         }
         Insert: {
@@ -282,6 +352,7 @@ export type Database = {
           id?: string
           is_baseline?: boolean
           playlist_name: string
+          song_id?: string | null
           spotify_url: string
         }
         Update: {
@@ -291,6 +362,7 @@ export type Database = {
           id?: string
           is_baseline?: boolean
           playlist_name?: string
+          song_id?: string | null
           spotify_url?: string
         }
         Relationships: [
@@ -299,6 +371,13 @@ export type Database = {
             columns: ["deal_id"]
             isOneToOne: false
             referencedRelation: "curator_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curator_playlists_song_id_fkey"
+            columns: ["song_id"]
+            isOneToOne: false
+            referencedRelation: "curator_deal_songs"
             referencedColumns: ["id"]
           },
         ]
