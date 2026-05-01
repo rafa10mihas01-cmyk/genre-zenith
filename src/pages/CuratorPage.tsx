@@ -200,7 +200,7 @@ export default function CuratorPage() {
 
   return (
     <div className="min-h-screen bg-background px-3 sm:px-4 py-5 sm:py-7">
-      <div className="max-w-md mx-auto space-y-4">
+      <div className="max-w-xl mx-auto space-y-4">
         {/* Logo NexEngine */}
         <div className="flex justify-center pb-1">
           <NexEngineLogo variant="dark" size={28} />
@@ -369,7 +369,7 @@ export default function CuratorPage() {
                 Nenhuma playlist adicionada ainda
               </p>
             ) : (
-              <ul className="space-y-1.5">
+              <ul className="space-y-1.5 max-h-[280px] overflow-y-auto pr-1 -mr-1 scroll-smooth">
                 {playlists.map((p) => (
                   <li
                     key={p.id}
