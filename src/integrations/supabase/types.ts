@@ -692,6 +692,77 @@ export type Database = {
         }
         Relationships: []
       }
+      playlist_deal_logs: {
+        Row: {
+          count: number
+          created_at: string
+          deal_id: string
+          id: string
+          note: string | null
+        }
+        Insert: {
+          count: number
+          created_at?: string
+          deal_id: string
+          id?: string
+          note?: string | null
+        }
+        Update: {
+          count?: number
+          created_at?: string
+          deal_id?: string
+          id?: string
+          note?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "playlist_deal_logs_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "playlist_deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      playlist_deals: {
+        Row: {
+          cost: number | null
+          created_at: string
+          curator: string | null
+          id: string
+          playlist: string
+          song: string
+          spotify_url: string | null
+          start_plays: number
+          target: number
+          user_id: string
+        }
+        Insert: {
+          cost?: number | null
+          created_at?: string
+          curator?: string | null
+          id?: string
+          playlist: string
+          song: string
+          spotify_url?: string | null
+          start_plays?: number
+          target: number
+          user_id: string
+        }
+        Update: {
+          cost?: number | null
+          created_at?: string
+          curator?: string | null
+          id?: string
+          playlist?: string
+          song?: string
+          spotify_url?: string | null
+          start_plays?: number
+          target?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       playlist_metrics_snapshots: {
         Row: {
           collected_at: string
