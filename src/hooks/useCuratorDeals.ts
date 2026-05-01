@@ -139,12 +139,44 @@ export function useCuratorDeals() {
           daily_goal: input.daily_goal ?? 0,
           baseline_plays: input.baseline_plays ?? 0,
           cost: input.cost ?? null,
+          started_at: input.started_at ?? new Date().toISOString(),
+          ends_at: input.ends_at ?? null,
         })
         .select()
         .single();
       if (insertErr) throw insertErr;
+
+      const deal = data as CuratorDeal;
+
+      // Sempre cria a primeira música em curator_deal_songs
+      const primarySong: DealSongInput = {
+        song_spotify_url: input.song_spotify_url,
+        song_name: input.song_name,
+        song_artist: input.song_artist ?? null,
+        song_cover_url: input.song_cover_url ?? null,
+        daily_goal: input.daily_goal ?? 0,
+        target_plays: input.target_plays,
+        position: 0,
+      };
+      const allSongs = [primarySong, ...(input.extra_songs ?? [])];
+      const songRows = allSongs.map((s, i) => ({
+        deal_id: deal.id,
+        song_spotify_url: s.song_spotify_url,
+        spotify_track_id: s.spotify_track_id ?? null,
+        song_name: s.song_name,
+        song_artist: s.song_artist ?? null,
+        song_cover_url: s.song_cover_url ?? null,
+        daily_goal: s.daily_goal ?? 0,
+        target_plays: s.target_plays ?? null,
+        position: s.position ?? i,
+      }));
+      const { error: songsErr } = await supabase
+        .from("curator_deal_songs")
+        .insert(songRows);
+      if (songsErr) throw songsErr;
+
       await load();
-      return data as CuratorDeal;
+      return deal;
     },
     [user, load],
   );
