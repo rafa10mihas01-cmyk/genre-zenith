@@ -32,6 +32,7 @@ type Deal = {
   song_artist: string | null;
   song_cover_url: string | null;
   target_plays: number | null;
+  daily_goal: number | null;
   baseline_plays: number | null;
   cost: number | null;
   started_at: string | null;
