@@ -501,27 +501,78 @@ export default function CuratorPage() {
             <div>
               <h2 className="text-sm font-semibold">Adicionar playlist</h2>
               <p className="text-[11px] text-muted-foreground mt-0.5">
-                Cole o link da playlist do Spotify
+                Cole o link ou importe um lote em planilha
               </p>
             </div>
             <Input
               placeholder="https://open.spotify.com/playlist/..."
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              disabled={submitting}
+              disabled={submitting || importing}
               className="h-9 text-sm"
             />
             <Button
               onClick={handleAdd}
-              disabled={submitting || !url.trim()}
+              disabled={submitting || importing || !url.trim()}
               className="w-full h-9"
               size="sm"
             >
               {submitting && <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" />}
               Adicionar
             </Button>
+
+            <div className="flex items-center gap-2 pt-1">
+              <div className="flex-1 h-px bg-border" />
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                ou em lote
+              </span>
+              <div className="flex-1 h-px bg-border" />
+            </div>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) handleImportFile(f);
+              }}
+            />
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-9"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={submitting || importing}
+              >
+                {importing ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                ) : (
+                  <Upload className="h-3.5 w-3.5 mr-1.5" />
+                )}
+                Importar planilha
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-9"
+                onClick={handleDownloadTemplate}
+                disabled={importing}
+              >
+                <Download className="h-3.5 w-3.5 mr-1.5" />
+                Baixar modelo
+              </Button>
+            </div>
+            <p className="text-[10px] text-muted-foreground text-center">
+              Aceita .xlsx, .xls ou .csv · até 200 playlists
+            </p>
           </CardContent>
         </Card>
+
 
         {/* Footer minimalista */}
         <div className="text-center pt-2 pb-4">
