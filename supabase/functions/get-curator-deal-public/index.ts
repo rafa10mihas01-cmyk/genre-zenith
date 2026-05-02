@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (dealErr) return jr({ ok: false, error: dealErr.message }, 200);
-    if (!deal) return jr({ ok: false, error: "not found" }, 404);
+    if (!deal) return jr({ ok: false, error: "not found" }, 200);
 
     const [{ data: playlists, error: plErr }, { data: logs, error: logErr }] = await Promise.all([
       admin
