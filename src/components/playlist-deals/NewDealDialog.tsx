@@ -545,7 +545,7 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDe
   // ============================================================
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto bg-card border-border/60 rounded-2xl shadow-2xl p-6">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Editar deal" : "Novo Deal"}</DialogTitle>
           <DialogDescription>
@@ -647,10 +647,10 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDe
                             setBalanceCostDigits("");
                           }}
                           className={cn(
-                            "w-full text-left rounded-lg border p-3 transition-colors",
+                            "w-full text-left rounded-xl border p-3.5 transition-all",
                             sel
-                              ? "border-primary bg-primary/5"
-                              : "border-border bg-muted/20 hover:bg-muted/40",
+                              ? "border-primary/60 bg-primary/10 ring-1 ring-primary/30 shadow-[0_0_0_1px_hsl(var(--primary)/0.15)]"
+                              : "border-border/60 bg-[hsl(var(--card))] hover:bg-[hsl(var(--elevated))] hover:border-border",
                           )}
                         >
                           <div className="flex items-center justify-between gap-2">
@@ -680,7 +680,7 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDe
 
                 {/* Painel de ajuste de saldo (curador selecionado) */}
                 {selectedCurator && (
-                  <div className="rounded-lg border border-border bg-muted/10 p-3 space-y-3">
+                  <div className="rounded-xl border border-border/60 bg-[hsl(var(--elevated))] p-4 space-y-3 shadow-sm">
                     <div className="flex items-start justify-between gap-2">
                       <div className="text-xs text-muted-foreground">
                         Saldo atual de <span className="font-medium text-foreground">{selectedCurator.name}</span>:{" "}
@@ -905,10 +905,10 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDe
             {selectedCurator && (
               <div
                 className={cn(
-                  "rounded-lg border p-3 flex items-center justify-between gap-3",
+                  "rounded-xl border p-4 flex items-center justify-between gap-3 shadow-sm",
                   overbooked
                     ? "border-destructive/40 bg-destructive/5"
-                    : "border-border bg-muted/20",
+                    : "border-border/60 bg-[hsl(var(--elevated))]",
                 )}
               >
                 <div className="min-w-0">
@@ -980,10 +980,10 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDe
                 </Label>
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
                   onClick={addSongRow}
-                  className="gap-1.5 h-8"
+                  className="gap-1.5 h-8 border-border/60 hover:border-primary/50 hover:text-primary"
                 >
                   <Plus className="h-3.5 w-3.5" />
                   Adicionar música
@@ -996,7 +996,7 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDe
                   return (
                     <div
                       key={idx}
-                      className="rounded-lg border border-border bg-muted/20 p-3 space-y-3"
+                      className="rounded-xl border border-border/60 bg-[hsl(var(--elevated))] p-4 space-y-3 shadow-sm hover:border-border/80 transition-colors"
                     >
                       <div className="flex items-start gap-2">
                         <div className="flex-1 grid grid-cols-1 sm:grid-cols-[1fr_120px_120px] gap-2">
