@@ -234,6 +234,7 @@ export default function CuratorPage() {
     () => (selectedSongId ? songs.find((s) => s.id === selectedSongId) ?? null : null),
     [selectedSongId, songs],
   );
+  const playlistSongRequired = hasMultipleSongs && !selectedSongId;
 
   // Playlists filtradas pela música selecionada (quando aplicável)
   const visiblePlaylists = useMemo(() => {
@@ -473,6 +474,10 @@ export default function CuratorPage() {
 
   const handleAdd = async () => {
     if (!token || !url.trim()) return;
+    if (playlistSongRequired) {
+      toast.error("Selecione a música antes de adicionar a playlist");
+      return;
+    }
     const realToken = deal?.public_token ?? token;
     setSubmitting(true);
     const { data, error: fnErr } = await supabase.functions.invoke(
@@ -537,6 +542,10 @@ export default function CuratorPage() {
 
   const handleImportFile = async (file: File) => {
     if (!token) return;
+    if (playlistSongRequired) {
+      toast.error("Selecione a música antes de importar playlists");
+      return;
+    }
     setImporting(true);
     try {
       const urls = await extractUrlsFromSheet(file);
