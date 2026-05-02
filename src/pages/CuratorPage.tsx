@@ -1455,16 +1455,22 @@ export default function CuratorPage() {
                 </div>
               )}
             </div>
-            {curatorModalGroup?.sample.spotify_url && (
-              <a
-                href={curatorModalGroup.sample.spotify_url}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center justify-center gap-1.5 text-[12px] text-primary hover:underline mt-2"
-              >
-                Abrir no Spotify <ExternalLink className="h-3 w-3" />
-              </a>
-            )}
+            {(() => {
+              const url = curatorModalGroup?.sample
+                ? resolveSpotifyPlaylistUrl(curatorModalGroup.sample)
+                : null;
+              if (!url) return null;
+              return (
+                <a
+                  href={url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center justify-center gap-1.5 text-[12px] text-primary hover:underline mt-2"
+                >
+                  Abrir no Spotify <ExternalLink className="h-3 w-3" />
+                </a>
+              );
+            })()}
           </DialogContent>
         </Dialog>
 
