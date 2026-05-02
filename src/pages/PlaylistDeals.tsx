@@ -283,9 +283,7 @@ export default function PlaylistDeals() {
         allPlaylists={playlists}
         progress={logDeal ? progressByDeal[logDeal.id] : null}
         onClose={() => setLogDeal(null)}
-        addLog={addLog}
-        addBaseline={addBaseline}
-        insertSnapshots={insertSnapshots}
+        onSaved={reload}
       />
 
       <DealHistorySheet

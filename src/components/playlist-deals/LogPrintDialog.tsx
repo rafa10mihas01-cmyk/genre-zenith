@@ -42,8 +42,11 @@ export interface LogPrintDialogProps {
   allPlaylists: CuratorPlaylist[];
   progress?: CuratorDealProgress | null;
   onClose: () => void;
-  addLog: (input: NewCuratorLogInput) => Promise<CuratorDealLog>;
-  addBaseline: (
+  onSaved?: () => void;
+  // Mantidos por compat com chamadas antigas — não são mais usados após
+  // a migração para a RPC atômica `record_curator_deal_capture`.
+  addLog?: (input: NewCuratorLogInput) => Promise<CuratorDealLog>;
+  addBaseline?: (
     dealId: string,
     plays: number,
     baselinePlaylists: BaselinePlaylistInput[],
@@ -116,9 +119,7 @@ export function LogPrintDialog({
   allPlaylists,
   progress,
   onClose,
-  addLog,
-  addBaseline,
-  insertSnapshots,
+  onSaved,
 }: LogPrintDialogProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [mode, setMode] = useState<"image" | "paste">("image");
@@ -453,67 +454,72 @@ export function LogPrintDialog({
       const primaryPrintUrl = printUrls[0] ?? null;
       const capturedAt = new Date().toISOString();
 
+      // Monta payload único pra RPC atômica record_curator_deal_capture.
+      // A RPC valida deal/song, cria log, insere novas playlists e snapshots em
+      // uma única transação — se qualquer etapa falhar, nada é gravado.
+      let newPlaylists: Array<{
+        spotify_url: string;
+        playlist_name: string;
+        followers: number | null;
+        is_baseline: boolean;
+      }> = [];
+      let snapshots: Array<{
+        spotify_url: string | null;
+        playlist_name: string;
+        plays: number;
+        print_url: string | null;
+        ai_confidence: number | null;
+      }> = [];
+      let baselineCountForToast = 0;
+
       if (isBaseline) {
         const names = parsePlaylistNames(playlistsRaw);
-        const fromPaste: BaselinePlaylistInput[] = (parsedPaste?.playlists ?? [])
+        const fromPaste = (parsedPaste?.playlists ?? [])
           .filter((p) => p.name)
-          .map((p) => ({ spotify_url: p.spotify_url ?? "", playlist_name: p.name, followers: null }));
-        const fromAi: BaselinePlaylistInput[] = matches
+          .map((p) => ({
+            spotify_url: p.spotify_url ?? "",
+            playlist_name: p.name,
+            followers: null as number | null,
+            is_baseline: true,
+          }));
+        const fromAi = matches
           .filter((m) => m.playlist_name)
-          .map((m) => ({ spotify_url: "", playlist_name: m.playlist_name, followers: null }));
-        const fromManual: BaselinePlaylistInput[] = names.map((name) => ({
-          spotify_url: "", playlist_name: name, followers: null,
+          .map((m) => ({
+            spotify_url: "",
+            playlist_name: m.playlist_name,
+            followers: null as number | null,
+            is_baseline: true,
+          }));
+        const fromManual = names.map((name) => ({
+          spotify_url: "",
+          playlist_name: name,
+          followers: null as number | null,
+          is_baseline: true,
         }));
-        const baselinePlaylists =
+        newPlaylists =
           fromPaste.length > 0 ? fromPaste : fromAi.length > 0 ? fromAi : fromManual;
-        await addBaseline(deal.id, finalValue as number, baselinePlaylists, printUrls, selectedSongId);
+        baselineCountForToast = newPlaylists.length;
 
-        // Snapshots de baseline — busca as playlists recém-criadas e grava plays por playlist
-        if (insertSnapshots) {
-          const { data: freshPls } = await supabase
-            .from("curator_playlists")
-            .select("id, playlist_name, is_baseline")
-            .eq("deal_id", deal.id);
-          const baselineMatches: { playlist_id: string; plays: number }[] = [];
-          const byName = new Map<string, string>();
-          for (const p of (freshPls ?? []) as CuratorPlaylist[]) {
-            if (p.is_baseline) byName.set(normalizeName(p.playlist_name), p.id);
-          }
-          // 1) plays por nome (vindos da IA ou paste)
-          const aiList: { name: string; plays: number | null }[] = [
-            ...matches.filter((m) => m.found && m.plays != null).map((m) => ({ name: m.playlist_name, plays: m.plays })),
-            ...((parsedPaste?.playlists ?? []) as { name: string; plays: number | null }[]),
-          ];
-          for (const it of aiList) {
-            if (it.plays == null) continue;
-            const id = byName.get(normalizeName(it.name));
-            if (id) baselineMatches.push({ playlist_id: id, plays: it.plays });
-          }
-          if (baselineMatches.length > 0) {
-            try {
-              await insertSnapshots(deal.id, selectedSongId, baselineMatches, {
-                isBaseline: true,
-                printUrl: primaryPrintUrl,
-                capturedAt,
-              });
-            } catch (snapErr) {
-              console.error("[LogPrintDialog] insertSnapshots baseline failed", snapErr);
-            }
-          }
-        }
-
-        toast.success("Baseline registrada", {
-          description: `${formatPlays(finalValue as number)} plays · ${baselinePlaylists.length} playlist(s) iniciais · ${printUrls.length} print(s)`,
-        });
+        const aiList: { name: string; plays: number | null; spotify_url?: string | null }[] = [
+          ...matches
+            .filter((m) => m.found && m.plays != null)
+            .map((m) => ({ name: m.playlist_name, plays: m.plays, spotify_url: null })),
+          ...((parsedPaste?.playlists ?? []) as {
+            name: string;
+            plays: number | null;
+            spotify_url?: string | null;
+          }[]).map((p) => ({ name: p.name, plays: p.plays, spotify_url: p.spotify_url ?? null })),
+        ];
+        snapshots = aiList
+          .filter((it) => it.plays != null)
+          .map((it) => ({
+            spotify_url: it.spotify_url ?? null,
+            playlist_name: it.name,
+            plays: it.plays as number,
+            print_url: primaryPrintUrl,
+            ai_confidence: null,
+          }));
       } else {
-        await addLog({
-          deal_id: deal.id,
-          total_plays: finalValue as number,
-          note: note.trim() || null,
-          print_urls: printUrls,
-          song_id: selectedSongId,
-        });
-
         const dealPlaylists = allPlaylists.filter((p) => p.deal_id === deal.id);
         const knownIds = new Set(
           dealPlaylists
@@ -531,67 +537,71 @@ export function LogPrintDialog({
         });
 
         if (autoNewFromPaste.length > 0) {
-          const rows = autoNewFromPaste.map((p) => ({
-            deal_id: deal.id,
+          newPlaylists = autoNewFromPaste.map((p) => ({
             spotify_url: p.spotify_url ?? "",
             playlist_name: p.name,
             followers: null,
             is_baseline: false,
-            song_id: selectedSongId,
           }));
-          const { error: plErr } = await supabase
-            .from("curator_playlists")
-            .insert(rows);
-          if (plErr) throw plErr;
         } else if (hasNewPlaylists) {
           const names = parsePlaylistNames(playlistsRaw);
-          if (names.length > 0) {
-            const rows = names.map((name) => ({
-              deal_id: deal.id,
-              spotify_url: "",
-              playlist_name: name,
-              followers: null,
-              is_baseline: false,
-              song_id: selectedSongId,
-            }));
-            const { error: plErr } = await supabase
-              .from("curator_playlists")
-              .insert(rows);
-            if (plErr) throw plErr;
-          }
+          newPlaylists = names.map((name) => ({
+            spotify_url: "",
+            playlist_name: name,
+            followers: null,
+            is_baseline: false,
+          }));
         }
 
-        // Snapshots de update — grava plays por playlist a partir dos matches da IA
-        if (insertSnapshots && matches.length > 0) {
-          // recarrega playlists do deal (incluindo as novas inseridas acima)
-          const { data: freshPls } = await supabase
-            .from("curator_playlists")
-            .select("id, playlist_name, is_baseline")
-            .eq("deal_id", deal.id);
-          const updateMatches = buildSnapshotMatches(
-            matches,
-            (freshPls ?? []) as CuratorPlaylist[],
-          );
-          if (updateMatches.length > 0) {
-            try {
-              await insertSnapshots(deal.id, selectedSongId, updateMatches, {
-                isBaseline: false,
-                printUrl: primaryPrintUrl,
-                capturedAt,
-              });
-            } catch (snapErr) {
-              console.error("[LogPrintDialog] insertSnapshots update failed", snapErr);
-            }
-          }
-        }
+        snapshots = matches
+          .filter((m) => m.found && m.plays != null)
+          .map((m) => ({
+            spotify_url: null,
+            playlist_name: m.playlist_name,
+            plays: m.plays as number,
+            print_url: primaryPrintUrl,
+            ai_confidence: null,
+          }));
+      }
 
+      const { data: rpcData, error: rpcErr } = await supabase.rpc(
+        "record_curator_deal_capture",
+        {
+          p_deal_id: deal.id,
+          p_song_id: selectedSongId,
+          p_total_plays: finalValue as number,
+          p_is_baseline: isBaseline,
+          p_note: isBaseline ? null : (note.trim() || null),
+          p_print_urls: printUrls,
+          p_new_playlists: newPlaylists,
+          p_snapshots: snapshots,
+          p_captured_at: capturedAt,
+        },
+      );
+      if (rpcErr) throw rpcErr;
+
+      // void uso explícito pra manter helper (usado em outros lugares) sem warnings
+      void buildSnapshotMatches;
+
+      if (isBaseline) {
+        toast.success("Baseline registrada", {
+          description: `${formatPlays(finalValue as number)} plays · ${baselineCountForToast} playlist(s) iniciais · ${printUrls.length} print(s)`,
+        });
+      } else {
         toast.success("Registro salvo", {
           description: stats
             ? `+${formatPlays(Math.max(0, delta))} plays · ${printUrls.length} print(s) anexado(s)`
             : undefined,
         });
       }
+
+      // Recarrega dados do hook (substitui addLog/addBaseline/insertSnapshots
+      // que faziam load() ao final). Usa um trigger leve via window event capturado
+      // pelo PlaylistDeals — fallback: reload via refetch de hooks. Aqui apenas
+      // sinalizamos sucesso; o componente pai chama reload no onClose.
+      void rpcData;
       draft.clearDraft();
+      onSaved?.();
       handleClose();
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
