@@ -1976,6 +1976,23 @@ export type Database = {
         }
         Relationships: []
       }
+      curator_playlist_performance: {
+        Row: {
+          avg_streams_7d: number | null
+          best_streams_7d: number | null
+          curator_id: string | null
+          deals_count: number | null
+          drop_ratio: number | null
+          library_id: string | null
+          performance_class: string | null
+          total_streams_7d: number | null
+          total_streams_lifetime: number | null
+          user_id: string | null
+          variation_coef: number | null
+          worst_streams_7d: number | null
+        }
+        Relationships: []
+      }
       genres_with_health: {
         Row: {
           ativo: boolean | null
