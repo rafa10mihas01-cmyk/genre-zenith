@@ -4,6 +4,7 @@ import {
   ImageOff,
   Music2,
   ClipboardPaste,
+  Library,
   ChevronDown,
   ChevronRight,
   Headphones,
