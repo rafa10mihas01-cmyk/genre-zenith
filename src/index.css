@@ -74,7 +74,7 @@
   .light {
     --background: 0 0% 96%;        /* canvas levemente cinza pra destacar cards */
     --card: 0 0% 100%;              /* cards brancos */
-    --elevated: 0 0% 94%;           /* mais cinza pra diferenciar sub-cards do card branco */
+    --elevated: 0 0% 98%;
     --shadow-soft: 0 1px 2px rgba(15,23,42,0.04), 0 8px 24px -8px rgba(15,23,42,0.12);
     --shadow-elevated: 0 12px 32px -12px rgba(15,23,42,0.18), 0 4px 12px -4px rgba(15,23,42,0.10);
     --popover: 0 0% 100%;
@@ -182,6 +182,34 @@
     border-color: rgba(255, 255, 255, 0.12);
     transform: translateY(-2px);
     box-shadow: var(--shadow-elevated);
+  }
+
+  /* === SUB-CARD === Bloco aninhado dentro de um nx-card.
+     Mesma cor do card pai mas com sombra suave para se destacar do fundo.
+     Variante `.nx-subcard-hover` adiciona movimento (lift) no hover, igual
+     aos QuickAction cards do Cockpit. */
+  .nx-subcard {
+    @apply rounded-xl border border-border/60 transition-all duration-200;
+    background: hsl(var(--card));
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 4px 14px -8px rgba(0,0,0,0.10);
+  }
+  .dark .nx-subcard {
+    background: hsl(var(--elevated));
+    border-color: rgba(255,255,255,0.06);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.02) inset, 0 6px 20px -12px rgba(0,0,0,0.6);
+  }
+  .nx-subcard-hover {
+    @apply nx-subcard cursor-pointer;
+    will-change: transform;
+  }
+  .nx-subcard-hover:hover {
+    transform: translateY(-2px);
+    border-color: rgba(0,0,0,0.10);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.04), 0 12px 28px -10px rgba(0,0,0,0.18);
+  }
+  .dark .nx-subcard-hover:hover {
+    border-color: rgba(255,255,255,0.12);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset, 0 14px 32px -10px rgba(0,0,0,0.7);
   }
   /* === WRAPPER DE PÁGINA === aplica padding + gap entre seções automaticamente.
      Container premium: max-width 1200px centralizado (Stripe / Linear / Notion).
