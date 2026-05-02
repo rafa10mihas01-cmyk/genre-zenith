@@ -67,7 +67,7 @@ export function FraudAlertsPanel({
     setReconciling(true);
     try {
       const { data, error } = await supabase.functions.invoke(
-        "reconcile-curator-deals",
+        "detect-curator-fraud",
         { body: { deal_id: dealId } },
       );
       if (error) throw error;
@@ -75,8 +75,8 @@ export function FraudAlertsPanel({
       const alertsCreated = result?.alerts_created ?? 0;
       toast.success(
         alertsCreated > 0
-          ? `Reconciliação ok · ${alertsCreated} novo(s) alerta(s)`
-          : "Reconciliação concluída",
+          ? `Detecção ok · ${alertsCreated} novo(s) alerta(s)`
+          : "Detecção concluída",
       );
       await fetchAlerts();
       onReload?.();
