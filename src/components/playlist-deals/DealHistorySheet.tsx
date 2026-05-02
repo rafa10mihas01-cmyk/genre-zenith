@@ -202,6 +202,10 @@ export function DealHistorySheet({
 
             <Separator className="my-6" />
 
+            <FraudAlertsPanel dealId={deal.id} onReload={onReload} />
+
+            <Separator className="my-6" />
+
             <div className="text-sm font-medium text-muted-foreground mb-3">
               Histórico de prints
             </div>
