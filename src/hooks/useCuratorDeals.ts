@@ -127,6 +127,7 @@ export function useCuratorDeals() {
   const [alerts, setAlerts] = useState<CuratorFraudAlert[]>([]);
   const [curators, setCurators] = useState<Curator[]>([]);
   const [balances, setBalances] = useState<CuratorBalance[]>([]);
+  const [progressByDeal, setProgressByDeal] = useState<Record<string, CuratorDealProgress>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
