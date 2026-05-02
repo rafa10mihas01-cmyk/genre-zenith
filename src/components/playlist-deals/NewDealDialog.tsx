@@ -374,6 +374,11 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDe
       }
     } else {
       // Novo deal
+      // Se existe rascunho, não zera os campos — espera decisão do user
+      if (draft.hasDraft) {
+        // Mostra banner; campos ficam no estado vazio inicial até restaurar/descartar
+        return;
+      }
       setStep(1);
       setCuratorMode(curators.length > 0 ? "select" : "new");
       setSelectedCuratorId(null);
