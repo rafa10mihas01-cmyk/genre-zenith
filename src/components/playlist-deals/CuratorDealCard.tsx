@@ -1,4 +1,4 @@
-import { Camera, History, Trash2, Link2, Zap, Clock, AlertTriangle, Calendar as CalendarIcon, Music2, DollarSign } from "lucide-react";
+import { Camera, History, Trash2, Link2, Zap, Clock, AlertTriangle, Calendar as CalendarIcon, Music2, DollarSign, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -19,6 +19,7 @@ export interface CuratorDealCardProps {
   onLog: (deal: CuratorDeal) => void;
   onDetail: (deal: CuratorDeal) => void;
   onDelete: (deal: CuratorDeal) => void;
+  onEdit?: (deal: CuratorDeal) => void;
 }
 
 function formatPlays(n: number): string {
@@ -30,7 +31,7 @@ function formatPlays(n: number): string {
 }
 
 export function CuratorDealCard({
-  deal, logs, playlists, songs = [], onLog, onDetail, onDelete,
+  deal, logs, playlists, songs = [], onLog, onDetail, onDelete, onEdit,
 }: CuratorDealCardProps) {
   const stats = computeCuratorStats(deal, logs, playlists);
   const { earned, pct, vel, eta, latestPlays, todayPlays, hasBaseline, newPlaylists } = stats;
@@ -308,6 +309,17 @@ export function CuratorDealCard({
           >
             <Link2 className="h-3.5 w-3.5" />
           </Button>
+          {onEdit && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 text-muted-foreground hover:text-foreground"
+              onClick={() => onEdit(deal)}
+              aria-label="Editar deal"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="icon"
