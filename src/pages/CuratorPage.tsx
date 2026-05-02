@@ -65,6 +65,24 @@ type DealLog = {
   print_urls?: string[] | null;
 };
 
+type DealSong = {
+  id: string;
+  deal_id: string;
+  song_spotify_url: string;
+  spotify_track_id: string | null;
+  song_name: string;
+  song_artist: string | null;
+  song_cover_url: string | null;
+  daily_goal: number;
+  target_plays: number | null;
+  baseline_plays: number;
+  position: number;
+  started_at: string | null;
+  ends_at: string | null;
+  ramp_up_days: number | null;
+  created_at: string;
+};
+
 function formatPlays(n: number): string {
   if (!Number.isFinite(n)) return "0";
   const abs = Math.abs(n);
