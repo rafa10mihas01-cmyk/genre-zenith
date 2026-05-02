@@ -499,7 +499,7 @@ export default function CuratorPage() {
                 const label = isDone
                   ? "Concluído"
                   : overdue
-                  ? `Relatório atrasado · seg ${formatShortDate(stats.cycleStart)} 17h`
+                  ? `Relatório atrasado · venceu ${formatShortDate(stats.cycleStart)} 17h`
                   : !stats.hasBaseline
                   ? "Aguardando relatório inicial"
                   : `Próximo relatório · ${formatCountdown(stats.msToCycleEnd)}`;
