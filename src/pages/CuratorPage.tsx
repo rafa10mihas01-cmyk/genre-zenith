@@ -904,7 +904,7 @@ export default function CuratorPage() {
                 </button>
               </div>
 
-              <ul className="space-y-3">
+              <ul className="space-y-2 max-h-[280px] overflow-y-auto pr-1 -mr-1 scroll-smooth">
                 {songs.map((s) => {
                   const songLogs = logs.filter(
                     (l) => l.song_id === s.id && !l.is_baseline,
@@ -933,18 +933,9 @@ export default function CuratorPage() {
                   const inRampUp = startMs !== null && daysSince < ramp && !isDoneSong;
 
                   let statusLabel = "Ativa";
-                  let statusColor = "text-primary";
-                  if (isDoneSong) {
-                    statusLabel = "Concluída";
-                    statusColor = "text-primary";
-                  } else if (inRampUp) {
-                    const remaining = Math.max(1, ramp - daysSince);
-                    statusLabel = `Aquecimento · ${remaining}d`;
-                    statusColor = "text-warning";
-                  } else if (!startMs) {
-                    statusLabel = "Aguardando";
-                    statusColor = "text-muted-foreground";
-                  }
+                  if (isDoneSong) statusLabel = "OK";
+                  else if (inRampUp) statusLabel = `${Math.max(1, ramp - daysSince)}d`;
+                  else if (!startMs) statusLabel = "—";
 
                   const isSelected = selectedSongId === s.id;
 
@@ -956,38 +947,31 @@ export default function CuratorPage() {
                           setSelectedSongId(isSelected ? null : s.id)
                         }
                         className={cn(
-                          "w-full text-left p-4 transition-all",
+                          "w-full text-left px-3 py-2.5 transition-all",
                           isSelected
                             ? "nx-subcard ring-1 ring-primary/40 !border-primary/40"
                             : "nx-subcard-hover",
                         )}
                         aria-pressed={isSelected}
                       >
-                        <div className="flex items-start gap-3">
+                        <div className="flex items-center gap-3">
                           {s.song_cover_url ? (
                             <img
                               src={s.song_cover_url}
                               alt={s.song_name}
-                              className="w-12 h-12 rounded-lg object-cover ring-1 ring-border shrink-0"
+                              className="w-9 h-9 rounded-md object-cover ring-1 ring-border shrink-0"
                             />
                           ) : (
-                            <div className="w-12 h-12 rounded-lg bg-muted shrink-0" />
+                            <div className="w-9 h-9 rounded-md bg-muted shrink-0" />
                           )}
                           <div className="min-w-0 flex-1">
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="min-w-0 flex-1">
-                                <span className="text-[13px] font-semibold leading-tight line-clamp-2 block">
-                                  {s.song_name}
-                                </span>
-                                {s.song_artist && (
-                                  <p className="text-[11px] text-muted-foreground truncate mt-0.5">
-                                    {s.song_artist}
-                                  </p>
-                                )}
-                              </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[12.5px] font-semibold leading-tight truncate">
+                                {s.song_name}
+                              </span>
                               <span
                                 className={cn(
-                                  "text-[10px] font-semibold uppercase tracking-wider shrink-0 px-2 py-0.5 rounded-full ring-1",
+                                  "text-[9px] font-semibold uppercase tracking-wider shrink-0 px-1.5 py-0.5 rounded-full ring-1 leading-none",
                                   isDoneSong
                                     ? "text-primary bg-primary/10 ring-primary/20"
                                     : inRampUp
@@ -1000,53 +984,20 @@ export default function CuratorPage() {
                                 {statusLabel}
                               </span>
                             </div>
-
-                            <div className="grid grid-cols-3 gap-2 mt-3">
-                              <div>
-                                <div className="text-[9px] uppercase tracking-wider text-muted-foreground/70">
-                                  Meta
-                                </div>
-                                <div className="text-[12px] font-semibold tabular-nums">
-                                  {target > 0 ? formatPlays(target) : "—"}
-                                </div>
+                            <div className="mt-1.5 flex items-center gap-2">
+                              <div className="h-1 flex-1 rounded-full bg-muted/60 overflow-hidden">
+                                <div
+                                  className="h-full bg-primary rounded-full transition-all duration-500"
+                                  style={{ width: `${pct}%` }}
+                                />
                               </div>
-                              <div>
-                                <div className="text-[9px] uppercase tracking-wider text-muted-foreground/70">
-                                  Diário
-                                </div>
-                                <div className="text-[12px] font-semibold tabular-nums">
-                                  {Number(s.daily_goal ?? 0) > 0
-                                    ? formatPlays(Number(s.daily_goal))
-                                    : "—"}
-                                </div>
-                              </div>
-                              <div>
-                                <div className="text-[9px] uppercase tracking-wider text-muted-foreground/70">
-                                  Janela
-                                </div>
-                                <div className="text-[12px] font-semibold tabular-nums">
-                                  {s.started_at ? formatShortDate(s.started_at) : "—"}
-                                  {s.ends_at ? ` → ${formatShortDate(s.ends_at)}` : ""}
-                                </div>
-                              </div>
+                              <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
+                                {formatPlays(earned)}/{target > 0 ? formatPlays(target) : "—"}
+                              </span>
+                              <span className="text-[10px] font-medium tabular-nums shrink-0 w-8 text-right">
+                                {pct}%
+                              </span>
                             </div>
-
-                            {target > 0 && (
-                              <div className="mt-3 space-y-1.5">
-                                <div className="h-1 rounded-full bg-muted/60 overflow-hidden">
-                                  <div
-                                    className="h-full bg-primary rounded-full transition-all duration-500"
-                                    style={{ width: `${pct}%` }}
-                                  />
-                                </div>
-                                <div className="flex items-center justify-between text-[11px] tabular-nums">
-                                  <span className="text-foreground font-medium">
-                                    {formatPlays(earned)} / {formatPlays(target)}
-                                  </span>
-                                  <span className="text-muted-foreground">{pct}%</span>
-                                </div>
-                              </div>
-                            )}
                           </div>
                         </div>
                       </button>
