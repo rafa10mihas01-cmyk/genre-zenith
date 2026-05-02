@@ -16,8 +16,10 @@
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import {
+  checkTrackInPlaylist,
   classifyPlaylist,
   extractPlaylistId,
+  extractTrackId,
   fetchPlaylistMeta,
   type ClassifyResult,
   type SpotifyPlaylistMeta,
@@ -38,6 +40,7 @@ type DealRow = {
   id: string;
   user_id: string;
   spotify_owner_id: string | null;
+  song_spotify_url: string | null;
   started_at: string;
 };
 
@@ -48,6 +51,12 @@ type ProcessedItem = {
   match_status?: ClassifyResult["match_status"];
   match_reason?: string;
   meta?: SpotifyPlaylistMeta;
+  track_presence?: {
+    found: boolean;
+    position: number | null;
+    track_name: string | null;
+    artist_name: string | null;
+  };
   error?: string;
 };
 
