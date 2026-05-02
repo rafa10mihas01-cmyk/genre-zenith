@@ -126,13 +126,19 @@ export function CloseDealDialog({
     <Dialog open={open} onOpenChange={(o) => { if (!o && !busy) onClose(); }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Encerrar deal</DialogTitle>
+          <div className="flex items-center justify-between gap-2">
+            <DialogTitle>Encerrar deal</DialogTitle>
+            <DraftIndicator lastSavedAt={draft.lastSavedAt} />
+          </div>
           <DialogDescription className="text-xs">
             {deal.curator_name} · {deal.song_name}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
+          {draft.hasDraft && (
+            <DraftBanner onRestore={handleRestoreDraft} onDiscard={draft.clearDraft} />
+          )}
           {/* Snapshot final */}
           <div className="rounded-lg bg-muted/40 border border-border p-3 space-y-1.5">
             <div className="flex justify-between text-[12px]">
