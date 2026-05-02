@@ -64,6 +64,7 @@ type SongRow = {
   daily_goal: string;
   started_at: Date | undefined;
   ends_at: Date | undefined;
+  ramp_up_days: string;
   meta: {
     title: string;
     artist: string | null;
@@ -98,6 +99,7 @@ function emptySong(): SongRow {
     daily_goal: "",
     started_at: new Date(),
     ends_at: undefined,
+    ramp_up_days: "5",
     meta: null,
     searching: false,
   };
@@ -251,6 +253,7 @@ export function NewDealDialog({ open, onOpenChange }: NewDealDialogProps) {
         position: i + 1,
         started_at: s.started_at ? s.started_at.toISOString() : null,
         ends_at: s.ends_at ? s.ends_at.toISOString() : null,
+        ramp_up_days: s.ramp_up_days ? Math.max(0, Number(s.ramp_up_days)) : 5,
       }));
 
       // Janela do deal = menor início e maior fim entre as músicas
@@ -283,6 +286,7 @@ export function NewDealDialog({ open, onOpenChange }: NewDealDialogProps) {
         cost: typeof costNumber === "number" ? costNumber : null,
         started_at: dealStart.toISOString(),
         ends_at: dealEnd ? dealEnd.toISOString() : null,
+        ramp_up_days: primary.ramp_up_days ? Math.max(0, Number(primary.ramp_up_days)) : 5,
         extra_songs: extras,
       });
 
@@ -490,21 +494,43 @@ export function NewDealDialog({ open, onOpenChange }: NewDealDialogProps) {
                       </div>
                     </div>
 
-                    {song.started_at && song.ends_at && (
-                      <div className="text-xs text-muted-foreground">
-                        Duração:{" "}
-                        <span className="text-foreground font-medium">
-                          {Math.max(
-                            1,
-                            Math.round(
-                              (song.ends_at.getTime() - song.started_at.getTime()) /
-                                86400000,
-                            ) + 1,
-                          )}{" "}
-                          dias
+                    {/* Ramp-up + duração */}
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground">
+                          Aquecimento:
+                        </span>
+                        <Input
+                          type="number"
+                          inputMode="numeric"
+                          min={0}
+                          max={30}
+                          className="h-8 w-16 text-sm"
+                          value={song.ramp_up_days}
+                          onChange={(e) =>
+                            updateSong(idx, { ramp_up_days: e.target.value })
+                          }
+                        />
+                        <span className="text-xs text-muted-foreground">
+                          dias sem cobrar meta
                         </span>
                       </div>
-                    )}
+                      {song.started_at && song.ends_at && (
+                        <div className="text-xs text-muted-foreground ml-auto">
+                          Duração:{" "}
+                          <span className="text-foreground font-medium">
+                            {Math.max(
+                              1,
+                              Math.round(
+                                (song.ends_at.getTime() - song.started_at.getTime()) /
+                                  86400000,
+                              ) + 1,
+                            )}{" "}
+                            dias
+                          </span>
+                        </div>
+                      )}
+                    </div>
 
                     <div className="flex items-center gap-2">
                       {!song.meta ? (

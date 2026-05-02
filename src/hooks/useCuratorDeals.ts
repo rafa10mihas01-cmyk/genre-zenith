@@ -21,6 +21,7 @@ export type DealSongInput = {
   position?: number;
   started_at?: string | null;
   ends_at?: string | null;
+  ramp_up_days?: number;
 };
 
 export type NewCuratorDealInput = {
@@ -36,6 +37,7 @@ export type NewCuratorDealInput = {
   cost?: number | null;
   started_at?: string | null;
   ends_at?: string | null;
+  ramp_up_days?: number;
   // lista de músicas adicionais (além da primária)
   extra_songs?: DealSongInput[];
 };
@@ -143,6 +145,7 @@ export function useCuratorDeals() {
           cost: input.cost ?? null,
           started_at: input.started_at ?? new Date().toISOString(),
           ends_at: input.ends_at ?? null,
+          ramp_up_days: input.ramp_up_days ?? 5,
         })
         .select()
         .single();
@@ -161,6 +164,7 @@ export function useCuratorDeals() {
         position: 0,
         started_at: input.started_at ?? null,
         ends_at: input.ends_at ?? null,
+        ramp_up_days: input.ramp_up_days ?? 5,
       };
       const allSongs = [primarySong, ...(input.extra_songs ?? [])];
       const songRows = allSongs.map((s, i) => ({
@@ -175,6 +179,7 @@ export function useCuratorDeals() {
         position: s.position ?? i,
         started_at: s.started_at ?? null,
         ends_at: s.ends_at ?? null,
+        ramp_up_days: s.ramp_up_days ?? input.ramp_up_days ?? 5,
       }));
       const { error: songsErr } = await supabase
         .from("curator_deal_songs")

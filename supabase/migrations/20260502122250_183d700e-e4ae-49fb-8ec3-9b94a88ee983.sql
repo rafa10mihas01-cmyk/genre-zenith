@@ -1,0 +1,5 @@
+ALTER TABLE public.curator_deals
+  ADD COLUMN IF NOT EXISTS ramp_up_days INTEGER NOT NULL DEFAULT 5;
+
+ALTER TABLE public.curator_deal_songs
+  ADD COLUMN IF NOT EXISTS ramp_up_days INTEGER NOT NULL DEFAULT 5;
