@@ -117,6 +117,19 @@ type DealProgress = {
   progress_pct: number;
   eta_days: number | null;
   per_playlist: ProgressPerPlaylist[];
+  delivered_per_song?: ProgressPerSong[] | null;
+};
+
+type ProgressPerSong = {
+  song_id: string;
+  target_plays: number;
+  daily_goal: number;
+  baseline_total: number;
+  latest_total: number;
+  delivered_curator: number;
+  first_capture_at: string | null;
+  last_capture_at: string | null;
+  progress_pct: number;
 };
 
 type SnapshotHistoryEntry = {
