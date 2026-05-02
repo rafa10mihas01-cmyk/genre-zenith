@@ -481,7 +481,7 @@ export default function CuratorPage() {
 
         {/* Header — campanha + música */}
         <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_8px_30px_rgba(0,0,0,0.45)] transition-colors overflow-hidden">
-          <CardContent className="p-6 sm:p-7 space-y-5">
+          <CardContent className="p-7 sm:p-8 space-y-6">
             {/* Eyebrow: CAMPANHA · próximo relatório (seg 17h) */}
             <div className="flex items-center justify-between gap-3">
               <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary/80">
@@ -617,8 +617,8 @@ export default function CuratorPage() {
         {/* Plays hoje vs combinado diário */}
         {stats.hasBaseline && (
           <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_8px_30px_rgba(0,0,0,0.45)]">
-            <CardContent className="p-6 sm:p-7 grid grid-cols-2 gap-4">
-              <div className="rounded-xl bg-white/[0.02] ring-1 ring-white/[0.04] p-4">
+            <CardContent className="p-7 sm:p-8 grid grid-cols-2 gap-6 divide-x divide-white/[0.06]">
+              <div className="pr-2">
                 <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">
                   Plays totais hoje
                 </div>
@@ -626,7 +626,7 @@ export default function CuratorPage() {
                   {formatPlays(stats.latest)}
                 </div>
               </div>
-              <div className="rounded-xl bg-white/[0.02] ring-1 ring-white/[0.04] p-4">
+              <div className="pl-6">
                 <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">
                   Hoje / combinado
                 </div>
@@ -646,7 +646,7 @@ export default function CuratorPage() {
 
         {/* Progresso da campanha */}
         <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_8px_30px_rgba(0,0,0,0.45)]">
-          <CardContent className="p-6 sm:p-7 space-y-6">
+          <CardContent className="p-7 sm:p-8 space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-[15px] font-semibold tracking-tight">Combinado total</h2>
               <span className="text-[20px] font-bold tabular-nums">{stats.pct}%</span>
@@ -760,7 +760,7 @@ export default function CuratorPage() {
         {/* Playlists onde a música já está (baseline / pré-existentes) — colapsável */}
         {basePlaylists.length > 0 && (
           <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_8px_30px_rgba(0,0,0,0.45)]">
-            <CardContent className="p-6 sm:p-7 space-y-5">
+            <CardContent className="p-7 sm:p-8 space-y-5">
               <button
                 type="button"
                 onClick={() => setBaseOpen((v) => !v)}
@@ -822,7 +822,7 @@ export default function CuratorPage() {
 
         {/* Playlists adicionadas pelo curador */}
         <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_8px_30px_rgba(0,0,0,0.45)]">
-          <CardContent className="p-6 sm:p-7 space-y-5">
+          <CardContent className="p-7 sm:p-8 space-y-5">
             <button
               type="button"
               onClick={() => setCuratorOpen((v) => !v)}
@@ -889,7 +889,7 @@ export default function CuratorPage() {
 
         {/* Adicionar playlist — bloco de ação principal */}
         <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_8px_30px_rgba(0,0,0,0.45)]">
-          <CardContent className="p-6 sm:p-7 space-y-5">
+          <CardContent className="p-7 sm:p-8 space-y-5">
             <div>
               <h2 className="text-[15px] font-semibold tracking-tight">Adicionar playlist</h2>
               <p className="text-[12px] text-muted-foreground mt-1.5 leading-snug">
@@ -968,7 +968,7 @@ export default function CuratorPage() {
           const curatorLogs = logs.filter((l) => !l.is_baseline);
           return (
             <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_8px_30px_rgba(0,0,0,0.45)]">
-              <CardContent className="p-6 sm:p-7 space-y-5">
+              <CardContent className="p-7 sm:p-8 space-y-5">
                 <div className="flex items-center justify-between">
                   <h2 className="text-[15px] font-semibold tracking-tight">Histórico</h2>
                   <span className="text-[12px] text-muted-foreground">
