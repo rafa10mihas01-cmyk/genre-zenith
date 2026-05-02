@@ -489,10 +489,6 @@ export default function CuratorPage() {
       toast.error(item.error);
       return;
     }
-    if (item?.match_status === "suspicious") {
-      toast.error("Esta playlist não é do seu perfil Spotify cadastrado");
-      return;
-    }
     toast.success("Playlist adicionada");
     setUrl("");
     await load();
@@ -562,11 +558,9 @@ export default function CuratorPage() {
         return;
       }
       const items = Array.isArray(data.items) ? data.items : [];
-      const added = items.filter((i: { saved?: boolean }) => i.saved).length;
-      const suspicious = items.filter((i: { match_status?: string }) => i.match_status === "suspicious").length;
+      const added = data.summary?.inserted ?? items.filter((i: { status?: string }) => i.status === "ok").length;
       const errs = items.filter((i: { error?: string }) => i.error).length;
       const parts: string[] = [`${added} adicionadas`];
-      if (suspicious) parts.push(`${suspicious} bloqueadas (não são do seu perfil)`);
       if (errs) parts.push(`${errs} com erro`);
       toast.success("Importação concluída", { description: parts.join(" · ") });
       await load();
