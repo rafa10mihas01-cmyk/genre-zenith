@@ -980,10 +980,10 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDe
                 </Label>
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
                   onClick={addSongRow}
-                  className="gap-1.5 h-8"
+                  className="gap-1.5 h-8 border-border/60 hover:border-primary/50 hover:text-primary"
                 >
                   <Plus className="h-3.5 w-3.5" />
                   Adicionar música
