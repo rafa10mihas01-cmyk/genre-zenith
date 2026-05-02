@@ -1205,12 +1205,7 @@ export default function CuratorPage() {
         {/* Playlists adicionadas pelo curador */}
         <Card className="nx-card !p-0 border-border">
           <CardContent className="p-5 sm:p-6 space-y-4">
-            <button
-              type="button"
-              onClick={() => setCuratorOpen((v) => !v)}
-              className="w-full flex items-center justify-between gap-4 text-left"
-              aria-expanded={curatorOpen}
-            >
+            <div className="w-full flex items-center justify-between gap-4">
               <div className="min-w-0 flex-1">
                 <h2 className="text-[14px] font-semibold inline-flex items-center gap-2 tracking-tight">
                   <ListMusic className="h-3.5 w-3.5 text-muted-foreground" />
@@ -1220,18 +1215,12 @@ export default function CuratorPage() {
                   Clique em uma playlist para ver quais músicas da campanha já estão nela
                 </p>
               </div>
-              <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground shrink-0">
+              <span className="text-[11px] text-muted-foreground shrink-0">
                 {curatorGroupedByPlaylist.length} {curatorGroupedByPlaylist.length === 1 ? "playlist" : "playlists"}
-                <ChevronDown
-                  className={cn(
-                    "h-3.5 w-3.5 transition-transform duration-200",
-                    curatorOpen && "rotate-180",
-                  )}
-                />
               </span>
-            </button>
+            </div>
 
-            {curatorOpen && (
+            {(
               curatorGroupedByPlaylist.length === 0 ? (
                 <div className="py-6 flex flex-col items-center text-center gap-3">
                   <div className="h-10 w-10 rounded-xl bg-[hsl(var(--elevated))] border border-border/60 flex items-center justify-center">
