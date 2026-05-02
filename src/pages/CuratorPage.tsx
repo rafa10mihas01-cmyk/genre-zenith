@@ -103,6 +103,7 @@ export default function CuratorPage() {
   const [submitting, setSubmitting] = useState(false);
   const [importing, setImporting] = useState(false);
   const [baseOpen, setBaseOpen] = useState(false);
+  const [curatorOpen, setCuratorOpen] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const basePlaylists = useMemo(
@@ -606,7 +607,12 @@ export default function CuratorPage() {
         {/* Playlists adicionadas pelo curador */}
         <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_8px_30px_rgba(0,0,0,0.45)]">
           <CardContent className="p-6 sm:p-7 space-y-5">
-            <div className="flex items-start justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => setCuratorOpen((v) => !v)}
+              className="w-full flex items-start justify-between gap-3 text-left"
+              aria-expanded={curatorOpen}
+            >
               <div className="min-w-0">
                 <h2 className="text-[15px] font-semibold inline-flex items-center gap-2 tracking-tight">
                   <ListMusic className="h-4 w-4 text-muted-foreground" />
@@ -616,43 +622,51 @@ export default function CuratorPage() {
                   Apenas as que você incluiu nesta curadoria
                 </p>
               </div>
-              <span className="text-[12px] text-muted-foreground shrink-0 mt-0.5">
+              <span className="inline-flex items-center gap-2 text-[12px] text-muted-foreground shrink-0 mt-0.5">
                 {curatorPlaylists.length} {curatorPlaylists.length === 1 ? "playlist" : "playlists"}
+                <ChevronDown
+                  className={cn(
+                    "h-4 w-4 transition-transform duration-200",
+                    curatorOpen && "rotate-180",
+                  )}
+                />
               </span>
-            </div>
+            </button>
 
-            {curatorPlaylists.length === 0 ? (
-              <p className="text-[13px] text-muted-foreground py-6 text-center">
-                Nenhuma playlist adicionada ainda
-              </p>
-            ) : (
-              <ul className="space-y-2 max-h-[60vh] sm:max-h-[360px] overflow-y-auto pr-1 -mr-1 scroll-smooth [mask-image:linear-gradient(to_bottom,black_calc(100%-32px),transparent)]">
-                {curatorPlaylists.map((p) => (
-                  <li
-                    key={p.id}
-                    className="flex items-center justify-between gap-3 rounded-xl bg-white/[0.02] ring-1 ring-white/[0.04] px-4 py-3 hover:bg-white/[0.04] transition-colors"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <a
-                        href={p.spotify_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-[13px] font-medium truncate hover:underline block leading-snug"
-                      >
-                        {p.playlist_name}
-                      </a>
-                      {p.followers !== null && (
-                        <div className="text-[11px] text-muted-foreground mt-1 tabular-nums">
-                          {formatPlays(p.followers)} seguidores
-                        </div>
-                      )}
-                    </div>
-                    <Badge className="bg-primary text-black hover:bg-primary/90 shrink-0 text-[10px] px-2 py-0 h-5 border-0 font-semibold">
-                      Nova
-                    </Badge>
-                  </li>
-                ))}
-              </ul>
+            {curatorOpen && (
+              curatorPlaylists.length === 0 ? (
+                <p className="text-[13px] text-muted-foreground py-6 text-center">
+                  Nenhuma playlist adicionada ainda
+                </p>
+              ) : (
+                <ul className="space-y-2 max-h-[60vh] sm:max-h-[360px] overflow-y-auto pr-1 -mr-1 scroll-smooth [mask-image:linear-gradient(to_bottom,black_calc(100%-32px),transparent)]">
+                  {curatorPlaylists.map((p) => (
+                    <li
+                      key={p.id}
+                      className="flex items-center justify-between gap-3 rounded-xl bg-white/[0.02] ring-1 ring-white/[0.04] px-4 py-3 hover:bg-white/[0.04] transition-colors"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <a
+                          href={p.spotify_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-[13px] font-medium truncate hover:underline block leading-snug"
+                        >
+                          {p.playlist_name}
+                        </a>
+                        {p.followers !== null && (
+                          <div className="text-[11px] text-muted-foreground mt-1 tabular-nums">
+                            {formatPlays(p.followers)} seguidores
+                          </div>
+                        )}
+                      </div>
+                      <Badge className="bg-primary text-black hover:bg-primary/90 shrink-0 text-[10px] px-2 py-0 h-5 border-0 font-semibold">
+                        Nova
+                      </Badge>
+                    </li>
+                  ))}
+                </ul>
+              )
             )}
           </CardContent>
         </Card>
