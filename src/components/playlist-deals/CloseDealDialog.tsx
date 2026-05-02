@@ -103,6 +103,7 @@ export function CloseDealDialog({
         reason: reason.trim() || null,
         report_url: reportUrl,
       });
+      draft.clearDraft();
       toast.success(status === "completed" ? "Deal concluído" : "Deal encerrado");
       onClose();
     } catch (e) {
@@ -111,6 +112,14 @@ export function CloseDealDialog({
     } finally {
       setBusy(false);
     }
+  };
+
+  const handleRestoreDraft = () => {
+    const d = draft.restoreDraft();
+    if (!d) return;
+    setStatus(d.status);
+    setReason(d.reason);
+    setGenReport(d.genReport);
   };
 
   return (
