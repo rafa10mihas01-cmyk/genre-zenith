@@ -208,6 +208,108 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDe
   );
 
   // ============================================================
+  // Persistência de rascunho (autosave + restore)
+  // Só ativa em modo "novo deal" (edição não cria rascunho)
+  // ============================================================
+  // Snapshot serializável dos campos. Memoizado pra não causar saves desnecessários.
+  const draftSnapshot = useMemo(
+    () => ({
+      step,
+      curatorMode,
+      selectedCuratorId,
+      newCuratorName,
+      newCuratorContact,
+      newCuratorPlaysDigits,
+      newCuratorCostDigits,
+      songs: songs.map((s) => ({
+        url: s.url,
+        daily_goal: s.daily_goal,
+        duration_days: s.duration_days,
+        started_at: s.started_at ? s.started_at.toISOString() : null,
+        ramp_up_days: s.ramp_up_days,
+        meta: s.meta,
+      })),
+    }),
+    [
+      step,
+      curatorMode,
+      selectedCuratorId,
+      newCuratorName,
+      newCuratorContact,
+      newCuratorPlaysDigits,
+      newCuratorCostDigits,
+      songs,
+    ],
+  );
+
+  const isDraftEmpty = useMemo(() => {
+    if (selectedCuratorId) return false;
+    if (newCuratorName.trim() || newCuratorContact.trim()) return false;
+    if (newCuratorPlaysDigits || newCuratorCostDigits) return false;
+    return songs.every(
+      (s) => !s.url.trim() && !s.daily_goal && !s.meta,
+    );
+  }, [
+    selectedCuratorId,
+    newCuratorName,
+    newCuratorContact,
+    newCuratorPlaysDigits,
+    newCuratorCostDigits,
+    songs,
+  ]);
+
+  const draft = useFormDraft(
+    "new-deal",
+    { enabled: open && !isEdit, isEmpty: isDraftEmpty },
+    draftSnapshot,
+  );
+
+  // Estado: já tomou decisão sobre o draft (continuar/descartar) nesta sessão?
+  const [draftDecided, setDraftDecided] = useState(false);
+
+  const handleRestoreDraft = () => {
+    const data = draft.restoreDraft();
+    if (!data) {
+      setDraftDecided(true);
+      return;
+    }
+    setStep((data.step as 1 | 2) ?? 1);
+    setCuratorMode((data.curatorMode as "select" | "new") ?? "select");
+    setSelectedCuratorId((data.selectedCuratorId as string | null) ?? null);
+    setNewCuratorName((data.newCuratorName as string) ?? "");
+    setNewCuratorContact((data.newCuratorContact as string) ?? "");
+    setNewCuratorPlaysDigits((data.newCuratorPlaysDigits as string) ?? "");
+    setNewCuratorCostDigits((data.newCuratorCostDigits as string) ?? "");
+    const restoredSongs = (data.songs as Array<{
+      url: string;
+      daily_goal: string;
+      duration_days: string;
+      started_at: string | null;
+      ramp_up_days: string;
+      meta: SongRow["meta"];
+    }>) ?? [];
+    if (restoredSongs.length > 0) {
+      setSongs(
+        restoredSongs.map((s) => ({
+          url: s.url ?? "",
+          daily_goal: s.daily_goal ?? "",
+          duration_days: s.duration_days ?? "30",
+          started_at: s.started_at ? new Date(s.started_at) : new Date(),
+          ramp_up_days: s.ramp_up_days ?? "5",
+          meta: s.meta ?? null,
+          searching: false,
+        })),
+      );
+    }
+    setDraftDecided(true);
+  };
+
+  const handleDiscardDraft = () => {
+    draft.clearDraft();
+    setDraftDecided(true);
+  };
+
+  // ============================================================
   // Hidratação (modo edição) e reset (abertura)
   // ============================================================
   useEffect(() => {
