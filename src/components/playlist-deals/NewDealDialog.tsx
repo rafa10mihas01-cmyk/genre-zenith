@@ -42,6 +42,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useCuratorDeals, type DealSongInput } from "@/hooks/useCuratorDeals";
+import type { CuratorDeal, CuratorDealSong } from "@/lib/curatorDealsUtils";
 import { curatorPublicUrl } from "@/lib/curatorPublicUrl";
 
 const schema = z.object({
