@@ -257,12 +257,12 @@ export default function CuratorPage() {
 
   const stats = useMemo(() => {
     const now = new Date();
-    const anchor = getAnchor(deal?.started_at ?? deal?.created_at ?? null);
+    // Quando há uma música selecionada, usa o started_at dela como âncora
+    const anchorRef = selectedSong?.started_at ?? deal?.started_at ?? deal?.created_at ?? null;
+    const anchor = getAnchor(anchorRef);
     const cycEnd = cycleEnd(anchor, now);
     const cycStart = cycleStart(anchor, now);
     const msToCycleEnd = cycEnd.getTime() - now.getTime();
-    // "Atrasado" = passou da segunda 17h e ainda não chegou import dentro deste ciclo.
-    // (sempre false antes do baseline, cobrimos abaixo)
 
     if (!deal) {
       return {
@@ -288,10 +288,15 @@ export default function CuratorPage() {
         lastImportCycleEnd: null as Date | null,
       };
     }
-    const target = Number(deal.target_plays ?? 0);
-    const dailyGoal = Number(deal.daily_goal ?? 0);
-    const baseline = Number(deal.baseline_plays ?? 0);
-    const sorted = [...logs].sort(
+
+    // Quando filtrado por música, usa metas e baseline da música; senão, do deal
+    const target = Number(selectedSong?.target_plays ?? deal.target_plays ?? 0);
+    const dailyGoal = Number(selectedSong?.daily_goal ?? deal.daily_goal ?? 0);
+    const baseline = Number(selectedSong?.baseline_plays ?? deal.baseline_plays ?? 0);
+
+    // Logs filtrados (já vem filtrado em visibleLogs quando há música)
+    const sourceLogs = selectedSongId ? visibleLogs : logs;
+    const sorted = [...sourceLogs].sort(
       (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
     );
     const nonBase = sorted.filter((l) => !l.is_baseline);
@@ -328,7 +333,7 @@ export default function CuratorPage() {
     if (target > 0 && earned >= target) eta = 0;
     else if (vel && vel > 0) eta = Math.ceil(remaining / vel);
 
-    const startRef = deal.started_at ?? deal.created_at;
+    const startRef = selectedSong?.started_at ?? deal.started_at ?? deal.created_at;
     const daysRunning = startRef
       ? Math.max(
           0,
@@ -336,29 +341,24 @@ export default function CuratorPage() {
         )
       : 0;
 
-    // Meta semanal proporcional (resto até cycEnd)
     const msInWeek = 7 * 24 * 60 * 60 * 1000;
     const cycleProgress = Math.min(
       1,
       Math.max(0, (now.getTime() - cycStart.getTime()) / msInWeek),
     );
-    // Quanto deveríamos ter ganho até agora dentro deste ciclo (linear)
     const weeklyTarget = dailyGoal * 7;
     const weekRemaining = Math.max(0, Math.round(weeklyTarget * (1 - cycleProgress)));
 
-    // Último import (não-baseline) e em qual ciclo ele caiu
     const lastImportAt = nonBase.length > 0
       ? new Date(nonBase[nonBase.length - 1].created_at)
       : null;
     const lastImportCycleEnd = lastImportAt ? cycleEnd(anchor, new Date(lastImportAt.getTime() - 1)) : null;
 
-    // Atrasado = ciclo atual já tem mais de 1 dia rolando (passou da seg 17h)
-    // E o último import pertence a um ciclo anterior ao atual
     const currentCycleEndMs = cycEnd.getTime();
     const isOverdue = hasBaseline
       && lastImportCycleEnd !== null
       && lastImportCycleEnd.getTime() < currentCycleEndMs
-      && now.getTime() - cycStart.getTime() > 24 * 60 * 60 * 1000; // >24h dentro do ciclo novo
+      && now.getTime() - cycStart.getTime() > 24 * 60 * 60 * 1000;
 
     return {
       target, dailyGoal, baseline, latest, earned, remaining, pct,
@@ -371,7 +371,7 @@ export default function CuratorPage() {
       lastImportAt,
       lastImportCycleEnd,
     };
-  }, [deal, logs]);
+  }, [deal, logs, visibleLogs, selectedSong, selectedSongId]);
 
 
   const handleAdd = async () => {
