@@ -265,6 +265,7 @@ Deno.serve(async (req) => {
       .filter((it) => it.status === "ok" && it.meta && it.match_status)
       .map((it) => ({
         deal_id: deal!.id,
+        song_id: songIdInput,
         spotify_url: `https://open.spotify.com/playlist/${it.playlist_id}`,
         spotify_playlist_id: it.playlist_id!,
         playlist_name: it.meta!.name,
