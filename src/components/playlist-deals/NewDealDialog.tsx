@@ -662,15 +662,30 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDe
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto bg-card border-border/60 rounded-2xl shadow-2xl p-6">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Editar deal" : "Novo Deal"}</DialogTitle>
-          <DialogDescription>
-            {isEdit
-              ? "Atualize as músicas, metas diárias e durações."
-              : step === 1
-                ? "Selecione ou cadastre o curador (saldo de plays comprado)."
-                : "Adicione as músicas — meta = combinado/dia × dias."}
-          </DialogDescription>
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-1.5 flex-1 min-w-0">
+              <DialogTitle>{isEdit ? "Editar deal" : "Novo Deal"}</DialogTitle>
+              <DialogDescription>
+                {isEdit
+                  ? "Atualize as músicas, metas diárias e durações."
+                  : step === 1
+                    ? "Selecione ou cadastre o curador (saldo de plays comprado)."
+                    : "Adicione as músicas — meta = combinado/dia × dias."}
+              </DialogDescription>
+            </div>
+            {!isEdit && (
+              <DraftIndicator lastSavedAt={draft.lastSavedAt} className="mt-1 mr-6 shrink-0" />
+            )}
+          </div>
         </DialogHeader>
+
+        {/* Banner: rascunho disponível ao reabrir */}
+        {!isEdit && draft.hasDraft && !draftDecided && (
+          <DraftBanner
+            onRestore={handleRestoreDraft}
+            onDiscard={handleDiscardDraft}
+          />
+        )}
 
         {/* Stepper (só em criação) */}
         {!isEdit && (
