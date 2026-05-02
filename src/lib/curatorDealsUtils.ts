@@ -95,6 +95,11 @@ export type CuratorDealStats = {
   baselinePlaylists: CuratorPlaylist[];
   dealLogs: CuratorDealLog[];
   nonBaselineLogs: CuratorDealLog[];
+  // Fase 4 — qualidade e score
+  legitShare: number;       // 0..1 — (curator+organic+editorial) / (todas exceto baseline)
+  suspiciousShare: number;  // 0..1
+  onTime: boolean | null;   // true=bateu meta antes/em ends_at, false=passou, null=indef
+  score: number;            // 0..100 (prazo + share legítimo)
 };
 
 export function computeCuratorStats(
