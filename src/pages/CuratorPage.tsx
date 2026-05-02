@@ -380,7 +380,7 @@ export default function CuratorPage() {
     setSubmitting(true);
     const { data, error: fnErr } = await supabase.functions.invoke(
       "register-curator-playlist",
-      { body: { public_token: realToken, urls: [url.trim()] } },
+      { body: { public_token: realToken, urls: [url.trim()], song_id: selectedSongId } },
     );
     setSubmitting(false);
     if (fnErr || !data?.ok) {
