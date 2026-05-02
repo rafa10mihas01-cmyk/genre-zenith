@@ -303,7 +303,7 @@ export default function CuratorPage() {
     const lastImportAt = nonBase.length > 0
       ? new Date(nonBase[nonBase.length - 1].created_at)
       : null;
-    const lastImportCycleEnd = lastImportAt ? cycleEnd(new Date(lastImportAt.getTime() - 1)) : null;
+    const lastImportCycleEnd = lastImportAt ? cycleEnd(anchor, new Date(lastImportAt.getTime() - 1)) : null;
 
     // Atrasado = ciclo atual já tem mais de 1 dia rolando (passou da seg 17h)
     // E o último import pertence a um ciclo anterior ao atual
