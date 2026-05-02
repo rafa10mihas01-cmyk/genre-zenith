@@ -64,9 +64,10 @@ Deno.serve(async (req) => {
           "id, deal_id, spotify_url, playlist_name, followers, is_baseline, added_at, spotify_playlist_id, spotify_owner_id, spotify_owner_name, image_url, added_at_spotify, match_status, match_reason, streams_7d, streams_28d, streams_total, last_paste_at",
         )
         .eq("deal_id", deal.id)
-        // Curador SÓ vê o que é dele: playlists do próprio (curator) ou já existentes
-        // como baseline. Editorial / suspicious / organic ficam só pro admin.
-        .in("match_status", ["curator", "baseline"])
+        // Curador vê: playlists do próprio (curator) + qualquer baseline (transparência sobre
+        // onde a música já estava antes do deal). Editorial/suspicious/organic não-baseline
+        // ficam só pro admin.
+        .or("match_status.eq.curator,is_baseline.eq.true")
         .order("added_at", { ascending: true }),
       admin
         .from("curator_deal_logs")
