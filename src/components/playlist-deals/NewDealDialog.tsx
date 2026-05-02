@@ -370,6 +370,44 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDe
     }
   };
 
+  const handleSaveBalanceChange = async () => {
+    if (!selectedCuratorId || !selectedCurator) return;
+    const playsRaw = balancePlaysDigits ? Number(balancePlaysDigits) : 0;
+    const costRaw = currencyDigitsToNumber(balanceCostDigits) ?? 0;
+    if (playsRaw <= 0 && costRaw <= 0) {
+      toast.error("Informe plays e/ou custo");
+      return;
+    }
+    setSavingBalance(true);
+    try {
+      if (balanceAction === "add") {
+        // Soma ao saldo existente
+        await updateCurator(selectedCuratorId, {
+          purchased_plays: (selectedCurator.purchased_plays ?? 0) + playsRaw,
+          total_cost: Number(selectedCurator.total_cost ?? 0) + costRaw,
+        });
+        toast.success("Plays adicionados", {
+          description: `+${formatNumber(playsRaw)} plays`,
+        });
+      } else if (balanceAction === "edit") {
+        // Substitui valores
+        await updateCurator(selectedCuratorId, {
+          purchased_plays: playsRaw,
+          total_cost: costRaw,
+        });
+        toast.success("Saldo atualizado");
+      }
+      setBalanceAction(null);
+      setBalancePlaysDigits("");
+      setBalanceCostDigits("");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      toast.error("Não foi possível atualizar saldo", { description: msg });
+    } finally {
+      setSavingBalance(false);
+    }
+  };
+
   const handleAdvanceToStep2 = async () => {
     if (curatorMode === "new") {
       await handleCreateCuratorAndAdvance();
