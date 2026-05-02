@@ -826,7 +826,7 @@ export default function CuratorPage() {
                           "w-full text-left rounded-xl p-4 transition-all ring-1",
                           isSelected
                             ? "bg-primary/10 ring-primary/40"
-                            : "bg-muted/40 ring-border/50 hover:bg-muted/60",
+                            : "bg-[hsl(var(--elevated))] ring-border hover:bg-[hsl(var(--elevated))]/80",
                         )}
                         aria-pressed={isSelected}
                       >
@@ -979,7 +979,7 @@ export default function CuratorPage() {
 
             {/* Grid de KPIs — mini-cards */}
             <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-xl bg-muted/40 ring-1 ring-border/50 p-4">
+              <div className="rounded-xl bg-[hsl(var(--elevated))] ring-1 ring-border p-4">
                 <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mb-1.5 uppercase tracking-wider">
                   <Target className="h-3 w-3" />
                   Faltam
@@ -989,7 +989,7 @@ export default function CuratorPage() {
                 </div>
               </div>
 
-              <div className="rounded-xl bg-muted/40 ring-1 ring-border/50 p-4">
+              <div className="rounded-xl bg-[hsl(var(--elevated))] ring-1 ring-border p-4">
                 <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mb-1.5 uppercase tracking-wider">
                   <Clock className="h-3 w-3" />
                   Decorrido
@@ -999,7 +999,7 @@ export default function CuratorPage() {
                 </div>
               </div>
 
-              <div className="rounded-xl bg-muted/40 ring-1 ring-border/50 p-4">
+              <div className="rounded-xl bg-[hsl(var(--elevated))] ring-1 ring-border p-4">
                 <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mb-1.5 uppercase tracking-wider">
                   <Zap className="h-3 w-3 text-primary" />
                   Velocidade
@@ -1009,7 +1009,7 @@ export default function CuratorPage() {
                 </div>
               </div>
 
-              <div className="rounded-xl bg-muted/40 ring-1 ring-border/50 p-4">
+              <div className="rounded-xl bg-[hsl(var(--elevated))] ring-1 ring-border p-4">
                 <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mb-1.5 uppercase tracking-wider">
                   <TrendingUp className="h-3 w-3" />
                   ETA
@@ -1042,7 +1042,7 @@ export default function CuratorPage() {
             </div>
 
             {/* Ciclo do relatório semanal */}
-            <div className="rounded-xl bg-muted/40 ring-1 ring-border/50 p-4 space-y-2">
+            <div className="rounded-xl bg-[hsl(var(--elevated))] ring-1 ring-border p-4 space-y-2">
               <div className="flex items-center justify-between gap-2">
                 <div className="text-muted-foreground uppercase tracking-wider text-[11px]">
                   Ciclo atual
@@ -1353,7 +1353,7 @@ export default function CuratorPage() {
                           <button
                             type="button"
                             onClick={() => setSelectedLogId(log.id)}
-                            className="w-full text-left rounded-xl bg-muted/40 ring-1 ring-border/50 p-3 hover:bg-muted/60 hover:ring-border transition-colors flex items-center gap-3"
+                            className="w-full text-left rounded-xl bg-[hsl(var(--elevated))] ring-1 ring-border p-3 hover:bg-[hsl(var(--elevated))]/80 transition-colors flex items-center gap-3"
                           >
                             {cover ? (
                               <img
