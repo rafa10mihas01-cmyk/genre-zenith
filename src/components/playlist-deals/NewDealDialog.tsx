@@ -78,6 +78,10 @@ type SongRow = {
 export interface NewDealDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Quando passado, o diálogo entra em modo edição. */
+  editDeal?: CuratorDeal | null;
+  /** Músicas associadas ao deal (somente em modo edição). */
+  editSongs?: CuratorDealSong[];
 }
 
 function parseTitle(raw: string): { title: string; artist: string | null } {
