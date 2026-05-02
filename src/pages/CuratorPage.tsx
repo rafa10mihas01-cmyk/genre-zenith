@@ -577,7 +577,7 @@ export default function CuratorPage() {
                 </div>
                 <div className="text-[15px] font-semibold tabular-nums leading-none text-primary">
                   {stats.dailyGoal > 0 ? formatPlays(stats.weekRemaining) : "—"}
-                  <span className="text-[11px] text-muted-foreground font-normal ml-1">até seg</span>
+                  <span className="text-[11px] text-muted-foreground font-normal ml-1">no ciclo</span>
                 </div>
               </div>
               <div>
