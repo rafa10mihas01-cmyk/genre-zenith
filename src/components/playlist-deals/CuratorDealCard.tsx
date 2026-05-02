@@ -93,19 +93,19 @@ export function CuratorDealCard({
   };
 
   return (
-    <Card className="overflow-hidden hover:border-foreground/25 transition-all duration-200 hover:shadow-[0_8px_30px_rgba(0,0,0,0.4)]">
-      <CardContent className="p-4 flex flex-col gap-3.5">
-        {/* Header: curador + datas + status */}
-        <div className="flex items-start gap-3 min-w-0">
+    <Card className="overflow-hidden border-border/60 hover:border-foreground/25 transition-all duration-200 hover:shadow-[0_18px_40px_-18px_rgba(0,0,0,0.85),0_0_32px_-8px_hsl(141_76%_48%_/_0.18)] hover:-translate-y-[1px] bg-[linear-gradient(180deg,rgba(255,255,255,0.025)_0%,transparent_40%),hsl(var(--card))]">
+      <CardContent className="p-5 flex flex-col gap-4">
+        {/* Header: curador + datas + status — espaçamento reforçado (16px) */}
+        <div className="flex items-start gap-3 min-w-0 pb-1">
           <div className="min-w-0 flex-1">
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5">
+            <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-1">
               Curador
             </div>
-            <div className="text-[15px] font-semibold tracking-tight text-foreground truncate leading-tight">
+            <div className="text-[22px] font-semibold tracking-tight text-foreground truncate leading-tight">
               {deal.curator_name}
             </div>
-            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mt-1">
-              <CalendarIcon className="h-3 w-3" />
+            <div className="flex items-center gap-1.5 text-[12px] text-muted-foreground mt-1.5">
+              <CalendarIcon className="h-3.5 w-3.5" />
               <span className="tabular-nums">
                 {format(new Date(deal.started_at), "dd MMM", { locale: ptBR })}
                 {deal.ends_at && (
@@ -120,7 +120,7 @@ export function CuratorDealCard({
           <Badge
             variant={isClosed && closedStatus === "completed" ? "default" : "secondary"}
             className={cn(
-              "shrink-0 text-[10px] px-2 py-0 h-5 font-medium gap-1",
+              "shrink-0 text-[10px] px-2.5 py-0.5 h-6 font-semibold gap-1 rounded-full",
               isClosed && closedStatus === "completed" && "bg-success text-success-foreground hover:bg-success/90",
               isClosed && closedStatus === "cancelled" && "bg-destructive/15 text-destructive hover:bg-destructive/20",
               !isClosed && isDone && "bg-primary/15 text-primary",
