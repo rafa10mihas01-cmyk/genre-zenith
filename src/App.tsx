@@ -20,6 +20,7 @@ import Criacao from "./pages/Criacao";
 import Operacao from "./pages/Operacao";
 import Performance from "./pages/Performance";
 import PlaylistDeals from "./pages/PlaylistDeals";
+import Curadores from "./pages/Curadores";
 import CuratorPage from "./pages/CuratorPage";
 import CuradoriaPreview from "./pages/CuradoriaPreview";
 import Sistema from "./pages/Sistema";
@@ -58,6 +59,7 @@ const App = () => (
               <Route path="/operacao" element={<Protected><Operacao /></Protected>} />
               <Route path="/performance" element={<Protected><Performance /></Protected>} />
               <Route path="/playlist-deals" element={<Protected><PlaylistDeals /></Protected>} />
+              <Route path="/curadores" element={<Protected><Curadores /></Protected>} />
               <Route path="/curadoria-preview" element={<Protected><CuradoriaPreview /></Protected>} />
               <Route path="/sistema" element={<Protected><Sistema /></Protected>} />
               <Route path="/settings" element={<Protected><AdminRoute><Settings /></AdminRoute></Protected>} />
