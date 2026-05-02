@@ -1,17 +1,69 @@
-import { useMemo } from "react";
-import { Users, DollarSign, Target as TargetIcon, TrendingUp, ShieldAlert } from "lucide-react";
+import { useMemo, useState } from "react";
+import {
+  Users,
+  DollarSign,
+  Target as TargetIcon,
+  TrendingUp,
+  ShieldAlert,
+  Archive,
+  ArchiveRestore,
+  Pencil,
+  AlertTriangle,
+  Music2,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 import { KpiBig } from "@/components/KpiBig";
-import { computeCuratorStats, type CuratorDeal, type CuratorDealLog, type CuratorPlaylist } from "@/lib/curatorDealsUtils";
-import type { CuratorFraudAlert } from "@/hooks/useCuratorDeals";
+import {
+  computeCuratorStats,
+  type CuratorDeal,
+  type CuratorDealLog,
+  type CuratorDealSong,
+  type CuratorPlaylist,
+} from "@/lib/curatorDealsUtils";
+import type {
+  Curator,
+  CuratorBalance,
+  CuratorFraudAlert,
+  NewCuratorInput,
+} from "@/hooks/useCuratorDeals";
+import { useUserRole } from "@/hooks/useUserRole";
 import { formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
 
 type Props = {
   deals: CuratorDeal[];
   logs: CuratorDealLog[];
   playlists: CuratorPlaylist[];
+  songs?: CuratorDealSong[];
+  curators?: Curator[];
+  balances?: CuratorBalance[];
   alerts?: CuratorFraudAlert[];
   loading: boolean;
+  onUpdateCurator?: (id: string, input: Partial<NewCuratorInput>) => Promise<void>;
+  onArchiveCurator?: (id: string, archive?: boolean) => Promise<void>;
 };
 
 type CuratorRow = {
@@ -22,8 +74,8 @@ type CuratorRow = {
   totalTarget: number;
   costPerPlay: number | null;
   deliveryPct: number;
-  avgScore: number;       // 0..100 — média ponderada por target
-  avgLegitShare: number;  // 0..1
+  avgScore: number;
+  avgLegitShare: number;
   alertsOpen: number;
   alertsHigh: number;
 };
@@ -37,16 +89,77 @@ const formatBRL = (v: number) =>
 
 const formatCostPerPlay = (v: number | null) => {
   if (v === null || !isFinite(v)) return "—";
-  // Mostra com 4 casas se < 0.01, senão 2 casas
-  const opts = v < 0.01
-    ? { minimumFractionDigits: 4, maximumFractionDigits: 4 }
-    : { minimumFractionDigits: 2, maximumFractionDigits: 2 };
+  const opts =
+    v < 0.01
+      ? { minimumFractionDigits: 4, maximumFractionDigits: 4 }
+      : { minimumFractionDigits: 2, maximumFractionDigits: 2 };
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", ...opts }).format(v);
 };
 
-export function CuradoresTab({ deals, logs, playlists, alerts = [], loading }: Props) {
+export function CuradoresTab({
+  deals,
+  logs,
+  playlists,
+  songs = [],
+  curators = [],
+  balances = [],
+  alerts = [],
+  loading,
+  onUpdateCurator,
+  onArchiveCurator,
+}: Props) {
+  const { isAdmin } = useUserRole();
+  const [showArchived, setShowArchived] = useState(false);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [editTarget, setEditTarget] = useState<Curator | null>(null);
+  const [archiveTarget, setArchiveTarget] = useState<Curator | null>(null);
+
+  const balanceById = useMemo(() => {
+    const m = new Map<string, CuratorBalance>();
+    for (const b of balances) m.set(b.curator_id, b);
+    return m;
+  }, [balances]);
+
+  // Mapa curator_id -> deals (ativos = sem closed_at)
+  const dealsByCurator = useMemo(() => {
+    const m = new Map<string, CuratorDeal[]>();
+    for (const d of deals) {
+      if (!d.curator_id) continue;
+      const arr = m.get(d.curator_id) ?? [];
+      arr.push(d);
+      m.set(d.curator_id, arr);
+    }
+    return m;
+  }, [deals]);
+
+  // Mapa deal_id -> songs
+  const songsByDeal = useMemo(() => {
+    const m = new Map<string, CuratorDealSong[]>();
+    for (const s of songs) {
+      const arr = m.get(s.deal_id) ?? [];
+      arr.push(s);
+      m.set(s.deal_id, arr);
+    }
+    for (const arr of m.values()) arr.sort((a, b) => a.position - b.position);
+    return m;
+  }, [songs]);
+
+  // Mapa song_id -> total_plays (último log)
+  const playsBySong = useMemo(() => {
+    const m = new Map<string, number>();
+    const seen = new Set<string>();
+    // Logs vêm ordenados desc por created_at no hook
+    for (const l of logs) {
+      if (!l.song_id) continue;
+      if (seen.has(l.song_id)) continue;
+      seen.add(l.song_id);
+      m.set(l.song_id, Number(l.total_plays ?? 0));
+    }
+    return m;
+  }, [logs]);
+
+  // Linhas da tabela histórica (mantida como antes)
   const { rows, totals } = useMemo(() => {
-    // Mapa deal_id -> {open, high} para imputar à linha do curador
     const dealAlerts = new Map<string, { open: number; high: number }>();
     for (const a of alerts) {
       if (a.status !== "open") continue;
@@ -56,12 +169,18 @@ export function CuradoresTab({ deals, logs, playlists, alerts = [], loading }: P
       dealAlerts.set(a.deal_id, cur);
     }
 
-    type Acc = CuratorRow & { _scoreNum: number; _scoreDen: number; _legitNum: number; _legitDen: number };
+    type Acc = CuratorRow & {
+      _scoreNum: number;
+      _scoreDen: number;
+      _legitNum: number;
+      _legitDen: number;
+    };
     const map = new Map<string, Acc>();
     let totalCost = 0;
     let totalEarned = 0;
     let totalTarget = 0;
-    let scoreNum = 0, scoreDen = 0;
+    let scoreNum = 0,
+      scoreDen = 0;
     let totalAlertsOpen = 0;
     let totalAlertsHigh = 0;
 
@@ -70,15 +189,27 @@ export function CuradoresTab({ deals, logs, playlists, alerts = [], loading }: P
       const cost = Number(d.cost ?? 0) || 0;
       const target = Number(d.target_plays ?? 0) || 0;
       const stats = computeCuratorStats(d, logs, playlists);
-      const w = Math.max(target, 1); // peso = meta (deals maiores pesam mais)
+      const w = Math.max(target, 1);
       const aCount = dealAlerts.get(d.id) ?? { open: 0, high: 0 };
 
-      const row: Acc = map.get(name) ?? {
-        name, dealsCount: 0, totalCost: 0, totalEarned: 0, totalTarget: 0,
-        costPerPlay: null, deliveryPct: 0, avgScore: 0, avgLegitShare: 1,
-        alertsOpen: 0, alertsHigh: 0,
-        _scoreNum: 0, _scoreDen: 0, _legitNum: 0, _legitDen: 0,
-      };
+      const row: Acc =
+        map.get(name) ?? {
+          name,
+          dealsCount: 0,
+          totalCost: 0,
+          totalEarned: 0,
+          totalTarget: 0,
+          costPerPlay: null,
+          deliveryPct: 0,
+          avgScore: 0,
+          avgLegitShare: 1,
+          alertsOpen: 0,
+          alertsHigh: 0,
+          _scoreNum: 0,
+          _scoreDen: 0,
+          _legitNum: 0,
+          _legitDen: 0,
+        };
       row.dealsCount += 1;
       row.totalCost += cost;
       row.totalEarned += stats.earned;
@@ -116,8 +247,6 @@ export function CuradoresTab({ deals, logs, playlists, alerts = [], loading }: P
         alertsHigh: r.alertsHigh,
       };
     });
-
-    // Ordena: melhor score primeiro
     rows.sort((a, b) => b.avgScore - a.avgScore);
 
     return {
@@ -128,9 +257,11 @@ export function CuradoresTab({ deals, logs, playlists, alerts = [], loading }: P
         totalEarned,
         totalTarget,
         avgCostPerPlay:
-          totalEarned > 0 ? totalCost / totalEarned
-          : totalTarget > 0 ? totalCost / totalTarget
-          : null,
+          totalEarned > 0
+            ? totalCost / totalEarned
+            : totalTarget > 0
+            ? totalCost / totalTarget
+            : null,
         deliveryPct: totalTarget > 0 ? Math.round((totalEarned / totalTarget) * 100) : 0,
         avgScore: scoreDen > 0 ? Math.round(scoreNum / scoreDen) : 0,
         alertsOpen: totalAlertsOpen,
@@ -139,7 +270,34 @@ export function CuradoresTab({ deals, logs, playlists, alerts = [], loading }: P
     };
   }, [deals, logs, playlists, alerts]);
 
-  const isEmpty = !loading && deals.length === 0;
+  // Curadores visíveis
+  const visibleCurators = useMemo(() => {
+    return curators
+      .filter((c) => (showArchived ? !!c.archived_at : !c.archived_at))
+      .sort((a, b) => {
+        const ba = balanceById.get(a.id);
+        const bb = balanceById.get(b.id);
+        const ra = ba?.remaining_plays ?? a.purchased_plays;
+        const rb = bb?.remaining_plays ?? b.purchased_plays;
+        return rb - ra;
+      });
+  }, [curators, showArchived, balanceById]);
+
+  const overbookedCount = useMemo(
+    () => balances.filter((b) => b.overbooked_plays > 0 && !b.archived_at).length,
+    [balances],
+  );
+
+  const isEmptyAll = !loading && deals.length === 0 && curators.length === 0;
+
+  const toggleExpand = (id: string) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -148,14 +306,20 @@ export function CuradoresTab({ deals, logs, playlists, alerts = [], loading }: P
         <KpiBig
           icon={Users}
           label="Curadores"
-          value={formatNumber(totals.curators)}
-          hint="Distintos com deals"
+          value={formatNumber(curators.filter((c) => !c.archived_at).length || totals.curators)}
+          hint={
+            curators.length > 0
+              ? `${curators.filter((c) => c.archived_at).length} arquivado(s)`
+              : "Distintos com deals"
+          }
           loading={loading && deals.length === 0}
         />
         <KpiBig
           icon={DollarSign}
           label="Total investido"
-          value={formatBRL(totals.totalCost)}
+          value={formatBRL(
+            balances.reduce((acc, b) => acc + Number(b.total_cost ?? 0), 0) || totals.totalCost,
+          )}
           hint={`${deals.length} ${deals.length === 1 ? "deal" : "deals"}`}
           loading={loading && deals.length === 0}
         />
@@ -164,7 +328,13 @@ export function CuradoresTab({ deals, logs, playlists, alerts = [], loading }: P
           label="Plays entregues"
           value={formatNumber(totals.totalEarned)}
           hint={totals.totalTarget > 0 ? `${totals.deliveryPct}% das metas` : "Sem metas"}
-          tone={totals.deliveryPct >= 80 ? "success" : totals.deliveryPct >= 40 ? "primary" : "default"}
+          tone={
+            totals.deliveryPct >= 80
+              ? "success"
+              : totals.deliveryPct >= 40
+              ? "primary"
+              : "default"
+          }
           loading={loading && deals.length === 0}
         />
         <KpiBig
@@ -172,21 +342,270 @@ export function CuradoresTab({ deals, logs, playlists, alerts = [], loading }: P
           label="Score médio"
           value={`${totals.avgScore}/100`}
           hint="Prazo + qualidade do tráfego"
-          tone={totals.avgScore >= 80 ? "success" : totals.avgScore >= 50 ? "primary" : "default"}
+          tone={
+            totals.avgScore >= 80 ? "success" : totals.avgScore >= 50 ? "primary" : "default"
+          }
           loading={loading && deals.length === 0}
         />
         <KpiBig
-          icon={ShieldAlert}
-          label="Alertas anti-fraude"
-          value={formatNumber(totals.alertsOpen)}
-          hint={totals.alertsHigh > 0 ? `${totals.alertsHigh} de severidade alta` : "Nenhum aberto"}
-          tone={totals.alertsHigh > 0 ? "default" : totals.alertsOpen > 0 ? "primary" : "success"}
+          icon={isAdmin && overbookedCount > 0 ? AlertTriangle : ShieldAlert}
+          label={isAdmin && overbookedCount > 0 ? "Saldos estourados" : "Alertas anti-fraude"}
+          value={
+            isAdmin && overbookedCount > 0
+              ? formatNumber(overbookedCount)
+              : formatNumber(totals.alertsOpen)
+          }
+          hint={
+            isAdmin && overbookedCount > 0
+              ? "Plays consumidos > comprados"
+              : totals.alertsHigh > 0
+              ? `${totals.alertsHigh} de severidade alta`
+              : "Nenhum aberto"
+          }
+          tone={
+            isAdmin && overbookedCount > 0
+              ? "default"
+              : totals.alertsHigh > 0
+              ? "default"
+              : totals.alertsOpen > 0
+              ? "primary"
+              : "success"
+          }
           loading={loading && deals.length === 0}
         />
       </section>
 
-      {/* Tabela por curador */}
-      {isEmpty ? (
+      {/* Saldos por curador */}
+      {curators.length > 0 && (
+        <section className="space-y-3">
+          <div className="flex items-end justify-between">
+            <div>
+              <h3 className="text-[15px] font-semibold tracking-tight">Saldo dos curadores</h3>
+              <p className="text-[12px] text-muted-foreground mt-0.5">
+                Plays comprados, consumidos e restantes por curador
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowArchived((v) => !v)}
+              className="text-[12px] text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {showArchived ? "Ver ativos" : "Ver arquivados"}
+            </button>
+          </div>
+
+          {visibleCurators.length === 0 ? (
+            <div className="nx-card">
+              <div className="py-8 text-center text-sm text-muted-foreground">
+                {showArchived ? "Nenhum curador arquivado" : "Nenhum curador ativo"}
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {visibleCurators.map((c) => {
+                const bal = balanceById.get(c.id);
+                const purchased = bal?.purchased_plays ?? c.purchased_plays ?? 0;
+                const consumed = bal?.consumed_plays ?? 0;
+                const remaining = bal?.remaining_plays ?? purchased;
+                const overbooked = bal?.overbooked_plays ?? 0;
+                const cost = Number(bal?.total_cost ?? c.total_cost ?? 0);
+                const consumedPct =
+                  purchased > 0 ? Math.min(100, Math.round((consumed / purchased) * 100)) : 0;
+                const cdeals = (dealsByCurator.get(c.id) ?? []).filter((d) => !d.closed_at);
+                const isExpanded = expanded.has(c.id);
+
+                return (
+                  <article
+                    key={c.id}
+                    className={cn(
+                      "nx-card !p-0 overflow-hidden",
+                      c.archived_at && "opacity-70",
+                    )}
+                  >
+                    <div className="p-5 pb-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-[15px] truncate">{c.name}</span>
+                            {isAdmin && overbooked > 0 && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-destructive/15 text-destructive">
+                                <AlertTriangle className="h-3 w-3" />
+                                Estourado
+                              </span>
+                            )}
+                            {c.archived_at && (
+                              <span className="inline-flex text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                                Arquivado
+                              </span>
+                            )}
+                          </div>
+                          {c.contact && (
+                            <div className="text-[12px] text-muted-foreground mt-0.5 truncate">
+                              {c.contact}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          {onUpdateCurator && !c.archived_at && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={() => setEditTarget(c)}
+                              title="Editar curador"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                          {onArchiveCurator && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={() => setArchiveTarget(c)}
+                              title={c.archived_at ? "Restaurar" : "Arquivar"}
+                            >
+                              {c.archived_at ? (
+                                <ArchiveRestore className="h-3.5 w-3.5" />
+                              ) : (
+                                <Archive className="h-3.5 w-3.5" />
+                              )}
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Métricas */}
+                      <div className="grid grid-cols-3 gap-2 mt-4">
+                        <div>
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                            Comprado
+                          </div>
+                          <div className="text-sm font-semibold tabular-nums mt-0.5">
+                            {formatNumber(purchased)}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                            Consumido
+                          </div>
+                          <div className="text-sm font-semibold tabular-nums mt-0.5">
+                            {formatNumber(consumed)}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                            Restante
+                          </div>
+                          <div
+                            className={cn(
+                              "text-sm font-semibold tabular-nums mt-0.5",
+                              overbooked > 0
+                                ? "text-destructive"
+                                : remaining < purchased * 0.2
+                                ? "text-warning"
+                                : "text-success",
+                            )}
+                          >
+                            {formatNumber(remaining)}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Barra de progresso */}
+                      <div className="mt-3">
+                        <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                          <div
+                            className={cn(
+                              "h-full transition-all",
+                              overbooked > 0
+                                ? "bg-destructive"
+                                : consumedPct >= 80
+                                ? "bg-warning"
+                                : "bg-primary",
+                            )}
+                            style={{ width: `${consumedPct}%` }}
+                          />
+                        </div>
+                        <div className="flex items-center justify-between text-[11px] text-muted-foreground mt-1.5 tabular-nums">
+                          <span>{consumedPct}% consumido</span>
+                          <span>{formatBRL(cost)}</span>
+                        </div>
+                      </div>
+
+                      {/* Toggle músicas ativas */}
+                      {cdeals.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => toggleExpand(c.id)}
+                          className="mt-3 w-full flex items-center justify-between text-[12px] text-muted-foreground hover:text-foreground transition-colors py-1"
+                        >
+                          <span className="inline-flex items-center gap-1.5">
+                            <Music2 className="h-3.5 w-3.5" />
+                            {cdeals.reduce(
+                              (n, d) => n + (songsByDeal.get(d.id)?.length ?? 0),
+                              0,
+                            )}{" "}
+                            música(s) ativa(s)
+                          </span>
+                          {isExpanded ? (
+                            <ChevronUp className="h-3.5 w-3.5" />
+                          ) : (
+                            <ChevronDown className="h-3.5 w-3.5" />
+                          )}
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Lista de músicas */}
+                    {isExpanded && cdeals.length > 0 && (
+                      <div className="border-t border-border bg-muted/20 px-5 py-3 space-y-2">
+                        {cdeals.flatMap((d) => {
+                          const ss = songsByDeal.get(d.id) ?? [];
+                          return ss.map((s) => {
+                            const target = Number(s.target_plays ?? 0);
+                            const earned = playsBySong.get(s.id) ?? 0;
+                            const baseline = Number(s.baseline_plays ?? 0);
+                            const delta = Math.max(0, earned - baseline);
+                            const pct =
+                              target > 0 ? Math.min(100, Math.round((delta / target) * 100)) : 0;
+                            return (
+                              <div key={s.id} className="text-[12px]">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="truncate font-medium">{s.song_name}</span>
+                                  <span className="tabular-nums text-muted-foreground shrink-0">
+                                    {formatNumber(delta)} / {formatNumber(target)}
+                                  </span>
+                                </div>
+                                <div className="h-1 rounded-full bg-muted overflow-hidden mt-1">
+                                  <div
+                                    className={cn(
+                                      "h-full",
+                                      pct >= 100
+                                        ? "bg-success"
+                                        : pct >= 60
+                                        ? "bg-primary"
+                                        : "bg-muted-foreground/40",
+                                    )}
+                                    style={{ width: `${pct}%` }}
+                                  />
+                                </div>
+                              </div>
+                            );
+                          });
+                        })}
+                      </div>
+                    )}
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* Tabela histórica */}
+      {isEmptyAll ? (
         <div className="nx-card">
           <div className="py-10 flex flex-col items-center text-center gap-3">
             <div className="h-12 w-12 rounded-full bg-elevated border border-border flex items-center justify-center">
@@ -200,11 +619,13 @@ export function CuradoresTab({ deals, logs, playlists, alerts = [], loading }: P
             </div>
           </div>
         </div>
-      ) : (
+      ) : rows.length > 0 ? (
         <div className="nx-card !p-0 overflow-hidden">
           <div className="px-5 py-4 border-b border-border flex items-center justify-between">
             <div>
-              <h3 className="text-[15px] font-semibold tracking-tight">Comparativo por curador</h3>
+              <h3 className="text-[15px] font-semibold tracking-tight">
+                Performance histórica
+              </h3>
               <p className="text-[12px] text-muted-foreground mt-0.5">
                 Ordenado por score (prazo + qualidade)
               </p>
@@ -230,7 +651,8 @@ export function CuradoresTab({ deals, logs, playlists, alerts = [], loading }: P
               </thead>
               <tbody>
                 {rows.map((r, i) => {
-                  const isBest = i === 0 && rows.length > 1 && r.avgScore >= 70 && r.alertsHigh === 0;
+                  const isBest =
+                    i === 0 && rows.length > 1 && r.avgScore >= 70 && r.alertsHigh === 0;
                   const legitPct = Math.round(r.avgLegitShare * 100);
                   return (
                     <tr
@@ -256,19 +678,26 @@ export function CuradoresTab({ deals, logs, playlists, alerts = [], loading }: P
                       <td className="px-3 py-3.5 text-right tabular-nums">
                         {formatNumber(r.totalEarned)}
                         {r.totalTarget > 0 && (
-                          <span className="text-muted-foreground"> / {formatNumber(r.totalTarget)}</span>
+                          <span className="text-muted-foreground">
+                            {" "}
+                            / {formatNumber(r.totalTarget)}
+                          </span>
                         )}
                       </td>
                       <td className="px-3 py-3.5 text-right tabular-nums text-muted-foreground">
                         {formatCostPerPlay(r.costPerPlay)}
                       </td>
                       <td className="px-3 py-3.5 text-right">
-                        <span className={cn(
-                          "inline-flex text-[12px] font-medium tabular-nums px-2 py-0.5 rounded",
-                          legitPct >= 80 ? "bg-success/15 text-success"
-                          : legitPct >= 50 ? "bg-warning/15 text-warning"
-                          : "bg-destructive/15 text-destructive",
-                        )}>
+                        <span
+                          className={cn(
+                            "inline-flex text-[12px] font-medium tabular-nums px-2 py-0.5 rounded",
+                            legitPct >= 80
+                              ? "bg-success/15 text-success"
+                              : legitPct >= 50
+                              ? "bg-warning/15 text-warning"
+                              : "bg-destructive/15 text-destructive",
+                          )}
+                        >
                           {legitPct}%
                         </span>
                       </td>
@@ -285,7 +714,9 @@ export function CuradoresTab({ deals, logs, playlists, alerts = [], loading }: P
                                 ? "bg-destructive/15 text-destructive"
                                 : "bg-warning/15 text-warning",
                             )}
-                            title={`${r.alertsOpen} alerta(s) abertos${r.alertsHigh > 0 ? `, ${r.alertsHigh} de severidade alta` : ""}`}
+                            title={`${r.alertsOpen} alerta(s) abertos${
+                              r.alertsHigh > 0 ? `, ${r.alertsHigh} de severidade alta` : ""
+                            }`}
                           >
                             <ShieldAlert className="h-3 w-3" />
                             {r.alertsOpen}
@@ -301,10 +732,13 @@ export function CuradoresTab({ deals, logs, playlists, alerts = [], loading }: P
                         <span
                           className={cn(
                             "inline-flex items-center text-[12px] font-semibold tabular-nums px-2 py-0.5 rounded",
-                            r.avgScore >= 80 ? "bg-success/15 text-success"
-                            : r.avgScore >= 50 ? "bg-primary/15 text-primary"
-                            : r.avgScore >= 30 ? "bg-warning/15 text-warning"
-                            : "bg-destructive/15 text-destructive",
+                            r.avgScore >= 80
+                              ? "bg-success/15 text-success"
+                              : r.avgScore >= 50
+                              ? "bg-primary/15 text-primary"
+                              : r.avgScore >= 30
+                              ? "bg-warning/15 text-warning"
+                              : "bg-destructive/15 text-destructive",
                           )}
                         >
                           {r.avgScore}
@@ -317,7 +751,175 @@ export function CuradoresTab({ deals, logs, playlists, alerts = [], loading }: P
             </table>
           </div>
         </div>
-      )}
+      ) : null}
+
+      {/* Editar curador */}
+      <EditCuratorDialog
+        curator={editTarget}
+        onClose={() => setEditTarget(null)}
+        onSave={async (id, input) => {
+          if (!onUpdateCurator) return;
+          try {
+            await onUpdateCurator(id, input);
+            toast.success("Curador atualizado");
+            setEditTarget(null);
+          } catch (e) {
+            toast.error(e instanceof Error ? e.message : "Erro ao atualizar");
+          }
+        }}
+      />
+
+      {/* Confirmar arquivar/restaurar */}
+      <AlertDialog
+        open={!!archiveTarget}
+        onOpenChange={(o) => !o && setArchiveTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {archiveTarget?.archived_at ? "Restaurar curador?" : "Arquivar curador?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {archiveTarget?.archived_at
+                ? `${archiveTarget?.name} voltará a aparecer na lista de curadores ativos.`
+                : `${archiveTarget?.name} será ocultado da lista. Os deals existentes continuam visíveis.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (!archiveTarget || !onArchiveCurator) return;
+                try {
+                  await onArchiveCurator(archiveTarget.id, !archiveTarget.archived_at);
+                  toast.success(
+                    archiveTarget.archived_at ? "Curador restaurado" : "Curador arquivado",
+                  );
+                } catch (e) {
+                  toast.error(e instanceof Error ? e.message : "Erro");
+                } finally {
+                  setArchiveTarget(null);
+                }
+              }}
+            >
+              Confirmar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
+  );
+}
+
+// ============================================================
+// Dialog de edição
+// ============================================================
+function EditCuratorDialog({
+  curator,
+  onClose,
+  onSave,
+}: {
+  curator: Curator | null;
+  onClose: () => void;
+  onSave: (id: string, input: Partial<NewCuratorInput>) => Promise<void>;
+}) {
+  const [name, setName] = useState("");
+  const [contact, setContact] = useState("");
+  const [purchased, setPurchased] = useState("");
+  const [cost, setCost] = useState("");
+  const [notes, setNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  // Reset ao abrir
+  useMemo(() => {
+    if (curator) {
+      setName(curator.name);
+      setContact(curator.contact ?? "");
+      setPurchased(String(curator.purchased_plays ?? 0));
+      setCost(String(Number(curator.total_cost ?? 0)));
+      setNotes(curator.notes ?? "");
+    }
+  }, [curator]);
+
+  const handleSave = async () => {
+    if (!curator) return;
+    if (!name.trim()) {
+      toast.error("Nome é obrigatório");
+      return;
+    }
+    setSaving(true);
+    await onSave(curator.id, {
+      name: name.trim(),
+      contact: contact.trim() || null,
+      purchased_plays: Math.max(0, Number(purchased) || 0),
+      total_cost: Math.max(0, Number(cost) || 0),
+      notes: notes.trim() || null,
+    });
+    setSaving(false);
+  };
+
+  return (
+    <Dialog open={!!curator} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Editar curador</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="ec-name">Nome</Label>
+            <Input id="ec-name" value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+          <div>
+            <Label htmlFor="ec-contact">Contato</Label>
+            <Input
+              id="ec-contact"
+              value={contact}
+              onChange={(e) => setContact(e.target.value)}
+              placeholder="email, telefone, @..."
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="ec-purchased">Plays comprados</Label>
+              <Input
+                id="ec-purchased"
+                type="number"
+                min="0"
+                value={purchased}
+                onChange={(e) => setPurchased(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="ec-cost">Custo total (R$)</Label>
+              <Input
+                id="ec-cost"
+                type="number"
+                min="0"
+                step="0.01"
+                value={cost}
+                onChange={(e) => setCost(e.target.value)}
+              />
+            </div>
+          </div>
+          <div>
+            <Label htmlFor="ec-notes">Notas</Label>
+            <Textarea
+              id="ec-notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={3}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={saving}>
+            Cancelar
+          </Button>
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? "Salvando..." : "Salvar"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
