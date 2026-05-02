@@ -494,21 +494,43 @@ export function NewDealDialog({ open, onOpenChange }: NewDealDialogProps) {
                       </div>
                     </div>
 
-                    {song.started_at && song.ends_at && (
-                      <div className="text-xs text-muted-foreground">
-                        Duração:{" "}
-                        <span className="text-foreground font-medium">
-                          {Math.max(
-                            1,
-                            Math.round(
-                              (song.ends_at.getTime() - song.started_at.getTime()) /
-                                86400000,
-                            ) + 1,
-                          )}{" "}
-                          dias
+                    {/* Ramp-up + duração */}
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground">
+                          Aquecimento:
+                        </span>
+                        <Input
+                          type="number"
+                          inputMode="numeric"
+                          min={0}
+                          max={30}
+                          className="h-8 w-16 text-sm"
+                          value={song.ramp_up_days}
+                          onChange={(e) =>
+                            updateSong(idx, { ramp_up_days: e.target.value })
+                          }
+                        />
+                        <span className="text-xs text-muted-foreground">
+                          dias sem cobrar meta
                         </span>
                       </div>
-                    )}
+                      {song.started_at && song.ends_at && (
+                        <div className="text-xs text-muted-foreground ml-auto">
+                          Duração:{" "}
+                          <span className="text-foreground font-medium">
+                            {Math.max(
+                              1,
+                              Math.round(
+                                (song.ends_at.getTime() - song.started_at.getTime()) /
+                                  86400000,
+                              ) + 1,
+                            )}{" "}
+                            dias
+                          </span>
+                        </div>
+                      )}
+                    </div>
 
                     <div className="flex items-center gap-2">
                       {!song.meta ? (
