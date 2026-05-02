@@ -826,10 +826,10 @@ export default function CuratorPage() {
             <button
               type="button"
               onClick={() => setCuratorOpen((v) => !v)}
-              className="w-full flex items-start justify-between gap-3 text-left"
+              className="w-full flex items-center justify-between gap-4 text-left"
               aria-expanded={curatorOpen}
             >
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <h2 className="text-[15px] font-semibold inline-flex items-center gap-2 tracking-tight">
                   <ListMusic className="h-4 w-4 text-muted-foreground" />
                   Suas playlists adicionadas
@@ -838,7 +838,7 @@ export default function CuratorPage() {
                   Apenas as que você incluiu nesta curadoria
                 </p>
               </div>
-              <span className="inline-flex items-center gap-2 text-[12px] text-muted-foreground shrink-0 mt-0.5">
+              <span className="inline-flex items-center gap-2 text-[12px] text-muted-foreground shrink-0">
                 {curatorPlaylists.length} {curatorPlaylists.length === 1 ? "playlist" : "playlists"}
                 <ChevronDown
                   className={cn(
