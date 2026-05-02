@@ -222,6 +222,7 @@ Deno.serve(async (req) => {
         match_reason: it.match_reason ?? null,
         is_baseline: it.match_status === "baseline",
         last_paste_at: new Date().toISOString(),
+        position_in_paste: positionInput,
       }));
 
     let inserted = 0;
