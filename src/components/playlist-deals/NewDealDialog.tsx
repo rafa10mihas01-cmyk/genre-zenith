@@ -1,7 +1,4 @@
-import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -13,6 +10,11 @@ import {
   X,
   CalendarIcon,
   Check,
+  ChevronLeft,
+  ChevronRight,
+  UserPlus,
+  Users,
+  AlertTriangle,
 } from "lucide-react";
 
 import {
@@ -24,14 +26,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import {
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -39,32 +33,27 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { useCuratorDeals, type DealSongInput } from "@/hooks/useCuratorDeals";
+import {
+  useCuratorDeals,
+  type Curator,
+  type CuratorBalance,
+  type DealSongInput,
+} from "@/hooks/useCuratorDeals";
 import type { CuratorDeal, CuratorDealSong } from "@/lib/curatorDealsUtils";
 import { curatorPublicUrl } from "@/lib/curatorPublicUrl";
+import { formatNumber } from "@/lib/format";
 
-const schema = z.object({
-  curator_name: z.string().trim().min(1, "Informe o curador").max(120),
-  target_plays: z.coerce
-    .number({ invalid_type_error: "Informe um número" })
-    .int("Use um valor inteiro")
-    .min(1, "Meta deve ser pelo menos 1"),
-  cost: z.coerce
-    .number({ invalid_type_error: "Informe um número" })
-    .min(0, "Não pode ser negativo")
-    .optional()
-    .or(z.nan().transform(() => undefined)),
-});
-
-type FormValues = z.infer<typeof schema>;
-
+// ============================================================
+// Tipos locais
+// ============================================================
 type SongRow = {
   url: string;
-  daily_goal: string;
+  daily_goal: string;       // string pra input numérico
+  duration_days: string;    // string pra input numérico
   started_at: Date | undefined;
-  ends_at: Date | undefined;
   ramp_up_days: string;
   meta: {
     title: string;
@@ -84,6 +73,9 @@ export interface NewDealDialogProps {
   editSongs?: CuratorDealSong[];
 }
 
+// ============================================================
+// Helpers
+// ============================================================
 function parseTitle(raw: string): { title: string; artist: string | null } {
   const parts = raw.split(" - ");
   if (parts.length >= 2) {
@@ -102,15 +94,14 @@ function emptySong(): SongRow {
   return {
     url: "",
     daily_goal: "",
+    duration_days: "30",
     started_at: new Date(),
-    ends_at: undefined,
     ramp_up_days: "5",
     meta: null,
     searching: false,
   };
 }
 
-// ---------- Currency helpers (BRL) ----------
 function digitsOnly(v: string): string {
   return v.replace(/\D/g, "");
 }
@@ -125,6 +116,12 @@ function formatCurrencyBRL(rawDigits: string): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+}
+function currencyDigitsToNumber(rawDigits: string): number | undefined {
+  if (!rawDigits) return undefined;
+  const cents = parseInt(rawDigits, 10);
+  if (Number.isNaN(cents)) return undefined;
+  return cents / 100;
 }
 function formatPlaysHint(n: number | undefined | null): string {
   if (n == null || !Number.isFinite(n) || n <= 0) return "";
@@ -147,41 +144,69 @@ function formatPlaysHint(n: number | undefined | null): string {
   return n.toLocaleString("pt-BR");
 }
 
-function currencyDigitsToNumber(rawDigits: string): number | undefined {
-  if (!rawDigits) return undefined;
-  const cents = parseInt(rawDigits, 10);
-  if (Number.isNaN(cents)) return undefined;
-  return cents / 100;
+function songTarget(s: SongRow): number {
+  const dg = Number(s.daily_goal);
+  const dd = Number(s.duration_days);
+  if (!Number.isFinite(dg) || !Number.isFinite(dd) || dg <= 0 || dd <= 0) return 0;
+  return Math.round(dg * dd);
 }
 
+// ============================================================
+// Componente
+// ============================================================
 export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDealDialogProps) {
-  const { addDeal, updateDeal } = useCuratorDeals();
+  const { addDeal, updateDeal, addCurator, curators, balances } = useCuratorDeals();
   const isEdit = Boolean(editDeal);
+
+  const [step, setStep] = useState<1 | 2>(1);
   const [submitting, setSubmitting] = useState(false);
   const [songs, setSongs] = useState<SongRow[]>([emptySong()]);
-  const [costDigits, setCostDigits] = useState<string>("");
 
-  const form = useForm<FormValues>({
-    resolver: zodResolver(schema),
-    mode: "onChange",
-    defaultValues: {
-      curator_name: "",
-      target_plays: undefined as unknown as number,
-      cost: undefined,
-    },
-  });
+  // Passo 1 — curador
+  const [curatorMode, setCuratorMode] = useState<"select" | "new">("select");
+  const [selectedCuratorId, setSelectedCuratorId] = useState<string | null>(null);
+  const [curatorSearch, setCuratorSearch] = useState("");
+  // Novo curador
+  const [newCuratorName, setNewCuratorName] = useState("");
+  const [newCuratorContact, setNewCuratorContact] = useState("");
+  const [newCuratorPlaysDigits, setNewCuratorPlaysDigits] = useState("");
+  const [newCuratorCostDigits, setNewCuratorCostDigits] = useState("");
 
-  // Hidrata os campos quando entrar em modo edição (ou quando o deal mudar)
+  const balanceById = useMemo(() => {
+    const map = new Map<string, CuratorBalance>();
+    balances.forEach((b) => {
+      if (b.curator_id) map.set(b.curator_id, b);
+    });
+    return map;
+  }, [balances]);
+
+  const visibleCurators = useMemo(() => {
+    const term = curatorSearch.trim().toLowerCase();
+    return curators
+      .filter((c) => !c.archived_at)
+      .filter((c) => (term ? c.name.toLowerCase().includes(term) : true));
+  }, [curators, curatorSearch]);
+
+  const selectedCurator: Curator | null = useMemo(
+    () => curators.find((c) => c.id === selectedCuratorId) ?? null,
+    [curators, selectedCuratorId],
+  );
+  const selectedBalance: CuratorBalance | null = useMemo(
+    () => (selectedCuratorId ? balanceById.get(selectedCuratorId) ?? null : null),
+    [balanceById, selectedCuratorId],
+  );
+
+  // ============================================================
+  // Hidratação (modo edição) e reset (abertura)
+  // ============================================================
   useEffect(() => {
     if (!open) return;
+
     if (isEdit && editDeal) {
-      form.reset({
-        curator_name: editDeal.curator_name ?? "",
-        target_plays: Number(editDeal.target_plays ?? 0) || (undefined as unknown as number),
-        cost: editDeal.cost != null ? Number(editDeal.cost) : undefined,
-      });
-      const c = Number(editDeal.cost ?? 0);
-      setCostDigits(c > 0 ? String(Math.round(c * 100)) : "");
+      // Edição: pula direto pro passo 2, mantém curador atual
+      setStep(2);
+      setCuratorMode("select");
+      setSelectedCuratorId(editDeal.curator_id ?? null);
 
       const sourceSongs =
         editSongs && editSongs.length > 0
@@ -190,32 +215,34 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDe
 
       if (sourceSongs && sourceSongs.length > 0) {
         setSongs(
-          sourceSongs.map((s) => ({
-            url: s.song_spotify_url ?? "",
-            daily_goal: s.daily_goal ? String(s.daily_goal) : "",
-            started_at: s.started_at ? new Date(s.started_at) : new Date(editDeal.started_at),
-            ends_at: s.ends_at ? new Date(s.ends_at) : (editDeal.ends_at ? new Date(editDeal.ends_at) : undefined),
-            ramp_up_days: String(
-              (s as unknown as { ramp_up_days?: number }).ramp_up_days ??
-                (editDeal as unknown as { ramp_up_days?: number }).ramp_up_days ??
-                5,
-            ),
-            meta: {
-              title: s.song_name ?? "Música",
-              artist: s.song_artist ?? null,
-              thumbnail_url: s.song_cover_url ?? null,
-            },
-            searching: false,
-          })),
+          sourceSongs.map((s) => {
+            const dd = (s as unknown as { duration_days?: number }).duration_days ?? 30;
+            return {
+              url: s.song_spotify_url ?? "",
+              daily_goal: s.daily_goal ? String(s.daily_goal) : "",
+              duration_days: String(dd),
+              started_at: s.started_at ? new Date(s.started_at) : new Date(editDeal.started_at),
+              ramp_up_days: String(
+                (s as unknown as { ramp_up_days?: number }).ramp_up_days ??
+                  (editDeal as unknown as { ramp_up_days?: number }).ramp_up_days ??
+                  5,
+              ),
+              meta: {
+                title: s.song_name ?? "Música",
+                artist: s.song_artist ?? null,
+                thumbnail_url: s.song_cover_url ?? null,
+              },
+              searching: false,
+            };
+          }),
         );
       } else {
-        // Fallback: usar campos legacy do deal
         setSongs([
           {
             url: editDeal.song_spotify_url ?? "",
             daily_goal: editDeal.daily_goal ? String(editDeal.daily_goal) : "",
+            duration_days: "30",
             started_at: new Date(editDeal.started_at),
-            ends_at: editDeal.ends_at ? new Date(editDeal.ends_at) : undefined,
             ramp_up_days: String(
               (editDeal as unknown as { ramp_up_days?: number }).ramp_up_days ?? 5,
             ),
@@ -228,10 +255,24 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDe
           },
         ]);
       }
+    } else {
+      // Novo deal
+      setStep(1);
+      setCuratorMode(curators.length > 0 ? "select" : "new");
+      setSelectedCuratorId(null);
+      setCuratorSearch("");
+      setNewCuratorName("");
+      setNewCuratorContact("");
+      setNewCuratorPlaysDigits("");
+      setNewCuratorCostDigits("");
+      setSongs([emptySong()]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, isEdit, editDeal?.id]);
 
+  // ============================================================
+  // Songs handlers
+  // ============================================================
   const updateSong = (idx: number, patch: Partial<SongRow>) => {
     setSongs((prev) => prev.map((s, i) => (i === idx ? { ...s, ...patch } : s)));
   };
@@ -270,17 +311,66 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDe
   const removeSongRow = (idx: number) =>
     setSongs((prev) => (prev.length === 1 ? prev : prev.filter((_, i) => i !== idx)));
 
-  const reset = () => {
-    form.reset({
-      curator_name: "",
-      target_plays: undefined as unknown as number,
-      cost: undefined,
-    });
-    setSongs([emptySong()]);
-    setCostDigits("");
+  // ============================================================
+  // Saldo derivado em tempo real (passo 2)
+  // ============================================================
+  const songsTotalTarget = useMemo(
+    () => songs.reduce((acc, s) => acc + songTarget(s), 0),
+    [songs],
+  );
+  const purchased = selectedBalance?.purchased_plays ?? selectedCurator?.purchased_plays ?? 0;
+  const consumedOther = (selectedBalance?.consumed_plays ?? 0) - (isEdit
+    ? // Em edição: subtrai a contribuição atual do deal pra recalcular limpo
+      (editSongs ?? []).reduce((acc, s) => acc + Number(s.target_plays ?? 0), 0)
+    : 0);
+  const consumedNow = Math.max(0, consumedOther) + songsTotalTarget;
+  const remaining = purchased - consumedNow;
+  const overbooked = remaining < 0;
+
+  // ============================================================
+  // Submissão
+  // ============================================================
+  const handleCreateCuratorAndAdvance = async () => {
+    const name = newCuratorName.trim();
+    if (!name) {
+      toast.error("Informe o nome do curador");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const playsRaw = newCuratorPlaysDigits ? Number(newCuratorPlaysDigits) : 0;
+      const costRaw = currencyDigitsToNumber(newCuratorCostDigits);
+      const created = await addCurator({
+        name,
+        contact: newCuratorContact.trim() || null,
+        purchased_plays: playsRaw,
+        total_cost: typeof costRaw === "number" ? costRaw : 0,
+      });
+      setSelectedCuratorId(created.id);
+      setCuratorMode("select");
+      setStep(2);
+      toast.success("Curador cadastrado");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      toast.error("Não foi possível cadastrar o curador", { description: msg });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const onSubmit = async (values: FormValues) => {
+  const handleAdvanceToStep2 = async () => {
+    if (curatorMode === "new") {
+      await handleCreateCuratorAndAdvance();
+      return;
+    }
+    if (!selectedCuratorId) {
+      toast.error("Selecione um curador ou cadastre um novo");
+      return;
+    }
+    setStep(2);
+  };
+
+  const onSubmit = async () => {
     const validSongs = songs.filter((s) => s.url.trim() && s.meta);
     if (validSongs.length === 0) {
       toast.error("Adicione pelo menos uma música", {
@@ -294,68 +384,81 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDe
       });
       return;
     }
-    // Validar datas por música
     for (let i = 0; i < validSongs.length; i++) {
       const s = validSongs[i];
       if (!s.started_at) {
         toast.error(`Defina a data de início da música ${i + 1}`);
         return;
       }
-      if (s.ends_at && s.ends_at < s.started_at) {
-        toast.error(`Data fim antes do início na música ${i + 1}`);
+      const dg = Number(s.daily_goal);
+      const dd = Number(s.duration_days);
+      if (!dg || dg <= 0) {
+        toast.error(`Defina a meta diária da música ${i + 1}`);
+        return;
+      }
+      if (!dd || dd <= 0) {
+        toast.error(`Defina a duração (dias) da música ${i + 1}`);
         return;
       }
     }
 
+    const curatorName = selectedCurator?.name ?? "—";
+
     setSubmitting(true);
     try {
       const [primary, ...rest] = validSongs;
-      const extras: DealSongInput[] = rest.map((s, i) => ({
-        song_spotify_url: s.url.trim(),
-        spotify_track_id: extractSpotifyTrackId(s.url),
-        song_name: s.meta!.title,
-        song_artist: s.meta!.artist,
-        song_cover_url: s.meta!.thumbnail_url,
-        daily_goal: s.daily_goal ? Number(s.daily_goal) : 0,
-        position: i + 1,
-        started_at: s.started_at ? s.started_at.toISOString() : null,
-        ends_at: s.ends_at ? s.ends_at.toISOString() : null,
-        ramp_up_days: s.ramp_up_days ? Math.max(0, Number(s.ramp_up_days)) : 5,
-      }));
+      const extras: DealSongInput[] = rest.map((s, i) => {
+        const startMs = s.started_at!.getTime();
+        const endMs = startMs + Number(s.duration_days) * 86400000;
+        return {
+          song_spotify_url: s.url.trim(),
+          spotify_track_id: extractSpotifyTrackId(s.url),
+          song_name: s.meta!.title,
+          song_artist: s.meta!.artist,
+          song_cover_url: s.meta!.thumbnail_url,
+          daily_goal: Number(s.daily_goal),
+          duration_days: Number(s.duration_days),
+          target_plays: songTarget(s),
+          position: i + 1,
+          started_at: s.started_at ? s.started_at.toISOString() : null,
+          ends_at: new Date(endMs).toISOString(),
+          ramp_up_days: s.ramp_up_days ? Math.max(0, Number(s.ramp_up_days)) : 5,
+        };
+      });
 
       // Janela do deal = menor início e maior fim entre as músicas
-      const allStarts = validSongs
-        .map((s) => s.started_at)
-        .filter((d): d is Date => Boolean(d));
-      const allEnds = validSongs
-        .map((s) => s.ends_at)
-        .filter((d): d is Date => Boolean(d));
-      const dealStart = allStarts.reduce(
-        (min, d) => (d < min ? d : min),
-        allStarts[0],
-      );
-      const dealEnd =
-        allEnds.length === validSongs.length && allEnds.length > 0
-          ? allEnds.reduce((max, d) => (d > max ? d : max), allEnds[0])
-          : null;
+      const allStarts = validSongs.map((s) => s.started_at!).filter(Boolean);
+      const allEnds = validSongs.map((s) => {
+        const startMs = s.started_at!.getTime();
+        return new Date(startMs + Number(s.duration_days) * 86400000);
+      });
+      const dealStart = allStarts.reduce((min, d) => (d < min ? d : min), allStarts[0]);
+      const dealEnd = allEnds.reduce((max, d) => (d > max ? d : max), allEnds[0]);
 
-      const costNumber = currencyDigitsToNumber(costDigits);
+      const primaryTarget = songTarget(primary);
 
       const payload = {
-        curator_name: values.curator_name.trim(),
+        curator_id: selectedCuratorId ?? null,
+        curator_name: curatorName,
         song_spotify_url: primary.url.trim(),
         song_name: primary.meta!.title,
         song_artist: primary.meta!.artist,
         song_cover_url: primary.meta!.thumbnail_url,
-        target_plays: values.target_plays,
-        daily_goal: primary.daily_goal ? Number(primary.daily_goal) : 0,
+        target_plays: songsTotalTarget, // soma das músicas (compat — deal-level)
+        daily_goal: Number(primary.daily_goal),
+        duration_days: Number(primary.duration_days),
         baseline_plays: 0,
-        cost: typeof costNumber === "number" ? costNumber : null,
+        cost: null, // custo agora vive no curador (passo 1)
         started_at: dealStart.toISOString(),
-        ends_at: dealEnd ? dealEnd.toISOString() : null,
+        ends_at: dealEnd.toISOString(),
         ramp_up_days: primary.ramp_up_days ? Math.max(0, Number(primary.ramp_up_days)) : 5,
         extra_songs: extras,
       };
+
+      // Garante coerência: payload.target_plays é a soma. Se primary tiver target=0 (edge), usa total.
+      if (primaryTarget === 0) {
+        payload.target_plays = songsTotalTarget;
+      }
 
       if (isEdit && editDeal) {
         await updateDeal(editDeal.id, payload);
@@ -374,7 +477,6 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDe
           description: `${validSongs.length} música${validSongs.length > 1 ? "s" : ""} • link copiado`,
         });
       }
-      reset();
       onOpenChange(false);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -385,10 +487,12 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDe
   };
 
   const handleOpenChange = (next: boolean) => {
-    if (!next) reset();
     onOpenChange(next);
   };
 
+  // ============================================================
+  // Render
+  // ============================================================
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -396,37 +500,294 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDe
           <DialogTitle>{isEdit ? "Editar deal" : "Novo Deal"}</DialogTitle>
           <DialogDescription>
             {isEdit
-              ? "Atualize curador, músicas, datas, aquecimento e valores."
-              : "Cadastre um deal com curador e adicione as músicas — cada uma com sua janela de campanha."}
+              ? "Atualize as músicas, metas diárias e durações."
+              : step === 1
+                ? "Selecione ou cadastre o curador (saldo de plays comprado)."
+                : "Adicione as músicas — meta = combinado/dia × dias."}
           </DialogDescription>
         </DialogHeader>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
-            {/* Curador */}
-            <FormField
-              control={form.control}
-              name="curator_name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Nome do curador</FormLabel>
-                  <FormControl>
-                    <Input placeholder="@curador ou nome" maxLength={120} {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
+        {/* Stepper (só em criação) */}
+        {!isEdit && (
+          <div className="flex items-center gap-2 text-xs">
+            <div
+              className={cn(
+                "flex items-center gap-1.5 px-2.5 h-7 rounded-full border",
+                step === 1
+                  ? "border-primary text-primary bg-primary/10"
+                  : "border-border text-muted-foreground",
               )}
-            />
+            >
+              <span className="font-bold tabular-nums">1</span> Curador
+            </div>
+            <div className="h-px flex-1 bg-border" />
+            <div
+              className={cn(
+                "flex items-center gap-1.5 px-2.5 h-7 rounded-full border",
+                step === 2
+                  ? "border-primary text-primary bg-primary/10"
+                  : "border-border text-muted-foreground",
+              )}
+            >
+              <span className="font-bold tabular-nums">2</span> Músicas
+            </div>
+          </div>
+        )}
 
-            {/* Músicas */}
+        {/* ========= PASSO 1 — CURADOR ========= */}
+        {step === 1 && !isEdit && (
+          <div className="space-y-4">
+            {/* Toggle modo */}
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                variant={curatorMode === "select" ? "default" : "outline"}
+                size="sm"
+                className="gap-2"
+                onClick={() => setCuratorMode("select")}
+                disabled={curators.length === 0}
+              >
+                <Users className="h-3.5 w-3.5" /> Existente
+              </Button>
+              <Button
+                type="button"
+                variant={curatorMode === "new" ? "default" : "outline"}
+                size="sm"
+                className="gap-2"
+                onClick={() => setCuratorMode("new")}
+              >
+                <UserPlus className="h-3.5 w-3.5" /> Novo curador
+              </Button>
+            </div>
+
+            {curatorMode === "select" ? (
+              <div className="space-y-3">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar curador…"
+                    value={curatorSearch}
+                    onChange={(e) => setCuratorSearch(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+
+                <div className="max-h-72 overflow-y-auto space-y-1.5 -mx-1 px-1">
+                  {visibleCurators.length === 0 ? (
+                    <div className="text-center text-sm text-muted-foreground py-8">
+                      {curators.length === 0
+                        ? "Nenhum curador cadastrado ainda"
+                        : "Nenhum curador encontrado"}
+                    </div>
+                  ) : (
+                    visibleCurators.map((c) => {
+                      const bal = balanceById.get(c.id);
+                      const sel = selectedCuratorId === c.id;
+                      const purchasedC = bal?.purchased_plays ?? c.purchased_plays;
+                      const remainingC = bal?.remaining_plays ?? purchasedC;
+                      const overC = (bal?.overbooked_plays ?? 0) > 0;
+                      return (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => setSelectedCuratorId(c.id)}
+                          className={cn(
+                            "w-full text-left rounded-lg border p-3 transition-colors",
+                            sel
+                              ? "border-primary bg-primary/5"
+                              : "border-border bg-muted/20 hover:bg-muted/40",
+                          )}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="min-w-0">
+                              <div className="text-sm font-medium text-foreground truncate flex items-center gap-1.5">
+                                {sel && <Check className="h-3.5 w-3.5 text-primary shrink-0" />}
+                                {c.name}
+                              </div>
+                              <div className="text-xs text-muted-foreground tabular-nums">
+                                {formatNumber(purchasedC)} comprado •{" "}
+                                <span className={cn(remainingC < 0 && "text-destructive")}>
+                                  {formatNumber(remainingC)} restante
+                                </span>
+                              </div>
+                            </div>
+                            {overC && (
+                              <span className="text-[10px] uppercase tracking-wide font-bold text-destructive bg-destructive/10 ring-1 ring-destructive/30 px-1.5 py-0.5 rounded shrink-0">
+                                Estourado
+                              </span>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label>Nome do curador</Label>
+                    <Input
+                      placeholder="@curador ou nome"
+                      maxLength={120}
+                      value={newCuratorName}
+                      onChange={(e) => setNewCuratorName(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Contato (opcional)</Label>
+                    <Input
+                      placeholder="WhatsApp, e-mail…"
+                      value={newCuratorContact}
+                      onChange={(e) => setNewCuratorContact(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label>Plays comprados</Label>
+                    <Input
+                      inputMode="numeric"
+                      placeholder="ex: 3000000"
+                      value={newCuratorPlaysDigits}
+                      onChange={(e) =>
+                        setNewCuratorPlaysDigits(digitsOnly(e.target.value))
+                      }
+                    />
+                    {newCuratorPlaysDigits && (
+                      <p className="text-xs text-muted-foreground">
+                        ≈{" "}
+                        <span className="text-foreground font-medium">
+                          {formatPlaysHint(Number(newCuratorPlaysDigits))}
+                        </span>{" "}
+                        plays
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Custo total</Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground pointer-events-none">
+                        R$
+                      </span>
+                      <Input
+                        inputMode="numeric"
+                        placeholder="0,00"
+                        value={
+                          newCuratorCostDigits
+                            ? formatCurrencyBRL(newCuratorCostDigits).replace("R$", "").trim()
+                            : ""
+                        }
+                        onChange={(e) =>
+                          setNewCuratorCostDigits(digitsOnly(e.target.value))
+                        }
+                        className="pl-9"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <DialogFooter className="gap-2 sm:gap-2">
+              <Button type="button" variant="ghost" onClick={() => handleOpenChange(false)}>
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                onClick={handleAdvanceToStep2}
+                disabled={
+                  submitting ||
+                  (curatorMode === "select" && !selectedCuratorId) ||
+                  (curatorMode === "new" && !newCuratorName.trim())
+                }
+                className="gap-1.5"
+              >
+                {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                Avançar
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </DialogFooter>
+          </div>
+        )}
+
+        {/* ========= PASSO 2 — MÚSICAS ========= */}
+        {step === 2 && (
+          <div className="space-y-4">
+            {/* Resumo do curador + saldo */}
+            {selectedCurator && (
+              <div
+                className={cn(
+                  "rounded-lg border p-3 flex items-center justify-between gap-3",
+                  overbooked
+                    ? "border-destructive/40 bg-destructive/5"
+                    : "border-border bg-muted/20",
+                )}
+              >
+                <div className="min-w-0">
+                  <div className="text-xs text-muted-foreground">Curador</div>
+                  <div className="text-sm font-semibold text-foreground truncate">
+                    {selectedCurator.name}
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-3 text-right">
+                  <div>
+                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                      Comprado
+                    </div>
+                    <div className="text-sm font-bold tabular-nums">
+                      {formatNumber(purchased)}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                      Em deals
+                    </div>
+                    <div className="text-sm font-bold tabular-nums">
+                      {formatNumber(consumedNow)}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                      Restante
+                    </div>
+                    <div
+                      className={cn(
+                        "text-sm font-bold tabular-nums",
+                        overbooked ? "text-destructive" : "text-primary",
+                      )}
+                    >
+                      {formatNumber(remaining)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {overbooked && (
+              <div className="rounded-md border border-destructive/40 bg-destructive/5 p-2.5 flex items-start gap-2 text-xs">
+                <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-px" />
+                <div className="text-destructive">
+                  Saldo estourado em{" "}
+                  <span className="font-bold tabular-nums">
+                    {formatNumber(Math.abs(remaining))}
+                  </span>{" "}
+                  plays. O deal pode ser salvo mesmo assim — admins serão alertados.
+                </div>
+              </div>
+            )}
+
+            {/* Lista de músicas */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <FormLabel className="mb-0">
+                <Label className="mb-0">
                   Músicas do deal{" "}
                   <span className="text-xs text-muted-foreground font-normal">
                     ({songs.length})
                   </span>
-                </FormLabel>
+                </Label>
                 <Button
                   type="button"
                   variant="ghost"
@@ -440,296 +801,220 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDe
               </div>
 
               <div className="space-y-3">
-                {songs.map((song, idx) => (
-                  <div
-                    key={idx}
-                    className="rounded-lg border border-border bg-muted/20 p-3 space-y-3"
-                  >
-                    <div className="flex items-start gap-2">
-                      <div className="flex-1 grid grid-cols-1 sm:grid-cols-[1fr_140px] gap-2">
-                        <Input
-                          type="url"
-                          placeholder="https://open.spotify.com/track/..."
-                          value={song.url}
-                          maxLength={500}
-                          onChange={(e) =>
-                            updateSong(idx, {
-                              url: e.target.value,
-                              meta: null,
-                              error: undefined,
-                            })
-                          }
-                        />
-                        <Input
-                          type="number"
-                          inputMode="numeric"
-                          min={0}
-                          placeholder="Combinado/dia"
-                          value={song.daily_goal}
-                          onChange={(e) =>
-                            updateSong(idx, { daily_goal: e.target.value })
-                          }
-                        />
-                      </div>
-                      {songs.length > 1 && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-9 w-9 text-muted-foreground hover:text-destructive shrink-0"
-                          onClick={() => removeSongRow(idx)}
-                          aria-label="Remover música"
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-
-                    {/* Datas individuais por música */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      <div className="flex flex-col gap-1">
-                        <span className="text-xs text-muted-foreground">
-                          Início
-                        </span>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              className={cn(
-                                "h-9 pl-3 text-left font-normal justify-start",
-                                !song.started_at && "text-muted-foreground",
-                              )}
-                            >
-                              {song.started_at ? (
-                                format(song.started_at, "dd 'de' MMM, yyyy", {
-                                  locale: ptBR,
-                                })
-                              ) : (
-                                <span>Escolher data</span>
-                              )}
-                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={song.started_at}
-                              onSelect={(d) =>
-                                updateSong(idx, { started_at: d ?? undefined })
-                              }
-                              initialFocus
-                              className={cn("p-3 pointer-events-auto")}
-                            />
-                          </PopoverContent>
-                        </Popover>
+                {songs.map((song, idx) => {
+                  const target = songTarget(song);
+                  return (
+                    <div
+                      key={idx}
+                      className="rounded-lg border border-border bg-muted/20 p-3 space-y-3"
+                    >
+                      <div className="flex items-start gap-2">
+                        <div className="flex-1 grid grid-cols-1 sm:grid-cols-[1fr_120px_120px] gap-2">
+                          <Input
+                            type="url"
+                            placeholder="https://open.spotify.com/track/..."
+                            value={song.url}
+                            maxLength={500}
+                            onChange={(e) =>
+                              updateSong(idx, {
+                                url: e.target.value,
+                                meta: null,
+                                error: undefined,
+                              })
+                            }
+                          />
+                          <Input
+                            type="number"
+                            inputMode="numeric"
+                            min={0}
+                            placeholder="Plays/dia"
+                            value={song.daily_goal}
+                            onChange={(e) =>
+                              updateSong(idx, { daily_goal: e.target.value })
+                            }
+                          />
+                          <Input
+                            type="number"
+                            inputMode="numeric"
+                            min={1}
+                            placeholder="Dias"
+                            value={song.duration_days}
+                            onChange={(e) =>
+                              updateSong(idx, { duration_days: e.target.value })
+                            }
+                          />
+                        </div>
+                        {songs.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-9 w-9 text-muted-foreground hover:text-destructive shrink-0"
+                            onClick={() => removeSongRow(idx)}
+                            aria-label="Remover música"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
 
-                      <div className="flex flex-col gap-1">
-                        <span className="text-xs text-muted-foreground">
-                          Fim (opcional)
-                        </span>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              className={cn(
-                                "h-9 pl-3 text-left font-normal justify-start",
-                                !song.ends_at && "text-muted-foreground",
-                              )}
-                            >
-                              {song.ends_at ? (
-                                format(song.ends_at, "dd 'de' MMM, yyyy", {
-                                  locale: ptBR,
-                                })
-                              ) : (
-                                <span>Escolher data</span>
-                              )}
-                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={song.ends_at}
-                              onSelect={(d) =>
-                                updateSong(idx, { ends_at: d ?? undefined })
-                              }
-                              initialFocus
-                              className={cn("p-3 pointer-events-auto")}
-                            />
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-                    </div>
-
-                    {/* Ramp-up + duração */}
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground">
-                          Aquecimento:
-                        </span>
-                        <Input
-                          type="number"
-                          inputMode="numeric"
-                          min={0}
-                          max={30}
-                          className="h-8 w-16 text-sm"
-                          value={song.ramp_up_days}
-                          onChange={(e) =>
-                            updateSong(idx, { ramp_up_days: e.target.value })
-                          }
-                        />
-                        <span className="text-xs text-muted-foreground">
-                          dias sem cobrar meta
-                        </span>
-                      </div>
-                      {song.started_at && song.ends_at && (
-                        <div className="text-xs text-muted-foreground ml-auto">
-                          Duração:{" "}
-                          <span className="text-foreground font-medium">
-                            {Math.max(
-                              1,
-                              Math.round(
-                                (song.ends_at.getTime() - song.started_at.getTime()) /
-                                  86400000,
-                              ) + 1,
-                            )}{" "}
-                            dias
+                      {/* Meta calculada (preview) */}
+                      {target > 0 && (
+                        <div className="text-xs text-muted-foreground flex items-center gap-1.5 flex-wrap">
+                          <span>Meta total da música:</span>
+                          <span className="text-foreground font-bold tabular-nums">
+                            {formatNumber(target)}
+                          </span>
+                          <span>plays</span>
+                          <span className="text-muted-foreground/60">
+                            ({formatPlaysHint(target)})
                           </span>
                         </div>
                       )}
-                    </div>
 
-                    <div className="flex items-center gap-2">
-                      {!song.meta ? (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="gap-1.5"
-                          onClick={() => handleSearchSong(idx)}
-                          disabled={song.searching || !song.url.trim()}
-                        >
-                          {song.searching ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <Search className="h-3.5 w-3.5" />
-                          )}
-                          Buscar música
-                        </Button>
-                      ) : (
-                        <div className="flex items-center gap-2 flex-1 min-w-0">
-                          {song.meta.thumbnail_url ? (
-                            <img
-                              src={song.meta.thumbnail_url}
-                              alt={song.meta.title}
-                              className="h-9 w-9 rounded-md object-cover shrink-0"
-                            />
-                          ) : (
-                            <div className="h-9 w-9 rounded-md bg-muted flex items-center justify-center shrink-0">
-                              <Music2 className="h-4 w-4 text-muted-foreground" />
-                            </div>
-                          )}
-                          <div className="min-w-0 flex-1">
-                            <div className="text-sm font-medium text-foreground truncate flex items-center gap-1.5">
-                              <Check className="h-3.5 w-3.5 text-success shrink-0" />
-                              {song.meta.title}
-                            </div>
-                            {song.meta.artist && (
-                              <div className="text-xs text-muted-foreground truncate">
-                                {song.meta.artist}
+                      {/* Início + ramp-up */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div className="flex flex-col gap-1">
+                          <span className="text-xs text-muted-foreground">Início</span>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className={cn(
+                                  "h-9 pl-3 text-left font-normal justify-start",
+                                  !song.started_at && "text-muted-foreground",
+                                )}
+                              >
+                                {song.started_at ? (
+                                  format(song.started_at, "dd 'de' MMM, yyyy", {
+                                    locale: ptBR,
+                                  })
+                                ) : (
+                                  <span>Escolher data</span>
+                                )}
+                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar
+                                mode="single"
+                                selected={song.started_at}
+                                onSelect={(d) =>
+                                  updateSong(idx, { started_at: d ?? undefined })
+                                }
+                                initialFocus
+                                className={cn("p-3 pointer-events-auto")}
+                              />
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+
+                        <div className="flex flex-col gap-1">
+                          <span className="text-xs text-muted-foreground">
+                            Aquecimento (dias)
+                          </span>
+                          <Input
+                            type="number"
+                            inputMode="numeric"
+                            min={0}
+                            max={30}
+                            className="h-9"
+                            value={song.ramp_up_days}
+                            onChange={(e) =>
+                              updateSong(idx, { ramp_up_days: e.target.value })
+                            }
+                          />
+                        </div>
+                      </div>
+
+                      {/* Buscar / preview */}
+                      <div className="flex items-center gap-2">
+                        {!song.meta ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="gap-1.5"
+                            onClick={() => handleSearchSong(idx)}
+                            disabled={song.searching || !song.url.trim()}
+                          >
+                            {song.searching ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Search className="h-3.5 w-3.5" />
+                            )}
+                            Buscar música
+                          </Button>
+                        ) : (
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            {song.meta.thumbnail_url ? (
+                              <img
+                                src={song.meta.thumbnail_url}
+                                alt={song.meta.title}
+                                className="h-9 w-9 rounded-md object-cover shrink-0"
+                              />
+                            ) : (
+                              <div className="h-9 w-9 rounded-md bg-muted flex items-center justify-center shrink-0">
+                                <Music2 className="h-4 w-4 text-muted-foreground" />
                               </div>
                             )}
+                            <div className="min-w-0 flex-1">
+                              <div className="text-sm font-medium text-foreground truncate flex items-center gap-1.5">
+                                <Check className="h-3.5 w-3.5 text-success shrink-0" />
+                                {song.meta.title}
+                              </div>
+                              {song.meta.artist && (
+                                <div className="text-xs text-muted-foreground truncate">
+                                  {song.meta.artist}
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        </div>
+                        )}
+                      </div>
+
+                      {song.error && (
+                        <div className="text-xs text-destructive">{song.error}</div>
                       )}
                     </div>
-
-                    {song.error && (
-                      <div className="text-xs text-destructive">{song.error}</div>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
-            {/* Combinado total + custo */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="target_plays"
-                render={({ field }) => {
-                  const n =
-                    typeof field.value === "number"
-                      ? field.value
-                      : Number(field.value);
-                  const hint = formatPlaysHint(Number.isFinite(n) ? n : undefined);
-                  return (
-                    <FormItem>
-                      <FormLabel>Combinado total (plays)</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          inputMode="numeric"
-                          min={1}
-                          placeholder="ex: 3000000"
-                          {...field}
-                          value={field.value ?? ""}
-                        />
-                      </FormControl>
-                      {hint && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          ≈ <span className="text-foreground font-medium">{hint}</span> plays
-                        </p>
-                      )}
-                      <FormMessage />
-                    </FormItem>
-                  );
-                }}
-              />
-
-              <FormItem>
-                <FormLabel>Custo do deal</FormLabel>
-                <FormControl>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground pointer-events-none">
-                      R$
-                    </span>
-                    <Input
-                      inputMode="numeric"
-                      placeholder="0,00"
-                      value={
-                        costDigits ? formatCurrencyBRL(costDigits).replace("R$", "").trim() : ""
-                      }
-                      onChange={(e) => setCostDigits(digitsOnly(e.target.value))}
-                      className="pl-9"
-                    />
-                  </div>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            </div>
-
-            <DialogFooter className="gap-2 sm:gap-2">
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => handleOpenChange(false)}
-                disabled={submitting}
-              >
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={submitting}>
-                {submitting && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
-                {isEdit ? "Salvar alterações" : "Salvar deal"}
-              </Button>
+            <DialogFooter className="gap-2 sm:gap-2 sm:justify-between">
+              {!isEdit ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setStep(1)}
+                  disabled={submitting}
+                  className="gap-1.5"
+                >
+                  <ChevronLeft className="h-4 w-4" /> Voltar
+                </Button>
+              ) : (
+                <span />
+              )}
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => handleOpenChange(false)}
+                  disabled={submitting}
+                >
+                  Cancelar
+                </Button>
+                <Button type="button" onClick={onSubmit} disabled={submitting}>
+                  {submitting && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
+                  {isEdit ? "Salvar alterações" : "Salvar deal"}
+                </Button>
+              </div>
             </DialogFooter>
-          </form>
-        </Form>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
