@@ -279,6 +279,7 @@ export function useCuratorDeals() {
           note: input.note ?? null,
           is_baseline: input.is_baseline ?? false,
           print_urls: input.print_urls ?? [],
+          song_id: input.song_id ?? null,
         })
         .select()
         .single();
@@ -295,6 +296,7 @@ export function useCuratorDeals() {
       plays: number,
       baselinePlaylists: BaselinePlaylistInput[],
       printUrls: string[] = [],
+      songId: string | null = null,
     ) => {
       // 1. Log baseline
       const { error: logErr } = await supabase
@@ -305,6 +307,7 @@ export function useCuratorDeals() {
           is_baseline: true,
           note: null,
           print_urls: printUrls,
+          song_id: songId,
         });
       if (logErr) throw logErr;
 
@@ -316,6 +319,7 @@ export function useCuratorDeals() {
           playlist_name: p.playlist_name,
           followers: p.followers ?? null,
           is_baseline: true,
+          song_id: songId,
         }));
         const { error: plErr } = await supabase
           .from("curator_playlists")
