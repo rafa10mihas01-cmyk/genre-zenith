@@ -145,6 +145,7 @@ export default function PlaylistDeals() {
         allLogs={logs}
         allPlaylists={playlists}
         onClose={() => setDetailDeal(null)}
+        onReload={reload}
       />
     </div>
   );
