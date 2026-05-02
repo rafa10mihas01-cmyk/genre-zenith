@@ -25,6 +25,7 @@ import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { NexEngineLogo } from "@/components/NexEngineLogo";
 import { PrintThumbs } from "@/components/playlist-deals/PrintThumbs";
+import { markCuratorPublicMode } from "@/lib/publicRouteMode";
 
 type Deal = {
   id: string;
@@ -203,6 +204,7 @@ export default function CuratorPage() {
   };
 
   useEffect(() => {
+    markCuratorPublicMode(normalizePublicToken(token));
     setLoading(true);
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps

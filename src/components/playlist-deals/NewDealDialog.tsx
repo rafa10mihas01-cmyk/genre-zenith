@@ -42,6 +42,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useCuratorDeals, type DealSongInput } from "@/hooks/useCuratorDeals";
+import { curatorPublicUrl } from "@/lib/curatorPublicUrl";
 
 const schema = z.object({
   curator_name: z.string().trim().min(1, "Informe o curador").max(120),
@@ -211,7 +212,7 @@ export function NewDealDialog({ open, onOpenChange }: NewDealDialogProps) {
         extra_songs: extras,
       });
 
-      const link = `${window.location.origin}/curador/${deal.public_token}`;
+      const link = curatorPublicUrl({ slug: deal.slug, public_token: deal.public_token });
       try {
         await navigator.clipboard.writeText(link);
       } catch {

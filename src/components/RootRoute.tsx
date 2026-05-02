@@ -8,6 +8,8 @@ import { Zap } from "lucide-react";
 import Landing from "@/pages/Landing";
 import AppLayout from "@/components/AppLayout";
 import Home from "@/pages/Home";
+import { getCuratorPublicPath, isCuratorPublicMode } from "@/lib/publicRouteMode";
+import { Navigate } from "react-router-dom";
 
 export default function RootRoute() {
   const { user, loading } = useAuth();
@@ -23,6 +25,7 @@ export default function RootRoute() {
     );
   }
 
+  if (isCuratorPublicMode()) return <Navigate to={getCuratorPublicPath()} replace />;
   if (!user) return <Landing />;
 
   return (

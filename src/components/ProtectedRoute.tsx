@@ -2,6 +2,7 @@ import { Navigate } from "react-router-dom";
 import { ReactNode } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Zap } from "lucide-react";
+import { getCuratorPublicPath, isCuratorPublicMode } from "@/lib/publicRouteMode";
 
 export default function ProtectedRoute({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
@@ -18,6 +19,7 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
   }
   // Visitantes vão para a Landing (rota /), não para /login.
   // /login fica reservado para uso interno/admin.
+  if (isCuratorPublicMode()) return <Navigate to={getCuratorPublicPath()} replace />;
   if (!user) return <Navigate to="/" replace />;
   return <>{children}</>;
 }
