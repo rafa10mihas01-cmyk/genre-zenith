@@ -640,6 +640,8 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDe
           description: `${validSongs.length} música${validSongs.length > 1 ? "s" : ""} • link copiado`,
         });
       }
+      // Submit OK: limpa rascunho persistido
+      draft.clearDraft();
       onOpenChange(false);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
