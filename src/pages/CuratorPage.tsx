@@ -10,9 +10,11 @@ import {
   ExternalLink,
   Upload,
   Download,
+  ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
+import { cn } from "@/lib/utils";
 
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -91,7 +93,17 @@ export default function CuratorPage() {
   const [url, setUrl] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [baseOpen, setBaseOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const basePlaylists = useMemo(
+    () => playlists.filter((p) => p.is_baseline),
+    [playlists],
+  );
+  const curatorPlaylists = useMemo(
+    () => playlists.filter((p) => !p.is_baseline),
+    [playlists],
+  );
 
   const load = async () => {
     if (!token) return;
@@ -489,26 +501,89 @@ export default function CuratorPage() {
           </CardContent>
         </Card>
 
-        {/* Suas playlists */}
+        {/* Playlists onde a música já está (baseline / pré-existentes) — colapsável */}
+        {basePlaylists.length > 0 && (
+          <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
+            <CardContent className="p-7 space-y-4">
+              <button
+                type="button"
+                onClick={() => setBaseOpen((v) => !v)}
+                className="w-full flex items-center justify-between gap-2 text-left"
+                aria-expanded={baseOpen}
+              >
+                <h2 className="text-sm font-semibold inline-flex items-center gap-1.5">
+                  <ListMusic className="h-3.5 w-3.5" />
+                  Playlists em que a música já está
+                </h2>
+                <span className="inline-flex items-center gap-2 text-[10px] text-muted-foreground">
+                  {basePlaylists.length} {basePlaylists.length === 1 ? "playlist" : "playlists"}
+                  <ChevronDown
+                    className={cn(
+                      "h-3.5 w-3.5 transition-transform",
+                      baseOpen && "rotate-180",
+                    )}
+                  />
+                </span>
+              </button>
+
+              {baseOpen && (
+                <ul className="space-y-1.5 max-h-[280px] overflow-y-auto pr-1 -mr-1 scroll-smooth">
+                  {basePlaylists.map((p) => (
+                    <li
+                      key={p.id}
+                      className="flex items-center justify-between gap-2 rounded-md bg-muted/30 ring-1 ring-white/[0.04] px-2.5 py-2"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <a
+                          href={p.spotify_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs font-medium truncate hover:underline block"
+                        >
+                          {p.playlist_name}
+                        </a>
+                        {p.followers !== null && (
+                          <div className="text-[10px] text-muted-foreground mt-0.5 tabular-nums">
+                            {formatPlays(p.followers)} seguidores
+                          </div>
+                        )}
+                      </div>
+                      <Badge variant="secondary" className="shrink-0 text-[10px] px-1.5 py-0 h-4">
+                        Inicial
+                      </Badge>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Playlists adicionadas pelo curador */}
         <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
           <CardContent className="p-7 space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold inline-flex items-center gap-1.5">
-                <ListMusic className="h-3.5 w-3.5" />
-                Suas playlists
-              </h2>
-              <span className="text-[10px] text-muted-foreground">
-                {playlists.length} {playlists.length === 1 ? "playlist" : "playlists"}
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <h2 className="text-sm font-semibold inline-flex items-center gap-1.5">
+                  <ListMusic className="h-3.5 w-3.5" />
+                  Suas playlists adicionadas
+                </h2>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Apenas as que você incluiu nesta curadoria
+                </p>
+              </div>
+              <span className="text-[10px] text-muted-foreground shrink-0">
+                {curatorPlaylists.length} {curatorPlaylists.length === 1 ? "playlist" : "playlists"}
               </span>
             </div>
 
-            {playlists.length === 0 ? (
+            {curatorPlaylists.length === 0 ? (
               <p className="text-xs text-muted-foreground py-3 text-center">
                 Nenhuma playlist adicionada ainda
               </p>
             ) : (
               <ul className="space-y-1.5 max-h-[280px] overflow-y-auto pr-1 -mr-1 scroll-smooth">
-                {playlists.map((p) => (
+                {curatorPlaylists.map((p) => (
                   <li
                     key={p.id}
                     className="flex items-center justify-between gap-2 rounded-md bg-muted/30 ring-1 ring-white/[0.04] px-2.5 py-2"
@@ -528,15 +603,9 @@ export default function CuratorPage() {
                         </div>
                       )}
                     </div>
-                    {p.is_baseline ? (
-                      <Badge variant="secondary" className="shrink-0 text-[10px] px-1.5 py-0 h-4">
-                        Inicial
-                      </Badge>
-                    ) : (
-                      <Badge className="bg-primary text-black hover:bg-primary/90 shrink-0 text-[10px] px-1.5 py-0 h-4 border-0 font-semibold">
-                        Nova
-                      </Badge>
-                    )}
+                    <Badge className="bg-primary text-black hover:bg-primary/90 shrink-0 text-[10px] px-1.5 py-0 h-4 border-0 font-semibold">
+                      Nova
+                    </Badge>
                   </li>
                 ))}
               </ul>
