@@ -94,34 +94,33 @@ function formatShortDate(iso: string | Date | null): string {
 }
 
 /**
- * Ciclo de relatório: fecha toda segunda-feira às 17:00 (America/Sao_Paulo).
- * cycleEnd(d): próxima segunda 17h estritamente futura a partir de d.
- * cycleStart(d): última segunda 17h <= d (início do ciclo "vivo" agora).
+ * Ciclo de relatório: a cada 7 dias contados a partir do dia em que a
+ * campanha começou (`started_at` ou `created_at`), com corte sempre às
+ * 17:00 daquele dia da semana (delay do Spotify).
  *
- * Implementação simples assumindo o relógio local do navegador. Para o
- * curador (pt-BR / -03), isso bate com America/Sao_Paulo.
+ *  anchor       = 17:00 do dia em que a campanha começou
+ *  cycleEnd(d)  = primeiro múltiplo de 7 dias após `anchor` que seja > d
+ *  cycleStart(d)= cycleEnd(d) - 7 dias
  */
-function cycleEnd(from: Date = new Date()): Date {
-  const d = new Date(from);
-  // 1 = segunda
-  const dow = d.getDay();
-  // dias até a próxima segunda (1..7)
-  let daysAhead = (1 - dow + 7) % 7;
-  const candidate = new Date(d);
-  candidate.setHours(17, 0, 0, 0);
-  if (daysAhead === 0 && from.getTime() >= candidate.getTime()) {
-    daysAhead = 7;
-  }
-  candidate.setDate(candidate.getDate() + daysAhead);
-  candidate.setHours(17, 0, 0, 0);
-  return candidate;
+function getAnchor(startedAtIso: string | null | undefined): Date {
+  const base = startedAtIso ? new Date(startedAtIso) : new Date();
+  const a = new Date(base);
+  a.setHours(17, 0, 0, 0);
+  return a;
 }
 
-function cycleStart(from: Date = new Date()): Date {
-  const end = cycleEnd(from);
-  const start = new Date(end);
-  start.setDate(start.getDate() - 7);
-  return start;
+function cycleEnd(anchor: Date, from: Date = new Date()): Date {
+  const week = 7 * 24 * 60 * 60 * 1000;
+  const diff = from.getTime() - anchor.getTime();
+  // quantos ciclos completos já passaram desde a âncora até agora
+  const cycles = Math.floor(diff / week) + 1;
+  const target = Math.max(1, cycles);
+  return new Date(anchor.getTime() + target * week);
+}
+
+function cycleStart(anchor: Date, from: Date = new Date()): Date {
+  const end = cycleEnd(anchor, from);
+  return new Date(end.getTime() - 7 * 24 * 60 * 60 * 1000);
 }
 
 function formatCountdown(ms: number): string {
@@ -211,8 +210,9 @@ export default function CuratorPage() {
 
   const stats = useMemo(() => {
     const now = new Date();
-    const cycEnd = cycleEnd(now);
-    const cycStart = cycleStart(now);
+    const anchor = getAnchor(deal?.started_at ?? deal?.created_at ?? null);
+    const cycEnd = cycleEnd(anchor, now);
+    const cycStart = cycleStart(anchor, now);
     const msToCycleEnd = cycEnd.getTime() - now.getTime();
     // "Atrasado" = passou da segunda 17h e ainda não chegou import dentro deste ciclo.
     // (sempre false antes do baseline, cobrimos abaixo)
@@ -303,7 +303,7 @@ export default function CuratorPage() {
     const lastImportAt = nonBase.length > 0
       ? new Date(nonBase[nonBase.length - 1].created_at)
       : null;
-    const lastImportCycleEnd = lastImportAt ? cycleEnd(new Date(lastImportAt.getTime() - 1)) : null;
+    const lastImportCycleEnd = lastImportAt ? cycleEnd(anchor, new Date(lastImportAt.getTime() - 1)) : null;
 
     // Atrasado = ciclo atual já tem mais de 1 dia rolando (passou da seg 17h)
     // E o último import pertence a um ciclo anterior ao atual
@@ -499,7 +499,7 @@ export default function CuratorPage() {
                 const label = isDone
                   ? "Concluído"
                   : overdue
-                  ? `Relatório atrasado · seg ${formatShortDate(stats.cycleStart)} 17h`
+                  ? `Relatório atrasado · venceu ${formatShortDate(stats.cycleStart)} 17h`
                   : !stats.hasBaseline
                   ? "Aguardando relatório inicial"
                   : `Próximo relatório · ${formatCountdown(stats.msToCycleEnd)}`;
@@ -577,7 +577,7 @@ export default function CuratorPage() {
                 </div>
                 <div className="text-[15px] font-semibold tabular-nums leading-none text-primary">
                   {stats.dailyGoal > 0 ? formatPlays(stats.weekRemaining) : "—"}
-                  <span className="text-[11px] text-muted-foreground font-normal ml-1">até seg</span>
+                  <span className="text-[11px] text-muted-foreground font-normal ml-1">no ciclo</span>
                 </div>
               </div>
               <div>
