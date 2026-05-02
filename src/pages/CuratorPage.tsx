@@ -1247,7 +1247,7 @@ export default function CuratorPage() {
                 disabled={importing}
               >
                 <Download className="h-4 w-4 mr-2" />
-                <span className="truncate">Baixar modelo</span>
+                <span className="truncate"><span className="sm:hidden">Modelo</span><span className="hidden sm:inline">Baixar modelo</span></span>
               </Button>
             </div>
             <p className="text-[11px] text-muted-foreground text-center pt-1">
