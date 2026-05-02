@@ -31,6 +31,7 @@ type Deal = {
   curator_name: string;
   spotify_owner_id: string | null;
   started_at: string;
+  ends_at: string | null;
   baseline_plays: number;
   target_plays: number;
 };
