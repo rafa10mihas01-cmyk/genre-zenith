@@ -202,6 +202,7 @@ export default function CuratorPage() {
       setDeal(null);
       setPlaylists([]);
       setLogs([]);
+      setSongs([]);
       setLoading(false);
       return;
     }
@@ -215,10 +216,12 @@ export default function CuratorPage() {
       setDeal(null);
       setPlaylists([]);
       setLogs([]);
+      setSongs([]);
     } else {
       setDeal(data.deal as Deal);
       setPlaylists((data.playlists ?? []) as Playlist[]);
       setLogs((data.logs ?? []) as DealLog[]);
+      setSongs((data.songs ?? []) as DealSong[]);
       setError(null);
     }
     setLoading(false);
