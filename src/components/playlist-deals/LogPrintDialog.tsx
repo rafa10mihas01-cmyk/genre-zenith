@@ -1,5 +1,5 @@
-import { useRef, useState } from "react";
-import { ImagePlus, Loader2, Sparkles, CheckCircle2, AlertCircle, X, Info, FileText, FileImage, ClipboardPaste } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ImagePlus, Loader2, Sparkles, CheckCircle2, AlertCircle, X, Info, FileImage, ClipboardPaste } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -47,11 +47,6 @@ export interface LogPrintDialogProps {
     baselinePlaylists: BaselinePlaylistInput[],
     printUrls?: string[],
     songId?: string | null,
-  ) => Promise<void>;
-  addNewPlaylist?: (
-    dealId: string,
-    spotifyUrl: string,
-    playlistName: string,
   ) => Promise<void>;
 }
 
