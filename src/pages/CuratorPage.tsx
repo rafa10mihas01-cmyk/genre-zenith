@@ -1608,21 +1608,31 @@ export default function CuratorPage() {
           );
         })()}
 
-        {/* Footer minimalista */}
-        <div className="text-center pt-2 pb-4 flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-3">
-          <span className="text-[10px] text-muted-foreground/60">
-            Powered by <span className="text-foreground/70 font-medium">NexEngine</span>
-          </span>
-          <span className="hidden sm:inline text-muted-foreground/30">·</span>
-          <span className="text-[10px] text-muted-foreground/60 tabular-nums">v1.2.0</span>
-          <span className="hidden sm:inline text-muted-foreground/30">·</span>
-          <a
-            href="mailto:suporte@nexengine.app"
-            className="text-[10px] text-muted-foreground/60 hover:text-foreground transition-colors"
-          >
-            Suporte
-          </a>
-        </div>
+        {/* Footer */}
+        <footer className="pt-6 pb-4 flex flex-col items-center justify-center gap-1.5 text-center">
+          <div className="text-[11px] text-muted-foreground/70">
+            © {new Date().getFullYear()} <span className="text-foreground/80 font-medium">NexEngine</span>
+          </div>
+          <div className="text-[11px] text-muted-foreground/60 max-w-xs leading-snug">
+            Infraestrutura para distribuição e inteligência musical
+          </div>
+          <div className="flex items-center justify-center gap-2 text-[11px] text-muted-foreground/60 mt-1">
+            <a
+              href="mailto:suporte@nexengine.app"
+              className="hover:text-foreground transition-colors"
+            >
+              Suporte
+            </a>
+            <span className="text-muted-foreground/30">•</span>
+            <a href="/termos" className="hover:text-foreground transition-colors">
+              Termos
+            </a>
+            <span className="text-muted-foreground/30">•</span>
+            <a href="/privacidade" className="hover:text-foreground transition-colors">
+              Privacidade
+            </a>
+          </div>
+        </footer>
       </div>
       </div>
 
