@@ -610,91 +610,110 @@ export default function CuratorPage() {
               })()}
             </div>
 
-            {/* Identidade: capa + música/curador */}
-            <div className="flex items-center gap-4">
-              {deal.song_cover_url ? (
-                <div className="relative shrink-0">
-                  <div
-                    aria-hidden
-                    className="absolute inset-0 -z-10 rounded-xl blur-xl opacity-50"
-                    style={{ background: "rgba(29,185,84,0.35)" }}
-                  />
-                  <img
-                    src={deal.song_cover_url}
-                    alt={deal.song_name}
-                    className="w-[72px] h-[72px] rounded-xl object-cover ring-1 ring-border"
-                  />
-                </div>
-              ) : (
-                <div className="w-[72px] h-[72px] rounded-xl bg-muted shrink-0" />
-              )}
-              <div className="flex-1 min-w-0">
-                <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70 mb-1">
-                  Música
-                </div>
-                <h1 className="text-[17px] sm:text-[18px] font-semibold leading-tight tracking-tight truncate">
-                  {deal.song_name}
-                </h1>
-                <p className="text-[12px] text-muted-foreground truncate mt-0.5 leading-snug">
-                  {deal.song_artist ? `${deal.song_artist} · ` : ""}Curador: {deal.curator_name}
-                </p>
-              </div>
-            </div>
+            {/* Identidade: capa + música/curador (reflete música selecionada quando aplicável) */}
+            {(() => {
+              const headerCover = selectedSong?.song_cover_url ?? deal.song_cover_url;
+              const headerName = selectedSong?.song_name ?? deal.song_name;
+              const headerArtist = selectedSong?.song_artist ?? deal.song_artist;
+              const headerUrl = selectedSong?.song_spotify_url ?? deal.song_spotify_url;
+              return (
+                <>
+                  <div className="flex items-center gap-4">
+                    {headerCover ? (
+                      <div className="relative shrink-0">
+                        <div
+                          aria-hidden
+                          className="absolute inset-0 -z-10 rounded-xl blur-xl opacity-50"
+                          style={{ background: "rgba(29,185,84,0.35)" }}
+                        />
+                        <img
+                          src={headerCover}
+                          alt={headerName}
+                          className="w-[72px] h-[72px] rounded-xl object-cover ring-1 ring-border"
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-[72px] h-[72px] rounded-xl bg-muted shrink-0" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70 mb-1 inline-flex items-center gap-2">
+                        {selectedSong ? "Música selecionada" : hasMultipleSongs ? "Visão geral" : "Música"}
+                        {selectedSong && (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedSongId(null)}
+                            className="text-[9px] uppercase tracking-wider text-primary hover:underline"
+                          >
+                            limpar
+                          </button>
+                        )}
+                      </div>
+                      <h1 className="text-[17px] sm:text-[18px] font-semibold leading-tight tracking-tight truncate">
+                        {headerName}
+                      </h1>
+                      <p className="text-[12px] text-muted-foreground truncate mt-0.5 leading-snug">
+                        {headerArtist ? `${headerArtist} · ` : ""}Curador: {deal.curator_name}
+                      </p>
+                    </div>
+                  </div>
 
-            {/* Divisor */}
-            <div className="h-px bg-border" />
+                  {/* Divisor */}
+                  <div className="h-px bg-border" />
 
-            {/* Briefing: meta · prazo · ritmo */}
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-1">
-                  Meta
-                </div>
-                <div className="text-[15px] font-semibold tabular-nums leading-none">
-                  {formatPlays(stats.target)}
-                  <span className="text-[11px] text-muted-foreground font-normal ml-1">plays</span>
-                </div>
-              </div>
-              <div>
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-1">
-                  Esta semana
-                </div>
-                <div className="text-[15px] font-semibold tabular-nums leading-none text-primary">
-                  {stats.dailyGoal > 0 ? formatPlays(stats.weekRemaining) : "—"}
-                  <span className="text-[11px] text-muted-foreground font-normal ml-1">no ciclo</span>
-                </div>
-              </div>
-              <div>
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-1">
-                  Progresso
-                </div>
-                <div className="text-[15px] font-semibold tabular-nums leading-none">
-                  {stats.pct}
-                  <span className="text-[11px] text-muted-foreground font-normal">%</span>
-                </div>
-              </div>
-            </div>
+                  {/* Briefing: meta · prazo · ritmo */}
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-1">
+                        Meta
+                      </div>
+                      <div className="text-[15px] font-semibold tabular-nums leading-none">
+                        {formatPlays(stats.target)}
+                        <span className="text-[11px] text-muted-foreground font-normal ml-1">plays</span>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-1">
+                        Esta semana
+                      </div>
+                      <div className="text-[15px] font-semibold tabular-nums leading-none text-primary">
+                        {stats.dailyGoal > 0 ? formatPlays(stats.weekRemaining) : "—"}
+                        <span className="text-[11px] text-muted-foreground font-normal ml-1">no ciclo</span>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-1">
+                        Progresso
+                      </div>
+                      <div className="text-[15px] font-semibold tabular-nums leading-none">
+                        {stats.pct}
+                        <span className="text-[11px] text-muted-foreground font-normal">%</span>
+                      </div>
+                    </div>
+                  </div>
 
-            {/* Mini progress bar */}
-            {stats.hasBaseline && stats.target > 0 && (
-              <div className="h-1 rounded-full bg-muted/60 overflow-hidden">
-                <div
-                  className="h-full bg-primary rounded-full transition-all duration-500"
-                  style={{ width: `${stats.pct}%` }}
-                />
-              </div>
-            )}
+                  {/* Mini progress bar */}
+                  {stats.hasBaseline && stats.target > 0 && (
+                    <div className="h-1 rounded-full bg-muted/60 overflow-hidden">
+                      <div
+                        className="h-full bg-primary rounded-full transition-all duration-500"
+                        style={{ width: `${stats.pct}%` }}
+                      />
+                    </div>
+                  )}
 
-            {/* CTA Spotify */}
-            <a
-              href={deal.song_spotify_url}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] text-muted-foreground hover:text-foreground bg-muted/40 ring-1 ring-border hover:ring-border hover:bg-muted/60 transition-colors"
-            >
-              <ExternalLink className="h-3 w-3" />
-              Abrir no Spotify
-            </a>
+                  {/* CTA Spotify */}
+                  <a
+                    href={headerUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] text-muted-foreground hover:text-foreground bg-muted/40 ring-1 ring-border hover:ring-border hover:bg-muted/60 transition-colors"
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                    Abrir no Spotify
+                  </a>
+                </>
+              );
+            })()}
           </CardContent>
         </Card>
 
