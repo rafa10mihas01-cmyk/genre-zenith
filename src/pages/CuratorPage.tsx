@@ -471,7 +471,7 @@ export default function CuratorPage() {
       lastCaptureAt,
       firstCaptureAt,
     };
-  }, [deal, progress, snapshotHistory, selectedSong]);
+  }, [deal, progress, snapshotHistory, selectedSong, selectedSongId]);
 
   const handleAdd = async () => {
     if (!token || !url.trim()) return;
