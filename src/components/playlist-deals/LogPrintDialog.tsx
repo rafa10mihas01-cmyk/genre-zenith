@@ -401,6 +401,7 @@ export function LogPrintDialog({
             playlist_name: p.name,
             followers: null,
             is_baseline: false,
+            song_id: selectedSongId,
           }));
           const { error: plErr } = await supabase
             .from("curator_playlists")
