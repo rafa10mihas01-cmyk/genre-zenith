@@ -234,6 +234,8 @@ export default function PlaylistDeals() {
                 onDetail={(deal) => setDetailDeal(deal)}
                 onDelete={(deal) => handleDelete(deal.id)}
                 onEdit={(deal) => setEditDeal(deal)}
+                onClose={(deal) => setCloseDealOpen(deal)}
+                onReopen={handleReopen}
               />
             ))}
           </div>
@@ -272,6 +274,16 @@ export default function PlaylistDeals() {
         allPlaylists={playlists}
         onClose={() => setDetailDeal(null)}
         onReload={reload}
+      />
+
+      <CloseDealDialog
+        open={closeDealOpen !== null}
+        deal={closeDealOpen}
+        songs={closeDealOpen ? songs.filter((s) => s.deal_id === closeDealOpen.id) : []}
+        logs={logs}
+        playlists={playlists}
+        onClose={() => setCloseDealOpen(null)}
+        onConfirm={closeDeal}
       />
     </PageContainer>
   );
