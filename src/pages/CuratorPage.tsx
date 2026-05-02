@@ -331,12 +331,21 @@ export default function CuratorPage() {
     if (!token || !url.trim()) return;
     setSubmitting(true);
     const { data, error: fnErr } = await supabase.functions.invoke(
-      "add-curator-playlist",
-      { body: { public_token: token, spotify_url: url.trim() } },
+      "register-curator-playlist",
+      { body: { public_token: token, urls: [url.trim()] } },
     );
     setSubmitting(false);
     if (fnErr || !data?.ok) {
       toast.error(data?.error || fnErr?.message || "Erro ao adicionar playlist");
+      return;
+    }
+    const item = Array.isArray(data.items) ? data.items[0] : null;
+    if (item?.error) {
+      toast.error(item.error);
+      return;
+    }
+    if (item?.match_status === "suspicious") {
+      toast.error("Esta playlist não é do seu perfil Spotify cadastrado");
       return;
     }
     toast.success("Playlist adicionada");
