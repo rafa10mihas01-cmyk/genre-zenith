@@ -372,6 +372,7 @@ export function LogPrintDialog({
           total_plays: finalValue as number,
           note: note.trim() || null,
           print_urls: printUrls,
+          song_id: selectedSongId,
         });
 
         // Detecta playlists NOVAS pelo link do Spotify (chave de identidade).
