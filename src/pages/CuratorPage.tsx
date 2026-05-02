@@ -117,6 +117,19 @@ type DealProgress = {
   progress_pct: number;
   eta_days: number | null;
   per_playlist: ProgressPerPlaylist[];
+  delivered_per_song?: ProgressPerSong[] | null;
+};
+
+type ProgressPerSong = {
+  song_id: string;
+  target_plays: number;
+  daily_goal: number;
+  baseline_total: number;
+  latest_total: number;
+  delivered_curator: number;
+  first_capture_at: string | null;
+  last_capture_at: string | null;
+  progress_pct: number;
 };
 
 type SnapshotHistoryEntry = {
@@ -380,23 +393,28 @@ export default function CuratorPage() {
     const cycStart = cycleStart(anchor, now);
     const msToCycleEnd = cycEnd.getTime() - now.getTime();
 
+    // Quando uma música é selecionada, prefere métricas dela (delivered_per_song).
+    const songProg = selectedSongId
+      ? progress?.delivered_per_song?.find((s) => s.song_id === selectedSongId) ?? null
+      : null;
+
     const target = Number(
-      selectedSong?.target_plays ?? progress?.target_plays ?? deal?.target_plays ?? 0,
+      songProg?.target_plays ?? selectedSong?.target_plays ?? progress?.target_plays ?? deal?.target_plays ?? 0,
     );
     const dailyGoal = Number(
-      selectedSong?.daily_goal ?? progress?.daily_goal ?? deal?.daily_goal ?? 0,
+      songProg?.daily_goal ?? selectedSong?.daily_goal ?? progress?.daily_goal ?? deal?.daily_goal ?? 0,
     );
-    const baseline = Number(progress?.baseline_total ?? deal?.baseline_plays ?? 0);
-    const latest = Number(progress?.latest_total ?? baseline);
-    const earned = Number(progress?.delivered_curator ?? 0);
+    const baseline = Number(songProg?.baseline_total ?? progress?.baseline_total ?? deal?.baseline_plays ?? 0);
+    const latest = Number(songProg?.latest_total ?? progress?.latest_total ?? baseline);
+    const earned = Number(songProg?.delivered_curator ?? progress?.delivered_curator ?? 0);
     const remaining = Math.max(0, target - earned);
-    const pct = Number(progress?.progress_pct ?? 0);
+    const pct = Number(songProg?.progress_pct ?? progress?.progress_pct ?? 0);
     const dailyAvg = Number(progress?.daily_avg ?? 0);
     const eta = progress?.eta_days ?? null;
     const hasBaseline = (progress?.per_playlist?.length ?? 0) > 0
       || snapshotHistory.length > 0;
-    const lastCaptureAt = progress?.last_capture_at ?? null;
-    const firstCaptureAt = progress?.first_capture_at ?? null;
+    const lastCaptureAt = songProg?.last_capture_at ?? progress?.last_capture_at ?? null;
+    const firstCaptureAt = songProg?.first_capture_at ?? progress?.first_capture_at ?? null;
 
     const startRef = selectedSong?.started_at ?? deal?.started_at ?? deal?.created_at;
     const daysRunning = startRef
@@ -453,7 +471,7 @@ export default function CuratorPage() {
       lastCaptureAt,
       firstCaptureAt,
     };
-  }, [deal, progress, snapshotHistory, selectedSong]);
+  }, [deal, progress, snapshotHistory, selectedSong, selectedSongId]);
 
   const handleAdd = async () => {
     if (!token || !url.trim()) return;
