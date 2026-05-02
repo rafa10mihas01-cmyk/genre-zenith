@@ -11,6 +11,8 @@ import {
   Upload,
   Download,
   ChevronDown,
+  ChevronRight,
+  Music2,
 } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
@@ -27,6 +29,7 @@ import { NexEngineLogo } from "@/components/NexEngineLogo";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { CuratorNotificationsBell } from "@/components/public/CuratorNotificationsBell";
 import { PrintThumbs } from "@/components/playlist-deals/PrintThumbs";
+import { DealLogDetailDialog } from "@/components/playlist-deals/DealLogDetailDialog";
 import { markCuratorPublicMode } from "@/lib/publicRouteMode";
 
 type Deal = {
@@ -48,11 +51,22 @@ type Deal = {
 type Playlist = {
   id: string;
   deal_id: string;
+  song_id?: string | null;
   spotify_url: string;
   playlist_name: string;
   followers: number | null;
   is_baseline: boolean;
   added_at: string;
+  spotify_playlist_id?: string | null;
+  spotify_owner_id?: string | null;
+  spotify_owner_name?: string | null;
+  image_url?: string | null;
+  added_at_spotify?: string | null;
+  match_status?: string | null;
+  match_reason?: string | null;
+  streams_7d?: number | null;
+  streams_28d?: number | null;
+  streams_total?: number | null;
 };
 
 type DealLog = {
@@ -181,6 +195,8 @@ export default function CuratorPage() {
   const [curatorOpen, setCuratorOpen] = useState(true);
   // Fase 5 — filtro por música (null = todas)
   const [selectedSongId, setSelectedSongId] = useState<string | null>(null);
+  // Log clicado no histórico (abre modal de detalhe)
+  const [selectedLogId, setSelectedLogId] = useState<string | null>(null);
   // Tick a cada 60s pra atualizar o countdown do ciclo
   const [, setNowTick] = useState(0);
   useEffect(() => {
@@ -1298,28 +1314,81 @@ export default function CuratorPage() {
                     </div>
                   </div>
                 ) : (
-                  <ul className="space-y-3 max-h-[70vh] sm:max-h-[480px] overflow-y-auto pr-1 -mr-1 scroll-smooth [mask-image:linear-gradient(to_bottom,black_calc(100%-32px),transparent)]">
-                    {[...curatorLogs].reverse().map((log) => (
-                      <li
-                        key={log.id}
-                        className="rounded-xl bg-muted/40 ring-1 ring-border/50 p-4 space-y-2.5 hover:bg-muted/60 transition-colors"
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <span className="text-[15px] font-semibold tabular-nums">
-                            {Number(log.total_plays).toLocaleString("pt-BR")} plays
-                          </span>
-                          <span className="text-[11px] text-muted-foreground shrink-0">
-                            {formatDate(log.created_at)}
-                          </span>
-                        </div>
-                        {log.note && (
-                          <div className="text-[12px] text-muted-foreground leading-relaxed">{log.note}</div>
-                        )}
-                        {log.print_urls && log.print_urls.length > 0 && (
-                          <PrintThumbs urls={log.print_urls} size="sm" />
-                        )}
-                      </li>
-                    ))}
+                  <ul className="space-y-2 max-h-[70vh] sm:max-h-[480px] overflow-y-auto pr-1 -mr-1 scroll-smooth [mask-image:linear-gradient(to_bottom,black_calc(100%-32px),transparent)]">
+                    {[...curatorLogs].reverse().map((log, idx, arr) => {
+                      const prev = arr[idx + 1];
+                      const delta = prev
+                        ? Number(log.total_plays) - Number(prev.total_plays)
+                        : 0;
+                      const deltaPositive = delta >= 0;
+                      const logSong = log.song_id
+                        ? songs.find((s) => s.id === log.song_id)
+                        : null;
+                      const cover =
+                        logSong?.song_cover_url ?? deal?.song_cover_url ?? null;
+                      const songName =
+                        logSong?.song_name ?? deal?.song_name ?? "Música";
+                      const linkedCount = playlists.filter((p) => {
+                        if (p.deal_id !== log.deal_id) return false;
+                        if (log.song_id && p.song_id) {
+                          return p.song_id === log.song_id;
+                        }
+                        return true;
+                      }).length;
+
+                      return (
+                        <li key={log.id}>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedLogId(log.id)}
+                            className="w-full text-left rounded-xl bg-muted/40 ring-1 ring-border/50 p-3 hover:bg-muted/60 hover:ring-border transition-colors flex items-center gap-3"
+                          >
+                            {cover ? (
+                              <img
+                                src={cover}
+                                alt=""
+                                className="h-12 w-12 rounded-lg object-cover shrink-0 ring-1 ring-border/40"
+                              />
+                            ) : (
+                              <div className="h-12 w-12 rounded-lg bg-muted/60 flex items-center justify-center shrink-0">
+                                <Music2 className="h-4 w-4 text-muted-foreground" />
+                              </div>
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <div className="text-[13px] font-semibold truncate leading-tight">
+                                {songName}
+                              </div>
+                              <div className="text-[11px] text-muted-foreground mt-0.5">
+                                {formatDate(log.created_at)}
+                                {linkedCount > 0 && ` · ${linkedCount} playlist${linkedCount > 1 ? "s" : ""}`}
+                                {log.print_urls && log.print_urls.length > 0 && ` · ${log.print_urls.length} print${log.print_urls.length > 1 ? "s" : ""}`}
+                              </div>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <div className="text-[14px] font-bold tabular-nums leading-tight">
+                                {Number(log.total_plays).toLocaleString("pt-BR")}
+                              </div>
+                              {prev ? (
+                                <div
+                                  className={cn(
+                                    "text-[11px] font-semibold tabular-nums mt-0.5",
+                                    deltaPositive ? "text-success" : "text-destructive",
+                                  )}
+                                >
+                                  {deltaPositive ? "+" : "−"}
+                                  {Math.abs(delta).toLocaleString("pt-BR")}
+                                </div>
+                              ) : (
+                                <div className="text-[10px] text-muted-foreground mt-0.5">
+                                  plays
+                                </div>
+                              )}
+                            </div>
+                            <ChevronRight className="h-4 w-4 text-muted-foreground/60 shrink-0" />
+                          </button>
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
               </CardContent>
@@ -1344,6 +1413,35 @@ export default function CuratorPage() {
         </div>
       </div>
       </div>
+
+      {/* Modal sobreposto: detalhe do registro de print */}
+      <DealLogDetailDialog
+        open={selectedLogId !== null}
+        log={
+          (selectedLogId
+            ? logs.find((l) => l.id === selectedLogId) ?? null
+            : null) as any
+        }
+        prevLog={(() => {
+          if (!selectedLogId) return null;
+          const curatorLogs = logs.filter((l) => !l.is_baseline);
+          const reversed = [...curatorLogs].reverse();
+          const idx = reversed.findIndex((l) => l.id === selectedLogId);
+          return (idx >= 0 ? reversed[idx + 1] ?? null : null) as any;
+        })()}
+        song={(() => {
+          const log = selectedLogId
+            ? logs.find((l) => l.id === selectedLogId)
+            : null;
+          if (!log?.song_id) return null;
+          return (songs.find((s) => s.id === log.song_id) ?? null) as any;
+        })()}
+        fallbackSongName={deal?.song_name}
+        fallbackSongCover={deal?.song_cover_url ?? null}
+        fallbackArtist={deal?.song_artist ?? null}
+        playlists={playlists as any}
+        onClose={() => setSelectedLogId(null)}
+      />
     </div>
   );
 }
