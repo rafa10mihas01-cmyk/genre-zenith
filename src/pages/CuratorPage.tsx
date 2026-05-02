@@ -1018,8 +1018,7 @@ export default function CuratorPage() {
           </p>
         </div>
       </div>
+      </div>
     </div>
-  );
-}
   );
 }
