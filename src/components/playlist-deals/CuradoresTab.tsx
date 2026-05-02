@@ -143,10 +143,10 @@ export function CuradoresTab({ deals, logs, playlists, loading }: Props) {
         />
         <KpiBig
           icon={TrendingUp}
-          label="Custo médio / play"
-          value={formatCostPerPlay(totals.avgCostPerPlay)}
-          hint={totals.totalEarned > 0 ? "Real (gasto ÷ plays entregues)" : "Estimado (gasto ÷ meta)"}
-          tone="primary"
+          label="Score médio"
+          value={`${totals.avgScore}/100`}
+          hint="Prazo + qualidade do tráfego"
+          tone={totals.avgScore >= 80 ? "success" : totals.avgScore >= 50 ? "primary" : "default"}
           loading={loading && deals.length === 0}
         />
       </section>
@@ -172,7 +172,7 @@ export function CuradoresTab({ deals, logs, playlists, loading }: Props) {
             <div>
               <h3 className="text-[15px] font-semibold tracking-tight">Comparativo por curador</h3>
               <p className="text-[12px] text-muted-foreground mt-0.5">
-                Ordenado pelo melhor custo por play
+                Ordenado por score (prazo + qualidade)
               </p>
             </div>
             <span className="text-[12px] text-muted-foreground">
@@ -189,12 +189,14 @@ export function CuradoresTab({ deals, logs, playlists, loading }: Props) {
                   <th className="text-right px-3 py-3 font-medium">Investido</th>
                   <th className="text-right px-3 py-3 font-medium">Plays</th>
                   <th className="text-right px-3 py-3 font-medium">R$/play</th>
-                  <th className="text-right px-5 py-3 font-medium">Entrega</th>
+                  <th className="text-right px-3 py-3 font-medium">Legítimo</th>
+                  <th className="text-right px-5 py-3 font-medium">Score</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((r, i) => {
-                  const isBest = i === 0 && r.costPerPlay !== null && rows.length > 1;
+                  const isBest = i === 0 && rows.length > 1 && r.avgScore >= 70;
+                  const legitPct = Math.round(r.avgLegitShare * 100);
                   return (
                     <tr
                       key={r.name}
@@ -222,23 +224,30 @@ export function CuradoresTab({ deals, logs, playlists, loading }: Props) {
                           <span className="text-muted-foreground"> / {formatNumber(r.totalTarget)}</span>
                         )}
                       </td>
-                      <td className="px-3 py-3.5 text-right tabular-nums font-semibold text-primary">
+                      <td className="px-3 py-3.5 text-right tabular-nums text-muted-foreground">
                         {formatCostPerPlay(r.costPerPlay)}
+                      </td>
+                      <td className="px-3 py-3.5 text-right">
+                        <span className={cn(
+                          "inline-flex text-[12px] font-medium tabular-nums px-2 py-0.5 rounded",
+                          legitPct >= 80 ? "bg-success/15 text-success"
+                          : legitPct >= 50 ? "bg-warning/15 text-warning"
+                          : "bg-destructive/15 text-destructive",
+                        )}>
+                          {legitPct}%
+                        </span>
                       </td>
                       <td className="px-5 py-3.5 text-right">
                         <span
                           className={cn(
-                            "inline-flex items-center text-[12px] font-medium tabular-nums px-2 py-0.5 rounded",
-                            r.deliveryPct >= 100
-                              ? "bg-success/15 text-success"
-                              : r.deliveryPct >= 80
-                              ? "bg-primary/15 text-primary"
-                              : r.deliveryPct >= 40
-                              ? "bg-warning/15 text-warning"
-                              : "bg-muted text-muted-foreground",
+                            "inline-flex items-center text-[12px] font-semibold tabular-nums px-2 py-0.5 rounded",
+                            r.avgScore >= 80 ? "bg-success/15 text-success"
+                            : r.avgScore >= 50 ? "bg-primary/15 text-primary"
+                            : r.avgScore >= 30 ? "bg-warning/15 text-warning"
+                            : "bg-destructive/15 text-destructive",
                           )}
                         >
-                          {r.totalTarget > 0 ? `${r.deliveryPct}%` : "—"}
+                          {r.avgScore}
                         </span>
                       </td>
                     </tr>
