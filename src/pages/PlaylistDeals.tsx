@@ -244,6 +244,7 @@ export default function PlaylistDeals() {
       <LogPrintDialog
         open={logDeal !== null}
         deal={logDeal}
+        songs={logDeal ? songs.filter((s) => s.deal_id === logDeal.id) : []}
         allLogs={logs}
         allPlaylists={playlists}
         onClose={() => setLogDeal(null)}
