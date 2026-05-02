@@ -677,7 +677,7 @@ export default function CuratorPage() {
                       </div>
                       <div className="text-[15px] font-semibold tabular-nums leading-none text-primary">
                         {stats.dailyGoal > 0 ? formatPlays(stats.weekRemaining) : "—"}
-                        <span className="text-[11px] text-muted-foreground font-normal ml-1">no ciclo</span>
+                        <span className="text-[11px] text-muted-foreground font-normal ml-1">restantes</span>
                       </div>
                     </div>
                     <div>
@@ -685,8 +685,7 @@ export default function CuratorPage() {
                         Progresso
                       </div>
                       <div className="text-[15px] font-semibold tabular-nums leading-none">
-                        {stats.pct}
-                        <span className="text-[11px] text-muted-foreground font-normal">%</span>
+                        {stats.pct}<span className="text-[11px] text-muted-foreground font-normal ml-0.5">%</span>
                       </div>
                     </div>
                   </div>
