@@ -59,12 +59,13 @@ async function reconcileDeal(supabase: any, deal: any) {
 
   const { delivered, latestCapturedAt } = computeDeliveredFromSnapshots(snaps ?? []);
 
+  // Apenas progresso/entrega (snapshots S4A). Não tocamos
+  // reconciled_streams_7d/28d — esses campos são legado de
+  // outra pipeline e ficam fora do escopo desta função.
   await supabase
     .from("curator_deals")
     .update({
       reconciled_total_plays: delivered,
-      reconciled_streams_7d: 0,
-      reconciled_streams_28d: 0,
       last_reconciled_at: new Date().toISOString(),
     })
     .eq("id", deal.id);
