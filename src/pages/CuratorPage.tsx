@@ -521,7 +521,7 @@ export default function CuratorPage() {
         </div>
 
         {/* Header — campanha + música */}
-        <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_8px_30px_rgba(0,0,0,0.45)] transition-colors overflow-hidden">
+        <Card className="bg-card border-border ring-1 ring-border/50 shadow-sm dark:shadow-[0_8px_30px_rgba(0,0,0,0.45)] transition-colors overflow-hidden">
           <CardContent className="p-7 sm:p-8 space-y-6">
             {/* Eyebrow: CAMPANHA · próximo relatório (seg 17h) */}
             <div className="flex items-center justify-between gap-3">
@@ -579,7 +579,7 @@ export default function CuratorPage() {
                   <img
                     src={deal.song_cover_url}
                     alt={deal.song_name}
-                    className="w-[72px] h-[72px] rounded-xl object-cover ring-1 ring-white/[0.08]"
+                    className="w-[72px] h-[72px] rounded-xl object-cover ring-1 ring-border"
                   />
                 </div>
               ) : (
@@ -599,7 +599,7 @@ export default function CuratorPage() {
             </div>
 
             {/* Divisor */}
-            <div className="h-px bg-white/[0.06]" />
+            <div className="h-px bg-border" />
 
             {/* Briefing: meta · prazo · ritmo */}
             <div className="grid grid-cols-3 gap-3">
@@ -634,7 +634,7 @@ export default function CuratorPage() {
 
             {/* Mini progress bar */}
             {stats.hasBaseline && stats.target > 0 && (
-              <div className="h-1 rounded-full bg-white/[0.04] overflow-hidden">
+              <div className="h-1 rounded-full bg-muted/60 overflow-hidden">
                 <div
                   className="h-full bg-primary rounded-full transition-all duration-500"
                   style={{ width: `${stats.pct}%` }}
@@ -647,7 +647,7 @@ export default function CuratorPage() {
               href={deal.song_spotify_url}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] text-muted-foreground hover:text-foreground bg-white/[0.02] ring-1 ring-white/[0.06] hover:ring-white/[0.12] hover:bg-white/[0.04] transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] text-muted-foreground hover:text-foreground bg-muted/40 ring-1 ring-border hover:ring-border hover:bg-muted/60 transition-colors"
             >
               <ExternalLink className="h-3 w-3" />
               Abrir no Spotify
@@ -657,8 +657,8 @@ export default function CuratorPage() {
 
         {/* Plays hoje vs combinado diário */}
         {stats.hasBaseline && (
-          <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_8px_30px_rgba(0,0,0,0.45)]">
-            <CardContent className="p-7 sm:p-8 grid grid-cols-2 gap-6 divide-x divide-white/[0.06]">
+          <Card className="bg-card border-border ring-1 ring-border/50 shadow-sm dark:shadow-[0_8px_30px_rgba(0,0,0,0.45)]">
+            <CardContent className="p-7 sm:p-8 grid grid-cols-2 gap-6 divide-x divide-border">
               <div className="pr-2">
                 <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">
                   Plays totais hoje
@@ -686,7 +686,7 @@ export default function CuratorPage() {
         )}
 
         {/* Progresso da campanha */}
-        <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_8px_30px_rgba(0,0,0,0.45)]">
+        <Card className="bg-card border-border ring-1 ring-border/50 shadow-sm dark:shadow-[0_8px_30px_rgba(0,0,0,0.45)]">
           <CardContent className="p-7 sm:p-8 space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-[15px] font-semibold tracking-tight">Combinado total</h2>
@@ -705,11 +705,11 @@ export default function CuratorPage() {
               </div>
             </div>
 
-            <Separator className="bg-white/[0.06]" />
+            <Separator className="bg-border" />
 
             {/* Grid de KPIs — mini-cards */}
             <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-xl bg-white/[0.02] ring-1 ring-white/[0.04] p-4">
+              <div className="rounded-xl bg-muted/40 ring-1 ring-border/50 p-4">
                 <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mb-1.5 uppercase tracking-wider">
                   <Target className="h-3 w-3" />
                   Faltam
@@ -719,7 +719,7 @@ export default function CuratorPage() {
                 </div>
               </div>
 
-              <div className="rounded-xl bg-white/[0.02] ring-1 ring-white/[0.04] p-4">
+              <div className="rounded-xl bg-muted/40 ring-1 ring-border/50 p-4">
                 <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mb-1.5 uppercase tracking-wider">
                   <Clock className="h-3 w-3" />
                   Decorrido
@@ -729,7 +729,7 @@ export default function CuratorPage() {
                 </div>
               </div>
 
-              <div className="rounded-xl bg-white/[0.02] ring-1 ring-white/[0.04] p-4">
+              <div className="rounded-xl bg-muted/40 ring-1 ring-border/50 p-4">
                 <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mb-1.5 uppercase tracking-wider">
                   <Zap className="h-3 w-3 text-primary" />
                   Velocidade
@@ -739,7 +739,7 @@ export default function CuratorPage() {
                 </div>
               </div>
 
-              <div className="rounded-xl bg-white/[0.02] ring-1 ring-white/[0.04] p-4">
+              <div className="rounded-xl bg-muted/40 ring-1 ring-border/50 p-4">
                 <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mb-1.5 uppercase tracking-wider">
                   <TrendingUp className="h-3 w-3" />
                   ETA
@@ -754,7 +754,7 @@ export default function CuratorPage() {
               </div>
             </div>
 
-            <Separator className="bg-white/[0.06]" />
+            <Separator className="bg-border" />
 
             <div className="grid grid-cols-2 gap-4 text-[12px]">
               <div>
@@ -772,7 +772,7 @@ export default function CuratorPage() {
             </div>
 
             {/* Ciclo do relatório semanal */}
-            <div className="rounded-xl bg-white/[0.02] ring-1 ring-white/[0.04] p-4 space-y-2">
+            <div className="rounded-xl bg-muted/40 ring-1 ring-border/50 p-4 space-y-2">
               <div className="flex items-center justify-between gap-2">
                 <div className="text-muted-foreground uppercase tracking-wider text-[11px]">
                   Ciclo atual
@@ -800,7 +800,7 @@ export default function CuratorPage() {
 
         {/* Playlists onde a música já está (baseline / pré-existentes) — colapsável */}
         {basePlaylists.length > 0 && (
-          <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_8px_30px_rgba(0,0,0,0.45)]">
+          <Card className="bg-card border-border ring-1 ring-border/50 shadow-sm dark:shadow-[0_8px_30px_rgba(0,0,0,0.45)]">
             <CardContent className="p-7 sm:p-8 space-y-5">
               <button
                 type="button"
@@ -833,7 +833,7 @@ export default function CuratorPage() {
                   {basePlaylists.map((p) => (
                     <li
                       key={p.id}
-                      className="flex items-center justify-between gap-3 rounded-xl bg-white/[0.02] ring-1 ring-white/[0.04] px-4 py-3 hover:bg-white/[0.04] transition-colors"
+                      className="flex items-center justify-between gap-3 rounded-xl bg-muted/40 ring-1 ring-border/50 px-4 py-3 hover:bg-muted/60 transition-colors"
                     >
                       <div className="min-w-0 flex-1">
                         <a
@@ -862,7 +862,7 @@ export default function CuratorPage() {
         )}
 
         {/* Playlists adicionadas pelo curador */}
-        <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_8px_30px_rgba(0,0,0,0.45)]">
+        <Card className="bg-card border-border ring-1 ring-border/50 shadow-sm dark:shadow-[0_8px_30px_rgba(0,0,0,0.45)]">
           <CardContent className="p-7 sm:p-8 space-y-5">
             <button
               type="button"
@@ -900,7 +900,7 @@ export default function CuratorPage() {
                   {curatorPlaylists.map((p) => (
                     <li
                       key={p.id}
-                      className="flex items-center justify-between gap-3 rounded-xl bg-white/[0.02] ring-1 ring-white/[0.04] px-4 py-3 hover:bg-white/[0.04] transition-colors"
+                      className="flex items-center justify-between gap-3 rounded-xl bg-muted/40 ring-1 ring-border/50 px-4 py-3 hover:bg-muted/60 transition-colors"
                     >
                       <div className="min-w-0 flex-1">
                         <a
@@ -929,7 +929,7 @@ export default function CuratorPage() {
         </Card>
 
         {/* Adicionar playlist — bloco de ação principal */}
-        <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_8px_30px_rgba(0,0,0,0.45)]">
+        <Card className="bg-card border-border ring-1 ring-border/50 shadow-sm dark:shadow-[0_8px_30px_rgba(0,0,0,0.45)]">
           <CardContent className="p-7 sm:p-8 space-y-5">
             <div>
               <h2 className="text-[15px] font-semibold tracking-tight">Adicionar playlist</h2>
@@ -942,7 +942,7 @@ export default function CuratorPage() {
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               disabled={submitting || importing}
-              className="h-12 text-[14px] px-4 rounded-xl bg-white/[0.02] ring-1 ring-white/[0.04] border-0 focus-visible:ring-2 focus-visible:ring-primary/40"
+              className="h-12 text-[14px] px-4 rounded-xl bg-muted/40 ring-1 ring-border/50 border-0 focus-visible:ring-2 focus-visible:ring-primary/40"
             />
             <Button
               onClick={handleAdd}
@@ -954,11 +954,11 @@ export default function CuratorPage() {
             </Button>
 
             <div className="flex items-center gap-3 pt-1">
-              <div className="flex-1 h-px bg-white/[0.08]" />
+              <div className="flex-1 h-px bg-border" />
               <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
                 ou em lote
               </span>
-              <div className="flex-1 h-px bg-white/[0.08]" />
+              <div className="flex-1 h-px bg-border" />
             </div>
 
             <input
@@ -975,7 +975,7 @@ export default function CuratorPage() {
               <Button
                 type="button"
                 variant="ghost"
-                className="h-12 w-full px-4 text-[13px] rounded-xl bg-white/[0.02] ring-1 ring-white/[0.06] hover:bg-white/[0.06] hover:ring-white/[0.10] [&>svg]:shrink-0 truncate"
+                className="h-12 w-full px-4 text-[13px] rounded-xl bg-muted/40 ring-1 ring-border hover:bg-border hover:ring-border [&>svg]:shrink-0 truncate"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={submitting || importing}
               >
@@ -989,7 +989,7 @@ export default function CuratorPage() {
               <Button
                 type="button"
                 variant="ghost"
-                className="h-12 w-full px-4 text-[13px] rounded-xl bg-white/[0.02] ring-1 ring-white/[0.06] hover:bg-white/[0.06] hover:ring-white/[0.10] [&>svg]:shrink-0 truncate"
+                className="h-12 w-full px-4 text-[13px] rounded-xl bg-muted/40 ring-1 ring-border hover:bg-border hover:ring-border [&>svg]:shrink-0 truncate"
                 onClick={handleDownloadTemplate}
                 disabled={importing}
               >
@@ -1008,7 +1008,7 @@ export default function CuratorPage() {
         {(() => {
           const curatorLogs = logs.filter((l) => !l.is_baseline);
           return (
-            <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_8px_30px_rgba(0,0,0,0.45)]">
+            <Card className="bg-card border-border ring-1 ring-border/50 shadow-sm dark:shadow-[0_8px_30px_rgba(0,0,0,0.45)]">
               <CardContent className="p-7 sm:p-8 space-y-5">
                 <div className="flex items-center justify-between">
                   <h2 className="text-[15px] font-semibold tracking-tight">Histórico</h2>
@@ -1025,7 +1025,7 @@ export default function CuratorPage() {
                     {[...curatorLogs].reverse().map((log) => (
                       <li
                         key={log.id}
-                        className="rounded-xl bg-white/[0.02] ring-1 ring-white/[0.04] p-4 space-y-2.5 hover:bg-white/[0.04] transition-colors"
+                        className="rounded-xl bg-muted/40 ring-1 ring-border/50 p-4 space-y-2.5 hover:bg-muted/60 transition-colors"
                       >
                         <div className="flex items-center justify-between gap-3">
                           <span className="text-[15px] font-semibold tabular-nums">
