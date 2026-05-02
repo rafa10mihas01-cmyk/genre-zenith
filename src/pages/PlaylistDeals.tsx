@@ -227,7 +227,19 @@ export default function PlaylistDeals() {
         )}
       </div>
 
-      <NewDealDialog open={newOpen} onOpenChange={setNewOpen} />
+      <NewDealDialog
+        open={newOpen || editDeal !== null}
+        onOpenChange={(v) => {
+          if (!v) {
+            setNewOpen(false);
+            setEditDeal(null);
+          } else if (!editDeal) {
+            setNewOpen(true);
+          }
+        }}
+        editDeal={editDeal}
+        editSongs={editDeal ? songs.filter((s) => s.deal_id === editDeal.id) : []}
+      />
 
       <LogPrintDialog
         open={logDeal !== null}
