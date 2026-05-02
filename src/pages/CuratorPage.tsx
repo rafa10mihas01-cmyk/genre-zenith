@@ -1469,6 +1469,7 @@ export default function CuratorPage() {
                     </div>
                   )}
                 </div>
+                </div>
               </DialogTitle>
               <DialogDescription>
                 Músicas da campanha já presentes nesta playlist antes do início
