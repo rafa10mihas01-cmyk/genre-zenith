@@ -331,12 +331,21 @@ export default function CuratorPage() {
     if (!token || !url.trim()) return;
     setSubmitting(true);
     const { data, error: fnErr } = await supabase.functions.invoke(
-      "add-curator-playlist",
-      { body: { public_token: token, spotify_url: url.trim() } },
+      "register-curator-playlist",
+      { body: { public_token: token, urls: [url.trim()] } },
     );
     setSubmitting(false);
     if (fnErr || !data?.ok) {
       toast.error(data?.error || fnErr?.message || "Erro ao adicionar playlist");
+      return;
+    }
+    const item = Array.isArray(data.items) ? data.items[0] : null;
+    if (item?.error) {
+      toast.error(item.error);
+      return;
+    }
+    if (item?.match_status === "suspicious") {
+      toast.error("Esta playlist não é do seu perfil Spotify cadastrado");
       return;
     }
     toast.success("Playlist adicionada");
@@ -399,16 +408,20 @@ export default function CuratorPage() {
         return;
       }
       const { data, error: fnErr } = await supabase.functions.invoke(
-        "add-curator-playlists-batch",
+        "register-curator-playlist",
         { body: { public_token: token, urls } },
       );
       if (fnErr || !data?.ok) {
         toast.error(data?.error || fnErr?.message || "Erro ao importar");
         return;
       }
-      const parts: string[] = [`${data.added} adicionadas`];
-      if (data.skipped_duplicate) parts.push(`${data.skipped_duplicate} já existiam`);
-      if (data.skipped_invalid) parts.push(`${data.skipped_invalid} inválidas`);
+      const items = Array.isArray(data.items) ? data.items : [];
+      const added = items.filter((i: { saved?: boolean }) => i.saved).length;
+      const suspicious = items.filter((i: { match_status?: string }) => i.match_status === "suspicious").length;
+      const errs = items.filter((i: { error?: string }) => i.error).length;
+      const parts: string[] = [`${added} adicionadas`];
+      if (suspicious) parts.push(`${suspicious} bloqueadas (não são do seu perfil)`);
+      if (errs) parts.push(`${errs} com erro`);
       toast.success("Importação concluída", { description: parts.join(" · ") });
       await load();
     } catch (err) {

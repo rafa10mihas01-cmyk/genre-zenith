@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
     const { data: deal, error: dealErr } = await admin
       .from("curator_deals")
       .select(
-        "id, curator_name, song_spotify_url, song_name, song_artist, song_cover_url, target_plays, daily_goal, baseline_plays, cost, started_at, public_token, created_at",
+        "id, curator_name, song_spotify_url, song_name, song_artist, song_cover_url, target_plays, daily_goal, baseline_plays, cost, started_at, public_token, created_at, spotify_owner_id, spotify_owner_url",
       )
       .eq("public_token", token)
       .maybeSingle();
@@ -43,8 +43,13 @@ Deno.serve(async (req) => {
     const [{ data: playlists, error: plErr }, { data: logs, error: logErr }] = await Promise.all([
       admin
         .from("curator_playlists")
-        .select("id, deal_id, spotify_url, playlist_name, followers, is_baseline, added_at")
+        .select(
+          "id, deal_id, spotify_url, playlist_name, followers, is_baseline, added_at, spotify_playlist_id, spotify_owner_id, spotify_owner_name, image_url, added_at_spotify, match_status, match_reason, streams_7d, streams_28d, streams_total, last_paste_at",
+        )
         .eq("deal_id", deal.id)
+        // Curador SÓ vê o que é dele: playlists do próprio (curator) ou já existentes
+        // como baseline. Editorial / suspicious / organic ficam só pro admin.
+        .in("match_status", ["curator", "baseline"])
         .order("added_at", { ascending: true }),
       admin
         .from("curator_deal_logs")
