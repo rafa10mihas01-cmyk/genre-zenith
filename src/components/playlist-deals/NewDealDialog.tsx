@@ -286,6 +286,7 @@ export function NewDealDialog({ open, onOpenChange }: NewDealDialogProps) {
         cost: typeof costNumber === "number" ? costNumber : null,
         started_at: dealStart.toISOString(),
         ends_at: dealEnd ? dealEnd.toISOString() : null,
+        ramp_up_days: primary.ramp_up_days ? Math.max(0, Number(primary.ramp_up_days)) : 5,
         extra_songs: extras,
       });
 
