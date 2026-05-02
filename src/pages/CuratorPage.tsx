@@ -692,49 +692,51 @@ export default function CuratorPage() {
         </Card>
 
 
-        {/* Histórico de prints */}
-        {logs.length > 0 && (
-          <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
-            <CardContent className="p-7 space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold">Histórico</h2>
-                <span className="text-[10px] text-muted-foreground">
-                  {logs.length} {logs.length === 1 ? "registro" : "registros"}
-                </span>
-              </div>
-              <ul className="space-y-2.5 max-h-[420px] overflow-y-auto pr-1 -mr-1 scroll-smooth">
-                {[...logs].reverse().map((log) => (
-                  <li
-                    key={log.id}
-                    className="rounded-md bg-muted/30 ring-1 ring-white/[0.04] p-2.5 space-y-2"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <span className="text-xs font-semibold tabular-nums">
-                          {Number(log.total_plays).toLocaleString("pt-BR")} plays
-                        </span>
-                        {log.is_baseline && (
-                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
-                            Inicial
-                          </Badge>
+        {/* Histórico de prints (apenas os enviados pelo curador) */}
+        {(() => {
+          const curatorLogs = logs.filter((l) => !l.is_baseline);
+          return (
+            <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
+              <CardContent className="p-7 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-sm font-semibold">Histórico</h2>
+                  <span className="text-[10px] text-muted-foreground">
+                    {curatorLogs.length} {curatorLogs.length === 1 ? "registro" : "registros"}
+                  </span>
+                </div>
+                {curatorLogs.length === 0 ? (
+                  <p className="text-xs text-muted-foreground py-3 text-center">
+                    Nenhum print enviado ainda
+                  </p>
+                ) : (
+                  <ul className="space-y-2.5 max-h-[420px] overflow-y-auto pr-1 -mr-1 scroll-smooth">
+                    {[...curatorLogs].reverse().map((log) => (
+                      <li
+                        key={log.id}
+                        className="rounded-md bg-muted/30 ring-1 ring-white/[0.04] p-2.5 space-y-2"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-semibold tabular-nums">
+                            {Number(log.total_plays).toLocaleString("pt-BR")} plays
+                          </span>
+                          <span className="text-[10px] text-muted-foreground shrink-0">
+                            {formatDate(log.created_at)}
+                          </span>
+                        </div>
+                        {log.note && (
+                          <div className="text-[11px] text-muted-foreground">{log.note}</div>
                         )}
-                      </div>
-                      <span className="text-[10px] text-muted-foreground shrink-0">
-                        {formatDate(log.created_at)}
-                      </span>
-                    </div>
-                    {log.note && (
-                      <div className="text-[11px] text-muted-foreground">{log.note}</div>
-                    )}
-                    {log.print_urls && log.print_urls.length > 0 && (
-                      <PrintThumbs urls={log.print_urls} size="sm" />
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-        )}
+                        {log.print_urls && log.print_urls.length > 0 && (
+                          <PrintThumbs urls={log.print_urls} size="sm" />
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })()}
 
         {/* Footer minimalista */}
         <div className="text-center pt-2 pb-4">
