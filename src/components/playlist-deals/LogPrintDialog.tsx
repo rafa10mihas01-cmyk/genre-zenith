@@ -820,6 +820,44 @@ export function LogPrintDialog({
           {/* STEP CONFIRM */}
           {step === "confirm" && (
             <div className="space-y-3">
+              {/* Seletor de música — só aparece quando o deal tem 2+ músicas */}
+              {hasMultipleSongs && (
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-medium">A qual música este registro se refere?</Label>
+                  <div className="grid grid-cols-1 gap-1.5 max-h-[180px] overflow-y-auto pr-1">
+                    {songs.map((s) => {
+                      const active = selectedSongId === s.id;
+                      return (
+                        <button
+                          key={s.id}
+                          type="button"
+                          onClick={() => setSelectedSongId(s.id)}
+                          className={cn(
+                            "flex items-center gap-2.5 rounded-lg px-3 py-2 text-left transition-colors ring-1",
+                            active
+                              ? "bg-primary/10 ring-primary/40"
+                              : "bg-muted/30 ring-border hover:bg-muted/50",
+                          )}
+                        >
+                          {s.song_cover_url ? (
+                            <img src={s.song_cover_url} alt="" className="w-8 h-8 rounded object-cover shrink-0" />
+                          ) : (
+                            <div className="w-8 h-8 rounded bg-muted shrink-0" />
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <div className="text-[12px] font-medium truncate leading-tight">{s.song_name}</div>
+                            {s.song_artist && (
+                              <div className="text-[10px] text-muted-foreground truncate">{s.song_artist}</div>
+                            )}
+                          </div>
+                          {active && <CheckCircle2 className="h-3.5 w-3.5 text-primary shrink-0" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               <div className="rounded-lg bg-muted/40 border border-border px-4 py-3">
                 <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
                   {isBaseline ? "Plays iniciais (total)" : "Plays a registrar (total)"}
