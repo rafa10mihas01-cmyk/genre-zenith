@@ -31,7 +31,7 @@ function formatPlays(n: number): string {
 }
 
 export function CuratorDealCard({
-  deal, logs, playlists, songs = [], onLog, onDetail, onDelete,
+  deal, logs, playlists, songs = [], onLog, onDetail, onDelete, onEdit,
 }: CuratorDealCardProps) {
   const stats = computeCuratorStats(deal, logs, playlists);
   const { earned, pct, vel, eta, latestPlays, todayPlays, hasBaseline, newPlaylists } = stats;
