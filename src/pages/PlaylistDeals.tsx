@@ -246,6 +246,7 @@ export default function PlaylistDeals() {
                 deal={d}
                 logs={logs}
                 playlists={playlists}
+                progress={progressByDeal[d.id]}
                 songs={songs.filter((s) => s.deal_id === d.id)}
                 onLog={(deal) => setLogDeal(deal)}
                 onDetail={(deal) => setDetailDeal(deal)}
