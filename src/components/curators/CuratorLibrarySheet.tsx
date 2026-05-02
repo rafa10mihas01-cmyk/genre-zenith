@@ -17,7 +17,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { useCuratorLibrary } from "@/hooks/useCuratorLibrary";
-import type { Curator, CuratorDeal } from "@/hooks/useCuratorDeals";
+import type { Curator } from "@/hooks/useCuratorDeals";
+import type { CuratorDeal } from "@/lib/curatorDealsUtils";
 
 function formatPlays(n: number | null | undefined): string {
   if (!n || !Number.isFinite(n)) return "0";
