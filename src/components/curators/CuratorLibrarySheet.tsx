@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, ExternalLink, ListMusic, Trash2, Loader2, Music } from "lucide-react";
+import { Plus, ExternalLink, ListMusic, Trash2, Loader2, Music, AlertTriangle, TrendingUp, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
@@ -16,9 +16,29 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
-import { useCuratorLibrary } from "@/hooks/useCuratorLibrary";
+import { useCuratorLibrary, type PerformanceClass } from "@/hooks/useCuratorLibrary";
 import type { Curator } from "@/hooks/useCuratorDeals";
 import type { CuratorDeal } from "@/lib/curatorDealsUtils";
+
+const PERF_LABEL: Record<PerformanceClass, string> = {
+  excelente: "Excelente",
+  boa: "Boa",
+  media: "Média",
+  fraca: "Fraca",
+  suspeita: "Suspeita",
+  novo: "Novo",
+  sem_historico: "Sem histórico",
+};
+
+const PERF_CLASS: Record<PerformanceClass, string> = {
+  excelente: "bg-success/15 text-success border-0",
+  boa: "bg-primary/15 text-primary border-0",
+  media: "bg-muted/40 text-muted-foreground border border-border",
+  fraca: "bg-warning/15 text-warning border-0",
+  suspeita: "bg-destructive/15 text-destructive border-0",
+  novo: "bg-muted/40 text-muted-foreground border border-border",
+  sem_historico: "bg-muted/30 text-muted-foreground/70 border border-border",
+};
 
 function formatPlays(n: number | null | undefined): string {
   if (!n || !Number.isFinite(n)) return "0";
@@ -35,7 +55,7 @@ interface Props {
 
 export function CuratorLibrarySheet({ curator, deals, onClose }: Props) {
   const open = !!curator;
-  const { items, stats, loading, addManual, remove } = useCuratorLibrary(curator?.id ?? null);
+  const { items, stats, performance, loading, addManual, remove } = useCuratorLibrary(curator?.id ?? null);
 
   const [addOpen, setAddOpen] = useState(false);
   const [name, setName] = useState("");
@@ -147,12 +167,18 @@ export function CuratorLibrarySheet({ curator, deals, onClose }: Props) {
                   <div className="space-y-2">
                     {items.map((p) => {
                       const stat = stats.find((s) => s.library_id === p.id);
+                      const perf = performance.find((s) => s.library_id === p.id);
+                      const perfClass = perf?.performance_class ?? "sem_historico";
+                      const isSuspicious = perfClass === "suspeita";
+                      const isExcellent = perfClass === "excelente";
                       return (
                         <div
                           key={p.id}
                           className={cn(
-                            "group flex items-center gap-3 p-3 rounded-xl bg-card border border-border/30 transition-colors",
-                            "hover:border-border hover:bg-[hsl(var(--card-hover,var(--card)))]",
+                            "group flex items-center gap-3 p-3 rounded-xl bg-card border transition-colors",
+                            isSuspicious
+                              ? "border-destructive/40 hover:border-destructive/60"
+                              : "border-border/30 hover:border-border hover:bg-[hsl(var(--card-hover,var(--card)))]",
                           )}
                         >
                           <div className="size-12 rounded-lg bg-muted flex items-center justify-center flex-shrink-0 overflow-hidden">
@@ -164,8 +190,23 @@ export function CuratorLibrarySheet({ curator, deals, onClose }: Props) {
                           </div>
 
                           <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2 mb-0.5">
+                            <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                               <p className="font-medium text-sm truncate">{p.playlist_name}</p>
+                              {perfClass !== "sem_historico" && perfClass !== "novo" && (
+                                <Badge
+                                  className={cn("text-[10px] h-4 px-1.5 gap-1", PERF_CLASS[perfClass])}
+                                  title={
+                                    perf
+                                      ? `Variação ${perf.variation_coef} · queda ${Math.round(perf.drop_ratio * 100)}% · melhor ${formatPlays(perf.best_streams_7d)} / pior ${formatPlays(perf.worst_streams_7d)}`
+                                      : undefined
+                                  }
+                                >
+                                  {isSuspicious && <AlertTriangle className="size-2.5" />}
+                                  {isExcellent && <Sparkles className="size-2.5" />}
+                                  {!isSuspicious && !isExcellent && <TrendingUp className="size-2.5" />}
+                                  {PERF_LABEL[perfClass]}
+                                </Badge>
+                              )}
                               {p.status === "burned" && (
                                 <Badge variant="destructive" className="text-[10px] h-4 px-1.5">queimada</Badge>
                               )}
@@ -175,7 +216,7 @@ export function CuratorLibrarySheet({ curator, deals, onClose }: Props) {
                             </div>
                             <div className="flex items-center gap-3 text-xs text-muted-foreground">
                               {p.followers ? <span>{formatPlays(p.followers)} seguidores</span> : null}
-                              <span>{stat?.deals_count ?? 0} deals</span>
+                              <span>{stat?.deals_count ?? perf?.deals_count ?? 0} deals</span>
                               {stat && stat.avg_streams_per_deal > 0 && (
                                 <span>~{formatPlays(stat.avg_streams_per_deal)}/deal</span>
                               )}

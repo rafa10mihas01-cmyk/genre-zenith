@@ -38,20 +38,41 @@ export interface CuratorLibraryStats {
   avg_streams_per_deal: number;
 }
 
+export type PerformanceClass =
+  | "excelente" | "boa" | "media" | "fraca"
+  | "suspeita" | "novo" | "sem_historico";
+
+export interface CuratorLibraryPerformance {
+  library_id: string;
+  curator_id: string;
+  user_id: string;
+  deals_count: number;
+  total_streams_7d: number;
+  total_streams_lifetime: number;
+  avg_streams_7d: number;
+  best_streams_7d: number;
+  worst_streams_7d: number;
+  variation_coef: number;
+  drop_ratio: number;
+  performance_class: PerformanceClass;
+}
+
 export function useCuratorLibrary(curatorId: string | null) {
   const [items, setItems] = useState<CuratorLibraryPlaylist[]>([]);
   const [stats, setStats] = useState<CuratorLibraryStats[]>([]);
+  const [performance, setPerformance] = useState<CuratorLibraryPerformance[]>([]);
   const [loading, setLoading] = useState(false);
 
   const load = useCallback(async () => {
     if (!curatorId) {
       setItems([]);
       setStats([]);
+      setPerformance([]);
       return;
     }
     setLoading(true);
     try {
-      const [libRes, statsRes] = await Promise.all([
+      const [libRes, statsRes, perfRes] = await Promise.all([
         supabase
           .from("curator_playlist_library")
           .select("*")
@@ -61,10 +82,15 @@ export function useCuratorLibrary(curatorId: string | null) {
           .from("curator_playlist_library_stats" as never)
           .select("*")
           .eq("curator_id", curatorId),
+        supabase
+          .from("curator_playlist_performance" as never)
+          .select("*")
+          .eq("curator_id", curatorId),
       ]);
       if (libRes.error) throw libRes.error;
       setItems((libRes.data ?? []) as CuratorLibraryPlaylist[]);
       setStats((statsRes.data ?? []) as CuratorLibraryStats[]);
+      setPerformance((perfRes.data ?? []) as CuratorLibraryPerformance[]);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       toast.error("Erro ao carregar biblioteca", { description: msg });
@@ -127,5 +153,5 @@ export function useCuratorLibrary(curatorId: string | null) {
     [load],
   );
 
-  return { items, stats, loading, reload: load, addManual, updateStatus, remove };
+  return { items, stats, performance, loading, reload: load, addManual, updateStatus, remove };
 }
