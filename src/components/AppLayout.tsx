@@ -14,6 +14,7 @@ import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { CommandPalette } from "@/components/CommandPalette";
 import { TopProgressBar } from "@/components/TopProgressBar";
 import { SplashLoader } from "@/components/SplashLoader";
+import { AppFooter } from "@/components/AppFooter";
 
 // Mapa de rótulos curtos para o título no header mobile
 const ROUTE_TITLES: Record<string, string> = {
@@ -171,7 +172,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                   "radial-gradient(ellipse 80% 60% at 50% 0%, hsl(141 76% 48% / 0.10) 0%, hsl(141 76% 48% / 0.04) 30%, transparent 70%)",
               }}
             />
-            <div className="nx-page relative z-10">{children}</div>
+            <div className="nx-page relative z-10">
+              {children}
+              <AppFooter />
+            </div>
           </main>
         </div>
         {/* Bottom nav fixa apenas no mobile */}
