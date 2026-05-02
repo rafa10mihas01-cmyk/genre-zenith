@@ -662,32 +662,32 @@ export default function CuratorPage() {
 
                   {/* Briefing: meta · prazo · ritmo */}
                   <div className="grid grid-cols-3 gap-3">
-                    <div>
+                    <div className="min-w-0">
                       <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-1">
                         Meta
                       </div>
                       <div className="text-[15px] font-semibold tabular-nums leading-none">
                         {formatPlays(stats.target)}
-                        <span className="text-[11px] text-muted-foreground font-normal ml-1">plays</span>
                       </div>
+                      <div className="text-[10px] text-muted-foreground font-normal mt-1">plays</div>
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-1">
                         Esta semana
                       </div>
                       <div className="text-[15px] font-semibold tabular-nums leading-none text-primary">
                         {stats.dailyGoal > 0 ? formatPlays(stats.weekRemaining) : "—"}
-                        <span className="text-[11px] text-muted-foreground font-normal ml-1">no ciclo</span>
                       </div>
+                      <div className="text-[10px] text-muted-foreground font-normal mt-1">restantes</div>
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-1">
                         Progresso
                       </div>
                       <div className="text-[15px] font-semibold tabular-nums leading-none">
-                        {stats.pct}
-                        <span className="text-[11px] text-muted-foreground font-normal">%</span>
+                        {stats.pct}<span className="text-[11px] text-muted-foreground font-normal ml-0.5">%</span>
                       </div>
+                      <div className="text-[10px] text-muted-foreground font-normal mt-1 invisible">.</div>
                     </div>
                   </div>
 
@@ -826,8 +826,8 @@ export default function CuratorPage() {
                           )}
                           <div className="min-w-0 flex-1">
                             <div className="flex items-start justify-between gap-2">
-                              <div className="min-w-0">
-                                <span className="text-[13px] font-semibold leading-tight truncate block">
+                              <div className="min-w-0 flex-1">
+                                <span className="text-[13px] font-semibold leading-tight line-clamp-2 block">
                                   {s.song_name}
                                 </span>
                                 {s.song_artist && (
@@ -838,8 +838,14 @@ export default function CuratorPage() {
                               </div>
                               <span
                                 className={cn(
-                                  "text-[10px] font-semibold uppercase tracking-wider shrink-0",
-                                  statusColor,
+                                  "text-[10px] font-semibold uppercase tracking-wider shrink-0 px-2 py-0.5 rounded-full ring-1",
+                                  isDoneSong
+                                    ? "text-primary bg-primary/10 ring-primary/20"
+                                    : inRampUp
+                                    ? "text-warning bg-warning/10 ring-warning/20"
+                                    : !startMs
+                                    ? "text-muted-foreground bg-muted/40 ring-border"
+                                    : "text-primary bg-primary/10 ring-primary/20",
                                 )}
                               >
                                 {statusLabel}
@@ -1242,7 +1248,7 @@ export default function CuratorPage() {
                 disabled={importing}
               >
                 <Download className="h-4 w-4 mr-2" />
-                <span className="truncate">Baixar modelo</span>
+                <span className="truncate"><span className="sm:hidden">Modelo</span><span className="hidden sm:inline">Baixar modelo</span></span>
               </Button>
             </div>
             <p className="text-[11px] text-muted-foreground text-center pt-1">
