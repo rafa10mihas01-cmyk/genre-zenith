@@ -341,7 +341,7 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDe
 
       const costNumber = currencyDigitsToNumber(costDigits);
 
-      const deal = await addDeal({
+      const payload = {
         curator_name: values.curator_name.trim(),
         song_spotify_url: primary.url.trim(),
         song_name: primary.meta!.title,
@@ -355,22 +355,25 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDe
         ends_at: dealEnd ? dealEnd.toISOString() : null,
         ramp_up_days: primary.ramp_up_days ? Math.max(0, Number(primary.ramp_up_days)) : 5,
         extra_songs: extras,
-      });
+      };
 
-      // Para a primeira música persistida (em useCuratorDeals.addDeal), o
-      // started_at/ends_at vem dos campos do deal (que = primary). Mas se a
-      // primeira música tiver datas próprias diferentes do deal, ainda assim
-      // ficam corretas porque dealStart/dealEnd refletem essas datas.
-
-      const link = curatorPublicUrl({ slug: deal.slug, public_token: deal.public_token });
-      try {
-        await navigator.clipboard.writeText(link);
-      } catch {
-        // ignora
+      if (isEdit && editDeal) {
+        await updateDeal(editDeal.id, payload);
+        toast.success("Deal atualizado", {
+          description: `${validSongs.length} música${validSongs.length > 1 ? "s" : ""}`,
+        });
+      } else {
+        const deal = await addDeal(payload);
+        const link = curatorPublicUrl({ slug: deal.slug, public_token: deal.public_token });
+        try {
+          await navigator.clipboard.writeText(link);
+        } catch {
+          // ignora
+        }
+        toast.success("Deal criado", {
+          description: `${validSongs.length} música${validSongs.length > 1 ? "s" : ""} • link copiado`,
+        });
       }
-      toast.success("Deal criado", {
-        description: `${validSongs.length} música${validSongs.length > 1 ? "s" : ""} • link copiado`,
-      });
       reset();
       onOpenChange(false);
     } catch (e) {
