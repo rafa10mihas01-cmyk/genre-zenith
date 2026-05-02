@@ -44,14 +44,26 @@ const formatCostPerPlay = (v: number | null) => {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", ...opts }).format(v);
 };
 
-export function CuradoresTab({ deals, logs, playlists, loading }: Props) {
+export function CuradoresTab({ deals, logs, playlists, alerts = [], loading }: Props) {
   const { rows, totals } = useMemo(() => {
+    // Mapa deal_id -> {open, high} para imputar à linha do curador
+    const dealAlerts = new Map<string, { open: number; high: number }>();
+    for (const a of alerts) {
+      if (a.status !== "open") continue;
+      const cur = dealAlerts.get(a.deal_id) ?? { open: 0, high: 0 };
+      cur.open += 1;
+      if (a.severity === "high") cur.high += 1;
+      dealAlerts.set(a.deal_id, cur);
+    }
+
     type Acc = CuratorRow & { _scoreNum: number; _scoreDen: number; _legitNum: number; _legitDen: number };
     const map = new Map<string, Acc>();
     let totalCost = 0;
     let totalEarned = 0;
     let totalTarget = 0;
     let scoreNum = 0, scoreDen = 0;
+    let totalAlertsOpen = 0;
+    let totalAlertsHigh = 0;
 
     for (const d of deals) {
       const name = (d.curator_name ?? "").trim() || "—";
@@ -59,10 +71,12 @@ export function CuradoresTab({ deals, logs, playlists, loading }: Props) {
       const target = Number(d.target_plays ?? 0) || 0;
       const stats = computeCuratorStats(d, logs, playlists);
       const w = Math.max(target, 1); // peso = meta (deals maiores pesam mais)
+      const aCount = dealAlerts.get(d.id) ?? { open: 0, high: 0 };
 
-      const row = map.get(name) ?? {
+      const row: Acc = map.get(name) ?? {
         name, dealsCount: 0, totalCost: 0, totalEarned: 0, totalTarget: 0,
         costPerPlay: null, deliveryPct: 0, avgScore: 0, avgLegitShare: 1,
+        alertsOpen: 0, alertsHigh: 0,
         _scoreNum: 0, _scoreDen: 0, _legitNum: 0, _legitDen: 0,
       };
       row.dealsCount += 1;
@@ -73,6 +87,8 @@ export function CuradoresTab({ deals, logs, playlists, loading }: Props) {
       row._scoreDen += w;
       row._legitNum += stats.legitShare * w;
       row._legitDen += w;
+      row.alertsOpen += aCount.open;
+      row.alertsHigh += aCount.high;
       map.set(name, row);
 
       totalCost += cost;
@@ -80,6 +96,8 @@ export function CuradoresTab({ deals, logs, playlists, loading }: Props) {
       totalTarget += target;
       scoreNum += stats.score * w;
       scoreDen += w;
+      totalAlertsOpen += aCount.open;
+      totalAlertsHigh += aCount.high;
     }
 
     const rows: CuratorRow[] = Array.from(map.values()).map((r) => {
@@ -94,6 +112,8 @@ export function CuradoresTab({ deals, logs, playlists, loading }: Props) {
         deliveryPct: r.totalTarget > 0 ? Math.round((r.totalEarned / r.totalTarget) * 100) : 0,
         avgScore: r._scoreDen > 0 ? Math.round(r._scoreNum / r._scoreDen) : 0,
         avgLegitShare: r._legitDen > 0 ? r._legitNum / r._legitDen : 1,
+        alertsOpen: r.alertsOpen,
+        alertsHigh: r.alertsHigh,
       };
     });
 
