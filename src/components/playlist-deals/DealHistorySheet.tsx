@@ -26,6 +26,7 @@ import {
 import { cn } from "@/lib/utils";
 import { PrintThumbs } from "./PrintThumbs";
 import { PastePlaylistsDialog } from "./PastePlaylistsDialog";
+import { ImportFromLibraryDialog } from "./ImportFromLibraryDialog";
 import { FraudAlertsPanel } from "./FraudAlertsPanel";
 import { DealLogDetailDialog } from "./DealLogDetailDialog";
 
