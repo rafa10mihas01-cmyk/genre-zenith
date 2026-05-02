@@ -480,11 +480,68 @@ export function LogPrintDialog({
     <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); }}>
       <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="truncate">{deal.song_name}</DialogTitle>
+          <DialogTitle className="truncate">
+            {selectedSong?.song_name ?? deal.song_name}
+          </DialogTitle>
           <DialogDescription className="truncate">
-            {deal.song_artist ?? deal.curator_name}
+            {selectedSong?.song_artist ?? deal.song_artist ?? deal.curator_name}
+            {hasMultipleSongs && (
+              <span className="text-muted-foreground/70"> · {deal.curator_name}</span>
+            )}
           </DialogDescription>
         </DialogHeader>
+
+        {/* Seletor de música no topo (deal com 2+ músicas).
+             Cada música tem seu próprio baseline — escolha antes de enviar prints. */}
+        {hasMultipleSongs && step === "upload" && (
+          <div className="space-y-2">
+            <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+              Qual música você está registrando?
+            </Label>
+            <div className="grid grid-cols-1 gap-1.5">
+              {songs.map((s) => {
+                const active = selectedSongId === s.id;
+                const hasBase = songHasBaseline(s.id);
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => setSelectedSongId(s.id)}
+                    className={cn(
+                      "flex items-center gap-2.5 rounded-lg px-3 py-2 text-left transition-colors ring-1",
+                      active
+                        ? "bg-primary/10 ring-primary/40"
+                        : "bg-muted/30 ring-border hover:bg-muted/50",
+                    )}
+                  >
+                    {s.song_cover_url ? (
+                      <img src={s.song_cover_url} alt="" className="w-9 h-9 rounded object-cover shrink-0" />
+                    ) : (
+                      <div className="w-9 h-9 rounded bg-muted shrink-0" />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[13px] font-medium truncate leading-tight">{s.song_name}</div>
+                      {s.song_artist && (
+                        <div className="text-[11px] text-muted-foreground truncate">{s.song_artist}</div>
+                      )}
+                    </div>
+                    <span
+                      className={cn(
+                        "text-[10px] uppercase tracking-wider font-medium px-2 py-0.5 rounded-full shrink-0",
+                        hasBase
+                          ? "bg-primary/15 text-primary"
+                          : "bg-warning/15 text-warning",
+                      )}
+                    >
+                      {hasBase ? "Baseline pronta" : "Falta baseline"}
+                    </span>
+                    {active && <CheckCircle2 className="h-3.5 w-3.5 text-primary shrink-0" />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Banner Baseline */}
         {isBaseline && (
@@ -493,6 +550,9 @@ export function LogPrintDialog({
             <div className="space-y-0.5">
               <div className="text-sm font-medium text-foreground">
                 Primeiro passo: envie os prints iniciais
+                {hasMultipleSongs && selectedSong && (
+                  <span className="text-muted-foreground"> de "{selectedSong.song_name}"</span>
+                )}
               </div>
               <div className="text-xs text-muted-foreground leading-snug">
                 Esses prints definem o estado inicial — playlists existentes e plays atuais — antes do deal começar.
