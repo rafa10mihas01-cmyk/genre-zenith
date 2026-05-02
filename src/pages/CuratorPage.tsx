@@ -195,6 +195,8 @@ export default function CuratorPage() {
   const [curatorOpen, setCuratorOpen] = useState(true);
   // Fase 5 — filtro por música (null = todas)
   const [selectedSongId, setSelectedSongId] = useState<string | null>(null);
+  // Log clicado no histórico (abre modal de detalhe)
+  const [selectedLogId, setSelectedLogId] = useState<string | null>(null);
   // Tick a cada 60s pra atualizar o countdown do ciclo
   const [, setNowTick] = useState(0);
   useEffect(() => {
