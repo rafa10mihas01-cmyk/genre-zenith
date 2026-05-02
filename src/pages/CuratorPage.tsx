@@ -503,23 +503,23 @@ export default function CuratorPage() {
 
         {/* Playlists onde a música já está (baseline / pré-existentes) — colapsável */}
         {basePlaylists.length > 0 && (
-          <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
-            <CardContent className="p-7 space-y-4">
+          <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_8px_30px_rgba(0,0,0,0.45)]">
+            <CardContent className="p-6 sm:p-7 space-y-5">
               <button
                 type="button"
                 onClick={() => setBaseOpen((v) => !v)}
                 className="w-full flex items-center justify-between gap-2 text-left"
                 aria-expanded={baseOpen}
               >
-                <h2 className="text-sm font-semibold inline-flex items-center gap-1.5">
-                  <ListMusic className="h-3.5 w-3.5" />
+                <h2 className="text-[15px] font-semibold inline-flex items-center gap-2 tracking-tight">
+                  <ListMusic className="h-4 w-4 text-muted-foreground" />
                   Playlists em que a música já está
                 </h2>
-                <span className="inline-flex items-center gap-2 text-[10px] text-muted-foreground">
+                <span className="inline-flex items-center gap-2 text-[12px] text-muted-foreground">
                   {basePlaylists.length} {basePlaylists.length === 1 ? "playlist" : "playlists"}
                   <ChevronDown
                     className={cn(
-                      "h-3.5 w-3.5 transition-transform",
+                      "h-4 w-4 transition-transform duration-200",
                       baseOpen && "rotate-180",
                     )}
                   />
@@ -527,28 +527,28 @@ export default function CuratorPage() {
               </button>
 
               {baseOpen && (
-                <ul className="space-y-1.5 max-h-[280px] overflow-y-auto pr-1 -mr-1 scroll-smooth">
+                <ul className="space-y-2 max-h-[320px] overflow-y-auto pr-1 -mr-1 scroll-smooth">
                   {basePlaylists.map((p) => (
                     <li
                       key={p.id}
-                      className="flex items-center justify-between gap-2 rounded-md bg-muted/30 ring-1 ring-white/[0.04] px-2.5 py-2"
+                      className="flex items-center justify-between gap-3 rounded-xl bg-white/[0.02] ring-1 ring-white/[0.04] px-4 py-3 hover:bg-white/[0.04] transition-colors"
                     >
                       <div className="min-w-0 flex-1">
                         <a
                           href={p.spotify_url}
                           target="_blank"
                           rel="noreferrer"
-                          className="text-xs font-medium truncate hover:underline block"
+                          className="text-[13px] font-medium truncate hover:underline block leading-snug"
                         >
                           {p.playlist_name}
                         </a>
                         {p.followers !== null && (
-                          <div className="text-[10px] text-muted-foreground mt-0.5 tabular-nums">
+                          <div className="text-[11px] text-muted-foreground mt-1 tabular-nums">
                             {formatPlays(p.followers)} seguidores
                           </div>
                         )}
                       </div>
-                      <Badge variant="secondary" className="shrink-0 text-[10px] px-1.5 py-0 h-4">
+                      <Badge variant="secondary" className="shrink-0 text-[10px] px-2 py-0 h-5 font-medium">
                         Inicial
                       </Badge>
                     </li>
@@ -560,50 +560,50 @@ export default function CuratorPage() {
         )}
 
         {/* Playlists adicionadas pelo curador */}
-        <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
-          <CardContent className="p-7 space-y-4">
-            <div className="flex items-center justify-between gap-2">
+        <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_8px_30px_rgba(0,0,0,0.45)]">
+          <CardContent className="p-6 sm:p-7 space-y-5">
+            <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <h2 className="text-sm font-semibold inline-flex items-center gap-1.5">
-                  <ListMusic className="h-3.5 w-3.5" />
+                <h2 className="text-[15px] font-semibold inline-flex items-center gap-2 tracking-tight">
+                  <ListMusic className="h-4 w-4 text-muted-foreground" />
                   Suas playlists adicionadas
                 </h2>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
+                <p className="text-[12px] text-muted-foreground mt-1.5 leading-snug">
                   Apenas as que você incluiu nesta curadoria
                 </p>
               </div>
-              <span className="text-[10px] text-muted-foreground shrink-0">
+              <span className="text-[12px] text-muted-foreground shrink-0 mt-0.5">
                 {curatorPlaylists.length} {curatorPlaylists.length === 1 ? "playlist" : "playlists"}
               </span>
             </div>
 
             {curatorPlaylists.length === 0 ? (
-              <p className="text-xs text-muted-foreground py-3 text-center">
+              <p className="text-[13px] text-muted-foreground py-6 text-center">
                 Nenhuma playlist adicionada ainda
               </p>
             ) : (
-              <ul className="space-y-1.5 max-h-[280px] overflow-y-auto pr-1 -mr-1 scroll-smooth">
+              <ul className="space-y-2 max-h-[320px] overflow-y-auto pr-1 -mr-1 scroll-smooth">
                 {curatorPlaylists.map((p) => (
                   <li
                     key={p.id}
-                    className="flex items-center justify-between gap-2 rounded-md bg-muted/30 ring-1 ring-white/[0.04] px-2.5 py-2"
+                    className="flex items-center justify-between gap-3 rounded-xl bg-white/[0.02] ring-1 ring-white/[0.04] px-4 py-3 hover:bg-white/[0.04] transition-colors"
                   >
                     <div className="min-w-0 flex-1">
                       <a
                         href={p.spotify_url}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-xs font-medium truncate hover:underline block"
+                        className="text-[13px] font-medium truncate hover:underline block leading-snug"
                       >
                         {p.playlist_name}
                       </a>
                       {p.followers !== null && (
-                        <div className="text-[10px] text-muted-foreground mt-0.5 tabular-nums">
+                        <div className="text-[11px] text-muted-foreground mt-1 tabular-nums">
                           {formatPlays(p.followers)} seguidores
                         </div>
                       )}
                     </div>
-                    <Badge className="bg-primary text-black hover:bg-primary/90 shrink-0 text-[10px] px-1.5 py-0 h-4 border-0 font-semibold">
+                    <Badge className="bg-primary text-black hover:bg-primary/90 shrink-0 text-[10px] px-2 py-0 h-5 border-0 font-semibold">
                       Nova
                     </Badge>
                   </li>
@@ -613,12 +613,12 @@ export default function CuratorPage() {
           </CardContent>
         </Card>
 
-        {/* Adicionar playlist */}
-        <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
-          <CardContent className="p-7 space-y-4">
+        {/* Adicionar playlist — bloco de ação principal */}
+        <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_8px_30px_rgba(0,0,0,0.45)]">
+          <CardContent className="p-6 sm:p-7 space-y-5">
             <div>
-              <h2 className="text-sm font-semibold">Adicionar playlist</h2>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
+              <h2 className="text-[15px] font-semibold tracking-tight">Adicionar playlist</h2>
+              <p className="text-[12px] text-muted-foreground mt-1.5 leading-snug">
                 Cole o link ou importe um lote em planilha
               </p>
             </div>
@@ -627,24 +627,23 @@ export default function CuratorPage() {
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               disabled={submitting || importing}
-              className="h-9 text-sm"
+              className="h-12 text-[14px] px-4 rounded-xl bg-white/[0.02] ring-1 ring-white/[0.04] border-0 focus-visible:ring-2 focus-visible:ring-primary/40"
             />
             <Button
               onClick={handleAdd}
               disabled={submitting || importing || !url.trim()}
-              className="w-full h-9"
-              size="sm"
+              className="w-full h-12 text-[14px] font-semibold rounded-xl bg-primary text-black hover:bg-primary/90 transition-colors"
             >
-              {submitting && <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" />}
+              {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               Adicionar
             </Button>
 
-            <div className="flex items-center gap-2 pt-1">
-              <div className="flex-1 h-px bg-border" />
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wide">
+            <div className="flex items-center gap-3 pt-1">
+              <div className="flex-1 h-px bg-white/[0.08]" />
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
                 ou em lote
               </span>
-              <div className="flex-1 h-px bg-border" />
+              <div className="flex-1 h-px bg-white/[0.08]" />
             </div>
 
             <input
@@ -657,35 +656,33 @@ export default function CuratorPage() {
                 if (f) handleImportFile(f);
               }}
             />
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-3">
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
-                className="h-9"
+                className="h-11 text-[13px] rounded-xl border-white/[0.08] hover:bg-white/[0.04]"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={submitting || importing}
               >
                 {importing ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
                 ) : (
-                  <Upload className="h-3.5 w-3.5 mr-1.5" />
+                  <Upload className="h-4 w-4 mr-2" />
                 )}
                 Importar planilha
               </Button>
               <Button
                 type="button"
                 variant="ghost"
-                size="sm"
-                className="h-9"
+                className="h-11 text-[13px] rounded-xl hover:bg-white/[0.04]"
                 onClick={handleDownloadTemplate}
                 disabled={importing}
               >
-                <Download className="h-3.5 w-3.5 mr-1.5" />
+                <Download className="h-4 w-4 mr-2" />
                 Baixar modelo
               </Button>
             </div>
-            <p className="text-[10px] text-muted-foreground text-center">
+            <p className="text-[11px] text-muted-foreground text-center pt-1">
               Aceita .xlsx, .xls ou .csv · até 200 playlists
             </p>
           </CardContent>
