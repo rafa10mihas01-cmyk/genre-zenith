@@ -230,6 +230,7 @@ export type Database = {
           created_at: string
           daily_goal: number
           deal_id: string
+          ends_at: string | null
           id: string
           position: number
           song_artist: string | null
@@ -237,6 +238,7 @@ export type Database = {
           song_name: string
           song_spotify_url: string
           spotify_track_id: string | null
+          started_at: string | null
           target_plays: number | null
           updated_at: string
         }
@@ -245,6 +247,7 @@ export type Database = {
           created_at?: string
           daily_goal?: number
           deal_id: string
+          ends_at?: string | null
           id?: string
           position?: number
           song_artist?: string | null
@@ -252,6 +255,7 @@ export type Database = {
           song_name: string
           song_spotify_url: string
           spotify_track_id?: string | null
+          started_at?: string | null
           target_plays?: number | null
           updated_at?: string
         }
@@ -260,6 +264,7 @@ export type Database = {
           created_at?: string
           daily_goal?: number
           deal_id?: string
+          ends_at?: string | null
           id?: string
           position?: number
           song_artist?: string | null
@@ -267,6 +272,7 @@ export type Database = {
           song_name?: string
           song_spotify_url?: string
           spotify_track_id?: string | null
+          started_at?: string | null
           target_plays?: number | null
           updated_at?: string
         }

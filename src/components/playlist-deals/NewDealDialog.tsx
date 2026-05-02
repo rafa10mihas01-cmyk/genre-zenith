@@ -55,8 +55,6 @@ const schema = z.object({
     .min(0, "Não pode ser negativo")
     .optional()
     .or(z.nan().transform(() => undefined)),
-  started_at: z.date({ required_error: "Informe a data de início" }),
-  ends_at: z.date().optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -64,6 +62,8 @@ type FormValues = z.infer<typeof schema>;
 type SongRow = {
   url: string;
   daily_goal: string;
+  started_at: Date | undefined;
+  ends_at: Date | undefined;
   meta: {
     title: string;
     artist: string | null;
@@ -93,13 +93,44 @@ function extractSpotifyTrackId(url: string): string | null {
 }
 
 function emptySong(): SongRow {
-  return { url: "", daily_goal: "", meta: null, searching: false };
+  return {
+    url: "",
+    daily_goal: "",
+    started_at: new Date(),
+    ends_at: undefined,
+    meta: null,
+    searching: false,
+  };
+}
+
+// ---------- Currency helpers (BRL) ----------
+function digitsOnly(v: string): string {
+  return v.replace(/\D/g, "");
+}
+function formatCurrencyBRL(rawDigits: string): string {
+  if (!rawDigits) return "";
+  const cents = parseInt(rawDigits, 10);
+  if (Number.isNaN(cents)) return "";
+  const value = cents / 100;
+  return value.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+function currencyDigitsToNumber(rawDigits: string): number | undefined {
+  if (!rawDigits) return undefined;
+  const cents = parseInt(rawDigits, 10);
+  if (Number.isNaN(cents)) return undefined;
+  return cents / 100;
 }
 
 export function NewDealDialog({ open, onOpenChange }: NewDealDialogProps) {
   const { addDeal } = useCuratorDeals();
   const [submitting, setSubmitting] = useState(false);
   const [songs, setSongs] = useState<SongRow[]>([emptySong()]);
+  const [costDigits, setCostDigits] = useState<string>("");
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -108,8 +139,6 @@ export function NewDealDialog({ open, onOpenChange }: NewDealDialogProps) {
       curator_name: "",
       target_plays: undefined as unknown as number,
       cost: undefined,
-      started_at: new Date(),
-      ends_at: undefined,
     },
   });
 
@@ -156,10 +185,9 @@ export function NewDealDialog({ open, onOpenChange }: NewDealDialogProps) {
       curator_name: "",
       target_plays: undefined as unknown as number,
       cost: undefined,
-      started_at: new Date(),
-      ends_at: undefined,
     });
     setSongs([emptySong()]);
+    setCostDigits("");
   };
 
   const onSubmit = async (values: FormValues) => {
@@ -176,9 +204,17 @@ export function NewDealDialog({ open, onOpenChange }: NewDealDialogProps) {
       });
       return;
     }
-    if (values.ends_at && values.ends_at < values.started_at) {
-      toast.error("Data fim não pode ser antes do início");
-      return;
+    // Validar datas por música
+    for (let i = 0; i < validSongs.length; i++) {
+      const s = validSongs[i];
+      if (!s.started_at) {
+        toast.error(`Defina a data de início da música ${i + 1}`);
+        return;
+      }
+      if (s.ends_at && s.ends_at < s.started_at) {
+        toast.error(`Data fim antes do início na música ${i + 1}`);
+        return;
+      }
     }
 
     setSubmitting(true);
@@ -192,7 +228,27 @@ export function NewDealDialog({ open, onOpenChange }: NewDealDialogProps) {
         song_cover_url: s.meta!.thumbnail_url,
         daily_goal: s.daily_goal ? Number(s.daily_goal) : 0,
         position: i + 1,
+        started_at: s.started_at ? s.started_at.toISOString() : null,
+        ends_at: s.ends_at ? s.ends_at.toISOString() : null,
       }));
+
+      // Janela do deal = menor início e maior fim entre as músicas
+      const allStarts = validSongs
+        .map((s) => s.started_at)
+        .filter((d): d is Date => Boolean(d));
+      const allEnds = validSongs
+        .map((s) => s.ends_at)
+        .filter((d): d is Date => Boolean(d));
+      const dealStart = allStarts.reduce(
+        (min, d) => (d < min ? d : min),
+        allStarts[0],
+      );
+      const dealEnd =
+        allEnds.length === validSongs.length && allEnds.length > 0
+          ? allEnds.reduce((max, d) => (d > max ? d : max), allEnds[0])
+          : null;
+
+      const costNumber = currencyDigitsToNumber(costDigits);
 
       const deal = await addDeal({
         curator_name: values.curator_name.trim(),
@@ -203,14 +259,16 @@ export function NewDealDialog({ open, onOpenChange }: NewDealDialogProps) {
         target_plays: values.target_plays,
         daily_goal: primary.daily_goal ? Number(primary.daily_goal) : 0,
         baseline_plays: 0,
-        cost:
-          typeof values.cost === "number" && !Number.isNaN(values.cost)
-            ? values.cost
-            : null,
-        started_at: values.started_at.toISOString(),
-        ends_at: values.ends_at ? values.ends_at.toISOString() : null,
+        cost: typeof costNumber === "number" ? costNumber : null,
+        started_at: dealStart.toISOString(),
+        ends_at: dealEnd ? dealEnd.toISOString() : null,
         extra_songs: extras,
       });
+
+      // Para a primeira música persistida (em useCuratorDeals.addDeal), o
+      // started_at/ends_at vem dos campos do deal (que = primary). Mas se a
+      // primeira música tiver datas próprias diferentes do deal, ainda assim
+      // ficam corretas porque dealStart/dealEnd refletem essas datas.
 
       const link = curatorPublicUrl({ slug: deal.slug, public_token: deal.public_token });
       try {
@@ -242,7 +300,7 @@ export function NewDealDialog({ open, onOpenChange }: NewDealDialogProps) {
         <DialogHeader>
           <DialogTitle>Novo Deal</DialogTitle>
           <DialogDescription>
-            Cadastre um deal com curador, defina datas e adicione as músicas envolvidas.
+            Cadastre um deal com curador e adicione as músicas — cada uma com sua janela de campanha.
           </DialogDescription>
         </DialogHeader>
 
@@ -262,91 +320,6 @@ export function NewDealDialog({ open, onOpenChange }: NewDealDialogProps) {
                 </FormItem>
               )}
             />
-
-            {/* Datas */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="started_at"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>Início</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className={cn(
-                              "pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground",
-                            )}
-                          >
-                            {field.value ? (
-                              format(field.value, "dd 'de' MMM, yyyy", { locale: ptBR })
-                            ) : (
-                              <span>Escolher data</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          initialFocus
-                          className={cn("p-3 pointer-events-auto")}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="ends_at"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>Fim (opcional)</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className={cn(
-                              "pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground",
-                            )}
-                          >
-                            {field.value ? (
-                              format(field.value, "dd 'de' MMM, yyyy", { locale: ptBR })
-                            ) : (
-                              <span>Escolher data</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          initialFocus
-                          className={cn("p-3 pointer-events-auto")}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
 
             {/* Músicas */}
             <div className="space-y-2">
@@ -373,7 +346,7 @@ export function NewDealDialog({ open, onOpenChange }: NewDealDialogProps) {
                 {songs.map((song, idx) => (
                   <div
                     key={idx}
-                    className="rounded-lg border border-border bg-muted/20 p-3 space-y-2"
+                    className="rounded-lg border border-border bg-muted/20 p-3 space-y-3"
                   >
                     <div className="flex items-start gap-2">
                       <div className="flex-1 grid grid-cols-1 sm:grid-cols-[1fr_140px] gap-2">
@@ -413,6 +386,87 @@ export function NewDealDialog({ open, onOpenChange }: NewDealDialogProps) {
                           <X className="h-4 w-4" />
                         </Button>
                       )}
+                    </div>
+
+                    {/* Datas individuais por música */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs text-muted-foreground">
+                          Início
+                        </span>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className={cn(
+                                "h-9 pl-3 text-left font-normal justify-start",
+                                !song.started_at && "text-muted-foreground",
+                              )}
+                            >
+                              {song.started_at ? (
+                                format(song.started_at, "dd 'de' MMM, yyyy", {
+                                  locale: ptBR,
+                                })
+                              ) : (
+                                <span>Escolher data</span>
+                              )}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={song.started_at}
+                              onSelect={(d) =>
+                                updateSong(idx, { started_at: d ?? undefined })
+                              }
+                              initialFocus
+                              className={cn("p-3 pointer-events-auto")}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs text-muted-foreground">
+                          Fim (opcional)
+                        </span>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className={cn(
+                                "h-9 pl-3 text-left font-normal justify-start",
+                                !song.ends_at && "text-muted-foreground",
+                              )}
+                            >
+                              {song.ends_at ? (
+                                format(song.ends_at, "dd 'de' MMM, yyyy", {
+                                  locale: ptBR,
+                                })
+                              ) : (
+                                <span>Escolher data</span>
+                              )}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={song.ends_at}
+                              onSelect={(d) =>
+                                updateSong(idx, { ends_at: d ?? undefined })
+                              }
+                              initialFocus
+                              className={cn("p-3 pointer-events-auto")}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -491,27 +545,26 @@ export function NewDealDialog({ open, onOpenChange }: NewDealDialogProps) {
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="cost"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Custo do deal (R$)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        inputMode="decimal"
-                        step="0.01"
-                        min={0}
-                        placeholder="ex: 1500"
-                        {...field}
-                        value={field.value ?? ""}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <FormItem>
+                <FormLabel>Custo do deal</FormLabel>
+                <FormControl>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground pointer-events-none">
+                      R$
+                    </span>
+                    <Input
+                      inputMode="numeric"
+                      placeholder="0,00"
+                      value={
+                        costDigits ? formatCurrencyBRL(costDigits).replace("R$", "").trim() : ""
+                      }
+                      onChange={(e) => setCostDigits(digitsOnly(e.target.value))}
+                      className="pl-9"
+                    />
+                  </div>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
             </div>
 
             <DialogFooter className="gap-2 sm:gap-2">

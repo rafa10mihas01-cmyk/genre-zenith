@@ -19,6 +19,8 @@ export type DealSongInput = {
   daily_goal?: number;
   target_plays?: number | null;
   position?: number;
+  started_at?: string | null;
+  ends_at?: string | null;
 };
 
 export type NewCuratorDealInput = {
@@ -157,6 +159,8 @@ export function useCuratorDeals() {
         daily_goal: input.daily_goal ?? 0,
         target_plays: input.target_plays,
         position: 0,
+        started_at: input.started_at ?? null,
+        ends_at: input.ends_at ?? null,
       };
       const allSongs = [primarySong, ...(input.extra_songs ?? [])];
       const songRows = allSongs.map((s, i) => ({
@@ -169,6 +173,8 @@ export function useCuratorDeals() {
         daily_goal: s.daily_goal ?? 0,
         target_plays: s.target_plays ?? null,
         position: s.position ?? i,
+        started_at: s.started_at ?? null,
+        ends_at: s.ends_at ?? null,
       }));
       const { error: songsErr } = await supabase
         .from("curator_deal_songs")
