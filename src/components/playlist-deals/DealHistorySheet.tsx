@@ -278,15 +278,28 @@ export function DealHistorySheet({
                       Playlists onde sua música está atualmente
                     </p>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-8 gap-1.5 text-xs shrink-0"
-                    onClick={() => setPasteOpen(true)}
-                  >
-                    <ClipboardPaste className="h-3.5 w-3.5" />
-                    Colar dados
-                  </Button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {deal.curator_id && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 gap-1.5 text-xs"
+                        onClick={() => setImportOpen(true)}
+                      >
+                        <Library className="h-3.5 w-3.5" />
+                        Catálogo
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 gap-1.5 text-xs"
+                      onClick={() => setPasteOpen(true)}
+                    >
+                      <ClipboardPaste className="h-3.5 w-3.5" />
+                      Colar dados
+                    </Button>
+                  </div>
                 </div>
 
                 {dealPlaylists.length === 0 ? (
