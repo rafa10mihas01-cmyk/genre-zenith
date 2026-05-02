@@ -458,7 +458,7 @@ export default function CuratorPage() {
       const realToken = deal?.public_token ?? token;
       const { data, error: fnErr } = await supabase.functions.invoke(
         "register-curator-playlist",
-        { body: { public_token: realToken, urls } },
+        { body: { public_token: realToken, urls, song_id: selectedSongId } },
       );
       if (fnErr || !data?.ok) {
         toast.error(data?.error || fnErr?.message || "Erro ao importar");
