@@ -573,11 +573,11 @@ export default function CuratorPage() {
               </div>
               <div>
                 <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-1">
-                  Ritmo
+                  Esta semana
                 </div>
                 <div className="text-[15px] font-semibold tabular-nums leading-none text-primary">
-                  {stats.dailyGoal > 0 ? formatPlays(stats.dailyGoal) : "—"}
-                  <span className="text-[11px] text-muted-foreground font-normal ml-1">/dia</span>
+                  {stats.dailyGoal > 0 ? formatPlays(stats.weekRemaining) : "—"}
+                  <span className="text-[11px] text-muted-foreground font-normal ml-1">até seg</span>
                 </div>
               </div>
               <div>
