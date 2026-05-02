@@ -662,31 +662,32 @@ export default function CuratorPage() {
 
                   {/* Briefing: meta · prazo · ritmo */}
                   <div className="grid grid-cols-3 gap-3">
-                    <div>
+                    <div className="min-w-0">
                       <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-1">
                         Meta
                       </div>
                       <div className="text-[15px] font-semibold tabular-nums leading-none">
                         {formatPlays(stats.target)}
-                        <span className="text-[11px] text-muted-foreground font-normal ml-1">plays</span>
                       </div>
+                      <div className="text-[10px] text-muted-foreground font-normal mt-1">plays</div>
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-1">
                         Esta semana
                       </div>
                       <div className="text-[15px] font-semibold tabular-nums leading-none text-primary">
                         {stats.dailyGoal > 0 ? formatPlays(stats.weekRemaining) : "—"}
-                        <span className="text-[11px] text-muted-foreground font-normal ml-1">restantes</span>
                       </div>
+                      <div className="text-[10px] text-muted-foreground font-normal mt-1">restantes</div>
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-1">
                         Progresso
                       </div>
                       <div className="text-[15px] font-semibold tabular-nums leading-none">
                         {stats.pct}<span className="text-[11px] text-muted-foreground font-normal ml-0.5">%</span>
                       </div>
+                      <div className="text-[10px] text-muted-foreground font-normal mt-1 invisible">.</div>
                     </div>
                   </div>
 
