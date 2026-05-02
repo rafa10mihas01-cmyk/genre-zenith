@@ -1279,49 +1279,63 @@ export default function CuratorPage() {
                   </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 gap-3 max-h-[60vh] sm:max-h-[480px] overflow-y-auto pr-1 -mr-1 scroll-smooth [mask-image:linear-gradient(to_bottom,black_calc(100%-32px),transparent)]">
+                <ul
+                  className={cn(
+                    "space-y-2 pr-1 -mr-1 scroll-smooth",
+                    curatorGroupedByPlaylist.length > 4 && "max-h-[280px] overflow-y-auto",
+                  )}
+                >
                   {curatorGroupedByPlaylist.map((g) => {
                     const p = g.sample;
                     return (
-                      <button
-                        key={g.key}
-                        type="button"
-                        onClick={() => setCuratorPlaylistModalKey(g.key)}
-                        className="group nx-subcard-hover flex flex-col p-3 text-left hover:!border-primary/30"
-                      >
-                        <div className="relative w-full aspect-square rounded-lg overflow-hidden bg-primary/10 ring-1 ring-primary/20 mb-3">
-                          {p.image_url ? (
-                            <img
-                              src={p.image_url}
-                              alt={p.playlist_name}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <ListMusic className="h-5 w-5 text-primary" />
+                      <li key={g.key}>
+                        <button
+                          type="button"
+                          onClick={() => setCuratorPlaylistModalKey(g.key)}
+                          className="group w-full text-left px-3 py-2.5 transition-all nx-subcard-hover hover:!border-primary/30"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="relative w-10 h-10 rounded-md overflow-hidden bg-primary/10 ring-1 ring-primary/20 shrink-0">
+                              {p.image_url ? (
+                                <img
+                                  src={p.image_url}
+                                  alt={p.playlist_name}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center">
+                                  <ListMusic className="h-4 w-4 text-primary" />
+                                </div>
+                              )}
                             </div>
-                          )}
-                          <span className="absolute top-2 left-2 text-[9px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/90 text-primary-foreground">
-                            Curador
-                          </span>
-                          {g.songsInside.length > 0 && (
-                            <span className="absolute bottom-2 right-2 text-[9px] font-semibold px-2 py-0.5 rounded-full bg-background/85 backdrop-blur text-foreground/80 ring-1 ring-border/60">
-                              {g.songsInside.length} já dentro
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-[12px] font-medium leading-tight line-clamp-2 group-hover:text-primary transition-colors">
-                          {p.playlist_name}
-                        </div>
-                        {p.followers !== null && (
-                          <div className="text-[10px] text-muted-foreground mt-0.5 tabular-nums">
-                            {formatPlays(p.followers)} seguidores
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[12.5px] font-semibold leading-tight truncate group-hover:text-primary transition-colors">
+                                  {p.playlist_name}
+                                </span>
+                                <span className="text-[9px] font-semibold uppercase tracking-wider shrink-0 px-1.5 py-0.5 rounded-full ring-1 leading-none text-primary bg-primary/10 ring-primary/20">
+                                  Curador
+                                </span>
+                              </div>
+                              <div className="mt-1 flex items-center gap-2 text-[10px] text-muted-foreground tabular-nums">
+                                {p.followers !== null && (
+                                  <span>{formatPlays(p.followers)} seguidores</span>
+                                )}
+                                {g.songsInside.length > 0 && (
+                                  <>
+                                    {p.followers !== null && <span className="text-muted-foreground/40">·</span>}
+                                    <span>{g.songsInside.length} já dentro</span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/60 group-hover:text-primary transition-colors shrink-0" />
                           </div>
-                        )}
-                      </button>
+                        </button>
+                      </li>
                     );
                   })}
-                </div>
+                </ul>
               )
             )}
           </CardContent>
