@@ -60,6 +60,9 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const publicToken = typeof body?.public_token === "string" ? body.public_token.trim() : "";
     const dealIdInput = typeof body?.deal_id === "string" ? body.deal_id.trim() : "";
+    const songIdInput = typeof body?.song_id === "string" && body.song_id.trim().length > 0
+      ? body.song_id.trim()
+      : null;
     const urls: string[] = Array.isArray(body?.urls) ? body.urls : [];
     const preview = body?.preview === true;
 
