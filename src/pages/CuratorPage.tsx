@@ -387,14 +387,17 @@ export default function CuratorPage() {
     const remaining = Math.max(0, target - earned);
     const pct = target > 0 ? Math.min(100, Math.round((earned / target) * 100)) : 0;
 
+    // Média/dia do último ciclo (7 dias):
+    // pega o delta entre o último relatório e o anterior (ou baseline) e divide por 7.
     let todayPlays = 0;
     if (nonBase.length > 0) {
-      const todayKey = new Date().toISOString().slice(0, 10);
-      const lastBefore = [...sorted]
-        .reverse()
-        .find((l) => l.created_at.slice(0, 10) !== todayKey);
-      const lastBeforeVal = lastBefore ? Number(lastBefore.total_plays) : baseline;
-      todayPlays = Math.max(0, latest - lastBeforeVal);
+      const lastVal = Number(nonBase[nonBase.length - 1].total_plays);
+      const prevVal =
+        nonBase.length >= 2
+          ? Number(nonBase[nonBase.length - 2].total_plays)
+          : baseline;
+      const cycleDelta = Math.max(0, lastVal - prevVal);
+      todayPlays = Math.round(cycleDelta / 7);
     }
     const todayPct =
       dailyGoal > 0 ? Math.min(100, Math.round((todayPlays / dailyGoal) * 100)) : 0;
