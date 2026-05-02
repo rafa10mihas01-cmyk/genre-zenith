@@ -1183,7 +1183,10 @@ export default function CuratorPage() {
               </div>
 
               {(
-                <div className="grid grid-cols-2 gap-3">
+                <div className={cn(
+                  "grid grid-cols-2 gap-3",
+                  baseGroupedBySong.length > 4 && "max-h-[560px] overflow-y-auto pr-1 -mr-1 scroll-smooth [mask-image:linear-gradient(to_bottom,black_calc(100%-24px),transparent)]"
+                )}>
                   {baseGroupedBySong.map((g) => {
                     const cover = g.song?.song_cover_url ?? deal.song_cover_url;
                     const name = g.song?.song_name ?? deal.song_name;
