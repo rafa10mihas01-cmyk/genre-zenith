@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-import type { CuratorDeal, CuratorDealLog, CuratorDealSong, CuratorPlaylist } from "@/lib/curatorDealsUtils";
+import type { CuratorDeal, CuratorDealLog, CuratorDealSong, CuratorPlaylist, CuratorDealProgress } from "@/lib/curatorDealsUtils";
 import { computeCuratorStats } from "@/lib/curatorDealsUtils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ export interface CuratorDealCardProps {
   logs: CuratorDealLog[];
   playlists: CuratorPlaylist[];
   songs?: CuratorDealSong[];
+  progress?: CuratorDealProgress | null;
   onLog: (deal: CuratorDeal) => void;
   onDetail: (deal: CuratorDeal) => void;
   onDelete: (deal: CuratorDeal) => void;
@@ -33,9 +34,9 @@ function formatPlays(n: number): string {
 }
 
 export function CuratorDealCard({
-  deal, logs, playlists, songs = [], onLog, onDetail, onDelete, onEdit, onClose, onReopen,
+  deal, logs, playlists, songs = [], progress, onLog, onDetail, onDelete, onEdit, onClose, onReopen,
 }: CuratorDealCardProps) {
-  const stats = computeCuratorStats(deal, logs, playlists);
+  const stats = computeCuratorStats(deal, logs, playlists, progress ?? null);
   const { earned, pct, vel, eta, latestPlays, todayPlays, hasBaseline, newPlaylists } = stats;
   const target = Number(deal.target_plays ?? 0);
   const dailyGoal = Number(deal.daily_goal ?? 0);

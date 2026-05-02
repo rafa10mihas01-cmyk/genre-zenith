@@ -8,6 +8,7 @@ import type {
   CuratorDealLog,
   CuratorPlaylist,
   CuratorDealSong,
+  CuratorDealProgress,
 } from "@/lib/curatorDealsUtils";
 
 export type CuratorFraudAlert = {
@@ -126,6 +127,7 @@ export function useCuratorDeals() {
   const [alerts, setAlerts] = useState<CuratorFraudAlert[]>([]);
   const [curators, setCurators] = useState<Curator[]>([]);
   const [balances, setBalances] = useState<CuratorBalance[]>([]);
+  const [progressByDeal, setProgressByDeal] = useState<Record<string, CuratorDealProgress>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -138,6 +140,7 @@ export function useCuratorDeals() {
       setAlerts([]);
       setCurators([]);
       setBalances([]);
+      setProgressByDeal({});
       setLoading(false);
       return;
     }
@@ -173,6 +176,7 @@ export function useCuratorDeals() {
         setPlaylists([]);
         setSongs([]);
         setAlerts([]);
+        setProgressByDeal({});
       } else {
         const [logsRes, plRes, songsRes, alertsRes] = await Promise.all([
           supabase
@@ -205,6 +209,21 @@ export function useCuratorDeals() {
         setPlaylists((plRes.data ?? []) as CuratorPlaylist[]);
         setSongs((songsRes.data ?? []) as CuratorDealSong[]);
         setAlerts((alertsRes.data ?? []) as CuratorFraudAlert[]);
+
+        // Progresso oficial via RPC (snapshots = fonte única). Em paralelo.
+        const progressResults = await Promise.all(
+          dealIds.map((id) =>
+            supabase.rpc("get_curator_deal_progress", { p_deal_id: id })
+              .then((r) => ({ id, data: r.data, error: r.error })),
+          ),
+        );
+        const progressMap: Record<string, CuratorDealProgress> = {};
+        for (const r of progressResults) {
+          if (!r.error && r.data) {
+            progressMap[r.id] = r.data as CuratorDealProgress;
+          }
+        }
+        setProgressByDeal(progressMap);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -590,6 +609,7 @@ export function useCuratorDeals() {
     alerts,
     curators,
     balances,
+    progressByDeal,
     loading,
     error,
     // Curadores

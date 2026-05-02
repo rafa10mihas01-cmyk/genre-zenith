@@ -22,6 +22,7 @@ import {
   type CuratorDealLog,
   type CuratorPlaylist,
   type CuratorDealSong,
+  type CuratorDealProgress,
 } from "@/lib/curatorDealsUtils";
 import type {
   NewCuratorLogInput,
@@ -39,6 +40,7 @@ export interface LogPrintDialogProps {
   songs?: CuratorDealSong[];
   allLogs: CuratorDealLog[];
   allPlaylists: CuratorPlaylist[];
+  progress?: CuratorDealProgress | null;
   onClose: () => void;
   addLog: (input: NewCuratorLogInput) => Promise<CuratorDealLog>;
   addBaseline: (
@@ -112,6 +114,7 @@ export function LogPrintDialog({
   songs = [],
   allLogs,
   allPlaylists,
+  progress,
   onClose,
   addLog,
   addBaseline,
@@ -210,7 +213,7 @@ export function LogPrintDialog({
     if (d.selectedSongId) setSelectedSongId(d.selectedSongId);
   };
 
-  const stats = deal ? computeCuratorStats(deal, allLogs, allPlaylists) : null;
+  const stats = deal ? computeCuratorStats(deal, allLogs, allPlaylists, progress ?? null) : null;
   const selectedSong = songs.find((s) => s.id === selectedSongId) ?? null;
   // Para múltiplas músicas, baseline é por música. Para single, usa stats global.
   const isBaseline = hasMultipleSongs

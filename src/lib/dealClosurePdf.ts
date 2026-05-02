@@ -11,6 +11,7 @@ import {
   type CuratorDealLog,
   type CuratorDealSong,
   type CuratorPlaylist,
+  type CuratorDealProgress,
 } from "@/lib/curatorDealsUtils";
 
 function fmt(n: number | null | undefined): string {
@@ -27,13 +28,14 @@ export type DealClosurePdfInput = {
   songs: CuratorDealSong[];
   logs: CuratorDealLog[];
   playlists: CuratorPlaylist[];
+  progress?: CuratorDealProgress | null;
   closeStatus: "completed" | "cancelled";
   closeReason?: string | null;
 };
 
 export function buildDealClosurePdf(input: DealClosurePdfInput): Blob {
-  const { deal, songs, logs, playlists, closeStatus, closeReason } = input;
-  const stats = computeCuratorStats(deal, logs, playlists);
+  const { deal, songs, logs, playlists, progress, closeStatus, closeReason } = input;
+  const stats = computeCuratorStats(deal, logs, playlists, progress ?? null);
 
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
