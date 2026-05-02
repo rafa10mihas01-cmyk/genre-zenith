@@ -725,7 +725,7 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDe
               </Button>
               <Button type="submit" disabled={submitting}>
                 {submitting && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
-                Salvar deal
+                {isEdit ? "Salvar alterações" : "Salvar deal"}
               </Button>
             </DialogFooter>
           </form>
