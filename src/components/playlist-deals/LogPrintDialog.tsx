@@ -416,9 +416,28 @@ export function LogPrintDialog({
     return urls;
   };
 
+  // Casa os matches da IA com as curator_playlists já cadastradas no deal,
+  // usando nome normalizado. Retorna apenas os matches com playlist_id resolvido.
+  const buildSnapshotMatches = (
+    aiMatches: Match[],
+    dealPlaylistsCurrent: CuratorPlaylist[],
+  ): { playlist_id: string; plays: number }[] => {
+    const byName = new Map<string, string>();
+    for (const p of dealPlaylistsCurrent) {
+      byName.set(normalizeName(p.playlist_name), p.id);
+    }
+    const out: { playlist_id: string; plays: number }[] = [];
+    for (const m of aiMatches) {
+      if (!m.found || m.plays == null) continue;
+      const id = byName.get(normalizeName(m.playlist_name));
+      if (!id) continue;
+      out.push({ playlist_id: id, plays: m.plays });
+    }
+    return out;
+  };
+
   const handleSave = async () => {
     if (!deal || !hasFinal) return;
-    // Guard: deal multi-música obriga selecionar a música antes de salvar.
     if (hasMultipleSongs && !selectedSongId) {
       toast.error("Selecione a música", {
         description: "Este deal tem mais de uma música. Escolha qual delas este print representa.",
@@ -428,32 +447,58 @@ export function LogPrintDialog({
     setSaving(true);
     try {
       const printUrls = await uploadPrintsToStorage();
+      const primaryPrintUrl = printUrls[0] ?? null;
+      const capturedAt = new Date().toISOString();
 
       if (isBaseline) {
         const names = parsePlaylistNames(playlistsRaw);
-        // Modo paste: usa playlists vindas da IA com link do Spotify (chave de identidade)
         const fromPaste: BaselinePlaylistInput[] = (parsedPaste?.playlists ?? [])
           .filter((p) => p.name)
-          .map((p) => ({
-            spotify_url: p.spotify_url ?? "",
-            playlist_name: p.name,
-            followers: null,
-          }));
+          .map((p) => ({ spotify_url: p.spotify_url ?? "", playlist_name: p.name, followers: null }));
         const fromAi: BaselinePlaylistInput[] = matches
           .filter((m) => m.playlist_name)
-          .map((m) => ({
-            spotify_url: "",
-            playlist_name: m.playlist_name,
-            followers: null,
-          }));
+          .map((m) => ({ spotify_url: "", playlist_name: m.playlist_name, followers: null }));
         const fromManual: BaselinePlaylistInput[] = names.map((name) => ({
-          spotify_url: "",
-          playlist_name: name,
-          followers: null,
+          spotify_url: "", playlist_name: name, followers: null,
         }));
         const baselinePlaylists =
           fromPaste.length > 0 ? fromPaste : fromAi.length > 0 ? fromAi : fromManual;
         await addBaseline(deal.id, finalValue as number, baselinePlaylists, printUrls, selectedSongId);
+
+        // Snapshots de baseline — busca as playlists recém-criadas e grava plays por playlist
+        if (insertSnapshots) {
+          const { data: freshPls } = await supabase
+            .from("curator_playlists")
+            .select("id, playlist_name, is_baseline")
+            .eq("deal_id", deal.id);
+          const baselineMatches: { playlist_id: string; plays: number }[] = [];
+          const byName = new Map<string, string>();
+          for (const p of (freshPls ?? []) as CuratorPlaylist[]) {
+            if (p.is_baseline) byName.set(normalizeName(p.playlist_name), p.id);
+          }
+          // 1) plays por nome (vindos da IA ou paste)
+          const aiList: { name: string; plays: number | null }[] = [
+            ...matches.filter((m) => m.found && m.plays != null).map((m) => ({ name: m.playlist_name, plays: m.plays })),
+            ...((parsedPaste?.playlists ?? []) as { name: string; plays: number | null }[]),
+          ];
+          for (const it of aiList) {
+            if (it.plays == null) continue;
+            const id = byName.get(normalizeName(it.name));
+            if (id) baselineMatches.push({ playlist_id: id, plays: it.plays });
+          }
+          if (baselineMatches.length > 0) {
+            try {
+              await insertSnapshots(deal.id, selectedSongId, baselineMatches, {
+                isBaseline: true,
+                printUrl: primaryPrintUrl,
+                capturedAt,
+              });
+            } catch (snapErr) {
+              console.error("[LogPrintDialog] insertSnapshots baseline failed", snapErr);
+            }
+          }
+        }
+
         toast.success("Baseline registrada", {
           description: `${formatPlays(finalValue as number)} plays · ${baselinePlaylists.length} playlist(s) iniciais · ${printUrls.length} print(s)`,
         });
@@ -466,8 +511,6 @@ export function LogPrintDialog({
           song_id: selectedSongId,
         });
 
-        // Detecta playlists NOVAS pelo link do Spotify (chave de identidade).
-        // Em modo paste: cruza spotify_id contra as playlists já cadastradas do deal.
         const dealPlaylists = allPlaylists.filter((p) => p.deal_id === deal.id);
         const knownIds = new Set(
           dealPlaylists
@@ -481,7 +524,6 @@ export function LogPrintDialog({
         const autoNewFromPaste = (parsedPaste?.playlists ?? []).filter((p) => {
           const id = extractSpotifyPlaylistIdLocal(p.spotify_url);
           if (id) return !knownIds.has(id);
-          // sem link: cai no nome normalizado
           return !knownNames.has(normalizeName(p.name));
         });
 
@@ -513,6 +555,30 @@ export function LogPrintDialog({
               .from("curator_playlists")
               .insert(rows);
             if (plErr) throw plErr;
+          }
+        }
+
+        // Snapshots de update — grava plays por playlist a partir dos matches da IA
+        if (insertSnapshots && matches.length > 0) {
+          // recarrega playlists do deal (incluindo as novas inseridas acima)
+          const { data: freshPls } = await supabase
+            .from("curator_playlists")
+            .select("id, playlist_name, is_baseline")
+            .eq("deal_id", deal.id);
+          const updateMatches = buildSnapshotMatches(
+            matches,
+            (freshPls ?? []) as CuratorPlaylist[],
+          );
+          if (updateMatches.length > 0) {
+            try {
+              await insertSnapshots(deal.id, selectedSongId, updateMatches, {
+                isBaseline: false,
+                printUrl: primaryPrintUrl,
+                capturedAt,
+              });
+            } catch (snapErr) {
+              console.error("[LogPrintDialog] insertSnapshots update failed", snapErr);
+            }
           }
         }
 
