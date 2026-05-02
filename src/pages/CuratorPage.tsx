@@ -62,6 +62,7 @@ type DealLog = {
   note: string | null;
   is_baseline: boolean;
   created_at: string;
+  song_id?: string | null;
   print_urls?: string[] | null;
 };
 
