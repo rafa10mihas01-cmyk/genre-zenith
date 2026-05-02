@@ -35,7 +35,7 @@ export default function PlaylistDeals() {
   const [editDeal, setEditDeal] = useState<CuratorDeal | null>(null);
   const [closeDealOpen, setCloseDealOpen] = useState<CuratorDeal | null>(null);
 
-  const { deals, logs, playlists, songs, loading, deleteDeal, addLog, addBaseline, closeDeal, reopenDeal, reload } = useCuratorDeals();
+  const { deals, logs, playlists, songs, alerts, loading, deleteDeal, addLog, addBaseline, closeDeal, reopenDeal, reload } = useCuratorDeals();
 
   // KPIs do topo — derivados dos deals + logs + playlists
   const kpi = useMemo(() => {
@@ -196,7 +196,7 @@ export default function PlaylistDeals() {
       {/* Conteúdo — altura mínima estável evita layout shift entre abas */}
       <div className="min-h-[480px] animate-tab-in">
         {tab === "curators" ? (
-          <CuradoresTab deals={deals} logs={logs} playlists={playlists} loading={loading} />
+          <CuradoresTab deals={deals} logs={logs} playlists={playlists} alerts={alerts} loading={loading} />
         ) : loading && deals.length === 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[0, 1, 2].map((i) => (

@@ -10,6 +10,22 @@ import type {
   CuratorDealSong,
 } from "@/lib/curatorDealsUtils";
 
+export type CuratorFraudAlert = {
+  id: string;
+  deal_id: string;
+  playlist_id: string | null;
+  alert_type: string;
+  severity: "low" | "medium" | "high" | string;
+  title: string;
+  description: string;
+  evidence: Record<string, unknown>;
+  status: "open" | "acknowledged" | "resolved" | string;
+  acknowledged_by: string | null;
+  acknowledged_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type DealSongInput = {
   song_spotify_url: string;
   spotify_track_id?: string | null;
@@ -63,6 +79,7 @@ export function useCuratorDeals() {
   const [logs, setLogs] = useState<CuratorDealLog[]>([]);
   const [playlists, setPlaylists] = useState<CuratorPlaylist[]>([]);
   const [songs, setSongs] = useState<CuratorDealSong[]>([]);
+  const [alerts, setAlerts] = useState<CuratorFraudAlert[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -72,6 +89,7 @@ export function useCuratorDeals() {
       setLogs([]);
       setPlaylists([]);
       setSongs([]);
+      setAlerts([]);
       setLoading(false);
       return;
     }
@@ -91,8 +109,9 @@ export function useCuratorDeals() {
         setLogs([]);
         setPlaylists([]);
         setSongs([]);
+        setAlerts([]);
       } else {
-        const [logsRes, plRes, songsRes] = await Promise.all([
+        const [logsRes, plRes, songsRes, alertsRes] = await Promise.all([
           supabase
             .from("curator_deal_logs")
             .select("*")
@@ -108,13 +127,21 @@ export function useCuratorDeals() {
             .select("*")
             .in("deal_id", dealIds)
             .order("position", { ascending: true }),
+          supabase
+            .from("curator_fraud_alerts")
+            .select("*")
+            .in("deal_id", dealIds)
+            .eq("status", "open")
+            .order("created_at", { ascending: false }),
         ]);
         if (logsRes.error) throw logsRes.error;
         if (plRes.error) throw plRes.error;
         if (songsRes.error) throw songsRes.error;
+        if (alertsRes.error) throw alertsRes.error;
         setLogs((logsRes.data ?? []) as CuratorDealLog[]);
         setPlaylists((plRes.data ?? []) as CuratorPlaylist[]);
         setSongs((songsRes.data ?? []) as CuratorDealSong[]);
+        setAlerts((alertsRes.data ?? []) as CuratorFraudAlert[]);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -377,6 +404,7 @@ export function useCuratorDeals() {
     logs,
     playlists,
     songs,
+    alerts,
     loading,
     error,
     addDeal,

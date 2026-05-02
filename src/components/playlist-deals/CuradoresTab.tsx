@@ -1,7 +1,8 @@
 import { useMemo } from "react";
-import { Users, DollarSign, Target as TargetIcon, TrendingUp } from "lucide-react";
+import { Users, DollarSign, Target as TargetIcon, TrendingUp, ShieldAlert } from "lucide-react";
 import { KpiBig } from "@/components/KpiBig";
 import { computeCuratorStats, type CuratorDeal, type CuratorDealLog, type CuratorPlaylist } from "@/lib/curatorDealsUtils";
+import type { CuratorFraudAlert } from "@/hooks/useCuratorDeals";
 import { formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -9,6 +10,7 @@ type Props = {
   deals: CuratorDeal[];
   logs: CuratorDealLog[];
   playlists: CuratorPlaylist[];
+  alerts?: CuratorFraudAlert[];
   loading: boolean;
 };
 
@@ -22,6 +24,8 @@ type CuratorRow = {
   deliveryPct: number;
   avgScore: number;       // 0..100 — média ponderada por target
   avgLegitShare: number;  // 0..1
+  alertsOpen: number;
+  alertsHigh: number;
 };
 
 const formatBRL = (v: number) =>
@@ -40,14 +44,26 @@ const formatCostPerPlay = (v: number | null) => {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", ...opts }).format(v);
 };
 
-export function CuradoresTab({ deals, logs, playlists, loading }: Props) {
+export function CuradoresTab({ deals, logs, playlists, alerts = [], loading }: Props) {
   const { rows, totals } = useMemo(() => {
+    // Mapa deal_id -> {open, high} para imputar à linha do curador
+    const dealAlerts = new Map<string, { open: number; high: number }>();
+    for (const a of alerts) {
+      if (a.status !== "open") continue;
+      const cur = dealAlerts.get(a.deal_id) ?? { open: 0, high: 0 };
+      cur.open += 1;
+      if (a.severity === "high") cur.high += 1;
+      dealAlerts.set(a.deal_id, cur);
+    }
+
     type Acc = CuratorRow & { _scoreNum: number; _scoreDen: number; _legitNum: number; _legitDen: number };
     const map = new Map<string, Acc>();
     let totalCost = 0;
     let totalEarned = 0;
     let totalTarget = 0;
     let scoreNum = 0, scoreDen = 0;
+    let totalAlertsOpen = 0;
+    let totalAlertsHigh = 0;
 
     for (const d of deals) {
       const name = (d.curator_name ?? "").trim() || "—";
@@ -55,10 +71,12 @@ export function CuradoresTab({ deals, logs, playlists, loading }: Props) {
       const target = Number(d.target_plays ?? 0) || 0;
       const stats = computeCuratorStats(d, logs, playlists);
       const w = Math.max(target, 1); // peso = meta (deals maiores pesam mais)
+      const aCount = dealAlerts.get(d.id) ?? { open: 0, high: 0 };
 
-      const row = map.get(name) ?? {
+      const row: Acc = map.get(name) ?? {
         name, dealsCount: 0, totalCost: 0, totalEarned: 0, totalTarget: 0,
         costPerPlay: null, deliveryPct: 0, avgScore: 0, avgLegitShare: 1,
+        alertsOpen: 0, alertsHigh: 0,
         _scoreNum: 0, _scoreDen: 0, _legitNum: 0, _legitDen: 0,
       };
       row.dealsCount += 1;
@@ -69,6 +87,8 @@ export function CuradoresTab({ deals, logs, playlists, loading }: Props) {
       row._scoreDen += w;
       row._legitNum += stats.legitShare * w;
       row._legitDen += w;
+      row.alertsOpen += aCount.open;
+      row.alertsHigh += aCount.high;
       map.set(name, row);
 
       totalCost += cost;
@@ -76,6 +96,8 @@ export function CuradoresTab({ deals, logs, playlists, loading }: Props) {
       totalTarget += target;
       scoreNum += stats.score * w;
       scoreDen += w;
+      totalAlertsOpen += aCount.open;
+      totalAlertsHigh += aCount.high;
     }
 
     const rows: CuratorRow[] = Array.from(map.values()).map((r) => {
@@ -90,6 +112,8 @@ export function CuradoresTab({ deals, logs, playlists, loading }: Props) {
         deliveryPct: r.totalTarget > 0 ? Math.round((r.totalEarned / r.totalTarget) * 100) : 0,
         avgScore: r._scoreDen > 0 ? Math.round(r._scoreNum / r._scoreDen) : 0,
         avgLegitShare: r._legitDen > 0 ? r._legitNum / r._legitDen : 1,
+        alertsOpen: r.alertsOpen,
+        alertsHigh: r.alertsHigh,
       };
     });
 
@@ -109,16 +133,18 @@ export function CuradoresTab({ deals, logs, playlists, loading }: Props) {
           : null,
         deliveryPct: totalTarget > 0 ? Math.round((totalEarned / totalTarget) * 100) : 0,
         avgScore: scoreDen > 0 ? Math.round(scoreNum / scoreDen) : 0,
+        alertsOpen: totalAlertsOpen,
+        alertsHigh: totalAlertsHigh,
       },
     };
-  }, [deals, logs, playlists]);
+  }, [deals, logs, playlists, alerts]);
 
   const isEmpty = !loading && deals.length === 0;
 
   return (
     <div className="space-y-6">
       {/* KPIs gerais */}
-      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <KpiBig
           icon={Users}
           label="Curadores"
@@ -147,6 +173,14 @@ export function CuradoresTab({ deals, logs, playlists, loading }: Props) {
           value={`${totals.avgScore}/100`}
           hint="Prazo + qualidade do tráfego"
           tone={totals.avgScore >= 80 ? "success" : totals.avgScore >= 50 ? "primary" : "default"}
+          loading={loading && deals.length === 0}
+        />
+        <KpiBig
+          icon={ShieldAlert}
+          label="Alertas anti-fraude"
+          value={formatNumber(totals.alertsOpen)}
+          hint={totals.alertsHigh > 0 ? `${totals.alertsHigh} de severidade alta` : "Nenhum aberto"}
+          tone={totals.alertsHigh > 0 ? "default" : totals.alertsOpen > 0 ? "primary" : "success"}
           loading={loading && deals.length === 0}
         />
       </section>
@@ -190,12 +224,13 @@ export function CuradoresTab({ deals, logs, playlists, loading }: Props) {
                   <th className="text-right px-3 py-3 font-medium">Plays</th>
                   <th className="text-right px-3 py-3 font-medium">R$/play</th>
                   <th className="text-right px-3 py-3 font-medium">Legítimo</th>
+                  <th className="text-right px-3 py-3 font-medium">Risco</th>
                   <th className="text-right px-5 py-3 font-medium">Score</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((r, i) => {
-                  const isBest = i === 0 && rows.length > 1 && r.avgScore >= 70;
+                  const isBest = i === 0 && rows.length > 1 && r.avgScore >= 70 && r.alertsHigh === 0;
                   const legitPct = Math.round(r.avgLegitShare * 100);
                   return (
                     <tr
@@ -236,6 +271,31 @@ export function CuradoresTab({ deals, logs, playlists, loading }: Props) {
                         )}>
                           {legitPct}%
                         </span>
+                      </td>
+                      <td className="px-3 py-3.5 text-right">
+                        {r.alertsOpen === 0 ? (
+                          <span className="inline-flex items-center text-[12px] font-medium tabular-nums px-2 py-0.5 rounded bg-success/15 text-success">
+                            ok
+                          </span>
+                        ) : (
+                          <span
+                            className={cn(
+                              "inline-flex items-center gap-1 text-[12px] font-semibold tabular-nums px-2 py-0.5 rounded",
+                              r.alertsHigh > 0
+                                ? "bg-destructive/15 text-destructive"
+                                : "bg-warning/15 text-warning",
+                            )}
+                            title={`${r.alertsOpen} alerta(s) abertos${r.alertsHigh > 0 ? `, ${r.alertsHigh} de severidade alta` : ""}`}
+                          >
+                            <ShieldAlert className="h-3 w-3" />
+                            {r.alertsOpen}
+                            {r.alertsHigh > 0 && (
+                              <span className="text-[10px] opacity-70">
+                                ({r.alertsHigh} alta)
+                              </span>
+                            )}
+                          </span>
+                        )}
                       </td>
                       <td className="px-5 py-3.5 text-right">
                         <span
