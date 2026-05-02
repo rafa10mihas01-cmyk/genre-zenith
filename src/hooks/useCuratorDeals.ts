@@ -439,6 +439,46 @@ export function useCuratorDeals() {
     [load],
   );
 
+  // ============================================================
+  // Snapshots — fonte única de verdade (Spotify for Artists)
+  // O log agregado é mantido pra histórico de UI; o cálculo real
+  // de entrega passa a vir de curator_deal_snapshots (uma linha
+  // por playlist por print).
+  // ============================================================
+  type SnapshotMatch = {
+    playlist_id: string;
+    plays: number;
+    confidence?: number | null;
+  };
+
+  const insertSnapshots = useCallback(
+    async (
+      dealId: string,
+      songId: string | null,
+      matches: SnapshotMatch[],
+      opts: { isBaseline: boolean; printUrl?: string | null; capturedAt?: string },
+    ) => {
+      if (!matches.length) return;
+      const rows = matches.map((m) => ({
+        deal_id: dealId,
+        song_id: songId,
+        playlist_id: m.playlist_id,
+        plays: Math.max(0, Math.round(m.plays)),
+        captured_at: opts.capturedAt ?? new Date().toISOString(),
+        print_url: opts.printUrl ?? null,
+        is_baseline: opts.isBaseline,
+        source: "spotify_for_artists",
+        ai_confidence: m.confidence ?? null,
+        created_by: user?.id ?? null,
+      }));
+      const { error: snapErr } = await supabase
+        .from("curator_deal_snapshots")
+        .insert(rows);
+      if (snapErr) throw snapErr;
+    },
+    [user],
+  );
+
   const addLog = useCallback(
     async (input: NewCuratorLogInput) => {
       const { data, error: insertErr } = await supabase
@@ -468,7 +508,7 @@ export function useCuratorDeals() {
       printUrls: string[] = [],
       songId: string | null = null,
     ) => {
-      // 1. Log baseline
+      // 1. Log baseline (mantido pra UI/histórico)
       const { error: logErr } = await supabase
         .from("curator_deal_logs")
         .insert({
@@ -563,6 +603,7 @@ export function useCuratorDeals() {
     deleteDeal,
     addLog,
     addBaseline,
+    insertSnapshots,
     closeDeal,
     reopenDeal,
     reload: load,
