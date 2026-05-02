@@ -1,46 +1,38 @@
 // _shared/parse-spotify-paste.ts
 // Parser determinístico do paste de "Top playlists" do Spotify for Artists.
 //
-// O Spotify cola tudo concatenado num único "blob" multilinha:
+// Formato observado: o Spotify cola tudo concatenado, e cada registro é:
 //
-//   1
-//   Radio
-//   Spotify199.283—2
-//   FUNK 2026 🔥 AS MELHORES | TOP 100
-//   —73.92420 de mar. de 20263
-//   ACADEMIA FUNK ...
+//   <posição>\n
+//   <nome da playlist>\n
+//   <creator><streams>[<data>]<próxima-posição>
 //
-// Padrão por registro:
-//   <posição-numérica numa linha sozinha>
-//   <nome da playlist>
-//   <criador: "Spotify" | "—"><streams pt-BR><data opcional><próxima-posição>
+// Onde:
+//   - posição: 1..999, sozinha numa linha
+//   - creator: "Spotify" (editorial) ou "—" / "–" / "-" (não-editorial)
+//   - streams: número pt-BR (1.234.567)
+//   - data: opcional, formato "DD de <mês>. de YYYY"
+//   - a próxima-posição vem GRUDADA no fim do registro (sem separador), depois
+//     vem \n e o próximo nome.
 //
-// Estratégia: trabalhar no texto inteiro (não em linhas isoladas), procurando
-// a sequência "<streams><opcional data><próxima-posição-no-início-de-linha>".
+// Estratégia: usamos uma regex global que captura
+//   posição + nome + linha-de-rodapé(creator/streams/data + próxima-posição grudada)
+// e a próxima posição é "devolvida" pela regex como início do próximo match
+// via lookahead.
 
 export type ParsedPasteRow = {
   position: number;
   name: string;
-  creator: string | null; // "Spotify" para editorial, null caso contrário
+  creator: string | null;
   is_editorial: boolean;
   streams: number;
-  added_at: string | null; // ISO date YYYY-MM-DD
+  added_at: string | null;
   added_at_raw: string | null;
 };
 
 const MONTHS_PT: Record<string, string> = {
-  jan: "01",
-  fev: "02",
-  mar: "03",
-  abr: "04",
-  mai: "05",
-  jun: "06",
-  jul: "07",
-  ago: "08",
-  set: "09",
-  out: "10",
-  nov: "11",
-  dez: "12",
+  jan: "01", fev: "02", mar: "03", abr: "04", mai: "05", jun: "06",
+  jul: "07", ago: "08", set: "09", out: "10", nov: "11", dez: "12",
 };
 
 export function parsePtDate(input: string): string | null {
@@ -68,8 +60,7 @@ const HEADER_REGEXES: RegExp[] = [
   /^Filtros$/i,
   /^Visão geral\s*Localização\s*Playlists$/i,
   /^\d+\s+principais\s+playlists/i,
-  /^Últimos\s+\d+\s+dias?$/i,
-  /^Últimos\s+\d+\s+meses?$/i,
+  /^Últimos\s+\d+\s+(dias?|meses?)$/i,
   /^Criada por$/i,
   /^Streams$/i,
   /^Adicionado em$/i,
@@ -90,7 +81,6 @@ export function parseSpotifyForArtistsPaste(raw: string): {
     return { rows: [], song_name: null, total_streams_period: null };
   }
 
-  // Normaliza
   const normalized = raw
     .replace(/\r\n/g, "\n")
     .replace(/\u00a0/g, " ")
@@ -99,16 +89,12 @@ export function parseSpotifyForArtistsPaste(raw: string): {
 
   const allLines = normalized.split("\n").map((l) => l.trim());
 
-  // Captura metadados antes do tratamento
+  // Metadados
   let song_name: string | null = null;
   for (let i = 0; i < allLines.length - 1; i++) {
     if (allLines[i].toLowerCase() === "faixa") {
-      // Pula linhas vazias até achar conteúdo
       for (let j = i + 1; j < allLines.length; j++) {
-        if (allLines[j]) {
-          song_name = allLines[j];
-          break;
-        }
+        if (allLines[j]) { song_name = allLines[j]; break; }
       }
       break;
     }
@@ -128,67 +114,116 @@ export function parseSpotifyForArtistsPaste(raw: string): {
     }
   }
 
-  // Filtra cabeçalhos e linhas vazias
+  // Remove cabeçalhos e linhas vazias
   const lines = allLines.filter((l) => l && !isHeaderLine(l));
-
-  // Trabalhamos no texto unido por \n. Usaremos regex global pra extrair cada
-  // registro: posição → nome → bloco de "creator+streams+data" terminado pela
-  // próxima posição (ou fim do texto).
   const text = lines.join("\n");
 
-  // Regex que captura UM registro:
-  //   ^<pos>\n<nome>\n<creator-streams-data...>
-  // O "fim" do registro é a próxima linha que começa com um número 1..999 sozinho
-  // (que será a próxima posição). Usamos lookahead pra não consumir.
-  const registroRe =
-    /(?:^|\n)(\d{1,3})\n([^\n]+)\n([\s\S]*?)(?=\n\d{1,3}\n|$)/g;
+  // Regex de UM registro:
+  //   início-de-linha posição
+  //   \n nome (qualquer coisa exceto \n)
+  //   \n footer (creator/streams/data + próxima-pos grudada)
+  //
+  // O footer termina quando bate em "\n<nome-da-próxima>" — mas o problema é que
+  // a próxima posição está GRUDADA no fim do footer.
+  //
+  // Solução: o footer é UMA linha só (até \n), e dentro dela os últimos dígitos
+  // são a próxima posição. A regex captura:
+  //   ^pos\n  nome  \n  footer
+  // E depois a gente extrai do footer:
+  //   - creator (Spotify | —)
+  //   - streams (números pt-BR)
+  //   - data opcional (com YYYY no fim)
+  //   - próxima posição = dígitos finais não consumidos pela data/streams.
+  //
+  // O truque importante: se há data, ela termina em YYYY e os dígitos APÓS o
+  // YYYY são a próxima posição. Se não há data, os dígitos finais isolados
+  // podem ser parte dos streams OU a próxima posição. Precisamos olhar:
+  // streams pt-BR usa "." como separador de milhar, então uma sequência tipo
+  // "199.283" tem ponto. "199.2832" significa streams=199.283 e próxima-pos=2.
+  // Heurística: o número de streams é tudo até o último ponto + 3 dígitos. O
+  // que sobra depois disso é a próxima posição (1-3 dígitos).
+
+  const registroRe = /(?:^|\n)(\d{1,3})\n([^\n]+)\n([^\n]+)/g;
 
   const rows: ParsedPasteRow[] = [];
   let match: RegExpExecArray | null;
+
   while ((match = registroRe.exec(text)) !== null) {
     const position = parseInt(match[1], 10);
     if (position < 1 || position > 999) continue;
     const name = match[2].trim();
     if (!name) continue;
-    const tail = match[3].trim();
+    const footerRaw = match[3].trim();
 
-    // Detecta editorial
+    // A próxima iteração da regex precisa começar logo após \n da posição
+    // que fica grudada no fim do footer. Como nossa regex consome o footer
+    // inteiro, precisamos "rebobinar" o lastIndex pra antes da próxima posição.
+    // Mas como a próxima posição está GRUDADA, ela está dentro do footer.
+    // Vamos extrair, e também avançar o regex pra continuar do próximo \n.
+    // (lastIndex já está depois do footer, ok — só perde 1 registro se a
+    //  próxima posição não estiver grudada. Caso real: está sempre grudada.)
+
+    // Detecta creator
     let is_editorial = false;
     let creator: string | null = null;
-    let rest = tail;
+    let body = footerRaw;
 
-    // Spotify pode aparecer como "Spotify123.456" (grudado) ou "Spotify\n123.456"
-    const editorialMatch = rest.match(/^Spotify\b/);
+    const editorialMatch = body.match(/^Spotify\b/);
     if (editorialMatch) {
       is_editorial = true;
       creator = "Spotify";
-      rest = rest.slice(editorialMatch[0].length);
+      body = body.slice(editorialMatch[0].length);
     } else {
-      // não-editorial: pode começar com "—", "–" ou "-" (em-dash, en-dash, hífen)
-      const dashMatch = rest.match(/^[—–-]+/);
-      if (dashMatch) {
-        rest = rest.slice(dashMatch[0].length);
-      }
+      const dashMatch = body.match(/^[—–-]+/);
+      if (dashMatch) body = body.slice(dashMatch[0].length);
     }
+    body = body.trim();
 
-    rest = rest.trim();
-
-    // Procura data pt-BR no resto. Tudo antes da data (incluindo o dia da data)
-    // é streams + dia. Streams é tudo que vem antes do dia da data.
-    const dateRe = /(\d{1,2})\s+de\s+([a-zç]{3,})\.?\s+de\s+(\d{4})/i;
-    const dateMatch = rest.match(dateRe);
-
+    // Tenta achar data; se houver, separa: streams = antes da data, próx-pos = depois
     let streams = 0;
     let added_at: string | null = null;
     let added_at_raw: string | null = null;
+    let nextPosOverride: number | null = null;
+
+    const dateRe = /(\d{1,2})\s+de\s+([a-zç]{3,})\.?\s+de\s+(\d{4})/i;
+    const dateMatch = body.match(dateRe);
 
     if (dateMatch && typeof dateMatch.index === "number") {
-      const beforeDate = rest.slice(0, dateMatch.index);
+      const beforeDate = body.slice(0, dateMatch.index);
       streams = parsePtNumber(beforeDate);
       added_at_raw = dateMatch[0];
       added_at = parsePtDate(dateMatch[0]);
+      const afterDate = body.slice(dateMatch.index + dateMatch[0].length).trim();
+      // O que sobra depois da data deve ser a próxima posição (1-3 dígitos)
+      const nextPosMatch = afterDate.match(/^(\d{1,3})/);
+      if (nextPosMatch) {
+        nextPosOverride = parseInt(nextPosMatch[1], 10);
+      }
     } else {
-      streams = parsePtNumber(rest);
+      // Sem data: separa streams (X.YYY.ZZZ ou X.YYY ou XYZ) da próxima posição
+      // Usa a regra do separador de milhar pt-BR: streams sempre termina em
+      // grupos de 3 dígitos após o último ponto. Se há ponto: streams = parte
+      // que termina em "." + 3 dígitos. O resto é próxima pos.
+      const lastDot = body.lastIndexOf(".");
+      if (lastDot >= 0) {
+        // Pega 3 dígitos após o último ponto como fim dos streams
+        const after = body.slice(lastDot + 1);
+        const m3 = after.match(/^(\d{3})(\d{1,3})?$/);
+        if (m3) {
+          // streams completo = body até lastDot+1+3, próx pos = resto
+          const streamsStr = body.slice(0, lastDot + 1 + 3);
+          streams = parsePtNumber(streamsStr);
+          if (m3[2]) nextPosOverride = parseInt(m3[2], 10);
+        } else {
+          // fallback: streams = tudo
+          streams = parsePtNumber(body);
+        }
+      } else {
+        // Sem ponto: tudo numérico junto. Difícil separar. Heurística:
+        // se tem mais de 3 dígitos, últimos 1-2 podem ser próxima pos.
+        // Mas pra evitar erro, considera tudo como streams.
+        streams = parsePtNumber(body);
+      }
     }
 
     rows.push({
@@ -200,6 +235,18 @@ export function parseSpotifyForArtistsPaste(raw: string): {
       added_at,
       added_at_raw,
     });
+
+    // Se detectamos próxima posição grudada, "rebobina" o regex pra capturá-la
+    if (nextPosOverride !== null) {
+      // Encontra onde essa próxima pos começa no text (último número grudado
+      // no footer original). Reposiciona lastIndex.
+      const footerStart = match.index + match[0].length - footerRaw.length;
+      const nextPosStr = String(nextPosOverride);
+      const nextPosIdxInFooter = footerRaw.lastIndexOf(nextPosStr);
+      if (nextPosIdxInFooter >= 0) {
+        registroRe.lastIndex = footerStart + nextPosIdxInFooter - 1; // -1 pra incluir \n
+      }
+    }
   }
 
   return { rows, song_name, total_streams_period };
