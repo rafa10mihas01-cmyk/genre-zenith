@@ -37,6 +37,7 @@ import {
   type CuratorDealSong,
   type CuratorPlaylist,
   type CuratorMatchStatus,
+  type CuratorDealProgress,
 } from "@/lib/curatorDealsUtils";
 
 export interface DealHistorySheetProps {
@@ -45,6 +46,7 @@ export interface DealHistorySheetProps {
   songs?: CuratorDealSong[];
   allLogs: CuratorDealLog[];
   allPlaylists: CuratorPlaylist[];
+  progress?: CuratorDealProgress | null;
   onClose: () => void;
   onReload?: () => void;
 }
