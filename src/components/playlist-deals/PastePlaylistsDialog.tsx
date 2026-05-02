@@ -158,14 +158,23 @@ export function PastePlaylistsDialog({
     <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
       <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle className="font-medium text-base">
-            Colar dados do Spotify for Artists
-          </DialogTitle>
-          <DialogDescription className="text-sm text-muted-foreground">
-            Copie a tela "Playlists" da música no Spotify for Artists e cole aqui.
-            A IA extrai e classifica cada playlist (do curador, editorial, suspeita…).
-          </DialogDescription>
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-1.5 flex-1 min-w-0">
+              <DialogTitle className="font-medium text-base">
+                Colar dados do Spotify for Artists
+              </DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground">
+                Copie a tela "Playlists" da música no Spotify for Artists e cole aqui.
+                A IA extrai e classifica cada playlist (do curador, editorial, suspeita…).
+              </DialogDescription>
+            </div>
+            <DraftIndicator lastSavedAt={draft.lastSavedAt} className="mt-1 mr-6 shrink-0" />
+          </div>
         </DialogHeader>
+
+        {draft.hasDraft && !draftDecided && (
+          <DraftBanner onRestore={handleRestoreDraft} onDiscard={handleDiscardDraft} />
+        )}
 
         <div className="flex-1 overflow-hidden flex flex-col gap-4 min-h-0">
           <Textarea
