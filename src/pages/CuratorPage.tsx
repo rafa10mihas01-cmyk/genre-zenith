@@ -179,6 +179,8 @@ export default function CuratorPage() {
   const [importing, setImporting] = useState(false);
   const [baseOpen, setBaseOpen] = useState(false);
   const [curatorOpen, setCuratorOpen] = useState(true);
+  // Fase 5 — filtro por música (null = todas)
+  const [selectedSongId, setSelectedSongId] = useState<string | null>(null);
   // Tick a cada 60s pra atualizar o countdown do ciclo
   const [, setNowTick] = useState(0);
   useEffect(() => {
@@ -187,14 +189,32 @@ export default function CuratorPage() {
   }, []);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const hasMultipleSongs = songs.length > 1;
+  const selectedSong = useMemo(
+    () => (selectedSongId ? songs.find((s) => s.id === selectedSongId) ?? null : null),
+    [selectedSongId, songs],
+  );
+
+  // Playlists filtradas pela música selecionada (quando aplicável)
+  const visiblePlaylists = useMemo(() => {
+    if (!selectedSongId) return playlists;
+    return playlists.filter((p: any) => p.song_id === selectedSongId || !p.song_id);
+  }, [playlists, selectedSongId]);
+
   const basePlaylists = useMemo(
-    () => playlists.filter((p) => p.is_baseline),
-    [playlists],
+    () => visiblePlaylists.filter((p) => p.is_baseline),
+    [visiblePlaylists],
   );
   const curatorPlaylists = useMemo(
-    () => playlists.filter((p) => !p.is_baseline),
-    [playlists],
+    () => visiblePlaylists.filter((p) => !p.is_baseline),
+    [visiblePlaylists],
   );
+
+  // Logs filtrados pela música selecionada
+  const visibleLogs = useMemo(() => {
+    if (!selectedSongId) return logs;
+    return logs.filter((l) => l.song_id === selectedSongId);
+  }, [logs, selectedSongId]);
 
   const load = async () => {
     const publicToken = normalizePublicToken(token);
