@@ -121,6 +121,7 @@ export type BaselinePlaylistInput = {
 
 export function useCuratorDeals() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [deals, setDeals] = useState<CuratorDeal[]>([]);
   const [logs, setLogs] = useState<CuratorDealLog[]>([]);
   const [playlists, setPlaylists] = useState<CuratorPlaylist[]>([]);
@@ -128,7 +129,6 @@ export function useCuratorDeals() {
   const [alerts, setAlerts] = useState<CuratorFraudAlert[]>([]);
   const [curators, setCurators] = useState<Curator[]>([]);
   const [balances, setBalances] = useState<CuratorBalance[]>([]);
-  const [progressByDeal, setProgressByDeal] = useState<Record<string, CuratorDealProgress>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -141,7 +141,6 @@ export function useCuratorDeals() {
       setAlerts([]);
       setCurators([]);
       setBalances([]);
-      setProgressByDeal({});
       setLoading(false);
       return;
     }
@@ -177,7 +176,6 @@ export function useCuratorDeals() {
         setPlaylists([]);
         setSongs([]);
         setAlerts([]);
-        setProgressByDeal({});
       } else {
         const [logsRes, plRes, songsRes, alertsRes] = await Promise.all([
           supabase
@@ -210,21 +208,6 @@ export function useCuratorDeals() {
         setPlaylists((plRes.data ?? []) as CuratorPlaylist[]);
         setSongs((songsRes.data ?? []) as CuratorDealSong[]);
         setAlerts((alertsRes.data ?? []) as CuratorFraudAlert[]);
-
-        // Progresso oficial via RPC (snapshots = fonte única). Em paralelo.
-        const progressResults = await Promise.all(
-          dealIds.map((id) =>
-            supabase.rpc("get_curator_deal_progress", { p_deal_id: id })
-              .then((r) => ({ id, data: r.data, error: r.error })),
-          ),
-        );
-        const progressMap: Record<string, CuratorDealProgress> = {};
-        for (const r of progressResults) {
-          if (!r.error && r.data) {
-            progressMap[r.id] = r.data as CuratorDealProgress;
-          }
-        }
-        setProgressByDeal(progressMap);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -236,6 +219,70 @@ export function useCuratorDeals() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // ============================================================
+  // FASE 6 — Progresso via TanStack Query (cache + realtime)
+  // ============================================================
+  const dealIds = useMemo(() => deals.map((d) => d.id), [deals]);
+
+  const progressQueries = useQueries({
+    queries: dealIds.map((id) => ({
+      queryKey: ["curator-progress", id] as const,
+      queryFn: async (): Promise<CuratorDealProgress | null> => {
+        const { data, error: rpcErr } = await supabase.rpc(
+          "get_curator_deal_progress",
+          { p_deal_id: id },
+        );
+        if (rpcErr) throw rpcErr;
+        return (data ?? null) as CuratorDealProgress | null;
+      },
+      staleTime: 30_000,
+      gcTime: 5 * 60_000,
+      refetchOnWindowFocus: false,
+    })),
+  });
+
+  const progressByDeal = useMemo(() => {
+    const map: Record<string, CuratorDealProgress> = {};
+    progressQueries.forEach((q, i) => {
+      const id = dealIds[i];
+      if (id && q.data) map[id] = q.data as CuratorDealProgress;
+    });
+    return map;
+  }, [progressQueries, dealIds]);
+
+  // Realtime: invalida cache quando snapshots mudam
+  useEffect(() => {
+    if (!user || dealIds.length === 0) return;
+    const channel = supabase
+      .channel(`curator-snapshots-${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "curator_deal_snapshots" },
+        (payload) => {
+          const row = (payload.new ?? payload.old) as { deal_id?: string } | null;
+          const dealId = row?.deal_id;
+          if (dealId && dealIds.includes(dealId)) {
+            queryClient.invalidateQueries({ queryKey: ["curator-progress", dealId] });
+          }
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, dealIds, queryClient]);
+
+  const invalidateProgress = useCallback(
+    (dealId?: string) => {
+      if (dealId) {
+        queryClient.invalidateQueries({ queryKey: ["curator-progress", dealId] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["curator-progress"] });
+      }
+    },
+    [queryClient],
+  );
 
   // ============================================================
   // FASE 1 — CRUD de Curadores (entidade global)
