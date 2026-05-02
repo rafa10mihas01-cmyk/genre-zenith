@@ -286,6 +286,7 @@ export default function PlaylistDeals() {
       <DealHistorySheet
         open={detailDeal !== null}
         deal={detailDeal}
+        songs={detailDeal ? songs.filter((s) => s.deal_id === detailDeal.id) : []}
         allLogs={logs}
         allPlaylists={playlists}
         onClose={() => setDetailDeal(null)}
