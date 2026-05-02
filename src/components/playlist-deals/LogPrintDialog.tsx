@@ -114,6 +114,7 @@ export function LogPrintDialog({
   songs = [],
   allLogs,
   allPlaylists,
+  progress,
   onClose,
   addLog,
   addBaseline,
