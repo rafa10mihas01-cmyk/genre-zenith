@@ -107,6 +107,7 @@ export function CuradoresTab({
   balances = [],
   alerts = [],
   loading,
+  progressByDeal = {},
   onUpdateCurator,
   onArchiveCurator,
 }: Props) {
