@@ -996,7 +996,7 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDe
                   return (
                     <div
                       key={idx}
-                      className="rounded-lg border border-border bg-muted/20 p-3 space-y-3"
+                      className="rounded-xl border border-border/60 bg-[hsl(var(--elevated))] p-4 space-y-3 shadow-sm hover:border-border/80 transition-colors"
                     >
                       <div className="flex items-start gap-2">
                         <div className="flex-1 grid grid-cols-1 sm:grid-cols-[1fr_120px_120px] gap-2">
