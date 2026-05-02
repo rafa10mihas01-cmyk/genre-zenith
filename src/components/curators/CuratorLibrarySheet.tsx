@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, ExternalLink, ListMusic, Trash2, Loader2, Music } from "lucide-react";
+import { Plus, ExternalLink, ListMusic, Trash2, Loader2, Music, AlertTriangle, TrendingUp, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
