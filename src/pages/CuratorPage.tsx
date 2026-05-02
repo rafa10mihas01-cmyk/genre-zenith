@@ -198,8 +198,12 @@ export default function CuratorPage() {
   const [url, setUrl] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [importing, setImporting] = useState(false);
-  const [baseOpen, setBaseOpen] = useState(false);
+  const [baseOpen, setBaseOpen] = useState(true);
   const [curatorOpen, setCuratorOpen] = useState(true);
+  // Modal: baseline playlists de uma música
+  const [baseSongModalId, setBaseSongModalId] = useState<string | null>(null);
+  // Modal: músicas da campanha presentes em uma playlist do curador
+  const [curatorPlaylistModalKey, setCuratorPlaylistModalKey] = useState<string | null>(null);
   // Fase 5 — filtro por música (null = todas)
   const [selectedSongId, setSelectedSongId] = useState<string | null>(null);
   // Log clicado no histórico (abre modal de detalhe)
