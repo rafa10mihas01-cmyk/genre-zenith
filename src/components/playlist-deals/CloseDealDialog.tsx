@@ -83,6 +83,7 @@ export function CloseDealDialog({
           songs,
           logs,
           playlists,
+          progress: progress ?? null,
           closeStatus: status,
           closeReason: reason.trim() || null,
         });
