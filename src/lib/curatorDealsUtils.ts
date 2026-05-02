@@ -230,12 +230,38 @@ export function computeCuratorStats(
   if (suspiciousShare >= 0.3) legitScore = Math.min(legitScore, 40);
   const score = Math.round(prazoScore * 0.6 + legitScore * 0.4);
 
+  // === Override do RPC (fonte oficial: snapshots) ===
+  // Se a página passou progressOverride, sobrescrevemos earned/pct/latestPlays/vel/eta.
+  // Mantemos qualidade (legitShare/suspiciousShare/onTime/score) calculados localmente
+  // a partir das playlists (snapshots não classificam fonte).
+  let earnedFinal = earned;
+  let pctFinal = pct;
+  let latestPlaysFinal = latestPlays;
+  let velFinal = vel;
+  let etaFinal = eta;
+  if (progressOverride) {
+    const delivered = Number(progressOverride.delivered_curator ?? 0);
+    const latest = Number(progressOverride.latest_total ?? 0);
+    const dailyAvg = Number(progressOverride.daily_avg ?? 0);
+    const pctRpc = progressOverride.progress_pct;
+    const etaRpc = progressOverride.eta_days;
+    earnedFinal = Math.max(0, delivered);
+    latestPlaysFinal = latest > 0 ? latest : latestPlays;
+    pctFinal = pctRpc != null ? Math.min(100, Math.round(Number(pctRpc))) :
+      (target > 0 ? Math.min(100, Math.round((earnedFinal / target) * 100)) : 0);
+    velFinal = dailyAvg > 0 ? dailyAvg : null;
+    etaFinal = etaRpc != null ? Number(etaRpc) : (
+      target > 0 && earnedFinal >= target ? 0 :
+      (velFinal && velFinal > 0 ? Math.ceil(Math.max(0, target - earnedFinal) / velFinal) : null)
+    );
+  }
+
   return {
-    earned,
-    pct,
-    vel,
-    eta,
-    latestPlays,
+    earned: earnedFinal,
+    pct: pctFinal,
+    vel: velFinal,
+    eta: etaFinal,
+    latestPlays: latestPlaysFinal,
     todayPlays,
     todayPct,
     hasBaseline,
