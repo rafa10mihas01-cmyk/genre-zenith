@@ -8,6 +8,7 @@ import type {
   CuratorDealLog,
   CuratorPlaylist,
   CuratorDealSong,
+  CuratorDealProgress,
 } from "@/lib/curatorDealsUtils";
 
 export type CuratorFraudAlert = {
