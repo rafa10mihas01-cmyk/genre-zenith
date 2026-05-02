@@ -157,7 +157,7 @@ function songTarget(s: SongRow): number {
 // Componente
 // ============================================================
 export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDealDialogProps) {
-  const { addDeal, updateDeal, addCurator, curators, balances } = useCuratorDeals();
+  const { addDeal, updateDeal, addCurator, updateCurator, curators, balances } = useCuratorDeals();
   const isEdit = Boolean(editDeal);
 
   const [step, setStep] = useState<1 | 2>(1);
@@ -173,6 +173,13 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDe
   const [newCuratorContact, setNewCuratorContact] = useState("");
   const [newCuratorPlaysDigits, setNewCuratorPlaysDigits] = useState("");
   const [newCuratorCostDigits, setNewCuratorCostDigits] = useState("");
+
+  // Ajuste de saldo do curador existente (inline no passo 1)
+  // null = nenhum, "add" = comprar mais plays (soma), "edit" = editar saldo direto
+  const [balanceAction, setBalanceAction] = useState<null | "add" | "edit">(null);
+  const [balancePlaysDigits, setBalancePlaysDigits] = useState("");
+  const [balanceCostDigits, setBalanceCostDigits] = useState("");
+  const [savingBalance, setSavingBalance] = useState(false);
 
   const balanceById = useMemo(() => {
     const map = new Map<string, CuratorBalance>();
