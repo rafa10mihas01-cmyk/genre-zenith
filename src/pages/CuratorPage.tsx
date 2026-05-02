@@ -622,11 +622,20 @@ export default function CuratorPage() {
       {/* Container central global — mobile: full width, tablet: 900px, desktop: 1200px */}
       <div className="relative z-10 w-full max-w-[1200px] mx-auto px-5 sm:px-6 md:px-8">
         <div className="max-w-xl md:max-w-2xl mx-auto space-y-4 sm:space-y-5">
-        {/* Topbar — Logo + Tema + Sino de notificações */}
-        <div className="flex items-center justify-between pb-4 sm:pb-2">
-          <div className="w-9" aria-hidden />
-          <NexEngineLogo variant="auto" size={28} />
-          <div className="flex items-center gap-1">
+        {/* Topbar — Logo à esquerda, identidade da curadoria, ações à direita */}
+        <div className="flex items-center justify-between gap-3 py-3 border-b border-border/50">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <NexEngineLogo variant="mark" size={22} />
+            <div className="min-w-0 hidden sm:block">
+              <div className="text-[11px] font-semibold tracking-tight leading-none truncate">
+                {deal.curator_name}
+              </div>
+              <div className="text-[9px] uppercase tracking-[0.16em] text-muted-foreground/70 mt-1 leading-none">
+                Curadoria
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-0.5">
             <ThemeToggle />
             <CuratorNotificationsBell
               stats={{
