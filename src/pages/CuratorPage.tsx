@@ -83,6 +83,59 @@ function formatDate(iso: string | null): string {
   }
 }
 
+function formatShortDate(iso: string | Date | null): string {
+  if (!iso) return "—";
+  try {
+    const d = typeof iso === "string" ? new Date(iso) : iso;
+    return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
+  } catch {
+    return "—";
+  }
+}
+
+/**
+ * Ciclo de relatório: fecha toda segunda-feira às 17:00 (America/Sao_Paulo).
+ * cycleEnd(d): próxima segunda 17h estritamente futura a partir de d.
+ * cycleStart(d): última segunda 17h <= d (início do ciclo "vivo" agora).
+ *
+ * Implementação simples assumindo o relógio local do navegador. Para o
+ * curador (pt-BR / -03), isso bate com America/Sao_Paulo.
+ */
+function cycleEnd(from: Date = new Date()): Date {
+  const d = new Date(from);
+  // 1 = segunda
+  const dow = d.getDay();
+  // dias até a próxima segunda (1..7)
+  let daysAhead = (1 - dow + 7) % 7;
+  const candidate = new Date(d);
+  candidate.setHours(17, 0, 0, 0);
+  if (daysAhead === 0 && from.getTime() >= candidate.getTime()) {
+    daysAhead = 7;
+  }
+  candidate.setDate(candidate.getDate() + daysAhead);
+  candidate.setHours(17, 0, 0, 0);
+  return candidate;
+}
+
+function cycleStart(from: Date = new Date()): Date {
+  const end = cycleEnd(from);
+  const start = new Date(end);
+  start.setDate(start.getDate() - 7);
+  return start;
+}
+
+function formatCountdown(ms: number): string {
+  if (ms <= 0) return "agora";
+  const totalMin = Math.floor(ms / 60000);
+  const days = Math.floor(totalMin / (60 * 24));
+  const hours = Math.floor((totalMin % (60 * 24)) / 60);
+  if (days >= 1) return `${days}d ${hours}h`;
+  const mins = totalMin % 60;
+  if (hours >= 1) return `${hours}h ${mins}m`;
+  return `${mins}m`;
+}
+
+
 function normalizePublicToken(value?: string): string {
   return decodeURIComponent(value ?? "").trim();
 }
