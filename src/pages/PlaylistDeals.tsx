@@ -15,7 +15,6 @@ import { NewDealDialog } from "@/components/playlist-deals/NewDealDialog";
 import { LogPrintDialog } from "@/components/playlist-deals/LogPrintDialog";
 import { DealHistorySheet } from "@/components/playlist-deals/DealHistorySheet";
 import { CuradoresTab } from "@/components/playlist-deals/CuradoresTab";
-import { EditDealDialog } from "@/components/playlist-deals/EditDealDialog";
 
 type DealsTab = "active" | "done" | "all" | "curators";
 
