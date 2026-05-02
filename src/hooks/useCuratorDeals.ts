@@ -609,6 +609,7 @@ export function useCuratorDeals() {
     alerts,
     curators,
     balances,
+    progressByDeal,
     loading,
     error,
     // Curadores
