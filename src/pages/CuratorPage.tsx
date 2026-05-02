@@ -157,6 +157,12 @@ export default function CuratorPage() {
   const [importing, setImporting] = useState(false);
   const [baseOpen, setBaseOpen] = useState(false);
   const [curatorOpen, setCuratorOpen] = useState(true);
+  // Tick a cada 60s pra atualizar o countdown do ciclo
+  const [, setNowTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setNowTick((n) => n + 1), 60_000);
+    return () => clearInterval(id);
+  }, []);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const basePlaylists = useMemo(
