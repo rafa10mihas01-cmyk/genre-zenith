@@ -692,7 +692,7 @@ export default function CuratorPage() {
                 ) : (
                   <Upload className="h-4 w-4 mr-2" />
                 )}
-                Importar planilha
+                <span className="truncate">Importar</span>
               </Button>
               <Button
                 type="button"
@@ -702,7 +702,7 @@ export default function CuratorPage() {
                 disabled={importing}
               >
                 <Download className="h-4 w-4 mr-2" />
-                Baixar modelo
+                <span className="truncate">Baixar modelo</span>
               </Button>
             </div>
             <p className="text-[11px] text-muted-foreground text-center pt-1">
