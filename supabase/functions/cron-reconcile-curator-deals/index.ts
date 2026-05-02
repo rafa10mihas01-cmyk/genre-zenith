@@ -1,7 +1,6 @@
-// Cron: reconcilia deals ativos a partir de curator_deal_snapshots.
-// Fonte única de verdade: prints do Spotify for Artists enviados pelo admin.
-// Cada playlist tem N snapshots. Entrega real = soma das diferenças
-// (snapshot atual - snapshot anterior) por playlist NÃO-baseline.
+// Cron: reconcilia deals ativos usando a RPC `get_curator_deal_progress`
+// como ÚNICA fonte de verdade. Não recalcula nada manualmente — apenas
+// persiste o resultado oficial em curator_deals e dispara milestones.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
 
 const corsHeaders = {
@@ -10,72 +9,50 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-cron-secret",
 };
 
-type SnapshotRow = {
-  playlist_id: string;
-  plays: number;
-  captured_at: string;
-  is_baseline: boolean;
+type DealProgress = {
+  delivered_curator?: number | null;
+  delivered_total?: number | null;
+  progress_pct?: number | null;
+  eta_days?: number | null;
+  last_capture_at?: string | null;
 };
 
-function computeDeliveredFromSnapshots(snapshots: SnapshotRow[]): {
-  delivered: number;
-  latestCapturedAt: string | null;
-} {
-  if (!snapshots.length) return { delivered: 0, latestCapturedAt: null };
-
-  const byPlaylist = new Map<string, SnapshotRow[]>();
-  for (const s of snapshots) {
-    const arr = byPlaylist.get(s.playlist_id) ?? [];
-    arr.push(s);
-    byPlaylist.set(s.playlist_id, arr);
-  }
-
-  let delivered = 0;
-  let latest: string | null = null;
-  for (const [, list] of byPlaylist) {
-    list.sort((a, b) => new Date(a.captured_at).getTime() - new Date(b.captured_at).getTime());
-    for (let i = 1; i < list.length; i++) {
-      const prev = list[i - 1];
-      const curr = list[i];
-      // Apenas playlists não-baseline contam pra entrega do curador.
-      // Baseline = primeiro snapshot, não soma.
-      if (curr.is_baseline) continue;
-      const diff = Math.max(0, Number(curr.plays) - Number(prev.plays));
-      delivered += diff;
-      if (!latest || new Date(curr.captured_at).getTime() > new Date(latest).getTime()) {
-        latest = curr.captured_at;
-      }
-    }
-  }
-  return { delivered, latestCapturedAt: latest };
-}
-
 async function reconcileDeal(supabase: any, deal: any) {
-  const { data: snaps, error: snapErr } = await supabase
-    .from("curator_deal_snapshots")
-    .select("playlist_id, plays, captured_at, is_baseline")
-    .eq("deal_id", deal.id);
-  if (snapErr) throw snapErr;
+  // ÚNICA fonte de verdade: a mesma RPC que painel/CuratorPage consomem.
+  const { data: progress, error: rpcErr } = await supabase.rpc(
+    "get_curator_deal_progress",
+    { p_deal_id: deal.id },
+  );
+  if (rpcErr) throw rpcErr;
 
-  const { delivered, latestCapturedAt } = computeDeliveredFromSnapshots(snaps ?? []);
+  const p = (progress ?? {}) as DealProgress;
+  const delivered = Number(p.delivered_curator ?? 0);
+  const deliveredTotal = Number(p.delivered_total ?? 0);
+  const progressPct = p.progress_pct != null ? Number(p.progress_pct) : null;
+  const etaDays = p.eta_days != null ? Number(p.eta_days) : null;
+  const latestCapturedAt = p.last_capture_at ?? null;
 
-  // Apenas progresso/entrega (snapshots S4A). Não tocamos
-  // reconciled_streams_7d/28d — esses campos são legado de
-  // outra pipeline e ficam fora do escopo desta função.
-  await supabase
-    .from("curator_deals")
-    .update({
-      reconciled_total_plays: delivered,
-      last_reconciled_at: new Date().toISOString(),
-    })
-    .eq("id", deal.id);
+  // Atualiza somente os campos espelho. Sem cálculos próprios.
+  const updatePayload: Record<string, unknown> = {
+    reconciled_total_plays: delivered,
+    last_reconciled_at: new Date().toISOString(),
+  };
+  // Campos opcionais — só seta se existirem na tabela. Postgres ignora colunas
+  // inexistentes via PostgREST? Não — precisaríamos saber. Mantemos apenas
+  // reconciled_total_plays/last_reconciled_at, que sabemos existir. Os demais
+  // (progress_pct/eta_days/delivered_total) são derivados dinamicamente da RPC
+  // e não precisam ser materializados.
+
+  await supabase.from("curator_deals").update(updatePayload).eq("id", deal.id);
 
   const milestone = await checkDealMilestones(supabase, deal, delivered);
 
   return {
     deal_id: deal.id,
     delivered,
-    snapshots_count: snaps?.length ?? 0,
+    delivered_total: deliveredTotal,
+    progress_pct: progressPct,
+    eta_days: etaDays,
     latest_capture_at: latestCapturedAt,
     milestone,
   };
@@ -151,9 +128,12 @@ Deno.serve(async (req) => {
     );
 
     const cutoff = new Date(Date.now() - 7 * 86400000).toISOString();
+    // Apenas deals ATIVOS (não encerrados). Campanhas com closed_at != null
+    // ficam congeladas — o cron não toca mais nelas.
     const { data: deals, error } = await supabase
       .from("curator_deals")
-      .select("id, user_id, song_name, curator_name, started_at, ends_at, target_plays")
+      .select("id, user_id, song_name, curator_name, started_at, ends_at, target_plays, closed_at")
+      .is("closed_at", null)
       .or(`ends_at.is.null,ends_at.gte.${cutoff}`);
 
     if (error) throw error;
@@ -168,7 +148,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`[cron-reconcile] ${results.length} deals processados via snapshots`);
+    console.log(`[cron-reconcile] ${results.length} deals processados via RPC get_curator_deal_progress`);
 
     return new Response(
       JSON.stringify({ deals_processed: results.length, results }),
