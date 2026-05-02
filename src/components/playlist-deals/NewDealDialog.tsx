@@ -933,7 +933,7 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDe
                   </div>
                   <div>
                     <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                      Em deals
+                      Já em deals
                     </div>
                     <div className="text-sm font-bold tabular-nums">
                       {formatNumber(consumedNow)}
