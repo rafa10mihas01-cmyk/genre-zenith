@@ -218,6 +218,18 @@ export default function CuratorPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const hasMultipleSongs = songs.length > 1;
+
+  // Resolve a Spotify URL com segurança: usa spotify_url quando presente,
+  // senão deriva de spotify_playlist_id. Retorna null quando não dá pra abrir.
+  const resolveSpotifyPlaylistUrl = (
+    p: { spotify_url?: string | null; spotify_playlist_id?: string | null },
+  ): string | null => {
+    const raw = (p.spotify_url ?? "").trim();
+    if (raw && /^https?:\/\//i.test(raw)) return raw;
+    const id = (p.spotify_playlist_id ?? "").trim();
+    if (id) return `https://open.spotify.com/playlist/${id}`;
+    return null;
+  };
   const selectedSong = useMemo(
     () => (selectedSongId ? songs.find((s) => s.id === selectedSongId) ?? null : null),
     [selectedSongId, songs],
@@ -1340,40 +1352,48 @@ export default function CuratorPage() {
               </DialogDescription>
             </DialogHeader>
             <div className="flex flex-col gap-1.5 overflow-y-auto pr-1 -mr-1 pb-2">
-              {baseModalGroup?.playlists.map((p) => (
-                <a
-                  key={p.id}
-                  href={p.spotify_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="group nx-subcard-hover flex items-center gap-3 p-2.5"
-                >
-                  <div className="relative w-11 h-11 rounded-md overflow-hidden bg-muted/60 ring-1 ring-border/40 shrink-0">
-                    {p.image_url ? (
-                      <img
-                        src={p.image_url}
-                        alt={p.playlist_name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <ListMusic className="h-4 w-4 text-muted-foreground" />
-                      </div>
+              {baseModalGroup?.playlists.map((p) => {
+                const url = resolveSpotifyPlaylistUrl(p);
+                const Tag: any = url ? "a" : "div";
+                const linkProps = url
+                  ? { href: url, target: "_blank", rel: "noreferrer" }
+                  : { "aria-disabled": true };
+                return (
+                  <Tag
+                    key={p.id}
+                    {...linkProps}
+                    className={cn(
+                      "group nx-subcard-hover flex items-center gap-3 p-2.5",
+                      !url && "opacity-60 cursor-not-allowed",
                     )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-[13px] font-medium leading-tight truncate group-hover:text-primary transition-colors">
-                      {p.playlist_name}
+                  >
+                    <div className="relative w-11 h-11 rounded-md overflow-hidden bg-muted/60 ring-1 ring-border/40 shrink-0">
+                      {p.image_url ? (
+                        <img
+                          src={p.image_url}
+                          alt={p.playlist_name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <ListMusic className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                      )}
                     </div>
-                    {p.followers !== null && (
-                      <div className="text-[11px] text-muted-foreground mt-0.5 tabular-nums">
-                        {formatPlays(p.followers)} seguidores
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[13px] font-medium leading-tight truncate group-hover:text-primary transition-colors">
+                        {p.playlist_name}
                       </div>
-                    )}
-                  </div>
-                  <ExternalLink className="h-3.5 w-3.5 text-muted-foreground/60 group-hover:text-primary transition-colors shrink-0" />
-                </a>
-              ))}
+                      {p.followers !== null && (
+                        <div className="text-[11px] text-muted-foreground mt-0.5 tabular-nums">
+                          {formatPlays(p.followers)} seguidores
+                        </div>
+                      )}
+                    </div>
+                    <ExternalLink className="h-3.5 w-3.5 text-muted-foreground/60 group-hover:text-primary transition-colors shrink-0" />
+                  </Tag>
+                );
+              })}
               {baseModalGroup && baseModalGroup.playlists.length === 0 && (
                 <div className="py-8 text-center text-[12px] text-muted-foreground">
                   Nenhuma playlist registrada para esta música.
@@ -1435,16 +1455,22 @@ export default function CuratorPage() {
                 </div>
               )}
             </div>
-            {curatorModalGroup?.sample.spotify_url && (
-              <a
-                href={curatorModalGroup.sample.spotify_url}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center justify-center gap-1.5 text-[12px] text-primary hover:underline mt-2"
-              >
-                Abrir no Spotify <ExternalLink className="h-3 w-3" />
-              </a>
-            )}
+            {(() => {
+              const url = curatorModalGroup?.sample
+                ? resolveSpotifyPlaylistUrl(curatorModalGroup.sample)
+                : null;
+              if (!url) return null;
+              return (
+                <a
+                  href={url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center justify-center gap-1.5 text-[12px] text-primary hover:underline mt-2"
+                >
+                  Abrir no Spotify <ExternalLink className="h-3 w-3" />
+                </a>
+              );
+            })()}
           </DialogContent>
         </Dialog>
 
