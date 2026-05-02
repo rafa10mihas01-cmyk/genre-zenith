@@ -1491,7 +1491,13 @@ export default function CuratorPage() {
               </p>
             </div>
             {hasMultipleSongs && (
-              <div className="grid grid-cols-1 gap-2">
+              <div
+                className={cn(
+                  "grid grid-cols-1 gap-2",
+                  songs.length > 2 &&
+                    "max-h-[128px] overflow-y-auto pr-1 -mr-1 [scrollbar-width:thin]",
+                )}
+              >
                 {songs.map((s) => {
                   const isSelected = selectedSongId === s.id;
                   return (
