@@ -499,6 +499,66 @@ export type Database = {
         }
         Relationships: []
       }
+      curator_playlist_library: {
+        Row: {
+          created_at: string
+          curator_id: string
+          first_seen_at: string
+          followers: number | null
+          id: string
+          image_url: string | null
+          last_used_at: string | null
+          notes: string | null
+          playlist_name: string
+          spotify_owner_id: string | null
+          spotify_owner_name: string | null
+          spotify_playlist_id: string | null
+          spotify_url: string
+          status: string
+          times_used: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          curator_id: string
+          first_seen_at?: string
+          followers?: number | null
+          id?: string
+          image_url?: string | null
+          last_used_at?: string | null
+          notes?: string | null
+          playlist_name: string
+          spotify_owner_id?: string | null
+          spotify_owner_name?: string | null
+          spotify_playlist_id?: string | null
+          spotify_url: string
+          status?: string
+          times_used?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          curator_id?: string
+          first_seen_at?: string
+          followers?: number | null
+          id?: string
+          image_url?: string | null
+          last_used_at?: string | null
+          notes?: string | null
+          playlist_name?: string
+          spotify_owner_id?: string | null
+          spotify_owner_name?: string | null
+          spotify_playlist_id?: string | null
+          spotify_url?: string
+          status?: string
+          times_used?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       curator_playlists: {
         Row: {
           added_at: string
@@ -1898,6 +1958,24 @@ export type Database = {
       }
     }
     Views: {
+      curator_playlist_library_stats: {
+        Row: {
+          avg_streams_per_deal: number | null
+          curator_id: string | null
+          deals_count: number | null
+          followers: number | null
+          image_url: string | null
+          last_used_at: string | null
+          library_id: string | null
+          playlist_name: string | null
+          spotify_url: string | null
+          status: string | null
+          total_streams_7d: number | null
+          total_streams_lifetime: number | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
       genres_with_health: {
         Row: {
           ativo: boolean | null
@@ -1996,6 +2074,7 @@ export type Database = {
           expired_ids: string[]
         }[]
       }
+      extract_spotify_playlist_id: { Args: { p_url: string }; Returns: string }
       generate_curator_deal_slug: {
         Args: { p_curator: string; p_id: string; p_song: string }
         Returns: string
