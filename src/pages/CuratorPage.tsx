@@ -23,6 +23,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { NexEngineLogo } from "@/components/NexEngineLogo";
@@ -191,8 +198,12 @@ export default function CuratorPage() {
   const [url, setUrl] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [importing, setImporting] = useState(false);
-  const [baseOpen, setBaseOpen] = useState(false);
+  const [baseOpen, setBaseOpen] = useState(true);
   const [curatorOpen, setCuratorOpen] = useState(true);
+  // Modal: baseline playlists de uma música
+  const [baseSongModalId, setBaseSongModalId] = useState<string | null>(null);
+  // Modal: músicas da campanha presentes em uma playlist do curador
+  const [curatorPlaylistModalKey, setCuratorPlaylistModalKey] = useState<string | null>(null);
   // Fase 5 — filtro por música (null = todas)
   const [selectedSongId, setSelectedSongId] = useState<string | null>(null);
   // Log clicado no histórico (abre modal de detalhe)
@@ -224,6 +235,60 @@ export default function CuratorPage() {
   const curatorPlaylists = useMemo(
     () => visiblePlaylists.filter((p) => !p.is_baseline),
     [visiblePlaylists],
+  );
+
+  // Agrupamento baseline: 1 card por música, com as playlists onde ela já está
+  const baseGroupedBySong = useMemo(() => {
+    // usa `playlists` (não filtrado) para mostrar todas as músicas
+    const baseAll = playlists.filter((p) => p.is_baseline);
+    const groups = new Map<string, { song: DealSong | null; deal: boolean; playlists: Playlist[] }>();
+    for (const p of baseAll) {
+      const key = p.song_id ?? "__deal__";
+      if (!groups.has(key)) {
+        const song = p.song_id ? songs.find((s) => s.id === p.song_id) ?? null : null;
+        groups.set(key, { song, deal: !p.song_id, playlists: [] });
+      }
+      groups.get(key)!.playlists.push(p);
+    }
+    // garante todas as músicas da campanha apareçam mesmo sem baseline
+    for (const s of songs) {
+      if (!groups.has(s.id)) groups.set(s.id, { song: s, deal: false, playlists: [] });
+    }
+    return Array.from(groups.entries()).map(([key, v]) => ({ key, ...v }));
+  }, [playlists, songs]);
+
+  // Agrupamento curador: 1 card por playlist única, com as músicas que já estão nela (baseline)
+  const curatorGroupedByPlaylist = useMemo(() => {
+    const groups = new Map<
+      string,
+      { key: string; sample: Playlist; songsInside: DealSong[] }
+    >();
+    for (const p of curatorPlaylists) {
+      const key = p.spotify_playlist_id || p.spotify_url || p.id;
+      if (!groups.has(key)) {
+        groups.set(key, { key, sample: p, songsInside: [] });
+      }
+    }
+    // para cada playlist do curador, descobre quais músicas da campanha já estão nela (via baseline match por spotify_playlist_id)
+    const baseAll = playlists.filter((p) => p.is_baseline);
+    for (const [key, g] of groups) {
+      const pid = g.sample.spotify_playlist_id;
+      if (!pid) continue;
+      const matchedSongIds = new Set(
+        baseAll.filter((b) => b.spotify_playlist_id === pid).map((b) => b.song_id).filter(Boolean) as string[],
+      );
+      g.songsInside = songs.filter((s) => matchedSongIds.has(s.id));
+    }
+    return Array.from(groups.values());
+  }, [curatorPlaylists, playlists, songs]);
+
+  const baseModalGroup = useMemo(
+    () => baseGroupedBySong.find((g) => g.key === baseSongModalId) ?? null,
+    [baseGroupedBySong, baseSongModalId],
+  );
+  const curatorModalGroup = useMemo(
+    () => curatorGroupedByPlaylist.find((g) => g.key === curatorPlaylistModalKey) ?? null,
+    [curatorGroupedByPlaylist, curatorPlaylistModalKey],
   );
 
   // Logs filtrados pela música selecionada
@@ -1068,8 +1133,8 @@ export default function CuratorPage() {
           </CardContent>
         </Card>
 
-        {/* Playlists onde a música já está (baseline / pré-existentes) — colapsável */}
-        {basePlaylists.length > 0 && (
+        {/* Playlists onde a música já está — agrupadas por música (1 card por música) */}
+        {baseGroupedBySong.length > 0 && (
           <Card className="nx-card !p-0 border-border">
             <CardContent className="p-5 sm:p-6 space-y-4">
               <button
@@ -1081,14 +1146,14 @@ export default function CuratorPage() {
                 <div className="min-w-0 flex-1">
                   <h2 className="text-[14px] font-semibold inline-flex items-center gap-2 tracking-tight">
                     <ListMusic className="h-3.5 w-3.5 text-muted-foreground" />
-                    Playlists em que a música já está
+                    Playlists em que as músicas já estão
                   </h2>
                   <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
-                    Presença atual da faixa no catálogo
+                    Clique em uma música para ver as playlists de origem
                   </p>
                 </div>
                 <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground shrink-0">
-                  {basePlaylists.length} {basePlaylists.length === 1 ? "playlist" : "playlists"}
+                  {baseGroupedBySong.length} {baseGroupedBySong.length === 1 ? "música" : "músicas"}
                   <ChevronDown
                     className={cn(
                       "h-3.5 w-3.5 transition-transform duration-200",
@@ -1099,41 +1164,49 @@ export default function CuratorPage() {
               </button>
 
               {baseOpen && (
-                <div className="grid grid-cols-2 gap-2.5 max-h-[60vh] sm:max-h-[420px] overflow-y-auto pr-1 -mr-1 scroll-smooth [mask-image:linear-gradient(to_bottom,black_calc(100%-32px),transparent)]">
-                  {basePlaylists.map((p) => (
-                    <a
-                      key={p.id}
-                      href={p.spotify_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="group nx-subcard-hover flex flex-col p-2.5"
-                    >
-                      <div className="relative w-full aspect-square rounded-lg overflow-hidden bg-muted/60 ring-1 ring-border/40 mb-2">
-                        {p.image_url ? (
-                          <img
-                            src={p.image_url}
-                            alt={p.playlist_name}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <ListMusic className="h-5 w-5 text-muted-foreground" />
+                <div className="grid grid-cols-2 gap-3">
+                  {baseGroupedBySong.map((g) => {
+                    const cover = g.song?.song_cover_url ?? deal.song_cover_url;
+                    const name = g.song?.song_name ?? deal.song_name;
+                    const artist = g.song?.song_artist ?? deal.song_artist;
+                    return (
+                      <button
+                        key={g.key}
+                        type="button"
+                        onClick={() => setBaseSongModalId(g.key)}
+                        className="group nx-subcard-hover flex flex-col p-3 text-left"
+                      >
+                        <div className="relative w-full aspect-square rounded-lg overflow-hidden bg-muted/60 ring-1 ring-border/40 mb-3">
+                          {cover ? (
+                            <img
+                              src={cover}
+                              alt={name}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Music2 className="h-6 w-6 text-muted-foreground" />
+                            </div>
+                          )}
+                          <span className="absolute top-2 left-2 text-[9px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-background/85 backdrop-blur text-foreground/80 ring-1 ring-border/60">
+                            {g.playlists.length} {g.playlists.length === 1 ? "playlist" : "playlists"}
+                          </span>
+                        </div>
+                        <div className="text-[13px] font-semibold leading-tight line-clamp-1 group-hover:text-primary transition-colors">
+                          {name}
+                        </div>
+                        {artist && (
+                          <div className="text-[11px] text-muted-foreground mt-0.5 line-clamp-1">
+                            {artist}
                           </div>
                         )}
-                        <span className="absolute top-1.5 left-1.5 text-[9px] font-medium uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-background/80 backdrop-blur text-muted-foreground ring-1 ring-border/50">
-                          Inicial
-                        </span>
-                      </div>
-                      <div className="text-[12px] font-medium leading-tight line-clamp-2 group-hover:text-primary transition-colors">
-                        {p.playlist_name}
-                      </div>
-                      {p.followers !== null && (
-                        <div className="text-[10px] text-muted-foreground mt-0.5 tabular-nums">
-                          {formatPlays(p.followers)} seguidores
+                        <div className="mt-2 inline-flex items-center gap-1 text-[10px] text-muted-foreground/80 group-hover:text-primary/80 transition-colors">
+                          Ver playlists
+                          <ChevronRight className="h-3 w-3" />
                         </div>
-                      )}
-                    </a>
-                  ))}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
@@ -1155,11 +1228,11 @@ export default function CuratorPage() {
                   Suas playlists adicionadas
                 </h2>
                 <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
-                  Apenas as que você incluiu nesta curadoria
+                  Clique em uma playlist para ver quais músicas da campanha já estão nela
                 </p>
               </div>
               <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground shrink-0">
-                {curatorPlaylists.length} {curatorPlaylists.length === 1 ? "playlist" : "playlists"}
+                {curatorGroupedByPlaylist.length} {curatorGroupedByPlaylist.length === 1 ? "playlist" : "playlists"}
                 <ChevronDown
                   className={cn(
                     "h-3.5 w-3.5 transition-transform duration-200",
@@ -1170,7 +1243,7 @@ export default function CuratorPage() {
             </button>
 
             {curatorOpen && (
-              curatorPlaylists.length === 0 ? (
+              curatorGroupedByPlaylist.length === 0 ? (
                 <div className="py-6 flex flex-col items-center text-center gap-3">
                   <div className="h-10 w-10 rounded-xl bg-[hsl(var(--elevated))] border border-border/60 flex items-center justify-center">
                     <ListMusic className="h-4 w-4 text-muted-foreground" />
@@ -1180,46 +1253,186 @@ export default function CuratorPage() {
                   </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 gap-2.5 max-h-[60vh] sm:max-h-[420px] overflow-y-auto pr-1 -mr-1 scroll-smooth [mask-image:linear-gradient(to_bottom,black_calc(100%-32px),transparent)]">
-                  {curatorPlaylists.map((p) => (
-                    <a
-                      key={p.id}
-                      href={p.spotify_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="group nx-subcard-hover flex flex-col p-2.5 hover:!border-primary/30"
-                    >
-                      <div className="relative w-full aspect-square rounded-lg overflow-hidden bg-primary/10 ring-1 ring-primary/20 mb-2">
-                        {p.image_url ? (
-                          <img
-                            src={p.image_url}
-                            alt={p.playlist_name}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <ListMusic className="h-5 w-5 text-primary" />
+                <div className="grid grid-cols-2 gap-3 max-h-[60vh] sm:max-h-[480px] overflow-y-auto pr-1 -mr-1 scroll-smooth [mask-image:linear-gradient(to_bottom,black_calc(100%-32px),transparent)]">
+                  {curatorGroupedByPlaylist.map((g) => {
+                    const p = g.sample;
+                    return (
+                      <button
+                        key={g.key}
+                        type="button"
+                        onClick={() => setCuratorPlaylistModalKey(g.key)}
+                        className="group nx-subcard-hover flex flex-col p-3 text-left hover:!border-primary/30"
+                      >
+                        <div className="relative w-full aspect-square rounded-lg overflow-hidden bg-primary/10 ring-1 ring-primary/20 mb-3">
+                          {p.image_url ? (
+                            <img
+                              src={p.image_url}
+                              alt={p.playlist_name}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <ListMusic className="h-5 w-5 text-primary" />
+                            </div>
+                          )}
+                          <span className="absolute top-2 left-2 text-[9px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/90 text-primary-foreground">
+                            Curador
+                          </span>
+                          {g.songsInside.length > 0 && (
+                            <span className="absolute bottom-2 right-2 text-[9px] font-semibold px-2 py-0.5 rounded-full bg-background/85 backdrop-blur text-foreground/80 ring-1 ring-border/60">
+                              {g.songsInside.length} já dentro
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[12px] font-medium leading-tight line-clamp-2 group-hover:text-primary transition-colors">
+                          {p.playlist_name}
+                        </div>
+                        {p.followers !== null && (
+                          <div className="text-[10px] text-muted-foreground mt-0.5 tabular-nums">
+                            {formatPlays(p.followers)} seguidores
                           </div>
                         )}
-                        <span className="absolute top-1.5 left-1.5 text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-primary/90 text-primary-foreground">
-                          Curador
-                        </span>
-                      </div>
-                      <div className="text-[12px] font-medium leading-tight line-clamp-2 group-hover:text-primary transition-colors">
-                        {p.playlist_name}
-                      </div>
-                      {p.followers !== null && (
-                        <div className="text-[10px] text-muted-foreground mt-0.5 tabular-nums">
-                          {formatPlays(p.followers)} seguidores
-                        </div>
-                      )}
-                    </a>
-                  ))}
+                      </button>
+                    );
+                  })}
                 </div>
               )
             )}
           </CardContent>
         </Card>
+
+        {/* Modal: playlists baseline de uma música */}
+        <Dialog open={!!baseSongModalId} onOpenChange={(o) => !o && setBaseSongModalId(null)}>
+          <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-3">
+                {baseModalGroup?.song?.song_cover_url && (
+                  <img
+                    src={baseModalGroup.song.song_cover_url}
+                    alt=""
+                    className="w-10 h-10 rounded-lg object-cover ring-1 ring-border"
+                  />
+                )}
+                <div className="min-w-0">
+                  <div className="text-[15px] font-semibold leading-tight truncate">
+                    {baseModalGroup?.song?.song_name ?? deal.song_name}
+                  </div>
+                  {(baseModalGroup?.song?.song_artist ?? deal.song_artist) && (
+                    <div className="text-[12px] font-normal text-muted-foreground truncate">
+                      {baseModalGroup?.song?.song_artist ?? deal.song_artist}
+                    </div>
+                  )}
+                </div>
+              </DialogTitle>
+              <DialogDescription>
+                {baseModalGroup?.playlists.length ?? 0} playlists em que a música já está antes da campanha
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 overflow-y-auto pr-1 -mr-1 pb-2">
+              {baseModalGroup?.playlists.map((p) => (
+                <a
+                  key={p.id}
+                  href={p.spotify_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="group nx-subcard-hover flex flex-col p-2.5"
+                >
+                  <div className="relative w-full aspect-square rounded-lg overflow-hidden bg-muted/60 ring-1 ring-border/40 mb-2">
+                    {p.image_url ? (
+                      <img
+                        src={p.image_url}
+                        alt={p.playlist_name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <ListMusic className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="text-[12px] font-medium leading-tight line-clamp-2">
+                    {p.playlist_name}
+                  </div>
+                  {p.followers !== null && (
+                    <div className="text-[10px] text-muted-foreground mt-0.5 tabular-nums">
+                      {formatPlays(p.followers)} seguidores
+                    </div>
+                  )}
+                </a>
+              ))}
+              {baseModalGroup && baseModalGroup.playlists.length === 0 && (
+                <div className="col-span-full py-8 text-center text-[12px] text-muted-foreground">
+                  Nenhuma playlist registrada para esta música.
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Modal: músicas da campanha já presentes em uma playlist do curador */}
+        <Dialog open={!!curatorPlaylistModalKey} onOpenChange={(o) => !o && setCuratorPlaylistModalKey(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-3">
+                {curatorModalGroup?.sample.image_url && (
+                  <img
+                    src={curatorModalGroup.sample.image_url}
+                    alt=""
+                    className="w-10 h-10 rounded-lg object-cover ring-1 ring-border"
+                  />
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="text-[15px] font-semibold leading-tight truncate">
+                    {curatorModalGroup?.sample.playlist_name}
+                  </div>
+                  {curatorModalGroup?.sample.followers !== null && curatorModalGroup?.sample.followers !== undefined && (
+                    <div className="text-[11px] font-normal text-muted-foreground">
+                      {formatPlays(curatorModalGroup.sample.followers)} seguidores
+                    </div>
+                  )}
+                </div>
+              </DialogTitle>
+              <DialogDescription>
+                Músicas da campanha já presentes nesta playlist antes do início
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2">
+              {curatorModalGroup?.songsInside.length ? (
+                curatorModalGroup.songsInside.map((s) => (
+                  <div key={s.id} className="nx-subcard-hover flex items-center gap-3 p-2.5">
+                    {s.song_cover_url ? (
+                      <img src={s.song_cover_url} alt="" className="w-10 h-10 rounded-md object-cover ring-1 ring-border" />
+                    ) : (
+                      <div className="w-10 h-10 rounded-md bg-muted flex items-center justify-center">
+                        <Music2 className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[13px] font-medium leading-tight truncate">{s.song_name}</div>
+                      {s.song_artist && (
+                        <div className="text-[11px] text-muted-foreground truncate">{s.song_artist}</div>
+                      )}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="py-6 text-center text-[12px] text-muted-foreground">
+                  Nenhuma música da campanha estava nesta playlist antes do início.
+                </div>
+              )}
+            </div>
+            {curatorModalGroup?.sample.spotify_url && (
+              <a
+                href={curatorModalGroup.sample.spotify_url}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center justify-center gap-1.5 text-[12px] text-primary hover:underline mt-2"
+              >
+                Abrir no Spotify <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
+          </DialogContent>
+        </Dialog>
 
         {/* Adicionar playlist — bloco de ação principal */}
         <Card className="nx-card !p-0 border-border">
