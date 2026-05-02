@@ -57,11 +57,15 @@ Deno.serve(async (req) => {
     if (!deal) return jr({ ok: false, error: "not found" }, 200);
 
 
-    const [{ data: playlists, error: plErr }, { data: logs, error: logErr }] = await Promise.all([
+    const [
+      { data: playlists, error: plErr },
+      { data: logs, error: logErr },
+      { data: songs, error: songsErr },
+    ] = await Promise.all([
       admin
         .from("curator_playlists")
         .select(
-          "id, deal_id, spotify_url, playlist_name, followers, is_baseline, added_at, spotify_playlist_id, spotify_owner_id, spotify_owner_name, image_url, added_at_spotify, match_status, match_reason, streams_7d, streams_28d, streams_total, last_paste_at",
+          "id, deal_id, song_id, spotify_url, playlist_name, followers, is_baseline, added_at, spotify_playlist_id, spotify_owner_id, spotify_owner_name, image_url, added_at_spotify, match_status, match_reason, streams_7d, streams_28d, streams_total, last_paste_at",
         )
         .eq("deal_id", deal.id)
         // Curador vê: playlists do próprio (curator) + qualquer baseline (transparência sobre
@@ -71,15 +75,29 @@ Deno.serve(async (req) => {
         .order("added_at", { ascending: true }),
       admin
         .from("curator_deal_logs")
-        .select("id, deal_id, total_plays, note, is_baseline, created_at, print_urls")
+        .select("id, deal_id, song_id, total_plays, note, is_baseline, created_at, print_urls")
         .eq("deal_id", deal.id)
         .order("created_at", { ascending: true }),
+      admin
+        .from("curator_deal_songs")
+        .select(
+          "id, deal_id, song_spotify_url, spotify_track_id, song_name, song_artist, song_cover_url, daily_goal, target_plays, baseline_plays, position, started_at, ends_at, ramp_up_days, created_at",
+        )
+        .eq("deal_id", deal.id)
+        .order("position", { ascending: true }),
     ]);
 
     if (plErr) return jr({ ok: false, error: plErr.message }, 200);
     if (logErr) return jr({ ok: false, error: logErr.message }, 200);
+    if (songsErr) return jr({ ok: false, error: songsErr.message }, 200);
 
-    return jr({ ok: true, deal, playlists: playlists ?? [], logs: logs ?? [] });
+    return jr({
+      ok: true,
+      deal,
+      playlists: playlists ?? [],
+      logs: logs ?? [],
+      songs: songs ?? [],
+    });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return jr({ ok: false, error: msg }, 200);
