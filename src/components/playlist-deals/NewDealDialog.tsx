@@ -253,6 +253,7 @@ export function NewDealDialog({ open, onOpenChange }: NewDealDialogProps) {
         position: i + 1,
         started_at: s.started_at ? s.started_at.toISOString() : null,
         ends_at: s.ends_at ? s.ends_at.toISOString() : null,
+        ramp_up_days: s.ramp_up_days ? Math.max(0, Number(s.ramp_up_days)) : 5,
       }));
 
       // Janela do deal = menor início e maior fim entre as músicas
