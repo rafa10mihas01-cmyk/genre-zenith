@@ -553,7 +553,7 @@ export default function CuratorPage() {
       />
       {/* Container central global — mobile: full width, tablet: 900px, desktop: 1200px */}
       <div className="relative z-10 w-full max-w-[1200px] mx-auto px-5 sm:px-6 md:px-8">
-        <div className="max-w-xl md:max-w-2xl mx-auto space-y-7 sm:space-y-8">
+        <div className="max-w-xl md:max-w-2xl mx-auto space-y-4 sm:space-y-5">
         {/* Topbar — Logo + Tema + Sino de notificações */}
         <div className="flex items-center justify-between pb-4 sm:pb-2">
           <div className="w-9" aria-hidden />
