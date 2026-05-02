@@ -47,7 +47,7 @@ type DealRow = {
 type ProcessedItem = {
   url: string;
   playlist_id: string | null;
-  status: "ok" | "blocked" | "duplicate" | "invalid_url" | "not_found" | "error";
+  status: "ok" | "blocked" | "duplicate" | "track_already_present" | "invalid_url" | "not_found" | "error";
   match_status?: ClassifyResult["match_status"];
   match_reason?: string;
   meta?: SpotifyPlaylistMeta;
@@ -212,6 +212,10 @@ Deno.serve(async (req) => {
             item.match_status = cls.match_status;
             item.match_reason = cls.match_reason;
             item.track_presence = await checkTrackInPlaylist(pid, trackIdToCheck);
+            if (item.track_presence.found) {
+              item.status = "track_already_present";
+              return;
+            }
 
           } catch (e) {
             item.status = "error";
@@ -262,6 +266,7 @@ Deno.serve(async (req) => {
       inserted,
       blocked: items.filter((it) => it.status === "blocked").length,
       duplicate: items.filter((it) => it.status === "duplicate").length,
+      track_already_present: items.filter((it) => it.status === "track_already_present").length,
       invalid: items.filter((it) => it.status === "invalid_url").length,
       not_found: items.filter((it) => it.status === "not_found").length,
       error: items.filter((it) => it.status === "error").length,
