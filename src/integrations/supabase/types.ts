@@ -294,6 +294,8 @@ export type Database = {
           song_cover_url: string | null
           song_name: string
           song_spotify_url: string
+          spotify_owner_id: string | null
+          spotify_owner_url: string | null
           started_at: string
           target_plays: number
           user_id: string
@@ -311,6 +313,8 @@ export type Database = {
           song_cover_url?: string | null
           song_name: string
           song_spotify_url: string
+          spotify_owner_id?: string | null
+          spotify_owner_url?: string | null
           started_at?: string
           target_plays: number
           user_id: string
@@ -328,42 +332,131 @@ export type Database = {
           song_cover_url?: string | null
           song_name?: string
           song_spotify_url?: string
+          spotify_owner_id?: string | null
+          spotify_owner_url?: string | null
           started_at?: string
           target_plays?: number
           user_id?: string
         }
         Relationships: []
       }
+      curator_paste_imports: {
+        Row: {
+          baseline_count: number
+          created_at: string
+          curator_count: number
+          deal_id: string
+          editorial_count: number
+          id: string
+          imported_by: string | null
+          new_count: number
+          organic_count: number
+          parsed_count: number
+          raw_text: string
+          song_id: string | null
+          suspicious_count: number
+          total_streams_7d: number
+        }
+        Insert: {
+          baseline_count?: number
+          created_at?: string
+          curator_count?: number
+          deal_id: string
+          editorial_count?: number
+          id?: string
+          imported_by?: string | null
+          new_count?: number
+          organic_count?: number
+          parsed_count?: number
+          raw_text: string
+          song_id?: string | null
+          suspicious_count?: number
+          total_streams_7d?: number
+        }
+        Update: {
+          baseline_count?: number
+          created_at?: string
+          curator_count?: number
+          deal_id?: string
+          editorial_count?: number
+          id?: string
+          imported_by?: string | null
+          new_count?: number
+          organic_count?: number
+          parsed_count?: number
+          raw_text?: string
+          song_id?: string | null
+          suspicious_count?: number
+          total_streams_7d?: number
+        }
+        Relationships: []
+      }
       curator_playlists: {
         Row: {
           added_at: string
+          added_at_spotify: string | null
           deal_id: string
           followers: number | null
           id: string
+          image_url: string | null
           is_baseline: boolean
+          last_paste_at: string | null
+          match_reason: string | null
+          match_status: string
           playlist_name: string
+          position_in_paste: number | null
           song_id: string | null
+          spotify_owner_id: string | null
+          spotify_owner_name: string | null
+          spotify_playlist_id: string | null
           spotify_url: string
+          streams_28d: number
+          streams_7d: number
+          streams_total: number
         }
         Insert: {
           added_at?: string
+          added_at_spotify?: string | null
           deal_id: string
           followers?: number | null
           id?: string
+          image_url?: string | null
           is_baseline?: boolean
+          last_paste_at?: string | null
+          match_reason?: string | null
+          match_status?: string
           playlist_name: string
+          position_in_paste?: number | null
           song_id?: string | null
+          spotify_owner_id?: string | null
+          spotify_owner_name?: string | null
+          spotify_playlist_id?: string | null
           spotify_url: string
+          streams_28d?: number
+          streams_7d?: number
+          streams_total?: number
         }
         Update: {
           added_at?: string
+          added_at_spotify?: string | null
           deal_id?: string
           followers?: number | null
           id?: string
+          image_url?: string | null
           is_baseline?: boolean
+          last_paste_at?: string | null
+          match_reason?: string | null
+          match_status?: string
           playlist_name?: string
+          position_in_paste?: number | null
           song_id?: string | null
+          spotify_owner_id?: string | null
+          spotify_owner_name?: string | null
+          spotify_playlist_id?: string | null
           spotify_url?: string
+          streams_28d?: number
+          streams_7d?: number
+          streams_total?: number
         }
         Relationships: [
           {
