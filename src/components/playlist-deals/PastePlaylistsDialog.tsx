@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useFormDraft } from "@/hooks/useFormDraft";
+import { DraftBanner, DraftIndicator } from "@/components/forms/DraftBanner";
 import { Loader2, Sparkles, ClipboardPaste } from "lucide-react";
 import {
   Dialog,
