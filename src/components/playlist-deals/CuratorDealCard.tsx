@@ -119,6 +119,19 @@ export function CuratorDealCard({
           </Badge>
         </div>
 
+        {/* Banner de ramp-up (aquecimento) */}
+        {inRampUp && (
+          <div className="rounded-md border border-primary/30 bg-primary/10 px-2.5 py-1.5 flex items-center gap-1.5">
+            <Zap className="h-3.5 w-3.5 text-primary shrink-0" />
+            <span className="text-[11px] text-primary font-medium">
+              Em aquecimento — dia {rampDayLabel} de {rampUpDays}
+            </span>
+            <span className="text-[10px] text-muted-foreground ml-auto">
+              meta diária liberada após
+            </span>
+          </div>
+        )}
+
         {/* Música única (compacta) ou contador de músicas */}
         {!showSongList ? (
           <div className="flex items-center gap-2.5 min-w-0 rounded-lg bg-muted/30 ring-1 ring-border/40 px-2.5 py-2">
