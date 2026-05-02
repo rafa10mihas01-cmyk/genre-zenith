@@ -119,6 +119,27 @@ function formatCurrencyBRL(rawDigits: string): string {
     maximumFractionDigits: 2,
   });
 }
+function formatPlaysHint(n: number | undefined | null): string {
+  if (n == null || !Number.isFinite(n) || n <= 0) return "";
+  const fmt = (val: number) => {
+    const s = val.toFixed(1);
+    return s.endsWith(".0") ? s.slice(0, -2) : s.replace(".", ",");
+  };
+  if (n >= 1_000_000_000) {
+    const v = n / 1_000_000_000;
+    return `${fmt(v)} ${v === 1 ? "bilhão" : "bilhões"}`;
+  }
+  if (n >= 1_000_000) {
+    const v = n / 1_000_000;
+    return `${fmt(v)} ${v === 1 ? "milhão" : "milhões"}`;
+  }
+  if (n >= 1_000) {
+    const v = n / 1_000;
+    return `${fmt(v)} mil`;
+  }
+  return n.toLocaleString("pt-BR");
+}
+
 function currencyDigitsToNumber(rawDigits: string): number | undefined {
   if (!rawDigits) return undefined;
   const cents = parseInt(rawDigits, 10);
