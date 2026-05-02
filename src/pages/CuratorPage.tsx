@@ -13,6 +13,7 @@ import {
   ChevronDown,
   ChevronRight,
   Music2,
+  CalendarDays,
 } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
@@ -803,6 +804,13 @@ export default function CuratorPage() {
                           {headerArtist}
                         </p>
                       ) : null}
+                      <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-muted/40 ring-1 ring-border px-2 py-0.5 text-[10px] text-muted-foreground tabular-nums max-w-full">
+                        <CalendarDays className="h-3 w-3 shrink-0 text-muted-foreground/80" />
+                        <span className="uppercase tracking-wider text-muted-foreground/70 text-[9px]">Janela</span>
+                        <span className="text-foreground/90 truncate">
+                          {formatShortDate(stats.cycleStart)} → {formatShortDate(stats.cycleEnd)}
+                        </span>
+                      </div>
                     </div>
                   </div>
 
