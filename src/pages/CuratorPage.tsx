@@ -371,56 +371,122 @@ export default function CuratorPage() {
           <NexEngineLogo variant="dark" size={28} />
         </div>
 
-        {/* Header — música + curador */}
-        <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_8px_30px_rgba(0,0,0,0.45)] transition-colors">
-          <CardContent className="p-6 sm:p-7">
-            <div className="flex items-start gap-4">
+        {/* Header — campanha + música */}
+        <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_8px_30px_rgba(0,0,0,0.45)] transition-colors overflow-hidden">
+          <CardContent className="p-6 sm:p-7 space-y-5">
+            {/* Eyebrow: CAMPANHA · status pulse */}
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary/80">
+                Campanha
+              </span>
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+                <span className="relative flex h-1.5 w-1.5">
+                  <span
+                    className={cn(
+                      "absolute inline-flex h-full w-full rounded-full opacity-75",
+                      isDone
+                        ? "bg-primary animate-ping"
+                        : !stats.hasBaseline
+                        ? "bg-warning"
+                        : "bg-primary animate-ping",
+                    )}
+                  />
+                  <span
+                    className={cn(
+                      "relative inline-flex h-1.5 w-1.5 rounded-full",
+                      isDone
+                        ? "bg-primary"
+                        : !stats.hasBaseline
+                        ? "bg-warning"
+                        : "bg-primary",
+                    )}
+                  />
+                </span>
+                {isDone ? "Concluído" : !stats.hasBaseline ? "Aguardando" : "Em progresso"}
+              </span>
+            </div>
+
+            {/* Identidade: capa + música/curador */}
+            <div className="flex items-center gap-4">
               {deal.song_cover_url ? (
-                <img
-                  src={deal.song_cover_url}
-                  alt={deal.song_name}
-                  className="w-16 h-16 rounded-lg object-cover shrink-0 ring-1 ring-white/[0.06]"
-                />
+                <div className="relative shrink-0">
+                  <div
+                    aria-hidden
+                    className="absolute inset-0 -z-10 rounded-xl blur-xl opacity-50"
+                    style={{ background: "rgba(29,185,84,0.35)" }}
+                  />
+                  <img
+                    src={deal.song_cover_url}
+                    alt={deal.song_name}
+                    className="w-[72px] h-[72px] rounded-xl object-cover ring-1 ring-white/[0.08]"
+                  />
+                </div>
               ) : (
-                <div className="w-16 h-16 rounded-lg bg-muted shrink-0" />
+                <div className="w-[72px] h-[72px] rounded-xl bg-muted shrink-0" />
               )}
               <div className="flex-1 min-w-0">
-                <h1 className="text-[20px] sm:text-[22px] font-semibold leading-tight tracking-tight truncate">
+                <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70 mb-1">
+                  Música
+                </div>
+                <h1 className="text-[17px] sm:text-[18px] font-semibold leading-tight tracking-tight truncate">
                   {deal.song_name}
                 </h1>
-                {deal.song_artist && (
-                  <p className="text-[14px] text-muted-foreground truncate mt-1 leading-snug">
-                    {deal.song_artist}
-                  </p>
-                )}
-                <div className="flex items-center gap-2 mt-3 flex-wrap">
-                  <Badge variant="secondary" className="text-[11px] px-2 py-0.5 h-5 font-medium">
-                    {deal.curator_name}
-                  </Badge>
-                  <Badge
-                    className={
-                      "text-[11px] px-2 py-0.5 h-5 border-0 font-medium " +
-                      (isDone
-                        ? "bg-primary text-black hover:bg-primary/90 font-semibold"
-                        : !stats.hasBaseline
-                        ? "bg-warning/15 text-warning hover:bg-warning/15"
-                        : "bg-primary/15 text-primary hover:bg-primary/15")
-                    }
-                  >
-                    {isDone
-                      ? "Concluído"
-                      : !stats.hasBaseline
-                      ? "Aguardando"
-                      : "Em progresso"}
-                  </Badge>
+                <p className="text-[12px] text-muted-foreground truncate mt-0.5 leading-snug">
+                  {deal.song_artist ? `${deal.song_artist} · ` : ""}Curador: {deal.curator_name}
+                </p>
+              </div>
+            </div>
+
+            {/* Divisor */}
+            <div className="h-px bg-white/[0.06]" />
+
+            {/* Briefing: meta · prazo · ritmo */}
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-1">
+                  Meta
+                </div>
+                <div className="text-[15px] font-semibold tabular-nums leading-none">
+                  {formatPlays(stats.target)}
+                  <span className="text-[11px] text-muted-foreground font-normal ml-1">plays</span>
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-1">
+                  Ritmo
+                </div>
+                <div className="text-[15px] font-semibold tabular-nums leading-none text-primary">
+                  {stats.dailyGoal > 0 ? formatPlays(stats.dailyGoal) : "—"}
+                  <span className="text-[11px] text-muted-foreground font-normal ml-1">/dia</span>
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-1">
+                  Progresso
+                </div>
+                <div className="text-[15px] font-semibold tabular-nums leading-none">
+                  {stats.pct}
+                  <span className="text-[11px] text-muted-foreground font-normal">%</span>
                 </div>
               </div>
             </div>
+
+            {/* Mini progress bar */}
+            {stats.hasBaseline && stats.target > 0 && (
+              <div className="h-1 rounded-full bg-white/[0.04] overflow-hidden">
+                <div
+                  className="h-full bg-primary rounded-full transition-all duration-500"
+                  style={{ width: `${stats.pct}%` }}
+                />
+              </div>
+            )}
+
+            {/* CTA Spotify */}
             <a
               href={deal.song_spotify_url}
               target="_blank"
               rel="noreferrer"
-              className="mt-5 inline-flex items-center gap-1.5 text-[12px] text-muted-foreground hover:text-foreground transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] text-muted-foreground hover:text-foreground bg-white/[0.02] ring-1 ring-white/[0.06] hover:ring-white/[0.12] hover:bg-white/[0.04] transition-colors"
             >
               <ExternalLink className="h-3 w-3" />
               Abrir no Spotify
