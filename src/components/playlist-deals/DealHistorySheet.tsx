@@ -5,6 +5,7 @@ import {
   Music2,
   ClipboardPaste,
   ChevronDown,
+  ChevronRight,
   Headphones,
   X,
 } from "lucide-react";
@@ -25,11 +26,13 @@ import { cn } from "@/lib/utils";
 import { PrintThumbs } from "./PrintThumbs";
 import { PastePlaylistsDialog } from "./PastePlaylistsDialog";
 import { FraudAlertsPanel } from "./FraudAlertsPanel";
+import { DealLogDetailDialog } from "./DealLogDetailDialog";
 
 import {
   computeCuratorStats,
   type CuratorDeal,
   type CuratorDealLog,
+  type CuratorDealSong,
   type CuratorPlaylist,
   type CuratorMatchStatus,
 } from "@/lib/curatorDealsUtils";
@@ -37,6 +40,7 @@ import {
 export interface DealHistorySheetProps {
   open: boolean;
   deal: CuratorDeal | null;
+  songs?: CuratorDealSong[];
   allLogs: CuratorDealLog[];
   allPlaylists: CuratorPlaylist[];
   onClose: () => void;
