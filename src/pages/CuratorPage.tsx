@@ -928,25 +928,25 @@ export default function CuratorPage() {
         {/* Plays hoje vs combinado diário */}
         {stats.hasBaseline && (
           <Card className="nx-card !p-0 border-border">
-            <CardContent className="p-5 sm:p-6 grid grid-cols-2 gap-6 divide-x divide-border">
+            <CardContent className="p-5 grid grid-cols-2 gap-4 divide-x divide-border">
               <div className="pr-2">
-                <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
                   Plays totais hoje
                 </div>
-                <div className="text-[26px] font-bold tabular-nums text-foreground leading-none">
+                <div className="text-[20px] font-bold tabular-nums text-foreground leading-none">
                   {formatPlays(stats.latest)}
                 </div>
               </div>
-              <div className="pl-6">
-                <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">
+              <div className="pl-4">
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
                   Hoje / combinado
                 </div>
-                <div className="text-[26px] font-bold tabular-nums leading-none">
+                <div className="text-[20px] font-bold tabular-nums leading-none">
                   <span className="text-primary">{formatPlays(stats.todayPlays)}</span>
-                  <span className="text-muted-foreground text-[18px] font-semibold"> / {formatPlays(stats.dailyGoal)}</span>
+                  <span className="text-muted-foreground text-[14px] font-semibold"> / {formatPlays(stats.dailyGoal)}</span>
                 </div>
                 {stats.dailyGoal > 0 && (
-                  <div className="text-[11px] text-muted-foreground mt-2">
+                  <div className="text-[10px] text-muted-foreground mt-1.5">
                     {stats.todayPct}% do combinado do dia
                   </div>
                 )}
