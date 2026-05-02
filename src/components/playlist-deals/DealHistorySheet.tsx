@@ -126,46 +126,78 @@ export function DealHistorySheet({
             <Separator className="my-6" />
 
             {/* Playlists */}
-            <div className="text-sm font-medium text-muted-foreground mb-3">
-              Playlists
-            </div>
-            {stats.baselinePlaylists.length === 0 && stats.newPlaylists.length === 0 ? (
-              <div className="py-6 flex flex-col items-center text-center gap-2">
-                <div className="h-9 w-9 rounded-full bg-muted/40 border border-border flex items-center justify-center">
-                  <Music2 className="h-4 w-4 text-muted-foreground" />
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  Nenhuma playlist registrada
-                </div>
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-sm font-medium text-muted-foreground">
+                Playlists
               </div>
-            ) : (
-              <ul className="space-y-2">
-                {stats.baselinePlaylists.map((p) => (
-                  <li
-                    key={p.id}
-                    className="flex items-center justify-between gap-2 rounded-md border border-border/60 px-3 py-2"
-                  >
-                    <span className="text-sm text-foreground truncate">
-                      {p.playlist_name}
-                    </span>
-                    <Badge variant="secondary" className="shrink-0">Inicial</Badge>
-                  </li>
-                ))}
-                {stats.newPlaylists.map((p) => (
-                  <li
-                    key={p.id}
-                    className="flex items-center justify-between gap-2 rounded-md border border-border/60 px-3 py-2"
-                  >
-                    <span className="text-sm text-foreground truncate">
-                      {p.playlist_name}
-                    </span>
-                    <Badge className="shrink-0 bg-success/15 text-success hover:bg-success/15 border-0">
-                      Nova
-                    </Badge>
-                  </li>
-                ))}
-              </ul>
-            )}
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 gap-1.5 text-xs"
+                onClick={() => setPasteOpen(true)}
+              >
+                <ClipboardPaste className="h-3.5 w-3.5" />
+                Colar dados
+              </Button>
+            </div>
+            {(() => {
+              const dealPlaylists = allPlaylists.filter((p) => p.deal_id === deal.id);
+              if (dealPlaylists.length === 0) {
+                return (
+                  <div className="py-6 flex flex-col items-center text-center gap-2">
+                    <div className="h-9 w-9 rounded-full bg-muted/40 border border-border flex items-center justify-center">
+                      <Music2 className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      Nenhuma playlist registrada
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Use "Colar dados" para importar do Spotify for Artists
+                    </div>
+                  </div>
+                );
+              }
+              // Ordenação: curator → editorial → suspicious → baseline → organic
+              const order: Record<CuratorMatchStatus, number> = {
+                curator: 0, editorial: 1, suspicious: 2, baseline: 3, organic: 4,
+              };
+              const sorted = [...dealPlaylists].sort((a, b) => {
+                const sa = (a.match_status ?? (a.is_baseline ? "baseline" : "curator")) as CuratorMatchStatus;
+                const sb = (b.match_status ?? (b.is_baseline ? "baseline" : "curator")) as CuratorMatchStatus;
+                return order[sa] - order[sb];
+              });
+              return (
+                <ul className="space-y-2">
+                  {sorted.map((p) => {
+                    const status = (p.match_status ?? (p.is_baseline ? "baseline" : "curator")) as CuratorMatchStatus;
+                    return (
+                      <li
+                        key={p.id}
+                        className="flex items-center justify-between gap-2 rounded-md border border-border/60 px-3 py-2"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-foreground truncate">
+                              {p.playlist_name}
+                            </span>
+                            <Badge className={cn("shrink-0 text-[10px] h-4 px-1.5", STATUS_CLASS[status])}>
+                              {STATUS_LABEL[status]}
+                            </Badge>
+                          </div>
+                          {(p.streams_7d || p.spotify_owner_name) && (
+                            <div className="text-[11px] text-muted-foreground mt-0.5 truncate">
+                              {p.spotify_owner_name && `${p.spotify_owner_name}`}
+                              {p.streams_7d ? ` · ${fmt(Number(p.streams_7d))} plays/7d` : ""}
+                              {p.added_at_spotify ? ` · ${p.added_at_spotify}` : ""}
+                            </div>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              );
+            })()}
 
             <Separator className="my-6" />
 
