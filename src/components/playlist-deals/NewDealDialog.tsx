@@ -313,7 +313,11 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDe
   // Hidratação (modo edição) e reset (abertura)
   // ============================================================
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      // Reset da decisão sobre o draft sempre que fecha
+      setDraftDecided(false);
+      return;
+    }
 
     if (isEdit && editDeal) {
       // Edição: pula direto pro passo 2, mantém curador atual
