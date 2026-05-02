@@ -272,6 +272,31 @@ export function CuradoresTab({ deals, logs, playlists, alerts = [], loading }: P
                           {legitPct}%
                         </span>
                       </td>
+                      <td className="px-3 py-3.5 text-right">
+                        {r.alertsOpen === 0 ? (
+                          <span className="inline-flex items-center text-[12px] font-medium tabular-nums px-2 py-0.5 rounded bg-success/15 text-success">
+                            ok
+                          </span>
+                        ) : (
+                          <span
+                            className={cn(
+                              "inline-flex items-center gap-1 text-[12px] font-semibold tabular-nums px-2 py-0.5 rounded",
+                              r.alertsHigh > 0
+                                ? "bg-destructive/15 text-destructive"
+                                : "bg-warning/15 text-warning",
+                            )}
+                            title={`${r.alertsOpen} alerta(s) abertos${r.alertsHigh > 0 ? `, ${r.alertsHigh} de severidade alta` : ""}`}
+                          >
+                            <ShieldAlert className="h-3 w-3" />
+                            {r.alertsOpen}
+                            {r.alertsHigh > 0 && (
+                              <span className="text-[10px] opacity-70">
+                                ({r.alertsHigh} alta)
+                              </span>
+                            )}
+                          </span>
+                        )}
+                      </td>
                       <td className="px-5 py-3.5 text-right">
                         <span
                           className={cn(
