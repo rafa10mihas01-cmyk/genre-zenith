@@ -210,8 +210,9 @@ export default function CuratorPage() {
 
   const stats = useMemo(() => {
     const now = new Date();
-    const cycEnd = cycleEnd(now);
-    const cycStart = cycleStart(now);
+    const anchor = getAnchor(deal?.started_at ?? deal?.created_at ?? null);
+    const cycEnd = cycleEnd(anchor, now);
+    const cycStart = cycleStart(anchor, now);
     const msToCycleEnd = cycEnd.getTime() - now.getTime();
     // "Atrasado" = passou da segunda 17h e ainda não chegou import dentro deste ciclo.
     // (sempre false antes do baseline, cobrimos abaixo)
