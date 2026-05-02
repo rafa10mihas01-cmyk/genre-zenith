@@ -63,6 +63,7 @@ type Props = {
   balances?: CuratorBalance[];
   alerts?: CuratorFraudAlert[];
   loading: boolean;
+  progressByDeal?: Record<string, CuratorDealProgress>;
   onUpdateCurator?: (id: string, input: Partial<NewCuratorInput>) => Promise<void>;
   onArchiveCurator?: (id: string, archive?: boolean) => Promise<void>;
 };
