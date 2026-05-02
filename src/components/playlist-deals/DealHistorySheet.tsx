@@ -276,6 +276,12 @@ export function DealHistorySheet({
           </>
         )}
       </SheetContent>
+      <PastePlaylistsDialog
+        open={pasteOpen}
+        deal={deal}
+        onClose={() => setPasteOpen(false)}
+        onImported={() => onReload?.()}
+      />
     </Sheet>
   );
 }
