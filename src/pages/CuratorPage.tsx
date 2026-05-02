@@ -679,7 +679,7 @@ export default function CuratorPage() {
                 if (f) handleImportFile(f);
               }}
             />
-            <div className="grid grid-cols-2 gap-3 px-1">
+            <div className="grid grid-cols-2 gap-4 px-2">
               <Button
                 type="button"
                 variant="ghost"
