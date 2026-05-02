@@ -144,14 +144,22 @@
 @layer components {
   /* === CARD PADRÃO DO SISTEMA ===
      Padding consistente: 16px mobile → 20px desktop (alinhado ao design system).
-     Toda altura útil interna idêntica em todos os cards. */
+     Premium: gradiente sutil no topo (rgba 2% → transparent) + shadow profunda
+     (0 10px 30px rgba(0,0,0,0.25)) para sensação SaaS premium imediata. */
   .nx-card {
-    @apply bg-card rounded-2xl transition-all duration-200 border border-border;
+    @apply rounded-2xl transition-all duration-200 border border-border relative;
     padding: var(--space-card);
-    box-shadow: var(--shadow-soft);
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.02) 0%, transparent 40%),
+      hsl(var(--card));
+    box-shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.45), 0 1px 0 rgba(255,255,255,0.03) inset;
   }
   .dark .nx-card {
-    border-color: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.06);
+  }
+  .light .nx-card {
+    background: hsl(var(--card));
+    box-shadow: 0 1px 2px rgba(15,23,42,0.04), 0 8px 24px -12px rgba(15,23,42,0.10);
   }
   @media (min-width: 768px) {
     .nx-card { padding: 20px; }
@@ -176,7 +184,8 @@
     box-shadow: var(--shadow-elevated);
   }
   /* === WRAPPER DE PÁGINA === aplica padding + gap entre seções automaticamente.
-     Padding aumenta progressivamente: 16px mobile → 24px tablet → 32px desktop.
+     Container premium: max-width 1200px centralizado (Stripe / Linear / Notion).
+     Padding: 16px mobile → 24px desktop. Conteúdo nunca encosta na borda.
      No mobile, reserva espaço para o bottom nav (60px + safe-area). */
   .nx-page {
     padding: var(--space-page-y) var(--space-page-x);
@@ -185,7 +194,9 @@
     flex-direction: column;
     gap: var(--space-section);
     width: 100%;
-    max-width: 100%;
+    max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
     min-width: 0;
   }
   @media (min-width: 768px) {
@@ -196,8 +207,21 @@
   }
   @media (min-width: 1024px) {
     .nx-page {
-      padding: 28px 32px;
+      padding: 32px 24px;
+      gap: 32px;
     }
+  }
+  /* Container puro reutilizável (sem flex/gap) — para páginas públicas */
+  .nx-container {
+    width: 100%;
+    max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  @media (min-width: 768px) {
+    .nx-container { padding-left: 24px; padding-right: 24px; }
   }
   /* Scroll horizontal seguro p/ tabs e listas longas */
   .nx-tabs-scroll {
