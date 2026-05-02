@@ -26,6 +26,46 @@ export type CuratorFraudAlert = {
   updated_at: string;
 };
 
+// ============================================================
+// FASE 1 — Curador global (entidade) + saldo
+// ============================================================
+export type Curator = {
+  id: string;
+  user_id: string;
+  name: string;
+  contact: string | null;
+  spotify_owner_id: string | null;
+  spotify_owner_url: string | null;
+  purchased_plays: number;
+  total_cost: number | null;
+  notes: string | null;
+  archived_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CuratorBalance = {
+  curator_id: string;
+  user_id: string;
+  name: string;
+  archived_at: string | null;
+  purchased_plays: number;
+  consumed_plays: number;
+  remaining_plays: number;
+  overbooked_plays: number;
+  total_cost: number | null;
+};
+
+export type NewCuratorInput = {
+  name: string;
+  contact?: string | null;
+  spotify_owner_id?: string | null;
+  spotify_owner_url?: string | null;
+  purchased_plays?: number;
+  total_cost?: number | null;
+  notes?: string | null;
+};
+
 export type DealSongInput = {
   song_spotify_url: string;
   spotify_track_id?: string | null;
@@ -33,6 +73,7 @@ export type DealSongInput = {
   song_artist?: string | null;
   song_cover_url?: string | null;
   daily_goal?: number;
+  duration_days?: number;
   target_plays?: number | null;
   position?: number;
   started_at?: string | null;
@@ -41,6 +82,8 @@ export type DealSongInput = {
 };
 
 export type NewCuratorDealInput = {
+  // FASE 1: curador agora é entidade. Mantemos curator_name por compat (legacy).
+  curator_id?: string | null;
   curator_name: string;
   // música primária (legacy/compat) — primeira da lista
   song_spotify_url: string;
@@ -49,6 +92,7 @@ export type NewCuratorDealInput = {
   song_cover_url?: string | null;
   target_plays: number;
   daily_goal?: number;
+  duration_days?: number;
   baseline_plays?: number;
   cost?: number | null;
   started_at?: string | null;
@@ -80,6 +124,8 @@ export function useCuratorDeals() {
   const [playlists, setPlaylists] = useState<CuratorPlaylist[]>([]);
   const [songs, setSongs] = useState<CuratorDealSong[]>([]);
   const [alerts, setAlerts] = useState<CuratorFraudAlert[]>([]);
+  const [curators, setCurators] = useState<Curator[]>([]);
+  const [balances, setBalances] = useState<CuratorBalance[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -90,19 +136,36 @@ export function useCuratorDeals() {
       setPlaylists([]);
       setSongs([]);
       setAlerts([]);
+      setCurators([]);
+      setBalances([]);
       setLoading(false);
       return;
     }
     setLoading(true);
     setError(null);
     try {
-      const { data: dealsData, error: dealsErr } = await supabase
-        .from("curator_deals")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (dealsErr) throw dealsErr;
-      const dealsRows = (dealsData ?? []) as CuratorDeal[];
+      // Curadores + saldos em paralelo com deals
+      const [dealsRes, curatorsRes, balancesRes] = await Promise.all([
+        supabase
+          .from("curator_deals")
+          .select("*")
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("curators")
+          .select("*")
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("v_curator_balance")
+          .select("*"),
+      ]);
+      if (dealsRes.error) throw dealsRes.error;
+      if (curatorsRes.error) throw curatorsRes.error;
+      if (balancesRes.error) throw balancesRes.error;
+
+      const dealsRows = (dealsRes.data ?? []) as CuratorDeal[];
       setDeals(dealsRows);
+      setCurators((curatorsRes.data ?? []) as Curator[]);
+      setBalances((balancesRes.data ?? []) as CuratorBalance[]);
 
       const dealIds = dealsRows.map((d) => d.id);
       if (dealIds.length === 0) {
@@ -154,6 +217,80 @@ export function useCuratorDeals() {
     load();
   }, [load]);
 
+  // ============================================================
+  // FASE 1 — CRUD de Curadores (entidade global)
+  // ============================================================
+  const addCurator = useCallback(
+    async (input: NewCuratorInput) => {
+      if (!user) throw new Error("Usuário não autenticado");
+      const { data, error: insertErr } = await supabase
+        .from("curators")
+        .insert({
+          user_id: user.id,
+          name: input.name,
+          contact: input.contact ?? null,
+          spotify_owner_id: input.spotify_owner_id ?? null,
+          spotify_owner_url: input.spotify_owner_url ?? null,
+          purchased_plays: input.purchased_plays ?? 0,
+          total_cost: input.total_cost ?? 0,
+          notes: input.notes ?? null,
+        })
+        .select()
+        .single();
+      if (insertErr) throw insertErr;
+      await load();
+      return data as Curator;
+    },
+    [user, load],
+  );
+
+  const updateCurator = useCallback(
+    async (curatorId: string, input: Partial<NewCuratorInput>) => {
+      const { error: updErr } = await supabase
+        .from("curators")
+        .update({
+          ...(input.name !== undefined && { name: input.name }),
+          ...(input.contact !== undefined && { contact: input.contact ?? null }),
+          ...(input.spotify_owner_id !== undefined && { spotify_owner_id: input.spotify_owner_id ?? null }),
+          ...(input.spotify_owner_url !== undefined && { spotify_owner_url: input.spotify_owner_url ?? null }),
+          ...(input.purchased_plays !== undefined && { purchased_plays: input.purchased_plays }),
+          ...(input.total_cost !== undefined && { total_cost: input.total_cost ?? 0 }),
+          ...(input.notes !== undefined && { notes: input.notes ?? null }),
+        })
+        .eq("id", curatorId);
+      if (updErr) throw updErr;
+      await load();
+    },
+    [load],
+  );
+
+  const archiveCurator = useCallback(
+    async (curatorId: string, archive = true) => {
+      const { error: updErr } = await supabase
+        .from("curators")
+        .update({ archived_at: archive ? new Date().toISOString() : null })
+        .eq("id", curatorId);
+      if (updErr) throw updErr;
+      await load();
+    },
+    [load],
+  );
+
+  const deleteCurator = useCallback(
+    async (curatorId: string) => {
+      const { error: delErr } = await supabase
+        .from("curators")
+        .delete()
+        .eq("id", curatorId);
+      if (delErr) throw delErr;
+      await load();
+    },
+    [load],
+  );
+
+  // ============================================================
+  // Deals — agora aceitam curator_id e duration_days nas songs
+  // ============================================================
   const addDeal = useCallback(
     async (input: NewCuratorDealInput) => {
       if (!user) throw new Error("Usuário não autenticado");
@@ -161,6 +298,7 @@ export function useCuratorDeals() {
         .from("curator_deals")
         .insert({
           user_id: user.id,
+          curator_id: input.curator_id ?? null,
           curator_name: input.curator_name,
           song_spotify_url: input.song_spotify_url,
           song_name: input.song_name,
@@ -187,6 +325,7 @@ export function useCuratorDeals() {
         song_artist: input.song_artist ?? null,
         song_cover_url: input.song_cover_url ?? null,
         daily_goal: input.daily_goal ?? 0,
+        duration_days: input.duration_days ?? 30,
         target_plays: input.target_plays,
         position: 0,
         started_at: input.started_at ?? null,
@@ -202,6 +341,7 @@ export function useCuratorDeals() {
         song_artist: s.song_artist ?? null,
         song_cover_url: s.song_cover_url ?? null,
         daily_goal: s.daily_goal ?? 0,
+        duration_days: s.duration_days ?? 30,
         target_plays: s.target_plays ?? null,
         position: s.position ?? i,
         started_at: s.started_at ?? null,
@@ -237,6 +377,7 @@ export function useCuratorDeals() {
       const { error: updErr } = await supabase
         .from("curator_deals")
         .update({
+          curator_id: input.curator_id ?? null,
           curator_name: input.curator_name,
           song_spotify_url: input.song_spotify_url,
           song_name: input.song_name,
@@ -265,6 +406,7 @@ export function useCuratorDeals() {
         song_artist: input.song_artist ?? null,
         song_cover_url: input.song_cover_url ?? null,
         daily_goal: input.daily_goal ?? 0,
+        duration_days: input.duration_days ?? 30,
         target_plays: input.target_plays,
         position: 0,
         started_at: input.started_at ?? null,
@@ -280,6 +422,7 @@ export function useCuratorDeals() {
         song_artist: s.song_artist ?? null,
         song_cover_url: s.song_cover_url ?? null,
         daily_goal: s.daily_goal ?? 0,
+        duration_days: s.duration_days ?? 30,
         target_plays: s.target_plays ?? null,
         position: s.position ?? i,
         started_at: s.started_at ?? null,
@@ -405,8 +548,16 @@ export function useCuratorDeals() {
     playlists,
     songs,
     alerts,
+    curators,
+    balances,
     loading,
     error,
+    // Curadores
+    addCurator,
+    updateCurator,
+    archiveCurator,
+    deleteCurator,
+    // Deals
     addDeal,
     updateDeal,
     deleteDeal,
