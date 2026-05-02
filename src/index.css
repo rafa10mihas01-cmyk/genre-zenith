@@ -146,10 +146,12 @@
      Padding consistente: 16px mobile → 20px desktop (alinhado ao design system).
      Toda altura útil interna idêntica em todos os cards. */
   .nx-card {
-    @apply bg-card rounded-2xl transition-all duration-200;
+    @apply bg-card rounded-2xl transition-all duration-200 border border-border;
     padding: var(--space-card);
-    border: 1px solid rgba(255, 255, 255, 0.04);
     box-shadow: var(--shadow-soft);
+  }
+  .dark .nx-card {
+    border-color: rgba(255, 255, 255, 0.04);
   }
   @media (min-width: 768px) {
     .nx-card { padding: 20px; }
