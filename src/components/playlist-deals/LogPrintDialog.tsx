@@ -13,6 +13,8 @@ import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { buildDealPdf, uploadDealPdf, type ParsedDealData } from "@/lib/dealPdf";
+import { useFormDraft } from "@/hooks/useFormDraft";
+import { DraftBanner, DraftIndicator } from "@/components/forms/DraftBanner";
 
 import {
   computeCuratorStats,
