@@ -320,13 +320,18 @@ export default function CuratorPage() {
   }
 
   if (error || !deal) {
+    const isPlaceholderLink = error === "placeholder_token";
     return (
       <div className="min-h-screen flex items-center justify-center bg-background px-4">
         <Card className="max-w-md w-full">
           <CardContent className="p-6 text-center">
-            <p className="text-base font-medium">Link inválido ou expirado</p>
+            <p className="text-base font-medium">
+              {isPlaceholderLink ? "Link sem token da curadoria" : "Link inválido ou expirado"}
+            </p>
             <p className="text-sm text-muted-foreground mt-2">
-              Verifique o link com quem o enviou.
+              {isPlaceholderLink
+                ? "Copie o link pelo card do deal, não pela rota de exemplo."
+                : "Verifique o link com quem o enviou."}
             </p>
           </CardContent>
         </Card>
