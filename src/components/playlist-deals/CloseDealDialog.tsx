@@ -48,6 +48,23 @@ export function CloseDealDialog({
   const [genReport, setGenReport] = useState(true);
   const [busy, setBusy] = useState(false);
 
+  const draftKey = deal ? `close-deal:${deal.id}` : "close-deal:none";
+  const isDraftEmpty = !reason.trim() && status === "completed" && genReport === true;
+  const draft = useFormDraft(
+    draftKey,
+    { enabled: open && !!deal && !busy, isEmpty: isDraftEmpty },
+    { status, reason, genReport },
+  );
+
+  // Reset on close
+  useEffect(() => {
+    if (!open) {
+      setStatus("completed");
+      setReason("");
+      setGenReport(true);
+    }
+  }, [open]);
+
   if (!deal) return null;
   const stats = computeCuratorStats(deal, logs, playlists);
   const target = Number(deal.target_plays ?? 0);
