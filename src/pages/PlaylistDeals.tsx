@@ -92,6 +92,10 @@ export default function PlaylistDeals() {
   const tabCount = (id: DealsTab) => {
     if (id === "all") return kpi.total;
     if (id === "done") return kpi.done;
+    if (id === "curators") {
+      const set = new Set(deals.map((d) => (d.curator_name ?? "").trim() || "—"));
+      return set.size;
+    }
     return kpi.active;
   };
 
