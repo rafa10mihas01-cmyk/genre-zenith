@@ -343,21 +343,25 @@ export default function CuratorPage() {
 
   return (
     <div className="relative min-h-screen bg-black px-5 sm:px-6 py-10 sm:py-14 overflow-hidden">
-      {/* Glow verde sutil — mais forte no topo, leve embaixo */}
+      {/* Atmosfera verde — glows espalhados pela página inteira */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-[420px] sm:h-[520px] -z-0"
+        className="pointer-events-none absolute inset-0 -z-0"
         style={{
-          background:
-            "radial-gradient(ellipse 70% 80% at 50% 0%, rgba(29,185,84,0.18) 0%, rgba(29,185,84,0.08) 35%, rgba(29,185,84,0) 70%)",
-        }}
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-[260px] -z-0"
-        style={{
-          background:
-            "radial-gradient(ellipse 60% 100% at 50% 100%, rgba(29,185,84,0.06) 0%, rgba(29,185,84,0) 70%)",
+          background: [
+            // topo centro — mais forte
+            "radial-gradient(ellipse 60% 40% at 50% 0%, rgba(29,185,84,0.18) 0%, rgba(29,185,84,0) 70%)",
+            // lateral esquerda alta
+            "radial-gradient(ellipse 40% 50% at 0% 25%, rgba(29,185,84,0.10) 0%, rgba(29,185,84,0) 70%)",
+            // lateral direita média
+            "radial-gradient(ellipse 40% 50% at 100% 45%, rgba(29,185,84,0.09) 0%, rgba(29,185,84,0) 70%)",
+            // meio esquerda baixa
+            "radial-gradient(ellipse 45% 35% at 10% 70%, rgba(29,185,84,0.07) 0%, rgba(29,185,84,0) 70%)",
+            // base centro — leve
+            "radial-gradient(ellipse 70% 30% at 50% 100%, rgba(29,185,84,0.08) 0%, rgba(29,185,84,0) 70%)",
+            // direita baixa
+            "radial-gradient(ellipse 35% 40% at 95% 85%, rgba(29,185,84,0.06) 0%, rgba(29,185,84,0) 70%)",
+          ].join(", "),
         }}
       />
       <div className="relative z-10 max-w-xl mx-auto space-y-7 sm:space-y-8">
