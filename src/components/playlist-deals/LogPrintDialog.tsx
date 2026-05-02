@@ -512,9 +512,12 @@ export function LogPrintDialog({
     <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); }}>
       <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="truncate">
-            {selectedSong?.song_name ?? deal.song_name}
-          </DialogTitle>
+          <div className="flex items-center justify-between gap-2">
+            <DialogTitle className="truncate">
+              {selectedSong?.song_name ?? deal.song_name}
+            </DialogTitle>
+            <DraftIndicator lastSavedAt={draft.lastSavedAt} />
+          </div>
           <DialogDescription className="truncate">
             {selectedSong?.song_artist ?? deal.song_artist ?? deal.curator_name}
             {hasMultipleSongs && (
@@ -522,6 +525,10 @@ export function LogPrintDialog({
             )}
           </DialogDescription>
         </DialogHeader>
+
+        {draft.hasDraft && step === "upload" && (
+          <DraftBanner onRestore={handleRestoreDraft} onDiscard={draft.clearDraft} />
+        )}
 
         {/* Seletor de música no topo (deal com 2+ músicas).
              Cada música tem seu próprio baseline — escolha antes de enviar prints. */}
