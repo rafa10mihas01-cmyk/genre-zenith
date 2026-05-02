@@ -826,8 +826,8 @@ export default function CuratorPage() {
                           )}
                           <div className="min-w-0 flex-1">
                             <div className="flex items-start justify-between gap-2">
-                              <div className="min-w-0">
-                                <span className="text-[13px] font-semibold leading-tight truncate block">
+                              <div className="min-w-0 flex-1">
+                                <span className="text-[13px] font-semibold leading-tight line-clamp-2 block">
                                   {s.song_name}
                                 </span>
                                 {s.song_artist && (
@@ -838,8 +838,14 @@ export default function CuratorPage() {
                               </div>
                               <span
                                 className={cn(
-                                  "text-[10px] font-semibold uppercase tracking-wider shrink-0",
-                                  statusColor,
+                                  "text-[10px] font-semibold uppercase tracking-wider shrink-0 px-2 py-0.5 rounded-full ring-1",
+                                  isDoneSong
+                                    ? "text-primary bg-primary/10 ring-primary/20"
+                                    : inRampUp
+                                    ? "text-warning bg-warning/10 ring-warning/20"
+                                    : !startMs
+                                    ? "text-muted-foreground bg-muted/40 ring-border"
+                                    : "text-primary bg-primary/10 ring-primary/20",
                                 )}
                               >
                                 {statusLabel}
