@@ -3,12 +3,10 @@
 // e classificação automática (curator / baseline / editorial / suspicious / organic).
 //
 // Aceita 2 modos de autenticação:
-//   - public_token: usado pelo portal do curador (sem login). Bloqueia cadastro
-//     de playlist cujo owner não bata com o spotify_owner_id do deal (anti-fraude).
-//     Se o deal ainda não tem spotify_owner_id, captura do 1º cadastro.
+//   - public_token: usado pelo portal do curador (sem login). Permite cadastrar
+//     qualquer playlist válida, bloqueando apenas duplicadas já existentes no deal.
 //   - JWT (admin/curador autenticado): identifica o deal por deal_id no body,
-//     valida que pertence ao usuário, e salva sem bloqueio (admin pode cadastrar
-//     playlists de qualquer dono — apenas marca como suspicious quando aplicável).
+//     valida que pertence ao usuário, e salva a playlist válida.
 //
 // Body:
 //   { public_token?: string, deal_id?: string, urls: string[], preview?: boolean }
@@ -188,17 +186,6 @@ Deno.serve(async (req) => {
             item.match_status = cls.match_status;
             item.match_reason = cls.match_reason;
 
-            // Bloqueio anti-fraude no portal público:
-            // se o deal já tem owner cadastrado e não bate, e não é editorial → bloqueia.
-            if (
-              isPublicMode &&
-              deal!.spotify_owner_id &&
-              cls.match_status !== "curator" &&
-              cls.match_status !== "baseline"
-            ) {
-              item.status = "blocked";
-              item.error = "playlist não pertence ao seu perfil Spotify cadastrado";
-            }
           } catch (e) {
             item.status = "error";
             item.error = e instanceof Error ? e.message : String(e);
@@ -210,54 +197,6 @@ Deno.serve(async (req) => {
     // Modo preview: não salva, só devolve o que aconteceria
     if (preview) {
       return jr({ ok: true, preview: true, items, deal_owner_id: deal.spotify_owner_id });
-    }
-
-    // ------- Captura de spotify_owner_id no 1º cadastro do portal -------
-    let updatedDealOwnerId = deal.spotify_owner_id;
-    if (isPublicMode && !deal.spotify_owner_id) {
-      // Pega o primeiro item válido com owner não-editorial → vira o owner do deal
-      const firstValid = items.find(
-        (it) =>
-          it.status === "ok" &&
-          it.meta &&
-          it.meta.owner_id &&
-          it.meta.owner_id.toLowerCase() !== "spotify",
-      );
-      if (firstValid?.meta) {
-        updatedDealOwnerId = firstValid.meta.owner_id;
-        await admin
-          .from("curator_deals")
-          .update({
-            spotify_owner_id: updatedDealOwnerId,
-            spotify_owner_url: `https://open.spotify.com/user/${updatedDealOwnerId}`,
-          })
-          .eq("id", deal.id);
-
-        // Reclassifica todos os itens com o owner novo
-        for (const it of items) {
-          if (it.status === "ok" && it.meta) {
-            const cls = classifyPlaylist({
-              playlist: it.meta,
-              dealOwnerId: updatedDealOwnerId,
-              dealStartedAt: deal.started_at,
-              addedAtSpotify: null,
-              knownCuratorOwnerIds: [updatedDealOwnerId],
-              curatorPlaylistNames,
-            });
-            it.match_status = cls.match_status;
-            it.match_reason = cls.match_reason;
-            // Após captura, o portal não pode mais cadastrar de outro dono
-            if (
-              cls.match_status !== "curator" &&
-              cls.match_status !== "baseline" &&
-              cls.match_status !== "editorial"
-            ) {
-              it.status = "blocked";
-              it.error = "playlist não pertence ao seu perfil Spotify cadastrado";
-            }
-          }
-        }
-      }
     }
 
     // ------- Inserir os ok no banco -------
@@ -304,8 +243,8 @@ Deno.serve(async (req) => {
       ok: true,
       summary,
       items,
-      deal_owner_id: updatedDealOwnerId,
-      owner_captured: isPublicMode && !deal.spotify_owner_id && updatedDealOwnerId !== null,
+      deal_owner_id: deal.spotify_owner_id,
+      owner_captured: false,
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
