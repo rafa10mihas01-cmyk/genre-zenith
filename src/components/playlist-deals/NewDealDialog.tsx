@@ -640,7 +640,12 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDe
                         <button
                           key={c.id}
                           type="button"
-                          onClick={() => setSelectedCuratorId(c.id)}
+                          onClick={() => {
+                            setSelectedCuratorId(c.id);
+                            setBalanceAction(null);
+                            setBalancePlaysDigits("");
+                            setBalanceCostDigits("");
+                          }}
                           className={cn(
                             "w-full text-left rounded-lg border p-3 transition-colors",
                             sel
