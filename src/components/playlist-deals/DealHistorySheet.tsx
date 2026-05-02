@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { PrintThumbs } from "./PrintThumbs";
 import { PastePlaylistsDialog } from "./PastePlaylistsDialog";
+import { FraudAlertsPanel } from "./FraudAlertsPanel";
 
 import {
   computeCuratorStats,
