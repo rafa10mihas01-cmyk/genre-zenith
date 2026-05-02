@@ -270,6 +270,7 @@ export default function PlaylistDeals() {
         }}
         editDeal={editDeal}
         editSongs={editDeal ? songs.filter((s) => s.deal_id === editDeal.id) : []}
+        onSaved={reload}
       />
 
       <LogPrintDialog
