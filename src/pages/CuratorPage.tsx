@@ -479,11 +479,16 @@ export default function CuratorPage() {
       toast.error("Selecione a música antes de adicionar a playlist");
       return;
     }
+    const parsedPosition = position.trim() === "" ? null : Number(position.trim());
+    if (parsedPosition !== null && (!Number.isFinite(parsedPosition) || parsedPosition < 1 || !Number.isInteger(parsedPosition))) {
+      toast.error("Posição deve ser um número inteiro maior que zero");
+      return;
+    }
     const realToken = deal?.public_token ?? token;
     setSubmitting(true);
     const { data, error: fnErr } = await supabase.functions.invoke(
       "register-curator-playlist",
-      { body: { public_token: realToken, urls: [url.trim()], song_id: selectedSongId } },
+      { body: { public_token: realToken, urls: [url.trim()], song_id: selectedSongId, position: parsedPosition } },
     );
     setSubmitting(false);
     if (fnErr || !data?.ok) {
@@ -497,6 +502,7 @@ export default function CuratorPage() {
     }
     toast.success("Playlist adicionada");
     setUrl("");
+    setPosition("");
     await load();
   };
 
