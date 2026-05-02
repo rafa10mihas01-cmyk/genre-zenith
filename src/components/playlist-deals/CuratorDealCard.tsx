@@ -69,10 +69,16 @@ export function CuratorDealCard({
     return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", ...opts }).format(v);
   };
 
-  const statusLabel = !hasBaseline
+  const isClosed = !!deal.closed_at;
+  const closedStatus = deal.closed_status; // 'completed' | 'cancelled' | null
+  const statusLabel = isClosed
+    ? closedStatus === "completed"
+      ? "Concluído"
+      : "Encerrado"
+    : !hasBaseline
     ? "Sem baseline"
     : isDone
-    ? "Concluído"
+    ? "Pronto p/ encerrar"
     : "Em progresso";
 
   const handleCopyLink = async () => {
