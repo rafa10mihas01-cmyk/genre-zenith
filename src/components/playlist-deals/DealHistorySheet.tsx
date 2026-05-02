@@ -30,7 +30,24 @@ export interface DealHistorySheetProps {
   allLogs: CuratorDealLog[];
   allPlaylists: CuratorPlaylist[];
   onClose: () => void;
+  onReload?: () => void;
 }
+
+const STATUS_LABEL: Record<CuratorMatchStatus, string> = {
+  curator: "Do curador",
+  baseline: "Inicial",
+  editorial: "Editorial",
+  suspicious: "Suspeita",
+  organic: "Orgânica",
+};
+
+const STATUS_CLASS: Record<CuratorMatchStatus, string> = {
+  curator: "bg-success/15 text-success border-0",
+  baseline: "bg-muted/40 text-muted-foreground border border-border",
+  editorial: "bg-primary/15 text-primary border-0",
+  suspicious: "bg-destructive/15 text-destructive border-0",
+  organic: "bg-muted/30 text-muted-foreground border border-border",
+};
 
 function fmt(n: number): string {
   return Math.round(n).toLocaleString("pt-BR");
