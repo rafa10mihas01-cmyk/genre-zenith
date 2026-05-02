@@ -46,7 +46,10 @@ export function CuratorDealCard({
   const showSongList = songs.length > 1;
 
   const cost = Number(deal.cost ?? 0) || 0;
-  const costPerPlay = cost > 0 && earned > 0 ? cost / earned : null;
+  // R$/play: usa plays reais quando houver, senão estima pela meta contratada
+  const cppDenom = earned > 0 ? earned : target;
+  const costPerPlay = cost > 0 && cppDenom > 0 ? cost / cppDenom : null;
+  const cppIsEstimate = earned === 0 && target > 0;
   const formatBRL = (v: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 2 }).format(v);
   const formatCPP = (v: number) => {
@@ -249,7 +252,7 @@ export function CuratorDealCard({
                 {formatBRL(cost)}
                 {costPerPlay !== null && (
                   <span className="text-foreground font-medium ml-1">
-                    · {formatCPP(costPerPlay)}/play
+                    · {formatCPP(costPerPlay)}/play{cppIsEstimate ? " (est.)" : ""}
                   </span>
                 )}
               </span>

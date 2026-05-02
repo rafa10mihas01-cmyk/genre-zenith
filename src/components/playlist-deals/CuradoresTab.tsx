@@ -71,11 +71,15 @@ export function CuradoresTab({ deals, logs, playlists, loading }: Props) {
       totalTarget += target;
     }
 
-    const rows = Array.from(map.values()).map((r) => ({
-      ...r,
-      costPerPlay: r.totalEarned > 0 ? r.totalCost / r.totalEarned : null,
-      deliveryPct: r.totalTarget > 0 ? Math.round((r.totalEarned / r.totalTarget) * 100) : 0,
-    }));
+    const rows = Array.from(map.values()).map((r) => {
+      // Usa plays entregues quando já houver entrega; senão, cai pra meta contratada
+      const denom = r.totalEarned > 0 ? r.totalEarned : r.totalTarget;
+      return {
+        ...r,
+        costPerPlay: denom > 0 ? r.totalCost / denom : null,
+        deliveryPct: r.totalTarget > 0 ? Math.round((r.totalEarned / r.totalTarget) * 100) : 0,
+      };
+    });
 
     // Ordena: melhor custo/play primeiro (quem entrega mais barato)
     rows.sort((a, b) => {
@@ -92,7 +96,12 @@ export function CuradoresTab({ deals, logs, playlists, loading }: Props) {
         totalCost,
         totalEarned,
         totalTarget,
-        avgCostPerPlay: totalEarned > 0 ? totalCost / totalEarned : null,
+        avgCostPerPlay:
+          totalEarned > 0
+            ? totalCost / totalEarned
+            : totalTarget > 0
+            ? totalCost / totalTarget
+            : null,
         deliveryPct: totalTarget > 0 ? Math.round((totalEarned / totalTarget) * 100) : 0,
       },
     };
@@ -130,7 +139,7 @@ export function CuradoresTab({ deals, logs, playlists, loading }: Props) {
           icon={TrendingUp}
           label="Custo médio / play"
           value={formatCostPerPlay(totals.avgCostPerPlay)}
-          hint="Total gasto ÷ plays entregues"
+          hint={totals.totalEarned > 0 ? "Real (gasto ÷ plays entregues)" : "Estimado (gasto ÷ meta)"}
           tone="primary"
           loading={loading && deals.length === 0}
         />
