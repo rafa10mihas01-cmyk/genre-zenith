@@ -37,6 +37,7 @@ export type NewCuratorDealInput = {
   cost?: number | null;
   started_at?: string | null;
   ends_at?: string | null;
+  ramp_up_days?: number;
   // lista de músicas adicionais (além da primária)
   extra_songs?: DealSongInput[];
 };
