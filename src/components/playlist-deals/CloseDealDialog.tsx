@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CheckCircle2, XCircle, Loader2, FileDown } from "lucide-react";
 import { toast } from "sonner";
 
@@ -15,6 +15,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useFormDraft } from "@/hooks/useFormDraft";
+import { DraftBanner, DraftIndicator } from "@/components/forms/DraftBanner";
 
 import {
   computeCuratorStats,
@@ -45,6 +47,23 @@ export function CloseDealDialog({
   const [reason, setReason] = useState("");
   const [genReport, setGenReport] = useState(true);
   const [busy, setBusy] = useState(false);
+
+  const draftKey = deal ? `close-deal:${deal.id}` : "close-deal:none";
+  const isDraftEmpty = !reason.trim() && status === "completed" && genReport === true;
+  const draft = useFormDraft(
+    draftKey,
+    { enabled: open && !!deal && !busy, isEmpty: isDraftEmpty },
+    { status, reason, genReport },
+  );
+
+  // Reset on close
+  useEffect(() => {
+    if (!open) {
+      setStatus("completed");
+      setReason("");
+      setGenReport(true);
+    }
+  }, [open]);
 
   if (!deal) return null;
   const stats = computeCuratorStats(deal, logs, playlists);
@@ -84,6 +103,7 @@ export function CloseDealDialog({
         reason: reason.trim() || null,
         report_url: reportUrl,
       });
+      draft.clearDraft();
       toast.success(status === "completed" ? "Deal concluído" : "Deal encerrado");
       onClose();
     } catch (e) {
@@ -94,17 +114,31 @@ export function CloseDealDialog({
     }
   };
 
+  const handleRestoreDraft = () => {
+    const d = draft.restoreDraft();
+    if (!d) return;
+    setStatus(d.status);
+    setReason(d.reason);
+    setGenReport(d.genReport);
+  };
+
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o && !busy) onClose(); }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Encerrar deal</DialogTitle>
+          <div className="flex items-center justify-between gap-2">
+            <DialogTitle>Encerrar deal</DialogTitle>
+            <DraftIndicator lastSavedAt={draft.lastSavedAt} />
+          </div>
           <DialogDescription className="text-xs">
             {deal.curator_name} · {deal.song_name}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
+          {draft.hasDraft && (
+            <DraftBanner onRestore={handleRestoreDraft} onDiscard={draft.clearDraft} />
+          )}
           {/* Snapshot final */}
           <div className="rounded-lg bg-muted/40 border border-border p-3 space-y-1.5">
             <div className="flex justify-between text-[12px]">

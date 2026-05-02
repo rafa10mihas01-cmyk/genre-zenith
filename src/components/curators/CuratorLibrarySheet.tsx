@@ -19,6 +19,8 @@ import { cn } from "@/lib/utils";
 import { useCuratorLibrary, type PerformanceClass } from "@/hooks/useCuratorLibrary";
 import type { Curator } from "@/hooks/useCuratorDeals";
 import type { CuratorDeal } from "@/lib/curatorDealsUtils";
+import { useFormDraft } from "@/hooks/useFormDraft";
+import { DraftBanner, DraftIndicator } from "@/components/forms/DraftBanner";
 
 const PERF_LABEL: Record<PerformanceClass, string> = {
   excelente: "Excelente",
@@ -64,6 +66,22 @@ export function CuratorLibrarySheet({ curator, deals, onClose }: Props) {
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
+  const draftKey = curator ? `curator-library-add:${curator.id}` : "curator-library-add:none";
+  const isDraftEmpty = !name.trim() && !url.trim() && !followers.trim();
+  const draft = useFormDraft(
+    draftKey,
+    { enabled: addOpen && !!curator && !saving, isEmpty: isDraftEmpty },
+    { name, url, followers },
+  );
+
+  const handleRestoreDraft = () => {
+    const d = draft.restoreDraft();
+    if (!d) return;
+    setName(d.name);
+    setUrl(d.url);
+    setFollowers(d.followers);
+  };
+
   const handleAdd = async () => {
     if (!curator || !name.trim() || !url.trim()) {
       toast.error("Preencha nome e link da playlist");
@@ -79,6 +97,7 @@ export function CuratorLibrarySheet({ curator, deals, onClose }: Props) {
       });
       toast.success("Playlist adicionada à biblioteca");
       setName(""); setUrl(""); setFollowers("");
+      draft.clearDraft();
       setAddOpen(false);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -253,11 +272,17 @@ export function CuratorLibrarySheet({ curator, deals, onClose }: Props) {
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Adicionar playlist</DialogTitle>
+            <div className="flex items-center justify-between gap-2">
+              <DialogTitle>Adicionar playlist</DialogTitle>
+              <DraftIndicator lastSavedAt={draft.lastSavedAt} />
+            </div>
             <DialogDescription>
               Cadastre manualmente uma playlist no catálogo de {curator?.name}.
             </DialogDescription>
           </DialogHeader>
+          {draft.hasDraft && (
+            <DraftBanner onRestore={handleRestoreDraft} onDiscard={draft.clearDraft} className="mb-2" />
+          )}
           <div className="space-y-3">
             <div>
               <Label>Nome da playlist</Label>

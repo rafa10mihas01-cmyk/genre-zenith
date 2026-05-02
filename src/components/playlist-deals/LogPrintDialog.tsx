@@ -13,6 +13,8 @@ import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { buildDealPdf, uploadDealPdf, type ParsedDealData } from "@/lib/dealPdf";
+import { useFormDraft } from "@/hooks/useFormDraft";
+import { DraftBanner, DraftIndicator } from "@/components/forms/DraftBanner";
 
 import {
   computeCuratorStats,
@@ -156,6 +158,28 @@ export function LogPrintDialog({
     return pending ? pending.id : primarySongId;
   })();
   const [selectedSongId, setSelectedSongId] = useState<string | null>(initialSongId);
+
+  // Persistência de rascunho — somente campos textuais (arquivos não são serializáveis)
+  const draftKey = deal ? `log-print:${deal.id}` : "log-print:none";
+  const isDraftEmpty =
+    !pasteText.trim() && !manualValue.trim() && !note.trim() && !playlistsRaw.trim() && !hasNewPlaylists;
+  const draft = useFormDraft(
+    draftKey,
+    { enabled: open && !!deal && !saving, isEmpty: isDraftEmpty },
+    { mode, pasteText, manualValue, note, playlistsRaw, hasNewPlaylists, selectedSongId },
+  );
+
+  const handleRestoreDraft = () => {
+    const d = draft.restoreDraft();
+    if (!d) return;
+    setMode(d.mode);
+    setPasteText(d.pasteText);
+    setManualValue(d.manualValue);
+    setNote(d.note);
+    setPlaylistsRaw(d.playlistsRaw);
+    setHasNewPlaylists(d.hasNewPlaylists);
+    if (d.selectedSongId) setSelectedSongId(d.selectedSongId);
+  };
 
   const stats = deal ? computeCuratorStats(deal, allLogs, allPlaylists) : null;
   const selectedSong = songs.find((s) => s.id === selectedSongId) ?? null;
@@ -469,6 +493,7 @@ export function LogPrintDialog({
             : undefined,
         });
       }
+      draft.clearDraft();
       handleClose();
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -487,9 +512,12 @@ export function LogPrintDialog({
     <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); }}>
       <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="truncate">
-            {selectedSong?.song_name ?? deal.song_name}
-          </DialogTitle>
+          <div className="flex items-center justify-between gap-2">
+            <DialogTitle className="truncate">
+              {selectedSong?.song_name ?? deal.song_name}
+            </DialogTitle>
+            <DraftIndicator lastSavedAt={draft.lastSavedAt} />
+          </div>
           <DialogDescription className="truncate">
             {selectedSong?.song_artist ?? deal.song_artist ?? deal.curator_name}
             {hasMultipleSongs && (
@@ -497,6 +525,10 @@ export function LogPrintDialog({
             )}
           </DialogDescription>
         </DialogHeader>
+
+        {draft.hasDraft && step === "upload" && (
+          <DraftBanner onRestore={handleRestoreDraft} onDiscard={draft.clearDraft} />
+        )}
 
         {/* Seletor de música no topo (deal com 2+ músicas).
              Cada música tem seu próprio baseline — escolha antes de enviar prints. */}
