@@ -917,7 +917,7 @@ export default function CuratorPage() {
                           </div>
                         )}
                       </div>
-                      <Badge className="bg-primary text-black hover:bg-primary/90 shrink-0 text-[10px] px-2 py-0 h-5 border-0 font-semibold">
+                      <Badge className="bg-primary text-primary-foreground hover:bg-primary/90 shrink-0 text-[10px] px-2 py-0 h-5 border-0 font-semibold">
                         Nova
                       </Badge>
                     </li>
@@ -947,7 +947,7 @@ export default function CuratorPage() {
             <Button
               onClick={handleAdd}
               disabled={submitting || importing || !url.trim()}
-              className="w-full h-12 text-[14px] font-semibold rounded-xl bg-primary text-black hover:bg-primary/90 transition-colors"
+              className="w-full h-12 text-[14px] font-semibold rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
             >
               {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               Adicionar
