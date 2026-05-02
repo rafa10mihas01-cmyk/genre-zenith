@@ -47,6 +47,8 @@ import {
 import type { CuratorDeal, CuratorDealSong } from "@/lib/curatorDealsUtils";
 import { curatorPublicUrl } from "@/lib/curatorPublicUrl";
 import { formatNumber } from "@/lib/format";
+import { useFormDraft } from "@/hooks/useFormDraft";
+import { DraftBanner, DraftIndicator } from "@/components/forms/DraftBanner";
 
 // ============================================================
 // Tipos locais
