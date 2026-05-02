@@ -1413,6 +1413,35 @@ export default function CuratorPage() {
         </div>
       </div>
       </div>
+
+      {/* Modal sobreposto: detalhe do registro de print */}
+      <DealLogDetailDialog
+        open={selectedLogId !== null}
+        log={
+          (selectedLogId
+            ? logs.find((l) => l.id === selectedLogId) ?? null
+            : null) as any
+        }
+        prevLog={(() => {
+          if (!selectedLogId) return null;
+          const curatorLogs = logs.filter((l) => !l.is_baseline);
+          const reversed = [...curatorLogs].reverse();
+          const idx = reversed.findIndex((l) => l.id === selectedLogId);
+          return (idx >= 0 ? reversed[idx + 1] ?? null : null) as any;
+        })()}
+        song={(() => {
+          const log = selectedLogId
+            ? logs.find((l) => l.id === selectedLogId)
+            : null;
+          if (!log?.song_id) return null;
+          return (songs.find((s) => s.id === log.song_id) ?? null) as any;
+        })()}
+        fallbackSongName={deal?.song_name}
+        fallbackSongCover={deal?.song_cover_url ?? null}
+        fallbackArtist={deal?.song_artist ?? null}
+        playlists={playlists as any}
+        onClose={() => setSelectedLogId(null)}
+      />
     </div>
   );
 }
