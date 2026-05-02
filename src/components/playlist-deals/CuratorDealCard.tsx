@@ -330,14 +330,28 @@ export function CuratorDealCard({
 
         {/* Ações */}
         <div className="flex items-center gap-1.5 pt-0.5">
-          <Button
-            size="sm"
-            className="flex-1 h-9 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 font-medium text-[13px]"
-            onClick={() => onLog(deal)}
-          >
-            <Camera className="h-3.5 w-3.5" />
-            Enviar print
-          </Button>
+          {!isClosed ? (
+            <Button
+              size="sm"
+              className="flex-1 h-9 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 font-medium text-[13px]"
+              onClick={() => onLog(deal)}
+            >
+              <Camera className="h-3.5 w-3.5" />
+              Enviar print
+            </Button>
+          ) : onReopen ? (
+            <Button
+              size="sm"
+              variant="outline"
+              className="flex-1 h-9 gap-1.5 text-[13px]"
+              onClick={() => onReopen(deal)}
+            >
+              <Lock className="h-3.5 w-3.5" />
+              Reabrir
+            </Button>
+          ) : (
+            <div className="flex-1" />
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -347,6 +361,18 @@ export function CuratorDealCard({
             <History className="h-3.5 w-3.5" />
             Histórico
           </Button>
+          {!isClosed && onClose && hasBaseline && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 text-muted-foreground hover:text-foreground"
+              onClick={() => onClose(deal)}
+              aria-label="Encerrar deal"
+              title="Encerrar deal"
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" />
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="icon"
@@ -356,7 +382,7 @@ export function CuratorDealCard({
           >
             <Link2 className="h-3.5 w-3.5" />
           </Button>
-          {onEdit && (
+          {!isClosed && onEdit && (
             <Button
               variant="ghost"
               size="icon"
