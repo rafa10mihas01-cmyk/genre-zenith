@@ -230,7 +230,7 @@ Deno.serve(async (req) => {
     const cutoff = new Date(Date.now() - 7 * 86400000).toISOString();
     const { data: deals, error } = await supabase
       .from("curator_deals")
-      .select("id, user_id, song_name, curator_name, spotify_owner_id, started_at, ends_at")
+      .select("id, user_id, song_name, curator_name, spotify_owner_id, started_at, ends_at, target_plays")
       .or(`ends_at.is.null,ends_at.gte.${cutoff}`);
 
     if (error) throw error;
