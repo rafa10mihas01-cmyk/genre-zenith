@@ -294,6 +294,7 @@ export type Database = {
           reconciled_streams_28d: number
           reconciled_streams_7d: number
           reconciled_total_plays: number
+          slug: string | null
           song_artist: string | null
           song_cover_url: string | null
           song_name: string
@@ -317,6 +318,7 @@ export type Database = {
           reconciled_streams_28d?: number
           reconciled_streams_7d?: number
           reconciled_total_plays?: number
+          slug?: string | null
           song_artist?: string | null
           song_cover_url?: string | null
           song_name: string
@@ -340,6 +342,7 @@ export type Database = {
           reconciled_streams_28d?: number
           reconciled_streams_7d?: number
           reconciled_total_plays?: number
+          slug?: string | null
           song_artist?: string | null
           song_cover_url?: string | null
           song_name?: string
@@ -1889,6 +1892,10 @@ export type Database = {
           expired_ids: string[]
         }[]
       }
+      generate_curator_deal_slug: {
+        Args: { p_curator: string; p_id: string; p_song: string }
+        Returns: string
+      }
       get_active_replication_rules: {
         Args: { p_genre_id: string }
         Returns: {
@@ -2025,6 +2032,8 @@ export type Database = {
           genre_id: string
         }[]
       }
+      slugify: { Args: { p_text: string }; Returns: string }
+      unaccent: { Args: { "": string }; Returns: string }
     }
     Enums: {
       app_role: "admin" | "curador"
