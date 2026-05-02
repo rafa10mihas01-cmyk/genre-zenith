@@ -74,11 +74,9 @@ Deno.serve(async (req) => {
 
     // ------- Identificar deal e modo (público vs admin) -------
     let deal: DealRow | null = null;
-    let isPublicMode = false;
     let authedUserId: string | null = null;
 
     if (publicToken) {
-      isPublicMode = true;
       const { data, error } = await admin
         .from("curator_deals")
         .select("id, user_id, spotify_owner_id, started_at")
