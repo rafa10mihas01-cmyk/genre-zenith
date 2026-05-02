@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-import type { CuratorDeal, CuratorDealLog, CuratorDealSong, CuratorPlaylist } from "@/lib/curatorDealsUtils";
+import type { CuratorDeal, CuratorDealLog, CuratorDealSong, CuratorPlaylist, CuratorDealProgress } from "@/lib/curatorDealsUtils";
 import { computeCuratorStats } from "@/lib/curatorDealsUtils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
