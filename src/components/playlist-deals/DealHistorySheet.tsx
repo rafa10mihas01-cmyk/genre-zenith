@@ -410,7 +410,7 @@ export function DealHistorySheet({
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="space-y-2">
                     {reversedLogs.map((log, idx) => {
                       const prev = reversedLogs[idx + 1];
                       const isFirstChronological = !prev;
@@ -419,63 +419,106 @@ export function DealHistorySheet({
                         : 0;
                       const deltaPositive = delta >= 0;
 
+                      const logSong = getSongForLog(log);
+                      const cover =
+                        logSong?.song_cover_url ?? deal?.song_cover_url ?? null;
+                      const songName =
+                        logSong?.song_name ?? deal?.song_name ?? "Música";
+                      const linkedCount = allPlaylists.filter((p) => {
+                        if (p.deal_id !== log.deal_id) return false;
+                        if (log.song_id && (p as any).song_id) {
+                          return (p as any).song_id === log.song_id;
+                        }
+                        if (log.is_baseline) return p.is_baseline === true;
+                        return true;
+                      }).length;
+
                       return (
-                        <div
+                        <button
                           key={log.id}
-                          className="rounded-xl border border-white/[0.04] bg-[hsl(var(--elevated))]/40 p-4 transition-colors hover:bg-[hsl(var(--elevated))]/70"
+                          type="button"
+                          onClick={() => setSelectedLogId(log.id)}
+                          className="w-full text-left rounded-xl border border-white/[0.04] bg-[hsl(var(--elevated))]/40 p-3 transition-colors hover:bg-[hsl(var(--elevated))]/70 hover:border-white/[0.08] flex items-center gap-3"
                         >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <div className="text-xl font-bold text-foreground leading-tight">
-                                {Number(log.total_plays).toLocaleString(
-                                  "pt-BR",
-                                )}
-                                <span className="text-xs font-normal text-muted-foreground ml-1.5">
-                                  plays
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-2 mt-1">
-                                {log.is_baseline && (
-                                  <Badge
-                                    variant="secondary"
-                                    className="text-[10px] h-4 px-1.5"
-                                  >
-                                    Baseline
-                                  </Badge>
-                                )}
-                                <span className="text-[11px] text-muted-foreground">
-                                  {format(
-                                    new Date(log.created_at),
-                                    "dd/MM HH:mm",
-                                  )}
-                                </span>
-                              </div>
-                              {log.note && (
-                                <div className="text-xs text-muted-foreground mt-1.5 truncate">
-                                  {log.note}
-                                </div>
+                          {/* Capa */}
+                          {cover ? (
+                            <img
+                              src={cover}
+                              alt=""
+                              className="h-12 w-12 rounded-lg object-cover shrink-0 ring-1 ring-white/[0.06]"
+                            />
+                          ) : (
+                            <div className="h-12 w-12 rounded-lg bg-muted/40 flex items-center justify-center shrink-0">
+                              <Music2 className="h-4 w-4 text-muted-foreground" />
+                            </div>
+                          )}
+
+                          {/* Info principal */}
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5 mb-0.5">
+                              <span className="text-[13px] font-semibold truncate leading-tight">
+                                {songName}
+                              </span>
+                              {log.is_baseline && (
+                                <Badge
+                                  variant="secondary"
+                                  className="text-[9px] h-4 px-1.5 shrink-0"
+                                >
+                                  Baseline
+                                </Badge>
                               )}
                             </div>
-                            {!isFirstChronological && !log.is_baseline && (
+                            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                              <span>
+                                {format(new Date(log.created_at), "dd/MM HH:mm")}
+                              </span>
+                              {linkedCount > 0 && (
+                                <>
+                                  <span>·</span>
+                                  <span>
+                                    {linkedCount} playlist
+                                    {linkedCount > 1 ? "s" : ""}
+                                  </span>
+                                </>
+                              )}
+                              {log.print_urls && log.print_urls.length > 0 && (
+                                <>
+                                  <span>·</span>
+                                  <span>
+                                    {log.print_urls.length} print
+                                    {log.print_urls.length > 1 ? "s" : ""}
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Plays + delta */}
+                          <div className="text-right shrink-0">
+                            <div className="text-base font-bold tabular-nums leading-tight">
+                              {Number(log.total_plays).toLocaleString("pt-BR")}
+                            </div>
+                            {!isFirstChronological && !log.is_baseline ? (
                               <div
                                 className={cn(
-                                  "text-sm font-semibold shrink-0 px-2 py-1 rounded-md",
+                                  "text-[11px] font-semibold tabular-nums mt-0.5",
                                   deltaPositive
-                                    ? "text-success bg-success/10"
-                                    : "text-destructive bg-destructive/10",
+                                    ? "text-success"
+                                    : "text-destructive",
                                 )}
                               >
                                 {deltaPositive ? "+" : "−"}
                                 {Math.abs(delta).toLocaleString("pt-BR")}
                               </div>
+                            ) : (
+                              <div className="text-[10px] text-muted-foreground mt-0.5">
+                                plays
+                              </div>
                             )}
                           </div>
-                          {log.print_urls && log.print_urls.length > 0 && (
-                            <div className="mt-3">
-                              <PrintThumbs urls={log.print_urls} size="md" />
-                            </div>
-                          )}
-                        </div>
+
+                          <ChevronRight className="h-4 w-4 text-muted-foreground/60 shrink-0" />
+                        </button>
                       );
                     })}
                   </div>
@@ -490,6 +533,31 @@ export function DealHistorySheet({
         deal={deal}
         onClose={() => setPasteOpen(false)}
         onImported={() => onReload?.()}
+      />
+      {/* Modal sobreposto com detalhes do registro */}
+      <DealLogDetailDialog
+        open={selectedLogId !== null}
+        log={
+          selectedLogId
+            ? reversedLogs.find((l) => l.id === selectedLogId) ?? null
+            : null
+        }
+        prevLog={(() => {
+          if (!selectedLogId) return null;
+          const idx = reversedLogs.findIndex((l) => l.id === selectedLogId);
+          return idx >= 0 ? reversedLogs[idx + 1] ?? null : null;
+        })()}
+        song={(() => {
+          const log = selectedLogId
+            ? reversedLogs.find((l) => l.id === selectedLogId)
+            : null;
+          return log ? getSongForLog(log) : null;
+        })()}
+        fallbackSongName={deal?.song_name}
+        fallbackSongCover={deal?.song_cover_url ?? null}
+        fallbackArtist={deal?.song_artist ?? null}
+        playlists={allPlaylists}
+        onClose={() => setSelectedLogId(null)}
       />
     </Sheet>
   );
