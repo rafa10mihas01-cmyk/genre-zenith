@@ -164,6 +164,7 @@ export function useCuratorDeals() {
         position: 0,
         started_at: input.started_at ?? null,
         ends_at: input.ends_at ?? null,
+        ramp_up_days: input.ramp_up_days ?? 5,
       };
       const allSongs = [primarySong, ...(input.extra_songs ?? [])];
       const songRows = allSongs.map((s, i) => ({
