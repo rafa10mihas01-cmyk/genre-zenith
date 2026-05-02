@@ -144,6 +144,7 @@ export function PastePlaylistsDialog({
           `Importadas ${data.counts?.total ?? 0} playlists (${data.counts?.new ?? 0} novas)`,
         );
         onImported?.();
+        reset();
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
