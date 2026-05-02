@@ -564,22 +564,34 @@ export function NewDealDialog({ open, onOpenChange }: NewDealDialogProps) {
               <FormField
                 control={form.control}
                 name="target_plays"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Combinado total (plays)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        inputMode="numeric"
-                        min={1}
-                        placeholder="ex: 3000000"
-                        {...field}
-                        value={field.value ?? ""}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                render={({ field }) => {
+                  const n =
+                    typeof field.value === "number"
+                      ? field.value
+                      : Number(field.value);
+                  const hint = formatPlaysHint(Number.isFinite(n) ? n : undefined);
+                  return (
+                    <FormItem>
+                      <FormLabel>Combinado total (plays)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          inputMode="numeric"
+                          min={1}
+                          placeholder="ex: 3000000"
+                          {...field}
+                          value={field.value ?? ""}
+                        />
+                      </FormControl>
+                      {hint && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          ≈ <span className="text-foreground font-medium">{hint}</span> plays
+                        </p>
+                      )}
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
               />
 
               <FormItem>
