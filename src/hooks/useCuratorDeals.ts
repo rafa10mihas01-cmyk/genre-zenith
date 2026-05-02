@@ -79,6 +79,7 @@ export function useCuratorDeals() {
   const [logs, setLogs] = useState<CuratorDealLog[]>([]);
   const [playlists, setPlaylists] = useState<CuratorPlaylist[]>([]);
   const [songs, setSongs] = useState<CuratorDealSong[]>([]);
+  const [alerts, setAlerts] = useState<CuratorFraudAlert[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -88,6 +89,7 @@ export function useCuratorDeals() {
       setLogs([]);
       setPlaylists([]);
       setSongs([]);
+      setAlerts([]);
       setLoading(false);
       return;
     }
