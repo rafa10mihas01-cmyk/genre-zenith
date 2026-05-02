@@ -179,6 +179,8 @@ export default function CuratorPage() {
   const [importing, setImporting] = useState(false);
   const [baseOpen, setBaseOpen] = useState(false);
   const [curatorOpen, setCuratorOpen] = useState(true);
+  // Fase 5 — filtro por música (null = todas)
+  const [selectedSongId, setSelectedSongId] = useState<string | null>(null);
   // Tick a cada 60s pra atualizar o countdown do ciclo
   const [, setNowTick] = useState(0);
   useEffect(() => {
@@ -187,14 +189,32 @@ export default function CuratorPage() {
   }, []);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const hasMultipleSongs = songs.length > 1;
+  const selectedSong = useMemo(
+    () => (selectedSongId ? songs.find((s) => s.id === selectedSongId) ?? null : null),
+    [selectedSongId, songs],
+  );
+
+  // Playlists filtradas pela música selecionada (quando aplicável)
+  const visiblePlaylists = useMemo(() => {
+    if (!selectedSongId) return playlists;
+    return playlists.filter((p: any) => p.song_id === selectedSongId || !p.song_id);
+  }, [playlists, selectedSongId]);
+
   const basePlaylists = useMemo(
-    () => playlists.filter((p) => p.is_baseline),
-    [playlists],
+    () => visiblePlaylists.filter((p) => p.is_baseline),
+    [visiblePlaylists],
   );
   const curatorPlaylists = useMemo(
-    () => playlists.filter((p) => !p.is_baseline),
-    [playlists],
+    () => visiblePlaylists.filter((p) => !p.is_baseline),
+    [visiblePlaylists],
   );
+
+  // Logs filtrados pela música selecionada
+  const visibleLogs = useMemo(() => {
+    if (!selectedSongId) return logs;
+    return logs.filter((l) => l.song_id === selectedSongId);
+  }, [logs, selectedSongId]);
 
   const load = async () => {
     const publicToken = normalizePublicToken(token);
@@ -237,12 +257,12 @@ export default function CuratorPage() {
 
   const stats = useMemo(() => {
     const now = new Date();
-    const anchor = getAnchor(deal?.started_at ?? deal?.created_at ?? null);
+    // Quando há uma música selecionada, usa o started_at dela como âncora
+    const anchorRef = selectedSong?.started_at ?? deal?.started_at ?? deal?.created_at ?? null;
+    const anchor = getAnchor(anchorRef);
     const cycEnd = cycleEnd(anchor, now);
     const cycStart = cycleStart(anchor, now);
     const msToCycleEnd = cycEnd.getTime() - now.getTime();
-    // "Atrasado" = passou da segunda 17h e ainda não chegou import dentro deste ciclo.
-    // (sempre false antes do baseline, cobrimos abaixo)
 
     if (!deal) {
       return {
@@ -268,10 +288,15 @@ export default function CuratorPage() {
         lastImportCycleEnd: null as Date | null,
       };
     }
-    const target = Number(deal.target_plays ?? 0);
-    const dailyGoal = Number(deal.daily_goal ?? 0);
-    const baseline = Number(deal.baseline_plays ?? 0);
-    const sorted = [...logs].sort(
+
+    // Quando filtrado por música, usa metas e baseline da música; senão, do deal
+    const target = Number(selectedSong?.target_plays ?? deal.target_plays ?? 0);
+    const dailyGoal = Number(selectedSong?.daily_goal ?? deal.daily_goal ?? 0);
+    const baseline = Number(selectedSong?.baseline_plays ?? deal.baseline_plays ?? 0);
+
+    // Logs filtrados (já vem filtrado em visibleLogs quando há música)
+    const sourceLogs = selectedSongId ? visibleLogs : logs;
+    const sorted = [...sourceLogs].sort(
       (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
     );
     const nonBase = sorted.filter((l) => !l.is_baseline);
@@ -308,7 +333,7 @@ export default function CuratorPage() {
     if (target > 0 && earned >= target) eta = 0;
     else if (vel && vel > 0) eta = Math.ceil(remaining / vel);
 
-    const startRef = deal.started_at ?? deal.created_at;
+    const startRef = selectedSong?.started_at ?? deal.started_at ?? deal.created_at;
     const daysRunning = startRef
       ? Math.max(
           0,
@@ -316,29 +341,24 @@ export default function CuratorPage() {
         )
       : 0;
 
-    // Meta semanal proporcional (resto até cycEnd)
     const msInWeek = 7 * 24 * 60 * 60 * 1000;
     const cycleProgress = Math.min(
       1,
       Math.max(0, (now.getTime() - cycStart.getTime()) / msInWeek),
     );
-    // Quanto deveríamos ter ganho até agora dentro deste ciclo (linear)
     const weeklyTarget = dailyGoal * 7;
     const weekRemaining = Math.max(0, Math.round(weeklyTarget * (1 - cycleProgress)));
 
-    // Último import (não-baseline) e em qual ciclo ele caiu
     const lastImportAt = nonBase.length > 0
       ? new Date(nonBase[nonBase.length - 1].created_at)
       : null;
     const lastImportCycleEnd = lastImportAt ? cycleEnd(anchor, new Date(lastImportAt.getTime() - 1)) : null;
 
-    // Atrasado = ciclo atual já tem mais de 1 dia rolando (passou da seg 17h)
-    // E o último import pertence a um ciclo anterior ao atual
     const currentCycleEndMs = cycEnd.getTime();
     const isOverdue = hasBaseline
       && lastImportCycleEnd !== null
       && lastImportCycleEnd.getTime() < currentCycleEndMs
-      && now.getTime() - cycStart.getTime() > 24 * 60 * 60 * 1000; // >24h dentro do ciclo novo
+      && now.getTime() - cycStart.getTime() > 24 * 60 * 60 * 1000;
 
     return {
       target, dailyGoal, baseline, latest, earned, remaining, pct,
@@ -351,7 +371,7 @@ export default function CuratorPage() {
       lastImportAt,
       lastImportCycleEnd,
     };
-  }, [deal, logs]);
+  }, [deal, logs, visibleLogs, selectedSong, selectedSongId]);
 
 
   const handleAdd = async () => {
@@ -360,7 +380,7 @@ export default function CuratorPage() {
     setSubmitting(true);
     const { data, error: fnErr } = await supabase.functions.invoke(
       "register-curator-playlist",
-      { body: { public_token: realToken, urls: [url.trim()] } },
+      { body: { public_token: realToken, urls: [url.trim()], song_id: selectedSongId } },
     );
     setSubmitting(false);
     if (fnErr || !data?.ok) {
@@ -438,7 +458,7 @@ export default function CuratorPage() {
       const realToken = deal?.public_token ?? token;
       const { data, error: fnErr } = await supabase.functions.invoke(
         "register-curator-playlist",
-        { body: { public_token: realToken, urls } },
+        { body: { public_token: realToken, urls, song_id: selectedSongId } },
       );
       if (fnErr || !data?.ok) {
         toast.error(data?.error || fnErr?.message || "Erro ao importar");
@@ -590,96 +610,116 @@ export default function CuratorPage() {
               })()}
             </div>
 
-            {/* Identidade: capa + música/curador */}
-            <div className="flex items-center gap-4">
-              {deal.song_cover_url ? (
-                <div className="relative shrink-0">
-                  <div
-                    aria-hidden
-                    className="absolute inset-0 -z-10 rounded-xl blur-xl opacity-50"
-                    style={{ background: "rgba(29,185,84,0.35)" }}
-                  />
-                  <img
-                    src={deal.song_cover_url}
-                    alt={deal.song_name}
-                    className="w-[72px] h-[72px] rounded-xl object-cover ring-1 ring-border"
-                  />
-                </div>
-              ) : (
-                <div className="w-[72px] h-[72px] rounded-xl bg-muted shrink-0" />
-              )}
-              <div className="flex-1 min-w-0">
-                <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70 mb-1">
-                  Música
-                </div>
-                <h1 className="text-[17px] sm:text-[18px] font-semibold leading-tight tracking-tight truncate">
-                  {deal.song_name}
-                </h1>
-                <p className="text-[12px] text-muted-foreground truncate mt-0.5 leading-snug">
-                  {deal.song_artist ? `${deal.song_artist} · ` : ""}Curador: {deal.curator_name}
-                </p>
-              </div>
-            </div>
+            {/* Identidade: capa + música/curador (reflete música selecionada quando aplicável) */}
+            {(() => {
+              const headerCover = selectedSong?.song_cover_url ?? deal.song_cover_url;
+              const headerName = selectedSong?.song_name ?? deal.song_name;
+              const headerArtist = selectedSong?.song_artist ?? deal.song_artist;
+              const headerUrl = selectedSong?.song_spotify_url ?? deal.song_spotify_url;
+              return (
+                <>
+                  <div className="flex items-center gap-4">
+                    {headerCover ? (
+                      <div className="relative shrink-0">
+                        <div
+                          aria-hidden
+                          className="absolute inset-0 -z-10 rounded-xl blur-xl opacity-50"
+                          style={{ background: "rgba(29,185,84,0.35)" }}
+                        />
+                        <img
+                          src={headerCover}
+                          alt={headerName}
+                          className="w-[72px] h-[72px] rounded-xl object-cover ring-1 ring-border"
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-[72px] h-[72px] rounded-xl bg-muted shrink-0" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70 mb-1 inline-flex items-center gap-2">
+                        {selectedSong ? "Música selecionada" : hasMultipleSongs ? "Visão geral" : "Música"}
+                        {selectedSong && (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedSongId(null)}
+                            className="text-[9px] uppercase tracking-wider text-primary hover:underline"
+                          >
+                            limpar
+                          </button>
+                        )}
+                      </div>
+                      <h1 className="text-[17px] sm:text-[18px] font-semibold leading-tight tracking-tight truncate">
+                        {headerName}
+                      </h1>
+                      <p className="text-[12px] text-muted-foreground truncate mt-0.5 leading-snug">
+                        {headerArtist ? `${headerArtist} · ` : ""}Curador: {deal.curator_name}
+                      </p>
+                    </div>
+                  </div>
 
-            {/* Divisor */}
-            <div className="h-px bg-border" />
+                  {/* Divisor */}
+                  <div className="h-px bg-border" />
 
-            {/* Briefing: meta · prazo · ritmo */}
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-1">
-                  Meta
-                </div>
-                <div className="text-[15px] font-semibold tabular-nums leading-none">
-                  {formatPlays(stats.target)}
-                  <span className="text-[11px] text-muted-foreground font-normal ml-1">plays</span>
-                </div>
-              </div>
-              <div>
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-1">
-                  Esta semana
-                </div>
-                <div className="text-[15px] font-semibold tabular-nums leading-none text-primary">
-                  {stats.dailyGoal > 0 ? formatPlays(stats.weekRemaining) : "—"}
-                  <span className="text-[11px] text-muted-foreground font-normal ml-1">no ciclo</span>
-                </div>
-              </div>
-              <div>
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-1">
-                  Progresso
-                </div>
-                <div className="text-[15px] font-semibold tabular-nums leading-none">
-                  {stats.pct}
-                  <span className="text-[11px] text-muted-foreground font-normal">%</span>
-                </div>
-              </div>
-            </div>
+                  {/* Briefing: meta · prazo · ritmo */}
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-1">
+                        Meta
+                      </div>
+                      <div className="text-[15px] font-semibold tabular-nums leading-none">
+                        {formatPlays(stats.target)}
+                        <span className="text-[11px] text-muted-foreground font-normal ml-1">plays</span>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-1">
+                        Esta semana
+                      </div>
+                      <div className="text-[15px] font-semibold tabular-nums leading-none text-primary">
+                        {stats.dailyGoal > 0 ? formatPlays(stats.weekRemaining) : "—"}
+                        <span className="text-[11px] text-muted-foreground font-normal ml-1">no ciclo</span>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-1">
+                        Progresso
+                      </div>
+                      <div className="text-[15px] font-semibold tabular-nums leading-none">
+                        {stats.pct}
+                        <span className="text-[11px] text-muted-foreground font-normal">%</span>
+                      </div>
+                    </div>
+                  </div>
 
-            {/* Mini progress bar */}
-            {stats.hasBaseline && stats.target > 0 && (
-              <div className="h-1 rounded-full bg-muted/60 overflow-hidden">
-                <div
-                  className="h-full bg-primary rounded-full transition-all duration-500"
-                  style={{ width: `${stats.pct}%` }}
-                />
-              </div>
-            )}
+                  {/* Mini progress bar */}
+                  {stats.hasBaseline && stats.target > 0 && (
+                    <div className="h-1 rounded-full bg-muted/60 overflow-hidden">
+                      <div
+                        className="h-full bg-primary rounded-full transition-all duration-500"
+                        style={{ width: `${stats.pct}%` }}
+                      />
+                    </div>
+                  )}
 
-            {/* CTA Spotify */}
-            <a
-              href={deal.song_spotify_url}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] text-muted-foreground hover:text-foreground bg-muted/40 ring-1 ring-border hover:ring-border hover:bg-muted/60 transition-colors"
-            >
-              <ExternalLink className="h-3 w-3" />
-              Abrir no Spotify
-            </a>
+                  {/* CTA Spotify */}
+                  <a
+                    href={headerUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] text-muted-foreground hover:text-foreground bg-muted/40 ring-1 ring-border hover:ring-border hover:bg-muted/60 transition-colors"
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                    Abrir no Spotify
+                  </a>
+                </>
+              );
+            })()}
           </CardContent>
         </Card>
 
-        {/* Músicas da campanha — visível só quando há 2+ músicas no deal */}
-        {songs.length > 1 && (
+        {/* Músicas da campanha — visível só quando há 2+ músicas no deal.
+            Clicar em uma música filtra todos os KPIs, playlists e histórico. */}
+        {hasMultipleSongs && (
           <Card className="nx-card !p-0 border-border">
             <CardContent className="p-7 sm:p-8 space-y-5">
               <div className="flex items-center justify-between gap-3">
@@ -689,17 +729,34 @@ export default function CuratorPage() {
                     Músicas da campanha
                   </h2>
                   <p className="text-[12px] text-muted-foreground mt-1.5 leading-snug">
-                    Cada música tem sua janela e meta individual
+                    {selectedSong
+                      ? "Visualizando apenas esta música — toque em \"Todas\" para ver geral"
+                      : "Toque em uma música para ver progresso individual"}
                   </p>
                 </div>
                 <span className="text-[12px] text-muted-foreground shrink-0 tabular-nums">
-                  {songs.length} {songs.length === 1 ? "música" : "músicas"}
+                  {songs.length} músicas
                 </span>
+              </div>
+
+              {/* Chip "Todas" */}
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedSongId(null)}
+                  className={cn(
+                    "px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors ring-1",
+                    selectedSongId === null
+                      ? "bg-primary text-primary-foreground ring-primary"
+                      : "bg-muted/40 text-muted-foreground ring-border hover:bg-muted/60",
+                  )}
+                >
+                  Todas as músicas
+                </button>
               </div>
 
               <ul className="space-y-3">
                 {songs.map((s) => {
-                  // Logs/playlists individuais por música
                   const songLogs = logs.filter(
                     (l) => l.song_id === s.id && !l.is_baseline,
                   );
@@ -717,7 +774,6 @@ export default function CuratorPage() {
                       ? Math.min(100, Math.round((earned / target) * 100))
                       : 0;
 
-                  // Status: aquecimento / ativo / concluído / aguardando
                   const startRef = s.started_at ?? deal.started_at ?? deal.created_at;
                   const startMs = startRef ? new Date(startRef).getTime() : null;
                   const ramp = Number(s.ramp_up_days ?? 5);
@@ -741,98 +797,104 @@ export default function CuratorPage() {
                     statusColor = "text-muted-foreground";
                   }
 
+                  const isSelected = selectedSongId === s.id;
+
                   return (
-                    <li
-                      key={s.id}
-                      className="rounded-xl bg-muted/40 ring-1 ring-border/50 p-4 hover:bg-muted/60 transition-colors"
-                    >
-                      <div className="flex items-start gap-3">
-                        {s.song_cover_url ? (
-                          <img
-                            src={s.song_cover_url}
-                            alt={s.song_name}
-                            className="w-12 h-12 rounded-lg object-cover ring-1 ring-border shrink-0"
-                          />
-                        ) : (
-                          <div className="w-12 h-12 rounded-lg bg-muted shrink-0" />
+                    <li key={s.id}>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSelectedSongId(isSelected ? null : s.id)
+                        }
+                        className={cn(
+                          "w-full text-left rounded-xl p-4 transition-all ring-1",
+                          isSelected
+                            ? "bg-primary/10 ring-primary/40"
+                            : "bg-muted/40 ring-border/50 hover:bg-muted/60",
                         )}
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <a
-                                href={s.song_spotify_url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-[13px] font-semibold leading-tight truncate hover:underline block"
-                              >
-                                {s.song_name}
-                              </a>
-                              {s.song_artist && (
-                                <p className="text-[11px] text-muted-foreground truncate mt-0.5">
-                                  {s.song_artist}
-                                </p>
-                              )}
-                            </div>
-                            <span
-                              className={cn(
-                                "text-[10px] font-semibold uppercase tracking-wider shrink-0",
-                                statusColor,
-                              )}
-                            >
-                              {statusLabel}
-                            </span>
-                          </div>
-
-                          {/* Linha de KPIs por música */}
-                          <div className="grid grid-cols-3 gap-2 mt-3">
-                            <div>
-                              <div className="text-[9px] uppercase tracking-wider text-muted-foreground/70">
-                                Meta
-                              </div>
-                              <div className="text-[12px] font-semibold tabular-nums">
-                                {target > 0 ? formatPlays(target) : "—"}
-                              </div>
-                            </div>
-                            <div>
-                              <div className="text-[9px] uppercase tracking-wider text-muted-foreground/70">
-                                Diário
-                              </div>
-                              <div className="text-[12px] font-semibold tabular-nums">
-                                {Number(s.daily_goal ?? 0) > 0
-                                  ? formatPlays(Number(s.daily_goal))
-                                  : "—"}
-                              </div>
-                            </div>
-                            <div>
-                              <div className="text-[9px] uppercase tracking-wider text-muted-foreground/70">
-                                Janela
-                              </div>
-                              <div className="text-[12px] font-semibold tabular-nums">
-                                {s.started_at ? formatShortDate(s.started_at) : "—"}
-                                {s.ends_at ? ` → ${formatShortDate(s.ends_at)}` : ""}
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Progresso individual */}
-                          {target > 0 && (
-                            <div className="mt-3 space-y-1.5">
-                              <div className="h-1 rounded-full bg-muted/60 overflow-hidden">
-                                <div
-                                  className="h-full bg-primary rounded-full transition-all duration-500"
-                                  style={{ width: `${pct}%` }}
-                                />
-                              </div>
-                              <div className="flex items-center justify-between text-[11px] tabular-nums">
-                                <span className="text-foreground font-medium">
-                                  {formatPlays(earned)} / {formatPlays(target)}
-                                </span>
-                                <span className="text-muted-foreground">{pct}%</span>
-                              </div>
-                            </div>
+                        aria-pressed={isSelected}
+                      >
+                        <div className="flex items-start gap-3">
+                          {s.song_cover_url ? (
+                            <img
+                              src={s.song_cover_url}
+                              alt={s.song_name}
+                              className="w-12 h-12 rounded-lg object-cover ring-1 ring-border shrink-0"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 rounded-lg bg-muted shrink-0" />
                           )}
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <span className="text-[13px] font-semibold leading-tight truncate block">
+                                  {s.song_name}
+                                </span>
+                                {s.song_artist && (
+                                  <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+                                    {s.song_artist}
+                                  </p>
+                                )}
+                              </div>
+                              <span
+                                className={cn(
+                                  "text-[10px] font-semibold uppercase tracking-wider shrink-0",
+                                  statusColor,
+                                )}
+                              >
+                                {statusLabel}
+                              </span>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-2 mt-3">
+                              <div>
+                                <div className="text-[9px] uppercase tracking-wider text-muted-foreground/70">
+                                  Meta
+                                </div>
+                                <div className="text-[12px] font-semibold tabular-nums">
+                                  {target > 0 ? formatPlays(target) : "—"}
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-[9px] uppercase tracking-wider text-muted-foreground/70">
+                                  Diário
+                                </div>
+                                <div className="text-[12px] font-semibold tabular-nums">
+                                  {Number(s.daily_goal ?? 0) > 0
+                                    ? formatPlays(Number(s.daily_goal))
+                                    : "—"}
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-[9px] uppercase tracking-wider text-muted-foreground/70">
+                                  Janela
+                                </div>
+                                <div className="text-[12px] font-semibold tabular-nums">
+                                  {s.started_at ? formatShortDate(s.started_at) : "—"}
+                                  {s.ends_at ? ` → ${formatShortDate(s.ends_at)}` : ""}
+                                </div>
+                              </div>
+                            </div>
+
+                            {target > 0 && (
+                              <div className="mt-3 space-y-1.5">
+                                <div className="h-1 rounded-full bg-muted/60 overflow-hidden">
+                                  <div
+                                    className="h-full bg-primary rounded-full transition-all duration-500"
+                                    style={{ width: `${pct}%` }}
+                                  />
+                                </div>
+                                <div className="flex items-center justify-between text-[11px] tabular-nums">
+                                  <span className="text-foreground font-medium">
+                                    {formatPlays(earned)} / {formatPlays(target)}
+                                  </span>
+                                  <span className="text-muted-foreground">{pct}%</span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
+                      </button>
                     </li>
                   );
                 })}
@@ -1192,7 +1254,7 @@ export default function CuratorPage() {
 
         {/* Histórico de prints (apenas os enviados pelo curador) */}
         {(() => {
-          const curatorLogs = logs.filter((l) => !l.is_baseline);
+          const curatorLogs = visibleLogs.filter((l) => !l.is_baseline);
           return (
             <Card className="nx-card !p-0 border-border">
               <CardContent className="p-7 sm:p-8 space-y-5">

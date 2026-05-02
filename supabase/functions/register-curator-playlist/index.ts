@@ -60,6 +60,9 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const publicToken = typeof body?.public_token === "string" ? body.public_token.trim() : "";
     const dealIdInput = typeof body?.deal_id === "string" ? body.deal_id.trim() : "";
+    const songIdInput = typeof body?.song_id === "string" && body.song_id.trim().length > 0
+      ? body.song_id.trim()
+      : null;
     const urls: string[] = Array.isArray(body?.urls) ? body.urls : [];
     const preview = body?.preview === true;
 
@@ -262,6 +265,7 @@ Deno.serve(async (req) => {
       .filter((it) => it.status === "ok" && it.meta && it.match_status)
       .map((it) => ({
         deal_id: deal!.id,
+        song_id: songIdInput,
         spotify_url: `https://open.spotify.com/playlist/${it.playlist_id}`,
         spotify_playlist_id: it.playlist_id!,
         playlist_name: it.meta!.name,
