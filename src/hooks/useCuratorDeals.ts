@@ -404,6 +404,7 @@ export function useCuratorDeals() {
     logs,
     playlists,
     songs,
+    alerts,
     loading,
     error,
     addDeal,
