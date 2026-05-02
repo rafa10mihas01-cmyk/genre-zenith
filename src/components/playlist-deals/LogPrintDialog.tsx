@@ -159,6 +159,28 @@ export function LogPrintDialog({
   })();
   const [selectedSongId, setSelectedSongId] = useState<string | null>(initialSongId);
 
+  // Persistência de rascunho — somente campos textuais (arquivos não são serializáveis)
+  const draftKey = deal ? `log-print:${deal.id}` : "log-print:none";
+  const isDraftEmpty =
+    !pasteText.trim() && !manualValue.trim() && !note.trim() && !playlistsRaw.trim() && !hasNewPlaylists;
+  const draft = useFormDraft(
+    draftKey,
+    { enabled: open && !!deal && !saving, isEmpty: isDraftEmpty },
+    { mode, pasteText, manualValue, note, playlistsRaw, hasNewPlaylists, selectedSongId },
+  );
+
+  const handleRestoreDraft = () => {
+    const d = draft.restoreDraft();
+    if (!d) return;
+    setMode(d.mode);
+    setPasteText(d.pasteText);
+    setManualValue(d.manualValue);
+    setNote(d.note);
+    setPlaylistsRaw(d.playlistsRaw);
+    setHasNewPlaylists(d.hasNewPlaylists);
+    if (d.selectedSongId) setSelectedSongId(d.selectedSongId);
+  };
+
   const stats = deal ? computeCuratorStats(deal, allLogs, allPlaylists) : null;
   const selectedSong = songs.find((s) => s.id === selectedSongId) ?? null;
   // Para múltiplas músicas, baseline é por música. Para single, usa stats global.
