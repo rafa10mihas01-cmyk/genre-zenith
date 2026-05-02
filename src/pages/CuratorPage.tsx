@@ -1306,16 +1306,16 @@ export default function CuratorPage() {
                 {baseModalGroup?.playlists.length ?? 0} playlists em que a música já está antes da campanha
               </DialogDescription>
             </DialogHeader>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 overflow-y-auto pr-1 -mr-1 pb-2">
+            <div className="flex flex-col gap-1.5 overflow-y-auto pr-1 -mr-1 pb-2">
               {baseModalGroup?.playlists.map((p) => (
                 <a
                   key={p.id}
                   href={p.spotify_url}
                   target="_blank"
                   rel="noreferrer"
-                  className="group nx-subcard-hover flex flex-col p-2.5"
+                  className="group nx-subcard-hover flex items-center gap-3 p-2.5"
                 >
-                  <div className="relative w-full aspect-square rounded-lg overflow-hidden bg-muted/60 ring-1 ring-border/40 mb-2">
+                  <div className="relative w-11 h-11 rounded-md overflow-hidden bg-muted/60 ring-1 ring-border/40 shrink-0">
                     {p.image_url ? (
                       <img
                         src={p.image_url}
@@ -1324,22 +1324,25 @@ export default function CuratorPage() {
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
-                        <ListMusic className="h-5 w-5 text-muted-foreground" />
+                        <ListMusic className="h-4 w-4 text-muted-foreground" />
                       </div>
                     )}
                   </div>
-                  <div className="text-[12px] font-medium leading-tight line-clamp-2">
-                    {p.playlist_name}
-                  </div>
-                  {p.followers !== null && (
-                    <div className="text-[10px] text-muted-foreground mt-0.5 tabular-nums">
-                      {formatPlays(p.followers)} seguidores
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[13px] font-medium leading-tight truncate group-hover:text-primary transition-colors">
+                      {p.playlist_name}
                     </div>
-                  )}
+                    {p.followers !== null && (
+                      <div className="text-[11px] text-muted-foreground mt-0.5 tabular-nums">
+                        {formatPlays(p.followers)} seguidores
+                      </div>
+                    )}
+                  </div>
+                  <ExternalLink className="h-3.5 w-3.5 text-muted-foreground/60 group-hover:text-primary transition-colors shrink-0" />
                 </a>
               ))}
               {baseModalGroup && baseModalGroup.playlists.length === 0 && (
-                <div className="col-span-full py-8 text-center text-[12px] text-muted-foreground">
+                <div className="py-8 text-center text-[12px] text-muted-foreground">
                   Nenhuma playlist registrada para esta música.
                 </div>
               )}
