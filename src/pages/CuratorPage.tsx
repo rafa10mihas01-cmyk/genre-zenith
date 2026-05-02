@@ -237,6 +237,60 @@ export default function CuratorPage() {
     [visiblePlaylists],
   );
 
+  // Agrupamento baseline: 1 card por música, com as playlists onde ela já está
+  const baseGroupedBySong = useMemo(() => {
+    // usa `playlists` (não filtrado) para mostrar todas as músicas
+    const baseAll = playlists.filter((p) => p.is_baseline);
+    const groups = new Map<string, { song: DealSong | null; deal: boolean; playlists: Playlist[] }>();
+    for (const p of baseAll) {
+      const key = p.song_id ?? "__deal__";
+      if (!groups.has(key)) {
+        const song = p.song_id ? songs.find((s) => s.id === p.song_id) ?? null : null;
+        groups.set(key, { song, deal: !p.song_id, playlists: [] });
+      }
+      groups.get(key)!.playlists.push(p);
+    }
+    // garante todas as músicas da campanha apareçam mesmo sem baseline
+    for (const s of songs) {
+      if (!groups.has(s.id)) groups.set(s.id, { song: s, deal: false, playlists: [] });
+    }
+    return Array.from(groups.entries()).map(([key, v]) => ({ key, ...v }));
+  }, [playlists, songs]);
+
+  // Agrupamento curador: 1 card por playlist única, com as músicas que já estão nela (baseline)
+  const curatorGroupedByPlaylist = useMemo(() => {
+    const groups = new Map<
+      string,
+      { key: string; sample: Playlist; songsInside: DealSong[] }
+    >();
+    for (const p of curatorPlaylists) {
+      const key = p.spotify_playlist_id || p.spotify_url || p.id;
+      if (!groups.has(key)) {
+        groups.set(key, { key, sample: p, songsInside: [] });
+      }
+    }
+    // para cada playlist do curador, descobre quais músicas da campanha já estão nela (via baseline match por spotify_playlist_id)
+    const baseAll = playlists.filter((p) => p.is_baseline);
+    for (const [key, g] of groups) {
+      const pid = g.sample.spotify_playlist_id;
+      if (!pid) continue;
+      const matchedSongIds = new Set(
+        baseAll.filter((b) => b.spotify_playlist_id === pid).map((b) => b.song_id).filter(Boolean) as string[],
+      );
+      g.songsInside = songs.filter((s) => matchedSongIds.has(s.id));
+    }
+    return Array.from(groups.values());
+  }, [curatorPlaylists, playlists, songs]);
+
+  const baseModalGroup = useMemo(
+    () => baseGroupedBySong.find((g) => g.key === baseSongModalId) ?? null,
+    [baseGroupedBySong, baseSongModalId],
+  );
+  const curatorModalGroup = useMemo(
+    () => curatorGroupedByPlaylist.find((g) => g.key === curatorPlaylistModalKey) ?? null,
+    [curatorGroupedByPlaylist, curatorPlaylistModalKey],
+  );
+
   // Logs filtrados pela música selecionada
   const visibleLogs = useMemo(() => {
     if (!selectedSongId) return logs;
