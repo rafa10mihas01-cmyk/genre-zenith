@@ -521,7 +521,7 @@ export default function CuratorPage() {
         </div>
 
         {/* Header — campanha + música */}
-        <Card className="bg-card border-border ring-1 ring-border/50 shadow-sm dark:shadow-[0_8px_30px_rgba(0,0,0,0.45)] transition-colors overflow-hidden">
+        <Card className="nx-card !p-0 overflow-hidden border-border">
           <CardContent className="p-7 sm:p-8 space-y-6">
             {/* Eyebrow: CAMPANHA · próximo relatório (seg 17h) */}
             <div className="flex items-center justify-between gap-3">
@@ -657,7 +657,7 @@ export default function CuratorPage() {
 
         {/* Plays hoje vs combinado diário */}
         {stats.hasBaseline && (
-          <Card className="bg-card border-border ring-1 ring-border/50 shadow-sm dark:shadow-[0_8px_30px_rgba(0,0,0,0.45)]">
+          <Card className="nx-card !p-0 border-border">
             <CardContent className="p-7 sm:p-8 grid grid-cols-2 gap-6 divide-x divide-border">
               <div className="pr-2">
                 <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">
@@ -686,7 +686,7 @@ export default function CuratorPage() {
         )}
 
         {/* Progresso da campanha */}
-        <Card className="bg-card border-border ring-1 ring-border/50 shadow-sm dark:shadow-[0_8px_30px_rgba(0,0,0,0.45)]">
+        <Card className="nx-card !p-0 border-border">
           <CardContent className="p-7 sm:p-8 space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-[15px] font-semibold tracking-tight">Combinado total</h2>
@@ -800,7 +800,7 @@ export default function CuratorPage() {
 
         {/* Playlists onde a música já está (baseline / pré-existentes) — colapsável */}
         {basePlaylists.length > 0 && (
-          <Card className="bg-card border-border ring-1 ring-border/50 shadow-sm dark:shadow-[0_8px_30px_rgba(0,0,0,0.45)]">
+          <Card className="nx-card !p-0 border-border">
             <CardContent className="p-7 sm:p-8 space-y-5">
               <button
                 type="button"
@@ -862,7 +862,7 @@ export default function CuratorPage() {
         )}
 
         {/* Playlists adicionadas pelo curador */}
-        <Card className="bg-card border-border ring-1 ring-border/50 shadow-sm dark:shadow-[0_8px_30px_rgba(0,0,0,0.45)]">
+        <Card className="nx-card !p-0 border-border">
           <CardContent className="p-7 sm:p-8 space-y-5">
             <button
               type="button"
@@ -929,7 +929,7 @@ export default function CuratorPage() {
         </Card>
 
         {/* Adicionar playlist — bloco de ação principal */}
-        <Card className="bg-card border-border ring-1 ring-border/50 shadow-sm dark:shadow-[0_8px_30px_rgba(0,0,0,0.45)]">
+        <Card className="nx-card !p-0 border-border">
           <CardContent className="p-7 sm:p-8 space-y-5">
             <div>
               <h2 className="text-[15px] font-semibold tracking-tight">Adicionar playlist</h2>
@@ -1008,7 +1008,7 @@ export default function CuratorPage() {
         {(() => {
           const curatorLogs = logs.filter((l) => !l.is_baseline);
           return (
-            <Card className="bg-card border-border ring-1 ring-border/50 shadow-sm dark:shadow-[0_8px_30px_rgba(0,0,0,0.45)]">
+            <Card className="nx-card !p-0 border-border">
               <CardContent className="p-7 sm:p-8 space-y-5">
                 <div className="flex items-center justify-between">
                   <h2 className="text-[15px] font-semibold tracking-tight">Histórico</h2>
