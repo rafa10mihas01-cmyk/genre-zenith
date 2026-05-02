@@ -224,12 +224,13 @@ export function CuradoresTab({ deals, logs, playlists, alerts = [], loading }: P
                   <th className="text-right px-3 py-3 font-medium">Plays</th>
                   <th className="text-right px-3 py-3 font-medium">R$/play</th>
                   <th className="text-right px-3 py-3 font-medium">Legítimo</th>
+                  <th className="text-right px-3 py-3 font-medium">Risco</th>
                   <th className="text-right px-5 py-3 font-medium">Score</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((r, i) => {
-                  const isBest = i === 0 && rows.length > 1 && r.avgScore >= 70;
+                  const isBest = i === 0 && rows.length > 1 && r.avgScore >= 70 && r.alertsHigh === 0;
                   const legitPct = Math.round(r.avgLegitShare * 100);
                   return (
                     <tr
