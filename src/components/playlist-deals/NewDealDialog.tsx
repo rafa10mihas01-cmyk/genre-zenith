@@ -647,10 +647,10 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDe
                             setBalanceCostDigits("");
                           }}
                           className={cn(
-                            "w-full text-left rounded-lg border p-3 transition-colors",
+                            "w-full text-left rounded-xl border p-3.5 transition-all",
                             sel
-                              ? "border-primary bg-primary/5"
-                              : "border-border bg-muted/20 hover:bg-muted/40",
+                              ? "border-primary/60 bg-primary/10 ring-1 ring-primary/30 shadow-[0_0_0_1px_hsl(var(--primary)/0.15)]"
+                              : "border-border/60 bg-[hsl(var(--card))] hover:bg-[hsl(var(--elevated))] hover:border-border",
                           )}
                         >
                           <div className="flex items-center justify-between gap-2">
