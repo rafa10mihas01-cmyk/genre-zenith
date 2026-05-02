@@ -93,7 +93,17 @@ export default function CuratorPage() {
   const [url, setUrl] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [baseOpen, setBaseOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const basePlaylists = useMemo(
+    () => playlists.filter((p) => p.is_baseline),
+    [playlists],
+  );
+  const curatorPlaylists = useMemo(
+    () => playlists.filter((p) => !p.is_baseline),
+    [playlists],
+  );
 
   const load = async () => {
     if (!token) return;
