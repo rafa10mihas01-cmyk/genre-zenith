@@ -279,6 +279,7 @@ export function useCuratorDeals() {
           note: input.note ?? null,
           is_baseline: input.is_baseline ?? false,
           print_urls: input.print_urls ?? [],
+          song_id: input.song_id ?? null,
         })
         .select()
         .single();
