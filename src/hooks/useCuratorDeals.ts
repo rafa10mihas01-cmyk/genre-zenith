@@ -145,6 +145,7 @@ export function useCuratorDeals() {
           cost: input.cost ?? null,
           started_at: input.started_at ?? new Date().toISOString(),
           ends_at: input.ends_at ?? null,
+          ramp_up_days: input.ramp_up_days ?? 5,
         })
         .select()
         .single();
