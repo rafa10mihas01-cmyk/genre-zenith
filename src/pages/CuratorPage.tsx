@@ -329,10 +329,11 @@ export default function CuratorPage() {
 
   const handleAdd = async () => {
     if (!token || !url.trim()) return;
+    const realToken = deal?.public_token ?? token;
     setSubmitting(true);
     const { data, error: fnErr } = await supabase.functions.invoke(
       "register-curator-playlist",
-      { body: { public_token: token, urls: [url.trim()] } },
+      { body: { public_token: realToken, urls: [url.trim()] } },
     );
     setSubmitting(false);
     if (fnErr || !data?.ok) {
