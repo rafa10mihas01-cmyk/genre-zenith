@@ -211,6 +211,7 @@ Deno.serve(async (req) => {
             });
             item.match_status = cls.match_status;
             item.match_reason = cls.match_reason;
+            item.track_presence = await checkTrackInPlaylist(pid, trackIdToCheck);
 
           } catch (e) {
             item.status = "error";
