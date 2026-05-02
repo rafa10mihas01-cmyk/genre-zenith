@@ -234,6 +234,7 @@ export type Database = {
           deal_id: string
           id: string
           is_baseline: boolean
+          match_method: string | null
           notes: string | null
           playlist_id: string
           plays: number
@@ -250,6 +251,7 @@ export type Database = {
           deal_id: string
           id?: string
           is_baseline?: boolean
+          match_method?: string | null
           notes?: string | null
           playlist_id: string
           plays?: number
@@ -266,6 +268,7 @@ export type Database = {
           deal_id?: string
           id?: string
           is_baseline?: boolean
+          match_method?: string | null
           notes?: string | null
           playlist_id?: string
           plays?: number
@@ -2231,6 +2234,8 @@ export type Database = {
         }
         Returns: Json
       }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
       slugify: { Args: { p_text: string }; Returns: string }
       unaccent: { Args: { "": string }; Returns: string }
     }
