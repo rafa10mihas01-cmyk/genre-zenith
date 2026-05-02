@@ -698,8 +698,9 @@ export default function CuratorPage() {
           </CardContent>
         </Card>
 
-        {/* Músicas da campanha — visível só quando há 2+ músicas no deal */}
-        {songs.length > 1 && (
+        {/* Músicas da campanha — visível só quando há 2+ músicas no deal.
+            Clicar em uma música filtra todos os KPIs, playlists e histórico. */}
+        {hasMultipleSongs && (
           <Card className="nx-card !p-0 border-border">
             <CardContent className="p-7 sm:p-8 space-y-5">
               <div className="flex items-center justify-between gap-3">
@@ -709,17 +710,34 @@ export default function CuratorPage() {
                     Músicas da campanha
                   </h2>
                   <p className="text-[12px] text-muted-foreground mt-1.5 leading-snug">
-                    Cada música tem sua janela e meta individual
+                    {selectedSong
+                      ? "Visualizando apenas esta música — toque em \"Todas\" para ver geral"
+                      : "Toque em uma música para ver progresso individual"}
                   </p>
                 </div>
                 <span className="text-[12px] text-muted-foreground shrink-0 tabular-nums">
-                  {songs.length} {songs.length === 1 ? "música" : "músicas"}
+                  {songs.length} músicas
                 </span>
+              </div>
+
+              {/* Chip "Todas" */}
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedSongId(null)}
+                  className={cn(
+                    "px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors ring-1",
+                    selectedSongId === null
+                      ? "bg-primary text-primary-foreground ring-primary"
+                      : "bg-muted/40 text-muted-foreground ring-border hover:bg-muted/60",
+                  )}
+                >
+                  Todas as músicas
+                </button>
               </div>
 
               <ul className="space-y-3">
                 {songs.map((s) => {
-                  // Logs/playlists individuais por música
                   const songLogs = logs.filter(
                     (l) => l.song_id === s.id && !l.is_baseline,
                   );
@@ -737,7 +755,6 @@ export default function CuratorPage() {
                       ? Math.min(100, Math.round((earned / target) * 100))
                       : 0;
 
-                  // Status: aquecimento / ativo / concluído / aguardando
                   const startRef = s.started_at ?? deal.started_at ?? deal.created_at;
                   const startMs = startRef ? new Date(startRef).getTime() : null;
                   const ramp = Number(s.ramp_up_days ?? 5);
@@ -761,98 +778,104 @@ export default function CuratorPage() {
                     statusColor = "text-muted-foreground";
                   }
 
+                  const isSelected = selectedSongId === s.id;
+
                   return (
-                    <li
-                      key={s.id}
-                      className="rounded-xl bg-muted/40 ring-1 ring-border/50 p-4 hover:bg-muted/60 transition-colors"
-                    >
-                      <div className="flex items-start gap-3">
-                        {s.song_cover_url ? (
-                          <img
-                            src={s.song_cover_url}
-                            alt={s.song_name}
-                            className="w-12 h-12 rounded-lg object-cover ring-1 ring-border shrink-0"
-                          />
-                        ) : (
-                          <div className="w-12 h-12 rounded-lg bg-muted shrink-0" />
+                    <li key={s.id}>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSelectedSongId(isSelected ? null : s.id)
+                        }
+                        className={cn(
+                          "w-full text-left rounded-xl p-4 transition-all ring-1",
+                          isSelected
+                            ? "bg-primary/10 ring-primary/40"
+                            : "bg-muted/40 ring-border/50 hover:bg-muted/60",
                         )}
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <a
-                                href={s.song_spotify_url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-[13px] font-semibold leading-tight truncate hover:underline block"
-                              >
-                                {s.song_name}
-                              </a>
-                              {s.song_artist && (
-                                <p className="text-[11px] text-muted-foreground truncate mt-0.5">
-                                  {s.song_artist}
-                                </p>
-                              )}
-                            </div>
-                            <span
-                              className={cn(
-                                "text-[10px] font-semibold uppercase tracking-wider shrink-0",
-                                statusColor,
-                              )}
-                            >
-                              {statusLabel}
-                            </span>
-                          </div>
-
-                          {/* Linha de KPIs por música */}
-                          <div className="grid grid-cols-3 gap-2 mt-3">
-                            <div>
-                              <div className="text-[9px] uppercase tracking-wider text-muted-foreground/70">
-                                Meta
-                              </div>
-                              <div className="text-[12px] font-semibold tabular-nums">
-                                {target > 0 ? formatPlays(target) : "—"}
-                              </div>
-                            </div>
-                            <div>
-                              <div className="text-[9px] uppercase tracking-wider text-muted-foreground/70">
-                                Diário
-                              </div>
-                              <div className="text-[12px] font-semibold tabular-nums">
-                                {Number(s.daily_goal ?? 0) > 0
-                                  ? formatPlays(Number(s.daily_goal))
-                                  : "—"}
-                              </div>
-                            </div>
-                            <div>
-                              <div className="text-[9px] uppercase tracking-wider text-muted-foreground/70">
-                                Janela
-                              </div>
-                              <div className="text-[12px] font-semibold tabular-nums">
-                                {s.started_at ? formatShortDate(s.started_at) : "—"}
-                                {s.ends_at ? ` → ${formatShortDate(s.ends_at)}` : ""}
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Progresso individual */}
-                          {target > 0 && (
-                            <div className="mt-3 space-y-1.5">
-                              <div className="h-1 rounded-full bg-muted/60 overflow-hidden">
-                                <div
-                                  className="h-full bg-primary rounded-full transition-all duration-500"
-                                  style={{ width: `${pct}%` }}
-                                />
-                              </div>
-                              <div className="flex items-center justify-between text-[11px] tabular-nums">
-                                <span className="text-foreground font-medium">
-                                  {formatPlays(earned)} / {formatPlays(target)}
-                                </span>
-                                <span className="text-muted-foreground">{pct}%</span>
-                              </div>
-                            </div>
+                        aria-pressed={isSelected}
+                      >
+                        <div className="flex items-start gap-3">
+                          {s.song_cover_url ? (
+                            <img
+                              src={s.song_cover_url}
+                              alt={s.song_name}
+                              className="w-12 h-12 rounded-lg object-cover ring-1 ring-border shrink-0"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 rounded-lg bg-muted shrink-0" />
                           )}
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <span className="text-[13px] font-semibold leading-tight truncate block">
+                                  {s.song_name}
+                                </span>
+                                {s.song_artist && (
+                                  <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+                                    {s.song_artist}
+                                  </p>
+                                )}
+                              </div>
+                              <span
+                                className={cn(
+                                  "text-[10px] font-semibold uppercase tracking-wider shrink-0",
+                                  statusColor,
+                                )}
+                              >
+                                {statusLabel}
+                              </span>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-2 mt-3">
+                              <div>
+                                <div className="text-[9px] uppercase tracking-wider text-muted-foreground/70">
+                                  Meta
+                                </div>
+                                <div className="text-[12px] font-semibold tabular-nums">
+                                  {target > 0 ? formatPlays(target) : "—"}
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-[9px] uppercase tracking-wider text-muted-foreground/70">
+                                  Diário
+                                </div>
+                                <div className="text-[12px] font-semibold tabular-nums">
+                                  {Number(s.daily_goal ?? 0) > 0
+                                    ? formatPlays(Number(s.daily_goal))
+                                    : "—"}
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-[9px] uppercase tracking-wider text-muted-foreground/70">
+                                  Janela
+                                </div>
+                                <div className="text-[12px] font-semibold tabular-nums">
+                                  {s.started_at ? formatShortDate(s.started_at) : "—"}
+                                  {s.ends_at ? ` → ${formatShortDate(s.ends_at)}` : ""}
+                                </div>
+                              </div>
+                            </div>
+
+                            {target > 0 && (
+                              <div className="mt-3 space-y-1.5">
+                                <div className="h-1 rounded-full bg-muted/60 overflow-hidden">
+                                  <div
+                                    className="h-full bg-primary rounded-full transition-all duration-500"
+                                    style={{ width: `${pct}%` }}
+                                  />
+                                </div>
+                                <div className="flex items-center justify-between text-[11px] tabular-nums">
+                                  <span className="text-foreground font-medium">
+                                    {formatPlays(earned)} / {formatPlays(target)}
+                                  </span>
+                                  <span className="text-muted-foreground">{pct}%</span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
+                      </button>
                     </li>
                   );
                 })}
