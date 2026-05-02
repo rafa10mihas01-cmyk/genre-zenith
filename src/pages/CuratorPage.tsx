@@ -24,6 +24,8 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { NexEngineLogo } from "@/components/NexEngineLogo";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { CuratorNotificationsBell } from "@/components/public/CuratorNotificationsBell";
 import { PrintThumbs } from "@/components/playlist-deals/PrintThumbs";
 import { markCuratorPublicMode } from "@/lib/publicRouteMode";
 
