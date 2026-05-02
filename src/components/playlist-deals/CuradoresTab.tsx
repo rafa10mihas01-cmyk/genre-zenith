@@ -144,7 +144,7 @@ export function CuradoresTab({ deals, logs, playlists, alerts = [], loading }: P
   return (
     <div className="space-y-6">
       {/* KPIs gerais */}
-      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <KpiBig
           icon={Users}
           label="Curadores"
@@ -173,6 +173,14 @@ export function CuradoresTab({ deals, logs, playlists, alerts = [], loading }: P
           value={`${totals.avgScore}/100`}
           hint="Prazo + qualidade do tráfego"
           tone={totals.avgScore >= 80 ? "success" : totals.avgScore >= 50 ? "primary" : "default"}
+          loading={loading && deals.length === 0}
+        />
+        <KpiBig
+          icon={ShieldAlert}
+          label="Alertas anti-fraude"
+          value={formatNumber(totals.alertsOpen)}
+          hint={totals.alertsHigh > 0 ? `${totals.alertsHigh} de severidade alta` : "Nenhum aberto"}
+          tone={totals.alertsHigh > 0 ? "default" : totals.alertsOpen > 0 ? "primary" : "success"}
           loading={loading && deals.length === 0}
         />
       </section>
