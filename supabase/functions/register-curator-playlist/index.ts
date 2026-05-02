@@ -61,6 +61,14 @@ Deno.serve(async (req) => {
     const songIdInput = typeof body?.song_id === "string" && body.song_id.trim().length > 0
       ? body.song_id.trim()
       : null;
+    const positionRaw = body?.position;
+    let positionInput: number | null = null;
+    if (positionRaw !== null && positionRaw !== undefined && positionRaw !== "") {
+      const n = Number(positionRaw);
+      if (Number.isFinite(n) && Number.isInteger(n) && n >= 1) {
+        positionInput = n;
+      }
+    }
     const urls: string[] = Array.isArray(body?.urls) ? body.urls : [];
     const preview = body?.preview === true;
 
