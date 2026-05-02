@@ -76,6 +76,7 @@ export type CuratorPlaylist = {
 export type CuratorDealLog = {
   id: string;
   deal_id: string;
+  song_id?: string | null;
   total_plays: number;
   note: string | null;
   is_baseline: boolean;
