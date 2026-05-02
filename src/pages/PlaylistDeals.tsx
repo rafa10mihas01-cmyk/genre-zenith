@@ -92,6 +92,17 @@ export default function PlaylistDeals() {
     }
   };
 
+  const handleReopen = async (deal: CuratorDeal) => {
+    if (!confirm(`Reabrir o deal de ${deal.curator_name}?`)) return;
+    try {
+      await reopenDeal(deal.id);
+      toast.success("Deal reaberto");
+    } catch (e) {
+      console.error("[PlaylistDeals] reopen error", e);
+      toast.error("Erro ao reabrir deal");
+    }
+  };
+
   const tabCount = (id: DealsTab) => {
     if (id === "all") return kpi.total;
     if (id === "done") return kpi.done;
