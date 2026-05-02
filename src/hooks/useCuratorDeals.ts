@@ -246,18 +246,17 @@ export function useCuratorDeals() {
 
   const updateCurator = useCallback(
     async (curatorId: string, input: Partial<NewCuratorInput>) => {
-      const patch: Record<string, unknown> = {};
-      if (input.name !== undefined) patch.name = input.name;
-      if (input.contact !== undefined) patch.contact = input.contact;
-      if (input.spotify_owner_id !== undefined) patch.spotify_owner_id = input.spotify_owner_id;
-      if (input.spotify_owner_url !== undefined) patch.spotify_owner_url = input.spotify_owner_url;
-      if (input.purchased_plays !== undefined) patch.purchased_plays = input.purchased_plays;
-      if (input.total_cost !== undefined) patch.total_cost = input.total_cost;
-      if (input.notes !== undefined) patch.notes = input.notes;
-
       const { error: updErr } = await supabase
         .from("curators")
-        .update(patch)
+        .update({
+          ...(input.name !== undefined && { name: input.name }),
+          ...(input.contact !== undefined && { contact: input.contact ?? null }),
+          ...(input.spotify_owner_id !== undefined && { spotify_owner_id: input.spotify_owner_id ?? null }),
+          ...(input.spotify_owner_url !== undefined && { spotify_owner_url: input.spotify_owner_url ?? null }),
+          ...(input.purchased_plays !== undefined && { purchased_plays: input.purchased_plays }),
+          ...(input.total_cost !== undefined && { total_cost: input.total_cost ?? 0 }),
+          ...(input.notes !== undefined && { notes: input.notes ?? null }),
+        })
         .eq("id", curatorId);
       if (updErr) throw updErr;
       await load();
