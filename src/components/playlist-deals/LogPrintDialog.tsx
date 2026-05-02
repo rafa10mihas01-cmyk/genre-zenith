@@ -147,6 +147,33 @@ export function LogPrintDialog({
   };
 
   // Inicializa selectedSongId apontando para a primeira música ainda sem baseline.
+  // Reset completo quando trocar de deal — evita vazamento de estado entre deals diferentes
+  useEffect(() => {
+    if (!deal) return;
+    setStep("upload");
+    setItems((prev) => {
+      prev.forEach((it) => URL.revokeObjectURL(it.url));
+      return [];
+    });
+    setMatches([]);
+    setExtracted(null);
+    setManualValue("");
+    setAiError(null);
+    setNote("");
+    setSaving(false);
+    setPlaylistsRaw("");
+    setHasNewPlaylists(false);
+    setMode("image");
+    setPasteText("");
+    setParsedPaste(null);
+    const pending = songs.length > 1 ? songs.find((s) => {
+      const songLogs = allLogs.some((l) => l.deal_id === deal.id && l.is_baseline && l.song_id === s.id);
+      return !songLogs;
+    }) : null;
+    setSelectedSongId(pending ? pending.id : (songs.length > 0 ? songs[0].id : null));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deal?.id]);
+
   const initialSongId = (() => {
     if (!hasMultipleSongs) return primarySongId;
     const pending = songs.find((s) => !songHasBaseline(s.id));
