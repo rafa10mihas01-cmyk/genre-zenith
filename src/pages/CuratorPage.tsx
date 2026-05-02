@@ -83,6 +83,59 @@ function formatDate(iso: string | null): string {
   }
 }
 
+function formatShortDate(iso: string | Date | null): string {
+  if (!iso) return "—";
+  try {
+    const d = typeof iso === "string" ? new Date(iso) : iso;
+    return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
+  } catch {
+    return "—";
+  }
+}
+
+/**
+ * Ciclo de relatório: fecha toda segunda-feira às 17:00 (America/Sao_Paulo).
+ * cycleEnd(d): próxima segunda 17h estritamente futura a partir de d.
+ * cycleStart(d): última segunda 17h <= d (início do ciclo "vivo" agora).
+ *
+ * Implementação simples assumindo o relógio local do navegador. Para o
+ * curador (pt-BR / -03), isso bate com America/Sao_Paulo.
+ */
+function cycleEnd(from: Date = new Date()): Date {
+  const d = new Date(from);
+  // 1 = segunda
+  const dow = d.getDay();
+  // dias até a próxima segunda (1..7)
+  let daysAhead = (1 - dow + 7) % 7;
+  const candidate = new Date(d);
+  candidate.setHours(17, 0, 0, 0);
+  if (daysAhead === 0 && from.getTime() >= candidate.getTime()) {
+    daysAhead = 7;
+  }
+  candidate.setDate(candidate.getDate() + daysAhead);
+  candidate.setHours(17, 0, 0, 0);
+  return candidate;
+}
+
+function cycleStart(from: Date = new Date()): Date {
+  const end = cycleEnd(from);
+  const start = new Date(end);
+  start.setDate(start.getDate() - 7);
+  return start;
+}
+
+function formatCountdown(ms: number): string {
+  if (ms <= 0) return "agora";
+  const totalMin = Math.floor(ms / 60000);
+  const days = Math.floor(totalMin / (60 * 24));
+  const hours = Math.floor((totalMin % (60 * 24)) / 60);
+  if (days >= 1) return `${days}d ${hours}h`;
+  const mins = totalMin % 60;
+  if (hours >= 1) return `${hours}h ${mins}m`;
+  return `${mins}m`;
+}
+
+
 function normalizePublicToken(value?: string): string {
   return decodeURIComponent(value ?? "").trim();
 }
@@ -104,6 +157,12 @@ export default function CuratorPage() {
   const [importing, setImporting] = useState(false);
   const [baseOpen, setBaseOpen] = useState(false);
   const [curatorOpen, setCuratorOpen] = useState(true);
+  // Tick a cada 60s pra atualizar o countdown do ciclo
+  const [, setNowTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setNowTick((n) => n + 1), 60_000);
+    return () => clearInterval(id);
+  }, []);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const basePlaylists = useMemo(
@@ -151,6 +210,13 @@ export default function CuratorPage() {
   }, [token]);
 
   const stats = useMemo(() => {
+    const now = new Date();
+    const cycEnd = cycleEnd(now);
+    const cycStart = cycleStart(now);
+    const msToCycleEnd = cycEnd.getTime() - now.getTime();
+    // "Atrasado" = passou da segunda 17h e ainda não chegou import dentro deste ciclo.
+    // (sempre false antes do baseline, cobrimos abaixo)
+
     if (!deal) {
       return {
         target: 0,
@@ -166,6 +232,13 @@ export default function CuratorPage() {
         eta: null as number | null,
         hasBaseline: false,
         daysRunning: 0,
+        cycleStart: cycStart,
+        cycleEnd: cycEnd,
+        msToCycleEnd,
+        weekRemaining: 0,
+        isOverdue: false,
+        lastImportAt: null as Date | null,
+        lastImportCycleEnd: null as Date | null,
       };
     }
     const target = Number(deal.target_plays ?? 0);
@@ -216,8 +289,43 @@ export default function CuratorPage() {
         )
       : 0;
 
-    return { target, dailyGoal, baseline, latest, earned, remaining, pct, todayPlays, todayPct, vel, eta, hasBaseline, daysRunning };
+    // Meta semanal proporcional (resto até cycEnd)
+    const msInWeek = 7 * 24 * 60 * 60 * 1000;
+    const cycleProgress = Math.min(
+      1,
+      Math.max(0, (now.getTime() - cycStart.getTime()) / msInWeek),
+    );
+    // Quanto deveríamos ter ganho até agora dentro deste ciclo (linear)
+    const weeklyTarget = dailyGoal * 7;
+    const weekRemaining = Math.max(0, Math.round(weeklyTarget * (1 - cycleProgress)));
+
+    // Último import (não-baseline) e em qual ciclo ele caiu
+    const lastImportAt = nonBase.length > 0
+      ? new Date(nonBase[nonBase.length - 1].created_at)
+      : null;
+    const lastImportCycleEnd = lastImportAt ? cycleEnd(new Date(lastImportAt.getTime() - 1)) : null;
+
+    // Atrasado = ciclo atual já tem mais de 1 dia rolando (passou da seg 17h)
+    // E o último import pertence a um ciclo anterior ao atual
+    const currentCycleEndMs = cycEnd.getTime();
+    const isOverdue = hasBaseline
+      && lastImportCycleEnd !== null
+      && lastImportCycleEnd.getTime() < currentCycleEndMs
+      && now.getTime() - cycStart.getTime() > 24 * 60 * 60 * 1000; // >24h dentro do ciclo novo
+
+    return {
+      target, dailyGoal, baseline, latest, earned, remaining, pct,
+      todayPlays, todayPct, vel, eta, hasBaseline, daysRunning,
+      cycleStart: cycStart,
+      cycleEnd: cycEnd,
+      msToCycleEnd,
+      weekRemaining,
+      isOverdue,
+      lastImportAt,
+      lastImportCycleEnd,
+    };
   }, [deal, logs]);
+
 
   const handleAdd = async () => {
     if (!token || !url.trim()) return;
@@ -374,36 +482,48 @@ export default function CuratorPage() {
         {/* Header — campanha + música */}
         <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_8px_30px_rgba(0,0,0,0.45)] transition-colors overflow-hidden">
           <CardContent className="p-6 sm:p-7 space-y-5">
-            {/* Eyebrow: CAMPANHA · status pulse */}
+            {/* Eyebrow: CAMPANHA · próximo relatório (seg 17h) */}
             <div className="flex items-center justify-between gap-3">
               <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary/80">
                 Campanha
               </span>
-              <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
-                <span className="relative flex h-1.5 w-1.5">
+              {(() => {
+                const overdue = stats.isOverdue && !isDone;
+                const dotColor = isDone
+                  ? "bg-primary"
+                  : overdue
+                  ? "bg-warning"
+                  : !stats.hasBaseline
+                  ? "bg-warning"
+                  : "bg-primary";
+                const label = isDone
+                  ? "Concluído"
+                  : overdue
+                  ? `Relatório atrasado · seg ${formatShortDate(stats.cycleStart)} 17h`
+                  : !stats.hasBaseline
+                  ? "Aguardando relatório inicial"
+                  : `Próximo relatório · ${formatCountdown(stats.msToCycleEnd)}`;
+                return (
                   <span
                     className={cn(
-                      "absolute inline-flex h-full w-full rounded-full opacity-75",
-                      isDone
-                        ? "bg-primary animate-ping"
-                        : !stats.hasBaseline
-                        ? "bg-warning"
-                        : "bg-primary animate-ping",
+                      "inline-flex items-center gap-1.5 text-[11px] font-medium",
+                      overdue ? "text-warning" : "text-muted-foreground",
                     )}
-                  />
-                  <span
-                    className={cn(
-                      "relative inline-flex h-1.5 w-1.5 rounded-full",
-                      isDone
-                        ? "bg-primary"
-                        : !stats.hasBaseline
-                        ? "bg-warning"
-                        : "bg-primary",
-                    )}
-                  />
-                </span>
-                {isDone ? "Concluído" : !stats.hasBaseline ? "Aguardando" : "Em progresso"}
-              </span>
+                  >
+                    <span className="relative flex h-1.5 w-1.5">
+                      <span
+                        className={cn(
+                          "absolute inline-flex h-full w-full rounded-full opacity-75",
+                          dotColor,
+                          !overdue && "animate-ping",
+                        )}
+                      />
+                      <span className={cn("relative inline-flex h-1.5 w-1.5 rounded-full", dotColor)} />
+                    </span>
+                    {label}
+                  </span>
+                );
+              })()}
             </div>
 
             {/* Identidade: capa + música/curador */}
@@ -453,11 +573,11 @@ export default function CuratorPage() {
               </div>
               <div>
                 <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-1">
-                  Ritmo
+                  Esta semana
                 </div>
                 <div className="text-[15px] font-semibold tabular-nums leading-none text-primary">
-                  {stats.dailyGoal > 0 ? formatPlays(stats.dailyGoal) : "—"}
-                  <span className="text-[11px] text-muted-foreground font-normal ml-1">/dia</span>
+                  {stats.dailyGoal > 0 ? formatPlays(stats.weekRemaining) : "—"}
+                  <span className="text-[11px] text-muted-foreground font-normal ml-1">até seg</span>
                 </div>
               </div>
               <div>
@@ -608,6 +728,31 @@ export default function CuratorPage() {
                   {formatPlays(stats.baseline)}
                 </div>
               </div>
+            </div>
+
+            {/* Ciclo do relatório semanal */}
+            <div className="rounded-xl bg-white/[0.02] ring-1 ring-white/[0.04] p-4 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-muted-foreground uppercase tracking-wider text-[11px]">
+                  Ciclo atual
+                </div>
+                <div className="text-[11px] text-muted-foreground tabular-nums">
+                  {formatShortDate(stats.cycleStart)} → {formatShortDate(stats.cycleEnd)} 17h
+                </div>
+              </div>
+              <div className="flex items-center justify-between gap-2 text-[12px]">
+                <span className="text-muted-foreground">Último relatório</span>
+                <span className="text-foreground font-medium tabular-nums">
+                  {stats.lastImportAt
+                    ? `${formatShortDate(stats.lastImportAt)} · ciclo ${formatShortDate(stats.lastImportCycleEnd)}`
+                    : "—"}
+                </span>
+              </div>
+              {stats.isOverdue && (
+                <div className="text-[11px] text-warning leading-snug pt-1">
+                  Aguardando relatório do ciclo que fechou em {formatShortDate(stats.cycleStart)} 17h.
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
