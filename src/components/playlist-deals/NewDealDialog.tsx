@@ -64,6 +64,7 @@ type SongRow = {
   daily_goal: string;
   started_at: Date | undefined;
   ends_at: Date | undefined;
+  ramp_up_days: string;
   meta: {
     title: string;
     artist: string | null;
@@ -98,6 +99,7 @@ function emptySong(): SongRow {
     daily_goal: "",
     started_at: new Date(),
     ends_at: undefined,
+    ramp_up_days: "5",
     meta: null,
     searching: false,
   };
