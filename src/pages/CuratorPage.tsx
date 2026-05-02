@@ -504,15 +504,16 @@ export default function CuratorPage() {
       toast.warning("Essa playlist já está registrada nesse deal");
       return;
     }
-    if (item?.status && item.status !== "ok") {
-      toast.error("Não foi possível registrar essa playlist");
-      return;
-    }
     if (item?.track_presence?.found) {
       const pos = item.track_presence.position ? ` na posição ${item.track_presence.position}` : "";
       toast.warning("Essa música já está dentro dessa playlist", {
-        description: `Detectei no Spotify${pos}.`,
+        description: `Detectei no Spotify${pos}; não registrei essa playlist.`,
       });
+      return;
+    }
+    if (item?.status && item.status !== "ok") {
+      toast.error("Não foi possível registrar essa playlist");
+      return;
     } else {
       toast.success("Playlist adicionada");
     }
