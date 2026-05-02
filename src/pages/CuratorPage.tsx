@@ -204,6 +204,13 @@ export default function CuratorPage() {
   }, [token]);
 
   const stats = useMemo(() => {
+    const now = new Date();
+    const cycEnd = cycleEnd(now);
+    const cycStart = cycleStart(now);
+    const msToCycleEnd = cycEnd.getTime() - now.getTime();
+    // "Atrasado" = passou da segunda 17h e ainda não chegou import dentro deste ciclo.
+    // (sempre false antes do baseline, cobrimos abaixo)
+
     if (!deal) {
       return {
         target: 0,
@@ -219,6 +226,13 @@ export default function CuratorPage() {
         eta: null as number | null,
         hasBaseline: false,
         daysRunning: 0,
+        cycleStart: cycStart,
+        cycleEnd: cycEnd,
+        msToCycleEnd,
+        weekRemaining: 0,
+        isOverdue: false,
+        lastImportAt: null as Date | null,
+        lastImportCycleEnd: null as Date | null,
       };
     }
     const target = Number(deal.target_plays ?? 0);
@@ -269,8 +283,43 @@ export default function CuratorPage() {
         )
       : 0;
 
-    return { target, dailyGoal, baseline, latest, earned, remaining, pct, todayPlays, todayPct, vel, eta, hasBaseline, daysRunning };
+    // Meta semanal proporcional (resto até cycEnd)
+    const msInWeek = 7 * 24 * 60 * 60 * 1000;
+    const cycleProgress = Math.min(
+      1,
+      Math.max(0, (now.getTime() - cycStart.getTime()) / msInWeek),
+    );
+    // Quanto deveríamos ter ganho até agora dentro deste ciclo (linear)
+    const weeklyTarget = dailyGoal * 7;
+    const weekRemaining = Math.max(0, Math.round(weeklyTarget * (1 - cycleProgress)));
+
+    // Último import (não-baseline) e em qual ciclo ele caiu
+    const lastImportAt = nonBase.length > 0
+      ? new Date(nonBase[nonBase.length - 1].created_at)
+      : null;
+    const lastImportCycleEnd = lastImportAt ? cycleEnd(new Date(lastImportAt.getTime() - 1)) : null;
+
+    // Atrasado = ciclo atual já tem mais de 1 dia rolando (passou da seg 17h)
+    // E o último import pertence a um ciclo anterior ao atual
+    const currentCycleEndMs = cycEnd.getTime();
+    const isOverdue = hasBaseline
+      && lastImportCycleEnd !== null
+      && lastImportCycleEnd.getTime() < currentCycleEndMs
+      && now.getTime() - cycStart.getTime() > 24 * 60 * 60 * 1000; // >24h dentro do ciclo novo
+
+    return {
+      target, dailyGoal, baseline, latest, earned, remaining, pct,
+      todayPlays, todayPct, vel, eta, hasBaseline, daysRunning,
+      cycleStart: cycStart,
+      cycleEnd: cycEnd,
+      msToCycleEnd,
+      weekRemaining,
+      isOverdue,
+      lastImportAt,
+      lastImportCycleEnd,
+    };
   }, [deal, logs]);
+
 
   const handleAdd = async () => {
     if (!token || !url.trim()) return;
