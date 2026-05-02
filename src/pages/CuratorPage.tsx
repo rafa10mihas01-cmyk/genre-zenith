@@ -683,7 +683,7 @@ export default function CuratorPage() {
               <Button
                 type="button"
                 variant="ghost"
-                className="h-12 w-full text-[13px] rounded-xl bg-white/[0.02] ring-1 ring-white/[0.06] hover:bg-white/[0.06] hover:ring-white/[0.10]"
+                className="h-12 w-full px-4 text-[13px] rounded-xl bg-white/[0.02] ring-1 ring-white/[0.06] hover:bg-white/[0.06] hover:ring-white/[0.10] [&>svg]:shrink-0 truncate"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={submitting || importing}
               >
@@ -692,17 +692,17 @@ export default function CuratorPage() {
                 ) : (
                   <Upload className="h-4 w-4 mr-2" />
                 )}
-                Importar planilha
+                <span className="truncate">Importar</span>
               </Button>
               <Button
                 type="button"
                 variant="ghost"
-                className="h-12 w-full text-[13px] rounded-xl bg-white/[0.02] ring-1 ring-white/[0.06] hover:bg-white/[0.06] hover:ring-white/[0.10]"
+                className="h-12 w-full px-4 text-[13px] rounded-xl bg-white/[0.02] ring-1 ring-white/[0.06] hover:bg-white/[0.06] hover:ring-white/[0.10] [&>svg]:shrink-0 truncate"
                 onClick={handleDownloadTemplate}
                 disabled={importing}
               >
                 <Download className="h-4 w-4 mr-2" />
-                Baixar modelo
+                <span className="truncate">Baixar modelo</span>
               </Button>
             </div>
             <p className="text-[11px] text-muted-foreground text-center pt-1">
