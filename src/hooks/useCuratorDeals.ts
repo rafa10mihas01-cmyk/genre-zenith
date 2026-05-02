@@ -140,6 +140,7 @@ export function useCuratorDeals() {
       setAlerts([]);
       setCurators([]);
       setBalances([]);
+      setProgressByDeal({});
       setLoading(false);
       return;
     }
