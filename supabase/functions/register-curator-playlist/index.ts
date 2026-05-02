@@ -16,8 +16,10 @@
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import {
+  checkTrackInPlaylist,
   classifyPlaylist,
   extractPlaylistId,
+  extractTrackId,
   fetchPlaylistMeta,
   type ClassifyResult,
   type SpotifyPlaylistMeta,
@@ -38,16 +40,23 @@ type DealRow = {
   id: string;
   user_id: string;
   spotify_owner_id: string | null;
+  song_spotify_url: string | null;
   started_at: string;
 };
 
 type ProcessedItem = {
   url: string;
   playlist_id: string | null;
-  status: "ok" | "blocked" | "duplicate" | "invalid_url" | "not_found" | "error";
+  status: "ok" | "blocked" | "duplicate" | "track_already_present" | "invalid_url" | "not_found" | "error";
   match_status?: ClassifyResult["match_status"];
   match_reason?: string;
   meta?: SpotifyPlaylistMeta;
+  track_presence?: {
+    found: boolean;
+    position: number | null;
+    track_name: string | null;
+    artist_name: string | null;
+  };
   error?: string;
 };
 
@@ -87,7 +96,7 @@ Deno.serve(async (req) => {
     if (publicToken) {
       const { data, error } = await admin
         .from("curator_deals")
-        .select("id, user_id, spotify_owner_id, started_at")
+        .select("id, user_id, spotify_owner_id, song_spotify_url, started_at")
         .eq("public_token", publicToken)
         .maybeSingle();
       if (error) return jr({ ok: false, error: error.message }, 200);
@@ -111,7 +120,7 @@ Deno.serve(async (req) => {
 
       const { data, error } = await admin
         .from("curator_deals")
-        .select("id, user_id, spotify_owner_id, started_at")
+        .select("id, user_id, spotify_owner_id, song_spotify_url, started_at")
         .eq("id", dealIdInput)
         .maybeSingle();
       if (error) return jr({ ok: false, error: error.message }, 200);
@@ -123,6 +132,17 @@ Deno.serve(async (req) => {
     }
 
     if (!deal) return jr({ ok: false, error: "deal não encontrado" }, 404);
+
+    let trackIdToCheck = extractTrackId(deal.song_spotify_url ?? "");
+    if (songIdInput) {
+      const { data: songRow } = await admin
+        .from("curator_deal_songs")
+        .select("spotify_track_id, song_spotify_url")
+        .eq("id", songIdInput)
+        .eq("deal_id", deal.id)
+        .maybeSingle();
+      trackIdToCheck = songRow?.spotify_track_id || extractTrackId(songRow?.song_spotify_url ?? "") || trackIdToCheck;
+    }
 
     // ------- Carregar contexto de classificação -------
     const { data: existing } = await admin
@@ -191,6 +211,11 @@ Deno.serve(async (req) => {
             });
             item.match_status = cls.match_status;
             item.match_reason = cls.match_reason;
+            item.track_presence = await checkTrackInPlaylist(pid, trackIdToCheck);
+            if (item.track_presence.found) {
+              item.status = "track_already_present";
+              return;
+            }
 
           } catch (e) {
             item.status = "error";
@@ -241,6 +266,7 @@ Deno.serve(async (req) => {
       inserted,
       blocked: items.filter((it) => it.status === "blocked").length,
       duplicate: items.filter((it) => it.status === "duplicate").length,
+      track_already_present: items.filter((it) => it.status === "track_already_present").length,
       invalid: items.filter((it) => it.status === "invalid_url").length,
       not_found: items.filter((it) => it.status === "not_found").length,
       error: items.filter((it) => it.status === "error").length,

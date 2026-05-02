@@ -500,7 +500,23 @@ export default function CuratorPage() {
       toast.error(item.error);
       return;
     }
-    toast.success("Playlist adicionada");
+    if (item?.status === "duplicate") {
+      toast.warning("Essa playlist já está registrada nesse deal");
+      return;
+    }
+    if (item?.track_presence?.found) {
+      const pos = item.track_presence.position ? ` na posição ${item.track_presence.position}` : "";
+      toast.warning("Essa música já está dentro dessa playlist", {
+        description: `Detectei no Spotify${pos}; não registrei essa playlist.`,
+      });
+      return;
+    }
+    if (item?.status && item.status !== "ok") {
+      toast.error("Não foi possível registrar essa playlist");
+      return;
+    } else {
+      toast.success("Playlist adicionada");
+    }
     setUrl("");
     setPosition("");
     await load();
@@ -576,9 +592,12 @@ export default function CuratorPage() {
       const items = Array.isArray(data.items) ? data.items : [];
       const added = data.summary?.inserted ?? items.filter((i: { status?: string }) => i.status === "ok").length;
       const errs = items.filter((i: { error?: string }) => i.error).length;
+      const alreadyInPlaylist = items.filter((i: { track_presence?: { found?: boolean } }) => i.track_presence?.found).length;
       const parts: string[] = [`${added} adicionadas`];
+      if (alreadyInPlaylist) parts.push(`${alreadyInPlaylist} já tinham a música`);
       if (errs) parts.push(`${errs} com erro`);
-      toast.success("Importação concluída", { description: parts.join(" · ") });
+      const notify = alreadyInPlaylist ? toast.warning : toast.success;
+      notify("Importação concluída", { description: parts.join(" · ") });
       await load();
     } catch (err) {
       toast.error("Não foi possível ler o arquivo");
