@@ -48,11 +48,22 @@ type Deal = {
 type Playlist = {
   id: string;
   deal_id: string;
+  song_id?: string | null;
   spotify_url: string;
   playlist_name: string;
   followers: number | null;
   is_baseline: boolean;
   added_at: string;
+  spotify_playlist_id?: string | null;
+  spotify_owner_id?: string | null;
+  spotify_owner_name?: string | null;
+  image_url?: string | null;
+  added_at_spotify?: string | null;
+  match_status?: string | null;
+  match_reason?: string | null;
+  streams_7d?: number | null;
+  streams_28d?: number | null;
+  streams_total?: number | null;
 };
 
 type DealLog = {
