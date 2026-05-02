@@ -109,8 +109,9 @@ export function useCuratorDeals() {
         setLogs([]);
         setPlaylists([]);
         setSongs([]);
+        setAlerts([]);
       } else {
-        const [logsRes, plRes, songsRes] = await Promise.all([
+        const [logsRes, plRes, songsRes, alertsRes] = await Promise.all([
           supabase
             .from("curator_deal_logs")
             .select("*")
@@ -126,13 +127,21 @@ export function useCuratorDeals() {
             .select("*")
             .in("deal_id", dealIds)
             .order("position", { ascending: true }),
+          supabase
+            .from("curator_fraud_alerts")
+            .select("*")
+            .in("deal_id", dealIds)
+            .eq("status", "open")
+            .order("created_at", { ascending: false }),
         ]);
         if (logsRes.error) throw logsRes.error;
         if (plRes.error) throw plRes.error;
         if (songsRes.error) throw songsRes.error;
+        if (alertsRes.error) throw alertsRes.error;
         setLogs((logsRes.data ?? []) as CuratorDealLog[]);
         setPlaylists((plRes.data ?? []) as CuratorPlaylist[]);
         setSongs((songsRes.data ?? []) as CuratorDealSong[]);
+        setAlerts((alertsRes.data ?? []) as CuratorFraudAlert[]);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
