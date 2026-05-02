@@ -493,6 +493,7 @@ export function LogPrintDialog({
             : undefined,
         });
       }
+      draft.clearDraft();
       handleClose();
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
