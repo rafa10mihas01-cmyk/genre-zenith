@@ -281,6 +281,7 @@ export default function PlaylistDeals() {
         songs={logDeal ? songs.filter((s) => s.deal_id === logDeal.id) : []}
         allLogs={logs}
         allPlaylists={playlists}
+        progress={logDeal ? progressByDeal[logDeal.id] : null}
         onClose={() => setLogDeal(null)}
         addLog={addLog}
         addBaseline={addBaseline}
@@ -293,6 +294,7 @@ export default function PlaylistDeals() {
         songs={detailDeal ? songs.filter((s) => s.deal_id === detailDeal.id) : []}
         allLogs={logs}
         allPlaylists={playlists}
+        progress={detailDeal ? progressByDeal[detailDeal.id] : null}
         onClose={() => setDetailDeal(null)}
         onReload={reload}
       />
@@ -303,6 +305,7 @@ export default function PlaylistDeals() {
         songs={closeDealOpen ? songs.filter((s) => s.deal_id === closeDealOpen.id) : []}
         logs={logs}
         playlists={playlists}
+        progress={closeDealOpen ? progressByDeal[closeDealOpen.id] : null}
         onClose={() => setCloseDealOpen(null)}
         onConfirm={closeDeal}
       />
