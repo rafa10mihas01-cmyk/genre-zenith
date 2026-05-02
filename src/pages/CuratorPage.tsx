@@ -342,10 +342,10 @@ export default function CuratorPage() {
   const isDone = stats.target > 0 && stats.earned >= stats.target;
 
   return (
-    <div className="min-h-screen bg-black px-4 sm:px-6 py-10 sm:py-14">
-      <div className="max-w-xl mx-auto space-y-8">
+    <div className="min-h-screen bg-black px-5 sm:px-6 py-10 sm:py-14">
+      <div className="max-w-xl mx-auto space-y-7 sm:space-y-8">
         {/* Logo NexEngine */}
-        <div className="flex justify-center pb-2">
+        <div className="flex justify-center pb-4 sm:pb-2">
           <NexEngineLogo variant="dark" size={28} />
         </div>
 
@@ -550,7 +550,7 @@ export default function CuratorPage() {
               </button>
 
               {baseOpen && (
-                <ul className="space-y-2 max-h-[320px] overflow-y-auto pr-1 -mr-1 scroll-smooth">
+                <ul className="space-y-2 max-h-[60vh] sm:max-h-[360px] overflow-y-auto pr-1 -mr-1 scroll-smooth [mask-image:linear-gradient(to_bottom,black_calc(100%-32px),transparent)]">
                   {basePlaylists.map((p) => (
                     <li
                       key={p.id}
@@ -605,7 +605,7 @@ export default function CuratorPage() {
                 Nenhuma playlist adicionada ainda
               </p>
             ) : (
-              <ul className="space-y-2 max-h-[320px] overflow-y-auto pr-1 -mr-1 scroll-smooth">
+              <ul className="space-y-2 max-h-[60vh] sm:max-h-[360px] overflow-y-auto pr-1 -mr-1 scroll-smooth [mask-image:linear-gradient(to_bottom,black_calc(100%-32px),transparent)]">
                 {curatorPlaylists.map((p) => (
                   <li
                     key={p.id}
@@ -729,7 +729,7 @@ export default function CuratorPage() {
                     Nenhum print enviado ainda
                   </p>
                 ) : (
-                  <ul className="space-y-3 max-h-[480px] overflow-y-auto pr-1 -mr-1 scroll-smooth">
+                  <ul className="space-y-3 max-h-[70vh] sm:max-h-[480px] overflow-y-auto pr-1 -mr-1 scroll-smooth [mask-image:linear-gradient(to_bottom,black_calc(100%-32px),transparent)]">
                     {[...curatorLogs].reverse().map((log) => (
                       <li
                         key={log.id}
