@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ListMusic, Plus, CheckCircle2, Layers, Activity, Target } from "lucide-react";
+import { ListMusic, Plus, CheckCircle2, Layers, Activity, Target, Users } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
 import { KpiBig } from "@/components/KpiBig";
@@ -14,13 +14,15 @@ import { CuratorDealCard } from "@/components/playlist-deals/CuratorDealCard";
 import { NewDealDialog } from "@/components/playlist-deals/NewDealDialog";
 import { LogPrintDialog } from "@/components/playlist-deals/LogPrintDialog";
 import { DealHistorySheet } from "@/components/playlist-deals/DealHistorySheet";
+import { CuradoresTab } from "@/components/playlist-deals/CuradoresTab";
 
-type DealsTab = "active" | "done" | "all";
+type DealsTab = "active" | "done" | "all" | "curators";
 
 const TABS = [
-  { id: "active" as const, label: "Ativos",      icon: Activity },
-  { id: "done"   as const, label: "Concluídos",  icon: CheckCircle2 },
-  { id: "all"    as const, label: "Todos",       icon: Layers },
+  { id: "active"   as const, label: "Ativos",      icon: Activity },
+  { id: "done"     as const, label: "Concluídos",  icon: CheckCircle2 },
+  { id: "curators" as const, label: "Curadores",   icon: Users },
+  { id: "all"      as const, label: "Todos",       icon: Layers },
 ];
 
 export default function PlaylistDeals() {
@@ -90,6 +92,10 @@ export default function PlaylistDeals() {
   const tabCount = (id: DealsTab) => {
     if (id === "all") return kpi.total;
     if (id === "done") return kpi.done;
+    if (id === "curators") {
+      const set = new Set(deals.map((d) => (d.curator_name ?? "").trim() || "—"));
+      return set.size;
+    }
     return kpi.active;
   };
 
@@ -175,7 +181,9 @@ export default function PlaylistDeals() {
 
       {/* Conteúdo — altura mínima estável evita layout shift entre abas */}
       <div className="min-h-[480px] animate-tab-in">
-        {loading && deals.length === 0 ? (
+        {tab === "curators" ? (
+          <CuradoresTab deals={deals} logs={logs} playlists={playlists} loading={loading} />
+        ) : loading && deals.length === 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[0, 1, 2].map((i) => (
               <div key={i} className="nx-card h-48 animate-pulse" />
