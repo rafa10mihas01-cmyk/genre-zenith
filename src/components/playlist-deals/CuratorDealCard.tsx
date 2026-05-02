@@ -252,7 +252,7 @@ export function CuratorDealCard({
                 {formatBRL(cost)}
                 {costPerPlay !== null && (
                   <span className="text-foreground font-medium ml-1">
-                    · {formatCPP(costPerPlay)}/play
+                    · {formatCPP(costPerPlay)}/play{cppIsEstimate ? " (est.)" : ""}
                   </span>
                 )}
               </span>
