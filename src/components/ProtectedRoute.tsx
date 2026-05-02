@@ -19,7 +19,8 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
   }
   // Visitantes vão para a Landing (rota /), não para /login.
   // /login fica reservado para uso interno/admin.
-  if (isCuratorPublicMode()) return <Navigate to={getCuratorPublicPath()} replace />;
+  // Modo curador público só trava quem NÃO está autenticado — admins navegam livre.
+  if (!user && isCuratorPublicMode()) return <Navigate to={getCuratorPublicPath()} replace />;
   if (!user) return <Navigate to="/" replace />;
   return <>{children}</>;
 }

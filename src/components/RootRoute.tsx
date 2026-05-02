@@ -25,7 +25,8 @@ export default function RootRoute() {
     );
   }
 
-  if (isCuratorPublicMode()) return <Navigate to={getCuratorPublicPath()} replace />;
+  // Modo curador só redireciona visitantes não autenticados.
+  if (!user && isCuratorPublicMode()) return <Navigate to={getCuratorPublicPath()} replace />;
   if (!user) return <Landing />;
 
   return (
