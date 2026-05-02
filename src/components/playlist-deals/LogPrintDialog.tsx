@@ -365,6 +365,13 @@ export function LogPrintDialog({
 
   const handleSave = async () => {
     if (!deal || !hasFinal) return;
+    // Guard: deal multi-música obriga selecionar a música antes de salvar.
+    if (hasMultipleSongs && !selectedSongId) {
+      toast.error("Selecione a música", {
+        description: "Este deal tem mais de uma música. Escolha qual delas este print representa.",
+      });
+      return;
+    }
     setSaving(true);
     try {
       const printUrls = await uploadPrintsToStorage();
