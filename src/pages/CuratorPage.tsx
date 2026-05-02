@@ -617,8 +617,8 @@ export default function CuratorPage() {
         {/* Plays hoje vs combinado diário */}
         {stats.hasBaseline && (
           <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_8px_30px_rgba(0,0,0,0.45)]">
-            <CardContent className="p-6 sm:p-7 grid grid-cols-2 gap-4">
-              <div className="rounded-xl bg-white/[0.02] ring-1 ring-white/[0.04] p-4">
+            <CardContent className="p-7 sm:p-8 grid grid-cols-2 gap-6 divide-x divide-white/[0.06]">
+              <div className="pr-2">
                 <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">
                   Plays totais hoje
                 </div>
@@ -626,7 +626,7 @@ export default function CuratorPage() {
                   {formatPlays(stats.latest)}
                 </div>
               </div>
-              <div className="rounded-xl bg-white/[0.02] ring-1 ring-white/[0.04] p-4">
+              <div className="pl-6">
                 <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">
                   Hoje / combinado
                 </div>
