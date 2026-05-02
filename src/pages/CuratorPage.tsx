@@ -1087,8 +1087,11 @@ export default function CuratorPage() {
                   {basePlaylists.map((p) => (
                     <li
                       key={p.id}
-                      className="flex items-center justify-between gap-3 rounded-xl bg-muted/40 ring-1 ring-border/50 px-4 py-3 hover:bg-muted/60 transition-colors"
+                      className="flex items-center gap-3 rounded-xl bg-[hsl(var(--elevated))] ring-1 ring-border/50 px-3.5 py-3 hover:bg-muted/60 hover:ring-border transition-all duration-200"
                     >
+                      <div className="h-9 w-9 rounded-lg bg-muted/60 ring-1 ring-border/40 flex items-center justify-center shrink-0">
+                        <ListMusic className="h-4 w-4 text-muted-foreground" />
+                      </div>
                       <div className="min-w-0 flex-1">
                         <a
                           href={p.spotify_url}
@@ -1099,12 +1102,12 @@ export default function CuratorPage() {
                           {p.playlist_name}
                         </a>
                         {p.followers !== null && (
-                          <div className="text-[11px] text-muted-foreground mt-1 tabular-nums">
+                          <div className="text-[11px] text-muted-foreground mt-0.5 tabular-nums">
                             {formatPlays(p.followers)} seguidores
                           </div>
                         )}
                       </div>
-                      <Badge variant="secondary" className="shrink-0 text-[10px] px-2 py-0 h-5 font-medium">
+                      <Badge variant="secondary" className="shrink-0 text-[10px] px-2 py-0 h-5 font-medium rounded-full">
                         Inicial
                       </Badge>
                     </li>
@@ -1146,16 +1149,24 @@ export default function CuratorPage() {
 
             {curatorOpen && (
               curatorPlaylists.length === 0 ? (
-                <p className="text-[13px] text-muted-foreground py-6 text-center">
-                  Nenhuma playlist adicionada ainda
-                </p>
+                <div className="py-8 flex flex-col items-center text-center gap-3">
+                  <div className="h-11 w-11 rounded-xl bg-[hsl(var(--elevated))] border border-border/60 flex items-center justify-center">
+                    <ListMusic className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  <p className="text-[13px] text-muted-foreground max-w-xs">
+                    Nenhuma playlist adicionada ainda — use o bloco abaixo para incluir a primeira.
+                  </p>
+                </div>
               ) : (
                 <ul className="space-y-2 max-h-[60vh] sm:max-h-[360px] overflow-y-auto pr-1 -mr-1 scroll-smooth [mask-image:linear-gradient(to_bottom,black_calc(100%-32px),transparent)]">
                   {curatorPlaylists.map((p) => (
                     <li
                       key={p.id}
-                      className="flex items-center justify-between gap-3 rounded-xl bg-muted/40 ring-1 ring-border/50 px-4 py-3 hover:bg-muted/60 transition-colors"
+                      className="flex items-center gap-3 rounded-xl bg-[hsl(var(--elevated))] ring-1 ring-border/50 px-3.5 py-3 hover:bg-muted/60 hover:ring-primary/30 transition-all duration-200"
                     >
+                      <div className="h-9 w-9 rounded-lg bg-primary/10 ring-1 ring-primary/20 flex items-center justify-center shrink-0">
+                        <ListMusic className="h-4 w-4 text-primary" />
+                      </div>
                       <div className="min-w-0 flex-1">
                         <a
                           href={p.spotify_url}
@@ -1166,13 +1177,13 @@ export default function CuratorPage() {
                           {p.playlist_name}
                         </a>
                         {p.followers !== null && (
-                          <div className="text-[11px] text-muted-foreground mt-1 tabular-nums">
+                          <div className="text-[11px] text-muted-foreground mt-0.5 tabular-nums">
                             {formatPlays(p.followers)} seguidores
                           </div>
                         )}
                       </div>
-                      <Badge className="bg-primary text-primary-foreground hover:bg-primary/90 shrink-0 text-[10px] px-2 py-0 h-5 border-0 font-semibold">
-                        Nova
+                      <Badge className="bg-primary/15 text-primary hover:bg-primary/20 shrink-0 text-[10px] px-2 py-0 h-5 border-0 font-semibold rounded-full">
+                        Curador
                       </Badge>
                     </li>
                   ))}
