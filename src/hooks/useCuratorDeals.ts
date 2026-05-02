@@ -19,6 +19,8 @@ export type DealSongInput = {
   daily_goal?: number;
   target_plays?: number | null;
   position?: number;
+  started_at?: string | null;
+  ends_at?: string | null;
 };
 
 export type NewCuratorDealInput = {
