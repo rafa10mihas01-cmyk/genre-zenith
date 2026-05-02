@@ -1,5 +1,7 @@
-// Cron: reconcilia todos os deals ativos (não terminados) a cada execução.
-// Chamado via pg_cron com header X-Cron-Secret. Usa service role para bypassar RLS.
+// Cron: reconcilia deals ativos a partir de curator_deal_snapshots.
+// Fonte única de verdade: prints do Spotify for Artists enviados pelo admin.
+// Cada playlist tem N snapshots. Entrega real = soma das diferenças
+// (snapshot atual - snapshot anterior) por playlist NÃO-baseline.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
 
 const corsHeaders = {
@@ -8,164 +10,85 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-cron-secret",
 };
 
-function similarity(a: string, b: string): number {
-  const x = a.toLowerCase().trim();
-  const y = b.toLowerCase().trim();
-  if (!x || !y) return 0;
-  if (x === y) return 1;
-  const ta = new Set(x.split(/\s+/));
-  const tb = new Set(y.split(/\s+/));
-  const inter = [...ta].filter((t) => tb.has(t)).length;
-  const union = new Set([...ta, ...tb]).size;
-  return union === 0 ? 0 : inter / union;
+type SnapshotRow = {
+  playlist_id: string;
+  plays: number;
+  captured_at: string;
+  is_baseline: boolean;
+};
+
+function computeDeliveredFromSnapshots(snapshots: SnapshotRow[]): {
+  delivered: number;
+  latestCapturedAt: string | null;
+} {
+  if (!snapshots.length) return { delivered: 0, latestCapturedAt: null };
+
+  const byPlaylist = new Map<string, SnapshotRow[]>();
+  for (const s of snapshots) {
+    const arr = byPlaylist.get(s.playlist_id) ?? [];
+    arr.push(s);
+    byPlaylist.set(s.playlist_id, arr);
+  }
+
+  let delivered = 0;
+  let latest: string | null = null;
+  for (const [, list] of byPlaylist) {
+    list.sort((a, b) => new Date(a.captured_at).getTime() - new Date(b.captured_at).getTime());
+    for (let i = 1; i < list.length; i++) {
+      const prev = list[i - 1];
+      const curr = list[i];
+      // Apenas playlists não-baseline contam pra entrega do curador.
+      // Baseline = primeiro snapshot, não soma.
+      if (curr.is_baseline) continue;
+      const diff = Math.max(0, Number(curr.plays) - Number(prev.plays));
+      delivered += diff;
+      if (!latest || new Date(curr.captured_at).getTime() > new Date(latest).getTime()) {
+        latest = curr.captured_at;
+      }
+    }
+  }
+  return { delivered, latestCapturedAt: latest };
 }
 
 async function reconcileDeal(supabase: any, deal: any) {
-  const { data: matched } = await supabase
-    .from("curator_playlists")
-    .select("streams_7d, streams_28d, streams_total")
-    .eq("deal_id", deal.id)
-    .in("match_status", ["curator", "baseline"]);
+  const { data: snaps, error: snapErr } = await supabase
+    .from("curator_deal_snapshots")
+    .select("playlist_id, plays, captured_at, is_baseline")
+    .eq("deal_id", deal.id);
+  if (snapErr) throw snapErr;
 
-  const totals = (matched ?? []).reduce(
-    (acc: any, p: any) => ({
-      s7: acc.s7 + (p.streams_7d ?? 0),
-      s28: acc.s28 + (p.streams_28d ?? 0),
-      stotal: acc.stotal + (p.streams_total ?? 0),
-    }),
-    { s7: 0, s28: 0, stotal: 0 },
-  );
+  const { delivered, latestCapturedAt } = computeDeliveredFromSnapshots(snaps ?? []);
 
   await supabase
     .from("curator_deals")
     .update({
-      reconciled_streams_7d: totals.s7,
-      reconciled_streams_28d: totals.s28,
-      reconciled_total_plays: totals.stotal,
+      reconciled_total_plays: delivered,
+      reconciled_streams_7d: 0,
+      reconciled_streams_28d: 0,
       last_reconciled_at: new Date().toISOString(),
     })
     .eq("id", deal.id);
 
-  const { data: allPlaylists } = await supabase
-    .from("curator_playlists")
-    .select(
-      "id, deal_id, playlist_name, spotify_owner_id, spotify_owner_name, added_at_spotify, match_status, streams_7d, followers",
-    )
-    .eq("deal_id", deal.id);
+  const milestone = await checkDealMilestones(supabase, deal, delivered);
 
-  const matchedNames = (allPlaylists ?? [])
-    .filter((p: any) => p.match_status === "curator" || p.match_status === "baseline")
-    .map((p: any) => p.playlist_name);
-
-  const dealStart = new Date(deal.started_at);
-  const alerts: any[] = [];
-
-  for (const p of allPlaylists ?? []) {
-    if (p.match_status === "curator" || p.match_status === "baseline") continue;
-
-    if (
-      p.match_status === "suspicious" &&
-      deal.spotify_owner_id &&
-      p.spotify_owner_id &&
-      p.spotify_owner_id !== deal.spotify_owner_id
-    ) {
-      let bestSim = 0;
-      let bestName = "";
-      for (const n of matchedNames) {
-        const s = similarity(p.playlist_name, n);
-        if (s > bestSim) { bestSim = s; bestName = n; }
-      }
-      if (bestSim >= 0.6) {
-        alerts.push({
-          deal_id: deal.id, playlist_id: p.id, alert_type: "lookalike_name",
-          severity: bestSim >= 0.85 ? "high" : "medium",
-          title: `Playlist com nome similar: "${p.playlist_name}"`,
-          description: `Nome muito parecido com "${bestName}" mas dono diferente (${p.spotify_owner_name ?? p.spotify_owner_id}).`,
-          evidence: { similarity: bestSim, similar_to: bestName, owner_id: p.spotify_owner_id, streams_7d: p.streams_7d },
-        });
-      } else {
-        alerts.push({
-          deal_id: deal.id, playlist_id: p.id, alert_type: "owner_mismatch",
-          severity: "medium",
-          title: `Dono diferente do esperado: "${p.playlist_name}"`,
-          description: `Owner ${p.spotify_owner_name ?? p.spotify_owner_id} não corresponde ao curador do deal.`,
-          evidence: { expected_owner: deal.spotify_owner_id, actual_owner: p.spotify_owner_id, streams_7d: p.streams_7d },
-        });
-      }
-    }
-
-    if (p.added_at_spotify) {
-      const addedAt = new Date(p.added_at_spotify);
-      if (addedAt < dealStart) {
-        const daysBefore = Math.floor((dealStart.getTime() - addedAt.getTime()) / 86400000);
-        if (daysBefore >= 2) {
-          alerts.push({
-            deal_id: deal.id, playlist_id: p.id, alert_type: "pre_deal_addition",
-            severity: daysBefore > 30 ? "high" : "low",
-            title: `Adição anterior ao deal: "${p.playlist_name}"`,
-            description: `Música foi adicionada ${daysBefore} dia(s) antes do início do deal.`,
-            evidence: { added_at: p.added_at_spotify, deal_started_at: deal.started_at, days_before: daysBefore },
-          });
-        }
-      }
-    }
-
-    if (p.streams_7d > 1000 && (p.followers ?? 0) < 200) {
-      alerts.push({
-        deal_id: deal.id, playlist_id: p.id, alert_type: "suspicious_growth",
-        severity: "high",
-        title: `Streams desproporcionais: "${p.playlist_name}"`,
-        description: `${p.streams_7d.toLocaleString("pt-BR")} streams em 7d com apenas ${p.followers ?? 0} seguidores.`,
-        evidence: { streams_7d: p.streams_7d, followers: p.followers, ratio: p.followers ? p.streams_7d / p.followers : null },
-      });
-    }
-  }
-
-  let createdAlerts = 0;
-  if (alerts.length > 0) {
-    const { data: existing } = await supabase
-      .from("curator_fraud_alerts")
-      .select("playlist_id, alert_type")
-      .eq("deal_id", deal.id)
-      .eq("status", "open");
-
-    const existingKeys = new Set(
-      (existing ?? []).map((e: any) => `${e.playlist_id}::${e.alert_type}`),
-    );
-    const toInsert = alerts.filter(
-      (a) => !existingKeys.has(`${a.playlist_id}::${a.alert_type}`),
-    );
-    if (toInsert.length > 0) {
-      await supabase.from("curator_fraud_alerts").insert(toInsert);
-      createdAlerts = toInsert.length;
-
-      // Notificação global p/ admins (notifications é team-wide)
-      const high = toInsert.filter((a) => a.severity === "high").length;
-      await supabase.from("notifications").insert({
-        type: high > 0 ? "warning" : "info",
-        title: `Anti-fraude: ${toInsert.length} novo(s) alerta(s)`,
-        message: `Deal "${deal.song_name}" (${deal.curator_name}): ${toInsert.length} alerta(s)${high > 0 ? `, ${high} de severidade alta` : ""}.`,
-        action_url: `/playlist-deals?deal=${deal.id}`,
-        metadata: { deal_id: deal.id, alerts_created: toInsert.length, high_severity: high },
-      });
-    }
-  }
-
-  // Milestone notifications (meta batida + atraso) com dedupe via metadata.kind
-  const milestone = await checkDealMilestones(supabase, deal, totals.stotal);
-
-  return { deal_id: deal.id, ...totals, alerts_created: createdAlerts, milestone };
+  return {
+    deal_id: deal.id,
+    delivered,
+    snapshots_count: snaps?.length ?? 0,
+    latest_capture_at: latestCapturedAt,
+    milestone,
+  };
 }
 
 async function checkDealMilestones(
   supabase: any,
   deal: { id: string; song_name: string; curator_name: string; target_plays?: number; ends_at?: string | null },
-  reconciledTotal: number,
+  delivered: number,
 ): Promise<{ goal: boolean; overdue: boolean }> {
   const result = { goal: false, overdue: false };
   const target = Number(deal.target_plays ?? 0) || 0;
 
-  if (target > 0 && reconciledTotal >= target) {
+  if (target > 0 && delivered >= target) {
     const { data: existing } = await supabase
       .from("notifications").select("id")
       .eq("metadata->>kind", "goal_reached")
@@ -174,9 +97,9 @@ async function checkDealMilestones(
       await supabase.from("notifications").insert({
         type: "success",
         title: `Meta batida: ${deal.song_name}`,
-        message: `Curador "${deal.curator_name}" entregou ${reconciledTotal.toLocaleString("pt-BR")} de ${target.toLocaleString("pt-BR")} plays.`,
+        message: `Curador "${deal.curator_name}" entregou ${delivered.toLocaleString("pt-BR")} de ${target.toLocaleString("pt-BR")} plays.`,
         action_url: `/playlist-deals?deal=${deal.id}`,
-        metadata: { kind: "goal_reached", deal_id: deal.id, reconciled_total: reconciledTotal, target },
+        metadata: { kind: "goal_reached", deal_id: deal.id, delivered, target },
       });
       result.goal = true;
     }
@@ -184,19 +107,19 @@ async function checkDealMilestones(
 
   if (deal.ends_at) {
     const ends = new Date(deal.ends_at);
-    if (ends < new Date() && reconciledTotal < target) {
+    if (ends < new Date() && delivered < target) {
       const { data: existing } = await supabase
         .from("notifications").select("id")
         .eq("metadata->>kind", "deal_overdue")
         .eq("metadata->>deal_id", deal.id).limit(1);
       if (!existing || existing.length === 0) {
-        const remaining = Math.max(target - reconciledTotal, 0);
+        const remaining = Math.max(target - delivered, 0);
         await supabase.from("notifications").insert({
           type: "warning",
           title: `Deal atrasado: ${deal.song_name}`,
           message: `Prazo venceu em ${ends.toLocaleDateString("pt-BR")} e faltam ${remaining.toLocaleString("pt-BR")} plays para a meta.`,
           action_url: `/playlist-deals?deal=${deal.id}`,
-          metadata: { kind: "deal_overdue", deal_id: deal.id, reconciled_total: reconciledTotal, target, ends_at: deal.ends_at },
+          metadata: { kind: "deal_overdue", deal_id: deal.id, delivered, target, ends_at: deal.ends_at },
         });
         result.overdue = true;
       }
@@ -226,11 +149,10 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // Deals ativos: não terminados ou terminados nos últimos 7 dias
     const cutoff = new Date(Date.now() - 7 * 86400000).toISOString();
     const { data: deals, error } = await supabase
       .from("curator_deals")
-      .select("id, user_id, song_name, curator_name, spotify_owner_id, started_at, ends_at, target_plays")
+      .select("id, user_id, song_name, curator_name, started_at, ends_at, target_plays")
       .or(`ends_at.is.null,ends_at.gte.${cutoff}`);
 
     if (error) throw error;
@@ -245,11 +167,10 @@ Deno.serve(async (req) => {
       }
     }
 
-    const totalAlerts = results.reduce((s, r: any) => s + (r.alerts_created ?? 0), 0);
-    console.log(`[cron-reconcile] ${results.length} deals, ${totalAlerts} novos alertas`);
+    console.log(`[cron-reconcile] ${results.length} deals processados via snapshots`);
 
     return new Response(
-      JSON.stringify({ deals_processed: results.length, alerts_created: totalAlerts, results }),
+      JSON.stringify({ deals_processed: results.length, results }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {
