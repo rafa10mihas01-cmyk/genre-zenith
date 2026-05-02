@@ -713,24 +713,71 @@ export default function CuratorPage() {
               return (
                 <>
                   <div className="flex items-center gap-4">
-                    {headerCover ? (
-                      <div className="relative shrink-0">
-                        <div
-                          aria-hidden
-                          className="absolute inset-0 -z-10 rounded-xl blur-xl opacity-50"
-                          style={{ background: "rgba(29,185,84,0.35)" }}
-                        />
-                        <img
-                          src={headerCover}
-                          alt={headerName}
-                          className="w-[72px] h-[72px] rounded-xl object-cover ring-1 ring-border"
-                        />
-                      </div>
-                    ) : (
-                      <div className="w-[72px] h-[72px] rounded-xl bg-muted shrink-0 flex items-center justify-center ring-1 ring-border">
-                        <ListMusic className="h-6 w-6 text-muted-foreground" />
-                      </div>
-                    )}
+                    {(() => {
+                      // Visão geral: mosaico com até 4 capas das músicas da campanha
+                      if (isAll) {
+                        const covers = songs
+                          .map((s) => s.song_cover_url)
+                          .filter((c): c is string => !!c)
+                          .slice(0, 4);
+                        const count = covers.length;
+                        const gridClass =
+                          count <= 1
+                            ? "grid-cols-1 grid-rows-1"
+                            : count === 2
+                            ? "grid-cols-2 grid-rows-1"
+                            : count === 3
+                            ? "grid-cols-2 grid-rows-2"
+                            : "grid-cols-2 grid-rows-2";
+                        return (
+                          <div className="relative shrink-0">
+                            <div
+                              aria-hidden
+                              className="absolute inset-0 -z-10 rounded-xl blur-xl opacity-50"
+                              style={{ background: "rgba(29,185,84,0.35)" }}
+                            />
+                            <div className={cn(
+                              "w-[72px] h-[72px] rounded-xl overflow-hidden ring-1 ring-border bg-muted grid gap-px",
+                              gridClass,
+                            )}>
+                              {count === 0 ? (
+                                <div className="flex items-center justify-center bg-muted">
+                                  <ListMusic className="h-6 w-6 text-muted-foreground" />
+                                </div>
+                              ) : count === 3 ? (
+                                <>
+                                  <img src={covers[0]} alt="" className="w-full h-full object-cover row-span-2" />
+                                  <img src={covers[1]} alt="" className="w-full h-full object-cover" />
+                                  <img src={covers[2]} alt="" className="w-full h-full object-cover" />
+                                </>
+                              ) : (
+                                covers.map((c, i) => (
+                                  <img key={i} src={c} alt="" className="w-full h-full object-cover" />
+                                ))
+                              )}
+                            </div>
+                          </div>
+                        );
+                      }
+                      return headerCover ? (
+                        <div className="relative shrink-0">
+                          <div
+                            aria-hidden
+                            className="absolute inset-0 -z-10 rounded-xl blur-xl opacity-50"
+                            style={{ background: "rgba(29,185,84,0.35)" }}
+                          />
+                          <img
+                            src={headerCover}
+                            alt={headerName}
+                            className="w-[72px] h-[72px] rounded-xl object-cover ring-1 ring-border"
+                          />
+                        </div>
+                      ) : (
+                        <div className="w-[72px] h-[72px] rounded-xl bg-muted shrink-0 flex items-center justify-center ring-1 ring-border">
+                          <ListMusic className="h-6 w-6 text-muted-foreground" />
+                        </div>
+                      );
+                    })()}
                     <div className="flex-1 min-w-0">
                       <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70 mb-1 inline-flex items-center gap-2">
                         {selectedSong ? "Música selecionada" : isAll ? "Visão geral" : "Música"}
