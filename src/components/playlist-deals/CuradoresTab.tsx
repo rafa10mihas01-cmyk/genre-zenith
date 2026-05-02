@@ -133,9 +133,11 @@ export function CuradoresTab({ deals, logs, playlists, alerts = [], loading }: P
           : null,
         deliveryPct: totalTarget > 0 ? Math.round((totalEarned / totalTarget) * 100) : 0,
         avgScore: scoreDen > 0 ? Math.round(scoreNum / scoreDen) : 0,
+        alertsOpen: totalAlertsOpen,
+        alertsHigh: totalAlertsHigh,
       },
     };
-  }, [deals, logs, playlists]);
+  }, [deals, logs, playlists, alerts]);
 
   const isEmpty = !loading && deals.length === 0;
 
