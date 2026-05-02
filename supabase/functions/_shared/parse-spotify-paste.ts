@@ -87,7 +87,7 @@ function parseFooter(footer: string): {
   let is_editorial = false;
 
   // Detecta creator no início
-  const editorialMatch = body.match(/^Spotify\b/);
+  const editorialMatch = body.match(/^Spotify(?=\d|—|–|-)/i);
   if (editorialMatch) {
     is_editorial = true;
     creator = "Spotify";
