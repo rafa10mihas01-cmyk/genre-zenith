@@ -24,6 +24,8 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { NexEngineLogo } from "@/components/NexEngineLogo";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { CuratorNotificationsBell } from "@/components/public/CuratorNotificationsBell";
 import { PrintThumbs } from "@/components/playlist-deals/PrintThumbs";
 import { markCuratorPublicMode } from "@/lib/publicRouteMode";
 
@@ -493,9 +495,29 @@ export default function CuratorPage() {
       {/* Container central global — mobile: full width, tablet: 900px, desktop: 1200px */}
       <div className="relative z-10 w-full max-w-[1200px] mx-auto px-5 sm:px-6 md:px-8">
         <div className="max-w-xl md:max-w-2xl mx-auto space-y-7 sm:space-y-8">
-        {/* Logo NexEngine */}
-        <div className="flex justify-center pb-4 sm:pb-2">
-          <NexEngineLogo variant="dark" size={28} />
+        {/* Topbar — Logo + Tema + Sino de notificações */}
+        <div className="flex items-center justify-between pb-4 sm:pb-2">
+          <div className="w-9" aria-hidden />
+          <NexEngineLogo variant="auto" size={28} />
+          <div className="flex items-center gap-1">
+            <ThemeToggle />
+            <CuratorNotificationsBell
+              stats={{
+                target: stats.target,
+                dailyGoal: stats.dailyGoal,
+                earned: stats.earned,
+                pct: stats.pct,
+                todayPlays: stats.todayPlays,
+                todayPct: stats.todayPct,
+                hasBaseline: stats.hasBaseline,
+                isOverdue: stats.isOverdue,
+                vel: stats.vel,
+                eta: stats.eta,
+                daysRunning: stats.daysRunning,
+                lastImportAt: stats.lastImportAt,
+              }}
+            />
+          </div>
         </div>
 
         {/* Header — campanha + música */}
