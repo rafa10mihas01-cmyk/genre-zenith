@@ -754,6 +754,10 @@ export default function CuratorPage() {
                 </div>
               )}
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Playlists onde a música já está (baseline / pré-existentes) — colapsável */}
         {basePlaylists.length > 0 && (
           <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_8px_30px_rgba(0,0,0,0.45)]">
             <CardContent className="p-6 sm:p-7 space-y-5">
