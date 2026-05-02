@@ -191,7 +191,7 @@ export function CuradoresTab({
       const name = (d.curator_name ?? "").trim() || "—";
       const cost = Number(d.cost ?? 0) || 0;
       const target = Number(d.target_plays ?? 0) || 0;
-      const stats = computeCuratorStats(d, logs, playlists);
+      const stats = computeCuratorStats(d, logs, playlists, progressByDeal[d.id] ?? null);
       const w = Math.max(target, 1);
       const aCount = dealAlerts.get(d.id) ?? { open: 0, high: 0 };
 
