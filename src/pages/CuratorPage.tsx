@@ -197,6 +197,7 @@ export default function CuratorPage() {
   const [logs, setLogs] = useState<DealLog[]>([]);
   const [songs, setSongs] = useState<DealSong[]>([]);
   const [url, setUrl] = useState("");
+  const [position, setPosition] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [importing, setImporting] = useState(false);
   const [baseOpen, setBaseOpen] = useState(true);
