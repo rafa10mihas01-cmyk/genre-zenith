@@ -1352,40 +1352,48 @@ export default function CuratorPage() {
               </DialogDescription>
             </DialogHeader>
             <div className="flex flex-col gap-1.5 overflow-y-auto pr-1 -mr-1 pb-2">
-              {baseModalGroup?.playlists.map((p) => (
-                <a
-                  key={p.id}
-                  href={p.spotify_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="group nx-subcard-hover flex items-center gap-3 p-2.5"
-                >
-                  <div className="relative w-11 h-11 rounded-md overflow-hidden bg-muted/60 ring-1 ring-border/40 shrink-0">
-                    {p.image_url ? (
-                      <img
-                        src={p.image_url}
-                        alt={p.playlist_name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <ListMusic className="h-4 w-4 text-muted-foreground" />
-                      </div>
+              {baseModalGroup?.playlists.map((p) => {
+                const url = resolveSpotifyPlaylistUrl(p);
+                const Tag: any = url ? "a" : "div";
+                const linkProps = url
+                  ? { href: url, target: "_blank", rel: "noreferrer" }
+                  : { "aria-disabled": true };
+                return (
+                  <Tag
+                    key={p.id}
+                    {...linkProps}
+                    className={cn(
+                      "group nx-subcard-hover flex items-center gap-3 p-2.5",
+                      !url && "opacity-60 cursor-not-allowed",
                     )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-[13px] font-medium leading-tight truncate group-hover:text-primary transition-colors">
-                      {p.playlist_name}
+                  >
+                    <div className="relative w-11 h-11 rounded-md overflow-hidden bg-muted/60 ring-1 ring-border/40 shrink-0">
+                      {p.image_url ? (
+                        <img
+                          src={p.image_url}
+                          alt={p.playlist_name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <ListMusic className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                      )}
                     </div>
-                    {p.followers !== null && (
-                      <div className="text-[11px] text-muted-foreground mt-0.5 tabular-nums">
-                        {formatPlays(p.followers)} seguidores
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[13px] font-medium leading-tight truncate group-hover:text-primary transition-colors">
+                        {p.playlist_name}
                       </div>
-                    )}
-                  </div>
-                  <ExternalLink className="h-3.5 w-3.5 text-muted-foreground/60 group-hover:text-primary transition-colors shrink-0" />
-                </a>
-              ))}
+                      {p.followers !== null && (
+                        <div className="text-[11px] text-muted-foreground mt-0.5 tabular-nums">
+                          {formatPlays(p.followers)} seguidores
+                        </div>
+                      )}
+                    </div>
+                    <ExternalLink className="h-3.5 w-3.5 text-muted-foreground/60 group-hover:text-primary transition-colors shrink-0" />
+                  </Tag>
+                );
+              })}
               {baseModalGroup && baseModalGroup.playlists.length === 0 && (
                 <div className="py-8 text-center text-[12px] text-muted-foreground">
                   Nenhuma playlist registrada para esta música.
