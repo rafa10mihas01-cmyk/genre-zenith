@@ -86,14 +86,38 @@ export function PastePlaylistsDialog({
   const [loading, setLoading] = useState(false);
   const [preview, setPreview] = useState<EnrichResponse | null>(null);
 
+  // Rascunho do texto colado — chave por deal pra não misturar entre deals
+  const draftKey = deal?.id ? `paste-playlists:${deal.id}` : "paste-playlists:none";
+  const draftSnapshot = useMemo(() => ({ text }), [text]);
+  const draft = useFormDraft(
+    draftKey,
+    { enabled: open && !!deal, isEmpty: !text.trim() },
+    draftSnapshot,
+  );
+  const [draftDecided, setDraftDecided] = useState(false);
+
+  const handleRestoreDraft = () => {
+    const data = draft.restoreDraft();
+    if (data?.text) setText(data.text);
+    setDraftDecided(true);
+  };
+  const handleDiscardDraft = () => {
+    draft.clearDraft();
+    setDraftDecided(true);
+  };
+
   const reset = () => {
     setText("");
     setPreview(null);
     setLoading(false);
+    draft.clearDraft();
+    setDraftDecided(false);
   };
 
   const handleClose = () => {
-    reset();
+    // Não reseta — texto fica salvo como draft pra próxima abertura
+    setPreview(null);
+    setLoading(false);
     onClose();
   };
 
