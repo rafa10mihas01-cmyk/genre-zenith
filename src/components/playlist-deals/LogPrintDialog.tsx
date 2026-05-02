@@ -40,6 +40,7 @@ export interface LogPrintDialogProps {
   songs?: CuratorDealSong[];
   allLogs: CuratorDealLog[];
   allPlaylists: CuratorPlaylist[];
+  progress?: CuratorDealProgress | null;
   onClose: () => void;
   addLog: (input: NewCuratorLogInput) => Promise<CuratorDealLog>;
   addBaseline: (
