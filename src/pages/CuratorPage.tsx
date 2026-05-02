@@ -481,7 +481,7 @@ export default function CuratorPage() {
 
         {/* Header — campanha + música */}
         <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_8px_30px_rgba(0,0,0,0.45)] transition-colors overflow-hidden">
-          <CardContent className="p-6 sm:p-7 space-y-5">
+          <CardContent className="p-7 sm:p-8 space-y-6">
             {/* Eyebrow: CAMPANHA · próximo relatório (seg 17h) */}
             <div className="flex items-center justify-between gap-3">
               <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary/80">
