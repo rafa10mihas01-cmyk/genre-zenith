@@ -147,6 +147,7 @@ export function DealHistorySheet({
   onReload,
 }: DealHistorySheetProps) {
   const [pasteOpen, setPasteOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [longTailOpen, setLongTailOpen] = useState(false);
   const [selectedLogId, setSelectedLogId] = useState<string | null>(null);
   const stats = deal ? computeCuratorStats(deal, allLogs, allPlaylists) : null;
