@@ -3,6 +3,7 @@
 export type CuratorDeal = {
   id: string;
   user_id: string;
+  curator_id?: string | null;
   curator_name: string;
   song_spotify_url: string;
   song_name: string;
