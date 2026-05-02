@@ -159,12 +159,10 @@ export function useCuratorDeals() {
         daily_goal: input.daily_goal ?? 0,
         target_plays: input.target_plays,
         position: 0,
-        started_at: input.extra_songs?.[0]?.started_at ?? input.started_at ?? null,
-        ends_at: input.extra_songs?.[0]?.ends_at ?? input.ends_at ?? null,
+        started_at: input.started_at ?? null,
+        ends_at: input.ends_at ?? null,
       };
-      // Reaproveita started/ends da entrada primária acima; remove o índice 0 do array de extras
-      const extras = input.extra_songs ?? [];
-      const allSongs = [primarySong, ...extras];
+      const allSongs = [primarySong, ...(input.extra_songs ?? [])];
       const songRows = allSongs.map((s, i) => ({
         deal_id: deal.id,
         song_spotify_url: s.song_spotify_url,
