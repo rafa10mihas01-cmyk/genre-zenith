@@ -912,9 +912,14 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDe
                 )}
               >
                 <div className="min-w-0">
-                  <div className="text-xs text-muted-foreground">Curador</div>
+                  <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                    Saldo do curador
+                  </div>
                   <div className="text-sm font-semibold text-foreground truncate">
                     {selectedCurator.name}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground mt-0.5">
+                    Meta deste deal = soma das músicas
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-3 text-right">
