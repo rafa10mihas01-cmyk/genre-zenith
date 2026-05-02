@@ -185,7 +185,13 @@ export function LogPrintDialog({
     setMode("image");
     setPasteText("");
     setParsedPaste(null);
-    setSelectedSongId(primarySongId);
+    // Reaponta pra próxima música ainda sem baseline (ou primária)
+    if (hasMultipleSongs) {
+      const pending = songs.find((s) => !songHasBaseline(s.id));
+      setSelectedSongId(pending ? pending.id : primarySongId);
+    } else {
+      setSelectedSongId(primarySongId);
+    }
   };
 
   const handleClose = () => {
