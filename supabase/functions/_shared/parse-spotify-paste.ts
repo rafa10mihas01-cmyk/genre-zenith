@@ -98,6 +98,29 @@ function parseFooter(footer: string): {
   }
   body = body.trim();
 
+  // Caso editorial: "Spotify199.283—2"
+  // Após remover "Spotify" no começo, sobra "199.283—2". O "—" é o SEPARADOR
+  // entre streams e próx-posição (porque editoriais não têm data e o "—"
+  // representa "data inexistente"). Trata isso primeiro.
+  if (is_editorial) {
+    const dashSplit = body.split(/[—–-]+/);
+    if (dashSplit.length >= 2) {
+      const streamsPart = dashSplit[0];
+      const nextPart = dashSplit[dashSplit.length - 1];
+      const np = nextPart.match(/^(\d{1,3})$/);
+      const streams = parsePtNumber(streamsPart);
+      const next_position = np ? parseInt(np[1], 10) : null;
+      return {
+        creator,
+        is_editorial,
+        streams,
+        added_at: null,
+        added_at_raw: null,
+        next_position,
+      };
+    }
+  }
+
   let streams = 0;
   let added_at: string | null = null;
   let added_at_raw: string | null = null;
@@ -116,19 +139,8 @@ function parseFooter(footer: string): {
     const nextPosMatch = afterDate.match(/^(\d{1,3})$/);
     if (nextPosMatch) next_position = parseInt(nextPosMatch[1], 10);
   } else {
-    // Sem data. Procura "próxima-posição grudada no fim".
-    // Streams pt-BR: usa "." como milhar, último grupo são 3 dígitos.
-    // Ex: "199.283—2" → após remover "—" no início temos "199.2832"? Não:
-    // a entrada nesse fluxo é "199.2832" (já sem o "—" do fim do anterior?
-    // não, "—2" foi consumido como creator do próximo registro).
-    //
-    // Na prática, depois de remover creator, o body é:
-    //   "199.2832"  (editorial sem data)
-    //   "73.924"    (não-editorial, data já extraída acima)
-    //   "2.500"     (último, sem data)
-    //
-    // Estratégia: se há ponto, streams termina em "ponto + 3 dígitos".
-    // O resto após são os dígitos da próxima posição.
+    // Sem data. Streams pt-BR usa "." como milhar (3 dígitos por grupo).
+    // Próx-pos vem grudada no fim. Ex: "2.5002" → streams=2.500, próx-pos=2
     const lastDot = body.lastIndexOf(".");
     if (lastDot >= 0) {
       const after = body.slice(lastDot + 1);
@@ -140,9 +152,6 @@ function parseFooter(footer: string): {
         streams = parsePtNumber(body);
       }
     } else {
-      // Sem ponto: número solto. Pode ser só streams pequeno + próx-pos.
-      // Ex: "302" pode ser streams=30 + próx=2, OU streams=302 + sem próx.
-      // Sem mais sinal, assume tudo como streams.
       streams = parsePtNumber(body);
     }
   }
