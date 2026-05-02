@@ -677,6 +677,136 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDe
                     })
                   )}
                 </div>
+
+                {/* Painel de ajuste de saldo (curador selecionado) */}
+                {selectedCurator && (
+                  <div className="rounded-lg border border-border bg-muted/10 p-3 space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="text-xs text-muted-foreground">
+                        Saldo atual de <span className="font-medium text-foreground">{selectedCurator.name}</span>:{" "}
+                        <span className="tabular-nums text-foreground font-medium">
+                          {formatNumber(selectedCurator.purchased_plays ?? 0)}
+                        </span>{" "}
+                        plays comprados
+                        {Number(selectedCurator.total_cost ?? 0) > 0 && (
+                          <>
+                            {" • "}
+                            <span className="tabular-nums">
+                              {Number(selectedCurator.total_cost).toLocaleString("pt-BR", {
+                                style: "currency",
+                                currency: "BRL",
+                                maximumFractionDigits: 0,
+                              })}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {balanceAction === null ? (
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="gap-1.5"
+                          onClick={() => setBalanceAction("add")}
+                        >
+                          <PlusCircle className="h-3.5 w-3.5" /> Comprar mais plays
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="gap-1.5"
+                          onClick={() => {
+                            setBalanceAction("edit");
+                            setBalancePlaysDigits(String(selectedCurator.purchased_plays ?? 0));
+                            const cost = Number(selectedCurator.total_cost ?? 0);
+                            setBalanceCostDigits(cost > 0 ? String(Math.round(cost * 100)) : "");
+                          }}
+                        >
+                          <Pencil className="h-3.5 w-3.5" /> Ajustar saldo
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="text-xs font-medium text-foreground">
+                          {balanceAction === "add"
+                            ? "Adicionar pacote ao saldo (soma)"
+                            : "Substituir saldo (sobrescreve)"}
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">
+                              {balanceAction === "add" ? "Plays a adicionar" : "Plays comprados"}
+                            </Label>
+                            <Input
+                              inputMode="numeric"
+                              placeholder="ex: 1000000"
+                              value={balancePlaysDigits}
+                              onChange={(e) => setBalancePlaysDigits(digitsOnly(e.target.value))}
+                            />
+                            {balancePlaysDigits && (
+                              <p className="text-[11px] text-muted-foreground">
+                                ≈{" "}
+                                <span className="text-foreground font-medium">
+                                  {formatPlaysHint(Number(balancePlaysDigits))}
+                                </span>{" "}
+                                plays
+                              </p>
+                            )}
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">
+                              {balanceAction === "add" ? "Custo do pacote" : "Custo total"}
+                            </Label>
+                            <div className="relative">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground pointer-events-none">
+                                R$
+                              </span>
+                              <Input
+                                inputMode="numeric"
+                                placeholder="0,00"
+                                value={
+                                  balanceCostDigits
+                                    ? formatCurrencyBRL(balanceCostDigits).replace("R$", "").trim()
+                                    : ""
+                                }
+                                onChange={(e) => setBalanceCostDigits(digitsOnly(e.target.value))}
+                                className="pl-9"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setBalanceAction(null);
+                              setBalancePlaysDigits("");
+                              setBalanceCostDigits("");
+                            }}
+                          >
+                            Cancelar
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={handleSaveBalanceChange}
+                            disabled={savingBalance || (!balancePlaysDigits && !balanceCostDigits)}
+                            className="gap-1.5"
+                          >
+                            {savingBalance && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                            {balanceAction === "add" ? "Adicionar" : "Salvar"}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ) : (
               <div className="space-y-3">
