@@ -342,8 +342,25 @@ export default function CuratorPage() {
   const isDone = stats.target > 0 && stats.earned >= stats.target;
 
   return (
-    <div className="min-h-screen bg-black px-5 sm:px-6 py-10 sm:py-14">
-      <div className="max-w-xl mx-auto space-y-7 sm:space-y-8">
+    <div className="relative min-h-screen bg-black px-5 sm:px-6 py-10 sm:py-14 overflow-hidden">
+      {/* Glow verde sutil — mais forte no topo, leve embaixo */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-[420px] sm:h-[520px] -z-0"
+        style={{
+          background:
+            "radial-gradient(ellipse 70% 80% at 50% 0%, rgba(29,185,84,0.18) 0%, rgba(29,185,84,0.08) 35%, rgba(29,185,84,0) 70%)",
+        }}
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-[260px] -z-0"
+        style={{
+          background:
+            "radial-gradient(ellipse 60% 100% at 50% 100%, rgba(29,185,84,0.06) 0%, rgba(29,185,84,0) 70%)",
+        }}
+      />
+      <div className="relative z-10 max-w-xl mx-auto space-y-7 sm:space-y-8">
         {/* Logo NexEngine */}
         <div className="flex justify-center pb-4 sm:pb-2">
           <NexEngineLogo variant="dark" size={28} />
