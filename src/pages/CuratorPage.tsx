@@ -1137,12 +1137,7 @@ export default function CuratorPage() {
         {baseGroupedBySong.length > 0 && (
           <Card className="nx-card !p-0 border-border">
             <CardContent className="p-5 sm:p-6 space-y-4">
-              <button
-                type="button"
-                onClick={() => setBaseOpen((v) => !v)}
-                className="w-full flex items-center justify-between gap-4 text-left"
-                aria-expanded={baseOpen}
-              >
+              <div className="w-full flex items-center justify-between gap-4">
                 <div className="min-w-0 flex-1">
                   <h2 className="text-[14px] font-semibold inline-flex items-center gap-2 tracking-tight">
                     <ListMusic className="h-3.5 w-3.5 text-muted-foreground" />
@@ -1152,18 +1147,12 @@ export default function CuratorPage() {
                     Clique em uma música para ver as playlists de origem
                   </p>
                 </div>
-                <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground shrink-0">
+                <span className="text-[11px] text-muted-foreground shrink-0">
                   {baseGroupedBySong.length} {baseGroupedBySong.length === 1 ? "música" : "músicas"}
-                  <ChevronDown
-                    className={cn(
-                      "h-3.5 w-3.5 transition-transform duration-200",
-                      baseOpen && "rotate-180",
-                    )}
-                  />
                 </span>
-              </button>
+              </div>
 
-              {baseOpen && (
+              {(
                 <div className="grid grid-cols-2 gap-3">
                   {baseGroupedBySong.map((g) => {
                     const cover = g.song?.song_cover_url ?? deal.song_cover_url;
