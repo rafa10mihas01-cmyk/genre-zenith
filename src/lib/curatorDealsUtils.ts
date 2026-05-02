@@ -17,6 +17,10 @@ export type CuratorDeal = {
   public_token: string;
   slug?: string | null;
   created_at: string;
+  closed_at?: string | null;
+  closed_status?: "completed" | "cancelled" | null;
+  closed_reason?: string | null;
+  final_report_url?: string | null;
 };
 
 export type CuratorDealSong = {
