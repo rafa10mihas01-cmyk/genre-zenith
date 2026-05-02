@@ -145,6 +145,7 @@ export function DealHistorySheet({
   songs = [],
   allLogs,
   allPlaylists,
+  progress,
   onClose,
   onReload,
 }: DealHistorySheetProps) {
@@ -152,7 +153,7 @@ export function DealHistorySheet({
   const [importOpen, setImportOpen] = useState(false);
   const [longTailOpen, setLongTailOpen] = useState(false);
   const [selectedLogId, setSelectedLogId] = useState<string | null>(null);
-  const stats = deal ? computeCuratorStats(deal, allLogs, allPlaylists) : null;
+  const stats = deal ? computeCuratorStats(deal, allLogs, allPlaylists, progress ?? null) : null;
 
   // Helper: pega a música associada a um log (via song_id), com fallback pro deal
   const getSongForLog = (log: CuratorDealLog): CuratorDealSong | null => {
