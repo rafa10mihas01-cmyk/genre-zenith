@@ -160,6 +160,7 @@ export function LogPrintDialog({
     setMode("image");
     setPasteText("");
     setParsedPaste(null);
+    setSelectedSongId(primarySongId);
   };
 
   const handleClose = () => {
