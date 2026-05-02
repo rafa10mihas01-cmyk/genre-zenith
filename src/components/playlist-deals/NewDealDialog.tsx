@@ -469,6 +469,22 @@ export function NewDealDialog({ open, onOpenChange }: NewDealDialogProps) {
                       </div>
                     </div>
 
+                    {song.started_at && song.ends_at && (
+                      <div className="text-xs text-muted-foreground">
+                        Duração:{" "}
+                        <span className="text-foreground font-medium">
+                          {Math.max(
+                            1,
+                            Math.round(
+                              (song.ends_at.getTime() - song.started_at.getTime()) /
+                                86400000,
+                            ) + 1,
+                          )}{" "}
+                          dias
+                        </span>
+                      </div>
+                    )}
+
                     <div className="flex items-center gap-2">
                       {!song.meta ? (
                         <Button
