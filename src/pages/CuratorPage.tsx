@@ -729,10 +729,31 @@ export default function CuratorPage() {
                 </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
 
-        {/* Playlists onde a música já está (baseline / pré-existentes) — colapsável */}
+            {/* Ciclo do relatório semanal */}
+            <div className="rounded-xl bg-white/[0.02] ring-1 ring-white/[0.04] p-4 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-muted-foreground uppercase tracking-wider text-[11px]">
+                  Ciclo atual
+                </div>
+                <div className="text-[11px] text-muted-foreground tabular-nums">
+                  {formatShortDate(stats.cycleStart)} → {formatShortDate(stats.cycleEnd)} 17h
+                </div>
+              </div>
+              <div className="flex items-center justify-between gap-2 text-[12px]">
+                <span className="text-muted-foreground">Último relatório</span>
+                <span className="text-foreground font-medium tabular-nums">
+                  {stats.lastImportAt
+                    ? `${formatShortDate(stats.lastImportAt)} · ciclo ${formatShortDate(stats.lastImportCycleEnd)}`
+                    : "—"}
+                </span>
+              </div>
+              {stats.isOverdue && (
+                <div className="text-[11px] text-warning leading-snug pt-1">
+                  Aguardando relatório do ciclo que fechou em {formatShortDate(stats.cycleStart)} 17h.
+                </div>
+              )}
+            </div>
         {basePlaylists.length > 0 && (
           <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_8px_30px_rgba(0,0,0,0.45)]">
             <CardContent className="p-6 sm:p-7 space-y-5">
