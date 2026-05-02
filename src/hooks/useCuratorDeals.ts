@@ -21,6 +21,7 @@ export type DealSongInput = {
   position?: number;
   started_at?: string | null;
   ends_at?: string | null;
+  ramp_up_days?: number;
 };
 
 export type NewCuratorDealInput = {
