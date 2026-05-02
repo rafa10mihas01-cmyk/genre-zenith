@@ -18,8 +18,10 @@ type CuratorRow = {
   totalCost: number;
   totalEarned: number;
   totalTarget: number;
-  costPerPlay: number | null;   // R$/play
-  deliveryPct: number;           // earned/target
+  costPerPlay: number | null;
+  deliveryPct: number;
+  avgScore: number;       // 0..100 — média ponderada por target
+  avgLegitShare: number;  // 0..1
 };
 
 const formatBRL = (v: number) =>
@@ -40,54 +42,59 @@ const formatCostPerPlay = (v: number | null) => {
 
 export function CuradoresTab({ deals, logs, playlists, loading }: Props) {
   const { rows, totals } = useMemo(() => {
-    const map = new Map<string, CuratorRow>();
+    type Acc = CuratorRow & { _scoreNum: number; _scoreDen: number; _legitNum: number; _legitDen: number };
+    const map = new Map<string, Acc>();
     let totalCost = 0;
     let totalEarned = 0;
     let totalTarget = 0;
+    let scoreNum = 0, scoreDen = 0;
 
     for (const d of deals) {
       const name = (d.curator_name ?? "").trim() || "—";
       const cost = Number(d.cost ?? 0) || 0;
       const target = Number(d.target_plays ?? 0) || 0;
-      const { earned } = computeCuratorStats(d, logs, playlists);
+      const stats = computeCuratorStats(d, logs, playlists);
+      const w = Math.max(target, 1); // peso = meta (deals maiores pesam mais)
 
       const row = map.get(name) ?? {
-        name,
-        dealsCount: 0,
-        totalCost: 0,
-        totalEarned: 0,
-        totalTarget: 0,
-        costPerPlay: null,
-        deliveryPct: 0,
+        name, dealsCount: 0, totalCost: 0, totalEarned: 0, totalTarget: 0,
+        costPerPlay: null, deliveryPct: 0, avgScore: 0, avgLegitShare: 1,
+        _scoreNum: 0, _scoreDen: 0, _legitNum: 0, _legitDen: 0,
       };
       row.dealsCount += 1;
       row.totalCost += cost;
-      row.totalEarned += earned;
+      row.totalEarned += stats.earned;
       row.totalTarget += target;
+      row._scoreNum += stats.score * w;
+      row._scoreDen += w;
+      row._legitNum += stats.legitShare * w;
+      row._legitDen += w;
       map.set(name, row);
 
       totalCost += cost;
-      totalEarned += earned;
+      totalEarned += stats.earned;
       totalTarget += target;
+      scoreNum += stats.score * w;
+      scoreDen += w;
     }
 
-    const rows = Array.from(map.values()).map((r) => {
-      // Usa plays entregues quando já houver entrega; senão, cai pra meta contratada
+    const rows: CuratorRow[] = Array.from(map.values()).map((r) => {
       const denom = r.totalEarned > 0 ? r.totalEarned : r.totalTarget;
       return {
-        ...r,
+        name: r.name,
+        dealsCount: r.dealsCount,
+        totalCost: r.totalCost,
+        totalEarned: r.totalEarned,
+        totalTarget: r.totalTarget,
         costPerPlay: denom > 0 ? r.totalCost / denom : null,
         deliveryPct: r.totalTarget > 0 ? Math.round((r.totalEarned / r.totalTarget) * 100) : 0,
+        avgScore: r._scoreDen > 0 ? Math.round(r._scoreNum / r._scoreDen) : 0,
+        avgLegitShare: r._legitDen > 0 ? r._legitNum / r._legitDen : 1,
       };
     });
 
-    // Ordena: melhor custo/play primeiro (quem entrega mais barato)
-    rows.sort((a, b) => {
-      if (a.costPerPlay === null && b.costPerPlay === null) return b.totalCost - a.totalCost;
-      if (a.costPerPlay === null) return 1;
-      if (b.costPerPlay === null) return -1;
-      return a.costPerPlay - b.costPerPlay;
-    });
+    // Ordena: melhor score primeiro
+    rows.sort((a, b) => b.avgScore - a.avgScore);
 
     return {
       rows,
@@ -97,12 +104,11 @@ export function CuradoresTab({ deals, logs, playlists, loading }: Props) {
         totalEarned,
         totalTarget,
         avgCostPerPlay:
-          totalEarned > 0
-            ? totalCost / totalEarned
-            : totalTarget > 0
-            ? totalCost / totalTarget
-            : null,
+          totalEarned > 0 ? totalCost / totalEarned
+          : totalTarget > 0 ? totalCost / totalTarget
+          : null,
         deliveryPct: totalTarget > 0 ? Math.round((totalEarned / totalTarget) * 100) : 0,
+        avgScore: scoreDen > 0 ? Math.round(scoreNum / scoreDen) : 0,
       },
     };
   }, [deals, logs, playlists]);
