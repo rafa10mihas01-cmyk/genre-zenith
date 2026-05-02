@@ -679,11 +679,11 @@ export default function CuratorPage() {
                 if (f) handleImportFile(f);
               }}
             />
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3 px-1">
               <Button
                 type="button"
                 variant="ghost"
-                className="h-11 text-[13px] rounded-xl bg-white/[0.02] ring-1 ring-white/[0.08] hover:bg-white/[0.06] hover:ring-white/[0.12]"
+                className="h-12 w-full text-[13px] rounded-xl bg-white/[0.02] ring-1 ring-white/[0.06] hover:bg-white/[0.06] hover:ring-white/[0.10]"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={submitting || importing}
               >
@@ -697,7 +697,7 @@ export default function CuratorPage() {
               <Button
                 type="button"
                 variant="ghost"
-                className="h-11 text-[13px] rounded-xl bg-white/[0.02] ring-1 ring-white/[0.04] hover:bg-white/[0.06] hover:ring-white/[0.08]"
+                className="h-12 w-full text-[13px] rounded-xl bg-white/[0.02] ring-1 ring-white/[0.06] hover:bg-white/[0.06] hover:ring-white/[0.10]"
                 onClick={handleDownloadTemplate}
                 disabled={importing}
               >
