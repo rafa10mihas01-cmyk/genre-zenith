@@ -678,6 +678,169 @@ export default function CuratorPage() {
           </CardContent>
         </Card>
 
+        {/* Músicas da campanha — visível só quando há 2+ músicas no deal */}
+        {songs.length > 1 && (
+          <Card className="nx-card !p-0 border-border">
+            <CardContent className="p-7 sm:p-8 space-y-5">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <h2 className="text-[15px] font-semibold inline-flex items-center gap-2 tracking-tight">
+                    <ListMusic className="h-4 w-4 text-muted-foreground" />
+                    Músicas da campanha
+                  </h2>
+                  <p className="text-[12px] text-muted-foreground mt-1.5 leading-snug">
+                    Cada música tem sua janela e meta individual
+                  </p>
+                </div>
+                <span className="text-[12px] text-muted-foreground shrink-0 tabular-nums">
+                  {songs.length} {songs.length === 1 ? "música" : "músicas"}
+                </span>
+              </div>
+
+              <ul className="space-y-3">
+                {songs.map((s) => {
+                  // Logs/playlists individuais por música
+                  const songLogs = logs.filter(
+                    (l) => l.song_id === s.id && !l.is_baseline,
+                  );
+                  const lastPlays =
+                    songLogs.length > 0
+                      ? Number(songLogs[songLogs.length - 1].total_plays)
+                      : Number(s.baseline_plays ?? 0);
+                  const earned = Math.max(
+                    0,
+                    lastPlays - Number(s.baseline_plays ?? 0),
+                  );
+                  const target = Number(s.target_plays ?? 0);
+                  const pct =
+                    target > 0
+                      ? Math.min(100, Math.round((earned / target) * 100))
+                      : 0;
+
+                  // Status: aquecimento / ativo / concluído / aguardando
+                  const startRef = s.started_at ?? deal.started_at ?? deal.created_at;
+                  const startMs = startRef ? new Date(startRef).getTime() : null;
+                  const ramp = Number(s.ramp_up_days ?? 5);
+                  const daysSince = startMs
+                    ? Math.floor((Date.now() - startMs) / (1000 * 60 * 60 * 24))
+                    : 0;
+                  const isDoneSong = target > 0 && earned >= target;
+                  const inRampUp = startMs !== null && daysSince < ramp && !isDoneSong;
+
+                  let statusLabel = "Ativa";
+                  let statusColor = "text-primary";
+                  if (isDoneSong) {
+                    statusLabel = "Concluída";
+                    statusColor = "text-primary";
+                  } else if (inRampUp) {
+                    const remaining = Math.max(1, ramp - daysSince);
+                    statusLabel = `Aquecimento · ${remaining}d`;
+                    statusColor = "text-warning";
+                  } else if (!startMs) {
+                    statusLabel = "Aguardando";
+                    statusColor = "text-muted-foreground";
+                  }
+
+                  return (
+                    <li
+                      key={s.id}
+                      className="rounded-xl bg-muted/40 ring-1 ring-border/50 p-4 hover:bg-muted/60 transition-colors"
+                    >
+                      <div className="flex items-start gap-3">
+                        {s.song_cover_url ? (
+                          <img
+                            src={s.song_cover_url}
+                            alt={s.song_name}
+                            className="w-12 h-12 rounded-lg object-cover ring-1 ring-border shrink-0"
+                          />
+                        ) : (
+                          <div className="w-12 h-12 rounded-lg bg-muted shrink-0" />
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <a
+                                href={s.song_spotify_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-[13px] font-semibold leading-tight truncate hover:underline block"
+                              >
+                                {s.song_name}
+                              </a>
+                              {s.song_artist && (
+                                <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+                                  {s.song_artist}
+                                </p>
+                              )}
+                            </div>
+                            <span
+                              className={cn(
+                                "text-[10px] font-semibold uppercase tracking-wider shrink-0",
+                                statusColor,
+                              )}
+                            >
+                              {statusLabel}
+                            </span>
+                          </div>
+
+                          {/* Linha de KPIs por música */}
+                          <div className="grid grid-cols-3 gap-2 mt-3">
+                            <div>
+                              <div className="text-[9px] uppercase tracking-wider text-muted-foreground/70">
+                                Meta
+                              </div>
+                              <div className="text-[12px] font-semibold tabular-nums">
+                                {target > 0 ? formatPlays(target) : "—"}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-[9px] uppercase tracking-wider text-muted-foreground/70">
+                                Diário
+                              </div>
+                              <div className="text-[12px] font-semibold tabular-nums">
+                                {Number(s.daily_goal ?? 0) > 0
+                                  ? formatPlays(Number(s.daily_goal))
+                                  : "—"}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-[9px] uppercase tracking-wider text-muted-foreground/70">
+                                Janela
+                              </div>
+                              <div className="text-[12px] font-semibold tabular-nums">
+                                {s.started_at ? formatShortDate(s.started_at) : "—"}
+                                {s.ends_at ? ` → ${formatShortDate(s.ends_at)}` : ""}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Progresso individual */}
+                          {target > 0 && (
+                            <div className="mt-3 space-y-1.5">
+                              <div className="h-1 rounded-full bg-muted/60 overflow-hidden">
+                                <div
+                                  className="h-full bg-primary rounded-full transition-all duration-500"
+                                  style={{ width: `${pct}%` }}
+                                />
+                              </div>
+                              <div className="flex items-center justify-between text-[11px] tabular-nums">
+                                <span className="text-foreground font-medium">
+                                  {formatPlays(earned)} / {formatPlays(target)}
+                                </span>
+                                <span className="text-muted-foreground">{pct}%</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Plays hoje vs combinado diário */}
         {stats.hasBaseline && (
           <Card className="nx-card !p-0 border-border">
