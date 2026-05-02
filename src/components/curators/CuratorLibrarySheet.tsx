@@ -16,9 +16,29 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
-import { useCuratorLibrary } from "@/hooks/useCuratorLibrary";
+import { useCuratorLibrary, type PerformanceClass } from "@/hooks/useCuratorLibrary";
 import type { Curator } from "@/hooks/useCuratorDeals";
 import type { CuratorDeal } from "@/lib/curatorDealsUtils";
+
+const PERF_LABEL: Record<PerformanceClass, string> = {
+  excelente: "Excelente",
+  boa: "Boa",
+  media: "Média",
+  fraca: "Fraca",
+  suspeita: "Suspeita",
+  novo: "Novo",
+  sem_historico: "Sem histórico",
+};
+
+const PERF_CLASS: Record<PerformanceClass, string> = {
+  excelente: "bg-success/15 text-success border-0",
+  boa: "bg-primary/15 text-primary border-0",
+  media: "bg-muted/40 text-muted-foreground border border-border",
+  fraca: "bg-warning/15 text-warning border-0",
+  suspeita: "bg-destructive/15 text-destructive border-0",
+  novo: "bg-muted/40 text-muted-foreground border border-border",
+  sem_historico: "bg-muted/30 text-muted-foreground/70 border border-border",
+};
 
 function formatPlays(n: number | null | undefined): string {
   if (!n || !Number.isFinite(n)) return "0";
