@@ -248,6 +248,13 @@ export default function PlaylistDeals() {
         onClose={() => setDetailDeal(null)}
         onReload={reload}
       />
+
+      <EditDealDialog
+        open={editDeal !== null}
+        deal={editDeal}
+        onOpenChange={(v) => { if (!v) setEditDeal(null); }}
+        onSaved={reload}
+      />
     </PageContainer>
   );
 }
