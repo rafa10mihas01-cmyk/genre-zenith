@@ -703,11 +703,12 @@ export default function CuratorPage() {
               })()}
             </div>
 
-            {/* Identidade: capa + música/curador (reflete música selecionada quando aplicável) */}
+            {/* Identidade: capa + música (curador já aparece no topo) */}
             {(() => {
-              const headerCover = selectedSong?.song_cover_url ?? deal.song_cover_url;
-              const headerName = selectedSong?.song_name ?? deal.song_name;
-              const headerArtist = selectedSong?.song_artist ?? deal.song_artist;
+              const isAll = !selectedSong && hasMultipleSongs;
+              const headerCover = selectedSong?.song_cover_url ?? (isAll ? null : deal.song_cover_url);
+              const headerName = selectedSong?.song_name ?? (isAll ? "Todas as músicas" : deal.song_name);
+              const headerArtist = selectedSong?.song_artist ?? (isAll ? null : deal.song_artist);
               const headerUrl = selectedSong?.song_spotify_url ?? deal.song_spotify_url;
               return (
                 <>
@@ -726,11 +727,13 @@ export default function CuratorPage() {
                         />
                       </div>
                     ) : (
-                      <div className="w-[72px] h-[72px] rounded-xl bg-muted shrink-0" />
+                      <div className="w-[72px] h-[72px] rounded-xl bg-muted shrink-0 flex items-center justify-center ring-1 ring-border">
+                        <ListMusic className="h-6 w-6 text-muted-foreground" />
+                      </div>
                     )}
                     <div className="flex-1 min-w-0">
                       <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70 mb-1 inline-flex items-center gap-2">
-                        {selectedSong ? "Música selecionada" : hasMultipleSongs ? "Visão geral" : "Música"}
+                        {selectedSong ? "Música selecionada" : isAll ? "Visão geral" : "Música"}
                         {selectedSong && (
                           <button
                             type="button"
@@ -744,9 +747,15 @@ export default function CuratorPage() {
                       <h1 className="text-[17px] sm:text-[18px] font-semibold leading-tight tracking-tight truncate">
                         {headerName}
                       </h1>
-                      <p className="text-[12px] text-muted-foreground truncate mt-0.5 leading-snug">
-                        {headerArtist ? `${headerArtist} · ` : ""}Curador: {deal.curator_name}
-                      </p>
+                      {isAll ? (
+                        <p className="text-[12px] text-muted-foreground truncate mt-0.5 leading-snug">
+                          {songs.length} músicas no combinado
+                        </p>
+                      ) : headerArtist ? (
+                        <p className="text-[12px] text-muted-foreground truncate mt-0.5 leading-snug">
+                          {headerArtist}
+                        </p>
+                      ) : null}
                     </div>
                   </div>
 
