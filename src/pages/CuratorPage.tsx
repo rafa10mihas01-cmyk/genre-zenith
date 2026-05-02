@@ -197,6 +197,7 @@ export default function CuratorPage() {
   const [logs, setLogs] = useState<DealLog[]>([]);
   const [songs, setSongs] = useState<DealSong[]>([]);
   const [url, setUrl] = useState("");
+  const [position, setPosition] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [importing, setImporting] = useState(false);
   const [baseOpen, setBaseOpen] = useState(true);
@@ -478,11 +479,16 @@ export default function CuratorPage() {
       toast.error("Selecione a música antes de adicionar a playlist");
       return;
     }
+    const parsedPosition = position.trim() === "" ? null : Number(position.trim());
+    if (parsedPosition !== null && (!Number.isFinite(parsedPosition) || parsedPosition < 1 || !Number.isInteger(parsedPosition))) {
+      toast.error("Posição deve ser um número inteiro maior que zero");
+      return;
+    }
     const realToken = deal?.public_token ?? token;
     setSubmitting(true);
     const { data, error: fnErr } = await supabase.functions.invoke(
       "register-curator-playlist",
-      { body: { public_token: realToken, urls: [url.trim()], song_id: selectedSongId } },
+      { body: { public_token: realToken, urls: [url.trim()], song_id: selectedSongId, position: parsedPosition } },
     );
     setSubmitting(false);
     if (fnErr || !data?.ok) {
@@ -496,6 +502,7 @@ export default function CuratorPage() {
     }
     toast.success("Playlist adicionada");
     setUrl("");
+    setPosition("");
     await load();
   };
 
@@ -1544,6 +1551,22 @@ export default function CuratorPage() {
               disabled={submitting || importing}
               className="h-10 text-[14px] px-4 rounded-xl bg-[hsl(var(--elevated))] ring-1 ring-border/50 border-0 focus-visible:ring-2 focus-visible:ring-primary/40"
             />
+            <div className="space-y-1.5">
+              <Input
+                type="number"
+                inputMode="numeric"
+                min={1}
+                step={1}
+                placeholder="Posição na playlist (opcional) — ex: 5"
+                value={position}
+                onChange={(e) => setPosition(e.target.value)}
+                disabled={submitting || importing}
+                className="h-10 text-[14px] px-4 rounded-xl bg-[hsl(var(--elevated))] ring-1 ring-border/50 border-0 focus-visible:ring-2 focus-visible:ring-primary/40"
+              />
+              <p className="text-[11px] text-muted-foreground/80 px-1">
+                Em que posição a música está dentro da playlist (1 = primeira)
+              </p>
+            </div>
             <Button
               onClick={handleAdd}
               disabled={submitting || importing || !url.trim() || playlistSongRequired}
