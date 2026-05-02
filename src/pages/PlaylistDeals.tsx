@@ -35,7 +35,7 @@ export default function PlaylistDeals() {
   const [editDeal, setEditDeal] = useState<CuratorDeal | null>(null);
   const [closeDealOpen, setCloseDealOpen] = useState<CuratorDeal | null>(null);
 
-  const { deals, logs, playlists, songs, alerts, curators, balances, loading, deleteDeal, addLog, addBaseline, insertSnapshots, closeDeal, reopenDeal, updateCurator, archiveCurator, reload } = useCuratorDeals();
+  const { deals, logs, playlists, songs, alerts, curators, balances, progressByDeal, loading, deleteDeal, addLog, addBaseline, insertSnapshots, closeDeal, reopenDeal, updateCurator, archiveCurator, reload } = useCuratorDeals();
 
   // KPIs do topo — derivados dos deals + logs + playlists
   const kpi = useMemo(() => {
@@ -44,7 +44,7 @@ export default function PlaylistDeals() {
     let totalEarned = 0;
     let totalTarget = 0;
     for (const d of deals) {
-      const { earned } = computeCuratorStats(d, logs, playlists);
+      const { earned } = computeCuratorStats(d, logs, playlists, progressByDeal[d.id]);
       const target = Number(d.target_plays ?? 0);
       totalEarned += earned;
       totalTarget += target;
@@ -60,7 +60,7 @@ export default function PlaylistDeals() {
       earned: totalEarned,
       pct,
     };
-  }, [deals, logs, playlists]);
+  }, [deals, logs, playlists, progressByDeal]);
 
   // Sidebar KPIs — ativos / concluídos / total
   useSetSidebarKpis(
