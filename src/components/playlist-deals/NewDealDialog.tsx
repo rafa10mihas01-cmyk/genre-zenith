@@ -15,6 +15,8 @@ import {
   UserPlus,
   Users,
   AlertTriangle,
+  PlusCircle,
+  Pencil,
 } from "lucide-react";
 
 import {
@@ -155,7 +157,7 @@ function songTarget(s: SongRow): number {
 // Componente
 // ============================================================
 export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDealDialogProps) {
-  const { addDeal, updateDeal, addCurator, curators, balances } = useCuratorDeals();
+  const { addDeal, updateDeal, addCurator, updateCurator, curators, balances } = useCuratorDeals();
   const isEdit = Boolean(editDeal);
 
   const [step, setStep] = useState<1 | 2>(1);
@@ -171,6 +173,13 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDe
   const [newCuratorContact, setNewCuratorContact] = useState("");
   const [newCuratorPlaysDigits, setNewCuratorPlaysDigits] = useState("");
   const [newCuratorCostDigits, setNewCuratorCostDigits] = useState("");
+
+  // Ajuste de saldo do curador existente (inline no passo 1)
+  // null = nenhum, "add" = comprar mais plays (soma), "edit" = editar saldo direto
+  const [balanceAction, setBalanceAction] = useState<null | "add" | "edit">(null);
+  const [balancePlaysDigits, setBalancePlaysDigits] = useState("");
+  const [balanceCostDigits, setBalanceCostDigits] = useState("");
+  const [savingBalance, setSavingBalance] = useState(false);
 
   const balanceById = useMemo(() => {
     const map = new Map<string, CuratorBalance>();
@@ -265,6 +274,9 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDe
       setNewCuratorContact("");
       setNewCuratorPlaysDigits("");
       setNewCuratorCostDigits("");
+      setBalanceAction(null);
+      setBalancePlaysDigits("");
+      setBalanceCostDigits("");
       setSongs([emptySong()]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -355,6 +367,44 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDe
       toast.error("Não foi possível cadastrar o curador", { description: msg });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleSaveBalanceChange = async () => {
+    if (!selectedCuratorId || !selectedCurator) return;
+    const playsRaw = balancePlaysDigits ? Number(balancePlaysDigits) : 0;
+    const costRaw = currencyDigitsToNumber(balanceCostDigits) ?? 0;
+    if (playsRaw <= 0 && costRaw <= 0) {
+      toast.error("Informe plays e/ou custo");
+      return;
+    }
+    setSavingBalance(true);
+    try {
+      if (balanceAction === "add") {
+        // Soma ao saldo existente
+        await updateCurator(selectedCuratorId, {
+          purchased_plays: (selectedCurator.purchased_plays ?? 0) + playsRaw,
+          total_cost: Number(selectedCurator.total_cost ?? 0) + costRaw,
+        });
+        toast.success("Plays adicionados", {
+          description: `+${formatNumber(playsRaw)} plays`,
+        });
+      } else if (balanceAction === "edit") {
+        // Substitui valores
+        await updateCurator(selectedCuratorId, {
+          purchased_plays: playsRaw,
+          total_cost: costRaw,
+        });
+        toast.success("Saldo atualizado");
+      }
+      setBalanceAction(null);
+      setBalancePlaysDigits("");
+      setBalanceCostDigits("");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      toast.error("Não foi possível atualizar saldo", { description: msg });
+    } finally {
+      setSavingBalance(false);
     }
   };
 
@@ -590,7 +640,12 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDe
                         <button
                           key={c.id}
                           type="button"
-                          onClick={() => setSelectedCuratorId(c.id)}
+                          onClick={() => {
+                            setSelectedCuratorId(c.id);
+                            setBalanceAction(null);
+                            setBalancePlaysDigits("");
+                            setBalanceCostDigits("");
+                          }}
                           className={cn(
                             "w-full text-left rounded-lg border p-3 transition-colors",
                             sel
@@ -622,6 +677,136 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDe
                     })
                   )}
                 </div>
+
+                {/* Painel de ajuste de saldo (curador selecionado) */}
+                {selectedCurator && (
+                  <div className="rounded-lg border border-border bg-muted/10 p-3 space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="text-xs text-muted-foreground">
+                        Saldo atual de <span className="font-medium text-foreground">{selectedCurator.name}</span>:{" "}
+                        <span className="tabular-nums text-foreground font-medium">
+                          {formatNumber(selectedCurator.purchased_plays ?? 0)}
+                        </span>{" "}
+                        plays comprados
+                        {Number(selectedCurator.total_cost ?? 0) > 0 && (
+                          <>
+                            {" • "}
+                            <span className="tabular-nums">
+                              {Number(selectedCurator.total_cost).toLocaleString("pt-BR", {
+                                style: "currency",
+                                currency: "BRL",
+                                maximumFractionDigits: 0,
+                              })}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {balanceAction === null ? (
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="gap-1.5"
+                          onClick={() => setBalanceAction("add")}
+                        >
+                          <PlusCircle className="h-3.5 w-3.5" /> Comprar mais plays
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="gap-1.5"
+                          onClick={() => {
+                            setBalanceAction("edit");
+                            setBalancePlaysDigits(String(selectedCurator.purchased_plays ?? 0));
+                            const cost = Number(selectedCurator.total_cost ?? 0);
+                            setBalanceCostDigits(cost > 0 ? String(Math.round(cost * 100)) : "");
+                          }}
+                        >
+                          <Pencil className="h-3.5 w-3.5" /> Ajustar saldo
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="text-xs font-medium text-foreground">
+                          {balanceAction === "add"
+                            ? "Adicionar pacote ao saldo (soma)"
+                            : "Substituir saldo (sobrescreve)"}
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">
+                              {balanceAction === "add" ? "Plays a adicionar" : "Plays comprados"}
+                            </Label>
+                            <Input
+                              inputMode="numeric"
+                              placeholder="ex: 1000000"
+                              value={balancePlaysDigits}
+                              onChange={(e) => setBalancePlaysDigits(digitsOnly(e.target.value))}
+                            />
+                            {balancePlaysDigits && (
+                              <p className="text-[11px] text-muted-foreground">
+                                ≈{" "}
+                                <span className="text-foreground font-medium">
+                                  {formatPlaysHint(Number(balancePlaysDigits))}
+                                </span>{" "}
+                                plays
+                              </p>
+                            )}
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">
+                              {balanceAction === "add" ? "Custo do pacote" : "Custo total"}
+                            </Label>
+                            <div className="relative">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground pointer-events-none">
+                                R$
+                              </span>
+                              <Input
+                                inputMode="numeric"
+                                placeholder="0,00"
+                                value={
+                                  balanceCostDigits
+                                    ? formatCurrencyBRL(balanceCostDigits).replace("R$", "").trim()
+                                    : ""
+                                }
+                                onChange={(e) => setBalanceCostDigits(digitsOnly(e.target.value))}
+                                className="pl-9"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setBalanceAction(null);
+                              setBalancePlaysDigits("");
+                              setBalanceCostDigits("");
+                            }}
+                          >
+                            Cancelar
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={handleSaveBalanceChange}
+                            disabled={savingBalance || (!balancePlaysDigits && !balanceCostDigits)}
+                            className="gap-1.5"
+                          >
+                            {savingBalance && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                            {balanceAction === "add" ? "Adicionar" : "Salvar"}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ) : (
               <div className="space-y-3">
@@ -727,9 +912,14 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDe
                 )}
               >
                 <div className="min-w-0">
-                  <div className="text-xs text-muted-foreground">Curador</div>
+                  <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                    Saldo do curador
+                  </div>
                   <div className="text-sm font-semibold text-foreground truncate">
                     {selectedCurator.name}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground mt-0.5">
+                    Meta deste deal = soma das músicas
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-3 text-right">
@@ -743,7 +933,7 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDe
                   </div>
                   <div>
                     <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                      Em deals
+                      Já em deals
                     </div>
                     <div className="text-sm font-bold tabular-nums">
                       {formatNumber(consumedNow)}
