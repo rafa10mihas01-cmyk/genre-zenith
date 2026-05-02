@@ -216,6 +216,9 @@ async function reconcileDeal(supabase: any, deal: Deal) {
     }
   }
 
+  // 4. Notificações de milestone (meta batida + atraso) com dedupe
+  const milestoneNotifs = await checkDealMilestones(supabase, deal, totals.stotal);
+
   return {
     deal_id: deal.id,
     streams_7d: totals.s7,
@@ -223,7 +226,69 @@ async function reconcileDeal(supabase: any, deal: Deal) {
     streams_total: totals.stotal,
     matched_playlists: matched?.length ?? 0,
     alerts_created: createdAlerts,
+    milestone_notifs: milestoneNotifs,
   };
+}
+
+/**
+ * Cria notifications de milestone para um deal:
+ * - goal_reached: reconciled_total_plays >= target_plays
+ * - deal_overdue: ends_at < now() e ainda não bateu meta
+ * Dedupe via metadata.kind + metadata.deal_id (não cria duplicata).
+ */
+async function checkDealMilestones(
+  supabase: any,
+  deal: { id: string; song_name: string; curator_name: string; target_plays: number; ends_at?: string | null; user_id?: string },
+  reconciledTotal: number,
+): Promise<{ goal: boolean; overdue: boolean }> {
+  const result = { goal: false, overdue: false };
+  const target = Number(deal.target_plays ?? 0) || 0;
+
+  // GOAL
+  if (target > 0 && reconciledTotal >= target) {
+    const { data: existing } = await supabase
+      .from("notifications")
+      .select("id")
+      .eq("metadata->>kind", "goal_reached")
+      .eq("metadata->>deal_id", deal.id)
+      .limit(1);
+    if (!existing || existing.length === 0) {
+      await supabase.from("notifications").insert({
+        type: "success",
+        title: `Meta batida: ${deal.song_name}`,
+        message: `Curador "${deal.curator_name}" entregou ${reconciledTotal.toLocaleString("pt-BR")} de ${target.toLocaleString("pt-BR")} plays.`,
+        action_url: `/playlist-deals?deal=${deal.id}`,
+        metadata: { kind: "goal_reached", deal_id: deal.id, reconciled_total: reconciledTotal, target },
+      });
+      result.goal = true;
+    }
+  }
+
+  // OVERDUE
+  if (deal.ends_at) {
+    const ends = new Date(deal.ends_at);
+    if (ends < new Date() && reconciledTotal < target) {
+      const { data: existing } = await supabase
+        .from("notifications")
+        .select("id")
+        .eq("metadata->>kind", "deal_overdue")
+        .eq("metadata->>deal_id", deal.id)
+        .limit(1);
+      if (!existing || existing.length === 0) {
+        const remaining = Math.max(target - reconciledTotal, 0);
+        await supabase.from("notifications").insert({
+          type: "warning",
+          title: `Deal atrasado: ${deal.song_name}`,
+          message: `Prazo venceu em ${ends.toLocaleDateString("pt-BR")} e faltam ${remaining.toLocaleString("pt-BR")} plays para a meta.`,
+          action_url: `/playlist-deals?deal=${deal.id}`,
+          metadata: { kind: "deal_overdue", deal_id: deal.id, reconciled_total: reconciledTotal, target, ends_at: deal.ends_at },
+        });
+        result.overdue = true;
+      }
+    }
+  }
+
+  return result;
 }
 
 Deno.serve(async (req) => {
