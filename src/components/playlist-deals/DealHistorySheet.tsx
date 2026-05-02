@@ -63,8 +63,9 @@ function StatCell({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 export function DealHistorySheet({
-  open, deal, allLogs, allPlaylists, onClose,
+  open, deal, allLogs, allPlaylists, onClose, onReload,
 }: DealHistorySheetProps) {
+  const [pasteOpen, setPasteOpen] = useState(false);
   const stats = deal ? computeCuratorStats(deal, allLogs, allPlaylists) : null;
 
   const reversedLogs = stats ? [...stats.dealLogs].reverse() : [];
