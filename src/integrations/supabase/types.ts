@@ -2217,6 +2217,20 @@ export type Database = {
           genre_id: string
         }[]
       }
+      record_curator_deal_capture: {
+        Args: {
+          p_captured_at?: string
+          p_deal_id: string
+          p_is_baseline: boolean
+          p_new_playlists: Json
+          p_note: string
+          p_print_urls: string[]
+          p_snapshots: Json
+          p_song_id: string
+          p_total_plays: number
+        }
+        Returns: Json
+      }
       slugify: { Args: { p_text: string }; Returns: string }
       unaccent: { Args: { "": string }; Returns: string }
     }
