@@ -336,6 +336,7 @@ export function useCuratorDeals() {
     loading,
     error,
     addDeal,
+    updateDeal,
     deleteDeal,
     addLog,
     addBaseline,
