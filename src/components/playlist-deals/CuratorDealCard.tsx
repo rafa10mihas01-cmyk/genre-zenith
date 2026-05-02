@@ -1,4 +1,4 @@
-import { Camera, History, Trash2, Link2, Zap, Clock, AlertTriangle, Calendar as CalendarIcon, Music2 } from "lucide-react";
+import { Camera, History, Trash2, Link2, Zap, Clock, AlertTriangle, Calendar as CalendarIcon, Music2, DollarSign } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -44,6 +44,17 @@ export function CuratorDealCard({
     ? Math.min(100, Math.round((todayPlays / totalDailyGoal) * 100))
     : 0;
   const showSongList = songs.length > 1;
+
+  const cost = Number(deal.cost ?? 0) || 0;
+  const costPerPlay = cost > 0 && earned > 0 ? cost / earned : null;
+  const formatBRL = (v: number) =>
+    new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 2 }).format(v);
+  const formatCPP = (v: number) => {
+    const opts = v < 0.01
+      ? { minimumFractionDigits: 4, maximumFractionDigits: 4 }
+      : { minimumFractionDigits: 2, maximumFractionDigits: 2 };
+    return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", ...opts }).format(v);
+  };
 
   const statusLabel = !hasBaseline
     ? "Sem baseline"
@@ -217,9 +228,9 @@ export function CuratorDealCard({
           </div>
         </div>
 
-        {/* Velocidade / ETA — inline compacto */}
-        {(vel !== null || (eta !== null && eta > 0)) && (
-          <div className="flex items-center gap-3 text-[11px] text-muted-foreground border-t border-border/40 pt-2.5">
+        {/* Velocidade / ETA / Custo — inline compacto */}
+        {(vel !== null || (eta !== null && eta > 0) || cost > 0) && (
+          <div className="flex items-center gap-3 flex-wrap text-[11px] text-muted-foreground border-t border-border/40 pt-2.5">
             {vel !== null && (
               <span className="inline-flex items-center gap-1">
                 <Zap className="h-3 w-3 text-primary" />
@@ -230,6 +241,17 @@ export function CuratorDealCard({
               <span className="inline-flex items-center gap-1">
                 <Clock className="h-3 w-3" />
                 ~{eta} dias
+              </span>
+            )}
+            {cost > 0 && (
+              <span className="inline-flex items-center gap-1">
+                <DollarSign className="h-3 w-3" />
+                {formatBRL(cost)}
+                {costPerPlay !== null && (
+                  <span className="text-foreground font-medium ml-1">
+                    · {formatCPP(costPerPlay)}/play
+                  </span>
+                )}
               </span>
             )}
           </div>
