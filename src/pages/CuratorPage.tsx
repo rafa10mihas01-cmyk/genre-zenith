@@ -83,6 +83,15 @@ function formatDate(iso: string | null): string {
   }
 }
 
+function normalizePublicToken(value?: string): string {
+  return decodeURIComponent(value ?? "").trim();
+}
+
+function isPlaceholderToken(value: string): boolean {
+  const lower = value.toLowerCase();
+  return !value || value === ":token" || lower === "token";
+}
+
 export default function CuratorPage() {
   const { token } = useParams<{ token: string }>();
   const [loading, setLoading] = useState(true);
@@ -106,10 +115,19 @@ export default function CuratorPage() {
   );
 
   const load = async () => {
-    if (!token) return;
+    const publicToken = normalizePublicToken(token);
+    if (isPlaceholderToken(publicToken)) {
+      setError("placeholder_token");
+      setDeal(null);
+      setPlaylists([]);
+      setLogs([]);
+      setLoading(false);
+      return;
+    }
+
     const { data, error: fnErr } = await supabase.functions.invoke(
       "get-curator-deal-public",
-      { body: { public_token: token } },
+      { body: { public_token: publicToken } },
     );
     if (fnErr || !data?.ok) {
       setError(data?.error || fnErr?.message || "not found");
