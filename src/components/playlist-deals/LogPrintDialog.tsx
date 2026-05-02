@@ -213,7 +213,7 @@ export function LogPrintDialog({
     if (d.selectedSongId) setSelectedSongId(d.selectedSongId);
   };
 
-  const stats = deal ? computeCuratorStats(deal, allLogs, allPlaylists) : null;
+  const stats = deal ? computeCuratorStats(deal, allLogs, allPlaylists, progress ?? null) : null;
   const selectedSong = songs.find((s) => s.id === selectedSongId) ?? null;
   // Para múltiplas músicas, baseline é por música. Para single, usa stats global.
   const isBaseline = hasMultipleSongs
