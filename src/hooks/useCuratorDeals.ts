@@ -179,6 +179,7 @@ export function useCuratorDeals() {
         position: s.position ?? i,
         started_at: s.started_at ?? null,
         ends_at: s.ends_at ?? null,
+        ramp_up_days: s.ramp_up_days ?? input.ramp_up_days ?? 5,
       }));
       const { error: songsErr } = await supabase
         .from("curator_deal_songs")
