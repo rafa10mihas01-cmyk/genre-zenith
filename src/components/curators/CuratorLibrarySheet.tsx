@@ -55,7 +55,7 @@ interface Props {
 
 export function CuratorLibrarySheet({ curator, deals, onClose }: Props) {
   const open = !!curator;
-  const { items, stats, loading, addManual, remove } = useCuratorLibrary(curator?.id ?? null);
+  const { items, stats, performance, loading, addManual, remove } = useCuratorLibrary(curator?.id ?? null);
 
   const [addOpen, setAddOpen] = useState(false);
   const [name, setName] = useState("");
