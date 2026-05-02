@@ -139,7 +139,7 @@ export function CuradoresTab({ deals, logs, playlists, loading }: Props) {
           icon={TrendingUp}
           label="Custo médio / play"
           value={formatCostPerPlay(totals.avgCostPerPlay)}
-          hint="Total gasto ÷ plays entregues"
+          hint={totals.totalEarned > 0 ? "Real (gasto ÷ plays entregues)" : "Estimado (gasto ÷ meta)"}
           tone="primary"
           loading={loading && deals.length === 0}
         />
