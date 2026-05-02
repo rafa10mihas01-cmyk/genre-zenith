@@ -680,7 +680,7 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDe
 
                 {/* Painel de ajuste de saldo (curador selecionado) */}
                 {selectedCurator && (
-                  <div className="rounded-lg border border-border bg-muted/10 p-3 space-y-3">
+                  <div className="rounded-xl border border-border/60 bg-[hsl(var(--elevated))] p-4 space-y-3 shadow-sm">
                     <div className="flex items-start justify-between gap-2">
                       <div className="text-xs text-muted-foreground">
                         Saldo atual de <span className="font-medium text-foreground">{selectedCurator.name}</span>:{" "}
