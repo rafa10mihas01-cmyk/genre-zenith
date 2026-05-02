@@ -393,9 +393,11 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDe
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Novo Deal</DialogTitle>
+          <DialogTitle>{isEdit ? "Editar deal" : "Novo Deal"}</DialogTitle>
           <DialogDescription>
-            Cadastre um deal com curador e adicione as músicas — cada uma com sua janela de campanha.
+            {isEdit
+              ? "Atualize curador, músicas, datas, aquecimento e valores."
+              : "Cadastre um deal com curador e adicione as músicas — cada uma com sua janela de campanha."}
           </DialogDescription>
         </DialogHeader>
 
