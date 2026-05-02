@@ -601,6 +601,7 @@ export function LogPrintDialog({
       // sinalizamos sucesso; o componente pai chama reload no onClose.
       void rpcData;
       draft.clearDraft();
+      onSaved?.();
       handleClose();
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
