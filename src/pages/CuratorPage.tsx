@@ -319,7 +319,7 @@ export default function CuratorPage() {
   const isDone = stats.target > 0 && stats.earned >= stats.target;
 
   return (
-    <div className="min-h-screen bg-black px-4 sm:px-6 py-8 sm:py-12">
+    <div className="min-h-screen bg-black px-4 sm:px-6 py-10 sm:py-14">
       <div className="max-w-xl mx-auto space-y-8">
         {/* Logo NexEngine */}
         <div className="flex justify-center pb-2">
@@ -327,34 +327,34 @@ export default function CuratorPage() {
         </div>
 
         {/* Header — música + curador */}
-        <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
-          <CardContent className="p-7">
-            <div className="flex items-center gap-3">
+        <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_8px_30px_rgba(0,0,0,0.45)] transition-colors">
+          <CardContent className="p-6 sm:p-7">
+            <div className="flex items-start gap-4">
               {deal.song_cover_url ? (
                 <img
                   src={deal.song_cover_url}
                   alt={deal.song_name}
-                  className="w-14 h-14 rounded-md object-cover shrink-0"
+                  className="w-16 h-16 rounded-lg object-cover shrink-0 ring-1 ring-white/[0.06]"
                 />
               ) : (
-                <div className="w-14 h-14 rounded-md bg-muted shrink-0" />
+                <div className="w-16 h-16 rounded-lg bg-muted shrink-0" />
               )}
               <div className="flex-1 min-w-0">
-                <h1 className="text-base font-semibold truncate leading-tight">
+                <h1 className="text-[20px] sm:text-[22px] font-semibold leading-tight tracking-tight truncate">
                   {deal.song_name}
                 </h1>
                 {deal.song_artist && (
-                  <p className="text-muted-foreground truncate text-xs mt-0.5">
+                  <p className="text-[14px] text-muted-foreground truncate mt-1 leading-snug">
                     {deal.song_artist}
                   </p>
                 )}
-                <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
+                <div className="flex items-center gap-2 mt-3 flex-wrap">
+                  <Badge variant="secondary" className="text-[11px] px-2 py-0.5 h-5 font-medium">
                     {deal.curator_name}
                   </Badge>
                   <Badge
                     className={
-                      "text-[10px] px-1.5 py-0 h-4 border-0 " +
+                      "text-[11px] px-2 py-0.5 h-5 border-0 font-medium " +
                       (isDone
                         ? "bg-primary text-black hover:bg-primary/90 font-semibold"
                         : !stats.hasBaseline
@@ -375,9 +375,9 @@ export default function CuratorPage() {
               href={deal.song_spotify_url}
               target="_blank"
               rel="noreferrer"
-              className="mt-3 inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
+              className="mt-5 inline-flex items-center gap-1.5 text-[12px] text-muted-foreground hover:text-foreground transition-colors"
             >
-              <ExternalLink className="h-2.5 w-2.5" />
+              <ExternalLink className="h-3 w-3" />
               Abrir no Spotify
             </a>
           </CardContent>
@@ -385,26 +385,26 @@ export default function CuratorPage() {
 
         {/* Plays hoje vs combinado diário */}
         {stats.hasBaseline && (
-          <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
-            <CardContent className="p-7 grid grid-cols-2 gap-5">
-              <div>
-                <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
+          <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_8px_30px_rgba(0,0,0,0.45)]">
+            <CardContent className="p-6 sm:p-7 grid grid-cols-2 gap-4">
+              <div className="rounded-xl bg-white/[0.02] ring-1 ring-white/[0.04] p-4">
+                <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">
                   Plays totais hoje
                 </div>
-                <div className="text-2xl font-semibold tabular-nums text-foreground">
+                <div className="text-[26px] font-bold tabular-nums text-foreground leading-none">
                   {formatPlays(stats.latest)}
                 </div>
               </div>
-              <div>
-                <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
+              <div className="rounded-xl bg-white/[0.02] ring-1 ring-white/[0.04] p-4">
+                <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">
                   Hoje / combinado
                 </div>
-                <div className="text-2xl font-semibold tabular-nums">
+                <div className="text-[26px] font-bold tabular-nums leading-none">
                   <span className="text-primary">{formatPlays(stats.todayPlays)}</span>
-                  <span className="text-muted-foreground text-base"> / {formatPlays(stats.dailyGoal)}</span>
+                  <span className="text-muted-foreground text-[18px] font-semibold"> / {formatPlays(stats.dailyGoal)}</span>
                 </div>
                 {stats.dailyGoal > 0 && (
-                  <div className="text-[11px] text-muted-foreground mt-0.5">
+                  <div className="text-[11px] text-muted-foreground mt-2">
                     {stats.todayPct}% do combinado do dia
                   </div>
                 )}
@@ -414,16 +414,16 @@ export default function CuratorPage() {
         )}
 
         {/* Progresso da campanha */}
-        <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
-          <CardContent className="p-7 space-y-5">
+        <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_8px_30px_rgba(0,0,0,0.45)]">
+          <CardContent className="p-6 sm:p-7 space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold">Combinado total</h2>
-              <span className="text-lg font-semibold tabular-nums">{stats.pct}%</span>
+              <h2 className="text-[15px] font-semibold tracking-tight">Combinado total</h2>
+              <span className="text-[20px] font-bold tabular-nums">{stats.pct}%</span>
             </div>
 
-            <div className="space-y-1.5">
-              <Progress value={stats.pct} className="h-2" />
-              <div className="flex items-center justify-between text-xs tabular-nums">
+            <div className="space-y-2.5">
+              <Progress value={stats.pct} className="h-2 rounded-full" />
+              <div className="flex items-center justify-between text-[12px] tabular-nums pt-1">
                 <span className="text-foreground font-medium">
                   {formatPlays(stats.earned)} plays
                 </span>
@@ -433,46 +433,46 @@ export default function CuratorPage() {
               </div>
             </div>
 
-            <Separator />
+            <Separator className="bg-white/[0.06]" />
 
-            {/* Grid de KPIs */}
-            <div className="grid grid-cols-2 gap-2">
-              <div className="rounded-md bg-muted/30 ring-1 ring-white/[0.04] p-2.5">
-                <div className="flex items-center gap-1 text-[10px] text-muted-foreground mb-0.5 uppercase tracking-wide">
-                  <Target className="h-2.5 w-2.5" />
+            {/* Grid de KPIs — mini-cards */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-xl bg-white/[0.02] ring-1 ring-white/[0.04] p-4">
+                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mb-1.5 uppercase tracking-wider">
+                  <Target className="h-3 w-3" />
                   Faltam
                 </div>
-                <div className="text-sm font-semibold tabular-nums">
+                <div className="text-[18px] font-semibold tabular-nums leading-none">
                   {formatPlays(stats.remaining)}
                 </div>
               </div>
 
-              <div className="rounded-md bg-muted/30 ring-1 ring-white/[0.04] p-2.5">
-                <div className="flex items-center gap-1 text-[10px] text-muted-foreground mb-0.5 uppercase tracking-wide">
-                  <Clock className="h-2.5 w-2.5" />
+              <div className="rounded-xl bg-white/[0.02] ring-1 ring-white/[0.04] p-4">
+                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mb-1.5 uppercase tracking-wider">
+                  <Clock className="h-3 w-3" />
                   Decorrido
                 </div>
-                <div className="text-sm font-semibold tabular-nums">
+                <div className="text-[18px] font-semibold tabular-nums leading-none">
                   {stats.daysRunning} {stats.daysRunning === 1 ? "dia" : "dias"}
                 </div>
               </div>
 
-              <div className="rounded-md bg-muted/30 ring-1 ring-white/[0.04] p-2.5">
-                <div className="flex items-center gap-1 text-[10px] text-muted-foreground mb-0.5 uppercase tracking-wide">
-                  <Zap className="h-2.5 w-2.5 text-primary" />
+              <div className="rounded-xl bg-white/[0.02] ring-1 ring-white/[0.04] p-4">
+                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mb-1.5 uppercase tracking-wider">
+                  <Zap className="h-3 w-3 text-primary" />
                   Velocidade
                 </div>
-                <div className="text-sm font-semibold tabular-nums">
+                <div className="text-[18px] font-semibold tabular-nums leading-none">
                   {stats.vel !== null ? `${formatPlays(stats.vel)}/dia` : "—"}
                 </div>
               </div>
 
-              <div className="rounded-md bg-muted/30 ring-1 ring-white/[0.04] p-2.5">
-                <div className="flex items-center gap-1 text-[10px] text-muted-foreground mb-0.5 uppercase tracking-wide">
-                  <TrendingUp className="h-2.5 w-2.5" />
+              <div className="rounded-xl bg-white/[0.02] ring-1 ring-white/[0.04] p-4">
+                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mb-1.5 uppercase tracking-wider">
+                  <TrendingUp className="h-3 w-3" />
                   ETA
                 </div>
-                <div className="text-sm font-semibold tabular-nums">
+                <div className="text-[18px] font-semibold tabular-nums leading-none">
                   {stats.eta === null
                     ? "—"
                     : stats.eta === 0
@@ -482,18 +482,18 @@ export default function CuratorPage() {
               </div>
             </div>
 
-            <Separator />
+            <Separator className="bg-white/[0.06]" />
 
-            <div className="grid grid-cols-2 gap-2 text-[11px]">
+            <div className="grid grid-cols-2 gap-4 text-[12px]">
               <div>
-                <div className="text-muted-foreground">Início</div>
-                <div className="text-foreground font-medium mt-0.5">
+                <div className="text-muted-foreground uppercase tracking-wider text-[11px]">Início</div>
+                <div className="text-foreground font-medium mt-1.5 text-[13px]">
                   {formatDate(deal.started_at ?? deal.created_at)}
                 </div>
               </div>
               <div>
-                <div className="text-muted-foreground">Plays iniciais</div>
-                <div className="text-foreground font-medium tabular-nums mt-0.5">
+                <div className="text-muted-foreground uppercase tracking-wider text-[11px]">Plays iniciais</div>
+                <div className="text-foreground font-medium tabular-nums mt-1.5 text-[13px]">
                   {formatPlays(stats.baseline)}
                 </div>
               </div>
