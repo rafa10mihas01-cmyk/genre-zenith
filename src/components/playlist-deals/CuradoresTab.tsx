@@ -1,7 +1,8 @@
 import { useMemo } from "react";
-import { Users, DollarSign, Target as TargetIcon, TrendingUp } from "lucide-react";
+import { Users, DollarSign, Target as TargetIcon, TrendingUp, ShieldAlert } from "lucide-react";
 import { KpiBig } from "@/components/KpiBig";
 import { computeCuratorStats, type CuratorDeal, type CuratorDealLog, type CuratorPlaylist } from "@/lib/curatorDealsUtils";
+import type { CuratorFraudAlert } from "@/hooks/useCuratorDeals";
 import { formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -9,6 +10,7 @@ type Props = {
   deals: CuratorDeal[];
   logs: CuratorDealLog[];
   playlists: CuratorPlaylist[];
+  alerts?: CuratorFraudAlert[];
   loading: boolean;
 };
 
@@ -22,6 +24,8 @@ type CuratorRow = {
   deliveryPct: number;
   avgScore: number;       // 0..100 — média ponderada por target
   avgLegitShare: number;  // 0..1
+  alertsOpen: number;
+  alertsHigh: number;
 };
 
 const formatBRL = (v: number) =>
