@@ -550,6 +550,13 @@ export function DealHistorySheet({
         onClose={() => setPasteOpen(false)}
         onImported={() => onReload?.()}
       />
+      <ImportFromLibraryDialog
+        open={importOpen}
+        deal={deal}
+        existingPlaylists={allPlaylists}
+        onClose={() => setImportOpen(false)}
+        onImported={() => onReload?.()}
+      />
       {/* Modal sobreposto com detalhes do registro */}
       <DealLogDetailDialog
         open={selectedLogId !== null}
