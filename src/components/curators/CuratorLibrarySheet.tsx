@@ -19,6 +19,8 @@ import { cn } from "@/lib/utils";
 import { useCuratorLibrary, type PerformanceClass } from "@/hooks/useCuratorLibrary";
 import type { Curator } from "@/hooks/useCuratorDeals";
 import type { CuratorDeal } from "@/lib/curatorDealsUtils";
+import { useFormDraft } from "@/hooks/useFormDraft";
+import { DraftBanner, DraftIndicator } from "@/components/forms/DraftBanner";
 
 const PERF_LABEL: Record<PerformanceClass, string> = {
   excelente: "Excelente",
