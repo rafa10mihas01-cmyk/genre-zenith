@@ -42,8 +42,11 @@ export interface LogPrintDialogProps {
   allPlaylists: CuratorPlaylist[];
   progress?: CuratorDealProgress | null;
   onClose: () => void;
-  addLog: (input: NewCuratorLogInput) => Promise<CuratorDealLog>;
-  addBaseline: (
+  onSaved?: () => void;
+  // Mantidos por compat com chamadas antigas — não são mais usados após
+  // a migração para a RPC atômica `record_curator_deal_capture`.
+  addLog?: (input: NewCuratorLogInput) => Promise<CuratorDealLog>;
+  addBaseline?: (
     dealId: string,
     plays: number,
     baselinePlaylists: BaselinePlaylistInput[],
