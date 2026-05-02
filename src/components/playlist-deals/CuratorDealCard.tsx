@@ -180,57 +180,57 @@ export function CuratorDealCard({
           </div>
         )}
 
-        {/* Música única (compacta) ou contador de músicas */}
+        {/* Música única (mini-card destacado) ou contador de músicas */}
         {!showSongList ? (
-          <div className="flex items-center gap-2.5 min-w-0 rounded-lg bg-muted/30 ring-1 ring-border/40 px-2.5 py-2">
+          <div className="flex items-center gap-3 min-w-0 rounded-xl bg-[hsl(var(--elevated))] border border-border/40 p-3">
             {deal.song_cover_url ? (
               <img
                 src={deal.song_cover_url}
                 alt={deal.song_name}
-                className="h-9 w-9 rounded-md object-cover shrink-0"
+                className="h-12 w-12 rounded-lg object-cover shrink-0 shadow-md"
               />
             ) : (
-              <div className="h-9 w-9 rounded-md bg-muted shrink-0" />
+              <div className="h-12 w-12 rounded-lg bg-muted shrink-0" />
             )}
             <div className="min-w-0 flex-1">
-              <div className="text-[13px] font-medium text-foreground truncate leading-tight">
+              <div className="text-[18px] font-medium text-foreground truncate leading-tight">
                 {deal.song_name}
               </div>
               {deal.song_artist && (
-                <div className="text-[11px] text-muted-foreground truncate mt-0.5">
+                <div className="text-[12px] text-muted-foreground truncate mt-0.5">
                   {deal.song_artist}
                 </div>
               )}
             </div>
           </div>
         ) : (
-          <div className="space-y-1.5">
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+          <div className="space-y-2">
+            <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-semibold flex items-center gap-1.5">
               <Music2 className="h-3 w-3" />
               {songs.length} músicas no deal
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               {songs.map((s) => (
                 <div
                   key={s.id}
-                  className="flex items-center gap-2 rounded-md bg-muted/30 ring-1 ring-border/40 px-2.5 py-1.5 min-w-0"
+                  className="flex items-center gap-2.5 rounded-lg bg-[hsl(var(--elevated))] border border-border/40 px-3 py-2 min-w-0"
                 >
                   {s.song_cover_url ? (
                     <img
                       src={s.song_cover_url}
                       alt={s.song_name}
-                      className="h-6 w-6 rounded object-cover shrink-0"
+                      className="h-7 w-7 rounded-md object-cover shrink-0"
                     />
                   ) : (
-                    <div className="h-6 w-6 rounded bg-muted shrink-0" />
+                    <div className="h-7 w-7 rounded-md bg-muted shrink-0" />
                   )}
                   <div className="min-w-0 flex-1">
-                    <div className="text-[12px] text-foreground truncate font-medium">
+                    <div className="text-[13px] text-foreground truncate font-medium">
                       {s.song_name}
                     </div>
                   </div>
                   {Number(s.daily_goal) > 0 && (
-                    <span className="text-[10px] tabular-nums text-muted-foreground shrink-0">
+                    <span className="text-[11px] tabular-nums text-muted-foreground shrink-0">
                       {formatPlays(Number(s.daily_goal))}/dia
                     </span>
                   )}
@@ -250,27 +250,27 @@ export function CuratorDealCard({
           </div>
         )}
 
-        {/* KPIs em linha única com divisor */}
+        {/* KPIs — números grandes (26px) com labels uppercase 11px */}
         {hasBaseline && (
-          <div className="grid grid-cols-2 divide-x divide-border/50 rounded-lg bg-muted/30 ring-1 ring-border/40">
-            <div className="px-3 py-2.5">
-              <div className="text-[9px] uppercase tracking-wider text-muted-foreground mb-1">
+          <div className="grid grid-cols-2 divide-x divide-border/50 rounded-xl bg-[hsl(var(--elevated))] border border-border/40">
+            <div className="px-4 py-3">
+              <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-1.5">
                 Plays totais hoje
               </div>
-              <div className="text-[16px] font-bold tabular-nums text-foreground leading-none">
+              <div className="text-[26px] font-bold tabular-nums text-foreground leading-none tracking-tight">
                 {formatPlays(latestPlays)}
               </div>
             </div>
-            <div className="px-3 py-2.5">
-              <div className="text-[9px] uppercase tracking-wider text-muted-foreground mb-1">
+            <div className="px-4 py-3">
+              <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-1.5">
                 Hoje / combinado
               </div>
-              <div className="text-[16px] font-bold tabular-nums leading-none">
+              <div className="text-[26px] font-bold tabular-nums leading-none tracking-tight">
                 <span className="text-primary">{formatPlays(todayPlays)}</span>
-                <span className="text-muted-foreground text-[12px] font-semibold"> / {formatPlays(totalDailyGoal)}</span>
+                <span className="text-muted-foreground text-[14px] font-semibold"> / {formatPlays(totalDailyGoal)}</span>
               </div>
               {totalDailyGoal > 0 && (
-                <div className="text-[10px] text-muted-foreground mt-1">
+                <div className="text-[11px] text-muted-foreground mt-1.5">
                   {inRampUp ? "aquecendo — meta liberada em breve" : `${todayPct}% do dia`}
                 </div>
               )}
@@ -278,16 +278,16 @@ export function CuratorDealCard({
           </div>
         )}
 
-        {/* Progresso total */}
-        <div className="space-y-1.5">
+        {/* Progresso total — linha mais visível (h-2.5) */}
+        <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Combinado total</span>
-            <span className="tabular-nums text-[12px] font-semibold text-foreground">{pct}%</span>
+            <span className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-semibold">Combinado total</span>
+            <span className="tabular-nums text-[14px] font-bold text-foreground">{pct}%</span>
           </div>
-          <Progress value={pct} className="h-1.5 rounded-full" />
-          <div className="flex items-center justify-between text-[11px] text-muted-foreground tabular-nums">
+          <Progress value={pct} className="h-2.5 rounded-full" />
+          <div className="flex items-center justify-between text-[12px] text-muted-foreground tabular-nums">
             <span>
-              <span className="text-foreground font-medium">{formatPlays(earned)}</span>
+              <span className="text-foreground font-semibold">{formatPlays(earned)}</span>
               {" / "}
               {formatPlays(target)} plays
             </span>
