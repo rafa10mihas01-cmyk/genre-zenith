@@ -408,9 +408,10 @@ export default function CuratorPage() {
         toast.error("Máximo de 200 playlists por importação");
         return;
       }
+      const realToken = deal?.public_token ?? token;
       const { data, error: fnErr } = await supabase.functions.invoke(
         "register-curator-playlist",
-        { body: { public_token: token, urls } },
+        { body: { public_token: realToken, urls } },
       );
       if (fnErr || !data?.ok) {
         toast.error(data?.error || fnErr?.message || "Erro ao importar");
