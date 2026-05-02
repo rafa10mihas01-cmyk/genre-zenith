@@ -96,7 +96,7 @@ Deno.serve(async (req) => {
     if (publicToken) {
       const { data, error } = await admin
         .from("curator_deals")
-        .select("id, user_id, spotify_owner_id, started_at")
+        .select("id, user_id, spotify_owner_id, song_spotify_url, started_at")
         .eq("public_token", publicToken)
         .maybeSingle();
       if (error) return jr({ ok: false, error: error.message }, 200);
@@ -120,7 +120,7 @@ Deno.serve(async (req) => {
 
       const { data, error } = await admin
         .from("curator_deals")
-        .select("id, user_id, spotify_owner_id, started_at")
+        .select("id, user_id, spotify_owner_id, song_spotify_url, started_at")
         .eq("id", dealIdInput)
         .maybeSingle();
       if (error) return jr({ ok: false, error: error.message }, 200);
@@ -132,6 +132,17 @@ Deno.serve(async (req) => {
     }
 
     if (!deal) return jr({ ok: false, error: "deal não encontrado" }, 404);
+
+    let trackIdToCheck = extractTrackId(deal.song_spotify_url ?? "");
+    if (songIdInput) {
+      const { data: songRow } = await admin
+        .from("curator_deal_songs")
+        .select("spotify_track_id, song_spotify_url")
+        .eq("id", songIdInput)
+        .eq("deal_id", deal.id)
+        .maybeSingle();
+      trackIdToCheck = songRow?.spotify_track_id || extractTrackId(songRow?.song_spotify_url ?? "") || trackIdToCheck;
+    }
 
     // ------- Carregar contexto de classificação -------
     const { data: existing } = await admin
