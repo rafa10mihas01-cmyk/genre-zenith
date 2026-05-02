@@ -45,6 +45,13 @@ export function CuratorDealCard({
     : 0;
   const showSongList = songs.length > 1;
 
+  // Ramp-up: dias desde o início até hoje vs ramp_up_days do deal
+  const rampUpDays = Number((deal as unknown as { ramp_up_days?: number }).ramp_up_days ?? 5);
+  const startMs = new Date(deal.started_at).getTime();
+  const daysSinceStart = Math.floor((Date.now() - startMs) / 86400000) + 1; // dia 1 = hoje no início
+  const inRampUp = rampUpDays > 0 && daysSinceStart >= 1 && daysSinceStart <= rampUpDays;
+  const rampDayLabel = Math.max(1, Math.min(daysSinceStart, rampUpDays));
+
   const cost = Number(deal.cost ?? 0) || 0;
   // R$/play: usa plays reais quando houver, senão estima pela meta contratada
   const cppDenom = earned > 0 ? earned : target;
