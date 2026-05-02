@@ -529,7 +529,7 @@ export default function CuratorPage() {
   const isDone = stats.target > 0 && stats.earned >= stats.target;
 
   return (
-    <div className="relative min-h-screen bg-background py-10 sm:py-14 overflow-hidden">
+    <div className="relative min-h-screen bg-background py-8 sm:py-10 overflow-hidden">
       {/* Atmosfera verde — glows espalhados pela página inteira (somente dark) */}
       <div
         aria-hidden
@@ -553,7 +553,7 @@ export default function CuratorPage() {
       />
       {/* Container central global — mobile: full width, tablet: 900px, desktop: 1200px */}
       <div className="relative z-10 w-full max-w-[1200px] mx-auto px-5 sm:px-6 md:px-8">
-        <div className="max-w-xl md:max-w-2xl mx-auto space-y-7 sm:space-y-8">
+        <div className="max-w-xl md:max-w-2xl mx-auto space-y-4 sm:space-y-5">
         {/* Topbar — Logo + Tema + Sino de notificações */}
         <div className="flex items-center justify-between pb-4 sm:pb-2">
           <div className="w-9" aria-hidden />
@@ -581,7 +581,7 @@ export default function CuratorPage() {
 
         {/* Header — campanha + música */}
         <Card className="nx-card !p-0 overflow-hidden border-border">
-          <CardContent className="p-7 sm:p-8 space-y-6">
+          <CardContent className="p-5 sm:p-6 space-y-6">
             {/* Eyebrow: CAMPANHA · próximo relatório (seg 17h) */}
             <div className="flex items-center justify-between gap-3">
               <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary/80">
@@ -737,7 +737,7 @@ export default function CuratorPage() {
             Clicar em uma música filtra todos os KPIs, playlists e histórico. */}
         {hasMultipleSongs && (
           <Card className="nx-card !p-0 border-border">
-            <CardContent className="p-7 sm:p-8 space-y-5">
+            <CardContent className="p-5 sm:p-6 space-y-5">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <h2 className="text-[15px] font-semibold inline-flex items-center gap-2 tracking-tight">
@@ -928,25 +928,25 @@ export default function CuratorPage() {
         {/* Plays hoje vs combinado diário */}
         {stats.hasBaseline && (
           <Card className="nx-card !p-0 border-border">
-            <CardContent className="p-7 sm:p-8 grid grid-cols-2 gap-6 divide-x divide-border">
+            <CardContent className="p-5 grid grid-cols-2 gap-4 divide-x divide-border">
               <div className="pr-2">
-                <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
                   Plays totais hoje
                 </div>
-                <div className="text-[26px] font-bold tabular-nums text-foreground leading-none">
+                <div className="text-[20px] font-bold tabular-nums text-foreground leading-none">
                   {formatPlays(stats.latest)}
                 </div>
               </div>
-              <div className="pl-6">
-                <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">
+              <div className="pl-4">
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
                   Hoje / combinado
                 </div>
-                <div className="text-[26px] font-bold tabular-nums leading-none">
+                <div className="text-[20px] font-bold tabular-nums leading-none">
                   <span className="text-primary">{formatPlays(stats.todayPlays)}</span>
-                  <span className="text-muted-foreground text-[18px] font-semibold"> / {formatPlays(stats.dailyGoal)}</span>
+                  <span className="text-muted-foreground text-[14px] font-semibold"> / {formatPlays(stats.dailyGoal)}</span>
                 </div>
                 {stats.dailyGoal > 0 && (
-                  <div className="text-[11px] text-muted-foreground mt-2">
+                  <div className="text-[10px] text-muted-foreground mt-1.5">
                     {stats.todayPct}% do combinado do dia
                   </div>
                 )}
@@ -957,7 +957,7 @@ export default function CuratorPage() {
 
         {/* Progresso da campanha */}
         <Card className="nx-card !p-0 border-border">
-          <CardContent className="p-7 sm:p-8 space-y-6">
+          <CardContent className="p-5 sm:p-6 space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-[15px] font-semibold tracking-tight">Combinado total</h2>
               <span className="text-[20px] font-bold tabular-nums">{stats.pct}%</span>
@@ -1071,7 +1071,7 @@ export default function CuratorPage() {
         {/* Playlists onde a música já está (baseline / pré-existentes) — colapsável */}
         {basePlaylists.length > 0 && (
           <Card className="nx-card !p-0 border-border">
-            <CardContent className="p-7 sm:p-8 space-y-5">
+            <CardContent className="p-5 sm:p-6 space-y-4">
               <button
                 type="button"
                 onClick={() => setBaseOpen((v) => !v)}
@@ -1079,19 +1079,19 @@ export default function CuratorPage() {
                 aria-expanded={baseOpen}
               >
                 <div className="min-w-0 flex-1">
-                  <h2 className="text-[15px] font-semibold inline-flex items-center gap-2 tracking-tight">
-                    <ListMusic className="h-4 w-4 text-muted-foreground" />
+                  <h2 className="text-[14px] font-semibold inline-flex items-center gap-2 tracking-tight">
+                    <ListMusic className="h-3.5 w-3.5 text-muted-foreground" />
                     Playlists em que a música já está
                   </h2>
-                  <p className="text-[12px] text-muted-foreground mt-1.5 leading-snug">
+                  <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
                     Presença atual da faixa no catálogo
                   </p>
                 </div>
-                <span className="inline-flex items-center gap-2 text-[12px] text-muted-foreground shrink-0">
+                <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground shrink-0">
                   {basePlaylists.length} {basePlaylists.length === 1 ? "playlist" : "playlists"}
                   <ChevronDown
                     className={cn(
-                      "h-4 w-4 transition-transform duration-200",
+                      "h-3.5 w-3.5 transition-transform duration-200",
                       baseOpen && "rotate-180",
                     )}
                   />
@@ -1099,36 +1099,42 @@ export default function CuratorPage() {
               </button>
 
               {baseOpen && (
-                <ul className="space-y-2 max-h-[60vh] sm:max-h-[360px] overflow-y-auto pr-1 -mr-1 scroll-smooth [mask-image:linear-gradient(to_bottom,black_calc(100%-32px),transparent)]">
+                <div className="grid grid-cols-2 gap-2.5 max-h-[60vh] sm:max-h-[420px] overflow-y-auto pr-1 -mr-1 scroll-smooth [mask-image:linear-gradient(to_bottom,black_calc(100%-32px),transparent)]">
                   {basePlaylists.map((p) => (
-                    <li
+                    <a
                       key={p.id}
-                      className="flex items-center gap-3 rounded-xl bg-[hsl(var(--elevated))] ring-1 ring-border/50 px-3.5 py-3 hover:bg-muted/60 hover:ring-border transition-all duration-200"
+                      href={p.spotify_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="group flex flex-col rounded-xl bg-[hsl(var(--elevated))] ring-1 ring-border/50 p-2.5 hover:bg-muted/60 hover:ring-border transition-all duration-200"
                     >
-                      <div className="h-9 w-9 rounded-lg bg-muted/60 ring-1 ring-border/40 flex items-center justify-center shrink-0">
-                        <ListMusic className="h-4 w-4 text-muted-foreground" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <a
-                          href={p.spotify_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-[13px] font-medium truncate hover:underline block leading-snug"
-                        >
-                          {p.playlist_name}
-                        </a>
-                        {p.followers !== null && (
-                          <div className="text-[11px] text-muted-foreground mt-0.5 tabular-nums">
-                            {formatPlays(p.followers)} seguidores
+                      <div className="relative w-full aspect-square rounded-lg overflow-hidden bg-muted/60 ring-1 ring-border/40 mb-2">
+                        {p.image_url ? (
+                          <img
+                            src={p.image_url}
+                            alt={p.playlist_name}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <ListMusic className="h-5 w-5 text-muted-foreground" />
                           </div>
                         )}
+                        <span className="absolute top-1.5 left-1.5 text-[9px] font-medium uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-background/80 backdrop-blur text-muted-foreground ring-1 ring-border/50">
+                          Inicial
+                        </span>
                       </div>
-                      <Badge variant="secondary" className="shrink-0 text-[10px] px-2 py-0 h-5 font-medium rounded-full">
-                        Inicial
-                      </Badge>
-                    </li>
+                      <div className="text-[12px] font-medium leading-tight line-clamp-2 group-hover:text-primary transition-colors">
+                        {p.playlist_name}
+                      </div>
+                      {p.followers !== null && (
+                        <div className="text-[10px] text-muted-foreground mt-0.5 tabular-nums">
+                          {formatPlays(p.followers)} seguidores
+                        </div>
+                      )}
+                    </a>
                   ))}
-                </ul>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -1136,7 +1142,7 @@ export default function CuratorPage() {
 
         {/* Playlists adicionadas pelo curador */}
         <Card className="nx-card !p-0 border-border">
-          <CardContent className="p-7 sm:p-8 space-y-5">
+          <CardContent className="p-5 sm:p-6 space-y-4">
             <button
               type="button"
               onClick={() => setCuratorOpen((v) => !v)}
@@ -1144,19 +1150,19 @@ export default function CuratorPage() {
               aria-expanded={curatorOpen}
             >
               <div className="min-w-0 flex-1">
-                <h2 className="text-[15px] font-semibold inline-flex items-center gap-2 tracking-tight">
-                  <ListMusic className="h-4 w-4 text-muted-foreground" />
+                <h2 className="text-[14px] font-semibold inline-flex items-center gap-2 tracking-tight">
+                  <ListMusic className="h-3.5 w-3.5 text-muted-foreground" />
                   Suas playlists adicionadas
                 </h2>
-                <p className="text-[12px] text-muted-foreground mt-1.5 leading-snug">
+                <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
                   Apenas as que você incluiu nesta curadoria
                 </p>
               </div>
-              <span className="inline-flex items-center gap-2 text-[12px] text-muted-foreground shrink-0">
+              <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground shrink-0">
                 {curatorPlaylists.length} {curatorPlaylists.length === 1 ? "playlist" : "playlists"}
                 <ChevronDown
                   className={cn(
-                    "h-4 w-4 transition-transform duration-200",
+                    "h-3.5 w-3.5 transition-transform duration-200",
                     curatorOpen && "rotate-180",
                   )}
                 />
@@ -1165,45 +1171,51 @@ export default function CuratorPage() {
 
             {curatorOpen && (
               curatorPlaylists.length === 0 ? (
-                <div className="py-8 flex flex-col items-center text-center gap-3">
-                  <div className="h-11 w-11 rounded-xl bg-[hsl(var(--elevated))] border border-border/60 flex items-center justify-center">
-                    <ListMusic className="h-5 w-5 text-muted-foreground" />
+                <div className="py-6 flex flex-col items-center text-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-[hsl(var(--elevated))] border border-border/60 flex items-center justify-center">
+                    <ListMusic className="h-4 w-4 text-muted-foreground" />
                   </div>
-                  <p className="text-[13px] text-muted-foreground max-w-xs">
+                  <p className="text-[12px] text-muted-foreground max-w-xs">
                     Nenhuma playlist adicionada ainda — use o bloco abaixo para incluir a primeira.
                   </p>
                 </div>
               ) : (
-                <ul className="space-y-2 max-h-[60vh] sm:max-h-[360px] overflow-y-auto pr-1 -mr-1 scroll-smooth [mask-image:linear-gradient(to_bottom,black_calc(100%-32px),transparent)]">
+                <div className="grid grid-cols-2 gap-2.5 max-h-[60vh] sm:max-h-[420px] overflow-y-auto pr-1 -mr-1 scroll-smooth [mask-image:linear-gradient(to_bottom,black_calc(100%-32px),transparent)]">
                   {curatorPlaylists.map((p) => (
-                    <li
+                    <a
                       key={p.id}
-                      className="flex items-center gap-3 rounded-xl bg-[hsl(var(--elevated))] ring-1 ring-border/50 px-3.5 py-3 hover:bg-muted/60 hover:ring-primary/30 transition-all duration-200"
+                      href={p.spotify_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="group flex flex-col rounded-xl bg-[hsl(var(--elevated))] ring-1 ring-border/50 p-2.5 hover:bg-muted/60 hover:ring-primary/30 transition-all duration-200"
                     >
-                      <div className="h-9 w-9 rounded-lg bg-primary/10 ring-1 ring-primary/20 flex items-center justify-center shrink-0">
-                        <ListMusic className="h-4 w-4 text-primary" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <a
-                          href={p.spotify_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-[13px] font-medium truncate hover:underline block leading-snug"
-                        >
-                          {p.playlist_name}
-                        </a>
-                        {p.followers !== null && (
-                          <div className="text-[11px] text-muted-foreground mt-0.5 tabular-nums">
-                            {formatPlays(p.followers)} seguidores
+                      <div className="relative w-full aspect-square rounded-lg overflow-hidden bg-primary/10 ring-1 ring-primary/20 mb-2">
+                        {p.image_url ? (
+                          <img
+                            src={p.image_url}
+                            alt={p.playlist_name}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <ListMusic className="h-5 w-5 text-primary" />
                           </div>
                         )}
+                        <span className="absolute top-1.5 left-1.5 text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-primary/90 text-primary-foreground">
+                          Curador
+                        </span>
                       </div>
-                      <Badge className="bg-primary/15 text-primary hover:bg-primary/20 shrink-0 text-[10px] px-2 py-0 h-5 border-0 font-semibold rounded-full">
-                        Curador
-                      </Badge>
-                    </li>
+                      <div className="text-[12px] font-medium leading-tight line-clamp-2 group-hover:text-primary transition-colors">
+                        {p.playlist_name}
+                      </div>
+                      {p.followers !== null && (
+                        <div className="text-[10px] text-muted-foreground mt-0.5 tabular-nums">
+                          {formatPlays(p.followers)} seguidores
+                        </div>
+                      )}
+                    </a>
                   ))}
-                </ul>
+                </div>
               )
             )}
           </CardContent>
@@ -1211,7 +1223,7 @@ export default function CuratorPage() {
 
         {/* Adicionar playlist — bloco de ação principal */}
         <Card className="nx-card !p-0 border-border">
-          <CardContent className="p-7 sm:p-8 space-y-5">
+          <CardContent className="p-5 sm:p-6 space-y-5">
             <div>
               <h2 className="text-[15px] font-semibold tracking-tight">Adicionar playlist</h2>
               <p className="text-[12px] text-muted-foreground mt-1.5 leading-snug">
@@ -1223,12 +1235,12 @@ export default function CuratorPage() {
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               disabled={submitting || importing}
-              className="h-12 text-[14px] px-4 rounded-xl bg-[hsl(var(--elevated))] ring-1 ring-border/50 border-0 focus-visible:ring-2 focus-visible:ring-primary/40"
+              className="h-10 text-[14px] px-4 rounded-xl bg-[hsl(var(--elevated))] ring-1 ring-border/50 border-0 focus-visible:ring-2 focus-visible:ring-primary/40"
             />
             <Button
               onClick={handleAdd}
               disabled={submitting || importing || !url.trim()}
-              className="w-full h-12 text-[14px] font-semibold rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-[0_8px_24px_-8px_hsl(141_76%_48%_/_0.5)] transition-all duration-200"
+              className="w-full h-10 text-[14px] font-semibold rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-[0_8px_24px_-8px_hsl(141_76%_48%_/_0.5)] transition-all duration-200"
             >
               {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               Adicionar
@@ -1256,7 +1268,7 @@ export default function CuratorPage() {
               <Button
                 type="button"
                 variant="ghost"
-                className="h-12 w-full px-4 text-[13px] rounded-xl bg-muted/40 ring-1 ring-border hover:bg-border hover:ring-border [&>svg]:shrink-0 truncate"
+                className="h-10 w-full px-4 text-[13px] rounded-xl bg-muted/40 ring-1 ring-border hover:bg-border hover:ring-border [&>svg]:shrink-0 truncate"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={submitting || importing}
               >
@@ -1270,7 +1282,7 @@ export default function CuratorPage() {
               <Button
                 type="button"
                 variant="ghost"
-                className="h-12 w-full px-4 text-[13px] rounded-xl bg-muted/40 ring-1 ring-border hover:bg-border hover:ring-border [&>svg]:shrink-0 truncate"
+                className="h-10 w-full px-4 text-[13px] rounded-xl bg-muted/40 ring-1 ring-border hover:bg-border hover:ring-border [&>svg]:shrink-0 truncate"
                 onClick={handleDownloadTemplate}
                 disabled={importing}
               >
@@ -1292,7 +1304,7 @@ export default function CuratorPage() {
           const curatorLogs = visibleLogs.filter((l) => !l.is_baseline);
           return (
             <Card className="nx-card !p-0 border-border">
-              <CardContent className="p-7 sm:p-8 space-y-5">
+              <CardContent className="p-5 sm:p-6 space-y-5">
                 <div className="flex items-center justify-between">
                   <h2 className="text-[15px] font-semibold tracking-tight">Histórico</h2>
                   <span className="text-[12px] text-muted-foreground">
