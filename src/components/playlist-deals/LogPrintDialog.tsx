@@ -106,6 +106,7 @@ function normalizeName(s: string): string {
 export function LogPrintDialog({
   open,
   deal,
+  songs = [],
   allLogs,
   allPlaylists,
   onClose,
