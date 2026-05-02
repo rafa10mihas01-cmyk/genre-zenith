@@ -1448,14 +1448,15 @@ export default function CuratorPage() {
 
         {/* Modal: músicas da campanha já presentes em uma playlist do curador */}
         <Dialog open={!!curatorPlaylistModalKey} onOpenChange={(o) => !o && setCuratorPlaylistModalKey(null)}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-3">
+          <DialogContent className="max-w-md w-[calc(100%-2rem)] overflow-hidden">
+            <DialogHeader className="min-w-0">
+              <DialogTitle asChild>
+                <div className="flex items-center gap-3 min-w-0 pr-6">
                 {curatorModalGroup?.sample.image_url && (
                   <img
                     src={curatorModalGroup.sample.image_url}
                     alt=""
-                    className="w-10 h-10 rounded-lg object-cover ring-1 ring-border"
+                    className="w-10 h-10 rounded-lg object-cover ring-1 ring-border shrink-0"
                   />
                 )}
                 <div className="min-w-0 flex-1">
