@@ -10,6 +10,14 @@ export function extractPlaylistId(url: string): string | null {
   return m ? m[1] : null;
 }
 
+export const SPOTIFY_TRACK_RE =
+  /spotify\.com\/(?:intl-[a-z]{2}\/)?track\/([A-Za-z0-9]+)|spotify:track:([A-Za-z0-9]+)/i;
+
+export function extractTrackId(url: string): string | null {
+  const m = url.match(SPOTIFY_TRACK_RE);
+  return m ? (m[1] || m[2] || null) : null;
+}
+
 export type SpotifyPlaylistMeta = {
   id: string;
   name: string;
@@ -43,6 +51,59 @@ export async function fetchPlaylistMeta(playlistId: string): Promise<SpotifyPlay
     image_url: Array.isArray(j.images) && j.images.length > 0 ? j.images[0].url : null,
     total_tracks: j.tracks?.total ?? 0,
   };
+}
+
+export type PlaylistTrackPresence = {
+  found: boolean;
+  position: number | null;
+  track_name: string | null;
+  artist_name: string | null;
+};
+
+/** Confere se uma faixa já existe na playlist pública do Spotify. */
+export async function checkTrackInPlaylist(
+  playlistId: string,
+  trackId: string | null,
+): Promise<PlaylistTrackPresence> {
+  if (!playlistId || !trackId) {
+    return { found: false, position: null, track_name: null, artist_name: null };
+  }
+
+  const token = await getSpotifyToken();
+  const fields = "items(track(id,name,artists(name))),next";
+  let offset = 0;
+  let position = 0;
+
+  while (offset < 10000) {
+    const url = new URL(`https://api.spotify.com/v1/playlists/${playlistId}/tracks`);
+    url.searchParams.set("fields", fields);
+    url.searchParams.set("limit", "100");
+    url.searchParams.set("offset", String(offset));
+    const res = await fetch(url.toString(), { headers: { Authorization: `Bearer ${token}` } });
+    if (res.status === 404) return { found: false, position: null, track_name: null, artist_name: null };
+    if (!res.ok) throw new Error(`Spotify playlist tracks ${playlistId} HTTP ${res.status}`);
+
+    const j = await res.json();
+    const items = Array.isArray(j.items) ? j.items : [];
+    for (const item of items) {
+      position += 1;
+      const track = item?.track;
+      if (track?.id === trackId) {
+        const artists = Array.isArray(track.artists) ? track.artists : [];
+        return {
+          found: true,
+          position,
+          track_name: track.name ?? null,
+          artist_name: artists.map((a: any) => a?.name).filter(Boolean).join(", ") || null,
+        };
+      }
+    }
+
+    if (!j.next || items.length === 0) break;
+    offset += items.length;
+  }
+
+  return { found: false, position: null, track_name: null, artist_name: null };
 }
 
 export type MatchStatus = "curator" | "baseline" | "editorial" | "suspicious" | "organic";
