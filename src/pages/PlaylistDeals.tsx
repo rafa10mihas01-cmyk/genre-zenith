@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ListMusic, Plus, CheckCircle2, Layers, Activity, Target } from "lucide-react";
+import { ListMusic, Plus, CheckCircle2, Layers, Activity, Target, Users } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
 import { KpiBig } from "@/components/KpiBig";
@@ -14,13 +14,15 @@ import { CuratorDealCard } from "@/components/playlist-deals/CuratorDealCard";
 import { NewDealDialog } from "@/components/playlist-deals/NewDealDialog";
 import { LogPrintDialog } from "@/components/playlist-deals/LogPrintDialog";
 import { DealHistorySheet } from "@/components/playlist-deals/DealHistorySheet";
+import { CuradoresTab } from "@/components/playlist-deals/CuradoresTab";
 
-type DealsTab = "active" | "done" | "all";
+type DealsTab = "active" | "done" | "all" | "curators";
 
 const TABS = [
-  { id: "active" as const, label: "Ativos",      icon: Activity },
-  { id: "done"   as const, label: "Concluídos",  icon: CheckCircle2 },
-  { id: "all"    as const, label: "Todos",       icon: Layers },
+  { id: "active"   as const, label: "Ativos",      icon: Activity },
+  { id: "done"     as const, label: "Concluídos",  icon: CheckCircle2 },
+  { id: "curators" as const, label: "Curadores",   icon: Users },
+  { id: "all"      as const, label: "Todos",       icon: Layers },
 ];
 
 export default function PlaylistDeals() {
