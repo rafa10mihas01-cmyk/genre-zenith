@@ -603,6 +603,7 @@ export function useCuratorDeals() {
     deleteDeal,
     addLog,
     addBaseline,
+    insertSnapshots,
     closeDeal,
     reopenDeal,
     reload: load,
