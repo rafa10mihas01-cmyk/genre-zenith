@@ -274,6 +274,9 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDe
       setNewCuratorContact("");
       setNewCuratorPlaysDigits("");
       setNewCuratorCostDigits("");
+      setBalanceAction(null);
+      setBalancePlaysDigits("");
+      setBalanceCostDigits("");
       setSongs([emptySong()]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
