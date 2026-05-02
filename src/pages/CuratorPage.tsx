@@ -186,7 +186,7 @@ export default function CuratorPage() {
 
     const { data, error: fnErr } = await supabase.functions.invoke(
       "get-curator-deal-public",
-      { body: { public_token: publicToken } },
+      { body: { slug: publicToken } },
     );
     if (fnErr || !data?.ok) {
       setError(data?.error || fnErr?.message || "not found");
