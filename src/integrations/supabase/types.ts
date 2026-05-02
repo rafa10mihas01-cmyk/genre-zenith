@@ -230,6 +230,7 @@ export type Database = {
           created_at: string
           daily_goal: number
           deal_id: string
+          duration_days: number
           ends_at: string | null
           id: string
           position: number
@@ -248,6 +249,7 @@ export type Database = {
           created_at?: string
           daily_goal?: number
           deal_id: string
+          duration_days?: number
           ends_at?: string | null
           id?: string
           position?: number
@@ -266,6 +268,7 @@ export type Database = {
           created_at?: string
           daily_goal?: number
           deal_id?: string
+          duration_days?: number
           ends_at?: string | null
           id?: string
           position?: number
@@ -297,6 +300,7 @@ export type Database = {
           closed_status: string | null
           cost: number | null
           created_at: string
+          curator_id: string | null
           curator_name: string
           daily_goal: number
           ends_at: string | null
@@ -326,6 +330,7 @@ export type Database = {
           closed_status?: string | null
           cost?: number | null
           created_at?: string
+          curator_id?: string | null
           curator_name: string
           daily_goal?: number
           ends_at?: string | null
@@ -355,6 +360,7 @@ export type Database = {
           closed_status?: string | null
           cost?: number | null
           created_at?: string
+          curator_id?: string | null
           curator_name?: string
           daily_goal?: number
           ends_at?: string | null
@@ -377,7 +383,22 @@ export type Database = {
           target_plays?: number
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "curator_deals_curator_id_fkey"
+            columns: ["curator_id"]
+            isOneToOne: false
+            referencedRelation: "curators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curator_deals_curator_id_fkey"
+            columns: ["curator_id"]
+            isOneToOne: false
+            referencedRelation: "v_curator_balance"
+            referencedColumns: ["curator_id"]
+          },
+        ]
       }
       curator_fraud_alerts: {
         Row: {
@@ -561,6 +582,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      curators: {
+        Row: {
+          archived_at: string | null
+          contact: string | null
+          created_at: string
+          id: string
+          name: string
+          notes: string | null
+          purchased_plays: number
+          spotify_owner_id: string | null
+          spotify_owner_url: string | null
+          total_cost: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          archived_at?: string | null
+          contact?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          notes?: string | null
+          purchased_plays?: number
+          spotify_owner_id?: string | null
+          spotify_owner_url?: string | null
+          total_cost?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          archived_at?: string | null
+          contact?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          purchased_plays?: number
+          spotify_owner_id?: string | null
+          spotify_owner_url?: string | null
+          total_cost?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       genre_backfill_attempts: {
         Row: {
@@ -1874,6 +1940,20 @@ export type Database = {
           total_genres: number | null
           total_playlists: number | null
           with_followers: number | null
+        }
+        Relationships: []
+      }
+      v_curator_balance: {
+        Row: {
+          archived_at: string | null
+          consumed_plays: number | null
+          curator_id: string | null
+          name: string | null
+          overbooked_plays: number | null
+          purchased_plays: number | null
+          remaining_plays: number | null
+          total_cost: number | null
+          user_id: string | null
         }
         Relationships: []
       }
