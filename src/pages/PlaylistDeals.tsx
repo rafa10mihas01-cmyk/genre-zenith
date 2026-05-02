@@ -15,7 +15,6 @@ import { NewDealDialog } from "@/components/playlist-deals/NewDealDialog";
 import { LogPrintDialog } from "@/components/playlist-deals/LogPrintDialog";
 import { DealHistorySheet } from "@/components/playlist-deals/DealHistorySheet";
 import { CuradoresTab } from "@/components/playlist-deals/CuradoresTab";
-import { EditDealDialog } from "@/components/playlist-deals/EditDealDialog";
 
 type DealsTab = "active" | "done" | "all" | "curators";
 
@@ -228,7 +227,19 @@ export default function PlaylistDeals() {
         )}
       </div>
 
-      <NewDealDialog open={newOpen} onOpenChange={setNewOpen} />
+      <NewDealDialog
+        open={newOpen || editDeal !== null}
+        onOpenChange={(v) => {
+          if (!v) {
+            setNewOpen(false);
+            setEditDeal(null);
+          } else if (!editDeal) {
+            setNewOpen(true);
+          }
+        }}
+        editDeal={editDeal}
+        editSongs={editDeal ? songs.filter((s) => s.deal_id === editDeal.id) : []}
+      />
 
       <LogPrintDialog
         open={logDeal !== null}
@@ -247,13 +258,6 @@ export default function PlaylistDeals() {
         allPlaylists={playlists}
         onClose={() => setDetailDeal(null)}
         onReload={reload}
-      />
-
-      <EditDealDialog
-        open={editDeal !== null}
-        deal={editDeal}
-        onOpenChange={(v) => { if (!v) setEditDeal(null); }}
-        onSaved={reload}
       />
     </PageContainer>
   );

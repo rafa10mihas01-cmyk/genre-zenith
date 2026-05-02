@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -42,6 +42,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useCuratorDeals, type DealSongInput } from "@/hooks/useCuratorDeals";
+import type { CuratorDeal, CuratorDealSong } from "@/lib/curatorDealsUtils";
 import { curatorPublicUrl } from "@/lib/curatorPublicUrl";
 
 const schema = z.object({
@@ -77,6 +78,10 @@ type SongRow = {
 export interface NewDealDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Quando passado, o diálogo entra em modo edição. */
+  editDeal?: CuratorDeal | null;
+  /** Músicas associadas ao deal (somente em modo edição). */
+  editSongs?: CuratorDealSong[];
 }
 
 function parseTitle(raw: string): { title: string; artist: string | null } {
@@ -149,8 +154,9 @@ function currencyDigitsToNumber(rawDigits: string): number | undefined {
   return cents / 100;
 }
 
-export function NewDealDialog({ open, onOpenChange }: NewDealDialogProps) {
-  const { addDeal } = useCuratorDeals();
+export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDealDialogProps) {
+  const { addDeal, updateDeal } = useCuratorDeals();
+  const isEdit = Boolean(editDeal);
   const [submitting, setSubmitting] = useState(false);
   const [songs, setSongs] = useState<SongRow[]>([emptySong()]);
   const [costDigits, setCostDigits] = useState<string>("");
@@ -164,6 +170,67 @@ export function NewDealDialog({ open, onOpenChange }: NewDealDialogProps) {
       cost: undefined,
     },
   });
+
+  // Hidrata os campos quando entrar em modo edição (ou quando o deal mudar)
+  useEffect(() => {
+    if (!open) return;
+    if (isEdit && editDeal) {
+      form.reset({
+        curator_name: editDeal.curator_name ?? "",
+        target_plays: Number(editDeal.target_plays ?? 0) || (undefined as unknown as number),
+        cost: editDeal.cost != null ? Number(editDeal.cost) : undefined,
+      });
+      const c = Number(editDeal.cost ?? 0);
+      setCostDigits(c > 0 ? String(Math.round(c * 100)) : "");
+
+      const sourceSongs =
+        editSongs && editSongs.length > 0
+          ? [...editSongs].sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+          : null;
+
+      if (sourceSongs && sourceSongs.length > 0) {
+        setSongs(
+          sourceSongs.map((s) => ({
+            url: s.song_spotify_url ?? "",
+            daily_goal: s.daily_goal ? String(s.daily_goal) : "",
+            started_at: s.started_at ? new Date(s.started_at) : new Date(editDeal.started_at),
+            ends_at: s.ends_at ? new Date(s.ends_at) : (editDeal.ends_at ? new Date(editDeal.ends_at) : undefined),
+            ramp_up_days: String(
+              (s as unknown as { ramp_up_days?: number }).ramp_up_days ??
+                (editDeal as unknown as { ramp_up_days?: number }).ramp_up_days ??
+                5,
+            ),
+            meta: {
+              title: s.song_name ?? "Música",
+              artist: s.song_artist ?? null,
+              thumbnail_url: s.song_cover_url ?? null,
+            },
+            searching: false,
+          })),
+        );
+      } else {
+        // Fallback: usar campos legacy do deal
+        setSongs([
+          {
+            url: editDeal.song_spotify_url ?? "",
+            daily_goal: editDeal.daily_goal ? String(editDeal.daily_goal) : "",
+            started_at: new Date(editDeal.started_at),
+            ends_at: editDeal.ends_at ? new Date(editDeal.ends_at) : undefined,
+            ramp_up_days: String(
+              (editDeal as unknown as { ramp_up_days?: number }).ramp_up_days ?? 5,
+            ),
+            meta: {
+              title: editDeal.song_name ?? "Música",
+              artist: editDeal.song_artist ?? null,
+              thumbnail_url: editDeal.song_cover_url ?? null,
+            },
+            searching: false,
+          },
+        ]);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, isEdit, editDeal?.id]);
 
   const updateSong = (idx: number, patch: Partial<SongRow>) => {
     setSongs((prev) => prev.map((s, i) => (i === idx ? { ...s, ...patch } : s)));
@@ -274,7 +341,7 @@ export function NewDealDialog({ open, onOpenChange }: NewDealDialogProps) {
 
       const costNumber = currencyDigitsToNumber(costDigits);
 
-      const deal = await addDeal({
+      const payload = {
         curator_name: values.curator_name.trim(),
         song_spotify_url: primary.url.trim(),
         song_name: primary.meta!.title,
@@ -288,22 +355,25 @@ export function NewDealDialog({ open, onOpenChange }: NewDealDialogProps) {
         ends_at: dealEnd ? dealEnd.toISOString() : null,
         ramp_up_days: primary.ramp_up_days ? Math.max(0, Number(primary.ramp_up_days)) : 5,
         extra_songs: extras,
-      });
+      };
 
-      // Para a primeira música persistida (em useCuratorDeals.addDeal), o
-      // started_at/ends_at vem dos campos do deal (que = primary). Mas se a
-      // primeira música tiver datas próprias diferentes do deal, ainda assim
-      // ficam corretas porque dealStart/dealEnd refletem essas datas.
-
-      const link = curatorPublicUrl({ slug: deal.slug, public_token: deal.public_token });
-      try {
-        await navigator.clipboard.writeText(link);
-      } catch {
-        // ignora
+      if (isEdit && editDeal) {
+        await updateDeal(editDeal.id, payload);
+        toast.success("Deal atualizado", {
+          description: `${validSongs.length} música${validSongs.length > 1 ? "s" : ""}`,
+        });
+      } else {
+        const deal = await addDeal(payload);
+        const link = curatorPublicUrl({ slug: deal.slug, public_token: deal.public_token });
+        try {
+          await navigator.clipboard.writeText(link);
+        } catch {
+          // ignora
+        }
+        toast.success("Deal criado", {
+          description: `${validSongs.length} música${validSongs.length > 1 ? "s" : ""} • link copiado`,
+        });
       }
-      toast.success("Deal criado", {
-        description: `${validSongs.length} música${validSongs.length > 1 ? "s" : ""} • link copiado`,
-      });
       reset();
       onOpenChange(false);
     } catch (e) {
@@ -323,9 +393,11 @@ export function NewDealDialog({ open, onOpenChange }: NewDealDialogProps) {
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Novo Deal</DialogTitle>
+          <DialogTitle>{isEdit ? "Editar deal" : "Novo Deal"}</DialogTitle>
           <DialogDescription>
-            Cadastre um deal com curador e adicione as músicas — cada uma com sua janela de campanha.
+            {isEdit
+              ? "Atualize curador, músicas, datas, aquecimento e valores."
+              : "Cadastre um deal com curador e adicione as músicas — cada uma com sua janela de campanha."}
           </DialogDescription>
         </DialogHeader>
 
@@ -653,7 +725,7 @@ export function NewDealDialog({ open, onOpenChange }: NewDealDialogProps) {
               </Button>
               <Button type="submit" disabled={submitting}>
                 {submitting && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
-                Salvar deal
+                {isEdit ? "Salvar alterações" : "Salvar deal"}
               </Button>
             </DialogFooter>
           </form>

@@ -31,6 +31,9 @@ export type CuratorDealSong = {
   target_plays: number | null;
   baseline_plays: number;
   position: number;
+  started_at?: string | null;
+  ends_at?: string | null;
+  ramp_up_days?: number;
   created_at: string;
   updated_at: string;
 };

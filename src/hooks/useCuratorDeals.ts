@@ -204,6 +204,71 @@ export function useCuratorDeals() {
     [load],
   );
 
+  const updateDeal = useCallback(
+    async (dealId: string, input: NewCuratorDealInput) => {
+      // 1) Atualiza o registro principal (deal) — campos legacy + janela
+      const { error: updErr } = await supabase
+        .from("curator_deals")
+        .update({
+          curator_name: input.curator_name,
+          song_spotify_url: input.song_spotify_url,
+          song_name: input.song_name,
+          song_artist: input.song_artist ?? null,
+          song_cover_url: input.song_cover_url ?? null,
+          target_plays: input.target_plays,
+          daily_goal: input.daily_goal ?? 0,
+          cost: input.cost ?? null,
+          started_at: input.started_at ?? new Date().toISOString(),
+          ends_at: input.ends_at ?? null,
+          ramp_up_days: input.ramp_up_days ?? 5,
+        })
+        .eq("id", dealId);
+      if (updErr) throw updErr;
+
+      // 2) Substitui a lista de músicas (delete + insert) — mais simples e robusto
+      const { error: delSongsErr } = await supabase
+        .from("curator_deal_songs")
+        .delete()
+        .eq("deal_id", dealId);
+      if (delSongsErr) throw delSongsErr;
+
+      const primarySong: DealSongInput = {
+        song_spotify_url: input.song_spotify_url,
+        song_name: input.song_name,
+        song_artist: input.song_artist ?? null,
+        song_cover_url: input.song_cover_url ?? null,
+        daily_goal: input.daily_goal ?? 0,
+        target_plays: input.target_plays,
+        position: 0,
+        started_at: input.started_at ?? null,
+        ends_at: input.ends_at ?? null,
+        ramp_up_days: input.ramp_up_days ?? 5,
+      };
+      const allSongs = [primarySong, ...(input.extra_songs ?? [])];
+      const songRows = allSongs.map((s, i) => ({
+        deal_id: dealId,
+        song_spotify_url: s.song_spotify_url,
+        spotify_track_id: s.spotify_track_id ?? null,
+        song_name: s.song_name,
+        song_artist: s.song_artist ?? null,
+        song_cover_url: s.song_cover_url ?? null,
+        daily_goal: s.daily_goal ?? 0,
+        target_plays: s.target_plays ?? null,
+        position: s.position ?? i,
+        started_at: s.started_at ?? null,
+        ends_at: s.ends_at ?? null,
+        ramp_up_days: s.ramp_up_days ?? input.ramp_up_days ?? 5,
+      }));
+      const { error: songsErr } = await supabase
+        .from("curator_deal_songs")
+        .insert(songRows);
+      if (songsErr) throw songsErr;
+
+      await load();
+    },
+    [load],
+  );
+
   const addLog = useCallback(
     async (input: NewCuratorLogInput) => {
       const { data, error: insertErr } = await supabase
@@ -271,6 +336,7 @@ export function useCuratorDeals() {
     loading,
     error,
     addDeal,
+    updateDeal,
     deleteDeal,
     addLog,
     addBaseline,
