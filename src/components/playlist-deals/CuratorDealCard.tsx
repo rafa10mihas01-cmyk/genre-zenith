@@ -228,9 +228,9 @@ export function CuratorDealCard({
           </div>
         </div>
 
-        {/* Velocidade / ETA — inline compacto */}
-        {(vel !== null || (eta !== null && eta > 0)) && (
-          <div className="flex items-center gap-3 text-[11px] text-muted-foreground border-t border-border/40 pt-2.5">
+        {/* Velocidade / ETA / Custo — inline compacto */}
+        {(vel !== null || (eta !== null && eta > 0) || cost > 0) && (
+          <div className="flex items-center gap-3 flex-wrap text-[11px] text-muted-foreground border-t border-border/40 pt-2.5">
             {vel !== null && (
               <span className="inline-flex items-center gap-1">
                 <Zap className="h-3 w-3 text-primary" />
@@ -241,6 +241,17 @@ export function CuratorDealCard({
               <span className="inline-flex items-center gap-1">
                 <Clock className="h-3 w-3" />
                 ~{eta} dias
+              </span>
+            )}
+            {cost > 0 && (
+              <span className="inline-flex items-center gap-1">
+                <DollarSign className="h-3 w-3" />
+                {formatBRL(cost)}
+                {costPerPlay !== null && (
+                  <span className="text-foreground font-medium ml-1">
+                    · {formatCPP(costPerPlay)}/play
+                  </span>
+                )}
               </span>
             )}
           </div>
