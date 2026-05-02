@@ -223,7 +223,7 @@ export function CuratorDealCard({
               </div>
               {totalDailyGoal > 0 && (
                 <div className="text-[10px] text-muted-foreground mt-1">
-                  {todayPct}% do dia
+                  {inRampUp ? "aquecendo — meta liberada em breve" : `${todayPct}% do dia`}
                 </div>
               )}
             </div>
