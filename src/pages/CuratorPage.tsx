@@ -482,36 +482,48 @@ export default function CuratorPage() {
         {/* Header — campanha + música */}
         <Card className="bg-card border-white/[0.08] ring-1 ring-white/[0.04] shadow-[0_8px_30px_rgba(0,0,0,0.45)] transition-colors overflow-hidden">
           <CardContent className="p-6 sm:p-7 space-y-5">
-            {/* Eyebrow: CAMPANHA · status pulse */}
+            {/* Eyebrow: CAMPANHA · próximo relatório (seg 17h) */}
             <div className="flex items-center justify-between gap-3">
               <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary/80">
                 Campanha
               </span>
-              <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
-                <span className="relative flex h-1.5 w-1.5">
+              {(() => {
+                const overdue = stats.isOverdue && !isDone;
+                const dotColor = isDone
+                  ? "bg-primary"
+                  : overdue
+                  ? "bg-warning"
+                  : !stats.hasBaseline
+                  ? "bg-warning"
+                  : "bg-primary";
+                const label = isDone
+                  ? "Concluído"
+                  : overdue
+                  ? `Relatório atrasado · seg ${formatShortDate(stats.cycleStart)} 17h`
+                  : !stats.hasBaseline
+                  ? "Aguardando relatório inicial"
+                  : `Próximo relatório · ${formatCountdown(stats.msToCycleEnd)}`;
+                return (
                   <span
                     className={cn(
-                      "absolute inline-flex h-full w-full rounded-full opacity-75",
-                      isDone
-                        ? "bg-primary animate-ping"
-                        : !stats.hasBaseline
-                        ? "bg-warning"
-                        : "bg-primary animate-ping",
+                      "inline-flex items-center gap-1.5 text-[11px] font-medium",
+                      overdue ? "text-warning" : "text-muted-foreground",
                     )}
-                  />
-                  <span
-                    className={cn(
-                      "relative inline-flex h-1.5 w-1.5 rounded-full",
-                      isDone
-                        ? "bg-primary"
-                        : !stats.hasBaseline
-                        ? "bg-warning"
-                        : "bg-primary",
-                    )}
-                  />
-                </span>
-                {isDone ? "Concluído" : !stats.hasBaseline ? "Aguardando" : "Em progresso"}
-              </span>
+                  >
+                    <span className="relative flex h-1.5 w-1.5">
+                      <span
+                        className={cn(
+                          "absolute inline-flex h-full w-full rounded-full opacity-75",
+                          dotColor,
+                          !overdue && "animate-ping",
+                        )}
+                      />
+                      <span className={cn("relative inline-flex h-1.5 w-1.5 rounded-full", dotColor)} />
+                    </span>
+                    {label}
+                  </span>
+                );
+              })()}
             </div>
 
             {/* Identidade: capa + música/curador */}
