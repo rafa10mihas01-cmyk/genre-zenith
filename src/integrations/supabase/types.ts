@@ -233,6 +233,7 @@ export type Database = {
           ends_at: string | null
           id: string
           position: number
+          ramp_up_days: number
           song_artist: string | null
           song_cover_url: string | null
           song_name: string
@@ -250,6 +251,7 @@ export type Database = {
           ends_at?: string | null
           id?: string
           position?: number
+          ramp_up_days?: number
           song_artist?: string | null
           song_cover_url?: string | null
           song_name: string
@@ -267,6 +269,7 @@ export type Database = {
           ends_at?: string | null
           id?: string
           position?: number
+          ramp_up_days?: number
           song_artist?: string | null
           song_cover_url?: string | null
           song_name?: string
@@ -297,6 +300,7 @@ export type Database = {
           id: string
           last_reconciled_at: string | null
           public_token: string
+          ramp_up_days: number
           reconciled_streams_28d: number
           reconciled_streams_7d: number
           reconciled_total_plays: number
@@ -321,6 +325,7 @@ export type Database = {
           id?: string
           last_reconciled_at?: string | null
           public_token?: string
+          ramp_up_days?: number
           reconciled_streams_28d?: number
           reconciled_streams_7d?: number
           reconciled_total_plays?: number
@@ -345,6 +350,7 @@ export type Database = {
           id?: string
           last_reconciled_at?: string | null
           public_token?: string
+          ramp_up_days?: number
           reconciled_streams_28d?: number
           reconciled_streams_7d?: number
           reconciled_total_plays?: number
