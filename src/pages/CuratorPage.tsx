@@ -1087,8 +1087,11 @@ export default function CuratorPage() {
                   {basePlaylists.map((p) => (
                     <li
                       key={p.id}
-                      className="flex items-center justify-between gap-3 rounded-xl bg-muted/40 ring-1 ring-border/50 px-4 py-3 hover:bg-muted/60 transition-colors"
+                      className="flex items-center gap-3 rounded-xl bg-[hsl(var(--elevated))] ring-1 ring-border/50 px-3.5 py-3 hover:bg-muted/60 hover:ring-border transition-all duration-200"
                     >
+                      <div className="h-9 w-9 rounded-lg bg-muted/60 ring-1 ring-border/40 flex items-center justify-center shrink-0">
+                        <ListMusic className="h-4 w-4 text-muted-foreground" />
+                      </div>
                       <div className="min-w-0 flex-1">
                         <a
                           href={p.spotify_url}
@@ -1099,12 +1102,12 @@ export default function CuratorPage() {
                           {p.playlist_name}
                         </a>
                         {p.followers !== null && (
-                          <div className="text-[11px] text-muted-foreground mt-1 tabular-nums">
+                          <div className="text-[11px] text-muted-foreground mt-0.5 tabular-nums">
                             {formatPlays(p.followers)} seguidores
                           </div>
                         )}
                       </div>
-                      <Badge variant="secondary" className="shrink-0 text-[10px] px-2 py-0 h-5 font-medium">
+                      <Badge variant="secondary" className="shrink-0 text-[10px] px-2 py-0 h-5 font-medium rounded-full">
                         Inicial
                       </Badge>
                     </li>
@@ -1146,16 +1149,24 @@ export default function CuratorPage() {
 
             {curatorOpen && (
               curatorPlaylists.length === 0 ? (
-                <p className="text-[13px] text-muted-foreground py-6 text-center">
-                  Nenhuma playlist adicionada ainda
-                </p>
+                <div className="py-8 flex flex-col items-center text-center gap-3">
+                  <div className="h-11 w-11 rounded-xl bg-[hsl(var(--elevated))] border border-border/60 flex items-center justify-center">
+                    <ListMusic className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  <p className="text-[13px] text-muted-foreground max-w-xs">
+                    Nenhuma playlist adicionada ainda — use o bloco abaixo para incluir a primeira.
+                  </p>
+                </div>
               ) : (
                 <ul className="space-y-2 max-h-[60vh] sm:max-h-[360px] overflow-y-auto pr-1 -mr-1 scroll-smooth [mask-image:linear-gradient(to_bottom,black_calc(100%-32px),transparent)]">
                   {curatorPlaylists.map((p) => (
                     <li
                       key={p.id}
-                      className="flex items-center justify-between gap-3 rounded-xl bg-muted/40 ring-1 ring-border/50 px-4 py-3 hover:bg-muted/60 transition-colors"
+                      className="flex items-center gap-3 rounded-xl bg-[hsl(var(--elevated))] ring-1 ring-border/50 px-3.5 py-3 hover:bg-muted/60 hover:ring-primary/30 transition-all duration-200"
                     >
+                      <div className="h-9 w-9 rounded-lg bg-primary/10 ring-1 ring-primary/20 flex items-center justify-center shrink-0">
+                        <ListMusic className="h-4 w-4 text-primary" />
+                      </div>
                       <div className="min-w-0 flex-1">
                         <a
                           href={p.spotify_url}
@@ -1166,13 +1177,13 @@ export default function CuratorPage() {
                           {p.playlist_name}
                         </a>
                         {p.followers !== null && (
-                          <div className="text-[11px] text-muted-foreground mt-1 tabular-nums">
+                          <div className="text-[11px] text-muted-foreground mt-0.5 tabular-nums">
                             {formatPlays(p.followers)} seguidores
                           </div>
                         )}
                       </div>
-                      <Badge className="bg-primary text-primary-foreground hover:bg-primary/90 shrink-0 text-[10px] px-2 py-0 h-5 border-0 font-semibold">
-                        Nova
+                      <Badge className="bg-primary/15 text-primary hover:bg-primary/20 shrink-0 text-[10px] px-2 py-0 h-5 border-0 font-semibold rounded-full">
+                        Curador
                       </Badge>
                     </li>
                   ))}
@@ -1188,7 +1199,7 @@ export default function CuratorPage() {
             <div>
               <h2 className="text-[15px] font-semibold tracking-tight">Adicionar playlist</h2>
               <p className="text-[12px] text-muted-foreground mt-1.5 leading-snug">
-                Cole o link ou importe um lote em planilha
+                Cole o link de uma playlist do Spotify ou importe um lote em planilha
               </p>
             </div>
             <Input
@@ -1196,12 +1207,12 @@ export default function CuratorPage() {
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               disabled={submitting || importing}
-              className="h-12 text-[14px] px-4 rounded-xl bg-muted/40 ring-1 ring-border/50 border-0 focus-visible:ring-2 focus-visible:ring-primary/40"
+              className="h-12 text-[14px] px-4 rounded-xl bg-[hsl(var(--elevated))] ring-1 ring-border/50 border-0 focus-visible:ring-2 focus-visible:ring-primary/40"
             />
             <Button
               onClick={handleAdd}
               disabled={submitting || importing || !url.trim()}
-              className="w-full h-12 text-[14px] font-semibold rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+              className="w-full h-12 text-[14px] font-semibold rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-[0_8px_24px_-8px_hsl(141_76%_48%_/_0.5)] transition-all duration-200"
             >
               {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               Adicionar
@@ -1251,8 +1262,10 @@ export default function CuratorPage() {
                 <span className="truncate"><span className="sm:hidden">Modelo</span><span className="hidden sm:inline">Baixar modelo</span></span>
               </Button>
             </div>
-            <p className="text-[11px] text-muted-foreground text-center pt-1">
+            <p className="text-[11px] text-muted-foreground/80 text-center pt-1 leading-relaxed">
               Aceita .xlsx, .xls ou .csv · até 200 playlists
+              <br />
+              <span className="opacity-70">Use o modelo para garantir o formato correto</span>
             </p>
           </CardContent>
         </Card>
@@ -1271,9 +1284,19 @@ export default function CuratorPage() {
                   </span>
                 </div>
                 {curatorLogs.length === 0 ? (
-                  <p className="text-[13px] text-muted-foreground py-6 text-center">
-                    Nenhum print enviado ainda
-                  </p>
+                  <div className="py-10 flex flex-col items-center text-center gap-3.5">
+                    <div className="h-12 w-12 rounded-2xl bg-[hsl(var(--elevated))] border border-border/60 flex items-center justify-center shadow-[0_8px_24px_-12px_rgba(0,0,0,0.5)]">
+                      <ListMusic className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <div className="space-y-1 max-w-xs">
+                      <div className="text-[14px] font-semibold text-foreground">
+                        Nenhum print enviado ainda
+                      </div>
+                      <div className="text-[12px] text-muted-foreground leading-relaxed">
+                        Envie seu primeiro print para começar o acompanhamento
+                      </div>
+                    </div>
+                  </div>
                 ) : (
                   <ul className="space-y-3 max-h-[70vh] sm:max-h-[480px] overflow-y-auto pr-1 -mr-1 scroll-smooth [mask-image:linear-gradient(to_bottom,black_calc(100%-32px),transparent)]">
                     {[...curatorLogs].reverse().map((log) => (
@@ -1305,10 +1328,19 @@ export default function CuratorPage() {
         })()}
 
         {/* Footer minimalista */}
-        <div className="text-center pt-2 pb-4">
-          <p className="text-[10px] text-muted-foreground">
-            Powered by NexEngine
-          </p>
+        <div className="text-center pt-2 pb-4 flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-3">
+          <span className="text-[10px] text-muted-foreground/60">
+            Powered by <span className="text-foreground/70 font-medium">NexEngine</span>
+          </span>
+          <span className="hidden sm:inline text-muted-foreground/30">·</span>
+          <span className="text-[10px] text-muted-foreground/60 tabular-nums">v1.2.0</span>
+          <span className="hidden sm:inline text-muted-foreground/30">·</span>
+          <a
+            href="mailto:suporte@nexengine.app"
+            className="text-[10px] text-muted-foreground/60 hover:text-foreground transition-colors"
+          >
+            Suporte
+          </a>
         </div>
       </div>
       </div>
