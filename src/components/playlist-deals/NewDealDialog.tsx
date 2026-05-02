@@ -644,6 +644,12 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
       }
       // Submit OK: limpa rascunho persistido
       draft.clearDraft();
+      // Notifica a página para recarregar a lista (instâncias do hook são independentes)
+      try {
+        await onSaved?.();
+      } catch (e) {
+        console.error("[NewDealDialog] onSaved error", e);
+      }
       onOpenChange(false);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
