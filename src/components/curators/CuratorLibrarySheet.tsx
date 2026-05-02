@@ -272,11 +272,17 @@ export function CuratorLibrarySheet({ curator, deals, onClose }: Props) {
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Adicionar playlist</DialogTitle>
+            <div className="flex items-center justify-between gap-2">
+              <DialogTitle>Adicionar playlist</DialogTitle>
+              <DraftIndicator lastSavedAt={draft.lastSavedAt} />
+            </div>
             <DialogDescription>
               Cadastre manualmente uma playlist no catálogo de {curator?.name}.
             </DialogDescription>
           </DialogHeader>
+          {draft.hasDraft && (
+            <DraftBanner onRestore={handleRestoreDraft} onDiscard={draft.clearDraft} className="mb-2" />
+          )}
           <div className="space-y-3">
             <div>
               <Label>Nome da playlist</Label>
