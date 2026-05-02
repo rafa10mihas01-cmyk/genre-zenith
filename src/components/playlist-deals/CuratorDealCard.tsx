@@ -1,4 +1,4 @@
-import { Camera, History, Trash2, Link2, Zap, Clock, AlertTriangle, Calendar as CalendarIcon, Music2, DollarSign, Pencil } from "lucide-react";
+import { Camera, History, Trash2, Link2, Zap, Clock, AlertTriangle, Calendar as CalendarIcon, Music2, DollarSign, Pencil, CheckCircle2, XCircle, FileDown, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -20,6 +20,8 @@ export interface CuratorDealCardProps {
   onDetail: (deal: CuratorDeal) => void;
   onDelete: (deal: CuratorDeal) => void;
   onEdit?: (deal: CuratorDeal) => void;
+  onClose?: (deal: CuratorDeal) => void;
+  onReopen?: (deal: CuratorDeal) => void;
 }
 
 function formatPlays(n: number): string {
@@ -31,7 +33,7 @@ function formatPlays(n: number): string {
 }
 
 export function CuratorDealCard({
-  deal, logs, playlists, songs = [], onLog, onDetail, onDelete, onEdit,
+  deal, logs, playlists, songs = [], onLog, onDetail, onDelete, onEdit, onClose, onReopen,
 }: CuratorDealCardProps) {
   const stats = computeCuratorStats(deal, logs, playlists);
   const { earned, pct, vel, eta, latestPlays, todayPlays, hasBaseline, newPlaylists } = stats;
