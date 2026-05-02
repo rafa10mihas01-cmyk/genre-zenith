@@ -19,6 +19,7 @@ export interface CuratorDealCardProps {
   onLog: (deal: CuratorDeal) => void;
   onDetail: (deal: CuratorDeal) => void;
   onDelete: (deal: CuratorDeal) => void;
+  onEdit?: (deal: CuratorDeal) => void;
 }
 
 function formatPlays(n: number): string {
