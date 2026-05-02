@@ -154,8 +154,9 @@ function currencyDigitsToNumber(rawDigits: string): number | undefined {
   return cents / 100;
 }
 
-export function NewDealDialog({ open, onOpenChange }: NewDealDialogProps) {
-  const { addDeal } = useCuratorDeals();
+export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDealDialogProps) {
+  const { addDeal, updateDeal } = useCuratorDeals();
+  const isEdit = Boolean(editDeal);
   const [submitting, setSubmitting] = useState(false);
   const [songs, setSongs] = useState<SongRow[]>([emptySong()]);
   const [costDigits, setCostDigits] = useState<string>("");
@@ -169,6 +170,67 @@ export function NewDealDialog({ open, onOpenChange }: NewDealDialogProps) {
       cost: undefined,
     },
   });
+
+  // Hidrata os campos quando entrar em modo edição (ou quando o deal mudar)
+  useEffect(() => {
+    if (!open) return;
+    if (isEdit && editDeal) {
+      form.reset({
+        curator_name: editDeal.curator_name ?? "",
+        target_plays: Number(editDeal.target_plays ?? 0) || (undefined as unknown as number),
+        cost: editDeal.cost != null ? Number(editDeal.cost) : undefined,
+      });
+      const c = Number(editDeal.cost ?? 0);
+      setCostDigits(c > 0 ? String(Math.round(c * 100)) : "");
+
+      const sourceSongs =
+        editSongs && editSongs.length > 0
+          ? [...editSongs].sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+          : null;
+
+      if (sourceSongs && sourceSongs.length > 0) {
+        setSongs(
+          sourceSongs.map((s) => ({
+            url: s.song_spotify_url ?? "",
+            daily_goal: s.daily_goal ? String(s.daily_goal) : "",
+            started_at: s.started_at ? new Date(s.started_at) : new Date(editDeal.started_at),
+            ends_at: s.ends_at ? new Date(s.ends_at) : (editDeal.ends_at ? new Date(editDeal.ends_at) : undefined),
+            ramp_up_days: String(
+              (s as unknown as { ramp_up_days?: number }).ramp_up_days ??
+                (editDeal as unknown as { ramp_up_days?: number }).ramp_up_days ??
+                5,
+            ),
+            meta: {
+              title: s.song_name ?? "Música",
+              artist: s.song_artist ?? null,
+              thumbnail_url: s.song_cover_url ?? null,
+            },
+            searching: false,
+          })),
+        );
+      } else {
+        // Fallback: usar campos legacy do deal
+        setSongs([
+          {
+            url: editDeal.song_spotify_url ?? "",
+            daily_goal: editDeal.daily_goal ? String(editDeal.daily_goal) : "",
+            started_at: new Date(editDeal.started_at),
+            ends_at: editDeal.ends_at ? new Date(editDeal.ends_at) : undefined,
+            ramp_up_days: String(
+              (editDeal as unknown as { ramp_up_days?: number }).ramp_up_days ?? 5,
+            ),
+            meta: {
+              title: editDeal.song_name ?? "Música",
+              artist: editDeal.song_artist ?? null,
+              thumbnail_url: editDeal.song_cover_url ?? null,
+            },
+            searching: false,
+          },
+        ]);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, isEdit, editDeal?.id]);
 
   const updateSong = (idx: number, patch: Partial<SongRow>) => {
     setSongs((prev) => prev.map((s, i) => (i === idx ? { ...s, ...patch } : s)));
