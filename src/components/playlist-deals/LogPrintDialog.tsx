@@ -119,9 +119,7 @@ export function LogPrintDialog({
   allPlaylists,
   progress,
   onClose,
-  addLog,
-  addBaseline,
-  insertSnapshots,
+  onSaved,
 }: LogPrintDialogProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [mode, setMode] = useState<"image" | "paste">("image");
