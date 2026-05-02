@@ -309,6 +309,17 @@ export function CuratorDealCard({
           >
             <Link2 className="h-3.5 w-3.5" />
           </Button>
+          {onEdit && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 text-muted-foreground hover:text-foreground"
+              onClick={() => onEdit(deal)}
+              aria-label="Editar deal"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="icon"
