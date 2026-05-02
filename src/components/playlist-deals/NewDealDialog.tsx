@@ -160,7 +160,7 @@ function songTarget(s: SongRow): number {
 // ============================================================
 // Componente
 // ============================================================
-export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDealDialogProps) {
+export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved }: NewDealDialogProps) {
   const { addDeal, updateDeal, addCurator, updateCurator, curators, balances } = useCuratorDeals();
   const isEdit = Boolean(editDeal);
 
