@@ -378,6 +378,36 @@ export default function CuratorPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
+  // Fase 6 — realtime: novo snapshot deste deal recarrega dados públicos
+  useEffect(() => {
+    if (!deal?.id) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const debouncedReload = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        load();
+      }, 800);
+    };
+    const channel = supabase
+      .channel(`curator-public-snapshots-${deal.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "curator_deal_snapshots",
+          filter: `deal_id=eq.${deal.id}`,
+        },
+        debouncedReload,
+      )
+      .subscribe();
+    return () => {
+      if (timer) clearTimeout(timer);
+      supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deal?.id]);
+
   /**
    * stats — TUDO que envolve número de progresso vem da RPC.
    * O frontend só monta os valores de UI (ciclo semanal, dias decorridos).
