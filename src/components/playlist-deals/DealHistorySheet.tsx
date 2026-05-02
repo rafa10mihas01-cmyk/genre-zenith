@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { PrintThumbs } from "./PrintThumbs";
 import { PastePlaylistsDialog } from "./PastePlaylistsDialog";
+import { FraudAlertsPanel } from "./FraudAlertsPanel";
 
 import {
   computeCuratorStats,
@@ -198,6 +199,10 @@ export function DealHistorySheet({
                 </ul>
               );
             })()}
+
+            <Separator className="my-6" />
+
+            <FraudAlertsPanel dealId={deal.id} onReload={onReload} />
 
             <Separator className="my-6" />
 

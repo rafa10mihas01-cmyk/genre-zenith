@@ -289,7 +289,11 @@ export type Database = {
           daily_goal: number
           ends_at: string | null
           id: string
+          last_reconciled_at: string | null
           public_token: string
+          reconciled_streams_28d: number
+          reconciled_streams_7d: number
+          reconciled_total_plays: number
           song_artist: string | null
           song_cover_url: string | null
           song_name: string
@@ -308,7 +312,11 @@ export type Database = {
           daily_goal?: number
           ends_at?: string | null
           id?: string
+          last_reconciled_at?: string | null
           public_token?: string
+          reconciled_streams_28d?: number
+          reconciled_streams_7d?: number
+          reconciled_total_plays?: number
           song_artist?: string | null
           song_cover_url?: string | null
           song_name: string
@@ -327,7 +335,11 @@ export type Database = {
           daily_goal?: number
           ends_at?: string | null
           id?: string
+          last_reconciled_at?: string | null
           public_token?: string
+          reconciled_streams_28d?: number
+          reconciled_streams_7d?: number
+          reconciled_total_plays?: number
           song_artist?: string | null
           song_cover_url?: string | null
           song_name?: string
@@ -337,6 +349,54 @@ export type Database = {
           started_at?: string
           target_plays?: number
           user_id?: string
+        }
+        Relationships: []
+      }
+      curator_fraud_alerts: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          alert_type: string
+          created_at: string
+          deal_id: string
+          description: string
+          evidence: Json
+          id: string
+          playlist_id: string | null
+          severity: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          alert_type: string
+          created_at?: string
+          deal_id: string
+          description: string
+          evidence?: Json
+          id?: string
+          playlist_id?: string | null
+          severity?: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          alert_type?: string
+          created_at?: string
+          deal_id?: string
+          description?: string
+          evidence?: Json
+          id?: string
+          playlist_id?: string | null
+          severity?: string
+          status?: string
+          title?: string
+          updated_at?: string
         }
         Relationships: []
       }
