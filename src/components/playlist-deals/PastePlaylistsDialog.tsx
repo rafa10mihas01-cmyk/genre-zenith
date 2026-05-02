@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useFormDraft } from "@/hooks/useFormDraft";
+import { DraftBanner, DraftIndicator } from "@/components/forms/DraftBanner";
 import { Loader2, Sparkles, ClipboardPaste } from "lucide-react";
 import {
   Dialog,
@@ -84,14 +86,38 @@ export function PastePlaylistsDialog({
   const [loading, setLoading] = useState(false);
   const [preview, setPreview] = useState<EnrichResponse | null>(null);
 
+  // Rascunho do texto colado — chave por deal pra não misturar entre deals
+  const draftKey = deal?.id ? `paste-playlists:${deal.id}` : "paste-playlists:none";
+  const draftSnapshot = useMemo(() => ({ text }), [text]);
+  const draft = useFormDraft(
+    draftKey,
+    { enabled: open && !!deal, isEmpty: !text.trim() },
+    draftSnapshot,
+  );
+  const [draftDecided, setDraftDecided] = useState(false);
+
+  const handleRestoreDraft = () => {
+    const data = draft.restoreDraft();
+    if (data?.text) setText(data.text);
+    setDraftDecided(true);
+  };
+  const handleDiscardDraft = () => {
+    draft.clearDraft();
+    setDraftDecided(true);
+  };
+
   const reset = () => {
     setText("");
     setPreview(null);
     setLoading(false);
+    draft.clearDraft();
+    setDraftDecided(false);
   };
 
   const handleClose = () => {
-    reset();
+    // Não reseta — texto fica salvo como draft pra próxima abertura
+    setPreview(null);
+    setLoading(false);
     onClose();
   };
 
@@ -118,6 +144,7 @@ export function PastePlaylistsDialog({
           `Importadas ${data.counts?.total ?? 0} playlists (${data.counts?.new ?? 0} novas)`,
         );
         onImported?.();
+        reset();
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -131,14 +158,23 @@ export function PastePlaylistsDialog({
     <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
       <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle className="font-medium text-base">
-            Colar dados do Spotify for Artists
-          </DialogTitle>
-          <DialogDescription className="text-sm text-muted-foreground">
-            Copie a tela "Playlists" da música no Spotify for Artists e cole aqui.
-            A IA extrai e classifica cada playlist (do curador, editorial, suspeita…).
-          </DialogDescription>
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-1.5 flex-1 min-w-0">
+              <DialogTitle className="font-medium text-base">
+                Colar dados do Spotify for Artists
+              </DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground">
+                Copie a tela "Playlists" da música no Spotify for Artists e cole aqui.
+                A IA extrai e classifica cada playlist (do curador, editorial, suspeita…).
+              </DialogDescription>
+            </div>
+            <DraftIndicator lastSavedAt={draft.lastSavedAt} className="mt-1 mr-6 shrink-0" />
+          </div>
         </DialogHeader>
+
+        {draft.hasDraft && !draftDecided && (
+          <DraftBanner onRestore={handleRestoreDraft} onDiscard={handleDiscardDraft} />
+        )}
 
         <div className="flex-1 overflow-hidden flex flex-col gap-4 min-h-0">
           <Textarea

@@ -47,6 +47,8 @@ import {
 import type { CuratorDeal, CuratorDealSong } from "@/lib/curatorDealsUtils";
 import { curatorPublicUrl } from "@/lib/curatorPublicUrl";
 import { formatNumber } from "@/lib/format";
+import { useFormDraft } from "@/hooks/useFormDraft";
+import { DraftBanner, DraftIndicator } from "@/components/forms/DraftBanner";
 
 // ============================================================
 // Tipos locais
@@ -206,10 +208,116 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDe
   );
 
   // ============================================================
+  // Persistência de rascunho (autosave + restore)
+  // Só ativa em modo "novo deal" (edição não cria rascunho)
+  // ============================================================
+  // Snapshot serializável dos campos. Memoizado pra não causar saves desnecessários.
+  const draftSnapshot = useMemo(
+    () => ({
+      step,
+      curatorMode,
+      selectedCuratorId,
+      newCuratorName,
+      newCuratorContact,
+      newCuratorPlaysDigits,
+      newCuratorCostDigits,
+      songs: songs.map((s) => ({
+        url: s.url,
+        daily_goal: s.daily_goal,
+        duration_days: s.duration_days,
+        started_at: s.started_at ? s.started_at.toISOString() : null,
+        ramp_up_days: s.ramp_up_days,
+        meta: s.meta,
+      })),
+    }),
+    [
+      step,
+      curatorMode,
+      selectedCuratorId,
+      newCuratorName,
+      newCuratorContact,
+      newCuratorPlaysDigits,
+      newCuratorCostDigits,
+      songs,
+    ],
+  );
+
+  const isDraftEmpty = useMemo(() => {
+    if (selectedCuratorId) return false;
+    if (newCuratorName.trim() || newCuratorContact.trim()) return false;
+    if (newCuratorPlaysDigits || newCuratorCostDigits) return false;
+    return songs.every(
+      (s) => !s.url.trim() && !s.daily_goal && !s.meta,
+    );
+  }, [
+    selectedCuratorId,
+    newCuratorName,
+    newCuratorContact,
+    newCuratorPlaysDigits,
+    newCuratorCostDigits,
+    songs,
+  ]);
+
+  const draft = useFormDraft(
+    "new-deal",
+    { enabled: open && !isEdit, isEmpty: isDraftEmpty },
+    draftSnapshot,
+  );
+
+  // Estado: já tomou decisão sobre o draft (continuar/descartar) nesta sessão?
+  const [draftDecided, setDraftDecided] = useState(false);
+
+  const handleRestoreDraft = () => {
+    const data = draft.restoreDraft();
+    if (!data) {
+      setDraftDecided(true);
+      return;
+    }
+    setStep((data.step as 1 | 2) ?? 1);
+    setCuratorMode((data.curatorMode as "select" | "new") ?? "select");
+    setSelectedCuratorId((data.selectedCuratorId as string | null) ?? null);
+    setNewCuratorName((data.newCuratorName as string) ?? "");
+    setNewCuratorContact((data.newCuratorContact as string) ?? "");
+    setNewCuratorPlaysDigits((data.newCuratorPlaysDigits as string) ?? "");
+    setNewCuratorCostDigits((data.newCuratorCostDigits as string) ?? "");
+    const restoredSongs = (data.songs as Array<{
+      url: string;
+      daily_goal: string;
+      duration_days: string;
+      started_at: string | null;
+      ramp_up_days: string;
+      meta: SongRow["meta"];
+    }>) ?? [];
+    if (restoredSongs.length > 0) {
+      setSongs(
+        restoredSongs.map((s) => ({
+          url: s.url ?? "",
+          daily_goal: s.daily_goal ?? "",
+          duration_days: s.duration_days ?? "30",
+          started_at: s.started_at ? new Date(s.started_at) : new Date(),
+          ramp_up_days: s.ramp_up_days ?? "5",
+          meta: s.meta ?? null,
+          searching: false,
+        })),
+      );
+    }
+    setDraftDecided(true);
+  };
+
+  const handleDiscardDraft = () => {
+    draft.clearDraft();
+    setDraftDecided(true);
+  };
+
+  // ============================================================
   // Hidratação (modo edição) e reset (abertura)
   // ============================================================
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      // Reset da decisão sobre o draft sempre que fecha
+      setDraftDecided(false);
+      return;
+    }
 
     if (isEdit && editDeal) {
       // Edição: pula direto pro passo 2, mantém curador atual
@@ -266,6 +374,11 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDe
       }
     } else {
       // Novo deal
+      // Se existe rascunho, não zera os campos — espera decisão do user
+      if (draft.hasDraft) {
+        // Mostra banner; campos ficam no estado vazio inicial até restaurar/descartar
+        return;
+      }
       setStep(1);
       setCuratorMode(curators.length > 0 ? "select" : "new");
       setSelectedCuratorId(null);
@@ -527,6 +640,8 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDe
           description: `${validSongs.length} música${validSongs.length > 1 ? "s" : ""} • link copiado`,
         });
       }
+      // Submit OK: limpa rascunho persistido
+      draft.clearDraft();
       onOpenChange(false);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -547,15 +662,30 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDe
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto bg-card border-border/60 rounded-2xl shadow-2xl p-6">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Editar deal" : "Novo Deal"}</DialogTitle>
-          <DialogDescription>
-            {isEdit
-              ? "Atualize as músicas, metas diárias e durações."
-              : step === 1
-                ? "Selecione ou cadastre o curador (saldo de plays comprado)."
-                : "Adicione as músicas — meta = combinado/dia × dias."}
-          </DialogDescription>
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-1.5 flex-1 min-w-0">
+              <DialogTitle>{isEdit ? "Editar deal" : "Novo Deal"}</DialogTitle>
+              <DialogDescription>
+                {isEdit
+                  ? "Atualize as músicas, metas diárias e durações."
+                  : step === 1
+                    ? "Selecione ou cadastre o curador (saldo de plays comprado)."
+                    : "Adicione as músicas — meta = combinado/dia × dias."}
+              </DialogDescription>
+            </div>
+            {!isEdit && (
+              <DraftIndicator lastSavedAt={draft.lastSavedAt} className="mt-1 mr-6 shrink-0" />
+            )}
+          </div>
         </DialogHeader>
+
+        {/* Banner: rascunho disponível ao reabrir */}
+        {!isEdit && draft.hasDraft && !draftDecided && (
+          <DraftBanner
+            onRestore={handleRestoreDraft}
+            onDiscard={handleDiscardDraft}
+          />
+        )}
 
         {/* Stepper (só em criação) */}
         {!isEdit && (
