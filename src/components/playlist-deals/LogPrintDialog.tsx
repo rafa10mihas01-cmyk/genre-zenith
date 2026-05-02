@@ -115,6 +115,7 @@ export function LogPrintDialog({
   onClose,
   addLog,
   addBaseline,
+  insertSnapshots,
 }: LogPrintDialogProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [mode, setMode] = useState<"image" | "paste">("image");
