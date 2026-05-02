@@ -221,6 +221,7 @@ export default function PlaylistDeals() {
                 onLog={(deal) => setLogDeal(deal)}
                 onDetail={(deal) => setDetailDeal(deal)}
                 onDelete={(deal) => handleDelete(deal.id)}
+                onEdit={(deal) => setEditDeal(deal)}
               />
             ))}
           </div>
