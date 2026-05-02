@@ -133,13 +133,38 @@ export function LogPrintDialog({
   const [hasNewPlaylists, setHasNewPlaylists] = useState(false);
 
   // Música selecionada (só relevante quando o deal tem 2+ músicas).
-  // Default = primária (position 0). null = "todas / agregado".
+  // Default = primeira sem baseline; senão a primária.
   const primarySongId = songs.length > 0 ? songs[0].id : null;
-  const [selectedSongId, setSelectedSongId] = useState<string | null>(primarySongId);
   const hasMultipleSongs = songs.length > 1;
 
+  // Baseline por música: para múltiplas músicas, cada uma tem seu próprio baseline
+  // (logs com song_id === id da música). Para deal single-song, usa lógica original.
+  const songHasBaseline = (songId: string | null): boolean => {
+    if (!deal) return false;
+    if (!hasMultipleSongs || !songId) {
+      return allLogs.some((l) => l.deal_id === deal.id && l.is_baseline);
+    }
+    return allLogs.some(
+      (l) => l.deal_id === deal.id && l.is_baseline && l.song_id === songId,
+    );
+  };
+
+  // Inicializa selectedSongId apontando para a primeira música ainda sem baseline.
+  const initialSongId = (() => {
+    if (!hasMultipleSongs) return primarySongId;
+    const pending = songs.find((s) => !songHasBaseline(s.id));
+    return pending ? pending.id : primarySongId;
+  })();
+  const [selectedSongId, setSelectedSongId] = useState<string | null>(initialSongId);
+
   const stats = deal ? computeCuratorStats(deal, allLogs, allPlaylists) : null;
-  const isBaseline = stats ? !stats.hasBaseline : false;
+  const selectedSong = songs.find((s) => s.id === selectedSongId) ?? null;
+  // Para múltiplas músicas, baseline é por música. Para single, usa stats global.
+  const isBaseline = hasMultipleSongs
+    ? !songHasBaseline(selectedSongId)
+    : stats
+    ? !stats.hasBaseline
+    : false;
 
   const finalValue = extracted ?? (manualValue ? parseInt(manualValue.replace(/\D/g, ""), 10) : NaN);
   const hasFinal = Number.isFinite(finalValue) && finalValue > 0;
