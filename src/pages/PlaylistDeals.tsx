@@ -25,7 +25,7 @@ export default function PlaylistDeals() {
   const [logDeal, setLogDeal] = useState<CuratorDeal | null>(null);
   const [detailDeal, setDetailDeal] = useState<CuratorDeal | null>(null);
 
-  const { deals, logs, playlists, songs, loading, deleteDeal, addLog, addBaseline } = useCuratorDeals();
+  const { deals, logs, playlists, songs, loading, deleteDeal, addLog, addBaseline, reload } = useCuratorDeals();
 
   const filtered = useMemo(() => {
     if (tab === "all") return deals;
@@ -145,6 +145,7 @@ export default function PlaylistDeals() {
         allLogs={logs}
         allPlaylists={playlists}
         onClose={() => setDetailDeal(null)}
+        onReload={reload}
       />
     </div>
   );

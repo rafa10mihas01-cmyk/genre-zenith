@@ -34,6 +34,13 @@ export type CuratorDealSong = {
   updated_at: string;
 };
 
+export type CuratorMatchStatus =
+  | "curator"
+  | "baseline"
+  | "editorial"
+  | "suspicious"
+  | "organic";
+
 export type CuratorPlaylist = {
   id: string;
   deal_id: string;
@@ -42,6 +49,19 @@ export type CuratorPlaylist = {
   followers: number | null;
   is_baseline: boolean;
   added_at: string;
+  // Campos do fluxo de paste/enriquecimento (podem vir nulos em registros antigos)
+  spotify_playlist_id?: string | null;
+  spotify_owner_id?: string | null;
+  spotify_owner_name?: string | null;
+  image_url?: string | null;
+  added_at_spotify?: string | null;
+  match_status?: CuratorMatchStatus | null;
+  match_reason?: string | null;
+  streams_7d?: number | null;
+  streams_28d?: number | null;
+  streams_total?: number | null;
+  last_paste_at?: string | null;
+  position_in_paste?: number | null;
 };
 
 export type CuratorDealLog = {
