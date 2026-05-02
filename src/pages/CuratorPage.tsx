@@ -529,7 +529,7 @@ export default function CuratorPage() {
   const isDone = stats.target > 0 && stats.earned >= stats.target;
 
   return (
-    <div className="relative min-h-screen bg-background py-10 sm:py-14 overflow-hidden">
+    <div className="relative min-h-screen bg-background py-8 sm:py-10 overflow-hidden">
       {/* Atmosfera verde — glows espalhados pela página inteira (somente dark) */}
       <div
         aria-hidden
