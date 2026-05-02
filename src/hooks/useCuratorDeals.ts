@@ -10,6 +10,22 @@ import type {
   CuratorDealSong,
 } from "@/lib/curatorDealsUtils";
 
+export type CuratorFraudAlert = {
+  id: string;
+  deal_id: string;
+  playlist_id: string | null;
+  alert_type: string;
+  severity: "low" | "medium" | "high" | string;
+  title: string;
+  description: string;
+  evidence: Record<string, unknown>;
+  status: "open" | "acknowledged" | "resolved" | string;
+  acknowledged_by: string | null;
+  acknowledged_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type DealSongInput = {
   song_spotify_url: string;
   spotify_track_id?: string | null;
