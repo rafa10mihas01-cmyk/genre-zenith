@@ -66,6 +66,22 @@ export function CuratorLibrarySheet({ curator, deals, onClose }: Props) {
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
+  const draftKey = curator ? `curator-library-add:${curator.id}` : "curator-library-add:none";
+  const isDraftEmpty = !name.trim() && !url.trim() && !followers.trim();
+  const draft = useFormDraft(
+    draftKey,
+    { enabled: addOpen && !!curator && !saving, isEmpty: isDraftEmpty },
+    { name, url, followers },
+  );
+
+  const handleRestoreDraft = () => {
+    const d = draft.restoreDraft();
+    if (!d) return;
+    setName(d.name);
+    setUrl(d.url);
+    setFollowers(d.followers);
+  };
+
   const handleAdd = async () => {
     if (!curator || !name.trim() || !url.trim()) {
       toast.error("Preencha nome e link da playlist");
