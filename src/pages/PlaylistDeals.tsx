@@ -205,6 +205,7 @@ export default function PlaylistDeals() {
             balances={balances}
             alerts={alerts}
             loading={loading}
+            progressByDeal={progressByDeal}
             onUpdateCurator={updateCurator}
             onArchiveCurator={archiveCurator}
           />
