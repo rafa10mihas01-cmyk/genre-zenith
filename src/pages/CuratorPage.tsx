@@ -186,7 +186,7 @@ export default function CuratorPage() {
 
     const { data, error: fnErr } = await supabase.functions.invoke(
       "get-curator-deal-public",
-      { body: { public_token: publicToken } },
+      { body: { slug: publicToken } },
     );
     if (fnErr || !data?.ok) {
       setError(data?.error || fnErr?.message || "not found");
@@ -329,10 +329,11 @@ export default function CuratorPage() {
 
   const handleAdd = async () => {
     if (!token || !url.trim()) return;
+    const realToken = deal?.public_token ?? token;
     setSubmitting(true);
     const { data, error: fnErr } = await supabase.functions.invoke(
       "register-curator-playlist",
-      { body: { public_token: token, urls: [url.trim()] } },
+      { body: { public_token: realToken, urls: [url.trim()] } },
     );
     setSubmitting(false);
     if (fnErr || !data?.ok) {
@@ -407,9 +408,10 @@ export default function CuratorPage() {
         toast.error("Máximo de 200 playlists por importação");
         return;
       }
+      const realToken = deal?.public_token ?? token;
       const { data, error: fnErr } = await supabase.functions.invoke(
         "register-curator-playlist",
-        { body: { public_token: token, urls } },
+        { body: { public_token: realToken, urls } },
       );
       if (fnErr || !data?.ok) {
         toast.error(data?.error || fnErr?.message || "Erro ao importar");

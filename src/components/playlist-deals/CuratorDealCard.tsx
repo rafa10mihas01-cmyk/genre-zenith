@@ -52,7 +52,8 @@ export function CuratorDealCard({
     : "Em progresso";
 
   const handleCopyLink = async () => {
-    const url = `${window.location.origin}/curador/${deal.public_token}`;
+    const { curatorPublicUrl } = await import("@/lib/curatorPublicUrl");
+    const url = curatorPublicUrl({ slug: deal.slug, public_token: deal.public_token });
     try {
       await navigator.clipboard.writeText(url);
       toast.success("Link copiado", { description: url });

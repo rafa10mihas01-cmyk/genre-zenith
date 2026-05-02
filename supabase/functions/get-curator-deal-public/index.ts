@@ -23,22 +23,39 @@ Deno.serve(async (req) => {
   try {
     const body = await req.json().catch(() => ({}));
     const token = typeof body?.public_token === "string" ? body.public_token.trim() : "";
-    if (!token) return jr({ ok: false, error: "public_token obrigatório" }, 400);
+    const slug = typeof body?.slug === "string" ? body.slug.trim() : "";
+
+    if (!token && !slug) {
+      return jr({ ok: false, error: "public_token ou slug obrigatório" }, 400);
+    }
 
     const admin = createClient(SUPABASE_URL, SERVICE_KEY, {
       auth: { persistSession: false },
     });
 
-    const { data: deal, error: dealErr } = await admin
+    // Aceita slug (preferencial) ou token (compatibilidade com links antigos).
+    // Se vier algo que parece um token hex (24 chars), trata como token mesmo
+    // que tenha sido enviado no campo slug.
+    const looksLikeToken = (v: string) => /^[a-f0-9]{20,}$/i.test(v);
+    let query = admin
       .from("curator_deals")
       .select(
-        "id, curator_name, song_spotify_url, song_name, song_artist, song_cover_url, target_plays, daily_goal, baseline_plays, cost, started_at, public_token, created_at, spotify_owner_id, spotify_owner_url",
-      )
-      .eq("public_token", token)
-      .maybeSingle();
+        "id, curator_name, song_spotify_url, song_name, song_artist, song_cover_url, target_plays, daily_goal, baseline_plays, cost, started_at, public_token, slug, created_at, spotify_owner_id, spotify_owner_url",
+      );
+
+    if (token) {
+      query = query.eq("public_token", token);
+    } else if (looksLikeToken(slug)) {
+      query = query.eq("public_token", slug);
+    } else {
+      query = query.eq("slug", slug);
+    }
+
+    const { data: deal, error: dealErr } = await query.maybeSingle();
 
     if (dealErr) return jr({ ok: false, error: dealErr.message }, 200);
     if (!deal) return jr({ ok: false, error: "not found" }, 200);
+
 
     const [{ data: playlists, error: plErr }, { data: logs, error: logErr }] = await Promise.all([
       admin
