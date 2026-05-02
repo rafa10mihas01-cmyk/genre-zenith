@@ -20,6 +20,7 @@ import {
   type CuratorDealLog,
   type CuratorDealSong,
   type CuratorPlaylist,
+  type CuratorDealProgress,
 } from "@/lib/curatorDealsUtils";
 import type {
   Curator,
