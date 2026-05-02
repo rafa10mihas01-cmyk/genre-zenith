@@ -1,6 +1,10 @@
-// Reconcilia streams agregados das playlists matched (curator + baseline)
-// por deal e gera alertas anti-fraude para playlists suspeitas.
-// Pode ser chamada por usuário (deal_id específico) ou para todos os deals ativos.
+// detect-curator-fraud — detecta playlists suspeitas de um deal e
+// gera registros em `curator_fraud_alerts`. NÃO atualiza métricas
+// de progresso (reconciled_*) — isso é responsabilidade exclusiva
+// do cron-reconcile-curator-deals (snapshots S4A).
+//
+// Auth: JWT do usuário. Só processa deals do próprio usuário.
+// Body: { deal_id?: string } — se ausente, processa todos os deals do user.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
 
@@ -32,17 +36,14 @@ type Deal = {
   spotify_owner_id: string | null;
   started_at: string;
   ends_at: string | null;
-  baseline_plays: number;
   target_plays: number;
 };
 
-/** Levenshtein-ish similarity normalizada (0..1). Simples, suficiente p/ lookalikes. */
 function similarity(a: string, b: string): number {
   const x = a.toLowerCase().trim();
   const y = b.toLowerCase().trim();
   if (!x || !y) return 0;
   if (x === y) return 1;
-  // Jaccard de tokens
   const ta = new Set(x.split(/\s+/));
   const tb = new Set(y.split(/\s+/));
   const inter = [...ta].filter((t) => tb.has(t)).length;
@@ -50,43 +51,13 @@ function similarity(a: string, b: string): number {
   return union === 0 ? 0 : inter / union;
 }
 
-async function reconcileDeal(supabase: any, deal: Deal) {
-  // 1. Agrega streams das playlists matched (curator + baseline)
-  const { data: matched, error: e1 } = await supabase
-    .from("curator_playlists")
-    .select("streams_7d, streams_28d, streams_total")
-    .eq("deal_id", deal.id)
-    .in("match_status", ["curator", "baseline"]);
-
-  if (e1) throw e1;
-
-  const totals = (matched ?? []).reduce(
-    (acc: any, p: any) => ({
-      s7: acc.s7 + (p.streams_7d ?? 0),
-      s28: acc.s28 + (p.streams_28d ?? 0),
-      stotal: acc.stotal + (p.streams_total ?? 0),
-    }),
-    { s7: 0, s28: 0, stotal: 0 },
-  );
-
-  await supabase
-    .from("curator_deals")
-    .update({
-      reconciled_streams_7d: totals.s7,
-      reconciled_streams_28d: totals.s28,
-      reconciled_total_plays: totals.stotal,
-      last_reconciled_at: new Date().toISOString(),
-    })
-    .eq("id", deal.id);
-
-  // 2. Detecta lookalikes / suspeitos
+async function detectForDeal(supabase: any, deal: Deal) {
   const { data: allPlaylists, error: e2 } = await supabase
     .from("curator_playlists")
     .select(
       "id, deal_id, playlist_name, spotify_owner_id, spotify_owner_name, added_at_spotify, match_status, streams_7d, streams_28d, streams_total, followers",
     )
     .eq("deal_id", deal.id);
-
   if (e2) throw e2;
 
   const matchedNames = (allPlaylists as Playlist[])
@@ -99,14 +70,12 @@ async function reconcileDeal(supabase: any, deal: Deal) {
   for (const p of allPlaylists as Playlist[]) {
     if (p.match_status === "curator" || p.match_status === "baseline") continue;
 
-    // Owner mismatch (já marcada suspicious pelo enrich)
     if (
       p.match_status === "suspicious" &&
       deal.spotify_owner_id &&
       p.spotify_owner_id &&
       p.spotify_owner_id !== deal.spotify_owner_id
     ) {
-      // Lookalike pelo nome?
       let bestSim = 0;
       let bestName = "";
       for (const n of matchedNames) {
@@ -148,7 +117,6 @@ async function reconcileDeal(supabase: any, deal: Deal) {
       }
     }
 
-    // Adição antes do início do deal (cobrança indevida)
     if (p.added_at_spotify) {
       const addedAt = new Date(p.added_at_spotify);
       if (addedAt < dealStart) {
@@ -173,7 +141,6 @@ async function reconcileDeal(supabase: any, deal: Deal) {
       }
     }
 
-    // Crescimento suspeito: streams_7d altos com followers baixos
     if (p.streams_7d > 1000 && (p.followers ?? 0) < 200) {
       alerts.push({
         deal_id: deal.id,
@@ -191,7 +158,6 @@ async function reconcileDeal(supabase: any, deal: Deal) {
     }
   }
 
-  // 3. Insere alertas evitando duplicatas (mesmo deal+playlist+type ainda 'open')
   let createdAlerts = 0;
   if (alerts.length > 0) {
     const { data: existing } = await supabase
@@ -217,79 +183,11 @@ async function reconcileDeal(supabase: any, deal: Deal) {
     }
   }
 
-  // 4. Notificações de milestone (meta batida + atraso) com dedupe
-  const milestoneNotifs = await checkDealMilestones(supabase, deal, totals.stotal);
-
   return {
     deal_id: deal.id,
-    streams_7d: totals.s7,
-    streams_28d: totals.s28,
-    streams_total: totals.stotal,
-    matched_playlists: matched?.length ?? 0,
+    playlists_scanned: allPlaylists?.length ?? 0,
     alerts_created: createdAlerts,
-    milestone_notifs: milestoneNotifs,
   };
-}
-
-/**
- * Cria notifications de milestone para um deal:
- * - goal_reached: reconciled_total_plays >= target_plays
- * - deal_overdue: ends_at < now() e ainda não bateu meta
- * Dedupe via metadata.kind + metadata.deal_id (não cria duplicata).
- */
-async function checkDealMilestones(
-  supabase: any,
-  deal: { id: string; song_name: string; curator_name: string; target_plays: number; ends_at?: string | null; user_id?: string },
-  reconciledTotal: number,
-): Promise<{ goal: boolean; overdue: boolean }> {
-  const result = { goal: false, overdue: false };
-  const target = Number(deal.target_plays ?? 0) || 0;
-
-  // GOAL
-  if (target > 0 && reconciledTotal >= target) {
-    const { data: existing } = await supabase
-      .from("notifications")
-      .select("id")
-      .eq("metadata->>kind", "goal_reached")
-      .eq("metadata->>deal_id", deal.id)
-      .limit(1);
-    if (!existing || existing.length === 0) {
-      await supabase.from("notifications").insert({
-        type: "success",
-        title: `Meta batida: ${deal.song_name}`,
-        message: `Curador "${deal.curator_name}" entregou ${reconciledTotal.toLocaleString("pt-BR")} de ${target.toLocaleString("pt-BR")} plays.`,
-        action_url: `/playlist-deals?deal=${deal.id}`,
-        metadata: { kind: "goal_reached", deal_id: deal.id, reconciled_total: reconciledTotal, target },
-      });
-      result.goal = true;
-    }
-  }
-
-  // OVERDUE
-  if (deal.ends_at) {
-    const ends = new Date(deal.ends_at);
-    if (ends < new Date() && reconciledTotal < target) {
-      const { data: existing } = await supabase
-        .from("notifications")
-        .select("id")
-        .eq("metadata->>kind", "deal_overdue")
-        .eq("metadata->>deal_id", deal.id)
-        .limit(1);
-      if (!existing || existing.length === 0) {
-        const remaining = Math.max(target - reconciledTotal, 0);
-        await supabase.from("notifications").insert({
-          type: "warning",
-          title: `Deal atrasado: ${deal.song_name}`,
-          message: `Prazo venceu em ${ends.toLocaleDateString("pt-BR")} e faltam ${remaining.toLocaleString("pt-BR")} plays para a meta.`,
-          action_url: `/playlist-deals?deal=${deal.id}`,
-          metadata: { kind: "deal_overdue", deal_id: deal.id, reconciled_total: reconciledTotal, target, ends_at: deal.ends_at },
-        });
-        result.overdue = true;
-      }
-    }
-  }
-
-  return result;
 }
 
 Deno.serve(async (req) => {
@@ -326,7 +224,7 @@ Deno.serve(async (req) => {
     let dealsQuery = supabase
       .from("curator_deals")
       .select(
-        "id, user_id, song_name, curator_name, spotify_owner_id, started_at, ends_at, baseline_plays, target_plays",
+        "id, user_id, song_name, curator_name, spotify_owner_id, started_at, ends_at, target_plays",
       )
       .eq("user_id", user.id);
 
@@ -343,9 +241,9 @@ Deno.serve(async (req) => {
     const results = [];
     for (const d of deals as Deal[]) {
       try {
-        results.push(await reconcileDeal(supabase, d));
+        results.push(await detectForDeal(supabase, d));
       } catch (err) {
-        console.error("reconcile error", d.id, err);
+        console.error("detect-curator-fraud error", d.id, err);
         results.push({ deal_id: d.id, error: String(err) });
       }
     }
@@ -354,7 +252,7 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
-    console.error("reconcile-curator-deals error", err);
+    console.error("detect-curator-fraud error", err);
     return new Response(JSON.stringify({ error: String(err) }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
