@@ -34,6 +34,7 @@ const MAX_FILE_BYTES = 10 * 1024 * 1024;
 export interface LogPrintDialogProps {
   open: boolean;
   deal: CuratorDeal | null;
+  songs?: CuratorDealSong[];
   allLogs: CuratorDealLog[];
   allPlaylists: CuratorPlaylist[];
   onClose: () => void;
@@ -43,6 +44,7 @@ export interface LogPrintDialogProps {
     plays: number,
     baselinePlaylists: BaselinePlaylistInput[],
     printUrls?: string[],
+    songId?: string | null,
   ) => Promise<void>;
   addNewPlaylist?: (
     dealId: string,
