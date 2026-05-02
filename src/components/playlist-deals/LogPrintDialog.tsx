@@ -132,6 +132,12 @@ export function LogPrintDialog({
   const [playlistsRaw, setPlaylistsRaw] = useState<string>("");
   const [hasNewPlaylists, setHasNewPlaylists] = useState(false);
 
+  // Música selecionada (só relevante quando o deal tem 2+ músicas).
+  // Default = primária (position 0). null = "todas / agregado".
+  const primarySongId = songs.length > 0 ? songs[0].id : null;
+  const [selectedSongId, setSelectedSongId] = useState<string | null>(primarySongId);
+  const hasMultipleSongs = songs.length > 1;
+
   const stats = deal ? computeCuratorStats(deal, allLogs, allPlaylists) : null;
   const isBaseline = stats ? !stats.hasBaseline : false;
 
