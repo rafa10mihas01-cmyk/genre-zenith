@@ -216,20 +216,25 @@ export default function PlaylistDeals() {
           </div>
         ) : filtered.length === 0 ? (
           <div className="nx-card">
-            <div className="py-10 flex flex-col items-center text-center gap-3">
-              <div className="h-12 w-12 rounded-full bg-elevated border border-border flex items-center justify-center">
-                <ListMusic className="h-5 w-5 text-muted-foreground" />
+            <div className="py-16 flex flex-col items-center text-center gap-4">
+              <div className="h-14 w-14 rounded-2xl bg-[hsl(var(--elevated))] border border-border/60 flex items-center justify-center shadow-[0_8px_24px_-12px_rgba(0,0,0,0.5)]">
+                <ListMusic className="h-6 w-6 text-muted-foreground" />
               </div>
-              <div>
-                <div className="font-semibold text-foreground">
+              <div className="space-y-1.5 max-w-sm">
+                <div className="text-[18px] font-semibold text-foreground">
                   {deals.length === 0 ? "Nenhum deal ainda" : "Nada nesta aba"}
                 </div>
-                <div className="text-sm text-muted-foreground mt-1">
+                <div className="text-[13px] text-muted-foreground leading-relaxed">
                   {deals.length === 0
-                    ? "Clique em + Novo Deal para começar"
-                    : "Tente outra aba"}
+                    ? "Crie seu primeiro deal para começar a acompanhar curadores, metas e plays entregues."
+                    : "Tente outra aba ou crie um novo deal."}
                 </div>
               </div>
+              {deals.length === 0 && (
+                <Button onClick={handleNew} className="rounded-full h-10 gap-1.5 mt-2">
+                  <Plus className="h-4 w-4" /> Criar primeiro deal
+                </Button>
+              )}
             </div>
           </div>
         ) : (
