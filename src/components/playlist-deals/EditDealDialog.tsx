@@ -80,20 +80,19 @@ export function EditDealDialog({ deal, open, onOpenChange, onSaved }: Props) {
     }
     setSaving(true);
     try {
-      const updates: Record<string, unknown> = {
-        curator_name: curatorName.trim(),
-        cost: parseBRL(costStr) || null,
-        target_plays: Number(target) || 0,
-        daily_goal: Number(dailyGoal) || 0,
-        started_at: startedAt
-          ? new Date(startedAt).toISOString()
-          : deal.started_at,
-        ends_at: endsAt ? new Date(endsAt).toISOString() : null,
-        ramp_up_days: Number(rampUp) || 0,
-      };
       const { error } = await supabase
         .from("curator_deals")
-        .update(updates)
+        .update({
+          curator_name: curatorName.trim(),
+          cost: parseBRL(costStr) || null,
+          target_plays: Number(target) || 0,
+          daily_goal: Number(dailyGoal) || 0,
+          started_at: startedAt
+            ? new Date(startedAt).toISOString()
+            : deal.started_at,
+          ends_at: endsAt ? new Date(endsAt).toISOString() : null,
+          ramp_up_days: Number(rampUp) || 0,
+        })
         .eq("id", deal.id);
       if (error) throw error;
       toast.success("Deal atualizado");
