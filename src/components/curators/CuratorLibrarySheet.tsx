@@ -97,6 +97,7 @@ export function CuratorLibrarySheet({ curator, deals, onClose }: Props) {
       });
       toast.success("Playlist adicionada à biblioteca");
       setName(""); setUrl(""); setFollowers("");
+      draft.clearDraft();
       setAddOpen(false);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
