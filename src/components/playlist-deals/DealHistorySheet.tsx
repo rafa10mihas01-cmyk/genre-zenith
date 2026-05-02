@@ -4,6 +4,7 @@ import {
   ImageOff,
   Music2,
   ClipboardPaste,
+  Library,
   ChevronDown,
   ChevronRight,
   Headphones,
@@ -25,6 +26,7 @@ import {
 import { cn } from "@/lib/utils";
 import { PrintThumbs } from "./PrintThumbs";
 import { PastePlaylistsDialog } from "./PastePlaylistsDialog";
+import { ImportFromLibraryDialog } from "./ImportFromLibraryDialog";
 import { FraudAlertsPanel } from "./FraudAlertsPanel";
 import { DealLogDetailDialog } from "./DealLogDetailDialog";
 
@@ -145,6 +147,7 @@ export function DealHistorySheet({
   onReload,
 }: DealHistorySheetProps) {
   const [pasteOpen, setPasteOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [longTailOpen, setLongTailOpen] = useState(false);
   const [selectedLogId, setSelectedLogId] = useState<string | null>(null);
   const stats = deal ? computeCuratorStats(deal, allLogs, allPlaylists) : null;
@@ -275,15 +278,28 @@ export function DealHistorySheet({
                       Playlists onde sua música está atualmente
                     </p>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-8 gap-1.5 text-xs shrink-0"
-                    onClick={() => setPasteOpen(true)}
-                  >
-                    <ClipboardPaste className="h-3.5 w-3.5" />
-                    Colar dados
-                  </Button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {deal.curator_id && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 gap-1.5 text-xs"
+                        onClick={() => setImportOpen(true)}
+                      >
+                        <Library className="h-3.5 w-3.5" />
+                        Catálogo
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 gap-1.5 text-xs"
+                      onClick={() => setPasteOpen(true)}
+                    >
+                      <ClipboardPaste className="h-3.5 w-3.5" />
+                      Colar dados
+                    </Button>
+                  </div>
                 </div>
 
                 {dealPlaylists.length === 0 ? (
@@ -532,6 +548,13 @@ export function DealHistorySheet({
         open={pasteOpen}
         deal={deal}
         onClose={() => setPasteOpen(false)}
+        onImported={() => onReload?.()}
+      />
+      <ImportFromLibraryDialog
+        open={importOpen}
+        deal={deal}
+        existingPlaylists={allPlaylists}
+        onClose={() => setImportOpen(false)}
         onImported={() => onReload?.()}
       />
       {/* Modal sobreposto com detalhes do registro */}
