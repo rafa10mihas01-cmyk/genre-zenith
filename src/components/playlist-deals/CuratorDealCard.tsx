@@ -118,15 +118,54 @@ export function CuratorDealCard({
             </div>
           </div>
           <Badge
-            variant={isDone ? "default" : "secondary"}
+            variant={isClosed && closedStatus === "completed" ? "default" : "secondary"}
             className={cn(
-              "shrink-0 text-[10px] px-2 py-0 h-5 font-medium",
-              isDone && "bg-success text-success-foreground hover:bg-success/90",
+              "shrink-0 text-[10px] px-2 py-0 h-5 font-medium gap-1",
+              isClosed && closedStatus === "completed" && "bg-success text-success-foreground hover:bg-success/90",
+              isClosed && closedStatus === "cancelled" && "bg-destructive/15 text-destructive hover:bg-destructive/20",
+              !isClosed && isDone && "bg-primary/15 text-primary",
             )}
           >
+            {isClosed && <Lock className="h-2.5 w-2.5" />}
             {statusLabel}
           </Badge>
         </div>
+
+        {/* Banner de fechamento */}
+        {isClosed && (
+          <div className={cn(
+            "rounded-md px-2.5 py-1.5 flex items-center gap-1.5 border",
+            closedStatus === "completed"
+              ? "border-success/30 bg-success/10"
+              : "border-destructive/30 bg-destructive/10",
+          )}>
+            {closedStatus === "completed"
+              ? <CheckCircle2 className="h-3.5 w-3.5 text-success shrink-0" />
+              : <XCircle className="h-3.5 w-3.5 text-destructive shrink-0" />}
+            <span className={cn(
+              "text-[11px] font-medium",
+              closedStatus === "completed" ? "text-success" : "text-destructive",
+            )}>
+              {closedStatus === "completed" ? "Concluído" : "Encerrado"}
+              {deal.closed_at && (
+                <span className="text-muted-foreground font-normal ml-1.5">
+                  · {format(new Date(deal.closed_at), "dd MMM", { locale: ptBR })}
+                </span>
+              )}
+            </span>
+            {deal.final_report_url && (
+              <a
+                href={deal.final_report_url}
+                target="_blank"
+                rel="noreferrer"
+                className="ml-auto text-[10px] text-primary hover:underline inline-flex items-center gap-0.5"
+              >
+                <FileDown className="h-3 w-3" />
+                Relatório
+              </a>
+            )}
+          </div>
+        )}
 
         {/* Banner de ramp-up (aquecimento) */}
         {inRampUp && (
