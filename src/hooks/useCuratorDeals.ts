@@ -675,5 +675,6 @@ export function useCuratorDeals() {
     closeDeal,
     reopenDeal,
     reload: load,
+    invalidateProgress,
   };
 }
