@@ -224,6 +224,57 @@ export type Database = {
           },
         ]
       }
+      curator_deal_snapshots: {
+        Row: {
+          ai_confidence: number | null
+          ai_raw: Json
+          captured_at: string
+          created_at: string
+          created_by: string | null
+          deal_id: string
+          id: string
+          is_baseline: boolean
+          notes: string | null
+          playlist_id: string
+          plays: number
+          print_url: string | null
+          song_id: string | null
+          source: string
+        }
+        Insert: {
+          ai_confidence?: number | null
+          ai_raw?: Json
+          captured_at?: string
+          created_at?: string
+          created_by?: string | null
+          deal_id: string
+          id?: string
+          is_baseline?: boolean
+          notes?: string | null
+          playlist_id: string
+          plays?: number
+          print_url?: string | null
+          song_id?: string | null
+          source?: string
+        }
+        Update: {
+          ai_confidence?: number | null
+          ai_raw?: Json
+          captured_at?: string
+          created_at?: string
+          created_by?: string | null
+          deal_id?: string
+          id?: string
+          is_baseline?: boolean
+          notes?: string | null
+          playlist_id?: string
+          plays?: number
+          print_url?: string | null
+          song_id?: string | null
+          source?: string
+        }
+        Relationships: []
+      }
       curator_deal_songs: {
         Row: {
           baseline_plays: number
@@ -2111,6 +2162,7 @@ export type Database = {
         }[]
       }
       get_cron_secret: { Args: never; Returns: string }
+      get_curator_deal_progress: { Args: { p_deal_id: string }; Returns: Json }
       get_followers_revalidation_candidates: {
         Args: {
           p_limit?: number
