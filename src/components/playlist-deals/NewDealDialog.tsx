@@ -75,6 +75,8 @@ export interface NewDealDialogProps {
   editDeal?: CuratorDeal | null;
   /** Músicas associadas ao deal (somente em modo edição). */
   editSongs?: CuratorDealSong[];
+  /** Callback para a página recarregar a lista após salvar. */
+  onSaved?: () => void | Promise<void>;
 }
 
 // ============================================================
