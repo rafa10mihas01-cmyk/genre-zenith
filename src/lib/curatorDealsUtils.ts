@@ -104,10 +104,25 @@ export type CuratorDealStats = {
   score: number;            // 0..100 (prazo + share legítimo)
 };
 
+// Override vindo da RPC `get_curator_deal_progress` — fonte oficial de
+// `earned/pct/latestPlays/vel/eta` quando há snapshots. Quando passado,
+// sobrescreve o cálculo legado (que ainda existe pra rodar offline/sem snapshots).
+export type CuratorDealProgress = {
+  baseline_total?: number | null;
+  latest_total?: number | null;
+  delivered_curator?: number | null;
+  delivered_total?: number | null;
+  daily_avg?: number | null;
+  progress_pct?: number | null;
+  eta_days?: number | null;
+  target_plays?: number | null;
+};
+
 export function computeCuratorStats(
   deal: CuratorDeal,
   logs: CuratorDealLog[],
   playlists: CuratorPlaylist[],
+  progressOverride?: CuratorDealProgress | null,
 ): CuratorDealStats {
   const dealLogs = logs
     .filter((l) => l.deal_id === deal.id)
