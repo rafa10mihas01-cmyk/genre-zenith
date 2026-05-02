@@ -905,10 +905,10 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDe
             {selectedCurator && (
               <div
                 className={cn(
-                  "rounded-lg border p-3 flex items-center justify-between gap-3",
+                  "rounded-xl border p-4 flex items-center justify-between gap-3 shadow-sm",
                   overbooked
                     ? "border-destructive/40 bg-destructive/5"
-                    : "border-border bg-muted/20",
+                    : "border-border/60 bg-[hsl(var(--elevated))]",
                 )}
               >
                 <div className="min-w-0">
