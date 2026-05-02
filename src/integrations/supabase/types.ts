@@ -292,11 +292,15 @@ export type Database = {
       curator_deals: {
         Row: {
           baseline_plays: number
+          closed_at: string | null
+          closed_reason: string | null
+          closed_status: string | null
           cost: number | null
           created_at: string
           curator_name: string
           daily_goal: number
           ends_at: string | null
+          final_report_url: string | null
           id: string
           last_reconciled_at: string | null
           public_token: string
@@ -317,11 +321,15 @@ export type Database = {
         }
         Insert: {
           baseline_plays?: number
+          closed_at?: string | null
+          closed_reason?: string | null
+          closed_status?: string | null
           cost?: number | null
           created_at?: string
           curator_name: string
           daily_goal?: number
           ends_at?: string | null
+          final_report_url?: string | null
           id?: string
           last_reconciled_at?: string | null
           public_token?: string
@@ -342,11 +350,15 @@ export type Database = {
         }
         Update: {
           baseline_plays?: number
+          closed_at?: string | null
+          closed_reason?: string | null
+          closed_status?: string | null
           cost?: number | null
           created_at?: string
           curator_name?: string
           daily_goal?: number
           ends_at?: string | null
+          final_report_url?: string | null
           id?: string
           last_reconciled_at?: string | null
           public_token?: string

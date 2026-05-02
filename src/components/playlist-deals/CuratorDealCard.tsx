@@ -1,4 +1,4 @@
-import { Camera, History, Trash2, Link2, Zap, Clock, AlertTriangle, Calendar as CalendarIcon, Music2, DollarSign, Pencil } from "lucide-react";
+import { Camera, History, Trash2, Link2, Zap, Clock, AlertTriangle, Calendar as CalendarIcon, Music2, DollarSign, Pencil, CheckCircle2, XCircle, FileDown, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -20,6 +20,8 @@ export interface CuratorDealCardProps {
   onDetail: (deal: CuratorDeal) => void;
   onDelete: (deal: CuratorDeal) => void;
   onEdit?: (deal: CuratorDeal) => void;
+  onClose?: (deal: CuratorDeal) => void;
+  onReopen?: (deal: CuratorDeal) => void;
 }
 
 function formatPlays(n: number): string {
@@ -31,7 +33,7 @@ function formatPlays(n: number): string {
 }
 
 export function CuratorDealCard({
-  deal, logs, playlists, songs = [], onLog, onDetail, onDelete, onEdit,
+  deal, logs, playlists, songs = [], onLog, onDetail, onDelete, onEdit, onClose, onReopen,
 }: CuratorDealCardProps) {
   const stats = computeCuratorStats(deal, logs, playlists);
   const { earned, pct, vel, eta, latestPlays, todayPlays, hasBaseline, newPlaylists } = stats;
@@ -67,10 +69,16 @@ export function CuratorDealCard({
     return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", ...opts }).format(v);
   };
 
-  const statusLabel = !hasBaseline
+  const isClosed = !!deal.closed_at;
+  const closedStatus = deal.closed_status; // 'completed' | 'cancelled' | null
+  const statusLabel = isClosed
+    ? closedStatus === "completed"
+      ? "Concluído"
+      : "Encerrado"
+    : !hasBaseline
     ? "Sem baseline"
     : isDone
-    ? "Concluído"
+    ? "Pronto p/ encerrar"
     : "Em progresso";
 
   const handleCopyLink = async () => {
@@ -110,15 +118,54 @@ export function CuratorDealCard({
             </div>
           </div>
           <Badge
-            variant={isDone ? "default" : "secondary"}
+            variant={isClosed && closedStatus === "completed" ? "default" : "secondary"}
             className={cn(
-              "shrink-0 text-[10px] px-2 py-0 h-5 font-medium",
-              isDone && "bg-success text-success-foreground hover:bg-success/90",
+              "shrink-0 text-[10px] px-2 py-0 h-5 font-medium gap-1",
+              isClosed && closedStatus === "completed" && "bg-success text-success-foreground hover:bg-success/90",
+              isClosed && closedStatus === "cancelled" && "bg-destructive/15 text-destructive hover:bg-destructive/20",
+              !isClosed && isDone && "bg-primary/15 text-primary",
             )}
           >
+            {isClosed && <Lock className="h-2.5 w-2.5" />}
             {statusLabel}
           </Badge>
         </div>
+
+        {/* Banner de fechamento */}
+        {isClosed && (
+          <div className={cn(
+            "rounded-md px-2.5 py-1.5 flex items-center gap-1.5 border",
+            closedStatus === "completed"
+              ? "border-success/30 bg-success/10"
+              : "border-destructive/30 bg-destructive/10",
+          )}>
+            {closedStatus === "completed"
+              ? <CheckCircle2 className="h-3.5 w-3.5 text-success shrink-0" />
+              : <XCircle className="h-3.5 w-3.5 text-destructive shrink-0" />}
+            <span className={cn(
+              "text-[11px] font-medium",
+              closedStatus === "completed" ? "text-success" : "text-destructive",
+            )}>
+              {closedStatus === "completed" ? "Concluído" : "Encerrado"}
+              {deal.closed_at && (
+                <span className="text-muted-foreground font-normal ml-1.5">
+                  · {format(new Date(deal.closed_at), "dd MMM", { locale: ptBR })}
+                </span>
+              )}
+            </span>
+            {deal.final_report_url && (
+              <a
+                href={deal.final_report_url}
+                target="_blank"
+                rel="noreferrer"
+                className="ml-auto text-[10px] text-primary hover:underline inline-flex items-center gap-0.5"
+              >
+                <FileDown className="h-3 w-3" />
+                Relatório
+              </a>
+            )}
+          </div>
+        )}
 
         {/* Banner de ramp-up (aquecimento) */}
         {inRampUp && (
@@ -283,14 +330,28 @@ export function CuratorDealCard({
 
         {/* Ações */}
         <div className="flex items-center gap-1.5 pt-0.5">
-          <Button
-            size="sm"
-            className="flex-1 h-9 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 font-medium text-[13px]"
-            onClick={() => onLog(deal)}
-          >
-            <Camera className="h-3.5 w-3.5" />
-            Enviar print
-          </Button>
+          {!isClosed ? (
+            <Button
+              size="sm"
+              className="flex-1 h-9 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 font-medium text-[13px]"
+              onClick={() => onLog(deal)}
+            >
+              <Camera className="h-3.5 w-3.5" />
+              Enviar print
+            </Button>
+          ) : onReopen ? (
+            <Button
+              size="sm"
+              variant="outline"
+              className="flex-1 h-9 gap-1.5 text-[13px]"
+              onClick={() => onReopen(deal)}
+            >
+              <Lock className="h-3.5 w-3.5" />
+              Reabrir
+            </Button>
+          ) : (
+            <div className="flex-1" />
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -300,6 +361,18 @@ export function CuratorDealCard({
             <History className="h-3.5 w-3.5" />
             Histórico
           </Button>
+          {!isClosed && onClose && hasBaseline && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 text-muted-foreground hover:text-foreground"
+              onClick={() => onClose(deal)}
+              aria-label="Encerrar deal"
+              title="Encerrar deal"
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" />
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="icon"
@@ -309,7 +382,7 @@ export function CuratorDealCard({
           >
             <Link2 className="h-3.5 w-3.5" />
           </Button>
-          {onEdit && (
+          {!isClosed && onEdit && (
             <Button
               variant="ghost"
               size="icon"

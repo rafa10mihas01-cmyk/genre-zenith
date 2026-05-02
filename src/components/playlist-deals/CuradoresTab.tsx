@@ -18,8 +18,10 @@ type CuratorRow = {
   totalCost: number;
   totalEarned: number;
   totalTarget: number;
-  costPerPlay: number | null;   // R$/play
-  deliveryPct: number;           // earned/target
+  costPerPlay: number | null;
+  deliveryPct: number;
+  avgScore: number;       // 0..100 — média ponderada por target
+  avgLegitShare: number;  // 0..1
 };
 
 const formatBRL = (v: number) =>
@@ -40,54 +42,59 @@ const formatCostPerPlay = (v: number | null) => {
 
 export function CuradoresTab({ deals, logs, playlists, loading }: Props) {
   const { rows, totals } = useMemo(() => {
-    const map = new Map<string, CuratorRow>();
+    type Acc = CuratorRow & { _scoreNum: number; _scoreDen: number; _legitNum: number; _legitDen: number };
+    const map = new Map<string, Acc>();
     let totalCost = 0;
     let totalEarned = 0;
     let totalTarget = 0;
+    let scoreNum = 0, scoreDen = 0;
 
     for (const d of deals) {
       const name = (d.curator_name ?? "").trim() || "—";
       const cost = Number(d.cost ?? 0) || 0;
       const target = Number(d.target_plays ?? 0) || 0;
-      const { earned } = computeCuratorStats(d, logs, playlists);
+      const stats = computeCuratorStats(d, logs, playlists);
+      const w = Math.max(target, 1); // peso = meta (deals maiores pesam mais)
 
       const row = map.get(name) ?? {
-        name,
-        dealsCount: 0,
-        totalCost: 0,
-        totalEarned: 0,
-        totalTarget: 0,
-        costPerPlay: null,
-        deliveryPct: 0,
+        name, dealsCount: 0, totalCost: 0, totalEarned: 0, totalTarget: 0,
+        costPerPlay: null, deliveryPct: 0, avgScore: 0, avgLegitShare: 1,
+        _scoreNum: 0, _scoreDen: 0, _legitNum: 0, _legitDen: 0,
       };
       row.dealsCount += 1;
       row.totalCost += cost;
-      row.totalEarned += earned;
+      row.totalEarned += stats.earned;
       row.totalTarget += target;
+      row._scoreNum += stats.score * w;
+      row._scoreDen += w;
+      row._legitNum += stats.legitShare * w;
+      row._legitDen += w;
       map.set(name, row);
 
       totalCost += cost;
-      totalEarned += earned;
+      totalEarned += stats.earned;
       totalTarget += target;
+      scoreNum += stats.score * w;
+      scoreDen += w;
     }
 
-    const rows = Array.from(map.values()).map((r) => {
-      // Usa plays entregues quando já houver entrega; senão, cai pra meta contratada
+    const rows: CuratorRow[] = Array.from(map.values()).map((r) => {
       const denom = r.totalEarned > 0 ? r.totalEarned : r.totalTarget;
       return {
-        ...r,
+        name: r.name,
+        dealsCount: r.dealsCount,
+        totalCost: r.totalCost,
+        totalEarned: r.totalEarned,
+        totalTarget: r.totalTarget,
         costPerPlay: denom > 0 ? r.totalCost / denom : null,
         deliveryPct: r.totalTarget > 0 ? Math.round((r.totalEarned / r.totalTarget) * 100) : 0,
+        avgScore: r._scoreDen > 0 ? Math.round(r._scoreNum / r._scoreDen) : 0,
+        avgLegitShare: r._legitDen > 0 ? r._legitNum / r._legitDen : 1,
       };
     });
 
-    // Ordena: melhor custo/play primeiro (quem entrega mais barato)
-    rows.sort((a, b) => {
-      if (a.costPerPlay === null && b.costPerPlay === null) return b.totalCost - a.totalCost;
-      if (a.costPerPlay === null) return 1;
-      if (b.costPerPlay === null) return -1;
-      return a.costPerPlay - b.costPerPlay;
-    });
+    // Ordena: melhor score primeiro
+    rows.sort((a, b) => b.avgScore - a.avgScore);
 
     return {
       rows,
@@ -97,12 +104,11 @@ export function CuradoresTab({ deals, logs, playlists, loading }: Props) {
         totalEarned,
         totalTarget,
         avgCostPerPlay:
-          totalEarned > 0
-            ? totalCost / totalEarned
-            : totalTarget > 0
-            ? totalCost / totalTarget
-            : null,
+          totalEarned > 0 ? totalCost / totalEarned
+          : totalTarget > 0 ? totalCost / totalTarget
+          : null,
         deliveryPct: totalTarget > 0 ? Math.round((totalEarned / totalTarget) * 100) : 0,
+        avgScore: scoreDen > 0 ? Math.round(scoreNum / scoreDen) : 0,
       },
     };
   }, [deals, logs, playlists]);
@@ -137,10 +143,10 @@ export function CuradoresTab({ deals, logs, playlists, loading }: Props) {
         />
         <KpiBig
           icon={TrendingUp}
-          label="Custo médio / play"
-          value={formatCostPerPlay(totals.avgCostPerPlay)}
-          hint={totals.totalEarned > 0 ? "Real (gasto ÷ plays entregues)" : "Estimado (gasto ÷ meta)"}
-          tone="primary"
+          label="Score médio"
+          value={`${totals.avgScore}/100`}
+          hint="Prazo + qualidade do tráfego"
+          tone={totals.avgScore >= 80 ? "success" : totals.avgScore >= 50 ? "primary" : "default"}
           loading={loading && deals.length === 0}
         />
       </section>
@@ -166,7 +172,7 @@ export function CuradoresTab({ deals, logs, playlists, loading }: Props) {
             <div>
               <h3 className="text-[15px] font-semibold tracking-tight">Comparativo por curador</h3>
               <p className="text-[12px] text-muted-foreground mt-0.5">
-                Ordenado pelo melhor custo por play
+                Ordenado por score (prazo + qualidade)
               </p>
             </div>
             <span className="text-[12px] text-muted-foreground">
@@ -183,12 +189,14 @@ export function CuradoresTab({ deals, logs, playlists, loading }: Props) {
                   <th className="text-right px-3 py-3 font-medium">Investido</th>
                   <th className="text-right px-3 py-3 font-medium">Plays</th>
                   <th className="text-right px-3 py-3 font-medium">R$/play</th>
-                  <th className="text-right px-5 py-3 font-medium">Entrega</th>
+                  <th className="text-right px-3 py-3 font-medium">Legítimo</th>
+                  <th className="text-right px-5 py-3 font-medium">Score</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((r, i) => {
-                  const isBest = i === 0 && r.costPerPlay !== null && rows.length > 1;
+                  const isBest = i === 0 && rows.length > 1 && r.avgScore >= 70;
+                  const legitPct = Math.round(r.avgLegitShare * 100);
                   return (
                     <tr
                       key={r.name}
@@ -216,23 +224,30 @@ export function CuradoresTab({ deals, logs, playlists, loading }: Props) {
                           <span className="text-muted-foreground"> / {formatNumber(r.totalTarget)}</span>
                         )}
                       </td>
-                      <td className="px-3 py-3.5 text-right tabular-nums font-semibold text-primary">
+                      <td className="px-3 py-3.5 text-right tabular-nums text-muted-foreground">
                         {formatCostPerPlay(r.costPerPlay)}
+                      </td>
+                      <td className="px-3 py-3.5 text-right">
+                        <span className={cn(
+                          "inline-flex text-[12px] font-medium tabular-nums px-2 py-0.5 rounded",
+                          legitPct >= 80 ? "bg-success/15 text-success"
+                          : legitPct >= 50 ? "bg-warning/15 text-warning"
+                          : "bg-destructive/15 text-destructive",
+                        )}>
+                          {legitPct}%
+                        </span>
                       </td>
                       <td className="px-5 py-3.5 text-right">
                         <span
                           className={cn(
-                            "inline-flex items-center text-[12px] font-medium tabular-nums px-2 py-0.5 rounded",
-                            r.deliveryPct >= 100
-                              ? "bg-success/15 text-success"
-                              : r.deliveryPct >= 80
-                              ? "bg-primary/15 text-primary"
-                              : r.deliveryPct >= 40
-                              ? "bg-warning/15 text-warning"
-                              : "bg-muted text-muted-foreground",
+                            "inline-flex items-center text-[12px] font-semibold tabular-nums px-2 py-0.5 rounded",
+                            r.avgScore >= 80 ? "bg-success/15 text-success"
+                            : r.avgScore >= 50 ? "bg-primary/15 text-primary"
+                            : r.avgScore >= 30 ? "bg-warning/15 text-warning"
+                            : "bg-destructive/15 text-destructive",
                           )}
                         >
-                          {r.totalTarget > 0 ? `${r.deliveryPct}%` : "—"}
+                          {r.avgScore}
                         </span>
                       </td>
                     </tr>

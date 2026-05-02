@@ -332,6 +332,46 @@ export function useCuratorDeals() {
     [load],
   );
 
+  const closeDeal = useCallback(
+    async (
+      dealId: string,
+      opts: {
+        status: "completed" | "cancelled";
+        reason?: string | null;
+        report_url?: string | null;
+      },
+    ) => {
+      const { error: updErr } = await supabase
+        .from("curator_deals")
+        .update({
+          closed_at: new Date().toISOString(),
+          closed_status: opts.status,
+          closed_reason: opts.reason ?? null,
+          final_report_url: opts.report_url ?? null,
+        })
+        .eq("id", dealId);
+      if (updErr) throw updErr;
+      await load();
+    },
+    [load],
+  );
+
+  const reopenDeal = useCallback(
+    async (dealId: string) => {
+      const { error: updErr } = await supabase
+        .from("curator_deals")
+        .update({
+          closed_at: null,
+          closed_status: null,
+          closed_reason: null,
+        })
+        .eq("id", dealId);
+      if (updErr) throw updErr;
+      await load();
+    },
+    [load],
+  );
+
   return {
     deals,
     logs,
@@ -344,6 +384,8 @@ export function useCuratorDeals() {
     deleteDeal,
     addLog,
     addBaseline,
+    closeDeal,
+    reopenDeal,
     reload: load,
   };
 }

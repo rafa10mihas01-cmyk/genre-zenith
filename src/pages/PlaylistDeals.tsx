@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { ListMusic, Plus, CheckCircle2, Layers, Activity, Target, Users } from "lucide-react";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
 import { KpiBig } from "@/components/KpiBig";
@@ -15,6 +16,7 @@ import { NewDealDialog } from "@/components/playlist-deals/NewDealDialog";
 import { LogPrintDialog } from "@/components/playlist-deals/LogPrintDialog";
 import { DealHistorySheet } from "@/components/playlist-deals/DealHistorySheet";
 import { CuradoresTab } from "@/components/playlist-deals/CuradoresTab";
+import { CloseDealDialog } from "@/components/playlist-deals/CloseDealDialog";
 
 type DealsTab = "active" | "done" | "all" | "curators";
 
@@ -31,8 +33,9 @@ export default function PlaylistDeals() {
   const [logDeal, setLogDeal] = useState<CuratorDeal | null>(null);
   const [detailDeal, setDetailDeal] = useState<CuratorDeal | null>(null);
   const [editDeal, setEditDeal] = useState<CuratorDeal | null>(null);
+  const [closeDealOpen, setCloseDealOpen] = useState<CuratorDeal | null>(null);
 
-  const { deals, logs, playlists, songs, loading, deleteDeal, addLog, addBaseline, reload } = useCuratorDeals();
+  const { deals, logs, playlists, songs, loading, deleteDeal, addLog, addBaseline, closeDeal, reopenDeal, reload } = useCuratorDeals();
 
   // KPIs do topo — derivados dos deals + logs + playlists
   const kpi = useMemo(() => {
@@ -45,7 +48,8 @@ export default function PlaylistDeals() {
       const target = Number(d.target_plays ?? 0);
       totalEarned += earned;
       totalTarget += target;
-      if (target > 0 && earned >= target) done++;
+      // "Concluído" agora = fechado manualmente; "Ativo" = sem closed_at
+      if (d.closed_at) done++;
       else active++;
     }
     const pct = totalTarget > 0 ? Math.round((totalEarned / totalTarget) * 100) : 0;
@@ -72,12 +76,10 @@ export default function PlaylistDeals() {
   const filtered = useMemo(() => {
     if (tab === "all") return deals;
     return deals.filter((d) => {
-      const { earned } = computeCuratorStats(d, logs, playlists);
-      const isDone =
-        Number(d.target_plays ?? 0) > 0 && earned >= Number(d.target_plays);
-      return tab === "done" ? isDone : !isDone;
+      const isClosed = !!d.closed_at;
+      return tab === "done" ? isClosed : !isClosed;
     });
-  }, [deals, logs, playlists, tab]);
+  }, [deals, tab]);
 
   const handleNew = () => setNewOpen(true);
 
@@ -87,6 +89,17 @@ export default function PlaylistDeals() {
       await deleteDeal(id);
     } catch (e) {
       console.error("[PlaylistDeals] delete error", e);
+    }
+  };
+
+  const handleReopen = async (deal: CuratorDeal) => {
+    if (!confirm(`Reabrir o deal de ${deal.curator_name}?`)) return;
+    try {
+      await reopenDeal(deal.id);
+      toast.success("Deal reaberto");
+    } catch (e) {
+      console.error("[PlaylistDeals] reopen error", e);
+      toast.error("Erro ao reabrir deal");
     }
   };
 
@@ -221,6 +234,8 @@ export default function PlaylistDeals() {
                 onDetail={(deal) => setDetailDeal(deal)}
                 onDelete={(deal) => handleDelete(deal.id)}
                 onEdit={(deal) => setEditDeal(deal)}
+                onClose={(deal) => setCloseDealOpen(deal)}
+                onReopen={handleReopen}
               />
             ))}
           </div>
@@ -259,6 +274,16 @@ export default function PlaylistDeals() {
         allPlaylists={playlists}
         onClose={() => setDetailDeal(null)}
         onReload={reload}
+      />
+
+      <CloseDealDialog
+        open={closeDealOpen !== null}
+        deal={closeDealOpen}
+        songs={closeDealOpen ? songs.filter((s) => s.deal_id === closeDealOpen.id) : []}
+        logs={logs}
+        playlists={playlists}
+        onClose={() => setCloseDealOpen(null)}
+        onConfirm={closeDeal}
       />
     </PageContainer>
   );
