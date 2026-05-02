@@ -1,4 +1,5 @@
-import { ExternalLink, ImageOff, Music2 } from "lucide-react";
+import { useState } from "react";
+import { ExternalLink, ImageOff, Music2, ClipboardPaste } from "lucide-react";
 import { format } from "date-fns";
 
 import {
@@ -13,12 +14,14 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { PrintThumbs } from "./PrintThumbs";
+import { PastePlaylistsDialog } from "./PastePlaylistsDialog";
 
 import {
   computeCuratorStats,
   type CuratorDeal,
   type CuratorDealLog,
   type CuratorPlaylist,
+  type CuratorMatchStatus,
 } from "@/lib/curatorDealsUtils";
 
 export interface DealHistorySheetProps {
