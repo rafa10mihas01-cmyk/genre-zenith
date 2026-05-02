@@ -764,10 +764,10 @@ export default function CuratorPage() {
               <button
                 type="button"
                 onClick={() => setBaseOpen((v) => !v)}
-                className="w-full flex items-start justify-between gap-3 text-left"
+                className="w-full flex items-center justify-between gap-4 text-left"
                 aria-expanded={baseOpen}
               >
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <h2 className="text-[15px] font-semibold inline-flex items-center gap-2 tracking-tight">
                     <ListMusic className="h-4 w-4 text-muted-foreground" />
                     Playlists em que a música já está
@@ -776,7 +776,7 @@ export default function CuratorPage() {
                     Presença atual da faixa no catálogo
                   </p>
                 </div>
-                <span className="inline-flex items-center gap-2 text-[12px] text-muted-foreground shrink-0 mt-0.5">
+                <span className="inline-flex items-center gap-2 text-[12px] text-muted-foreground shrink-0">
                   {basePlaylists.length} {basePlaylists.length === 1 ? "playlist" : "playlists"}
                   <ChevronDown
                     className={cn(
