@@ -173,6 +173,46 @@ export function computeCuratorStats(
   const todayPct =
     dailyGoal > 0 ? Math.min(100, Math.round((todayPlays / dailyGoal) * 100)) : 0;
 
+  // === Fase 4: qualidade do tráfego ===
+  // Considera só playlists não-baseline (entregas reais).
+  const realPlaylists = newPlaylists;
+  const totalReal = realPlaylists.length;
+  let legitCount = 0;
+  let suspiciousCount = 0;
+  for (const p of realPlaylists) {
+    const status = (p.match_status ?? "curator") as CuratorMatchStatus;
+    if (status === "suspicious") suspiciousCount++;
+    else if (status === "curator" || status === "organic" || status === "editorial") legitCount++;
+  }
+  const legitShare = totalReal > 0 ? legitCount / totalReal : 1; // sem entregas ainda → assume 100%
+  const suspiciousShare = totalReal > 0 ? suspiciousCount / totalReal : 0;
+
+  // === Prazo cumprido ===
+  // onTime: bateu meta dentro de ends_at? (precisa earned>=target E último log <= ends_at)
+  let onTime: boolean | null = null;
+  if (target > 0 && deal.ends_at) {
+    const endsMs = new Date(deal.ends_at).getTime();
+    const reachedTarget = earned >= target;
+    if (reachedTarget) {
+      // pegamos o primeiro log onde acumulado >= target
+      const lastLog = nonBaselineLogs[nonBaselineLogs.length - 1];
+      const reachedAt = lastLog ? new Date(lastLog.created_at).getTime() : Date.now();
+      onTime = reachedAt <= endsMs;
+    } else {
+      // ainda não bateu — se já passou do prazo, é false; senão indefinido
+      onTime = Date.now() <= endsMs ? null : false;
+    }
+  }
+
+  // === Score 0..100 ===
+  // 60% prazo cumprido + 40% share legítimo
+  // - prazo: onTime true=100, null=70 (em andamento), false=20
+  // - legit: legitShare * 100, com penalidade dura se suspiciousShare > 0.3
+  const prazoScore = onTime === true ? 100 : onTime === false ? 20 : 70;
+  let legitScore = legitShare * 100;
+  if (suspiciousShare >= 0.3) legitScore = Math.min(legitScore, 40);
+  const score = Math.round(prazoScore * 0.6 + legitScore * 0.4);
+
   return {
     earned,
     pct,
@@ -186,5 +226,9 @@ export function computeCuratorStats(
     baselinePlaylists,
     dealLogs,
     nonBaselineLogs,
+    legitShare,
+    suspiciousShare,
+    onTime,
+    score,
   };
 }
