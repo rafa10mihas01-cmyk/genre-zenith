@@ -325,7 +325,7 @@ Deno.serve(async (req) => {
     let dealsQuery = supabase
       .from("curator_deals")
       .select(
-        "id, user_id, song_name, curator_name, spotify_owner_id, started_at, baseline_plays, target_plays",
+        "id, user_id, song_name, curator_name, spotify_owner_id, started_at, ends_at, baseline_plays, target_plays",
       )
       .eq("user_id", user.id);
 
