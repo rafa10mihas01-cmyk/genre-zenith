@@ -545,7 +545,7 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDe
   // ============================================================
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto bg-card border-border/60 rounded-2xl shadow-2xl p-6">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Editar deal" : "Novo Deal"}</DialogTitle>
           <DialogDescription>
