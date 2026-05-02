@@ -1235,7 +1235,7 @@ export default function CuratorPage() {
 
         {/* Histórico de prints (apenas os enviados pelo curador) */}
         {(() => {
-          const curatorLogs = logs.filter((l) => !l.is_baseline);
+          const curatorLogs = visibleLogs.filter((l) => !l.is_baseline);
           return (
             <Card className="nx-card !p-0 border-border">
               <CardContent className="p-7 sm:p-8 space-y-5">
