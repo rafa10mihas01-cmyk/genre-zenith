@@ -451,7 +451,7 @@ export default function CuratorPage() {
   const isDone = stats.target > 0 && stats.earned >= stats.target;
 
   return (
-    <div className="relative min-h-screen bg-black px-5 sm:px-10 md:px-16 lg:px-24 py-10 sm:py-14 overflow-hidden">
+    <div className="relative min-h-screen bg-black py-10 sm:py-14 overflow-hidden">
       {/* Atmosfera verde — glows espalhados pela página inteira */}
       <div
         aria-hidden
@@ -473,7 +473,9 @@ export default function CuratorPage() {
           ].join(", "),
         }}
       />
-      <div className="relative z-10 max-w-xl mx-auto space-y-7 sm:space-y-8">
+      {/* Container central global — mobile: full width, tablet: 900px, desktop: 1200px */}
+      <div className="relative z-10 w-full max-w-[1200px] mx-auto px-5 sm:px-6 md:px-8">
+        <div className="max-w-xl md:max-w-2xl mx-auto space-y-7 sm:space-y-8">
         {/* Logo NexEngine */}
         <div className="flex justify-center pb-4 sm:pb-2">
           <NexEngineLogo variant="dark" size={28} />
