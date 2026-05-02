@@ -138,6 +138,7 @@ function PlaylistItem({ p }: { p: CuratorPlaylist }) {
 export function DealHistorySheet({
   open,
   deal,
+  songs = [],
   allLogs,
   allPlaylists,
   onClose,
@@ -145,7 +146,16 @@ export function DealHistorySheet({
 }: DealHistorySheetProps) {
   const [pasteOpen, setPasteOpen] = useState(false);
   const [longTailOpen, setLongTailOpen] = useState(false);
+  const [selectedLogId, setSelectedLogId] = useState<string | null>(null);
   const stats = deal ? computeCuratorStats(deal, allLogs, allPlaylists) : null;
+
+  // Helper: pega a música associada a um log (via song_id), com fallback pro deal
+  const getSongForLog = (log: CuratorDealLog): CuratorDealSong | null => {
+    if (log.song_id) {
+      return songs.find((s) => s.id === log.song_id) ?? null;
+    }
+    return null;
+  };
 
   const reversedLogs = stats ? [...stats.dealLogs].reverse() : [];
 
