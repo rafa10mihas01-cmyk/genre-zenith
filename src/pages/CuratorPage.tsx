@@ -218,6 +218,18 @@ export default function CuratorPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const hasMultipleSongs = songs.length > 1;
+
+  // Resolve a Spotify URL com segurança: usa spotify_url quando presente,
+  // senão deriva de spotify_playlist_id. Retorna null quando não dá pra abrir.
+  const resolveSpotifyPlaylistUrl = (
+    p: { spotify_url?: string | null; spotify_playlist_id?: string | null },
+  ): string | null => {
+    const raw = (p.spotify_url ?? "").trim();
+    if (raw && /^https?:\/\//i.test(raw)) return raw;
+    const id = (p.spotify_playlist_id ?? "").trim();
+    if (id) return `https://open.spotify.com/playlist/${id}`;
+    return null;
+  };
   const selectedSong = useMemo(
     () => (selectedSongId ? songs.find((s) => s.id === selectedSongId) ?? null : null),
     [selectedSongId, songs],
