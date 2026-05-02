@@ -362,7 +362,7 @@ export function LogPrintDialog({
         }));
         const baselinePlaylists =
           fromPaste.length > 0 ? fromPaste : fromAi.length > 0 ? fromAi : fromManual;
-        await addBaseline(deal.id, finalValue as number, baselinePlaylists, printUrls);
+        await addBaseline(deal.id, finalValue as number, baselinePlaylists, printUrls, selectedSongId);
         toast.success("Baseline registrada", {
           description: `${formatPlays(finalValue as number)} plays · ${baselinePlaylists.length} playlist(s) iniciais · ${printUrls.length} print(s)`,
         });
