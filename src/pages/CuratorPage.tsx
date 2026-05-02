@@ -234,6 +234,7 @@ export default function CuratorPage() {
     () => (selectedSongId ? songs.find((s) => s.id === selectedSongId) ?? null : null),
     [selectedSongId, songs],
   );
+  const playlistSongRequired = hasMultipleSongs && !selectedSongId;
 
   // Playlists filtradas pela música selecionada (quando aplicável)
   const visiblePlaylists = useMemo(() => {
@@ -473,6 +474,10 @@ export default function CuratorPage() {
 
   const handleAdd = async () => {
     if (!token || !url.trim()) return;
+    if (playlistSongRequired) {
+      toast.error("Selecione a música antes de adicionar a playlist");
+      return;
+    }
     const realToken = deal?.public_token ?? token;
     setSubmitting(true);
     const { data, error: fnErr } = await supabase.functions.invoke(
@@ -537,6 +542,10 @@ export default function CuratorPage() {
 
   const handleImportFile = async (file: File) => {
     if (!token) return;
+    if (playlistSongRequired) {
+      toast.error("Selecione a música antes de importar playlists");
+      return;
+    }
     setImporting(true);
     try {
       const urls = await extractUrlsFromSheet(file);
@@ -1474,9 +1483,40 @@ export default function CuratorPage() {
             <div>
               <h2 className="text-[15px] font-semibold tracking-tight">Adicionar playlist</h2>
               <p className="text-[12px] text-muted-foreground mt-1.5 leading-snug">
-                Cole o link de uma playlist do Spotify ou importe um lote em planilha
+                {playlistSongRequired
+                  ? "Selecione a música da campanha antes de adicionar a playlist"
+                  : selectedSong
+                    ? `Playlist será vinculada em ${selectedSong.song_name}`
+                    : "Cole o link de uma playlist do Spotify ou importe um lote em planilha"}
               </p>
             </div>
+            {hasMultipleSongs && (
+              <div className="grid grid-cols-1 gap-2">
+                {songs.map((s) => {
+                  const isSelected = selectedSongId === s.id;
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => setSelectedSongId(s.id)}
+                      className={cn(
+                        "w-full flex items-center gap-3 rounded-xl px-3 py-2 text-left transition-all ring-1",
+                        isSelected
+                          ? "bg-primary/10 ring-primary/50 text-foreground"
+                          : "bg-muted/30 ring-border hover:bg-muted/50 text-muted-foreground",
+                      )}
+                    >
+                      {s.song_cover_url ? (
+                        <img src={s.song_cover_url} alt={s.song_name} className="w-8 h-8 rounded-md object-cover ring-1 ring-border shrink-0" />
+                      ) : (
+                        <div className="w-8 h-8 rounded-md bg-muted shrink-0" />
+                      )}
+                      <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">{s.song_name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
             <Input
               placeholder="https://open.spotify.com/playlist/..."
               value={url}
@@ -1486,7 +1526,7 @@ export default function CuratorPage() {
             />
             <Button
               onClick={handleAdd}
-              disabled={submitting || importing || !url.trim()}
+              disabled={submitting || importing || !url.trim() || playlistSongRequired}
               className="w-full h-10 text-[14px] font-semibold rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-[0_8px_24px_-8px_hsl(141_76%_48%_/_0.5)] transition-all duration-200"
             >
               {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
@@ -1517,7 +1557,7 @@ export default function CuratorPage() {
                 variant="ghost"
                 className="h-10 w-full px-4 text-[13px] rounded-xl bg-muted/40 ring-1 ring-border hover:bg-border hover:ring-border [&>svg]:shrink-0 truncate"
                 onClick={() => fileInputRef.current?.click()}
-                disabled={submitting || importing}
+                disabled={submitting || importing || playlistSongRequired}
               >
                 {importing ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
