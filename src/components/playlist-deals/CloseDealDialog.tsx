@@ -24,6 +24,7 @@ import {
   type CuratorDealLog,
   type CuratorDealSong,
   type CuratorPlaylist,
+  type CuratorDealProgress,
 } from "@/lib/curatorDealsUtils";
 import { buildDealClosurePdf, uploadClosurePdf } from "@/lib/dealClosurePdf";
 
@@ -33,6 +34,7 @@ export interface CloseDealDialogProps {
   songs: CuratorDealSong[];
   logs: CuratorDealLog[];
   playlists: CuratorPlaylist[];
+  progress?: CuratorDealProgress | null;
   onClose: () => void;
   onConfirm: (
     dealId: string,
@@ -41,7 +43,7 @@ export interface CloseDealDialogProps {
 }
 
 export function CloseDealDialog({
-  open, deal, songs, logs, playlists, onClose, onConfirm,
+  open, deal, songs, logs, playlists, progress, onClose, onConfirm,
 }: CloseDealDialogProps) {
   const [status, setStatus] = useState<"completed" | "cancelled">("completed");
   const [reason, setReason] = useState("");
@@ -66,7 +68,7 @@ export function CloseDealDialog({
   }, [open]);
 
   if (!deal) return null;
-  const stats = computeCuratorStats(deal, logs, playlists);
+  const stats = computeCuratorStats(deal, logs, playlists, progress ?? null);
   const target = Number(deal.target_plays ?? 0);
   const hitTarget = target > 0 && stats.earned >= target;
 
