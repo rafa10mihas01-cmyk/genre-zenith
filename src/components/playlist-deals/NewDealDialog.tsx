@@ -75,6 +75,8 @@ export interface NewDealDialogProps {
   editDeal?: CuratorDeal | null;
   /** Músicas associadas ao deal (somente em modo edição). */
   editSongs?: CuratorDealSong[];
+  /** Callback para a página recarregar a lista após salvar. */
+  onSaved?: () => void | Promise<void>;
 }
 
 // ============================================================
@@ -158,7 +160,7 @@ function songTarget(s: SongRow): number {
 // ============================================================
 // Componente
 // ============================================================
-export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDealDialogProps) {
+export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved }: NewDealDialogProps) {
   const { addDeal, updateDeal, addCurator, updateCurator, curators, balances } = useCuratorDeals();
   const isEdit = Boolean(editDeal);
 
@@ -642,6 +644,12 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs }: NewDe
       }
       // Submit OK: limpa rascunho persistido
       draft.clearDraft();
+      // Notifica a página para recarregar a lista (instâncias do hook são independentes)
+      try {
+        await onSaved?.();
+      } catch (e) {
+        console.error("[NewDealDialog] onSaved error", e);
+      }
       onOpenChange(false);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
