@@ -96,7 +96,12 @@ export function CuradoresTab({ deals, logs, playlists, loading }: Props) {
         totalCost,
         totalEarned,
         totalTarget,
-        avgCostPerPlay: totalEarned > 0 ? totalCost / totalEarned : null,
+        avgCostPerPlay:
+          totalEarned > 0
+            ? totalCost / totalEarned
+            : totalTarget > 0
+            ? totalCost / totalTarget
+            : null,
         deliveryPct: totalTarget > 0 ? Math.round((totalEarned / totalTarget) * 100) : 0,
       },
     };
