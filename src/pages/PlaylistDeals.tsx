@@ -196,7 +196,18 @@ export default function PlaylistDeals() {
       {/* Conteúdo — altura mínima estável evita layout shift entre abas */}
       <div className="min-h-[480px] animate-tab-in">
         {tab === "curators" ? (
-          <CuradoresTab deals={deals} logs={logs} playlists={playlists} alerts={alerts} loading={loading} />
+          <CuradoresTab
+            deals={deals}
+            logs={logs}
+            playlists={playlists}
+            songs={songs}
+            curators={curators}
+            balances={balances}
+            alerts={alerts}
+            loading={loading}
+            onUpdateCurator={updateCurator}
+            onArchiveCurator={archiveCurator}
+          />
         ) : loading && deals.length === 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[0, 1, 2].map((i) => (
