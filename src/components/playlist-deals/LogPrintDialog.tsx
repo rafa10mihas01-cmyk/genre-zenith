@@ -48,6 +48,12 @@ export interface LogPrintDialogProps {
     printUrls?: string[],
     songId?: string | null,
   ) => Promise<void>;
+  insertSnapshots?: (
+    dealId: string,
+    songId: string | null,
+    matches: { playlist_id: string; plays: number; confidence?: number | null }[],
+    opts: { isBaseline: boolean; printUrl?: string | null; capturedAt?: string },
+  ) => Promise<void>;
 }
 
 type PrintItem = {
