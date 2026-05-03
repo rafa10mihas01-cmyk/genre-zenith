@@ -414,6 +414,11 @@ export function useCuratorDeals() {
         started_at: s.started_at ?? null,
         ends_at: s.ends_at ?? null,
         ramp_up_days: s.ramp_up_days ?? input.ramp_up_days ?? 5,
+        // Auto-coleta de baseline: bot pega na próxima rodada (~1-2 min)
+        auto_collect: true,
+        auto_collect_status: "idle",
+        auto_collect_interval_minutes: 1440, // 1x/dia depois do baseline
+        next_auto_collect_at: new Date().toISOString(),
       }));
       const { error: songsErr } = await supabase
         .from("curator_deal_songs")
