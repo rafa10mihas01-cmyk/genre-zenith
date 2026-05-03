@@ -160,14 +160,19 @@ Deno.serve(async (req) => {
   const intervalMin = songRow?.auto_collect_interval_minutes ?? 120;
   const nextAt = new Date(Date.now() + intervalMin * 60_000).toISOString();
 
+  const updatePayload: Record<string, unknown> = {
+    auto_collect_status: "idle",
+    auto_collect_error: null,
+    last_auto_collect_at: new Date().toISOString(),
+    next_auto_collect_at: nextAt,
+  };
+  if (print_taken === true) {
+    updatePayload.last_print_at = new Date().toISOString();
+  }
+
   await supabase
     .from("curator_deal_songs")
-    .update({
-      auto_collect_status: "idle",
-      auto_collect_error: null,
-      last_auto_collect_at: new Date().toISOString(),
-      next_auto_collect_at: nextAt,
-    })
+    .update(updatePayload)
     .eq("id", song_id);
 
   await supabase.from("collection_logs").insert({
