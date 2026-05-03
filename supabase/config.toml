@@ -14,3 +14,12 @@ verify_jwt = false
 
 [functions.cron-reconcile-curator-deals]
 verify_jwt = false
+
+[functions.bot-collect-queue]
+verify_jwt = false
+
+[functions.bot-ingest-snapshot]
+verify_jwt = false
+
+[functions.bot-heartbeat]
+verify_jwt = false
