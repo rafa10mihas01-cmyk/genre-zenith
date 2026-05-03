@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.bot-heartbeat]
 verify_jwt = false
+
+[functions.bot-upload-print]
+verify_jwt = false
