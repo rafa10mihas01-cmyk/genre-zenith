@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { timeAgo, formatNumber } from "@/lib/format";
+import { BotSaudeCard } from "./BotSaudeCard";
 
 type Health = {
   apify: { ok: boolean; reason?: string };
