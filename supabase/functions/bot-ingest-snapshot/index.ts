@@ -72,6 +72,13 @@ Deno.serve(async (req) => {
     return jr({ error: "snapshots required" }, 400);
   }
 
+  // Detecta se essa é a PRIMEIRA coleta dessa song → marca como baseline
+  const { count: existingLogs } = await supabase
+    .from("curator_deal_logs")
+    .select("id", { count: "exact", head: true })
+    .eq("song_id", song_id);
+  const isBaseline = (existingLogs ?? 0) === 0;
+
   // Para cada snapshot, achar/criar curator_playlist e inserir snapshot.
   // Função utilitária inline pra extrair playlist id do url.
   const extractId = (url: string | null | undefined) => {
@@ -134,7 +141,7 @@ Deno.serve(async (req) => {
       plays,
       source: snap.source ?? "spotify_for_artists",
       match_method: sId ? "spotify_id" : "name",
-      is_baseline: false,
+      is_baseline: isBaseline,
     });
     if (insErr) skipped++; else inserted++;
   }
@@ -145,9 +152,9 @@ Deno.serve(async (req) => {
       deal_id,
       song_id,
       total_plays: Math.max(0, total_plays),
-      note: note ?? `[bot] auto-collect`,
+      note: note ?? (isBaseline ? `[bot] baseline inicial` : `[bot] auto-collect`),
       print_urls: print_urls ?? [],
-      is_baseline: false,
+      is_baseline: isBaseline,
     });
   }
 
