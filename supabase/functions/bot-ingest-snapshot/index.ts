@@ -141,7 +141,7 @@ Deno.serve(async (req) => {
       plays,
       source: snap.source ?? "spotify_for_artists",
       match_method: sId ? "spotify_id" : "name",
-      is_baseline: false,
+      is_baseline: isBaseline,
     });
     if (insErr) skipped++; else inserted++;
   }
