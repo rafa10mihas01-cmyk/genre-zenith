@@ -41,6 +41,13 @@ export type CuratorDealSong = {
   ramp_up_days?: number;
   created_at: string;
   updated_at: string;
+  auto_collect?: boolean;
+  auto_collect_status?: "idle" | "queued" | "error" | "done" | string;
+  auto_collect_interval_minutes?: number;
+  auto_collect_error?: string | null;
+  next_auto_collect_at?: string | null;
+  last_auto_collect_at?: string | null;
+  last_print_at?: string | null;
 };
 
 export type CuratorMatchStatus =
