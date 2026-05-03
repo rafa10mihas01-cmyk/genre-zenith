@@ -242,6 +242,12 @@ export function CuratorDealCard({
           </div>
         )}
 
+
+        {/* Status do robô (auto-coleta) */}
+        {!isClosed && songs.length > 0 && (
+          <BotStatusRow songs={songs} />
+        )}
+
         {/* Aviso sem baseline */}
         {!hasBaseline && (
           <div className="rounded-md border border-warning/30 bg-warning/10 px-2.5 py-1.5 flex items-center gap-1.5">
