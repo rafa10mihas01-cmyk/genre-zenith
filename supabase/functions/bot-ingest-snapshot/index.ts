@@ -95,28 +95,23 @@ Deno.serve(async (req) => {
     const sId = extractId(sUrl);
     const plays = Math.max(0, parseInt(String(snap.plays ?? 0)) || 0);
 
-    // Busca playlist existente
+    // Match robusto via RPC: spotify_id → nome normalizado → fuzzy ≥0.6
     let playlistId: string | null = null;
-    if (sId) {
-      const { data } = await supabase
-        .from("curator_playlists")
-        .select("id")
-        .eq("deal_id", deal_id)
-        .eq("spotify_playlist_id", sId)
-        .maybeSingle();
-      playlistId = data?.id ?? null;
-    }
-    if (!playlistId && sName) {
-      const { data } = await supabase
-        .from("curator_playlists")
-        .select("id")
-        .eq("deal_id", deal_id)
-        .ilike("playlist_name", sName)
-        .maybeSingle();
-      playlistId = data?.id ?? null;
+    let matchMethod: string | null = null;
+    {
+      const { data: matchData } = await supabase.rpc("match_curator_playlist", {
+        p_deal_id: deal_id,
+        p_spotify_playlist_id: sId,
+        p_playlist_name: sName,
+      });
+      const row = Array.isArray(matchData) ? matchData[0] : null;
+      if (row?.playlist_id) {
+        playlistId = row.playlist_id as string;
+        matchMethod = (row.match_method as string) ?? null;
+      }
     }
 
-    // Se não existe, cria
+    // Se não encontrou, cria nova
     if (!playlistId) {
       const { data: created, error: cErr } = await supabase
         .from("curator_playlists")
@@ -132,6 +127,7 @@ Deno.serve(async (req) => {
         .single();
       if (cErr) { skipped++; continue; }
       playlistId = created.id;
+      matchMethod = "created";
     }
 
     const { error: insErr } = await supabase.from("curator_deal_snapshots").insert({
@@ -140,7 +136,7 @@ Deno.serve(async (req) => {
       playlist_id: playlistId,
       plays,
       source: snap.source ?? "spotify_for_artists",
-      match_method: sId ? "spotify_id" : "name",
+      match_method: matchMethod ?? (sId ? "spotify_id" : "name"),
       is_baseline: isBaseline,
     });
     if (insErr) skipped++; else inserted++;
