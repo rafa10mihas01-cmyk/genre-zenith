@@ -500,6 +500,10 @@ export function useCuratorDeals() {
         started_at: s.started_at ?? null,
         ends_at: s.ends_at ?? null,
         ramp_up_days: s.ramp_up_days ?? input.ramp_up_days ?? 5,
+        auto_collect: true,
+        auto_collect_status: "idle",
+        auto_collect_interval_minutes: 1440,
+        next_auto_collect_at: new Date().toISOString(),
       }));
       const { error: songsErr } = await supabase
         .from("curator_deal_songs")
