@@ -152,9 +152,9 @@ Deno.serve(async (req) => {
       deal_id,
       song_id,
       total_plays: Math.max(0, total_plays),
-      note: note ?? `[bot] auto-collect`,
+      note: note ?? (isBaseline ? `[bot] baseline inicial` : `[bot] auto-collect`),
       print_urls: print_urls ?? [],
-      is_baseline: false,
+      is_baseline: isBaseline,
     });
   }
 
