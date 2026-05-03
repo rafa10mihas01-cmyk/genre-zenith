@@ -325,6 +325,7 @@ export type Database = {
           ends_at: string | null
           id: string
           last_auto_collect_at: string | null
+          last_print_at: string | null
           next_auto_collect_at: string | null
           position: number
           ramp_up_days: number
@@ -350,6 +351,7 @@ export type Database = {
           ends_at?: string | null
           id?: string
           last_auto_collect_at?: string | null
+          last_print_at?: string | null
           next_auto_collect_at?: string | null
           position?: number
           ramp_up_days?: number
@@ -375,6 +377,7 @@ export type Database = {
           ends_at?: string | null
           id?: string
           last_auto_collect_at?: string | null
+          last_print_at?: string | null
           next_auto_collect_at?: string | null
           position?: number
           ramp_up_days?: number
