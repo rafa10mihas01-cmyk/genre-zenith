@@ -121,6 +121,39 @@ export type Database = {
         }
         Relationships: []
       }
+      bot_heartbeats: {
+        Row: {
+          bot_name: string
+          created_at: string
+          id: string
+          last_collect_at: string | null
+          message: string | null
+          metadata: Json
+          spotify_session_valid: boolean
+          status: string
+        }
+        Insert: {
+          bot_name?: string
+          created_at?: string
+          id?: string
+          last_collect_at?: string | null
+          message?: string | null
+          metadata?: Json
+          spotify_session_valid?: boolean
+          status?: string
+        }
+        Update: {
+          bot_name?: string
+          created_at?: string
+          id?: string
+          last_collect_at?: string | null
+          message?: string | null
+          metadata?: Json
+          spotify_session_valid?: boolean
+          status?: string
+        }
+        Relationships: []
+      }
       collection_logs: {
         Row: {
           acao: string
@@ -280,6 +313,10 @@ export type Database = {
       }
       curator_deal_songs: {
         Row: {
+          auto_collect: boolean
+          auto_collect_error: string | null
+          auto_collect_interval_minutes: number
+          auto_collect_status: string
           baseline_plays: number
           created_at: string
           daily_goal: number
@@ -287,6 +324,8 @@ export type Database = {
           duration_days: number
           ends_at: string | null
           id: string
+          last_auto_collect_at: string | null
+          next_auto_collect_at: string | null
           position: number
           ramp_up_days: number
           song_artist: string | null
@@ -299,6 +338,10 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          auto_collect?: boolean
+          auto_collect_error?: string | null
+          auto_collect_interval_minutes?: number
+          auto_collect_status?: string
           baseline_plays?: number
           created_at?: string
           daily_goal?: number
@@ -306,6 +349,8 @@ export type Database = {
           duration_days?: number
           ends_at?: string | null
           id?: string
+          last_auto_collect_at?: string | null
+          next_auto_collect_at?: string | null
           position?: number
           ramp_up_days?: number
           song_artist?: string | null
@@ -318,6 +363,10 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          auto_collect?: boolean
+          auto_collect_error?: string | null
+          auto_collect_interval_minutes?: number
+          auto_collect_status?: string
           baseline_plays?: number
           created_at?: string
           daily_goal?: number
@@ -325,6 +374,8 @@ export type Database = {
           duration_days?: number
           ends_at?: string | null
           id?: string
+          last_auto_collect_at?: string | null
+          next_auto_collect_at?: string | null
           position?: number
           ramp_up_days?: number
           song_artist?: string | null
