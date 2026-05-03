@@ -415,3 +415,87 @@ export function CuratorDealCard({
     </Card>
   );
 }
+
+// Mini-painel do robô: status + countdown pra próxima coleta
+function BotStatusRow({ songs }: { songs: CuratorDealSong[] }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const active = songs.filter((s) => s.auto_collect);
+  if (active.length === 0) {
+    return (
+      <div className="rounded-md border border-border/40 bg-[hsl(var(--elevated))] px-2.5 py-1.5 flex items-center gap-1.5">
+        <Bot className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        <span className="text-[11px] text-muted-foreground">Auto-coleta desligada</span>
+      </div>
+    );
+  }
+
+  const queued = active.find((s) => s.auto_collect_status === "queued");
+  const errored = active.find((s) => s.auto_collect_status === "error");
+
+  // próxima coleta = menor next_auto_collect_at entre as ativas
+  const nextTs = active
+    .map((s) => (s.next_auto_collect_at ? new Date(s.next_auto_collect_at).getTime() : Number.POSITIVE_INFINITY))
+    .reduce((a, b) => Math.min(a, b), Number.POSITIVE_INFINITY);
+
+  const lastTs = active
+    .map((s) => (s.last_auto_collect_at ? new Date(s.last_auto_collect_at).getTime() : 0))
+    .reduce((a, b) => Math.max(a, b), 0);
+
+  const diff = Number.isFinite(nextTs) ? nextTs - now : null;
+
+  let icon = <Bot className="h-3.5 w-3.5 text-primary shrink-0" />;
+  let tone = "border-primary/25 bg-primary/5 text-primary";
+  let label: string;
+
+  if (queued) {
+    icon = <Loader2 className="h-3.5 w-3.5 text-primary shrink-0 animate-spin" />;
+    label = "Robô coletando agora…";
+  } else if (errored) {
+    icon = <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0" />;
+    tone = "border-warning/30 bg-warning/10 text-warning";
+    label = "Última tentativa falhou — vai tentar de novo";
+  } else if (diff === null) {
+    label = "Robô agendado";
+  } else if (diff <= 0) {
+    label = "Pronto pra coletar — esperando o robô bater";
+  } else {
+    label = `Próxima coleta em ${formatCountdown(diff)}`;
+  }
+
+  return (
+    <div className={cn("rounded-md border px-2.5 py-1.5 flex items-center gap-1.5", tone)}>
+      {icon}
+      <span className="text-[11px] font-medium tabular-nums">{label}</span>
+      {lastTs > 0 && (
+        <span className="text-[10px] text-muted-foreground ml-auto">
+          última {formatRelative(now - lastTs)}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function formatCountdown(ms: number): string {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}min ${s % 60}s`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ${m % 60}min`;
+  return `${Math.floor(h / 24)}d ${h % 24}h`;
+}
+
+function formatRelative(ms: number): string {
+  const s = Math.floor(ms / 1000);
+  if (s < 60) return `há ${s}s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `há ${m}min`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `há ${h}h`;
+  return `há ${Math.floor(h / 24)}d`;
+}
