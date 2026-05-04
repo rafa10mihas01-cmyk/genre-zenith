@@ -1,6 +1,7 @@
 // fetch-spotify-meta — extrai metadados públicos de um link do Spotify
-// (track / playlist / album) usando o endpoint oEmbed público.
-// Sem auth (rota pública).
+// (track / playlist / album). Combina oEmbed (título + thumbnail) com
+// scrape de og:description da página pública pra extrair o artista
+// quando o oEmbed não traz no formato "Title - Artist".
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 
 function jr(p: unknown, status = 200) {
@@ -10,8 +11,56 @@ function jr(p: unknown, status = 200) {
   });
 }
 
-// Aceita URLs com prefixo de localização (ex: /intl-pt/) e variações de host
 const SPOTIFY_URL_RE = /spotify\.com\/(?:intl-[a-z]{2}\/)?(track|playlist|album)\/([A-Za-z0-9]+)/i;
+const UA = "Mozilla/5.0 (compatible; NexEngine/1.0)";
+
+function pickMeta(html: string, prop: string): string | null {
+  // og:description / og:title etc — aceita aspas simples ou duplas, ordem flexível
+  const re = new RegExp(
+    `<meta[^>]+property=["']${prop}["'][^>]+content=["']([^"']+)["']`,
+    "i",
+  );
+  const m = html.match(re);
+  if (m) return m[1];
+  const re2 = new RegExp(
+    `<meta[^>]+content=["']([^"']+)["'][^>]+property=["']${prop}["']`,
+    "i",
+  );
+  const m2 = html.match(re2);
+  return m2 ? m2[1] : null;
+}
+
+function decodeEntities(s: string): string {
+  return s
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&middot;/g, "·");
+}
+
+// Extrai artista de og:description. Formato típico Spotify track:
+// "Song · Artist · Song · 2024" ou "Música de Artist no Spotify."
+function extractArtistFromDescription(desc: string | null, title: string | null): string | null {
+  if (!desc) return null;
+  const d = decodeEntities(desc);
+  // Padrão 1: "X · Artist · Song · 2024"
+  const parts = d.split("·").map((p) => p.trim()).filter(Boolean);
+  if (parts.length >= 2) {
+    // Frequentemente: [title, artist, ...]
+    const t = (title || "").toLowerCase().trim();
+    for (const p of parts) {
+      if (p.toLowerCase() !== t && !/^\d{4}$/.test(p) && p.length < 80) {
+        return p;
+      }
+    }
+  }
+  // Padrão 2 (PT): "Música · Artist no Spotify"
+  const m = d.match(/(?:Música|Song|Listen to .+? on Spotify\. )([^·]+?) (?:no Spotify|on Spotify)/i);
+  if (m) return m[1].trim();
+  return null;
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -29,22 +78,54 @@ Deno.serve(async (req) => {
     const type = match[1] as "track" | "playlist" | "album";
     const id = match[2];
 
+    // 1) oEmbed — título + thumbnail oficiais
     const oembedUrl = `https://open.spotify.com/oembed?url=${encodeURIComponent(url)}`;
-    const res = await fetch(oembedUrl, {
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; NexEngine/1.0)" },
-    });
-
-    if (!res.ok) {
-      return jr({ ok: false, error: `oEmbed retornou ${res.status}` }, 200);
+    const oembedRes = await fetch(oembedUrl, { headers: { "User-Agent": UA } });
+    let title: string | null = null;
+    let thumbnail_url: string | null = null;
+    if (oembedRes.ok) {
+      const data = await oembedRes.json().catch(() => ({}));
+      title = data?.title ?? null;
+      thumbnail_url = data?.thumbnail_url ?? null;
     }
 
-    const data = await res.json();
+    // 2) Parse "Title - Artist" se vier nesse formato
+    let parsedTitle = title;
+    let parsedArtist: string | null = null;
+    if (title && title.includes(" - ")) {
+      const idx = title.indexOf(" - ");
+      parsedTitle = title.slice(0, idx).trim();
+      parsedArtist = title.slice(idx + 3).trim();
+    }
+
+    // 3) Fallback: scrape og:description da página pública pra pegar artista
+    if (!parsedArtist && type === "track") {
+      try {
+        const pageUrl = `https://open.spotify.com/${type}/${id}`;
+        const pageRes = await fetch(pageUrl, {
+          headers: { "User-Agent": UA, "Accept-Language": "en-US,en;q=0.9" },
+        });
+        if (pageRes.ok) {
+          const html = await pageRes.text();
+          const ogDesc = pickMeta(html, "og:description");
+          const ogTitle = pickMeta(html, "og:title");
+          parsedArtist = extractArtistFromDescription(ogDesc, parsedTitle ?? ogTitle);
+          if (!parsedTitle && ogTitle) parsedTitle = decodeEntities(ogTitle);
+        }
+      } catch {
+        // ignora — artista null é aceitável aqui, mas o cliente vai validar
+      }
+    }
+
     return jr({
       ok: true,
       type,
       id,
-      title: data?.title ?? null,
-      thumbnail_url: data?.thumbnail_url ?? null,
+      title: parsedTitle,
+      artist: parsedArtist,
+      thumbnail_url,
+      // mantém compat: o front antigo lia data.title e fazia split " - "
+      raw_title: title,
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
