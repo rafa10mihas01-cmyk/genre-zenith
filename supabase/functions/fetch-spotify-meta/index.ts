@@ -62,6 +62,21 @@ function extractArtistFromDescription(desc: string | null, title: string | null)
   return null;
 }
 
+// Pega só o artista PRINCIPAL — sem features, colabs, vírgulas, "&", "feat.", etc.
+// O Spotify for Artists busca pelo nome do dono da faixa, então passar a string toda
+// (ex: "Kaue Mc, WR Original, DJ CLEBER") faz a busca falhar / abrir o seletor de artistas.
+function pickPrimaryArtist(raw: string | null): string | null {
+  if (!raw) return null;
+  let s = raw.trim();
+  // remove features e colabs
+  s = s.replace(/\s*\((?:feat\.?|ft\.?|with|com)[^)]*\)/gi, "");
+  s = s.replace(/\s*\[(?:feat\.?|ft\.?|with|com)[^\]]*\]/gi, "");
+  s = s.split(/\s+(?:feat\.?|ft\.?)\s+/i)[0];
+  // pega antes de qualquer separador de múltiplos artistas
+  s = s.split(/\s*(?:,|&|\sx\s|\se\s|\sand\s|\swith\s|\/|·|\|)\s*/i)[0];
+  return s.trim() || null;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -117,14 +132,16 @@ Deno.serve(async (req) => {
       }
     }
 
+    const primaryArtist = pickPrimaryArtist(parsedArtist);
+
     return jr({
       ok: true,
       type,
       id,
       title: parsedTitle,
-      artist: parsedArtist,
+      artist: primaryArtist,        // ← só o principal (usado pelo bot)
+      artist_full: parsedArtist,    // ← string completa, pra exibição
       thumbnail_url,
-      // mantém compat: o front antigo lia data.title e fazia split " - "
       raw_title: title,
     });
   } catch (e) {
