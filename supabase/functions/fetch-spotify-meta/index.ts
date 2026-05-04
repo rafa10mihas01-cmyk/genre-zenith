@@ -68,13 +68,34 @@ function extractArtistFromDescription(desc: string | null, title: string | null)
 function pickPrimaryArtist(raw: string | null): string | null {
   if (!raw) return null;
   let s = raw.trim();
-  // remove features e colabs
   s = s.replace(/\s*\((?:feat\.?|ft\.?|with|com)[^)]*\)/gi, "");
   s = s.replace(/\s*\[(?:feat\.?|ft\.?|with|com)[^\]]*\]/gi, "");
   s = s.split(/\s+(?:feat\.?|ft\.?)\s+/i)[0];
-  // pega antes de qualquer separador de múltiplos artistas
   s = s.split(/\s*(?:,|&|\sx\s|\se\s|\sand\s|\swith\s|\/|·|\|)\s*/i)[0];
   return s.trim() || null;
+}
+
+// Devolve TODOS os artistas da string ("Kaue Mc, WR Original, DJ Cleber")
+// → ["Kaue Mc", "WR Original", "DJ Cleber"]. O bot tenta um a um e usa
+// o primeiro que ele tiver acesso no Spotify for Artists (artista interno).
+function pickArtistCandidates(raw: string | null): string[] {
+  if (!raw) return [];
+  let s = raw.trim();
+  s = s.replace(/\s*\((?:feat\.?|ft\.?|with|com)[^)]*\)/gi, ",");
+  s = s.replace(/\s*\[(?:feat\.?|ft\.?|with|com)[^\]]*\]/gi, ",");
+  s = s.replace(/\s+(?:feat\.?|ft\.?)\s+/gi, ",");
+  const parts = s.split(/\s*(?:,|&|\sx\s|\se\s|\sand\s|\swith\s|\/|·|\|)\s*/i);
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const p of parts) {
+    const v = p.trim();
+    if (!v) continue;
+    const key = v.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(v);
+  }
+  return out;
 }
 
 Deno.serve(async (req) => {
@@ -133,14 +154,16 @@ Deno.serve(async (req) => {
     }
 
     const primaryArtist = pickPrimaryArtist(parsedArtist);
+    const artistCandidates = pickArtistCandidates(parsedArtist);
 
     return jr({
       ok: true,
       type,
       id,
       title: parsedTitle,
-      artist: primaryArtist,        // ← só o principal (usado pelo bot)
-      artist_full: parsedArtist,    // ← string completa, pra exibição
+      artist: primaryArtist,                // principal (compat)
+      artist_full: parsedArtist,            // string completa
+      artist_candidates: artistCandidates,  // todos separados — bot tenta um a um
       thumbnail_url,
       raw_title: title,
     });
