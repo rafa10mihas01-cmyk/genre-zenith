@@ -313,6 +313,7 @@ export type Database = {
       }
       curator_deal_songs: {
         Row: {
+          artist_candidates: string[]
           auto_collect: boolean
           auto_collect_error: string | null
           auto_collect_interval_minutes: number
@@ -339,6 +340,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          artist_candidates?: string[]
           auto_collect?: boolean
           auto_collect_error?: string | null
           auto_collect_interval_minutes?: number
@@ -365,6 +367,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          artist_candidates?: string[]
           auto_collect?: boolean
           auto_collect_error?: string | null
           auto_collect_interval_minutes?: number
