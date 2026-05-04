@@ -121,6 +121,54 @@ export type Database = {
         }
         Relationships: []
       }
+      bot_events: {
+        Row: {
+          bot_name: string
+          created_at: string
+          deal_id: string | null
+          duration_ms: number | null
+          id: string
+          message: string | null
+          metadata: Json
+          screenshot_url: string | null
+          session_id: string | null
+          song_id: string | null
+          status: string
+          step: string
+          url: string | null
+        }
+        Insert: {
+          bot_name?: string
+          created_at?: string
+          deal_id?: string | null
+          duration_ms?: number | null
+          id?: string
+          message?: string | null
+          metadata?: Json
+          screenshot_url?: string | null
+          session_id?: string | null
+          song_id?: string | null
+          status?: string
+          step: string
+          url?: string | null
+        }
+        Update: {
+          bot_name?: string
+          created_at?: string
+          deal_id?: string | null
+          duration_ms?: number | null
+          id?: string
+          message?: string | null
+          metadata?: Json
+          screenshot_url?: string | null
+          session_id?: string | null
+          song_id?: string | null
+          status?: string
+          step?: string
+          url?: string | null
+        }
+        Relationships: []
+      }
       bot_heartbeats: {
         Row: {
           bot_name: string
