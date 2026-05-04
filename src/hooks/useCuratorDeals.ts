@@ -80,6 +80,7 @@ export type DealSongInput = {
   spotify_track_id?: string | null;
   song_name: string;
   song_artist?: string | null;
+  artist_candidates?: string[];
   song_cover_url?: string | null;
   daily_goal?: number;
   duration_days?: number;
@@ -91,13 +92,12 @@ export type DealSongInput = {
 };
 
 export type NewCuratorDealInput = {
-  // FASE 1: curador agora é entidade. Mantemos curator_name por compat (legacy).
   curator_id?: string | null;
   curator_name: string;
-  // música primária (legacy/compat) — primeira da lista
   song_spotify_url: string;
   song_name: string;
   song_artist?: string | null;
+  artist_candidates?: string[];
   song_cover_url?: string | null;
   target_plays: number;
   daily_goal?: number;
@@ -107,7 +107,6 @@ export type NewCuratorDealInput = {
   started_at?: string | null;
   ends_at?: string | null;
   ramp_up_days?: number;
-  // lista de músicas adicionais (além da primária)
   extra_songs?: DealSongInput[];
 };
 
