@@ -91,10 +91,35 @@ Deno.serve(async (req) => {
     .upload(path, bytes, { contentType: "image/png", upsert: false });
   if (upErr) return jr({ error: "upload_failed", detail: upErr.message }, 500);
 
-  const { data: signed, error: signErr } = await supabase.storage
-    .from(BUCKET)
-    .createSignedUrl(path, SIGNED_URL_TTL);
-  if (signErr) return jr({ error: "sign_failed", detail: signErr.message }, 500);
+  // Retry createSignedUrl com fallback pra URL pública (bucket é privado, mas
+  // o backend usa service role — URL pública não autentica, é só placeholder
+  // até o próximo retry conseguir gerar a assinada).
+  let signedUrl: string | null = null;
+  let signedUrlKind: "signed" | "public_fallback" = "signed";
+  let lastSignErr: string | null = null;
+  for (let attempt = 1; attempt <= 4; attempt++) {
+    const { data, error } = await supabase.storage
+      .from(BUCKET)
+      .createSignedUrl(path, SIGNED_URL_TTL);
+    if (!error && data?.signedUrl) {
+      signedUrl = data.signedUrl;
+      break;
+    }
+    lastSignErr = error?.message ?? "unknown";
+    console.warn(`createSignedUrl attempt ${attempt} failed:`, lastSignErr);
+    if (attempt < 4) {
+      await new Promise((r) => setTimeout(r, 500 * attempt));
+    }
+  }
+  if (!signedUrl) {
+    // Fallback: devolve URL pública (não autenticada). Quem consumir vai precisar
+    // re-assinar do lado do backend, mas pelo menos o batch não trava.
+    const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(path);
+    signedUrl = pub.publicUrl;
+    signedUrlKind = "public_fallback";
+    console.error("sign_failed_fallback_to_public", { path, lastSignErr });
+  }
+  const signed = { signedUrl };
 
   // ========== AGRUPAMENTO MULTI-PART ==========
   let batchInfo: Record<string, unknown> | undefined;
@@ -186,6 +211,7 @@ Deno.serve(async (req) => {
     ok: true,
     path,
     signed_url: signed.signedUrl,
+    signed_url_kind: signedUrlKind,
     expires_in: SIGNED_URL_TTL,
     batch: batchInfo,
   });
