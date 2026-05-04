@@ -482,6 +482,7 @@ export function useCuratorDeals() {
 
       const primarySong: DealSongInput = {
         song_spotify_url: input.song_spotify_url,
+        spotify_track_id: extractSpotifyTrackIdFromUrl(input.song_spotify_url),
         song_name: input.song_name,
         song_artist: input.song_artist ?? null,
         song_cover_url: input.song_cover_url ?? null,
