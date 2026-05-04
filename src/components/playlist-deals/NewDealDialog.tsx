@@ -418,7 +418,29 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
       );
       if (error) throw error;
       if (!data?.ok) throw new Error(data?.error || "Não foi possível buscar");
-      const { title, artist } = parseTitle(data.title || "");
+      // Prioriza campos estruturados retornados pelo backend (artist explícito).
+      // Fallback no parse "Title - Artist" pra compat com respostas antigas.
+      let title: string | null = data.title ?? null;
+      let artist: string | null = data.artist ?? null;
+      if (!artist && data.raw_title) {
+        const parsed = parseTitle(data.raw_title);
+        title = title || parsed.title;
+        artist = parsed.artist;
+      } else if (!artist && title) {
+        const parsed = parseTitle(title);
+        title = parsed.title;
+        artist = parsed.artist;
+      }
+      if (!artist) {
+        updateSong(idx, {
+          searching: false,
+          error: "Não consegui identificar o artista — preencha manualmente ou tente outro link",
+        });
+        toast.error("Artista não identificado", {
+          description: "O bot precisa do nome do artista pra buscar no Spotify for Artists.",
+        });
+        return;
+      }
       updateSong(idx, {
         meta: {
           title: title || "Música",
