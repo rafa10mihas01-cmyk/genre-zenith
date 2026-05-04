@@ -638,12 +638,13 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
         song_spotify_url: primary.url.trim(),
         song_name: primary.meta!.title,
         song_artist: primary.meta!.artist,
+        artist_candidates: primary.meta!.artist_candidates,
         song_cover_url: primary.meta!.thumbnail_url,
-        target_plays: songsTotalTarget, // soma das músicas (compat — deal-level)
+        target_plays: songsTotalTarget,
         daily_goal: Number(primary.daily_goal),
         duration_days: Number(primary.duration_days),
         baseline_plays: 0,
-        cost: null, // custo agora vive no curador (passo 1)
+        cost: null,
         started_at: dealStart.toISOString(),
         ends_at: dealEnd.toISOString(),
         ramp_up_days: primary.ramp_up_days ? Math.max(0, Number(primary.ramp_up_days)) : 5,
