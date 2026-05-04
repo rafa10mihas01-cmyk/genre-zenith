@@ -211,6 +211,7 @@ Deno.serve(async (req) => {
     ok: true,
     path,
     signed_url: signed.signedUrl,
+    signed_url_kind: signedUrlKind,
     expires_in: SIGNED_URL_TTL,
     batch: batchInfo,
   });
