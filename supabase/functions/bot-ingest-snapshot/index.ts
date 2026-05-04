@@ -142,17 +142,24 @@ Deno.serve(async (req) => {
     if (insErr) skipped++; else inserted++;
   }
 
-  // Log do total na tabela curator_deal_logs
-  if (typeof total_plays === "number") {
-    await supabase.from("curator_deal_logs").insert({
-      deal_id,
-      song_id,
-      total_plays: Math.max(0, total_plays),
-      note: note ?? (isBaseline ? `[bot] baseline inicial` : `[bot] auto-collect`),
-      print_urls: print_urls ?? [],
-      is_baseline: isBaseline,
-    });
-  }
+  // Log do total na tabela curator_deal_logs.
+  // Se total_plays vier ausente ou zero, calcula automaticamente somando snapshots[].plays.
+  const computedTotal =
+    typeof total_plays === "number" && total_plays > 0
+      ? total_plays
+      : snapshots.reduce(
+          (acc: number, s: any) => acc + Math.max(0, parseInt(String(s.plays ?? 0)) || 0),
+          0,
+        );
+
+  await supabase.from("curator_deal_logs").insert({
+    deal_id,
+    song_id,
+    total_plays: Math.max(0, computedTotal),
+    note: note ?? (isBaseline ? `[bot] baseline inicial` : `[bot] auto-collect`),
+    print_urls: print_urls ?? [],
+    is_baseline: isBaseline,
+  });
 
   // Atualiza song com next_auto_collect_at
   const { data: songRow } = await supabase
