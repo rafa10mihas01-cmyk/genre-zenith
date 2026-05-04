@@ -370,6 +370,7 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
             meta: {
               title: editDeal.song_name ?? "Música",
               artist: editDeal.song_artist ?? null,
+              artist_candidates: editDeal.song_artist ? [editDeal.song_artist] : [],
               thumbnail_url: editDeal.song_cover_url ?? null,
             },
             searching: false,
