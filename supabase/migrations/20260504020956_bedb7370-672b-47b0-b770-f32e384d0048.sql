@@ -1,0 +1,1 @@
+UPDATE public.curator_deal_songs SET artist_candidates = ARRAY['Kaue Mc','WR Original','DJ CLEBER','DJ LP Malvadão']::text[], auto_collect_status='idle', auto_collect_error=NULL, next_auto_collect_at=NULL WHERE id='b44ddc26-5755-4e50-a2e8-94ed77e292ab';
