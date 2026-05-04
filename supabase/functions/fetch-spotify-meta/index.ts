@@ -132,14 +132,16 @@ Deno.serve(async (req) => {
       }
     }
 
+    const primaryArtist = pickPrimaryArtist(parsedArtist);
+
     return jr({
       ok: true,
       type,
       id,
       title: parsedTitle,
-      artist: parsedArtist,
+      artist: primaryArtist,        // ← só o principal (usado pelo bot)
+      artist_full: parsedArtist,    // ← string completa, pra exibição
       thumbnail_url,
-      // mantém compat: o front antigo lia data.title e fazia split " - "
       raw_title: title,
     });
   } catch (e) {
