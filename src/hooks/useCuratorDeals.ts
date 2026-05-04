@@ -28,6 +28,13 @@ export type CuratorFraudAlert = {
   updated_at: string;
 };
 
+// Extrai o track_id de qualquer URL/URI do Spotify (open.spotify.com/.../track/<id>, intl-pt, spotify:track:<id>)
+function extractSpotifyTrackIdFromUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  const m = url.match(/track[/:]([a-zA-Z0-9]{16,})/);
+  return m ? m[1] : null;
+}
+
 // ============================================================
 // FASE 1 — Curador global (entidade) + saldo
 // ============================================================
