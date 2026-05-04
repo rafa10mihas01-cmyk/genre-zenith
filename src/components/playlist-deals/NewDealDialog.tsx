@@ -62,6 +62,7 @@ type SongRow = {
   meta: {
     title: string;
     artist: string | null;
+    artist_candidates: string[];
     thumbnail_url: string | null;
   } | null;
   searching: boolean;
@@ -349,6 +350,7 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
               meta: {
                 title: s.song_name ?? "Música",
                 artist: s.song_artist ?? null,
+                artist_candidates: ((s as unknown as { artist_candidates?: string[] }).artist_candidates) ?? (s.song_artist ? [s.song_artist] : []),
                 thumbnail_url: s.song_cover_url ?? null,
               },
               searching: false,
@@ -368,6 +370,7 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
             meta: {
               title: editDeal.song_name ?? "Música",
               artist: editDeal.song_artist ?? null,
+              artist_candidates: editDeal.song_artist ? [editDeal.song_artist] : [],
               thumbnail_url: editDeal.song_cover_url ?? null,
             },
             searching: false,
@@ -441,10 +444,14 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
         });
         return;
       }
+      const candidates: string[] = Array.isArray(data.artist_candidates)
+        ? data.artist_candidates.filter((x: unknown) => typeof x === "string" && x.trim().length > 0)
+        : (artist ? [artist] : []);
       updateSong(idx, {
         meta: {
           title: title || "Música",
           artist,
+          artist_candidates: candidates,
           thumbnail_url: data.thumbnail_url ?? null,
         },
         searching: false,
@@ -602,6 +609,7 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
           spotify_track_id: extractSpotifyTrackId(s.url),
           song_name: s.meta!.title,
           song_artist: s.meta!.artist,
+          artist_candidates: s.meta!.artist_candidates,
           song_cover_url: s.meta!.thumbnail_url,
           daily_goal: Number(s.daily_goal),
           duration_days: Number(s.duration_days),
@@ -630,12 +638,13 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
         song_spotify_url: primary.url.trim(),
         song_name: primary.meta!.title,
         song_artist: primary.meta!.artist,
+        artist_candidates: primary.meta!.artist_candidates,
         song_cover_url: primary.meta!.thumbnail_url,
-        target_plays: songsTotalTarget, // soma das músicas (compat — deal-level)
+        target_plays: songsTotalTarget,
         daily_goal: Number(primary.daily_goal),
         duration_days: Number(primary.duration_days),
         baseline_plays: 0,
-        cost: null, // custo agora vive no curador (passo 1)
+        cost: null,
         started_at: dealStart.toISOString(),
         ends_at: dealEnd.toISOString(),
         ramp_up_days: primary.ramp_up_days ? Math.max(0, Number(primary.ramp_up_days)) : 5,

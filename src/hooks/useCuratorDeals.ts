@@ -80,6 +80,7 @@ export type DealSongInput = {
   spotify_track_id?: string | null;
   song_name: string;
   song_artist?: string | null;
+  artist_candidates?: string[];
   song_cover_url?: string | null;
   daily_goal?: number;
   duration_days?: number;
@@ -91,13 +92,12 @@ export type DealSongInput = {
 };
 
 export type NewCuratorDealInput = {
-  // FASE 1: curador agora é entidade. Mantemos curator_name por compat (legacy).
   curator_id?: string | null;
   curator_name: string;
-  // música primária (legacy/compat) — primeira da lista
   song_spotify_url: string;
   song_name: string;
   song_artist?: string | null;
+  artist_candidates?: string[];
   song_cover_url?: string | null;
   target_plays: number;
   daily_goal?: number;
@@ -107,7 +107,6 @@ export type NewCuratorDealInput = {
   started_at?: string | null;
   ends_at?: string | null;
   ramp_up_days?: number;
-  // lista de músicas adicionais (além da primária)
   extra_songs?: DealSongInput[];
 };
 
@@ -398,6 +397,7 @@ export function useCuratorDeals() {
         spotify_track_id: extractSpotifyTrackIdFromUrl(input.song_spotify_url),
         song_name: input.song_name,
         song_artist: input.song_artist ?? null,
+        artist_candidates: input.artist_candidates ?? (input.song_artist ? [input.song_artist] : []),
         song_cover_url: input.song_cover_url ?? null,
         daily_goal: input.daily_goal ?? 0,
         duration_days: input.duration_days ?? 30,
@@ -414,6 +414,7 @@ export function useCuratorDeals() {
         spotify_track_id: s.spotify_track_id ?? null,
         song_name: s.song_name,
         song_artist: s.song_artist ?? null,
+        artist_candidates: s.artist_candidates ?? (s.song_artist ? [s.song_artist] : []),
         song_cover_url: s.song_cover_url ?? null,
         daily_goal: s.daily_goal ?? 0,
         duration_days: s.duration_days ?? 30,
@@ -425,7 +426,7 @@ export function useCuratorDeals() {
         // Auto-coleta de baseline: bot pega na próxima rodada (~1-2 min)
         auto_collect: true,
         auto_collect_status: "idle",
-        auto_collect_interval_minutes: 1440, // 1x/dia depois do baseline
+        auto_collect_interval_minutes: 1440,
         next_auto_collect_at: new Date().toISOString(),
       }));
       const { error: songsErr } = await supabase
@@ -485,6 +486,7 @@ export function useCuratorDeals() {
         spotify_track_id: extractSpotifyTrackIdFromUrl(input.song_spotify_url),
         song_name: input.song_name,
         song_artist: input.song_artist ?? null,
+        artist_candidates: input.artist_candidates ?? (input.song_artist ? [input.song_artist] : []),
         song_cover_url: input.song_cover_url ?? null,
         daily_goal: input.daily_goal ?? 0,
         duration_days: input.duration_days ?? 30,
@@ -501,6 +503,7 @@ export function useCuratorDeals() {
         spotify_track_id: s.spotify_track_id ?? null,
         song_name: s.song_name,
         song_artist: s.song_artist ?? null,
+        artist_candidates: s.artist_candidates ?? (s.song_artist ? [s.song_artist] : []),
         song_cover_url: s.song_cover_url ?? null,
         daily_goal: s.daily_goal ?? 0,
         duration_days: s.duration_days ?? 30,

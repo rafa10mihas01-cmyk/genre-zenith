@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
   const { data, error } = await supabase
     .from("curator_deal_songs")
     .select(`
-      id, deal_id, song_name, song_artist, song_spotify_url, spotify_track_id,
+      id, deal_id, song_name, song_artist, artist_candidates, song_spotify_url, spotify_track_id,
       auto_collect_status, last_auto_collect_at, next_auto_collect_at,
       auto_collect_interval_minutes, last_print_at,
       curator_deals!inner ( id, curator_name, song_name, user_id, closed_at ),
