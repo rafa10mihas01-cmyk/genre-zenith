@@ -444,10 +444,14 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
         });
         return;
       }
+      const candidates: string[] = Array.isArray(data.artist_candidates)
+        ? data.artist_candidates.filter((x: unknown) => typeof x === "string" && x.trim().length > 0)
+        : (artist ? [artist] : []);
       updateSong(idx, {
         meta: {
           title: title || "Música",
           artist,
+          artist_candidates: candidates,
           thumbnail_url: data.thumbnail_url ?? null,
         },
         searching: false,
