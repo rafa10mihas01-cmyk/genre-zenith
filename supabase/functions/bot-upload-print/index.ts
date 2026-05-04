@@ -2,7 +2,12 @@
 // Auth: header x-bot-key.
 // POST multipart/form-data: file (PNG), deal_id, song_id, label?
 // OU POST application/octet-stream com query ?deal_id=&song_id=&label=
-// Retorna { ok, path, signed_url, expires_at }
+//
+// LABEL ESPECIAL: "playlists-part-X-of-Y" (ex: "playlists-part-1-of-3")
+// → agrupa em bot_print_batches. Quando todas as Y partes chegarem,
+//   dispara extract-snapshot-from-print automaticamente.
+//
+// Retorna { ok, path, signed_url, expires_in, batch? }
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -29,6 +34,16 @@ function safeSeg(s: string | null | undefined, fallback = "unknown") {
   return v || fallback;
 }
 
+// "playlists-part-2-of-3" → { key: "playlists", part: 2, total: 3 }
+function parsePartLabel(label: string): { key: string; part: number; total: number } | null {
+  const m = label.match(/^(.+)-part-(\d+)-of-(\d+)$/i);
+  if (!m) return null;
+  const part = parseInt(m[2], 10);
+  const total = parseInt(m[3], 10);
+  if (!isFinite(part) || !isFinite(total) || part < 1 || total < 1 || part > total) return null;
+  return { key: m[1], part, total };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return jr({ error: "method_not_allowed" }, 405);
@@ -53,7 +68,6 @@ Deno.serve(async (req) => {
       songId = (form.get("song_id") as string) || songId;
       label = (form.get("label") as string) || label;
     } else {
-      // raw body (octet-stream / image/png)
       const buf = await req.arrayBuffer();
       bytes = new Uint8Array(buf);
     }
@@ -82,10 +96,97 @@ Deno.serve(async (req) => {
     .createSignedUrl(path, SIGNED_URL_TTL);
   if (signErr) return jr({ error: "sign_failed", detail: signErr.message }, 500);
 
+  // ========== AGRUPAMENTO MULTI-PART ==========
+  let batchInfo: Record<string, unknown> | undefined;
+  const parsed = parsePartLabel(label);
+
+  if (parsed && dealId) {
+    // upsert do batch
+    const { data: existing } = await supabase
+      .from("bot_print_batches")
+      .select("id, received_parts, total_parts, print_paths, print_urls, status")
+      .eq("deal_id", dealId)
+      .eq("song_id", songId || null)
+      .eq("batch_key", parsed.key)
+      .maybeSingle();
+
+    let batchId: string;
+    let receivedParts: number;
+    let printPaths: string[];
+    let printUrls: string[];
+
+    if (!existing) {
+      const { data: created, error: bErr } = await supabase
+        .from("bot_print_batches")
+        .insert({
+          deal_id: dealId,
+          song_id: songId || null,
+          batch_key: parsed.key,
+          total_parts: parsed.total,
+          received_parts: 1,
+          print_paths: [path],
+          print_urls: [signed.signedUrl],
+          status: parsed.total === 1 ? "complete" : "pending",
+        })
+        .select("id")
+        .single();
+      if (bErr) {
+        console.error("batch insert err", bErr);
+      }
+      batchId = created?.id ?? "";
+      receivedParts = 1;
+      printPaths = [path];
+      printUrls = [signed.signedUrl];
+    } else {
+      batchId = existing.id;
+      printPaths = [...(existing.print_paths as string[] ?? []), path];
+      printUrls = [...(existing.print_urls as string[] ?? []), signed.signedUrl];
+      receivedParts = (existing.received_parts ?? 0) + 1;
+      const isComplete = receivedParts >= (existing.total_parts ?? parsed.total);
+      await supabase
+        .from("bot_print_batches")
+        .update({
+          received_parts: receivedParts,
+          print_paths: printPaths,
+          print_urls: printUrls,
+          status: isComplete ? "complete" : "pending",
+          completed_at: isComplete ? new Date().toISOString() : null,
+        })
+        .eq("id", batchId);
+    }
+
+    batchInfo = {
+      batch_id: batchId,
+      received_parts: receivedParts,
+      total_parts: parsed.total,
+      complete: receivedParts >= parsed.total,
+    };
+
+    // Se completou, dispara extract assíncrono (fire-and-forget)
+    if (receivedParts >= parsed.total && batchId) {
+      const extractUrl = `${SUPABASE_URL}/functions/v1/extract-snapshot-from-print`;
+      // não await — não trava o bot
+      fetch(extractUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-bot-key": BOT_API_KEY,
+        },
+        body: JSON.stringify({
+          batch_id: batchId,
+          deal_id: dealId,
+          song_id: songId || null,
+          print_urls: printUrls,
+        }),
+      }).catch((e) => console.error("extract dispatch failed", e));
+    }
+  }
+
   return jr({
     ok: true,
     path,
     signed_url: signed.signedUrl,
     expires_in: SIGNED_URL_TTL,
+    batch: batchInfo,
   });
 });

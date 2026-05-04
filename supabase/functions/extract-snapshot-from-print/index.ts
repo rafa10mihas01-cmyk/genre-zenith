@@ -1,0 +1,330 @@
+// extract-snapshot-from-print — Lê 1+ prints da tela do Spotify for Artists com
+// Gemini Vision, extrai playlists/streams/criadores e grava em curator_deal_snapshots.
+//
+// POST { song_id, deal_id, print_urls: string[], batch_id? }
+// Auth: header x-bot-key (mesmo do bot) OU chamada interna do bot-upload-print.
+//
+// Fluxo:
+// 1. Carrega prints (URLs assinadas)
+// 2. Manda tudo pro Gemini 2.5 Pro com tool calling estruturado
+// 3. Para cada playlist extraída: match com curator_playlists (ou cria) e insere snapshot
+// 4. Insere log em curator_deal_logs
+// 5. Atualiza last_auto_collect_at + next_auto_collect_at na song
+// 6. Marca batch como processed
+import { createClient } from "npm:@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "content-type, x-bot-key, authorization",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const BOT_API_KEY = Deno.env.get("BOT_API_KEY")!;
+const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
+
+function jr(p: unknown, status = 200) {
+  return new Response(JSON.stringify(p), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+const extractId = (url: string | null | undefined) => {
+  if (!url) return null;
+  const m = url.match(/playlist[/:]([a-zA-Z0-9]{16,})/);
+  return m ? m[1] : null;
+};
+
+interface ExtractedPlaylist {
+  playlist_name: string;
+  spotify_url?: string | null;
+  made_by?: string | null;
+  plays: number;
+}
+
+async function callGemini(printUrls: string[]): Promise<ExtractedPlaylist[]> {
+  const userContent: any[] = [
+    {
+      type: "text",
+      text:
+        "Estas são capturas de tela da página 'Playlists' do Spotify for Artists para uma música. " +
+        "Cada linha da tabela tem: posição, capa, nome da playlist, criador (coluna 'Made by' — pode ser 'Spotify', um nome de usuário, ou vazio '—'), " +
+        "streams (coluna 'Streams', últimos 7 ou 28 dias), e data adicionada. " +
+        "Extraia TODAS as playlists visíveis em TODOS os prints. " +
+        "IMPORTANTE: " +
+        "- Se a mesma playlist aparecer em mais de um print (por overlap de scroll), liste só UMA vez. " +
+        "- 'plays' deve ser o número de streams como inteiro (sem vírgula/ponto separador). Ex: '316,015' → 316015. " +
+        "- 'made_by' = null se aparecer '—' ou estiver em branco. " +
+        "- Não invente playlists. Se não conseguir ler com clareza, pule.",
+    },
+    ...printUrls.map((url) => ({
+      type: "image_url",
+      image_url: { url },
+    })),
+  ];
+
+  const body = {
+    model: "google/gemini-2.5-pro",
+    messages: [
+      {
+        role: "system",
+        content:
+          "Você é um extrator de dados visual preciso. Sempre retorne via tool call, nunca em texto livre.",
+      },
+      { role: "user", content: userContent },
+    ],
+    tools: [
+      {
+        type: "function",
+        function: {
+          name: "report_playlists",
+          description: "Reporta a lista de playlists extraídas dos prints.",
+          parameters: {
+            type: "object",
+            properties: {
+              playlists: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    playlist_name: { type: "string", description: "Nome exato da playlist" },
+                    spotify_url: {
+                      type: "string",
+                      description: "URL do Spotify se visível, senão omita",
+                    },
+                    made_by: {
+                      type: "string",
+                      description: "Criador (Spotify, nome do usuário). null se vazio.",
+                    },
+                    plays: {
+                      type: "integer",
+                      description: "Número de streams como inteiro",
+                    },
+                  },
+                  required: ["playlist_name", "plays"],
+                  additionalProperties: false,
+                },
+              },
+            },
+            required: ["playlists"],
+            additionalProperties: false,
+          },
+        },
+      },
+    ],
+    tool_choice: { type: "function", function: { name: "report_playlists" } },
+  };
+
+  const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${LOVABLE_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!resp.ok) {
+    const t = await resp.text();
+    throw new Error(`gemini ${resp.status}: ${t.slice(0, 500)}`);
+  }
+  const data = await resp.json();
+  const tc = data?.choices?.[0]?.message?.tool_calls?.[0];
+  if (!tc?.function?.arguments) {
+    throw new Error("gemini: no tool_call returned");
+  }
+  const args = JSON.parse(tc.function.arguments);
+  return Array.isArray(args.playlists) ? args.playlists : [];
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method !== "POST") return jr({ error: "method_not_allowed" }, 405);
+
+  // Aceita x-bot-key OU service role (chamada interna)
+  const botKey = req.headers.get("x-bot-key");
+  const auth = req.headers.get("authorization") ?? "";
+  const isService = auth.includes(SERVICE_KEY);
+  if (botKey !== BOT_API_KEY && !isService) {
+    return jr({ error: "unauthorized" }, 401);
+  }
+
+  let body: any;
+  try {
+    body = await req.json();
+  } catch {
+    return jr({ error: "invalid_json" }, 400);
+  }
+
+  const { song_id, deal_id, print_urls, batch_id } = body ?? {};
+  if (!deal_id) return jr({ error: "deal_id required" }, 400);
+  if (!Array.isArray(print_urls) || print_urls.length === 0) {
+    return jr({ error: "print_urls required" }, 400);
+  }
+
+  const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+
+  // Marca batch como processing
+  if (batch_id) {
+    await supabase
+      .from("bot_print_batches")
+      .update({ status: "processing" })
+      .eq("id", batch_id);
+  }
+
+  // 1. Chama Gemini
+  let extracted: ExtractedPlaylist[] = [];
+  try {
+    extracted = await callGemini(print_urls);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("gemini extract failed", msg);
+
+    if (batch_id) {
+      await supabase
+        .from("bot_print_batches")
+        .update({ status: "error", error: msg.slice(0, 1000) })
+        .eq("id", batch_id);
+    }
+    if (song_id) {
+      await supabase
+        .from("curator_deal_songs")
+        .update({
+          auto_collect_status: "error",
+          auto_collect_error: `extract: ${msg.slice(0, 400)}`,
+        })
+        .eq("id", song_id);
+    }
+    await supabase.from("collection_logs").insert({
+      acao: "extract_print",
+      status: "error",
+      mensagem: `deal=${deal_id} ${msg.slice(0, 300)}`,
+    });
+    return jr({ error: "extract_failed", detail: msg }, 500);
+  }
+
+  // 2. Detecta baseline
+  const { count: existingLogs } = await supabase
+    .from("curator_deal_logs")
+    .select("id", { count: "exact", head: true })
+    .eq("song_id", song_id ?? null);
+  const isBaseline = (existingLogs ?? 0) === 0;
+
+  // 3. Para cada playlist: match e snapshot
+  let inserted = 0;
+  let skipped = 0;
+  let totalPlays = 0;
+
+  for (const pl of extracted) {
+    const sUrl = pl.spotify_url ?? "";
+    const sName = pl.playlist_name ?? null;
+    const sId = extractId(sUrl);
+    const plays = Math.max(0, parseInt(String(pl.plays ?? 0)) || 0);
+    totalPlays += plays;
+
+    let playlistId: string | null = null;
+    let matchMethod: string | null = null;
+
+    const { data: matchData } = await supabase.rpc("match_curator_playlist", {
+      p_deal_id: deal_id,
+      p_spotify_playlist_id: sId,
+      p_playlist_name: sName,
+    });
+    const row = Array.isArray(matchData) ? matchData[0] : null;
+    if (row?.playlist_id) {
+      playlistId = row.playlist_id as string;
+      matchMethod = (row.match_method as string) ?? null;
+    }
+
+    if (!playlistId) {
+      const { data: created, error: cErr } = await supabase
+        .from("curator_playlists")
+        .insert({
+          deal_id,
+          song_id: song_id ?? null,
+          spotify_url: sUrl,
+          spotify_playlist_id: sId,
+          playlist_name: sName ?? "Sem nome",
+          spotify_owner_name: pl.made_by ?? null,
+        })
+        .select("id")
+        .single();
+      if (cErr) {
+        skipped++;
+        continue;
+      }
+      playlistId = created.id;
+      matchMethod = "created";
+    }
+
+    const { error: insErr } = await supabase.from("curator_deal_snapshots").insert({
+      deal_id,
+      song_id: song_id ?? null,
+      playlist_id: playlistId,
+      plays,
+      source: "spotify_for_artists",
+      match_method: matchMethod ?? (sId ? "spotify_id" : "name"),
+      is_baseline: isBaseline,
+      print_url: print_urls[0] ?? null,
+      ai_raw: pl as any,
+    });
+    if (insErr) skipped++;
+    else inserted++;
+  }
+
+  // 4. Log
+  await supabase.from("curator_deal_logs").insert({
+    deal_id,
+    song_id: song_id ?? null,
+    total_plays: totalPlays,
+    note: isBaseline ? "[ai] baseline inicial" : "[ai] auto-collect",
+    print_urls,
+    is_baseline: isBaseline,
+  });
+
+  // 5. Reagenda song
+  if (song_id) {
+    const { data: songRow } = await supabase
+      .from("curator_deal_songs")
+      .select("auto_collect_interval_minutes")
+      .eq("id", song_id)
+      .single();
+    const intervalMin = songRow?.auto_collect_interval_minutes ?? 1440;
+    const nextAt = new Date(Date.now() + intervalMin * 60_000).toISOString();
+
+    await supabase
+      .from("curator_deal_songs")
+      .update({
+        auto_collect_status: "idle",
+        auto_collect_error: null,
+        last_auto_collect_at: new Date().toISOString(),
+        next_auto_collect_at: nextAt,
+        last_print_at: new Date().toISOString(),
+      })
+      .eq("id", song_id);
+  }
+
+  // 6. Marca batch processado
+  if (batch_id) {
+    await supabase
+      .from("bot_print_batches")
+      .update({ status: "processed", processed_at: new Date().toISOString() })
+      .eq("id", batch_id);
+  }
+
+  await supabase.from("collection_logs").insert({
+    acao: "extract_print",
+    status: skipped > 0 ? "parcial" : "ok",
+    mensagem: `deal=${deal_id} prints=${print_urls.length} found=${extracted.length} inserted=${inserted} skipped=${skipped}`,
+  });
+
+  return jr({
+    ok: true,
+    playlists_found: extracted.length,
+    inserted,
+    skipped,
+    total_plays: totalPlays,
+  });
+});

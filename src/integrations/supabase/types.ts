@@ -202,6 +202,57 @@ export type Database = {
         }
         Relationships: []
       }
+      bot_print_batches: {
+        Row: {
+          batch_key: string
+          completed_at: string | null
+          created_at: string
+          deal_id: string
+          error: string | null
+          id: string
+          print_paths: Json
+          print_urls: Json
+          processed_at: string | null
+          received_parts: number
+          song_id: string | null
+          status: string
+          total_parts: number
+          updated_at: string
+        }
+        Insert: {
+          batch_key: string
+          completed_at?: string | null
+          created_at?: string
+          deal_id: string
+          error?: string | null
+          id?: string
+          print_paths?: Json
+          print_urls?: Json
+          processed_at?: string | null
+          received_parts?: number
+          song_id?: string | null
+          status?: string
+          total_parts: number
+          updated_at?: string
+        }
+        Update: {
+          batch_key?: string
+          completed_at?: string | null
+          created_at?: string
+          deal_id?: string
+          error?: string | null
+          id?: string
+          print_paths?: Json
+          print_urls?: Json
+          processed_at?: string | null
+          received_parts?: number
+          song_id?: string | null
+          status?: string
+          total_parts?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       collection_logs: {
         Row: {
           acao: string
