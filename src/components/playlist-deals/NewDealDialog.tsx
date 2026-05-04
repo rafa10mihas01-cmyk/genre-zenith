@@ -62,6 +62,7 @@ type SongRow = {
   meta: {
     title: string;
     artist: string | null;
+    artist_candidates: string[];
     thumbnail_url: string | null;
   } | null;
   searching: boolean;
