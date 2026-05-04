@@ -609,6 +609,7 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
           spotify_track_id: extractSpotifyTrackId(s.url),
           song_name: s.meta!.title,
           song_artist: s.meta!.artist,
+          artist_candidates: s.meta!.artist_candidates,
           song_cover_url: s.meta!.thumbnail_url,
           daily_goal: Number(s.daily_goal),
           duration_days: Number(s.duration_days),
