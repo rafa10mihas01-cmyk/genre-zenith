@@ -28,6 +28,13 @@ export type CuratorFraudAlert = {
   updated_at: string;
 };
 
+// Extrai o track_id de qualquer URL/URI do Spotify (open.spotify.com/.../track/<id>, intl-pt, spotify:track:<id>)
+function extractSpotifyTrackIdFromUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  const m = url.match(/track[/:]([a-zA-Z0-9]{16,})/);
+  return m ? m[1] : null;
+}
+
 // ============================================================
 // FASE 1 — Curador global (entidade) + saldo
 // ============================================================
@@ -388,6 +395,7 @@ export function useCuratorDeals() {
       // Sempre cria a primeira música em curator_deal_songs
       const primarySong: DealSongInput = {
         song_spotify_url: input.song_spotify_url,
+        spotify_track_id: extractSpotifyTrackIdFromUrl(input.song_spotify_url),
         song_name: input.song_name,
         song_artist: input.song_artist ?? null,
         song_cover_url: input.song_cover_url ?? null,
@@ -474,6 +482,7 @@ export function useCuratorDeals() {
 
       const primarySong: DealSongInput = {
         song_spotify_url: input.song_spotify_url,
+        spotify_track_id: extractSpotifyTrackIdFromUrl(input.song_spotify_url),
         song_name: input.song_name,
         song_artist: input.song_artist ?? null,
         song_cover_url: input.song_cover_url ?? null,
