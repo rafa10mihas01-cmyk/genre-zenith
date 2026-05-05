@@ -208,6 +208,7 @@ export type Database = {
           completed_at: string | null
           created_at: string
           deal_id: string
+          dom_payload: Json
           error: string | null
           id: string
           print_paths: Json
@@ -224,6 +225,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           deal_id: string
+          dom_payload?: Json
           error?: string | null
           id?: string
           print_paths?: Json
@@ -240,6 +242,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           deal_id?: string
+          dom_payload?: Json
           error?: string | null
           id?: string
           print_paths?: Json
