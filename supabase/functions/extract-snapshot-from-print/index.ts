@@ -90,11 +90,11 @@ async function callGeminiChunked(printUrls: string[]): Promise<ExtractedPlaylist
       continue;
     }
     for (const p of part) {
-      const key = (p.playlist_name ?? "").trim().toLowerCase();
+      const key = normName(p.playlist_name ?? "");
       if (!key) continue;
       // mantém a entrada com mais plays (caso aparecesse repetida em prints diferentes)
       if (seen.has(key)) {
-        const idx = all.findIndex((x) => (x.playlist_name ?? "").trim().toLowerCase() === key);
+        const idx = all.findIndex((x) => normName(x.playlist_name ?? "") === key);
         if (idx >= 0 && (p.plays ?? 0) > (all[idx].plays ?? 0)) all[idx] = p;
       } else {
         seen.add(key);
@@ -103,6 +103,19 @@ async function callGeminiChunked(printUrls: string[]): Promise<ExtractedPlaylist
     }
   }
   return all;
+}
+
+// Normalização forte: minúsculas, sem acentos, sem emojis, sem múltiplos espaços
+function normName(s: string): string {
+  if (!s) return "";
+  return s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\p{Extended_Pictographic}/gu, "")
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
 }
 
 async function callGeminiOnce(printUrls: string[]): Promise<ExtractedPlaylist[]> {
@@ -212,6 +225,55 @@ async function callGeminiOnce(printUrls: string[]): Promise<ExtractedPlaylist[]>
   return validated.data.playlists as ExtractedPlaylist[];
 }
 
+// Insere snapshot. Se houver batch_id e já existir registro pra mesma playlist
+// nesse batch, atualiza apenas se o novo plays for maior (idempotência por lote).
+async function upsertSnapshot(
+  supabase: any,
+  row: {
+    deal_id: string;
+    song_id: string | null;
+    playlist_id: string;
+    plays: number;
+    source: string;
+    match_method: string;
+    is_baseline: boolean;
+    print_url: string | null;
+    ai_raw: any;
+    batch_id: string | null;
+  },
+): Promise<any> {
+  if (!row.batch_id) {
+    const { error } = await supabase.from("curator_deal_snapshots").insert(row);
+    return error;
+  }
+
+  const { data: existing } = await supabase
+    .from("curator_deal_snapshots")
+    .select("id, plays")
+    .eq("batch_id", row.batch_id)
+    .eq("playlist_id", row.playlist_id)
+    .maybeSingle();
+
+  if (existing?.id) {
+    if ((row.plays ?? 0) > (existing.plays ?? 0)) {
+      const { error } = await supabase
+        .from("curator_deal_snapshots")
+        .update({
+          plays: row.plays,
+          match_method: row.match_method,
+          ai_raw: row.ai_raw,
+          print_url: row.print_url,
+        })
+        .eq("id", existing.id);
+      return error;
+    }
+    return null; // já existe com plays >= novo, ignora
+  }
+
+  const { error } = await supabase.from("curator_deal_snapshots").insert(row);
+  return error;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return jr({ error: "method_not_allowed" }, 405);
@@ -242,6 +304,23 @@ Deno.serve(async (req) => {
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
+  // GUARD: se batch já foi processado, ignora (evita reprocessamento que duplica dados)
+  if (batch_id) {
+    const { data: bStatus } = await supabase
+      .from("bot_print_batches")
+      .select("status, processed_at")
+      .eq("id", batch_id)
+      .maybeSingle();
+    if (bStatus?.status === "processed") {
+      console.log(`[extract] batch ${batch_id} já processado em ${bStatus.processed_at}, ignorando`);
+      return jr({ ok: true, skipped_reason: "batch_already_processed", batch_id });
+    }
+    if (bStatus?.status === "processing") {
+      console.log(`[extract] batch ${batch_id} já em processing, ignorando concorrência`);
+      return jr({ ok: true, skipped_reason: "batch_in_progress", batch_id });
+    }
+  }
+
   // Se o body não trouxe dom_playlists mas temos batch_id, busca do batch
   // (caso da cron-recover-print-batches re-disparando).
   if (dom_playlists.length === 0 && batch_id) {
@@ -257,7 +336,7 @@ Deno.serve(async (req) => {
 
   // Index DOM por nome/ID pra cruzar com Gemini e, se houver só 1 print,
   // ainda assim cadastrar os links reais capturados no HTML.
-  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const norm = normName;
   const domByName = new Map<string, { id: string; url: string; name: string }>();
   const domItems: Array<{ id: string; url: string; name: string }> = [];
   for (const d of dom_playlists) {
@@ -405,7 +484,7 @@ Deno.serve(async (req) => {
       if (algoId) {
         algorithmicSeenIds.push(algoId);
         // Snapshot interno (não conta no curador)
-        await supabase.from("curator_deal_snapshots").insert({
+        await upsertSnapshot(supabase, {
           deal_id,
           song_id: song_id ?? null,
           playlist_id: algoId,
@@ -414,7 +493,8 @@ Deno.serve(async (req) => {
           match_method: "algorithmic",
           is_baseline: false,
           print_url: print_urls[0] ?? null,
-          ai_raw: { ...pl, algorithmic: true } as any,
+          ai_raw: { ...pl, algorithmic: true },
+          batch_id: batch_id ?? null,
         });
       }
       continue;
@@ -483,7 +563,7 @@ Deno.serve(async (req) => {
       matchMethod = domHit ? "dom_created" : "created";
     }
 
-    const { error: insErr } = await supabase.from("curator_deal_snapshots").insert({
+    const insErr = await upsertSnapshot(supabase, {
       deal_id,
       song_id: song_id ?? null,
       playlist_id: playlistId,
@@ -492,7 +572,8 @@ Deno.serve(async (req) => {
       match_method: matchMethod ?? (sId ? "spotify_id" : "name"),
       is_baseline: isBaseline,
       print_url: print_urls[0] ?? null,
-      ai_raw: { ...pl, dom_matched: !!domHit } as any,
+      ai_raw: { ...pl, dom_matched: !!domHit },
+      batch_id: batch_id ?? null,
     });
     if (insErr) skipped++;
     else inserted++;
