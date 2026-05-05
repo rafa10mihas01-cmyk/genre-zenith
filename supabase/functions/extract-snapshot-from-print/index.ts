@@ -248,11 +248,21 @@ Deno.serve(async (req) => {
   let totalPlays = 0;
 
   for (const pl of extracted) {
-    const sUrl = pl.spotify_url ?? "";
     const sName = pl.playlist_name ?? null;
-    const sId = extractId(sUrl);
     const plays = Math.max(0, parseInt(String(pl.plays ?? 0)) || 0);
     totalPlays += plays;
+
+    // PRIORIDADE 1: bate o nome lido pelo Gemini com o DOM (link real do HTML)
+    let sUrl = pl.spotify_url ?? "";
+    let sId = extractId(sUrl);
+    let domHit: { id: string; url: string } | undefined;
+    if (sName) {
+      domHit = domByName.get(norm(sName));
+      if (domHit) {
+        sId = domHit.id;
+        sUrl = domHit.url;
+      }
+    }
 
     let playlistId: string | null = null;
     let matchMethod: string | null = null;
@@ -266,6 +276,16 @@ Deno.serve(async (req) => {
     if (row?.playlist_id) {
       playlistId = row.playlist_id as string;
       matchMethod = (row.match_method as string) ?? null;
+
+      // AUTO-CURA: se bateu por nome mas DOM trouxe ID confiável,
+      // popula spotify_playlist_id da row existente.
+      if (domHit && matchMethod !== "spotify_id") {
+        await supabase
+          .from("curator_playlists")
+          .update({ spotify_playlist_id: domHit.id, spotify_url: domHit.url })
+          .eq("id", playlistId)
+          .is("spotify_playlist_id", null);
+      }
     }
 
     if (!playlistId) {
@@ -278,9 +298,6 @@ Deno.serve(async (req) => {
           spotify_playlist_id: sId,
           playlist_name: sName ?? "Sem nome",
           spotify_owner_name: pl.made_by ?? null,
-          // CRÍTICO: se a coleta atual é baseline, a playlist também é baseline
-          // (já tocava a música ANTES do curador entrar). Senão fica contando
-          // como entrega do curador no get_curator_deal_progress.
           is_baseline: isBaseline,
         })
         .select("id")
@@ -290,7 +307,7 @@ Deno.serve(async (req) => {
         continue;
       }
       playlistId = created.id;
-      matchMethod = "created";
+      matchMethod = domHit ? "dom_created" : "created";
     }
 
     const { error: insErr } = await supabase.from("curator_deal_snapshots").insert({
@@ -302,7 +319,7 @@ Deno.serve(async (req) => {
       match_method: matchMethod ?? (sId ? "spotify_id" : "name"),
       is_baseline: isBaseline,
       print_url: print_urls[0] ?? null,
-      ai_raw: pl as any,
+      ai_raw: { ...pl, dom_matched: !!domHit } as any,
     });
     if (insErr) skipped++;
     else inserted++;
