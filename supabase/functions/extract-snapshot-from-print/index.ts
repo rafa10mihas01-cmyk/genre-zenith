@@ -73,6 +73,7 @@ interface ExtractedPlaylist {
   spotify_url?: string | null;
   made_by?: string | null;
   plays: number;
+  position?: number | null;
 }
 
 async function callGeminiChunked(printUrls: string[]): Promise<ExtractedPlaylist[]> {
