@@ -201,16 +201,23 @@ Deno.serve(async (req) => {
               return;
             }
             item.meta = meta;
-            const cls = classifyPlaylist({
-              playlist: meta,
-              dealOwnerId: deal!.spotify_owner_id,
-              dealStartedAt: deal!.started_at,
-              addedAtSpotify: null,
-              knownCuratorOwnerIds,
-              curatorPlaylistNames,
-            });
-            item.match_status = cls.match_status;
-            item.match_reason = cls.match_reason;
+            // Cadastro via portal do curador = declaração oficial → sempre 'curator'.
+            // Cadastro via admin/JWT = passa pelo classificador normal.
+            if (publicToken) {
+              item.match_status = "curator";
+              item.match_reason = "declarada pelo curador via portal";
+            } else {
+              const cls = classifyPlaylist({
+                playlist: meta,
+                dealOwnerId: deal!.spotify_owner_id,
+                dealStartedAt: deal!.started_at,
+                addedAtSpotify: null,
+                knownCuratorOwnerIds,
+                curatorPlaylistNames,
+              });
+              item.match_status = cls.match_status;
+              item.match_reason = cls.match_reason;
+            }
             item.track_presence = await checkTrackInPlaylist(pid, trackIdToCheck);
             if (item.track_presence.found) {
               item.status = "track_already_present";
