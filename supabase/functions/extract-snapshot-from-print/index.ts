@@ -380,6 +380,22 @@ Deno.serve(async (req) => {
     domItems.push(item);
   }
 
+  // WHITELIST: só consideramos playlists declaradas pelo curador.
+  // Se o curador ainda não cadastrou nenhuma, mantemos comportamento atual
+  // (grava tudo). Se cadastrou, ignoramos qualquer playlist fora da lista.
+  const { data: whitelistRows } = await supabase
+    .from("curator_playlists")
+    .select("spotify_playlist_id")
+    .eq("deal_id", deal_id)
+    .not("spotify_playlist_id", "is", null);
+  const whitelist = new Set<string>(
+    (whitelistRows ?? [])
+      .map((r: any) => r.spotify_playlist_id)
+      .filter((v: unknown): v is string => typeof v === "string" && v.length > 0),
+  );
+  const whitelistActive = whitelist.size > 0;
+  console.log(`[extract] whitelist deal=${deal_id} size=${whitelist.size} active=${whitelistActive}`);
+
   // Marca batch como processing
   if (batch_id) {
     await supabase
