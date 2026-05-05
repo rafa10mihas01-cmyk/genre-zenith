@@ -409,10 +409,12 @@ Deno.serve(async (req) => {
       .eq("id", batch_id);
   }
 
+  const elapsedMs = Date.now() - t0;
   await supabase.from("collection_logs").insert({
     acao: "extract_print",
     status: skipped > 0 ? "parcial" : "ok",
-    mensagem: `deal=${deal_id} prints=${print_urls.length} found=${extracted.length} inserted=${inserted} skipped=${skipped}`,
+    duracao_ms: elapsedMs,
+    mensagem: `deal=${deal_id} prints=${print_urls.length} dom=${dom_playlists.length} found=${extracted.length} inserted=${inserted} skipped=${skipped} ms=${elapsedMs}`,
   });
 
   return jr({
