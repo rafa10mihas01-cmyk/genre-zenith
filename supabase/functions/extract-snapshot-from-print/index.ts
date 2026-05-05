@@ -23,13 +23,23 @@ const RequestSchema = z.object({
   dom_playlists: z
     .array(
       z.object({
+        position: z.union([z.number(), z.string()]).optional(),
         name: z.string().optional(),
         url: z.string().optional(),
+        made_by: z.string().optional(),
         plays_text: z.string().optional(),
       }).passthrough(),
     )
     .optional(),
 });
+
+function parsePlaysText(s: string | null | undefined): number | null {
+  if (s == null) return null;
+  const onlyDigits = String(s).replace(/[^\d]/g, "");
+  if (!onlyDigits) return null;
+  const n = parseInt(onlyDigits, 10);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
 
 const GeminiPlaylistSchema = z.object({
   playlist_name: z.string().min(1).max(300),
