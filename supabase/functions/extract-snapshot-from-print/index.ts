@@ -563,12 +563,20 @@ Deno.serve(async (req) => {
 
       // AUTO-CURA: se bateu por nome mas DOM trouxe ID confiável,
       // popula spotify_playlist_id da row existente.
+      const updPayload: any = {};
       if (domHit && matchMethod !== "spotify_id") {
+        updPayload.spotify_playlist_id = domHit.id;
+        updPayload.spotify_url = domHit.url;
+      }
+      if (typeof pl.position === "number" && pl.position > 0) {
+        updPayload.position_in_paste = pl.position;
+        updPayload.last_paste_at = new Date().toISOString();
+      }
+      if (Object.keys(updPayload).length > 0) {
         await supabase
           .from("curator_playlists")
-          .update({ spotify_playlist_id: domHit.id, spotify_url: domHit.url })
-          .eq("id", playlistId)
-          .is("spotify_playlist_id", null);
+          .update(updPayload)
+          .eq("id", playlistId);
       }
     }
 
@@ -583,6 +591,8 @@ Deno.serve(async (req) => {
           playlist_name: sName ?? "Sem nome",
           spotify_owner_name: pl.made_by ?? null,
           is_baseline: isBaseline,
+          position_in_paste: typeof pl.position === "number" ? pl.position : null,
+          last_paste_at: new Date().toISOString(),
         })
         .select("id")
         .single();
