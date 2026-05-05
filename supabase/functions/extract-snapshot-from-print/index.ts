@@ -225,14 +225,19 @@ Deno.serve(async (req) => {
     }
   }
 
-  // Index dom por nome normalizado pra cruzar com Gemini
+  // Index DOM por nome/ID pra cruzar com Gemini e, se houver só 1 print,
+  // ainda assim cadastrar os links reais capturados no HTML.
   const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
-  const domByName = new Map<string, { id: string; url: string }>();
+  const domByName = new Map<string, { id: string; url: string; name: string }>();
+  const domItems: Array<{ id: string; url: string; name: string }> = [];
   for (const d of dom_playlists) {
     if (!d?.name || !d?.url) continue;
     const m = d.url.match(/playlist[/:]([a-zA-Z0-9]{16,})/);
     if (!m) continue;
-    domByName.set(norm(d.name), { id: m[1], url: d.url });
+    const name = String(d.name).trim();
+    const item = { id: m[1], url: d.url, name };
+    domByName.set(norm(name), item);
+    domItems.push(item);
   }
 
   // Marca batch como processing
@@ -292,9 +297,12 @@ Deno.serve(async (req) => {
   let algorithmicCount = 0;
   let algorithmicNew = 0;
   let totalPlays = 0;
+  let domLinked = 0;
 
   // IDs das playlists algorítmicas vistas nesta coleta — usado pra detectar "saiu"
   const algorithmicSeenIds: string[] = [];
+  const processedSpotifyIds = new Set<string>();
+  const processedNames = new Set<string>();
 
   // Blocklist: nomes exatos da seção "Ouvintes / Algorítmico" do Spotify for Artists.
   // Essas linhas aparecem abaixo da curadoria e NÃO são playlists curadas.
@@ -303,7 +311,8 @@ Deno.serve(async (req) => {
     "your dj", "discover weekly", "release radar", "made for you",
     "repeat rewind", "your top songs", "niche mixes", "uniquely yours",
   ]);
-  const isAlgorithmic = (name: string | null, madeBy: string | null) => {
+  const isAlgorithmic = (name: string | null, madeBy: string | null, spotifyId?: string | null) => {
+    if ((spotifyId ?? "").startsWith("37i9dQZF")) return true;
     if ((madeBy ?? "").trim().toLowerCase() === "spotify") return true;
     const n = (name ?? "").trim().toLowerCase();
     if (!n) return false;
