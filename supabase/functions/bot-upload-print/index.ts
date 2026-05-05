@@ -142,7 +142,7 @@ Deno.serve(async (req) => {
     // upsert do batch
     const { data: existing } = await supabase
       .from("bot_print_batches")
-      .select("id, received_parts, total_parts, print_paths, print_urls, status")
+      .select("id, received_parts, total_parts, print_paths, print_urls, status, dom_payload")
       .eq("deal_id", dealId)
       .eq("song_id", songId || null)
       .eq("batch_key", parsed.key)
@@ -152,6 +152,7 @@ Deno.serve(async (req) => {
     let receivedParts: number;
     let printPaths: string[];
     let printUrls: string[];
+    let mergedDom: any[] = [];
 
     if (!existing) {
       const { data: created, error: bErr } = await supabase
@@ -164,6 +165,7 @@ Deno.serve(async (req) => {
           received_parts: 1,
           print_paths: [path],
           print_urls: [signed.signedUrl],
+          dom_payload: domPlaylists,
           status: parsed.total === 1 ? "complete" : "pending",
         })
         .select("id")
@@ -175,11 +177,17 @@ Deno.serve(async (req) => {
       receivedParts = 1;
       printPaths = [path];
       printUrls = [signed.signedUrl];
+      mergedDom = domPlaylists;
     } else {
       batchId = existing.id;
       printPaths = [...(existing.print_paths as string[] ?? []), path];
       printUrls = [...(existing.print_urls as string[] ?? []), signed.signedUrl];
       receivedParts = (existing.received_parts ?? 0) + 1;
+      // Merge dom_payload deduplicando por url
+      const prevDom = (existing.dom_payload as any[]) ?? [];
+      const seenUrls = new Set(prevDom.map((d) => d?.url).filter(Boolean));
+      const newOnes = domPlaylists.filter((d) => d?.url && !seenUrls.has(d.url));
+      mergedDom = [...prevDom, ...newOnes];
       const isComplete = receivedParts >= (existing.total_parts ?? parsed.total);
       await supabase
         .from("bot_print_batches")
@@ -187,6 +195,7 @@ Deno.serve(async (req) => {
           received_parts: receivedParts,
           print_paths: printPaths,
           print_urls: printUrls,
+          dom_payload: mergedDom,
           status: isComplete ? "complete" : "pending",
           completed_at: isComplete ? new Date().toISOString() : null,
         })
@@ -198,12 +207,12 @@ Deno.serve(async (req) => {
       received_parts: receivedParts,
       total_parts: parsed.total,
       complete: receivedParts >= parsed.total,
+      dom_count: mergedDom.length,
     };
 
     // Se completou, dispara extract assíncrono (fire-and-forget)
     if (receivedParts >= parsed.total && batchId) {
       const extractUrl = `${SUPABASE_URL}/functions/v1/extract-snapshot-from-print`;
-      // não await — não trava o bot
       fetch(extractUrl, {
         method: "POST",
         headers: {
@@ -215,6 +224,7 @@ Deno.serve(async (req) => {
           deal_id: dealId,
           song_id: songId || null,
           print_urls: printUrls,
+          dom_playlists: mergedDom,
         }),
       }).catch((e) => console.error("extract dispatch failed", e));
     }
