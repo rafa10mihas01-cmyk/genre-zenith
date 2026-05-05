@@ -193,6 +193,7 @@ export function useCuratorDeals() {
             .from("curator_playlists")
             .select("*")
             .in("deal_id", dealIds)
+            .neq("match_status", "algorithmic")
             .order("added_at", { ascending: true }),
           supabase
             .from("curator_deal_songs")
