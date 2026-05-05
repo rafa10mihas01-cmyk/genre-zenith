@@ -720,8 +720,9 @@ Deno.serve(async (req) => {
   // mandou só 1 print. A IA só lê plays do que está visível; aqui garantimos
   // que a lista de links fique completa, sem inventar streams.
   for (const dom of domItems) {
+    if (dom.id.startsWith("algo:")) continue; // já tratada no loop principal
     if (processedSpotifyIds.has(dom.id) || processedNames.has(norm(dom.name))) continue;
-    if (isAlgorithmic(dom.name, null, dom.id)) continue;
+    if (isAlgorithmic(dom.name, dom.made_by ?? null, dom.id)) continue;
     if (whitelistActive && !whitelist.has(dom.id)) {
       filteredOut++;
       continue;
