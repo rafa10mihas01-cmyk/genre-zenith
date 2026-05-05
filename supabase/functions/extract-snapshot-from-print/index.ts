@@ -588,7 +588,7 @@ Deno.serve(async (req) => {
     acao: "extract_print",
     status: skipped > 0 ? "parcial" : "ok",
     duracao_ms: elapsedMs,
-    mensagem: `deal=${deal_id} prints=${print_urls.length} dom=${dom_playlists.length} found=${extracted.length} algo=${algorithmicCount} algo_new=${algorithmicNew} algo_gone=${algorithmicGone} inserted=${inserted} skipped=${skipped} ms=${elapsedMs}`,
+    mensagem: `deal=${deal_id} prints=${print_urls.length} dom=${dom_playlists.length} found=${extracted.length} dom_linked=${domLinked} algo=${algorithmicCount} algo_new=${algorithmicNew} algo_gone=${algorithmicGone} inserted=${inserted} skipped=${skipped} ms=${elapsedMs}`,
   });
 
   return jr({
@@ -596,6 +596,7 @@ Deno.serve(async (req) => {
     playlists_found: extracted.length,
     inserted,
     skipped,
+    dom_linked: domLinked,
     algorithmic: algorithmicCount,
     algorithmic_new: algorithmicNew,
     algorithmic_gone: algorithmicGone,
