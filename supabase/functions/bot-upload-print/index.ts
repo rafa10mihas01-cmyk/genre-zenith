@@ -58,6 +58,10 @@ Deno.serve(async (req) => {
   let songId = url.searchParams.get("song_id") ?? "";
   let label = url.searchParams.get("label") ?? "";
 
+  // dom_playlists: [{ name, url, plays_text? }] — extraído via page.evaluate
+  // pelo Claudio antes do print. Permite match determinístico por spotify_playlist_id.
+  let domPlaylists: Array<{ name?: string; url?: string; plays_text?: string }> = [];
+
   try {
     if (ct.startsWith("multipart/form-data")) {
       const form = await req.formData();
@@ -67,9 +71,23 @@ Deno.serve(async (req) => {
       dealId = (form.get("deal_id") as string) || dealId;
       songId = (form.get("song_id") as string) || songId;
       label = (form.get("label") as string) || label;
+      const domRaw = form.get("dom_playlists");
+      if (typeof domRaw === "string" && domRaw.trim()) {
+        try {
+          const parsed = JSON.parse(domRaw);
+          if (Array.isArray(parsed)) domPlaylists = parsed;
+        } catch (_) { /* ignore */ }
+      }
     } else {
       const buf = await req.arrayBuffer();
       bytes = new Uint8Array(buf);
+      const domHeader = req.headers.get("x-dom-playlists");
+      if (domHeader) {
+        try {
+          const parsed = JSON.parse(domHeader);
+          if (Array.isArray(parsed)) domPlaylists = parsed;
+        } catch (_) { /* ignore */ }
+      }
     }
   } catch (e) {
     return jr({ error: "invalid_body", detail: String(e) }, 400);
