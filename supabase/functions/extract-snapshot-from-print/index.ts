@@ -75,7 +75,37 @@ interface ExtractedPlaylist {
   plays: number;
 }
 
-async function callGemini(printUrls: string[]): Promise<ExtractedPlaylist[]> {
+async function callGeminiChunked(printUrls: string[]): Promise<ExtractedPlaylist[]> {
+  // Processa em pedaços de 2 prints pra evitar truncamento de tool_call.
+  const CHUNK = 2;
+  const all: ExtractedPlaylist[] = [];
+  const seen = new Set<string>();
+  for (let i = 0; i < printUrls.length; i += CHUNK) {
+    const slice = printUrls.slice(i, i + CHUNK);
+    let part: ExtractedPlaylist[] = [];
+    try {
+      part = await callGeminiOnce(slice);
+    } catch (e) {
+      console.warn(`gemini chunk ${i / CHUNK + 1} falhou, segue`, e instanceof Error ? e.message : e);
+      continue;
+    }
+    for (const p of part) {
+      const key = (p.playlist_name ?? "").trim().toLowerCase();
+      if (!key) continue;
+      // mantém a entrada com mais plays (caso aparecesse repetida em prints diferentes)
+      if (seen.has(key)) {
+        const idx = all.findIndex((x) => (x.playlist_name ?? "").trim().toLowerCase() === key);
+        if (idx >= 0 && (p.plays ?? 0) > (all[idx].plays ?? 0)) all[idx] = p;
+      } else {
+        seen.add(key);
+        all.push(p);
+      }
+    }
+  }
+  return all;
+}
+
+async function callGeminiOnce(printUrls: string[]): Promise<ExtractedPlaylist[]> {
   const userContent: any[] = [
     {
       type: "text",
