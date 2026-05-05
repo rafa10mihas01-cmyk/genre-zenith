@@ -85,30 +85,49 @@ async function callGeminiChunked(printUrls: string[]): Promise<ExtractedPlaylist
   // Processa em pedaços de 2 prints pra evitar truncamento de tool_call.
   const CHUNK = 2;
   const all: ExtractedPlaylist[] = [];
-  const seen = new Set<string>();
+  const seen = new Map<string, number>(); // key -> idx em `all`
+  let runningIndex = 0;
   for (let i = 0; i < printUrls.length; i += CHUNK) {
     const slice = printUrls.slice(i, i + CHUNK);
     let part: ExtractedPlaylist[] = [];
     try {
-      part = await callGeminiOnce(slice);
+      part = await callGeminiOnce(slice, runningIndex);
     } catch (e) {
       console.warn(`gemini chunk ${i / CHUNK + 1} falhou, segue`, e instanceof Error ? e.message : e);
+      runningIndex += 12; // estima ~6 linhas por print pra não colidir posições
       continue;
     }
     for (const p of part) {
       const key = normName(p.playlist_name ?? "");
       if (!key) continue;
-      // mantém a entrada com mais plays (caso aparecesse repetida em prints diferentes)
       if (seen.has(key)) {
-        const idx = all.findIndex((x) => normName(x.playlist_name ?? "") === key);
-        if (idx >= 0 && (p.plays ?? 0) > (all[idx].plays ?? 0)) all[idx] = p;
+        // mantém entrada com mais plays + menor position
+        const idx = seen.get(key)!;
+        const cur = all[idx];
+        const merged: ExtractedPlaylist = {
+          ...cur,
+          plays: Math.max(cur.plays ?? 0, p.plays ?? 0),
+          position: Math.min(
+            cur.position ?? Number.MAX_SAFE_INTEGER,
+            p.position ?? Number.MAX_SAFE_INTEGER,
+          ),
+          spotify_url: cur.spotify_url ?? p.spotify_url ?? null,
+          made_by: cur.made_by ?? p.made_by ?? null,
+        };
+        all[idx] = merged;
       } else {
-        seen.add(key);
+        seen.set(key, all.length);
         all.push(p);
       }
     }
+    // próximo chunk começa a partir da maior posição vista (ou +CHUNK*6 fallback)
+    const maxPos = part.reduce((m, x) => Math.max(m, x.position ?? 0), 0);
+    runningIndex = Math.max(runningIndex + slice.length * 6, maxPos);
   }
-  return all;
+  // garante ordenação final por position (asc), com NULLs no fim
+  all.sort((a, b) => (a.position ?? Number.MAX_SAFE_INTEGER) - (b.position ?? Number.MAX_SAFE_INTEGER));
+  // re-numera sequencialmente pra ficar 1..N consistente
+  return all.map((p, i) => ({ ...p, position: i + 1 }));
 }
 
 // Normalização forte: minúsculas, sem acentos, sem emojis, sem múltiplos espaços
