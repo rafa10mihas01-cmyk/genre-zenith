@@ -24,6 +24,7 @@ export interface CuratorDealCardProps {
   onEdit?: (deal: CuratorDeal) => void;
   onClose?: (deal: CuratorDeal) => void;
   onReopen?: (deal: CuratorDeal) => void;
+  onForceCollect?: (deal: CuratorDeal) => Promise<void> | void;
 }
 
 function formatPlays(n: number): string {
