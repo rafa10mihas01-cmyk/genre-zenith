@@ -315,7 +315,8 @@ Deno.serve(async (req) => {
       p_deal_id: deal_id,
       p_spotify_playlist_id: sId,
       p_playlist_name: sName,
-    });
+      p_song_id: song_id ?? null,
+    } as any);
     const row = Array.isArray(matchData) ? matchData[0] : null;
     if (row?.playlist_id) {
       playlistId = row.playlist_id as string;
