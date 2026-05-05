@@ -375,18 +375,36 @@ Deno.serve(async (req) => {
     }
   }
 
-  // Index DOM por nome/ID pra cruzar com Gemini e, se houver só 1 print,
-  // ainda assim cadastrar os links reais capturados no HTML.
+  // Index DOM por nome/ID/posição. Filtra entradas com url vazia (algorítmicas
+  // do Spotify como Radio, Mixes, Smart Shuffle, que não têm link no HTML).
   const norm = normName;
-  const domByName = new Map<string, { id: string; url: string; name: string }>();
-  const domItems: Array<{ id: string; url: string; name: string }> = [];
-  for (const d of dom_playlists) {
-    if (!d?.name || !d?.url) continue;
+  const domByName = new Map<string, { id: string; url: string; name: string; position?: number; plays?: number | null; made_by?: string | null }>();
+  const domByPos = new Map<number, { id: string; url: string; name: string; position: number; plays?: number | null; made_by?: string | null }>();
+  const domItems: Array<{ id: string; url: string; name: string; position?: number; plays?: number | null; made_by?: string | null }> = [];
+  let domHasPlaysText = false;
+  for (let i = 0; i < dom_playlists.length; i++) {
+    const d = dom_playlists[i];
+    if (!d?.name || !d?.url) continue; // ignora algorítmicas sem URL
     const m = d.url.match(/playlist[/:]([a-zA-Z0-9]{16,})/);
     if (!m) continue;
     const name = String(d.name).trim();
-    const item = { id: m[1], url: d.url, name };
+    const playsNum = parsePlaysText(d.plays_text);
+    if (playsNum != null) domHasPlaysText = true;
+    const posRaw = (d as any).position;
+    const pos = typeof posRaw === "number"
+      ? posRaw
+      : posRaw != null ? parseInt(String(posRaw).replace(/\D/g, ""), 10) : NaN;
+    const position = Number.isFinite(pos) && pos > 0 ? pos : (i + 1);
+    const item = {
+      id: m[1],
+      url: d.url,
+      name,
+      position,
+      plays: playsNum,
+      made_by: (d as any).made_by ?? null,
+    };
     domByName.set(norm(name), item);
+    domByPos.set(position, item);
     domItems.push(item);
   }
 
