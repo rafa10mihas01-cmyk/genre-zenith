@@ -90,11 +90,11 @@ async function callGeminiChunked(printUrls: string[]): Promise<ExtractedPlaylist
       continue;
     }
     for (const p of part) {
-      const key = (p.playlist_name ?? "").trim().toLowerCase();
+      const key = normName(p.playlist_name ?? "");
       if (!key) continue;
       // mantém a entrada com mais plays (caso aparecesse repetida em prints diferentes)
       if (seen.has(key)) {
-        const idx = all.findIndex((x) => (x.playlist_name ?? "").trim().toLowerCase() === key);
+        const idx = all.findIndex((x) => normName(x.playlist_name ?? "") === key);
         if (idx >= 0 && (p.plays ?? 0) > (all[idx].plays ?? 0)) all[idx] = p;
       } else {
         seen.add(key);
@@ -103,6 +103,19 @@ async function callGeminiChunked(printUrls: string[]): Promise<ExtractedPlaylist
     }
   }
   return all;
+}
+
+// Normalização forte: minúsculas, sem acentos, sem emojis, sem múltiplos espaços
+function normName(s: string): string {
+  if (!s) return "";
+  return s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\p{Extended_Pictographic}/gu, "")
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
 }
 
 async function callGeminiOnce(printUrls: string[]): Promise<ExtractedPlaylist[]> {
