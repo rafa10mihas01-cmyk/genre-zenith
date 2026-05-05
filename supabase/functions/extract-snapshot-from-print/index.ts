@@ -289,8 +289,12 @@ Deno.serve(async (req) => {
   // 3. Para cada playlist: match e snapshot
   let inserted = 0;
   let skipped = 0;
-  let skippedAlgorithmic = 0;
+  let algorithmicCount = 0;
+  let algorithmicNew = 0;
   let totalPlays = 0;
+
+  // IDs das playlists algorítmicas vistas nesta coleta — usado pra detectar "saiu"
+  const algorithmicSeenIds: string[] = [];
 
   // Blocklist: nomes exatos da seção "Ouvintes / Algorítmico" do Spotify for Artists.
   // Essas linhas aparecem abaixo da curadoria e NÃO são playlists curadas.
