@@ -380,6 +380,22 @@ Deno.serve(async (req) => {
     domItems.push(item);
   }
 
+  // WHITELIST: só consideramos playlists declaradas pelo curador.
+  // Se o curador ainda não cadastrou nenhuma, mantemos comportamento atual
+  // (grava tudo). Se cadastrou, ignoramos qualquer playlist fora da lista.
+  const { data: whitelistRows } = await supabase
+    .from("curator_playlists")
+    .select("spotify_playlist_id")
+    .eq("deal_id", deal_id)
+    .not("spotify_playlist_id", "is", null);
+  const whitelist = new Set<string>(
+    (whitelistRows ?? [])
+      .map((r: any) => r.spotify_playlist_id)
+      .filter((v: unknown): v is string => typeof v === "string" && v.length > 0),
+  );
+  const whitelistActive = whitelist.size > 0;
+  console.log(`[extract] whitelist deal=${deal_id} size=${whitelist.size} active=${whitelistActive}`);
+
   // Marca batch como processing
   if (batch_id) {
     await supabase
@@ -462,10 +478,26 @@ Deno.serve(async (req) => {
     return false;
   };
 
+  let filteredOut = 0;
+
   for (const pl of extracted) {
     const sName = pl.playlist_name ?? null;
     const plays = Math.max(0, parseInt(String(pl.plays ?? 0)) || 0);
     const isAlgo = isAlgorithmic(sName, pl.made_by ?? null);
+
+    // Resolve spotify_playlist_id antecipadamente (Gemini URL ou DOM por nome)
+    // pra aplicar whitelist do curador antes de qualquer escrita.
+    let preResolvedId = extractId(pl.spotify_url ?? "");
+    if (!preResolvedId && sName) {
+      const hit = domByName.get(norm(sName));
+      if (hit) preResolvedId = hit.id;
+    }
+    if (whitelistActive) {
+      if (!preResolvedId || !whitelist.has(preResolvedId)) {
+        filteredOut++;
+        continue;
+      }
+    }
 
     // Algorítmicas: registram como playlist interna (match_status=algorithmic),
     // sem entrar no totalPlays e sem aparecer em curadoria, mas geram alerta
@@ -626,6 +658,10 @@ Deno.serve(async (req) => {
   for (const dom of domItems) {
     if (processedSpotifyIds.has(dom.id) || processedNames.has(norm(dom.name))) continue;
     if (isAlgorithmic(dom.name, null, dom.id)) continue;
+    if (whitelistActive && !whitelist.has(dom.id)) {
+      filteredOut++;
+      continue;
+    }
 
     const { data: matchData } = await supabase.rpc("match_curator_playlist", {
       p_deal_id: deal_id,
@@ -743,7 +779,7 @@ Deno.serve(async (req) => {
     acao: "extract_print",
     status: skipped > 0 ? "parcial" : "ok",
     duracao_ms: elapsedMs,
-    mensagem: `deal=${deal_id} prints=${print_urls.length} dom=${dom_playlists.length} found=${extracted.length} dom_linked=${domLinked} algo=${algorithmicCount} algo_new=${algorithmicNew} algo_gone=${algorithmicGone} inserted=${inserted} skipped=${skipped} ms=${elapsedMs}`,
+    mensagem: `deal=${deal_id} prints=${print_urls.length} dom=${dom_playlists.length} found=${extracted.length} dom_linked=${domLinked} algo=${algorithmicCount} algo_new=${algorithmicNew} algo_gone=${algorithmicGone} inserted=${inserted} skipped=${skipped} whitelist=${whitelistActive ? whitelist.size : "off"} filtered_out=${filteredOut} ms=${elapsedMs}`,
   });
 
   return jr({
@@ -756,5 +792,9 @@ Deno.serve(async (req) => {
     algorithmic_new: algorithmicNew,
     algorithmic_gone: algorithmicGone,
     total_plays: totalPlays,
+    whitelist_active: whitelistActive,
+    whitelist_size: whitelist.size,
+    filtered_out: filteredOut,
   });
 });
+
