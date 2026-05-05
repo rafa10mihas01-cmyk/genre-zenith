@@ -248,6 +248,10 @@ Deno.serve(async (req) => {
           spotify_playlist_id: sId,
           playlist_name: sName ?? "Sem nome",
           spotify_owner_name: pl.made_by ?? null,
+          // CRÍTICO: se a coleta atual é baseline, a playlist também é baseline
+          // (já tocava a música ANTES do curador entrar). Senão fica contando
+          // como entrega do curador no get_curator_deal_progress.
+          is_baseline: isBaseline,
         })
         .select("id")
         .single();
