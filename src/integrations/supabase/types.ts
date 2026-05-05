@@ -2354,17 +2354,30 @@ export type Database = {
         Returns: number
       }
       is_admin: { Args: never; Returns: boolean }
-      match_curator_playlist: {
-        Args: {
-          p_deal_id: string
-          p_playlist_name: string
-          p_spotify_playlist_id: string
-        }
-        Returns: {
-          match_method: string
-          playlist_id: string
-        }[]
-      }
+      match_curator_playlist:
+        | {
+            Args: {
+              p_deal_id: string
+              p_playlist_name: string
+              p_spotify_playlist_id: string
+            }
+            Returns: {
+              match_method: string
+              playlist_id: string
+            }[]
+          }
+        | {
+            Args: {
+              p_deal_id: string
+              p_playlist_name: string
+              p_song_id?: string
+              p_spotify_playlist_id: string
+            }
+            Returns: {
+              match_method: string
+              playlist_id: string
+            }[]
+          }
       priority_from_performance: {
         Args: { p_class: string }
         Returns: {
