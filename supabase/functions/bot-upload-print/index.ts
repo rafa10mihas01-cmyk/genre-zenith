@@ -91,13 +91,11 @@ Deno.serve(async (req) => {
     .upload(path, bytes, { contentType: "image/png", upsert: false });
   if (upErr) return jr({ error: "upload_failed", detail: upErr.message }, 500);
 
-  // Retry createSignedUrl com fallback pra URL pública (bucket é privado, mas
-  // o backend usa service role — URL pública não autentica, é só placeholder
-  // até o próximo retry conseguir gerar a assinada).
+  // Retry createSignedUrl com backoff exponencial. NÃO faz fallback pra URL pública
+  // porque o bucket é privado — URL pública retorna 403 e quebra o Gemini.
   let signedUrl: string | null = null;
-  let signedUrlKind: "signed" | "public_fallback" = "signed";
   let lastSignErr: string | null = null;
-  for (let attempt = 1; attempt <= 4; attempt++) {
+  for (let attempt = 1; attempt <= 6; attempt++) {
     const { data, error } = await supabase.storage
       .from(BUCKET)
       .createSignedUrl(path, SIGNED_URL_TTL);
@@ -107,18 +105,15 @@ Deno.serve(async (req) => {
     }
     lastSignErr = error?.message ?? "unknown";
     console.warn(`createSignedUrl attempt ${attempt} failed:`, lastSignErr);
-    if (attempt < 4) {
-      await new Promise((r) => setTimeout(r, 500 * attempt));
+    if (attempt < 6) {
+      await new Promise((r) => setTimeout(r, 400 * Math.pow(2, attempt - 1)));
     }
   }
   if (!signedUrl) {
-    // Fallback: devolve URL pública (não autenticada). Quem consumir vai precisar
-    // re-assinar do lado do backend, mas pelo menos o batch não trava.
-    const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(path);
-    signedUrl = pub.publicUrl;
-    signedUrlKind = "public_fallback";
-    console.error("sign_failed_fallback_to_public", { path, lastSignErr });
+    console.error("sign_failed_aborting", { path, lastSignErr });
+    return jr({ error: "sign_url_failed", detail: lastSignErr, path }, 500);
   }
+  const signedUrlKind = "signed" as const;
   const signed = { signedUrl };
 
   // ========== AGRUPAMENTO MULTI-PART ==========
