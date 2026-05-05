@@ -258,11 +258,11 @@ export function useCuratorDeals() {
     return map;
   }, [progressQueries, dealIds]);
 
-  // Realtime: invalida cache quando snapshots mudam
+  // Realtime: invalida cache quando snapshots mudam e recarrega status das músicas
   useEffect(() => {
     if (!user || dealIds.length === 0) return;
     const channel = supabase
-      .channel(`curator-snapshots-${user.id}-${Math.random().toString(36).slice(2)}`)
+      .channel(`curator-deals-live-${user.id}-${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "curator_deal_snapshots" },
@@ -274,11 +274,23 @@ export function useCuratorDeals() {
           }
         },
       )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "curator_deal_songs" },
+        (payload) => {
+          const row = (payload.new ?? payload.old) as { deal_id?: string } | null;
+          const dealId = row?.deal_id;
+          if (dealId && dealIds.includes(dealId)) {
+            queryClient.invalidateQueries({ queryKey: ["curator-progress", dealId] });
+            load();
+          }
+        },
+      )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, dealIds, queryClient]);
+  }, [user, dealIds, queryClient, load]);
 
   const invalidateProgress = useCallback(
     (dealId?: string) => {

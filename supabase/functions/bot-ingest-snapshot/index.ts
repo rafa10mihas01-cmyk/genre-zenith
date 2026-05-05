@@ -83,12 +83,21 @@ Deno.serve(async (req) => {
       .gte("created_at", since)
       .limit(1);
     if (recent && recent.length > 0) {
+      const { data: songRow } = await supabase
+        .from("curator_deal_songs")
+        .select("auto_collect_interval_minutes")
+        .eq("id", song_id)
+        .single();
+      const intervalMin = songRow?.auto_collect_interval_minutes ?? 1440;
+      const nextAt = new Date(Date.now() + intervalMin * 60_000).toISOString();
       // Atualiza status pra não ficar travado em "queued"
       await supabase
         .from("curator_deal_songs")
         .update({
           auto_collect_status: "idle",
+          auto_collect_error: null,
           last_auto_collect_at: new Date().toISOString(),
+          next_auto_collect_at: nextAt,
         })
         .eq("id", song_id);
       return jr({ ok: true, deduped: true, reason: "log within 90s exists" });
