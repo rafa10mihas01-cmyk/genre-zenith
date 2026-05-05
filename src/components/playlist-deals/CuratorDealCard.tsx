@@ -391,6 +391,25 @@ export function CuratorDealCard({
           >
             <Link2 className="h-3.5 w-3.5" />
           </Button>
+          {!isClosed && onForceCollect && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 text-muted-foreground hover:text-primary"
+              onClick={async () => {
+                try {
+                  await onForceCollect(deal);
+                  toast.success("Coleta agendada — robô vai pegar na próxima rodada");
+                } catch (e) {
+                  toast.error("Falha ao agendar coleta");
+                }
+              }}
+              aria-label="Forçar coleta agora"
+              title="Forçar coleta agora"
+            >
+              <Zap className="h-3.5 w-3.5" />
+            </Button>
+          )}
           {!isClosed && onEdit && (
             <Button
               variant="ghost"
