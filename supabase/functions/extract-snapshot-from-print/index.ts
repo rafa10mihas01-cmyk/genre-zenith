@@ -281,7 +281,7 @@ Deno.serve(async (req) => {
   // 1. Chama Gemini
   let extracted: ExtractedPlaylist[] = [];
   try {
-    extracted = await callGemini(print_urls);
+    extracted = await callGeminiChunked(print_urls);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error("gemini extract failed", msg);
