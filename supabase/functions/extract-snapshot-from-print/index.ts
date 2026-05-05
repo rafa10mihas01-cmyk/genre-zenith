@@ -485,8 +485,7 @@ Deno.serve(async (req) => {
       await supabase
         .from("curator_playlists")
         .update({ spotify_playlist_id: dom.id, spotify_url: dom.url })
-        .eq("id", row.playlist_id as string)
-        .or("spotify_playlist_id.is.null,spotify_url.is.null,spotify_url.eq.");
+        .eq("id", row.playlist_id as string);
       domLinked++;
       continue;
     }
