@@ -12,6 +12,37 @@
 // 5. Atualiza last_auto_collect_at + next_auto_collect_at na song
 // 6. Marca batch como processed
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { z } from "npm:zod@3.23.8";
+
+// ============= Schemas de validação =============
+const RequestSchema = z.object({
+  deal_id: z.string().uuid(),
+  song_id: z.string().uuid().nullable().optional(),
+  print_urls: z.array(z.string().url()).min(1).max(40),
+  batch_id: z.string().uuid().optional(),
+  dom_playlists: z
+    .array(
+      z.object({
+        name: z.string().optional(),
+        url: z.string().optional(),
+        plays_text: z.string().optional(),
+      }).passthrough(),
+    )
+    .optional(),
+});
+
+const GeminiPlaylistSchema = z.object({
+  playlist_name: z.string().min(1).max(300),
+  spotify_url: z.string().optional().nullable(),
+  made_by: z.string().optional().nullable(),
+  plays: z.union([z.number(), z.string()]).transform((v) => {
+    const n = typeof v === "number" ? v : parseInt(String(v).replace(/\D/g, ""), 10);
+    return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0;
+  }),
+});
+const GeminiResponseSchema = z.object({
+  playlists: z.array(GeminiPlaylistSchema).max(500),
+});
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
