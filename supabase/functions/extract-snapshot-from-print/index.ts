@@ -225,10 +225,11 @@ async function callGeminiOnce(printUrls: string[], startIndex: number): Promise<
   if (!validated.success) {
     console.warn("gemini schema invalid, falling back", validated.error.flatten());
     return Array.isArray(args.playlists)
-      ? args.playlists.filter((p: any) => p?.playlist_name).map((p: any) => ({
+      ? args.playlists.filter((p: any) => p?.playlist_name).map((p: any, i: number) => ({
           playlist_name: String(p.playlist_name),
           spotify_url: p.spotify_url ?? null,
           made_by: p.made_by ?? null,
+          position: typeof p.position === "number" ? p.position : (startIndex + i + 1),
           plays: Math.max(0, parseInt(String(p.plays ?? 0).replace(/\D/g, "")) || 0),
         }))
       : [];
