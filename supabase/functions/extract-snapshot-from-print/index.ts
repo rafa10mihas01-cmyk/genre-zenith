@@ -514,7 +514,7 @@ Deno.serve(async (req) => {
       matchMethod = domHit ? "dom_created" : "created";
     }
 
-    const { error: insErr } = await supabase.from("curator_deal_snapshots").insert({
+    const insErr = await upsertSnapshot(supabase, {
       deal_id,
       song_id: song_id ?? null,
       playlist_id: playlistId,
@@ -523,7 +523,8 @@ Deno.serve(async (req) => {
       match_method: matchMethod ?? (sId ? "spotify_id" : "name"),
       is_baseline: isBaseline,
       print_url: print_urls[0] ?? null,
-      ai_raw: { ...pl, dom_matched: !!domHit } as any,
+      ai_raw: { ...pl, dom_matched: !!domHit },
+      batch_id: batch_id ?? null,
     });
     if (insErr) skipped++;
     else inserted++;
