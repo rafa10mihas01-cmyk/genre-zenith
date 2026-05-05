@@ -801,30 +801,6 @@ export function DealHistorySheet({
         onClose={() => setImportOpen(false)}
         onImported={() => onReload?.()}
       />
-      <DealLogDetailDialog
-        open={selectedLogId !== null}
-        log={
-          selectedLogId
-            ? reversedLogs.find((l) => l.id === selectedLogId) ?? null
-            : null
-        }
-        prevLog={(() => {
-          if (!selectedLogId) return null;
-          const idx = reversedLogs.findIndex((l) => l.id === selectedLogId);
-          return idx >= 0 ? reversedLogs[idx + 1] ?? null : null;
-        })()}
-        song={(() => {
-          const log = selectedLogId
-            ? reversedLogs.find((l) => l.id === selectedLogId)
-            : null;
-          return log ? getSongForLog(log) : null;
-        })()}
-        fallbackSongName={deal?.song_name}
-        fallbackSongCover={deal?.song_cover_url ?? null}
-        fallbackArtist={deal?.song_artist ?? null}
-        playlists={allPlaylists}
-        onClose={() => setSelectedLogId(null)}
-      />
     </Sheet>
   );
 }
