@@ -167,8 +167,19 @@ async function callGemini(printUrls: string[]): Promise<ExtractedPlaylist[]> {
     throw new Error("gemini: no tool_call returned");
   }
   const args = JSON.parse(tc.function.arguments);
-  return Array.isArray(args.playlists) ? args.playlists : [];
-}
+  const validated = GeminiResponseSchema.safeParse(args);
+  if (!validated.success) {
+    console.warn("gemini schema invalid, falling back", validated.error.flatten());
+    return Array.isArray(args.playlists)
+      ? args.playlists.filter((p: any) => p?.playlist_name).map((p: any) => ({
+          playlist_name: String(p.playlist_name),
+          spotify_url: p.spotify_url ?? null,
+          made_by: p.made_by ?? null,
+          plays: Math.max(0, parseInt(String(p.plays ?? 0).replace(/\D/g, "")) || 0),
+        }))
+      : [];
+  }
+  return validated.data.playlists as ExtractedPlaylist[];
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
