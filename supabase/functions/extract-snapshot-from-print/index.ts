@@ -124,17 +124,18 @@ function normName(s: string): string {
     .toLowerCase();
 }
 
-async function callGeminiOnce(printUrls: string[]): Promise<ExtractedPlaylist[]> {
+async function callGeminiOnce(printUrls: string[], startIndex: number): Promise<ExtractedPlaylist[]> {
   const userContent: any[] = [
     {
       type: "text",
       text:
         "Estas são capturas de tela da página 'Playlists' do Spotify for Artists para uma música. " +
-        "Cada linha da tabela tem: posição, capa, nome da playlist, criador (coluna 'Made by' — pode ser 'Spotify', um nome de usuário, ou vazio '—'), " +
+        "Cada linha da tabela tem: posição (rank, do topo pro fim), capa, nome da playlist, criador (coluna 'Made by' — pode ser 'Spotify', um nome de usuário, ou vazio '—'), " +
         "streams (coluna 'Streams', últimos 7 ou 28 dias), e data adicionada. " +
-        "Extraia TODAS as playlists visíveis em TODOS os prints. " +
+        "Extraia TODAS as playlists visíveis em TODOS os prints, NA ORDEM EXATA em que aparecem (de cima pra baixo). " +
         "IMPORTANTE: " +
-        "- Se a mesma playlist aparecer em mais de um print (por overlap de scroll), liste só UMA vez. " +
+        `- 'position' é a posição na lista, começando em ${startIndex + 1} para a primeira playlist do PRIMEIRO print enviado, e seguindo sequencialmente. ` +
+        "- Se a mesma playlist aparecer em mais de um print (por overlap de scroll), liste só UMA vez (mantenha a posição da primeira aparição). " +
         "- 'plays' deve ser o número de streams como inteiro (sem vírgula/ponto separador). Ex: '316,015' → 316015. " +
         "- 'made_by' = null se aparecer '—' ou estiver em branco. " +
         "- Não invente playlists. Se não conseguir ler com clareza, pule.",
@@ -160,7 +161,7 @@ async function callGeminiOnce(printUrls: string[]): Promise<ExtractedPlaylist[]>
         type: "function",
         function: {
           name: "report_playlists",
-          description: "Reporta a lista de playlists extraídas dos prints.",
+          description: "Reporta a lista de playlists extraídas dos prints, na ordem em que aparecem.",
           parameters: {
             type: "object",
             properties: {
@@ -169,6 +170,10 @@ async function callGeminiOnce(printUrls: string[]): Promise<ExtractedPlaylist[]>
                 items: {
                   type: "object",
                   properties: {
+                    position: {
+                      type: "integer",
+                      description: "Posição (rank) da playlist na lista do Spotify for Artists, do topo pro fim.",
+                    },
                     playlist_name: { type: "string", description: "Nome exato da playlist" },
                     spotify_url: {
                       type: "string",
@@ -183,7 +188,7 @@ async function callGeminiOnce(printUrls: string[]): Promise<ExtractedPlaylist[]>
                       description: "Número de streams como inteiro",
                     },
                   },
-                  required: ["playlist_name", "plays"],
+                  required: ["position", "playlist_name", "plays"],
                   additionalProperties: false,
                 },
               },
