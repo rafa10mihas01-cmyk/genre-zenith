@@ -254,6 +254,7 @@ export default function PlaylistDeals() {
                 onEdit={(deal) => setEditDeal(deal)}
                 onClose={(deal) => setCloseDealOpen(deal)}
                 onReopen={handleReopen}
+                onForceCollect={(deal) => forceCollectNow(deal.id)}
               />
             ))}
           </div>
