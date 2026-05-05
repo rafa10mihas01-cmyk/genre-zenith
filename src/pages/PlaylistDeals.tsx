@@ -35,7 +35,7 @@ export default function PlaylistDeals() {
   const [editDeal, setEditDeal] = useState<CuratorDeal | null>(null);
   const [closeDealOpen, setCloseDealOpen] = useState<CuratorDeal | null>(null);
 
-  const { deals, logs, playlists, songs, alerts, curators, balances, progressByDeal, loading, deleteDeal, addLog, addBaseline, insertSnapshots, closeDeal, reopenDeal, updateCurator, archiveCurator, reload } = useCuratorDeals();
+  const { deals, logs, playlists, songs, alerts, curators, balances, progressByDeal, loading, deleteDeal, addLog, addBaseline, insertSnapshots, closeDeal, reopenDeal, forceCollectNow, updateCurator, archiveCurator, reload } = useCuratorDeals();
 
   // KPIs do topo — derivados dos deals + logs + playlists
   const kpi = useMemo(() => {
@@ -254,6 +254,7 @@ export default function PlaylistDeals() {
                 onEdit={(deal) => setEditDeal(deal)}
                 onClose={(deal) => setCloseDealOpen(deal)}
                 onReopen={handleReopen}
+                onForceCollect={(deal) => forceCollectNow(deal.id)}
               />
             ))}
           </div>

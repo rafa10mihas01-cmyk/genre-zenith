@@ -24,6 +24,7 @@ export interface CuratorDealCardProps {
   onEdit?: (deal: CuratorDeal) => void;
   onClose?: (deal: CuratorDeal) => void;
   onReopen?: (deal: CuratorDeal) => void;
+  onForceCollect?: (deal: CuratorDeal) => Promise<void> | void;
 }
 
 function formatPlays(n: number): string {
@@ -35,7 +36,7 @@ function formatPlays(n: number): string {
 }
 
 export function CuratorDealCard({
-  deal, logs, playlists, songs = [], progress, onLog, onDetail, onDelete, onEdit, onClose, onReopen,
+  deal, logs, playlists, songs = [], progress, onLog, onDetail, onDelete, onEdit, onClose, onReopen, onForceCollect,
 }: CuratorDealCardProps) {
   const stats = computeCuratorStats(deal, logs, playlists, progress ?? null);
   const { earned, pct, vel, eta, latestPlays, todayPlays, hasBaseline, newPlaylists } = stats;
@@ -390,6 +391,25 @@ export function CuratorDealCard({
           >
             <Link2 className="h-3.5 w-3.5" />
           </Button>
+          {!isClosed && onForceCollect && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 text-muted-foreground hover:text-primary"
+              onClick={async () => {
+                try {
+                  await onForceCollect(deal);
+                  toast.success("Coleta agendada — robô vai pegar na próxima rodada");
+                } catch (e) {
+                  toast.error("Falha ao agendar coleta");
+                }
+              }}
+              aria-label="Forçar coleta agora"
+              title="Forçar coleta agora"
+            >
+              <Zap className="h-3.5 w-3.5" />
+            </Button>
+          )}
           {!isClosed && onEdit && (
             <Button
               variant="ghost"

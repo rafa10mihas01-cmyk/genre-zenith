@@ -655,6 +655,22 @@ export function useCuratorDeals() {
     [load],
   );
 
+  const forceCollectNow = useCallback(
+    async (dealId: string) => {
+      const { error: updErr } = await supabase
+        .from("curator_deal_songs")
+        .update({
+          auto_collect: true,
+          auto_collect_status: "idle",
+          next_auto_collect_at: new Date().toISOString(),
+        })
+        .eq("deal_id", dealId);
+      if (updErr) throw updErr;
+      await load();
+    },
+    [load],
+  );
+
   const reopenDeal = useCallback(
     async (dealId: string) => {
       const { error: updErr } = await supabase
@@ -696,6 +712,7 @@ export function useCuratorDeals() {
     insertSnapshots,
     closeDeal,
     reopenDeal,
+    forceCollectNow,
     reload: load,
     invalidateProgress,
   };
