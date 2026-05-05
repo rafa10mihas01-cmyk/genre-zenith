@@ -289,11 +289,36 @@ Deno.serve(async (req) => {
   // 3. Para cada playlist: match e snapshot
   let inserted = 0;
   let skipped = 0;
+  let skippedAlgorithmic = 0;
   let totalPlays = 0;
+
+  // Blocklist: nomes exatos da seção "Ouvintes / Algorítmico" do Spotify for Artists.
+  // Essas linhas aparecem abaixo da curadoria e NÃO são playlists curadas.
+  const ALGO_NAMES = new Set([
+    "radio", "mixes", "daylist", "smart shuffle", "on repeat", "blend",
+    "your dj", "discover weekly", "release radar", "made for you",
+    "repeat rewind", "your top songs", "niche mixes", "uniquely yours",
+  ]);
+  const isAlgorithmic = (name: string | null, madeBy: string | null) => {
+    if ((madeBy ?? "").trim().toLowerCase() === "spotify") return true;
+    const n = (name ?? "").trim().toLowerCase();
+    if (!n) return false;
+    if (ALGO_NAMES.has(n)) return true;
+    // variações tipo "X Mix", "Daily Mix 1", "Discover Weekly"
+    if (/\b(daily mix|mix \d+|on repeat|smart shuffle)\b/.test(n)) return true;
+    return false;
+  };
 
   for (const pl of extracted) {
     const sName = pl.playlist_name ?? null;
     const plays = Math.max(0, parseInt(String(pl.plays ?? 0)) || 0);
+
+    // Filtra ruído algorítmico do Spotify antes de qualquer matching
+    if (isAlgorithmic(sName, pl.made_by ?? null)) {
+      skippedAlgorithmic++;
+      continue;
+    }
+
     totalPlays += plays;
 
     // PRIORIDADE 1: bate o nome lido pelo Gemini com o DOM (link real do HTML)
@@ -415,7 +440,7 @@ Deno.serve(async (req) => {
     acao: "extract_print",
     status: skipped > 0 ? "parcial" : "ok",
     duracao_ms: elapsedMs,
-    mensagem: `deal=${deal_id} prints=${print_urls.length} dom=${dom_playlists.length} found=${extracted.length} inserted=${inserted} skipped=${skipped} ms=${elapsedMs}`,
+    mensagem: `deal=${deal_id} prints=${print_urls.length} dom=${dom_playlists.length} found=${extracted.length} algo_skip=${skippedAlgorithmic} inserted=${inserted} skipped=${skipped} ms=${elapsedMs}`,
   });
 
   return jr({
@@ -423,6 +448,7 @@ Deno.serve(async (req) => {
     playlists_found: extracted.length,
     inserted,
     skipped,
+    skipped_algorithmic: skippedAlgorithmic,
     total_plays: totalPlays,
   });
 });
