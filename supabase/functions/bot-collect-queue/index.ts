@@ -92,6 +92,28 @@ Deno.serve(async (req) => {
         next_auto_collect_at: new Date(Date.now() + 60 * 60_000).toISOString(),
       })
       .in("id", blocked.map((s: any) => s.id));
+
+    // Notifica 1x por deal (dedupe 24h via metadata.kind + deal_id)
+    const blockedDealIds = Array.from(new Set(blocked.map((s: any) => s.deal_id)));
+    const dayAgo = new Date(Date.now() - 24 * 60 * 60_000).toISOString();
+    for (const dId of blockedDealIds) {
+      const deal = blocked.find((s: any) => s.deal_id === dId)?.curator_deals as any;
+      const { count } = await supabase
+        .from("notifications")
+        .select("id", { count: "exact", head: true })
+        .gte("created_at", dayAgo)
+        .contains("metadata", { kind: "no_whitelist", deal_id: dId });
+      if ((count ?? 0) > 0) continue;
+      try {
+        await supabase.rpc("create_notification" as any, {
+          p_type: "warning",
+          p_title: "Curador sem playlists cadastradas",
+          p_message: `${deal?.curator_name ?? "Curador"} ainda não cadastrou playlists para "${deal?.song_name ?? "a faixa"}". Coleta pausada.`,
+          p_action_url: `/playlist-deals?deal=${dId}`,
+          p_metadata: { kind: "no_whitelist", deal_id: dId },
+        });
+      } catch (_) { /* ignore */ }
+    }
   }
 
   // Marca elegíveis como queued para evitar dupla execução
