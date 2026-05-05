@@ -615,80 +615,169 @@ export function DealHistorySheet({
                       const logSong = getSongForLog(log);
                       const cover = logSong?.song_cover_url ?? deal.song_cover_url ?? null;
                       const songName = logSong?.song_name ?? deal.song_name ?? "Música";
+                      const isExpanded = selectedLogId === log.id;
+
+                      // playlists vinculadas a este registro (mesma lógica que estava no popup)
+                      const linked = allPlaylists
+                        .filter((p) => {
+                          if (p.deal_id !== log.deal_id) return false;
+                          if (log.song_id && (p as any).song_id) {
+                            return (p as any).song_id === log.song_id;
+                          }
+                          if (log.is_baseline) return p.is_baseline === true;
+                          return true;
+                        })
+                        .sort(
+                          (a, b) =>
+                            (Number(b.streams_7d) || 0) - (Number(a.streams_7d) || 0),
+                        );
 
                       return (
-                        <button
+                        <div
                           key={log.id}
-                          type="button"
-                          onClick={() => setSelectedLogId(log.id)}
-                          className="w-full text-left rounded-xl border border-white/[0.04] bg-[hsl(var(--elevated))]/30 px-3 py-2.5 hover:bg-[hsl(var(--elevated))] hover:border-white/[0.08] transition-colors flex items-center gap-3"
+                          className={cn(
+                            "rounded-xl border transition-colors overflow-hidden",
+                            isExpanded
+                              ? "border-white/[0.10] bg-[hsl(var(--elevated))]"
+                              : "border-white/[0.04] bg-[hsl(var(--elevated))]/30 hover:bg-[hsl(var(--elevated))] hover:border-white/[0.08]",
+                          )}
                         >
-                          {cover ? (
-                            <img
-                              src={cover}
-                              alt=""
-                              className="h-11 w-11 rounded-lg object-cover shrink-0 ring-1 ring-white/[0.06]"
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setSelectedLogId(isExpanded ? null : log.id)
+                            }
+                            className="w-full text-left px-3 py-2.5 flex items-center gap-3"
+                          >
+                            {cover ? (
+                              <img
+                                src={cover}
+                                alt=""
+                                className="h-11 w-11 rounded-lg object-cover shrink-0 ring-1 ring-white/[0.06]"
+                              />
+                            ) : (
+                              <div className="h-11 w-11 rounded-lg bg-muted/40 flex items-center justify-center shrink-0">
+                                <Music2 className="h-4 w-4 text-muted-foreground" />
+                              </div>
+                            )}
+
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[13px] font-semibold leading-tight line-clamp-1">
+                                  {songName}
+                                </span>
+                                {log.is_baseline && (
+                                  <Badge
+                                    variant="secondary"
+                                    className="text-[9px] h-4 px-1.5 shrink-0"
+                                  >
+                                    Baseline
+                                  </Badge>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mt-0.5">
+                                <span>
+                                  {format(new Date(log.created_at), "dd MMM, HH:mm", { locale: ptBR })}
+                                </span>
+                                {linked.length > 0 && (
+                                  <>
+                                    <span>·</span>
+                                    <span>
+                                      {linked.length} playlist
+                                      {linked.length > 1 ? "s" : ""}
+                                    </span>
+                                  </>
+                                )}
+                                {log.print_urls && log.print_urls.length > 0 && (
+                                  <>
+                                    <span>·</span>
+                                    <span>
+                                      {log.print_urls.length} print
+                                      {log.print_urls.length > 1 ? "s" : ""}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="text-right shrink-0">
+                              <div className="text-[15px] font-bold tabular-nums leading-tight">
+                                {Number(log.total_plays).toLocaleString("pt-BR")}
+                              </div>
+                              {!isFirst && !log.is_baseline ? (
+                                <div
+                                  className={cn(
+                                    "text-[11px] font-semibold tabular-nums mt-0.5 inline-flex items-center gap-0.5",
+                                    positive ? "text-success" : "text-destructive",
+                                  )}
+                                >
+                                  <TrendingUp
+                                    className={cn("h-3 w-3", !positive && "rotate-180")}
+                                  />
+                                  {positive ? "+" : "−"}
+                                  {Math.abs(delta).toLocaleString("pt-BR")}
+                                </div>
+                              ) : (
+                                <div className="text-[10px] text-muted-foreground mt-0.5">plays</div>
+                              )}
+                            </div>
+
+                            <ChevronRight
+                              className={cn(
+                                "h-4 w-4 text-muted-foreground/60 shrink-0 transition-transform",
+                                isExpanded && "rotate-90",
+                              )}
                             />
-                          ) : (
-                            <div className="h-11 w-11 rounded-lg bg-muted/40 flex items-center justify-center shrink-0">
-                              <Music2 className="h-4 w-4 text-muted-foreground" />
+                          </button>
+
+                          {/* CORPO EXPANDIDO INLINE — sem popup */}
+                          {isExpanded && (
+                            <div className="border-t border-white/[0.06] px-3 py-3 space-y-3 bg-background/30">
+                              {log.note && (
+                                <div>
+                                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+                                    Observação
+                                  </div>
+                                  <div className="text-xs text-foreground/90 rounded-md bg-muted/20 px-2.5 py-1.5 leading-relaxed">
+                                    {log.note}
+                                  </div>
+                                </div>
+                              )}
+
+                              {log.print_urls && log.print_urls.length > 0 && (
+                                <div>
+                                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
+                                    Prints ({log.print_urls.length})
+                                  </div>
+                                  <PrintThumbs urls={log.print_urls} size="sm" />
+                                </div>
+                              )}
+
+                              <div>
+                                <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
+                                  {log.is_baseline ? "Playlists iniciais" : "Playlists do registro"}{" "}
+                                  ({linked.length})
+                                </div>
+                                {linked.length === 0 ? (
+                                  <div className="text-xs text-muted-foreground py-2">
+                                    Nenhuma playlist vinculada a este registro.
+                                  </div>
+                                ) : (
+                                  <ul className="space-y-0.5 -mx-1">
+                                    {linked.slice(0, 30).map((p) => (
+                                      <PlaylistRow key={p.id} p={p} />
+                                    ))}
+                                    {linked.length > 30 && (
+                                      <li className="text-[11px] text-muted-foreground px-3 py-1">
+                                        + {linked.length - 30} outras
+                                      </li>
+                                    )}
+                                  </ul>
+                                )}
+                              </div>
                             </div>
                           )}
-
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
-                              <span className="text-[13px] font-semibold leading-tight line-clamp-1">
-                                {songName}
-                              </span>
-                              {log.is_baseline && (
-                                <Badge
-                                  variant="secondary"
-                                  className="text-[9px] h-4 px-1.5 shrink-0"
-                                >
-                                  Baseline
-                                </Badge>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mt-0.5">
-                              <span>
-                                {format(new Date(log.created_at), "dd MMM, HH:mm", { locale: ptBR })}
-                              </span>
-                              {log.print_urls && log.print_urls.length > 0 && (
-                                <>
-                                  <span>·</span>
-                                  <span>
-                                    {log.print_urls.length} print
-                                    {log.print_urls.length > 1 ? "s" : ""}
-                                  </span>
-                                </>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="text-right shrink-0">
-                            <div className="text-[15px] font-bold tabular-nums leading-tight">
-                              {Number(log.total_plays).toLocaleString("pt-BR")}
-                            </div>
-                            {!isFirst && !log.is_baseline ? (
-                              <div
-                                className={cn(
-                                  "text-[11px] font-semibold tabular-nums mt-0.5 inline-flex items-center gap-0.5",
-                                  positive ? "text-success" : "text-destructive",
-                                )}
-                              >
-                                <TrendingUp
-                                  className={cn("h-3 w-3", !positive && "rotate-180")}
-                                />
-                                {positive ? "+" : "−"}
-                                {Math.abs(delta).toLocaleString("pt-BR")}
-                              </div>
-                            ) : (
-                              <div className="text-[10px] text-muted-foreground mt-0.5">plays</div>
-                            )}
-                          </div>
-
-                          <ChevronRight className="h-4 w-4 text-muted-foreground/60 shrink-0" />
-                        </button>
+                        </div>
                       );
                     })
                   )}
