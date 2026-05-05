@@ -658,6 +658,10 @@ Deno.serve(async (req) => {
   for (const dom of domItems) {
     if (processedSpotifyIds.has(dom.id) || processedNames.has(norm(dom.name))) continue;
     if (isAlgorithmic(dom.name, null, dom.id)) continue;
+    if (whitelistActive && !whitelist.has(dom.id)) {
+      filteredOut++;
+      continue;
+    }
 
     const { data: matchData } = await supabase.rpc("match_curator_playlist", {
       p_deal_id: deal_id,
