@@ -205,11 +205,16 @@ Deno.serve(async (req) => {
     return jr({ error: "extract_failed", detail: msg }, 500);
   }
 
-  // 2. Detecta baseline
-  const { count: existingLogs } = await supabase
+  // 2. Detecta baseline — escopa por (deal_id, song_id) pra não confundir
+  // coletas de outros deals/legados.
+  let baselineQuery = supabase
     .from("curator_deal_logs")
     .select("id", { count: "exact", head: true })
-    .eq("song_id", song_id ?? null);
+    .eq("deal_id", deal_id);
+  baselineQuery = song_id
+    ? baselineQuery.eq("song_id", song_id)
+    : baselineQuery.is("song_id", null);
+  const { count: existingLogs } = await baselineQuery;
   const isBaseline = (existingLogs ?? 0) === 0;
 
   // 3. Para cada playlist: match e snapshot
