@@ -1,0 +1,1 @@
+UPDATE public.curator_deal_songs SET auto_collect_status='idle', next_auto_collect_at=now() WHERE auto_collect_status='queued';
