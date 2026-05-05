@@ -287,7 +287,7 @@ Deno.serve(async (req) => {
 
   // Index DOM por nome/ID pra cruzar com Gemini e, se houver só 1 print,
   // ainda assim cadastrar os links reais capturados no HTML.
-  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const norm = normName;
   const domByName = new Map<string, { id: string; url: string; name: string }>();
   const domItems: Array<{ id: string; url: string; name: string }> = [];
   for (const d of dom_playlists) {
