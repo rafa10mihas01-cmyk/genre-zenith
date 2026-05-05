@@ -361,13 +361,15 @@ Deno.serve(async (req) => {
         if (algoId) {
           algorithmicNew++;
           // Alerta interno: nova algorítmica entrou
-          await supabase.rpc("create_notification" as any, {
-            p_type: "info",
-            p_title: "Nova playlist algorítmica",
-            p_message: `${algoName} começou a tocar a faixa (${plays.toLocaleString("pt-BR")} streams).`,
-            p_action_url: `/playlist-deals?deal=${deal_id}`,
-          p_metadata: { deal_id, song_id, playlist_name: algoName, plays, kind: "algorithmic_in" },
-          }).then(() => null, () => null);
+          try {
+            await supabase.rpc("create_notification" as any, {
+              p_type: "info",
+              p_title: "Nova playlist algorítmica",
+              p_message: `${algoName} começou a tocar a faixa (${plays.toLocaleString("pt-BR")} streams).`,
+              p_action_url: `/playlist-deals?deal=${deal_id}`,
+              p_metadata: { deal_id, song_id, playlist_name: algoName, plays, kind: "algorithmic_in" },
+            });
+          } catch (_) { /* ignore */ }
         }
       }
       if (algoId) {
