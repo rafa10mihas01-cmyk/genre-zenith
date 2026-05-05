@@ -533,13 +533,15 @@ Deno.serve(async (req) => {
       // Evita spam: só dispara se a última leitura foi há menos de 7 dias (saída "fresca")
       if (lastTs > 0 && Date.now() - lastTs < 7 * 86400_000) {
         algorithmicGone++;
-        await supabase.rpc("create_notification" as any, {
-          p_type: "info",
-          p_title: "Playlist algorítmica saiu",
-          p_message: `${g.playlist_name} parou de tocar a faixa.`,
-          p_action_url: `/playlist-deals?deal=${deal_id}`,
-          p_metadata: { deal_id, song_id, playlist_name: g.playlist_name, kind: "algorithmic_out" },
-        }).catch(() => null);
+        try {
+          await supabase.rpc("create_notification" as any, {
+            p_type: "info",
+            p_title: "Playlist algorítmica saiu",
+            p_message: `${g.playlist_name} parou de tocar a faixa.`,
+            p_action_url: `/playlist-deals?deal=${deal_id}`,
+            p_metadata: { deal_id, song_id, playlist_name: g.playlist_name, kind: "algorithmic_out" },
+          });
+        } catch (_) { /* ignore */ }
       }
     }
   }
