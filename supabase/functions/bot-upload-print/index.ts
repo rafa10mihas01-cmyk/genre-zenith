@@ -21,6 +21,7 @@ const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const BOT_API_KEY = Deno.env.get("BOT_API_KEY")!;
 const BUCKET = "bot-prints";
 const SIGNED_URL_TTL = 60 * 60 * 24 * 365; // 1 ano
+const MAX_DOM_PLAYLISTS_FOR_SINGLE_PRINT = 30;
 
 function jr(p: unknown, status = 200) {
   return new Response(JSON.stringify(p), {
@@ -96,6 +97,16 @@ Deno.serve(async (req) => {
   if (!bytes || bytes.length === 0) return jr({ error: "empty_file" }, 400);
   if (bytes.length > 8 * 1024 * 1024) return jr({ error: "file_too_large_8mb" }, 413);
 
+  const parsed = parsePartLabel(label);
+  if (parsed?.key === "playlists" && parsed.total === 1 && domPlaylists.length > MAX_DOM_PLAYLISTS_FOR_SINGLE_PRINT) {
+    return jr({
+      error: "clipped_playlist_batch_rejected",
+      detail: `DOM trouxe ${domPlaylists.length} playlists, mas o bot declarou só 1 print. Gere múltiplas partes antes de enviar.`,
+      received_dom_playlists: domPlaylists.length,
+      expected_label: "playlists-part-1-of-N",
+    }, 422);
+  }
+
   const dSeg = safeSeg(dealId, "no-deal");
   const sSeg = safeSeg(songId, "no-song");
   const lSeg = safeSeg(label, "print");
@@ -136,7 +147,6 @@ Deno.serve(async (req) => {
 
   // ========== AGRUPAMENTO MULTI-PART ==========
   let batchInfo: Record<string, unknown> | undefined;
-  const parsed = parsePartLabel(label);
 
   if (parsed && dealId) {
     // upsert do batch
