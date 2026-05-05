@@ -792,5 +792,6 @@ Deno.serve(async (req) => {
     algorithmic_new: algorithmicNew,
     algorithmic_gone: algorithmicGone,
     total_plays: totalPlays,
-  });
-});
+    whitelist_active: whitelistActive,
+    whitelist_size: whitelist.size,
+    filtered_out: filteredOut,
