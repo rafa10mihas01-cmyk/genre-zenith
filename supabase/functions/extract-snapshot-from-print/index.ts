@@ -829,7 +829,7 @@ Deno.serve(async (req) => {
     acao: "extract_print",
     status: skipped > 0 ? "parcial" : "ok",
     duracao_ms: elapsedMs,
-    mensagem: `deal=${deal_id} prints=${print_urls.length} dom=${dom_playlists.length} found=${extracted.length} dom_linked=${domLinked} algo=${algorithmicCount} algo_new=${algorithmicNew} algo_gone=${algorithmicGone} inserted=${inserted} skipped=${skipped} whitelist=${whitelistActive ? whitelist.size : "off"} filtered_out=${filteredOut} ms=${elapsedMs}`,
+    mensagem: `deal=${deal_id} src=${usedDomDirect ? "dom" : "gemini"} prints=${print_urls.length} dom=${dom_playlists.length} found=${extracted.length} dom_linked=${domLinked} algo=${algorithmicCount} algo_new=${algorithmicNew} algo_gone=${algorithmicGone} inserted=${inserted} skipped=${skipped} whitelist=${whitelistActive ? whitelist.size : "off"} filtered_out=${filteredOut} ms=${elapsedMs}`,
   });
 
   return jr({
