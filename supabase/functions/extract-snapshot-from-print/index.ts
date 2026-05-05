@@ -423,12 +423,13 @@ Deno.serve(async (req) => {
   }
 
   // WHITELIST: só consideramos playlists declaradas pelo curador.
-  // Se o curador ainda não cadastrou nenhuma, mantemos comportamento atual
-  // (grava tudo). Se cadastrou, ignoramos qualquer playlist fora da lista.
+  // 🔒 BLINDAGEM: se o curador NÃO cadastrou nenhuma playlist, NÃO coleta.
+  // Recusa o batch, marca a song como aguardando, e não grava nada.
   const { data: whitelistRows } = await supabase
     .from("curator_playlists")
     .select("spotify_playlist_id")
     .eq("deal_id", deal_id)
+    .neq("match_status", "algorithmic")
     .not("spotify_playlist_id", "is", null);
   const whitelist = new Set<string>(
     (whitelistRows ?? [])
@@ -437,6 +438,38 @@ Deno.serve(async (req) => {
   );
   const whitelistActive = whitelist.size > 0;
   console.log(`[extract] whitelist deal=${deal_id} size=${whitelist.size} active=${whitelistActive}`);
+
+  if (!whitelistActive) {
+    if (batch_id) {
+      await supabase
+        .from("bot_print_batches")
+        .update({
+          status: "error",
+          error: "no_curator_whitelist",
+        })
+        .eq("id", batch_id);
+    }
+    if (song_id) {
+      await supabase
+        .from("curator_deal_songs")
+        .update({
+          auto_collect_status: "idle",
+          auto_collect_error: "Aguardando curador cadastrar playlists",
+          next_auto_collect_at: new Date(Date.now() + 60 * 60_000).toISOString(),
+        })
+        .eq("id", song_id);
+    }
+    await supabase.from("collection_logs").insert({
+      acao: "extract_print",
+      status: "skipped",
+      mensagem: `deal=${deal_id} bloqueado: curador sem playlists cadastradas`,
+    });
+    return jr({
+      ok: false,
+      skipped_reason: "no_curator_whitelist",
+      message: "Nenhuma playlist cadastrada pelo curador. Coleta bloqueada.",
+    });
+  }
 
   // Marca batch como processing
   if (batch_id) {
