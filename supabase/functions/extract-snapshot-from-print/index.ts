@@ -12,6 +12,37 @@
 // 5. Atualiza last_auto_collect_at + next_auto_collect_at na song
 // 6. Marca batch como processed
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { z } from "npm:zod@3.23.8";
+
+// ============= Schemas de validação =============
+const RequestSchema = z.object({
+  deal_id: z.string().uuid(),
+  song_id: z.string().uuid().nullable().optional(),
+  print_urls: z.array(z.string().url()).min(1).max(40),
+  batch_id: z.string().uuid().optional(),
+  dom_playlists: z
+    .array(
+      z.object({
+        name: z.string().optional(),
+        url: z.string().optional(),
+        plays_text: z.string().optional(),
+      }).passthrough(),
+    )
+    .optional(),
+});
+
+const GeminiPlaylistSchema = z.object({
+  playlist_name: z.string().min(1).max(300),
+  spotify_url: z.string().optional().nullable(),
+  made_by: z.string().optional().nullable(),
+  plays: z.union([z.number(), z.string()]).transform((v) => {
+    const n = typeof v === "number" ? v : parseInt(String(v).replace(/\D/g, ""), 10);
+    return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0;
+  }),
+});
+const GeminiResponseSchema = z.object({
+  playlists: z.array(GeminiPlaylistSchema).max(500),
+});
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -136,7 +167,19 @@ async function callGemini(printUrls: string[]): Promise<ExtractedPlaylist[]> {
     throw new Error("gemini: no tool_call returned");
   }
   const args = JSON.parse(tc.function.arguments);
-  return Array.isArray(args.playlists) ? args.playlists : [];
+  const validated = GeminiResponseSchema.safeParse(args);
+  if (!validated.success) {
+    console.warn("gemini schema invalid, falling back", validated.error.flatten());
+    return Array.isArray(args.playlists)
+      ? args.playlists.filter((p: any) => p?.playlist_name).map((p: any) => ({
+          playlist_name: String(p.playlist_name),
+          spotify_url: p.spotify_url ?? null,
+          made_by: p.made_by ?? null,
+          plays: Math.max(0, parseInt(String(p.plays ?? 0).replace(/\D/g, "")) || 0),
+        }))
+      : [];
+  }
+  return validated.data.playlists as ExtractedPlaylist[];
 }
 
 Deno.serve(async (req) => {
@@ -151,20 +194,21 @@ Deno.serve(async (req) => {
     return jr({ error: "unauthorized" }, 401);
   }
 
-  let body: any;
+  const t0 = Date.now();
+  let body: unknown;
   try {
     body = await req.json();
   } catch {
     return jr({ error: "invalid_json" }, 400);
   }
 
-  const { song_id, deal_id, print_urls, batch_id } = body ?? {};
-  let dom_playlists: Array<{ name?: string; url?: string; plays_text?: string }> =
-    Array.isArray(body?.dom_playlists) ? body.dom_playlists : [];
-  if (!deal_id) return jr({ error: "deal_id required" }, 400);
-  if (!Array.isArray(print_urls) || print_urls.length === 0) {
-    return jr({ error: "print_urls required" }, 400);
+  const parsedBody = RequestSchema.safeParse(body);
+  if (!parsedBody.success) {
+    return jr({ error: "invalid_body", detail: parsedBody.error.flatten() }, 400);
   }
+  const { song_id, deal_id, print_urls, batch_id } = parsedBody.data;
+  let dom_playlists: Array<{ name?: string; url?: string; plays_text?: string }> =
+    parsedBody.data.dom_playlists ?? [];
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
@@ -271,7 +315,8 @@ Deno.serve(async (req) => {
       p_deal_id: deal_id,
       p_spotify_playlist_id: sId,
       p_playlist_name: sName,
-    });
+      p_song_id: song_id ?? null,
+    } as any);
     const row = Array.isArray(matchData) ? matchData[0] : null;
     if (row?.playlist_id) {
       playlistId = row.playlist_id as string;
@@ -365,10 +410,12 @@ Deno.serve(async (req) => {
       .eq("id", batch_id);
   }
 
+  const elapsedMs = Date.now() - t0;
   await supabase.from("collection_logs").insert({
     acao: "extract_print",
     status: skipped > 0 ? "parcial" : "ok",
-    mensagem: `deal=${deal_id} prints=${print_urls.length} found=${extracted.length} inserted=${inserted} skipped=${skipped}`,
+    duracao_ms: elapsedMs,
+    mensagem: `deal=${deal_id} prints=${print_urls.length} dom=${dom_playlists.length} found=${extracted.length} inserted=${inserted} skipped=${skipped} ms=${elapsedMs}`,
   });
 
   return jr({
