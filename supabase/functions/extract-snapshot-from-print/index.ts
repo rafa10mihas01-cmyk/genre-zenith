@@ -550,8 +550,8 @@ Deno.serve(async (req) => {
       const hit = domByName.get(norm(sName));
       if (hit) preResolvedId = hit.id;
     }
-    if (whitelistActive) {
-      if (!preResolvedId || !whitelist.has(preResolvedId)) {
+    if (whitelistActive && !isAlgo) {
+      if (!preResolvedId || preResolvedId.startsWith("algo:") || !whitelist.has(preResolvedId)) {
         filteredOut++;
         continue;
       }
