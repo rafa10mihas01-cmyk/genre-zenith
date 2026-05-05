@@ -180,6 +180,7 @@ async function callGemini(printUrls: string[]): Promise<ExtractedPlaylist[]> {
       : [];
   }
   return validated.data.playlists as ExtractedPlaylist[];
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
