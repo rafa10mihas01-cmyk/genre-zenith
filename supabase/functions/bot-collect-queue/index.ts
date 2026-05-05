@@ -32,6 +32,18 @@ Deno.serve(async (req) => {
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
+  // Recovery: músicas presas em "queued" há mais de 10 min voltam pra "error"
+  // (provavelmente bot crashou no meio do ciclo). Assim entram no próximo round.
+  const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+  await supabase
+    .from("curator_deal_songs")
+    .update({
+      auto_collect_status: "error",
+      auto_collect_error: "Stuck in queued >10min — auto-recovered",
+    })
+    .eq("auto_collect_status", "queued")
+    .lt("updated_at", tenMinAgo);
+
   // Candidatas: auto_collect=true E (next_auto_collect_at <= now OR next null)
   // E (status idle OU error) — não pega running/queued
   const { data, error } = await supabase
