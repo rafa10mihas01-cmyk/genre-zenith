@@ -2404,6 +2404,15 @@ export type Database = {
         }
         Returns: Json
       }
+      recover_stuck_print_batches: {
+        Args: never
+        Returns: {
+          batch_id: string
+          deal_id: string
+          print_urls: Json
+          song_id: string
+        }[]
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       slugify: { Args: { p_text: string }; Returns: string }
