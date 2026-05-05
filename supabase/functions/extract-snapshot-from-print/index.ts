@@ -225,14 +225,19 @@ Deno.serve(async (req) => {
     }
   }
 
-  // Index dom por nome normalizado pra cruzar com Gemini
+  // Index DOM por nome/ID pra cruzar com Gemini e, se houver só 1 print,
+  // ainda assim cadastrar os links reais capturados no HTML.
   const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
-  const domByName = new Map<string, { id: string; url: string }>();
+  const domByName = new Map<string, { id: string; url: string; name: string }>();
+  const domItems: Array<{ id: string; url: string; name: string }> = [];
   for (const d of dom_playlists) {
     if (!d?.name || !d?.url) continue;
     const m = d.url.match(/playlist[/:]([a-zA-Z0-9]{16,})/);
     if (!m) continue;
-    domByName.set(norm(d.name), { id: m[1], url: d.url });
+    const name = String(d.name).trim();
+    const item = { id: m[1], url: d.url, name };
+    domByName.set(norm(name), item);
+    domItems.push(item);
   }
 
   // Marca batch como processing
@@ -292,9 +297,12 @@ Deno.serve(async (req) => {
   let algorithmicCount = 0;
   let algorithmicNew = 0;
   let totalPlays = 0;
+  let domLinked = 0;
 
   // IDs das playlists algorítmicas vistas nesta coleta — usado pra detectar "saiu"
   const algorithmicSeenIds: string[] = [];
+  const processedSpotifyIds = new Set<string>();
+  const processedNames = new Set<string>();
 
   // Blocklist: nomes exatos da seção "Ouvintes / Algorítmico" do Spotify for Artists.
   // Essas linhas aparecem abaixo da curadoria e NÃO são playlists curadas.
@@ -303,7 +311,8 @@ Deno.serve(async (req) => {
     "your dj", "discover weekly", "release radar", "made for you",
     "repeat rewind", "your top songs", "niche mixes", "uniquely yours",
   ]);
-  const isAlgorithmic = (name: string | null, madeBy: string | null) => {
+  const isAlgorithmic = (name: string | null, madeBy: string | null, spotifyId?: string | null) => {
+    if ((spotifyId ?? "").startsWith("37i9dQZF")) return true;
     if ((madeBy ?? "").trim().toLowerCase() === "spotify") return true;
     const n = (name ?? "").trim().toLowerCase();
     if (!n) return false;
@@ -392,6 +401,8 @@ Deno.serve(async (req) => {
         sUrl = domHit.url;
       }
     }
+    if (sId) processedSpotifyIds.add(sId);
+    if (sName) processedNames.add(norm(sName));
 
     let playlistId: string | null = null;
     let matchMethod: string | null = null;
@@ -453,6 +464,46 @@ Deno.serve(async (req) => {
     });
     if (insErr) skipped++;
     else inserted++;
+  }
+
+  // 3.1. Complemento DOM: o bot pode mandar 100 links do HTML mesmo quando
+  // mandou só 1 print. A IA só lê plays do que está visível; aqui garantimos
+  // que a lista de links fique completa, sem inventar streams.
+  for (const dom of domItems) {
+    if (processedSpotifyIds.has(dom.id) || processedNames.has(norm(dom.name))) continue;
+    if (isAlgorithmic(dom.name, null, dom.id)) continue;
+
+    const { data: matchData } = await supabase.rpc("match_curator_playlist", {
+      p_deal_id: deal_id,
+      p_spotify_playlist_id: dom.id,
+      p_playlist_name: dom.name,
+      p_song_id: song_id ?? null,
+    } as any);
+    const row = Array.isArray(matchData) ? matchData[0] : null;
+
+    if (row?.playlist_id) {
+      await supabase
+        .from("curator_playlists")
+        .update({ spotify_playlist_id: dom.id, spotify_url: dom.url })
+        .eq("id", row.playlist_id as string);
+      domLinked++;
+      continue;
+    }
+
+    const { error: cErr } = await supabase
+      .from("curator_playlists")
+      .insert({
+        deal_id,
+        song_id: song_id ?? null,
+        spotify_url: dom.url,
+        spotify_playlist_id: dom.id,
+        playlist_name: dom.name,
+        is_baseline: false,
+        match_status: "organic",
+        match_reason: "dom_only_link_no_visual_plays",
+      });
+    if (cErr) skipped++;
+    else domLinked++;
   }
 
   // 3.5. Detecta algorítmicas que sumiram (existiam, mas não vieram nesta coleta)
@@ -536,7 +587,7 @@ Deno.serve(async (req) => {
     acao: "extract_print",
     status: skipped > 0 ? "parcial" : "ok",
     duracao_ms: elapsedMs,
-    mensagem: `deal=${deal_id} prints=${print_urls.length} dom=${dom_playlists.length} found=${extracted.length} algo=${algorithmicCount} algo_new=${algorithmicNew} algo_gone=${algorithmicGone} inserted=${inserted} skipped=${skipped} ms=${elapsedMs}`,
+    mensagem: `deal=${deal_id} prints=${print_urls.length} dom=${dom_playlists.length} found=${extracted.length} dom_linked=${domLinked} algo=${algorithmicCount} algo_new=${algorithmicNew} algo_gone=${algorithmicGone} inserted=${inserted} skipped=${skipped} ms=${elapsedMs}`,
   });
 
   return jr({
@@ -544,6 +595,7 @@ Deno.serve(async (req) => {
     playlists_found: extracted.length,
     inserted,
     skipped,
+    dom_linked: domLinked,
     algorithmic: algorithmicCount,
     algorithmic_new: algorithmicNew,
     algorithmic_gone: algorithmicGone,
