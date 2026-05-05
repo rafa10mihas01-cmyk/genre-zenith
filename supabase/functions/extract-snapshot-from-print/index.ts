@@ -23,13 +23,23 @@ const RequestSchema = z.object({
   dom_playlists: z
     .array(
       z.object({
+        position: z.union([z.number(), z.string()]).optional(),
         name: z.string().optional(),
         url: z.string().optional(),
+        made_by: z.string().optional(),
         plays_text: z.string().optional(),
       }).passthrough(),
     )
     .optional(),
 });
+
+function parsePlaysText(s: string | null | undefined): number | null {
+  if (s == null) return null;
+  const onlyDigits = String(s).replace(/[^\d]/g, "");
+  if (!onlyDigits) return null;
+  const n = parseInt(onlyDigits, 10);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
 
 const GeminiPlaylistSchema = z.object({
   playlist_name: z.string().min(1).max(300),
@@ -365,18 +375,36 @@ Deno.serve(async (req) => {
     }
   }
 
-  // Index DOM por nome/ID pra cruzar com Gemini e, se houver só 1 print,
-  // ainda assim cadastrar os links reais capturados no HTML.
+  // Index DOM por nome/ID/posição. Filtra entradas com url vazia (algorítmicas
+  // do Spotify como Radio, Mixes, Smart Shuffle, que não têm link no HTML).
   const norm = normName;
-  const domByName = new Map<string, { id: string; url: string; name: string }>();
-  const domItems: Array<{ id: string; url: string; name: string }> = [];
-  for (const d of dom_playlists) {
-    if (!d?.name || !d?.url) continue;
+  const domByName = new Map<string, { id: string; url: string; name: string; position?: number; plays?: number | null; made_by?: string | null }>();
+  const domByPos = new Map<number, { id: string; url: string; name: string; position: number; plays?: number | null; made_by?: string | null }>();
+  const domItems: Array<{ id: string; url: string; name: string; position?: number; plays?: number | null; made_by?: string | null }> = [];
+  let domHasPlaysText = false;
+  for (let i = 0; i < dom_playlists.length; i++) {
+    const d = dom_playlists[i];
+    if (!d?.name || !d?.url) continue; // ignora algorítmicas sem URL
     const m = d.url.match(/playlist[/:]([a-zA-Z0-9]{16,})/);
     if (!m) continue;
     const name = String(d.name).trim();
-    const item = { id: m[1], url: d.url, name };
+    const playsNum = parsePlaysText(d.plays_text);
+    if (playsNum != null) domHasPlaysText = true;
+    const posRaw = (d as any).position;
+    const pos = typeof posRaw === "number"
+      ? posRaw
+      : posRaw != null ? parseInt(String(posRaw).replace(/\D/g, ""), 10) : NaN;
+    const position = Number.isFinite(pos) && pos > 0 ? pos : (i + 1);
+    const item = {
+      id: m[1],
+      url: d.url,
+      name,
+      position,
+      plays: playsNum,
+      made_by: (d as any).made_by ?? null,
+    };
     domByName.set(norm(name), item);
+    domByPos.set(position, item);
     domItems.push(item);
   }
 
@@ -404,35 +432,51 @@ Deno.serve(async (req) => {
       .eq("id", batch_id);
   }
 
-  // 1. Chama Gemini
+  // 1. Fonte de dados: se DOM trouxer plays_text preenchido, usa DOM direto
+  // (mais confiável que OCR). Caso contrário, chama Gemini Vision como antes.
   let extracted: ExtractedPlaylist[] = [];
-  try {
-    extracted = await callGeminiChunked(print_urls);
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    console.error("gemini extract failed", msg);
+  let usedDomDirect = false;
+  if (domHasPlaysText && domItems.length > 0) {
+    usedDomDirect = true;
+    extracted = domItems
+      .filter((d) => d.plays != null) // só linhas com plays lidos do DOM
+      .map((d) => ({
+        playlist_name: d.name,
+        spotify_url: d.url,
+        made_by: d.made_by ?? null,
+        position: d.position ?? null,
+        plays: d.plays ?? 0,
+      }));
+    console.log(`[extract] usando DOM direto: ${extracted.length} playlists com plays_text`);
+  } else {
+    try {
+      extracted = await callGeminiChunked(print_urls);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error("gemini extract failed", msg);
 
-    if (batch_id) {
-      await supabase
-        .from("bot_print_batches")
-        .update({ status: "error", error: msg.slice(0, 1000) })
-        .eq("id", batch_id);
+      if (batch_id) {
+        await supabase
+          .from("bot_print_batches")
+          .update({ status: "error", error: msg.slice(0, 1000) })
+          .eq("id", batch_id);
+      }
+      if (song_id) {
+        await supabase
+          .from("curator_deal_songs")
+          .update({
+            auto_collect_status: "error",
+            auto_collect_error: `extract: ${msg.slice(0, 400)}`,
+          })
+          .eq("id", song_id);
+      }
+      await supabase.from("collection_logs").insert({
+        acao: "extract_print",
+        status: "error",
+        mensagem: `deal=${deal_id} ${msg.slice(0, 300)}`,
+      });
+      return jr({ error: "extract_failed", detail: msg }, 500);
     }
-    if (song_id) {
-      await supabase
-        .from("curator_deal_songs")
-        .update({
-          auto_collect_status: "error",
-          auto_collect_error: `extract: ${msg.slice(0, 400)}`,
-        })
-        .eq("id", song_id);
-    }
-    await supabase.from("collection_logs").insert({
-      acao: "extract_print",
-      status: "error",
-      mensagem: `deal=${deal_id} ${msg.slice(0, 300)}`,
-    });
-    return jr({ error: "extract_failed", detail: msg }, 500);
   }
 
   // 2. Detecta baseline — escopa por (deal_id, song_id) pra não confundir
@@ -565,16 +609,22 @@ Deno.serve(async (req) => {
 
     totalPlays += plays;
 
-    // PRIORIDADE 1: bate o nome lido pelo Gemini com o DOM (link real do HTML)
+    // PRIORIDADE 1: bate o nome lido pelo Gemini com o DOM (link real do HTML).
+    // PRIORIDADE 2 (fallback): se nome não bateu, tenta casar por position.
     let sUrl = pl.spotify_url ?? "";
     let sId = extractId(sUrl);
     let domHit: { id: string; url: string } | undefined;
     if (sName) {
-      domHit = domByName.get(norm(sName));
-      if (domHit) {
-        sId = domHit.id;
-        sUrl = domHit.url;
-      }
+      const byName = domByName.get(norm(sName));
+      if (byName) domHit = { id: byName.id, url: byName.url };
+    }
+    if (!domHit && typeof pl.position === "number" && pl.position > 0) {
+      const byPos = domByPos.get(pl.position);
+      if (byPos && (!sId || byPos.id !== sId)) domHit = { id: byPos.id, url: byPos.url };
+    }
+    if (domHit) {
+      sId = domHit.id;
+      sUrl = domHit.url;
     }
     if (sId) processedSpotifyIds.add(sId);
     if (sName) processedNames.add(norm(sName));
@@ -779,7 +829,7 @@ Deno.serve(async (req) => {
     acao: "extract_print",
     status: skipped > 0 ? "parcial" : "ok",
     duracao_ms: elapsedMs,
-    mensagem: `deal=${deal_id} prints=${print_urls.length} dom=${dom_playlists.length} found=${extracted.length} dom_linked=${domLinked} algo=${algorithmicCount} algo_new=${algorithmicNew} algo_gone=${algorithmicGone} inserted=${inserted} skipped=${skipped} whitelist=${whitelistActive ? whitelist.size : "off"} filtered_out=${filteredOut} ms=${elapsedMs}`,
+    mensagem: `deal=${deal_id} src=${usedDomDirect ? "dom" : "gemini"} prints=${print_urls.length} dom=${dom_playlists.length} found=${extracted.length} dom_linked=${domLinked} algo=${algorithmicCount} algo_new=${algorithmicNew} algo_gone=${algorithmicGone} inserted=${inserted} skipped=${skipped} whitelist=${whitelistActive ? whitelist.size : "off"} filtered_out=${filteredOut} ms=${elapsedMs}`,
   });
 
   return jr({
