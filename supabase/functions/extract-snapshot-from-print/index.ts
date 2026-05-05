@@ -159,12 +159,37 @@ Deno.serve(async (req) => {
   }
 
   const { song_id, deal_id, print_urls, batch_id } = body ?? {};
+  let dom_playlists: Array<{ name?: string; url?: string; plays_text?: string }> =
+    Array.isArray(body?.dom_playlists) ? body.dom_playlists : [];
   if (!deal_id) return jr({ error: "deal_id required" }, 400);
   if (!Array.isArray(print_urls) || print_urls.length === 0) {
     return jr({ error: "print_urls required" }, 400);
   }
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+
+  // Se o body não trouxe dom_playlists mas temos batch_id, busca do batch
+  // (caso da cron-recover-print-batches re-disparando).
+  if (dom_playlists.length === 0 && batch_id) {
+    const { data: bRow } = await supabase
+      .from("bot_print_batches")
+      .select("dom_payload")
+      .eq("id", batch_id)
+      .maybeSingle();
+    if (Array.isArray(bRow?.dom_payload)) {
+      dom_playlists = bRow!.dom_payload as any[];
+    }
+  }
+
+  // Index dom por nome normalizado pra cruzar com Gemini
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const domByName = new Map<string, { id: string; url: string }>();
+  for (const d of dom_playlists) {
+    if (!d?.name || !d?.url) continue;
+    const m = d.url.match(/playlist[/:]([a-zA-Z0-9]{16,})/);
+    if (!m) continue;
+    domByName.set(norm(d.name), { id: m[1], url: d.url });
+  }
 
   // Marca batch como processing
   if (batch_id) {
