@@ -35,6 +35,11 @@ const GeminiPlaylistSchema = z.object({
   playlist_name: z.string().min(1).max(300),
   spotify_url: z.string().optional().nullable(),
   made_by: z.string().optional().nullable(),
+  position: z.union([z.number(), z.string()]).optional().nullable().transform((v) => {
+    if (v === null || v === undefined || v === "") return null;
+    const n = typeof v === "number" ? v : parseInt(String(v).replace(/\D/g, ""), 10);
+    return Number.isFinite(n) && n >= 0 ? Math.floor(n) : null;
+  }),
   plays: z.union([z.number(), z.string()]).transform((v) => {
     const n = typeof v === "number" ? v : parseInt(String(v).replace(/\D/g, ""), 10);
     return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0;
