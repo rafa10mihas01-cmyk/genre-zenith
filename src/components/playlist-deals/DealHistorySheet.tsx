@@ -1,30 +1,28 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ExternalLink,
   ImageOff,
   Music2,
   ClipboardPaste,
   Library,
-  ChevronDown,
   ChevronRight,
-  Headphones,
   X,
+  ListMusic,
+  BarChart3,
+  Clock,
+  AlertTriangle,
+  TrendingUp,
 } from "lucide-react";
 import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
-import {
-  Sheet,
-  SheetContent,
-} from "@/components/ui/sheet";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
-import { PrintThumbs } from "./PrintThumbs";
 import { PastePlaylistsDialog } from "./PastePlaylistsDialog";
 import { ImportFromLibraryDialog } from "./ImportFromLibraryDialog";
 import { FraudAlertsPanel } from "./FraudAlertsPanel";
@@ -51,90 +49,157 @@ export interface DealHistorySheetProps {
   onReload?: () => void;
 }
 
+/* ------------------------------------------------------------------
+ * Status taxonomy — alinhada à nova lógica:
+ *  - curator   = veio do link cadastrado pelo curador (whitelist)
+ *  - editorial = playlist editorial do Spotify (Discover Weekly etc.)
+ *  - organic   = detectada pelo robô (não-whitelist, não-editorial)
+ *  - suspicious= flag de fraude
+ *  - baseline  = onde a música já estava no início do deal
+ * ------------------------------------------------------------------ */
 const STATUS_LABEL: Record<CuratorMatchStatus, string> = {
-  curator: "Do curador",
-  baseline: "Inicial",
-  editorial: "Editorial",
+  curator: "Curador",
+  editorial: "Algorítmica",
+  organic: "Detectada",
   suspicious: "Suspeita",
-  organic: "Orgânica",
+  baseline: "Inicial",
 };
 
-const STATUS_CLASS: Record<CuratorMatchStatus, string> = {
-  curator: "bg-success/15 text-success border-0",
-  baseline: "bg-muted/40 text-muted-foreground border border-border",
-  editorial: "bg-primary/15 text-primary border-0",
-  suspicious: "bg-destructive/15 text-destructive border-0",
-  organic: "bg-muted/30 text-muted-foreground border border-border",
+const STATUS_DOT: Record<CuratorMatchStatus, string> = {
+  curator: "bg-success",
+  editorial: "bg-primary",
+  organic: "bg-muted-foreground/60",
+  suspicious: "bg-destructive",
+  baseline: "bg-muted-foreground/40",
+};
+
+const STATUS_CHIP: Record<CuratorMatchStatus, string> = {
+  curator: "bg-success/15 text-success",
+  editorial: "bg-primary/15 text-primary",
+  organic: "bg-muted/60 text-muted-foreground",
+  suspicious: "bg-destructive/15 text-destructive",
+  baseline: "bg-muted/40 text-muted-foreground",
 };
 
 const STATUS_ORDER: Record<CuratorMatchStatus, number> = {
   curator: 0,
   editorial: 1,
-  suspicious: 2,
-  baseline: 3,
-  organic: 4,
+  organic: 2,
+  suspicious: 3,
+  baseline: 4,
 };
 
 function fmt(n: number): string {
   return Math.round(n).toLocaleString("pt-BR");
 }
 
-/**
- * Mini-card de métrica.
- * Padding 16px · radius 12px · fundo #161616 (bg-[hsl(var(--elevated))]) · label cinza · número grande bold.
- */
-function MetricCard({
+function fmtCompact(n: number): string {
+  if (!Number.isFinite(n)) return "0";
+  const a = Math.abs(n);
+  if (a >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
+  if (a >= 1_000) return `${(n / 1_000).toFixed(1).replace(/\.0$/, "")}k`;
+  return Math.round(n).toString();
+}
+
+/* ------------------------------------------------------------------
+ * KPI tile — limpo, sem "card-dentro-de-card".
+ * ------------------------------------------------------------------ */
+function Kpi({
   label,
   value,
+  hint,
+  tone = "default",
 }: {
   label: string;
   value: React.ReactNode;
+  hint?: string;
+  tone?: "default" | "success" | "primary" | "warning";
 }) {
+  const toneCls =
+    tone === "success"
+      ? "text-success"
+      : tone === "primary"
+      ? "text-primary"
+      : tone === "warning"
+      ? "text-destructive"
+      : "text-foreground";
   return (
-    <div className="rounded-xl bg-[hsl(var(--elevated))] border border-white/[0.04] p-4 transition-colors hover:border-white/[0.08]">
-      <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/80">
+    <div className="rounded-xl bg-[hsl(var(--elevated))] border border-white/[0.04] p-4">
+      <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
         {label}
       </div>
-      <div className="text-xl font-bold text-foreground mt-1.5 leading-tight">
+      <div className={cn("text-2xl font-bold leading-tight mt-1.5 tabular-nums", toneCls)}>
         {value}
       </div>
+      {hint && (
+        <div className="text-[11px] text-muted-foreground/80 mt-1 truncate">{hint}</div>
+      )}
     </div>
   );
 }
 
-/**
- * Item de playlist (mini-card).
- */
-function PlaylistItem({ p }: { p: CuratorPlaylist }) {
+/* ------------------------------------------------------------------
+ * Linha de playlist — densidade controlada, sem grupos artificiais.
+ * ------------------------------------------------------------------ */
+function PlaylistRow({ p }: { p: CuratorPlaylist }) {
   const status = (p.match_status ??
     (p.is_baseline ? "baseline" : "curator")) as CuratorMatchStatus;
+  const owner = p.spotify_owner_name?.trim() || null;
+  const followers = p.followers ? `${fmtCompact(Number(p.followers))} seguidores` : null;
+  const plays7d = p.streams_7d ? `${fmtCompact(Number(p.streams_7d))} plays/7d` : null;
+  const meta = [owner, followers, plays7d].filter(Boolean).join(" · ");
+
   return (
-    <li className="flex items-center gap-3 rounded-[10px] border border-white/[0.04] bg-card/40 px-3.5 py-3 transition-all duration-200 hover:bg-[hsl(var(--elevated))] hover:border-white/[0.08]">
-      <div className="h-9 w-9 shrink-0 rounded-lg bg-[hsl(var(--elevated))] border border-white/[0.04] flex items-center justify-center">
-        <Headphones className="h-4 w-4 text-muted-foreground" />
+    <li className="group flex items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-[hsl(var(--elevated))] transition-colors">
+      {/* cover */}
+      <div className="h-10 w-10 shrink-0 rounded-md overflow-hidden bg-[hsl(var(--elevated))] border border-white/[0.04] flex items-center justify-center">
+        {p.image_url ? (
+          <img src={p.image_url} alt="" className="h-full w-full object-cover" />
+        ) : (
+          <ListMusic className="h-4 w-4 text-muted-foreground" />
+        )}
       </div>
+
+      {/* nome + meta */}
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-foreground truncate">
-            {p.playlist_name}
+          <span
+            className={cn("h-1.5 w-1.5 rounded-full shrink-0", STATUS_DOT[status])}
+            title={STATUS_LABEL[status]}
+          />
+          <span className="text-[13px] font-medium text-foreground truncate">
+            {p.playlist_name || "Playlist sem nome"}
           </span>
         </div>
-        {(p.streams_7d || p.spotify_owner_name || p.added_at_spotify) && (
-          <div className="text-[11px] text-muted-foreground mt-0.5 truncate">
-            {p.spotify_owner_name && `${p.spotify_owner_name}`}
-            {p.streams_7d ? ` · ${fmt(Number(p.streams_7d))} plays/7d` : ""}
-            {p.added_at_spotify ? ` · ${p.added_at_spotify}` : ""}
+        {meta && (
+          <div className="text-[11px] text-muted-foreground truncate mt-0.5 pl-3.5">
+            {meta}
           </div>
         )}
       </div>
-      <Badge
-        className={cn(
-          "shrink-0 text-[10px] h-5 px-2",
-          STATUS_CLASS[status],
+
+      {/* tag + link */}
+      <div className="flex items-center gap-2 shrink-0">
+        <span
+          className={cn(
+            "text-[10px] font-semibold px-2 h-5 rounded-full inline-flex items-center",
+            STATUS_CHIP[status],
+          )}
+        >
+          {STATUS_LABEL[status]}
+        </span>
+        {p.spotify_url && (
+          <a
+            href={p.spotify_url}
+            target="_blank"
+            rel="noreferrer"
+            className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground transition-opacity"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+          </a>
         )}
-      >
-        {STATUS_LABEL[status]}
-      </Badge>
+      </div>
     </li>
   );
 }
@@ -149,56 +214,79 @@ export function DealHistorySheet({
   onClose,
   onReload,
 }: DealHistorySheetProps) {
+  const [tab, setTab] = useState<"resumo" | "playlists" | "historico">("resumo");
   const [pasteOpen, setPasteOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
-  const [longTailOpen, setLongTailOpen] = useState(false);
   const [selectedLogId, setSelectedLogId] = useState<string | null>(null);
+  const [plQuery, setPlQuery] = useState("");
+  const [plFilter, setPlFilter] = useState<"all" | CuratorMatchStatus>("all");
+
   const stats = deal ? computeCuratorStats(deal, allLogs, allPlaylists, progress ?? null) : null;
 
-  // Helper: pega a música associada a um log (via song_id), com fallback pro deal
   const getSongForLog = (log: CuratorDealLog): CuratorDealSong | null => {
-    if (log.song_id) {
-      return songs.find((s) => s.id === log.song_id) ?? null;
-    }
+    if (log.song_id) return songs.find((s) => s.id === log.song_id) ?? null;
     return null;
   };
 
   const reversedLogs = stats ? [...stats.dealLogs].reverse() : [];
 
+  const dealPlaylists = useMemo(
+    () => (deal ? allPlaylists.filter((p) => p.deal_id === deal.id) : []),
+    [allPlaylists, deal],
+  );
+
+  const sortedPlaylists = useMemo(() => {
+    return [...dealPlaylists].sort((a, b) => {
+      const sa = (a.match_status ?? (a.is_baseline ? "baseline" : "curator")) as CuratorMatchStatus;
+      const sb = (b.match_status ?? (b.is_baseline ? "baseline" : "curator")) as CuratorMatchStatus;
+      const od = STATUS_ORDER[sa] - STATUS_ORDER[sb];
+      if (od !== 0) return od;
+      return Number(b.streams_7d ?? 0) - Number(a.streams_7d ?? 0);
+    });
+  }, [dealPlaylists]);
+
+  // contagens por categoria
+  const counts = useMemo(() => {
+    const c = { curator: 0, editorial: 0, organic: 0, suspicious: 0, baseline: 0 } as Record<
+      CuratorMatchStatus,
+      number
+    >;
+    for (const p of dealPlaylists) {
+      const s = (p.match_status ?? (p.is_baseline ? "baseline" : "curator")) as CuratorMatchStatus;
+      c[s] = (c[s] ?? 0) + 1;
+    }
+    return c;
+  }, [dealPlaylists]);
+
+  const filteredPlaylists = useMemo(() => {
+    const q = plQuery.trim().toLowerCase();
+    return sortedPlaylists.filter((p) => {
+      const s = (p.match_status ?? (p.is_baseline ? "baseline" : "curator")) as CuratorMatchStatus;
+      if (plFilter !== "all" && s !== plFilter) return false;
+      if (!q) return true;
+      return (
+        (p.playlist_name ?? "").toLowerCase().includes(q) ||
+        (p.spotify_owner_name ?? "").toLowerCase().includes(q)
+      );
+    });
+  }, [sortedPlaylists, plQuery, plFilter]);
+
+  // dados auxiliares
+  const baseline = Number(deal?.baseline_plays ?? 0);
+  const target = Number(deal?.target_plays ?? 0);
   const previsao =
     !stats || stats.eta === null
       ? "—"
       : stats.eta === 0
       ? "Concluído"
       : `${Math.round(stats.eta)} dias`;
-
   const investido =
     deal && deal.cost !== null && deal.cost !== undefined
       ? `R$ ${Number(deal.cost).toLocaleString("pt-BR")}`
       : "—";
+  const lastLog = stats?.dealLogs?.[stats.dealLogs.length - 1] ?? null;
 
-  // Agrupamento de playlists
-  const dealPlaylists = deal
-    ? allPlaylists.filter((p) => p.deal_id === deal.id)
-    : [];
-  const sortedPlaylists = [...dealPlaylists].sort((a, b) => {
-    const sa = (a.match_status ??
-      (a.is_baseline ? "baseline" : "curator")) as CuratorMatchStatus;
-    const sb = (b.match_status ??
-      (b.is_baseline ? "baseline" : "curator")) as CuratorMatchStatus;
-    const orderDiff = STATUS_ORDER[sa] - STATUS_ORDER[sb];
-    if (orderDiff !== 0) return orderDiff;
-    // dentro do mesmo status: respeita posição do print do Spotify for Artists
-    const pa = (a as any).position_in_paste ?? Number.MAX_SAFE_INTEGER;
-    const pb = (b as any).position_in_paste ?? Number.MAX_SAFE_INTEGER;
-    if (pa !== pb) return pa - pb;
-    // tie-break: maior streams_7d primeiro
-    return Number(b.streams_7d ?? 0) - Number(a.streams_7d ?? 0);
-  });
-
-  const principais = sortedPlaylists.slice(0, 6);
-  const outras = sortedPlaylists.slice(6, 18);
-  const longTail = sortedPlaylists.slice(18);
+  const hasCuratorWhitelist = counts.curator > 0;
 
   return (
     <Sheet
@@ -209,21 +297,34 @@ export function DealHistorySheet({
     >
       <SheetContent
         side="right"
-        className="w-full sm:max-w-md p-0 flex flex-col gap-0"
+        className="w-full sm:max-w-2xl p-0 flex flex-col gap-0"
       >
         {deal && stats && (
           <>
-            {/* HEADER FIXO */}
-            <header className="shrink-0 px-6 pt-6 pb-5 border-b border-white/[0.04] bg-background">
-              <div className="flex items-start justify-between gap-3">
+            {/* HEADER */}
+            <header className="shrink-0 px-6 pt-6 pb-4 border-b border-white/[0.04] bg-background">
+              <div className="flex items-start gap-4">
+                {deal.song_cover_url ? (
+                  <img
+                    src={deal.song_cover_url}
+                    alt=""
+                    className="h-14 w-14 rounded-xl object-cover ring-1 ring-white/[0.06] shrink-0"
+                  />
+                ) : (
+                  <div className="h-14 w-14 rounded-xl bg-[hsl(var(--elevated))] border border-white/[0.04] flex items-center justify-center shrink-0">
+                    <Music2 className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                )}
                 <div className="min-w-0 flex-1">
-                  <h2 className="text-base font-semibold text-foreground leading-tight truncate">
+                  <h2 className="text-lg font-semibold text-foreground leading-tight break-words">
                     {deal.song_name}
                   </h2>
-                  <p className="text-sm text-muted-foreground mt-1 truncate">
-                    {deal.song_artist ? `${deal.song_artist} · ` : ""}
-                    Curador: {deal.curator_name}
-                  </p>
+                  <div className="text-sm text-muted-foreground mt-0.5 truncate">
+                    {deal.song_artist || "—"}
+                  </div>
+                  <div className="text-xs text-muted-foreground/80 mt-1.5 truncate">
+                    Curador: <span className="text-foreground font-medium">{deal.curator_name}</span>
+                  </div>
                 </div>
                 <button
                   type="button"
@@ -234,252 +335,309 @@ export function DealHistorySheet({
                   <X className="h-4 w-4" />
                 </button>
               </div>
+
+              {/* progresso linear principal */}
+              <div className="mt-4">
+                <div className="flex items-baseline justify-between mb-1.5">
+                  <div className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">
+                    Entrega do curador
+                  </div>
+                  <div className="text-xs tabular-nums text-muted-foreground">
+                    <span className="text-foreground font-semibold">{fmt(stats.earned)}</span>
+                    {target > 0 && <> / {fmt(target)}</>}
+                    <span className="ml-2 text-foreground font-semibold">{stats.pct}%</span>
+                  </div>
+                </div>
+                <Progress value={stats.pct} className="h-1.5" />
+              </div>
             </header>
 
-            {/* CORPO COM SCROLL */}
-            <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
-              {/* MÉTRICAS */}
-              <section className="grid grid-cols-2 gap-3">
-                <MetricCard label="Plays gerados" value={fmt(stats.earned)} />
-                <MetricCard
-                  label="Meta"
-                  value={
-                    Number(deal.target_plays) > 0
-                      ? fmt(Number(deal.target_plays))
-                      : "—"
-                  }
-                />
-                <MetricCard label="Progresso" value={`${stats.pct}%`} />
-                <MetricCard
-                  label="Velocidade"
-                  value={
-                    stats.vel !== null ? `${fmt(stats.vel)}/dia` : "—"
-                  }
-                />
-                <MetricCard label="Previsão" value={previsao} />
-                <MetricCard label="Investido" value={investido} />
-              </section>
+            {/* TABS */}
+            <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)} className="flex-1 flex flex-col min-h-0">
+              <div className="px-6 pt-3 border-b border-white/[0.04] shrink-0">
+                <TabsList className="bg-transparent p-0 h-auto gap-1">
+                  <TabsTrigger
+                    value="resumo"
+                    className="data-[state=active]:bg-[hsl(var(--elevated))] data-[state=active]:text-foreground rounded-lg gap-2 h-9 px-3"
+                  >
+                    <BarChart3 className="h-3.5 w-3.5" />
+                    Resumo
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="playlists"
+                    className="data-[state=active]:bg-[hsl(var(--elevated))] data-[state=active]:text-foreground rounded-lg gap-2 h-9 px-3"
+                  >
+                    <ListMusic className="h-3.5 w-3.5" />
+                    Playlists
+                    <span className="text-[10px] font-bold tabular-nums text-muted-foreground">
+                      {dealPlaylists.length}
+                    </span>
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="historico"
+                    className="data-[state=active]:bg-[hsl(var(--elevated))] data-[state=active]:text-foreground rounded-lg gap-2 h-9 px-3"
+                  >
+                    <Clock className="h-3.5 w-3.5" />
+                    Histórico
+                    <span className="text-[10px] font-bold tabular-nums text-muted-foreground">
+                      {reversedLogs.length}
+                    </span>
+                  </TabsTrigger>
+                </TabsList>
+              </div>
 
-              {/* BOTÃO PRINCIPAL */}
-              {deal.song_spotify_url && (
-                <Button
-                  variant="outline"
-                  className="w-full h-12 gap-2 text-sm font-medium"
-                  onClick={() =>
-                    window.open(deal.song_spotify_url!, "_blank")
-                  }
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  Abrir música no Spotify
-                </Button>
-              )}
-
-              {/* PLAYLISTS */}
-              <section className="space-y-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Playlists ({dealPlaylists.length})
+              {/* BODY */}
+              <div className="flex-1 overflow-y-auto">
+                {/* === RESUMO === */}
+                <TabsContent value="resumo" className="m-0 px-6 py-5 space-y-5">
+                  {/* aviso whitelist vazia */}
+                  {!hasCuratorWhitelist && (
+                    <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 flex gap-3">
+                      <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+                      <div className="text-xs text-foreground leading-relaxed">
+                        <strong className="font-semibold text-destructive">
+                          Curador ainda não cadastrou playlists.
+                        </strong>
+                        <div className="text-muted-foreground mt-1">
+                          Sem whitelist, o sistema não coleta nem calcula entrega — apenas registra detecções orgânicas como referência.
+                        </div>
+                      </div>
                     </div>
-                    <p className="text-xs text-muted-foreground/70 mt-1">
-                      Playlists onde sua música está atualmente
-                    </p>
+                  )}
+
+                  {/* KPIs */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <Kpi
+                      label="Plays entregues"
+                      value={fmtCompact(stats.earned)}
+                      hint={target > 0 ? `de ${fmtCompact(target)} contratados` : "sem meta definida"}
+                      tone={stats.pct >= 100 ? "success" : "primary"}
+                    />
+                    <Kpi
+                      label="Velocidade"
+                      value={stats.vel !== null ? `${fmtCompact(stats.vel)}/dia` : "—"}
+                      hint={stats.vel !== null ? "média desde o início" : "aguardando 2º registro"}
+                    />
+                    <Kpi label="Previsão" value={previsao} hint="para bater a meta" />
+                    <Kpi
+                      label="Score de qualidade"
+                      value={`${stats.score}`}
+                      hint={`${Math.round(stats.legitShare * 100)}% legítimo`}
+                      tone={stats.score >= 75 ? "success" : stats.score >= 50 ? "primary" : "warning"}
+                    />
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
+
+                  {/* mini-status técnico */}
+                  <div className="rounded-xl border border-white/[0.04] bg-[hsl(var(--elevated))]/50 p-4 space-y-2.5">
+                    <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Estado da coleta
+                    </div>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-[12px]">
+                      <div className="text-muted-foreground">Baseline</div>
+                      <div className="text-right tabular-nums font-medium">
+                        {baseline > 0 ? fmt(baseline) : "—"}
+                      </div>
+                      <div className="text-muted-foreground">Última leitura</div>
+                      <div className="text-right tabular-nums font-medium">
+                        {fmt(stats.latestPlays)}
+                      </div>
+                      <div className="text-muted-foreground">Última coleta</div>
+                      <div className="text-right text-foreground/80">
+                        {lastLog
+                          ? format(new Date(lastLog.created_at), "dd MMM, HH:mm", { locale: ptBR })
+                          : "—"}
+                      </div>
+                      <div className="text-muted-foreground">Investido</div>
+                      <div className="text-right font-medium">{investido}</div>
+                    </div>
+                  </div>
+
+                  {/* breakdown de playlists */}
+                  <div className="rounded-xl border border-white/[0.04] bg-[hsl(var(--elevated))]/50 p-4">
+                    <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+                      Origem das playlists
+                    </div>
+                    <div className="space-y-2">
+                      {(["curator", "editorial", "organic", "suspicious", "baseline"] as CuratorMatchStatus[])
+                        .filter((s) => counts[s] > 0)
+                        .map((s) => (
+                          <div key={s} className="flex items-center gap-2 text-[12px]">
+                            <span className={cn("h-1.5 w-1.5 rounded-full", STATUS_DOT[s])} />
+                            <span className="text-foreground">{STATUS_LABEL[s]}</span>
+                            <span className="ml-auto tabular-nums font-semibold text-muted-foreground">
+                              {counts[s]}
+                            </span>
+                          </div>
+                        ))}
+                      {dealPlaylists.length === 0 && (
+                        <div className="text-[12px] text-muted-foreground">
+                          Nenhuma playlist registrada ainda.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* anti-fraude */}
+                  <div className="rounded-xl border border-white/[0.04] bg-[hsl(var(--elevated))]/50 p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <AlertTriangle className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        Monitoramento anti-fraude
+                      </span>
+                    </div>
+                    <FraudAlertsPanel dealId={deal.id} onReload={onReload} />
+                  </div>
+
+                  {deal.song_spotify_url && (
+                    <Button
+                      variant="outline"
+                      className="w-full h-10 gap-2 text-sm"
+                      onClick={() => window.open(deal.song_spotify_url!, "_blank")}
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      Abrir música no Spotify
+                    </Button>
+                  )}
+                </TabsContent>
+
+                {/* === PLAYLISTS === */}
+                <TabsContent value="playlists" className="m-0 px-6 py-5 space-y-4">
+                  {/* ações */}
+                  <div className="flex items-center gap-2">
                     {deal.curator_id && (
                       <Button
                         size="sm"
                         variant="outline"
-                        className="h-8 gap-1.5 text-xs"
+                        className="h-9 gap-1.5 text-xs"
                         onClick={() => setImportOpen(true)}
                       >
                         <Library className="h-3.5 w-3.5" />
-                        Catálogo
+                        Catálogo do curador
                       </Button>
                     )}
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-8 gap-1.5 text-xs"
+                      className="h-9 gap-1.5 text-xs ml-auto"
                       onClick={() => setPasteOpen(true)}
                     >
                       <ClipboardPaste className="h-3.5 w-3.5" />
                       Colar dados
                     </Button>
                   </div>
-                </div>
 
-                {dealPlaylists.length === 0 ? (
-                  <div className="rounded-xl border border-white/[0.04] bg-[hsl(var(--elevated))]/50 py-8 flex flex-col items-center text-center gap-2">
-                    <div className="h-10 w-10 rounded-full bg-[hsl(var(--elevated))] border border-white/[0.04] flex items-center justify-center">
-                      <Music2 className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                    <div className="text-sm text-foreground">
-                      Nenhuma playlist registrada
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      Use "Colar dados" para importar do Spotify for Artists
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {/* 🔥 PRINCIPAIS */}
-                    {principais.length > 0 && (
-                      <div className="rounded-xl bg-[hsl(var(--elevated))]/60 border border-white/[0.04] p-3">
-                        <div className="flex items-center gap-2 mb-2.5 px-1">
-                          <span className="text-sm">🔥</span>
-                          <span className="text-[11px] font-semibold uppercase tracking-wider text-foreground">
-                            Principais
-                          </span>
-                          <span className="text-[10px] text-muted-foreground">
-                            ({principais.length})
-                          </span>
-                        </div>
-                        <ul className="space-y-2">
-                          {principais.map((p) => (
-                            <PlaylistItem key={p.id} p={p} />
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                    {/* ⚡ OUTRAS */}
-                    {outras.length > 0 && (
-                      <div>
-                        <div className="flex items-center gap-2 mb-2.5 px-1">
-                          <span className="text-sm">⚡</span>
-                          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                            Outras playlists
-                          </span>
-                          <span className="text-[10px] text-muted-foreground/70">
-                            ({outras.length})
-                          </span>
-                        </div>
-                        <ul className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
-                          {outras.map((p) => (
-                            <PlaylistItem key={p.id} p={p} />
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                    {/* 💤 LONG TAIL */}
-                    {longTail.length > 0 && (
-                      <Collapsible
-                        open={longTailOpen}
-                        onOpenChange={setLongTailOpen}
-                      >
-                        <CollapsibleTrigger asChild>
-                          <button
-                            type="button"
-                            className="w-full flex items-center justify-between gap-2 rounded-xl border border-white/[0.04] bg-card/40 px-4 py-3 text-left transition-colors hover:bg-[hsl(var(--elevated))]"
-                          >
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm">💤</span>
-                              <span className="text-xs font-medium text-foreground">
-                                {longTailOpen
-                                  ? "Ocultar long tail"
-                                  : `Ver mais playlists (${longTail.length})`}
-                              </span>
-                            </div>
-                            <ChevronDown
+                  {/* busca + filtros */}
+                  {dealPlaylists.length > 0 && (
+                    <>
+                      <Input
+                        value={plQuery}
+                        onChange={(e) => setPlQuery(e.target.value)}
+                        placeholder="Buscar playlist ou owner…"
+                        className="h-9 text-sm"
+                      />
+                      <div className="flex flex-wrap gap-1.5">
+                        {(
+                          [
+                            ["all", "Todas", dealPlaylists.length],
+                            ["curator", "Curador", counts.curator],
+                            ["editorial", "Algorítmicas", counts.editorial],
+                            ["organic", "Detectadas", counts.organic],
+                            ["suspicious", "Suspeitas", counts.suspicious],
+                            ["baseline", "Iniciais", counts.baseline],
+                          ] as Array<[typeof plFilter, string, number]>
+                        )
+                          .filter(([key, , c]) => key === "all" || c > 0)
+                          .map(([key, label, c]) => (
+                            <button
+                              key={key}
+                              onClick={() => setPlFilter(key)}
                               className={cn(
-                                "h-4 w-4 text-muted-foreground transition-transform duration-200",
-                                longTailOpen && "rotate-180",
+                                "h-7 px-2.5 rounded-full text-[11px] font-medium border transition-colors inline-flex items-center gap-1.5",
+                                plFilter === key
+                                  ? "bg-foreground text-background border-foreground"
+                                  : "bg-transparent border-white/[0.06] text-muted-foreground hover:text-foreground hover:bg-[hsl(var(--elevated))]",
                               )}
-                            />
-                          </button>
-                        </CollapsibleTrigger>
-                        <CollapsibleContent className="pt-2">
-                          <ul className="space-y-2">
-                            {longTail.map((p) => (
-                              <PlaylistItem key={p.id} p={p} />
-                            ))}
-                          </ul>
-                        </CollapsibleContent>
-                      </Collapsible>
-                    )}
-                  </div>
-                )}
-              </section>
+                            >
+                              {label}
+                              <span className="tabular-nums opacity-70">{c}</span>
+                            </button>
+                          ))}
+                      </div>
+                    </>
+                  )}
 
-              {/* ANTI-FRAUDE */}
-              <section className="rounded-xl border border-white/[0.04] bg-[hsl(var(--elevated))]/40 p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="text-sm">🛡️</span>
-                  <span className="text-[11px] font-semibold uppercase tracking-wider text-foreground">
-                    Monitoramento
-                  </span>
-                </div>
-                <FraudAlertsPanel dealId={deal.id} onReload={onReload} />
-              </section>
+                  {/* lista */}
+                  {dealPlaylists.length === 0 ? (
+                    <div className="rounded-xl border border-white/[0.04] bg-[hsl(var(--elevated))]/40 py-10 flex flex-col items-center text-center gap-2">
+                      <div className="h-10 w-10 rounded-full bg-[hsl(var(--elevated))] border border-white/[0.04] flex items-center justify-center">
+                        <ListMusic className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <div className="text-sm font-medium text-foreground">
+                        Nenhuma playlist registrada
+                      </div>
+                      <div className="text-xs text-muted-foreground max-w-xs">
+                        Use "Catálogo do curador" pra puxar links já cadastrados, ou cole dados do Spotify for Artists.
+                      </div>
+                    </div>
+                  ) : filteredPlaylists.length === 0 ? (
+                    <div className="text-center text-xs text-muted-foreground py-8">
+                      Nenhum resultado pra esse filtro.
+                    </div>
+                  ) : (
+                    <ul className="space-y-0.5 -mx-2">
+                      {filteredPlaylists.map((p) => (
+                        <PlaylistRow key={p.id} p={p} />
+                      ))}
+                    </ul>
+                  )}
+                </TabsContent>
 
-              {/* HISTÓRICO */}
-              <section>
-                <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-                  Histórico de crescimento
-                </div>
-
-                {reversedLogs.length === 0 ? (
-                  <div className="rounded-xl border border-white/[0.04] bg-[hsl(var(--elevated))]/50 py-10 flex flex-col items-center text-center gap-2">
-                    <div className="h-10 w-10 rounded-full bg-[hsl(var(--elevated))] border border-white/[0.04] flex items-center justify-center">
-                      <ImageOff className="h-4 w-4 text-muted-foreground" />
+                {/* === HISTÓRICO === */}
+                <TabsContent value="historico" className="m-0 px-6 py-5 space-y-2">
+                  {reversedLogs.length === 0 ? (
+                    <div className="rounded-xl border border-white/[0.04] bg-[hsl(var(--elevated))]/40 py-10 flex flex-col items-center text-center gap-2">
+                      <div className="h-10 w-10 rounded-full bg-[hsl(var(--elevated))] border border-white/[0.04] flex items-center justify-center">
+                        <ImageOff className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <div className="text-sm font-medium text-foreground">Nenhum registro ainda</div>
+                      <div className="text-xs text-muted-foreground">
+                        Envie o primeiro print para começar
+                      </div>
                     </div>
-                    <div className="text-sm text-foreground">
-                      Nenhum registro ainda
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      Envie o primeiro print para começar
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {reversedLogs.map((log, idx) => {
+                  ) : (
+                    reversedLogs.map((log, idx) => {
                       const prev = reversedLogs[idx + 1];
-                      const isFirstChronological = !prev;
+                      const isFirst = !prev;
                       const delta = prev
                         ? Number(log.total_plays) - Number(prev.total_plays)
                         : 0;
-                      const deltaPositive = delta >= 0;
-
+                      const positive = delta >= 0;
                       const logSong = getSongForLog(log);
-                      const cover =
-                        logSong?.song_cover_url ?? deal?.song_cover_url ?? null;
-                      const songName =
-                        logSong?.song_name ?? deal?.song_name ?? "Música";
-                      const linkedCount = allPlaylists.filter((p) => {
-                        if (p.deal_id !== log.deal_id) return false;
-                        if (log.song_id && (p as any).song_id) {
-                          return (p as any).song_id === log.song_id;
-                        }
-                        if (log.is_baseline) return p.is_baseline === true;
-                        return true;
-                      }).length;
+                      const cover = logSong?.song_cover_url ?? deal.song_cover_url ?? null;
+                      const songName = logSong?.song_name ?? deal.song_name ?? "Música";
 
                       return (
                         <button
                           key={log.id}
                           type="button"
                           onClick={() => setSelectedLogId(log.id)}
-                          className="w-full text-left rounded-xl border border-white/[0.04] bg-[hsl(var(--elevated))]/40 p-3 transition-colors hover:bg-[hsl(var(--elevated))]/70 hover:border-white/[0.08] flex items-center gap-3"
+                          className="w-full text-left rounded-xl border border-white/[0.04] bg-[hsl(var(--elevated))]/30 px-3 py-2.5 hover:bg-[hsl(var(--elevated))] hover:border-white/[0.08] transition-colors flex items-center gap-3"
                         >
-                          {/* Capa */}
                           {cover ? (
                             <img
                               src={cover}
                               alt=""
-                              className="h-12 w-12 rounded-lg object-cover shrink-0 ring-1 ring-white/[0.06]"
+                              className="h-11 w-11 rounded-lg object-cover shrink-0 ring-1 ring-white/[0.06]"
                             />
                           ) : (
-                            <div className="h-12 w-12 rounded-lg bg-muted/40 flex items-center justify-center shrink-0">
+                            <div className="h-11 w-11 rounded-lg bg-muted/40 flex items-center justify-center shrink-0">
                               <Music2 className="h-4 w-4 text-muted-foreground" />
                             </div>
                           )}
 
-                          {/* Info principal */}
                           <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-1.5 mb-0.5">
-                              <span className="text-[13px] font-semibold truncate leading-tight">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[13px] font-semibold leading-tight line-clamp-1">
                                 {songName}
                               </span>
                               {log.is_baseline && (
@@ -491,19 +649,10 @@ export function DealHistorySheet({
                                 </Badge>
                               )}
                             </div>
-                            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mt-0.5">
                               <span>
-                                {format(new Date(log.created_at), "dd/MM HH:mm")}
+                                {format(new Date(log.created_at), "dd MMM, HH:mm", { locale: ptBR })}
                               </span>
-                              {linkedCount > 0 && (
-                                <>
-                                  <span>·</span>
-                                  <span>
-                                    {linkedCount} playlist
-                                    {linkedCount > 1 ? "s" : ""}
-                                  </span>
-                                </>
-                              )}
                               {log.print_urls && log.print_urls.length > 0 && (
                                 <>
                                   <span>·</span>
@@ -516,41 +665,40 @@ export function DealHistorySheet({
                             </div>
                           </div>
 
-                          {/* Plays + delta */}
                           <div className="text-right shrink-0">
-                            <div className="text-base font-bold tabular-nums leading-tight">
+                            <div className="text-[15px] font-bold tabular-nums leading-tight">
                               {Number(log.total_plays).toLocaleString("pt-BR")}
                             </div>
-                            {!isFirstChronological && !log.is_baseline ? (
+                            {!isFirst && !log.is_baseline ? (
                               <div
                                 className={cn(
-                                  "text-[11px] font-semibold tabular-nums mt-0.5",
-                                  deltaPositive
-                                    ? "text-success"
-                                    : "text-destructive",
+                                  "text-[11px] font-semibold tabular-nums mt-0.5 inline-flex items-center gap-0.5",
+                                  positive ? "text-success" : "text-destructive",
                                 )}
                               >
-                                {deltaPositive ? "+" : "−"}
+                                <TrendingUp
+                                  className={cn("h-3 w-3", !positive && "rotate-180")}
+                                />
+                                {positive ? "+" : "−"}
                                 {Math.abs(delta).toLocaleString("pt-BR")}
                               </div>
                             ) : (
-                              <div className="text-[10px] text-muted-foreground mt-0.5">
-                                plays
-                              </div>
+                              <div className="text-[10px] text-muted-foreground mt-0.5">plays</div>
                             )}
                           </div>
 
                           <ChevronRight className="h-4 w-4 text-muted-foreground/60 shrink-0" />
                         </button>
                       );
-                    })}
-                  </div>
-                )}
-              </section>
-            </div>
+                    })
+                  )}
+                </TabsContent>
+              </div>
+            </Tabs>
           </>
         )}
       </SheetContent>
+
       <PastePlaylistsDialog
         open={pasteOpen}
         deal={deal}
@@ -564,7 +712,6 @@ export function DealHistorySheet({
         onClose={() => setImportOpen(false)}
         onImported={() => onReload?.()}
       />
-      {/* Modal sobreposto com detalhes do registro */}
       <DealLogDetailDialog
         open={selectedLogId !== null}
         log={
