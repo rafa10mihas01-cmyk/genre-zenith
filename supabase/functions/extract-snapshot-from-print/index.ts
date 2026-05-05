@@ -795,3 +795,6 @@ Deno.serve(async (req) => {
     whitelist_active: whitelistActive,
     whitelist_size: whitelist.size,
     filtered_out: filteredOut,
+  });
+});
+
