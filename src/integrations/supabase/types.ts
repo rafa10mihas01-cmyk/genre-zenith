@@ -363,6 +363,7 @@ export type Database = {
         Row: {
           ai_confidence: number | null
           ai_raw: Json
+          batch_id: string | null
           captured_at: string
           created_at: string
           created_by: string | null
@@ -380,6 +381,7 @@ export type Database = {
         Insert: {
           ai_confidence?: number | null
           ai_raw?: Json
+          batch_id?: string | null
           captured_at?: string
           created_at?: string
           created_by?: string | null
@@ -397,6 +399,7 @@ export type Database = {
         Update: {
           ai_confidence?: number | null
           ai_raw?: Json
+          batch_id?: string | null
           captured_at?: string
           created_at?: string
           created_by?: string | null
