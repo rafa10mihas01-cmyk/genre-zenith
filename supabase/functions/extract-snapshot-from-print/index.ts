@@ -182,20 +182,21 @@ Deno.serve(async (req) => {
     return jr({ error: "unauthorized" }, 401);
   }
 
-  let body: any;
+  const t0 = Date.now();
+  let body: unknown;
   try {
     body = await req.json();
   } catch {
     return jr({ error: "invalid_json" }, 400);
   }
 
-  const { song_id, deal_id, print_urls, batch_id } = body ?? {};
-  let dom_playlists: Array<{ name?: string; url?: string; plays_text?: string }> =
-    Array.isArray(body?.dom_playlists) ? body.dom_playlists : [];
-  if (!deal_id) return jr({ error: "deal_id required" }, 400);
-  if (!Array.isArray(print_urls) || print_urls.length === 0) {
-    return jr({ error: "print_urls required" }, 400);
+  const parsedBody = RequestSchema.safeParse(body);
+  if (!parsedBody.success) {
+    return jr({ error: "invalid_body", detail: parsedBody.error.flatten() }, 400);
   }
+  const { song_id, deal_id, print_urls, batch_id } = parsedBody.data;
+  let dom_playlists: Array<{ name?: string; url?: string; plays_text?: string }> =
+    parsedBody.data.dom_playlists ?? [];
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
