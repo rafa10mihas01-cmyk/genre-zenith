@@ -35,6 +35,11 @@ const GeminiPlaylistSchema = z.object({
   playlist_name: z.string().min(1).max(300),
   spotify_url: z.string().optional().nullable(),
   made_by: z.string().optional().nullable(),
+  position: z.union([z.number(), z.string()]).optional().nullable().transform((v) => {
+    if (v === null || v === undefined || v === "") return null;
+    const n = typeof v === "number" ? v : parseInt(String(v).replace(/\D/g, ""), 10);
+    return Number.isFinite(n) && n >= 0 ? Math.floor(n) : null;
+  }),
   plays: z.union([z.number(), z.string()]).transform((v) => {
     const n = typeof v === "number" ? v : parseInt(String(v).replace(/\D/g, ""), 10);
     return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0;
@@ -73,36 +78,56 @@ interface ExtractedPlaylist {
   spotify_url?: string | null;
   made_by?: string | null;
   plays: number;
+  position?: number | null;
 }
 
 async function callGeminiChunked(printUrls: string[]): Promise<ExtractedPlaylist[]> {
   // Processa em pedaços de 2 prints pra evitar truncamento de tool_call.
   const CHUNK = 2;
   const all: ExtractedPlaylist[] = [];
-  const seen = new Set<string>();
+  const seen = new Map<string, number>(); // key -> idx em `all`
+  let runningIndex = 0;
   for (let i = 0; i < printUrls.length; i += CHUNK) {
     const slice = printUrls.slice(i, i + CHUNK);
     let part: ExtractedPlaylist[] = [];
     try {
-      part = await callGeminiOnce(slice);
+      part = await callGeminiOnce(slice, runningIndex);
     } catch (e) {
       console.warn(`gemini chunk ${i / CHUNK + 1} falhou, segue`, e instanceof Error ? e.message : e);
+      runningIndex += 12; // estima ~6 linhas por print pra não colidir posições
       continue;
     }
     for (const p of part) {
       const key = normName(p.playlist_name ?? "");
       if (!key) continue;
-      // mantém a entrada com mais plays (caso aparecesse repetida em prints diferentes)
       if (seen.has(key)) {
-        const idx = all.findIndex((x) => normName(x.playlist_name ?? "") === key);
-        if (idx >= 0 && (p.plays ?? 0) > (all[idx].plays ?? 0)) all[idx] = p;
+        // mantém entrada com mais plays + menor position
+        const idx = seen.get(key)!;
+        const cur = all[idx];
+        const merged: ExtractedPlaylist = {
+          ...cur,
+          plays: Math.max(cur.plays ?? 0, p.plays ?? 0),
+          position: Math.min(
+            cur.position ?? Number.MAX_SAFE_INTEGER,
+            p.position ?? Number.MAX_SAFE_INTEGER,
+          ),
+          spotify_url: cur.spotify_url ?? p.spotify_url ?? null,
+          made_by: cur.made_by ?? p.made_by ?? null,
+        };
+        all[idx] = merged;
       } else {
-        seen.add(key);
+        seen.set(key, all.length);
         all.push(p);
       }
     }
+    // próximo chunk começa a partir da maior posição vista (ou +CHUNK*6 fallback)
+    const maxPos = part.reduce((m, x) => Math.max(m, x.position ?? 0), 0);
+    runningIndex = Math.max(runningIndex + slice.length * 6, maxPos);
   }
-  return all;
+  // garante ordenação final por position (asc), com NULLs no fim
+  all.sort((a, b) => (a.position ?? Number.MAX_SAFE_INTEGER) - (b.position ?? Number.MAX_SAFE_INTEGER));
+  // re-numera sequencialmente pra ficar 1..N consistente
+  return all.map((p, i) => ({ ...p, position: i + 1 }));
 }
 
 // Normalização forte: minúsculas, sem acentos, sem emojis, sem múltiplos espaços
@@ -118,17 +143,18 @@ function normName(s: string): string {
     .toLowerCase();
 }
 
-async function callGeminiOnce(printUrls: string[]): Promise<ExtractedPlaylist[]> {
+async function callGeminiOnce(printUrls: string[], startIndex: number): Promise<ExtractedPlaylist[]> {
   const userContent: any[] = [
     {
       type: "text",
       text:
         "Estas são capturas de tela da página 'Playlists' do Spotify for Artists para uma música. " +
-        "Cada linha da tabela tem: posição, capa, nome da playlist, criador (coluna 'Made by' — pode ser 'Spotify', um nome de usuário, ou vazio '—'), " +
+        "Cada linha da tabela tem: posição (rank, do topo pro fim), capa, nome da playlist, criador (coluna 'Made by' — pode ser 'Spotify', um nome de usuário, ou vazio '—'), " +
         "streams (coluna 'Streams', últimos 7 ou 28 dias), e data adicionada. " +
-        "Extraia TODAS as playlists visíveis em TODOS os prints. " +
+        "Extraia TODAS as playlists visíveis em TODOS os prints, NA ORDEM EXATA em que aparecem (de cima pra baixo). " +
         "IMPORTANTE: " +
-        "- Se a mesma playlist aparecer em mais de um print (por overlap de scroll), liste só UMA vez. " +
+        `- 'position' é a posição na lista, começando em ${startIndex + 1} para a primeira playlist do PRIMEIRO print enviado, e seguindo sequencialmente. ` +
+        "- Se a mesma playlist aparecer em mais de um print (por overlap de scroll), liste só UMA vez (mantenha a posição da primeira aparição). " +
         "- 'plays' deve ser o número de streams como inteiro (sem vírgula/ponto separador). Ex: '316,015' → 316015. " +
         "- 'made_by' = null se aparecer '—' ou estiver em branco. " +
         "- Não invente playlists. Se não conseguir ler com clareza, pule.",
@@ -154,7 +180,7 @@ async function callGeminiOnce(printUrls: string[]): Promise<ExtractedPlaylist[]>
         type: "function",
         function: {
           name: "report_playlists",
-          description: "Reporta a lista de playlists extraídas dos prints.",
+          description: "Reporta a lista de playlists extraídas dos prints, na ordem em que aparecem.",
           parameters: {
             type: "object",
             properties: {
@@ -163,6 +189,10 @@ async function callGeminiOnce(printUrls: string[]): Promise<ExtractedPlaylist[]>
                 items: {
                   type: "object",
                   properties: {
+                    position: {
+                      type: "integer",
+                      description: "Posição (rank) da playlist na lista do Spotify for Artists, do topo pro fim.",
+                    },
                     playlist_name: { type: "string", description: "Nome exato da playlist" },
                     spotify_url: {
                       type: "string",
@@ -177,7 +207,7 @@ async function callGeminiOnce(printUrls: string[]): Promise<ExtractedPlaylist[]>
                       description: "Número de streams como inteiro",
                     },
                   },
-                  required: ["playlist_name", "plays"],
+                  required: ["position", "playlist_name", "plays"],
                   additionalProperties: false,
                 },
               },
@@ -214,10 +244,11 @@ async function callGeminiOnce(printUrls: string[]): Promise<ExtractedPlaylist[]>
   if (!validated.success) {
     console.warn("gemini schema invalid, falling back", validated.error.flatten());
     return Array.isArray(args.playlists)
-      ? args.playlists.filter((p: any) => p?.playlist_name).map((p: any) => ({
+      ? args.playlists.filter((p: any) => p?.playlist_name).map((p: any, i: number) => ({
           playlist_name: String(p.playlist_name),
           spotify_url: p.spotify_url ?? null,
           made_by: p.made_by ?? null,
+          position: typeof p.position === "number" ? p.position : (startIndex + i + 1),
           plays: Math.max(0, parseInt(String(p.plays ?? 0).replace(/\D/g, "")) || 0),
         }))
       : [];
@@ -532,12 +563,20 @@ Deno.serve(async (req) => {
 
       // AUTO-CURA: se bateu por nome mas DOM trouxe ID confiável,
       // popula spotify_playlist_id da row existente.
+      const updPayload: any = {};
       if (domHit && matchMethod !== "spotify_id") {
+        updPayload.spotify_playlist_id = domHit.id;
+        updPayload.spotify_url = domHit.url;
+      }
+      if (typeof pl.position === "number" && pl.position > 0) {
+        updPayload.position_in_paste = pl.position;
+        updPayload.last_paste_at = new Date().toISOString();
+      }
+      if (Object.keys(updPayload).length > 0) {
         await supabase
           .from("curator_playlists")
-          .update({ spotify_playlist_id: domHit.id, spotify_url: domHit.url })
-          .eq("id", playlistId)
-          .is("spotify_playlist_id", null);
+          .update(updPayload)
+          .eq("id", playlistId);
       }
     }
 
@@ -552,6 +591,8 @@ Deno.serve(async (req) => {
           playlist_name: sName ?? "Sem nome",
           spotify_owner_name: pl.made_by ?? null,
           is_baseline: isBaseline,
+          position_in_paste: typeof pl.position === "number" ? pl.position : null,
+          last_paste_at: new Date().toISOString(),
         })
         .select("id")
         .single();
