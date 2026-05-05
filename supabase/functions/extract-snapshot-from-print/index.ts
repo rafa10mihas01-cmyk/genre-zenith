@@ -609,16 +609,22 @@ Deno.serve(async (req) => {
 
     totalPlays += plays;
 
-    // PRIORIDADE 1: bate o nome lido pelo Gemini com o DOM (link real do HTML)
+    // PRIORIDADE 1: bate o nome lido pelo Gemini com o DOM (link real do HTML).
+    // PRIORIDADE 2 (fallback): se nome não bateu, tenta casar por position.
     let sUrl = pl.spotify_url ?? "";
     let sId = extractId(sUrl);
     let domHit: { id: string; url: string } | undefined;
     if (sName) {
-      domHit = domByName.get(norm(sName));
-      if (domHit) {
-        sId = domHit.id;
-        sUrl = domHit.url;
-      }
+      const byName = domByName.get(norm(sName));
+      if (byName) domHit = { id: byName.id, url: byName.url };
+    }
+    if (!domHit && typeof pl.position === "number" && pl.position > 0) {
+      const byPos = domByPos.get(pl.position);
+      if (byPos && (!sId || byPos.id !== sId)) domHit = { id: byPos.id, url: byPos.url };
+    }
+    if (domHit) {
+      sId = domHit.id;
+      sUrl = domHit.url;
     }
     if (sId) processedSpotifyIds.add(sId);
     if (sName) processedNames.add(norm(sName));
