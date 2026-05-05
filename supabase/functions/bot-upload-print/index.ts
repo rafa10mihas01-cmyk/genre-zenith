@@ -150,12 +150,18 @@ Deno.serve(async (req) => {
 
   if (parsed && dealId) {
     // upsert do batch
+    // Procura batch ATIVO (pending) pra essa chave. Se não existe ou já está
+    // complete/processed/error, abre um novo — assim cada execução do robô
+    // tem seu próprio batch e não empilha em cima do anterior.
     const { data: existing } = await supabase
       .from("bot_print_batches")
       .select("id, received_parts, total_parts, print_paths, print_urls, status, dom_payload")
       .eq("deal_id", dealId)
       .eq("song_id", songId || null)
       .eq("batch_key", parsed.key)
+      .eq("status", "pending")
+      .order("created_at", { ascending: false })
+      .limit(1)
       .maybeSingle();
 
     let batchId: string;
@@ -164,7 +170,11 @@ Deno.serve(async (req) => {
     let printUrls: string[];
     let mergedDom: any[] = [];
 
-    if (!existing) {
+    // Se chegou part 1 e já existe um pending, descarta o velho (provável retry/reset
+    // do bot) e abre novo. Se chegou part 1 sem nada existente, idem: abre novo.
+    const shouldOpenNew = !existing || parsed.part === 1;
+
+    if (shouldOpenNew) {
       const { data: created, error: bErr } = await supabase
         .from("bot_print_batches")
         .insert({
