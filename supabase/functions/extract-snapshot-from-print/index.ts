@@ -455,6 +455,42 @@ Deno.serve(async (req) => {
     else inserted++;
   }
 
+  // 3.5. Detecta algorítmicas que sumiram (existiam, mas não vieram nesta coleta)
+  let algorithmicGone = 0;
+  if (!isBaseline) {
+    let goneQ = supabase
+      .from("curator_playlists")
+      .select("id, playlist_name")
+      .eq("deal_id", deal_id)
+      .eq("match_status", "algorithmic");
+    if (algorithmicSeenIds.length > 0) {
+      goneQ = goneQ.not("id", "in", `(${algorithmicSeenIds.join(",")})`);
+    }
+    const { data: goneList } = await goneQ;
+    for (const g of goneList ?? []) {
+      // Só notifica se ainda não notificamos a saída recente (última snap > 24h)
+      const { data: lastSnap } = await supabase
+        .from("curator_deal_snapshots")
+        .select("captured_at")
+        .eq("playlist_id", g.id)
+        .order("captured_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const lastTs = lastSnap?.captured_at ? new Date(lastSnap.captured_at).getTime() : 0;
+      // Evita spam: só dispara se a última leitura foi há menos de 7 dias (saída "fresca")
+      if (lastTs > 0 && Date.now() - lastTs < 7 * 86400_000) {
+        algorithmicGone++;
+        await supabase.rpc("create_notification" as any, {
+          p_type: "info",
+          p_title: "Playlist algorítmica saiu",
+          p_message: `${g.playlist_name} parou de tocar a faixa.`,
+          p_action_url: `/playlist-deals?deal=${deal_id}`,
+          p_metadata: { deal_id, song_id, playlist_name: g.playlist_name, kind: "algorithmic_out" },
+        }).catch(() => null);
+      }
+    }
+  }
+
   // 4. Log
   await supabase.from("curator_deal_logs").insert({
     deal_id,
