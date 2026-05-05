@@ -435,7 +435,7 @@ Deno.serve(async (req) => {
       if (algoId) {
         algorithmicSeenIds.push(algoId);
         // Snapshot interno (não conta no curador)
-        await supabase.from("curator_deal_snapshots").insert({
+        await upsertSnapshot(supabase, {
           deal_id,
           song_id: song_id ?? null,
           playlist_id: algoId,
@@ -444,7 +444,8 @@ Deno.serve(async (req) => {
           match_method: "algorithmic",
           is_baseline: false,
           print_url: print_urls[0] ?? null,
-          ai_raw: { ...pl, algorithmic: true } as any,
+          ai_raw: { ...pl, algorithmic: true },
+          batch_id: batch_id ?? null,
         });
       }
       continue;
