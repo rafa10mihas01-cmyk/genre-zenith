@@ -26,7 +26,7 @@ import { cn } from "@/lib/utils";
 import { PastePlaylistsDialog } from "./PastePlaylistsDialog";
 import { ImportFromLibraryDialog } from "./ImportFromLibraryDialog";
 import { FraudAlertsPanel } from "./FraudAlertsPanel";
-import { DealLogDetailDialog } from "./DealLogDetailDialog";
+import { PrintThumbs } from "./PrintThumbs";
 
 import {
   computeCuratorStats,
