@@ -1,0 +1,2 @@
+ALTER TABLE public.bot_print_batches DROP CONSTRAINT IF EXISTS bot_print_batches_deal_id_song_id_batch_key_key;
+CREATE INDEX IF NOT EXISTS idx_bot_print_batches_lookup ON public.bot_print_batches (deal_id, song_id, batch_key, status, created_at DESC);
