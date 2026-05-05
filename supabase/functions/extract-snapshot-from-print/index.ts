@@ -242,6 +242,23 @@ Deno.serve(async (req) => {
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
+  // GUARD: se batch já foi processado, ignora (evita reprocessamento que duplica dados)
+  if (batch_id) {
+    const { data: bStatus } = await supabase
+      .from("bot_print_batches")
+      .select("status, processed_at")
+      .eq("id", batch_id)
+      .maybeSingle();
+    if (bStatus?.status === "processed") {
+      console.log(`[extract] batch ${batch_id} já processado em ${bStatus.processed_at}, ignorando`);
+      return jr({ ok: true, skipped_reason: "batch_already_processed", batch_id });
+    }
+    if (bStatus?.status === "processing") {
+      console.log(`[extract] batch ${batch_id} já em processing, ignorando concorrência`);
+      return jr({ ok: true, skipped_reason: "batch_in_progress", batch_id });
+    }
+  }
+
   // Se o body não trouxe dom_playlists mas temos batch_id, busca do batch
   // (caso da cron-recover-print-batches re-disparando).
   if (dom_playlists.length === 0 && batch_id) {
