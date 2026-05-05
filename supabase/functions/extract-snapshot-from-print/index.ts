@@ -225,6 +225,55 @@ async function callGeminiOnce(printUrls: string[]): Promise<ExtractedPlaylist[]>
   return validated.data.playlists as ExtractedPlaylist[];
 }
 
+// Insere snapshot. Se houver batch_id e já existir registro pra mesma playlist
+// nesse batch, atualiza apenas se o novo plays for maior (idempotência por lote).
+async function upsertSnapshot(
+  supabase: any,
+  row: {
+    deal_id: string;
+    song_id: string | null;
+    playlist_id: string;
+    plays: number;
+    source: string;
+    match_method: string;
+    is_baseline: boolean;
+    print_url: string | null;
+    ai_raw: any;
+    batch_id: string | null;
+  },
+): Promise<any> {
+  if (!row.batch_id) {
+    const { error } = await supabase.from("curator_deal_snapshots").insert(row);
+    return error;
+  }
+
+  const { data: existing } = await supabase
+    .from("curator_deal_snapshots")
+    .select("id, plays")
+    .eq("batch_id", row.batch_id)
+    .eq("playlist_id", row.playlist_id)
+    .maybeSingle();
+
+  if (existing?.id) {
+    if ((row.plays ?? 0) > (existing.plays ?? 0)) {
+      const { error } = await supabase
+        .from("curator_deal_snapshots")
+        .update({
+          plays: row.plays,
+          match_method: row.match_method,
+          ai_raw: row.ai_raw,
+          print_url: row.print_url,
+        })
+        .eq("id", existing.id);
+      return error;
+    }
+    return null; // já existe com plays >= novo, ignora
+  }
+
+  const { error } = await supabase.from("curator_deal_snapshots").insert(row);
+  return error;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return jr({ error: "method_not_allowed" }, 405);
