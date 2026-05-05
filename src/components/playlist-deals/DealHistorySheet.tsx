@@ -188,7 +188,11 @@ export function DealHistorySheet({
       (b.is_baseline ? "baseline" : "curator")) as CuratorMatchStatus;
     const orderDiff = STATUS_ORDER[sa] - STATUS_ORDER[sb];
     if (orderDiff !== 0) return orderDiff;
-    // dentro do mesmo status, maior streams_7d primeiro
+    // dentro do mesmo status: respeita posição do print do Spotify for Artists
+    const pa = (a as any).position_in_paste ?? Number.MAX_SAFE_INTEGER;
+    const pb = (b as any).position_in_paste ?? Number.MAX_SAFE_INTEGER;
+    if (pa !== pb) return pa - pb;
+    // tie-break: maior streams_7d primeiro
     return Number(b.streams_7d ?? 0) - Number(a.streams_7d ?? 0);
   });
 
