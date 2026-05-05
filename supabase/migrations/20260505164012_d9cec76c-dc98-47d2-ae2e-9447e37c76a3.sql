@@ -1,0 +1,1 @@
+UPDATE public.bot_print_batches SET status='complete', processed_at=NULL, completed_at=now() - interval '10 minutes' WHERE id='180e439e-1bfa-491f-964c-ae0ef3887a33';

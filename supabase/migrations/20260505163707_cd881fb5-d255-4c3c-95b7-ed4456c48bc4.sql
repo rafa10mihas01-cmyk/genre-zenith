@@ -1,0 +1,1 @@
+UPDATE public.bot_print_batches SET status='complete' WHERE id='180e439e-1bfa-491f-964c-ae0ef3887a33';
