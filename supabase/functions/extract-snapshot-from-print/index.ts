@@ -401,6 +401,8 @@ Deno.serve(async (req) => {
         sUrl = domHit.url;
       }
     }
+    if (sId) processedSpotifyIds.add(sId);
+    if (sName) processedNames.add(norm(sName));
 
     let playlistId: string | null = null;
     let matchMethod: string | null = null;
@@ -462,6 +464,47 @@ Deno.serve(async (req) => {
     });
     if (insErr) skipped++;
     else inserted++;
+  }
+
+  // 3.1. Complemento DOM: o bot pode mandar 100 links do HTML mesmo quando
+  // mandou só 1 print. A IA só lê plays do que está visível; aqui garantimos
+  // que a lista de links fique completa, sem inventar streams.
+  for (const dom of domItems) {
+    if (processedSpotifyIds.has(dom.id) || processedNames.has(norm(dom.name))) continue;
+    if (isAlgorithmic(dom.name, null, dom.id)) continue;
+
+    const { data: matchData } = await supabase.rpc("match_curator_playlist", {
+      p_deal_id: deal_id,
+      p_spotify_playlist_id: dom.id,
+      p_playlist_name: dom.name,
+      p_song_id: song_id ?? null,
+    } as any);
+    const row = Array.isArray(matchData) ? matchData[0] : null;
+
+    if (row?.playlist_id) {
+      await supabase
+        .from("curator_playlists")
+        .update({ spotify_playlist_id: dom.id, spotify_url: dom.url })
+        .eq("id", row.playlist_id as string)
+        .or("spotify_playlist_id.is.null,spotify_url.is.null,spotify_url.eq.");
+      domLinked++;
+      continue;
+    }
+
+    const { error: cErr } = await supabase
+      .from("curator_playlists")
+      .insert({
+        deal_id,
+        song_id: song_id ?? null,
+        spotify_url: dom.url,
+        spotify_playlist_id: dom.id,
+        playlist_name: dom.name,
+        is_baseline: false,
+        match_status: "organic",
+        match_reason: "dom_only_link_no_visual_plays",
+      });
+    if (cErr) skipped++;
+    else domLinked++;
   }
 
   // 3.5. Detecta algorítmicas que sumiram (existiam, mas não vieram nesta coleta)
