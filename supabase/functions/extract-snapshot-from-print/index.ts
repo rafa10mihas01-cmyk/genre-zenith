@@ -316,10 +316,66 @@ Deno.serve(async (req) => {
   for (const pl of extracted) {
     const sName = pl.playlist_name ?? null;
     const plays = Math.max(0, parseInt(String(pl.plays ?? 0)) || 0);
+    const isAlgo = isAlgorithmic(sName, pl.made_by ?? null);
 
-    // Filtra ruído algorítmico do Spotify antes de qualquer matching
-    if (isAlgorithmic(sName, pl.made_by ?? null)) {
-      skippedAlgorithmic++;
+    // Algorítmicas: registram como playlist interna (match_status=algorithmic),
+    // sem entrar no totalPlays e sem aparecer em curadoria, mas geram alerta
+    // quando entram (primeira vez vista) ou somem (próxima coleta).
+    if (isAlgo) {
+      algorithmicCount++;
+      const algoName = sName ?? "Algorítmica";
+      // Procura registro existente
+      const { data: existing } = await supabase
+        .from("curator_playlists")
+        .select("id, match_status")
+        .eq("deal_id", deal_id)
+        .eq("playlist_name", algoName)
+        .eq("match_status", "algorithmic")
+        .maybeSingle();
+
+      let algoId = existing?.id as string | undefined;
+      if (!algoId) {
+        const { data: created } = await supabase
+          .from("curator_playlists")
+          .insert({
+            deal_id,
+            song_id: song_id ?? null,
+            spotify_url: pl.spotify_url ?? "",
+            playlist_name: algoName,
+            spotify_owner_name: pl.made_by ?? "Spotify",
+            is_baseline: false,
+            match_status: "algorithmic",
+          })
+          .select("id")
+          .single();
+        algoId = created?.id;
+        if (algoId) {
+          algorithmicNew++;
+          // Alerta interno: nova algorítmica entrou
+          await supabase.rpc("create_notification" as any, {
+            p_type: "info",
+            p_title: "Nova playlist algorítmica",
+            p_message: `${algoName} começou a tocar a faixa (${plays.toLocaleString("pt-BR")} streams).`,
+            p_action_url: `/playlist-deals?deal=${deal_id}`,
+            p_metadata: { deal_id, song_id, playlist_name: algoName, plays, kind: "algorithmic_in" },
+          }).catch(() => null);
+        }
+      }
+      if (algoId) {
+        algorithmicSeenIds.push(algoId);
+        // Snapshot interno (não conta no curador)
+        await supabase.from("curator_deal_snapshots").insert({
+          deal_id,
+          song_id: song_id ?? null,
+          playlist_id: algoId,
+          plays,
+          source: "spotify_for_artists",
+          match_method: "algorithmic",
+          is_baseline: false,
+          print_url: print_urls[0] ?? null,
+          ai_raw: { ...pl, algorithmic: true } as any,
+        });
+      }
       continue;
     }
 
