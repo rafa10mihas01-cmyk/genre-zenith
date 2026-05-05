@@ -72,6 +72,29 @@ Deno.serve(async (req) => {
     return jr({ error: "snapshots required" }, 400);
   }
 
+  // Dedupe: se já existe log dessa song nos últimos 90s, ignora (evita coleta duplicada
+  // quando o cron e o "forçar coleta" disparam quase juntos)
+  {
+    const since = new Date(Date.now() - 90_000).toISOString();
+    const { data: recent } = await supabase
+      .from("curator_deal_logs")
+      .select("id, created_at")
+      .eq("song_id", song_id)
+      .gte("created_at", since)
+      .limit(1);
+    if (recent && recent.length > 0) {
+      // Atualiza status pra não ficar travado em "queued"
+      await supabase
+        .from("curator_deal_songs")
+        .update({
+          auto_collect_status: "idle",
+          last_auto_collect_at: new Date().toISOString(),
+        })
+        .eq("id", song_id);
+      return jr({ ok: true, deduped: true, reason: "log within 90s exists" });
+    }
+  }
+
   // Detecta se essa é a PRIMEIRA coleta dessa song → marca como baseline
   const { count: existingLogs } = await supabase
     .from("curator_deal_logs")
