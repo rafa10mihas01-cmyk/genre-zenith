@@ -64,14 +64,49 @@ Deno.serve(async (req) => {
 
   if (error) return jr({ error: error.message }, 500);
 
-  // Marca como queued para evitar dupla execução
-  const ids = (data ?? []).map((s) => s.id);
+  // 🔒 BLINDAGEM: só coleta se o deal já tem playlists do curador cadastradas
+  // (com spotify_playlist_id e não-algorítmicas). Sem whitelist, não roda.
+  const candidates = data ?? [];
+  const dealIds = Array.from(new Set(candidates.map((s: any) => s.deal_id)));
+  const dealsWithWhitelist = new Set<string>();
+  if (dealIds.length) {
+    const { data: wl } = await supabase
+      .from("curator_playlists")
+      .select("deal_id")
+      .in("deal_id", dealIds)
+      .neq("match_status", "algorithmic")
+      .not("spotify_playlist_id", "is", null);
+    for (const r of wl ?? []) dealsWithWhitelist.add((r as any).deal_id);
+  }
+
+  const eligible = candidates.filter((s: any) => dealsWithWhitelist.has(s.deal_id));
+  const blocked = candidates.filter((s: any) => !dealsWithWhitelist.has(s.deal_id));
+
+  // Marca songs sem whitelist com status informativo (não polui logs nem fica 'idle' eterno)
+  if (blocked.length) {
+    await supabase
+      .from("curator_deal_songs")
+      .update({
+        auto_collect_status: "idle",
+        auto_collect_error: "Aguardando curador cadastrar playlists",
+        next_auto_collect_at: new Date(Date.now() + 60 * 60_000).toISOString(),
+      })
+      .in("id", blocked.map((s: any) => s.id));
+  }
+
+  // Marca elegíveis como queued para evitar dupla execução
+  const ids = eligible.map((s: any) => s.id);
   if (ids.length) {
     await supabase
       .from("curator_deal_songs")
-      .update({ auto_collect_status: "queued" })
+      .update({ auto_collect_status: "queued", auto_collect_error: null })
       .in("id", ids);
   }
 
-  return jr({ ok: true, count: ids.length, queue: data ?? [] });
+  return jr({
+    ok: true,
+    count: ids.length,
+    blocked_no_whitelist: blocked.length,
+    queue: eligible,
+  });
 });
