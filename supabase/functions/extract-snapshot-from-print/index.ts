@@ -432,35 +432,51 @@ Deno.serve(async (req) => {
       .eq("id", batch_id);
   }
 
-  // 1. Chama Gemini
+  // 1. Fonte de dados: se DOM trouxer plays_text preenchido, usa DOM direto
+  // (mais confiável que OCR). Caso contrário, chama Gemini Vision como antes.
   let extracted: ExtractedPlaylist[] = [];
-  try {
-    extracted = await callGeminiChunked(print_urls);
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    console.error("gemini extract failed", msg);
+  let usedDomDirect = false;
+  if (domHasPlaysText && domItems.length > 0) {
+    usedDomDirect = true;
+    extracted = domItems
+      .filter((d) => d.plays != null) // só linhas com plays lidos do DOM
+      .map((d) => ({
+        playlist_name: d.name,
+        spotify_url: d.url,
+        made_by: d.made_by ?? null,
+        position: d.position ?? null,
+        plays: d.plays ?? 0,
+      }));
+    console.log(`[extract] usando DOM direto: ${extracted.length} playlists com plays_text`);
+  } else {
+    try {
+      extracted = await callGeminiChunked(print_urls);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error("gemini extract failed", msg);
 
-    if (batch_id) {
-      await supabase
-        .from("bot_print_batches")
-        .update({ status: "error", error: msg.slice(0, 1000) })
-        .eq("id", batch_id);
+      if (batch_id) {
+        await supabase
+          .from("bot_print_batches")
+          .update({ status: "error", error: msg.slice(0, 1000) })
+          .eq("id", batch_id);
+      }
+      if (song_id) {
+        await supabase
+          .from("curator_deal_songs")
+          .update({
+            auto_collect_status: "error",
+            auto_collect_error: `extract: ${msg.slice(0, 400)}`,
+          })
+          .eq("id", song_id);
+      }
+      await supabase.from("collection_logs").insert({
+        acao: "extract_print",
+        status: "error",
+        mensagem: `deal=${deal_id} ${msg.slice(0, 300)}`,
+      });
+      return jr({ error: "extract_failed", detail: msg }, 500);
     }
-    if (song_id) {
-      await supabase
-        .from("curator_deal_songs")
-        .update({
-          auto_collect_status: "error",
-          auto_collect_error: `extract: ${msg.slice(0, 400)}`,
-        })
-        .eq("id", song_id);
-    }
-    await supabase.from("collection_logs").insert({
-      acao: "extract_print",
-      status: "error",
-      mensagem: `deal=${deal_id} ${msg.slice(0, 300)}`,
-    });
-    return jr({ error: "extract_failed", detail: msg }, 500);
   }
 
   // 2. Detecta baseline — escopa por (deal_id, song_id) pra não confundir
