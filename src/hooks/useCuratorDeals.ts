@@ -712,6 +712,7 @@ export function useCuratorDeals() {
     insertSnapshots,
     closeDeal,
     reopenDeal,
+    forceCollectNow,
     reload: load,
     invalidateProgress,
   };
