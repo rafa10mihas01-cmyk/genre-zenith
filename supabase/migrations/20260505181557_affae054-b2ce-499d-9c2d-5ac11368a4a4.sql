@@ -1,0 +1,1 @@
+DELETE FROM curator_deal_logs WHERE id = 'd014a1b0-76a4-4c9d-94be-8a7f8b20c525';
