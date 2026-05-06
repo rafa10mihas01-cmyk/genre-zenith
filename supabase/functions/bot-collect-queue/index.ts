@@ -2,6 +2,7 @@
 // Auth: header x-bot-key (compara com env BOT_API_KEY).
 // GET ?limit=5
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { recordMetric } from "../_shared/ops-metrics.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
