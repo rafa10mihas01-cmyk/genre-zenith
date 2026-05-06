@@ -376,6 +376,18 @@ export function CuradoresTab({
           }
           loading={loading && deals.length === 0}
         />
+        <KpiBig
+          icon={DollarSign}
+          label="Custo por play"
+          value={(() => {
+            const totalCost = balances.reduce((acc, b) => acc + Number(b.total_cost ?? 0), 0) || totals.totalCost;
+            if (!totals.totalEarned || !totalCost) return 0;
+            const cpp = totalCost / totals.totalEarned;
+            return `R$ ${cpp.toFixed(4)}`;
+          })()}
+          hint="Investido ÷ plays entregues"
+          loading={loading && deals.length === 0}
+        />
       </section>
 
       {/* Saldos por curador */}
