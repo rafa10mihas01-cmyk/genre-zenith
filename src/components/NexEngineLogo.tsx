@@ -21,7 +21,7 @@ export type NexEngineLogoVariant = "auto" | "light" | "dark" | "mark";
 
 // Aspect ratios reais dos arquivos finais (para evitar layout shift)
 const ASPECT_FULL = 1489 / 473; // logo completo
-const ASPECT_MARK = 732 / 473;  // só o símbolo
+const ASPECT_MARK = 1; // só o símbolo (quadrado)
 
 let logosPreloaded = false;
 
