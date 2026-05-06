@@ -53,12 +53,13 @@ Deno.serve(async (req) => {
       id, deal_id, song_name, song_artist, artist_candidates, song_spotify_url, spotify_track_id,
       auto_collect_status, last_auto_collect_at, next_auto_collect_at,
       auto_collect_interval_minutes, last_print_at,
-      curator_deals!inner ( id, curator_name, song_name, user_id, closed_at, state ),
+      curator_deals!inner ( id, curator_name, song_name, user_id, closed_at, state, token_revoked_at, token_expires_at ),
       curator_playlists ( id, playlist_name, spotify_url, spotify_playlist_id )
     `)
     .eq("auto_collect", true)
     .in("auto_collect_status", ["idle", "error"])
     .is("curator_deals.closed_at", null)
+    .is("curator_deals.token_revoked_at", null)
     .in("curator_deals.state", ["awaiting_playlists", "collecting", "active"])
     .or(`next_auto_collect_at.is.null,next_auto_collect_at.lte.${new Date().toISOString()}`)
     .order("next_auto_collect_at", { ascending: true, nullsFirst: true })
