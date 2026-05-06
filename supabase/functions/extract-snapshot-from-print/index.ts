@@ -22,6 +22,7 @@ const RequestSchema = z.object({
   song_id: z.string().uuid().nullable().optional(),
   print_urls: z.array(z.string().url()).min(1).max(40),
   batch_id: z.string().uuid().optional(),
+  correlation_id: z.string().uuid().nullable().optional(),
   dom_playlists: z
     .array(
       z.object({
