@@ -116,6 +116,19 @@ Deno.serve(async (req) => {
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
+  // ====== Gate de ciclo de vida (Fase 5B) ======
+  if (dealId) {
+    const { data: dealRow } = await supabase
+      .from("curator_deals")
+      .select("id, state, closed_at, token_revoked_at, token_expires_at")
+      .eq("id", dealId)
+      .maybeSingle();
+    const gate = assertDealOperable(dealRow as any);
+    if (!gate.ok) {
+      return jr({ error: gate.error, code: gate.code, gated: true }, gate.status);
+    }
+  }
+
   const { error: upErr } = await supabase.storage
     .from(BUCKET)
     .upload(path, bytes, { contentType: "image/png", upsert: false });
