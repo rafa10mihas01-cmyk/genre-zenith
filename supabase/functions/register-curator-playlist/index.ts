@@ -197,148 +197,182 @@ Deno.serve(async (req) => {
       trackIdToCheck = songRow?.spotify_track_id || extractTrackId(songRow?.song_spotify_url ?? "") || trackIdToCheck;
     }
 
-    // ------- Carregar contexto de classificação -------
-    const { data: existing } = await admin
-      .from("curator_playlists")
-      .select("spotify_playlist_id, spotify_owner_id, playlist_name, match_status")
-      .eq("deal_id", deal.id);
+    // ------- Lock de importação (clique duplo / abas duplicadas) -------
+    // Não trava preview (read-only).
+    const lockKey = `${deal.id}|${songIdInput ?? "no-song"}`;
+    if (!preview) {
+      if (!tryAcquireLock(lockKey)) {
+        return jr(
+          { ok: false, error: "Já existe uma importação em andamento para este deal. Aguarde alguns segundos." },
+          423,
+        );
+      }
+    }
 
-    const existingIds = new Set(
-      (existing ?? [])
-        .map((r: any) => r.spotify_playlist_id)
-        .filter((v: unknown): v is string => typeof v === "string" && v.length > 0),
-    );
-    const knownCuratorOwnerIds = Array.from(
-      new Set(
+    try {
+      // ------- Carregar contexto de classificação -------
+      const { data: existing } = await admin
+        .from("curator_playlists")
+        .select("spotify_playlist_id, spotify_owner_id, playlist_name, match_status")
+        .eq("deal_id", deal.id);
+
+      const existingIds = new Set(
         (existing ?? [])
-          .filter((r: any) => r.match_status === "curator")
-          .map((r: any) => r.spotify_owner_id)
+          .map((r: any) => r.spotify_playlist_id)
           .filter((v: unknown): v is string => typeof v === "string" && v.length > 0),
-      ),
-    );
-    const curatorPlaylistNames = (existing ?? [])
-      .filter((r: any) => r.match_status === "curator")
-      .map((r: any) => r.playlist_name)
-      .filter((v: unknown): v is string => typeof v === "string" && v.length > 0);
-
-    // ------- Processar URLs em paralelo (5 por vez) -------
-    const items: ProcessedItem[] = urls.map((u) => ({
-      url: typeof u === "string" ? u.trim() : "",
-      playlist_id: null,
-      status: "ok",
-    }));
-
-    const BATCH = 5;
-    for (let i = 0; i < items.length; i += BATCH) {
-      const slice = items.slice(i, i + BATCH);
-      await Promise.all(
-        slice.map(async (item) => {
-          if (!item.url) {
-            item.status = "invalid_url";
-            return;
-          }
-          const pid = extractPlaylistId(item.url);
-          if (!pid) {
-            item.status = "invalid_url";
-            return;
-          }
-          item.playlist_id = pid;
-          if (existingIds.has(pid)) {
-            item.status = "duplicate";
-            return;
-          }
-          try {
-            const meta = await fetchPlaylistMeta(pid);
-            if (!meta) {
-              item.status = "not_found";
-              return;
-            }
-            item.meta = meta;
-            // Cadastro via portal do curador = declaração oficial → sempre 'curator'.
-            // Cadastro via admin/JWT = passa pelo classificador normal.
-            if (publicToken) {
-              item.match_status = "curator";
-              item.match_reason = "declarada pelo curador via portal";
-            } else {
-              const cls = classifyPlaylist({
-                playlist: meta,
-                dealOwnerId: deal!.spotify_owner_id,
-                dealStartedAt: deal!.started_at,
-                addedAtSpotify: null,
-                knownCuratorOwnerIds,
-                curatorPlaylistNames,
-              });
-              item.match_status = cls.match_status;
-              item.match_reason = cls.match_reason;
-            }
-            item.track_presence = await checkTrackInPlaylist(pid, trackIdToCheck);
-            if (item.track_presence.found) {
-              item.status = "track_already_present";
-              return;
-            }
-
-          } catch (e) {
-            item.status = "error";
-            item.error = e instanceof Error ? e.message : String(e);
-          }
-        }),
       );
-    }
+      const knownCuratorOwnerIds = Array.from(
+        new Set(
+          (existing ?? [])
+            .filter((r: any) => r.match_status === "curator")
+            .map((r: any) => r.spotify_owner_id)
+            .filter((v: unknown): v is string => typeof v === "string" && v.length > 0),
+        ),
+      );
+      const curatorPlaylistNames = (existing ?? [])
+        .filter((r: any) => r.match_status === "curator")
+        .map((r: any) => r.playlist_name)
+        .filter((v: unknown): v is string => typeof v === "string" && v.length > 0);
 
-    // Modo preview: não salva, só devolve o que aconteceria
-    if (preview) {
-      return jr({ ok: true, preview: true, items, deal_owner_id: deal.spotify_owner_id });
-    }
-
-    // ------- Inserir os ok no banco -------
-    const toInsert = items
-      .filter((it) => it.status === "ok" && it.meta && it.match_status)
-      .map((it) => ({
-        deal_id: deal!.id,
-        song_id: songIdInput,
-        spotify_url: `https://open.spotify.com/playlist/${it.playlist_id}`,
-        spotify_playlist_id: it.playlist_id!,
-        playlist_name: it.meta!.name,
-        spotify_owner_id: it.meta!.owner_id,
-        spotify_owner_name: it.meta!.owner_name,
-        followers: it.meta!.followers,
-        image_url: it.meta!.image_url,
-        match_status: it.match_status!,
-        match_reason: it.match_reason ?? null,
-        is_baseline: it.match_status === "baseline",
-        last_paste_at: new Date().toISOString(),
-        position_in_paste: positionInput,
+      // ------- Items + dedup intra-payload -------
+      const items: ProcessedItem[] = urls.map((u) => ({
+        url: typeof u === "string" ? u.trim() : "",
+        playlist_id: null,
+        status: "ok",
       }));
 
-    let inserted = 0;
-    if (toInsert.length > 0) {
-      const { error: insErr, count } = await admin
-        .from("curator_playlists")
-        .insert(toInsert, { count: "exact" });
-      if (insErr) {
-        return jr({ ok: false, error: insErr.message, items }, 200);
+      // Pre-classifica invalid_url e marca duplicatas dentro do payload (1ª ocorrência processa, demais viram duplicate_in_payload)
+      const seenInPayload = new Set<string>();
+      for (const item of items) {
+        if (!item.url) {
+          item.status = "invalid_url";
+          continue;
+        }
+        const pid = extractPlaylistId(item.url);
+        if (!pid) {
+          item.status = "invalid_url";
+          continue;
+        }
+        item.playlist_id = pid;
+        if (seenInPayload.has(pid)) {
+          item.status = "duplicate_in_payload";
+          continue;
+        }
+        seenInPayload.add(pid);
+        if (existingIds.has(pid)) {
+          item.status = "duplicate";
+        }
       }
-      inserted = count ?? toInsert.length;
+
+      const ITEM_TIMEOUT_MS = 15_000;
+      const BATCH = 5;
+      // Só processa items que ainda estão em "ok" (não foram marcados como invalid/duplicate)
+      const processable = items.filter((it) => it.status === "ok" && it.playlist_id);
+
+      for (let i = 0; i < processable.length; i += BATCH) {
+        const slice = processable.slice(i, i + BATCH);
+        await Promise.all(
+          slice.map(async (item) => {
+            const pid = item.playlist_id!;
+            try {
+              const meta = await withTimeout(fetchPlaylistMeta(pid), ITEM_TIMEOUT_MS, "spotify_timeout");
+              if (!meta) {
+                item.status = "not_found";
+                return;
+              }
+              item.meta = meta;
+              if (publicToken) {
+                item.match_status = "curator";
+                item.match_reason = "declarada pelo curador via portal";
+              } else {
+                const cls = classifyPlaylist({
+                  playlist: meta,
+                  dealOwnerId: deal!.spotify_owner_id,
+                  dealStartedAt: deal!.started_at,
+                  addedAtSpotify: null,
+                  knownCuratorOwnerIds,
+                  curatorPlaylistNames,
+                });
+                item.match_status = cls.match_status;
+                item.match_reason = cls.match_reason;
+              }
+              item.track_presence = await withTimeout(
+                checkTrackInPlaylist(pid, trackIdToCheck),
+                ITEM_TIMEOUT_MS,
+                "spotify_timeout",
+              );
+              if (item.track_presence.found) {
+                item.status = "track_already_present";
+                return;
+              }
+            } catch (e) {
+              const msg = e instanceof Error ? e.message : String(e);
+              item.status = msg === "spotify_timeout" ? "timeout" : "error";
+              item.error = msg;
+            }
+          }),
+        );
+      }
+
+      // Modo preview: não salva, só devolve o que aconteceria
+      if (preview) {
+        return jr({ ok: true, preview: true, items, deal_owner_id: deal.spotify_owner_id });
+      }
+
+      // ------- Inserir os ok no banco -------
+      const toInsert = items
+        .filter((it) => it.status === "ok" && it.meta && it.match_status)
+        .map((it) => ({
+          deal_id: deal!.id,
+          song_id: songIdInput,
+          spotify_url: `https://open.spotify.com/playlist/${it.playlist_id}`,
+          spotify_playlist_id: it.playlist_id!,
+          playlist_name: it.meta!.name,
+          spotify_owner_id: it.meta!.owner_id,
+          spotify_owner_name: it.meta!.owner_name,
+          followers: it.meta!.followers,
+          image_url: it.meta!.image_url,
+          match_status: it.match_status!,
+          match_reason: it.match_reason ?? null,
+          is_baseline: it.match_status === "baseline",
+          last_paste_at: new Date().toISOString(),
+          position_in_paste: positionInput,
+        }));
+
+      let inserted = 0;
+      if (toInsert.length > 0) {
+        const { error: insErr, count } = await admin
+          .from("curator_playlists")
+          .insert(toInsert, { count: "exact" });
+        if (insErr) {
+          return jr({ ok: false, error: insErr.message, items }, 200);
+        }
+        inserted = count ?? toInsert.length;
+      }
+
+      const summary = {
+        total: items.length,
+        inserted,
+        blocked: items.filter((it) => it.status === "blocked").length,
+        duplicate: items.filter((it) => it.status === "duplicate").length,
+        duplicate_in_payload: items.filter((it) => it.status === "duplicate_in_payload").length,
+        track_already_present: items.filter((it) => it.status === "track_already_present").length,
+        invalid: items.filter((it) => it.status === "invalid_url").length,
+        not_found: items.filter((it) => it.status === "not_found").length,
+        timeout: items.filter((it) => it.status === "timeout").length,
+        error: items.filter((it) => it.status === "error").length,
+      };
+
+      return jr({
+        ok: true,
+        summary,
+        items,
+        deal_owner_id: deal.spotify_owner_id,
+        owner_captured: false,
+      });
+    } finally {
+      if (!preview) releaseLock(lockKey);
     }
-
-    const summary = {
-      total: items.length,
-      inserted,
-      blocked: items.filter((it) => it.status === "blocked").length,
-      duplicate: items.filter((it) => it.status === "duplicate").length,
-      track_already_present: items.filter((it) => it.status === "track_already_present").length,
-      invalid: items.filter((it) => it.status === "invalid_url").length,
-      not_found: items.filter((it) => it.status === "not_found").length,
-      error: items.filter((it) => it.status === "error").length,
-    };
-
-    return jr({
-      ok: true,
-      summary,
-      items,
-      deal_owner_id: deal.spotify_owner_id,
-      owner_captured: false,
-    });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return jr({ ok: false, error: msg }, 200);
