@@ -932,6 +932,8 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
           started_at: s.started_at ? s.started_at.toISOString() : null,
           ends_at: new Date(endMs).toISOString(),
           ramp_up_days: s.ramp_up_days ? Math.max(0, Number(s.ramp_up_days)) : 5,
+          client_id: s.client_id ?? null,
+          smartlink_url: s.smartlink_url.trim() || null,
         };
       });
 
@@ -968,6 +970,8 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
         started_at: dealStart.toISOString(),
         ends_at: dealEnd.toISOString(),
         ramp_up_days: primary.ramp_up_days ? Math.max(0, Number(primary.ramp_up_days)) : 5,
+        client_id: primary.client_id ?? null,
+        smartlink_url: primary.smartlink_url.trim() || null,
         extra_songs: extras,
       };
 
@@ -982,7 +986,20 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
           description: `${validSongs.length} música${validSongs.length > 1 ? "s" : ""}`,
         });
       } else {
-        const deal = await addDeal(payload);
+        let deal: CuratorDeal;
+        try {
+          deal = await addDeal(payload);
+        } catch (err) {
+          if (err instanceof Error && err.message === "DUPLICATE_DEAL") {
+            const shouldForce = window.confirm(
+              "Já existe um deal ativo com esse curador e essa música nesse período. Criar outro mesmo assim?",
+            );
+            if (!shouldForce) return;
+            deal = await addDeal(payload, { force: true });
+          } else {
+            throw err;
+          }
+        }
         const link = curatorPublicUrl({ slug: deal.slug, public_token: deal.public_token });
         try {
           await navigator.clipboard.writeText(link);

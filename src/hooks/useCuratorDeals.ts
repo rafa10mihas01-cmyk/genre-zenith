@@ -101,6 +101,8 @@ export type NewCuratorDealInput = {
   song_artist?: string | null;
   artist_candidates?: string[];
   song_cover_url?: string | null;
+  client_id?: string | null;
+  smartlink_url?: string | null;
   target_plays: number;
   daily_goal?: number;
   duration_days?: number;
@@ -401,6 +403,8 @@ export function useCuratorDeals() {
         song_artist: input.song_artist ?? null,
         artist_candidates: input.artist_candidates ?? (input.song_artist ? [input.song_artist] : []),
         song_cover_url: input.song_cover_url ?? null,
+        client_id: input.client_id ?? null,
+        smartlink_url: input.smartlink_url ?? null,
         daily_goal: input.daily_goal ?? 0,
         duration_days: input.duration_days ?? 30,
         target_plays: input.target_plays,
@@ -443,10 +447,16 @@ export function useCuratorDeals() {
       }
 
       await load();
-      const created = (deals.find((d) => d.id === result.deal_id) ?? { id: result.deal_id }) as CuratorDeal;
+      const { data: createdData, error: createdErr } = await supabase
+        .from("curator_deals")
+        .select("*")
+        .eq("id", result.deal_id)
+        .single();
+      if (createdErr) throw createdErr;
+      const created = createdData as CuratorDeal;
       return created;
     },
-    [user, load, deals],
+    [user, load],
   );
 
   const deleteDeal = useCallback(
@@ -493,6 +503,8 @@ export function useCuratorDeals() {
         song_artist: input.song_artist ?? null,
         artist_candidates: input.artist_candidates ?? (input.song_artist ? [input.song_artist] : []),
         song_cover_url: input.song_cover_url ?? null,
+        client_id: input.client_id ?? null,
+        smartlink_url: input.smartlink_url ?? null,
         daily_goal: input.daily_goal ?? 0,
         duration_days: input.duration_days ?? 30,
         target_plays: input.target_plays,
@@ -533,6 +545,8 @@ export function useCuratorDeals() {
           song_artist: s.song_artist ?? null,
           artist_candidates: s.artist_candidates ?? (s.song_artist ? [s.song_artist] : []),
           song_cover_url: s.song_cover_url ?? null,
+          client_id: s.client_id ?? null,
+          smartlink_url: s.smartlink_url ?? null,
           daily_goal: s.daily_goal ?? 0,
           duration_days: s.duration_days ?? 30,
           target_plays: s.target_plays ?? null,
@@ -540,8 +554,6 @@ export function useCuratorDeals() {
           started_at: s.started_at ?? null,
           ends_at: s.ends_at ?? null,
           ramp_up_days: s.ramp_up_days ?? input.ramp_up_days ?? 5,
-          client_id: s.client_id ?? null,
-          smartlink_url: s.smartlink_url ?? null,
         };
         const match = findMatch(s);
         if (match && !matchedExistingIds.has(match.id)) {
