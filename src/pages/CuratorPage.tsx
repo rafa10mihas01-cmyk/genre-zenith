@@ -505,6 +505,10 @@ export default function CuratorPage() {
 
   const handleAdd = async () => {
     if (!token || !url.trim()) return;
+    if (!access.writable) {
+      toast.error(access.reason || "Este deal não aceita mais alterações");
+      return;
+    }
     if (playlistSongRequired) {
       toast.error("Selecione a música antes de adicionar a playlist");
       return;
