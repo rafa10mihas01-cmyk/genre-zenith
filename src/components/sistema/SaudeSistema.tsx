@@ -147,6 +147,8 @@ export function SaudeSistema() {
 
       <BotSaudeCard />
 
+      <ThroughputCard />
+
       <div>
         <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-bold mb-2">Hoje</h3>
         <div className="grid grid-cols-3 gap-3">
