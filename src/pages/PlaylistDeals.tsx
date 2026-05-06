@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { ListMusic, Plus, CheckCircle2, Layers, Activity, Target, Users, Wallet, Receipt, User } from "lucide-react";
+import { ListMusic, Plus, CheckCircle2, Layers, Activity, Target, Users, Wallet, Receipt, User, ChevronDown, Briefcase } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
