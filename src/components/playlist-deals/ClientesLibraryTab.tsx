@@ -102,7 +102,7 @@ export function ClientesLibraryTab({ deals, songs, loading }: Props) {
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
     return clients
-      .filter((c) => !c.archived_at)
+      .filter((c) => (showArchived ? !!c.archived_at : !c.archived_at))
       .filter(
         (c) =>
           !q ||
