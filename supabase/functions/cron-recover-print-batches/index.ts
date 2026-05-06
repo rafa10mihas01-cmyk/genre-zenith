@@ -2,6 +2,7 @@
 // com status='complete' mas nunca foram processados (extract falhou ou não
 // disparou) e re-dispara extract-snapshot-from-print.
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { recordMetric } from "../_shared/ops-metrics.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
