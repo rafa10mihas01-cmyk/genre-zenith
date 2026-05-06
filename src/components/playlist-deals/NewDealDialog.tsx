@@ -309,8 +309,20 @@ function DealRangePicker({
 
           {/* Calendar */}
           <Calendar
-            mode="range"
-            selected={{ from: draftFrom, to: draftTo }}
+            mode="default"
+            modifiers={{
+              range_start: draftFrom ? [draftFrom] : [],
+              range_end: draftTo ? [draftTo] : [],
+              range_middle:
+                draftFrom && draftTo
+                  ? { after: draftFrom, before: draftTo }
+                  : [],
+            }}
+            modifiersClassNames={{
+              range_start: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground rounded-full",
+              range_end: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground rounded-full",
+              range_middle: "bg-primary/15 text-foreground rounded-none hover:bg-primary/20",
+            }}
             onDayClick={handleDayClick}
             numberOfMonths={1}
             initialFocus
@@ -319,14 +331,6 @@ function DealRangePicker({
             classNames={{
               cell: "h-9 w-9 text-center text-sm p-0 relative focus-within:relative focus-within:z-20",
               day: "h-9 w-9 p-0 font-normal rounded-full text-sm hover:bg-primary/10 transition-colors aria-selected:opacity-100",
-              day_selected:
-                "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground rounded-full",
-              day_range_start:
-                "bg-primary text-primary-foreground rounded-full hover:bg-primary",
-              day_range_end:
-                "bg-primary text-primary-foreground rounded-full hover:bg-primary",
-              day_range_middle:
-                "bg-primary/15 text-foreground rounded-none hover:bg-primary/20",
               day_today: "ring-1 ring-inset ring-border rounded-full",
               day_outside: "text-muted-foreground/40",
               day_disabled: "text-muted-foreground/30 opacity-40",
