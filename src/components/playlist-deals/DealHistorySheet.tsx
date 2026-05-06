@@ -13,6 +13,8 @@ import {
   AlertTriangle,
   TrendingUp,
   Sparkles,
+  Activity,
+  ExternalLink as ExternalLinkIcon,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
