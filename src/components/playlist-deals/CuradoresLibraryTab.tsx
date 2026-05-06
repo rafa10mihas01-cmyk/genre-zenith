@@ -9,10 +9,12 @@ import {
   DollarSign,
   Clock,
   Archive,
+  ArchiveRestore,
   Music2,
   TrendingUp,
   MoreHorizontal,
   Pencil,
+  Trash2,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -30,6 +32,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { CuratorLibrarySheet } from "@/components/curators/CuratorLibrarySheet";
 import { CuratorEditDialog } from "@/components/curators/CuratorEditDialog";
 import { cn } from "@/lib/utils";
