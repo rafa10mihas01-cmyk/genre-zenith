@@ -477,6 +477,9 @@ export type Database = {
           notes: string | null
           playlist_id: string
           plays: number
+          plays_24h: number | null
+          plays_28d: number | null
+          plays_7d: number | null
           print_url: string | null
           song_id: string | null
           source: string
@@ -496,6 +499,9 @@ export type Database = {
           notes?: string | null
           playlist_id: string
           plays?: number
+          plays_24h?: number | null
+          plays_28d?: number | null
+          plays_7d?: number | null
           print_url?: string | null
           song_id?: string | null
           source?: string
@@ -515,6 +521,9 @@ export type Database = {
           notes?: string | null
           playlist_id?: string
           plays?: number
+          plays_24h?: number | null
+          plays_28d?: number | null
+          plays_7d?: number | null
           print_url?: string | null
           song_id?: string | null
           source?: string
@@ -660,6 +669,7 @@ export type Database = {
           final_report_url: string | null
           id: string
           last_reconciled_at: string | null
+          payout_window: string
           public_token: string
           ramp_up_days: number
           reconciled_streams_28d: number
@@ -694,6 +704,7 @@ export type Database = {
           final_report_url?: string | null
           id?: string
           last_reconciled_at?: string | null
+          payout_window?: string
           public_token?: string
           ramp_up_days?: number
           reconciled_streams_28d?: number
@@ -728,6 +739,7 @@ export type Database = {
           final_report_url?: string | null
           id?: string
           last_reconciled_at?: string | null
+          payout_window?: string
           public_token?: string
           ramp_up_days?: number
           reconciled_streams_28d?: number
