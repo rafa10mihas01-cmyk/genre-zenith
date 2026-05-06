@@ -1,6 +1,6 @@
 // ClientesLibraryTab — biblioteca de clientes (artistas/labels contratantes).
 // Espelha o visual da CuradoresLibraryTab para manter o padrão da página.
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Search,
   User,
