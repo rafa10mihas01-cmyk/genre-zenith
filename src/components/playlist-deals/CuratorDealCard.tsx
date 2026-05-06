@@ -109,13 +109,14 @@ export function CuratorDealCard({
     }
   };
 
-  const handleCopyClientLink = async () => {
+  const handleCopyClientLink = async (overrideToken?: string | null) => {
     const { clientCampaignUrl } = await import("@/lib/curatorPublicUrl");
-    if (!deal.client_token) {
-      toast.error("Link do cliente indisponível para este deal");
+    const tokenToUse = overrideToken ?? deal.client_token ?? null;
+    if (!tokenToUse) {
+      toast.error("Link do cliente indisponível para esta música");
       return;
     }
-    const url = clientCampaignUrl({ client_token: deal.client_token });
+    const url = clientCampaignUrl({ client_token: tokenToUse });
     try {
       await navigator.clipboard.writeText(url);
       toast.success("Link do cliente copiado", { description: url });
@@ -123,6 +124,10 @@ export function CuratorDealCard({
       toast.error("Não foi possível copiar o link");
     }
   };
+
+  // Músicas com client_token (link público por faixa)
+  const songsWithClientLink = (songs ?? []).filter((s) => !!s.client_token);
+  const showPerSongLinks = songsWithClientLink.length > 1;
 
   const handleForceCollect = async () => {
     if (!onForceCollect) return;
