@@ -806,7 +806,11 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
     () => songs.reduce((acc, s) => acc + songTarget(s), 0),
     [songs],
   );
-  const purchased = selectedBalance?.purchased_plays ?? selectedCurator?.purchased_plays ?? 0;
+  const purchased =
+    selectedBalance?.purchased_plays
+    ?? selectedCurator?.purchased_plays
+    ?? pendingCurator?.purchased_plays
+    ?? 0;
   const consumedOther = (selectedBalance?.consumed_plays ?? 0) - (isEdit
     ? // Em edição: subtrai a contribuição atual do deal pra recalcular limpo
       (editSongs ?? []).reduce((acc, s) => acc + Number(s.target_plays ?? 0), 0)
