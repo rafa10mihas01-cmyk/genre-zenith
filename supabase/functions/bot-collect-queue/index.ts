@@ -161,18 +161,24 @@ Deno.serve(async (req) => {
   }
   if (eligible.length) {
     const events = (eligible as any[]).map((s) => ({
-      bot_name: "spotify-artists-bot",
+      bot_name: callerBotName,
+      session_id: callerSession,
       deal_id: s.deal_id,
       song_id: s.id,
       step: "dispatch",
       status: "running",
       lifecycle_state: "FETCHED",
       correlation_id: s.correlation_id,
+      worker_id: callerWorkerId,
+      process_id: callerProcessId,
+      hostname: callerHostname,
+      timer_id: callerTimerId,
       message: `Dispatched to bot queue (limit=${limit})`,
       metadata: {
         song_name: s.song_name,
         spotify_track_id: s.spotify_track_id,
         interval_minutes: s.auto_collect_interval_minutes,
+        user_agent: callerUserAgent,
       },
     }));
     await supabase.from("bot_events").insert(events);
@@ -186,6 +192,17 @@ Deno.serve(async (req) => {
       queued: ids.length,
       blocked_no_whitelist: blocked.length,
       total_candidates: candidates.length,
+      caller: {
+        worker_id: callerWorkerId,
+        process_id: callerProcessId,
+        hostname: callerHostname,
+        timer_id: callerTimerId,
+        bot_name: callerBotName,
+        session: callerSession,
+        user_agent: callerUserAgent,
+      },
+      dispatched_correlation_ids: (eligible as any[]).map((s) => s.correlation_id),
+      dispatched_song_ids: ids,
     },
   });
 
