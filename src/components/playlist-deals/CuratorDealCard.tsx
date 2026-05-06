@@ -454,10 +454,29 @@ export function CuratorDealCard({
                   Encerrar deal
                 </DropdownMenuItem>
               )}
-              <DropdownMenuItem className="gap-2 rounded-lg" onClick={handleCopyLink}>
-                <Link2 className="h-4 w-4" />
-                Copiar link
+              <DropdownMenuSeparator />
+              <div className="px-2 pt-1.5 pb-1 text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-semibold">
+                Compartilhar
+              </div>
+              <DropdownMenuItem className="gap-2 rounded-lg items-start py-2" onClick={handleCopyCuratorLink}>
+                <Headphones className="h-4 w-4 mt-0.5 shrink-0" />
+                <div className="flex flex-col min-w-0">
+                  <span className="text-sm leading-tight">Link do curador</span>
+                  <span className="text-[11px] text-muted-foreground leading-tight">Para curadores adicionarem nas playlists</span>
+                </div>
               </DropdownMenuItem>
+              <DropdownMenuItem
+                className="gap-2 rounded-lg items-start py-2"
+                onClick={handleCopyClientLink}
+                disabled={!deal.client_token}
+              >
+                <User className="h-4 w-4 mt-0.5 shrink-0" />
+                <div className="flex flex-col min-w-0">
+                  <span className="text-sm leading-tight">Link do cliente</span>
+                  <span className="text-[11px] text-muted-foreground leading-tight">Painel de acompanhamento do artista</span>
+                </div>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               {!isClosed && onForceCollect && (
                 <DropdownMenuItem className="gap-2 rounded-lg" onClick={handleForceCollect}>
                   <Zap className="h-4 w-4" />
@@ -489,15 +508,48 @@ export function CuratorDealCard({
               <CheckCircle2 className="h-3.5 w-3.5" />
             </Button>
           )}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="hidden sm:inline-flex h-9 w-9 text-muted-foreground hover:text-foreground"
-            onClick={handleCopyLink}
-            aria-label="Copiar link do curador"
-          >
-            <Link2 className="h-3.5 w-3.5" />
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="hidden sm:inline-flex h-9 w-9 text-muted-foreground hover:text-foreground"
+                aria-label="Compartilhar links"
+                title="Compartilhar"
+              >
+                <Share2 className="h-3.5 w-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-72 rounded-xl border-border bg-popover p-1.5">
+              <div className="px-2 pt-1.5 pb-1 text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-semibold">
+                Compartilhar
+              </div>
+              <DropdownMenuItem className="gap-2 rounded-lg items-start py-2.5" onClick={handleCopyCuratorLink}>
+                <Headphones className="h-4 w-4 mt-0.5 shrink-0" />
+                <div className="flex flex-col min-w-0 flex-1">
+                  <span className="text-sm leading-tight font-medium">Link do curador</span>
+                  <span className="text-[11px] text-muted-foreground leading-tight mt-0.5">
+                    Para curadores adicionarem a música nas playlists
+                  </span>
+                </div>
+                <Copy className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" />
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="gap-2 rounded-lg items-start py-2.5"
+                onClick={handleCopyClientLink}
+                disabled={!deal.client_token}
+              >
+                <User className="h-4 w-4 mt-0.5 shrink-0" />
+                <div className="flex flex-col min-w-0 flex-1">
+                  <span className="text-sm leading-tight font-medium">Link do cliente</span>
+                  <span className="text-[11px] text-muted-foreground leading-tight mt-0.5">
+                    Painel de acompanhamento para o artista/cliente
+                  </span>
+                </div>
+                <Copy className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" />
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           {!isClosed && onForceCollect && (
             <Button
               variant="ghost"
