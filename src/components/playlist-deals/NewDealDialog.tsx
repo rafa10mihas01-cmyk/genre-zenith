@@ -532,6 +532,7 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
         setSongs(
           sourceSongs.map((s) => {
             const dd = (s as unknown as { duration_days?: number }).duration_days ?? 30;
+            const sx = s as unknown as { client_id?: string | null; smartlink_url?: string | null };
             return {
               url: s.song_spotify_url ?? "",
               daily_goal: s.daily_goal ? String(s.daily_goal) : "",
@@ -542,6 +543,8 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
                   (editDeal as unknown as { ramp_up_days?: number }).ramp_up_days ??
                   5,
               ),
+              client_id: sx.client_id ?? null,
+              smartlink_url: sx.smartlink_url ?? "",
               meta: {
                 title: s.song_name ?? "Música",
                 artist: s.song_artist ?? null,
@@ -562,6 +565,8 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
             ramp_up_days: String(
               (editDeal as unknown as { ramp_up_days?: number }).ramp_up_days ?? 5,
             ),
+            client_id: null,
+            smartlink_url: "",
             meta: {
               title: editDeal.song_name ?? "Música",
               artist: editDeal.song_artist ?? null,
