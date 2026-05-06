@@ -86,7 +86,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden shadow-[-1px_0_0_rgba(255,255,255,0.04)]">
           {/* TOPBAR GLOBAL — fixo fora da área de scroll. Mobile: cobre safe-area/notch. */}
           <header
-            className="shrink-0 flex items-center gap-3 border-b border-border z-50 px-4 transition-none
+            className="shrink-0 flex items-center gap-2 md:gap-3 border-b border-border z-50 px-3 md:px-4 transition-none w-full min-w-0 overflow-hidden
               h-14 min-h-14 max-h-14
               bg-background/90 backdrop-blur-md supports-[backdrop-filter]:bg-background/75
               max-md:h-auto max-md:min-h-0 max-md:max-h-none
@@ -94,15 +94,18 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               max-md:bg-background/85 max-md:backdrop-blur-[10px]
               max-md:shadow-[0_1px_0_hsl(var(--border)),0_6px_16px_-12px_rgba(0,0,0,0.5)]"
           >
-            <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
+            <SidebarTrigger className="shrink-0 text-muted-foreground hover:text-foreground" />
+
             {/* Mobile: logo + título dinâmico (estilo app nativo) */}
-            <div className="md:hidden flex items-center gap-2 min-w-0">
+            <div className="md:hidden flex items-center gap-2 min-w-0 flex-1">
               <NexEngineLogo size={24} variant="mark" />
-              <span className="text-[15px] font-semibold text-foreground truncate">
+              <span className="text-[15px] font-semibold text-foreground truncate min-w-0">
                 {pageTitle}
               </span>
             </div>
-            <div className="hidden md:flex items-center gap-1">
+
+            {/* Desktop/Tablet: navegação back/forward */}
+            <div className="hidden md:flex items-center gap-1 shrink-0">
               <Button
                 variant="ghost"
                 size="icon"
@@ -123,36 +126,51 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               </Button>
             </div>
 
-            {/* Busca rápida (⌘K) — botão no desktop, ícone no mobile */}
+            {/* Busca rápida (⌘K) — apenas desktop/tablet, expande livre */}
             <button
               type="button"
               onClick={() => setPaletteOpen(true)}
               aria-label="Buscar (⌘K)"
-              className="hidden sm:flex items-center gap-2 flex-1 min-w-0 max-w-md h-9 px-3 rounded-full bg-elevated border border-border text-sm text-muted-foreground hover:text-foreground hover:border-border/80 transition-colors"
+              className="hidden md:flex items-center gap-2 flex-1 min-w-0 max-w-md h-9 px-3 rounded-full bg-elevated border border-border text-sm text-muted-foreground hover:text-foreground hover:border-border/80 transition-colors"
             >
               <Search className="h-4 w-4 shrink-0" />
-              <span className="truncate flex-1 text-left">Buscar gêneros, páginas, ações...</span>
-              <kbd className="hidden md:inline-flex items-center gap-0.5 px-1.5 h-5 rounded bg-background border border-border text-[10px] font-mono text-muted-foreground/70">
+              <span className="truncate flex-1 text-left">
+                <span className="hidden xl:inline">Buscar gêneros, páginas, ações...</span>
+                <span className="xl:hidden">Buscar...</span>
+              </span>
+              <kbd className="hidden xl:inline-flex items-center gap-0.5 px-1.5 h-5 rounded bg-background border border-border text-[10px] font-mono text-muted-foreground/70">
                 ⌘K
               </kbd>
             </button>
-            {/* Spacer mobile para empurrar ações para a direita */}
-            <div className="flex-1 sm:hidden" />
 
-            <div className="ml-auto flex items-center gap-1">
-              <div className="hidden sm:inline-flex items-center gap-1.5 px-3 h-8 rounded-full bg-elevated border border-border text-xs text-muted-foreground">
+            <div className="ml-auto flex items-center gap-1 shrink-0 min-w-0">
+              {/* Status pill — apenas desktop largo */}
+              <div className="hidden xl:inline-flex items-center gap-1.5 px-3 h-8 rounded-full bg-elevated border border-border text-xs text-muted-foreground shrink-0">
                 <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-                {lastUpdate ? `Atualizado ${timeAgo(lastUpdate)}` : "Aguardando dados"}
+                <span className="truncate max-w-[180px]">
+                  {lastUpdate ? `Atualizado ${timeAgo(lastUpdate)}` : "Aguardando dados"}
+                </span>
               </div>
+              {/* Atualizar — desktop largo: botão com texto */}
               <Button
                 size="sm"
                 variant="premium"
                 onClick={refresh}
-                className="rounded-full h-8 gap-1.5 hidden sm:inline-flex"
+                className="rounded-full h-8 gap-1.5 hidden xl:inline-flex shrink-0"
                 aria-label="Atualizar"
               >
                 <RefreshCw className="h-3.5 w-3.5" />
-                <span className="hidden md:inline">Atualizar</span>
+                <span>Atualizar</span>
+              </Button>
+              {/* Atualizar — tablet: apenas ícone */}
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={refresh}
+                className="hidden md:inline-flex xl:hidden h-9 w-9 rounded-md text-muted-foreground hover:text-foreground hover:bg-elevated/60 shrink-0"
+                aria-label="Atualizar"
+              >
+                <RefreshCw className="h-[18px] w-[18px]" />
               </Button>
               {/* Lupa mobile — abre Command Palette */}
               <Button
@@ -160,7 +178,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 size="icon"
                 onClick={() => setPaletteOpen(true)}
                 aria-label="Buscar"
-                className="sm:hidden h-9 w-9 rounded-md text-muted-foreground hover:text-foreground hover:bg-elevated/60"
+                className="md:hidden h-9 w-9 rounded-md text-muted-foreground hover:text-foreground hover:bg-elevated/60 shrink-0"
               >
                 <Search className="h-[18px] w-[18px]" />
               </Button>
