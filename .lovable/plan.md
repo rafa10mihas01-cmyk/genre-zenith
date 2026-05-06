@@ -1,127 +1,97 @@
-## FASE 6 — Estabilidade, Observabilidade e Preparação para Escala
+## FASE 3 — Financeiro Operacional da Curadoria
 
-Objetivo: dar visibilidade operacional + retenção controlada + mapeamento para escala futura, **sem mudar comportamento** do tracking/snapshots/whitelist/cálculo.
+### Diagnóstico (varredura real)
 
----
-
-### 1. Tabela única de métricas operacionais
-
-Criar `ops_metrics` para centralizar telemetria de TODAS as operações (importação, OCR, RPC, coleta, edge calls):
-
-```
-ops_metrics (
-  id uuid pk,
-  created_at timestamptz default now(),
-  scope text          -- 'edge_function' | 'rpc' | 'bot' | 'collect' | 'import' | 'ocr'
-  operation text      -- 'register-curator-playlist' | 'extract-snapshot-from-print' | etc
-  status text         -- 'success' | 'error' | 'timeout' | 'rate_limited'
-  duration_ms int
-  deal_id uuid null
-  song_id uuid null
-  metadata jsonb default '{}'  -- payload livre (size, retries, error_msg curto)
-)
-```
-
-Index em `(scope, operation, created_at desc)` e `(status, created_at desc)`.
-RLS: leitura para team; insert via service role (sem RLS de insert para edge functions com service key).
-
-Helper `_shared/ops-metrics.ts` (`recordMetric({...})`) — chamado nos hot-paths já existentes:
-- `register-curator-playlist` (duration total + spotify retries)
-- `bot-ingest-snapshot` (duration RPC)
-- `bot-upload-print` (storage upload + signed url)
-- `extract-snapshot-from-print` (OCR/Gemini timing)
-- `bot-collect-queue` (queue size, blocked count)
-
-Falha NÃO bloqueia operação — métrica é fire-and-forget.
+- **Bug crítico confirmado**: `curator_deals.cost` é gravado como `null` em `NewDealDialog.tsx:718`, mas o PDF e várias visões ainda leem esse campo. Os 100% dos deals atuais (1/1) estão sem `cost`. O custo real vai todo para `curators.total_cost` via "saldo de compra" (linha 602 — soma incremental).
+- **Ledger inexistente**: `curators.total_cost` e `purchased_plays` são acumulados por UPDATE direto, sem histórico. Impossível auditar quanto/quando foi comprado.
+- **Sem CPP global**, sem alertas financeiros, sem ranking.
 
 ---
 
-### 2. Alertas automáticos via `notifications`
+### O que vou fazer
 
-Edge function `ops-alerts-cron` (rodar a cada 5min):
-- **Timeout streak**: ≥3 timeouts consecutivos numa mesma operation nos últimos 15min → notificação `warning`
-- **Spotify quota**: ≥5 erros 429 em 10min → notificação `warning`
-- **Coleta travada**: songs em `auto_collect_status='queued'` há >15min → notificação
-- **Fila congestionada**: candidates do `bot-collect-queue` > 50 → notificação
-- **Heartbeat ausente**: nenhum `bot_heartbeats` há >10min → notificação `error`
+**1. Ledger operacional (nova tabela `curator_purchases`)**
 
-Dedupe: usa `metadata.kind` + janela de 1h (já existe padrão no projeto).
+Tabela imutável de compras (append-only):
+- `curator_id`, `user_id`, `plays_purchased`, `amount`, `cpp` (gerado), `purchased_at`, `note`, `deal_id` (opcional, vincula à compra-no-deal)
 
----
+`curators.total_cost` e `purchased_plays` continuam existindo como **agregado derivado** mantido por trigger (somando o ledger). Zero quebra de UI atual.
 
-### 3. TTL / rotação de logs (sem perder histórico operacional importante)
+**2. Backfill consciente**
 
-Função SQL `cleanup_operational_logs()` SECURITY DEFINER:
-- `bot_heartbeats`: manter últimos 7 dias
-- `collection_logs`: manter últimos 30 dias
-- `bot_events`: manter últimos 30 dias (preserva error/critical por 90 dias)
-- `ops_metrics`: manter últimos 30 dias
+Para cada curador existente com `total_cost > 0` ou `purchased_plays > 0`, criar **1 linha de baseline** no ledger com `note='backfill'`. O snapshot fica preservado. Compras novas viram linhas adicionais.
 
-Agendado via `pg_cron` diariamente (3am). Snapshots, deal logs, fraud alerts e curator data NUNCA são tocados.
+**3. Corrigir o bug do `cost` no deal**
 
----
+Em `NewDealDialog`, ao criar deal:
+- Se houver `costRaw > 0` no formulário, salvar em `curator_deals.cost` E criar 1 linha no ledger (`amount=costRaw, plays=playsRaw, deal_id=...`).
+- Atualmente já existe `costRaw` via `currencyDigitsToNumber(newCuratorCostDigits)` — basta passar adiante em vez de hardcoded `cost: null`.
 
-### 4. Storage / payload growth metrics
+**4. CPP global + individual**
 
-View `v_storage_growth`:
-- Tamanho total de `curator_deal_snapshots.ai_raw` (jsonb)
-- Tamanho total de `bot_print_batches.dom_payload` (jsonb)
-- Contagem de prints em `bot-prints` bucket (via storage.objects)
-- Crescimento semanal (rolling)
+Hook novo `useCuratorFinance()`:
+- `globalCpp` = sum(amount) / sum(plays_purchased) do ledger
+- `globalSpent`, `globalCommitted` (sum target_plays * globalCpp dos deals abertos), `globalSaldoVirtual`
+- Por curador: `cpp`, `eficiencia` (reconciled/contracted), `velocidade` (plays/dia), `overbookingPct`
 
-Exposta na página de admin/sistema (read-only).
+**5. Alertas financeiros (em `ops-alerts-cron`)**
 
----
+- `fin_deal_sem_custo`: deal aberto há >24h sem `cost` nem ledger vinculado
+- `fin_curador_caro`: CPP do curador > 2x mediana global
+- `fin_overbooking_alto`: já existe (FASE 2C) — manter
+- `fin_divergencia`: `curators.total_cost` ≠ soma do ledger (sanity check)
 
-### 5. Documentação de cache & multi-worker (sem implementar)
+**6. Ranking + Dashboard**
 
-Criar `docs/SCALE_HOTSPOTS.md` mapeando:
-- **RPCs pesadas**: `get_curator_deal_progress` (3 CTEs aninhadas), `get_curator_deal_snapshot_history`, `match_curator_playlist` (fuzzy)
-- **Queries críticas**: `bot-collect-queue` candidate select, `register-curator-playlist` existing playlists
-- **Race conditions atuais**: importação concorrente (já tem in-memory lock), fila do bot (já marca `queued`), recover de stuck batches
-- **Pontos para SKIP LOCKED futuro**: `bot-collect-queue` quando rodar com >1 worker
-- **Pontos para advisory locks futuro**: `record_curator_deal_capture` por `(deal_id, song_id)`
-- **Cache candidates**: `get_curator_deal_progress` por deal (TTL 60s), Spotify playlist meta (já tem retry; futuro: KV cache)
+Nova aba **"Financeiro"** dentro de `/playlist-deals` (ou enriquecer `CuradoresTab`):
+- 4 cards no topo: Total comprado · Total comprometido · Saldo derivado · CPP médio
+- Tabela ranking: Curador · CPP · Plays comprados · Eficiência · Atraso médio · Score
+- Lista das últimas 10 compras (ledger view)
 
-Pure docs, zero código novo.
+**7. Lógica operacional preservada**
+
+- Saldo = `target_plays` somado dos deals abertos × CPP. **Não consome por entrega real.**
+- Atraso é apenas métrica de eficiência, nunca cancela commitment.
+- `cost` vira derivado (mantém coluna pra compatibilidade do PDF).
 
 ---
 
-### 6. UI mínima — painel "Sistema"
+### Arquivos a tocar
 
-Adicionar tab/seção em página admin existente (Sistema/Health) mostrando:
-- Últimas 24h de métricas agrupadas por operation: count, p50/p95 duração, error rate
-- Últimas alertas operacionais
-- Storage growth (view)
+**Migration (1)**:
+- Cria `curator_purchases` + RLS por `auth.uid() = user_id`
+- Trigger que atualiza `curators.total_cost`/`purchased_plays` a cada insert
+- Backfill 1 linha por curador existente
+- View `v_curator_finance` (CPP por curador + eficiência)
 
-Sem dashboards complexos — só leitura crua, suficiente pra debug.
+**Frontend**:
+- `src/hooks/useCuratorFinance.ts` (novo)
+- `src/components/playlist-deals/FinanceiroTab.tsx` (nova aba)
+- `src/components/playlist-deals/NewDealDialog.tsx` (corrigir cost null + criar ledger entry)
+- `src/components/playlist-deals/CuradoresTab.tsx` (apontar leituras de `total_cost` para a view derivada)
+- `src/pages/Curadores.tsx` ou onde fizer sentido — só inserir aba
 
----
-
-### Arquivos
-
-**Migration:**
-- nova migration: `ops_metrics` + RLS + indexes, `cleanup_operational_logs()` function, view `v_storage_growth`, agendamento via `pg_cron`
-
-**Edge functions:**
-- `_shared/ops-metrics.ts` (helper)
-- `ops-alerts-cron/index.ts` (novo)
-- chamadas a `recordMetric()` nos hot-paths existentes (não muda lógica)
-
-**Frontend:**
-- página admin `Sistema` (ou existente) — seção "Métricas operacionais"
-
-**Docs:**
-- `docs/SCALE_HOTSPOTS.md`
+**Backend**:
+- `supabase/functions/ops-alerts-cron` — adicionar 3 alertas financeiros novos
 
 ---
 
-### Garantias
+### Não vou tocar em
 
-1. Tracking, snapshots, whitelist, cálculo: **intocados**
-2. Métricas são fire-and-forget — nunca bloqueiam request
-3. Cleanup roda fora de horário de pico
-4. Cache e multi-worker apenas mapeados (zero ativação)
-5. Sistema continua se comportando exatamente igual operacionalmente
+- Lógica de tracking, snapshots, reconcile, queue, robô.
+- Estrutura de `curator_deals` (apenas garantir que `cost` volte a ser gravado).
+- PDF — continua lendo `cost` (que agora terá valor).
+- Não vou criar DRE, contas a pagar/receber, faturamento, ou qualquer ERP.
 
-Aguardando aprovação.
+---
+
+### Resultado esperado
+
+- Histórico imutável de compras auditável.
+- CPP global e por curador disponíveis em tempo real.
+- 3 alertas financeiros novos no sino.
+- Aba Financeiro com ranking operacional.
+- Bug do `cost null` corrigido.
+- UI atual continua funcionando (compatibilidade total via agregados).
+
+Confirma? Posso já executar a migration + backfill + tab nova.

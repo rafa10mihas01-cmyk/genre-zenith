@@ -675,6 +675,13 @@ export type Database = {
             referencedRelation: "v_curator_balance"
             referencedColumns: ["curator_id"]
           },
+          {
+            foreignKeyName: "curator_deals_curator_id_fkey"
+            columns: ["curator_id"]
+            isOneToOne: false
+            referencedRelation: "v_curator_finance"
+            referencedColumns: ["curator_id"]
+          },
         ]
       }
       curator_fraud_alerts: {
@@ -947,6 +954,67 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "curator_deal_songs"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      curator_purchases: {
+        Row: {
+          amount: number
+          cpp: number | null
+          created_at: string
+          curator_id: string
+          deal_id: string | null
+          id: string
+          note: string | null
+          plays_purchased: number
+          purchased_at: string
+          user_id: string
+        }
+        Insert: {
+          amount?: number
+          cpp?: number | null
+          created_at?: string
+          curator_id: string
+          deal_id?: string | null
+          id?: string
+          note?: string | null
+          plays_purchased?: number
+          purchased_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          cpp?: number | null
+          created_at?: string
+          curator_id?: string
+          deal_id?: string | null
+          id?: string
+          note?: string | null
+          plays_purchased?: number
+          purchased_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "curator_purchases_curator_id_fkey"
+            columns: ["curator_id"]
+            isOneToOne: false
+            referencedRelation: "curators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curator_purchases_curator_id_fkey"
+            columns: ["curator_id"]
+            isOneToOne: false
+            referencedRelation: "v_curator_balance"
+            referencedColumns: ["curator_id"]
+          },
+          {
+            foreignKeyName: "curator_purchases_curator_id_fkey"
+            columns: ["curator_id"]
+            isOneToOne: false
+            referencedRelation: "v_curator_finance"
+            referencedColumns: ["curator_id"]
           },
         ]
       }
@@ -2320,6 +2388,29 @@ export type Database = {
           purchased_plays: number | null
           remaining_plays: number | null
           total_cost: number | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
+      v_curator_finance: {
+        Row: {
+          cpp: number | null
+          curator_id: string | null
+          last_purchase_at: string | null
+          name: string | null
+          plays_purchased: number | null
+          purchase_count: number | null
+          total_cost: number | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
+      v_curator_global_finance: {
+        Row: {
+          global_cpp: number | null
+          purchase_count: number | null
+          total_plays_purchased: number | null
+          total_spent: number | null
           user_id: string | null
         }
         Relationships: []
