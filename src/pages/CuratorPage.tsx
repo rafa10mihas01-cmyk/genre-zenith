@@ -599,6 +599,10 @@ export default function CuratorPage() {
 
   const handleImportFile = async (file: File) => {
     if (!token) return;
+    if (!access.writable) {
+      toast.error(access.reason || "Este deal não aceita mais alterações");
+      return;
+    }
     if (playlistSongRequired) {
       toast.error("Selecione a música antes de importar playlists");
       return;
