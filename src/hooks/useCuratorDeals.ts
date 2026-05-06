@@ -306,6 +306,7 @@ export function useCuratorDeals() {
   // ============================================================
   // FASE 1 — CRUD de Curadores (entidade global)
   // ============================================================
+  // Cria curador. Plays/custo NÃO são gravados direto: vão via ledger (curator_purchases).
   const addCurator = useCallback(
     async (input: NewCuratorInput) => {
       if (!user) throw new Error("Usuário não autenticado");
@@ -317,19 +318,31 @@ export function useCuratorDeals() {
           contact: input.contact ?? null,
           spotify_owner_id: input.spotify_owner_id ?? null,
           spotify_owner_url: input.spotify_owner_url ?? null,
-          purchased_plays: input.purchased_plays ?? 0,
-          total_cost: input.total_cost ?? 0,
           notes: input.notes ?? null,
         })
         .select()
         .single();
       if (insertErr) throw insertErr;
+
+      // Saldo inicial vai como compra no ledger (single source of truth).
+      const initialPlays = Math.max(0, Number(input.purchased_plays ?? 0));
+      const initialCost = Math.max(0, Number(input.total_cost ?? 0));
+      if (initialPlays > 0 || initialCost > 0) {
+        await supabase.from("curator_purchases").insert({
+          user_id: user.id,
+          curator_id: (data as Curator).id,
+          plays_purchased: initialPlays,
+          amount: initialCost,
+          note: "saldo inicial",
+        });
+      }
       await load();
       return data as Curator;
     },
     [user, load],
   );
 
+  // Atualiza apenas metadados do curador. Plays/custo são derivados do ledger.
   const updateCurator = useCallback(
     async (curatorId: string, input: Partial<NewCuratorInput>) => {
       const { error: updErr } = await supabase
@@ -339,8 +352,6 @@ export function useCuratorDeals() {
           ...(input.contact !== undefined && { contact: input.contact ?? null }),
           ...(input.spotify_owner_id !== undefined && { spotify_owner_id: input.spotify_owner_id ?? null }),
           ...(input.spotify_owner_url !== undefined && { spotify_owner_url: input.spotify_owner_url ?? null }),
-          ...(input.purchased_plays !== undefined && { purchased_plays: input.purchased_plays }),
-          ...(input.total_cost !== undefined && { total_cost: input.total_cost ?? 0 }),
           ...(input.notes !== undefined && { notes: input.notes ?? null }),
         })
         .eq("id", curatorId);
