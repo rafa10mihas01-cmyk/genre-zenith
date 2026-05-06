@@ -31,6 +31,7 @@ import { ImportFromLibraryDialog } from "./ImportFromLibraryDialog";
 import { FraudAlertsPanel } from "./FraudAlertsPanel";
 import { PrintThumbs } from "./PrintThumbs";
 import { useCuratorDealBreakdown, ecosystemTotal } from "@/hooks/useCuratorDealBreakdown";
+import { useDealTodayPlaylistBreakdown } from "@/hooks/useDealTodayPlaylistBreakdown";
 
 import {
   computeCuratorStats,
