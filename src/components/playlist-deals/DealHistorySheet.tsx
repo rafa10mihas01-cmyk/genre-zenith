@@ -619,6 +619,83 @@ export function DealHistorySheet({
                   )}
                 </TabsContent>
 
+                {/* === HOJE — contribuição por playlist === */}
+                <TabsContent value="hoje" className="m-0 px-6 py-5 space-y-3">
+                  <div className="rounded-lg border border-white/[0.04] bg-[hsl(var(--elevated))]/40 px-3 py-2 text-[11px] text-muted-foreground leading-relaxed">
+                    Quanto cada playlist somou hoje. Cálculo: último snapshot de hoje menos o último snapshot de antes de hoje (ou baseline). Audita os números do card.
+                  </div>
+
+                  {loadingToday ? (
+                    <div className="text-xs text-muted-foreground py-6 text-center">Calculando…</div>
+                  ) : !todayBreakdown || todayBreakdown.rows.length === 0 ? (
+                    <div className="rounded-lg border border-white/[0.04] bg-[hsl(var(--elevated))]/40 px-3 py-8 text-center">
+                      <Activity className="h-5 w-5 text-muted-foreground/40 mx-auto mb-2" />
+                      <div className="text-xs text-muted-foreground">
+                        Sem coletas hoje ainda. Aguardando próximo snapshot do robô.
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-baseline justify-between px-1">
+                        <div className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">
+                          Total hoje
+                        </div>
+                        <div className="text-lg font-semibold text-primary tabular-nums">
+                          {fmtCompact(todayBreakdown.total_today)} plays
+                        </div>
+                      </div>
+                      <div className="rounded-xl border border-white/[0.04] divide-y divide-white/[0.04] overflow-hidden">
+                        {todayBreakdown.rows.map((r) => {
+                          const isCurator = r.match_status === "curator" || r.is_baseline;
+                          return (
+                            <div key={r.playlist_id} className="px-3 py-2.5 flex items-center gap-3 hover:bg-[hsl(var(--elevated))]/40 transition-colors">
+                              <span
+                                className={cn(
+                                  "h-1.5 w-1.5 rounded-full shrink-0",
+                                  isCurator ? "bg-primary" : "bg-muted-foreground/60",
+                                )}
+                              />
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <div className="text-[13px] text-foreground font-medium truncate">
+                                    {r.playlist_name}
+                                  </div>
+                                  {r.spotify_url && (
+                                    <a
+                                      href={r.spotify_url}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="text-muted-foreground hover:text-foreground shrink-0"
+                                      onClick={(e) => e.stopPropagation()}
+                                      aria-label="Abrir no Spotify"
+                                    >
+                                      <ExternalLinkIcon className="h-3 w-3" />
+                                    </a>
+                                  )}
+                                </div>
+                                <div className="text-[10.5px] text-muted-foreground tabular-nums mt-0.5">
+                                  {fmtCompact(r.previous_total)} → {fmtCompact(r.last_total)}
+                                  {!isCurator && (
+                                    <span className="ml-2 text-muted-foreground/70">· algoritmo</span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <div className="text-[14px] font-semibold text-primary tabular-nums leading-tight">
+                                  +{fmtCompact(r.today_plays)}
+                                </div>
+                                <div className="text-[9.5px] uppercase tracking-wider text-muted-foreground">
+                                  hoje
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+                </TabsContent>
+
                 {/* === CURADOR (whitelist) === */}
                 <TabsContent value="playlists" className="m-0 px-6 py-5 space-y-4">
                   <div className="rounded-lg border border-white/[0.04] bg-[hsl(var(--elevated))]/40 px-3 py-2 text-[11px] text-muted-foreground leading-relaxed">
