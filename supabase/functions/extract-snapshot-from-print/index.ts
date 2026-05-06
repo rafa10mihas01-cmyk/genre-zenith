@@ -547,6 +547,7 @@ Deno.serve(async (req) => {
           lifecycle_state: "FAILED",
           correlation_id,
           message: msg.slice(0, 400),
+          discard_reason: `gemini_extract: ${msg.slice(0, 200)}`,
           metadata: { batch_id: batch_id ?? null, stage: "gemini_extract" },
         });
       }
