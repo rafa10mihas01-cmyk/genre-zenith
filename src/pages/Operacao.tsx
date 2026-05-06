@@ -253,7 +253,7 @@ export default function Operacao() {
       </section>
 
       {/* TABS — 3 abas operacionais */}
-      <div className="flex items-center gap-1 border-b border-border">
+      <div className="flex items-center gap-1 border-b border-border overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden -mx-4 md:-mx-6 px-4 md:px-6">
         {TABS.map(t => {
           const Icon = t.icon;
           const active = tab === t.id;
@@ -262,7 +262,7 @@ export default function Operacao() {
               key={t.id}
               onClick={() => setTab(t.id)}
               className={cn(
-                "px-4 h-10 inline-flex items-center gap-2 text-sm font-medium border-b-2 transition-colors -mb-px",
+                "px-4 h-10 inline-flex items-center gap-2 text-sm font-medium border-b-2 transition-colors -mb-px shrink-0 whitespace-nowrap",
                 active
                   ? "border-primary text-foreground"
                   : "border-transparent text-muted-foreground hover:text-foreground",
