@@ -35,13 +35,14 @@ Deno.serve(async (req) => {
     if (error) return jr({ ok: false, error: error.message }, 500);
 
     let updated = 0, failed = 0, skipped = 0;
+    const errors: string[] = [];
     for (const r of rows ?? []) {
       const sid = r.spotify_playlist_id as string | null;
       if (!sid) { skipped++; continue; }
       try {
         const meta = await fetchPlaylistMeta(sid);
-        if (!meta) { failed++; continue; }
-        await supabase
+        if (!meta) { failed++; errors.push(`${sid}: meta null`); continue; }
+        const { error: upErr } = await supabase
           .from("curator_playlists")
           .update({
             image_url: meta.image_url,
@@ -51,13 +52,15 @@ Deno.serve(async (req) => {
             playlist_name: meta.name,
           })
           .eq("id", r.id);
+        if (upErr) { failed++; errors.push(`${sid}: ${upErr.message}`); continue; }
         updated++;
-      } catch (_) {
+      } catch (e) {
         failed++;
+        errors.push(`${sid}: ${e instanceof Error ? e.message : String(e)}`);
       }
     }
 
-    return jr({ ok: true, total: rows?.length ?? 0, updated, failed, skipped });
+    return jr({ ok: true, total: rows?.length ?? 0, updated, failed, skipped, errors: errors.slice(0, 10) });
   } catch (e) {
     return jr({ ok: false, error: e instanceof Error ? e.message : String(e) }, 200);
   }
