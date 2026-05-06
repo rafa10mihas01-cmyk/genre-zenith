@@ -446,7 +446,6 @@ export function useCuratorDeals() {
         throw err;
       }
 
-      await load();
       const { data: createdData, error: createdErr } = await supabase
         .from("curator_deals")
         .select("*")
@@ -454,6 +453,7 @@ export function useCuratorDeals() {
         .single();
       if (createdErr) throw createdErr;
       const created = createdData as CuratorDeal;
+      void load();
       return created;
     },
     [user, load],
