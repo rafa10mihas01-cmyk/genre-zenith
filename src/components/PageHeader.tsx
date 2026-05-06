@@ -37,39 +37,42 @@ export function PageHeader({
   className,
 }: PageHeaderProps) {
   return (
-    <header
-      className={cn(
-        "flex",
-        "sticky top-0 z-40 -mt-4 md:-mt-6 lg:-mt-8 -mx-4 md:-mx-6 px-4 md:px-6 py-4 md:py-3",
-        "bg-background/90 backdrop-blur-md supports-[backdrop-filter]:bg-background/75",
-        "border-b border-border/60",
-        "flex-row items-center justify-between gap-3 md:gap-4 mb-3 md:mb-4 w-auto min-w-0 overflow-hidden",
-        className,
-      )}
-    >
-      <div className="space-y-1 min-w-0 flex-1 overflow-hidden">
-        {kicker && (
-          <div className="hidden md:inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-bold">
-            {Icon && <Icon className="h-3 w-3 text-primary" />}
-            {kicker}
+    <div className="max-xl:h-[57px] max-xl:shrink-0 xl:contents">
+      <header
+        className={cn(
+          "flex",
+          "max-xl:fixed max-xl:top-14 max-xl:left-0 max-xl:right-0 max-xl:z-40 max-xl:h-[57px] max-xl:px-4 max-xl:py-0",
+          "xl:sticky xl:top-0 xl:z-40 xl:-mt-8 xl:-mx-6 xl:px-6 xl:py-3",
+          "bg-background/90 backdrop-blur-md supports-[backdrop-filter]:bg-background/75",
+          "border-b border-border/60",
+          "flex-row items-center justify-between gap-3 md:gap-4 w-auto min-w-0 overflow-hidden",
+          className,
+        )}
+      >
+        <div className="space-y-1 min-w-0 flex-1 overflow-hidden">
+          {kicker && (
+            <div className="hidden xl:inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-bold">
+              {Icon && <Icon className="h-3 w-3 text-primary" />}
+              {kicker}
+            </div>
+          )}
+          <h1 className="text-[19px] sm:text-2xl xl:text-3xl font-semibold tracking-tight leading-tight truncate min-w-0">
+            {title}
+          </h1>
+          <p className="hidden xl:block text-sm text-muted-foreground max-w-2xl">{subtitle}</p>
+        </div>
+        {actions && (
+          <div
+            className={cn(
+              "flex items-center justify-end gap-2 shrink-0 min-w-0 max-w-[56%] overflow-x-auto scrollbar-none",
+              "md:max-w-none md:overflow-visible md:flex-wrap md:flex-nowrap",
+              "[&>*]:h-9 [&>*]:px-3 [&>*]:text-[13px] sm:[&>*]:px-4 sm:[&>*]:text-sm [&>*]:shrink-0",
+            )}
+          >
+            {actions}
           </div>
         )}
-        <h1 className="text-[19px] sm:text-3xl md:text-3xl font-semibold tracking-tight leading-tight truncate min-w-0">
-          {title}
-        </h1>
-        <p className="hidden md:block text-sm text-muted-foreground max-w-2xl">{subtitle}</p>
-      </div>
-      {actions && (
-        <div
-          className={cn(
-            "flex items-center justify-end gap-2 shrink-0 min-w-0 max-w-[56%] overflow-x-auto scrollbar-none",
-            "md:max-w-none md:overflow-visible md:flex-wrap md:flex-nowrap",
-            "[&>*]:h-9 [&>*]:px-3 [&>*]:text-[13px] sm:[&>*]:px-4 sm:[&>*]:text-sm [&>*]:shrink-0",
-          )}
-        >
-          {actions}
-        </div>
-      )}
-    </header>
+      </header>
+    </div>
   );
 }
