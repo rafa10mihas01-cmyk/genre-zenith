@@ -129,9 +129,49 @@ export default function PlaylistDeals() {
         title="Playlist Deals"
         subtitle="Acompanhar deals com curadores"
         actions={
-          <Button className="rounded-full h-9 gap-1.5 max-w-full" onClick={handleNew} aria-label="Novo Deal">
-            <Plus className="h-4 w-4" /> <span className="truncate">Novo Deal</span>
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button className="rounded-full h-9 gap-1.5 max-w-full" aria-label="Criar novo">
+                <Plus className="h-4 w-4" /> <span className="truncate">Novo</span>
+                <ChevronDown className="h-3.5 w-3.5 opacity-80" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56 rounded-xl p-1.5">
+              <DropdownMenuItem
+                className="gap-2 rounded-lg items-start py-2"
+                onClick={handleNew}
+              >
+                <Briefcase className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium leading-tight">Novo Deal</span>
+                  <span className="text-[11px] text-muted-foreground leading-tight">Curador + músicas + meta</span>
+                </div>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="gap-2 rounded-lg items-start py-2"
+                onClick={() => {
+                  setTab("clients");
+                  setTimeout(() => window.dispatchEvent(new CustomEvent("playlistdeals:new-client")), 50);
+                }}
+              >
+                <User className="h-4 w-4 mt-0.5 shrink-0" />
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium leading-tight">Novo cliente</span>
+                  <span className="text-[11px] text-muted-foreground leading-tight">Artista ou label contratante</span>
+                </div>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="gap-2 rounded-lg items-start py-2"
+                onClick={handleNew}
+              >
+                <Users className="h-4 w-4 mt-0.5 shrink-0" />
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium leading-tight">Novo curador</span>
+                  <span className="text-[11px] text-muted-foreground leading-tight">Cadastra dentro do fluxo do Deal</span>
+                </div>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         }
       />
 
