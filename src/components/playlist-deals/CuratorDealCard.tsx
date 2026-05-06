@@ -328,42 +328,42 @@ export function CuratorDealCard({
           </div>
         )}
 
-        {/* KPIs — números grandes (26px) com labels uppercase 11px */}
+        {/* KPIs compactos */}
         {hasBaseline && (
-          <div className="grid grid-cols-2 divide-x divide-border/50 rounded-xl bg-[hsl(var(--elevated))] border border-border/40">
-            <div className="px-4 py-3">
-              <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-1.5">
-                Plays totais hoje
+          <div className="grid grid-cols-2 divide-x divide-border/50 rounded-lg bg-[hsl(var(--elevated))] border border-border/40">
+            <div className="px-3 py-2">
+              <div className="text-[9.5px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-1">
+                Plays hoje
               </div>
-              <div className="text-[26px] font-bold tabular-nums text-foreground leading-none tracking-tight">
+              <div className="text-[20px] font-bold tabular-nums text-foreground leading-none tracking-tight">
                 {formatPlays(latestPlays)}
               </div>
             </div>
-            <div className="px-4 py-3">
-              <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-1.5">
+            <div className="px-3 py-2">
+              <div className="text-[9.5px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-1">
                 Hoje / combinado
               </div>
-              <div className="text-[26px] font-bold tabular-nums leading-none tracking-tight">
+              <div className="text-[20px] font-bold tabular-nums leading-none tracking-tight">
                 <span className="text-primary">{formatPlays(todayPlays)}</span>
-                <span className="text-muted-foreground text-[14px] font-semibold"> / {formatPlays(totalDailyGoal)}</span>
+                <span className="text-muted-foreground text-[12px] font-semibold"> / {formatPlays(totalDailyGoal)}</span>
               </div>
               {totalDailyGoal > 0 && (
-                <div className="text-[11px] text-muted-foreground mt-1.5">
-                  {inRampUp ? "aquecendo — meta liberada em breve" : `${todayPct}% do dia`}
+                <div className="text-[10px] text-muted-foreground mt-1 truncate">
+                  {inRampUp ? "aquecendo" : `${todayPct}% do dia`}
                 </div>
               )}
             </div>
           </div>
         )}
 
-        {/* Progresso total — linha mais visível (h-2.5) */}
-        <div className="space-y-2">
+        {/* Progresso total */}
+        <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-semibold">Combinado total</span>
-            <span className="tabular-nums text-[14px] font-bold text-foreground">{pct}%</span>
+            <span className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-semibold">Combinado total</span>
+            <span className="tabular-nums text-[12px] font-bold text-foreground">{pct}%</span>
           </div>
-          <Progress value={pct} className="h-2.5 rounded-full" />
-          <div className="flex items-center justify-between text-[12px] text-muted-foreground tabular-nums">
+          <Progress value={pct} className="h-2 rounded-full" />
+          <div className="flex items-center justify-between text-[11px] text-muted-foreground tabular-nums">
             <span>
               <span className="text-foreground font-semibold">{formatPlays(earned)}</span>
               {" / "}
