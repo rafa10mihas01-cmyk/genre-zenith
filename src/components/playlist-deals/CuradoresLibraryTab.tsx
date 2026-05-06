@@ -228,16 +228,76 @@ export function CuradoresLibraryTab({
                         </div>
                       )}
                     </div>
-                    <Badge
-                      variant="secondary"
-                      className={cn(
-                        "shrink-0 text-[10px] px-2.5 py-0.5 h-6 font-semibold gap-1 rounded-full",
-                        activeDeals > 0 && "bg-primary/15 text-primary",
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Badge
+                        variant="secondary"
+                        className={cn(
+                          "text-[10px] px-2.5 py-0.5 h-6 font-semibold gap-1 rounded-full",
+                          activeDeals > 0 && "bg-primary/15 text-primary",
+                        )}
+                      >
+                        {activeDeals > 0 && <Activity className="h-2.5 w-2.5" />}
+                        {statusLabel}
+                      </Badge>
+                      {(onUpdateCurator || onArchiveCurator) && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                              onClick={(e) => e.stopPropagation()}
+                              aria-label="Mais ações"
+                            >
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent
+                            align="end"
+                            className="w-44"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {onUpdateCurator && (
+                              <DropdownMenuItem
+                                className="gap-2"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditing(curator);
+                                }}
+                              >
+                                <Pencil className="h-4 w-4" />
+                                Editar
+                              </DropdownMenuItem>
+                            )}
+                            {onArchiveCurator && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  className="gap-2 text-destructive focus:text-destructive"
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    if (activeDeals > 0) {
+                                      toast.error("Curador tem deals ativos — encerre antes de arquivar");
+                                      return;
+                                    }
+                                    if (!confirm(`Arquivar ${curator.name}? Ele sai da biblioteca mas o histórico fica.`)) return;
+                                    try {
+                                      await onArchiveCurator(curator.id, true);
+                                      toast.success("Curador arquivado");
+                                    } catch {
+                                      toast.error("Erro ao arquivar");
+                                    }
+                                  }}
+                                >
+                                  <Archive className="h-4 w-4" />
+                                  Arquivar
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       )}
-                    >
-                      {activeDeals > 0 && <Activity className="h-2.5 w-2.5" />}
-                      {statusLabel}
-                    </Badge>
+                    </div>
                   </div>
 
                   {/* Alert overbooking */}
