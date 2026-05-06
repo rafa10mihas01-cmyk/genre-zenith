@@ -498,6 +498,41 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
     [balanceById, selectedCuratorId],
   );
 
+  // Curador "pendente": modo "new" no Step 1. NUNCA persistido até o submit final.
+  // Usado para previsões de saldo/CPP no Step 2 sem criar registros órfãos.
+  const pendingCurator = useMemo(() => {
+    if (curatorMode !== "new") return null;
+    const name = newCuratorName.trim();
+    if (!name) return null;
+    const plays = newCuratorPlaysDigits ? Number(newCuratorPlaysDigits) : 0;
+    const cost = currencyDigitsToNumber(newCuratorCostDigits) ?? 0;
+    return {
+      name,
+      contact: newCuratorContact.trim() || null,
+      purchased_plays: Math.max(0, plays),
+      total_cost: Math.max(0, cost),
+    };
+  }, [curatorMode, newCuratorName, newCuratorContact, newCuratorPlaysDigits, newCuratorCostDigits]);
+
+  // Visão unificada do curador (selecionado OU pendente) para o Step 2.
+  const effectiveCurator = useMemo(() => {
+    if (selectedCurator) {
+      return {
+        name: selectedCurator.name,
+        purchased_plays: Number(selectedCurator.purchased_plays ?? 0),
+        total_cost: Number(selectedCurator.total_cost ?? 0),
+      };
+    }
+    if (pendingCurator) {
+      return {
+        name: pendingCurator.name,
+        purchased_plays: pendingCurator.purchased_plays,
+        total_cost: pendingCurator.total_cost,
+      };
+    }
+    return null;
+  }, [selectedCurator, pendingCurator]);
+
   // ============================================================
   // Persistência de rascunho (autosave + restore)
   // Só ativa em modo "novo deal" (edição não cria rascunho)
