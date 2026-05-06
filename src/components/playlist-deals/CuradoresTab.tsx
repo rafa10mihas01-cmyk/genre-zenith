@@ -898,28 +898,8 @@ function EditCuratorDialog({
               placeholder="email, telefone, @..."
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label htmlFor="ec-purchased">Plays comprados</Label>
-              <Input
-                id="ec-purchased"
-                type="number"
-                min="0"
-                value={purchased}
-                onChange={(e) => setPurchased(e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="ec-cost">Custo total (R$)</Label>
-              <Input
-                id="ec-cost"
-                type="number"
-                min="0"
-                step="0.01"
-                value={cost}
-                onChange={(e) => setCost(e.target.value)}
-              />
-            </div>
+          <div className="rounded-md border border-border/40 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+            Plays comprados e custo total são derivados do ledger de compras (aba Financeiro). Para ajustar saldo, use "Adicionar saldo" no fluxo de novo deal.
           </div>
           <div>
             <Label htmlFor="ec-notes">Notas</Label>
