@@ -84,8 +84,16 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       <div className="min-h-screen flex w-full bg-background">
         <AppSidebar />
         <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden shadow-[-1px_0_0_rgba(255,255,255,0.04)]">
-          {/* TOPBAR GLOBAL — fixo fora da área de scroll */}
-          <header className="shrink-0 h-14 min-h-14 max-h-14 flex items-center gap-3 border-b border-border bg-background/90 backdrop-blur-md supports-[backdrop-filter]:bg-background/75 z-50 px-4 transition-none">
+          {/* TOPBAR GLOBAL — fixo fora da área de scroll. Mobile: cobre safe-area/notch. */}
+          <header
+            className="shrink-0 flex items-center gap-3 border-b border-border z-50 px-4 transition-none
+              h-14 min-h-14 max-h-14
+              bg-background/90 backdrop-blur-md supports-[backdrop-filter]:bg-background/75
+              max-md:h-auto max-md:min-h-0 max-md:max-h-none
+              max-md:pt-[calc(env(safe-area-inset-top,0px)+10px)] max-md:pb-2.5
+              max-md:bg-background/85 max-md:backdrop-blur-[10px]
+              max-md:shadow-[0_1px_0_hsl(var(--border)),0_6px_16px_-12px_rgba(0,0,0,0.5)]"
+          >
             <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
             {/* Mobile: logo + título dinâmico (estilo app nativo) */}
             <div className="md:hidden flex items-center gap-2 min-w-0">
