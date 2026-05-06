@@ -554,8 +554,6 @@ export function useCuratorDeals() {
           started_at: s.started_at ?? null,
           ends_at: s.ends_at ?? null,
           ramp_up_days: s.ramp_up_days ?? input.ramp_up_days ?? 5,
-          client_id: s.client_id ?? null,
-          smartlink_url: s.smartlink_url ?? null,
         };
         const match = findMatch(s);
         if (match && !matchedExistingIds.has(match.id)) {
