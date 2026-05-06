@@ -470,13 +470,9 @@ export function useCuratorDeals() {
         .eq("id", dealId);
       if (updErr) throw updErr;
 
-      // 2) Substitui a lista de músicas (delete + insert) — mais simples e robusto
-      const { error: delSongsErr } = await supabase
-        .from("curator_deal_songs")
-        .delete()
-        .eq("deal_id", dealId);
-      if (delSongsErr) throw delSongsErr;
-
+      // 2) Sincroniza músicas SEM destruir IDs (UPDATE/INSERT/DELETE seletivo)
+      //    Match por spotify_track_id; fallback por song_spotify_url normalizado.
+      //    Isso preserva song_id de batches/snapshots/logs já existentes.
       const primarySong: DealSongInput = {
         song_spotify_url: input.song_spotify_url,
         spotify_track_id: extractSpotifyTrackIdFromUrl(input.song_spotify_url),
@@ -492,31 +488,86 @@ export function useCuratorDeals() {
         ends_at: input.ends_at ?? null,
         ramp_up_days: input.ramp_up_days ?? 5,
       };
-      const allSongs = [primarySong, ...(input.extra_songs ?? [])];
-      const songRows = allSongs.map((s, i) => ({
-        deal_id: dealId,
-        song_spotify_url: s.song_spotify_url,
-        spotify_track_id: s.spotify_track_id ?? null,
-        song_name: s.song_name,
-        song_artist: s.song_artist ?? null,
-        artist_candidates: s.artist_candidates ?? (s.song_artist ? [s.song_artist] : []),
-        song_cover_url: s.song_cover_url ?? null,
-        daily_goal: s.daily_goal ?? 0,
-        duration_days: s.duration_days ?? 30,
-        target_plays: s.target_plays ?? null,
+      const desiredSongs = [primarySong, ...(input.extra_songs ?? [])].map((s, i) => ({
+        ...s,
         position: s.position ?? i,
-        started_at: s.started_at ?? null,
-        ends_at: s.ends_at ?? null,
-        ramp_up_days: s.ramp_up_days ?? input.ramp_up_days ?? 5,
-        auto_collect: true,
-        auto_collect_status: "idle",
-        auto_collect_interval_minutes: 1440,
-        next_auto_collect_at: new Date().toISOString(),
+        spotify_track_id: s.spotify_track_id ?? extractSpotifyTrackIdFromUrl(s.song_spotify_url),
       }));
-      const { error: songsErr } = await supabase
+
+      const { data: existingSongsData, error: existingErr } = await supabase
         .from("curator_deal_songs")
-        .insert(songRows);
-      if (songsErr) throw songsErr;
+        .select("id, spotify_track_id, song_spotify_url")
+        .eq("deal_id", dealId);
+      if (existingErr) throw existingErr;
+      const existing = (existingSongsData ?? []) as Array<{ id: string; spotify_track_id: string | null; song_spotify_url: string }>;
+
+      const findMatch = (s: typeof desiredSongs[number]) =>
+        existing.find((e) =>
+          (s.spotify_track_id && e.spotify_track_id && e.spotify_track_id === s.spotify_track_id) ||
+          (e.song_spotify_url && s.song_spotify_url && e.song_spotify_url === s.song_spotify_url),
+        );
+
+      const matchedExistingIds = new Set<string>();
+      const toUpdate: Array<{ id: string; row: Record<string, unknown> }> = [];
+      const toInsert: Record<string, unknown>[] = [];
+
+      desiredSongs.forEach((s, i) => {
+        const baseRow = {
+          deal_id: dealId,
+          song_spotify_url: s.song_spotify_url,
+          spotify_track_id: s.spotify_track_id ?? null,
+          song_name: s.song_name,
+          song_artist: s.song_artist ?? null,
+          artist_candidates: s.artist_candidates ?? (s.song_artist ? [s.song_artist] : []),
+          song_cover_url: s.song_cover_url ?? null,
+          daily_goal: s.daily_goal ?? 0,
+          duration_days: s.duration_days ?? 30,
+          target_plays: s.target_plays ?? null,
+          position: s.position ?? i,
+          started_at: s.started_at ?? null,
+          ends_at: s.ends_at ?? null,
+          ramp_up_days: s.ramp_up_days ?? input.ramp_up_days ?? 5,
+        };
+        const match = findMatch(s);
+        if (match && !matchedExistingIds.has(match.id)) {
+          matchedExistingIds.add(match.id);
+          toUpdate.push({ id: match.id, row: baseRow });
+        } else {
+          toInsert.push({
+            ...baseRow,
+            auto_collect: true,
+            auto_collect_status: "idle",
+            auto_collect_interval_minutes: 1440,
+            next_auto_collect_at: new Date().toISOString(),
+          });
+        }
+      });
+
+      const toDeleteIds = existing
+        .filter((e) => !matchedExistingIds.has(e.id))
+        .map((e) => e.id);
+
+      // UPDATE preserva IDs (e portanto histórico vinculado)
+      for (const { id, row } of toUpdate) {
+        const { error: upErr } = await supabase
+          .from("curator_deal_songs")
+          .update(row)
+          .eq("id", id);
+        if (upErr) throw upErr;
+      }
+      if (toInsert.length > 0) {
+        const { error: insErr } = await supabase
+          .from("curator_deal_songs")
+          .insert(toInsert);
+        if (insErr) throw insErr;
+      }
+      if (toDeleteIds.length > 0) {
+        const { error: delErr2 } = await supabase
+          .from("curator_deal_songs")
+          .delete()
+          .in("id", toDeleteIds);
+        if (delErr2) throw delErr2;
+      }
 
       await load();
     },
