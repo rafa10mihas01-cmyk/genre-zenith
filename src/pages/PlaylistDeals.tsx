@@ -216,6 +216,8 @@ export default function PlaylistDeals() {
             balances={balances}
             deals={deals}
             loading={loading}
+            onUpdateCurator={updateCurator}
+            onArchiveCurator={archiveCurator}
           />
         ) : tab === "ledger" ? (
           <FinanceiroTab deals={deals} />
