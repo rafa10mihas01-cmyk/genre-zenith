@@ -15,7 +15,7 @@ function jr(p: unknown, status = 200) {
 
 type Alert = {
   kind: string;
-  type: "info" | "warning" | "error";
+  type: "info" | "warning" | "critical";
   title: string;
   message: string;
 };
@@ -63,7 +63,7 @@ Deno.serve(async (req) => {
     if (!last || new Date(last).getTime() < now - 10 * 60_000) {
       if (await notifyOnce(supabase, {
         kind: "ops_heartbeat_missing",
-        type: "error",
+        type: "critical",
         title: "Bot sem heartbeat",
         message: `Nenhum heartbeat do bot nos últimos 10 minutos. Última atividade: ${last ?? "nunca"}.`,
       })) fired.push("heartbeat_missing");
