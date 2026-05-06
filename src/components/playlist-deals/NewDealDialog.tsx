@@ -310,13 +310,12 @@ function DealRangePicker({
           <Calendar
             mode="range"
             selected={{ from: draftFrom, to: draftTo }}
-            onSelect={handleSelect}
+            onDayClick={handleDayClick}
             numberOfMonths={1}
             initialFocus
             locale={ptBR}
             className="p-3 pointer-events-auto"
             classNames={{
-              // Limpa o highlight agressivo de células — sem bg em linha inteira
               cell: "h-9 w-9 text-center text-sm p-0 relative focus-within:relative focus-within:z-20",
               day: "h-9 w-9 p-0 font-normal rounded-full text-sm hover:bg-primary/10 transition-colors aria-selected:opacity-100",
               day_selected:
