@@ -128,6 +128,18 @@ Deno.serve(async (req) => {
       return jr({ ok: false, error: "public_token ou deal_id obrigatório" }, 400);
     }
 
+    // Rate limit: só rota pública e só importações reais (não preview)
+    if (publicToken && !preview) {
+      const rl = checkRateLimit(publicToken);
+      if (!rl.ok) {
+        return jr(
+          { ok: false, error: `Muitas importações em sequência. Aguarde ${rl.retryAfterSec}s e tente de novo.` },
+          429,
+          { "Retry-After": String(rl.retryAfterSec ?? 30) },
+        );
+      }
+    }
+
     const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
     // ------- Identificar deal e modo (público vs admin) -------
