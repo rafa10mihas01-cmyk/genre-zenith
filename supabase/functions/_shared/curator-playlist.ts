@@ -144,7 +144,7 @@ export async function checkTrackInPlaylist(
     url.searchParams.set("fields", fields);
     url.searchParams.set("limit", "100");
     url.searchParams.set("offset", String(offset));
-    const res = await fetch(url.toString(), { headers: { Authorization: `Bearer ${token}` } });
+    const res = await fetchWithRetry(url.toString(), { headers: { Authorization: `Bearer ${token}` } });
     if (res.status === 404) return { found: false, position: null, track_name: null, artist_name: null };
     if (!res.ok) throw new Error(`Spotify playlist tracks ${playlistId} HTTP ${res.status}`);
 
