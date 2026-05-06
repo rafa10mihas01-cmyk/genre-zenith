@@ -13,6 +13,9 @@ import {
   ExternalLink,
   Copy,
   Link2,
+  MoreHorizontal,
+  Archive,
+  Trash2,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -38,6 +41,23 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { useClients, type Client } from "@/hooks/useClients";
 import { clientCampaignUrl } from "@/lib/curatorPublicUrl";
@@ -57,11 +77,12 @@ interface Props {
 }
 
 export function ClientesLibraryTab({ deals, songs, loading }: Props) {
-  const { clients, loading: loadingClients, addClient, updateClient, reload } = useClients();
+  const { clients, loading: loadingClients, addClient, updateClient, archiveClient, deleteClient, reload } = useClients();
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Client | null>(null);
   const [editing, setEditing] = useState<Client | null>(null);
   const [creating, setCreating] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<{ client: Client; hasLinks: boolean } | null>(null);
 
   // Permite abrir o modal "Novo cliente" via evento global (botão + Novo do header)
   useEffect(() => {
@@ -196,16 +217,74 @@ export function ClientesLibraryTab({ deals, songs, loading }: Props) {
                         </div>
                       )}
                     </div>
-                    <Badge
-                      variant="secondary"
-                      className={cn(
-                        "shrink-0 text-[10px] px-2.5 py-0.5 h-6 font-semibold gap-1 rounded-full",
-                        activeDeals > 0 && "bg-primary/15 text-primary",
-                      )}
-                    >
-                      {activeDeals > 0 && <Activity className="h-2.5 w-2.5" />}
-                      {statusLabel}
-                    </Badge>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Badge
+                        variant="secondary"
+                        className={cn(
+                          "text-[10px] px-2.5 py-0.5 h-6 font-semibold gap-1 rounded-full",
+                          activeDeals > 0 && "bg-primary/15 text-primary",
+                        )}
+                      >
+                        {activeDeals > 0 && <Activity className="h-2.5 w-2.5" />}
+                        {statusLabel}
+                      </Badge>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                            onClick={(e) => e.stopPropagation()}
+                            aria-label="Mais ações"
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                          align="end"
+                          className="w-44"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <DropdownMenuItem
+                            className="gap-2"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditing(client);
+                            }}
+                          >
+                            <Pencil className="h-4 w-4" />
+                            Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="gap-2"
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              if (!confirm(`Arquivar ${client.name}? Ele sai da biblioteca mas o histórico fica.`)) return;
+                              try {
+                                await archiveClient(client.id, true);
+                                toast.success("Cliente arquivado");
+                              } catch {
+                                toast.error("Erro ao arquivar");
+                              }
+                            }}
+                          >
+                            <Archive className="h-4 w-4" />
+                            Arquivar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="gap-2 text-destructive focus:text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setConfirmDelete({ client, hasLinks: totalSongs > 0 || totalDeals > 0 });
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            Excluir
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 divide-x divide-border/50 rounded-xl bg-[hsl(var(--elevated))] border border-border/40">
@@ -275,18 +354,6 @@ export function ClientesLibraryTab({ deals, songs, loading }: Props) {
                       <Music2 className="h-3.5 w-3.5" />
                       Ver músicas
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-9 w-9 p-0"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setEditing(client);
-                      }}
-                      aria-label="Editar cliente"
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -334,6 +401,41 @@ export function ClientesLibraryTab({ deals, songs, loading }: Props) {
           }
         }}
       />
+
+      {/* AlertDialog — confirmação de exclusão */}
+      <AlertDialog
+        open={confirmDelete !== null}
+        onOpenChange={(v) => !v && setConfirmDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir cliente?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmDelete?.hasLinks
+                ? `${confirmDelete.client.name} possui músicas/deals vinculados. A exclusão desvincula o cliente, mas o histórico permanece. Esta ação não pode ser desfeita.`
+                : `${confirmDelete?.client.name} será removido permanentemente. Esta ação não pode ser desfeita.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                if (!confirmDelete) return;
+                try {
+                  await deleteClient(confirmDelete.client.id);
+                  toast.success("Cliente excluído");
+                  setConfirmDelete(null);
+                } catch (e) {
+                  toast.error(e instanceof Error ? e.message : "Erro ao excluir");
+                }
+              }}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
