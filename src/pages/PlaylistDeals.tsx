@@ -244,6 +244,7 @@ export default function PlaylistDeals() {
             onUpdateCurator={updateCurator}
             onArchiveCurator={archiveCurator}
             onDeleteCurator={deleteCurator}
+            onPauseCurator={pauseCurator}
           />
         ) : tab === "ledger" ? (
           <FinanceiroTab deals={deals} />
