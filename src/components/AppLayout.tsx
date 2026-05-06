@@ -16,13 +16,15 @@ import { TopProgressBar } from "@/components/TopProgressBar";
 import { SplashLoader } from "@/components/SplashLoader";
 import { AppFooter } from "@/components/AppFooter";
 
-// Mapa de rótulos curtos para o título no header mobile
+// Mapa de rótulos curtos para o título no header mobile/tablet
 const ROUTE_TITLES: Record<string, string> = {
   "/": "Cockpit",
   "/cerebro": "Cérebro",
   "/criacao": "Criação",
   "/operacao": "Operação",
   "/performance": "Performance",
+  "/playlist-deals": "Playlist Deals",
+  "/sistema": "Sistema",
   "/configuracoes": "Configurações",
 };
 function getRouteTitle(pathname: string): string {
@@ -89,15 +91,15 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             className="shrink-0 flex items-center gap-2 xl:gap-3 border-b border-border z-50 px-3 md:px-4 transition-none w-full min-w-0 overflow-hidden
               h-14 min-h-14 max-h-14
               bg-background/90 backdrop-blur-md supports-[backdrop-filter]:bg-background/75
-              max-xl:h-auto max-xl:min-h-0 max-xl:max-h-none
-              max-xl:pt-[calc(env(safe-area-inset-top,0px)+10px)] max-xl:pb-2.5
+              max-xl:h-14 max-xl:min-h-14 max-xl:max-h-14
+              max-xl:pt-[env(safe-area-inset-top,0px)]
               max-xl:bg-background/85 max-xl:backdrop-blur-[10px]
               max-xl:shadow-[0_1px_0_hsl(var(--border)),0_6px_16px_-12px_rgba(0,0,0,0.5)]"
           >
             <SidebarTrigger className="shrink-0 text-muted-foreground hover:text-foreground" />
 
             {/* Tablet/Mobile: logo + título dinâmico (estilo app nativo) */}
-            <div className="xl:hidden flex items-center gap-2 min-w-0 flex-1">
+            <div className="xl:hidden flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
               <NexEngineLogo size={24} variant="mark" className="shrink-0" />
               <span className="text-[15px] font-semibold text-foreground truncate min-w-0">
                 {pageTitle}
@@ -167,7 +169,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 size="icon"
                 variant="ghost"
                 onClick={refresh}
-                className="hidden sm:inline-flex xl:hidden h-9 w-9 rounded-md text-muted-foreground hover:text-foreground hover:bg-elevated/60 shrink-0"
+                className="hidden md:inline-flex xl:hidden h-9 w-9 rounded-md text-muted-foreground hover:text-foreground hover:bg-elevated/60 shrink-0"
                 aria-label="Atualizar"
               >
                 <RefreshCw className="h-[18px] w-[18px]" />
