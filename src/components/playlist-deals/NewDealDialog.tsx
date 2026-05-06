@@ -1480,6 +1480,36 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
                         </div>
                       </div>
 
+                      {/* Cliente + Smartlink */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div className="flex flex-col gap-1">
+                          <span className="text-xs text-muted-foreground">Cliente</span>
+                          <ClientPicker
+                            value={song.client_id}
+                            clients={clients}
+                            onChange={(id) => updateSong(idx, { client_id: id })}
+                            onCreate={async (name) => {
+                              const c = await addClient({ name });
+                              updateSong(idx, { client_id: c.id });
+                            }}
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-xs text-muted-foreground">
+                            Smartlink (Linkfire/ToneDen)
+                          </span>
+                          <Input
+                            type="url"
+                            placeholder="https://…"
+                            className="h-9"
+                            value={song.smartlink_url}
+                            onChange={(e) =>
+                              updateSong(idx, { smartlink_url: e.target.value })
+                            }
+                          />
+                        </div>
+                      </div>
+
                       {/* Buscar / preview */}
                       <div className="flex items-center gap-2">
                         {!song.meta ? (
