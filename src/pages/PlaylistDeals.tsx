@@ -204,7 +204,13 @@ export default function PlaylistDeals() {
 
       {/* Conteúdo — altura mínima estável evita layout shift entre abas */}
       <div className="min-h-[480px] animate-tab-in">
-        {tab === "library" ? (
+        {tab === "clients" ? (
+          <ClientesLibraryTab
+            deals={deals}
+            songs={songs}
+            loading={loading}
+          />
+        ) : tab === "library" ? (
           <CuradoresLibraryTab
             curators={curators}
             balances={balances}
