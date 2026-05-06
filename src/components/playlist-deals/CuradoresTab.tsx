@@ -421,23 +421,40 @@ export function CuradoresTab({
                   <article
                     key={c.id}
                     className={cn(
-                      "nx-card !p-0 overflow-hidden",
+                      "rounded-2xl overflow-hidden border border-border/60 transition-all duration-200",
+                      "hover:border-foreground/25 hover:-translate-y-[1px]",
+                      "hover:shadow-[0_18px_40px_-18px_rgba(0,0,0,0.85),0_0_32px_-8px_hsl(141_76%_48%_/_0.18)]",
+                      "bg-[linear-gradient(180deg,rgba(255,255,255,0.025)_0%,transparent_40%),hsl(var(--card))]",
                       c.archived_at && "opacity-70",
                     )}
                   >
-                    <div className="p-5 pb-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold text-[15px] truncate">{c.name}</span>
+                    <div className="p-5 flex flex-col gap-4">
+                      {/* Header: avatar + nome + status */}
+                      <div className="flex items-start gap-3 min-w-0 pb-1">
+                        <div className="h-11 w-11 rounded-xl bg-primary/15 border border-primary/30 flex items-center justify-center text-[14px] font-bold text-primary shrink-0">
+                          {c.name
+                            .split(/\s+/)
+                            .filter(Boolean)
+                            .slice(0, 2)
+                            .map((s) => s[0]?.toUpperCase())
+                            .join("") || <Users className="h-5 w-5" />}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-1">
+                            Curador
+                          </div>
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-[18px] font-semibold tracking-tight text-foreground truncate leading-tight">
+                              {c.name}
+                            </span>
                             {isAdmin && overbooked > 0 && (
-                              <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-destructive/15 text-destructive">
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-destructive/15 text-destructive shrink-0">
                                 <AlertTriangle className="h-3 w-3" />
                                 Estourado
                               </span>
                             )}
                             {c.archived_at && (
-                              <span className="inline-flex text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                              <span className="inline-flex text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-muted text-muted-foreground shrink-0">
                                 Arquivado
                               </span>
                             )}
@@ -478,49 +495,57 @@ export function CuradoresTab({
                         </div>
                       </div>
 
-                      {/* Métricas */}
-                      <div className="grid grid-cols-3 gap-2 mt-4">
-                        <div>
-                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                            Comprado
+                      {/* KPIs — números grandes (mesma estrutura do CuratorDealCard) */}
+                      <div className="grid grid-cols-2 divide-x divide-border/50 rounded-xl bg-[hsl(var(--elevated))] border border-border/40">
+                        <div className="px-4 py-3">
+                          <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-1.5">
+                            Plays comprados
                           </div>
-                          <div className="text-sm font-semibold tabular-nums mt-0.5">
+                          <div className="text-[24px] font-bold tabular-nums text-foreground leading-none tracking-tight">
                             {formatNumber(purchased)}
                           </div>
+                          {cost > 0 && (
+                            <div className="text-[11px] text-muted-foreground mt-1.5 tabular-nums">
+                              {formatBRL(cost)} total
+                            </div>
+                          )}
                         </div>
-                        <div>
-                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                            Consumido
-                          </div>
-                          <div className="text-sm font-semibold tabular-nums mt-0.5">
-                            {formatNumber(consumed)}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                        <div className="px-4 py-3">
+                          <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-1.5">
                             Restante
                           </div>
                           <div
                             className={cn(
-                              "text-sm font-semibold tabular-nums mt-0.5",
+                              "text-[24px] font-bold tabular-nums leading-none tracking-tight",
                               overbooked > 0
                                 ? "text-destructive"
                                 : remaining < purchased * 0.2
                                 ? "text-warning"
-                                : "text-success",
+                                : "text-primary",
                             )}
                           >
                             {formatNumber(remaining)}
                           </div>
+                          <div className="text-[11px] text-muted-foreground mt-1.5 tabular-nums">
+                            {formatNumber(consumed)} consumido
+                          </div>
                         </div>
                       </div>
 
-                      {/* Barra de progresso */}
-                      <div className="mt-3">
-                        <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                      {/* Progress — mesma altura/estilo do CuratorDealCard */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-semibold">
+                            Saldo consumido
+                          </span>
+                          <span className="tabular-nums text-[14px] font-bold text-foreground">
+                            {consumedPct}%
+                          </span>
+                        </div>
+                        <div className="h-2.5 rounded-full bg-muted overflow-hidden">
                           <div
                             className={cn(
-                              "h-full transition-all",
+                              "h-full transition-all rounded-full",
                               overbooked > 0
                                 ? "bg-destructive"
                                 : consumedPct >= 80
@@ -530,10 +555,6 @@ export function CuradoresTab({
                             style={{ width: `${consumedPct}%` }}
                           />
                         </div>
-                        <div className="flex items-center justify-between text-[11px] text-muted-foreground mt-1.5 tabular-nums">
-                          <span>{consumedPct}% consumido</span>
-                          <span>{formatBRL(cost)}</span>
-                        </div>
                       </div>
 
                       {/* Toggle músicas ativas */}
@@ -541,14 +562,16 @@ export function CuradoresTab({
                         <button
                           type="button"
                           onClick={() => toggleExpand(c.id)}
-                          className="mt-3 w-full flex items-center justify-between text-[12px] text-muted-foreground hover:text-foreground transition-colors py-1"
+                          className="w-full flex items-center justify-between text-[11px] text-muted-foreground hover:text-foreground transition-colors border-t border-border/40 pt-2.5"
                         >
                           <span className="inline-flex items-center gap-1.5">
-                            <Music2 className="h-3.5 w-3.5" />
-                            {cdeals.reduce(
-                              (n, d) => n + (songsByDeal.get(d.id)?.length ?? 0),
-                              0,
-                            )}{" "}
+                            <Music2 className="h-3.5 w-3.5 text-primary" />
+                            <span className="tabular-nums font-semibold text-foreground">
+                              {cdeals.reduce(
+                                (n, d) => n + (songsByDeal.get(d.id)?.length ?? 0),
+                                0,
+                              )}
+                            </span>{" "}
                             música(s) ativa(s)
                           </span>
                           {isExpanded ? (
@@ -562,7 +585,7 @@ export function CuradoresTab({
 
                     {/* Lista de músicas */}
                     {isExpanded && cdeals.length > 0 && (
-                      <div className="border-t border-border bg-muted/20 px-5 py-3 space-y-2">
+                      <div className="border-t border-border/40 bg-muted/20 px-5 py-3 space-y-2">
                         {cdeals.flatMap((d) => {
                           const ss = songsByDeal.get(d.id) ?? [];
                           return ss.map((s) => {
