@@ -373,11 +373,16 @@ export function CuratorDealCard({
               {" / "}
               {formatPlays(target)} plays
             </span>
-            {newPlaylists.length > 0 && (
-              <span className="inline-flex items-center gap-1 text-success font-medium">
-                +{newPlaylists.length} nova{newPlaylists.length > 1 ? "s" : ""}
-              </span>
-            )}
+            {(() => {
+              const novasCurador = newPlaylists.filter(
+                (p) => (p.match_status ?? "curator") === "curator",
+              ).length;
+              return novasCurador > 0 ? (
+                <span className="inline-flex items-center gap-1 text-success font-medium">
+                  +{novasCurador} nova{novasCurador > 1 ? "s" : ""}
+                </span>
+              ) : null;
+            })()}
           </div>
         </div>
 
