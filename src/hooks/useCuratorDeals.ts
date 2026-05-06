@@ -49,6 +49,7 @@ export type Curator = {
   total_cost: number | null;
   notes: string | null;
   archived_at: string | null;
+  paused_at: string | null;
   created_at: string;
   updated_at: string;
 };
