@@ -17,10 +17,12 @@ import { LogPrintDialog } from "@/components/playlist-deals/LogPrintDialog";
 import { DealHistorySheet } from "@/components/playlist-deals/DealHistorySheet";
 import { CuradoresTab } from "@/components/playlist-deals/CuradoresTab";
 import { CuradoresLibraryTab } from "@/components/playlist-deals/CuradoresLibraryTab";
+import { ClientesLibraryTab } from "@/components/playlist-deals/ClientesLibraryTab";
 import { CloseDealDialog } from "@/components/playlist-deals/CloseDealDialog";
 import { FinanceiroTab } from "@/components/playlist-deals/FinanceiroTab";
+import { useClients } from "@/hooks/useClients";
 
-type DealsTab = "library" | "active" | "done" | "finance" | "ledger" | "all";
+type DealsTab = "clients" | "library" | "active" | "done" | "finance" | "ledger" | "all";
 
 const TABS = [
   { id: "library"  as const, label: "Curadores",   icon: Users },
