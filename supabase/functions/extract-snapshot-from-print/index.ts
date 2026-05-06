@@ -586,16 +586,21 @@ Deno.serve(async (req) => {
     const sName = pl.playlist_name ?? null;
     const plays = Math.max(0, parseInt(String(pl.plays ?? 0)) || 0);
     const isAlgo = isAlgorithmic(sName, pl.made_by ?? null);
+    // O histórico/base representa o total observado no Spotify for Artists.
+    // A entrega contratada continua vindo apenas dos snapshots match_status='curator'
+    // via get_curator_deal_progress.
+    totalPlays += plays;
 
     // Resolve spotify_playlist_id antecipadamente (Gemini URL ou DOM por nome)
-    // pra aplicar whitelist do curador antes de qualquer escrita.
+    // para classificar whitelist do curador sem descartar as demais 100 linhas.
     let preResolvedId = extractId(pl.spotify_url ?? "");
     if (!preResolvedId && sName) {
       const hit = domByName.get(norm(sName));
       if (hit) preResolvedId = hit.id;
     }
+    const isWhitelistedCurator = !!preResolvedId && !preResolvedId.startsWith("algo:") && whitelist.has(preResolvedId);
     if (whitelistActive && !isAlgo) {
-      if (!preResolvedId || preResolvedId.startsWith("algo:") || !whitelist.has(preResolvedId)) {
+      if (!preResolvedId || preResolvedId.startsWith("algo:")) {
         filteredOut++;
         continue;
       }
@@ -626,7 +631,7 @@ Deno.serve(async (req) => {
             spotify_url: pl.spotify_url ?? "",
             playlist_name: algoName,
             spotify_owner_name: pl.made_by ?? "Spotify",
-            is_baseline: false,
+            is_baseline: isBaseline,
             match_status: "algorithmic",
           })
           .select("id")
@@ -645,6 +650,8 @@ Deno.serve(async (req) => {
             });
           } catch (_) { /* ignore */ }
         }
+      } else if (isBaseline) {
+        await supabase.from("curator_playlists").update({ is_baseline: true }).eq("id", algoId);
       }
       if (algoId) {
         algorithmicSeenIds.push(algoId);
@@ -664,8 +671,6 @@ Deno.serve(async (req) => {
       }
       continue;
     }
-
-    totalPlays += plays;
 
     // PRIORIDADE 1: bate o nome lido pelo Gemini com o DOM (link real do HTML).
     // PRIORIDADE 2 (fallback): se nome não bateu, tenta casar por position.
@@ -690,34 +695,46 @@ Deno.serve(async (req) => {
     let playlistId: string | null = null;
     let matchMethod: string | null = null;
 
-    const { data: matchData } = await supabase.rpc("match_curator_playlist", {
-      p_deal_id: deal_id,
-      p_spotify_playlist_id: sId,
-      p_playlist_name: sName,
-      p_song_id: song_id ?? null,
-    } as any);
-    const row = Array.isArray(matchData) ? matchData[0] : null;
-    if (row?.playlist_id) {
-      playlistId = row.playlist_id as string;
-      matchMethod = (row.match_method as string) ?? null;
+    if (isWhitelistedCurator) {
+      const { data: matchData } = await supabase.rpc("match_curator_playlist", {
+        p_deal_id: deal_id,
+        p_spotify_playlist_id: sId,
+        p_playlist_name: sName,
+        p_song_id: song_id ?? null,
+      } as any);
+      const row = Array.isArray(matchData) ? matchData[0] : null;
+      if (row?.playlist_id) {
+        playlistId = row.playlist_id as string;
+        matchMethod = (row.match_method as string) ?? null;
 
-      // AUTO-CURA: se bateu por nome mas DOM trouxe ID confiável,
-      // popula spotify_playlist_id da row existente.
-      const updPayload: any = {};
-      if (domHit && matchMethod !== "spotify_id") {
-        updPayload.spotify_playlist_id = domHit.id;
-        updPayload.spotify_url = domHit.url;
+        // AUTO-CURA: se bateu por nome mas DOM trouxe ID confiável,
+        // popula spotify_playlist_id da row existente.
+        const updPayload: any = {};
+        if (domHit && matchMethod !== "spotify_id") {
+          updPayload.spotify_playlist_id = domHit.id;
+          updPayload.spotify_url = domHit.url;
+        }
+        if (typeof pl.position === "number" && pl.position > 0) {
+          updPayload.position_in_paste = pl.position;
+          updPayload.last_paste_at = new Date().toISOString();
+        }
+        if (Object.keys(updPayload).length > 0) {
+          await supabase
+            .from("curator_playlists")
+            .update(updPayload)
+            .eq("id", playlistId);
+        }
       }
-      if (typeof pl.position === "number" && pl.position > 0) {
-        updPayload.position_in_paste = pl.position;
-        updPayload.last_paste_at = new Date().toISOString();
-      }
-      if (Object.keys(updPayload).length > 0) {
-        await supabase
-          .from("curator_playlists")
-          .update(updPayload)
-          .eq("id", playlistId);
-      }
+    } else if (sId) {
+      const { data: organic } = await supabase
+        .from("curator_playlists")
+        .select("id")
+        .eq("deal_id", deal_id)
+        .eq("spotify_playlist_id", sId)
+        .eq("match_status", "organic")
+        .maybeSingle();
+      playlistId = organic?.id ?? null;
+      matchMethod = "organic";
     }
 
     if (!playlistId) {
@@ -730,7 +747,9 @@ Deno.serve(async (req) => {
           spotify_playlist_id: sId,
           playlist_name: sName ?? "Sem nome",
           spotify_owner_name: pl.made_by ?? null,
-          is_baseline: isBaseline,
+          is_baseline: isWhitelistedCurator ? isBaseline : false,
+          match_status: isWhitelistedCurator ? "curator" : "organic",
+          match_reason: isWhitelistedCurator ? "curator_whitelist" : "sfa_detected_not_whitelisted",
           position_in_paste: typeof pl.position === "number" ? pl.position : null,
           last_paste_at: new Date().toISOString(),
         })
@@ -741,7 +760,7 @@ Deno.serve(async (req) => {
         continue;
       }
       playlistId = created.id;
-      matchMethod = domHit ? "dom_created" : "created";
+      matchMethod = isWhitelistedCurator ? (domHit ? "dom_created" : "created") : "organic_created";
     }
 
     // Enriquece metadados (capa, owner, followers) via Spotify Web API
