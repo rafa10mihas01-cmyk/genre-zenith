@@ -245,7 +245,7 @@ export default function Operacao() {
       />
 
       {/* KPIs operacionais — focados em decisão */}
-      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiBig icon={Activity}      label="Total ativas"  value={formatNumber(kpi.total)}     hint="Playlists em operação" loading={loading} />
         <KpiBig icon={ArrowUpRight}  label="Crescendo"     value={formatNumber(kpi.crescendo)} tone="primary"     hint="Variação positiva"     loading={loading} />
         <KpiBig icon={AlertCircle}   label="Precisa atenção" value={formatNumber(kpi.atencao)} tone={kpi.atencao > 0 ? "destructive" : "default"} hint="Playlists em queda" loading={loading} />

@@ -129,7 +129,7 @@ export function Coleta({ genreId }: { genreId?: string }) {
       {/* Coletar oficiais Spotify — descoberta de fontes (movido da Operação) */}
       <EditorialSeederCard />
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         <KpiBig icon={Activity} label="Eventos recentes" value={String(logs.length)} hint="Últimas 40 ações" />
         <KpiBig icon={Music2} label="Aguardando enriquecer" value={String(pending)} hint="Playlists sem dados completos" />
         <div className="nx-card p-4 flex items-center justify-between">

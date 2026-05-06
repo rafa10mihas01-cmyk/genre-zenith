@@ -130,7 +130,7 @@ export default function PlaylistDeals() {
       />
 
       {/* KPIs — padrão idêntico a Operação / Criação / Performance */}
-      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiBig
           icon={ListMusic}
           label="Total de deals"

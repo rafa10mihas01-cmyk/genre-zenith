@@ -129,7 +129,7 @@ export function QuickActions({ slug }: { slug: string }) {
     { to: `/operacao?genre=${slug}`, icon: Radio, label: "Ver publicadas", hint: "Playlists no Spotify" },
   ];
   return (
-    <section className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+    <section className="grid grid-cols-2 sm:grid-cols-3 gap-3">
       {items.map(it => (
         <Link
           key={it.to}
