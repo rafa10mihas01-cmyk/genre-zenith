@@ -1579,9 +1579,9 @@ export default function CuratorPage() {
               </Button>
             </div>
             <p className="text-[11px] text-muted-foreground/80 text-center pt-1 leading-relaxed">
-              Aceita .xlsx, .xls ou .csv · até 200 playlists
+              Importe até 100 playlists (.CSV ou Excel)
               <br />
-              <span className="opacity-70">Use o modelo para garantir o formato correto</span>
+              <span className="opacity-70">Baixe o modelo pronto e envie preenchido</span>
             </p>
           </CardContent>
         </Card>
