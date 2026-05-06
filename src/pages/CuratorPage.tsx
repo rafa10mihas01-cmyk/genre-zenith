@@ -1291,75 +1291,7 @@ export default function CuratorPage() {
           </Card>
         )}
 
-        {/* Playlists baseline (cards por música) */}
-        {baseGroupedBySong.length > 0 && (
-          <Card className="nx-card !p-0 border-border">
-            <CardContent className="p-5 sm:p-6 space-y-4">
-              <div className="w-full flex items-center justify-between gap-4">
-                <div className="min-w-0 flex-1">
-                  <h2 className="text-[14px] font-semibold inline-flex items-center gap-2 tracking-tight">
-                    <ListMusic className="h-3.5 w-3.5 text-muted-foreground" />
-                    Playlists em que as músicas já estão
-                  </h2>
-                  <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
-                    Clique em uma música para ver as playlists de origem
-                  </p>
-                </div>
-                <span className="text-[11px] text-muted-foreground shrink-0">
-                  {baseGroupedBySong.length} {baseGroupedBySong.length === 1 ? "música" : "músicas"}
-                </span>
-              </div>
-
-              <div className={cn(
-                "grid grid-cols-2 gap-3",
-                baseGroupedBySong.length > 4 && "max-h-[560px] overflow-y-auto pr-1 -mr-1 scroll-smooth [mask-image:linear-gradient(to_bottom,black_calc(100%-24px),transparent)]"
-              )}>
-                {baseGroupedBySong.map((g) => {
-                  const cover = g.song?.song_cover_url ?? deal.song_cover_url;
-                  const name = g.song?.song_name ?? deal.song_name;
-                  const artist = g.song?.song_artist ?? deal.song_artist;
-                  return (
-                    <button
-                      key={g.key}
-                      type="button"
-                      onClick={() => setBaseSongModalId(g.key)}
-                      className="group nx-subcard-hover flex flex-col p-3 text-left"
-                    >
-                      <div className="relative w-full aspect-square rounded-lg overflow-hidden bg-muted/60 ring-1 ring-border/40 mb-3">
-                        {cover ? (
-                          <img
-                            src={cover}
-                            alt={name}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <Music2 className="h-6 w-6 text-muted-foreground" />
-                          </div>
-                        )}
-                        <span className="absolute top-2 left-2 text-[9px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-background/85 backdrop-blur text-foreground/80 ring-1 ring-border/60">
-                          {g.playlists.length} {g.playlists.length === 1 ? "playlist" : "playlists"}
-                        </span>
-                      </div>
-                      <div className="text-[13px] font-semibold leading-tight line-clamp-1 group-hover:text-primary transition-colors">
-                        {name}
-                      </div>
-                      {artist && (
-                        <div className="text-[11px] text-muted-foreground mt-0.5 line-clamp-1">
-                          {artist}
-                        </div>
-                      )}
-                      <div className="mt-2 inline-flex items-center gap-1 text-[10px] text-muted-foreground/80 group-hover:text-primary/80 transition-colors">
-                        Ver playlists
-                        <ChevronRight className="h-3 w-3" />
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        {/* Card "Playlists em que as músicas já estão" removido — não exibir no portal do curador */}
 
         {/* Playlists do curador */}
         <Card className="nx-card !p-0 border-border">
