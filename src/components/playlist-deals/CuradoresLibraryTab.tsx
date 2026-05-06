@@ -157,18 +157,31 @@ export function CuradoresLibraryTab({
         if (a.activeDeals !== b.activeDeals) return b.activeDeals - a.activeDeals;
         return b.lastTs - a.lastTs;
       });
-  }, [curators, balances, deals, query]);
+  }, [curators, balances, deals, query, showArchived]);
 
   return (
     <div className="space-y-4 animate-fade-in">
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-        <Input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Buscar curador…"
-          className="pl-9"
-        />
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={showArchived ? "Buscar arquivados…" : "Buscar curador…"}
+            className="pl-9"
+          />
+        </div>
+        {(archivedCount > 0 || showArchived) && (
+          <Button
+            variant={showArchived ? "default" : "outline"}
+            size="sm"
+            className="h-9 gap-1.5"
+            onClick={() => setShowArchived((v) => !v)}
+          >
+            <Archive className="h-3.5 w-3.5" />
+            {showArchived ? "Ver ativos" : `Arquivados (${archivedCount})`}
+          </Button>
+        )}
       </div>
 
       {loading ? (
