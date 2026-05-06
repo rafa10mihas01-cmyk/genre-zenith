@@ -9,6 +9,7 @@
 //
 // Retorna { ok, path, signed_url, expires_in, batch? }
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { assertDealOperable } from "../_shared/deal-access.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
