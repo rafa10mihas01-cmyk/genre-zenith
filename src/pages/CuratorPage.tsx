@@ -1294,10 +1294,10 @@ export default function CuratorPage() {
               <div className="min-w-0 flex-1">
                 <h2 className="text-[14px] font-semibold inline-flex items-center gap-2 tracking-tight">
                   <ListMusic className="h-3.5 w-3.5 text-muted-foreground" />
-                  Suas playlists adicionadas
+                  Playlists monitoradas
                 </h2>
                 <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
-                  Clique para ver quais músicas da campanha já estão nela
+                  As playlists usadas no monitoramento da campanha aparecerão aqui
                 </p>
               </div>
               <span className="text-[11px] text-muted-foreground shrink-0">
