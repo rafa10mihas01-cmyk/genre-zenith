@@ -233,6 +233,8 @@ export function DealHistorySheet({
   const [algoFilter, setAlgoFilter] = useState<"all" | "editorial" | "organic" | "suspicious">("all");
 
   const stats = deal ? computeCuratorStats(deal, allLogs, allPlaylists, progress ?? null) : null;
+  const { data: breakdown } = useCuratorDealBreakdown(deal?.id ?? null);
+  const eco = ecosystemTotal(breakdown);
 
   const getSongForLog = (log: CuratorDealLog): CuratorDealSong | null => {
     if (log.song_id) return songs.find((s) => s.id === log.song_id) ?? null;
