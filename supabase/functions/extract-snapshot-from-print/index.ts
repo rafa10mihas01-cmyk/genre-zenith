@@ -805,6 +805,7 @@ Deno.serve(async (req) => {
       print_url: print_urls[0] ?? null,
       ai_raw: { ...pl, dom_matched: !!domHit },
       batch_id: batch_id ?? null,
+      correlation_id: correlation_id ?? null,
     });
     if (insErr) skipped++;
     else inserted++;
