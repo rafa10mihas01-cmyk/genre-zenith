@@ -2,7 +2,7 @@
 // Acesso: /campanha/:token (token separado do link do curador)
 // Toda a sanitização está no edge get-client-campaign-public.
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import {
   Loader2,
   TrendingUp,
@@ -12,7 +12,9 @@ import {
   CheckCircle2,
   Activity,
   Sparkles,
+  ExternalLink,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   Area,
   AreaChart,
