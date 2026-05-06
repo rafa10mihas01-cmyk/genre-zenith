@@ -300,30 +300,59 @@ export function CuradoresLibraryTab({
                                 Editar
                               </DropdownMenuItem>
                             )}
-                            {onArchiveCurator && (
-                              <>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  className="gap-2 text-destructive focus:text-destructive"
-                                  onClick={async (e) => {
-                                    e.stopPropagation();
-                                    if (activeDeals > 0) {
-                                      toast.error("Curador tem deals ativos — encerre antes de arquivar");
-                                      return;
-                                    }
-                                    if (!confirm(`Arquivar ${curator.name}? Ele sai da biblioteca mas o histórico fica.`)) return;
-                                    try {
-                                      await onArchiveCurator(curator.id, true);
-                                      toast.success("Curador arquivado");
-                                    } catch {
-                                      toast.error("Erro ao arquivar");
-                                    }
-                                  }}
-                                >
-                                  <Archive className="h-4 w-4" />
-                                  Arquivar
-                                </DropdownMenuItem>
-                              </>
+                            {(onArchiveCurator || onDeleteCurator) && (
+                              <DropdownMenuSeparator />
+                            )}
+                            {onArchiveCurator && !curator.archived_at && (
+                              <DropdownMenuItem
+                                className="gap-2"
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  if (activeDeals > 0) {
+                                    toast.error("Curador tem deals ativos — encerre antes de arquivar");
+                                    return;
+                                  }
+                                  if (!confirm(`Arquivar ${curator.name}? Ele sai da biblioteca mas o histórico fica.`)) return;
+                                  try {
+                                    await onArchiveCurator(curator.id, true);
+                                    toast.success("Curador arquivado");
+                                  } catch {
+                                    toast.error("Erro ao arquivar");
+                                  }
+                                }}
+                              >
+                                <Archive className="h-4 w-4" />
+                                Arquivar
+                              </DropdownMenuItem>
+                            )}
+                            {onArchiveCurator && curator.archived_at && (
+                              <DropdownMenuItem
+                                className="gap-2"
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  try {
+                                    await onArchiveCurator(curator.id, false);
+                                    toast.success("Curador restaurado");
+                                  } catch {
+                                    toast.error("Erro ao restaurar");
+                                  }
+                                }}
+                              >
+                                <ArchiveRestore className="h-4 w-4" />
+                                Restaurar
+                              </DropdownMenuItem>
+                            )}
+                            {onDeleteCurator && (
+                              <DropdownMenuItem
+                                className="gap-2 text-destructive focus:text-destructive"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setConfirmDelete({ curator, hasDeals: totalDeals > 0 });
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                                Excluir
+                              </DropdownMenuItem>
                             )}
                           </DropdownMenuContent>
                         </DropdownMenu>
