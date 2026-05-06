@@ -1,0 +1,116 @@
+
+CREATE OR REPLACE FUNCTION public.create_curator_deal_atomic(p_deal jsonb, p_songs jsonb, p_force boolean DEFAULT false)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_user_id uuid;
+  v_deal_id uuid;
+  v_dup jsonb;
+  v_song jsonb;
+  v_song_id uuid;
+  v_first_song_target bigint := 0;
+  v_first_song_daily bigint := 0;
+  v_first_song_url text;
+  v_first_song_name text;
+  v_first_song_artist text;
+  v_first_song_cover text;
+  v_first_track_id text;
+  v_started_at timestamptz;
+  v_ends_at timestamptz;
+BEGIN
+  v_user_id := auth.uid();
+  IF v_user_id IS NULL THEN
+    RAISE EXCEPTION 'unauthenticated' USING ERRCODE = '42501';
+  END IF;
+
+  IF p_songs IS NULL OR jsonb_typeof(p_songs) <> 'array' OR jsonb_array_length(p_songs) = 0 THEN
+    RAISE EXCEPTION 'É necessário ao menos uma música' USING ERRCODE = '23514';
+  END IF;
+
+  v_song := p_songs->0;
+  v_first_song_url   := v_song->>'song_spotify_url';
+  v_first_song_name  := v_song->>'song_name';
+  v_first_song_artist:= v_song->>'song_artist';
+  v_first_song_cover := v_song->>'song_cover_url';
+  v_first_track_id   := v_song->>'spotify_track_id';
+  v_first_song_target:= COALESCE((v_song->>'target_plays')::bigint, 0);
+  v_first_song_daily := COALESCE((v_song->>'daily_goal')::bigint, 0);
+  v_started_at := COALESCE(NULLIF(p_deal->>'started_at','')::timestamptz, now());
+  v_ends_at    := NULLIF(p_deal->>'ends_at','')::timestamptz;
+
+  SELECT to_jsonb(array_agg(row_to_json(d)))
+    INTO v_dup
+    FROM public.detect_duplicate_curator_deal(
+      v_user_id,
+      NULLIF(p_deal->>'curator_id','')::uuid,
+      p_deal->>'curator_name',
+      v_first_track_id,
+      v_first_song_url,
+      v_started_at,
+      v_ends_at
+    ) d;
+
+  IF v_dup IS NOT NULL AND jsonb_array_length(v_dup) > 0 AND NOT p_force THEN
+    RETURN jsonb_build_object('ok', false, 'duplicate', true, 'matches', v_dup);
+  END IF;
+
+  INSERT INTO public.curator_deals (
+    user_id, curator_id, curator_name,
+    song_spotify_url, song_name, song_artist, song_cover_url,
+    target_plays, daily_goal, baseline_plays, cost,
+    started_at, ends_at, ramp_up_days
+  ) VALUES (
+    v_user_id,
+    NULLIF(p_deal->>'curator_id','')::uuid,
+    p_deal->>'curator_name',
+    v_first_song_url, v_first_song_name, v_first_song_artist, v_first_song_cover,
+    v_first_song_target,
+    v_first_song_daily,
+    COALESCE((p_deal->>'baseline_plays')::bigint, 0),
+    NULLIF(p_deal->>'cost','')::numeric,
+    v_started_at, v_ends_at,
+    COALESCE((p_deal->>'ramp_up_days')::int, 5)
+  ) RETURNING id INTO v_deal_id;
+
+  FOR v_song IN SELECT * FROM jsonb_array_elements(p_songs)
+  LOOP
+    INSERT INTO public.curator_deal_songs (
+      deal_id, song_spotify_url, spotify_track_id,
+      song_name, song_artist, artist_candidates, song_cover_url,
+      daily_goal, duration_days, target_plays, position,
+      started_at, ends_at, ramp_up_days,
+      auto_collect, auto_collect_status, auto_collect_interval_minutes,
+      next_auto_collect_at,
+      client_id, smartlink_url
+    ) VALUES (
+      v_deal_id,
+      v_song->>'song_spotify_url',
+      NULLIF(v_song->>'spotify_track_id',''),
+      v_song->>'song_name',
+      NULLIF(v_song->>'song_artist',''),
+      COALESCE(
+        (SELECT array_agg(value::text) FROM jsonb_array_elements_text(v_song->'artist_candidates')),
+        ARRAY[]::text[]
+      ),
+      NULLIF(v_song->>'song_cover_url',''),
+      COALESCE((v_song->>'daily_goal')::bigint, 0),
+      COALESCE((v_song->>'duration_days')::int, 30),
+      NULLIF(v_song->>'target_plays','')::bigint,
+      COALESCE((v_song->>'position')::int, 0),
+      NULLIF(v_song->>'started_at','')::timestamptz,
+      NULLIF(v_song->>'ends_at','')::timestamptz,
+      COALESCE((v_song->>'ramp_up_days')::int, 5),
+      true, 'idle', 1440, now(),
+      NULLIF(v_song->>'client_id','')::uuid,
+      NULLIF(v_song->>'smartlink_url','')
+    ) RETURNING id INTO v_song_id;
+  END LOOP;
+
+  PERFORM public.recompute_curator_deal_state(v_deal_id);
+
+  RETURN jsonb_build_object('ok', true, 'deal_id', v_deal_id, 'duplicate_warning', v_dup);
+END;
+$function$;

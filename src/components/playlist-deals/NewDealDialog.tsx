@@ -44,6 +44,7 @@ import {
   type CuratorBalance,
   type DealSongInput,
 } from "@/hooks/useCuratorDeals";
+import { useClients, type Client } from "@/hooks/useClients";
 import { useCuratorFinance } from "@/hooks/useCuratorFinance";
 import type { CuratorDeal, CuratorDealSong } from "@/lib/curatorDealsUtils";
 import { curatorPublicUrl } from "@/lib/curatorPublicUrl";
@@ -60,6 +61,8 @@ type SongRow = {
   duration_days: string;    // string pra input numérico
   started_at: Date | undefined;
   ramp_up_days: string;
+  client_id: string | null;
+  smartlink_url: string;
   meta: {
     title: string;
     artist: string | null;
@@ -105,6 +108,8 @@ function emptySong(): SongRow {
     duration_days: "30",
     started_at: new Date(),
     ramp_up_days: "5",
+    client_id: null,
+    smartlink_url: "",
     meta: null,
     searching: false,
   };
@@ -343,12 +348,108 @@ function DealRangePicker({
   );
 }
 
+// ============================================================
+// Client picker — leve, com cadastro rápido inline
+// ============================================================
+function ClientPicker({
+  value, clients, onChange, onCreate,
+}: {
+  value: string | null;
+  clients: Client[];
+  onChange: (id: string | null) => void;
+  onCreate: (name: string) => Promise<void>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [creating, setCreating] = useState(false);
+  const selected = clients.find((c) => c.id === value);
+  const filtered = clients
+    .filter((c) => !c.archived_at)
+    .filter((c) => (search ? c.name.toLowerCase().includes(search.toLowerCase()) : true));
+  const canCreate = search.trim().length > 0 && !filtered.some(
+    (c) => c.name.toLowerCase() === search.trim().toLowerCase(),
+  );
+  const handleCreate = async () => {
+    const name = search.trim();
+    if (!name) return;
+    setCreating(true);
+    try {
+      await onCreate(name);
+      setSearch("");
+      setOpen(false);
+    } finally {
+      setCreating(false);
+    }
+  };
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button type="button" variant="outline" size="sm" className="h-9 justify-start font-normal">
+          {selected ? selected.name : <span className="text-muted-foreground">Selecionar cliente…</span>}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-72 p-2" align="start">
+        <Input
+          placeholder="Buscar ou cadastrar…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="h-8 mb-2"
+        />
+        <div className="max-h-48 overflow-y-auto space-y-0.5">
+          {value && (
+            <button
+              type="button"
+              className="w-full text-left text-xs text-muted-foreground px-2 py-1.5 rounded hover:bg-accent"
+              onClick={() => { onChange(null); setOpen(false); }}
+            >
+              Remover cliente
+            </button>
+          )}
+          {filtered.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              className={cn(
+                "w-full text-left text-sm px-2 py-1.5 rounded hover:bg-accent flex items-center gap-2",
+                value === c.id && "bg-accent",
+              )}
+              onClick={() => { onChange(c.id); setOpen(false); }}
+            >
+              {value === c.id && <Check className="h-3.5 w-3.5 text-primary" />}
+              {c.name}
+            </button>
+          ))}
+          {filtered.length === 0 && !canCreate && (
+            <div className="text-xs text-muted-foreground px-2 py-3 text-center">
+              Nenhum cliente
+            </div>
+          )}
+        </div>
+        {canCreate && (
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="w-full justify-start gap-2 mt-1"
+            onClick={handleCreate}
+            disabled={creating}
+          >
+            {creating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UserPlus className="h-3.5 w-3.5" />}
+            Cadastrar "{search.trim()}"
+          </Button>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 
 // ============================================================
 // Componente
 // ============================================================
 export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved }: NewDealDialogProps) {
   const { addDeal, updateDeal, addCurator, updateCurator, curators, balances } = useCuratorDeals();
+  const { clients, addClient } = useClients();
   const { addPurchase } = useCuratorFinance();
   const isEdit = Boolean(editDeal);
 
@@ -476,6 +577,8 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
       duration_days: string;
       started_at: string | null;
       ramp_up_days: string;
+      client_id?: string | null;
+      smartlink_url?: string;
       meta: SongRow["meta"];
     }>) ?? [];
     if (restoredSongs.length > 0) {
@@ -486,6 +589,8 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
           duration_days: s.duration_days ?? "30",
           started_at: s.started_at ? new Date(s.started_at) : new Date(),
           ramp_up_days: s.ramp_up_days ?? "5",
+          client_id: s.client_id ?? null,
+          smartlink_url: s.smartlink_url ?? "",
           meta: s.meta ?? null,
           searching: false,
         })),
@@ -524,6 +629,7 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
         setSongs(
           sourceSongs.map((s) => {
             const dd = (s as unknown as { duration_days?: number }).duration_days ?? 30;
+            const sx = s as unknown as { client_id?: string | null; smartlink_url?: string | null };
             return {
               url: s.song_spotify_url ?? "",
               daily_goal: s.daily_goal ? String(s.daily_goal) : "",
@@ -534,6 +640,8 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
                   (editDeal as unknown as { ramp_up_days?: number }).ramp_up_days ??
                   5,
               ),
+              client_id: sx.client_id ?? null,
+              smartlink_url: sx.smartlink_url ?? "",
               meta: {
                 title: s.song_name ?? "Música",
                 artist: s.song_artist ?? null,
@@ -554,6 +662,8 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
             ramp_up_days: String(
               (editDeal as unknown as { ramp_up_days?: number }).ramp_up_days ?? 5,
             ),
+            client_id: null,
+            smartlink_url: "",
             meta: {
               title: editDeal.song_name ?? "Música",
               artist: editDeal.song_artist ?? null,
@@ -1460,6 +1570,36 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
                             value={song.ramp_up_days}
                             onChange={(e) =>
                               updateSong(idx, { ramp_up_days: e.target.value })
+                            }
+                          />
+                        </div>
+                      </div>
+
+                      {/* Cliente + Smartlink */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div className="flex flex-col gap-1">
+                          <span className="text-xs text-muted-foreground">Cliente</span>
+                          <ClientPicker
+                            value={song.client_id}
+                            clients={clients}
+                            onChange={(id) => updateSong(idx, { client_id: id })}
+                            onCreate={async (name) => {
+                              const c = await addClient({ name });
+                              updateSong(idx, { client_id: c.id });
+                            }}
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-xs text-muted-foreground">
+                            Smartlink (Linkfire/ToneDen)
+                          </span>
+                          <Input
+                            type="url"
+                            placeholder="https://…"
+                            className="h-9"
+                            value={song.smartlink_url}
+                            onChange={(e) =>
+                              updateSong(idx, { smartlink_url: e.target.value })
                             }
                           />
                         </div>

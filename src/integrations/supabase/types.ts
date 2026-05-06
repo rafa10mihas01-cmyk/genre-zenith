@@ -286,6 +286,39 @@ export type Database = {
           },
         ]
       }
+      clients: {
+        Row: {
+          archived_at: string | null
+          contact: string | null
+          created_at: string
+          id: string
+          name: string
+          notes: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          archived_at?: string | null
+          contact?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          notes?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          archived_at?: string | null
+          contact?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       collection_logs: {
         Row: {
           acao: string
@@ -476,6 +509,8 @@ export type Database = {
           auto_collect_interval_minutes: number
           auto_collect_status: string
           baseline_plays: number
+          client_id: string | null
+          client_token: string
           created_at: string
           daily_goal: number
           deal_id: string
@@ -487,6 +522,7 @@ export type Database = {
           next_auto_collect_at: string | null
           position: number
           ramp_up_days: number
+          smartlink_url: string | null
           song_artist: string | null
           song_cover_url: string | null
           song_name: string
@@ -503,6 +539,8 @@ export type Database = {
           auto_collect_interval_minutes?: number
           auto_collect_status?: string
           baseline_plays?: number
+          client_id?: string | null
+          client_token?: string
           created_at?: string
           daily_goal?: number
           deal_id: string
@@ -514,6 +552,7 @@ export type Database = {
           next_auto_collect_at?: string | null
           position?: number
           ramp_up_days?: number
+          smartlink_url?: string | null
           song_artist?: string | null
           song_cover_url?: string | null
           song_name: string
@@ -530,6 +569,8 @@ export type Database = {
           auto_collect_interval_minutes?: number
           auto_collect_status?: string
           baseline_plays?: number
+          client_id?: string | null
+          client_token?: string
           created_at?: string
           daily_goal?: number
           deal_id?: string
@@ -541,6 +582,7 @@ export type Database = {
           next_auto_collect_at?: string | null
           position?: number
           ramp_up_days?: number
+          smartlink_url?: string | null
           song_artist?: string | null
           song_cover_url?: string | null
           song_name?: string
