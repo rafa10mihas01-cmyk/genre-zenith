@@ -16,8 +16,9 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
+import { Progress } from "@/components/ui/progress";
 import { useCuratorLibrary, type PerformanceClass } from "@/hooks/useCuratorLibrary";
-import type { Curator } from "@/hooks/useCuratorDeals";
+import type { Curator, CuratorBalance } from "@/hooks/useCuratorDeals";
 import type { CuratorDeal } from "@/lib/curatorDealsUtils";
 import { useFormDraft } from "@/hooks/useFormDraft";
 import { DraftBanner, DraftIndicator } from "@/components/forms/DraftBanner";
@@ -49,13 +50,24 @@ function formatPlays(n: number | null | undefined): string {
   return Math.round(n).toLocaleString("pt-BR");
 }
 
+function formatBRL(v: number) {
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 2 }).format(v);
+}
+function formatCPP(v: number) {
+  const opts = v < 0.01
+    ? { minimumFractionDigits: 4, maximumFractionDigits: 4 }
+    : { minimumFractionDigits: 2, maximumFractionDigits: 2 };
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", ...opts }).format(v);
+}
+
 interface Props {
   curator: Curator | null;
   deals: CuratorDeal[];
+  balance?: CuratorBalance | null;
   onClose: () => void;
 }
 
-export function CuratorLibrarySheet({ curator, deals, onClose }: Props) {
+export function CuratorLibrarySheet({ curator, deals, balance, onClose }: Props) {
   const open = !!curator;
   const { items, stats, performance, loading, addManual, remove } = useCuratorLibrary(curator?.id ?? null);
 

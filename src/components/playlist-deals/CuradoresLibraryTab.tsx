@@ -443,6 +443,7 @@ export function CuradoresLibraryTab({
       <CuratorLibrarySheet
         curator={selected}
         deals={deals.filter((d) => d.curator_id === selected?.id)}
+        balance={balances.find((b) => b.curator_id === selected?.id) ?? null}
         onClose={() => setSelected(null)}
       />
 
