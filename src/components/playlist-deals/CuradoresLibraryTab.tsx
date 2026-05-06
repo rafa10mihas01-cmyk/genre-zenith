@@ -268,13 +268,24 @@ export function CuradoresLibraryTab({
                         variant="secondary"
                         className={cn(
                           "text-[10px] px-2.5 py-0.5 h-6 font-semibold gap-1 rounded-full",
-                          activeDeals > 0 && "bg-primary/15 text-primary",
+                          curator.paused_at
+                            ? "bg-amber-500/15 text-amber-400 border-amber-500/30"
+                            : activeDeals > 0 && "bg-primary/15 text-primary",
                         )}
                       >
-                        {activeDeals > 0 && <Activity className="h-2.5 w-2.5" />}
-                        {statusLabel}
+                        {curator.paused_at ? (
+                          <>
+                            <Pause className="h-2.5 w-2.5" />
+                            Pausado
+                          </>
+                        ) : (
+                          <>
+                            {activeDeals > 0 && <Activity className="h-2.5 w-2.5" />}
+                            {statusLabel}
+                          </>
+                        )}
                       </Badge>
-                      {(onUpdateCurator || onArchiveCurator || onDeleteCurator) && (
+                      {(onUpdateCurator || onArchiveCurator || onDeleteCurator || onPauseCurator) && (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button
