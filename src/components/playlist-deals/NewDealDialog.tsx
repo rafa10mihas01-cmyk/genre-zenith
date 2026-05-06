@@ -598,20 +598,37 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
     setSavingBalance(true);
     try {
       if (balanceAction === "add") {
-        // Soma ao saldo existente
-        await updateCurator(selectedCuratorId, {
-          purchased_plays: (selectedCurator.purchased_plays ?? 0) + playsRaw,
-          total_cost: Number(selectedCurator.total_cost ?? 0) + costRaw,
+        // Append-only: nova compra no ledger
+        await addPurchase({
+          curator_id: selectedCuratorId,
+          plays_purchased: playsRaw,
+          amount: costRaw,
+          note: "compra adicional",
         });
         toast.success("Plays adicionados", {
           description: `+${formatNumber(playsRaw)} plays`,
         });
       } else if (balanceAction === "edit") {
-        // Substitui valores
-        await updateCurator(selectedCuratorId, {
-          purchased_plays: playsRaw,
-          total_cost: costRaw,
-        });
+        // Ajuste: lança delta no ledger para que o agregado bata com o valor desejado.
+        const currentPlays = Number(selectedCurator.purchased_plays ?? 0);
+        const currentCost = Number(selectedCurator.total_cost ?? 0);
+        const deltaPlays = playsRaw - currentPlays;
+        const deltaCost = costRaw - currentCost;
+        if (deltaPlays < 0 || deltaCost < 0) {
+          toast.error("Ajuste para baixo não suportado", {
+            description: "O ledger é append-only. Use 'adicionar' ou exclua compras antigas.",
+          });
+          setSavingBalance(false);
+          return;
+        }
+        if (deltaPlays > 0 || deltaCost > 0) {
+          await addPurchase({
+            curator_id: selectedCuratorId,
+            plays_purchased: deltaPlays,
+            amount: deltaCost,
+            note: "ajuste de saldo",
+          });
+        }
         toast.success("Saldo atualizado");
       }
       setBalanceAction(null);
