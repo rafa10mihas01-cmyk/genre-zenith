@@ -107,6 +107,30 @@
     --sidebar-border: 0 0% 88%;
     --sidebar-ring: 141 76% 38%;
   }
+
+  /* === Acessibilidade: reforço automático quando o SO pede mais contraste
+     (iOS "Increase Contrast", macOS, Android, Windows). Cards ficam visíveis
+     mesmo com brilho da tela muito baixo. === */
+  @media (prefers-contrast: more) {
+    :root, .dark {
+      --card: 0 0% 14%;          /* #242424 */
+      --elevated: 0 0% 18%;      /* #2E2E2E */
+      --popover: 0 0% 14%;
+      --border: 0 0% 28%;
+      --input: 0 0% 28%;
+      --muted-foreground: 0 0% 78%;
+    }
+    .light {
+      --card: 0 0% 100%;
+      --border: 0 0% 70%;
+      --input: 0 0% 70%;
+      --foreground: 0 0% 0%;
+      --muted-foreground: 0 0% 25%;
+    }
+    .nx-card, .dark .nx-card {
+      border-color: rgba(255, 255, 255, 0.18) !important;
+    }
+  }
 }
 
 @layer base {
