@@ -25,6 +25,7 @@ import { useClients } from "@/hooks/useClients";
 type DealsTab = "clients" | "library" | "active" | "done" | "finance" | "ledger" | "all";
 
 const TABS = [
+  { id: "clients"  as const, label: "Clientes",    icon: User },
   { id: "library"  as const, label: "Curadores",   icon: Users },
   { id: "active"   as const, label: "Ativos",      icon: Activity },
   { id: "done"     as const, label: "Concluídos",  icon: CheckCircle2 },
@@ -34,7 +35,7 @@ const TABS = [
 ];
 
 export default function PlaylistDeals() {
-  const [tab, setTab] = usePersistedState<DealsTab>("playlistdeals:tab:v2", "library");
+  const [tab, setTab] = usePersistedState<DealsTab>("playlistdeals:tab:v3", "clients");
   const [newOpen, setNewOpen] = useState(false);
   const [logDeal, setLogDeal] = useState<CuratorDeal | null>(null);
   const [detailDeal, setDetailDeal] = useState<CuratorDeal | null>(null);
