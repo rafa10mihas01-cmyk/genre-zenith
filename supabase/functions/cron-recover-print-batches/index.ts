@@ -2,6 +2,7 @@
 // com status='complete' mas nunca foram processados (extract falhou ou não
 // disparou) e re-dispara extract-snapshot-from-print.
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { recordMetric } from "../_shared/ops-metrics.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -15,7 +16,7 @@ const BOT_API_KEY = Deno.env.get("BOT_API_KEY")!;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-
+  const t0 = Date.now();
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
   const { data: stuck, error } = await supabase.rpc("recover_stuck_print_batches");
@@ -61,6 +62,14 @@ Deno.serve(async (req) => {
     acao: "recover_print_batches",
     status: "ok",
     mensagem: `stuck=${batches.length} dispatched=${dispatched}`,
+  });
+
+  recordMetric(supabase, {
+    scope: "edge_function",
+    operation: "cron-recover-print-batches",
+    status: "success",
+    duration_ms: Date.now() - t0,
+    metadata: { stuck: batches.length, dispatched },
   });
 
   return new Response(

@@ -16,6 +16,7 @@
 //   raw: string
 // } | { ok: false, error: string }
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { recordMetric } from "../_shared/ops-metrics.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -265,6 +266,7 @@ function normalizeItems(items: AiItem[], sourceOffset = 0) {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return j({ ok: false, error: "Method not allowed" }, 405);
+  const t0 = Date.now();
 
   const authHeader = req.headers.get("Authorization") ?? "";
   const token = authHeader.replace(/^Bearer\s+/i, "");
@@ -378,9 +380,33 @@ Deno.serve(async (req) => {
     );
     const not_found = matches.filter((m) => !m.found).map((m) => m.playlist_name);
 
+    recordMetric(supabase, {
+      scope: "ocr",
+      operation: "analyze-deal-prints",
+      status: "success",
+      duration_ms: Date.now() - t0,
+      metadata: {
+        mode,
+        images: images.length,
+        playlists: playlists.length,
+        matches: matches.length,
+        not_found: not_found.length,
+      },
+    });
     return j({ ok: true, matches, total_plays, not_found, raw: raw.slice(0, 20_000) });
   } catch (e) {
     console.error("[analyze-deal-prints] exception", e);
+    recordMetric(supabase, {
+      scope: "ocr",
+      operation: "analyze-deal-prints",
+      status: "error",
+      duration_ms: Date.now() - t0,
+      metadata: {
+        mode,
+        images: images.length,
+        error: e instanceof Error ? e.message.slice(0, 240) : String(e).slice(0, 240),
+      },
+    });
     return j({ ok: false, error: e instanceof Error ? e.message : String(e) });
   }
 });

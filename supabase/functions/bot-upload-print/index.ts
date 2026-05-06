@@ -10,6 +10,7 @@
 // Retorna { ok, path, signed_url, expires_in, batch? }
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { assertDealOperable } from "../_shared/deal-access.ts";
+import { recordMetric } from "../_shared/ops-metrics.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -52,6 +53,7 @@ Deno.serve(async (req) => {
   if (req.headers.get("x-bot-key") !== BOT_API_KEY) {
     return jr({ error: "unauthorized" }, 401);
   }
+  const t0 = Date.now();
 
   const url = new URL(req.url);
   const ct = req.headers.get("content-type") ?? "";
@@ -263,6 +265,20 @@ Deno.serve(async (req) => {
       }).catch((e) => console.error("extract dispatch failed", e));
     }
   }
+
+  recordMetric(supabase, {
+    scope: "bot",
+    operation: "bot-upload-print",
+    status: "success",
+    duration_ms: Date.now() - t0,
+    deal_id: dealId || null,
+    song_id: songId || null,
+    metadata: {
+      bytes: bytes.length,
+      label: label || null,
+      batch: batchInfo ?? null,
+    },
+  });
 
   return jr({
     ok: true,

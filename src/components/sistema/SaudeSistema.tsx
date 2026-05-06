@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { timeAgo, formatNumber } from "@/lib/format";
 import { BotSaudeCard } from "./BotSaudeCard";
+import { ThroughputCard } from "./ThroughputCard";
 
 type Health = {
   apify: { ok: boolean; reason?: string };
@@ -145,6 +146,8 @@ export function SaudeSistema() {
       </div>
 
       <BotSaudeCard />
+
+      <ThroughputCard />
 
       <div>
         <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-bold mb-2">Hoje</h3>

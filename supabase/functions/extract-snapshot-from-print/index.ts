@@ -14,6 +14,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { z } from "npm:zod@3.23.8";
 import { fetchPlaylistMeta } from "../_shared/curator-playlist.ts";
+import { recordMetric } from "../_shared/ops-metrics.ts";
 
 // ============= Schemas de validação =============
 const RequestSchema = z.object({
@@ -523,6 +524,15 @@ Deno.serve(async (req) => {
         status: "error",
         mensagem: `deal=${deal_id} ${msg.slice(0, 300)}`,
       });
+      recordMetric(supabase, {
+        scope: "ocr",
+        operation: "extract-snapshot-from-print",
+        status: "error",
+        duration_ms: Date.now() - t0,
+        deal_id,
+        song_id: song_id ?? null,
+        metadata: { error: msg.slice(0, 240), prints: print_urls.length, batch_id: batch_id ?? null },
+      });
       return jr({ error: "extract_failed", detail: msg }, 500);
     }
   }
@@ -908,6 +918,26 @@ Deno.serve(async (req) => {
     status: skipped > 0 ? "parcial" : "ok",
     duracao_ms: elapsedMs,
     mensagem: `deal=${deal_id} src=${usedDomDirect ? "dom" : "gemini"} prints=${print_urls.length} dom=${dom_playlists.length} found=${extracted.length} dom_linked=${domLinked} algo=${algorithmicCount} algo_new=${algorithmicNew} algo_gone=${algorithmicGone} inserted=${inserted} skipped=${skipped} whitelist=${whitelistActive ? whitelist.size : "off"} filtered_out=${filteredOut} ms=${elapsedMs}`,
+  });
+
+  recordMetric(supabase, {
+    scope: "ocr",
+    operation: "extract-snapshot-from-print",
+    status: skipped > 0 ? "partial" : "success",
+    duration_ms: elapsedMs,
+    deal_id,
+    song_id: song_id ?? null,
+    metadata: {
+      source: usedDomDirect ? "dom" : "gemini",
+      prints: print_urls.length,
+      found: extracted.length,
+      inserted,
+      skipped,
+      dom_linked: domLinked,
+      algorithmic: algorithmicCount,
+      filtered_out: filteredOut,
+      batch_id: batch_id ?? null,
+    },
   });
 
   return jr({
