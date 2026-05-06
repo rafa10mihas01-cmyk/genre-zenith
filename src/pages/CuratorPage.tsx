@@ -897,45 +897,49 @@ export default function CuratorPage() {
 
                   <div className="h-px bg-border" />
 
-                  {/* Briefing: meta · semana · progresso */}
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="min-w-0">
-                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-1">
-                        Meta
+                  {/* Briefing: meta · semana · progresso (apenas com playlists cadastradas) */}
+                  {hasCuratorPlaylists ? (
+                    <>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="min-w-0">
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-1">
+                            Meta
+                          </div>
+                          <div className="text-[15px] font-semibold tabular-nums leading-none">
+                            {formatPlays(stats.target)}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground font-normal mt-1">plays</div>
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-1">
+                            Esta semana
+                          </div>
+                          <div className="text-[15px] font-semibold tabular-nums leading-none text-primary">
+                            {stats.dailyGoal > 0 ? formatPlays(stats.weekRemaining) : "—"}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground font-normal mt-1">restantes</div>
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-1">
+                            Progresso
+                          </div>
+                          <div className="text-[15px] font-semibold tabular-nums leading-none">
+                            {stats.pct}<span className="text-[11px] text-muted-foreground font-normal ml-0.5">%</span>
+                          </div>
+                          <div className="text-[10px] text-muted-foreground font-normal mt-1 invisible">.</div>
+                        </div>
                       </div>
-                      <div className="text-[15px] font-semibold tabular-nums leading-none">
-                        {formatPlays(stats.target)}
-                      </div>
-                      <div className="text-[10px] text-muted-foreground font-normal mt-1">plays</div>
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-1">
-                        Esta semana
-                      </div>
-                      <div className="text-[15px] font-semibold tabular-nums leading-none text-primary">
-                        {stats.dailyGoal > 0 ? formatPlays(stats.weekRemaining) : "—"}
-                      </div>
-                      <div className="text-[10px] text-muted-foreground font-normal mt-1">restantes</div>
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-1">
-                        Progresso
-                      </div>
-                      <div className="text-[15px] font-semibold tabular-nums leading-none">
-                        {stats.pct}<span className="text-[11px] text-muted-foreground font-normal ml-0.5">%</span>
-                      </div>
-                      <div className="text-[10px] text-muted-foreground font-normal mt-1 invisible">.</div>
-                    </div>
-                  </div>
 
-                  {stats.hasBaseline && stats.target > 0 && (
-                    <div className="h-1 rounded-full bg-muted/60 overflow-hidden">
-                      <div
-                        className="h-full bg-primary rounded-full transition-all duration-500"
-                        style={{ width: `${stats.pct}%` }}
-                      />
-                    </div>
-                  )}
+                      {stats.hasBaseline && stats.target > 0 && (
+                        <div className="h-1 rounded-full bg-muted/60 overflow-hidden">
+                          <div
+                            className="h-full bg-primary rounded-full transition-all duration-500"
+                            style={{ width: `${stats.pct}%` }}
+                          />
+                        </div>
+                      )}
+                    </>
+                  ) : null}
 
                   <a
                     href={headerUrl}
