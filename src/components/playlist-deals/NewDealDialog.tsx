@@ -107,6 +107,8 @@ function emptySong(): SongRow {
     duration_days: "30",
     started_at: new Date(),
     ramp_up_days: "5",
+    client_id: null,
+    smartlink_url: "",
     meta: null,
     searching: false,
   };
