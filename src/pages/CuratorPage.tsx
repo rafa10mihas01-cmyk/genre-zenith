@@ -618,13 +618,25 @@ export default function CuratorPage() {
         return;
       }
       const items = Array.isArray(data.items) ? data.items : [];
-      const added = data.summary?.inserted ?? items.filter((i: { status?: string }) => i.status === "ok").length;
-      const errs = items.filter((i: { error?: string }) => i.error).length;
-      const alreadyInPlaylist = items.filter((i: { track_presence?: { found?: boolean } }) => i.track_presence?.found).length;
+      const s = data.summary ?? {};
+      const added = s.inserted ?? items.filter((i: { status?: string }) => i.status === "ok").length;
+      const dupExisting = s.duplicate ?? 0;
+      const dupPayload = s.duplicate_in_payload ?? 0;
+      const alreadyInPlaylist = s.track_already_present ?? items.filter((i: { track_presence?: { found?: boolean } }) => i.track_presence?.found).length;
+      const invalid = s.invalid ?? 0;
+      const notFound = s.not_found ?? 0;
+      const tmout = s.timeout ?? 0;
+      const errs = s.error ?? items.filter((i: { error?: string }) => i.error).length;
       const parts: string[] = [`${added} adicionadas`];
-      if (alreadyInPlaylist) parts.push(`${alreadyInPlaylist} já tinham a música`);
+      if (dupExisting) parts.push(`${dupExisting} já no deal`);
+      if (dupPayload) parts.push(`${dupPayload} repetidas na lista`);
+      if (alreadyInPlaylist) parts.push(`${alreadyInPlaylist} já com a música`);
+      if (invalid) parts.push(`${invalid} inválidas`);
+      if (notFound) parts.push(`${notFound} não encontradas`);
+      if (tmout) parts.push(`${tmout} expiraram`);
       if (errs) parts.push(`${errs} com erro`);
-      const notify = alreadyInPlaylist ? toast.warning : toast.success;
+      const hasIssue = errs + tmout + notFound + invalid > 0;
+      const notify = hasIssue ? toast.warning : alreadyInPlaylist ? toast.warning : toast.success;
       notify("Importação concluída", { description: parts.join(" · ") });
       await load();
     } catch (err) {
