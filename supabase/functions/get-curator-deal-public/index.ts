@@ -7,6 +7,7 @@
 // O frontend não calcula nada — apenas renderiza `progress` e `snapshot_history`.
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { assertDealOperable } from "../_shared/deal-access.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
