@@ -137,12 +137,15 @@ const PACE_LABEL: Record<SafeProgress["pace"], { label: string; tone: string }> 
 
 export default function ClientCampaignPage() {
   const { token } = useParams<{ token: string }>();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deal, setDeal] = useState<SafeDeal | null>(null);
   const [progress, setProgress] = useState<SafeProgress | null>(null);
   const [series, setSeries] = useState<SafeSeriesPoint[]>([]);
   const [playlists, setPlaylists] = useState<SafePlaylist[]>([]);
+  const [songs, setSongs] = useState<SafeSong[]>([]);
+  const [selectedSongId, setSelectedSongId] = useState<string | null>(null);
 
   const load = async () => {
     if (!token) return;
@@ -157,11 +160,15 @@ export default function ClientCampaignPage() {
       setProgress(null);
       setSeries([]);
       setPlaylists([]);
+      setSongs([]);
+      setSelectedSongId(null);
     } else {
       setDeal(data.deal);
       setProgress(data.progress);
       setSeries(data.series ?? []);
       setPlaylists(data.playlists ?? []);
+      setSongs(data.songs ?? []);
+      setSelectedSongId(data.selected_song_id ?? null);
       setError(null);
     }
     setLoading(false);
@@ -171,6 +178,11 @@ export default function ClientCampaignPage() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
+
+  const handleSelectSong = (songToken: string) => {
+    if (!songToken || songToken === token) return;
+    navigate(`/campanha/${songToken}`);
+  };
 
   const chartData = useMemo(() => {
     return series.map((p) => ({
