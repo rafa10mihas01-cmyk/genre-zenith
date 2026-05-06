@@ -31,6 +31,13 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { NexEngineLogo } from "@/components/NexEngineLogo";
 import { ThemeToggle } from "@/components/ThemeToggle";
