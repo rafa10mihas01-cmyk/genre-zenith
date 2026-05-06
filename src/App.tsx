@@ -22,6 +22,7 @@ import Performance from "./pages/Performance";
 import PlaylistDeals from "./pages/PlaylistDeals";
 import Curadores from "./pages/Curadores";
 import CuratorPage from "./pages/CuratorPage";
+import ClientCampaignPage from "./pages/ClientCampaignPage";
 import CuradoriaPreview from "./pages/CuradoriaPreview";
 import Sistema from "./pages/Sistema";
 import Settings from "./pages/Settings";
