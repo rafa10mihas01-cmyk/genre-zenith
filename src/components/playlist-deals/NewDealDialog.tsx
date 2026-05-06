@@ -234,6 +234,7 @@ function DealRangePicker({
 // ============================================================
 export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved }: NewDealDialogProps) {
   const { addDeal, updateDeal, addCurator, updateCurator, curators, balances } = useCuratorDeals();
+  const { addPurchase } = useCuratorFinance();
   const isEdit = Boolean(editDeal);
 
   const [step, setStep] = useState<1 | 2>(1);
