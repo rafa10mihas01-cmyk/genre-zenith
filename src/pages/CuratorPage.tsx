@@ -1311,7 +1311,7 @@ export default function CuratorPage() {
                   <ListMusic className="h-4 w-4 text-muted-foreground" />
                 </div>
                 <p className="text-[12px] text-muted-foreground max-w-xs">
-                  Nenhuma playlist adicionada ainda — use o bloco abaixo para incluir a primeira.
+                  Nenhuma playlist enviada ainda
                 </p>
               </div>
             ) : (
