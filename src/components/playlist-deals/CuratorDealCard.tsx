@@ -141,7 +141,7 @@ export function CuratorDealCard({
 
   return (
     <Card className="overflow-hidden border-border/60 hover:border-foreground/25 transition-all duration-200 hover:shadow-[0_18px_40px_-18px_rgba(0,0,0,0.85),0_0_32px_-8px_hsl(141_76%_48%_/_0.18)] hover:-translate-y-[1px] bg-[linear-gradient(180deg,rgba(255,255,255,0.025)_0%,transparent_40%),hsl(var(--card))]">
-      <CardContent className="p-4 flex flex-col gap-2.5">
+      <CardContent className="p-5 pt-5 flex flex-col gap-2.5">
         {/* Header: curador + datas + status */}
         <div className="flex items-start gap-3 min-w-0">
           <div className="min-w-0 flex-1">
@@ -164,18 +164,37 @@ export function CuratorDealCard({
               </span>
             </div>
           </div>
-          <Badge
-            variant={isClosed && closedStatus === "completed" ? "default" : "secondary"}
-            className={cn(
-              "shrink-0 text-[10px] px-2.5 py-0.5 h-6 font-semibold gap-1 rounded-full",
-              isClosed && closedStatus === "completed" && "bg-success text-success-foreground hover:bg-success/90",
-              isClosed && closedStatus === "cancelled" && "bg-destructive/15 text-destructive hover:bg-destructive/20",
-              !isClosed && isDone && "bg-primary/15 text-primary",
+          <div className="flex items-center gap-2 shrink-0">
+            {!isClosed && (
+              <span
+                className="relative inline-flex h-2.5 w-2.5"
+                title={hasWhitelist ? "Playlists cadastradas" : "Curador não cadastrou playlists — coleta pausada"}
+                aria-label={hasWhitelist ? "Playlists cadastradas" : "Sem playlists cadastradas"}
+              >
+                {!hasWhitelist && (
+                  <span className="absolute inline-flex h-full w-full rounded-full bg-destructive opacity-60 animate-ping" />
+                )}
+                <span
+                  className={cn(
+                    "relative inline-flex h-2.5 w-2.5 rounded-full",
+                    hasWhitelist ? "bg-success" : "bg-destructive",
+                  )}
+                />
+              </span>
             )}
-          >
-            {isClosed && <Lock className="h-2.5 w-2.5" />}
-            {statusLabel}
-          </Badge>
+            <Badge
+              variant={isClosed && closedStatus === "completed" ? "default" : "secondary"}
+              className={cn(
+                "text-[10px] px-2.5 py-0.5 h-6 font-semibold gap-1 rounded-full",
+                isClosed && closedStatus === "completed" && "bg-success text-success-foreground hover:bg-success/90",
+                isClosed && closedStatus === "cancelled" && "bg-destructive/15 text-destructive hover:bg-destructive/20",
+                !isClosed && isDone && "bg-primary/15 text-primary",
+              )}
+            >
+              {isClosed && <Lock className="h-2.5 w-2.5" />}
+              {statusLabel}
+            </Badge>
+          </div>
         </div>
 
         {/* Banner de fechamento */}
@@ -286,31 +305,22 @@ export function CuratorDealCard({
         )}
 
         {/* Origem das playlists — alinhado com a sheet */}
-        {!isClosed && (
-          hasWhitelist ? (
-            <div className="flex items-center gap-3 flex-wrap text-[11px] border-t border-border/40 pt-2.5">
+        {!isClosed && hasWhitelist && (
+          <div className="flex items-center gap-3 flex-wrap text-[11px] border-t border-border/40 pt-2.5">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+              <span className="text-muted-foreground">Curador</span>
+              <span className="tabular-nums font-semibold text-foreground">{plBreakdown.curator}</span>
+            </span>
+            {plBreakdown.algo > 0 && (
               <span className="inline-flex items-center gap-1.5">
-                <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                <span className="text-muted-foreground">Curador</span>
-                <span className="tabular-nums font-semibold text-foreground">{plBreakdown.curator}</span>
+                <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/70" />
+                <span className="text-muted-foreground">Algoritmo</span>
+                <span className="tabular-nums font-semibold text-foreground">{plBreakdown.algo}</span>
+                <span className="text-muted-foreground/70">(visualização)</span>
               </span>
-              {plBreakdown.algo > 0 && (
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/70" />
-                  <span className="text-muted-foreground">Algoritmo</span>
-                  <span className="tabular-nums font-semibold text-foreground">{plBreakdown.algo}</span>
-                  <span className="text-muted-foreground/70">(visualização)</span>
-                </span>
-              )}
-            </div>
-          ) : (
-            <div className="rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-1.5 flex items-center gap-1.5">
-              <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0" />
-              <span className="text-[11px] text-destructive font-medium">
-                Curador não cadastrou playlists — coleta pausada
-              </span>
-            </div>
-          )
+            )}
+          </div>
         )}
 
         {/* Status do robô (auto-coleta) */}
@@ -331,24 +341,24 @@ export function CuratorDealCard({
         {/* KPIs compactos */}
         {hasBaseline && (
           <div className="grid grid-cols-2 divide-x divide-border/50 rounded-lg bg-[hsl(var(--elevated))] border border-border/40">
-            <div className="px-3 py-2">
-              <div className="text-[9.5px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-1">
+            <div className="px-3 py-1.5">
+              <div className="text-[9.5px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-0.5">
                 Plays hoje
               </div>
-              <div className="text-[20px] font-bold tabular-nums text-foreground leading-none tracking-tight">
+              <div className="text-[18px] font-bold tabular-nums text-foreground leading-none tracking-tight">
                 {formatPlays(latestPlays)}
               </div>
             </div>
-            <div className="px-3 py-2">
-              <div className="text-[9.5px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-1">
-                Hoje / combinado
+            <div className="px-3 py-1.5">
+              <div className="text-[9.5px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-0.5">
+                Meta
               </div>
-              <div className="text-[20px] font-bold tabular-nums leading-none tracking-tight">
+              <div className="text-[18px] font-bold tabular-nums leading-none tracking-tight">
                 <span className="text-primary">{formatPlays(todayPlays)}</span>
-                <span className="text-muted-foreground text-[12px] font-semibold"> / {formatPlays(totalDailyGoal)}</span>
+                <span className="text-muted-foreground text-[11px] font-semibold"> / {formatPlays(totalDailyGoal)}</span>
               </div>
               {totalDailyGoal > 0 && (
-                <div className="text-[10px] text-muted-foreground mt-1 truncate">
+                <div className="text-[9.5px] text-muted-foreground mt-0.5 truncate">
                   {inRampUp ? "aquecendo" : `${todayPct}% do dia`}
                 </div>
               )}
@@ -433,7 +443,7 @@ export function CuratorDealCard({
           <Button
             variant="outline"
             size="sm"
-            className="min-w-0 flex-1 sm:flex-none h-9 gap-1.5 text-[13px] px-3"
+            className="min-w-0 h-9 gap-1.5 text-[13px] px-3"
             onClick={() => onDetail(deal)}
           >
             <History className="h-3.5 w-3.5 shrink-0" />
@@ -442,44 +452,70 @@ export function CuratorDealCard({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
-                variant="ghost"
+                variant="outline"
                 size="icon"
-                className="sm:hidden h-9 w-9 shrink-0 text-muted-foreground hover:text-foreground"
+                className="h-9 w-9 shrink-0 text-muted-foreground hover:text-foreground"
                 aria-label="Mais ações"
+                title="Mais ações"
               >
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-52 rounded-xl border-border bg-popover p-1.5">
+            <DropdownMenuContent align="end" className="w-64 rounded-xl border-border bg-popover p-1.5">
               {!isClosed && onClose && hasBaseline && (
-                <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => onClose(deal)}>
-                  <CheckCircle2 className="h-4 w-4" />
-                  Encerrar deal
-                </DropdownMenuItem>
+                <>
+                  <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => onClose(deal)}>
+                    <CheckCircle2 className="h-4 w-4" />
+                    Encerrar deal
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
               )}
-              <DropdownMenuSeparator />
               <div className="px-2 pt-1.5 pb-1 text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-semibold">
                 Compartilhar
               </div>
               <DropdownMenuItem className="gap-2 rounded-lg items-start py-2" onClick={handleCopyCuratorLink}>
                 <Headphones className="h-4 w-4 mt-0.5 shrink-0" />
-                <div className="flex flex-col min-w-0">
-                  <span className="text-sm leading-tight">Link do curador</span>
-                  <span className="text-[11px] text-muted-foreground leading-tight">Para curadores adicionarem nas playlists</span>
+                <div className="flex flex-col min-w-0 flex-1">
+                  <span className="text-sm leading-tight font-medium">Link do curador</span>
+                  <span className="text-[11px] text-muted-foreground leading-tight mt-0.5">Para curadores adicionarem nas playlists</span>
                 </div>
+                <Copy className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" />
               </DropdownMenuItem>
-              <DropdownMenuItem
-                className="gap-2 rounded-lg items-start py-2"
-                onClick={() => handleCopyClientLink()}
-                disabled={!deal.client_token}
-              >
-                <User className="h-4 w-4 mt-0.5 shrink-0" />
-                <div className="flex flex-col min-w-0">
-                  <span className="text-sm leading-tight">Link do cliente</span>
-                  <span className="text-[11px] text-muted-foreground leading-tight">Painel de acompanhamento do artista</span>
-                </div>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
+              {showPerSongLinks ? (
+                <>
+                  <div className="px-2 pt-2 pb-1 text-[11px] text-muted-foreground leading-tight">
+                    Link do cliente — uma URL por música
+                  </div>
+                  {songsWithClientLink.map((s) => (
+                    <DropdownMenuItem
+                      key={s.id}
+                      className="gap-2 rounded-lg items-center py-2"
+                      onClick={() => handleCopyClientLink(s.client_token ?? null)}
+                    >
+                      <User className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      <span className="text-sm leading-tight font-medium truncate flex-1" title={s.song_name}>
+                        {s.song_name}
+                      </span>
+                      <Copy className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    </DropdownMenuItem>
+                  ))}
+                </>
+              ) : (
+                <DropdownMenuItem
+                  className="gap-2 rounded-lg items-start py-2"
+                  onClick={() => handleCopyClientLink(songsWithClientLink[0]?.client_token ?? deal.client_token ?? null)}
+                  disabled={!deal.client_token && !songsWithClientLink[0]?.client_token}
+                >
+                  <User className="h-4 w-4 mt-0.5 shrink-0" />
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <span className="text-sm leading-tight font-medium">Link do cliente</span>
+                    <span className="text-[11px] text-muted-foreground leading-tight mt-0.5">Painel do artista/cliente</span>
+                  </div>
+                  <Copy className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" />
+                </DropdownMenuItem>
+              )}
+              {!isClosed && (onForceCollect || onEdit) && <DropdownMenuSeparator />}
               {!isClosed && onForceCollect && (
                 <DropdownMenuItem className="gap-2 rounded-lg" onClick={handleForceCollect}>
                   <Zap className="h-4 w-4" />
@@ -499,113 +535,6 @@ export function CuratorDealCard({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          {!isClosed && onClose && hasBaseline && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="hidden sm:inline-flex h-9 w-9 text-muted-foreground hover:text-foreground"
-              onClick={() => onClose(deal)}
-              aria-label="Encerrar deal"
-              title="Encerrar deal"
-            >
-              <CheckCircle2 className="h-3.5 w-3.5" />
-            </Button>
-          )}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="hidden sm:inline-flex h-9 w-9 text-muted-foreground hover:text-foreground"
-                aria-label="Compartilhar links"
-                title="Compartilhar"
-              >
-                <Share2 className="h-3.5 w-3.5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-72 rounded-xl border-border bg-popover p-1.5">
-              <div className="px-2 pt-1.5 pb-1 text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-semibold">
-                Compartilhar
-              </div>
-              <DropdownMenuItem className="gap-2 rounded-lg items-start py-2.5" onClick={handleCopyCuratorLink}>
-                <Headphones className="h-4 w-4 mt-0.5 shrink-0" />
-                <div className="flex flex-col min-w-0 flex-1">
-                  <span className="text-sm leading-tight font-medium">Link do curador</span>
-                  <span className="text-[11px] text-muted-foreground leading-tight mt-0.5">
-                    Para curadores adicionarem a música nas playlists
-                  </span>
-                </div>
-                <Copy className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" />
-              </DropdownMenuItem>
-              {showPerSongLinks ? (
-                <>
-                  <div className="px-2 pt-2 pb-1 text-[11px] text-muted-foreground leading-tight">
-                    Link do cliente — uma URL para cada música
-                  </div>
-                  {songsWithClientLink.map((s) => (
-                    <DropdownMenuItem
-                      key={s.id}
-                      className="gap-2 rounded-lg items-center py-2"
-                      onClick={() => handleCopyClientLink(s.client_token ?? null)}
-                    >
-                      <User className="h-4 w-4 shrink-0 text-muted-foreground" />
-                      <span className="text-sm leading-tight font-medium truncate flex-1" title={s.song_name}>
-                        {s.song_name}
-                      </span>
-                      <Copy className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                    </DropdownMenuItem>
-                  ))}
-                </>
-              ) : (
-                <DropdownMenuItem
-                  className="gap-2 rounded-lg items-start py-2.5"
-                  onClick={() => handleCopyClientLink(songsWithClientLink[0]?.client_token ?? deal.client_token ?? null)}
-                  disabled={!deal.client_token && !songsWithClientLink[0]?.client_token}
-                >
-                  <User className="h-4 w-4 mt-0.5 shrink-0" />
-                  <div className="flex flex-col min-w-0 flex-1">
-                    <span className="text-sm leading-tight font-medium">Link do cliente</span>
-                    <span className="text-[11px] text-muted-foreground leading-tight mt-0.5">
-                      Painel de acompanhamento para o artista/cliente
-                    </span>
-                  </div>
-                  <Copy className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" />
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          {!isClosed && onForceCollect && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="hidden sm:inline-flex h-9 w-9 text-muted-foreground hover:text-primary"
-              onClick={handleForceCollect}
-              aria-label="Forçar coleta agora"
-              title="Forçar coleta agora"
-            >
-              <Zap className="h-3.5 w-3.5" />
-            </Button>
-          )}
-          {!isClosed && onEdit && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="hidden sm:inline-flex h-9 w-9 text-muted-foreground hover:text-foreground"
-              onClick={() => onEdit(deal)}
-              aria-label="Editar deal"
-            >
-              <Pencil className="h-3.5 w-3.5" />
-            </Button>
-          )}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="hidden sm:inline-flex h-9 w-9 text-muted-foreground hover:text-destructive"
-            onClick={() => onDelete(deal)}
-            aria-label="Excluir deal"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
         </div>
       </CardContent>
     </Card>
