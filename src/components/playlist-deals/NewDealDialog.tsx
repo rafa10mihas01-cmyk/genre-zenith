@@ -159,6 +159,77 @@ function songTarget(s: SongRow): number {
 }
 
 // ============================================================
+// Range picker (início → fim) num único calendário
+// ============================================================
+function DealRangePicker({
+  startedAt,
+  durationDays,
+  onChange,
+}: {
+  startedAt: Date | undefined;
+  durationDays: number;
+  onChange: (start: Date, days: number) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const from = startedAt;
+  const to =
+    startedAt && durationDays > 0
+      ? new Date(startedAt.getTime() + durationDays * 86400000)
+      : undefined;
+
+  const label =
+    from && to
+      ? `${format(from, "dd MMM", { locale: ptBR })} → ${format(to, "dd MMM, yyyy", { locale: ptBR })} · ${durationDays}d`
+      : from
+      ? `${format(from, "dd 'de' MMM, yyyy", { locale: ptBR })} — escolha o fim`
+      : "Escolher período";
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className={cn(
+            "h-9 pl-3 text-left font-normal justify-start",
+            !from && "text-muted-foreground",
+          )}
+        >
+          {label}
+          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar
+          mode="range"
+          selected={{ from, to }}
+          onSelect={(range) => {
+            if (!range?.from) return;
+            const start = range.from;
+            if (range.to) {
+              const days = Math.max(
+                1,
+                Math.round((range.to.getTime() - start.getTime()) / 86400000),
+              );
+              onChange(start, days);
+              setOpen(false);
+            } else {
+              // Só clicou no início — mantém duração atual (mínimo 1)
+              onChange(start, Math.max(1, durationDays));
+            }
+          }}
+          numberOfMonths={1}
+          initialFocus
+          className={cn("p-3 pointer-events-auto")}
+          locale={ptBR}
+        />
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+// ============================================================
 // Componente
 // ============================================================
 export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved }: NewDealDialogProps) {
@@ -1168,7 +1239,7 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
                       className="rounded-xl border border-border/60 bg-[hsl(var(--elevated))] p-4 space-y-3 shadow-sm hover:border-border/80 transition-colors"
                     >
                       <div className="flex items-start gap-2">
-                        <div className="flex-1 grid grid-cols-1 sm:grid-cols-[1fr_120px_120px] gap-2">
+                        <div className="flex-1 grid grid-cols-1 sm:grid-cols-[1fr_140px] gap-2">
                           <Input
                             type="url"
                             placeholder="https://open.spotify.com/track/..."
@@ -1190,16 +1261,6 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
                             value={song.daily_goal}
                             onChange={(e) =>
                               updateSong(idx, { daily_goal: e.target.value })
-                            }
-                          />
-                          <Input
-                            type="number"
-                            inputMode="numeric"
-                            min={1}
-                            placeholder="Dias"
-                            value={song.duration_days}
-                            onChange={(e) =>
-                              updateSong(idx, { duration_days: e.target.value })
                             }
                           />
                         </div>
@@ -1231,43 +1292,20 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
                         </div>
                       )}
 
-                      {/* Início + ramp-up */}
+                      {/* Período (início → fim) + ramp-up */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <div className="flex flex-col gap-1">
-                          <span className="text-xs text-muted-foreground">Início</span>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className={cn(
-                                  "h-9 pl-3 text-left font-normal justify-start",
-                                  !song.started_at && "text-muted-foreground",
-                                )}
-                              >
-                                {song.started_at ? (
-                                  format(song.started_at, "dd 'de' MMM, yyyy", {
-                                    locale: ptBR,
-                                  })
-                                ) : (
-                                  <span>Escolher data</span>
-                                )}
-                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                              <Calendar
-                                mode="single"
-                                selected={song.started_at}
-                                onSelect={(d) =>
-                                  updateSong(idx, { started_at: d ?? undefined })
-                                }
-                                initialFocus
-                                className={cn("p-3 pointer-events-auto")}
-                              />
-                            </PopoverContent>
-                          </Popover>
+                          <span className="text-xs text-muted-foreground">Período (início → fim)</span>
+                          <DealRangePicker
+                            startedAt={song.started_at}
+                            durationDays={Number(song.duration_days) || 0}
+                            onChange={(start, days) =>
+                              updateSong(idx, {
+                                started_at: start,
+                                duration_days: String(days),
+                              })
+                            }
+                          />
                         </div>
 
                         <div className="flex flex-col gap-1">
