@@ -6,7 +6,7 @@ import { recordMetric } from "../_shared/ops-metrics.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "content-type, x-bot-key",
+  "Access-Control-Allow-Headers": "content-type, x-bot-key, x-worker-id, x-process-id, x-hostname, x-timer-id, x-bot-name, x-bot-session",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
 };
 
@@ -30,6 +30,17 @@ Deno.serve(async (req) => {
 
   const url = new URL(req.url);
   const limit = Math.min(Math.max(parseInt(url.searchParams.get("limit") ?? "5"), 1), 20);
+
+  // ====== Identidade do caller (Fase A — atribuição de worker) ======
+  // Headers que o bot da VPS DEVE enviar para que possamos atribuir cada
+  // dispatch a um worker/processo/timer específico e detectar duplicação.
+  const callerWorkerId = req.headers.get("x-worker-id") || null;
+  const callerProcessId = req.headers.get("x-process-id") || null;
+  const callerHostname = req.headers.get("x-hostname") || null;
+  const callerTimerId = req.headers.get("x-timer-id") || null;
+  const callerBotName = req.headers.get("x-bot-name") || "spotify-artists-bot";
+  const callerSession = req.headers.get("x-bot-session") || null;
+  const callerUserAgent = req.headers.get("user-agent") || null;
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
@@ -150,18 +161,24 @@ Deno.serve(async (req) => {
   }
   if (eligible.length) {
     const events = (eligible as any[]).map((s) => ({
-      bot_name: "spotify-artists-bot",
+      bot_name: callerBotName,
+      session_id: callerSession,
       deal_id: s.deal_id,
       song_id: s.id,
       step: "dispatch",
       status: "running",
       lifecycle_state: "FETCHED",
       correlation_id: s.correlation_id,
+      worker_id: callerWorkerId,
+      process_id: callerProcessId,
+      hostname: callerHostname,
+      timer_id: callerTimerId,
       message: `Dispatched to bot queue (limit=${limit})`,
       metadata: {
         song_name: s.song_name,
         spotify_track_id: s.spotify_track_id,
         interval_minutes: s.auto_collect_interval_minutes,
+        user_agent: callerUserAgent,
       },
     }));
     await supabase.from("bot_events").insert(events);
@@ -175,6 +192,17 @@ Deno.serve(async (req) => {
       queued: ids.length,
       blocked_no_whitelist: blocked.length,
       total_candidates: candidates.length,
+      caller: {
+        worker_id: callerWorkerId,
+        process_id: callerProcessId,
+        hostname: callerHostname,
+        timer_id: callerTimerId,
+        bot_name: callerBotName,
+        session: callerSession,
+        user_agent: callerUserAgent,
+      },
+      dispatched_correlation_ids: (eligible as any[]).map((s) => s.correlation_id),
+      dispatched_song_ids: ids,
     },
   });
 

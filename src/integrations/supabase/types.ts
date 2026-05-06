@@ -129,16 +129,20 @@ export type Database = {
           deal_id: string | null
           discard_reason: string | null
           duration_ms: number | null
+          hostname: string | null
           id: string
           lifecycle_state: string | null
           message: string | null
           metadata: Json
+          process_id: string | null
           screenshot_url: string | null
           session_id: string | null
           song_id: string | null
           status: string
           step: string
+          timer_id: string | null
           url: string | null
+          worker_id: string | null
         }
         Insert: {
           bot_name?: string
@@ -147,16 +151,20 @@ export type Database = {
           deal_id?: string | null
           discard_reason?: string | null
           duration_ms?: number | null
+          hostname?: string | null
           id?: string
           lifecycle_state?: string | null
           message?: string | null
           metadata?: Json
+          process_id?: string | null
           screenshot_url?: string | null
           session_id?: string | null
           song_id?: string | null
           status?: string
           step: string
+          timer_id?: string | null
           url?: string | null
+          worker_id?: string | null
         }
         Update: {
           bot_name?: string
@@ -165,16 +173,20 @@ export type Database = {
           deal_id?: string | null
           discard_reason?: string | null
           duration_ms?: number | null
+          hostname?: string | null
           id?: string
           lifecycle_state?: string | null
           message?: string | null
           metadata?: Json
+          process_id?: string | null
           screenshot_url?: string | null
           session_id?: string | null
           song_id?: string | null
           status?: string
           step?: string
+          timer_id?: string | null
           url?: string | null
+          worker_id?: string | null
         }
         Relationships: [
           {
@@ -197,32 +209,47 @@ export type Database = {
         Row: {
           bot_name: string
           created_at: string
+          hostname: string | null
           id: string
           last_collect_at: string | null
           message: string | null
           metadata: Json
+          process_id: string | null
+          processing_correlation_ids: string[] | null
           spotify_session_valid: boolean
           status: string
+          timer_id: string | null
+          worker_id: string | null
         }
         Insert: {
           bot_name?: string
           created_at?: string
+          hostname?: string | null
           id?: string
           last_collect_at?: string | null
           message?: string | null
           metadata?: Json
+          process_id?: string | null
+          processing_correlation_ids?: string[] | null
           spotify_session_valid?: boolean
           status?: string
+          timer_id?: string | null
+          worker_id?: string | null
         }
         Update: {
           bot_name?: string
           created_at?: string
+          hostname?: string | null
           id?: string
           last_collect_at?: string | null
           message?: string | null
           metadata?: Json
+          process_id?: string | null
+          processing_correlation_ids?: string[] | null
           spotify_session_valid?: boolean
           status?: string
+          timer_id?: string | null
+          worker_id?: string | null
         }
         Relationships: []
       }
@@ -2481,21 +2508,41 @@ export type Database = {
           batch_id: string | null
           batch_status: string | null
           correlation_id: string | null
+          current_state: string | null
           deal_id: string | null
           discard_reason: string | null
           discarded_at: string | null
+          dur_fetched_to_accepted_s: number | null
+          dur_print_to_snapshot_s: number | null
+          dur_queue_to_started_s: number | null
+          dur_started_to_print_s: number | null
+          dur_total_s: number | null
           failed_at: string | null
+          failure_message: string | null
           fetched_at: string | null
           finished_at: string | null
+          first_snapshot_at: string | null
+          hostname: string | null
+          hosts_seen: string[] | null
+          last_heartbeat_at: string | null
+          last_heartbeat_host: string | null
+          last_snapshot_at: string | null
+          multi_worker_conflict: boolean | null
           print_uploaded_at: string | null
+          process_id: string | null
           queued_local_at: string | null
           received_parts: number | null
           snapshot_count: number | null
           snapshot_sent_at: string | null
           song_id: string | null
           started_at: string | null
+          timer_id: string | null
+          total_events: number | null
           total_parts: number | null
           total_plays_extracted: number | null
+          worker_id: string | null
+          worker_processing_now: string[] | null
+          workers_seen: string[] | null
         }
         Relationships: []
       }

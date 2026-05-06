@@ -26,6 +26,24 @@
 | `POST /bot-upload-print` | header `x-correlation-id: <uuid>` **ou** `correlation_id` no form-data/query |
 | `POST /bot-heartbeat`    | campo opcional `processing_correlation_ids: string[]` (lista do que está sendo processado) |
 
+## 2.1. Identidade do worker — OBRIGATÓRIO em todas as chamadas
+
+A auditoria confirmou múltiplos pollers chamando a fila ao mesmo tempo. Toda
+request da VPS DEVE enviar:
+
+| Header | Conteúdo |
+|---|---|
+| `x-worker-id`  | id lógico do worker (ex: `worker-A`) |
+| `x-process-id` | PID do SO |
+| `x-hostname`   | hostname da máquina |
+| `x-timer-id`   | id do timer/loop que disparou (ex: `poll-30s`, `recovery-watchdog`) |
+| `x-bot-name`   | identificador do bot |
+| `x-bot-session`| id da sessão atual do navegador |
+
+Aceito por: `bot-collect-queue`, `bot-event-ingest`, `bot-upload-print`, `bot-heartbeat`.
+Persistido como colunas dedicadas em `bot_events` e `bot_heartbeats`.
+Headers ausentes não bloqueiam, mas aparecem como `UNKNOWN` no `v_dispatch_trace`.
+
 ## 3. Lifecycle obrigatório (`POST /bot-event-ingest`)
 
 ```json

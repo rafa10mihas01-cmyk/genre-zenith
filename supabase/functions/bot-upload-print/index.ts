@@ -14,7 +14,7 @@ import { recordMetric } from "../_shared/ops-metrics.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "content-type, x-bot-key, x-correlation-id, x-dom-playlists",
+  "Access-Control-Allow-Headers": "content-type, x-bot-key, x-correlation-id, x-dom-playlists, x-worker-id, x-process-id, x-hostname, x-timer-id, x-bot-name, x-bot-session",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
@@ -257,13 +257,18 @@ Deno.serve(async (req) => {
     // Lifecycle event: PRINT_UPLOADED (parcial ou final)
     if (correlationId) {
       void supabase.from("bot_events").insert({
-        bot_name: "spotify-artists-bot",
+        bot_name: req.headers.get("x-bot-name") ?? "spotify-artists-bot",
+        session_id: req.headers.get("x-bot-session"),
         deal_id: dealId,
         song_id: songId || null,
         step: "upload_print",
         status: "running",
         lifecycle_state: "PRINT_UPLOADED",
         correlation_id: correlationId,
+        worker_id: req.headers.get("x-worker-id"),
+        process_id: req.headers.get("x-process-id"),
+        hostname: req.headers.get("x-hostname"),
+        timer_id: req.headers.get("x-timer-id"),
         message: `Part ${parsed.part}/${parsed.total} received`,
         url: signed.signedUrl,
         metadata: { batch_id: batchId, received_parts: receivedParts, total_parts: parsed.total },

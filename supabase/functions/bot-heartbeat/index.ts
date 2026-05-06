@@ -4,7 +4,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "content-type, x-bot-key",
+  "Access-Control-Allow-Headers": "content-type, x-bot-key, x-worker-id, x-process-id, x-hostname, x-timer-id, x-bot-name, x-bot-session",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
@@ -29,15 +29,28 @@ Deno.serve(async (req) => {
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
   const meta = body.metadata ?? {};
-  if (Array.isArray(body.processing_correlation_ids)) {
-    meta.processing_correlation_ids = body.processing_correlation_ids;
-  }
+  const procIds: string[] | null = Array.isArray(body.processing_correlation_ids)
+    ? body.processing_correlation_ids.filter((x: unknown) => typeof x === "string")
+    : null;
+  if (procIds) meta.processing_correlation_ids = procIds;
+
+  // Identidade do worker — header tem prioridade sobre body
+  const workerId  = req.headers.get("x-worker-id")  || body.worker_id  || null;
+  const processId = req.headers.get("x-process-id") || body.process_id || null;
+  const hostname  = req.headers.get("x-hostname")   || body.hostname   || null;
+  const timerId   = req.headers.get("x-timer-id")   || body.timer_id   || null;
+
   const { error } = await supabase.from("bot_heartbeats").insert({
-    bot_name: body.bot_name ?? "spotify-artists-bot",
+    bot_name: body.bot_name ?? req.headers.get("x-bot-name") ?? "spotify-artists-bot",
     status: body.status ?? "online",
     spotify_session_valid: body.spotify_session_valid ?? true,
     message: body.message ?? null,
     metadata: meta,
+    worker_id: workerId,
+    process_id: processId,
+    hostname: hostname,
+    timer_id: timerId,
+    processing_correlation_ids: procIds,
   });
   if (error) return jr({ error: error.message }, 500);
 
