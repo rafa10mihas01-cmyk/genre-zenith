@@ -243,8 +243,6 @@ export default function CuratorPage() {
   const [position, setPosition] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [importing, setImporting] = useState(false);
-  // Modal: baseline playlists de uma música
-  const [baseSongModalId, setBaseSongModalId] = useState<string | null>(null);
   // Modal: músicas da campanha presentes em uma playlist do curador
   const [curatorPlaylistModalKey, setCuratorPlaylistModalKey] = useState<string | null>(null);
   // Filtro visual por música (não afeta números — RPC já é agregada por deal)
