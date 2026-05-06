@@ -44,6 +44,7 @@ import {
   type CuratorBalance,
   type DealSongInput,
 } from "@/hooks/useCuratorDeals";
+import { useClients, type Client } from "@/hooks/useClients";
 import { useCuratorFinance } from "@/hooks/useCuratorFinance";
 import type { CuratorDeal, CuratorDealSong } from "@/lib/curatorDealsUtils";
 import { curatorPublicUrl } from "@/lib/curatorPublicUrl";
