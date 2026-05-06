@@ -77,6 +77,7 @@ Deno.serve(async (req) => {
       dealId = (form.get("deal_id") as string) || dealId;
       songId = (form.get("song_id") as string) || songId;
       label = (form.get("label") as string) || label;
+      correlationId = (form.get("correlation_id") as string) || correlationId;
       const domRaw = form.get("dom_playlists");
       if (typeof domRaw === "string" && domRaw.trim()) {
         try {
