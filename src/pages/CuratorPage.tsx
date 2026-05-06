@@ -1551,13 +1551,25 @@ export default function CuratorPage() {
                 if (f) handleImportFile(f);
               }}
             />
-            <div className="grid grid-cols-2 gap-4 px-2">
+            <div className="grid grid-cols-2 gap-3 px-2">
               <Button
                 type="button"
-                variant="ghost"
-                className="h-10 w-full px-4 text-[13px] rounded-xl bg-muted/40 ring-1 ring-border hover:bg-border hover:ring-border [&>svg]:shrink-0 truncate"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={submitting || importing || playlistSongRequired || !access.writable}
+                variant="outline"
+                className="h-11 w-full px-4 text-[13px] font-medium rounded-xl border-border/70 bg-[hsl(var(--elevated))] hover:bg-[hsl(var(--elevated))]/80 hover:border-primary/50 hover:text-primary transition-all duration-200 [&>svg]:shrink-0"
+                onClick={() => {
+                  if (playlistSongRequired) {
+                    toast.error("Escolha uma música primeiro", {
+                      description: "Selecione a música acima antes de importar as playlists.",
+                    });
+                    return;
+                  }
+                  if (!access.writable) {
+                    toast.error("Esta campanha está bloqueada para novas playlists");
+                    return;
+                  }
+                  fileInputRef.current?.click();
+                }}
+                disabled={submitting || importing}
               >
                 {importing ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -1568,8 +1580,8 @@ export default function CuratorPage() {
               </Button>
               <Button
                 type="button"
-                variant="ghost"
-                className="h-10 w-full px-4 text-[13px] rounded-xl bg-muted/40 ring-1 ring-border hover:bg-border hover:ring-border [&>svg]:shrink-0 truncate"
+                variant="outline"
+                className="h-11 w-full px-4 text-[13px] font-medium rounded-xl border-border/70 bg-[hsl(var(--elevated))] hover:bg-[hsl(var(--elevated))]/80 hover:border-primary/50 hover:text-primary transition-all duration-200 [&>svg]:shrink-0"
                 onClick={handleDownloadTemplate}
                 disabled={importing}
               >
