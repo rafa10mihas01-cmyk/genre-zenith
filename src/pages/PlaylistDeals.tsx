@@ -25,10 +25,10 @@ import { useClients } from "@/hooks/useClients";
 type DealsTab = "clients" | "library" | "active" | "done" | "finance" | "ledger" | "all";
 
 const TABS = [
+  { id: "clients"  as const, label: "Clientes",    icon: User },
+  { id: "library"  as const, label: "Curadores",   icon: Users },
   { id: "active"   as const, label: "Ativos",      icon: Activity },
   { id: "done"     as const, label: "Concluídos",  icon: CheckCircle2 },
-  { id: "library"  as const, label: "Curadores",   icon: Users },
-  { id: "clients"  as const, label: "Clientes",    icon: User },
   { id: "finance"  as const, label: "Curadores $", icon: Wallet },
   { id: "ledger"   as const, label: "Financeiro",  icon: Receipt },
   { id: "all"      as const, label: "Todos",       icon: Layers },
