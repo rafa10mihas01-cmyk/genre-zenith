@@ -84,6 +84,10 @@ type DealRow = {
   spotify_owner_id: string | null;
   song_spotify_url: string | null;
   started_at: string;
+  state: string | null;
+  closed_at: string | null;
+  token_revoked_at: string | null;
+  token_expires_at: string | null;
 };
 
 type ProcessedItem = {
