@@ -289,25 +289,6 @@ export default function CuratorPage() {
       }),
     [visiblePlaylists],
   );
-
-  // 1 card por música, com playlists onde ela já está
-  const baseGroupedBySong = useMemo(() => {
-    const baseAll = playlists.filter((p) => p.is_baseline);
-    const groups = new Map<string, { song: DealSong | null; deal: boolean; playlists: Playlist[] }>();
-    for (const p of baseAll) {
-      const key = p.song_id ?? "__deal__";
-      if (!groups.has(key)) {
-        const song = p.song_id ? songs.find((s) => s.id === p.song_id) ?? null : null;
-        groups.set(key, { song, deal: !p.song_id, playlists: [] });
-      }
-      groups.get(key)!.playlists.push(p);
-    }
-    for (const s of songs) {
-      if (!groups.has(s.id)) groups.set(s.id, { song: s, deal: false, playlists: [] });
-    }
-    return Array.from(groups.entries()).map(([key, v]) => ({ key, ...v }));
-  }, [playlists, songs]);
-
   // 1 card por playlist do curador
   const curatorGroupedByPlaylist = useMemo(() => {
     const groups = new Map<
@@ -332,10 +313,6 @@ export default function CuratorPage() {
     return Array.from(groups.values());
   }, [curatorPlaylists, playlists, songs]);
 
-  const baseModalGroup = useMemo(
-    () => baseGroupedBySong.find((g) => g.key === baseSongModalId) ?? null,
-    [baseGroupedBySong, baseSongModalId],
-  );
   const curatorModalGroup = useMemo(
     () => curatorGroupedByPlaylist.find((g) => g.key === curatorPlaylistModalKey) ?? null,
     [curatorGroupedByPlaylist, curatorPlaylistModalKey],
