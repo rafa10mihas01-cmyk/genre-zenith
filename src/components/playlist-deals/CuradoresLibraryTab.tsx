@@ -315,8 +315,35 @@ export function CuradoresLibraryTab({
                                 Editar
                               </DropdownMenuItem>
                             )}
-                            {(onArchiveCurator || onDeleteCurator) && (
+                            {(onArchiveCurator || onDeleteCurator || onPauseCurator) && (
                               <DropdownMenuSeparator />
+                            )}
+                            {onPauseCurator && !curator.archived_at && (
+                              <DropdownMenuItem
+                                className="gap-2"
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  const pause = !curator.paused_at;
+                                  try {
+                                    await onPauseCurator(curator.id, pause);
+                                    toast.success(pause ? "Curador pausado — coleta congelada" : "Curador retomado");
+                                  } catch {
+                                    toast.error("Erro ao alterar pausa");
+                                  }
+                                }}
+                              >
+                                {curator.paused_at ? (
+                                  <>
+                                    <Play className="h-4 w-4" />
+                                    Retomar
+                                  </>
+                                ) : (
+                                  <>
+                                    <Pause className="h-4 w-4" />
+                                    Pausar
+                                  </>
+                                )}
+                              </DropdownMenuItem>
                             )}
                             {onArchiveCurator && !curator.archived_at && (
                               <DropdownMenuItem
