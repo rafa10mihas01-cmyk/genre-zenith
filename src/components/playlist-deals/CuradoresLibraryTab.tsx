@@ -11,18 +11,29 @@ import {
   Archive,
   Music2,
   TrendingUp,
+  MoreHorizontal,
+  Pencil,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { toast } from "sonner";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { CuratorLibrarySheet } from "@/components/curators/CuratorLibrarySheet";
+import { CuratorEditDialog } from "@/components/curators/CuratorEditDialog";
 import { cn } from "@/lib/utils";
-import type { Curator, CuratorBalance } from "@/hooks/useCuratorDeals";
+import type { Curator, CuratorBalance, NewCuratorInput } from "@/hooks/useCuratorDeals";
 import type { CuratorDeal } from "@/lib/curatorDealsUtils";
 
 function formatPlays(n: number | null | undefined): string {
