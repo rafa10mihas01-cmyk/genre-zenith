@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ListMusic, Plus, CheckCircle2, Layers, Activity, Target, Users, Wallet, Receipt } from "lucide-react";
+import { ListMusic, Plus, CheckCircle2, Layers, Activity, Target, Users, Wallet, Receipt, User } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
@@ -17,12 +17,15 @@ import { LogPrintDialog } from "@/components/playlist-deals/LogPrintDialog";
 import { DealHistorySheet } from "@/components/playlist-deals/DealHistorySheet";
 import { CuradoresTab } from "@/components/playlist-deals/CuradoresTab";
 import { CuradoresLibraryTab } from "@/components/playlist-deals/CuradoresLibraryTab";
+import { ClientesLibraryTab } from "@/components/playlist-deals/ClientesLibraryTab";
 import { CloseDealDialog } from "@/components/playlist-deals/CloseDealDialog";
 import { FinanceiroTab } from "@/components/playlist-deals/FinanceiroTab";
+import { useClients } from "@/hooks/useClients";
 
-type DealsTab = "library" | "active" | "done" | "finance" | "ledger" | "all";
+type DealsTab = "clients" | "library" | "active" | "done" | "finance" | "ledger" | "all";
 
 const TABS = [
+  { id: "clients"  as const, label: "Clientes",    icon: User },
   { id: "library"  as const, label: "Curadores",   icon: Users },
   { id: "active"   as const, label: "Ativos",      icon: Activity },
   { id: "done"     as const, label: "Concluídos",  icon: CheckCircle2 },
@@ -32,7 +35,7 @@ const TABS = [
 ];
 
 export default function PlaylistDeals() {
-  const [tab, setTab] = usePersistedState<DealsTab>("playlistdeals:tab:v2", "library");
+  const [tab, setTab] = usePersistedState<DealsTab>("playlistdeals:tab:v3", "clients");
   const [newOpen, setNewOpen] = useState(false);
   const [logDeal, setLogDeal] = useState<CuratorDeal | null>(null);
   const [detailDeal, setDetailDeal] = useState<CuratorDeal | null>(null);
@@ -40,6 +43,7 @@ export default function PlaylistDeals() {
   const [closeDealOpen, setCloseDealOpen] = useState<CuratorDeal | null>(null);
 
   const { deals, logs, playlists, songs, alerts, curators, balances, progressByDeal, loading, deleteDeal, addLog, addBaseline, insertSnapshots, closeDeal, reopenDeal, forceCollectNow, updateCurator, archiveCurator, reload } = useCuratorDeals();
+  const { clients } = useClients();
 
   // KPIs do topo — derivados dos deals + logs + playlists
   const kpi = useMemo(() => {
@@ -110,6 +114,7 @@ export default function PlaylistDeals() {
     if (id === "all") return kpi.total;
     if (id === "done") return kpi.done;
     if (id === "library") return curators.filter((c) => !c.archived_at).length;
+    if (id === "clients") return clients.filter((c) => !c.archived_at).length;
     if (id === "finance") {
       const set = new Set(deals.map((d) => (d.curator_name ?? "").trim() || "—"));
       return set.size;
@@ -199,7 +204,13 @@ export default function PlaylistDeals() {
 
       {/* Conteúdo — altura mínima estável evita layout shift entre abas */}
       <div className="min-h-[480px] animate-tab-in">
-        {tab === "library" ? (
+        {tab === "clients" ? (
+          <ClientesLibraryTab
+            deals={deals}
+            songs={songs}
+            loading={loading}
+          />
+        ) : tab === "library" ? (
           <CuradoresLibraryTab
             curators={curators}
             balances={balances}
