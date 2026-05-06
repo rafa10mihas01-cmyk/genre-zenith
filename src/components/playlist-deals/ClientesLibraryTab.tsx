@@ -217,16 +217,74 @@ export function ClientesLibraryTab({ deals, songs, loading }: Props) {
                         </div>
                       )}
                     </div>
-                    <Badge
-                      variant="secondary"
-                      className={cn(
-                        "shrink-0 text-[10px] px-2.5 py-0.5 h-6 font-semibold gap-1 rounded-full",
-                        activeDeals > 0 && "bg-primary/15 text-primary",
-                      )}
-                    >
-                      {activeDeals > 0 && <Activity className="h-2.5 w-2.5" />}
-                      {statusLabel}
-                    </Badge>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Badge
+                        variant="secondary"
+                        className={cn(
+                          "text-[10px] px-2.5 py-0.5 h-6 font-semibold gap-1 rounded-full",
+                          activeDeals > 0 && "bg-primary/15 text-primary",
+                        )}
+                      >
+                        {activeDeals > 0 && <Activity className="h-2.5 w-2.5" />}
+                        {statusLabel}
+                      </Badge>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                            onClick={(e) => e.stopPropagation()}
+                            aria-label="Mais ações"
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                          align="end"
+                          className="w-44"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <DropdownMenuItem
+                            className="gap-2"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditing(client);
+                            }}
+                          >
+                            <Pencil className="h-4 w-4" />
+                            Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="gap-2"
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              if (!confirm(`Arquivar ${client.name}? Ele sai da biblioteca mas o histórico fica.`)) return;
+                              try {
+                                await archiveClient(client.id, true);
+                                toast.success("Cliente arquivado");
+                              } catch {
+                                toast.error("Erro ao arquivar");
+                              }
+                            }}
+                          >
+                            <Archive className="h-4 w-4" />
+                            Arquivar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="gap-2 text-destructive focus:text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setConfirmDelete({ client, hasLinks: totalSongs > 0 || totalDeals > 0 });
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            Excluir
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 divide-x divide-border/50 rounded-xl bg-[hsl(var(--elevated))] border border-border/40">
