@@ -179,7 +179,8 @@
     box-shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.45), 0 1px 0 rgba(255,255,255,0.03) inset;
   }
   .dark .nx-card {
-    border-color: rgba(255, 255, 255, 0.10);
+    border-color: rgba(255, 255, 255, 0.16);
+    box-shadow: 0 12px 32px -14px rgba(0, 0, 0, 0.6), 0 1px 0 rgba(255,255,255,0.05) inset;
   }
   .light .nx-card {
     background: hsl(var(--card));
