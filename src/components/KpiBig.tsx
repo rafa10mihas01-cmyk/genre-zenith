@@ -58,25 +58,22 @@ export function KpiBig({
       className={cn(
         // Card com altura fixa garantida + estrutura em 3 zonas verticais.
         // gap-2 (8px) entre cada zona = ritmo idêntico em todos os cards.
-        "nx-card p-4 h-[120px] flex flex-col gap-2",
+        "nx-card p-4 min-h-[120px] flex flex-col gap-2 overflow-hidden",
         className,
       )}
     >
-      {/* ZONA 1 — HEADER: label à esquerda, ícone à direita.
-          Altura fixa de 16px e items-center garante baseline idêntico
-          mesmo quando o card não tem ícone. */}
-      <div className="h-4 flex items-center justify-between gap-2">
-        <span className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-medium leading-none">
+      {/* ZONA 1 — HEADER: label à esquerda, ícone à direita. */}
+      <div className="min-h-4 flex items-start justify-between gap-2">
+        <span className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground font-medium leading-tight line-clamp-2 break-words">
           {label}
         </span>
-        <div className="h-4 w-4 flex items-center justify-center shrink-0">
+        <div className="h-4 w-4 flex items-center justify-center shrink-0 mt-0.5">
           {action ?? (Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground" />)}
         </div>
       </div>
 
-      {/* ZONA 2 — VALOR: ocupa o espaço flexível, sempre centralizado
-          verticalmente. Tabular-nums alinha dígitos perfeitamente entre cards. */}
-      <div className={cn("flex-1 flex items-center", TONE_CLS[tone])}>
+      {/* ZONA 2 — VALOR */}
+      <div className={cn("flex-1 flex items-center min-w-0", TONE_CLS[tone])}>
         {loading ? (
           <Skeleton className="h-7 w-24 rounded-md bg-muted/80" />
         ) : isEmptyValue(value) ? (
@@ -84,7 +81,7 @@ export function KpiBig({
             Sem dados ainda
           </span>
         ) : (
-          <span className="text-2xl font-bold tabular-nums leading-none">
+          <span className="text-xl sm:text-2xl font-bold tabular-nums leading-tight truncate max-w-full block">
             {value}
           </span>
         )}
