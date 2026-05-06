@@ -3,6 +3,30 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 export type NotificationType = "critical" | "warning" | "info";
+export type NotificationDomain =
+  | "bot"
+  | "ocr"
+  | "queue"
+  | "curator"
+  | "system"
+  | "financeiro"
+  | "security"
+  | "ai"
+  | "geral";
+export type NotificationSeverity = "critical" | "high" | "medium" | "low" | "info";
+
+export interface NotificationMeta {
+  domain?: NotificationDomain;
+  severity?: NotificationSeverity;
+  dedupe_key?: string;
+  kind?: string;
+  action_required?: boolean;
+  silent?: boolean;
+  occurrences?: number;
+  last_seen_at?: string;
+  source?: string;
+  [k: string]: unknown;
+}
 
 export interface NotificationRow {
   id: string;
@@ -12,16 +36,34 @@ export interface NotificationRow {
   action_url: string | null;
   read: boolean;
   created_at: string;
+  metadata?: NotificationMeta | null;
 }
 
-const LIMIT = 10;
+const LIMIT = 30;
 
-/**
- * Hook global de notificações.
- * - Carrega últimas 10
- * - Subscribe realtime para novas → toast + atualiza lista
- * - Expõe ações: markRead, markAllRead
- */
+// Anti-flood de toasts: 60s por dedupe_key
+const TOAST_COOLDOWN_MS = 60_000;
+const recentToasts = new Map<string, number>();
+
+function shouldToast(n: NotificationRow): boolean {
+  // Regras: info nunca vira toast (apenas badge); silent suprime; respeita cooldown por dedupe_key
+  if (n.metadata?.silent) return false;
+  if (n.type === "info") return false;
+
+  const key = n.metadata?.dedupe_key ?? n.metadata?.kind ?? n.id;
+  const last = recentToasts.get(key);
+  const now = Date.now();
+  if (last && now - last < TOAST_COOLDOWN_MS) return false;
+  recentToasts.set(key, now);
+  // GC
+  if (recentToasts.size > 200) {
+    for (const [k, t] of recentToasts) {
+      if (now - t > TOAST_COOLDOWN_MS * 5) recentToasts.delete(k);
+    }
+  }
+  return true;
+}
+
 export function useNotifications() {
   const [items, setItems] = useState<NotificationRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -30,7 +72,7 @@ export function useNotifications() {
   const load = useCallback(async () => {
     const { data, error } = await supabase
       .from("notifications")
-      .select("id, type, title, message, action_url, read, created_at")
+      .select("id, type, title, message, action_url, read, created_at, metadata")
       .order("created_at", { ascending: false })
       .limit(LIMIT);
     if (!error && data) setItems(data as NotificationRow[]);
@@ -53,11 +95,11 @@ export function useNotifications() {
             if (prev.some((p) => p.id === n.id)) return prev;
             return [n, ...prev].slice(0, LIMIT);
           });
-          // Toast em tempo real
-          const opts = { description: n.message } as const;
-          if (n.type === "critical") toast.error(n.title, opts);
-          else if (n.type === "warning") toast.warning(n.title, opts);
-          else toast.success(n.title, opts);
+          if (shouldToast(n)) {
+            const opts = { description: n.message } as const;
+            if (n.type === "critical") toast.error(n.title, { ...opts, duration: 10_000 });
+            else if (n.type === "warning") toast.warning(n.title, { ...opts, duration: 6_000 });
+          }
         }
       )
       .on(
