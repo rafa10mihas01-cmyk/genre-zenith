@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ListMusic, Plus, CheckCircle2, Layers, Activity, Target, Users, Wallet, Receipt, User, ChevronDown, Briefcase } from "lucide-react";
+import { ListMusic, Plus, CheckCircle2, Layers, Activity, Target, Users, Receipt, User, ChevronDown, Briefcase } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
@@ -16,27 +16,25 @@ import { CuratorDealCard } from "@/components/playlist-deals/CuratorDealCard";
 import { NewDealDialog } from "@/components/playlist-deals/NewDealDialog";
 import { LogPrintDialog } from "@/components/playlist-deals/LogPrintDialog";
 import { DealHistorySheet } from "@/components/playlist-deals/DealHistorySheet";
-import { CuradoresTab } from "@/components/playlist-deals/CuradoresTab";
 import { CuradoresLibraryTab } from "@/components/playlist-deals/CuradoresLibraryTab";
 import { ClientesLibraryTab } from "@/components/playlist-deals/ClientesLibraryTab";
 import { CloseDealDialog } from "@/components/playlist-deals/CloseDealDialog";
 import { FinanceiroTab } from "@/components/playlist-deals/FinanceiroTab";
 import { useClients } from "@/hooks/useClients";
 
-type DealsTab = "clients" | "library" | "active" | "done" | "finance" | "ledger" | "all";
+type DealsTab = "clients" | "library" | "active" | "done" | "ledger" | "all";
 
 const TABS = [
   { id: "clients"  as const, label: "Clientes",    icon: User },
   { id: "library"  as const, label: "Curadores",   icon: Users },
   { id: "active"   as const, label: "Ativos",      icon: Activity },
   { id: "done"     as const, label: "Concluídos",  icon: CheckCircle2 },
-  { id: "finance"  as const, label: "Curadores $", icon: Wallet },
   { id: "ledger"   as const, label: "Financeiro",  icon: Receipt },
   { id: "all"      as const, label: "Todos",       icon: Layers },
 ];
 
 export default function PlaylistDeals() {
-  const [tab, setTab] = usePersistedState<DealsTab>("playlistdeals:tab:v4", "active");
+  const [tab, setTab] = usePersistedState<DealsTab>("playlistdeals:tab:v5", "active");
   const [newOpen, setNewOpen] = useState(false);
   const [logDeal, setLogDeal] = useState<CuratorDeal | null>(null);
   const [detailDeal, setDetailDeal] = useState<CuratorDeal | null>(null);
@@ -116,10 +114,6 @@ export default function PlaylistDeals() {
     if (id === "done") return kpi.done;
     if (id === "library") return curators.filter((c) => !c.archived_at).length;
     if (id === "clients") return clients.filter((c) => !c.archived_at).length;
-    if (id === "finance") {
-      const set = new Set(deals.map((d) => (d.curator_name ?? "").trim() || "—"));
-      return set.size;
-    }
     return kpi.active;
   };
 
@@ -252,20 +246,6 @@ export default function PlaylistDeals() {
           />
         ) : tab === "ledger" ? (
           <FinanceiroTab deals={deals} />
-        ) : tab === "finance" ? (
-          <CuradoresTab
-            deals={deals}
-            logs={logs}
-            playlists={playlists}
-            songs={songs}
-            curators={curators}
-            balances={balances}
-            alerts={alerts}
-            loading={loading}
-            progressByDeal={progressByDeal}
-            onUpdateCurator={updateCurator}
-            onArchiveCurator={archiveCurator}
-          />
         ) : loading && deals.length === 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[0, 1, 2].map((i) => (
