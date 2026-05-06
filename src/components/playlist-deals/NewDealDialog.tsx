@@ -929,7 +929,7 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
       }
     }
 
-    const curatorName = selectedCurator?.name ?? "—";
+    const curatorName = effectiveCurator?.name ?? selectedCurator?.name ?? "—";
 
     setSubmitting(true);
     try {
