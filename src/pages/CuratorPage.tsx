@@ -31,6 +31,13 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { NexEngineLogo } from "@/components/NexEngineLogo";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -1498,17 +1505,22 @@ export default function CuratorPage() {
               className="h-10 text-[14px] px-4 rounded-xl bg-[hsl(var(--elevated))] ring-1 ring-border/50 border-0 focus-visible:ring-2 focus-visible:ring-primary/40"
             />
             <div className="space-y-1.5">
-              <Input
-                type="number"
-                inputMode="numeric"
-                min={1}
-                step={1}
-                placeholder="Posição na playlist (opcional) — ex: 5"
-                value={position}
-                onChange={(e) => setPosition(e.target.value)}
+              <Select
+                value={position || undefined}
+                onValueChange={(v) => setPosition(v)}
                 disabled={submitting || importing}
-                className="h-10 text-[14px] px-4 rounded-xl bg-[hsl(var(--elevated))] ring-1 ring-border/50 border-0 focus-visible:ring-2 focus-visible:ring-primary/40"
-              />
+              >
+                <SelectTrigger className="h-10 text-[14px] px-4 rounded-xl bg-[hsl(var(--elevated))] ring-1 ring-border/50 border-0 focus:ring-2 focus:ring-primary/40">
+                  <SelectValue placeholder="Posição na playlist (opcional)" />
+                </SelectTrigger>
+                <SelectContent className="max-h-[280px]">
+                  {Array.from({ length: 100 }, (_, i) => i + 1).map((n) => (
+                    <SelectItem key={n} value={String(n)}>
+                      {n}{n === 1 ? "ª (primeira)" : "ª"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <p className="text-[11px] text-muted-foreground/80 px-1">
                 Em que posição a música está dentro da playlist (1 = primeira)
               </p>
@@ -1567,9 +1579,9 @@ export default function CuratorPage() {
               </Button>
             </div>
             <p className="text-[11px] text-muted-foreground/80 text-center pt-1 leading-relaxed">
-              Aceita .xlsx, .xls ou .csv · até 200 playlists
+              Importe até 100 playlists (.CSV ou Excel)
               <br />
-              <span className="opacity-70">Use o modelo para garantir o formato correto</span>
+              <span className="opacity-70">Baixe o modelo pronto e envie preenchido</span>
             </p>
           </CardContent>
         </Card>
