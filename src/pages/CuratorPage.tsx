@@ -485,6 +485,22 @@ export default function CuratorPage() {
     };
   }, [deal, progress, snapshotHistory, selectedSong, selectedSongId]);
 
+  const isDone = stats.target > 0 && stats.earned >= stats.target;
+  const perPlaylist = progress?.per_playlist ?? [];
+  // FASE 1 — apenas playlists oficialmente cadastradas pelo curador (match_status='curator')
+  // alimentam progresso/KPIs/Performance. Sem essas, o portal esconde tudo e pede cadastro.
+  const hasCuratorPlaylists = curatorPlaylists.length > 0;
+  const curatorOwnedPlaylistIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const p of playlists) {
+      if ((p.match_status ?? "") === "curator") ids.add(p.id);
+    }
+    return ids;
+  }, [playlists]);
+  const perPlaylistCurator = perPlaylist
+    .filter((p) => !p.is_baseline && curatorOwnedPlaylistIds.has(p.playlist_id))
+    .sort((a, b) => Number(b.delivered ?? 0) - Number(a.delivered ?? 0));
+
   const handleAdd = async () => {
     if (!token || !url.trim()) return;
     if (playlistSongRequired) {
@@ -647,22 +663,6 @@ export default function CuratorPage() {
       </div>
     );
   }
-
-  const isDone = stats.target > 0 && stats.earned >= stats.target;
-  const perPlaylist = progress?.per_playlist ?? [];
-  // FASE 1 — apenas playlists oficialmente cadastradas pelo curador (match_status='curator')
-  // alimentam progresso/KPIs/Performance. Sem essas, o portal esconde tudo e pede cadastro.
-  const hasCuratorPlaylists = curatorPlaylists.length > 0;
-  const curatorOwnedPlaylistIds = useMemo(() => {
-    const ids = new Set<string>();
-    for (const p of playlists) {
-      if ((p.match_status ?? "") === "curator") ids.add(p.id);
-    }
-    return ids;
-  }, [playlists]);
-  const perPlaylistCurator = perPlaylist
-    .filter((p) => !p.is_baseline && curatorOwnedPlaylistIds.has(p.playlist_id))
-    .sort((a, b) => Number(b.delivered ?? 0) - Number(a.delivered ?? 0));
 
   return (
     <div className="relative min-h-screen bg-background py-8 sm:py-10 overflow-hidden">
