@@ -822,33 +822,9 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
   // ============================================================
   // Submissão
   // ============================================================
-  const handleCreateCuratorAndAdvance = async () => {
-    const name = newCuratorName.trim();
-    if (!name) {
-      toast.error("Informe o nome do curador");
-      return;
-    }
-    setSubmitting(true);
-    try {
-      const playsRaw = newCuratorPlaysDigits ? Number(newCuratorPlaysDigits) : 0;
-      const costRaw = currencyDigitsToNumber(newCuratorCostDigits);
-      const created = await addCurator({
-        name,
-        contact: newCuratorContact.trim() || null,
-        purchased_plays: playsRaw,
-        total_cost: typeof costRaw === "number" ? costRaw : 0,
-      });
-      setSelectedCuratorId(created.id);
-      setCuratorMode("select");
-      setStep(2);
-      toast.success("Curador cadastrado");
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      toast.error("Não foi possível cadastrar o curador", { description: msg });
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  // OBS: criar curador foi REMOVIDO daqui. Curador novo é persistido junto com o deal,
+  // dentro da mesma transação (RPC create_curator_deal_atomic com p_new_curator).
+  // Isso garante zero curadores/compras órfãos quando o usuário cancela o dialog.
 
   const handleSaveBalanceChange = async () => {
     if (!selectedCuratorId || !selectedCurator) return;
@@ -905,9 +881,13 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
     }
   };
 
-  const handleAdvanceToStep2 = async () => {
+  const handleAdvanceToStep2 = () => {
     if (curatorMode === "new") {
-      await handleCreateCuratorAndAdvance();
+      if (!newCuratorName.trim()) {
+        toast.error("Informe o nome do curador");
+        return;
+      }
+      setStep(2);
       return;
     }
     if (!selectedCuratorId) {
