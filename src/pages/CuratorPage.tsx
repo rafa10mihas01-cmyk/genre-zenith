@@ -912,44 +912,42 @@ export default function CuratorPage() {
                     } as const;
                     const s = statusMap[statusKey];
                     return (
-                      <div className={cn("rounded-2xl p-5 ring-1", s.bg, s.ring)}>
-                        <div className="flex items-center justify-between gap-3 mb-3">
-                          <span className={cn("inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em]", s.text)}>
-                            <span className={cn("h-2 w-2 rounded-full", s.dot)} />
-                            {s.label}
-                          </span>
-                          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                            Entrega real do curador
-                          </span>
-                        </div>
-                        <div className="flex items-baseline gap-2 flex-wrap">
-                          <span className={cn("text-[34px] sm:text-[40px] font-bold tabular-nums leading-none tracking-tight", s.text)}>
-                            {formatPlays(stats.dailyAvg)}
-                          </span>
-                          <span className="text-[20px] sm:text-[22px] font-semibold tabular-nums text-muted-foreground leading-none">
-                            / {formatPlays(stats.dailyGoal)}
-                          </span>
-                          <span className="text-[11px] uppercase tracking-wider text-muted-foreground ml-1">
-                            por dia (média) · meta diária
-                          </span>
-                        </div>
-                        <div className="mt-3 h-1.5 rounded-full bg-background/40 overflow-hidden">
-                          <div
-                            className={cn("h-full rounded-full transition-all duration-500", s.dot)}
-                            style={{ width: `${Math.min(100, Math.round(dailyRatio * 100))}%` }}
-                          />
-                        </div>
-                        <div className="mt-3 flex items-center justify-between gap-3 text-[11px] text-muted-foreground tabular-nums">
-                          <span>
-                            Entregue (delta){" "}
-                            <span className="font-semibold text-foreground">{formatPlays(stats.earned)}</span>
-                            {" "}de{" "}
-                            <span className="font-semibold text-foreground">{formatPlays(stats.target)}</span>
-                            {" "}plays
-                          </span>
-                          <span>{stats.pct}% da meta total</span>
-                        </div>
-                      </div>
+                       <div className={cn("rounded-2xl p-5 ring-1", s.bg, s.ring)}>
+                         <div className="flex items-center justify-between gap-3 mb-3">
+                           <span className={cn("inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em]", s.text)}>
+                             <span className={cn("h-2 w-2 rounded-full", s.dot)} />
+                             {s.label}
+                           </span>
+                           <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                             Entrega real do curador
+                           </span>
+                         </div>
+                         <div className="flex items-baseline gap-2 flex-wrap">
+                           <span className={cn("text-[34px] sm:text-[40px] font-bold tabular-nums leading-none tracking-tight", s.text)}>
+                             {formatPlays(stats.earned)}
+                           </span>
+                           <span className="text-[20px] sm:text-[22px] font-semibold tabular-nums text-muted-foreground leading-none">
+                             / {formatPlays(stats.target)}
+                           </span>
+                           <span className="text-[11px] uppercase tracking-wider text-muted-foreground ml-1">
+                             entregue (delta) · meta total
+                           </span>
+                         </div>
+                         <div className="mt-3 h-1.5 rounded-full bg-background/40 overflow-hidden">
+                           <div
+                             className={cn("h-full rounded-full transition-all duration-500", s.dot)}
+                             style={{ width: `${Math.min(100, stats.pct)}%` }}
+                           />
+                         </div>
+                         <div className="mt-3 flex items-center justify-between gap-3 text-[11px] text-muted-foreground tabular-nums">
+                           <span>
+                             {stats.pct}% da meta total
+                           </span>
+                           <span className="text-[10px] uppercase tracking-wider">
+                             Ritmo histórico: {formatPlays(stats.dailyAvg)}/dia · meta {formatPlays(stats.dailyGoal)}/dia
+                           </span>
+                         </div>
+                       </div>
                     );
                   })() : null}
 
@@ -1103,17 +1101,15 @@ export default function CuratorPage() {
               </div>
               <div className="pl-4">
                 <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
-                  Velocidade (média/dia)
+                  Média histórica por dia
                 </div>
-                <div className="text-[20px] font-bold tabular-nums leading-none">
-                  <span className="text-primary">{formatPlays(stats.dailyAvg)}</span>
-                  <span className="text-muted-foreground text-[14px] font-semibold"> / {formatPlays(stats.dailyGoal)}</span>
+                <div className="text-[18px] font-semibold tabular-nums leading-none text-muted-foreground">
+                  {formatPlays(stats.dailyAvg)}
+                  <span className="text-[12px] font-medium"> /dia</span>
                 </div>
-                {stats.dailyGoal > 0 && (
-                  <div className="text-[10px] text-muted-foreground mt-1.5">
-                    {Math.round((stats.dailyAvg / stats.dailyGoal) * 100)}% da meta diária
-                  </div>
-                )}
+                <div className="text-[10px] text-muted-foreground mt-1.5">
+                  Calculada desde o primeiro snapshot válido — não é a entrega de hoje
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -1168,11 +1164,14 @@ export default function CuratorPage() {
 
               <div className="nx-subcard p-4">
                 <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mb-1.5 uppercase tracking-wider">
-                  <Zap className="h-3 w-3 text-primary" />
-                  Velocidade
+                  <Zap className="h-3 w-3 text-muted-foreground" />
+                  Média histórica
                 </div>
-                <div className="text-[18px] font-semibold tabular-nums leading-none">
+                <div className="text-[16px] font-semibold tabular-nums leading-none text-muted-foreground">
                   {stats.dailyAvg > 0 ? `${formatPlays(stats.dailyAvg)}/dia` : "—"}
+                </div>
+                <div className="text-[9.5px] text-muted-foreground mt-1 leading-tight">
+                  Desde o 1º snapshot
                 </div>
               </div>
 
