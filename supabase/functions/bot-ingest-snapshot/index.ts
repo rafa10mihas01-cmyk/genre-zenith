@@ -2,6 +2,7 @@
 // Auth: header x-bot-key.
 // POST { song_id, deal_id, total_plays, snapshots: [{playlist_name, spotify_url, plays, source?}], note?, print_urls? }
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { assertDealOperable } from "../_shared/deal-access.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
