@@ -1124,7 +1124,10 @@ export default function CuratorPage() {
         <Card className="nx-card !p-0 border-border">
           <CardContent className="p-5 sm:p-6 space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-[15px] font-semibold tracking-tight">Combinado total</h2>
+              <div>
+                <h2 className="text-[15px] font-semibold tracking-tight">Progresso da meta total</h2>
+                <p className="text-[10.5px] text-muted-foreground mt-0.5">Entrega real (delta) vs meta contratada</p>
+              </div>
               <span className="text-[20px] font-bold tabular-nums">{stats.pct}%</span>
             </div>
 
@@ -1132,10 +1135,10 @@ export default function CuratorPage() {
               <Progress value={stats.pct} className="h-2 rounded-full" />
               <div className="flex items-center justify-between text-[12px] tabular-nums pt-1">
                 <span className="text-foreground font-medium">
-                  {formatPlays(stats.earned)} plays
+                  Entregue (delta): <span className="font-semibold">{formatPlays(stats.earned)}</span>
                 </span>
                 <span className="text-muted-foreground">
-                  combinado: {formatPlays(stats.target)}
+                  Meta: {formatPlays(stats.target)}
                 </span>
               </div>
             </div>
