@@ -123,8 +123,8 @@ export default function PlaylistDeals() {
         title="Playlist Deals"
         subtitle="Acompanhar deals com curadores"
         actions={
-          <Button className="rounded-full h-9 gap-1.5" onClick={handleNew}>
-            <Plus className="h-4 w-4" /> Novo Deal
+          <Button className="rounded-full h-9 gap-1.5 max-w-full" onClick={handleNew} aria-label="Novo Deal">
+            <Plus className="h-4 w-4" /> <span className="truncate">Novo Deal</span>
           </Button>
         }
       />
