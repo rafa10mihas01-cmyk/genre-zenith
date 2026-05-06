@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ListMusic, Plus, CheckCircle2, Layers, Activity, Target, Users } from "lucide-react";
+import { ListMusic, Plus, CheckCircle2, Layers, Activity, Target, Users, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
@@ -16,19 +16,21 @@ import { NewDealDialog } from "@/components/playlist-deals/NewDealDialog";
 import { LogPrintDialog } from "@/components/playlist-deals/LogPrintDialog";
 import { DealHistorySheet } from "@/components/playlist-deals/DealHistorySheet";
 import { CuradoresTab } from "@/components/playlist-deals/CuradoresTab";
+import { CuradoresLibraryTab } from "@/components/playlist-deals/CuradoresLibraryTab";
 import { CloseDealDialog } from "@/components/playlist-deals/CloseDealDialog";
 
-type DealsTab = "active" | "done" | "all" | "curators";
+type DealsTab = "library" | "active" | "done" | "finance" | "all";
 
 const TABS = [
+  { id: "library"  as const, label: "Curadores",   icon: Users },
   { id: "active"   as const, label: "Ativos",      icon: Activity },
   { id: "done"     as const, label: "Concluídos",  icon: CheckCircle2 },
-  { id: "curators" as const, label: "Curadores",   icon: Users },
+  { id: "finance"  as const, label: "Financeiro",  icon: Wallet },
   { id: "all"      as const, label: "Todos",       icon: Layers },
 ];
 
 export default function PlaylistDeals() {
-  const [tab, setTab] = usePersistedState<DealsTab>("playlistdeals:tab", "active");
+  const [tab, setTab] = usePersistedState<DealsTab>("playlistdeals:tab:v2", "library");
   const [newOpen, setNewOpen] = useState(false);
   const [logDeal, setLogDeal] = useState<CuratorDeal | null>(null);
   const [detailDeal, setDetailDeal] = useState<CuratorDeal | null>(null);
@@ -75,10 +77,9 @@ export default function PlaylistDeals() {
 
   const filtered = useMemo(() => {
     if (tab === "all") return deals;
-    return deals.filter((d) => {
-      const isClosed = !!d.closed_at;
-      return tab === "done" ? isClosed : !isClosed;
-    });
+    if (tab === "done") return deals.filter((d) => !!d.closed_at);
+    if (tab === "active") return deals.filter((d) => !d.closed_at);
+    return deals;
   }, [deals, tab]);
 
   const handleNew = () => setNewOpen(true);
@@ -106,7 +107,8 @@ export default function PlaylistDeals() {
   const tabCount = (id: DealsTab) => {
     if (id === "all") return kpi.total;
     if (id === "done") return kpi.done;
-    if (id === "curators") {
+    if (id === "library") return curators.filter((c) => !c.archived_at).length;
+    if (id === "finance") {
       const set = new Set(deals.map((d) => (d.curator_name ?? "").trim() || "—"));
       return set.size;
     }
@@ -195,7 +197,14 @@ export default function PlaylistDeals() {
 
       {/* Conteúdo — altura mínima estável evita layout shift entre abas */}
       <div className="min-h-[480px] animate-tab-in">
-        {tab === "curators" ? (
+        {tab === "library" ? (
+          <CuradoresLibraryTab
+            curators={curators}
+            balances={balances}
+            deals={deals}
+            loading={loading}
+          />
+        ) : tab === "finance" ? (
           <CuradoresTab
             deals={deals}
             logs={logs}
