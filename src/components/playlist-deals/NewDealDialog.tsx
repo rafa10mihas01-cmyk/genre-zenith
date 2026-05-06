@@ -703,6 +703,12 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
 
       const primaryTarget = songTarget(primary);
 
+      // Cost derivado do CPP do curador (FASE 3): se o curador tem saldo, calcula proporcional
+      const curatorTotalCost = Number(selectedCurator?.total_cost ?? 0);
+      const curatorPurchasedPlays = Number(selectedCurator?.purchased_plays ?? 0);
+      const cpp = curatorPurchasedPlays > 0 ? curatorTotalCost / curatorPurchasedPlays : 0;
+      const dealCostRaw = cpp > 0 ? Math.round(songsTotalTarget * cpp * 100) / 100 : 0;
+
       const payload = {
         curator_id: selectedCuratorId ?? null,
         curator_name: curatorName,
@@ -715,7 +721,7 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
         daily_goal: Number(primary.daily_goal),
         duration_days: Number(primary.duration_days),
         baseline_plays: 0,
-        cost: null,
+        cost: typeof dealCostRaw === "number" && dealCostRaw > 0 ? dealCostRaw : null,
         started_at: dealStart.toISOString(),
         ends_at: dealEnd.toISOString(),
         ramp_up_days: primary.ramp_up_days ? Math.max(0, Number(primary.ramp_up_days)) : 5,
