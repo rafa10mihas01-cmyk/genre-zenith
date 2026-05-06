@@ -400,6 +400,18 @@ export function DealHistorySheet({
                     Resumo
                   </TabsTrigger>
                   <TabsTrigger
+                    value="hoje"
+                    className="data-[state=active]:bg-[hsl(var(--elevated))] data-[state=active]:text-foreground rounded-lg gap-2 h-9 px-3"
+                  >
+                    <Activity className="h-3.5 w-3.5" />
+                    Hoje
+                    {todayBreakdown && todayBreakdown.total_today > 0 && (
+                      <span className="text-[10px] font-bold tabular-nums text-primary">
+                        {fmtCompact(todayBreakdown.total_today)}
+                      </span>
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger
                     value="playlists"
                     className="data-[state=active]:bg-[hsl(var(--elevated))] data-[state=active]:text-foreground rounded-lg gap-2 h-9 px-3"
                   >
