@@ -141,6 +141,32 @@ Deno.serve(async (req) => {
       .in("id", ids);
   }
 
+  // ====== Observabilidade Fase A: correlation_id por dispatch ======
+  // Cada song dispatchada recebe um correlation_id único. O bot DEVE devolver esse
+  // mesmo id em todos os eventos/uploads/snapshots dessa execução. Sem id, perdemos
+  // capacidade de rastrear onde a coleta morreu.
+  for (const s of eligible as any[]) {
+    s.correlation_id = crypto.randomUUID();
+  }
+  if (eligible.length) {
+    const events = (eligible as any[]).map((s) => ({
+      bot_name: "spotify-artists-bot",
+      deal_id: s.deal_id,
+      song_id: s.id,
+      step: "dispatch",
+      status: "running",
+      lifecycle_state: "FETCHED",
+      correlation_id: s.correlation_id,
+      message: `Dispatched to bot queue (limit=${limit})`,
+      metadata: {
+        song_name: s.song_name,
+        spotify_track_id: s.spotify_track_id,
+        interval_minutes: s.auto_collect_interval_minutes,
+      },
+    }));
+    await supabase.from("bot_events").insert(events);
+  }
+
   recordMetric(supabase, {
     scope: "collect",
     operation: "bot-collect-queue",

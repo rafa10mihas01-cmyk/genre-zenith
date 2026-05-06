@@ -14,7 +14,7 @@ import { recordMetric } from "../_shared/ops-metrics.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "content-type, x-bot-key",
+  "Access-Control-Allow-Headers": "content-type, x-bot-key, x-correlation-id, x-dom-playlists",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
@@ -61,6 +61,8 @@ Deno.serve(async (req) => {
   let dealId = url.searchParams.get("deal_id") ?? "";
   let songId = url.searchParams.get("song_id") ?? "";
   let label = url.searchParams.get("label") ?? "";
+  let correlationId =
+    req.headers.get("x-correlation-id") ?? url.searchParams.get("correlation_id") ?? "";
 
   // dom_playlists: [{ name, url, plays_text? }] — extraído via page.evaluate
   // pelo Claudio antes do print. Permite match determinístico por spotify_playlist_id.
@@ -75,6 +77,7 @@ Deno.serve(async (req) => {
       dealId = (form.get("deal_id") as string) || dealId;
       songId = (form.get("song_id") as string) || songId;
       label = (form.get("label") as string) || label;
+      correlationId = (form.get("correlation_id") as string) || correlationId;
       const domRaw = form.get("dom_playlists");
       if (typeof domRaw === "string" && domRaw.trim()) {
         try {
@@ -203,6 +206,7 @@ Deno.serve(async (req) => {
           print_urls: [signed.signedUrl],
           dom_payload: domPlaylists,
           status: parsed.total === 1 ? "complete" : "pending",
+          correlation_id: correlationId || null,
         })
         .select("id")
         .single();
@@ -225,16 +229,19 @@ Deno.serve(async (req) => {
       const newOnes = domPlaylists.filter((d) => d?.url && !seenUrls.has(d.url));
       mergedDom = [...prevDom, ...newOnes];
       const isComplete = receivedParts >= (existing.total_parts ?? parsed.total);
+      const updatePatch: Record<string, unknown> = {
+        received_parts: receivedParts,
+        print_paths: printPaths,
+        print_urls: printUrls,
+        dom_payload: mergedDom,
+        status: isComplete ? "complete" : "pending",
+        completed_at: isComplete ? new Date().toISOString() : null,
+      };
+      // Se chegou correlation_id agora e batch ainda não tinha, fixa.
+      if (correlationId) updatePatch.correlation_id = correlationId;
       await supabase
         .from("bot_print_batches")
-        .update({
-          received_parts: receivedParts,
-          print_paths: printPaths,
-          print_urls: printUrls,
-          dom_payload: mergedDom,
-          status: isComplete ? "complete" : "pending",
-          completed_at: isComplete ? new Date().toISOString() : null,
-        })
+        .update(updatePatch)
         .eq("id", batchId);
     }
 
@@ -244,7 +251,24 @@ Deno.serve(async (req) => {
       total_parts: parsed.total,
       complete: receivedParts >= parsed.total,
       dom_count: mergedDom.length,
+      correlation_id: correlationId || null,
     };
+
+    // Lifecycle event: PRINT_UPLOADED (parcial ou final)
+    if (correlationId) {
+      void supabase.from("bot_events").insert({
+        bot_name: "spotify-artists-bot",
+        deal_id: dealId,
+        song_id: songId || null,
+        step: "upload_print",
+        status: "running",
+        lifecycle_state: "PRINT_UPLOADED",
+        correlation_id: correlationId,
+        message: `Part ${parsed.part}/${parsed.total} received`,
+        url: signed.signedUrl,
+        metadata: { batch_id: batchId, received_parts: receivedParts, total_parts: parsed.total },
+      });
+    }
 
     // Se completou, dispara extract assíncrono (fire-and-forget)
     if (receivedParts >= parsed.total && batchId) {
@@ -261,6 +285,7 @@ Deno.serve(async (req) => {
           song_id: songId || null,
           print_urls: printUrls,
           dom_playlists: mergedDom,
+          correlation_id: correlationId || null,
         }),
       }).catch((e) => console.error("extract dispatch failed", e));
     }

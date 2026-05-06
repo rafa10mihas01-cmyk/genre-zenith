@@ -24,19 +24,30 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const events = Array.isArray(body) ? body : [body];
 
-    const rows = events.map((e: any) => ({
-      bot_name: e.bot_name ?? "spotify-artists-bot",
-      session_id: e.session_id ?? null,
-      deal_id: e.deal_id ?? null,
-      song_id: e.song_id ?? null,
-      step: String(e.step ?? "unknown"),
-      status: e.status ?? "running",
-      message: e.message ?? null,
-      screenshot_url: e.screenshot_url ?? null,
-      url: e.url ?? null,
-      duration_ms: e.duration_ms ?? null,
-      metadata: e.metadata ?? {},
-    }));
+    const ALLOWED_STATES = new Set([
+      "FETCHED","ACCEPTED","QUEUED_LOCAL","STARTED",
+      "PRINT_UPLOADED","SNAPSHOT_SENT","FINISHED","FAILED","DISCARDED"
+    ]);
+
+    const rows = events.map((e: any) => {
+      const lc = e.lifecycle_state ? String(e.lifecycle_state).toUpperCase() : null;
+      return {
+        bot_name: e.bot_name ?? "spotify-artists-bot",
+        session_id: e.session_id ?? null,
+        deal_id: e.deal_id ?? null,
+        song_id: e.song_id ?? null,
+        step: String(e.step ?? "unknown"),
+        status: e.status ?? "running",
+        message: e.message ?? null,
+        screenshot_url: e.screenshot_url ?? null,
+        url: e.url ?? null,
+        duration_ms: e.duration_ms ?? null,
+        metadata: e.metadata ?? {},
+        correlation_id: e.correlation_id ?? null,
+        lifecycle_state: lc && ALLOWED_STATES.has(lc) ? lc : null,
+        discard_reason: e.discard_reason ?? null,
+      };
+    });
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
