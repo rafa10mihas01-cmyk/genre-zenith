@@ -144,5 +144,69 @@ Deno.serve(async (req) => {
     }
   }
 
+  // 6) OCR error streak: ≥3 erros em extract-snapshot/analyze-deal-prints em 15min
+  {
+    const { data } = await supabase
+      .from("ops_metrics")
+      .select("operation,status")
+      .gte("created_at", fifteenMinAgo)
+      .eq("scope", "ocr")
+      .eq("status", "error");
+    const counts = new Map<string, number>();
+    for (const r of data ?? []) {
+      counts.set((r as any).operation, (counts.get((r as any).operation) ?? 0) + 1);
+    }
+    const offenders = Array.from(counts.entries()).filter(([, n]) => n >= 3);
+    if (offenders.length) {
+      const desc = offenders.map(([op, n]) => `${op}: ${n}`).join(", ");
+      if (await notifyOnce(supabase, {
+        kind: "ops_ocr_error_streak",
+        type: "warning",
+        title: "OCR falhando em sequência",
+        message: `Extração visual com 3+ erros em 15min: ${desc}.`,
+      })) fired.push("ocr_error_streak");
+    }
+  }
+
+  // 7) Print batches presos: status pending/processing há > 15min
+  {
+    const { count } = await supabase
+      .from("bot_print_batches")
+      .select("id", { count: "exact", head: true })
+      .in("status", ["pending", "processing"])
+      .lt("updated_at", fifteenMinAgo);
+    if ((count ?? 0) > 0) {
+      if (await notifyOnce(supabase, {
+        kind: "ops_print_batch_stuck",
+        type: "warning",
+        title: "Batches de print travados",
+        message: `${count} batch(es) de print sem progresso há mais de 15min.`,
+      })) fired.push("print_batch_stuck");
+    }
+  }
+
+  // 8) bot_events sem atividade recente (>30min) — feed do robô parado
+  {
+    const thirtyMinAgo = new Date(now - 30 * 60_000).toISOString();
+    const { count } = await supabase
+      .from("bot_events")
+      .select("id", { count: "exact", head: true })
+      .gte("created_at", thirtyMinAgo);
+    // Só alerta se houver heartbeat recente (bot está vivo) mas sem eventos granulares
+    const { data: hb } = await supabase
+      .from("bot_heartbeats")
+      .select("created_at")
+      .gte("created_at", thirtyMinAgo)
+      .limit(1);
+    if ((count ?? 0) === 0 && (hb?.length ?? 0) > 0) {
+      if (await notifyOnce(supabase, {
+        kind: "ops_bot_events_silent",
+        type: "info",
+        title: "Bot sem eventos granulares",
+        message: "Heartbeat OK, mas nenhum bot_event nos últimos 30min. Verifique instrumentação do robô.",
+      })) fired.push("bot_events_silent");
+    }
+  }
+
   return jr({ ok: true, fired, at: new Date().toISOString() });
 });
