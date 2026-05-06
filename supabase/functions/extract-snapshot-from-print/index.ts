@@ -972,6 +972,32 @@ Deno.serve(async (req) => {
     },
   });
 
+  if (correlation_id) {
+    void supabase.from("bot_events").insert([
+      {
+        bot_name: "spotify-artists-bot",
+        deal_id, song_id: song_id ?? null,
+        step: "snapshot_sent",
+        status: "success",
+        lifecycle_state: "SNAPSHOT_SENT",
+        correlation_id,
+        message: `inserted=${inserted} skipped=${skipped} total_plays=${totalPlays}`,
+        duration_ms: elapsedMs,
+        metadata: { batch_id: batch_id ?? null, found: extracted.length },
+      },
+      {
+        bot_name: "spotify-artists-bot",
+        deal_id, song_id: song_id ?? null,
+        step: "finished",
+        status: "success",
+        lifecycle_state: "FINISHED",
+        correlation_id,
+        duration_ms: Date.now() - t0,
+        metadata: { batch_id: batch_id ?? null },
+      },
+    ]);
+  }
+
   return jr({
     ok: true,
     playlists_found: extracted.length,
@@ -985,6 +1011,7 @@ Deno.serve(async (req) => {
     whitelist_active: whitelistActive,
     whitelist_size: whitelist.size,
     filtered_out: filteredOut,
+    correlation_id: correlation_id ?? null,
   });
 });
 
