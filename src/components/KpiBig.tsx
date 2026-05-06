@@ -81,7 +81,7 @@ export function KpiBig({
             Sem dados ainda
           </span>
         ) : (
-          <span className="text-xl sm:text-2xl font-bold tabular-nums leading-tight truncate max-w-full block">
+          <span className="text-lg sm:text-2xl font-bold tabular-nums leading-tight truncate max-w-full block">
             {value}
           </span>
         )}

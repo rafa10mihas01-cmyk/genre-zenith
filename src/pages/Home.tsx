@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import {
   Brain, ArrowRight, Activity,
   Rocket, Image as ImageIcon, BarChart3,
-  Search, Lightbulb, Target, Wrench, Radio, Trophy,
+  Search, Lightbulb, Target, Wrench, Radio, Trophy, ListMusic,
 } from "lucide-react";
 import { formatNumber, timeAgo } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -201,22 +201,28 @@ export default function Home() {
         <QuickAction
           to="/criacao?tier=hot"
           icon={Rocket}
-          label="Publicar melhores"
+          label="Publicar"
           hint={c ? `${c.hotPending} prontos` : "—"}
           highlight={!!c && c.hotPending > 0}
         />
         <QuickAction
           to="/criacao?tier=hot&filter=no-cover"
           icon={ImageIcon}
-          label="Revisar capas"
+          label="Capas"
           hint={c ? `${c.hotNoCover} sem capa` : "—"}
           highlight={!!c && c.hotNoCover > 0}
         />
         <QuickAction
           to="/performance"
           icon={BarChart3}
-          label="Ver performance"
+          label="Performance"
           hint={c?.topName ? `Top: ${c.topName}` : "—"}
+        />
+        <QuickAction
+          to="/playlist-deals"
+          icon={ListMusic}
+          label="Deals"
+          hint="Financeiro"
         />
       </section>
 
@@ -381,23 +387,23 @@ function QuickAction({
     <Link
       to={to}
       className={cn(
-        "nx-card-hover p-4 flex items-center gap-3 group",
+        "nx-card-hover p-3 sm:p-4 min-h-[86px] flex items-center gap-2.5 sm:gap-3 group overflow-hidden",
         highlight && "ring-1 ring-primary/40",
       )}
     >
       <div className={cn(
-        "h-10 w-10 rounded-full flex items-center justify-center shrink-0 transition-colors",
+        "h-9 w-9 sm:h-10 sm:w-10 rounded-full flex items-center justify-center shrink-0 transition-colors",
         highlight ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground group-hover:text-foreground",
       )}>
         <Icon className="h-4 w-4" />
       </div>
       <div className="min-w-0 flex-1">
-        <div className="text-sm font-bold leading-tight">{label}</div>
+        <div className="text-[13px] sm:text-sm font-bold leading-tight line-clamp-2 break-words">{label}</div>
         {hint && hint !== "—" && (
           <div className="text-[11px] text-muted-foreground truncate mt-0.5">{hint}</div>
         )}
       </div>
-      <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0 transition-transform group-hover:translate-x-0.5" />
+      <ArrowRight className="hidden sm:block h-4 w-4 text-muted-foreground shrink-0 transition-transform group-hover:translate-x-0.5" />
     </Link>
   );
 }

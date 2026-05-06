@@ -124,9 +124,10 @@ export function HeroStat({ label, value, small = false }: { label: string; value
 export function QuickActions({ slug }: { slug: string }) {
   if (!slug) return null;
   const items = [
-    { to: `/criacao?genre=${slug}`, icon: Wrench, label: "Ver templates", hint: "Templates deste gênero" },
-    { to: `/performance?genre=${slug}`, icon: BarChart3, label: "Ver performance", hint: "Crescimento e ranking" },
-    { to: `/operacao?genre=${slug}`, icon: Radio, label: "Ver publicadas", hint: "Playlists no Spotify" },
+    { to: `/criacao?genre=${slug}`, icon: Wrench, label: "Templates", hint: "Do gênero" },
+    { to: `/performance?genre=${slug}`, icon: BarChart3, label: "Performance", hint: "Ranking" },
+    { to: `/operacao?genre=${slug}`, icon: Radio, label: "Publicadas", hint: "Spotify" },
+    { to: `/playlist-deals`, icon: ListMusic, label: "Deals", hint: "Financeiro" },
   ];
   return (
     <section className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -134,16 +135,16 @@ export function QuickActions({ slug }: { slug: string }) {
         <Link
           key={it.to}
           to={it.to}
-          className="nx-card-hover p-4 flex items-center gap-3 group"
+          className="nx-card-hover p-3 sm:p-4 min-h-[86px] flex items-center gap-2.5 sm:gap-3 group overflow-hidden"
         >
-          <div className="h-10 w-10 rounded-full flex items-center justify-center shrink-0 bg-muted text-muted-foreground group-hover:text-foreground transition-colors">
+          <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-full flex items-center justify-center shrink-0 bg-muted text-muted-foreground group-hover:text-foreground transition-colors">
             <it.icon className="h-4 w-4" />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-sm font-bold leading-tight">{it.label}</div>
+            <div className="text-[13px] sm:text-sm font-bold leading-tight line-clamp-2 break-words">{it.label}</div>
             <div className="text-[11px] text-muted-foreground truncate mt-0.5">{it.hint}</div>
           </div>
-          <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0 transition-transform group-hover:translate-x-0.5" />
+          <ArrowRight className="hidden sm:block h-4 w-4 text-muted-foreground shrink-0 transition-transform group-hover:translate-x-0.5" />
         </Link>
       ))}
     </section>

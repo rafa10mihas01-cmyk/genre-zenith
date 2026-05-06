@@ -10,6 +10,15 @@ import type { CuratorDeal } from "@/lib/curatorDealsUtils";
 const fmtBRL = (v: number | null | undefined) =>
   v == null ? "—" : v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
+const fmtBRLShort = (v: number | null | undefined) => {
+  if (v == null) return "—";
+  const abs = Math.abs(v);
+  const sign = v < 0 ? "-" : "";
+  if (abs >= 1_000_000) return `${sign}R$ ${(abs / 1_000_000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} mi`;
+  if (abs >= 1_000) return `${sign}R$ ${(abs / 1_000).toLocaleString("pt-BR", { maximumFractionDigits: abs >= 10_000 ? 0 : 1 })} mil`;
+  return fmtBRL(v);
+};
+
 const fmtCpp = (v: number | null | undefined) =>
   v == null ? "—" : `R$ ${v.toFixed(4)}`;
 
@@ -51,9 +60,9 @@ export function FinanceiroTab({ deals }: Props) {
   return (
     <div className="space-y-6">
       <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Stat icon={Wallet} label="Total comprado" value={fmtBRL(totals.totalSpent)} hint={`${formatNumber(totals.totalPlays)} plays`} />
-        <Stat icon={Target} label="Comprometido" value={fmtBRL(committed)} hint={`${deals.filter(d => !d.closed_at).length} deals abertos`} tone="primary" />
-        <Stat icon={TrendingUp} label="Saldo derivado" value={fmtBRL(saldoVirtual)} hint="Comprado − comprometido" tone={saldoVirtual >= 0 ? "success" : "warning"} />
+        <Stat icon={Wallet} label="Total comprado" value={fmtBRL(totals.totalSpent)} mobileValue={fmtBRLShort(totals.totalSpent)} hint={`${formatNumber(totals.totalPlays)} plays`} />
+        <Stat icon={Target} label="Comprometido" value={fmtBRL(committed)} mobileValue={fmtBRLShort(committed)} hint={`${deals.filter(d => !d.closed_at).length} deals abertos`} tone="primary" />
+        <Stat icon={TrendingUp} label="Saldo derivado" value={fmtBRL(saldoVirtual)} mobileValue={fmtBRLShort(saldoVirtual)} hint="Comprado − comprometido" tone={saldoVirtual >= 0 ? "success" : "warning"} />
         <Stat icon={Receipt} label="CPP médio" value={fmtCpp(totals.globalCpp)} hint="Custo por play global" />
       </section>
 
@@ -143,9 +152,9 @@ export function FinanceiroTab({ deals }: Props) {
 }
 
 function Stat({
-  icon: Icon, label, value, hint, tone = "default",
+  icon: Icon, label, value, mobileValue, hint, tone = "default",
 }: {
-  icon: any; label: string; value: string; hint?: string;
+  icon: any; label: string; value: string; mobileValue?: string; hint?: string;
   tone?: "default" | "primary" | "success" | "warning";
 }) {
   const valueColor =
@@ -154,13 +163,22 @@ function Stat({
     : tone === "warning" ? "text-amber-500"
     : "text-foreground";
   return (
-    <div className="rounded-2xl bg-card border border-border p-5">
-      <div className="flex items-center gap-2 text-xs text-muted-foreground uppercase tracking-wide">
-        <Icon className="h-3.5 w-3.5" />
-        {label}
+    <div className="rounded-2xl bg-card border border-border p-4 sm:p-5 min-h-[118px] overflow-hidden">
+      <div className="flex items-start gap-2 text-[10px] sm:text-xs text-muted-foreground uppercase tracking-[0.08em] sm:tracking-wide leading-tight min-w-0">
+        <Icon className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+        <span className="min-w-0 line-clamp-2 break-words">{label}</span>
       </div>
-      <div className={cn("text-2xl font-semibold mt-2 tabular-nums", valueColor)}>{value}</div>
-      {hint && <div className="text-xs text-muted-foreground mt-1">{hint}</div>}
+      <div className={cn("mt-2 tabular-nums font-bold leading-tight min-w-0", valueColor)}>
+        {mobileValue ? (
+          <>
+            <span className="block sm:hidden text-[22px] truncate">{mobileValue}</span>
+            <span className="hidden sm:block text-2xl truncate">{value}</span>
+          </>
+        ) : (
+          <span className="block text-xl sm:text-2xl truncate">{value}</span>
+        )}
+      </div>
+      {hint && <div className="text-[11px] sm:text-xs text-muted-foreground mt-1 line-clamp-2 leading-snug">{hint}</div>}
     </div>
   );
 }

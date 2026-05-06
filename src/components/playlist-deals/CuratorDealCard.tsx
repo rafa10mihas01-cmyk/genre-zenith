@@ -1,4 +1,4 @@
-import { Camera, History, Trash2, Link2, Zap, Clock, AlertTriangle, Calendar as CalendarIcon, Music2, DollarSign, Pencil, CheckCircle2, XCircle, FileDown, Lock, Bot, Loader2 } from "lucide-react";
+import { Camera, History, Trash2, Link2, Zap, Clock, AlertTriangle, Calendar as CalendarIcon, Music2, DollarSign, Pencil, CheckCircle2, XCircle, FileDown, Lock, Bot, Loader2, MoreHorizontal } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -10,6 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
 export interface CuratorDealCardProps {
@@ -105,6 +106,16 @@ export function CuratorDealCard({
       toast.success("Link copiado", { description: url });
     } catch {
       toast.error("Não foi possível copiar o link");
+    }
+  };
+
+  const handleForceCollect = async () => {
+    if (!onForceCollect) return;
+    try {
+      await onForceCollect(deal);
+      toast.success("Coleta agendada — robô vai pegar na próxima rodada");
+    } catch {
+      toast.error("Falha ao agendar coleta");
     }
   };
 
@@ -378,25 +389,25 @@ export function CuratorDealCard({
         )}
 
         {/* Ações */}
-        <div className="flex items-center gap-1.5 pt-0.5">
+        <div className="flex items-center gap-2 pt-0.5 min-w-0">
           {!isClosed ? (
             <Button
               size="sm"
-              className="flex-1 h-9 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 font-medium text-[13px]"
+              className="min-w-0 flex-1 h-9 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 font-medium text-[13px] px-3"
               onClick={() => onLog(deal)}
             >
-              <Camera className="h-3.5 w-3.5" />
-              Enviar print
+              <Camera className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">Enviar print</span>
             </Button>
           ) : onReopen ? (
             <Button
               size="sm"
               variant="outline"
-              className="flex-1 h-9 gap-1.5 text-[13px]"
+              className="min-w-0 flex-1 h-9 gap-1.5 text-[13px] px-3"
               onClick={() => onReopen(deal)}
             >
-              <Lock className="h-3.5 w-3.5" />
-              Reabrir
+              <Lock className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">Reabrir</span>
             </Button>
           ) : (
             <div className="flex-1" />
@@ -404,17 +415,58 @@ export function CuratorDealCard({
           <Button
             variant="outline"
             size="sm"
-            className="h-9 gap-1.5 text-[13px] px-3"
+            className="min-w-0 flex-1 sm:flex-none h-9 gap-1.5 text-[13px] px-3"
             onClick={() => onDetail(deal)}
           >
-            <History className="h-3.5 w-3.5" />
-            Histórico
+            <History className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">Histórico</span>
           </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="sm:hidden h-9 w-9 shrink-0 text-muted-foreground hover:text-foreground"
+                aria-label="Mais ações"
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52 rounded-xl border-border bg-popover p-1.5">
+              {!isClosed && onClose && hasBaseline && (
+                <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => onClose(deal)}>
+                  <CheckCircle2 className="h-4 w-4" />
+                  Encerrar deal
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem className="gap-2 rounded-lg" onClick={handleCopyLink}>
+                <Link2 className="h-4 w-4" />
+                Copiar link
+              </DropdownMenuItem>
+              {!isClosed && onForceCollect && (
+                <DropdownMenuItem className="gap-2 rounded-lg" onClick={handleForceCollect}>
+                  <Zap className="h-4 w-4" />
+                  Forçar coleta
+                </DropdownMenuItem>
+              )}
+              {!isClosed && onEdit && (
+                <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => onEdit(deal)}>
+                  <Pencil className="h-4 w-4" />
+                  Editar deal
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="gap-2 rounded-lg text-destructive focus:text-destructive" onClick={() => onDelete(deal)}>
+                <Trash2 className="h-4 w-4" />
+                Excluir deal
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           {!isClosed && onClose && hasBaseline && (
             <Button
               variant="ghost"
               size="icon"
-              className="h-9 w-9 text-muted-foreground hover:text-foreground"
+              className="hidden sm:inline-flex h-9 w-9 text-muted-foreground hover:text-foreground"
               onClick={() => onClose(deal)}
               aria-label="Encerrar deal"
               title="Encerrar deal"
@@ -425,7 +477,7 @@ export function CuratorDealCard({
           <Button
             variant="ghost"
             size="icon"
-            className="h-9 w-9 text-muted-foreground hover:text-foreground"
+            className="hidden sm:inline-flex h-9 w-9 text-muted-foreground hover:text-foreground"
             onClick={handleCopyLink}
             aria-label="Copiar link do curador"
           >
@@ -435,15 +487,8 @@ export function CuratorDealCard({
             <Button
               variant="ghost"
               size="icon"
-              className="h-9 w-9 text-muted-foreground hover:text-primary"
-              onClick={async () => {
-                try {
-                  await onForceCollect(deal);
-                  toast.success("Coleta agendada — robô vai pegar na próxima rodada");
-                } catch (e) {
-                  toast.error("Falha ao agendar coleta");
-                }
-              }}
+              className="hidden sm:inline-flex h-9 w-9 text-muted-foreground hover:text-primary"
+              onClick={handleForceCollect}
               aria-label="Forçar coleta agora"
               title="Forçar coleta agora"
             >
@@ -454,7 +499,7 @@ export function CuratorDealCard({
             <Button
               variant="ghost"
               size="icon"
-              className="h-9 w-9 text-muted-foreground hover:text-foreground"
+              className="hidden sm:inline-flex h-9 w-9 text-muted-foreground hover:text-foreground"
               onClick={() => onEdit(deal)}
               aria-label="Editar deal"
             >
@@ -464,7 +509,7 @@ export function CuratorDealCard({
           <Button
             variant="ghost"
             size="icon"
-            className="h-9 w-9 text-muted-foreground hover:text-destructive"
+            className="hidden sm:inline-flex h-9 w-9 text-muted-foreground hover:text-destructive"
             onClick={() => onDelete(deal)}
             aria-label="Excluir deal"
           >
