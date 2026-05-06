@@ -1113,6 +1113,7 @@ export type Database = {
           id: string
           name: string
           notes: string | null
+          paused_at: string | null
           purchased_plays: number
           spotify_owner_id: string | null
           spotify_owner_url: string | null
@@ -1127,6 +1128,7 @@ export type Database = {
           id?: string
           name: string
           notes?: string | null
+          paused_at?: string | null
           purchased_plays?: number
           spotify_owner_id?: string | null
           spotify_owner_url?: string | null
@@ -1141,6 +1143,7 @@ export type Database = {
           id?: string
           name?: string
           notes?: string | null
+          paused_at?: string | null
           purchased_plays?: number
           spotify_owner_id?: string | null
           spotify_owner_url?: string | null

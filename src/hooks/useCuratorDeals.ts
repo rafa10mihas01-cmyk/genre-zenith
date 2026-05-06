@@ -49,6 +49,7 @@ export type Curator = {
   total_cost: number | null;
   notes: string | null;
   archived_at: string | null;
+  paused_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -388,6 +389,38 @@ export function useCuratorDeals() {
         .delete()
         .eq("id", curatorId);
       if (delErr) throw delErr;
+      await load();
+    },
+    [load],
+  );
+
+  // Pausar/Retomar curador: congela coleta do robô em todos os deals do curador.
+  // Não mexe em saldo, financeiro, snapshots ou histórico.
+  const pauseCurator = useCallback(
+    async (curatorId: string, pause = true) => {
+      const nowIso = new Date().toISOString();
+      const { error: updErr } = await supabase
+        .from("curators")
+        .update({ paused_at: pause ? nowIso : null })
+        .eq("id", curatorId);
+      if (updErr) throw updErr;
+
+      // Propaga para as songs vinculadas aos deals desse curador, parando a fila do robô.
+      const { data: dealRows } = await supabase
+        .from("curator_deals")
+        .select("id")
+        .eq("curator_id", curatorId);
+      const dealIds = (dealRows ?? []).map((d: any) => d.id);
+      if (dealIds.length) {
+        await supabase
+          .from("curator_deal_songs")
+          .update(
+            pause
+              ? { auto_collect: false, auto_collect_status: "idle", auto_collect_error: "Curador pausado" }
+              : { auto_collect_error: null },
+          )
+          .in("deal_id", dealIds);
+      }
       await load();
     },
     [load],
@@ -809,6 +842,7 @@ export function useCuratorDeals() {
     updateCurator,
     archiveCurator,
     deleteCurator,
+    pauseCurator,
     // Deals
     addDeal,
     updateDeal,

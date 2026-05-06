@@ -67,7 +67,7 @@ Deno.serve(async (req) => {
       id, deal_id, song_name, song_artist, artist_candidates, song_spotify_url, spotify_track_id,
       auto_collect_status, last_auto_collect_at, next_auto_collect_at,
       auto_collect_interval_minutes, last_print_at,
-      curator_deals!inner ( id, curator_name, song_name, user_id, closed_at, state, token_revoked_at, token_expires_at ),
+      curator_deals!inner ( id, curator_name, song_name, user_id, closed_at, state, token_revoked_at, token_expires_at, curator_id, curators ( paused_at ) ),
       curator_playlists ( id, playlist_name, spotify_url, spotify_playlist_id )
     `)
     .eq("auto_collect", true)
@@ -86,6 +86,8 @@ Deno.serve(async (req) => {
   // Pós-filtro: token_expires_at no passado também desqualifica
   const nowMs = Date.now();
   const candidates = (data ?? []).filter((s: any) => {
+    // Curador pausado: bloqueia coleta
+    if (s?.curator_deals?.curators?.paused_at) return false;
     const exp = s?.curator_deals?.token_expires_at;
     if (!exp) return true;
     const t = new Date(exp).getTime();

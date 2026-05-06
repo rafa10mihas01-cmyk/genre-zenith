@@ -15,6 +15,8 @@ import {
   MoreHorizontal,
   Pencil,
   Trash2,
+  Pause,
+  Play,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -84,6 +86,7 @@ interface Props {
   onUpdateCurator?: (curatorId: string, input: Partial<NewCuratorInput>) => Promise<void>;
   onArchiveCurator?: (curatorId: string, archive?: boolean) => Promise<void>;
   onDeleteCurator?: (curatorId: string) => Promise<void>;
+  onPauseCurator?: (curatorId: string, pause?: boolean) => Promise<void>;
 }
 
 export function CuradoresLibraryTab({
@@ -94,6 +97,7 @@ export function CuradoresLibraryTab({
   onUpdateCurator,
   onArchiveCurator,
   onDeleteCurator,
+  onPauseCurator,
 }: Props) {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Curator | null>(null);
@@ -264,13 +268,24 @@ export function CuradoresLibraryTab({
                         variant="secondary"
                         className={cn(
                           "text-[10px] px-2.5 py-0.5 h-6 font-semibold gap-1 rounded-full",
-                          activeDeals > 0 && "bg-primary/15 text-primary",
+                          curator.paused_at
+                            ? "bg-amber-500/15 text-amber-400 border-amber-500/30"
+                            : activeDeals > 0 && "bg-primary/15 text-primary",
                         )}
                       >
-                        {activeDeals > 0 && <Activity className="h-2.5 w-2.5" />}
-                        {statusLabel}
+                        {curator.paused_at ? (
+                          <>
+                            <Pause className="h-2.5 w-2.5" />
+                            Pausado
+                          </>
+                        ) : (
+                          <>
+                            {activeDeals > 0 && <Activity className="h-2.5 w-2.5" />}
+                            {statusLabel}
+                          </>
+                        )}
                       </Badge>
-                      {(onUpdateCurator || onArchiveCurator || onDeleteCurator) && (
+                      {(onUpdateCurator || onArchiveCurator || onDeleteCurator || onPauseCurator) && (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button
@@ -300,8 +315,35 @@ export function CuradoresLibraryTab({
                                 Editar
                               </DropdownMenuItem>
                             )}
-                            {(onArchiveCurator || onDeleteCurator) && (
+                            {(onArchiveCurator || onDeleteCurator || onPauseCurator) && (
                               <DropdownMenuSeparator />
+                            )}
+                            {onPauseCurator && !curator.archived_at && (
+                              <DropdownMenuItem
+                                className="gap-2"
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  const pause = !curator.paused_at;
+                                  try {
+                                    await onPauseCurator(curator.id, pause);
+                                    toast.success(pause ? "Curador pausado — coleta congelada" : "Curador retomado");
+                                  } catch {
+                                    toast.error("Erro ao alterar pausa");
+                                  }
+                                }}
+                              >
+                                {curator.paused_at ? (
+                                  <>
+                                    <Play className="h-4 w-4" />
+                                    Retomar
+                                  </>
+                                ) : (
+                                  <>
+                                    <Pause className="h-4 w-4" />
+                                    Pausar
+                                  </>
+                                )}
+                              </DropdownMenuItem>
                             )}
                             {onArchiveCurator && !curator.archived_at && (
                               <DropdownMenuItem
