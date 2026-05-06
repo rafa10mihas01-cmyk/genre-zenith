@@ -841,6 +841,7 @@ export function useCuratorDeals() {
     updateCurator,
     archiveCurator,
     deleteCurator,
+    pauseCurator,
     // Deals
     addDeal,
     updateDeal,
