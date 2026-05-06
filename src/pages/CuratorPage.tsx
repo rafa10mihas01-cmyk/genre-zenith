@@ -243,8 +243,6 @@ export default function CuratorPage() {
   const [position, setPosition] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [importing, setImporting] = useState(false);
-  // Modal: baseline playlists de uma música
-  const [baseSongModalId, setBaseSongModalId] = useState<string | null>(null);
   // Modal: músicas da campanha presentes em uma playlist do curador
   const [curatorPlaylistModalKey, setCuratorPlaylistModalKey] = useState<string | null>(null);
   // Filtro visual por música (não afeta números — RPC já é agregada por deal)
@@ -291,25 +289,6 @@ export default function CuratorPage() {
       }),
     [visiblePlaylists],
   );
-
-  // 1 card por música, com playlists onde ela já está
-  const baseGroupedBySong = useMemo(() => {
-    const baseAll = playlists.filter((p) => p.is_baseline);
-    const groups = new Map<string, { song: DealSong | null; deal: boolean; playlists: Playlist[] }>();
-    for (const p of baseAll) {
-      const key = p.song_id ?? "__deal__";
-      if (!groups.has(key)) {
-        const song = p.song_id ? songs.find((s) => s.id === p.song_id) ?? null : null;
-        groups.set(key, { song, deal: !p.song_id, playlists: [] });
-      }
-      groups.get(key)!.playlists.push(p);
-    }
-    for (const s of songs) {
-      if (!groups.has(s.id)) groups.set(s.id, { song: s, deal: false, playlists: [] });
-    }
-    return Array.from(groups.entries()).map(([key, v]) => ({ key, ...v }));
-  }, [playlists, songs]);
-
   // 1 card por playlist do curador
   const curatorGroupedByPlaylist = useMemo(() => {
     const groups = new Map<
@@ -334,10 +313,6 @@ export default function CuratorPage() {
     return Array.from(groups.values());
   }, [curatorPlaylists, playlists, songs]);
 
-  const baseModalGroup = useMemo(
-    () => baseGroupedBySong.find((g) => g.key === baseSongModalId) ?? null,
-    [baseGroupedBySong, baseSongModalId],
-  );
   const curatorModalGroup = useMemo(
     () => curatorGroupedByPlaylist.find((g) => g.key === curatorPlaylistModalKey) ?? null,
     [curatorGroupedByPlaylist, curatorPlaylistModalKey],
@@ -1291,7 +1266,6 @@ export default function CuratorPage() {
           </Card>
         )}
 
-        {/* Card "Playlists em que as músicas já estão" removido — não exibir no portal do curador */}
 
         {/* Playlists do curador */}
         <Card className="nx-card !p-0 border-border">
@@ -1382,84 +1356,7 @@ export default function CuratorPage() {
           </CardContent>
         </Card>
 
-        {/* Modal: playlists baseline de uma música */}
-        <Dialog open={!!baseSongModalId} onOpenChange={(o) => !o && setBaseSongModalId(null)}>
-          <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-3">
-                {baseModalGroup?.song?.song_cover_url && (
-                  <img
-                    src={baseModalGroup.song.song_cover_url}
-                    alt=""
-                    className="w-10 h-10 rounded-lg object-cover ring-1 ring-border"
-                  />
-                )}
-                <div className="min-w-0">
-                  <div className="text-[15px] font-semibold leading-tight truncate">
-                    {baseModalGroup?.song?.song_name ?? deal.song_name}
-                  </div>
-                  {(baseModalGroup?.song?.song_artist ?? deal.song_artist) && (
-                    <div className="text-[12px] font-normal text-muted-foreground truncate">
-                      {baseModalGroup?.song?.song_artist ?? deal.song_artist}
-                    </div>
-                  )}
-                </div>
-              </DialogTitle>
-              <DialogDescription>
-                {baseModalGroup?.playlists.length ?? 0} playlists em que a música já está antes da campanha
-              </DialogDescription>
-            </DialogHeader>
-            <div className="flex flex-col gap-1.5 overflow-y-auto pr-1 -mr-1 pb-2">
-              {baseModalGroup?.playlists.map((p) => {
-                const url = resolveSpotifyPlaylistUrl(p);
-                const Tag: any = url ? "a" : "div";
-                const linkProps = url
-                  ? { href: url, target: "_blank", rel: "noreferrer" }
-                  : { "aria-disabled": true };
-                return (
-                  <Tag
-                    key={p.id}
-                    {...linkProps}
-                    className={cn(
-                      "group nx-subcard-hover flex items-center gap-3 p-2.5",
-                      !url && "opacity-60 cursor-not-allowed",
-                    )}
-                  >
-                    <div className="relative w-11 h-11 rounded-md overflow-hidden bg-muted/60 ring-1 ring-border/40 shrink-0">
-                      {p.image_url ? (
-                        <img
-                          src={p.image_url}
-                          alt={p.playlist_name}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <ListMusic className="h-4 w-4 text-muted-foreground" />
-                        </div>
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-[13px] font-medium leading-tight truncate group-hover:text-primary transition-colors">
-                        {p.playlist_name}
-                      </div>
-                      {p.followers !== null && (
-                        <div className="text-[11px] text-muted-foreground mt-0.5 tabular-nums">
-                          {formatPlays(p.followers)} seguidores
-                        </div>
-                      )}
-                    </div>
-                    <ExternalLink className="h-3.5 w-3.5 text-muted-foreground/60 group-hover:text-primary transition-colors shrink-0" />
-                  </Tag>
-                );
-              })}
-              {baseModalGroup && baseModalGroup.playlists.length === 0 && (
-                <div className="py-8 text-center text-[12px] text-muted-foreground">
-                  Nenhuma playlist registrada para esta música.
-                </div>
-              )}
-            </div>
-          </DialogContent>
-        </Dialog>
+
 
         {/* Modal: músicas já presentes em uma playlist do curador */}
         <Dialog open={!!curatorPlaylistModalKey} onOpenChange={(o) => !o && setCuratorPlaylistModalKey(null)}>
