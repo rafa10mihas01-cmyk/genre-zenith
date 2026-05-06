@@ -162,23 +162,23 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 <RefreshCw className="h-3.5 w-3.5" />
                 <span>Atualizar</span>
               </Button>
-              {/* Atualizar — tablet: apenas ícone */}
+              {/* Atualizar — tablet/mobile: apenas ícone */}
               <Button
                 size="icon"
                 variant="ghost"
                 onClick={refresh}
-                className="hidden md:inline-flex xl:hidden h-9 w-9 rounded-md text-muted-foreground hover:text-foreground hover:bg-elevated/60 shrink-0"
+                className="hidden sm:inline-flex xl:hidden h-9 w-9 rounded-md text-muted-foreground hover:text-foreground hover:bg-elevated/60 shrink-0"
                 aria-label="Atualizar"
               >
                 <RefreshCw className="h-[18px] w-[18px]" />
               </Button>
-              {/* Lupa mobile — abre Command Palette */}
+              {/* Lupa tablet/mobile — abre Command Palette */}
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setPaletteOpen(true)}
                 aria-label="Buscar"
-                className="md:hidden h-9 w-9 rounded-md text-muted-foreground hover:text-foreground hover:bg-elevated/60 shrink-0"
+                className="xl:hidden h-9 w-9 rounded-md text-muted-foreground hover:text-foreground hover:bg-elevated/60 shrink-0"
               >
                 <Search className="h-[18px] w-[18px]" />
               </Button>
