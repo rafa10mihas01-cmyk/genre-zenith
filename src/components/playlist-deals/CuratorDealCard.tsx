@@ -1,4 +1,4 @@
-import { Camera, History, Trash2, Link2, Zap, Clock, AlertTriangle, Calendar as CalendarIcon, Music2, DollarSign, Pencil, CheckCircle2, XCircle, FileDown, Lock, Bot, Loader2 } from "lucide-react";
+import { Camera, History, Trash2, Link2, Zap, Clock, AlertTriangle, Calendar as CalendarIcon, Music2, DollarSign, Pencil, CheckCircle2, XCircle, FileDown, Lock, Bot, Loader2, MoreHorizontal } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -10,6 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
 export interface CuratorDealCardProps {
@@ -105,6 +106,16 @@ export function CuratorDealCard({
       toast.success("Link copiado", { description: url });
     } catch {
       toast.error("Não foi possível copiar o link");
+    }
+  };
+
+  const handleForceCollect = async () => {
+    if (!onForceCollect) return;
+    try {
+      await onForceCollect(deal);
+      toast.success("Coleta agendada — robô vai pegar na próxima rodada");
+    } catch {
+      toast.error("Falha ao agendar coleta");
     }
   };
 
