@@ -851,8 +851,6 @@ function EditCuratorDialog({
 }) {
   const [name, setName] = useState("");
   const [contact, setContact] = useState("");
-  const [purchased, setPurchased] = useState("");
-  const [cost, setCost] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -861,8 +859,6 @@ function EditCuratorDialog({
     if (curator) {
       setName(curator.name);
       setContact(curator.contact ?? "");
-      setPurchased(String(curator.purchased_plays ?? 0));
-      setCost(String(Number(curator.total_cost ?? 0)));
       setNotes(curator.notes ?? "");
     }
   }, [curator]);
@@ -877,8 +873,6 @@ function EditCuratorDialog({
     await onSave(curator.id, {
       name: name.trim(),
       contact: contact.trim() || null,
-      purchased_plays: Math.max(0, Number(purchased) || 0),
-      total_cost: Math.max(0, Number(cost) || 0),
       notes: notes.trim() || null,
     });
     setSaving(false);
