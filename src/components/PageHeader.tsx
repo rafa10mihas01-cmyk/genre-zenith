@@ -54,7 +54,7 @@ export function PageHeader({
             {kicker}
           </div>
         )}
-        <h1 className="text-[22px] sm:text-3xl md:text-3xl font-semibold tracking-tight leading-tight truncate min-w-0">
+        <h1 className="text-[19px] sm:text-3xl md:text-3xl font-semibold tracking-tight leading-tight truncate min-w-0">
           {title}
         </h1>
         <p className="hidden md:block text-sm text-muted-foreground max-w-2xl">{subtitle}</p>
@@ -64,7 +64,7 @@ export function PageHeader({
           className={cn(
             "flex items-center justify-end gap-2 shrink-0 min-w-0 max-w-[56%] overflow-x-auto scrollbar-none",
             "md:max-w-none md:overflow-visible md:flex-wrap md:flex-nowrap",
-            "[&>*]:h-9 [&>*]:px-4 [&>*]:text-sm [&>*]:shrink-0",
+            "[&>*]:h-9 [&>*]:px-3 [&>*]:text-[13px] sm:[&>*]:px-4 sm:[&>*]:text-sm [&>*]:shrink-0",
           )}
         >
           {actions}
