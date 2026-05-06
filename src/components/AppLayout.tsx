@@ -86,26 +86,26 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden shadow-[-1px_0_0_rgba(255,255,255,0.04)]">
           {/* TOPBAR GLOBAL — fixo fora da área de scroll. Mobile: cobre safe-area/notch. */}
           <header
-            className="shrink-0 flex items-center gap-2 md:gap-3 border-b border-border z-50 px-3 md:px-4 transition-none w-full min-w-0 overflow-hidden
+            className="shrink-0 flex items-center gap-2 xl:gap-3 border-b border-border z-50 px-3 md:px-4 transition-none w-full min-w-0 overflow-hidden
               h-14 min-h-14 max-h-14
               bg-background/90 backdrop-blur-md supports-[backdrop-filter]:bg-background/75
-              max-md:h-auto max-md:min-h-0 max-md:max-h-none
-              max-md:pt-[calc(env(safe-area-inset-top,0px)+10px)] max-md:pb-2.5
-              max-md:bg-background/85 max-md:backdrop-blur-[10px]
-              max-md:shadow-[0_1px_0_hsl(var(--border)),0_6px_16px_-12px_rgba(0,0,0,0.5)]"
+              max-xl:h-auto max-xl:min-h-0 max-xl:max-h-none
+              max-xl:pt-[calc(env(safe-area-inset-top,0px)+10px)] max-xl:pb-2.5
+              max-xl:bg-background/85 max-xl:backdrop-blur-[10px]
+              max-xl:shadow-[0_1px_0_hsl(var(--border)),0_6px_16px_-12px_rgba(0,0,0,0.5)]"
           >
             <SidebarTrigger className="shrink-0 text-muted-foreground hover:text-foreground" />
 
-            {/* Mobile: logo + título dinâmico (estilo app nativo) */}
-            <div className="md:hidden flex items-center gap-2 min-w-0 flex-1">
-              <NexEngineLogo size={24} variant="mark" />
+            {/* Tablet/Mobile: logo + título dinâmico (estilo app nativo) */}
+            <div className="xl:hidden flex items-center gap-2 min-w-0 flex-1">
+              <NexEngineLogo size={24} variant="mark" className="shrink-0" />
               <span className="text-[15px] font-semibold text-foreground truncate min-w-0">
                 {pageTitle}
               </span>
             </div>
 
-            {/* Desktop/Tablet: navegação back/forward */}
-            <div className="hidden md:flex items-center gap-1 shrink-0">
+            {/* Desktop: navegação back/forward */}
+            <div className="hidden xl:flex items-center gap-1 shrink-0">
               <Button
                 variant="ghost"
                 size="icon"
@@ -126,12 +126,12 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               </Button>
             </div>
 
-            {/* Busca rápida (⌘K) — apenas desktop/tablet, expande livre */}
+            {/* Busca rápida (⌘K) — apenas desktop, expande livre */}
             <button
               type="button"
               onClick={() => setPaletteOpen(true)}
               aria-label="Buscar (⌘K)"
-              className="hidden md:flex items-center gap-2 flex-1 min-w-0 max-w-md h-9 px-3 rounded-full bg-elevated border border-border text-sm text-muted-foreground hover:text-foreground hover:border-border/80 transition-colors"
+              className="hidden xl:flex items-center gap-2 flex-1 min-w-0 max-w-md h-9 px-3 rounded-full bg-elevated border border-border text-sm text-muted-foreground hover:text-foreground hover:border-border/80 transition-colors"
             >
               <Search className="h-4 w-4 shrink-0" />
               <span className="truncate flex-1 text-left">
@@ -162,23 +162,23 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 <RefreshCw className="h-3.5 w-3.5" />
                 <span>Atualizar</span>
               </Button>
-              {/* Atualizar — tablet: apenas ícone */}
+              {/* Atualizar — tablet/mobile: apenas ícone */}
               <Button
                 size="icon"
                 variant="ghost"
                 onClick={refresh}
-                className="hidden md:inline-flex xl:hidden h-9 w-9 rounded-md text-muted-foreground hover:text-foreground hover:bg-elevated/60 shrink-0"
+                className="hidden sm:inline-flex xl:hidden h-9 w-9 rounded-md text-muted-foreground hover:text-foreground hover:bg-elevated/60 shrink-0"
                 aria-label="Atualizar"
               >
                 <RefreshCw className="h-[18px] w-[18px]" />
               </Button>
-              {/* Lupa mobile — abre Command Palette */}
+              {/* Lupa tablet/mobile — abre Command Palette */}
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setPaletteOpen(true)}
                 aria-label="Buscar"
-                className="md:hidden h-9 w-9 rounded-md text-muted-foreground hover:text-foreground hover:bg-elevated/60 shrink-0"
+                className="xl:hidden h-9 w-9 rounded-md text-muted-foreground hover:text-foreground hover:bg-elevated/60 shrink-0"
               >
                 <Search className="h-[18px] w-[18px]" />
               </Button>
