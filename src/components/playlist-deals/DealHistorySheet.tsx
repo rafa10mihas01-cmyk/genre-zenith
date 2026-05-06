@@ -28,6 +28,7 @@ import { PastePlaylistsDialog } from "./PastePlaylistsDialog";
 import { ImportFromLibraryDialog } from "./ImportFromLibraryDialog";
 import { FraudAlertsPanel } from "./FraudAlertsPanel";
 import { PrintThumbs } from "./PrintThumbs";
+import { useCuratorDealBreakdown, ecosystemTotal } from "@/hooks/useCuratorDealBreakdown";
 
 import {
   computeCuratorStats,
