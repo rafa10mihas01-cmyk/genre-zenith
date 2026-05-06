@@ -248,5 +248,15 @@ Deno.serve(async (req) => {
     mensagem: `song=${song_id} inserted=${inserted} skipped=${skipped}`,
   });
 
+  recordMetric(supabase, {
+    scope: "bot",
+    operation: "bot-ingest-snapshot",
+    status: skipped > 0 ? "partial" : "success",
+    duration_ms: Date.now() - t0,
+    deal_id,
+    song_id,
+    metadata: { inserted, skipped },
+  });
+
   return jr({ ok: true, inserted, skipped, next_auto_collect_at: nextAt });
 });
