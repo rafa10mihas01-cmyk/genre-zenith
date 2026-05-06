@@ -37,7 +37,29 @@ Deno.serve(async (req) => {
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
-  // Caso de erro reportado pelo bot (sessão expirada, captcha, etc)
+  // ====== Gate de ciclo de vida (Fase 5B) ======
+  // Bloqueia ingestão se o deal estiver fechado/pausado/completed/token revogado.
+  {
+    const { data: dealRow } = await supabase
+      .from("curator_deals")
+      .select("id, state, closed_at, token_revoked_at, token_expires_at")
+      .eq("id", deal_id)
+      .maybeSingle();
+    const gate = assertDealOperable(dealRow as any);
+    if (!gate.ok) {
+      await supabase
+        .from("curator_deal_songs")
+        .update({
+          auto_collect_status: "idle",
+          auto_collect_error: gate.error,
+          next_auto_collect_at: new Date(Date.now() + 60 * 60_000).toISOString(),
+        })
+        .eq("id", song_id);
+      return jr({ ok: false, error: gate.error, code: gate.code, gated: true }, gate.status);
+    }
+  }
+
+
   if (bot_error) {
     await supabase
       .from("curator_deal_songs")
