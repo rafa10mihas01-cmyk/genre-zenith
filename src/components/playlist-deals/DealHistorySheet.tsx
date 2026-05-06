@@ -268,18 +268,37 @@ export function DealHistorySheet({
     return c;
   }, [dealPlaylists]);
 
-  const filteredPlaylists = useMemo(() => {
+  // Aba "Curador" → só whitelist (curator + baseline)
+  const curatorPlaylists = useMemo(() => {
     const q = plQuery.trim().toLowerCase();
     return sortedPlaylists.filter((p) => {
       const s = (p.match_status ?? (p.is_baseline ? "baseline" : "curator")) as CuratorMatchStatus;
-      if (plFilter !== "all" && s !== plFilter) return false;
+      if (s !== "curator" && s !== "baseline") return false;
       if (!q) return true;
       return (
         (p.playlist_name ?? "").toLowerCase().includes(q) ||
         (p.spotify_owner_name ?? "").toLowerCase().includes(q)
       );
     });
-  }, [sortedPlaylists, plQuery, plFilter]);
+  }, [sortedPlaylists, plQuery]);
+
+  // Aba "Algoritmo" → editorial + organic + suspicious
+  const algoPlaylists = useMemo(() => {
+    const q = algoQuery.trim().toLowerCase();
+    return sortedPlaylists.filter((p) => {
+      const s = (p.match_status ?? (p.is_baseline ? "baseline" : "curator")) as CuratorMatchStatus;
+      if (s !== "editorial" && s !== "organic" && s !== "suspicious") return false;
+      if (algoFilter !== "all" && s !== algoFilter) return false;
+      if (!q) return true;
+      return (
+        (p.playlist_name ?? "").toLowerCase().includes(q) ||
+        (p.spotify_owner_name ?? "").toLowerCase().includes(q)
+      );
+    });
+  }, [sortedPlaylists, algoQuery, algoFilter]);
+
+  const curatorTotal = counts.curator + counts.baseline;
+  const algoTotal = counts.editorial + counts.organic + counts.suspicious;
 
   // dados auxiliares
   const baseline = Number(deal?.baseline_plays ?? 0);
