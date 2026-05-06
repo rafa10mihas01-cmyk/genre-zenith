@@ -1168,7 +1168,7 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
                       className="rounded-xl border border-border/60 bg-[hsl(var(--elevated))] p-4 space-y-3 shadow-sm hover:border-border/80 transition-colors"
                     >
                       <div className="flex items-start gap-2">
-                        <div className="flex-1 grid grid-cols-1 sm:grid-cols-[1fr_120px_120px] gap-2">
+                        <div className="flex-1 grid grid-cols-1 sm:grid-cols-[1fr_140px] gap-2">
                           <Input
                             type="url"
                             placeholder="https://open.spotify.com/track/..."
@@ -1190,16 +1190,6 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
                             value={song.daily_goal}
                             onChange={(e) =>
                               updateSong(idx, { daily_goal: e.target.value })
-                            }
-                          />
-                          <Input
-                            type="number"
-                            inputMode="numeric"
-                            min={1}
-                            placeholder="Dias"
-                            value={song.duration_days}
-                            onChange={(e) =>
-                              updateSong(idx, { duration_days: e.target.value })
                             }
                           />
                         </div>
