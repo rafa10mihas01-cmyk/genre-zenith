@@ -772,14 +772,9 @@ export function DealHistorySheet({
                                   </div>
                                 ) : (
                                   <ul className="space-y-0.5 -mx-1">
-                                    {linked.slice(0, 30).map((p) => (
+                                    {linked.map((p) => (
                                       <PlaylistRow key={p.id} p={p} />
                                     ))}
-                                    {linked.length > 30 && (
-                                      <li className="text-[11px] text-muted-foreground px-3 py-1">
-                                        + {linked.length - 30} outras
-                                      </li>
-                                    )}
                                   </ul>
                                 )}
                               </div>
