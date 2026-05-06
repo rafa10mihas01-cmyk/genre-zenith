@@ -33,17 +33,18 @@ Deno.serve(async (req) => {
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
-  // Recovery: músicas presas em "queued" há mais de 10 min voltam pra "error"
-  // (provavelmente bot crashou no meio do ciclo). Assim entram no próximo round.
-  const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+  // Recovery de handoff: se a música ficou "queued" por mais de 3 min sem o bot
+  // devolver print/snapshot, assumimos que a entrega se perdeu antes da AI/print.
+  // Isso NÃO muda o ciclo diário; só reentrega tentativa travada de baseline/coleta.
+  const handoffTimeoutAgo = new Date(Date.now() - 3 * 60 * 1000).toISOString();
   await supabase
     .from("curator_deal_songs")
     .update({
       auto_collect_status: "error",
-      auto_collect_error: "Stuck in queued >10min — auto-recovered",
+      auto_collect_error: "Queued >3min sem retorno do bot — reentregando",
     })
     .eq("auto_collect_status", "queued")
-    .lt("updated_at", tenMinAgo);
+    .lt("updated_at", handoffTimeoutAgo);
 
   // Candidatas: auto_collect=true E (next_auto_collect_at <= now OR next null)
   // E (status idle OU error) — não pega running/queued
@@ -132,7 +133,10 @@ Deno.serve(async (req) => {
   if (ids.length) {
     await supabase
       .from("curator_deal_songs")
-      .update({ auto_collect_status: "queued", auto_collect_error: null })
+      .update({
+        auto_collect_status: "queued",
+        auto_collect_error: "Entregue ao robô; aguardando print/snapshot",
+      })
       .in("id", ids);
   }
 
