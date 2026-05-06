@@ -1,0 +1,1 @@
+ALTER VIEW public.v_dispatch_trace SET (security_invoker = true);
