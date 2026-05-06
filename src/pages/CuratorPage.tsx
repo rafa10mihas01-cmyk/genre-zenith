@@ -668,8 +668,22 @@ export default function CuratorPage() {
 
   const isDone = stats.target > 0 && stats.earned >= stats.target;
   const perPlaylist = progress?.per_playlist ?? [];
-  // Per-playlist "do curador" (não baseline)
-  const perPlaylistCurator = perPlaylist.filter((p) => !p.is_baseline);
+  // Set de playlists DO CURADOR (curator + baseline). Tudo que for editorial/organic/suspicious
+  // é coisa do algoritmo do Spotify e NÃO aparece pro curador no portal.
+  const curatorOwnedPlaylistIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const p of playlists) {
+      const status = (p.match_status ?? (p.is_baseline ? "baseline" : "curator")) as string;
+      if (status === "curator" || status === "baseline" || p.is_baseline) {
+        ids.add(p.id);
+      }
+    }
+    return ids;
+  }, [playlists]);
+  // Performance só das playlists do curador (não baseline) — sem editorial/organic
+  const perPlaylistCurator = perPlaylist.filter(
+    (p) => !p.is_baseline && curatorOwnedPlaylistIds.has(p.playlist_id),
+  );
 
   return (
     <div className="relative min-h-screen bg-background py-8 sm:py-10 overflow-hidden">
