@@ -695,38 +695,37 @@ export default function CuratorPage() {
 
   return (
     <div className="relative min-h-screen bg-background py-8 sm:py-10 overflow-hidden">
-      {/* Atmosfera verde */}
+      {/* Atmosfera verde — suave e difusa, sem dominar */}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 -z-0 hidden dark:block"
         style={{
           background: [
-            "radial-gradient(ellipse 60% 40% at 50% 0%, rgba(29,185,84,0.18) 0%, rgba(29,185,84,0) 70%)",
-            "radial-gradient(ellipse 40% 50% at 0% 25%, rgba(29,185,84,0.10) 0%, rgba(29,185,84,0) 70%)",
-            "radial-gradient(ellipse 40% 50% at 100% 45%, rgba(29,185,84,0.09) 0%, rgba(29,185,84,0) 70%)",
-            "radial-gradient(ellipse 45% 35% at 10% 70%, rgba(29,185,84,0.07) 0%, rgba(29,185,84,0) 70%)",
-            "radial-gradient(ellipse 70% 30% at 50% 100%, rgba(29,185,84,0.08) 0%, rgba(29,185,84,0) 70%)",
-            "radial-gradient(ellipse 35% 40% at 95% 85%, rgba(29,185,84,0.06) 0%, rgba(29,185,84,0) 70%)",
+            "radial-gradient(ellipse 70% 45% at 50% 0%, rgba(29,185,84,0.09) 0%, rgba(29,185,84,0) 75%)",
+            "radial-gradient(ellipse 45% 55% at 0% 30%, rgba(29,185,84,0.05) 0%, rgba(29,185,84,0) 75%)",
+            "radial-gradient(ellipse 45% 55% at 100% 50%, rgba(29,185,84,0.045) 0%, rgba(29,185,84,0) 75%)",
+            "radial-gradient(ellipse 75% 35% at 50% 100%, rgba(29,185,84,0.04) 0%, rgba(29,185,84,0) 75%)",
           ].join(", "),
         }}
       />
       <div className="relative z-10 w-full max-w-[1200px] mx-auto px-5 sm:px-6 md:px-8">
         <div className="max-w-xl md:max-w-2xl mx-auto space-y-4 sm:space-y-5">
-        {/* Topbar */}
-        <div className="flex items-center justify-between gap-3 py-3 border-b border-border/50">
+        {/* Topbar — compacto, operacional, estilo Linear/Stripe */}
+        <div className="flex items-center justify-between gap-3 py-2 border-b border-border/50">
           <div className="flex items-center gap-2.5 min-w-0">
-            <NexEngineLogo variant="mark" size={22} />
+            <NexEngineLogo variant="mark" size={20} />
             <div className="min-w-0">
-              <div className="text-[12px] font-semibold tracking-tight leading-none truncate">
+              <div className="text-[12.5px] font-semibold tracking-tight leading-tight truncate">
                 {deal.curator_name || "Curadoria"}
               </div>
-              <div className="text-[9px] uppercase tracking-[0.16em] text-muted-foreground/70 mt-1 leading-none">
-                Curadoria
+              <div className="text-[10px] text-muted-foreground/60 mt-0.5 leading-none truncate">
+                Campanhas monitoradas em tempo real
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-0.5">
+          <div className="flex items-center gap-0.5 rounded-lg border border-border/40 bg-card/40 backdrop-blur-sm px-1 py-0.5">
             <ThemeToggle />
+            <span className="w-px h-5 bg-border/50" aria-hidden />
             <CuratorNotificationsBell
               stats={{
                 target: stats.target,
