@@ -397,9 +397,19 @@ export function DealHistorySheet({
                     className="data-[state=active]:bg-[hsl(var(--elevated))] data-[state=active]:text-foreground rounded-lg gap-2 h-9 px-3"
                   >
                     <ListMusic className="h-3.5 w-3.5" />
-                    Playlists
+                    Curador
                     <span className="text-[10px] font-bold tabular-nums text-muted-foreground">
-                      {dealPlaylists.length}
+                      {curatorTotal}
+                    </span>
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="algoritmo"
+                    className="data-[state=active]:bg-[hsl(var(--elevated))] data-[state=active]:text-foreground rounded-lg gap-2 h-9 px-3"
+                  >
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Algoritmo
+                    <span className="text-[10px] font-bold tabular-nums text-muted-foreground">
+                      {algoTotal}
                     </span>
                   </TabsTrigger>
                   <TabsTrigger
