@@ -44,7 +44,8 @@ Deno.serve(async (req) => {
       auto_collect_error: "Queued >3min sem retorno do bot — reentregando",
     })
     .eq("auto_collect_status", "queued")
-    .lt("updated_at", handoffTimeoutAgo);
+    .not("next_auto_collect_at", "is", null)
+    .lt("next_auto_collect_at", handoffTimeoutAgo);
 
   // Candidatas: auto_collect=true E (next_auto_collect_at <= now OR next null)
   // E (status idle OU error) — não pega running/queued
