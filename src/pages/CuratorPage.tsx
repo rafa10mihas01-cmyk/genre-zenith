@@ -1505,17 +1505,22 @@ export default function CuratorPage() {
               className="h-10 text-[14px] px-4 rounded-xl bg-[hsl(var(--elevated))] ring-1 ring-border/50 border-0 focus-visible:ring-2 focus-visible:ring-primary/40"
             />
             <div className="space-y-1.5">
-              <Input
-                type="number"
-                inputMode="numeric"
-                min={1}
-                step={1}
-                placeholder="Posição na playlist (opcional) — ex: 5"
-                value={position}
-                onChange={(e) => setPosition(e.target.value)}
+              <Select
+                value={position || undefined}
+                onValueChange={(v) => setPosition(v)}
                 disabled={submitting || importing}
-                className="h-10 text-[14px] px-4 rounded-xl bg-[hsl(var(--elevated))] ring-1 ring-border/50 border-0 focus-visible:ring-2 focus-visible:ring-primary/40"
-              />
+              >
+                <SelectTrigger className="h-10 text-[14px] px-4 rounded-xl bg-[hsl(var(--elevated))] ring-1 ring-border/50 border-0 focus:ring-2 focus:ring-primary/40">
+                  <SelectValue placeholder="Posição na playlist (opcional)" />
+                </SelectTrigger>
+                <SelectContent className="max-h-[280px]">
+                  {Array.from({ length: 100 }, (_, i) => i + 1).map((n) => (
+                    <SelectItem key={n} value={String(n)}>
+                      {n}{n === 1 ? "ª (primeira)" : "ª"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <p className="text-[11px] text-muted-foreground/80 px-1">
                 Em que posição a música está dentro da playlist (1 = primeira)
               </p>
