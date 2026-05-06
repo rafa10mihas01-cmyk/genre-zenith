@@ -22,7 +22,7 @@ export function PageContainer({
   return (
     <div
       className={cn(
-        "w-full space-y-6 min-h-[calc(100vh-3.5rem)] animate-page-in",
+        "w-full space-y-6 min-h-[calc(100vh-3.5rem)]",
         className,
       )}
     >
