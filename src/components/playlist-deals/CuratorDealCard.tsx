@@ -51,6 +51,19 @@ export function CuratorDealCard({
     : 0;
   const showSongList = songs.length > 1;
 
+  // Breakdown de origem das playlists deste deal (alinhado com a sheet)
+  const dealPlaylists = playlists.filter((p) => p.deal_id === deal.id);
+  const plBreakdown = dealPlaylists.reduce(
+    (acc, p) => {
+      const s = (p.match_status ?? (p.is_baseline ? "baseline" : "curator")) as string;
+      if (s === "curator" || s === "baseline") acc.curator += 1;
+      else if (s === "editorial" || s === "organic" || s === "suspicious") acc.algo += 1;
+      return acc;
+    },
+    { curator: 0, algo: 0 },
+  );
+  const hasWhitelist = plBreakdown.curator > 0;
+
   // Ramp-up: dias desde o início até hoje vs ramp_up_days do deal
   const rampUpDays = Number((deal as unknown as { ramp_up_days?: number }).ramp_up_days ?? 5);
   const startMs = new Date(deal.started_at).getTime();
@@ -243,6 +256,33 @@ export function CuratorDealCard({
           </div>
         )}
 
+        {/* Origem das playlists — alinhado com a sheet */}
+        {!isClosed && (
+          hasWhitelist ? (
+            <div className="flex items-center gap-3 flex-wrap text-[11px] border-t border-border/40 pt-2.5">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                <span className="text-muted-foreground">Curador</span>
+                <span className="tabular-nums font-semibold text-foreground">{plBreakdown.curator}</span>
+              </span>
+              {plBreakdown.algo > 0 && (
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/70" />
+                  <span className="text-muted-foreground">Algoritmo</span>
+                  <span className="tabular-nums font-semibold text-foreground">{plBreakdown.algo}</span>
+                  <span className="text-muted-foreground/70">(visualização)</span>
+                </span>
+              )}
+            </div>
+          ) : (
+            <div className="rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-1.5 flex items-center gap-1.5">
+              <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0" />
+              <span className="text-[11px] text-destructive font-medium">
+                Curador não cadastrou playlists — coleta pausada
+              </span>
+            </div>
+          )
+        )}
 
         {/* Status do robô (auto-coleta) */}
         {!isClosed && songs.length > 0 && (
