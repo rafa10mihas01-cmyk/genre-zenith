@@ -98,7 +98,7 @@ export async function fetchPlaylistMeta(playlistId: string): Promise<SpotifyPlay
   const token = await getSpotifyToken();
   const fields =
     "id,name,owner(id,display_name),followers(total),images(url),tracks(total)";
-  const res = await fetch(
+  const res = await fetchWithRetry(
     `https://api.spotify.com/v1/playlists/${playlistId}?fields=${encodeURIComponent(fields)}`,
     { headers: { Authorization: `Bearer ${token}` } },
   );
