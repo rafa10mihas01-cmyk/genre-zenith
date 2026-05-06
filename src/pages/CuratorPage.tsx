@@ -280,8 +280,15 @@ export default function CuratorPage() {
     return playlists.filter((p) => p.song_id === selectedSongId || !p.song_id);
   }, [playlists, selectedSongId]);
 
+  // "Playlists do curador" no portal: só as cadastradas pelo próprio curador.
+  // Editorial / organic / suspicious vêm do algoritmo do Spotify e ficam só no painel interno.
   const curatorPlaylists = useMemo(
-    () => visiblePlaylists.filter((p) => !p.is_baseline),
+    () =>
+      visiblePlaylists.filter((p) => {
+        if (p.is_baseline) return false;
+        const status = (p.match_status ?? "curator") as string;
+        return status === "curator";
+      }),
     [visiblePlaylists],
   );
 
