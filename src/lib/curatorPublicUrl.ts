@@ -14,3 +14,12 @@ export function curatorPublicUrl(opts: {
   const id = (opts.slug && opts.slug.trim()) || (opts.public_token ?? "");
   return `${PUBLIC_DOMAIN}/curador/${id}`;
 }
+
+/**
+ * Monta a URL pública sanitizada para o cliente/artista acompanhar a campanha.
+ * Não expõe curadores, custos ou métricas internas.
+ */
+export function clientCampaignUrl(opts: { client_token?: string | null }): string {
+  const id = (opts.client_token ?? "").trim();
+  return `${PUBLIC_DOMAIN}/campanha/${id}`;
+}

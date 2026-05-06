@@ -16,6 +16,7 @@ export type CuratorDeal = {
   started_at: string;
   ends_at: string | null;
   public_token: string;
+  client_token?: string | null;
   slug?: string | null;
   created_at: string;
   closed_at?: string | null;
