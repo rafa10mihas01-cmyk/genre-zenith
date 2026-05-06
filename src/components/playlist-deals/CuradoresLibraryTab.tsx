@@ -86,6 +86,7 @@ interface Props {
   onUpdateCurator?: (curatorId: string, input: Partial<NewCuratorInput>) => Promise<void>;
   onArchiveCurator?: (curatorId: string, archive?: boolean) => Promise<void>;
   onDeleteCurator?: (curatorId: string) => Promise<void>;
+  onPauseCurator?: (curatorId: string, pause?: boolean) => Promise<void>;
 }
 
 export function CuradoresLibraryTab({
