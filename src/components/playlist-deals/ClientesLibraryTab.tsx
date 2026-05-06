@@ -354,18 +354,6 @@ export function ClientesLibraryTab({ deals, songs, loading }: Props) {
                       <Music2 className="h-3.5 w-3.5" />
                       Ver músicas
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-9 w-9 p-0"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setEditing(client);
-                      }}
-                      aria-label="Editar cliente"
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
                   </div>
                 </CardContent>
               </Card>
