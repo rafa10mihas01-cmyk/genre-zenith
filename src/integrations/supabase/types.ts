@@ -2339,6 +2339,10 @@ export type Database = {
       }
     }
     Functions: {
+      _normalize_notification_type: {
+        Args: { p_type: string }
+        Returns: Database["public"]["Enums"]["notification_type"]
+      }
       cleanup_old_logs_and_snapshots: {
         Args: never
         Returns: {
@@ -2364,16 +2368,29 @@ export type Database = {
         Args: { p_deal: Json; p_force?: boolean; p_songs: Json }
         Returns: Json
       }
-      create_notification: {
-        Args: {
-          p_action_url?: string
-          p_message: string
-          p_metadata?: Json
-          p_title: string
-          p_type: Database["public"]["Enums"]["notification_type"]
-        }
-        Returns: string
-      }
+      create_notification:
+        | {
+            Args: {
+              p_action_url?: string
+              p_message: string
+              p_metadata?: Json
+              p_title: string
+              p_type: Database["public"]["Enums"]["notification_type"]
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_action_url?: string
+              p_cooldown_minutes?: number
+              p_dedupe_key?: string
+              p_message: string
+              p_metadata?: Json
+              p_title: string
+              p_type: string
+            }
+            Returns: string
+          }
       detect_duplicate_curator_deal: {
         Args: {
           p_curator_id: string
