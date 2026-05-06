@@ -219,35 +219,44 @@ function DealRangePicker({
     commit(start, end);
   };
 
-  const handleSelect = (range: { from?: Date; to?: Date } | undefined) => {
-    // Comportamento previsível:
-    // - sem nada: define from
-    // - com from + clicou em data anterior: redefine from
-    // - com from sem to: define to
-    // - com from+to: reinicia (novo from)
-    const clicked = range?.to ?? range?.from;
-    if (!clicked) return;
+  // Lógica manual de 2 cliques — 100% previsível.
+  // Click 1: define início (limpa fim)
+  // Click 2: se >= início → define fim e fecha. Se < início → vira novo início.
+  // Click 3 (com range completo): reinicia, novo início.
+  const handleDayClick = (day: Date | undefined) => {
+    if (!day) return;
+    const clicked = new Date(day.getFullYear(), day.getMonth(), day.getDate());
 
+    // Range completo → reinicia
+    if (draftFrom && draftTo) {
+      setDraftFrom(clicked);
+      setDraftTo(undefined);
+      return;
+    }
+
+    // Sem início → define início
     if (!draftFrom) {
       setDraftFrom(clicked);
       setDraftTo(undefined);
       return;
     }
 
-    if (draftFrom && draftTo) {
-      // range completo → reinicia
-      setDraftFrom(clicked);
-      setDraftTo(undefined);
-      return;
-    }
-
+    // Tem início, sem fim
     if (clicked.getTime() < draftFrom.getTime()) {
-      // clicou antes do início → redefine início
+      // Antes do início → vira novo início
       setDraftFrom(clicked);
       setDraftTo(undefined);
       return;
     }
 
+    if (clicked.getTime() === draftFrom.getTime()) {
+      // Mesmo dia → range de 1 dia
+      setDraftTo(clicked);
+      commit(draftFrom, clicked);
+      return;
+    }
+
+    // Depois do início → fim
     setDraftTo(clicked);
     commit(draftFrom, clicked);
   };
@@ -301,13 +310,12 @@ function DealRangePicker({
           <Calendar
             mode="range"
             selected={{ from: draftFrom, to: draftTo }}
-            onSelect={handleSelect}
+            onDayClick={handleDayClick}
             numberOfMonths={1}
             initialFocus
             locale={ptBR}
             className="p-3 pointer-events-auto"
             classNames={{
-              // Limpa o highlight agressivo de células — sem bg em linha inteira
               cell: "h-9 w-9 text-center text-sm p-0 relative focus-within:relative focus-within:z-20",
               day: "h-9 w-9 p-0 font-normal rounded-full text-sm hover:bg-primary/10 transition-colors aria-selected:opacity-100",
               day_selected:
