@@ -9,10 +9,12 @@ import {
   DollarSign,
   Clock,
   Archive,
+  ArchiveRestore,
   Music2,
   TrendingUp,
   MoreHorizontal,
   Pencil,
+  Trash2,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -30,6 +32,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { CuratorLibrarySheet } from "@/components/curators/CuratorLibrarySheet";
 import { CuratorEditDialog } from "@/components/curators/CuratorEditDialog";
 import { cn } from "@/lib/utils";
@@ -71,6 +83,7 @@ interface Props {
   loading: boolean;
   onUpdateCurator?: (curatorId: string, input: Partial<NewCuratorInput>) => Promise<void>;
   onArchiveCurator?: (curatorId: string, archive?: boolean) => Promise<void>;
+  onDeleteCurator?: (curatorId: string) => Promise<void>;
 }
 
 export function CuradoresLibraryTab({
@@ -80,15 +93,20 @@ export function CuradoresLibraryTab({
   loading,
   onUpdateCurator,
   onArchiveCurator,
+  onDeleteCurator,
 }: Props) {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Curator | null>(null);
   const [editing, setEditing] = useState<Curator | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<{ curator: Curator; hasDeals: boolean } | null>(null);
+
+  const archivedCount = curators.filter((c) => !!c.archived_at).length;
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
     return curators
-      .filter((c) => !c.archived_at)
+      .filter((c) => (showArchived ? !!c.archived_at : !c.archived_at))
       .filter(
         (c) =>
           !q ||
@@ -139,18 +157,31 @@ export function CuradoresLibraryTab({
         if (a.activeDeals !== b.activeDeals) return b.activeDeals - a.activeDeals;
         return b.lastTs - a.lastTs;
       });
-  }, [curators, balances, deals, query]);
+  }, [curators, balances, deals, query, showArchived]);
 
   return (
     <div className="space-y-4 animate-fade-in">
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-        <Input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Buscar curador…"
-          className="pl-9"
-        />
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={showArchived ? "Buscar arquivados…" : "Buscar curador…"}
+            className="pl-9"
+          />
+        </div>
+        {(archivedCount > 0 || showArchived) && (
+          <Button
+            variant={showArchived ? "default" : "outline"}
+            size="sm"
+            className="h-9 gap-1.5"
+            onClick={() => setShowArchived((v) => !v)}
+          >
+            <Archive className="h-3.5 w-3.5" />
+            {showArchived ? "Ver ativos" : `Arquivados (${archivedCount})`}
+          </Button>
+        )}
       </div>
 
       {loading ? (
@@ -239,7 +270,7 @@ export function CuradoresLibraryTab({
                         {activeDeals > 0 && <Activity className="h-2.5 w-2.5" />}
                         {statusLabel}
                       </Badge>
-                      {(onUpdateCurator || onArchiveCurator) && (
+                      {(onUpdateCurator || onArchiveCurator || onDeleteCurator) && (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button
@@ -269,30 +300,59 @@ export function CuradoresLibraryTab({
                                 Editar
                               </DropdownMenuItem>
                             )}
-                            {onArchiveCurator && (
-                              <>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  className="gap-2 text-destructive focus:text-destructive"
-                                  onClick={async (e) => {
-                                    e.stopPropagation();
-                                    if (activeDeals > 0) {
-                                      toast.error("Curador tem deals ativos — encerre antes de arquivar");
-                                      return;
-                                    }
-                                    if (!confirm(`Arquivar ${curator.name}? Ele sai da biblioteca mas o histórico fica.`)) return;
-                                    try {
-                                      await onArchiveCurator(curator.id, true);
-                                      toast.success("Curador arquivado");
-                                    } catch {
-                                      toast.error("Erro ao arquivar");
-                                    }
-                                  }}
-                                >
-                                  <Archive className="h-4 w-4" />
-                                  Arquivar
-                                </DropdownMenuItem>
-                              </>
+                            {(onArchiveCurator || onDeleteCurator) && (
+                              <DropdownMenuSeparator />
+                            )}
+                            {onArchiveCurator && !curator.archived_at && (
+                              <DropdownMenuItem
+                                className="gap-2"
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  if (activeDeals > 0) {
+                                    toast.error("Curador tem deals ativos — encerre antes de arquivar");
+                                    return;
+                                  }
+                                  if (!confirm(`Arquivar ${curator.name}? Ele sai da biblioteca mas o histórico fica.`)) return;
+                                  try {
+                                    await onArchiveCurator(curator.id, true);
+                                    toast.success("Curador arquivado");
+                                  } catch {
+                                    toast.error("Erro ao arquivar");
+                                  }
+                                }}
+                              >
+                                <Archive className="h-4 w-4" />
+                                Arquivar
+                              </DropdownMenuItem>
+                            )}
+                            {onArchiveCurator && curator.archived_at && (
+                              <DropdownMenuItem
+                                className="gap-2"
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  try {
+                                    await onArchiveCurator(curator.id, false);
+                                    toast.success("Curador restaurado");
+                                  } catch {
+                                    toast.error("Erro ao restaurar");
+                                  }
+                                }}
+                              >
+                                <ArchiveRestore className="h-4 w-4" />
+                                Restaurar
+                              </DropdownMenuItem>
+                            )}
+                            {onDeleteCurator && (
+                              <DropdownMenuItem
+                                className="gap-2 text-destructive focus:text-destructive"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setConfirmDelete({ curator, hasDeals: totalDeals > 0 });
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                                Excluir
+                              </DropdownMenuItem>
                             )}
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -455,6 +515,42 @@ export function CuradoresLibraryTab({
           onSave={onUpdateCurator}
         />
       )}
+
+      <AlertDialog
+        open={confirmDelete !== null}
+        onOpenChange={(v) => !v && setConfirmDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir curador?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmDelete?.hasDeals
+                ? `${confirmDelete.curator.name} possui deals vinculados. Não é possível excluir — arquive em vez disso.`
+                : `${confirmDelete?.curator.name} será removido permanentemente, junto com o saldo financeiro. Esta ação não pode ser desfeita.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            {!confirmDelete?.hasDeals && (
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={async () => {
+                  if (!confirmDelete || !onDeleteCurator) return;
+                  try {
+                    await onDeleteCurator(confirmDelete.curator.id);
+                    toast.success("Curador excluído");
+                    setConfirmDelete(null);
+                  } catch (e) {
+                    toast.error(e instanceof Error ? e.message : "Erro ao excluir");
+                  }
+                }}
+              >
+                Excluir
+              </AlertDialogAction>
+            )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

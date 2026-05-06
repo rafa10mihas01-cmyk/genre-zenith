@@ -15,6 +15,7 @@ import {
   Link2,
   MoreHorizontal,
   Archive,
+  ArchiveRestore,
   Trash2,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
@@ -83,6 +84,8 @@ export function ClientesLibraryTab({ deals, songs, loading }: Props) {
   const [editing, setEditing] = useState<Client | null>(null);
   const [creating, setCreating] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<{ client: Client; hasLinks: boolean } | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
+  const archivedCount = clients.filter((c) => !!c.archived_at).length;
 
   // Permite abrir o modal "Novo cliente" via evento global (botão + Novo do header)
   useEffect(() => {
@@ -100,7 +103,7 @@ export function ClientesLibraryTab({ deals, songs, loading }: Props) {
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
     return clients
-      .filter((c) => !c.archived_at)
+      .filter((c) => (showArchived ? !!c.archived_at : !c.archived_at))
       .filter(
         (c) =>
           !q ||
@@ -133,20 +136,31 @@ export function ClientesLibraryTab({ deals, songs, loading }: Props) {
         if (a.activeDeals !== b.activeDeals) return b.activeDeals - a.activeDeals;
         return b.lastTs - a.lastTs;
       });
-  }, [clients, songs, dealById, query]);
+  }, [clients, songs, dealById, query, showArchived]);
 
   return (
     <div className="space-y-4 animate-fade-in">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar cliente…"
+            placeholder={showArchived ? "Buscar arquivados…" : "Buscar cliente…"}
             className="pl-9"
           />
         </div>
+        {(archivedCount > 0 || showArchived) && (
+          <Button
+            variant={showArchived ? "default" : "outline"}
+            size="sm"
+            className="h-9 gap-1.5"
+            onClick={() => setShowArchived((v) => !v)}
+          >
+            <Archive className="h-3.5 w-3.5" />
+            {showArchived ? "Ver ativos" : `Arquivados (${archivedCount})`}
+          </Button>
+        )}
       </div>
 
       {(loading || loadingClients) && rows.length === 0 ? (
@@ -256,22 +270,40 @@ export function ClientesLibraryTab({ deals, songs, loading }: Props) {
                             Editar
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            className="gap-2"
-                            onClick={async (e) => {
-                              e.stopPropagation();
-                              if (!confirm(`Arquivar ${client.name}? Ele sai da biblioteca mas o histórico fica.`)) return;
-                              try {
-                                await archiveClient(client.id, true);
-                                toast.success("Cliente arquivado");
-                              } catch {
-                                toast.error("Erro ao arquivar");
-                              }
-                            }}
-                          >
-                            <Archive className="h-4 w-4" />
-                            Arquivar
-                          </DropdownMenuItem>
+                          {!client.archived_at ? (
+                            <DropdownMenuItem
+                              className="gap-2"
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                if (!confirm(`Arquivar ${client.name}? Ele sai da biblioteca mas o histórico fica.`)) return;
+                                try {
+                                  await archiveClient(client.id, true);
+                                  toast.success("Cliente arquivado");
+                                } catch {
+                                  toast.error("Erro ao arquivar");
+                                }
+                              }}
+                            >
+                              <Archive className="h-4 w-4" />
+                              Arquivar
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem
+                              className="gap-2"
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                try {
+                                  await archiveClient(client.id, false);
+                                  toast.success("Cliente restaurado");
+                                } catch {
+                                  toast.error("Erro ao restaurar");
+                                }
+                              }}
+                            >
+                              <ArchiveRestore className="h-4 w-4" />
+                              Restaurar
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuItem
                             className="gap-2 text-destructive focus:text-destructive"
                             onClick={(e) => {
