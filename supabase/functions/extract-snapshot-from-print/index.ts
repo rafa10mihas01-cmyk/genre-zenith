@@ -586,16 +586,21 @@ Deno.serve(async (req) => {
     const sName = pl.playlist_name ?? null;
     const plays = Math.max(0, parseInt(String(pl.plays ?? 0)) || 0);
     const isAlgo = isAlgorithmic(sName, pl.made_by ?? null);
+    // O histórico/base representa o total observado no Spotify for Artists.
+    // A entrega contratada continua vindo apenas dos snapshots match_status='curator'
+    // via get_curator_deal_progress.
+    totalPlays += plays;
 
     // Resolve spotify_playlist_id antecipadamente (Gemini URL ou DOM por nome)
-    // pra aplicar whitelist do curador antes de qualquer escrita.
+    // para classificar whitelist do curador sem descartar as demais 100 linhas.
     let preResolvedId = extractId(pl.spotify_url ?? "");
     if (!preResolvedId && sName) {
       const hit = domByName.get(norm(sName));
       if (hit) preResolvedId = hit.id;
     }
+    const isWhitelistedCurator = !!preResolvedId && !preResolvedId.startsWith("algo:") && whitelist.has(preResolvedId);
     if (whitelistActive && !isAlgo) {
-      if (!preResolvedId || preResolvedId.startsWith("algo:") || !whitelist.has(preResolvedId)) {
+      if (!preResolvedId || preResolvedId.startsWith("algo:")) {
         filteredOut++;
         continue;
       }
@@ -664,8 +669,6 @@ Deno.serve(async (req) => {
       }
       continue;
     }
-
-    totalPlays += plays;
 
     // PRIORIDADE 1: bate o nome lido pelo Gemini com o DOM (link real do HTML).
     // PRIORIDADE 2 (fallback): se nome não bateu, tenta casar por position.
