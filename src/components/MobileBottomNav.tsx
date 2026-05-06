@@ -13,7 +13,7 @@ const items = [
 
 /**
  * Bottom navigation mobile (estilo iOS/Android nativo).
- * - Visível só em <md
+ * - Visível em tablet/mobile (<xl)
  * - Fixa no bottom, respeita safe-area
  * - 5 itens principais; Configurações fica no drawer (hamburger)
  */
@@ -23,7 +23,7 @@ export function MobileBottomNav() {
   return (
     <nav
       className={cn(
-        "md:hidden fixed bottom-0 inset-x-0 z-40",
+        "xl:hidden fixed bottom-0 inset-x-0 z-40",
         "bg-card/95 backdrop-blur-xl border-t border-border",
         "pb-[env(safe-area-inset-bottom)]"
       )}
