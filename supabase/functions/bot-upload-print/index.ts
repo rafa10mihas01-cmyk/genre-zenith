@@ -14,7 +14,7 @@ import { recordMetric } from "../_shared/ops-metrics.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "content-type, x-bot-key, x-correlation-id, x-dom-playlists",
+  "Access-Control-Allow-Headers": "content-type, x-bot-key, x-correlation-id, x-dom-playlists, x-worker-id, x-process-id, x-hostname, x-timer-id, x-bot-name, x-bot-session",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
