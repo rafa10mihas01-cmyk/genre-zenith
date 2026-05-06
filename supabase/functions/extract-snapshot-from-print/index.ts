@@ -631,7 +631,7 @@ Deno.serve(async (req) => {
             spotify_url: pl.spotify_url ?? "",
             playlist_name: algoName,
             spotify_owner_name: pl.made_by ?? "Spotify",
-            is_baseline: false,
+            is_baseline: isBaseline,
             match_status: "algorithmic",
           })
           .select("id")
@@ -650,6 +650,8 @@ Deno.serve(async (req) => {
             });
           } catch (_) { /* ignore */ }
         }
+      } else if (isBaseline) {
+        await supabase.from("curator_playlists").update({ is_baseline: true }).eq("id", algoId);
       }
       if (algoId) {
         algorithmicSeenIds.push(algoId);
