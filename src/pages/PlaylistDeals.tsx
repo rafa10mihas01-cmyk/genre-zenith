@@ -114,6 +114,7 @@ export default function PlaylistDeals() {
     if (id === "all") return kpi.total;
     if (id === "done") return kpi.done;
     if (id === "library") return curators.filter((c) => !c.archived_at).length;
+    if (id === "clients") return clients.filter((c) => !c.archived_at).length;
     if (id === "finance") {
       const set = new Set(deals.map((d) => (d.curator_name ?? "").trim() || "—"));
       return set.size;
