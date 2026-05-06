@@ -136,6 +136,17 @@ Deno.serve(async (req) => {
       .in("id", ids);
   }
 
+  recordMetric(supabase, {
+    scope: "collect",
+    operation: "bot-collect-queue",
+    status: "success",
+    metadata: {
+      queued: ids.length,
+      blocked_no_whitelist: blocked.length,
+      total_candidates: candidates.length,
+    },
+  });
+
   return jr({
     ok: true,
     count: ids.length,
