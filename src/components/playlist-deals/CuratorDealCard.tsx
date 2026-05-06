@@ -315,31 +315,9 @@ export function CuratorDealCard({
               <span className="text-muted-foreground">Curador</span>
               <span className="tabular-nums font-semibold text-foreground">{plBreakdown.curator}</span>
             </span>
-            {plBreakdown.algo > 0 && (
-              <span className="inline-flex items-center gap-1.5">
-                <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/70" />
-                <span className="text-muted-foreground">Algoritmo</span>
-                <span className="tabular-nums font-semibold text-foreground">{plBreakdown.algo}</span>
-                <span className="text-muted-foreground/70">(visualização)</span>
-              </span>
-            )}
           </div>
         )}
-
-        {/* Ecossistema (visualização) — separado da entrega contratual */}
-        {breakdown && (eco.plays > 0 || eco.playlists > 0) && (
-          <div className="rounded-md border border-border/40 bg-[hsl(var(--elevated))]/40 px-2.5 py-1.5 flex items-center gap-2 text-[11px]">
-            <span className="text-[9.5px] uppercase tracking-[0.14em] text-muted-foreground font-semibold">
-              Ecossistema
-            </span>
-            <span className="text-muted-foreground tabular-nums">
-              <span className="text-foreground font-semibold">{formatPlays(eco.plays)}</span> plays
-              {" · "}
-              <span className="text-foreground font-semibold">{eco.playlists}</span> playlists
-            </span>
-            <span className="ml-auto text-muted-foreground/70 text-[10px]">não contam na entrega</span>
-          </div>
-        )}
+        {/* Algoritmo / Ecossistema intencionalmente omitidos do card — visíveis só no histórico/sheet. */}
         {!isClosed && songs.length > 0 && (
           <BotStatusRow songs={songs} />
         )}
@@ -395,11 +373,16 @@ export function CuratorDealCard({
               {" / "}
               {formatPlays(target)} plays
             </span>
-            {newPlaylists.length > 0 && (
-              <span className="inline-flex items-center gap-1 text-success font-medium">
-                +{newPlaylists.length} nova{newPlaylists.length > 1 ? "s" : ""}
-              </span>
-            )}
+            {(() => {
+              const novasCurador = newPlaylists.filter(
+                (p) => (p.match_status ?? "curator") === "curator",
+              ).length;
+              return novasCurador > 0 ? (
+                <span className="inline-flex items-center gap-1 text-success font-medium">
+                  +{novasCurador} nova{novasCurador > 1 ? "s" : ""}
+                </span>
+              ) : null;
+            })()}
           </div>
         </div>
 
