@@ -851,8 +851,6 @@ function EditCuratorDialog({
 }) {
   const [name, setName] = useState("");
   const [contact, setContact] = useState("");
-  const [purchased, setPurchased] = useState("");
-  const [cost, setCost] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -861,8 +859,6 @@ function EditCuratorDialog({
     if (curator) {
       setName(curator.name);
       setContact(curator.contact ?? "");
-      setPurchased(String(curator.purchased_plays ?? 0));
-      setCost(String(Number(curator.total_cost ?? 0)));
       setNotes(curator.notes ?? "");
     }
   }, [curator]);
@@ -877,8 +873,6 @@ function EditCuratorDialog({
     await onSave(curator.id, {
       name: name.trim(),
       contact: contact.trim() || null,
-      purchased_plays: Math.max(0, Number(purchased) || 0),
-      total_cost: Math.max(0, Number(cost) || 0),
       notes: notes.trim() || null,
     });
     setSaving(false);
@@ -904,28 +898,8 @@ function EditCuratorDialog({
               placeholder="email, telefone, @..."
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label htmlFor="ec-purchased">Plays comprados</Label>
-              <Input
-                id="ec-purchased"
-                type="number"
-                min="0"
-                value={purchased}
-                onChange={(e) => setPurchased(e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="ec-cost">Custo total (R$)</Label>
-              <Input
-                id="ec-cost"
-                type="number"
-                min="0"
-                step="0.01"
-                value={cost}
-                onChange={(e) => setCost(e.target.value)}
-              />
-            </div>
+          <div className="rounded-md border border-border/40 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+            Plays comprados e custo total são derivados do ledger de compras (aba Financeiro). Para ajustar saldo, use "Adicionar saldo" no fluxo de novo deal.
           </div>
           <div>
             <Label htmlFor="ec-notes">Notas</Label>
