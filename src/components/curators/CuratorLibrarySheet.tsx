@@ -16,8 +16,9 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
+import { Progress } from "@/components/ui/progress";
 import { useCuratorLibrary, type PerformanceClass } from "@/hooks/useCuratorLibrary";
-import type { Curator } from "@/hooks/useCuratorDeals";
+import type { Curator, CuratorBalance } from "@/hooks/useCuratorDeals";
 import type { CuratorDeal } from "@/lib/curatorDealsUtils";
 import { useFormDraft } from "@/hooks/useFormDraft";
 import { DraftBanner, DraftIndicator } from "@/components/forms/DraftBanner";
@@ -49,13 +50,24 @@ function formatPlays(n: number | null | undefined): string {
   return Math.round(n).toLocaleString("pt-BR");
 }
 
+function formatBRL(v: number) {
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 2 }).format(v);
+}
+function formatCPP(v: number) {
+  const opts = v < 0.01
+    ? { minimumFractionDigits: 4, maximumFractionDigits: 4 }
+    : { minimumFractionDigits: 2, maximumFractionDigits: 2 };
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", ...opts }).format(v);
+}
+
 interface Props {
   curator: Curator | null;
   deals: CuratorDeal[];
+  balance?: CuratorBalance | null;
   onClose: () => void;
 }
 
-export function CuratorLibrarySheet({ curator, deals, onClose }: Props) {
+export function CuratorLibrarySheet({ curator, deals, balance, onClose }: Props) {
   const open = !!curator;
   const { items, stats, performance, loading, addManual, remove } = useCuratorLibrary(curator?.id ?? null);
 
@@ -156,6 +168,59 @@ export function CuratorLibrarySheet({ curator, deals, onClose }: Props) {
                   </div>
                 </div>
               </div>
+
+              {/* Saldo do curador — plays comprados, restante, custo */}
+              {(() => {
+                const purchased = Number(balance?.purchased_plays ?? curator.purchased_plays ?? 0) || 0;
+                const consumed = Number(balance?.consumed_plays ?? 0) || 0;
+                const remaining = Number(balance?.remaining_plays ?? purchased) || 0;
+                const overbooked = Number(balance?.overbooked_plays ?? 0) > 0;
+                const totalCost = Number(balance?.total_cost ?? curator.total_cost ?? 0) || 0;
+                const consumedPct = purchased > 0 ? Math.min(100, Math.round((consumed / purchased) * 100)) : 0;
+                const cpp = consumed > 0 && totalCost > 0 ? totalCost / consumed : null;
+                if (purchased === 0 && totalCost === 0) return null;
+                return (
+                  <div className="px-6 py-5 border-b border-border/40 space-y-4 bg-[hsl(var(--elevated))]">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                        Saldo
+                      </h3>
+                      {cpp !== null && (
+                        <span className="text-[11px] text-muted-foreground">
+                          Custo/play <span className="text-foreground font-semibold">{formatCPP(cpp)}</span>
+                        </span>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="rounded-xl bg-card border border-border/40 px-4 py-3">
+                        <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-1.5">
+                          Plays comprados
+                        </div>
+                        <div className="text-[22px] font-bold tabular-nums leading-none">{formatPlays(purchased)}</div>
+                        {totalCost > 0 && (
+                          <div className="text-[11px] text-muted-foreground mt-1.5 tabular-nums">{formatBRL(totalCost)} total</div>
+                        )}
+                      </div>
+                      <div className="rounded-xl bg-card border border-border/40 px-4 py-3">
+                        <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-1.5">
+                          Restante
+                        </div>
+                        <div className={cn("text-[22px] font-bold tabular-nums leading-none", overbooked ? "text-destructive" : "text-primary")}>
+                          {overbooked ? "Estourado" : formatPlays(remaining)}
+                        </div>
+                        <div className="text-[11px] text-muted-foreground mt-1.5 tabular-nums">{formatPlays(consumed)} consumido</div>
+                      </div>
+                      <div className="rounded-xl bg-card border border-border/40 px-4 py-3">
+                        <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-1.5">
+                          Consumido
+                        </div>
+                        <div className="text-[22px] font-bold tabular-nums leading-none">{consumedPct}%</div>
+                        <div className="mt-2"><Progress value={consumedPct} className="h-1.5 rounded-full" /></div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
 
               <div className="flex items-center justify-between px-6 py-4 border-b border-border/40">
                 <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
