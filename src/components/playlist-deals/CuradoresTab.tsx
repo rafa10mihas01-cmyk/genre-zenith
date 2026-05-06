@@ -305,7 +305,7 @@ export function CuradoresTab({
   return (
     <div className="space-y-6">
       {/* KPIs gerais */}
-      <section className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      <section className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <KpiBig
           icon={Users}
           label="Curadores"
@@ -374,6 +374,18 @@ export function CuradoresTab({
               ? "primary"
               : "success"
           }
+          loading={loading && deals.length === 0}
+        />
+        <KpiBig
+          icon={DollarSign}
+          label="Custo por play"
+          value={(() => {
+            const totalCost = balances.reduce((acc, b) => acc + Number(b.total_cost ?? 0), 0) || totals.totalCost;
+            if (!totals.totalEarned || !totalCost) return 0;
+            const cpp = totalCost / totals.totalEarned;
+            return `R$ ${cpp.toFixed(4)}`;
+          })()}
+          hint="Investido ÷ plays entregues"
           loading={loading && deals.length === 0}
         />
       </section>
