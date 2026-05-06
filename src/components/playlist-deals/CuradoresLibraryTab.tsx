@@ -270,7 +270,7 @@ export function CuradoresLibraryTab({
                         {activeDeals > 0 && <Activity className="h-2.5 w-2.5" />}
                         {statusLabel}
                       </Badge>
-                      {(onUpdateCurator || onArchiveCurator) && (
+                      {(onUpdateCurator || onArchiveCurator || onDeleteCurator) && (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button
