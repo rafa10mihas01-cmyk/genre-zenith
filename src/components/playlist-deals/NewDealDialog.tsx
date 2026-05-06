@@ -348,6 +348,101 @@ function DealRangePicker({
   );
 }
 
+// ============================================================
+// Client picker — leve, com cadastro rápido inline
+// ============================================================
+function ClientPicker({
+  value, clients, onChange, onCreate,
+}: {
+  value: string | null;
+  clients: Client[];
+  onChange: (id: string | null) => void;
+  onCreate: (name: string) => Promise<void>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [creating, setCreating] = useState(false);
+  const selected = clients.find((c) => c.id === value);
+  const filtered = clients
+    .filter((c) => !c.archived_at)
+    .filter((c) => (search ? c.name.toLowerCase().includes(search.toLowerCase()) : true));
+  const canCreate = search.trim().length > 0 && !filtered.some(
+    (c) => c.name.toLowerCase() === search.trim().toLowerCase(),
+  );
+  const handleCreate = async () => {
+    const name = search.trim();
+    if (!name) return;
+    setCreating(true);
+    try {
+      await onCreate(name);
+      setSearch("");
+      setOpen(false);
+    } finally {
+      setCreating(false);
+    }
+  };
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button type="button" variant="outline" size="sm" className="h-9 justify-start font-normal">
+          {selected ? selected.name : <span className="text-muted-foreground">Selecionar cliente…</span>}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-72 p-2" align="start">
+        <Input
+          placeholder="Buscar ou cadastrar…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="h-8 mb-2"
+        />
+        <div className="max-h-48 overflow-y-auto space-y-0.5">
+          {value && (
+            <button
+              type="button"
+              className="w-full text-left text-xs text-muted-foreground px-2 py-1.5 rounded hover:bg-accent"
+              onClick={() => { onChange(null); setOpen(false); }}
+            >
+              Remover cliente
+            </button>
+          )}
+          {filtered.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              className={cn(
+                "w-full text-left text-sm px-2 py-1.5 rounded hover:bg-accent flex items-center gap-2",
+                value === c.id && "bg-accent",
+              )}
+              onClick={() => { onChange(c.id); setOpen(false); }}
+            >
+              {value === c.id && <Check className="h-3.5 w-3.5 text-primary" />}
+              {c.name}
+            </button>
+          ))}
+          {filtered.length === 0 && !canCreate && (
+            <div className="text-xs text-muted-foreground px-2 py-3 text-center">
+              Nenhum cliente
+            </div>
+          )}
+        </div>
+        {canCreate && (
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="w-full justify-start gap-2 mt-1"
+            onClick={handleCreate}
+            disabled={creating}
+          >
+            {creating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UserPlus className="h-3.5 w-3.5" />}
+            Cadastrar "{search.trim()}"
+          </Button>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 
 // ============================================================
 // Componente
