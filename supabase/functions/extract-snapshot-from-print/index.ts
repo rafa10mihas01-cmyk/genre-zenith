@@ -14,6 +14,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { z } from "npm:zod@3.23.8";
 import { fetchPlaylistMeta } from "../_shared/curator-playlist.ts";
+import { recordMetric } from "../_shared/ops-metrics.ts";
 
 // ============= Schemas de validação =============
 const RequestSchema = z.object({
