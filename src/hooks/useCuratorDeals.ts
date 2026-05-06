@@ -397,7 +397,10 @@ export function useCuratorDeals() {
   // Deals — agora aceitam curator_id e duration_days nas songs
   // ============================================================
   const addDeal = useCallback(
-    async (input: NewCuratorDealInput, opts?: { force?: boolean }) => {
+    async (
+      input: NewCuratorDealInput,
+      opts?: { force?: boolean; new_curator?: NewCuratorInput | null },
+    ) => {
       if (!user) throw new Error("Usuário não autenticado");
 
       const primarySong: DealSongInput = {
