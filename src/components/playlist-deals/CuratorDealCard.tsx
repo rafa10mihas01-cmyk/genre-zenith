@@ -216,68 +216,66 @@ export function CuratorDealCard({
 
         {/* Banner de ramp-up (aquecimento) */}
         {inRampUp && (
-          <div className="rounded-md border border-primary/30 bg-primary/10 px-2.5 py-1.5 flex items-center gap-1.5">
-            <Zap className="h-3.5 w-3.5 text-primary shrink-0" />
-            <span className="text-[11px] text-primary font-medium">
-              Em aquecimento — dia {rampDayLabel} de {rampUpDays}
+          <div className="rounded-md border border-primary/30 bg-primary/10 px-2 py-1 flex items-center gap-1.5">
+            <Zap className="h-3 w-3 text-primary shrink-0" />
+            <span className="text-[10.5px] text-primary font-medium">
+              Aquecimento dia {rampDayLabel}/{rampUpDays}
             </span>
-            <span className="text-[10px] text-muted-foreground ml-auto">
-              meta diária liberada após
-            </span>
+            <span className="text-[10px] text-muted-foreground ml-auto">meta liberada após</span>
           </div>
         )}
 
         {/* Música única (mini-card destacado) ou contador de músicas */}
         {!showSongList ? (
-          <div className="flex items-center gap-3 min-w-0 rounded-xl bg-[hsl(var(--elevated))] border border-border/40 p-3">
+          <div className="flex items-center gap-2.5 min-w-0 rounded-lg bg-[hsl(var(--elevated))] border border-border/40 p-2">
             {deal.song_cover_url ? (
               <img
                 src={deal.song_cover_url}
                 alt={deal.song_name}
-                className="h-12 w-12 rounded-lg object-cover shrink-0 shadow-md"
+                className="h-9 w-9 rounded-md object-cover shrink-0 shadow-sm"
               />
             ) : (
-              <div className="h-12 w-12 rounded-lg bg-muted shrink-0" />
+              <div className="h-9 w-9 rounded-md bg-muted shrink-0" />
             )}
             <div className="min-w-0 flex-1">
-              <div className="text-[18px] font-medium text-foreground truncate leading-tight">
+              <div className="text-[14px] font-medium text-foreground truncate leading-tight">
                 {deal.song_name}
               </div>
               {deal.song_artist && (
-                <div className="text-[12px] text-muted-foreground truncate mt-0.5">
+                <div className="text-[11px] text-muted-foreground truncate mt-0.5">
                   {deal.song_artist}
                 </div>
               )}
             </div>
           </div>
         ) : (
-          <div className="space-y-2">
-            <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-semibold flex items-center gap-1.5">
+          <div className="space-y-1.5">
+            <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-semibold flex items-center gap-1.5">
               <Music2 className="h-3 w-3" />
-              {songs.length} músicas no deal
+              {songs.length} músicas
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               {songs.map((s) => (
                 <div
                   key={s.id}
-                  className="flex items-center gap-2.5 rounded-lg bg-[hsl(var(--elevated))] border border-border/40 px-3 py-2 min-w-0"
+                  className="flex items-center gap-2 rounded-md bg-[hsl(var(--elevated))] border border-border/40 px-2 py-1.5 min-w-0"
                 >
                   {s.song_cover_url ? (
                     <img
                       src={s.song_cover_url}
                       alt={s.song_name}
-                      className="h-7 w-7 rounded-md object-cover shrink-0"
+                      className="h-6 w-6 rounded object-cover shrink-0"
                     />
                   ) : (
-                    <div className="h-7 w-7 rounded-md bg-muted shrink-0" />
+                    <div className="h-6 w-6 rounded bg-muted shrink-0" />
                   )}
                   <div className="min-w-0 flex-1">
-                    <div className="text-[13px] text-foreground truncate font-medium">
+                    <div className="text-[12px] text-foreground truncate font-medium">
                       {s.song_name}
                     </div>
                   </div>
                   {Number(s.daily_goal) > 0 && (
-                    <span className="text-[11px] tabular-nums text-muted-foreground shrink-0">
+                    <span className="text-[10.5px] tabular-nums text-muted-foreground shrink-0">
                       {formatPlays(Number(s.daily_goal))}/dia
                     </span>
                   )}
