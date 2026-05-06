@@ -42,6 +42,8 @@ export function CuratorDealCard({
 }: CuratorDealCardProps) {
   const stats = computeCuratorStats(deal, logs, playlists, progress ?? null);
   const { earned, pct, vel, eta, latestPlays, todayPlays, hasBaseline, newPlaylists } = stats;
+  const { data: breakdown } = useCuratorDealBreakdown(deal.id);
+  const eco = ecosystemTotal(breakdown);
   const target = Number(deal.target_plays ?? 0);
   const dailyGoal = Number(deal.daily_goal ?? 0);
   const isDone = target > 0 && earned >= target;
