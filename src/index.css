@@ -11,11 +11,11 @@
   :root,
   .dark {
     /* === DESIGN SYSTEM — TOKENS GLOBAIS === */
-    /* Backgrounds */
+    /* Backgrounds — contraste elevado para legibilidade em telas de baixo brilho */
     --background: 0 0% 1.96%;         /* #050505 - canvas */
-    --card: 0 0% 6.7%;                /* #111111 - cards */
-    --elevated: 0 0% 10.2%;           /* #1A1A1A - hover/elevated */
-    --popover: 0 0% 6.7%;
+    --card: 0 0% 9%;                  /* #171717 - cards (subido de 6.7% p/ contraste) */
+    --elevated: 0 0% 13%;             /* #212121 - hover/elevated */
+    --popover: 0 0% 9%;
     --popover-foreground: 0 0% 100%;
     --card-foreground: 0 0% 100%;
 
@@ -35,9 +35,9 @@
     --secondary: 0 0% 9%;
     --secondary-foreground: 0 0% 100%;
 
-    /* Borders quase invisíveis */
-    --border: 0 0% 14%;
-    --input: 0 0% 14%;
+    /* Borders sutis mas perceptíveis em qualquer brilho */
+    --border: 0 0% 18%;
+    --input: 0 0% 18%;
     --ring: 141 76% 48%;
 
     /* Status */
@@ -107,6 +107,30 @@
     --sidebar-border: 0 0% 88%;
     --sidebar-ring: 141 76% 38%;
   }
+
+  /* === Acessibilidade: reforço automático quando o SO pede mais contraste
+     (iOS "Increase Contrast", macOS, Android, Windows). Cards ficam visíveis
+     mesmo com brilho da tela muito baixo. === */
+  @media (prefers-contrast: more) {
+    :root, .dark {
+      --card: 0 0% 14%;          /* #242424 */
+      --elevated: 0 0% 18%;      /* #2E2E2E */
+      --popover: 0 0% 14%;
+      --border: 0 0% 28%;
+      --input: 0 0% 28%;
+      --muted-foreground: 0 0% 78%;
+    }
+    .light {
+      --card: 0 0% 100%;
+      --border: 0 0% 70%;
+      --input: 0 0% 70%;
+      --foreground: 0 0% 0%;
+      --muted-foreground: 0 0% 25%;
+    }
+    .nx-card, .dark .nx-card {
+      border-color: rgba(255, 255, 255, 0.18) !important;
+    }
+  }
 }
 
 @layer base {
@@ -155,7 +179,7 @@
     box-shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.45), 0 1px 0 rgba(255,255,255,0.03) inset;
   }
   .dark .nx-card {
-    border-color: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.10);
   }
   .light .nx-card {
     background: hsl(var(--card));
