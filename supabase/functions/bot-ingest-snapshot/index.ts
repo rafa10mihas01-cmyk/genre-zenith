@@ -23,6 +23,7 @@ function jr(p: unknown, status = 200) {
 }
 
 Deno.serve(async (req) => {
+  const t0 = Date.now();
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return jr({ error: "method_not_allowed" }, 405);
 
