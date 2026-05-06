@@ -319,9 +319,9 @@ function DealRangePicker({
                   : [],
             }}
             modifiersClassNames={{
-              range_start: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground rounded-full",
-              range_end: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground rounded-full",
-              range_middle: "bg-primary/15 text-foreground rounded-none hover:bg-primary/20",
+              range_start: "!bg-primary !text-primary-foreground hover:!bg-primary hover:!text-primary-foreground rounded-full",
+              range_end: "!bg-primary !text-primary-foreground hover:!bg-primary hover:!text-primary-foreground rounded-full",
+              range_middle: "!bg-primary/10 text-foreground rounded-none hover:!bg-primary/15",
             }}
             onDayClick={handleDayClick}
             numberOfMonths={1}
