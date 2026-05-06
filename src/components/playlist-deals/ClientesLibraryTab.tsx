@@ -40,7 +40,6 @@ import {
 } from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
 import { useClients, type Client } from "@/hooks/useClients";
-import { supabase } from "@/integrations/supabase/client";
 import { clientCampaignUrl } from "@/lib/curatorPublicUrl";
 import { cn } from "@/lib/utils";
 import type { CuratorDeal, CuratorDealSong } from "@/lib/curatorDealsUtils";
