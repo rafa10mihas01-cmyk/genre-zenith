@@ -110,7 +110,7 @@ export function CuratorDealCard({
 
   return (
     <Card className="overflow-hidden border-border/60 hover:border-foreground/25 transition-all duration-200 hover:shadow-[0_18px_40px_-18px_rgba(0,0,0,0.85),0_0_32px_-8px_hsl(141_76%_48%_/_0.18)] hover:-translate-y-[1px] bg-[linear-gradient(180deg,rgba(255,255,255,0.025)_0%,transparent_40%),hsl(var(--card))]">
-      <CardContent className="p-5 flex flex-col gap-4">
+      <CardContent className="p-5 pt-5 md:pt-5 flex flex-col gap-4">
         {/* Header: curador + datas + status — espaçamento reforçado (16px) */}
         <div className="flex items-start gap-3 min-w-0 pb-1">
           <div className="min-w-0 flex-1">

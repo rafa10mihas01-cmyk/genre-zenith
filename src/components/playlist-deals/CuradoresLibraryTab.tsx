@@ -188,7 +188,7 @@ export function CuradoresLibraryTab({ curators, balances, deals, loading }: Prop
                 )}
                 onClick={() => setSelected(curator)}
               >
-                <CardContent className="p-5 flex flex-col gap-4">
+                <CardContent className="p-5 pt-5 md:pt-5 flex flex-col gap-4">
                   {/* Header: avatar + nome + status */}
                   <div className="flex items-start gap-3 min-w-0 pb-1">
                     <div className="h-11 w-11 rounded-xl bg-primary/15 border border-primary/30 flex items-center justify-center text-[14px] font-bold text-primary shrink-0">
