@@ -190,7 +190,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           </header>
 
           {/* CONTEÚDO — só ele rola */}
-          <main className="relative flex-1 min-h-0 overflow-y-auto overflow-x-hidden nx-scroll">
+          <main className="relative flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain nx-scroll">
             {/* Gradiente sutil no topo: verde Spotify difuso → transparente */}
             <div
               aria-hidden
