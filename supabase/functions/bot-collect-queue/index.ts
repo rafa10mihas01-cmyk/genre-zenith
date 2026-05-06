@@ -86,6 +86,8 @@ Deno.serve(async (req) => {
   // Pós-filtro: token_expires_at no passado também desqualifica
   const nowMs = Date.now();
   const candidates = (data ?? []).filter((s: any) => {
+    // Curador pausado: bloqueia coleta
+    if (s?.curator_deals?.curators?.paused_at) return false;
     const exp = s?.curator_deals?.token_expires_at;
     if (!exp) return true;
     const t = new Date(exp).getTime();
