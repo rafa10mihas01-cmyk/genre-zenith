@@ -315,16 +315,10 @@ export function CuratorDealCard({
               <span className="text-muted-foreground">Curador</span>
               <span className="tabular-nums font-semibold text-foreground">{plBreakdown.curator}</span>
             </span>
-            {plBreakdown.algo > 0 && (
-              <span className="inline-flex items-center gap-1.5">
-                <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/70" />
-                <span className="text-muted-foreground">Algoritmo</span>
-                <span className="tabular-nums font-semibold text-foreground">{plBreakdown.algo}</span>
-                <span className="text-muted-foreground/70">(visualização)</span>
-              </span>
-            )}
           </div>
         )}
+        {/* Algoritmo intencionalmente omitido aqui — visível só no histórico/sheet (referência arqueológica). */}
+        {false && null}
 
         {/* Ecossistema (visualização) — separado da entrega contratual */}
         {breakdown && (eco.plays > 0 || eco.playlists > 0) && (
