@@ -349,6 +349,7 @@ export default function CuratorPage() {
       setSongs((data.songs ?? []) as DealSong[]);
       setProgress((data.progress ?? null) as DealProgress | null);
       setSnapshotHistory((data.snapshot_history ?? []) as SnapshotHistoryEntry[]);
+      setAccess(data.access ?? { writable: true });
       setError(null);
     }
     setLoading(false);
