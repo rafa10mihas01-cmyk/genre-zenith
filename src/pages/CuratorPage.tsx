@@ -685,9 +685,9 @@ export default function CuratorPage() {
     }
     return ids;
   }, [playlists]);
-  const perPlaylistCurator = perPlaylist.filter(
-    (p) => !p.is_baseline && curatorOwnedPlaylistIds.has(p.playlist_id),
-  );
+  const perPlaylistCurator = perPlaylist
+    .filter((p) => !p.is_baseline && curatorOwnedPlaylistIds.has(p.playlist_id))
+    .sort((a, b) => Number(b.delivered ?? 0) - Number(a.delivered ?? 0));
 
   return (
     <div className="relative min-h-screen bg-background py-8 sm:py-10 overflow-hidden">
