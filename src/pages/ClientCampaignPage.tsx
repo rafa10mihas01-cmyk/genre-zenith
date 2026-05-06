@@ -278,7 +278,80 @@ export default function ClientCampaignPage() {
               </p>
             )}
           </div>
+          {deal.smartlink_url && (
+            <a
+              href={deal.smartlink_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hidden sm:inline-flex shrink-0"
+            >
+              <Button variant="outline" size="sm" className="gap-2">
+                <ExternalLink className="h-3.5 w-3.5" />
+                Ouvir agora
+              </Button>
+            </a>
+          )}
         </section>
+
+        {deal.smartlink_url && (
+          <a
+            href={deal.smartlink_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="sm:hidden -mt-2"
+          >
+            <Button variant="outline" size="sm" className="w-full gap-2">
+              <ExternalLink className="h-3.5 w-3.5" />
+              Ouvir agora
+            </Button>
+          </a>
+        )}
+
+        {/* SELETOR DE MÚSICAS — quando o cliente tem várias faixas no deal */}
+        {songs.length > 1 && (
+          <section className="space-y-2">
+            <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground font-bold">
+              Músicas desta campanha
+            </p>
+            <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 snap-x">
+              {songs.map((s) => {
+                const active = s.id === selectedSongId
+                  || (selectedSongId == null && s.client_token === token);
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => handleSelectSong(s.client_token)}
+                    className={cn(
+                      "snap-start shrink-0 flex items-center gap-2.5 pl-1.5 pr-3 py-1.5 rounded-full border transition-colors text-left",
+                      active
+                        ? "border-primary/60 bg-primary/10 text-foreground"
+                        : "border-border bg-card text-muted-foreground hover:text-foreground hover:border-foreground/30",
+                    )}
+                  >
+                    <div className="h-7 w-7 rounded-full overflow-hidden bg-elevated border border-border shrink-0">
+                      {s.song_cover_url ? (
+                        <img
+                          src={s.song_cover_url}
+                          alt={s.song_name}
+                          className="h-full w-full object-cover"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="h-full w-full flex items-center justify-center">
+                          <Music2 className="h-3.5 w-3.5" />
+                        </div>
+                      )}
+                    </div>
+                    <span className="text-xs font-medium max-w-[160px] truncate">
+                      {s.song_name}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {/* CARD HERO — números grandes */}
         <Card className="overflow-hidden">
