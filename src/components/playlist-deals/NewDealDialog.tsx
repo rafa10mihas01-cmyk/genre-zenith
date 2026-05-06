@@ -715,7 +715,7 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
         daily_goal: Number(primary.daily_goal),
         duration_days: Number(primary.duration_days),
         baseline_plays: 0,
-        cost: null,
+        cost: typeof dealCostRaw === "number" && dealCostRaw > 0 ? dealCostRaw : null,
         started_at: dealStart.toISOString(),
         ends_at: dealEnd.toISOString(),
         ramp_up_days: primary.ramp_up_days ? Math.max(0, Number(primary.ramp_up_days)) : 5,
