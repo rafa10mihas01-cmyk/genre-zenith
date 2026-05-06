@@ -160,16 +160,6 @@ export default function PlaylistDeals() {
                   <span className="text-[11px] text-muted-foreground leading-tight">Artista ou label contratante</span>
                 </div>
               </DropdownMenuItem>
-              <DropdownMenuItem
-                className="gap-2 rounded-lg items-start py-2"
-                onClick={handleNew}
-              >
-                <Users className="h-4 w-4 mt-0.5 shrink-0" />
-                <div className="flex flex-col">
-                  <span className="text-sm font-medium leading-tight">Novo curador</span>
-                  <span className="text-[11px] text-muted-foreground leading-tight">Cadastra dentro do fluxo do Deal</span>
-                </div>
-              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         }
