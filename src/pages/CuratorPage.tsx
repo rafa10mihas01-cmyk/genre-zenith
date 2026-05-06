@@ -1515,7 +1515,7 @@ export default function CuratorPage() {
             </div>
             <Button
               onClick={handleAdd}
-              disabled={submitting || importing || !url.trim() || playlistSongRequired}
+              disabled={submitting || importing || !url.trim() || playlistSongRequired || !access.writable}
               className="w-full h-10 text-[14px] font-semibold rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-[0_8px_24px_-8px_hsl(141_76%_48%_/_0.5)] transition-all duration-200"
             >
               {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
@@ -1546,7 +1546,7 @@ export default function CuratorPage() {
                 variant="ghost"
                 className="h-10 w-full px-4 text-[13px] rounded-xl bg-muted/40 ring-1 ring-border hover:bg-border hover:ring-border [&>svg]:shrink-0 truncate"
                 onClick={() => fileInputRef.current?.click()}
-                disabled={submitting || importing || playlistSongRequired}
+                disabled={submitting || importing || playlistSongRequired || !access.writable}
               >
                 {importing ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
