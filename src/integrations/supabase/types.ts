@@ -124,10 +124,13 @@ export type Database = {
       bot_events: {
         Row: {
           bot_name: string
+          correlation_id: string | null
           created_at: string
           deal_id: string | null
+          discard_reason: string | null
           duration_ms: number | null
           id: string
+          lifecycle_state: string | null
           message: string | null
           metadata: Json
           screenshot_url: string | null
@@ -139,10 +142,13 @@ export type Database = {
         }
         Insert: {
           bot_name?: string
+          correlation_id?: string | null
           created_at?: string
           deal_id?: string | null
+          discard_reason?: string | null
           duration_ms?: number | null
           id?: string
+          lifecycle_state?: string | null
           message?: string | null
           metadata?: Json
           screenshot_url?: string | null
@@ -154,10 +160,13 @@ export type Database = {
         }
         Update: {
           bot_name?: string
+          correlation_id?: string | null
           created_at?: string
           deal_id?: string | null
+          discard_reason?: string | null
           duration_ms?: number | null
           id?: string
+          lifecycle_state?: string | null
           message?: string | null
           metadata?: Json
           screenshot_url?: string | null
@@ -221,6 +230,7 @@ export type Database = {
         Row: {
           batch_key: string
           completed_at: string | null
+          correlation_id: string | null
           created_at: string
           deal_id: string
           dom_payload: Json
@@ -238,6 +248,7 @@ export type Database = {
         Insert: {
           batch_key: string
           completed_at?: string | null
+          correlation_id?: string | null
           created_at?: string
           deal_id: string
           dom_payload?: Json
@@ -255,6 +266,7 @@ export type Database = {
         Update: {
           batch_key?: string
           completed_at?: string | null
+          correlation_id?: string | null
           created_at?: string
           deal_id?: string
           dom_payload?: Json
@@ -428,6 +440,7 @@ export type Database = {
           ai_raw: Json
           batch_id: string | null
           captured_at: string
+          correlation_id: string | null
           created_at: string
           created_by: string | null
           deal_id: string
@@ -446,6 +459,7 @@ export type Database = {
           ai_raw?: Json
           batch_id?: string | null
           captured_at?: string
+          correlation_id?: string | null
           created_at?: string
           created_by?: string | null
           deal_id: string
@@ -464,6 +478,7 @@ export type Database = {
           ai_raw?: Json
           batch_id?: string | null
           captured_at?: string
+          correlation_id?: string | null
           created_at?: string
           created_by?: string | null
           deal_id?: string
@@ -2457,6 +2472,30 @@ export type Database = {
           total_plays_purchased: number | null
           total_spent: number | null
           user_id: string | null
+        }
+        Relationships: []
+      }
+      v_dispatch_trace: {
+        Row: {
+          accepted_at: string | null
+          batch_id: string | null
+          batch_status: string | null
+          correlation_id: string | null
+          deal_id: string | null
+          discard_reason: string | null
+          discarded_at: string | null
+          failed_at: string | null
+          fetched_at: string | null
+          finished_at: string | null
+          print_uploaded_at: string | null
+          queued_local_at: string | null
+          received_parts: number | null
+          snapshot_count: number | null
+          snapshot_sent_at: string | null
+          song_id: string | null
+          started_at: string | null
+          total_parts: number | null
+          total_plays_extracted: number | null
         }
         Relationships: []
       }
