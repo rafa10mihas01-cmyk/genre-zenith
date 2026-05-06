@@ -164,18 +164,37 @@ export function CuratorDealCard({
               </span>
             </div>
           </div>
-          <Badge
-            variant={isClosed && closedStatus === "completed" ? "default" : "secondary"}
-            className={cn(
-              "shrink-0 text-[10px] px-2.5 py-0.5 h-6 font-semibold gap-1 rounded-full",
-              isClosed && closedStatus === "completed" && "bg-success text-success-foreground hover:bg-success/90",
-              isClosed && closedStatus === "cancelled" && "bg-destructive/15 text-destructive hover:bg-destructive/20",
-              !isClosed && isDone && "bg-primary/15 text-primary",
+          <div className="flex items-center gap-2 shrink-0">
+            {!isClosed && (
+              <span
+                className="relative inline-flex h-2.5 w-2.5"
+                title={hasWhitelist ? "Playlists cadastradas" : "Curador não cadastrou playlists — coleta pausada"}
+                aria-label={hasWhitelist ? "Playlists cadastradas" : "Sem playlists cadastradas"}
+              >
+                {!hasWhitelist && (
+                  <span className="absolute inline-flex h-full w-full rounded-full bg-destructive opacity-60 animate-ping" />
+                )}
+                <span
+                  className={cn(
+                    "relative inline-flex h-2.5 w-2.5 rounded-full",
+                    hasWhitelist ? "bg-success" : "bg-destructive",
+                  )}
+                />
+              </span>
             )}
-          >
-            {isClosed && <Lock className="h-2.5 w-2.5" />}
-            {statusLabel}
-          </Badge>
+            <Badge
+              variant={isClosed && closedStatus === "completed" ? "default" : "secondary"}
+              className={cn(
+                "text-[10px] px-2.5 py-0.5 h-6 font-semibold gap-1 rounded-full",
+                isClosed && closedStatus === "completed" && "bg-success text-success-foreground hover:bg-success/90",
+                isClosed && closedStatus === "cancelled" && "bg-destructive/15 text-destructive hover:bg-destructive/20",
+                !isClosed && isDone && "bg-primary/15 text-primary",
+              )}
+            >
+              {isClosed && <Lock className="h-2.5 w-2.5" />}
+              {statusLabel}
+            </Badge>
+          </div>
         </div>
 
         {/* Banner de fechamento */}
