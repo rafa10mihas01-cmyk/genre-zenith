@@ -24,6 +24,7 @@ import {
   type ClassifyResult,
   type SpotifyPlaylistMeta,
 } from "../_shared/curator-playlist.ts";
+import { assertDealOperable } from "../_shared/deal-access.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -83,6 +84,10 @@ type DealRow = {
   spotify_owner_id: string | null;
   song_spotify_url: string | null;
   started_at: string;
+  state: string | null;
+  closed_at: string | null;
+  token_revoked_at: string | null;
+  token_expires_at: string | null;
 };
 
 type ProcessedItem = {
@@ -149,7 +154,7 @@ Deno.serve(async (req) => {
     if (publicToken) {
       const { data, error } = await admin
         .from("curator_deals")
-        .select("id, user_id, spotify_owner_id, song_spotify_url, started_at")
+        .select("id, user_id, spotify_owner_id, song_spotify_url, started_at, state, closed_at, token_revoked_at, token_expires_at")
         .eq("public_token", publicToken)
         .maybeSingle();
       if (error) return jr({ ok: false, error: error.message }, 200);
@@ -173,7 +178,7 @@ Deno.serve(async (req) => {
 
       const { data, error } = await admin
         .from("curator_deals")
-        .select("id, user_id, spotify_owner_id, song_spotify_url, started_at")
+        .select("id, user_id, spotify_owner_id, song_spotify_url, started_at, state, closed_at, token_revoked_at, token_expires_at")
         .eq("id", dealIdInput)
         .maybeSingle();
       if (error) return jr({ ok: false, error: error.message }, 200);
@@ -185,6 +190,12 @@ Deno.serve(async (req) => {
     }
 
     if (!deal) return jr({ ok: false, error: "deal não encontrado" }, 404);
+
+    // ====== Gate de ciclo de vida (Fase 5B) ======
+    const gate = assertDealOperable(deal);
+    if (!gate.ok) {
+      return jr({ ok: false, error: gate.error, code: gate.code }, gate.status);
+    }
 
     let trackIdToCheck = extractTrackId(deal.song_spotify_url ?? "");
     if (songIdInput) {

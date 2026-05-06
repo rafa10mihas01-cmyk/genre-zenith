@@ -53,12 +53,13 @@ Deno.serve(async (req) => {
       id, deal_id, song_name, song_artist, artist_candidates, song_spotify_url, spotify_track_id,
       auto_collect_status, last_auto_collect_at, next_auto_collect_at,
       auto_collect_interval_minutes, last_print_at,
-      curator_deals!inner ( id, curator_name, song_name, user_id, closed_at, state ),
+      curator_deals!inner ( id, curator_name, song_name, user_id, closed_at, state, token_revoked_at, token_expires_at ),
       curator_playlists ( id, playlist_name, spotify_url, spotify_playlist_id )
     `)
     .eq("auto_collect", true)
     .in("auto_collect_status", ["idle", "error"])
     .is("curator_deals.closed_at", null)
+    .is("curator_deals.token_revoked_at", null)
     .in("curator_deals.state", ["awaiting_playlists", "collecting", "active"])
     .or(`next_auto_collect_at.is.null,next_auto_collect_at.lte.${new Date().toISOString()}`)
     .order("next_auto_collect_at", { ascending: true, nullsFirst: true })
@@ -68,7 +69,14 @@ Deno.serve(async (req) => {
 
   // 🔒 BLINDAGEM: só coleta se o deal já tem playlists do curador cadastradas
   // (com spotify_playlist_id e não-algorítmicas). Sem whitelist, não roda.
-  const candidates = data ?? [];
+  // Pós-filtro: token_expires_at no passado também desqualifica
+  const nowMs = Date.now();
+  const candidates = (data ?? []).filter((s: any) => {
+    const exp = s?.curator_deals?.token_expires_at;
+    if (!exp) return true;
+    const t = new Date(exp).getTime();
+    return !Number.isFinite(t) || t > nowMs;
+  });
   const dealIds = Array.from(new Set(candidates.map((s: any) => s.deal_id)));
   const dealsWithWhitelist = new Set<string>();
   if (dealIds.length) {

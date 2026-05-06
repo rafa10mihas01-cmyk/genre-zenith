@@ -239,6 +239,7 @@ export default function CuratorPage() {
   const [songs, setSongs] = useState<DealSong[]>([]);
   const [progress, setProgress] = useState<DealProgress | null>(null);
   const [snapshotHistory, setSnapshotHistory] = useState<SnapshotHistoryEntry[]>([]);
+  const [access, setAccess] = useState<{ writable: boolean; code?: string; reason?: string }>({ writable: true });
   const [url, setUrl] = useState("");
   const [position, setPosition] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -348,6 +349,7 @@ export default function CuratorPage() {
       setSongs((data.songs ?? []) as DealSong[]);
       setProgress((data.progress ?? null) as DealProgress | null);
       setSnapshotHistory((data.snapshot_history ?? []) as SnapshotHistoryEntry[]);
+      setAccess(data.access ?? { writable: true });
       setError(null);
     }
     setLoading(false);
@@ -503,6 +505,10 @@ export default function CuratorPage() {
 
   const handleAdd = async () => {
     if (!token || !url.trim()) return;
+    if (!access.writable) {
+      toast.error(access.reason || "Este deal não aceita mais alterações");
+      return;
+    }
     if (playlistSongRequired) {
       toast.error("Selecione a música antes de adicionar a playlist");
       return;
@@ -593,6 +599,10 @@ export default function CuratorPage() {
 
   const handleImportFile = async (file: File) => {
     if (!token) return;
+    if (!access.writable) {
+      toast.error(access.reason || "Este deal não aceita mais alterações");
+      return;
+    }
     if (playlistSongRequired) {
       toast.error("Selecione a música antes de importar playlists");
       return;
@@ -728,6 +738,15 @@ export default function CuratorPage() {
             />
           </div>
         </div>
+
+        {!access.writable && (
+          <div className="rounded-2xl border border-warning/40 bg-warning/10 px-5 py-4 text-sm text-warning-foreground">
+            <div className="font-semibold mb-1">Este deal não aceita mais alterações</div>
+            <div className="text-muted-foreground">
+              {access.reason ?? "Estado atual bloqueia novas playlists, prints e coleta."}
+            </div>
+          </div>
+        )}
 
         {/* Header — campanha + música */}
         <Card className="nx-card !p-0 overflow-hidden border-border">
@@ -1496,7 +1515,7 @@ export default function CuratorPage() {
             </div>
             <Button
               onClick={handleAdd}
-              disabled={submitting || importing || !url.trim() || playlistSongRequired}
+              disabled={submitting || importing || !url.trim() || playlistSongRequired || !access.writable}
               className="w-full h-10 text-[14px] font-semibold rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-[0_8px_24px_-8px_hsl(141_76%_48%_/_0.5)] transition-all duration-200"
             >
               {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
@@ -1527,7 +1546,7 @@ export default function CuratorPage() {
                 variant="ghost"
                 className="h-10 w-full px-4 text-[13px] rounded-xl bg-muted/40 ring-1 ring-border hover:bg-border hover:ring-border [&>svg]:shrink-0 truncate"
                 onClick={() => fileInputRef.current?.click()}
-                disabled={submitting || importing || playlistSongRequired}
+                disabled={submitting || importing || playlistSongRequired || !access.writable}
               >
                 {importing ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
