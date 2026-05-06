@@ -167,7 +167,22 @@ export type Database = {
           step?: string
           url?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "bot_events_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "curator_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bot_events_song_id_fkey"
+            columns: ["song_id"]
+            isOneToOne: false
+            referencedRelation: "curator_deal_songs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       bot_heartbeats: {
         Row: {
@@ -575,6 +590,8 @@ export type Database = {
           started_at: string
           state: string
           target_plays: number
+          token_expires_at: string | null
+          token_revoked_at: string | null
           user_id: string
         }
         Insert: {
@@ -606,6 +623,8 @@ export type Database = {
           started_at?: string
           state?: string
           target_plays: number
+          token_expires_at?: string | null
+          token_revoked_at?: string | null
           user_id: string
         }
         Update: {
@@ -637,6 +656,8 @@ export type Database = {
           started_at?: string
           state?: string
           target_plays?: number
+          token_expires_at?: string | null
+          token_revoked_at?: string | null
           user_id?: string
         }
         Relationships: [
@@ -702,7 +723,22 @@ export type Database = {
           title?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "curator_fraud_alerts_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "curator_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curator_fraud_alerts_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "curator_playlists"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       curator_paste_imports: {
         Row: {
@@ -753,7 +789,22 @@ export type Database = {
           suspicious_count?: number
           total_streams_7d?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "curator_paste_imports_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "curator_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curator_paste_imports_song_id_fkey"
+            columns: ["song_id"]
+            isOneToOne: false
+            referencedRelation: "curator_deal_songs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       curator_playlist_library: {
         Row: {
