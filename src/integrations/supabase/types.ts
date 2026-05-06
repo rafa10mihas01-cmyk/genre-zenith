@@ -563,6 +563,7 @@ export type Database = {
       curator_deals: {
         Row: {
           baseline_plays: number
+          client_token: string
           closed_at: string | null
           closed_reason: string | null
           closed_status: string | null
@@ -596,6 +597,7 @@ export type Database = {
         }
         Insert: {
           baseline_plays?: number
+          client_token?: string
           closed_at?: string | null
           closed_reason?: string | null
           closed_status?: string | null
@@ -629,6 +631,7 @@ export type Database = {
         }
         Update: {
           baseline_plays?: number
+          client_token?: string
           closed_at?: string | null
           closed_reason?: string | null
           closed_status?: string | null
