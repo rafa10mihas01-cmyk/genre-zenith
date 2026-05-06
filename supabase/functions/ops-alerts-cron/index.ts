@@ -13,32 +13,44 @@ function jr(p: unknown, status = 200) {
   });
 }
 
+type Domain = "bot" | "ocr" | "queue" | "curator" | "system" | "financeiro" | "security" | "ai";
+type Severity = "critical" | "high" | "medium" | "low" | "info";
+
 type Alert = {
   kind: string;
   type: "info" | "warning" | "critical";
+  domain: Domain;
+  severity: Severity;
   title: string;
   message: string;
+  actionUrl?: string;
 };
 
 async function notifyOnce(supabase: ReturnType<typeof createClient>, alert: Alert) {
-  // Dedupe: 1h por kind
-  const since = new Date(Date.now() - 60 * 60_000).toISOString();
-  const { count } = await supabase
-    .from("notifications")
-    .select("id", { count: "exact", head: true })
-    .gte("created_at", since)
-    .contains("metadata", { kind: alert.kind });
-  if ((count ?? 0) > 0) return false;
+  // Dedupe global agora é feito pelo RPC (FASE 2A) via dedupe_key/cooldown
   try {
-    await supabase.rpc("create_notification" as any, {
+    const { error } = await supabase.rpc("create_notification" as any, {
       p_type: alert.type,
       p_title: alert.title,
       p_message: alert.message,
-      p_action_url: "/playlist-deals",
-      p_metadata: { kind: alert.kind, source: "ops-alerts-cron" },
+      p_action_url: alert.actionUrl ?? "/sistema",
+      p_metadata: {
+        kind: alert.kind,
+        domain: alert.domain,
+        severity: alert.severity,
+        action_required: alert.severity === "critical" || alert.severity === "high",
+        source: "ops-alerts-cron",
+      },
+      p_dedupe_key: alert.kind,
+      p_cooldown_minutes: 60,
     });
+    if (error) {
+      console.error("[ops-alerts] rpc error", error.message);
+      return false;
+    }
     return true;
-  } catch (_) {
+  } catch (e) {
+    console.error("[ops-alerts] unexpected", e);
     return false;
   }
 }
