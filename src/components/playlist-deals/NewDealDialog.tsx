@@ -160,7 +160,7 @@ function songTarget(s: SongRow): number {
 }
 
 // ============================================================
-// Range picker (início → fim) num único calendário
+// Range picker (início → fim) — padrão premium estilo Stripe/Linear
 // ============================================================
 function DealRangePicker({
   startedAt,
@@ -178,12 +178,79 @@ function DealRangePicker({
       ? new Date(startedAt.getTime() + durationDays * 86400000)
       : undefined;
 
+  // Estado interno de seleção em andamento (evita preview agressivo do react-day-picker)
+  const [draftFrom, setDraftFrom] = useState<Date | undefined>(from);
+  const [draftTo, setDraftTo] = useState<Date | undefined>(to);
+
+  // Sincroniza ao abrir
+  useEffect(() => {
+    if (open) {
+      setDraftFrom(from);
+      setDraftTo(to);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
   const label =
     from && to
-      ? `${format(from, "dd MMM", { locale: ptBR })} → ${format(to, "dd MMM, yyyy", { locale: ptBR })} · ${durationDays}d`
-      : from
-      ? `${format(from, "dd 'de' MMM, yyyy", { locale: ptBR })} — escolha o fim`
+      ? `${format(from, "dd MMM", { locale: ptBR })} → ${format(to, "dd MMM, yyyy", { locale: ptBR })} · ${durationDays} dias`
       : "Escolher período";
+
+  const helper =
+    !draftFrom
+      ? "Selecione a data inicial"
+      : !draftTo
+      ? "Selecione a data final"
+      : `${format(draftFrom, "dd MMM", { locale: ptBR })} → ${format(draftTo, "dd MMM, yyyy", { locale: ptBR })} · ${
+          Math.max(1, Math.round((draftTo.getTime() - draftFrom.getTime()) / 86400000))
+        } dias`;
+
+  const commit = (start: Date, end: Date) => {
+    const days = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000));
+    onChange(start, days);
+    setOpen(false);
+  };
+
+  const applyPreset = (days: number) => {
+    const start = draftFrom ?? new Date();
+    const end = new Date(start.getTime() + days * 86400000);
+    setDraftFrom(start);
+    setDraftTo(end);
+    commit(start, end);
+  };
+
+  const handleSelect = (range: { from?: Date; to?: Date } | undefined) => {
+    // Comportamento previsível:
+    // - sem nada: define from
+    // - com from + clicou em data anterior: redefine from
+    // - com from sem to: define to
+    // - com from+to: reinicia (novo from)
+    const clicked = range?.to ?? range?.from;
+    if (!clicked) return;
+
+    if (!draftFrom) {
+      setDraftFrom(clicked);
+      setDraftTo(undefined);
+      return;
+    }
+
+    if (draftFrom && draftTo) {
+      // range completo → reinicia
+      setDraftFrom(clicked);
+      setDraftTo(undefined);
+      return;
+    }
+
+    if (clicked.getTime() < draftFrom.getTime()) {
+      // clicou antes do início → redefine início
+      setDraftFrom(clicked);
+      setDraftTo(undefined);
+      return;
+    }
+
+    setDraftTo(clicked);
+    commit(draftFrom, clicked);
+  };
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -201,34 +268,68 @@ function DealRangePicker({
           <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
-        <Calendar
-          mode="range"
-          selected={{ from, to }}
-          onSelect={(range) => {
-            if (!range?.from) return;
-            const start = range.from;
-            if (range.to) {
-              const days = Math.max(
-                1,
-                Math.round((range.to.getTime() - start.getTime()) / 86400000),
-              );
-              onChange(start, days);
-              setOpen(false);
-            } else {
-              // Só clicou no início — mantém duração atual (mínimo 1)
-              onChange(start, Math.max(1, durationDays));
-            }
-          }}
-          numberOfMonths={1}
-          initialFocus
-          className={cn("p-3 pointer-events-auto")}
-          locale={ptBR}
-        />
+      <PopoverContent
+        className="w-auto p-0 overflow-hidden rounded-2xl border-border bg-popover shadow-2xl"
+        align="start"
+      >
+        {/* Header com helper */}
+        <div className="px-4 pt-3 pb-2 border-b border-border/60">
+          <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-semibold">
+            Período da campanha
+          </div>
+          <div className="text-sm text-foreground mt-0.5 font-medium">{helper}</div>
+        </div>
+
+        <div className="flex flex-col sm:flex-row">
+          {/* Presets */}
+          <div className="flex sm:flex-col gap-1 p-2 sm:p-3 sm:border-r border-border/60 overflow-x-auto sm:overflow-visible">
+            {[7, 14, 30, 60].map((d) => (
+              <Button
+                key={d}
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="justify-start h-8 px-3 text-xs font-normal text-muted-foreground hover:text-foreground hover:bg-accent shrink-0"
+                onClick={() => applyPreset(d)}
+              >
+                {d} dias
+              </Button>
+            ))}
+          </div>
+
+          {/* Calendar */}
+          <Calendar
+            mode="range"
+            selected={{ from: draftFrom, to: draftTo }}
+            onSelect={handleSelect}
+            numberOfMonths={1}
+            initialFocus
+            locale={ptBR}
+            className="p-3 pointer-events-auto"
+            classNames={{
+              // Limpa o highlight agressivo de células — sem bg em linha inteira
+              cell: "h-9 w-9 text-center text-sm p-0 relative focus-within:relative focus-within:z-20",
+              day: "h-9 w-9 p-0 font-normal rounded-full text-sm hover:bg-primary/10 transition-colors aria-selected:opacity-100",
+              day_selected:
+                "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground rounded-full",
+              day_range_start:
+                "bg-primary text-primary-foreground rounded-full hover:bg-primary",
+              day_range_end:
+                "bg-primary text-primary-foreground rounded-full hover:bg-primary",
+              day_range_middle:
+                "bg-primary/15 text-foreground rounded-none hover:bg-primary/20",
+              day_today: "ring-1 ring-inset ring-border rounded-full",
+              day_outside: "text-muted-foreground/40",
+              day_disabled: "text-muted-foreground/30 opacity-40",
+              day_hidden: "invisible",
+            }}
+          />
+        </div>
       </PopoverContent>
     </Popover>
   );
 }
+
 
 // ============================================================
 // Componente
