@@ -25,6 +25,7 @@ import {
   type SpotifyPlaylistMeta,
 } from "../_shared/curator-playlist.ts";
 import { assertDealOperable } from "../_shared/deal-access.ts";
+import { recordMetric } from "../_shared/ops-metrics.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -109,6 +110,7 @@ type ProcessedItem = {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
+  const t0 = Date.now();
   try {
     const body = await req.json().catch(() => ({}));
     const publicToken = typeof body?.public_token === "string" ? body.public_token.trim() : "";
@@ -374,6 +376,16 @@ Deno.serve(async (req) => {
         error: items.filter((it) => it.status === "error").length,
       };
 
+      recordMetric(admin, {
+        scope: "edge_function",
+        operation: "register-curator-playlist",
+        status: "success",
+        duration_ms: Date.now() - t0,
+        deal_id: deal.id,
+        song_id: songIdInput,
+        metadata: { ...summary, mode: publicToken ? "public" : "admin", preview },
+      });
+
       return jr({
         ok: true,
         summary,
@@ -386,6 +398,16 @@ Deno.serve(async (req) => {
     }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
+    try {
+      const adminErr = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
+      recordMetric(adminErr, {
+        scope: "edge_function",
+        operation: "register-curator-playlist",
+        status: "error",
+        duration_ms: Date.now() - t0,
+        metadata: { error: msg.slice(0, 240) },
+      });
+    } catch (_) { /* ignore */ }
     return jr({ ok: false, error: msg }, 200);
   }
 });

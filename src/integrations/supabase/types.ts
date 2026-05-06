@@ -1325,6 +1325,42 @@ export type Database = {
         }
         Relationships: []
       }
+      ops_metrics: {
+        Row: {
+          created_at: string
+          deal_id: string | null
+          duration_ms: number | null
+          id: string
+          metadata: Json
+          operation: string
+          scope: string
+          song_id: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          deal_id?: string | null
+          duration_ms?: number | null
+          id?: string
+          metadata?: Json
+          operation: string
+          scope: string
+          song_id?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          deal_id?: string | null
+          duration_ms?: number | null
+          id?: string
+          metadata?: Json
+          operation?: string
+          scope?: string
+          song_id?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       performance_insights: {
         Row: {
           acoes_sugeridas: Json
@@ -2288,6 +2324,19 @@ export type Database = {
         }
         Relationships: []
       }
+      v_storage_growth: {
+        Row: {
+          bot_events_rows: number | null
+          bot_print_batches_dom_payload_bytes: number | null
+          bot_print_batches_print_paths_bytes: number | null
+          bot_print_batches_rows: number | null
+          computed_at: string | null
+          curator_snapshots_ai_raw_bytes: number | null
+          curator_snapshots_rows: number | null
+          ops_metrics_rows: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       cleanup_old_logs_and_snapshots: {
@@ -2298,6 +2347,7 @@ export type Database = {
           tracks_deleted: number
         }[]
       }
+      cleanup_operational_logs: { Args: never; Returns: Json }
       cleanup_stale_autopilot_runs: {
         Args: { p_minutes?: number }
         Returns: number

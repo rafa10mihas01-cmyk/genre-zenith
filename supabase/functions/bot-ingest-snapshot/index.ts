@@ -3,6 +3,7 @@
 // POST { song_id, deal_id, total_plays, snapshots: [{playlist_name, spotify_url, plays, source?}], note?, print_urls? }
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { assertDealOperable } from "../_shared/deal-access.ts";
+import { recordMetric } from "../_shared/ops-metrics.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -22,6 +23,7 @@ function jr(p: unknown, status = 200) {
 }
 
 Deno.serve(async (req) => {
+  const t0 = Date.now();
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return jr({ error: "method_not_allowed" }, 405);
 
@@ -244,6 +246,16 @@ Deno.serve(async (req) => {
     acao: "bot_collect",
     status: skipped > 0 ? "parcial" : "ok",
     mensagem: `song=${song_id} inserted=${inserted} skipped=${skipped}`,
+  });
+
+  recordMetric(supabase, {
+    scope: "bot",
+    operation: "bot-ingest-snapshot",
+    status: skipped > 0 ? "partial" : "success",
+    duration_ms: Date.now() - t0,
+    deal_id,
+    song_id,
+    metadata: { inserted, skipped },
   });
 
   return jr({ ok: true, inserted, skipped, next_auto_collect_at: nextAt });
