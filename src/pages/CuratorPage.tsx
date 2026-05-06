@@ -239,6 +239,7 @@ export default function CuratorPage() {
   const [songs, setSongs] = useState<DealSong[]>([]);
   const [progress, setProgress] = useState<DealProgress | null>(null);
   const [snapshotHistory, setSnapshotHistory] = useState<SnapshotHistoryEntry[]>([]);
+  const [access, setAccess] = useState<{ writable: boolean; code?: string; reason?: string }>({ writable: true });
   const [url, setUrl] = useState("");
   const [position, setPosition] = useState("");
   const [submitting, setSubmitting] = useState(false);
