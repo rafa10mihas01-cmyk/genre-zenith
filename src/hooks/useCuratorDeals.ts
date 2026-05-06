@@ -89,6 +89,8 @@ export type DealSongInput = {
   started_at?: string | null;
   ends_at?: string | null;
   ramp_up_days?: number;
+  client_id?: string | null;
+  smartlink_url?: string | null;
 };
 
 export type NewCuratorDealInput = {
