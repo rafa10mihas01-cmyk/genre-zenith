@@ -12,6 +12,7 @@ import {
   Clock,
   AlertTriangle,
   TrendingUp,
+  Sparkles,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -222,12 +223,13 @@ export function DealHistorySheet({
   onClose,
   onReload,
 }: DealHistorySheetProps) {
-  const [tab, setTab] = useState<"resumo" | "playlists" | "historico">("resumo");
+  const [tab, setTab] = useState<"resumo" | "playlists" | "algoritmo" | "historico">("resumo");
   const [pasteOpen, setPasteOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [selectedLogId, setSelectedLogId] = useState<string | null>(null);
   const [plQuery, setPlQuery] = useState("");
-  const [plFilter, setPlFilter] = useState<"all" | CuratorMatchStatus>("all");
+  const [algoQuery, setAlgoQuery] = useState("");
+  const [algoFilter, setAlgoFilter] = useState<"all" | "editorial" | "organic" | "suspicious">("all");
 
   const stats = deal ? computeCuratorStats(deal, allLogs, allPlaylists, progress ?? null) : null;
 
@@ -266,18 +268,37 @@ export function DealHistorySheet({
     return c;
   }, [dealPlaylists]);
 
-  const filteredPlaylists = useMemo(() => {
+  // Aba "Curador" → só whitelist (curator + baseline)
+  const curatorPlaylists = useMemo(() => {
     const q = plQuery.trim().toLowerCase();
     return sortedPlaylists.filter((p) => {
       const s = (p.match_status ?? (p.is_baseline ? "baseline" : "curator")) as CuratorMatchStatus;
-      if (plFilter !== "all" && s !== plFilter) return false;
+      if (s !== "curator" && s !== "baseline") return false;
       if (!q) return true;
       return (
         (p.playlist_name ?? "").toLowerCase().includes(q) ||
         (p.spotify_owner_name ?? "").toLowerCase().includes(q)
       );
     });
-  }, [sortedPlaylists, plQuery, plFilter]);
+  }, [sortedPlaylists, plQuery]);
+
+  // Aba "Algoritmo" → editorial + organic + suspicious
+  const algoPlaylists = useMemo(() => {
+    const q = algoQuery.trim().toLowerCase();
+    return sortedPlaylists.filter((p) => {
+      const s = (p.match_status ?? (p.is_baseline ? "baseline" : "curator")) as CuratorMatchStatus;
+      if (s !== "editorial" && s !== "organic" && s !== "suspicious") return false;
+      if (algoFilter !== "all" && s !== algoFilter) return false;
+      if (!q) return true;
+      return (
+        (p.playlist_name ?? "").toLowerCase().includes(q) ||
+        (p.spotify_owner_name ?? "").toLowerCase().includes(q)
+      );
+    });
+  }, [sortedPlaylists, algoQuery, algoFilter]);
+
+  const curatorTotal = counts.curator + counts.baseline;
+  const algoTotal = counts.editorial + counts.organic + counts.suspicious;
 
   // dados auxiliares
   const baseline = Number(deal?.baseline_plays ?? 0);
@@ -376,9 +397,19 @@ export function DealHistorySheet({
                     className="data-[state=active]:bg-[hsl(var(--elevated))] data-[state=active]:text-foreground rounded-lg gap-2 h-9 px-3"
                   >
                     <ListMusic className="h-3.5 w-3.5" />
-                    Playlists
+                    Curador
                     <span className="text-[10px] font-bold tabular-nums text-muted-foreground">
-                      {dealPlaylists.length}
+                      {curatorTotal}
+                    </span>
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="algoritmo"
+                    className="data-[state=active]:bg-[hsl(var(--elevated))] data-[state=active]:text-foreground rounded-lg gap-2 h-9 px-3"
+                  >
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Algoritmo
+                    <span className="text-[10px] font-bold tabular-nums text-muted-foreground">
+                      {algoTotal}
                     </span>
                   </TabsTrigger>
                   <TabsTrigger
@@ -508,8 +539,12 @@ export function DealHistorySheet({
                   )}
                 </TabsContent>
 
-                {/* === PLAYLISTS === */}
+                {/* === CURADOR (whitelist) === */}
                 <TabsContent value="playlists" className="m-0 px-6 py-5 space-y-4">
+                  <div className="rounded-lg border border-white/[0.04] bg-[hsl(var(--elevated))]/40 px-3 py-2 text-[11px] text-muted-foreground leading-relaxed">
+                    Playlists cadastradas pelo curador — é o que conta como entrega contratada.
+                  </div>
+
                   {/* ações */}
                   <div className="flex items-center gap-2">
                     {deal.curator_id && (
@@ -534,34 +569,73 @@ export function DealHistorySheet({
                     </Button>
                   </div>
 
-                  {/* busca + filtros */}
-                  {dealPlaylists.length > 0 && (
+                  {curatorTotal > 0 && (
+                    <Input
+                      value={plQuery}
+                      onChange={(e) => setPlQuery(e.target.value)}
+                      placeholder="Buscar playlist ou owner…"
+                      className="h-9 text-sm"
+                    />
+                  )}
+
+                  {/* lista */}
+                  {curatorTotal === 0 ? (
+                    <div className="rounded-xl border border-white/[0.04] bg-[hsl(var(--elevated))]/40 py-10 flex flex-col items-center text-center gap-2">
+                      <div className="h-10 w-10 rounded-full bg-[hsl(var(--elevated))] border border-white/[0.04] flex items-center justify-center">
+                        <ListMusic className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <div className="text-sm font-medium text-foreground">
+                        Nenhuma playlist do curador
+                      </div>
+                      <div className="text-xs text-muted-foreground max-w-xs">
+                        Use "Catálogo do curador" pra puxar links já cadastrados, ou cole dados do Spotify for Artists.
+                      </div>
+                    </div>
+                  ) : curatorPlaylists.length === 0 ? (
+                    <div className="text-center text-xs text-muted-foreground py-8">
+                      Nenhum resultado pra essa busca.
+                    </div>
+                  ) : (
+                    <ul className="space-y-0.5 -mx-2">
+                      {curatorPlaylists.map((p) => (
+                        <PlaylistRow key={p.id} p={p} />
+                      ))}
+                    </ul>
+                  )}
+                </TabsContent>
+
+                {/* === ALGORITMO (editorial / orgânica / suspeita) === */}
+                <TabsContent value="algoritmo" className="m-0 px-6 py-5 space-y-4">
+                  <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-[11px] text-muted-foreground leading-relaxed">
+                    <span className="text-foreground font-medium">Visualização apenas.</span>{" "}
+                    Playlists detectadas pelo algoritmo do Spotify ou orgânicas — não contam na entrega do curador.
+                  </div>
+
+                  {algoTotal > 0 && (
                     <>
                       <Input
-                        value={plQuery}
-                        onChange={(e) => setPlQuery(e.target.value)}
+                        value={algoQuery}
+                        onChange={(e) => setAlgoQuery(e.target.value)}
                         placeholder="Buscar playlist ou owner…"
                         className="h-9 text-sm"
                       />
                       <div className="flex flex-wrap gap-1.5">
                         {(
                           [
-                            ["all", "Todas", dealPlaylists.length],
-                            ["curator", "Curador", counts.curator],
+                            ["all", "Todas", algoTotal],
                             ["editorial", "Algorítmicas", counts.editorial],
                             ["organic", "Detectadas", counts.organic],
                             ["suspicious", "Suspeitas", counts.suspicious],
-                            ["baseline", "Iniciais", counts.baseline],
-                          ] as Array<[typeof plFilter, string, number]>
+                          ] as Array<[typeof algoFilter, string, number]>
                         )
                           .filter(([key, , c]) => key === "all" || c > 0)
                           .map(([key, label, c]) => (
                             <button
                               key={key}
-                              onClick={() => setPlFilter(key)}
+                              onClick={() => setAlgoFilter(key)}
                               className={cn(
                                 "h-7 px-2.5 rounded-full text-[11px] font-medium border transition-colors inline-flex items-center gap-1.5",
-                                plFilter === key
+                                algoFilter === key
                                   ? "bg-foreground text-background border-foreground"
                                   : "bg-transparent border-white/[0.06] text-muted-foreground hover:text-foreground hover:bg-[hsl(var(--elevated))]",
                               )}
@@ -574,26 +648,25 @@ export function DealHistorySheet({
                     </>
                   )}
 
-                  {/* lista */}
-                  {dealPlaylists.length === 0 ? (
+                  {algoTotal === 0 ? (
                     <div className="rounded-xl border border-white/[0.04] bg-[hsl(var(--elevated))]/40 py-10 flex flex-col items-center text-center gap-2">
                       <div className="h-10 w-10 rounded-full bg-[hsl(var(--elevated))] border border-white/[0.04] flex items-center justify-center">
-                        <ListMusic className="h-4 w-4 text-muted-foreground" />
+                        <Sparkles className="h-4 w-4 text-muted-foreground" />
                       </div>
                       <div className="text-sm font-medium text-foreground">
-                        Nenhuma playlist registrada
+                        Nenhuma detecção do algoritmo ainda
                       </div>
                       <div className="text-xs text-muted-foreground max-w-xs">
-                        Use "Catálogo do curador" pra puxar links já cadastrados, ou cole dados do Spotify for Artists.
+                        Quando o Spotify ou outras playlists tocarem essa música, elas aparecem aqui.
                       </div>
                     </div>
-                  ) : filteredPlaylists.length === 0 ? (
+                  ) : algoPlaylists.length === 0 ? (
                     <div className="text-center text-xs text-muted-foreground py-8">
                       Nenhum resultado pra esse filtro.
                     </div>
                   ) : (
                     <ul className="space-y-0.5 -mx-2">
-                      {filteredPlaylists.map((p) => (
+                      {algoPlaylists.map((p) => (
                         <PlaylistRow key={p.id} p={p} />
                       ))}
                     </ul>
