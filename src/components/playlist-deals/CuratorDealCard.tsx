@@ -341,24 +341,24 @@ export function CuratorDealCard({
         {/* KPIs compactos */}
         {hasBaseline && (
           <div className="grid grid-cols-2 divide-x divide-border/50 rounded-lg bg-[hsl(var(--elevated))] border border-border/40">
-            <div className="px-3 py-2">
-              <div className="text-[9.5px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-1">
+            <div className="px-3 py-1.5">
+              <div className="text-[9.5px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-0.5">
                 Plays hoje
               </div>
-              <div className="text-[20px] font-bold tabular-nums text-foreground leading-none tracking-tight">
+              <div className="text-[18px] font-bold tabular-nums text-foreground leading-none tracking-tight">
                 {formatPlays(latestPlays)}
               </div>
             </div>
-            <div className="px-3 py-2">
-              <div className="text-[9.5px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-1">
-                Hoje / combinado
+            <div className="px-3 py-1.5">
+              <div className="text-[9.5px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-0.5">
+                Meta
               </div>
-              <div className="text-[20px] font-bold tabular-nums leading-none tracking-tight">
+              <div className="text-[18px] font-bold tabular-nums leading-none tracking-tight">
                 <span className="text-primary">{formatPlays(todayPlays)}</span>
-                <span className="text-muted-foreground text-[12px] font-semibold"> / {formatPlays(totalDailyGoal)}</span>
+                <span className="text-muted-foreground text-[11px] font-semibold"> / {formatPlays(totalDailyGoal)}</span>
               </div>
               {totalDailyGoal > 0 && (
-                <div className="text-[10px] text-muted-foreground mt-1 truncate">
+                <div className="text-[9.5px] text-muted-foreground mt-0.5 truncate">
                   {inRampUp ? "aquecendo" : `${todayPct}% do dia`}
                 </div>
               )}
