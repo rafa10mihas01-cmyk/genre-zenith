@@ -126,12 +126,6 @@ export function ClientesLibraryTab({ deals, songs, loading }: Props) {
             className="pl-9"
           />
         </div>
-        <Button
-          className="rounded-full h-9 gap-1.5"
-          onClick={() => setCreating(true)}
-        >
-          <Plus className="h-4 w-4" /> Novo cliente
-        </Button>
       </div>
 
       {(loading || loadingClients) && rows.length === 0 ? (
