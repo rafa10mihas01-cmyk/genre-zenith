@@ -100,7 +100,7 @@ Deno.serve(async (req) => {
       .update({
         auto_collect_status: "idle",
         auto_collect_error: "Aguardando curador cadastrar playlists",
-        next_auto_collect_at: new Date(Date.now() + 60_000).toISOString(),
+        next_auto_collect_at: new Date(Date.now() + 60 * 60_000).toISOString(),
       })
       .in("id", blocked.map((s: any) => s.id));
 
