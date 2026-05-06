@@ -671,7 +671,7 @@ export default function CuratorPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background px-4">
         <Card className="max-w-md w-full">
-          <CardContent className="p-6 text-center">
+          <CardContent className="p-6 pt-6 text-center">
             <p className="text-base font-medium">
               {isPlaceholderLink ? "Link sem token da curadoria" : "Link inválido ou expirado"}
             </p>
@@ -750,7 +750,7 @@ export default function CuratorPage() {
 
         {/* Header — campanha + música */}
         <Card className="nx-card !p-0 overflow-hidden border-border">
-          <CardContent className="p-5 sm:p-6 space-y-6">
+          <CardContent className="p-5 sm:p-6 pt-5 sm:pt-6 space-y-6">
             <div className="flex items-center justify-between gap-3">
               <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary/80">
                 Campanha
@@ -975,7 +975,7 @@ export default function CuratorPage() {
         {/* Músicas da campanha — filtro visual */}
         {hasMultipleSongs && (
           <Card className="nx-card !p-0 border-border">
-            <CardContent className="p-5 sm:p-6 space-y-5">
+            <CardContent className="p-5 sm:p-6 pt-5 sm:pt-6 space-y-5">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <h2 className="text-[15px] font-semibold inline-flex items-center gap-2 tracking-tight">
@@ -1055,7 +1055,7 @@ export default function CuratorPage() {
         {/* Estado vazio: sem playlists cadastradas pelo curador */}
         {!hasCuratorPlaylists && (
           <Card className="nx-card !p-0 border-border">
-            <CardContent className="p-6 sm:p-8 flex flex-col items-center text-center gap-4">
+            <CardContent className="p-6 sm:p-8 pt-6 sm:pt-8 flex flex-col items-center text-center gap-4">
               <div className="h-14 w-14 rounded-2xl bg-muted/40 flex items-center justify-center ring-1 ring-border">
                 <ListMusic className="h-6 w-6 text-muted-foreground" />
               </div>
@@ -1075,7 +1075,7 @@ export default function CuratorPage() {
         {/* Total acumulado (histórico) — separado visualmente do delta */}
         {hasCuratorPlaylists && stats.hasBaseline && (
           <Card className="nx-card !p-0 border-border">
-            <CardContent className="p-5 grid grid-cols-2 gap-4 divide-x divide-border">
+            <CardContent className="p-5 pt-5 grid grid-cols-2 gap-4 divide-x divide-border">
               <div className="pr-2">
                 <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
                   Total acumulado (histórico)
@@ -1106,7 +1106,7 @@ export default function CuratorPage() {
         {/* Combinado total */}
         {hasCuratorPlaylists && (
         <Card className="nx-card !p-0 border-border">
-          <CardContent className="p-5 sm:p-6 space-y-6">
+          <CardContent className="p-5 sm:p-6 pt-5 sm:pt-6 space-y-6">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-[15px] font-semibold tracking-tight">Progresso da meta total</h2>
@@ -1222,7 +1222,7 @@ export default function CuratorPage() {
         {/* Performance por playlist — vem direto da RPC */}
         {perPlaylistCurator.length > 0 && (
           <Card className="nx-card !p-0 border-border">
-            <CardContent className="p-5 sm:p-6 space-y-4">
+            <CardContent className="p-5 sm:p-6 pt-5 sm:pt-6 space-y-4">
               <div className="w-full flex items-center justify-between gap-4">
                 <div className="min-w-0 flex-1">
                   <h2 className="text-[14px] font-semibold inline-flex items-center gap-2 tracking-tight">
@@ -1282,7 +1282,7 @@ export default function CuratorPage() {
 
         {/* Playlists do curador */}
         <Card className="nx-card !p-0 border-border">
-          <CardContent className="p-5 sm:p-6 space-y-4">
+          <CardContent className="p-5 sm:p-6 pt-5 sm:pt-6 space-y-4">
             <div className="w-full flex items-center justify-between gap-4">
               <div className="min-w-0 flex-1">
                 <h2 className="text-[14px] font-semibold inline-flex items-center gap-2 tracking-tight">
@@ -1446,7 +1446,7 @@ export default function CuratorPage() {
 
         {/* Adicionar playlist */}
         <Card className="nx-card !p-0 border-border">
-          <CardContent className="p-5 sm:p-6 space-y-5">
+          <CardContent className="p-5 sm:p-6 pt-5 sm:pt-6 space-y-5">
             <div>
               <h2 className="text-[15px] font-semibold tracking-tight">Adicionar playlist</h2>
               <p className="text-[12px] text-muted-foreground mt-1.5 leading-snug">
@@ -1576,7 +1576,7 @@ export default function CuratorPage() {
 
         {/* Histórico de prints — vem da RPC get_curator_deal_snapshot_history */}
         <Card className="nx-card !p-0 border-border">
-          <CardContent className="p-5 sm:p-6 space-y-5">
+          <CardContent className="p-5 sm:p-6 pt-5 sm:pt-6 space-y-5">
             <div className="flex items-center justify-between">
               <div className="min-w-0">
                 <h2 className="text-[15px] font-semibold tracking-tight">Histórico de prints</h2>
