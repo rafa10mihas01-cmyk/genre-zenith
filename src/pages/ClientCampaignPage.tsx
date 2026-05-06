@@ -38,6 +38,7 @@ type SafeDeal = {
   song_name: string;
   song_artist: string | null;
   song_cover_url: string | null;
+  smartlink_url: string | null;
   started_at: string | null;
   ends_at: string | null;
   last_update: string | null;
@@ -52,6 +53,14 @@ type SafeProgress = {
   days_elapsed: number;
   target_days: number;
   pace: "abaixo do esperado" | "normal" | "acelerando";
+};
+type SafeSong = {
+  id: string;
+  client_token: string;
+  song_name: string;
+  song_artist: string | null;
+  song_cover_url: string | null;
+  smartlink_url: string | null;
 };
 type SafePlaylist = {
   name: string;
