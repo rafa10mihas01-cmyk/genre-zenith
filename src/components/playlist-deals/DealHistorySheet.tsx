@@ -237,6 +237,7 @@ export function DealHistorySheet({
 
   const stats = deal ? computeCuratorStats(deal, allLogs, allPlaylists, progress ?? null) : null;
   const { data: breakdown } = useCuratorDealBreakdown(deal?.id ?? null);
+  const { data: todayBreakdown, isLoading: loadingToday } = useDealTodayPlaylistBreakdown(deal?.id ?? null);
   const eco = ecosystemTotal(breakdown);
 
   const getSongForLog = (log: CuratorDealLog): CuratorDealSong | null => {
