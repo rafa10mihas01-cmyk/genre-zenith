@@ -88,5 +88,26 @@ export function useClients() {
     [load],
   );
 
-  return { clients, loading, error, addClient, updateClient, reload: load };
+  const archiveClient = useCallback(
+    async (id: string, archive = true) => {
+      const { error: err } = await supabase
+        .from("clients")
+        .update({ archived_at: archive ? new Date().toISOString() : null })
+        .eq("id", id);
+      if (err) throw err;
+      await load();
+    },
+    [load],
+  );
+
+  const deleteClient = useCallback(
+    async (id: string) => {
+      const { error: err } = await supabase.from("clients").delete().eq("id", id);
+      if (err) throw err;
+      await load();
+    },
+    [load],
+  );
+
+  return { clients, loading, error, addClient, updateClient, archiveClient, deleteClient, reload: load };
 }
