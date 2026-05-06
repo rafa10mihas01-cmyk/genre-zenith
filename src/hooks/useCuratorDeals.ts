@@ -393,6 +393,38 @@ export function useCuratorDeals() {
     [load],
   );
 
+  // Pausar/Retomar curador: congela coleta do robô em todos os deals do curador.
+  // Não mexe em saldo, financeiro, snapshots ou histórico.
+  const pauseCurator = useCallback(
+    async (curatorId: string, pause = true) => {
+      const nowIso = new Date().toISOString();
+      const { error: updErr } = await supabase
+        .from("curators")
+        .update({ paused_at: pause ? nowIso : null })
+        .eq("id", curatorId);
+      if (updErr) throw updErr;
+
+      // Propaga para as songs vinculadas aos deals desse curador, parando a fila do robô.
+      const { data: dealRows } = await supabase
+        .from("curator_deals")
+        .select("id")
+        .eq("curator_id", curatorId);
+      const dealIds = (dealRows ?? []).map((d: any) => d.id);
+      if (dealIds.length) {
+        await supabase
+          .from("curator_deal_songs")
+          .update(
+            pause
+              ? { auto_collect: false, auto_collect_status: "idle", auto_collect_error: "Curador pausado" }
+              : { auto_collect_error: null },
+          )
+          .in("deal_id", dealIds);
+      }
+      await load();
+    },
+    [load],
+  );
+
   // ============================================================
   // Deals — agora aceitam curator_id e duration_days nas songs
   // ============================================================
