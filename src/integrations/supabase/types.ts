@@ -2620,6 +2620,7 @@ export type Database = {
         }[]
       }
       get_cron_secret: { Args: never; Returns: string }
+      get_curator_deal_breakdown: { Args: { p_deal_id: string }; Returns: Json }
       get_curator_deal_progress: {
         Args: { p_deal_id: string; p_song_id?: string }
         Returns: Json
