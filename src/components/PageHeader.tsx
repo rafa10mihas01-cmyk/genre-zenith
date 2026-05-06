@@ -37,12 +37,12 @@ export function PageHeader({
   className,
 }: PageHeaderProps) {
   return (
-    <div className="max-xl:h-[57px] max-xl:shrink-0 xl:contents">
+    <div className="max-lg:h-[57px] max-lg:shrink-0 lg:contents">
       <header
         className={cn(
           "flex",
-          "max-xl:fixed max-xl:top-14 max-xl:left-0 max-xl:right-0 max-xl:z-40 max-xl:h-[57px] max-xl:px-4 max-xl:py-0",
-          "xl:sticky xl:top-0 xl:z-40 xl:-mt-8 xl:-mx-6 xl:px-6 xl:py-3",
+          "max-lg:fixed max-lg:top-14 max-lg:left-0 max-lg:right-0 max-lg:z-40 max-lg:h-[57px] max-lg:px-4 max-lg:py-0",
+          "lg:sticky lg:top-0 lg:z-40 lg:-mt-8 lg:-mx-6 lg:px-6 lg:py-3",
           "bg-background/90 backdrop-blur-md supports-[backdrop-filter]:bg-background/75",
           "border-b border-border/60",
           "flex-row items-center justify-between gap-3 md:gap-4 w-auto min-w-0 overflow-hidden",
@@ -51,23 +51,23 @@ export function PageHeader({
       >
         <div className="space-y-1 min-w-0 flex-1 overflow-hidden">
           {kicker && (
-            <div className="hidden xl:inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-bold">
+            <div className="hidden lg:inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-bold">
               {Icon && <Icon className="h-3 w-3 text-primary" />}
               {kicker}
             </div>
           )}
-          <h1 className="text-[19px] sm:text-2xl xl:text-3xl font-semibold tracking-tight leading-tight truncate min-w-0">
+          <h1 className="text-[19px] sm:text-2xl lg:text-3xl font-semibold tracking-tight leading-tight truncate min-w-0">
             {title}
           </h1>
-          <p className="hidden xl:block text-sm text-muted-foreground max-w-2xl">{subtitle}</p>
+          <p className="hidden lg:block text-sm text-muted-foreground max-w-2xl">{subtitle}</p>
         </div>
         {actions && (
           <div
             className={cn(
               "flex items-center justify-end gap-2 shrink-0 min-w-0 max-w-[58%] overflow-hidden scrollbar-none",
-              "xl:max-w-none xl:overflow-visible xl:flex-wrap xl:flex-nowrap",
-              "max-xl:[&>button:not(:last-child)]:hidden max-xl:[&>div>button:not(:last-child)]:hidden",
-              "max-xl:[&_button]:max-w-[56vw] max-xl:[&_button]:overflow-hidden max-xl:[&_button]:text-ellipsis",
+              "lg:max-w-none lg:overflow-visible lg:flex-wrap lg:flex-nowrap",
+              "max-lg:[&>button:not(:last-child)]:hidden max-lg:[&>div>button:not(:last-child)]:hidden",
+              "max-lg:[&_button]:max-w-[56vw] max-lg:[&_button]:overflow-hidden max-lg:[&_button]:text-ellipsis",
               "[&_button]:h-9 [&_button]:px-3 [&_button]:text-[13px] sm:[&_button]:px-4 sm:[&_button]:text-sm [&_button]:shrink-0",
             )}
           >
