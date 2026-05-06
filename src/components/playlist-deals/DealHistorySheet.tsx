@@ -28,6 +28,7 @@ import { PastePlaylistsDialog } from "./PastePlaylistsDialog";
 import { ImportFromLibraryDialog } from "./ImportFromLibraryDialog";
 import { FraudAlertsPanel } from "./FraudAlertsPanel";
 import { PrintThumbs } from "./PrintThumbs";
+import { useCuratorDealBreakdown, ecosystemTotal } from "@/hooks/useCuratorDealBreakdown";
 
 import {
   computeCuratorStats,
@@ -232,6 +233,8 @@ export function DealHistorySheet({
   const [algoFilter, setAlgoFilter] = useState<"all" | "editorial" | "organic" | "suspicious">("all");
 
   const stats = deal ? computeCuratorStats(deal, allLogs, allPlaylists, progress ?? null) : null;
+  const { data: breakdown } = useCuratorDealBreakdown(deal?.id ?? null);
+  const eco = ecosystemTotal(breakdown);
 
   const getSongForLog = (log: CuratorDealLog): CuratorDealSong | null => {
     if (log.song_id) return songs.find((s) => s.id === log.song_id) ?? null;
@@ -515,6 +518,67 @@ export function DealHistorySheet({
                       )}
                     </div>
                   </div>
+
+                  {/* Curador vs Ecossistema (RPC breakdown) */}
+                  {breakdown && (
+                    <div className="rounded-xl border border-white/[0.04] bg-[hsl(var(--elevated))]/50 p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          Entrega vs Ecossistema
+                        </div>
+                        <div className="text-[10px] text-muted-foreground/80">
+                          plays únicos por playlist
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-3 gap-3 text-[12px]">
+                        <div>
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Curador</div>
+                          <div className="text-base font-bold tabular-nums text-success leading-tight mt-0.5">
+                            {fmtCompact(breakdown.curator.plays)}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground tabular-nums">
+                            {breakdown.curator.playlists} playlists
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Ecossistema</div>
+                          <div className="text-base font-bold tabular-nums text-primary leading-tight mt-0.5">
+                            {fmtCompact(eco.plays)}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground tabular-nums">
+                            {eco.playlists} playlists
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Total bruto</div>
+                          <div className="text-base font-bold tabular-nums text-foreground leading-tight mt-0.5">
+                            {fmtCompact(breakdown.total.plays)}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground tabular-nums">
+                            {breakdown.total.playlists} playlists
+                          </div>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-white/[0.04]">
+                        {(["editorial","algorithmic","organic","suspicious"] as const).map((k) => {
+                          const v = breakdown.ecosystem[k];
+                          if (!v.playlists && !v.plays) return null;
+                          const labels = { editorial: "Editorial", algorithmic: "Algorítmica", organic: "Orgânica", suspicious: "Suspeita" } as const;
+                          return (
+                            <div key={k} className="text-[11px]">
+                              <div className="text-muted-foreground">{labels[k]}</div>
+                              <div className="text-foreground font-semibold tabular-nums">
+                                {fmtCompact(v.plays)} <span className="text-muted-foreground font-normal">· {v.playlists}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div className="text-[10.5px] text-muted-foreground/80 leading-relaxed pt-1 border-t border-white/[0.04]">
+                        Apenas a coluna <span className="text-success font-medium">Curador</span> conta na meta contratual. Ecossistema é exibição.
+                      </div>
+                    </div>
+                  )}
 
                   {/* anti-fraude */}
                   <div className="rounded-xl border border-white/[0.04] bg-[hsl(var(--elevated))]/50 p-4">
