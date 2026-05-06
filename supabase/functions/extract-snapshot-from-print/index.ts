@@ -13,6 +13,7 @@
 // 6. Marca batch como processed
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { z } from "npm:zod@3.23.8";
+import { fetchPlaylistMeta } from "../_shared/curator-playlist.ts";
 
 // ============= Schemas de validação =============
 const RequestSchema = z.object({
@@ -731,6 +732,35 @@ Deno.serve(async (req) => {
       }
       playlistId = created.id;
       matchMethod = domHit ? "dom_created" : "created";
+    }
+
+    // Enriquece metadados (capa, owner, followers) via Spotify Web API
+    // se ainda faltarem. Não bloqueia o snapshot em caso de erro.
+    if (playlistId && sId) {
+      try {
+        const { data: cur } = await supabase
+          .from("curator_playlists")
+          .select("image_url, spotify_owner_id, followers")
+          .eq("id", playlistId)
+          .maybeSingle();
+        const needsEnrich =
+          !cur?.image_url || !cur?.spotify_owner_id || cur?.followers == null;
+        if (needsEnrich) {
+          const meta = await fetchPlaylistMeta(sId);
+          if (meta) {
+            await supabase
+              .from("curator_playlists")
+              .update({
+                image_url: meta.image_url,
+                spotify_owner_id: meta.owner_id,
+                spotify_owner_name: meta.owner_name,
+                followers: meta.followers,
+                playlist_name: meta.name,
+              })
+              .eq("id", playlistId);
+          }
+        }
+      } catch (_) { /* ignora — capa não é crítica */ }
     }
 
     const insErr = await upsertSnapshot(supabase, {
