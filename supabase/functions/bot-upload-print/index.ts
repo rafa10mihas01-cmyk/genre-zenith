@@ -206,6 +206,7 @@ Deno.serve(async (req) => {
           print_urls: [signed.signedUrl],
           dom_payload: domPlaylists,
           status: parsed.total === 1 ? "complete" : "pending",
+          correlation_id: correlationId || null,
         })
         .select("id")
         .single();
@@ -228,16 +229,19 @@ Deno.serve(async (req) => {
       const newOnes = domPlaylists.filter((d) => d?.url && !seenUrls.has(d.url));
       mergedDom = [...prevDom, ...newOnes];
       const isComplete = receivedParts >= (existing.total_parts ?? parsed.total);
+      const updatePatch: Record<string, unknown> = {
+        received_parts: receivedParts,
+        print_paths: printPaths,
+        print_urls: printUrls,
+        dom_payload: mergedDom,
+        status: isComplete ? "complete" : "pending",
+        completed_at: isComplete ? new Date().toISOString() : null,
+      };
+      // Se chegou correlation_id agora e batch ainda não tinha, fixa.
+      if (correlationId) updatePatch.correlation_id = correlationId;
       await supabase
         .from("bot_print_batches")
-        .update({
-          received_parts: receivedParts,
-          print_paths: printPaths,
-          print_urls: printUrls,
-          dom_payload: mergedDom,
-          status: isComplete ? "complete" : "pending",
-          completed_at: isComplete ? new Date().toISOString() : null,
-        })
+        .update(updatePatch)
         .eq("id", batchId);
     }
 
@@ -247,7 +251,24 @@ Deno.serve(async (req) => {
       total_parts: parsed.total,
       complete: receivedParts >= parsed.total,
       dom_count: mergedDom.length,
+      correlation_id: correlationId || null,
     };
+
+    // Lifecycle event: PRINT_UPLOADED (parcial ou final)
+    if (correlationId) {
+      void supabase.from("bot_events").insert({
+        bot_name: "spotify-artists-bot",
+        deal_id: dealId,
+        song_id: songId || null,
+        step: "upload_print",
+        status: "running",
+        lifecycle_state: "PRINT_UPLOADED",
+        correlation_id: correlationId,
+        message: `Part ${parsed.part}/${parsed.total} received`,
+        url: signed.signedUrl,
+        metadata: { batch_id: batchId, received_parts: receivedParts, total_parts: parsed.total },
+      });
+    }
 
     // Se completou, dispara extract assíncrono (fire-and-forget)
     if (receivedParts >= parsed.total && batchId) {
@@ -264,6 +285,7 @@ Deno.serve(async (req) => {
           song_id: songId || null,
           print_urls: printUrls,
           dom_playlists: mergedDom,
+          correlation_id: correlationId || null,
         }),
       }).catch((e) => console.error("extract dispatch failed", e));
     }
