@@ -181,6 +181,7 @@ function DealRangePicker({
   // Estado interno de seleção em andamento (evita preview agressivo do react-day-picker)
   const [draftFrom, setDraftFrom] = useState<Date | undefined>(from);
   const [draftTo, setDraftTo] = useState<Date | undefined>(to);
+  const presetDays = [7, 14, 30, 45, 60, 100, 150, 365];
 
   // Sincroniza ao abrir
   useEffect(() => {
@@ -205,10 +206,10 @@ function DealRangePicker({
           Math.max(1, Math.round((draftTo.getTime() - draftFrom.getTime()) / 86400000))
         } dias`;
 
-  const commit = (start: Date, end: Date) => {
+  const commit = (start: Date, end: Date, shouldClose = false) => {
     const days = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000));
     onChange(start, days);
-    setOpen(false);
+    if (shouldClose) setOpen(false);
   };
 
   const applyPreset = (days: number) => {
@@ -256,7 +257,7 @@ function DealRangePicker({
       return;
     }
 
-    // Depois do início → fim
+    // Depois do início → fim, mantém aberto e preserva as duas bolinhas.
     setDraftTo(clicked);
     commit(draftFrom, clicked);
   };
@@ -292,7 +293,7 @@ function DealRangePicker({
         <div className="flex flex-col sm:flex-row">
           {/* Presets */}
           <div className="flex sm:flex-col gap-1 p-2 sm:p-3 sm:border-r border-border/60 overflow-x-auto sm:overflow-visible">
-            {[7, 14, 30, 60].map((d) => (
+            {presetDays.map((d) => (
               <Button
                 key={d}
                 type="button"
@@ -308,8 +309,20 @@ function DealRangePicker({
 
           {/* Calendar */}
           <Calendar
-            mode="range"
-            selected={{ from: draftFrom, to: draftTo }}
+            mode="default"
+            modifiers={{
+              range_start: draftFrom ? [draftFrom] : [],
+              range_end: draftTo ? [draftTo] : [],
+              range_middle:
+                draftFrom && draftTo
+                  ? { after: draftFrom, before: draftTo }
+                  : [],
+            }}
+            modifiersClassNames={{
+              range_start: "!bg-primary !text-primary-foreground hover:!bg-primary hover:!text-primary-foreground rounded-full",
+              range_end: "!bg-primary !text-primary-foreground hover:!bg-primary hover:!text-primary-foreground rounded-full",
+              range_middle: "!bg-primary/10 text-foreground rounded-none hover:!bg-primary/15",
+            }}
             onDayClick={handleDayClick}
             numberOfMonths={1}
             initialFocus
@@ -318,14 +331,6 @@ function DealRangePicker({
             classNames={{
               cell: "h-9 w-9 text-center text-sm p-0 relative focus-within:relative focus-within:z-20",
               day: "h-9 w-9 p-0 font-normal rounded-full text-sm hover:bg-primary/10 transition-colors aria-selected:opacity-100",
-              day_selected:
-                "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground rounded-full",
-              day_range_start:
-                "bg-primary text-primary-foreground rounded-full hover:bg-primary",
-              day_range_end:
-                "bg-primary text-primary-foreground rounded-full hover:bg-primary",
-              day_range_middle:
-                "bg-primary/15 text-foreground rounded-none hover:bg-primary/20",
               day_today: "ring-1 ring-inset ring-border rounded-full",
               day_outside: "text-muted-foreground/40",
               day_disabled: "text-muted-foreground/30 opacity-40",
