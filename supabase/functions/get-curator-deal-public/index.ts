@@ -89,9 +89,17 @@ Deno.serve(async (req) => {
     if (progressErr) return jr({ ok: false, error: progressErr.message }, 200);
     if (historyErr) return jr({ ok: false, error: historyErr.message }, 200);
 
+    // Gate informativo: leitura segue permitida (curador vê o histórico),
+    // mas o frontend usa esse flag pra desabilitar mutações.
+    const gate = assertDealOperable(deal as any);
+    const access = gate.ok
+      ? { writable: true }
+      : { writable: false, code: gate.code, reason: gate.error };
+
     return jr({
       ok: true,
       deal,
+      access,
       playlists: playlists ?? [],
       songs: songs ?? [],
       progress: progressRpc ?? null,
