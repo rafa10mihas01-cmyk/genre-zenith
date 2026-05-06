@@ -326,7 +326,20 @@ export function CuratorDealCard({
           </div>
         )}
 
-        {/* Status do robô (auto-coleta) */}
+        {/* Ecossistema (visualização) — separado da entrega contratual */}
+        {breakdown && (eco.plays > 0 || eco.playlists > 0) && (
+          <div className="rounded-md border border-border/40 bg-[hsl(var(--elevated))]/40 px-2.5 py-1.5 flex items-center gap-2 text-[11px]">
+            <span className="text-[9.5px] uppercase tracking-[0.14em] text-muted-foreground font-semibold">
+              Ecossistema
+            </span>
+            <span className="text-muted-foreground tabular-nums">
+              <span className="text-foreground font-semibold">{formatPlays(eco.plays)}</span> plays
+              {" · "}
+              <span className="text-foreground font-semibold">{eco.playlists}</span> playlists
+            </span>
+            <span className="ml-auto text-muted-foreground/70 text-[10px]">não contam na entrega</span>
+          </div>
+        )}
         {!isClosed && songs.length > 0 && (
           <BotStatusRow songs={songs} />
         )}
