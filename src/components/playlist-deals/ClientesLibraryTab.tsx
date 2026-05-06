@@ -493,7 +493,7 @@ function ClientFormDialog({
   const [saving, setSaving] = useState(false);
 
   // sincroniza ao abrir
-  useMemo(() => {
+  useEffect(() => {
     if (open) {
       setName(client?.name ?? "");
       setContact(client?.contact ?? "");
