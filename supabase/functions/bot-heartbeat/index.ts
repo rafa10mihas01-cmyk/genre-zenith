@@ -28,12 +28,16 @@ Deno.serve(async (req) => {
   try { body = await req.json(); } catch { /* allow empty */ }
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+  const meta = body.metadata ?? {};
+  if (Array.isArray(body.processing_correlation_ids)) {
+    meta.processing_correlation_ids = body.processing_correlation_ids;
+  }
   const { error } = await supabase.from("bot_heartbeats").insert({
     bot_name: body.bot_name ?? "spotify-artists-bot",
     status: body.status ?? "online",
     spotify_session_valid: body.spotify_session_valid ?? true,
     message: body.message ?? null,
-    metadata: body.metadata ?? {},
+    metadata: meta,
   });
   if (error) return jr({ error: error.message }, 500);
 
