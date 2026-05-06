@@ -693,34 +693,46 @@ Deno.serve(async (req) => {
     let playlistId: string | null = null;
     let matchMethod: string | null = null;
 
-    const { data: matchData } = await supabase.rpc("match_curator_playlist", {
-      p_deal_id: deal_id,
-      p_spotify_playlist_id: sId,
-      p_playlist_name: sName,
-      p_song_id: song_id ?? null,
-    } as any);
-    const row = Array.isArray(matchData) ? matchData[0] : null;
-    if (row?.playlist_id) {
-      playlistId = row.playlist_id as string;
-      matchMethod = (row.match_method as string) ?? null;
+    if (isWhitelistedCurator) {
+      const { data: matchData } = await supabase.rpc("match_curator_playlist", {
+        p_deal_id: deal_id,
+        p_spotify_playlist_id: sId,
+        p_playlist_name: sName,
+        p_song_id: song_id ?? null,
+      } as any);
+      const row = Array.isArray(matchData) ? matchData[0] : null;
+      if (row?.playlist_id) {
+        playlistId = row.playlist_id as string;
+        matchMethod = (row.match_method as string) ?? null;
 
-      // AUTO-CURA: se bateu por nome mas DOM trouxe ID confiável,
-      // popula spotify_playlist_id da row existente.
-      const updPayload: any = {};
-      if (domHit && matchMethod !== "spotify_id") {
-        updPayload.spotify_playlist_id = domHit.id;
-        updPayload.spotify_url = domHit.url;
+        // AUTO-CURA: se bateu por nome mas DOM trouxe ID confiável,
+        // popula spotify_playlist_id da row existente.
+        const updPayload: any = {};
+        if (domHit && matchMethod !== "spotify_id") {
+          updPayload.spotify_playlist_id = domHit.id;
+          updPayload.spotify_url = domHit.url;
+        }
+        if (typeof pl.position === "number" && pl.position > 0) {
+          updPayload.position_in_paste = pl.position;
+          updPayload.last_paste_at = new Date().toISOString();
+        }
+        if (Object.keys(updPayload).length > 0) {
+          await supabase
+            .from("curator_playlists")
+            .update(updPayload)
+            .eq("id", playlistId);
+        }
       }
-      if (typeof pl.position === "number" && pl.position > 0) {
-        updPayload.position_in_paste = pl.position;
-        updPayload.last_paste_at = new Date().toISOString();
-      }
-      if (Object.keys(updPayload).length > 0) {
-        await supabase
-          .from("curator_playlists")
-          .update(updPayload)
-          .eq("id", playlistId);
-      }
+    } else if (sId) {
+      const { data: organic } = await supabase
+        .from("curator_playlists")
+        .select("id")
+        .eq("deal_id", deal_id)
+        .eq("spotify_playlist_id", sId)
+        .eq("match_status", "organic")
+        .maybeSingle();
+      playlistId = organic?.id ?? null;
+      matchMethod = "organic";
     }
 
     if (!playlistId) {
