@@ -376,6 +376,16 @@ Deno.serve(async (req) => {
         error: items.filter((it) => it.status === "error").length,
       };
 
+      recordMetric(admin, {
+        scope: "edge_function",
+        operation: "register-curator-playlist",
+        status: "success",
+        duration_ms: Date.now() - t0,
+        deal_id: deal.id,
+        song_id: songIdInput,
+        metadata: { ...summary, mode: publicToken ? "public" : "admin", preview },
+      });
+
       return jr({
         ok: true,
         summary,
@@ -388,6 +398,16 @@ Deno.serve(async (req) => {
     }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
+    try {
+      const adminErr = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
+      recordMetric(adminErr, {
+        scope: "edge_function",
+        operation: "register-curator-playlist",
+        status: "error",
+        duration_ms: Date.now() - t0,
+        metadata: { error: msg.slice(0, 240) },
+      });
+    } catch (_) { /* ignore */ }
     return jr({ ok: false, error: msg }, 200);
   }
 });
