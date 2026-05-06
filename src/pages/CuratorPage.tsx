@@ -1266,7 +1266,6 @@ export default function CuratorPage() {
           </Card>
         )}
 
-        {/* Card "Playlists em que as músicas já estão" removido — não exibir no portal do curador */}
 
         {/* Playlists do curador */}
         <Card className="nx-card !p-0 border-border">
