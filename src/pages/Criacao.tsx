@@ -330,7 +330,7 @@ export default function Criacao() {
         title="Criação"
         subtitle="Gerar e preparar playlists"
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 min-w-0">
             <Button
               variant="outline"
               className="rounded-full h-9 gap-1.5"
@@ -339,7 +339,7 @@ export default function Criacao() {
               title="Arquiva templates ⚠️ médios parados há mais de 72h"
             >
               {expiring ? <Loader2 className="h-4 w-4 animate-spin" /> : <Clock className="h-4 w-4" />}
-              Expirar 72h
+              <span className="hidden xl:inline">Expirar 72h</span>
             </Button>
             <Button
               variant="outline"
@@ -348,7 +348,7 @@ export default function Criacao() {
               disabled={scoring}
             >
               {scoring ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-              Reranquear
+              <span className="hidden xl:inline">Reranquear</span>
             </Button>
             <Button
               variant="premium"
@@ -357,7 +357,7 @@ export default function Criacao() {
               disabled={loading}
             >
               <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
-              Atualizar
+              <span className="truncate">Atualizar</span>
             </Button>
           </div>
         }

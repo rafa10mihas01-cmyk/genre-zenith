@@ -238,8 +238,8 @@ export default function Operacao() {
         title="Operação"
         subtitle="Executar e gerenciar playlists"
         actions={
-          <Button variant="outline" className="rounded-full h-9 gap-1.5" onClick={load} disabled={loading}>
-            <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} /> Atualizar
+          <Button variant="outline" className="rounded-full h-9 gap-1.5 max-w-full" onClick={load} disabled={loading} aria-label="Atualizar">
+            <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} /> <span className="truncate">Atualizar</span>
           </Button>
         }
       />

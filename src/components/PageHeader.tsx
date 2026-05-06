@@ -64,9 +64,11 @@ export function PageHeader({
         {actions && (
           <div
             className={cn(
-              "flex items-center justify-end gap-2 shrink-0 min-w-0 max-w-[56%] overflow-x-auto scrollbar-none",
-              "md:max-w-none md:overflow-visible md:flex-wrap md:flex-nowrap",
-              "[&>*]:h-9 [&>*]:px-3 [&>*]:text-[13px] sm:[&>*]:px-4 sm:[&>*]:text-sm [&>*]:shrink-0",
+              "flex items-center justify-end gap-2 shrink-0 min-w-0 max-w-[58%] overflow-hidden scrollbar-none",
+              "xl:max-w-none xl:overflow-visible xl:flex-wrap xl:flex-nowrap",
+              "max-xl:[&>button:not(:last-child)]:hidden max-xl:[&>div>button:not(:last-child)]:hidden",
+              "max-xl:[&_button]:max-w-[56vw] max-xl:[&_button]:overflow-hidden max-xl:[&_button]:text-ellipsis",
+              "[&_button]:h-9 [&_button]:px-3 [&_button]:text-[13px] sm:[&_button]:px-4 sm:[&_button]:text-sm [&_button]:shrink-0",
             )}
           >
             {actions}
