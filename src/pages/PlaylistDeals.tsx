@@ -34,7 +34,7 @@ const TABS = [
 ];
 
 export default function PlaylistDeals() {
-  const [tab, setTab] = usePersistedState<DealsTab>("playlistdeals:tab:v4", "active");
+  const [tab, setTab] = usePersistedState<DealsTab>("playlistdeals:tab:v5", "active");
   const [newOpen, setNewOpen] = useState(false);
   const [logDeal, setLogDeal] = useState<CuratorDeal | null>(null);
   const [detailDeal, setDetailDeal] = useState<CuratorDeal | null>(null);
