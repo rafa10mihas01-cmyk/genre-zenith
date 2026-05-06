@@ -508,8 +508,8 @@ export function useCuratorDeals() {
         );
 
       const matchedExistingIds = new Set<string>();
-      const toUpdate: Array<{ id: string; row: Record<string, unknown> }> = [];
-      const toInsert: Record<string, unknown>[] = [];
+      const toUpdate: Array<{ id: string; row: any }> = [];
+      const toInsert: any[] = [];
 
       desiredSongs.forEach((s, i) => {
         const baseRow = {
