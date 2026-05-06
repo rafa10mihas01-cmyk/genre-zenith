@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ListMusic, Plus, CheckCircle2, Layers, Activity, Target, Users, Wallet } from "lucide-react";
+import { ListMusic, Plus, CheckCircle2, Layers, Activity, Target, Users, Wallet, Receipt } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
@@ -18,14 +18,16 @@ import { DealHistorySheet } from "@/components/playlist-deals/DealHistorySheet";
 import { CuradoresTab } from "@/components/playlist-deals/CuradoresTab";
 import { CuradoresLibraryTab } from "@/components/playlist-deals/CuradoresLibraryTab";
 import { CloseDealDialog } from "@/components/playlist-deals/CloseDealDialog";
+import { FinanceiroTab } from "@/components/playlist-deals/FinanceiroTab";
 
-type DealsTab = "library" | "active" | "done" | "finance" | "all";
+type DealsTab = "library" | "active" | "done" | "finance" | "ledger" | "all";
 
 const TABS = [
   { id: "library"  as const, label: "Curadores",   icon: Users },
   { id: "active"   as const, label: "Ativos",      icon: Activity },
   { id: "done"     as const, label: "Concluídos",  icon: CheckCircle2 },
-  { id: "finance"  as const, label: "Financeiro",  icon: Wallet },
+  { id: "finance"  as const, label: "Curadores $", icon: Wallet },
+  { id: "ledger"   as const, label: "Financeiro",  icon: Receipt },
   { id: "all"      as const, label: "Todos",       icon: Layers },
 ];
 
@@ -204,6 +206,8 @@ export default function PlaylistDeals() {
             deals={deals}
             loading={loading}
           />
+        ) : tab === "ledger" ? (
+          <FinanceiroTab deals={deals} />
         ) : tab === "finance" ? (
           <CuradoresTab
             deals={deals}
