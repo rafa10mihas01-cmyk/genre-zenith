@@ -515,6 +515,42 @@ export function CuradoresLibraryTab({
           onSave={onUpdateCurator}
         />
       )}
+
+      <AlertDialog
+        open={confirmDelete !== null}
+        onOpenChange={(v) => !v && setConfirmDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir curador?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmDelete?.hasDeals
+                ? `${confirmDelete.curator.name} possui deals vinculados. Não é possível excluir — arquive em vez disso.`
+                : `${confirmDelete?.curator.name} será removido permanentemente, junto com o saldo financeiro. Esta ação não pode ser desfeita.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            {!confirmDelete?.hasDeals && (
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={async () => {
+                  if (!confirmDelete || !onDeleteCurator) return;
+                  try {
+                    await onDeleteCurator(confirmDelete.curator.id);
+                    toast.success("Curador excluído");
+                    setConfirmDelete(null);
+                  } catch (e) {
+                    toast.error(e instanceof Error ? e.message : "Erro ao excluir");
+                  }
+                }}
+              >
+                Excluir
+              </AlertDialogAction>
+            )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
