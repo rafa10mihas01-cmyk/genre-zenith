@@ -29,10 +29,51 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-function jr(payload: unknown, status = 200) {
+// ===== Lock e rate limit em memória (por instância da edge function) =====
+const LOCK_TTL_MS = 60_000;
+const RL_WINDOW_MS = 60_000;
+const RL_MAX = 5; // 5 importações por public_token por minuto
+
+const importLocks = new Map<string, number>(); // key = deal_id|song_id  → expiresAt
+const rateBuckets = new Map<string, number[]>(); // key = public_token   → timestamps
+
+function tryAcquireLock(key: string): boolean {
+  const now = Date.now();
+  const exp = importLocks.get(key);
+  if (exp && exp > now) return false;
+  importLocks.set(key, now + LOCK_TTL_MS);
+  return true;
+}
+function releaseLock(key: string) {
+  importLocks.delete(key);
+}
+
+function checkRateLimit(token: string): { ok: boolean; retryAfterSec?: number } {
+  const now = Date.now();
+  const arr = (rateBuckets.get(token) ?? []).filter((t) => now - t < RL_WINDOW_MS);
+  if (arr.length >= RL_MAX) {
+    const oldest = arr[0];
+    const retryAfterSec = Math.max(1, Math.ceil((RL_WINDOW_MS - (now - oldest)) / 1000));
+    rateBuckets.set(token, arr);
+    return { ok: false, retryAfterSec };
+  }
+  arr.push(now);
+  rateBuckets.set(token, arr);
+  return { ok: true };
+}
+
+// Timeout por URL: corta se Spotify travar
+function withTimeout<T>(p: Promise<T>, ms: number, label = "timeout"): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error(label)), ms);
+    p.then((v) => { clearTimeout(t); resolve(v); }, (e) => { clearTimeout(t); reject(e); });
+  });
+}
+
+function jr(payload: unknown, status = 200, extraHeaders: Record<string, string> = {}) {
   return new Response(JSON.stringify(payload), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: { ...corsHeaders, "Content-Type": "application/json", ...extraHeaders },
   });
 }
 
