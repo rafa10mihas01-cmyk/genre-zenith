@@ -2,6 +2,71 @@
 // Helpers compartilhados para enriquecer e classificar playlists do curador.
 import { getSpotifyToken } from "./spotify.ts";
 
+// ===== fetchWithRetry: backoff + tratamento 429/5xx/timeout =====
+const RETRY_DELAYS_MS = [300, 800, 2000];
+const FETCH_TIMEOUT_MS = 8000;
+
+async function sleep(ms: number) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+/**
+ * fetch com retry em 429/5xx/network/timeout.
+ * - Respeita Retry-After (cap 5s).
+ * - Timeout de 8s por tentativa.
+ */
+export async function fetchWithRetry(
+  url: string,
+  init: RequestInit = {},
+  opts: { maxRetries?: number } = {},
+): Promise<Response> {
+  const maxRetries = opts.maxRetries ?? RETRY_DELAYS_MS.length;
+  let lastErr: unknown = null;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
+    try {
+      const res = await fetch(url, { ...init, signal: ctrl.signal });
+      clearTimeout(timer);
+
+      // Sucesso ou erro de cliente não-retryable (4xx exceto 429) → retorna
+      if (res.ok || (res.status >= 400 && res.status < 500 && res.status !== 429)) {
+        return res;
+      }
+
+      // 429 / 5xx → tenta de novo se ainda há tentativas
+      if (attempt < maxRetries) {
+        let delay = RETRY_DELAYS_MS[attempt] ?? 2000;
+        if (res.status === 429) {
+          const ra = res.headers.get("Retry-After");
+          if (ra) {
+            const raMs = Number(ra) * 1000;
+            if (Number.isFinite(raMs) && raMs > 0) {
+              delay = Math.min(raMs, 5000);
+            }
+          }
+        }
+        // drena body pra liberar conexão
+        await res.text().catch(() => {});
+        await sleep(delay);
+        continue;
+      }
+      return res; // sem mais retries, devolve o último response
+    } catch (err) {
+      clearTimeout(timer);
+      lastErr = err;
+      if (attempt < maxRetries) {
+        await sleep(RETRY_DELAYS_MS[attempt] ?? 2000);
+        continue;
+      }
+      throw err;
+    }
+  }
+
+  throw lastErr instanceof Error ? lastErr : new Error("fetchWithRetry exhausted");
+}
+
 export const SPOTIFY_PLAYLIST_RE =
   /spotify\.com\/(?:intl-[a-z]{2}\/)?playlist\/([A-Za-z0-9]+)/i;
 
