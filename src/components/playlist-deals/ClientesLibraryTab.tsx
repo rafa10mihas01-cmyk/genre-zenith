@@ -63,6 +63,13 @@ export function ClientesLibraryTab({ deals, songs, loading }: Props) {
   const [editing, setEditing] = useState<Client | null>(null);
   const [creating, setCreating] = useState(false);
 
+  // Permite abrir o modal "Novo cliente" via evento global (botão + Novo do header)
+  useEffect(() => {
+    const handler = () => setCreating(true);
+    window.addEventListener("playlistdeals:new-client", handler);
+    return () => window.removeEventListener("playlistdeals:new-client", handler);
+  }, []);
+
   const dealById = useMemo(() => {
     const m = new Map<string, CuratorDeal>();
     for (const d of deals) m.set(d.id, d);
