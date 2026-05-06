@@ -897,49 +897,61 @@ export default function CuratorPage() {
 
                   <div className="h-px bg-border" />
 
-                  {/* Briefing: meta · semana · progresso (apenas com playlists cadastradas) */}
-                  {hasCuratorPlaylists ? (
-                    <>
-                      <div className="grid grid-cols-3 gap-3">
-                        <div className="min-w-0">
-                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-1">
-                            Meta
-                          </div>
-                          <div className="text-[15px] font-semibold tabular-nums leading-none">
-                            {formatPlays(stats.target)}
-                          </div>
-                          <div className="text-[10px] text-muted-foreground font-normal mt-1">plays</div>
+                  {/* HERO STATUS — Entrega real (delta) vs Meta diária + semáforo 🟢🟡🔴 */}
+                  {hasCuratorPlaylists && stats.hasBaseline ? (() => {
+                    const dailyRatio = stats.dailyGoal > 0 ? stats.dailyAvg / stats.dailyGoal : 0;
+                    const statusKey: "ok" | "warn" | "low" =
+                      stats.dailyGoal === 0 ? "ok"
+                      : dailyRatio >= 1 ? "ok"
+                      : dailyRatio >= 0.7 ? "warn"
+                      : "low";
+                    const statusMap = {
+                      ok:   { dot: "bg-success",     text: "text-success",     ring: "ring-success/30",     bg: "bg-success/10",     label: "Batendo a meta" },
+                      warn: { dot: "bg-warning",     text: "text-warning",     ring: "ring-warning/30",     bg: "bg-warning/10",     label: "Atenção — abaixo da meta" },
+                      low:  { dot: "bg-destructive", text: "text-destructive", ring: "ring-destructive/30", bg: "bg-destructive/10", label: "Abaixo da meta" },
+                    } as const;
+                    const s = statusMap[statusKey];
+                    return (
+                      <div className={cn("rounded-2xl p-5 ring-1", s.bg, s.ring)}>
+                        <div className="flex items-center justify-between gap-3 mb-3">
+                          <span className={cn("inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em]", s.text)}>
+                            <span className={cn("h-2 w-2 rounded-full", s.dot)} />
+                            {s.label}
+                          </span>
+                          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                            Entrega real do curador
+                          </span>
                         </div>
-                        <div className="min-w-0">
-                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-1">
-                            Esta semana
-                          </div>
-                          <div className="text-[15px] font-semibold tabular-nums leading-none text-primary">
-                            {stats.dailyGoal > 0 ? formatPlays(stats.weekRemaining) : "—"}
-                          </div>
-                          <div className="text-[10px] text-muted-foreground font-normal mt-1">restantes</div>
+                        <div className="flex items-baseline gap-2 flex-wrap">
+                          <span className={cn("text-[34px] sm:text-[40px] font-bold tabular-nums leading-none tracking-tight", s.text)}>
+                            {formatPlays(stats.dailyAvg)}
+                          </span>
+                          <span className="text-[20px] sm:text-[22px] font-semibold tabular-nums text-muted-foreground leading-none">
+                            / {formatPlays(stats.dailyGoal)}
+                          </span>
+                          <span className="text-[11px] uppercase tracking-wider text-muted-foreground ml-1">
+                            por dia (média) · meta diária
+                          </span>
                         </div>
-                        <div className="min-w-0">
-                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-1">
-                            Progresso
-                          </div>
-                          <div className="text-[15px] font-semibold tabular-nums leading-none">
-                            {stats.pct}<span className="text-[11px] text-muted-foreground font-normal ml-0.5">%</span>
-                          </div>
-                          <div className="text-[10px] text-muted-foreground font-normal mt-1 invisible">.</div>
-                        </div>
-                      </div>
-
-                      {stats.hasBaseline && stats.target > 0 && (
-                        <div className="h-1 rounded-full bg-muted/60 overflow-hidden">
+                        <div className="mt-3 h-1.5 rounded-full bg-background/40 overflow-hidden">
                           <div
-                            className="h-full bg-primary rounded-full transition-all duration-500"
-                            style={{ width: `${stats.pct}%` }}
+                            className={cn("h-full rounded-full transition-all duration-500", s.dot)}
+                            style={{ width: `${Math.min(100, Math.round(dailyRatio * 100))}%` }}
                           />
                         </div>
-                      )}
-                    </>
-                  ) : null}
+                        <div className="mt-3 flex items-center justify-between gap-3 text-[11px] text-muted-foreground tabular-nums">
+                          <span>
+                            Entregue (delta){" "}
+                            <span className="font-semibold text-foreground">{formatPlays(stats.earned)}</span>
+                            {" "}de{" "}
+                            <span className="font-semibold text-foreground">{formatPlays(stats.target)}</span>
+                            {" "}plays
+                          </span>
+                          <span>{stats.pct}% da meta total</span>
+                        </div>
+                      </div>
+                    );
+                  })() : null}
 
                   <a
                     href={headerUrl}
