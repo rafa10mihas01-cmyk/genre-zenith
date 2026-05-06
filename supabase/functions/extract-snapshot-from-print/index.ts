@@ -538,6 +538,18 @@ Deno.serve(async (req) => {
         song_id: song_id ?? null,
         metadata: { error: msg.slice(0, 240), prints: print_urls.length, batch_id: batch_id ?? null },
       });
+      if (correlation_id) {
+        void supabase.from("bot_events").insert({
+          bot_name: "spotify-artists-bot",
+          deal_id, song_id: song_id ?? null,
+          step: "extract_snapshot",
+          status: "error",
+          lifecycle_state: "FAILED",
+          correlation_id,
+          message: msg.slice(0, 400),
+          metadata: { batch_id: batch_id ?? null, stage: "gemini_extract" },
+        });
+      }
       return jr({ error: "extract_failed", detail: msg }, 500);
     }
   }
