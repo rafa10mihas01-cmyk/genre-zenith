@@ -69,7 +69,14 @@ Deno.serve(async (req) => {
 
   // 🔒 BLINDAGEM: só coleta se o deal já tem playlists do curador cadastradas
   // (com spotify_playlist_id e não-algorítmicas). Sem whitelist, não roda.
-  const candidates = data ?? [];
+  // Pós-filtro: token_expires_at no passado também desqualifica
+  const nowMs = Date.now();
+  const candidates = (data ?? []).filter((s: any) => {
+    const exp = s?.curator_deals?.token_expires_at;
+    if (!exp) return true;
+    const t = new Date(exp).getTime();
+    return !Number.isFinite(t) || t > nowMs;
+  });
   const dealIds = Array.from(new Set(candidates.map((s: any) => s.deal_id)));
   const dealsWithWhitelist = new Set<string>();
   if (dealIds.length) {
