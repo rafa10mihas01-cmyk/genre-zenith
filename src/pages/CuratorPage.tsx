@@ -1061,31 +1061,21 @@ export default function CuratorPage() {
 
         {/* Estado vazio: sem playlists cadastradas pelo curador */}
         {!hasCuratorPlaylists && (
-          <div className="relative">
-            <div
-              aria-hidden
-              className="absolute -inset-0.5 rounded-[18px] bg-[radial-gradient(ellipse_at_center,hsl(var(--primary)/0.35),transparent_70%)] blur-2xl animate-pulse pointer-events-none"
-            />
-            <Card className="nx-card !p-0 border-primary/40 relative overflow-hidden">
-              <div
-                aria-hidden
-                className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,hsl(var(--primary)/0.10),transparent_70%)] animate-pulse pointer-events-none"
-              />
-              <CardContent className="relative p-6 sm:p-8 pt-6 sm:pt-8 md:pt-8 flex flex-col items-center text-center gap-4">
-                <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center ring-1 ring-primary/30">
-                  <ListMusic className="h-6 w-6 text-primary" />
-                </div>
-                <div className="space-y-1.5 max-w-sm">
-                  <h2 className="text-[15px] font-semibold tracking-tight">
-                    Adicione suas playlists para iniciar o monitoramento.
-                  </h2>
-                  <p className="text-[12.5px] text-muted-foreground leading-relaxed">
-                    A medição é feita exclusivamente sobre as playlists cadastradas nesta campanha.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          <Card className="nx-card !p-0 border-primary/40 animate-nx-heartbeat">
+            <CardContent className="p-6 sm:p-8 pt-6 sm:pt-8 md:pt-8 flex flex-col items-center text-center gap-4">
+              <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center ring-1 ring-primary/30">
+                <ListMusic className="h-6 w-6 text-primary" />
+              </div>
+              <div className="space-y-1.5 max-w-sm">
+                <h2 className="text-[15px] font-semibold tracking-tight">
+                  Adicione suas playlists para iniciar o monitoramento.
+                </h2>
+                <p className="text-[12.5px] text-muted-foreground leading-relaxed">
+                  A medição é feita exclusivamente sobre as playlists cadastradas nesta campanha.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
         )}
 
 

@@ -80,6 +80,16 @@ export default {
           from: { opacity: "0" },
           to:   { opacity: "1" },
         },
+        "nx-heartbeat": {
+          "0%, 100%": {
+            transform: "scale(1)",
+            boxShadow: "0 0 0 0 hsl(var(--primary) / 0), 0 0 0 0 hsl(var(--primary) / 0)",
+          },
+          "50%": {
+            transform: "scale(1.012)",
+            boxShadow: "0 0 0 6px hsl(var(--primary) / 0.10), 0 0 48px 4px hsl(var(--primary) / 0.28)",
+          },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -87,6 +97,7 @@ export default {
         "nx-indeterminate": "nx-indeterminate 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite",
         "nx-logo-pulse": "nx-logo-pulse 1.6s ease-in-out infinite",
         "nx-fade-in": "nx-fade-in 0.25s ease-out",
+        "nx-heartbeat": "nx-heartbeat 2.2s ease-in-out infinite",
       },
     },
   },
