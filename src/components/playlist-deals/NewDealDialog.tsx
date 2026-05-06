@@ -498,6 +498,41 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
     [balanceById, selectedCuratorId],
   );
 
+  // Curador "pendente": modo "new" no Step 1. NUNCA persistido até o submit final.
+  // Usado para previsões de saldo/CPP no Step 2 sem criar registros órfãos.
+  const pendingCurator = useMemo(() => {
+    if (curatorMode !== "new") return null;
+    const name = newCuratorName.trim();
+    if (!name) return null;
+    const plays = newCuratorPlaysDigits ? Number(newCuratorPlaysDigits) : 0;
+    const cost = currencyDigitsToNumber(newCuratorCostDigits) ?? 0;
+    return {
+      name,
+      contact: newCuratorContact.trim() || null,
+      purchased_plays: Math.max(0, plays),
+      total_cost: Math.max(0, cost),
+    };
+  }, [curatorMode, newCuratorName, newCuratorContact, newCuratorPlaysDigits, newCuratorCostDigits]);
+
+  // Visão unificada do curador (selecionado OU pendente) para o Step 2.
+  const effectiveCurator = useMemo(() => {
+    if (selectedCurator) {
+      return {
+        name: selectedCurator.name,
+        purchased_plays: Number(selectedCurator.purchased_plays ?? 0),
+        total_cost: Number(selectedCurator.total_cost ?? 0),
+      };
+    }
+    if (pendingCurator) {
+      return {
+        name: pendingCurator.name,
+        purchased_plays: pendingCurator.purchased_plays,
+        total_cost: pendingCurator.total_cost,
+      };
+    }
+    return null;
+  }, [selectedCurator, pendingCurator]);
+
   // ============================================================
   // Persistência de rascunho (autosave + restore)
   // Só ativa em modo "novo deal" (edição não cria rascunho)
@@ -771,7 +806,11 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
     () => songs.reduce((acc, s) => acc + songTarget(s), 0),
     [songs],
   );
-  const purchased = selectedBalance?.purchased_plays ?? selectedCurator?.purchased_plays ?? 0;
+  const purchased =
+    selectedBalance?.purchased_plays
+    ?? selectedCurator?.purchased_plays
+    ?? pendingCurator?.purchased_plays
+    ?? 0;
   const consumedOther = (selectedBalance?.consumed_plays ?? 0) - (isEdit
     ? // Em edição: subtrai a contribuição atual do deal pra recalcular limpo
       (editSongs ?? []).reduce((acc, s) => acc + Number(s.target_plays ?? 0), 0)
@@ -783,33 +822,9 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
   // ============================================================
   // Submissão
   // ============================================================
-  const handleCreateCuratorAndAdvance = async () => {
-    const name = newCuratorName.trim();
-    if (!name) {
-      toast.error("Informe o nome do curador");
-      return;
-    }
-    setSubmitting(true);
-    try {
-      const playsRaw = newCuratorPlaysDigits ? Number(newCuratorPlaysDigits) : 0;
-      const costRaw = currencyDigitsToNumber(newCuratorCostDigits);
-      const created = await addCurator({
-        name,
-        contact: newCuratorContact.trim() || null,
-        purchased_plays: playsRaw,
-        total_cost: typeof costRaw === "number" ? costRaw : 0,
-      });
-      setSelectedCuratorId(created.id);
-      setCuratorMode("select");
-      setStep(2);
-      toast.success("Curador cadastrado");
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      toast.error("Não foi possível cadastrar o curador", { description: msg });
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  // OBS: criar curador foi REMOVIDO daqui. Curador novo é persistido junto com o deal,
+  // dentro da mesma transação (RPC create_curator_deal_atomic com p_new_curator).
+  // Isso garante zero curadores/compras órfãos quando o usuário cancela o dialog.
 
   const handleSaveBalanceChange = async () => {
     if (!selectedCuratorId || !selectedCurator) return;
@@ -866,9 +881,13 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
     }
   };
 
-  const handleAdvanceToStep2 = async () => {
+  const handleAdvanceToStep2 = () => {
     if (curatorMode === "new") {
-      await handleCreateCuratorAndAdvance();
+      if (!newCuratorName.trim()) {
+        toast.error("Informe o nome do curador");
+        return;
+      }
+      setStep(2);
       return;
     }
     if (!selectedCuratorId) {
@@ -910,7 +929,7 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
       }
     }
 
-    const curatorName = selectedCurator?.name ?? "—";
+    const curatorName = effectiveCurator?.name ?? selectedCurator?.name ?? "—";
 
     setSubmitting(true);
     try {
@@ -948,9 +967,9 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
 
       const primaryTarget = songTarget(primary);
 
-      // Cost derivado do CPP do curador (FASE 3): se o curador tem saldo, calcula proporcional
-      const curatorTotalCost = Number(selectedCurator?.total_cost ?? 0);
-      const curatorPurchasedPlays = Number(selectedCurator?.purchased_plays ?? 0);
+      // Cost derivado do CPP do curador (FASE 3): usa selecionado OU pendente (modo "new")
+      const curatorTotalCost = Number(effectiveCurator?.total_cost ?? 0);
+      const curatorPurchasedPlays = Number(effectiveCurator?.purchased_plays ?? 0);
       const cpp = curatorPurchasedPlays > 0 ? curatorTotalCost / curatorPurchasedPlays : 0;
       const dealCostRaw = cpp > 0 ? Math.round(songsTotalTarget * cpp * 100) / 100 : 0;
 
@@ -987,15 +1006,16 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
         });
       } else {
         let deal: CuratorDeal;
+        const newCuratorPayload = pendingCurator ?? null;
         try {
-          deal = await addDeal(payload);
+          deal = await addDeal(payload, { new_curator: newCuratorPayload });
         } catch (err) {
           if (err instanceof Error && err.message === "DUPLICATE_DEAL") {
             const shouldForce = window.confirm(
               "Já existe um deal ativo com esse curador e essa música nesse período. Criar outro mesmo assim?",
             );
             if (!shouldForce) return;
-            deal = await addDeal(payload, { force: true });
+            deal = await addDeal(payload, { force: true, new_curator: newCuratorPayload });
           } else {
             throw err;
           }

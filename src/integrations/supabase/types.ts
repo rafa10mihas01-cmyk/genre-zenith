@@ -2586,10 +2586,20 @@ export type Database = {
         Args: { p_genre_id: string; p_hours?: number }
         Returns: number
       }
-      create_curator_deal_atomic: {
-        Args: { p_deal: Json; p_force?: boolean; p_songs: Json }
-        Returns: Json
-      }
+      create_curator_deal_atomic:
+        | {
+            Args: { p_deal: Json; p_force?: boolean; p_songs: Json }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_deal: Json
+              p_force?: boolean
+              p_new_curator?: Json
+              p_songs: Json
+            }
+            Returns: Json
+          }
       create_notification:
         | {
             Args: {
