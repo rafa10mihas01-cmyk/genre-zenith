@@ -83,6 +83,7 @@ interface Props {
   loading: boolean;
   onUpdateCurator?: (curatorId: string, input: Partial<NewCuratorInput>) => Promise<void>;
   onArchiveCurator?: (curatorId: string, archive?: boolean) => Promise<void>;
+  onDeleteCurator?: (curatorId: string) => Promise<void>;
 }
 
 export function CuradoresLibraryTab({
@@ -92,15 +93,20 @@ export function CuradoresLibraryTab({
   loading,
   onUpdateCurator,
   onArchiveCurator,
+  onDeleteCurator,
 }: Props) {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Curator | null>(null);
   const [editing, setEditing] = useState<Curator | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<{ curator: Curator; hasDeals: boolean } | null>(null);
+
+  const archivedCount = curators.filter((c) => !!c.archived_at).length;
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
     return curators
-      .filter((c) => !c.archived_at)
+      .filter((c) => (showArchived ? !!c.archived_at : !c.archived_at))
       .filter(
         (c) =>
           !q ||
