@@ -60,6 +60,8 @@ type SongRow = {
   duration_days: string;    // string pra input numérico
   started_at: Date | undefined;
   ramp_up_days: string;
+  client_id: string | null;
+  smartlink_url: string;
   meta: {
     title: string;
     artist: string | null;
