@@ -1,6 +1,8 @@
 // ClientCampaignPage — painel público SOMENTE LEITURA para o CLIENTE final
 // Acesso: /campanha/:token (token separado do link do curador)
 // Toda a sanitização está no edge get-client-campaign-public.
+// Layout espelha CuratorPage (container, atmosfera verde, topbar, cards) —
+// mas só com os dados visíveis ao cliente (sem upload, sem notificações).
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
@@ -11,10 +13,8 @@ import {
   CalendarDays,
   CheckCircle2,
   Activity,
-  Sparkles,
   ExternalLink,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import {
   Area,
   AreaChart,
@@ -27,6 +27,7 @@ import {
 } from "recharts";
 
 import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { NexEngineLogo } from "@/components/NexEngineLogo";
@@ -82,14 +83,11 @@ function formatFullPlays(n: number | null | undefined): string {
   if (n == null) return "0";
   return new Intl.NumberFormat("pt-BR").format(Math.round(Number(n)));
 }
-function formatDate(iso: string | null | undefined): string {
+function formatShortDate(iso: string | Date | null | undefined): string {
   if (!iso) return "—";
   try {
-    return new Date(iso).toLocaleDateString("pt-BR", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
+    const d = typeof iso === "string" ? new Date(iso) : iso;
+    return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
   } catch {
     return "—";
   }
@@ -108,17 +106,6 @@ function formatDateTime(iso: string | null | undefined): string {
   }
 }
 
-const STATUS_STYLES: Record<SafeDeal["status"], string> = {
-  "Em andamento":
-    "bg-primary/10 text-primary border border-primary/20",
-  "Acelerando":
-    "bg-primary/15 text-primary border border-primary/30",
-  "Meta batida":
-    "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30",
-  "Finalizada":
-    "bg-muted text-muted-foreground border border-border",
-};
-
 const PLAYLIST_STATUS_STYLES: Record<SafePlaylist["status"], string> = {
   "Nova": "bg-blue-500/10 text-blue-400 border-blue-500/20",
   "Crescendo": "bg-primary/10 text-primary border-primary/20",
@@ -129,7 +116,7 @@ const PLAYLIST_STATUS_STYLES: Record<SafePlaylist["status"], string> = {
 const PACE_LABEL: Record<SafeProgress["pace"], { label: string; tone: string }> = {
   "abaixo do esperado": {
     label: "Ritmo abaixo do esperado",
-    tone: "text-amber-400",
+    tone: "text-warning",
   },
   "normal": { label: "Ritmo normal", tone: "text-foreground" },
   "acelerando": { label: "Ritmo acelerando", tone: "text-primary" },
@@ -179,6 +166,12 @@ export default function ClientCampaignPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
+  const hasMultipleSongs = songs.length > 1;
+  const selectedSong = useMemo(
+    () => (selectedSongId ? songs.find((s) => s.id === selectedSongId) ?? null : null),
+    [selectedSongId, songs],
+  );
+
   const handleSelectSong = (songToken: string) => {
     if (!songToken || songToken === token) return;
     navigate(`/campanha/${songToken}`);
@@ -218,422 +211,480 @@ export default function ClientCampaignPage() {
   }
 
   const remaining = Math.max(0, progress.target - progress.delivered);
+  const isDone = progress.target > 0 && progress.delivered >= progress.target;
+
+  // Semáforo do status (mesmo padrão do CuratorPage)
+  const dailyAvg = progress.target_days > 0 ? progress.delivered / Math.max(1, progress.days_elapsed) : 0;
+  const dailyGoal = progress.target_days > 0 ? progress.target / progress.target_days : 0;
+  const dailyRatio = dailyGoal > 0 ? dailyAvg / dailyGoal : 1;
+  const statusKey: "ok" | "warn" | "low" = isDone
+    ? "ok"
+    : dailyGoal === 0
+    ? "ok"
+    : dailyRatio >= 1
+    ? "ok"
+    : dailyRatio >= 0.7
+    ? "warn"
+    : "low";
+  const statusMap = {
+    ok:   { dot: "bg-success",     text: "text-success",     ring: "ring-success/30",     bg: "bg-success/10",     label: isDone ? "Meta batida" : "Batendo a meta" },
+    warn: { dot: "bg-warning",     text: "text-warning",     ring: "ring-warning/30",     bg: "bg-warning/10",     label: "Atenção — abaixo da meta" },
+    low:  { dot: "bg-destructive", text: "text-destructive", ring: "ring-destructive/30", bg: "bg-destructive/10", label: "Abaixo da meta" },
+  } as const;
+  const semaforo = statusMap[statusKey];
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      {/* TOPBAR PÚBLICA */}
-      <header
-        className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur-md supports-[backdrop-filter]:bg-background/70"
-        style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
-      >
-        <div className="mx-auto max-w-6xl flex items-center justify-between gap-3 px-4 sm:px-6 h-14">
-          <div className="flex items-center gap-2 min-w-0">
-            <NexEngineLogo size={28} variant="mark" className="shrink-0" />
-            <span className="font-semibold text-[15px] truncate">NexEngine</span>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <span
-              className={cn(
-                "text-[11px] font-medium px-2.5 py-1 rounded-full whitespace-nowrap",
-                STATUS_STYLES[deal.status],
-              )}
-            >
-              {deal.status}
-            </span>
-            <ThemeToggle />
-          </div>
-        </div>
-      </header>
+    <div className="relative min-h-screen bg-background py-8 sm:py-10 overflow-hidden">
+      {/* Atmosfera verde — suave e difusa (igual CuratorPage) */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 -z-0 hidden dark:block"
+        style={{
+          background: [
+            "radial-gradient(ellipse 70% 45% at 50% 0%, rgba(29,185,84,0.09) 0%, rgba(29,185,84,0) 75%)",
+            "radial-gradient(ellipse 45% 55% at 0% 30%, rgba(29,185,84,0.05) 0%, rgba(29,185,84,0) 75%)",
+            "radial-gradient(ellipse 45% 55% at 100% 50%, rgba(29,185,84,0.045) 0%, rgba(29,185,84,0) 75%)",
+            "radial-gradient(ellipse 75% 35% at 50% 100%, rgba(29,185,84,0.04) 0%, rgba(29,185,84,0) 75%)",
+          ].join(", "),
+        }}
+      />
 
-      <main
-        className="mx-auto max-w-6xl px-4 sm:px-6 py-6 sm:py-8 space-y-6 sm:space-y-8"
-        style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 32px)" }}
-      >
-        {/* HERO — Capa + título da campanha */}
-        <section className="flex items-center gap-4 sm:gap-5 min-w-0">
-          <div className="relative h-16 w-16 sm:h-20 sm:w-20 rounded-2xl overflow-hidden bg-elevated border border-border shrink-0">
-            {deal.song_cover_url ? (
-              <img
-                src={deal.song_cover_url}
-                alt={deal.song_name}
-                className="h-full w-full object-cover"
-                loading="eager"
-              />
-            ) : (
-              <div className="h-full w-full flex items-center justify-center">
-                <Music2 className="h-7 w-7 text-muted-foreground" />
-              </div>
-            )}
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground font-bold">
-              Campanha
-            </p>
-            <h1 className="text-xl sm:text-3xl font-semibold tracking-tight leading-tight truncate">
-              {deal.song_name}
-            </h1>
-            {deal.song_artist && (
-              <p className="text-sm sm:text-base text-muted-foreground truncate">
-                {deal.song_artist}
-              </p>
-            )}
-          </div>
-          {deal.smartlink_url && (
-            <a
-              href={deal.smartlink_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hidden sm:inline-flex shrink-0"
-            >
-              <Button variant="outline" size="sm" className="gap-2">
-                <ExternalLink className="h-3.5 w-3.5" />
-                Ouvir agora
-              </Button>
-            </a>
-          )}
-        </section>
-
-        {deal.smartlink_url && (
-          <a
-            href={deal.smartlink_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="sm:hidden -mt-2"
-          >
-            <Button variant="outline" size="sm" className="w-full gap-2">
-              <ExternalLink className="h-3.5 w-3.5" />
-              Ouvir agora
-            </Button>
-          </a>
-        )}
-
-        {/* SELETOR DE MÚSICAS — quando o cliente tem várias faixas no deal */}
-        {songs.length > 1 && (
-          <section className="space-y-2">
-            <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground font-bold">
-              Músicas desta campanha
-            </p>
-            <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 snap-x">
-              {songs.map((s) => {
-                const active = s.id === selectedSongId
-                  || (selectedSongId == null && s.client_token === token);
-                return (
-                  <button
-                    key={s.id}
-                    type="button"
-                    onClick={() => handleSelectSong(s.client_token)}
-                    className={cn(
-                      "snap-start shrink-0 flex items-center gap-2.5 pl-1.5 pr-3 py-1.5 rounded-full border transition-colors text-left",
-                      active
-                        ? "border-primary/60 bg-primary/10 text-foreground"
-                        : "border-border bg-card text-muted-foreground hover:text-foreground hover:border-foreground/30",
-                    )}
-                  >
-                    <div className="h-7 w-7 rounded-full overflow-hidden bg-elevated border border-border shrink-0">
-                      {s.song_cover_url ? (
-                        <img
-                          src={s.song_cover_url}
-                          alt={s.song_name}
-                          className="h-full w-full object-cover"
-                          loading="lazy"
-                        />
-                      ) : (
-                        <div className="h-full w-full flex items-center justify-center">
-                          <Music2 className="h-3.5 w-3.5" />
-                        </div>
-                      )}
-                    </div>
-                    <span className="text-xs font-medium max-w-[160px] truncate">
-                      {s.song_name}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-        )}
-
-        {/* CARD HERO — números grandes */}
-        <Card className="overflow-hidden">
-          <CardContent className="p-5 sm:p-8 space-y-5">
-            <div className="flex flex-col gap-1">
-              <span className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
-                Plays entregues
-              </span>
-              <div className="flex items-end gap-2 sm:gap-3 flex-wrap min-w-0">
-                <span className="text-4xl sm:text-6xl font-semibold tracking-tight leading-none tabular-nums">
-                  {formatFullPlays(progress.delivered)}
-                </span>
-                <span className="text-sm sm:text-base text-muted-foreground pb-1 sm:pb-2">
-                  de {formatFullPlays(progress.target)} plays
-                </span>
-              </div>
-            </div>
-
-            <div className="space-y-2.5">
-              <Progress value={progress.pct} className="h-2.5" />
-              <div className="flex items-center justify-between text-xs sm:text-sm gap-2 flex-wrap">
-                <span className="font-medium text-foreground tabular-nums">
-                  {progress.pct.toFixed(1)}% concluído
-                </span>
-                <span className="text-muted-foreground tabular-nums">
-                  Faltam {formatPlays(remaining)}
-                </span>
-              </div>
-            </div>
-
-            {progress.last7_growth > 0 && (
-              <div className="flex items-center gap-2 text-sm text-primary border-t border-border pt-4">
-                <TrendingUp className="h-4 w-4" />
-                <span>
-                  +{formatPlays(progress.last7_growth)} plays nos últimos 7 dias
-                </span>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* MINI KPIs */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          {[
-            {
-              icon: Activity,
-              label: "Ritmo",
-              value: PACE_LABEL[progress.pace].label,
-              tone: PACE_LABEL[progress.pace].tone,
-            },
-            {
-              icon: ListMusic,
-              label: "Playlists",
-              value: String(playlists.length),
-            },
-            {
-              icon: CalendarDays,
-              label: "Dias decorridos",
-              value: `${progress.days_elapsed} / ${progress.target_days}`,
-            },
-            {
-              icon: CheckCircle2,
-              label: "Última atualização",
-              value: formatDateTime(deal.last_update),
-              small: true,
-            },
-          ].map((kpi) => (
-            <Card key={kpi.label}>
-              <CardContent className="p-4 space-y-1.5 min-w-0">
-                <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
-                  <kpi.icon className="h-3.5 w-3.5" />
-                  <span className="truncate">{kpi.label}</span>
+      <div className="relative z-10 w-full max-w-[1200px] mx-auto px-5 sm:px-6 md:px-8">
+        <div className="max-w-xl md:max-w-2xl mx-auto space-y-4 sm:space-y-5">
+          {/* Topbar — compacto, igual CuratorPage */}
+          <div className="flex items-center justify-between gap-3 py-2 border-b border-border/50">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <NexEngineLogo variant="mark" size={20} />
+              <div className="min-w-0">
+                <div className="text-[12.5px] font-semibold tracking-tight leading-tight truncate">
+                  {deal.song_artist || "Cliente"}
                 </div>
-                <p
+                <div className="text-[10px] text-muted-foreground/60 mt-0.5 leading-none truncate">
+                  Acompanhamento da campanha
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-0.5 rounded-lg border border-border/40 bg-card/40 backdrop-blur-sm px-1 py-0.5">
+              <ThemeToggle />
+            </div>
+          </div>
+
+          {/* Header — Campanha + identidade + semáforo */}
+          <Card className="nx-card !p-0 overflow-hidden border-border">
+            <CardContent className="p-5 sm:p-6 pt-5 sm:pt-6 md:pt-6 space-y-6">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary/80">
+                  Campanha
+                </span>
+                <span
                   className={cn(
-                    "font-semibold tabular-nums truncate",
-                    kpi.small ? "text-xs sm:text-sm" : "text-base sm:text-lg",
-                    "tone" in kpi && kpi.tone ? kpi.tone : "text-foreground",
+                    "inline-flex items-center gap-1.5 text-[11px] font-medium",
+                    semaforo.text,
                   )}
-                  title={kpi.value}
                 >
-                  {kpi.value}
-                </p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {/* GRÁFICO */}
-        {chartData.length > 1 && (
-          <Card>
-            <CardContent className="p-5 sm:p-6 space-y-4">
-              <div className="flex items-center justify-between gap-3 flex-wrap">
-                <div>
-                  <h2 className="text-base sm:text-lg font-semibold">
-                    Evolução da campanha
-                  </h2>
-                  <p className="text-xs sm:text-sm text-muted-foreground">
-                    Plays acumulados ao longo do tempo
-                  </p>
-                </div>
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span
+                      className={cn(
+                        "absolute inline-flex h-full w-full rounded-full opacity-75",
+                        semaforo.dot,
+                        !isDone && "animate-ping",
+                      )}
+                    />
+                    <span className={cn("relative inline-flex h-1.5 w-1.5 rounded-full", semaforo.dot)} />
+                  </span>
+                  {semaforo.label}
+                </span>
               </div>
-              <div className="h-[220px] sm:h-[280px] w-full -mx-2">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart
-                    data={chartData}
-                    margin={{ top: 8, right: 12, left: 0, bottom: 0 }}
-                  >
-                    <defs>
-                      <linearGradient id="g_plays" x1="0" y1="0" x2="0" y2="1">
-                        <stop
-                          offset="0%"
-                          stopColor="hsl(var(--primary))"
-                          stopOpacity={0.35}
-                        />
-                        <stop
-                          offset="100%"
-                          stopColor="hsl(var(--primary))"
-                          stopOpacity={0}
-                        />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      stroke="hsl(var(--border))"
-                      vertical={false}
-                    />
-                    <XAxis
-                      dataKey="date"
-                      tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-                      axisLine={false}
-                      tickLine={false}
-                      minTickGap={24}
-                    />
-                    <YAxis
-                      tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-                      axisLine={false}
-                      tickLine={false}
-                      tickFormatter={(v) => formatPlays(v as number)}
-                      width={40}
-                    />
-                    <ReTooltip
-                      contentStyle={{
-                        background: "hsl(var(--card))",
-                        border: "1px solid hsl(var(--border))",
-                        borderRadius: 12,
-                        fontSize: 12,
-                      }}
-                      labelStyle={{ color: "hsl(var(--muted-foreground))" }}
-                      formatter={(v: number) => [formatFullPlays(v), "Plays"]}
-                    />
-                    {progress.target > 0 && (
-                      <ReferenceLine
-                        y={progress.target}
-                        stroke="hsl(var(--primary))"
-                        strokeDasharray="4 4"
-                        strokeOpacity={0.5}
-                        label={{
-                          value: "Meta",
-                          position: "right",
-                          fill: "hsl(var(--primary))",
-                          fontSize: 10,
-                        }}
-                      />
-                    )}
-                    <Area
-                      type="monotone"
-                      dataKey="plays"
-                      stroke="hsl(var(--primary))"
-                      strokeWidth={2}
-                      fill="url(#g_plays)"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
-        {/* PLAYLISTS MONITORADAS */}
-        {playlists.length > 0 && (
-          <section className="space-y-3 sm:space-y-4">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <h2 className="text-base sm:text-lg font-semibold">
-                  Playlists monitoradas
-                </h2>
-                <p className="text-xs sm:text-sm text-muted-foreground">
-                  Playlists que estão entregando plays para a campanha
-                </p>
-              </div>
-              <span className="text-xs text-muted-foreground tabular-nums shrink-0">
-                {playlists.length}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-              {playlists.map((p, i) => (
-                <Card key={`${p.name}-${i}`} className="overflow-hidden">
-                  <CardContent className="p-4 flex items-center gap-3 min-w-0">
-                    <div className="relative h-12 w-12 rounded-lg overflow-hidden bg-elevated border border-border shrink-0">
-                      {p.image_url ? (
-                        <img
-                          src={p.image_url}
-                          alt={p.name}
-                          className="h-full w-full object-cover"
-                          loading="lazy"
-                        />
+              {/* Identidade da música */}
+              {(() => {
+                const headerCover = selectedSong?.song_cover_url ?? deal.song_cover_url;
+                const headerName = selectedSong?.song_name ?? deal.song_name;
+                const headerArtist = selectedSong?.song_artist ?? deal.song_artist;
+                return (
+                  <>
+                    <div className="flex items-center gap-4">
+                      {headerCover ? (
+                        <div className="relative shrink-0">
+                          <div
+                            aria-hidden
+                            className="absolute inset-0 -z-10 rounded-xl blur-xl opacity-50"
+                            style={{ background: "rgba(29,185,84,0.35)" }}
+                          />
+                          <img
+                            src={headerCover}
+                            alt={headerName}
+                            className="w-[72px] h-[72px] rounded-xl object-cover ring-1 ring-border"
+                            loading="eager"
+                          />
+                        </div>
                       ) : (
-                        <div className="h-full w-full flex items-center justify-center">
-                          <ListMusic className="h-5 w-5 text-muted-foreground" />
+                        <div className="w-[72px] h-[72px] rounded-xl bg-muted shrink-0 flex items-center justify-center ring-1 ring-border">
+                          <Music2 className="h-6 w-6 text-muted-foreground" />
                         </div>
                       )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p
-                        className="text-sm font-medium truncate"
-                        title={p.name}
-                      >
-                        {p.name}
-                      </p>
-                      <div className="flex items-center gap-2 mt-1 min-w-0">
-                        <span
-                          className={cn(
-                            "text-[10px] font-medium px-1.5 py-0.5 rounded border whitespace-nowrap",
-                            PLAYLIST_STATUS_STYLES[p.status],
-                          )}
-                        >
-                          {p.status}
-                        </span>
-                        <span className="text-xs text-muted-foreground tabular-nums truncate">
-                          +{formatPlays(p.delivered)} plays
-                        </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70 mb-1 inline-flex items-center gap-2">
+                          {selectedSong ? "Música selecionada" : "Música"}
+                        </div>
+                        <h1 className="text-[17px] sm:text-[18px] font-semibold leading-tight tracking-tight truncate">
+                          {headerName}
+                        </h1>
+                        {headerArtist && (
+                          <p className="text-[12px] text-muted-foreground truncate mt-0.5 leading-snug">
+                            {headerArtist}
+                          </p>
+                        )}
+                        <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-muted/40 ring-1 ring-border px-2 py-0.5 text-[10px] text-muted-foreground tabular-nums max-w-full">
+                          <CalendarDays className="h-3 w-3 shrink-0 text-muted-foreground/80" />
+                          <span className="uppercase tracking-wider text-muted-foreground/70 text-[9px]">Janela</span>
+                          <span className="text-foreground/90 truncate">
+                            {formatShortDate(deal.started_at)} → {formatShortDate(deal.ends_at)}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </section>
-        )}
 
-        {/* STATUS DA CAMPANHA */}
-        <Card>
-          <CardContent className="p-5 sm:p-6 grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div className="h-px bg-border" />
+
+                    {/* HERO STATUS — entregue / meta + barra (mesmo padrão Curador) */}
+                    <div className={cn("rounded-2xl p-5 ring-1", semaforo.bg, semaforo.ring)}>
+                      <div className="flex items-center justify-between gap-3 mb-3">
+                        <span className={cn("inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em]", semaforo.text)}>
+                          <span className={cn("h-2 w-2 rounded-full", semaforo.dot)} />
+                          {semaforo.label}
+                        </span>
+                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                          Plays entregues
+                        </span>
+                      </div>
+                      <div className="flex items-baseline gap-2 flex-wrap">
+                        <span className={cn("text-[34px] sm:text-[40px] font-bold tabular-nums leading-none tracking-tight", semaforo.text)}>
+                          {formatFullPlays(progress.delivered)}
+                        </span>
+                        <span className="text-[20px] sm:text-[22px] font-semibold tabular-nums text-muted-foreground leading-none">
+                          / {formatFullPlays(progress.target)}
+                        </span>
+                        <span className="text-[11px] uppercase tracking-wider text-muted-foreground ml-1">
+                          entregue · meta total
+                        </span>
+                      </div>
+                      <div className="mt-3 h-1.5 rounded-full bg-background/40 overflow-hidden">
+                        <div
+                          className={cn("h-full rounded-full transition-all duration-500", semaforo.dot)}
+                          style={{ width: `${Math.min(100, progress.pct)}%` }}
+                        />
+                      </div>
+                      <div className="mt-3 flex items-center justify-between gap-3 text-[11px] text-muted-foreground tabular-nums">
+                        <span>{progress.pct.toFixed(1)}% da meta · faltam {formatPlays(remaining)}</span>
+                        {progress.last7_growth > 0 && (
+                          <span className="text-[10px] uppercase tracking-wider inline-flex items-center gap-1">
+                            <TrendingUp className="h-3 w-3" />
+                            +{formatPlays(progress.last7_growth)} em 7d
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {(deal.smartlink_url || selectedSong?.smartlink_url) && (
+                      <a
+                        href={selectedSong?.smartlink_url ?? deal.smartlink_url ?? "#"}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] text-muted-foreground hover:text-foreground bg-muted/40 ring-1 ring-border hover:ring-border hover:bg-muted/60 transition-colors"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        Abrir no Spotify
+                      </a>
+                    )}
+                  </>
+                );
+              })()}
+            </CardContent>
+          </Card>
+
+          {/* Músicas da campanha — filtro visual (espelha CuratorPage) */}
+          {hasMultipleSongs && (
+            <Card className="nx-card !p-0 border-border">
+              <CardContent className="p-5 sm:p-6 pt-5 sm:pt-6 md:pt-6 space-y-5">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <h2 className="text-[15px] font-semibold inline-flex items-center gap-2 tracking-tight">
+                      <ListMusic className="h-4 w-4 text-muted-foreground" />
+                      Músicas desta campanha
+                    </h2>
+                    <p className="text-[12px] text-muted-foreground mt-1.5 leading-snug">
+                      Toque em uma música para ver seus dados
+                    </p>
+                  </div>
+                  <span className="text-[12px] text-muted-foreground shrink-0 tabular-nums">
+                    {songs.length} músicas
+                  </span>
+                </div>
+
+                <ul className="space-y-2 max-h-[280px] overflow-y-auto pr-1 -mr-1 scroll-smooth">
+                  {songs.map((s) => {
+                    const isSelected = s.id === selectedSongId
+                      || (selectedSongId == null && s.client_token === token);
+                    return (
+                      <li key={s.id}>
+                        <button
+                          type="button"
+                          onClick={() => handleSelectSong(s.client_token)}
+                          className={cn(
+                            "w-full text-left px-3 py-2.5 transition-all",
+                            isSelected ? "nx-subcard ring-1 ring-primary/40 !border-primary/40" : "nx-subcard-hover",
+                          )}
+                          aria-pressed={isSelected}
+                        >
+                          <div className="flex items-center gap-3">
+                            {s.song_cover_url ? (
+                              <img
+                                src={s.song_cover_url}
+                                alt={s.song_name}
+                                className="w-9 h-9 rounded-md object-cover ring-1 ring-border shrink-0"
+                                loading="lazy"
+                              />
+                            ) : (
+                              <div className="w-9 h-9 rounded-md bg-muted shrink-0 flex items-center justify-center">
+                                <Music2 className="h-4 w-4 text-muted-foreground" />
+                              </div>
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <div className="text-[13.5px] font-medium leading-tight truncate">
+                                {s.song_name}
+                              </div>
+                              {s.song_artist && (
+                                <div className="text-[11px] text-muted-foreground truncate mt-0.5">
+                                  {s.song_artist}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Mini KPIs */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             {[
-              { label: "Início", value: formatDate(deal.started_at) },
               {
-                label: "Previsão",
-                value: deal.ends_at ? formatDate(deal.ends_at) : "—",
+                icon: Activity,
+                label: "Ritmo",
+                value: PACE_LABEL[progress.pace].label,
+                tone: PACE_LABEL[progress.pace].tone,
               },
               {
+                icon: ListMusic,
                 label: "Playlists",
                 value: String(playlists.length),
               },
               {
-                label: "Ritmo",
-                value: PACE_LABEL[progress.pace].label,
+                icon: CalendarDays,
+                label: "Dias decorridos",
+                value: `${progress.days_elapsed} / ${progress.target_days}`,
               },
-            ].map((it) => (
-              <div key={it.label} className="space-y-1 min-w-0">
-                <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium truncate">
-                  {it.label}
-                </p>
-                <p className="text-sm font-medium truncate" title={it.value}>
-                  {it.value}
-                </p>
-              </div>
+              {
+                icon: CheckCircle2,
+                label: "Última atualização",
+                value: formatDateTime(deal.last_update),
+                small: true,
+              },
+            ].map((kpi) => (
+              <Card key={kpi.label} className="nx-card !p-0 border-border">
+                <CardContent className="p-4 space-y-1.5 min-w-0">
+                  <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
+                    <kpi.icon className="h-3.5 w-3.5" />
+                    <span className="truncate">{kpi.label}</span>
+                  </div>
+                  <p
+                    className={cn(
+                      "font-semibold tabular-nums truncate",
+                      kpi.small ? "text-xs sm:text-sm" : "text-base sm:text-lg",
+                      "tone" in kpi && kpi.tone ? kpi.tone : "text-foreground",
+                    )}
+                    title={kpi.value}
+                  >
+                    {kpi.value}
+                  </p>
+                </CardContent>
+              </Card>
             ))}
-          </CardContent>
-        </Card>
+          </div>
 
-        {/* CONFIANÇA */}
-        <div className="flex items-start gap-2.5 text-xs text-muted-foreground border-t border-border pt-5">
-          <Sparkles className="h-3.5 w-3.5 shrink-0 mt-0.5 text-primary" />
-          <p className="leading-relaxed">
-            Os dados são atualizados automaticamente a partir das playlists
-            monitoradas e snapshots do Spotify for Artists. Esta página é apenas
-            de leitura.
-          </p>
+          {/* Gráfico — evolução */}
+          {chartData.length > 1 && (
+            <Card className="nx-card !p-0 border-border">
+              <CardContent className="p-5 sm:p-6 space-y-4">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <div>
+                    <h2 className="text-[15px] font-semibold inline-flex items-center gap-2 tracking-tight">
+                      <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                      Evolução da campanha
+                    </h2>
+                    <p className="text-[12px] text-muted-foreground mt-1 leading-snug">
+                      Plays acumulados ao longo do tempo
+                    </p>
+                  </div>
+                </div>
+                <div className="h-[220px] sm:h-[260px] w-full -mx-2">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart
+                      data={chartData}
+                      margin={{ top: 8, right: 12, left: 0, bottom: 0 }}
+                    >
+                      <defs>
+                        <linearGradient id="g_plays" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.35} />
+                          <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke="hsl(var(--border))"
+                        vertical={false}
+                      />
+                      <XAxis
+                        dataKey="date"
+                        tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                        axisLine={false}
+                        tickLine={false}
+                        minTickGap={24}
+                      />
+                      <YAxis
+                        tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                        axisLine={false}
+                        tickLine={false}
+                        tickFormatter={(v) => formatPlays(v as number)}
+                        width={40}
+                      />
+                      <ReTooltip
+                        contentStyle={{
+                          background: "hsl(var(--card))",
+                          border: "1px solid hsl(var(--border))",
+                          borderRadius: 12,
+                          fontSize: 12,
+                        }}
+                        labelStyle={{ color: "hsl(var(--muted-foreground))" }}
+                        formatter={(v: number) => [formatFullPlays(v), "Plays"]}
+                      />
+                      {progress.target > 0 && (
+                        <ReferenceLine
+                          y={progress.target}
+                          stroke="hsl(var(--primary))"
+                          strokeDasharray="4 4"
+                          strokeOpacity={0.5}
+                          label={{
+                            value: "Meta",
+                            position: "right",
+                            fill: "hsl(var(--primary))",
+                            fontSize: 10,
+                          }}
+                        />
+                      )}
+                      <Area
+                        type="monotone"
+                        dataKey="plays"
+                        stroke="hsl(var(--primary))"
+                        strokeWidth={2}
+                        fill="url(#g_plays)"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Playlists monitoradas */}
+          {playlists.length > 0 ? (
+            <Card className="nx-card !p-0 border-border">
+              <CardContent className="p-5 sm:p-6 space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <h2 className="text-[15px] font-semibold inline-flex items-center gap-2 tracking-tight">
+                      <ListMusic className="h-4 w-4 text-muted-foreground" />
+                      Playlists monitoradas
+                    </h2>
+                    <p className="text-[12px] text-muted-foreground mt-1 leading-snug">
+                      Playlists que estão entregando plays para a campanha
+                    </p>
+                  </div>
+                  <span className="text-[12px] text-muted-foreground tabular-nums shrink-0">
+                    {playlists.length}
+                  </span>
+                </div>
+
+                <ul className="space-y-2">
+                  {playlists.map((p, i) => (
+                    <li key={`${p.name}-${i}`} className="nx-subcard !p-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="relative h-10 w-10 rounded-md overflow-hidden bg-muted ring-1 ring-border shrink-0">
+                          {p.image_url ? (
+                            <img
+                              src={p.image_url}
+                              alt={p.name}
+                              className="h-full w-full object-cover"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <div className="h-full w-full flex items-center justify-center">
+                              <ListMusic className="h-4 w-4 text-muted-foreground" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[13.5px] font-medium truncate" title={p.name}>
+                            {p.name}
+                          </p>
+                          <div className="flex items-center gap-2 mt-1 min-w-0">
+                            <span
+                              className={cn(
+                                "text-[10px] font-medium px-1.5 py-0.5 rounded border whitespace-nowrap",
+                                PLAYLIST_STATUS_STYLES[p.status],
+                              )}
+                            >
+                              {p.status}
+                            </span>
+                            <span className="text-[11px] text-muted-foreground tabular-nums truncate">
+                              +{formatPlays(p.delivered)} plays
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="nx-card !p-0 border-border">
+              <CardContent className="p-8 text-center space-y-2">
+                <div className="mx-auto h-12 w-12 rounded-2xl bg-muted/40 ring-1 ring-border flex items-center justify-center">
+                  <ListMusic className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <p className="text-[14px] font-semibold">Aguardando primeira coleta</p>
+                <p className="text-[12px] text-muted-foreground">
+                  As playlists monitoradas aparecerão aqui assim que o curador iniciar a entrega.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Rodapé de confiança */}
+          <div className="flex items-start gap-2.5 text-[11px] text-muted-foreground border-t border-border/50 pt-4 pb-2">
+            <CheckCircle2 className="h-3.5 w-3.5 shrink-0 mt-0.5 text-primary" />
+            <p className="leading-relaxed">
+              Dados atualizados automaticamente a partir das playlists monitoradas. Esta página é apenas de leitura.
+            </p>
+          </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }
