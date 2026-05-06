@@ -110,6 +110,7 @@ type ProcessedItem = {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
+  const t0 = Date.now();
   try {
     const body = await req.json().catch(() => ({}));
     const publicToken = typeof body?.public_token === "string" ? body.public_token.trim() : "";
