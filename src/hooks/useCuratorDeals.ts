@@ -197,7 +197,6 @@ export function useCuratorDeals() {
             .from("curator_playlists")
             .select("*")
             .in("deal_id", dealIds)
-            .neq("match_status", "algorithmic")
             .order("added_at", { ascending: true }),
           supabase
             .from("curator_deal_songs")
@@ -216,7 +215,12 @@ export function useCuratorDeals() {
         if (songsRes.error) throw songsRes.error;
         if (alertsRes.error) throw alertsRes.error;
         setLogs((logsRes.data ?? []) as CuratorDealLog[]);
-        setPlaylists((plRes.data ?? []) as CuratorPlaylist[]);
+        setPlaylists(
+          ((plRes.data ?? []) as CuratorPlaylist[]).map((p) => ({
+            ...p,
+            match_status: (p.match_status as string) === "algorithmic" ? "editorial" : p.match_status,
+          })) as CuratorPlaylist[],
+        );
         setSongs((songsRes.data ?? []) as CuratorDealSong[]);
         setAlerts((alertsRes.data ?? []) as CuratorFraudAlert[]);
       }
