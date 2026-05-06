@@ -150,7 +150,17 @@ Deno.serve(async (req) => {
     const sUrl = snap.spotify_url ?? "";
     const sName = snap.playlist_name ?? null;
     const sId = extractId(sUrl);
-    const plays = Math.max(0, parseInt(String(snap.plays ?? 0)) || 0);
+    // Janelas (novo contrato). Se o bot só mandar `plays` (legado), assumimos 7d.
+    const toInt = (v: unknown) => {
+      const n = parseInt(String(v ?? "")) || 0;
+      return n > 0 ? n : 0;
+    };
+    const plays24h = snap.plays_24h != null ? toInt(snap.plays_24h) : null;
+    const plays7d  = snap.plays_7d  != null ? toInt(snap.plays_7d)  : (snap.plays != null ? toInt(snap.plays) : null);
+    const plays28d = snap.plays_28d != null ? toInt(snap.plays_28d) : null;
+    // Para o campo legado `plays` (não-nulo no schema): preferimos 24h (janela oficial),
+    // depois 7d, depois 28d, depois 0.
+    const plays = plays24h ?? plays7d ?? plays28d ?? 0;
 
     // Match robusto via RPC: spotify_id → nome normalizado → fuzzy ≥0.6
     let playlistId: string | null = null;
