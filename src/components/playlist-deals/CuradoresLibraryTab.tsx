@@ -97,6 +97,7 @@ export function CuradoresLibraryTab({
   onUpdateCurator,
   onArchiveCurator,
   onDeleteCurator,
+  onPauseCurator,
 }: Props) {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Curator | null>(null);
