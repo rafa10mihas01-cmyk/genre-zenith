@@ -181,6 +181,7 @@ function DealRangePicker({
   // Estado interno de seleção em andamento (evita preview agressivo do react-day-picker)
   const [draftFrom, setDraftFrom] = useState<Date | undefined>(from);
   const [draftTo, setDraftTo] = useState<Date | undefined>(to);
+  const presetDays = [7, 14, 30, 45, 60, 100, 150, 365];
 
   // Sincroniza ao abrir
   useEffect(() => {
@@ -205,10 +206,10 @@ function DealRangePicker({
           Math.max(1, Math.round((draftTo.getTime() - draftFrom.getTime()) / 86400000))
         } dias`;
 
-  const commit = (start: Date, end: Date) => {
+  const commit = (start: Date, end: Date, shouldClose = false) => {
     const days = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000));
     onChange(start, days);
-    setOpen(false);
+    if (shouldClose) setOpen(false);
   };
 
   const applyPreset = (days: number) => {
@@ -256,7 +257,7 @@ function DealRangePicker({
       return;
     }
 
-    // Depois do início → fim
+    // Depois do início → fim, mantém aberto e preserva as duas bolinhas.
     setDraftTo(clicked);
     commit(draftFrom, clicked);
   };
@@ -292,7 +293,7 @@ function DealRangePicker({
         <div className="flex flex-col sm:flex-row">
           {/* Presets */}
           <div className="flex sm:flex-col gap-1 p-2 sm:p-3 sm:border-r border-border/60 overflow-x-auto sm:overflow-visible">
-            {[7, 14, 30, 60].map((d) => (
+            {presetDays.map((d) => (
               <Button
                 key={d}
                 type="button"
