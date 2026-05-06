@@ -49,6 +49,9 @@ export type CuratorDealSong = {
   next_auto_collect_at?: string | null;
   last_auto_collect_at?: string | null;
   last_print_at?: string | null;
+  client_id?: string | null;
+  client_token?: string | null;
+  smartlink_url?: string | null;
 };
 
 export type CuratorMatchStatus =

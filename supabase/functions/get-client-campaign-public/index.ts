@@ -1,14 +1,16 @@
 // get-client-campaign-public — payload PÚBLICO e SANITIZADO para o CLIENTE
-// final da campanha (não para o curador). Acessado via /campanha/:client_token.
+// Acessado via /campanha/:client_token. O token pode ser:
+//   1) curator_deal_songs.client_token  → token POR MÚSICA (novo padrão)
+//   2) curator_deals.client_token        → token do deal inteiro (legado)
 //
-// Garantias de privacidade — o payload NUNCA inclui:
-//   curator_name, curator_id, owner_id/spotify_owner_id, public_token,
-//   match_status/match_reason, scores, custos, CPP, ledger, IDs internos
-//   de tracking (deal_id, song_id, playlist_id internos), notas, tokens.
+// Quando token é por música, retornamos:
+//   - dados da música selecionada
+//   - lista de "siblings" (outras músicas do MESMO deal pertencentes ao
+//     MESMO cliente) com seus próprios client_tokens para o seletor
+//   - smartlink_url da música (Linkfire/ToneDen) se cadastrado
 //
-// Reusa a fonte de verdade do progresso (RPC get_curator_deal_progress
-// + get_curator_deal_snapshot_history), mas reescreve o objeto antes de
-// devolver ao frontend.
+// Privacidade — nunca expõe: curator_name, owner_id, public_token,
+// match_status/score, custos, CPP, ledger, IDs internos sensíveis.
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -71,73 +73,200 @@ Deno.serve(async (req) => {
       auth: { persistSession: false },
     });
 
+    // 1) Tenta resolver como token POR MÚSICA primeiro.
+    const { data: songRow } = await admin
+      .from("curator_deal_songs")
+      .select(
+        "id, deal_id, song_name, song_artist, song_cover_url, target_plays, daily_goal, baseline_plays, started_at, ends_at, smartlink_url, client_id, client_token",
+      )
+      .eq("client_token", token)
+      .maybeSingle();
+
+    let dealId: string | null = null;
+    let selectedSongId: string | null = null;
+    let dealRow: AnyRec | null = null;
+
+    if (songRow) {
+      selectedSongId = String(songRow.id);
+      dealId = String(songRow.deal_id);
+    } else {
+      // 2) Fallback legado: token do deal inteiro
+      const { data: legacyDeal } = await admin
+        .from("curator_deals")
+        .select("id")
+        .eq("client_token", token)
+        .maybeSingle();
+      if (!legacyDeal) return jr({ ok: false, error: "not_found" }, 404);
+      dealId = String(legacyDeal.id);
+    }
+
     const { data: deal, error: dealErr } = await admin
       .from("curator_deals")
       .select(
         "id, song_name, song_artist, song_cover_url, target_plays, daily_goal, baseline_plays, started_at, ends_at, created_at, closed_at, state",
       )
-      .eq("client_token", token)
+      .eq("id", dealId!)
       .maybeSingle();
 
     if (dealErr) return jr({ ok: false, error: dealErr.message }, 200);
     if (!deal) return jr({ ok: false, error: "not_found" }, 404);
+    dealRow = deal as AnyRec;
 
-    const [{ data: playlists }, { data: progress }, { data: history }] = await Promise.all([
-      admin
-        .from("curator_playlists")
-        .select(
-          "id, playlist_name, image_url, added_at, added_at_spotify, is_baseline",
-        )
-        .eq("deal_id", deal.id)
-        .eq("match_status", "curator")
-        .eq("is_baseline", false)
-        .order("added_at", { ascending: true }),
-      admin.rpc("get_curator_deal_progress", { p_deal_id: deal.id }),
-      admin.rpc("get_curator_deal_snapshot_history", { p_deal_id: deal.id }),
-    ]);
+    // Lista de músicas exibidas no seletor:
+    //   - se token é por música com client_id → todas as músicas do deal
+    //     que pertencem ao MESMO cliente
+    //   - se token é por música sem client_id → apenas a própria música
+    //   - se token legado do deal → todas as músicas do deal
+    let siblingsQuery = admin
+      .from("curator_deal_songs")
+      .select(
+        "id, song_name, song_artist, song_cover_url, smartlink_url, client_id, client_token, position, target_plays, daily_goal, baseline_plays, started_at, ends_at",
+      )
+      .eq("deal_id", dealId!)
+      .order("position", { ascending: true });
+
+    if (songRow) {
+      if (songRow.client_id) {
+        siblingsQuery = siblingsQuery.eq("client_id", songRow.client_id);
+      } else {
+        siblingsQuery = siblingsQuery.eq("id", songRow.id);
+      }
+    }
+
+    const { data: siblingsRaw } = await siblingsQuery;
+    const siblings = (siblingsRaw ?? []) as AnyRec[];
+
+    // Se não tem nenhuma música cadastrada (deal antigo sem songs),
+    // simulamos uma "música única" a partir do próprio deal.
+    const songsList = siblings.length > 0
+      ? siblings.map((s) => ({
+        id: String(s.id),
+        client_token: String(s.client_token ?? ""),
+        song_name: String(s.song_name ?? ""),
+        song_artist: (s.song_artist as string | null) ?? null,
+        song_cover_url: (s.song_cover_url as string | null) ?? null,
+        smartlink_url: (s.smartlink_url as string | null) ?? null,
+      }))
+      : [
+        {
+          id: "deal",
+          client_token: token,
+          song_name: String(dealRow.song_name ?? ""),
+          song_artist: (dealRow.song_artist as string | null) ?? null,
+          song_cover_url: (dealRow.song_cover_url as string | null) ?? null,
+          smartlink_url: null,
+        },
+      ];
+
+    if (!selectedSongId && siblings.length > 0) {
+      selectedSongId = String(siblings[0].id);
+    }
+
+    const activeSong = siblings.find((s) => String(s.id) === selectedSongId) ?? null;
+
+    // 3) Progress da música (ou do deal inteiro se legado)
+    const { data: progress } = await admin.rpc("get_curator_deal_progress", {
+      p_deal_id: dealId!,
+      ...(selectedSongId && activeSong ? { p_song_id: selectedSongId } : {}),
+    });
 
     const prog = (progress ?? {}) as AnyRec;
-    const perPlaylist = ((prog.per_playlist as AnyRec[]) ?? []) as AnyRec[];
-    const target = Number(prog.target_plays ?? deal.target_plays ?? 0);
+    const target = Number(
+      activeSong?.target_plays ?? prog.target_plays ?? dealRow.target_plays ?? 0,
+    );
     const delivered = Number(prog.delivered_curator ?? 0);
     const pct = Math.max(0, Math.min(100, Number(prog.progress_pct ?? 0)));
 
-    // crescimento últimos 7 dias a partir do snapshot_history
-    const histArr = (history ?? []) as AnyRec[];
+    // 4) Histórico — filtra por song_id se aplicável
+    let histQuery = admin
+      .from("curator_deal_snapshots")
+      .select("captured_at, plays, is_baseline, playlist_id")
+      .eq("deal_id", dealId!)
+      .order("captured_at", { ascending: true });
+    if (selectedSongId && activeSong) {
+      histQuery = histQuery.eq("song_id", selectedSongId);
+    }
+    const { data: snapshotsRaw } = await histQuery;
+
+    // Agrupa snapshots por minuto (curator playlists only)
+    const { data: curatorPlaylistRows } = await admin
+      .from("curator_playlists")
+      .select("id")
+      .eq("deal_id", dealId!)
+      .eq("match_status", "curator");
+    const curatorPlIds = new Set(
+      ((curatorPlaylistRows ?? []) as AnyRec[]).map((r) => String(r.id)),
+    );
+
+    const buckets = new Map<string, { captured_at: string; total_plays: number }>();
+    for (const s of (snapshotsRaw ?? []) as AnyRec[]) {
+      if (!curatorPlIds.has(String(s.playlist_id))) continue;
+      const captured = new Date(String(s.captured_at));
+      const bucketKey = `${captured.getFullYear()}-${captured.getMonth()}-${captured.getDate()}-${captured.getHours()}-${captured.getMinutes()}`;
+      const cur = buckets.get(bucketKey);
+      const plays = Number(s.plays ?? 0);
+      if (cur) {
+        cur.total_plays += plays;
+      } else {
+        buckets.set(bucketKey, {
+          captured_at: captured.toISOString(),
+          total_plays: plays,
+        });
+      }
+    }
+    const histArr = Array.from(buckets.values()).sort(
+      (a, b) => new Date(a.captured_at).getTime() - new Date(b.captured_at).getTime(),
+    );
+
+    // crescimento últimos 7 dias
     const now = Date.now();
     const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
-    const recent = histArr.filter((h) =>
-      new Date(String(h.captured_at)).getTime() >= sevenDaysAgo
-    );
+    const recent = histArr.filter((h) => new Date(h.captured_at).getTime() >= sevenDaysAgo);
     let last7Growth = 0;
     if (recent.length >= 2) {
-      const first = Number(recent[0].total_plays ?? 0);
-      const last = Number(recent[recent.length - 1].total_plays ?? 0);
+      const first = recent[0].total_plays;
+      const last = recent[recent.length - 1].total_plays;
       last7Growth = Math.max(0, last - first);
     } else if (histArr.length >= 2) {
-      const last = Number(histArr[histArr.length - 1].total_plays ?? 0);
-      const prev = Number(histArr[histArr.length - 2].total_plays ?? 0);
+      const last = histArr[histArr.length - 1].total_plays;
+      const prev = histArr[histArr.length - 2].total_plays;
       last7Growth = Math.max(0, last - prev);
     }
     const last7Pct = delivered - last7Growth > 0
       ? Math.round((last7Growth / Math.max(1, delivered - last7Growth)) * 100)
       : 0;
 
-    // série diária sanitizada (apenas data + delivered acumulado)
-    const baseline = Number(prog.baseline_total ?? deal.baseline_plays ?? 0);
+    // série diária sanitizada
+    const baseline = Number(
+      activeSong?.baseline_plays ?? prog.baseline_total ?? dealRow.baseline_plays ?? 0,
+    );
     const series = histArr.map((h) => ({
-      date: String(h.captured_at),
-      delivered: Math.max(0, Number(h.total_plays ?? 0) - baseline),
+      date: h.captured_at,
+      delivered: Math.max(0, h.total_plays - baseline),
     }));
 
-    // mapa playlist_id -> delivered
+    // 5) Playlists — filtra por song_id quando aplicável
+    let playlistsQuery = admin
+      .from("curator_playlists")
+      .select("id, playlist_name, image_url, added_at, added_at_spotify, is_baseline, song_id")
+      .eq("deal_id", dealId!)
+      .eq("match_status", "curator")
+      .eq("is_baseline", false)
+      .order("added_at", { ascending: true });
+    const { data: playlistsRaw } = await playlistsQuery;
+    const playlistsFiltered = ((playlistsRaw ?? []) as AnyRec[]).filter((p) => {
+      if (!selectedSongId || !activeSong) return true;
+      const sid = p.song_id as string | null;
+      return !sid || sid === selectedSongId;
+    });
+
+    const perPlaylist = ((prog.per_playlist as AnyRec[]) ?? []) as AnyRec[];
     const deliveredByPlaylist = new Map<string, number>();
     for (const p of perPlaylist) {
       deliveredByPlaylist.set(String(p.playlist_id), Number(p.delivered ?? 0));
     }
 
-    // playlists sanitizadas — sem owner, sem score, sem match
-    const safePlaylists = ((playlists ?? []) as AnyRec[]).map((p) => {
+    const safePlaylists = playlistsFiltered.map((p) => {
       const grown = deliveredByPlaylist.get(String(p.id)) ?? 0;
       return {
         name: String(p.playlist_name ?? "Playlist"),
@@ -147,8 +276,10 @@ Deno.serve(async (req) => {
       };
     });
 
-    const startedAt = (deal.started_at as string) ?? (deal.created_at as string);
-    const endsAt = deal.ends_at as string | null;
+    const startedAt = (activeSong?.started_at as string | null)
+      ?? (dealRow.started_at as string)
+      ?? (dealRow.created_at as string);
+    const endsAt = (activeSong?.ends_at as string | null) ?? (dealRow.ends_at as string | null);
     const daysElapsed = Number(prog.days_elapsed ?? 0);
     const targetDays = endsAt && startedAt
       ? Math.max(
@@ -162,15 +293,22 @@ Deno.serve(async (req) => {
 
     const status = campaignStatus({
       pct,
-      closedAt: deal.closed_at as string | null,
+      closedAt: dealRow.closed_at as string | null,
       recent7Growth: last7Growth,
     });
 
+    const songName = String(activeSong?.song_name ?? dealRow.song_name ?? "");
+    const songArtist = (activeSong?.song_artist as string | null)
+      ?? (dealRow.song_artist as string | null);
+    const songCover = (activeSong?.song_cover_url as string | null)
+      ?? (dealRow.song_cover_url as string | null);
+
     const safeDeal = {
-      campaign_name: `${deal.song_name}${deal.song_artist ? " — " + deal.song_artist : ""}`,
-      song_name: deal.song_name,
-      song_artist: deal.song_artist,
-      song_cover_url: deal.song_cover_url,
+      campaign_name: `${songName}${songArtist ? " — " + songArtist : ""}`,
+      song_name: songName,
+      song_artist: songArtist,
+      song_cover_url: songCover,
+      smartlink_url: (activeSong?.smartlink_url as string | null) ?? null,
       started_at: startedAt,
       ends_at: endsAt,
       last_update: prog.last_capture_at ?? null,
@@ -180,6 +318,8 @@ Deno.serve(async (req) => {
     return jr({
       ok: true,
       deal: safeDeal,
+      selected_song_id: selectedSongId,
+      songs: songsList,
       progress: {
         delivered,
         target,
