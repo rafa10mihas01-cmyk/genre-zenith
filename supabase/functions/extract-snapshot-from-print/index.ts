@@ -599,12 +599,8 @@ Deno.serve(async (req) => {
       if (hit) preResolvedId = hit.id;
     }
     const isWhitelistedCurator = !!preResolvedId && !preResolvedId.startsWith("algo:") && whitelist.has(preResolvedId);
-    if (whitelistActive && !isAlgo) {
-      if (!preResolvedId || preResolvedId.startsWith("algo:")) {
-        filteredOut++;
-        continue;
-      }
-    }
+    // ECOSSISTEMA COMPLETO: não descartamos mais linhas fora da whitelist.
+    // Whitelist agora apenas marca origem (curator vs organic). Captura permanece 100%.
 
     // Algorítmicas: registram como playlist interna (match_status=algorithmic),
     // sem entrar no totalPlays e sem aparecer em curadoria, mas geram alerta
@@ -815,10 +811,8 @@ Deno.serve(async (req) => {
     if (dom.id.startsWith("algo:")) continue; // já tratada no loop principal
     if (processedSpotifyIds.has(dom.id) || processedNames.has(norm(dom.name))) continue;
     if (isAlgorithmic(dom.name, dom.made_by ?? null, dom.id)) continue;
-    if (whitelistActive && !whitelist.has(dom.id)) {
-      filteredOut++;
-      continue;
-    }
+    // ECOSSISTEMA COMPLEMENTO DOM: não descartamos mais linhas fora da whitelist.
+    // Persistimos como 'organic' para preservar 100% do DOM bruto.
 
     const { data: matchData } = await supabase.rpc("match_curator_playlist", {
       p_deal_id: deal_id,
