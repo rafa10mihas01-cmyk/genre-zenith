@@ -401,6 +401,41 @@ export function ClientesLibraryTab({ deals, songs, loading }: Props) {
           }
         }}
       />
+
+      {/* AlertDialog — confirmação de exclusão */}
+      <AlertDialog
+        open={confirmDelete !== null}
+        onOpenChange={(v) => !v && setConfirmDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir cliente?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmDelete?.hasLinks
+                ? `${confirmDelete.client.name} possui músicas/deals vinculados. A exclusão desvincula o cliente, mas o histórico permanece. Esta ação não pode ser desfeita.`
+                : `${confirmDelete?.client.name} será removido permanentemente. Esta ação não pode ser desfeita.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                if (!confirmDelete) return;
+                try {
+                  await deleteClient(confirmDelete.client.id);
+                  toast.success("Cliente excluído");
+                  setConfirmDelete(null);
+                } catch (e) {
+                  toast.error(e instanceof Error ? e.message : "Erro ao excluir");
+                }
+              }}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
