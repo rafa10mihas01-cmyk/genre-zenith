@@ -243,6 +243,7 @@ export default function PlaylistDeals() {
             loading={loading}
             onUpdateCurator={updateCurator}
             onArchiveCurator={archiveCurator}
+            onDeleteCurator={deleteCurator}
           />
         ) : tab === "ledger" ? (
           <FinanceiroTab deals={deals} />
