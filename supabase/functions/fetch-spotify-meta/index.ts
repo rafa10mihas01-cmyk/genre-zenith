@@ -114,15 +114,27 @@ Deno.serve(async (req) => {
     const type = match[1] as "track" | "playlist" | "album";
     const id = match[2];
 
-    // 1) oEmbed — título + thumbnail oficiais
-    const oembedUrl = `https://open.spotify.com/oembed?url=${encodeURIComponent(url)}`;
-    const oembedRes = await fetch(oembedUrl, { headers: { "User-Agent": UA } });
+    // 1) oEmbed — título + thumbnail oficiais (com retry)
+    // Spotify às vezes devolve 5xx/empty pra URLs intl-pt; tentamos 3x e depois
+    // caímos pra URL canônica sem locale.
+    const canonicalUrl = `https://open.spotify.com/${type}/${id}`;
     let title: string | null = null;
     let thumbnail_url: string | null = null;
-    if (oembedRes.ok) {
-      const data = await oembedRes.json().catch(() => ({}));
-      title = data?.title ?? null;
-      thumbnail_url = data?.thumbnail_url ?? null;
+    for (const tryUrl of [url, canonicalUrl]) {
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          const oembedUrl = `https://open.spotify.com/oembed?url=${encodeURIComponent(tryUrl)}`;
+          const oembedRes = await fetch(oembedUrl, { headers: { "User-Agent": UA } });
+          if (oembedRes.ok) {
+            const data = await oembedRes.json().catch(() => ({}));
+            title = data?.title ?? title;
+            thumbnail_url = data?.thumbnail_url ?? thumbnail_url;
+            if (thumbnail_url) break;
+          }
+        } catch { /* retry */ }
+        await new Promise((r) => setTimeout(r, 200 * (attempt + 1)));
+      }
+      if (thumbnail_url) break;
     }
 
     // 2) Parse "Title - Artist" se vier nesse formato
