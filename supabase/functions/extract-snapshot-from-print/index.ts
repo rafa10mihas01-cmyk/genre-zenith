@@ -745,7 +745,9 @@ Deno.serve(async (req) => {
           spotify_playlist_id: sId,
           playlist_name: sName ?? "Sem nome",
           spotify_owner_name: pl.made_by ?? null,
-          is_baseline: isBaseline,
+          is_baseline: isWhitelistedCurator ? isBaseline : false,
+          match_status: isWhitelistedCurator ? "curator" : "organic",
+          match_reason: isWhitelistedCurator ? "curator_whitelist" : "sfa_detected_not_whitelisted",
           position_in_paste: typeof pl.position === "number" ? pl.position : null,
           last_paste_at: new Date().toISOString(),
         })
@@ -756,7 +758,7 @@ Deno.serve(async (req) => {
         continue;
       }
       playlistId = created.id;
-      matchMethod = domHit ? "dom_created" : "created";
+      matchMethod = isWhitelistedCurator ? (domHit ? "dom_created" : "created") : "organic_created";
     }
 
     // Enriquece metadados (capa, owner, followers) via Spotify Web API
