@@ -88,18 +88,18 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden shadow-[-1px_0_0_rgba(255,255,255,0.04)]">
           {/* TOPBAR GLOBAL — fixo fora da área de scroll. Mobile: cobre safe-area/notch. */}
           <header
-            className="shrink-0 flex items-center gap-2 xl:gap-3 border-b border-border z-50 px-3 md:px-4 transition-none w-full min-w-0 overflow-hidden
+            className="shrink-0 flex items-center gap-2 lg:gap-3 border-b border-border z-50 px-3 md:px-4 transition-none w-full min-w-0 overflow-hidden
               h-14 min-h-14 max-h-14
               bg-background/90 backdrop-blur-md supports-[backdrop-filter]:bg-background/75
-              max-xl:h-14 max-xl:min-h-14 max-xl:max-h-14
-              max-xl:pt-[env(safe-area-inset-top,0px)]
-              max-xl:bg-background/85 max-xl:backdrop-blur-[10px]
-              max-xl:shadow-[0_1px_0_hsl(var(--border)),0_6px_16px_-12px_rgba(0,0,0,0.5)]"
+              max-lg:h-14 max-lg:min-h-14 max-lg:max-h-14
+              max-lg:pt-[env(safe-area-inset-top,0px)]
+              max-lg:bg-background/85 max-lg:backdrop-blur-[10px]
+              max-lg:shadow-[0_1px_0_hsl(var(--border)),0_6px_16px_-12px_rgba(0,0,0,0.5)]"
           >
             <SidebarTrigger className="shrink-0 text-muted-foreground hover:text-foreground" />
 
             {/* Tablet/Mobile: logo + título dinâmico (estilo app nativo) */}
-            <div className="xl:hidden flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
+            <div className="lg:hidden flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
               <NexEngineLogo size={24} variant="mark" className="shrink-0" />
               <span className="text-[15px] font-semibold text-foreground truncate min-w-0">
                 {pageTitle}
@@ -107,7 +107,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             </div>
 
             {/* Desktop: navegação back/forward */}
-            <div className="hidden xl:flex items-center gap-1 shrink-0">
+            <div className="hidden lg:flex items-center gap-1 shrink-0">
               <Button
                 variant="ghost"
                 size="icon"
@@ -133,21 +133,21 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               type="button"
               onClick={() => setPaletteOpen(true)}
               aria-label="Buscar (⌘K)"
-              className="hidden xl:flex items-center gap-2 flex-1 min-w-0 max-w-md h-9 px-3 rounded-full bg-elevated border border-border text-sm text-muted-foreground hover:text-foreground hover:border-border/80 transition-colors"
+              className="hidden lg:flex items-center gap-2 flex-1 min-w-0 max-w-md h-9 px-3 rounded-full bg-elevated border border-border text-sm text-muted-foreground hover:text-foreground hover:border-border/80 transition-colors"
             >
               <Search className="h-4 w-4 shrink-0" />
               <span className="truncate flex-1 text-left">
-                <span className="hidden xl:inline">Buscar gêneros, páginas, ações...</span>
-                <span className="xl:hidden">Buscar...</span>
+                <span className="hidden lg:inline">Buscar gêneros, páginas, ações...</span>
+                <span className="lg:hidden">Buscar...</span>
               </span>
-              <kbd className="hidden xl:inline-flex items-center gap-0.5 px-1.5 h-5 rounded bg-background border border-border text-[10px] font-mono text-muted-foreground/70">
+              <kbd className="hidden lg:inline-flex items-center gap-0.5 px-1.5 h-5 rounded bg-background border border-border text-[10px] font-mono text-muted-foreground/70">
                 ⌘K
               </kbd>
             </button>
 
             <div className="ml-auto flex items-center gap-1 shrink-0 min-w-0">
               {/* Status pill — apenas desktop largo */}
-              <div className="hidden xl:inline-flex items-center gap-1.5 px-3 h-8 rounded-full bg-elevated border border-border text-xs text-muted-foreground shrink-0">
+              <div className="hidden lg:inline-flex items-center gap-1.5 px-3 h-8 rounded-full bg-elevated border border-border text-xs text-muted-foreground shrink-0">
                 <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
                 <span className="truncate max-w-[180px]">
                   {lastUpdate ? `Atualizado ${timeAgo(lastUpdate)}` : "Aguardando dados"}
@@ -158,7 +158,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 size="sm"
                 variant="premium"
                 onClick={refresh}
-                className="rounded-full h-8 gap-1.5 hidden xl:inline-flex shrink-0"
+                className="rounded-full h-8 gap-1.5 hidden lg:inline-flex shrink-0"
                 aria-label="Atualizar"
               >
                 <RefreshCw className="h-3.5 w-3.5" />
@@ -169,7 +169,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 size="icon"
                 variant="ghost"
                 onClick={refresh}
-                className="hidden md:inline-flex xl:hidden h-9 w-9 rounded-md text-muted-foreground hover:text-foreground hover:bg-elevated/60 shrink-0"
+                className="hidden md:inline-flex lg:hidden h-9 w-9 rounded-md text-muted-foreground hover:text-foreground hover:bg-elevated/60 shrink-0"
                 aria-label="Atualizar"
               >
                 <RefreshCw className="h-[18px] w-[18px]" />
@@ -180,7 +180,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 size="icon"
                 onClick={() => setPaletteOpen(true)}
                 aria-label="Buscar"
-                className="xl:hidden h-9 w-9 rounded-md text-muted-foreground hover:text-foreground hover:bg-elevated/60 shrink-0"
+                className="lg:hidden h-9 w-9 rounded-md text-muted-foreground hover:text-foreground hover:bg-elevated/60 shrink-0"
               >
                 <Search className="h-[18px] w-[18px]" />
               </Button>
