@@ -2,7 +2,7 @@
 // Não substitui useCuratorDeals; complementa com CPP global, ranking e overbooking.
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/contexts/AuthContext";
 
 export type CuratorPurchase = {
   id: string;
