@@ -141,18 +141,18 @@ export function CuratorDealCard({
 
   return (
     <Card className="overflow-hidden border-border/60 hover:border-foreground/25 transition-all duration-200 hover:shadow-[0_18px_40px_-18px_rgba(0,0,0,0.85),0_0_32px_-8px_hsl(141_76%_48%_/_0.18)] hover:-translate-y-[1px] bg-[linear-gradient(180deg,rgba(255,255,255,0.025)_0%,transparent_40%),hsl(var(--card))]">
-      <CardContent className="p-5 pt-5 md:pt-5 flex flex-col gap-4">
-        {/* Header: curador + datas + status — espaçamento reforçado (16px) */}
-        <div className="flex items-start gap-3 min-w-0 pb-1">
+      <CardContent className="p-4 flex flex-col gap-2.5">
+        {/* Header: curador + datas + status */}
+        <div className="flex items-start gap-3 min-w-0">
           <div className="min-w-0 flex-1">
-            <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-1">
+            <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-0.5">
               Curador
             </div>
-            <div className="text-[22px] font-semibold tracking-tight text-foreground truncate leading-tight">
+            <div className="text-[17px] font-semibold tracking-tight text-foreground truncate leading-tight">
               {deal.curator_name}
             </div>
-            <div className="flex items-center gap-1.5 text-[12px] text-muted-foreground mt-1.5">
-              <CalendarIcon className="h-3.5 w-3.5" />
+            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mt-1">
+              <CalendarIcon className="h-3 w-3" />
               <span className="tabular-nums">
                 {format(new Date(deal.started_at), "dd MMM", { locale: ptBR })}
                 {deal.ends_at && (
@@ -216,68 +216,66 @@ export function CuratorDealCard({
 
         {/* Banner de ramp-up (aquecimento) */}
         {inRampUp && (
-          <div className="rounded-md border border-primary/30 bg-primary/10 px-2.5 py-1.5 flex items-center gap-1.5">
-            <Zap className="h-3.5 w-3.5 text-primary shrink-0" />
-            <span className="text-[11px] text-primary font-medium">
-              Em aquecimento — dia {rampDayLabel} de {rampUpDays}
+          <div className="rounded-md border border-primary/30 bg-primary/10 px-2 py-1 flex items-center gap-1.5">
+            <Zap className="h-3 w-3 text-primary shrink-0" />
+            <span className="text-[10.5px] text-primary font-medium">
+              Aquecimento dia {rampDayLabel}/{rampUpDays}
             </span>
-            <span className="text-[10px] text-muted-foreground ml-auto">
-              meta diária liberada após
-            </span>
+            <span className="text-[10px] text-muted-foreground ml-auto">meta liberada após</span>
           </div>
         )}
 
         {/* Música única (mini-card destacado) ou contador de músicas */}
         {!showSongList ? (
-          <div className="flex items-center gap-3 min-w-0 rounded-xl bg-[hsl(var(--elevated))] border border-border/40 p-3">
+          <div className="flex items-center gap-2.5 min-w-0 rounded-lg bg-[hsl(var(--elevated))] border border-border/40 p-2">
             {deal.song_cover_url ? (
               <img
                 src={deal.song_cover_url}
                 alt={deal.song_name}
-                className="h-12 w-12 rounded-lg object-cover shrink-0 shadow-md"
+                className="h-9 w-9 rounded-md object-cover shrink-0 shadow-sm"
               />
             ) : (
-              <div className="h-12 w-12 rounded-lg bg-muted shrink-0" />
+              <div className="h-9 w-9 rounded-md bg-muted shrink-0" />
             )}
             <div className="min-w-0 flex-1">
-              <div className="text-[18px] font-medium text-foreground truncate leading-tight">
+              <div className="text-[14px] font-medium text-foreground truncate leading-tight">
                 {deal.song_name}
               </div>
               {deal.song_artist && (
-                <div className="text-[12px] text-muted-foreground truncate mt-0.5">
+                <div className="text-[11px] text-muted-foreground truncate mt-0.5">
                   {deal.song_artist}
                 </div>
               )}
             </div>
           </div>
         ) : (
-          <div className="space-y-2">
-            <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-semibold flex items-center gap-1.5">
+          <div className="space-y-1.5">
+            <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-semibold flex items-center gap-1.5">
               <Music2 className="h-3 w-3" />
-              {songs.length} músicas no deal
+              {songs.length} músicas
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               {songs.map((s) => (
                 <div
                   key={s.id}
-                  className="flex items-center gap-2.5 rounded-lg bg-[hsl(var(--elevated))] border border-border/40 px-3 py-2 min-w-0"
+                  className="flex items-center gap-2 rounded-md bg-[hsl(var(--elevated))] border border-border/40 px-2 py-1.5 min-w-0"
                 >
                   {s.song_cover_url ? (
                     <img
                       src={s.song_cover_url}
                       alt={s.song_name}
-                      className="h-7 w-7 rounded-md object-cover shrink-0"
+                      className="h-6 w-6 rounded object-cover shrink-0"
                     />
                   ) : (
-                    <div className="h-7 w-7 rounded-md bg-muted shrink-0" />
+                    <div className="h-6 w-6 rounded bg-muted shrink-0" />
                   )}
                   <div className="min-w-0 flex-1">
-                    <div className="text-[13px] text-foreground truncate font-medium">
+                    <div className="text-[12px] text-foreground truncate font-medium">
                       {s.song_name}
                     </div>
                   </div>
                   {Number(s.daily_goal) > 0 && (
-                    <span className="text-[11px] tabular-nums text-muted-foreground shrink-0">
+                    <span className="text-[10.5px] tabular-nums text-muted-foreground shrink-0">
                       {formatPlays(Number(s.daily_goal))}/dia
                     </span>
                   )}
@@ -330,42 +328,42 @@ export function CuratorDealCard({
           </div>
         )}
 
-        {/* KPIs — números grandes (26px) com labels uppercase 11px */}
+        {/* KPIs compactos */}
         {hasBaseline && (
-          <div className="grid grid-cols-2 divide-x divide-border/50 rounded-xl bg-[hsl(var(--elevated))] border border-border/40">
-            <div className="px-4 py-3">
-              <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-1.5">
-                Plays totais hoje
+          <div className="grid grid-cols-2 divide-x divide-border/50 rounded-lg bg-[hsl(var(--elevated))] border border-border/40">
+            <div className="px-3 py-2">
+              <div className="text-[9.5px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-1">
+                Plays hoje
               </div>
-              <div className="text-[26px] font-bold tabular-nums text-foreground leading-none tracking-tight">
+              <div className="text-[20px] font-bold tabular-nums text-foreground leading-none tracking-tight">
                 {formatPlays(latestPlays)}
               </div>
             </div>
-            <div className="px-4 py-3">
-              <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-1.5">
+            <div className="px-3 py-2">
+              <div className="text-[9.5px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-1">
                 Hoje / combinado
               </div>
-              <div className="text-[26px] font-bold tabular-nums leading-none tracking-tight">
+              <div className="text-[20px] font-bold tabular-nums leading-none tracking-tight">
                 <span className="text-primary">{formatPlays(todayPlays)}</span>
-                <span className="text-muted-foreground text-[14px] font-semibold"> / {formatPlays(totalDailyGoal)}</span>
+                <span className="text-muted-foreground text-[12px] font-semibold"> / {formatPlays(totalDailyGoal)}</span>
               </div>
               {totalDailyGoal > 0 && (
-                <div className="text-[11px] text-muted-foreground mt-1.5">
-                  {inRampUp ? "aquecendo — meta liberada em breve" : `${todayPct}% do dia`}
+                <div className="text-[10px] text-muted-foreground mt-1 truncate">
+                  {inRampUp ? "aquecendo" : `${todayPct}% do dia`}
                 </div>
               )}
             </div>
           </div>
         )}
 
-        {/* Progresso total — linha mais visível (h-2.5) */}
-        <div className="space-y-2">
+        {/* Progresso total */}
+        <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-semibold">Combinado total</span>
-            <span className="tabular-nums text-[14px] font-bold text-foreground">{pct}%</span>
+            <span className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-semibold">Combinado total</span>
+            <span className="tabular-nums text-[12px] font-bold text-foreground">{pct}%</span>
           </div>
-          <Progress value={pct} className="h-2.5 rounded-full" />
-          <div className="flex items-center justify-between text-[12px] text-muted-foreground tabular-nums">
+          <Progress value={pct} className="h-2 rounded-full" />
+          <div className="flex items-center justify-between text-[11px] text-muted-foreground tabular-nums">
             <span>
               <span className="text-foreground font-semibold">{formatPlays(earned)}</span>
               {" / "}
