@@ -284,6 +284,7 @@ async function upsertSnapshot(
     print_url: string | null;
     ai_raw: any;
     batch_id: string | null;
+    correlation_id?: string | null;
   },
 ): Promise<any> {
   if (!row.batch_id) {
