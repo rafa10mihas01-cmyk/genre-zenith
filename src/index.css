@@ -11,11 +11,11 @@
   :root,
   .dark {
     /* === DESIGN SYSTEM — TOKENS GLOBAIS === */
-    /* Backgrounds */
+    /* Backgrounds — contraste elevado para legibilidade em telas de baixo brilho */
     --background: 0 0% 1.96%;         /* #050505 - canvas */
-    --card: 0 0% 6.7%;                /* #111111 - cards */
-    --elevated: 0 0% 10.2%;           /* #1A1A1A - hover/elevated */
-    --popover: 0 0% 6.7%;
+    --card: 0 0% 9%;                  /* #171717 - cards (subido de 6.7% p/ contraste) */
+    --elevated: 0 0% 13%;             /* #212121 - hover/elevated */
+    --popover: 0 0% 9%;
     --popover-foreground: 0 0% 100%;
     --card-foreground: 0 0% 100%;
 
