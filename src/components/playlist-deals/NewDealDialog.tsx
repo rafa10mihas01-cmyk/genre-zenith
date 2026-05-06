@@ -480,6 +480,8 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
       duration_days: string;
       started_at: string | null;
       ramp_up_days: string;
+      client_id?: string | null;
+      smartlink_url?: string;
       meta: SongRow["meta"];
     }>) ?? [];
     if (restoredSongs.length > 0) {
@@ -490,6 +492,8 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
           duration_days: s.duration_days ?? "30",
           started_at: s.started_at ? new Date(s.started_at) : new Date(),
           ramp_up_days: s.ramp_up_days ?? "5",
+          client_id: s.client_id ?? null,
+          smartlink_url: s.smartlink_url ?? "",
           meta: s.meta ?? null,
           searching: false,
         })),
