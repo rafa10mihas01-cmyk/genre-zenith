@@ -223,12 +223,13 @@ export function DealHistorySheet({
   onClose,
   onReload,
 }: DealHistorySheetProps) {
-  const [tab, setTab] = useState<"resumo" | "playlists" | "historico">("resumo");
+  const [tab, setTab] = useState<"resumo" | "playlists" | "algoritmo" | "historico">("resumo");
   const [pasteOpen, setPasteOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [selectedLogId, setSelectedLogId] = useState<string | null>(null);
   const [plQuery, setPlQuery] = useState("");
-  const [plFilter, setPlFilter] = useState<"all" | CuratorMatchStatus>("all");
+  const [algoQuery, setAlgoQuery] = useState("");
+  const [algoFilter, setAlgoFilter] = useState<"all" | "editorial" | "organic" | "suspicious">("all");
 
   const stats = deal ? computeCuratorStats(deal, allLogs, allPlaylists, progress ?? null) : null;
 
