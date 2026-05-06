@@ -15,6 +15,7 @@ import {
   Link2,
   MoreHorizontal,
   Archive,
+  ArchiveRestore,
   Trash2,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
