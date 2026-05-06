@@ -40,7 +40,7 @@ export function PageHeader({
     <header
       className={cn(
         "flex",
-        "sticky top-0 z-40 -mx-4 md:-mx-6 lg:-mx-8 px-4 md:px-6 lg:px-8 py-4 md:py-3",
+        "sticky top-0 z-40 -mx-4 md:-mx-6 px-4 md:px-6 py-4 md:py-3",
         "bg-background/90 backdrop-blur-md supports-[backdrop-filter]:bg-background/75",
         "border-b border-border/60",
         "flex-row items-center justify-between gap-3 md:gap-4 mb-3 md:mb-4 w-full min-w-0 overflow-hidden",
