@@ -361,6 +361,15 @@ Deno.serve(async (req) => {
           return jr({ ok: false, error: insErr.message, items }, 200);
         }
         inserted = count ?? toInsert.length;
+        await admin
+          .from("curator_deal_songs")
+          .update({
+            auto_collect_status: "idle",
+            auto_collect_error: null,
+            next_auto_collect_at: new Date().toISOString(),
+          })
+          .eq("deal_id", deal.id)
+          .eq("auto_collect", true);
       }
 
       const summary = {
