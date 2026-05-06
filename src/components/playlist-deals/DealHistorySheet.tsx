@@ -694,8 +694,14 @@ export function DealHistorySheet({
                         : 0;
                       const positive = delta >= 0;
                       const logSong = getSongForLog(log);
-                      const cover = logSong?.song_cover_url ?? deal.song_cover_url ?? null;
-                      const songName = logSong?.song_name ?? deal.song_name ?? "Música";
+                      // Fallback de song_name SÓ quando o log não tem song_id (legado).
+                      // Se log tem song_id mas a song foi removida → mostrar "Música removida"
+                      // pra não fingir que pertence à música principal do deal.
+                      const songMissing = !!log.song_id && !logSong;
+                      const cover = logSong?.song_cover_url ?? (log.song_id ? null : deal.song_cover_url) ?? null;
+                      const songName = songMissing
+                        ? "Música removida"
+                        : (logSong?.song_name ?? (log.song_id ? "Música" : deal.song_name) ?? "Música");
                       const isExpanded = selectedLogId === log.id;
 
                       // playlists vinculadas a este registro (mesma lógica que estava no popup)
