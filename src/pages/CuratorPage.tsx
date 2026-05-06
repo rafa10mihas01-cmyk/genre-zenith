@@ -1086,24 +1086,24 @@ export default function CuratorPage() {
           </Card>
         )}
 
-        {/* Plays acumulados + média/dia */}
+        {/* Total acumulado (histórico) — separado visualmente do delta */}
         {hasCuratorPlaylists && stats.hasBaseline && (
           <Card className="nx-card !p-0 border-border">
             <CardContent className="p-5 grid grid-cols-2 gap-4 divide-x divide-border">
               <div className="pr-2">
                 <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
-                  Plays acumulados
+                  Total acumulado (histórico)
                 </div>
                 <div className="text-[20px] font-bold tabular-nums text-foreground leading-none">
                   {formatPlays(stats.latest)}
                 </div>
                 <div className="text-[10px] text-muted-foreground mt-1.5">
-                  Total reportado até agora
+                  Plays totais reportados — não é a entrega
                 </div>
               </div>
               <div className="pl-4">
                 <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
-                  Média/dia
+                  Velocidade (média/dia)
                 </div>
                 <div className="text-[20px] font-bold tabular-nums leading-none">
                   <span className="text-primary">{formatPlays(stats.dailyAvg)}</span>
@@ -1111,7 +1111,7 @@ export default function CuratorPage() {
                 </div>
                 {stats.dailyGoal > 0 && (
                   <div className="text-[10px] text-muted-foreground mt-1.5">
-                    {Math.round((stats.dailyAvg / stats.dailyGoal) * 100)}% do combinado diário
+                    {Math.round((stats.dailyAvg / stats.dailyGoal) * 100)}% da meta diária
                   </div>
                 )}
               </div>
