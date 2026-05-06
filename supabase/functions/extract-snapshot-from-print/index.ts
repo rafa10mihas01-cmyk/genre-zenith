@@ -343,6 +343,7 @@ Deno.serve(async (req) => {
     return jr({ error: "invalid_body", detail: parsedBody.error.flatten() }, 400);
   }
   const { song_id, deal_id, print_urls, batch_id } = parsedBody.data;
+  let correlation_id: string | null = parsedBody.data.correlation_id ?? null;
   let dom_playlists: Array<{ name?: string; url?: string; plays_text?: string }> =
     parsedBody.data.dom_playlists ?? [];
 
