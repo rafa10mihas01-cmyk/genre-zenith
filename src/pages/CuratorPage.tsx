@@ -1036,8 +1036,27 @@ export default function CuratorPage() {
           </Card>
         )}
 
-        {/* Estado vazio: aguardando primeiro print do admin */}
-        {!stats.hasBaseline && (
+        {/* Estado vazio: sem playlists cadastradas pelo curador */}
+        {!hasCuratorPlaylists && (
+          <Card className="nx-card !p-0 border-border">
+            <CardContent className="p-6 sm:p-8 flex flex-col items-center text-center gap-4">
+              <div className="h-14 w-14 rounded-2xl bg-muted/40 flex items-center justify-center ring-1 ring-border">
+                <ListMusic className="h-6 w-6 text-muted-foreground" />
+              </div>
+              <div className="space-y-1.5 max-w-sm">
+                <h2 className="text-[15px] font-semibold tracking-tight">
+                  Cadastre suas playlists para começarmos a medir.
+                </h2>
+                <p className="text-[12.5px] text-muted-foreground leading-relaxed">
+                  A medição é feita exclusivamente sobre as playlists que você cadastrar abaixo.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Estado vazio: tem playlists, mas ainda sem primeiro print */}
+        {hasCuratorPlaylists && !stats.hasBaseline && (
           <Card className="nx-card !p-0 border-border">
             <CardContent className="p-6 sm:p-8 flex flex-col items-center text-center gap-4">
               <div className="h-14 w-14 rounded-2xl bg-muted/40 flex items-center justify-center ring-1 ring-border">
@@ -1049,7 +1068,6 @@ export default function CuratorPage() {
                 </h2>
                 <p className="text-[12.5px] text-muted-foreground leading-relaxed">
                   Os números reais de plays vêm dos prints do Spotify for Artists enviados pelo admin.
-                  Enquanto isso, você pode adicionar suas playlists abaixo.
                 </p>
               </div>
             </CardContent>
@@ -1057,7 +1075,7 @@ export default function CuratorPage() {
         )}
 
         {/* Plays acumulados + média/dia */}
-        {stats.hasBaseline && (
+        {hasCuratorPlaylists && stats.hasBaseline && (
           <Card className="nx-card !p-0 border-border">
             <CardContent className="p-5 grid grid-cols-2 gap-4 divide-x divide-border">
               <div className="pr-2">
@@ -1090,6 +1108,7 @@ export default function CuratorPage() {
         )}
 
         {/* Combinado total */}
+        {hasCuratorPlaylists && (
         <Card className="nx-card !p-0 border-border">
           <CardContent className="p-5 sm:p-6 space-y-6">
             <div className="flex items-center justify-between">
@@ -1197,7 +1216,7 @@ export default function CuratorPage() {
             </div>
           </CardContent>
         </Card>
-
+        )}
         {/* Performance por playlist — vem direto da RPC */}
         {perPlaylistCurator.length > 0 && (
           <Card className="nx-card !p-0 border-border">
