@@ -114,12 +114,12 @@ export default function Performance() {
         actions={
           <>
             <Button variant="outline" size="sm" onClick={runTrack} disabled={tracking}>
-              <RefreshCw className={`h-4 w-4 mr-2 ${tracking ? "animate-spin" : ""}`} />
-              Coletar dados
+              <RefreshCw className={`h-4 w-4 xl:mr-2 ${tracking ? "animate-spin" : ""}`} />
+              <span className="hidden xl:inline">Coletar dados</span>
             </Button>
             <Button size="sm" onClick={runAnalyze} disabled={analyzing || totalPubs === 0}>
-              <Brain className={`h-4 w-4 mr-2 ${analyzing ? "animate-pulse" : ""}`} />
-              Analisar agora
+              <Brain className={`h-4 w-4 xl:mr-2 ${analyzing ? "animate-pulse" : ""}`} />
+              <span className="truncate">Analisar agora</span>
             </Button>
           </>
         }
