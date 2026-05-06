@@ -69,11 +69,21 @@ interface Props {
   balances: CuratorBalance[];
   deals: CuratorDeal[];
   loading: boolean;
+  onUpdateCurator?: (curatorId: string, input: Partial<NewCuratorInput>) => Promise<void>;
+  onArchiveCurator?: (curatorId: string, archive?: boolean) => Promise<void>;
 }
 
-export function CuradoresLibraryTab({ curators, balances, deals, loading }: Props) {
+export function CuradoresLibraryTab({
+  curators,
+  balances,
+  deals,
+  loading,
+  onUpdateCurator,
+  onArchiveCurator,
+}: Props) {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Curator | null>(null);
+  const [editing, setEditing] = useState<Curator | null>(null);
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
