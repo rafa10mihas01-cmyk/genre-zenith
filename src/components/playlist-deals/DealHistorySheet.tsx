@@ -148,9 +148,17 @@ function PlaylistRow({ p }: { p: CuratorPlaylist }) {
   const followers = p.followers ? `${fmtCompact(Number(p.followers))} seguidores` : null;
   const plays7d = p.streams_7d ? `${fmtCompact(Number(p.streams_7d))} plays/7d` : null;
   const meta = [owner, followers, plays7d].filter(Boolean).join(" · ");
+  const position = typeof p.position_in_paste === "number" ? p.position_in_paste : null;
 
   return (
     <li className="group flex items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-[hsl(var(--elevated))] transition-colors">
+      {/* posição */}
+      {position !== null && (
+        <div className="w-6 shrink-0 text-right text-[11px] font-semibold tabular-nums text-muted-foreground">
+          #{position}
+        </div>
+      )}
+
       {/* cover */}
       <div className="h-10 w-10 shrink-0 rounded-md overflow-hidden bg-[hsl(var(--elevated))] border border-white/[0.04] flex items-center justify-center">
         {p.image_url ? (
@@ -764,14 +772,9 @@ export function DealHistorySheet({
                                   </div>
                                 ) : (
                                   <ul className="space-y-0.5 -mx-1">
-                                    {linked.slice(0, 30).map((p) => (
+                                    {linked.map((p) => (
                                       <PlaylistRow key={p.id} p={p} />
                                     ))}
-                                    {linked.length > 30 && (
-                                      <li className="text-[11px] text-muted-foreground px-3 py-1">
-                                        + {linked.length - 30} outras
-                                      </li>
-                                    )}
                                   </ul>
                                 )}
                               </div>
