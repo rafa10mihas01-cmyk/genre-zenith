@@ -353,9 +353,11 @@ Deno.serve(async (req) => {
   if (batch_id) {
     const { data: bStatus } = await supabase
       .from("bot_print_batches")
-      .select("status, processed_at")
+      .select("status, processed_at, correlation_id")
       .eq("id", batch_id)
       .maybeSingle();
+    // Recupera correlation_id do batch se body não trouxe
+    if (!correlation_id && bStatus?.correlation_id) correlation_id = bStatus.correlation_id;
     if (bStatus?.status === "processed") {
       console.log(`[extract] batch ${batch_id} já processado em ${bStatus.processed_at}, ignorando`);
       return jr({ ok: true, skipped_reason: "batch_already_processed", batch_id });
