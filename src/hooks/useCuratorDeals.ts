@@ -442,9 +442,35 @@ export function useCuratorDeals() {
           p_deal: dealPayload,
           p_songs: allSongs,
           p_force: opts?.force ?? false,
+          p_new_curator: opts?.new_curator
+            ? {
+                name: opts.new_curator.name,
+                contact: opts.new_curator.contact ?? null,
+                spotify_owner_id: opts.new_curator.spotify_owner_id ?? null,
+                spotify_owner_url: opts.new_curator.spotify_owner_url ?? null,
+                notes: opts.new_curator.notes ?? null,
+                purchased_plays: opts.new_curator.purchased_plays ?? 0,
+                total_cost: opts.new_curator.total_cost ?? 0,
+              }
+            : null,
         },
       );
-      if (rpcErr) throw rpcErr;
+      if (rpcErr) {
+        // RPC agora levanta exceção em duplicate (para garantir ROLLBACK do curador novo).
+        const msg = (rpcErr as any).message ?? String(rpcErr);
+        if (typeof msg === "string" && msg.startsWith("DUPLICATE_DEAL")) {
+          // Extrai o JSON de matches anexado à mensagem
+          const jsonStart = msg.indexOf("[");
+          let matches: any[] = [];
+          if (jsonStart >= 0) {
+            try { matches = JSON.parse(msg.slice(jsonStart)); } catch { /* ignore */ }
+          }
+          const err = new Error("DUPLICATE_DEAL") as Error & { matches?: any[] };
+          err.matches = matches;
+          throw err;
+        }
+        throw rpcErr;
+      }
 
       const result = data as { ok: boolean; duplicate?: boolean; matches?: any[]; deal_id?: string };
       if (result?.duplicate && !opts?.force) {
