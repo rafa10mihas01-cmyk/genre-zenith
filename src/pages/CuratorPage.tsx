@@ -739,6 +739,15 @@ export default function CuratorPage() {
           </div>
         </div>
 
+        {!access.writable && (
+          <div className="rounded-2xl border border-warning/40 bg-warning/10 px-5 py-4 text-sm text-warning-foreground">
+            <div className="font-semibold mb-1">Este deal não aceita mais alterações</div>
+            <div className="text-muted-foreground">
+              {access.reason ?? "Estado atual bloqueia novas playlists, prints e coleta."}
+            </div>
+          </div>
+        )}
+
         {/* Header — campanha + música */}
         <Card className="nx-card !p-0 overflow-hidden border-border">
           <CardContent className="p-5 sm:p-6 space-y-6">
