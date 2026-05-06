@@ -443,7 +443,7 @@ export function CuratorDealCard({
           <Button
             variant="outline"
             size="sm"
-            className="min-w-0 flex-1 sm:flex-none h-9 gap-1.5 text-[13px] px-3"
+            className="min-w-0 h-9 gap-1.5 text-[13px] px-3"
             onClick={() => onDetail(deal)}
           >
             <History className="h-3.5 w-3.5 shrink-0" />
@@ -452,44 +452,70 @@ export function CuratorDealCard({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
-                variant="ghost"
+                variant="outline"
                 size="icon"
-                className="sm:hidden h-9 w-9 shrink-0 text-muted-foreground hover:text-foreground"
+                className="h-9 w-9 shrink-0 text-muted-foreground hover:text-foreground"
                 aria-label="Mais ações"
+                title="Mais ações"
               >
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-52 rounded-xl border-border bg-popover p-1.5">
+            <DropdownMenuContent align="end" className="w-64 rounded-xl border-border bg-popover p-1.5">
               {!isClosed && onClose && hasBaseline && (
-                <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => onClose(deal)}>
-                  <CheckCircle2 className="h-4 w-4" />
-                  Encerrar deal
-                </DropdownMenuItem>
+                <>
+                  <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => onClose(deal)}>
+                    <CheckCircle2 className="h-4 w-4" />
+                    Encerrar deal
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
               )}
-              <DropdownMenuSeparator />
               <div className="px-2 pt-1.5 pb-1 text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-semibold">
                 Compartilhar
               </div>
               <DropdownMenuItem className="gap-2 rounded-lg items-start py-2" onClick={handleCopyCuratorLink}>
                 <Headphones className="h-4 w-4 mt-0.5 shrink-0" />
-                <div className="flex flex-col min-w-0">
-                  <span className="text-sm leading-tight">Link do curador</span>
-                  <span className="text-[11px] text-muted-foreground leading-tight">Para curadores adicionarem nas playlists</span>
+                <div className="flex flex-col min-w-0 flex-1">
+                  <span className="text-sm leading-tight font-medium">Link do curador</span>
+                  <span className="text-[11px] text-muted-foreground leading-tight mt-0.5">Para curadores adicionarem nas playlists</span>
                 </div>
+                <Copy className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" />
               </DropdownMenuItem>
-              <DropdownMenuItem
-                className="gap-2 rounded-lg items-start py-2"
-                onClick={() => handleCopyClientLink()}
-                disabled={!deal.client_token}
-              >
-                <User className="h-4 w-4 mt-0.5 shrink-0" />
-                <div className="flex flex-col min-w-0">
-                  <span className="text-sm leading-tight">Link do cliente</span>
-                  <span className="text-[11px] text-muted-foreground leading-tight">Painel de acompanhamento do artista</span>
-                </div>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
+              {showPerSongLinks ? (
+                <>
+                  <div className="px-2 pt-2 pb-1 text-[11px] text-muted-foreground leading-tight">
+                    Link do cliente — uma URL por música
+                  </div>
+                  {songsWithClientLink.map((s) => (
+                    <DropdownMenuItem
+                      key={s.id}
+                      className="gap-2 rounded-lg items-center py-2"
+                      onClick={() => handleCopyClientLink(s.client_token ?? null)}
+                    >
+                      <User className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      <span className="text-sm leading-tight font-medium truncate flex-1" title={s.song_name}>
+                        {s.song_name}
+                      </span>
+                      <Copy className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    </DropdownMenuItem>
+                  ))}
+                </>
+              ) : (
+                <DropdownMenuItem
+                  className="gap-2 rounded-lg items-start py-2"
+                  onClick={() => handleCopyClientLink(songsWithClientLink[0]?.client_token ?? deal.client_token ?? null)}
+                  disabled={!deal.client_token && !songsWithClientLink[0]?.client_token}
+                >
+                  <User className="h-4 w-4 mt-0.5 shrink-0" />
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <span className="text-sm leading-tight font-medium">Link do cliente</span>
+                    <span className="text-[11px] text-muted-foreground leading-tight mt-0.5">Painel do artista/cliente</span>
+                  </div>
+                  <Copy className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" />
+                </DropdownMenuItem>
+              )}
+              {!isClosed && (onForceCollect || onEdit) && <DropdownMenuSeparator />}
               {!isClosed && onForceCollect && (
                 <DropdownMenuItem className="gap-2 rounded-lg" onClick={handleForceCollect}>
                   <Zap className="h-4 w-4" />
@@ -509,113 +535,6 @@ export function CuratorDealCard({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          {!isClosed && onClose && hasBaseline && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="hidden sm:inline-flex h-9 w-9 text-muted-foreground hover:text-foreground"
-              onClick={() => onClose(deal)}
-              aria-label="Encerrar deal"
-              title="Encerrar deal"
-            >
-              <CheckCircle2 className="h-3.5 w-3.5" />
-            </Button>
-          )}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="hidden sm:inline-flex h-9 w-9 text-muted-foreground hover:text-foreground"
-                aria-label="Compartilhar links"
-                title="Compartilhar"
-              >
-                <Share2 className="h-3.5 w-3.5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-72 rounded-xl border-border bg-popover p-1.5">
-              <div className="px-2 pt-1.5 pb-1 text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-semibold">
-                Compartilhar
-              </div>
-              <DropdownMenuItem className="gap-2 rounded-lg items-start py-2.5" onClick={handleCopyCuratorLink}>
-                <Headphones className="h-4 w-4 mt-0.5 shrink-0" />
-                <div className="flex flex-col min-w-0 flex-1">
-                  <span className="text-sm leading-tight font-medium">Link do curador</span>
-                  <span className="text-[11px] text-muted-foreground leading-tight mt-0.5">
-                    Para curadores adicionarem a música nas playlists
-                  </span>
-                </div>
-                <Copy className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" />
-              </DropdownMenuItem>
-              {showPerSongLinks ? (
-                <>
-                  <div className="px-2 pt-2 pb-1 text-[11px] text-muted-foreground leading-tight">
-                    Link do cliente — uma URL para cada música
-                  </div>
-                  {songsWithClientLink.map((s) => (
-                    <DropdownMenuItem
-                      key={s.id}
-                      className="gap-2 rounded-lg items-center py-2"
-                      onClick={() => handleCopyClientLink(s.client_token ?? null)}
-                    >
-                      <User className="h-4 w-4 shrink-0 text-muted-foreground" />
-                      <span className="text-sm leading-tight font-medium truncate flex-1" title={s.song_name}>
-                        {s.song_name}
-                      </span>
-                      <Copy className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                    </DropdownMenuItem>
-                  ))}
-                </>
-              ) : (
-                <DropdownMenuItem
-                  className="gap-2 rounded-lg items-start py-2.5"
-                  onClick={() => handleCopyClientLink(songsWithClientLink[0]?.client_token ?? deal.client_token ?? null)}
-                  disabled={!deal.client_token && !songsWithClientLink[0]?.client_token}
-                >
-                  <User className="h-4 w-4 mt-0.5 shrink-0" />
-                  <div className="flex flex-col min-w-0 flex-1">
-                    <span className="text-sm leading-tight font-medium">Link do cliente</span>
-                    <span className="text-[11px] text-muted-foreground leading-tight mt-0.5">
-                      Painel de acompanhamento para o artista/cliente
-                    </span>
-                  </div>
-                  <Copy className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" />
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          {!isClosed && onForceCollect && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="hidden sm:inline-flex h-9 w-9 text-muted-foreground hover:text-primary"
-              onClick={handleForceCollect}
-              aria-label="Forçar coleta agora"
-              title="Forçar coleta agora"
-            >
-              <Zap className="h-3.5 w-3.5" />
-            </Button>
-          )}
-          {!isClosed && onEdit && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="hidden sm:inline-flex h-9 w-9 text-muted-foreground hover:text-foreground"
-              onClick={() => onEdit(deal)}
-              aria-label="Editar deal"
-            >
-              <Pencil className="h-3.5 w-3.5" />
-            </Button>
-          )}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="hidden sm:inline-flex h-9 w-9 text-muted-foreground hover:text-destructive"
-            onClick={() => onDelete(deal)}
-            aria-label="Excluir deal"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
         </div>
       </CardContent>
     </Card>
