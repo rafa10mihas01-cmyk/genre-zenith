@@ -967,9 +967,9 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
 
       const primaryTarget = songTarget(primary);
 
-      // Cost derivado do CPP do curador (FASE 3): se o curador tem saldo, calcula proporcional
-      const curatorTotalCost = Number(selectedCurator?.total_cost ?? 0);
-      const curatorPurchasedPlays = Number(selectedCurator?.purchased_plays ?? 0);
+      // Cost derivado do CPP do curador (FASE 3): usa selecionado OU pendente (modo "new")
+      const curatorTotalCost = Number(effectiveCurator?.total_cost ?? 0);
+      const curatorPurchasedPlays = Number(effectiveCurator?.purchased_plays ?? 0);
       const cpp = curatorPurchasedPlays > 0 ? curatorTotalCost / curatorPurchasedPlays : 0;
       const dealCostRaw = cpp > 0 ? Math.round(songsTotalTarget * cpp * 100) / 100 : 0;
 
