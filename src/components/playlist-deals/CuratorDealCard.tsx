@@ -1,4 +1,4 @@
-import { Camera, History, Trash2, Link2, Zap, Clock, AlertTriangle, Calendar as CalendarIcon, Music2, DollarSign, Pencil, CheckCircle2, XCircle, FileDown, Lock, Bot, Loader2, MoreHorizontal } from "lucide-react";
+import { Camera, History, Trash2, Link2, Zap, Clock, AlertTriangle, Calendar as CalendarIcon, Music2, DollarSign, Pencil, CheckCircle2, XCircle, FileDown, Lock, Bot, Loader2, MoreHorizontal, Share2, Headphones, User, Copy } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -98,12 +98,27 @@ export function CuratorDealCard({
     ? "Pronto p/ encerrar"
     : "Em progresso";
 
-  const handleCopyLink = async () => {
+  const handleCopyCuratorLink = async () => {
     const { curatorPublicUrl } = await import("@/lib/curatorPublicUrl");
     const url = curatorPublicUrl({ slug: deal.slug, public_token: deal.public_token });
     try {
       await navigator.clipboard.writeText(url);
-      toast.success("Link copiado", { description: url });
+      toast.success("Link do curador copiado", { description: url });
+    } catch {
+      toast.error("Não foi possível copiar o link");
+    }
+  };
+
+  const handleCopyClientLink = async () => {
+    const { clientCampaignUrl } = await import("@/lib/curatorPublicUrl");
+    if (!deal.client_token) {
+      toast.error("Link do cliente indisponível para este deal");
+      return;
+    }
+    const url = clientCampaignUrl({ client_token: deal.client_token });
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("Link do cliente copiado", { description: url });
     } catch {
       toast.error("Não foi possível copiar o link");
     }
