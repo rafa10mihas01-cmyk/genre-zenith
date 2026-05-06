@@ -1040,24 +1040,6 @@ export default function CuratorPage() {
           </Card>
         )}
 
-        {/* Estado vazio: tem playlists, mas ainda sem primeiro print */}
-        {hasCuratorPlaylists && !stats.hasBaseline && (
-          <Card className="nx-card !p-0 border-border">
-            <CardContent className="p-6 sm:p-8 flex flex-col items-center text-center gap-4">
-              <div className="h-14 w-14 rounded-2xl bg-muted/40 flex items-center justify-center ring-1 ring-border">
-                <ImageIcon className="h-6 w-6 text-muted-foreground" />
-              </div>
-              <div className="space-y-1.5 max-w-sm">
-                <h2 className="text-[15px] font-semibold tracking-tight">
-                  Aguardando primeiro print do admin
-                </h2>
-                <p className="text-[12.5px] text-muted-foreground leading-relaxed">
-                  Os números reais de plays vêm dos prints do Spotify for Artists enviados pelo admin.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Total acumulado (histórico) — separado visualmente do delta */}
         {hasCuratorPlaylists && stats.hasBaseline && (
