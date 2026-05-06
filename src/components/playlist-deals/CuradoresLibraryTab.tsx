@@ -445,6 +445,15 @@ export function CuradoresLibraryTab({
         deals={deals.filter((d) => d.curator_id === selected?.id)}
         onClose={() => setSelected(null)}
       />
+
+      {onUpdateCurator && (
+        <CuratorEditDialog
+          curator={editing}
+          open={editing !== null}
+          onOpenChange={(v) => !v && setEditing(null)}
+          onSave={onUpdateCurator}
+        />
+      )}
     </div>
   );
 }
