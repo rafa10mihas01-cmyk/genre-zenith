@@ -159,6 +159,77 @@ function songTarget(s: SongRow): number {
 }
 
 // ============================================================
+// Range picker (início → fim) num único calendário
+// ============================================================
+function DealRangePicker({
+  startedAt,
+  durationDays,
+  onChange,
+}: {
+  startedAt: Date | undefined;
+  durationDays: number;
+  onChange: (start: Date, days: number) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const from = startedAt;
+  const to =
+    startedAt && durationDays > 0
+      ? new Date(startedAt.getTime() + durationDays * 86400000)
+      : undefined;
+
+  const label =
+    from && to
+      ? `${format(from, "dd MMM", { locale: ptBR })} → ${format(to, "dd MMM, yyyy", { locale: ptBR })} · ${durationDays}d`
+      : from
+      ? `${format(from, "dd 'de' MMM, yyyy", { locale: ptBR })} — escolha o fim`
+      : "Escolher período";
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className={cn(
+            "h-9 pl-3 text-left font-normal justify-start",
+            !from && "text-muted-foreground",
+          )}
+        >
+          {label}
+          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar
+          mode="range"
+          selected={{ from, to }}
+          onSelect={(range) => {
+            if (!range?.from) return;
+            const start = range.from;
+            if (range.to) {
+              const days = Math.max(
+                1,
+                Math.round((range.to.getTime() - start.getTime()) / 86400000),
+              );
+              onChange(start, days);
+              setOpen(false);
+            } else {
+              // Só clicou no início — mantém duração atual (mínimo 1)
+              onChange(start, Math.max(1, durationDays));
+            }
+          }}
+          numberOfMonths={1}
+          initialFocus
+          className={cn("p-3 pointer-events-auto")}
+          locale={ptBR}
+        />
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+// ============================================================
 // Componente
 // ============================================================
 export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved }: NewDealDialogProps) {
