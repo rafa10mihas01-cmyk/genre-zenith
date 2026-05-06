@@ -76,8 +76,11 @@ Deno.serve(async (req) => {
       if (await notifyOnce(supabase, {
         kind: "ops_heartbeat_missing",
         type: "critical",
+        domain: "bot",
+        severity: "critical",
         title: "Bot sem heartbeat",
         message: `Nenhum heartbeat do bot nos últimos 10 minutos. Última atividade: ${last ?? "nunca"}.`,
+        actionUrl: "/sistema",
       })) fired.push("heartbeat_missing");
     }
   }
@@ -93,8 +96,11 @@ Deno.serve(async (req) => {
       if (await notifyOnce(supabase, {
         kind: "ops_collect_stuck",
         type: "warning",
+        domain: "queue",
+        severity: "high",
         title: "Coleta travada",
         message: `${count} música(s) presa(s) em "queued" há mais de 15 minutos.`,
+        actionUrl: "/playlist-deals",
       })) fired.push("collect_stuck");
     }
   }
@@ -116,8 +122,11 @@ Deno.serve(async (req) => {
       if (await notifyOnce(supabase, {
         kind: "ops_timeout_streak",
         type: "warning",
+        domain: "system",
+        severity: "medium",
         title: "Timeouts em sequência",
         message: `Operações com 3+ timeouts em 15min: ${desc}.`,
+        actionUrl: "/sistema",
       })) fired.push("timeout_streak");
     }
   }
@@ -133,8 +142,11 @@ Deno.serve(async (req) => {
       if (await notifyOnce(supabase, {
         kind: "ops_spotify_quota",
         type: "warning",
+        domain: "system",
+        severity: "medium",
         title: "Quota Spotify pressionada",
         message: `${count} chamadas rate-limited nos últimos 10 minutos.`,
+        actionUrl: "/sistema",
       })) fired.push("spotify_quota");
     }
   }
@@ -150,8 +162,11 @@ Deno.serve(async (req) => {
       if (await notifyOnce(supabase, {
         kind: "ops_queue_congested",
         type: "warning",
+        domain: "queue",
+        severity: "medium",
         title: "Fila de coleta congestionada",
         message: `${count} músicas aguardando coleta. Considere aumentar workers.`,
+        actionUrl: "/playlist-deals",
       })) fired.push("queue_congested");
     }
   }
@@ -174,8 +189,11 @@ Deno.serve(async (req) => {
       if (await notifyOnce(supabase, {
         kind: "ops_ocr_error_streak",
         type: "warning",
+        domain: "ocr",
+        severity: "high",
         title: "OCR falhando em sequência",
         message: `Extração visual com 3+ erros em 15min: ${desc}.`,
+        actionUrl: "/sistema",
       })) fired.push("ocr_error_streak");
     }
   }
@@ -191,8 +209,11 @@ Deno.serve(async (req) => {
       if (await notifyOnce(supabase, {
         kind: "ops_print_batch_stuck",
         type: "warning",
+        domain: "ocr",
+        severity: "high",
         title: "Batches de print travados",
         message: `${count} batch(es) de print sem progresso há mais de 15min.`,
+        actionUrl: "/sistema",
       })) fired.push("print_batch_stuck");
     }
   }
@@ -214,8 +235,11 @@ Deno.serve(async (req) => {
       if (await notifyOnce(supabase, {
         kind: "ops_bot_events_silent",
         type: "info",
+        domain: "bot",
+        severity: "low",
         title: "Bot sem eventos granulares",
         message: "Heartbeat OK, mas nenhum bot_event nos últimos 30min. Verifique instrumentação do robô.",
+        actionUrl: "/sistema",
       })) fired.push("bot_events_silent");
     }
   }
