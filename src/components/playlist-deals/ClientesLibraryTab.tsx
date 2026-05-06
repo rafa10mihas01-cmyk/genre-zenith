@@ -270,22 +270,40 @@ export function ClientesLibraryTab({ deals, songs, loading }: Props) {
                             Editar
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            className="gap-2"
-                            onClick={async (e) => {
-                              e.stopPropagation();
-                              if (!confirm(`Arquivar ${client.name}? Ele sai da biblioteca mas o histórico fica.`)) return;
-                              try {
-                                await archiveClient(client.id, true);
-                                toast.success("Cliente arquivado");
-                              } catch {
-                                toast.error("Erro ao arquivar");
-                              }
-                            }}
-                          >
-                            <Archive className="h-4 w-4" />
-                            Arquivar
-                          </DropdownMenuItem>
+                          {!client.archived_at ? (
+                            <DropdownMenuItem
+                              className="gap-2"
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                if (!confirm(`Arquivar ${client.name}? Ele sai da biblioteca mas o histórico fica.`)) return;
+                                try {
+                                  await archiveClient(client.id, true);
+                                  toast.success("Cliente arquivado");
+                                } catch {
+                                  toast.error("Erro ao arquivar");
+                                }
+                              }}
+                            >
+                              <Archive className="h-4 w-4" />
+                              Arquivar
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem
+                              className="gap-2"
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                try {
+                                  await archiveClient(client.id, false);
+                                  toast.success("Cliente restaurado");
+                                } catch {
+                                  toast.error("Erro ao restaurar");
+                                }
+                              }}
+                            >
+                              <ArchiveRestore className="h-4 w-4" />
+                              Restaurar
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuItem
                             className="gap-2 text-destructive focus:text-destructive"
                             onClick={(e) => {
