@@ -77,11 +77,12 @@ interface Props {
 }
 
 export function ClientesLibraryTab({ deals, songs, loading }: Props) {
-  const { clients, loading: loadingClients, addClient, updateClient, reload } = useClients();
+  const { clients, loading: loadingClients, addClient, updateClient, archiveClient, deleteClient, reload } = useClients();
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Client | null>(null);
   const [editing, setEditing] = useState<Client | null>(null);
   const [creating, setCreating] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<{ client: Client; hasLinks: boolean } | null>(null);
 
   // Permite abrir o modal "Novo cliente" via evento global (botão + Novo do header)
   useEffect(() => {
