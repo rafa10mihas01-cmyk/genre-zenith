@@ -472,7 +472,7 @@ export function CuratorDealCard({
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="gap-2 rounded-lg items-start py-2"
-                onClick={handleCopyClientLink}
+                onClick={() => handleCopyClientLink()}
                 disabled={!deal.client_token}
               >
                 <User className="h-4 w-4 mt-0.5 shrink-0" />
@@ -541,7 +541,7 @@ export function CuratorDealCard({
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="gap-2 rounded-lg items-start py-2.5"
-                onClick={handleCopyClientLink}
+                onClick={() => handleCopyClientLink()}
                 disabled={!deal.client_token}
               >
                 <User className="h-4 w-4 mt-0.5 shrink-0" />
