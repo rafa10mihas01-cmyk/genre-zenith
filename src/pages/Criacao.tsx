@@ -364,7 +364,7 @@ export default function Criacao() {
       />
 
       {/* KPIs */}
-      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiBig icon={Flame}         label="Prontos pra publicar" value={kpi.hot}        tone="primary" hint="Score ≥ 75" />
         <KpiBig icon={AlertTriangle} label="Médios"               value={kpi.medium}     tone="warning" hint="Precisam ajuste" />
         <KpiBig icon={Send}          label="Publicadas (7d)"      value={kpi.published7d} tone="primary" hint="Foram pro Spotify" />

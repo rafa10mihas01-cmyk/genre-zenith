@@ -115,7 +115,7 @@ export function SaudeSistema() {
       {/* Cards de saúde */}
       <div>
         <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-bold mb-2">Status dos serviços</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           <HealthCard
             icon={Music2}
             label="Coletor Apify"

@@ -197,7 +197,7 @@ export default function Home() {
       />
 
       {/* AÇÕES RÁPIDAS — sempre visível, decide tudo */}
-      <section className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <section className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <QuickAction
           to="/criacao?tier=hot"
           icon={Rocket}
@@ -231,7 +231,7 @@ export default function Home() {
         <h2 className="text-xs uppercase tracking-[0.15em] text-muted-foreground font-semibold mb-3">
           Pipeline
         </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <PipelineCard
             to="/cerebro"
             icon={Search}
