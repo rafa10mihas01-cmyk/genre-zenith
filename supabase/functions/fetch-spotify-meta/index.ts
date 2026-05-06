@@ -146,8 +146,9 @@ Deno.serve(async (req) => {
       parsedArtist = title.slice(idx + 3).trim();
     }
 
-    // 3) Fallback: scrape og:description da página pública pra pegar artista
-    if (!parsedArtist && type === "track") {
+    // 3) Fallback: scrape og:description da página pública pra pegar artista,
+    //    e og:image pra capa quando o oEmbed não retornar thumbnail.
+    if ((!parsedArtist && type === "track") || !thumbnail_url) {
       try {
         const pageUrl = `https://open.spotify.com/${type}/${id}`;
         const pageRes = await fetch(pageUrl, {
@@ -155,13 +156,18 @@ Deno.serve(async (req) => {
         });
         if (pageRes.ok) {
           const html = await pageRes.text();
-          const ogDesc = pickMeta(html, "og:description");
-          const ogTitle = pickMeta(html, "og:title");
-          parsedArtist = extractArtistFromDescription(ogDesc, parsedTitle ?? ogTitle);
-          if (!parsedTitle && ogTitle) parsedTitle = decodeEntities(ogTitle);
+          if (!parsedArtist && type === "track") {
+            const ogDesc = pickMeta(html, "og:description");
+            const ogTitle = pickMeta(html, "og:title");
+            parsedArtist = extractArtistFromDescription(ogDesc, parsedTitle ?? ogTitle);
+            if (!parsedTitle && ogTitle) parsedTitle = decodeEntities(ogTitle);
+          }
+          if (!thumbnail_url) {
+            thumbnail_url = pickMeta(html, "og:image");
+          }
         }
       } catch {
-        // ignora — artista null é aceitável aqui, mas o cliente vai validar
+        // ignora — artista/capa null é aceitável aqui
       }
     }
 
