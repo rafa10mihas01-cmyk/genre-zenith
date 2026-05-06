@@ -74,7 +74,7 @@ Deno.serve(async (req) => {
       .from("curator_playlists")
       .select("deal_id")
       .in("deal_id", dealIds)
-      .neq("match_status", "algorithmic")
+      .eq("match_status", "curator")
       .not("spotify_playlist_id", "is", null);
     for (const r of wl ?? []) dealsWithWhitelist.add((r as any).deal_id);
   }
