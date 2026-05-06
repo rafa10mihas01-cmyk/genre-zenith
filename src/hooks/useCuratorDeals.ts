@@ -378,33 +378,9 @@ export function useCuratorDeals() {
   // Deals — agora aceitam curator_id e duration_days nas songs
   // ============================================================
   const addDeal = useCallback(
-    async (input: NewCuratorDealInput) => {
+    async (input: NewCuratorDealInput, opts?: { force?: boolean }) => {
       if (!user) throw new Error("Usuário não autenticado");
-      const { data, error: insertErr } = await supabase
-        .from("curator_deals")
-        .insert({
-          user_id: user.id,
-          curator_id: input.curator_id ?? null,
-          curator_name: input.curator_name,
-          song_spotify_url: input.song_spotify_url,
-          song_name: input.song_name,
-          song_artist: input.song_artist ?? null,
-          song_cover_url: input.song_cover_url ?? null,
-          target_plays: input.target_plays,
-          daily_goal: input.daily_goal ?? 0,
-          baseline_plays: input.baseline_plays ?? 0,
-          cost: input.cost ?? null,
-          started_at: input.started_at ?? new Date().toISOString(),
-          ends_at: input.ends_at ?? null,
-          ramp_up_days: input.ramp_up_days ?? 5,
-        })
-        .select()
-        .single();
-      if (insertErr) throw insertErr;
 
-      const deal = data as CuratorDeal;
-
-      // Sempre cria a primeira música em curator_deal_songs
       const primarySong: DealSongInput = {
         song_spotify_url: input.song_spotify_url,
         spotify_track_id: extractSpotifyTrackIdFromUrl(input.song_spotify_url),
@@ -420,37 +396,44 @@ export function useCuratorDeals() {
         ends_at: input.ends_at ?? null,
         ramp_up_days: input.ramp_up_days ?? 5,
       };
-      const allSongs = [primarySong, ...(input.extra_songs ?? [])];
-      const songRows = allSongs.map((s, i) => ({
-        deal_id: deal.id,
-        song_spotify_url: s.song_spotify_url,
-        spotify_track_id: s.spotify_track_id ?? null,
-        song_name: s.song_name,
-        song_artist: s.song_artist ?? null,
-        artist_candidates: s.artist_candidates ?? (s.song_artist ? [s.song_artist] : []),
-        song_cover_url: s.song_cover_url ?? null,
-        daily_goal: s.daily_goal ?? 0,
-        duration_days: s.duration_days ?? 30,
-        target_plays: s.target_plays ?? null,
+      const allSongs = [primarySong, ...(input.extra_songs ?? [])].map((s, i) => ({
+        ...s,
         position: s.position ?? i,
-        started_at: s.started_at ?? null,
-        ends_at: s.ends_at ?? null,
-        ramp_up_days: s.ramp_up_days ?? input.ramp_up_days ?? 5,
-        // Auto-coleta de baseline: bot pega na próxima rodada (~1-2 min)
-        auto_collect: true,
-        auto_collect_status: "idle",
-        auto_collect_interval_minutes: 1440,
-        next_auto_collect_at: new Date().toISOString(),
+        artist_candidates: s.artist_candidates ?? (s.song_artist ? [s.song_artist] : []),
       }));
-      const { error: songsErr } = await supabase
-        .from("curator_deal_songs")
-        .insert(songRows);
-      if (songsErr) throw songsErr;
+
+      const dealPayload = {
+        curator_id: input.curator_id ?? null,
+        curator_name: input.curator_name,
+        baseline_plays: input.baseline_plays ?? 0,
+        cost: input.cost ?? null,
+        started_at: input.started_at ?? new Date().toISOString(),
+        ends_at: input.ends_at ?? null,
+        ramp_up_days: input.ramp_up_days ?? 5,
+      };
+
+      const { data, error: rpcErr } = await supabase.rpc(
+        "create_curator_deal_atomic" as any,
+        {
+          p_deal: dealPayload,
+          p_songs: allSongs,
+          p_force: opts?.force ?? false,
+        },
+      );
+      if (rpcErr) throw rpcErr;
+
+      const result = data as { ok: boolean; duplicate?: boolean; matches?: any[]; deal_id?: string };
+      if (result?.duplicate && !opts?.force) {
+        const err = new Error("DUPLICATE_DEAL") as Error & { matches?: any[] };
+        err.matches = result.matches ?? [];
+        throw err;
+      }
 
       await load();
-      return deal;
+      const created = (deals.find((d) => d.id === result.deal_id) ?? { id: result.deal_id }) as CuratorDeal;
+      return created;
     },
-    [user, load],
+    [user, load, deals],
   );
 
   const deleteDeal = useCallback(

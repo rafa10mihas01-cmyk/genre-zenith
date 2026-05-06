@@ -414,7 +414,29 @@ export type Database = {
           song_id?: string | null
           source?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "curator_deal_snapshots_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "curator_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curator_deal_snapshots_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "curator_playlists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curator_deal_snapshots_song_id_fkey"
+            columns: ["song_id"]
+            isOneToOne: false
+            referencedRelation: "curator_deal_songs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       curator_deal_songs: {
         Row: {
@@ -536,6 +558,7 @@ export type Database = {
           spotify_owner_id: string | null
           spotify_owner_url: string | null
           started_at: string
+          state: string
           target_plays: number
           user_id: string
         }
@@ -566,6 +589,7 @@ export type Database = {
           spotify_owner_id?: string | null
           spotify_owner_url?: string | null
           started_at?: string
+          state?: string
           target_plays: number
           user_id: string
         }
@@ -596,6 +620,7 @@ export type Database = {
           spotify_owner_id?: string | null
           spotify_owner_url?: string | null
           started_at?: string
+          state?: string
           target_plays?: number
           user_id?: string
         }
@@ -2219,6 +2244,10 @@ export type Database = {
         Args: { p_genre_id: string; p_hours?: number }
         Returns: number
       }
+      create_curator_deal_atomic: {
+        Args: { p_deal: Json; p_force?: boolean; p_songs: Json }
+        Returns: Json
+      }
       create_notification: {
         Args: {
           p_action_url?: string
@@ -2228,6 +2257,33 @@ export type Database = {
           p_type: Database["public"]["Enums"]["notification_type"]
         }
         Returns: string
+      }
+      detect_duplicate_curator_deal: {
+        Args: {
+          p_curator_id: string
+          p_curator_name: string
+          p_ends_at: string
+          p_song_spotify_url: string
+          p_spotify_track_id: string
+          p_started_at: string
+          p_user_id: string
+        }
+        Returns: {
+          deal_id: string
+          ends_at: string
+          song_name: string
+          started_at: string
+          state: string
+        }[]
+      }
+      detect_duplicate_curator_playlists: {
+        Args: { p_user_id: string }
+        Returns: {
+          deal_ids: string[]
+          deals_count: number
+          song_signature: string
+          spotify_playlist_id: string
+        }[]
       }
       expire_stale_medium_templates: {
         Args: { p_hours?: number }
@@ -2387,6 +2443,14 @@ export type Database = {
           priority: string
           reason: string
         }[]
+      }
+      recompute_curator_deal_state: {
+        Args: { p_deal_id: string }
+        Returns: undefined
+      }
+      recompute_curator_deal_totals: {
+        Args: { p_deal_id: string }
+        Returns: undefined
       }
       reconcile_account_playlist_counts: {
         Args: never
