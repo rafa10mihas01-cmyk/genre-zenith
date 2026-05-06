@@ -41,7 +41,7 @@ export default function PlaylistDeals() {
   const [editDeal, setEditDeal] = useState<CuratorDeal | null>(null);
   const [closeDealOpen, setCloseDealOpen] = useState<CuratorDeal | null>(null);
 
-  const { deals, logs, playlists, songs, alerts, curators, balances, progressByDeal, loading, deleteDeal, addLog, addBaseline, insertSnapshots, closeDeal, reopenDeal, forceCollectNow, updateCurator, archiveCurator, deleteCurator, reload } = useCuratorDeals();
+  const { deals, logs, playlists, songs, alerts, curators, balances, progressByDeal, loading, deleteDeal, addLog, addBaseline, insertSnapshots, closeDeal, reopenDeal, forceCollectNow, updateCurator, archiveCurator, deleteCurator, pauseCurator, reload } = useCuratorDeals();
   const { clients } = useClients();
 
   // KPIs do topo — derivados dos deals + logs + playlists
