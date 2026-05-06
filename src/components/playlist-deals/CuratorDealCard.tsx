@@ -256,6 +256,33 @@ export function CuratorDealCard({
           </div>
         )}
 
+        {/* Origem das playlists — alinhado com a sheet */}
+        {!isClosed && (
+          hasWhitelist ? (
+            <div className="flex items-center gap-3 flex-wrap text-[11px] border-t border-border/40 pt-2.5">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                <span className="text-muted-foreground">Curador</span>
+                <span className="tabular-nums font-semibold text-foreground">{plBreakdown.curator}</span>
+              </span>
+              {plBreakdown.algo > 0 && (
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/70" />
+                  <span className="text-muted-foreground">Algoritmo</span>
+                  <span className="tabular-nums font-semibold text-foreground">{plBreakdown.algo}</span>
+                  <span className="text-muted-foreground/70">(visualização)</span>
+                </span>
+              )}
+            </div>
+          ) : (
+            <div className="rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-1.5 flex items-center gap-1.5">
+              <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0" />
+              <span className="text-[11px] text-destructive font-medium">
+                Curador não cadastrou playlists — coleta pausada
+              </span>
+            </div>
+          )
+        )}
 
         {/* Status do robô (auto-coleta) */}
         {!isClosed && songs.length > 0 && (
