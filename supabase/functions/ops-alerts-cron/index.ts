@@ -244,5 +244,67 @@ Deno.serve(async (req) => {
     }
   }
 
+  // 9) Ingestão do bot falhando: ≥3 erros em scope=bot nos últimos 15min
+  {
+    const { data } = await supabase
+      .from("ops_metrics")
+      .select("operation,status")
+      .gte("created_at", fifteenMinAgo)
+      .eq("scope", "bot")
+      .eq("status", "error");
+    const counts = new Map<string, number>();
+    for (const r of data ?? []) {
+      counts.set((r as any).operation, (counts.get((r as any).operation) ?? 0) + 1);
+    }
+    const offenders = Array.from(counts.entries()).filter(([, n]) => n >= 3);
+    if (offenders.length) {
+      const desc = offenders.map(([op, n]) => `${op}: ${n}`).join(", ");
+      if (await notifyOnce(supabase, {
+        kind: "ops_bot_ingest_errors",
+        type: "warning",
+        domain: "bot",
+        severity: "high",
+        title: "Ingestão do robô falhando",
+        message: `Operações do robô com 3+ erros em 15min: ${desc}.`,
+        actionUrl: "/sistema",
+      })) fired.push("bot_ingest_errors");
+    }
+  }
+
+  // 10) Overbooking financeiro: deals com plays acima do esperado pela duração
+  {
+    const { data } = await supabase
+      .from("curator_deals")
+      .select("id, target_plays, reconciled_total_plays, started_at, ends_at, song_name")
+      .is("closed_at", null)
+      .not("ends_at", "is", null);
+    const offenders: Array<{ id: string; song: string; ratio: number }> = [];
+    for (const d of (data ?? []) as any[]) {
+      const start = d.started_at ? new Date(d.started_at).getTime() : null;
+      const end = d.ends_at ? new Date(d.ends_at).getTime() : null;
+      if (!start || !end || end <= start) continue;
+      const elapsed = Math.max(0, now - start);
+      const total = end - start;
+      const elapsedRatio = Math.min(1, elapsed / total);
+      const expected = (d.target_plays ?? 0) * elapsedRatio;
+      const actual = d.reconciled_total_plays ?? 0;
+      if (expected > 0 && actual > expected * 2) {
+        offenders.push({ id: d.id, song: d.song_name ?? "?", ratio: actual / expected });
+      }
+    }
+    if (offenders.length) {
+      const top = offenders.slice(0, 3).map((o) => `${o.song} (${o.ratio.toFixed(1)}x)`).join(", ");
+      if (await notifyOnce(supabase, {
+        kind: "ops_financeiro_overbooking",
+        type: "warning",
+        domain: "financeiro",
+        severity: "medium",
+        title: "Overbooking financeiro detectado",
+        message: `${offenders.length} deal(s) com plays >2x do esperado pela duração: ${top}.`,
+        actionUrl: "/playlist-deals",
+      })) fired.push("financeiro_overbooking");
+    }
+  }
+
   return jr({ ok: true, fired, at: new Date().toISOString() });
 });
