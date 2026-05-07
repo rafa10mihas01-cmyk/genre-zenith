@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { FileText } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { NexEngineLogo } from "@/components/NexEngineLogo";
 import { cn } from "@/lib/utils";
 
 export interface PrintThumbsProps {
