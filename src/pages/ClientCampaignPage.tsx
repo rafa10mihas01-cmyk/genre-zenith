@@ -659,8 +659,8 @@ export default function ClientCampaignPage() {
                             >
                               {p.status}
                             </span>
-                            <span className="text-[11px] text-muted-foreground tabular-nums truncate">
-                              +{formatPlays(p.delivered)} plays
+                            <span className="text-[10px] text-muted-foreground/70 uppercase tracking-wider">
+                              entregando
                             </span>
                           </div>
                         </div>
