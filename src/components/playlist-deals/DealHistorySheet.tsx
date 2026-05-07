@@ -286,16 +286,14 @@ function PlaylistRow({ p }: { p: CuratorPlaylist }) {
   const position = typeof p.position_in_paste === "number" ? p.position_in_paste : null;
 
   return (
-    <li className="group flex items-center gap-3 rounded-lg px-3 py-2.5 min-h-[60px] hover:bg-[hsl(var(--elevated))] transition-colors">
+    <li className="group grid min-w-[600px] grid-cols-[28px_40px_minmax(220px,1fr)_96px_24px] items-center gap-3 px-4 py-3 min-h-[64px] hover:bg-[hsl(var(--elevated))] transition-colors">
       {/* posição */}
-      {position !== null && (
-        <div className="w-6 shrink-0 text-right text-[11px] font-semibold tabular-nums text-muted-foreground">
-          #{position}
-        </div>
-      )}
+      <div className="text-right text-[11px] font-semibold tabular-nums text-muted-foreground">
+        {position !== null ? `#${position}` : "—"}
+      </div>
 
       {/* cover */}
-      <div className="h-10 w-10 shrink-0 rounded-md overflow-hidden bg-[hsl(var(--elevated))] border border-white/[0.04] flex items-center justify-center">
+      <div className="h-10 w-10 rounded-md overflow-hidden bg-[hsl(var(--elevated))] border border-border flex items-center justify-center">
         {p.image_url ? (
           <img src={p.image_url} alt="" className="h-full w-full object-cover" />
         ) : (
@@ -304,7 +302,7 @@ function PlaylistRow({ p }: { p: CuratorPlaylist }) {
       </div>
 
       {/* nome + meta */}
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0">
         <div className="flex items-center gap-2">
           <span
             className={cn("h-1.5 w-1.5 rounded-full shrink-0", STATUS_DOT[status])}
@@ -322,26 +320,27 @@ function PlaylistRow({ p }: { p: CuratorPlaylist }) {
       </div>
 
       {/* tag + link */}
-      <div className="flex items-center gap-2 shrink-0">
-        <span
-          className={cn(
-            "text-[10px] font-semibold px-2 h-5 rounded-full inline-flex items-center justify-center w-[78px]",
-            STATUS_CHIP[status],
-          )}
-        >
-          {STATUS_LABEL[status]}
-        </span>
-        {p.spotify_url && (
-          <a
-            href={p.spotify_url}
-            target="_blank"
-            rel="noreferrer"
-            className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground transition-opacity"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <ExternalLink className="h-3.5 w-3.5" />
-          </a>
+      <span
+        className={cn(
+          "text-[10px] font-semibold px-2 h-5 rounded-full inline-flex items-center justify-center w-24 justify-self-start",
+          STATUS_CHIP[status],
         )}
+      >
+        {STATUS_LABEL[status]}
+      </span>
+      <div className="flex items-center justify-center">
+        {p.spotify_url ? (
+            <a
+              href={p.spotify_url}
+              target="_blank"
+              rel="noreferrer"
+              className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground transition-opacity"
+              onClick={(e) => e.stopPropagation()}
+              aria-label="Abrir no Spotify"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+          ) : null}
       </div>
     </li>
   );
@@ -1144,7 +1143,7 @@ export function DealHistorySheet({
                                     Nenhuma playlist vinculada a este registro.
                                   </div>
                                 ) : (
-                                  <ul className="space-y-0.5 -mx-1">
+                                  <ul className="rounded-2xl border border-border bg-card divide-y divide-border overflow-x-auto overflow-y-hidden overscroll-x-contain">
                                     {linked.map((p) => (
                                       <PlaylistRow key={p.id} p={p} />
                                     ))}
