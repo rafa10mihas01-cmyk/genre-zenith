@@ -31,6 +31,9 @@ const RequestSchema = z.object({
         url: z.string().optional(),
         made_by: z.string().optional(),
         plays_text: z.string().optional(),
+        plays_24h: z.union([z.number(), z.string()]).nullable().optional(),
+        plays_7d: z.union([z.number(), z.string()]).nullable().optional(),
+        plays_28d: z.union([z.number(), z.string()]).nullable().optional(),
       }).passthrough(),
     )
     .optional(),
