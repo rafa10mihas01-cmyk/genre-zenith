@@ -273,7 +273,7 @@ Deno.serve(async (req) => {
     duration_ms: Date.now() - t0,
     deal_id,
     song_id,
-    metadata: { inserted, skipped },
+    metadata: { inserted, skipped, queue_age_ms: queueAgeMs },
   });
 
   return jr({ ok: true, inserted, skipped, next_auto_collect_at: nextAt });
