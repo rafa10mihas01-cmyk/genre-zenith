@@ -43,7 +43,7 @@ export default function Cerebro() {
   const navigate = useNavigate();
   const [genres, setGenres] = useState<GenreOpt[]>([]);
   const [activeSlug, setActiveSlug] = useState<string>(paramSlug ?? "");
-  const [tab, setTab] = useScreenField<string>("/cerebro", "tab", "visao");
+  const [tab, setTab] = useScreenField<string>("/cerebro", "tab", "decisoes");
   const [running, setRunning] = useState(false);
   const [sbStats, setSbStats] = useState<{ active: number; analyzed: number; needsAttention: number } | null>(null);
 
