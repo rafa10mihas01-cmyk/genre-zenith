@@ -12,6 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
 import { EquipeTab } from "@/components/settings/EquipeTab";
+import { AccountsManager } from "@/components/operacao/AccountsManager";
 
 const STORAGE_KEY = "nx-collect-settings";
 const SETTINGS_ROUTE = "/configuracoes";
