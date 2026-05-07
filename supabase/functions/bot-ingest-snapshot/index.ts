@@ -248,6 +248,7 @@ Deno.serve(async (req) => {
     auto_collect_error: null,
     last_auto_collect_at: new Date().toISOString(),
     next_auto_collect_at: nextAt,
+    queued_at: null,
   };
   if (print_taken === true) {
     updatePayload.last_print_at = new Date().toISOString();
