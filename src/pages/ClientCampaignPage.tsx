@@ -95,12 +95,10 @@ function formatShortDate(iso: string | Date | null | undefined): string {
 function formatDateTime(iso: string | null | undefined): string {
   if (!iso) return "—";
   try {
-    return new Date(iso).toLocaleString("pt-BR", {
-      day: "2-digit",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    const d = new Date(iso);
+    const date = d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+    const time = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    return `${date} · ${time}`;
   } catch {
     return "—";
   }
@@ -508,7 +506,7 @@ export default function ClientCampaignPage() {
                   <p
                     className={cn(
                       "font-semibold tabular-nums truncate",
-                      kpi.small ? "text-xs sm:text-sm" : "text-base sm:text-lg",
+                      kpi.small ? "text-[13px] sm:text-[14px]" : "text-base sm:text-lg",
                       "tone" in kpi && kpi.tone ? kpi.tone : "text-foreground",
                     )}
                     title={kpi.value}
@@ -607,8 +605,8 @@ export default function ClientCampaignPage() {
           {/* Playlists monitoradas */}
           {playlists.length > 0 ? (
             <Card className="nx-card !p-0 border-border">
-              <CardContent className="p-5 sm:p-6 space-y-4">
-                <div className="flex items-center justify-between gap-3">
+              <CardContent className="p-5 sm:p-6 pt-6 sm:pt-7 space-y-5">
+                <div className="flex items-start justify-between gap-3 flex-wrap">
                   <div className="min-w-0">
                     <h2 className="text-[15px] font-semibold inline-flex items-center gap-2 tracking-tight">
                       <ListMusic className="h-4 w-4 text-muted-foreground" />
@@ -618,16 +616,23 @@ export default function ClientCampaignPage() {
                       Playlists que estão entregando plays para a campanha
                     </p>
                   </div>
-                  <span className="text-[12px] text-muted-foreground tabular-nums shrink-0">
-                    {playlists.length}
+                  <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-primary bg-primary/10 ring-1 ring-primary/20 rounded-full px-2.5 py-1 tabular-nums shrink-0">
+                    <span className="relative flex h-1.5 w-1.5">
+                      <span className="absolute inline-flex h-full w-full rounded-full bg-primary opacity-75 animate-ping" />
+                      <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
+                    </span>
+                    {playlists.length} ativas
                   </span>
                 </div>
 
                 <ul className="space-y-2 max-h-[420px] overflow-y-auto pr-1 nx-scroll">
                   {playlists.map((p, i) => (
-                    <li key={`${p.name}-${i}`} className="nx-subcard !p-3">
+                    <li
+                      key={`${p.name}-${i}`}
+                      className="nx-subcard !p-3 transition-all hover:!border-primary/30 hover:bg-[hsl(var(--hover))]"
+                    >
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="relative h-10 w-10 rounded-md overflow-hidden bg-muted ring-1 ring-border shrink-0">
+                        <div className="relative h-11 w-11 rounded-md overflow-hidden bg-muted ring-1 ring-border shrink-0">
                           {p.image_url ? (
                             <img
                               src={p.image_url}
@@ -654,9 +659,17 @@ export default function ClientCampaignPage() {
                             >
                               {p.status}
                             </span>
-                            <span className="text-[11px] text-muted-foreground tabular-nums truncate">
-                              +{formatPlays(p.delivered)} plays
+                            <span className="text-[10px] text-muted-foreground/70 uppercase tracking-wider">
+                              entregando
                             </span>
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <div className="text-[14px] font-semibold tabular-nums text-primary leading-none">
+                            +{formatPlays(p.delivered)}
+                          </div>
+                          <div className="text-[9px] uppercase tracking-wider text-muted-foreground mt-1">
+                            entregues
                           </div>
                         </div>
                       </div>
