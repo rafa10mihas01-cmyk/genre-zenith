@@ -55,6 +55,7 @@ Deno.serve(async (req) => {
           auto_collect_status: "idle",
           auto_collect_error: gate.error,
           next_auto_collect_at: new Date(Date.now() + 60 * 60_000).toISOString(),
+          queued_at: null,
         })
         .eq("id", song_id);
       return jr({ ok: false, error: gate.error, code: gate.code, gated: true }, gate.status);
@@ -68,6 +69,7 @@ Deno.serve(async (req) => {
       .update({
         auto_collect_status: bot_error === "auth_required" ? "auth_required" : "error",
         auto_collect_error: String(bot_error).slice(0, 500),
+        queued_at: null,
       })
       .eq("id", song_id);
 
@@ -123,6 +125,7 @@ Deno.serve(async (req) => {
           auto_collect_error: null,
           last_auto_collect_at: new Date().toISOString(),
           next_auto_collect_at: nextAt,
+          queued_at: null,
         })
         .eq("id", song_id);
       return jr({ ok: true, deduped: true, reason: "log within 90s exists" });
@@ -234,17 +237,19 @@ Deno.serve(async (req) => {
   // Atualiza song com next_auto_collect_at
   const { data: songRow } = await supabase
     .from("curator_deal_songs")
-    .select("auto_collect_interval_minutes")
+    .select("auto_collect_interval_minutes, queued_at")
     .eq("id", song_id)
     .single();
   const intervalMin = songRow?.auto_collect_interval_minutes ?? 120;
   const nextAt = new Date(Date.now() + intervalMin * 60_000).toISOString();
+  const queueAgeMs = (songRow as any)?.queued_at ? Date.now() - new Date((songRow as any).queued_at).getTime() : null;
 
   const updatePayload: Record<string, unknown> = {
     auto_collect_status: "idle",
     auto_collect_error: null,
     last_auto_collect_at: new Date().toISOString(),
     next_auto_collect_at: nextAt,
+    queued_at: null,
   };
   if (print_taken === true) {
     updatePayload.last_print_at = new Date().toISOString();
@@ -268,7 +273,7 @@ Deno.serve(async (req) => {
     duration_ms: Date.now() - t0,
     deal_id,
     song_id,
-    metadata: { inserted, skipped },
+    metadata: { inserted, skipped, queue_age_ms: queueAgeMs },
   });
 
   return jr({ ok: true, inserted, skipped, next_auto_collect_at: nextAt });

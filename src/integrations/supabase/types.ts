@@ -572,6 +572,7 @@ export type Database = {
           last_print_at: string | null
           next_auto_collect_at: string | null
           position: number
+          queued_at: string | null
           ramp_up_days: number
           smartlink_url: string | null
           song_artist: string | null
@@ -602,6 +603,7 @@ export type Database = {
           last_print_at?: string | null
           next_auto_collect_at?: string | null
           position?: number
+          queued_at?: string | null
           ramp_up_days?: number
           smartlink_url?: string | null
           song_artist?: string | null
@@ -632,6 +634,7 @@ export type Database = {
           last_print_at?: string | null
           next_auto_collect_at?: string | null
           position?: number
+          queued_at?: string | null
           ramp_up_days?: number
           smartlink_url?: string | null
           song_artist?: string | null

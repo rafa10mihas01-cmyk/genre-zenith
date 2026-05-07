@@ -47,16 +47,38 @@ Deno.serve(async (req) => {
   // Recovery de handoff: se a música ficou "queued" por mais de 3 min sem o bot
   // devolver print/snapshot, assumimos que a entrega se perdeu antes da AI/print.
   // Isso NÃO muda o ciclo diário; só reentrega tentativa travada de baseline/coleta.
+  // Recovery correto: usa queued_at (quando virou queued), NÃO next_auto_collect_at.
   const handoffTimeoutAgo = new Date(Date.now() - 3 * 60 * 1000).toISOString();
-  await supabase
+  const { data: stuckRows } = await supabase
     .from("curator_deal_songs")
-    .update({
-      auto_collect_status: "error",
-      auto_collect_error: "Queued >3min sem retorno do bot — reentregando",
-    })
+    .select("id, queued_at")
     .eq("auto_collect_status", "queued")
-    .not("next_auto_collect_at", "is", null)
-    .lt("next_auto_collect_at", handoffTimeoutAgo);
+    .not("queued_at", "is", null)
+    .lt("queued_at", handoffTimeoutAgo);
+  if (stuckRows && stuckRows.length) {
+    await supabase
+      .from("curator_deal_songs")
+      .update({
+        auto_collect_status: "error",
+        auto_collect_error: "Queued >3min sem retorno do bot — reentregando",
+        queued_at: null,
+      })
+      .in("id", stuckRows.map((r: any) => r.id));
+    for (const r of stuckRows as any[]) {
+      const ageMs = r.queued_at ? Date.now() - new Date(r.queued_at).getTime() : null;
+      try {
+        await supabase.from("bot_events").insert({
+          bot_name: callerBotName,
+          session_id: callerSession,
+          song_id: r.id,
+          step: "recovery",
+          status: "warning",
+          message: "queued >3min — reentregando",
+          metadata: { queue_age_ms: ageMs },
+        });
+      } catch (_) { /* ignore */ }
+    }
+  }
 
   // Candidatas: auto_collect=true E (next_auto_collect_at <= now OR next null)
   // E (status idle OU error) — não pega running/queued
@@ -150,6 +172,7 @@ Deno.serve(async (req) => {
       .update({
         auto_collect_status: "queued",
         auto_collect_error: "Entregue ao robô; aguardando print/snapshot",
+        queued_at: new Date().toISOString(),
       })
       .in("id", ids);
   }

@@ -500,6 +500,7 @@ Deno.serve(async (req) => {
           auto_collect_status: "idle",
           auto_collect_error: "Aguardando curador cadastrar playlists",
           next_auto_collect_at: new Date(Date.now() + 60 * 60_000).toISOString(),
+          queued_at: null,
         })
         .eq("id", song_id);
     }
@@ -561,6 +562,7 @@ Deno.serve(async (req) => {
           .update({
             auto_collect_status: "error",
             auto_collect_error: `extract: ${msg.slice(0, 400)}`,
+            queued_at: null,
           })
           .eq("id", song_id);
       }
@@ -987,6 +989,7 @@ Deno.serve(async (req) => {
         last_auto_collect_at: new Date().toISOString(),
         next_auto_collect_at: nextAt,
         last_print_at: new Date().toISOString(),
+        queued_at: null,
       })
       .eq("id", song_id);
   }
