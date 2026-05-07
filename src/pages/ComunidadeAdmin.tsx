@@ -542,7 +542,7 @@ function ConvitesTab({ adminId, onChange }: { adminId: string; onChange?: () => 
                 <li key={i.id} className="flex items-center gap-3 py-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <code className="text-xs bg-elevated px-1.5 py-0.5 rounded">{i.code}</code>
+                      <code className="text-xs bg-elevated px-1.5 py-0.5 rounded">{i.slug || i.code}</code>
                       <StatusBadge status={realStatus} />
                     </div>
                     <div className="mt-1 text-xs text-muted-foreground truncate">
