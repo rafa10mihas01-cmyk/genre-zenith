@@ -47,7 +47,7 @@ import {
 import { useClients, type Client } from "@/hooks/useClients";
 import { useCuratorFinance } from "@/hooks/useCuratorFinance";
 import type { CuratorDeal, CuratorDealSong } from "@/lib/curatorDealsUtils";
-import { curatorPublicUrl } from "@/lib/curatorPublicUrl";
+import { curatorShareUrl } from "@/lib/curatorPublicUrl";
 import { formatNumber } from "@/lib/format";
 import { useFormDraft } from "@/hooks/useFormDraft";
 import { DraftBanner, DraftIndicator } from "@/components/forms/DraftBanner";
@@ -1020,7 +1020,7 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
             throw err;
           }
         }
-        const link = curatorPublicUrl({ slug: deal.slug, public_token: deal.public_token });
+        const link = curatorShareUrl({ slug: deal.slug, public_token: deal.public_token });
         try {
           await navigator.clipboard.writeText(link);
         } catch {
