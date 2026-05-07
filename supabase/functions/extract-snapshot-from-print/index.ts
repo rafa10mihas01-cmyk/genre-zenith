@@ -465,6 +465,15 @@ Deno.serve(async (req) => {
     domByPos.set(position, item);
     domItems.push(item);
   }
+  const domWindowCoverage = domItems.reduce(
+    (acc, item) => {
+      if (item.plays_24h != null) acc.with24h += 1;
+      if (item.plays_7d != null) acc.with7d += 1;
+      if (item.plays_28d != null) acc.with28d += 1;
+      return acc;
+    },
+    { total: domItems.length, with24h: 0, with7d: 0, with28d: 0 },
+  );
 
   // WHITELIST: só consideramos playlists declaradas pelo curador.
   // 🔒 BLINDAGEM: se o curador NÃO cadastrou nenhuma playlist, NÃO coleta.
@@ -1009,6 +1018,17 @@ Deno.serve(async (req) => {
     duracao_ms: elapsedMs,
     mensagem: `deal=${deal_id} src=${usedDomDirect ? "dom" : "gemini"} prints=${print_urls.length} dom=${dom_playlists.length} found=${extracted.length} dom_linked=${domLinked} algo=${algorithmicCount} algo_new=${algorithmicNew} algo_gone=${algorithmicGone} inserted=${inserted} skipped=${skipped} whitelist=${whitelistActive ? whitelist.size : "off"} filtered_out=${filteredOut} ms=${elapsedMs}`,
   });
+  await supabase.from("collection_logs").insert({
+    acao: "extract_window_coverage",
+    status:
+      domWindowCoverage.with7d === domWindowCoverage.total &&
+      domWindowCoverage.with28d === domWindowCoverage.total &&
+      domWindowCoverage.with24h === domWindowCoverage.total
+        ? "ok"
+        : "parcial",
+    duracao_ms: 0,
+    mensagem: `deal=${deal_id} batch=${batch_id ?? "none"} dom=${domWindowCoverage.total} 24h=${domWindowCoverage.with24h} 7d=${domWindowCoverage.with7d} 28d=${domWindowCoverage.with28d}`,
+  });
 
   recordMetric(supabase, {
     scope: "ocr",
@@ -1026,6 +1046,7 @@ Deno.serve(async (req) => {
       dom_linked: domLinked,
       algorithmic: algorithmicCount,
       filtered_out: filteredOut,
+      window_coverage: domWindowCoverage,
       batch_id: batch_id ?? null,
     },
   });
