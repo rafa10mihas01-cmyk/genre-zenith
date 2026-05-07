@@ -506,8 +506,14 @@ export function CuratorDealCard({
               ) : (
                 <DropdownMenuItem
                   className="gap-2 rounded-lg items-start py-2"
-                  onClick={() => handleCopyClientLink(songsWithClientLink[0]?.client_token ?? deal.client_token ?? null)}
-                  disabled={!deal.client_token && !songsWithClientLink[0]?.client_token}
+                  onClick={() => {
+                    const first = songsWithClientLink[0];
+                    handleCopyClientLink({
+                      slug: first?.slug ?? null,
+                      client_token: first?.client_token ?? deal.client_token ?? null,
+                    });
+                  }}
+                  disabled={!deal.client_token && !songsWithClientLink[0]?.client_token && !songsWithClientLink[0]?.slug}
                 >
                   <User className="h-4 w-4 mt-0.5 shrink-0" />
                   <div className="flex flex-col min-w-0 flex-1">
