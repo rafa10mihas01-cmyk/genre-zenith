@@ -847,8 +847,8 @@ export function DealHistorySheet({
                   </div>
 
                   {/* ações */}
-                  <div className="flex items-center gap-2">
-                    {deal.curator_id && (
+                  {deal.curator_id && (
+                    <div className="flex items-center gap-2">
                       <Button
                         size="sm"
                         variant="outline"
@@ -858,17 +858,8 @@ export function DealHistorySheet({
                         <Library className="h-3.5 w-3.5" />
                         Catálogo do curador
                       </Button>
-                    )}
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-9 gap-1.5 text-xs ml-auto"
-                      onClick={() => setPasteOpen(true)}
-                    >
-                      <ClipboardPaste className="h-3.5 w-3.5" />
-                      Colar dados
-                    </Button>
-                  </div>
+                    </div>
+                  )}
 
                   {curatorTotal > 0 && (
                     <Input
