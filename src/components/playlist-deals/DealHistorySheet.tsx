@@ -414,54 +414,56 @@ export function DealHistorySheet({
 
             {/* TABS */}
             <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)} className="flex-1 flex flex-col min-h-0">
-              <div className="px-6 pt-3 border-b border-white/[0.04] shrink-0">
-                <TabsList className="bg-transparent p-0 h-auto gap-1">
+              <div className="px-6 pt-3 border-b border-border shrink-0">
+                <TabsList className="bg-transparent p-0 h-auto gap-1 flex-wrap">
                   <TabsTrigger
                     value="resumo"
-                    className="data-[state=active]:bg-[hsl(var(--elevated))] data-[state=active]:text-foreground rounded-lg gap-2 h-9 px-3"
+                    className="data-[state=active]:bg-[hsl(var(--elevated))] data-[state=active]:text-foreground text-muted-foreground rounded-lg gap-2 h-9 px-3"
                   >
                     <BarChart3 className="h-3.5 w-3.5" />
                     Resumo
                   </TabsTrigger>
                   <TabsTrigger
-                    value="hoje"
-                    className="data-[state=active]:bg-[hsl(var(--elevated))] data-[state=active]:text-foreground rounded-lg gap-2 h-9 px-3"
+                    value="performance"
+                    className="data-[state=active]:bg-[hsl(var(--elevated))] data-[state=active]:text-foreground text-muted-foreground rounded-lg gap-2 h-9 px-3"
                   >
                     <Activity className="h-3.5 w-3.5" />
-                    Hoje
+                    Performance
                     {todayBreakdown && todayBreakdown.total_today > 0 && (
-                      <span className="text-[10px] font-bold tabular-nums text-primary">
+                      <span className="text-[10px] font-semibold tabular-nums text-primary">
                         {fmtCompact(todayBreakdown.total_today)}
                       </span>
                     )}
                   </TabsTrigger>
+                  <span className="mx-1 h-5 w-px bg-border self-center" aria-hidden />
                   <TabsTrigger
                     value="playlists"
-                    className="data-[state=active]:bg-[hsl(var(--elevated))] data-[state=active]:text-foreground rounded-lg gap-2 h-9 px-3"
+                    className="data-[state=active]:bg-[hsl(var(--elevated))] data-[state=active]:text-foreground text-muted-foreground rounded-lg gap-2 h-9 px-3"
                   >
                     <ListMusic className="h-3.5 w-3.5" />
                     Curador
-                    <span className="text-[10px] font-bold tabular-nums text-muted-foreground">
+                    <span className="text-[10px] font-semibold tabular-nums text-muted-foreground">
                       {curatorTotal}
                     </span>
                   </TabsTrigger>
                   <TabsTrigger
                     value="algoritmo"
-                    className="data-[state=active]:bg-[hsl(var(--elevated))] data-[state=active]:text-foreground rounded-lg gap-2 h-9 px-3"
+                    className="data-[state=active]:bg-[hsl(var(--elevated))] data-[state=active]:text-foreground text-muted-foreground rounded-lg gap-2 h-9 px-3"
                   >
                     <Sparkles className="h-3.5 w-3.5" />
                     Algoritmo
-                    <span className="text-[10px] font-bold tabular-nums text-muted-foreground">
+                    <span className="text-[10px] font-semibold tabular-nums text-muted-foreground">
                       {algoTotal}
                     </span>
                   </TabsTrigger>
+                  <span className="mx-1 h-5 w-px bg-border self-center" aria-hidden />
                   <TabsTrigger
                     value="historico"
-                    className="data-[state=active]:bg-[hsl(var(--elevated))] data-[state=active]:text-foreground rounded-lg gap-2 h-9 px-3"
+                    className="data-[state=active]:bg-[hsl(var(--elevated))] data-[state=active]:text-foreground text-muted-foreground rounded-lg gap-2 h-9 px-3"
                   >
                     <Clock className="h-3.5 w-3.5" />
                     Histórico
-                    <span className="text-[10px] font-bold tabular-nums text-muted-foreground">
+                    <span className="text-[10px] font-semibold tabular-nums text-muted-foreground">
                       {reversedLogs.length}
                     </span>
                   </TabsTrigger>
