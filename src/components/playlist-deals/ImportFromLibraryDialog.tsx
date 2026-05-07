@@ -16,11 +16,13 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useCuratorLibrary } from "@/hooks/useCuratorLibrary";
-import type { CuratorDeal, CuratorPlaylist } from "@/lib/curatorDealsUtils";
+import type { CuratorDeal, CuratorDealSong, CuratorPlaylist } from "@/lib/curatorDealsUtils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export interface ImportFromLibraryDialogProps {
   open: boolean;
   deal: CuratorDeal | null;
+  songs?: CuratorDealSong[];
   existingPlaylists: CuratorPlaylist[];
   onClose: () => void;
   onImported?: () => void;
@@ -34,6 +36,7 @@ function fmt(n: number | null | undefined): string {
 export function ImportFromLibraryDialog({
   open,
   deal,
+  songs = [],
   existingPlaylists,
   onClose,
   onImported,
@@ -44,14 +47,19 @@ export function ImportFromLibraryDialog({
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
+  const multiSong = songs.length >= 2;
+  const [songId, setSongId] = useState<string>("");
 
   useEffect(() => {
     if (!open) {
       setSearch("");
       setSelected(new Set());
       setSubmitting(false);
+      setSongId("");
+    } else if (multiSong && !songId && songs[0]) {
+      setSongId(songs[0].id);
     }
-  }, [open]);
+  }, [open, multiSong, songs, songId]);
 
   // IDs já presentes no deal — não permitir duplicar
   const existingKeys = useMemo(() => {
@@ -86,11 +94,16 @@ export function ImportFromLibraryDialog({
       toast.error("Selecione ao menos uma playlist");
       return;
     }
+    if (multiSong && !songId) {
+      toast.error("Selecione a música deste deal");
+      return;
+    }
     setSubmitting(true);
     try {
       const chosen = items.filter((p) => selected.has(p.id));
       const rows = chosen.map((p) => ({
         deal_id: deal.id,
+        song_id: multiSong ? songId : (songs[0]?.id ?? null),
         playlist_name: p.playlist_name,
         spotify_url: p.spotify_url,
         spotify_playlist_id: p.spotify_playlist_id,
@@ -135,6 +148,23 @@ export function ImportFromLibraryDialog({
         </DialogHeader>
 
         <div className="flex-1 overflow-hidden flex flex-col gap-3 min-h-0">
+          {multiSong && (
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Vincular à música</label>
+              <Select value={songId} onValueChange={setSongId} disabled={submitting}>
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue placeholder="Selecione a música" />
+                </SelectTrigger>
+                <SelectContent>
+                  {songs.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.song_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
