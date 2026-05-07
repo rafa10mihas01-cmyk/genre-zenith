@@ -8,6 +8,7 @@ import {
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
+import { useExternalSplash } from "@/hooks/useExternalSplash";
 import { useAuth } from "@/contexts/AuthContext";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
@@ -592,6 +593,7 @@ function ConvitesTab({ adminId, onChange }: { adminId: string; onChange?: () => 
 
 /* ============ MEMBROS ============ */
 function MembrosTab({ onChange }: { onChange?: () => void }) {
+  const onExternal = useExternalSplash();
   const [list, setList] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -640,6 +642,7 @@ function MembrosTab({ onChange }: { onChange?: () => void }) {
                         href={m.playlist_url}
                         target="_blank"
                         rel="noreferrer"
+                        onClick={() => onExternal()}
                         className="text-primary hover:underline truncate max-w-[260px]"
                         title={m.playlist_url}
                       >
@@ -655,6 +658,7 @@ function MembrosTab({ onChange }: { onChange?: () => void }) {
                           href={`https://instagram.com/${m.instagram_handle.replace(/^@/, "")}`}
                           target="_blank"
                           rel="noreferrer"
+                          onClick={() => onExternal()}
                           className="text-primary hover:underline"
                         >
                           @{m.instagram_handle.replace(/^@/, "")}
