@@ -722,6 +722,9 @@ Deno.serve(async (req) => {
           ai_raw: { ...pl, algorithmic: true },
           batch_id: batch_id ?? null,
           correlation_id: correlation_id ?? null,
+          plays_24h: (pl as any).plays_24h ?? null,
+          plays_7d: (pl as any).plays_7d ?? null,
+          plays_28d: (pl as any).plays_28d ?? null,
         });
       }
       continue;
