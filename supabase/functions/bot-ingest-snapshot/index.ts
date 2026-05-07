@@ -237,11 +237,12 @@ Deno.serve(async (req) => {
   // Atualiza song com next_auto_collect_at
   const { data: songRow } = await supabase
     .from("curator_deal_songs")
-    .select("auto_collect_interval_minutes")
+    .select("auto_collect_interval_minutes, queued_at")
     .eq("id", song_id)
     .single();
   const intervalMin = songRow?.auto_collect_interval_minutes ?? 120;
   const nextAt = new Date(Date.now() + intervalMin * 60_000).toISOString();
+  const queueAgeMs = (songRow as any)?.queued_at ? Date.now() - new Date((songRow as any).queued_at).getTime() : null;
 
   const updatePayload: Record<string, unknown> = {
     auto_collect_status: "idle",
