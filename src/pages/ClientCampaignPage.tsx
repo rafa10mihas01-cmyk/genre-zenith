@@ -506,7 +506,7 @@ export default function ClientCampaignPage() {
                   <p
                     className={cn(
                       "font-semibold tabular-nums truncate",
-                      kpi.small ? "text-xs sm:text-sm" : "text-base sm:text-lg",
+                      kpi.small ? "text-[13px] sm:text-[14px]" : "text-base sm:text-lg",
                       "tone" in kpi && kpi.tone ? kpi.tone : "text-foreground",
                     )}
                     title={kpi.value}
