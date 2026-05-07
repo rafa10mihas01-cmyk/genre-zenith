@@ -537,6 +537,9 @@ Deno.serve(async (req) => {
         made_by: d.made_by ?? null,
         position: d.position ?? null,
         plays: d.plays ?? 0,
+        plays_24h: d.plays_24h ?? null,
+        plays_7d: d.plays_7d ?? null,
+        plays_28d: d.plays_28d ?? null,
       }));
     console.log(`[extract] usando DOM direto: ${extracted.length} playlists com plays_text`);
   } else {
