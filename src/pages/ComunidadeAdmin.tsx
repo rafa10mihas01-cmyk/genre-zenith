@@ -1,94 +1,217 @@
-// /comunidade-admin — Painel admin da Comunidade (3 abas).
-// Convites: gerar/listar/revogar. Membros: ver/suspender. Aprovações: validar provas.
-import { useEffect, useState } from "react";
-import { Check, Copy, Loader2, Plus, X } from "lucide-react";
+// /comunidade-admin — Painel admin da Comunidade. Padrão visual igual a PlaylistDeals/Operação.
+import { useEffect, useMemo, useState } from "react";
+import {
+  Check, ChevronDown, Copy, Loader2, Plus, X,
+  Mail, Megaphone, Users as UsersIcon, ClipboardCheck, ShieldCheck,
+  UserPlus, Sparkles,
+} from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
+import { KpiBig } from "@/components/KpiBig";
 import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import { usePersistedState } from "@/hooks/usePersistedState";
+import { formatNumber } from "@/lib/format";
 
 type Invite = {
-  id: string;
-  code: string;
-  email: string | null;
-  status: string;
-  expires_at: string;
-  created_at: string;
-  note: string | null;
+  id: string; code: string; email: string | null; status: string;
+  expires_at: string; created_at: string; note: string | null;
 };
-
 type Member = {
-  id: string;
-  user_id: string;
-  display_name: string;
-  instagram_handle: string | null;
-  playlist_name: string | null;
-  playlist_url: string | null;
-  status: string;
-  tier: string;
-  points: number;
-  joined_at: string;
+  id: string; user_id: string; display_name: string;
+  instagram_handle: string | null; playlist_name: string | null; playlist_url: string | null;
+  status: string; tier: string; points: number; joined_at: string;
 };
-
 type Participation = {
-  id: string;
-  member_id: string;
-  status: string;
-  proof_url: string | null;
-  points_offered: number;
-  created_at: string;
-  proof_submitted_at: string | null;
+  id: string; member_id: string; status: string; proof_url: string | null;
+  points_offered: number; created_at: string; proof_submitted_at: string | null;
   community_members: { display_name: string; playlist_name: string | null } | null;
   curator_deals: { song_name: string; song_artist: string | null } | null;
 };
 
 const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
 
+type AdminTab = "convites" | "campanhas" | "membros" | "aprovacoes" | "auditoria";
+
+const TABS: { id: AdminTab; label: string; icon: typeof Mail }[] = [
+  { id: "convites",   label: "Convites",    icon: Mail },
+  { id: "campanhas",  label: "Campanhas",   icon: Megaphone },
+  { id: "membros",    label: "Membros",     icon: UsersIcon },
+  { id: "aprovacoes", label: "Aprovações",  icon: ClipboardCheck },
+  { id: "auditoria",  label: "Auditoria",   icon: ShieldCheck },
+];
+
 export default function ComunidadeAdmin() {
   const { user } = useAuth();
-  const [tab, setTab] = useState("convites");
+  const [tab, setTab] = usePersistedState<AdminTab>("comunidade-admin:tab:v1", "convites");
+  const [counts, setCounts] = useState({
+    convites: 0, campanhas: 0, membros: 0, aprovacoes: 0,
+    convitesPendentes: 0, campanhasAbertas: 0,
+  });
+
+  async function loadCounts() {
+    const [inv, camp, mem, part, invP, campO] = await Promise.all([
+      supabase.from("community_invites").select("id", { count: "exact", head: true }),
+      supabase.from("community_campaigns").select("id", { count: "exact", head: true }),
+      supabase.from("community_members").select("id", { count: "exact", head: true }),
+      supabase.from("community_participations").select("id", { count: "exact", head: true }).eq("status", "submitted"),
+      supabase.from("community_invites").select("id", { count: "exact", head: true }).eq("status", "pending"),
+      supabase.from("community_campaigns").select("id", { count: "exact", head: true }).eq("status", "open"),
+    ]);
+    setCounts({
+      convites: inv.count ?? 0,
+      campanhas: camp.count ?? 0,
+      membros: mem.count ?? 0,
+      aprovacoes: part.count ?? 0,
+      convitesPendentes: invP.count ?? 0,
+      campanhasAbertas: campO.count ?? 0,
+    });
+  }
+  useEffect(() => {
+    loadCounts();
+    const h = () => loadCounts();
+    window.addEventListener("comunidade-admin:refresh", h);
+    return () => window.removeEventListener("comunidade-admin:refresh", h);
+  }, []);
+
+  const fire = (name: string) => window.dispatchEvent(new CustomEvent(name));
 
   return (
     <PageContainer>
       <PageHeader
         title="Comunidade"
         subtitle="Gerencie convites, membros e aprovações da comunidade beta"
-        kicker="Módulo de Comunidade"
+        actions={
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button className="rounded-full h-9 gap-1.5 max-w-full" aria-label="Criar novo">
+                <Plus className="h-4 w-4" /> <span className="truncate">Novo</span>
+                <ChevronDown className="h-3.5 w-3.5 opacity-80" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56 rounded-xl p-1.5">
+              <DropdownMenuItem
+                className="gap-2 rounded-lg items-start py-2"
+                onClick={() => { setTab("convites"); setTimeout(() => fire("comunidade-admin:new-invite"), 50); }}
+              >
+                <UserPlus className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium leading-tight">Novo convite</span>
+                  <span className="text-[11px] text-muted-foreground leading-tight">Liberar acesso à comunidade</span>
+                </div>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="gap-2 rounded-lg items-start py-2"
+                onClick={() => { setTab("campanhas"); setTimeout(() => fire("comunidade-admin:new-campaign"), 50); }}
+              >
+                <Sparkles className="h-4 w-4 mt-0.5 shrink-0" />
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium leading-tight">Nova campanha</span>
+                  <span className="text-[11px] text-muted-foreground leading-tight">A partir de um deal aberto</span>
+                </div>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        }
       />
-      <Tabs value={tab} onValueChange={setTab} className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="convites">Convites</TabsTrigger>
-          <TabsTrigger value="campanhas">Campanhas</TabsTrigger>
-          <TabsTrigger value="membros">Membros</TabsTrigger>
-          <TabsTrigger value="aprovacoes">Aprovações</TabsTrigger>
-          <TabsTrigger value="auditoria">Auditoria</TabsTrigger>
-        </TabsList>
-        <TabsContent value="convites"><ConvitesTab adminId={user?.id ?? ""} /></TabsContent>
-        <TabsContent value="campanhas"><CampanhasTab adminId={user?.id ?? ""} /></TabsContent>
-        <TabsContent value="membros"><MembrosTab /></TabsContent>
-        <TabsContent value="aprovacoes"><AprovacoesTab /></TabsContent>
-        <TabsContent value="auditoria"><AuditoriaTab /></TabsContent>
-      </Tabs>
+
+      {/* KPIs — padrão igual a PlaylistDeals/Operação */}
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiBig
+          icon={UsersIcon}
+          label="Membros"
+          value={formatNumber(counts.membros)}
+          hint="Total ativo na comunidade"
+        />
+        <KpiBig
+          icon={Mail}
+          label="Convites pendentes"
+          value={formatNumber(counts.convitesPendentes)}
+          tone="primary"
+          hint={`${counts.convites} no total`}
+        />
+        <KpiBig
+          icon={Megaphone}
+          label="Campanhas abertas"
+          value={formatNumber(counts.campanhasAbertas)}
+          tone="success"
+          hint={`${counts.campanhas} no total`}
+        />
+        <KpiBig
+          icon={ClipboardCheck}
+          label="Aguardando revisão"
+          value={formatNumber(counts.aprovacoes)}
+          tone={counts.aprovacoes > 0 ? "primary" : "default"}
+          hint="Provas para validar"
+        />
+      </section>
+
+      {/* TABS — mesmo padrão visual de Operação */}
+      <div className="flex items-center gap-1 border-b border-border overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden -mx-4 md:-mx-6 px-4 md:px-6">
+        {TABS.map((t) => {
+          const Icon = t.icon;
+          const active = tab === t.id;
+          const count =
+            t.id === "convites" ? counts.convites :
+            t.id === "campanhas" ? counts.campanhas :
+            t.id === "membros" ? counts.membros :
+            t.id === "aprovacoes" ? counts.aprovacoes :
+            0;
+          return (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={cn(
+                "px-4 h-10 inline-flex items-center gap-2 text-sm font-medium border-b-2 transition-colors -mb-px shrink-0 whitespace-nowrap",
+                active
+                  ? "border-primary text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <Icon className="h-3.5 w-3.5" />
+              {t.label}
+              {t.id !== "auditoria" && (
+                <span
+                  className={cn(
+                    "ml-1 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-bold tabular-nums",
+                    active ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground",
+                  )}
+                >
+                  {count}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="min-h-[480px] animate-tab-in">
+        {tab === "convites" && <ConvitesTab adminId={user?.id ?? ""} onChange={loadCounts} />}
+        {tab === "campanhas" && <CampanhasTab adminId={user?.id ?? ""} onChange={loadCounts} />}
+        {tab === "membros" && <MembrosTab onChange={loadCounts} />}
+        {tab === "aprovacoes" && <AprovacoesTab onChange={loadCounts} />}
+        {tab === "auditoria" && <AuditoriaTab />}
+      </div>
     </PageContainer>
   );
 }
+
 
 /* ============ AUDITORIA ============ */
 function AuditoriaTab() {
