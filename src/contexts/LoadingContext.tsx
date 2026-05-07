@@ -30,6 +30,8 @@ type LoadingCtx = {
   withLoading: <T,>(promise: Promise<T>) => Promise<T>;
   /** True enquanto o splash full-screen está ativo (1ª carga / troca de rota). */
   isSplashing: boolean;
+  /** Mostra o splash full-screen por X ms (padrão 800ms). Útil ao abrir links externos. */
+  triggerSplash: (ms?: number) => void;
 };
 
 const Ctx = createContext<LoadingCtx | null>(null);
@@ -71,6 +73,12 @@ export function LoadingProvider({ children }: { children: ReactNode }) {
     };
   }, [location.pathname]);
 
+  const triggerSplash = useCallback((ms: number = 800) => {
+    setSplashing(true);
+    if (splashTimer.current) clearTimeout(splashTimer.current);
+    splashTimer.current = setTimeout(() => setSplashing(false), ms);
+  }, []);
+
   return (
     <Ctx.Provider
       value={{
@@ -78,6 +86,7 @@ export function LoadingProvider({ children }: { children: ReactNode }) {
         start,
         withLoading,
         isSplashing,
+        triggerSplash,
       }}
     >
       {children}

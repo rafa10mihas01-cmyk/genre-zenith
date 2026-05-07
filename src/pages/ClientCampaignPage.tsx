@@ -5,6 +5,7 @@
 // mas só com os dados visíveis ao cliente (sem upload, sem notificações).
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useExternalSplash } from "@/hooks/useExternalSplash";
 import {
   Loader2,
   TrendingUp,
@@ -123,6 +124,7 @@ const PACE_LABEL: Record<SafeProgress["pace"], { label: string; tone: string }> 
 export default function ClientCampaignPage() {
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
+  const onExternal = useExternalSplash();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deal, setDeal] = useState<SafeDeal | null>(null);
@@ -389,6 +391,7 @@ export default function ClientCampaignPage() {
                         href={selectedSong?.smartlink_url ?? deal.smartlink_url ?? "#"}
                         target="_blank"
                         rel="noreferrer"
+                        onClick={() => onExternal()}
                         className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] text-muted-foreground hover:text-foreground bg-muted/40 ring-1 ring-border hover:ring-border hover:bg-muted/60 transition-colors"
                       >
                         <ExternalLink className="h-3 w-3" />
