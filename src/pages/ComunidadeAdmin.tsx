@@ -161,8 +161,9 @@ function CampanhasTab({ adminId }: { adminId: string }) {
   }
 
   async function setStatus(id: string, status: string) {
-    const patch: Record<string, unknown> = { status };
-    if (status === "closed") patch.closed_at = new Date().toISOString();
+    const patch = status === "closed"
+      ? { status, closed_at: new Date().toISOString() }
+      : { status };
     const { error } = await supabase.from("community_campaigns").update(patch).eq("id", id);
     if (error) return toast.error("Falha", { description: error.message });
     load();
