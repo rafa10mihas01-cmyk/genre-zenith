@@ -125,8 +125,17 @@ export default function JoinInvite() {
         </div>
 
         {state.status === "loading" && (
-          <div className="rounded-2xl border border-border bg-card p-6 flex items-center gap-2 text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" /> Verificando convite…
+          <div className="rounded-2xl border border-border bg-card p-8 flex flex-col items-center gap-4">
+            <div className="animate-nx-logo-pulse">
+              <NexEngineLogo variant="mark" size={48} />
+            </div>
+            <div className="relative h-[3px] w-32 overflow-hidden rounded-full bg-elevated">
+              <div
+                className="absolute inset-y-0 left-0 w-full origin-left rounded-full bg-gradient-to-r from-transparent via-primary to-transparent animate-nx-indeterminate"
+                style={{ boxShadow: "0 0 6px hsl(var(--primary) / 0.5)" }}
+              />
+            </div>
+            <span className="text-xs text-muted-foreground">Verificando convite…</span>
           </div>
         )}
 
