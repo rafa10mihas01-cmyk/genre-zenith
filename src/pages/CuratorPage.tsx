@@ -1598,11 +1598,11 @@ export default function CuratorPage() {
                 if (f) handleImportFile(f);
               }}
             />
-            <div className="grid grid-cols-2 gap-3 px-2">
+            <div className="grid grid-cols-3 gap-2 sm:gap-3 px-1 sm:px-2">
               <Button
                 type="button"
                 variant="outline"
-                className="h-11 w-full px-4 text-[13px] font-medium rounded-xl border-border/70 bg-[hsl(var(--elevated))] hover:bg-[hsl(var(--elevated))]/80 hover:border-primary/50 hover:text-primary transition-all duration-200 [&>svg]:shrink-0"
+                className="h-11 w-full px-2 sm:px-4 text-[12px] sm:text-[13px] font-medium rounded-xl border-border/70 bg-[hsl(var(--elevated))] hover:bg-[hsl(var(--elevated))]/80 hover:border-primary/50 hover:text-primary transition-all duration-200 [&>svg]:shrink-0"
                 onClick={() => {
                   if (playlistSongRequired) {
                     toast.error("Escolha uma música primeiro", {
@@ -1619,23 +1619,66 @@ export default function CuratorPage() {
                 disabled={submitting || importing}
               >
                 {importing ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  <Loader2 className="h-4 w-4 animate-spin sm:mr-2" />
                 ) : (
-                  <Upload className="h-4 w-4 mr-2" />
+                  <Upload className="h-4 w-4 sm:mr-2" />
                 )}
-                <span className="truncate">Importar</span>
+                <span className="hidden sm:inline truncate">Importar</span>
               </Button>
               <Button
                 type="button"
                 variant="outline"
-                className="h-11 w-full px-4 text-[13px] font-medium rounded-xl border-border/70 bg-[hsl(var(--elevated))] hover:bg-[hsl(var(--elevated))]/80 hover:border-primary/50 hover:text-primary transition-all duration-200 [&>svg]:shrink-0"
+                className="h-11 w-full px-2 sm:px-4 text-[12px] sm:text-[13px] font-medium rounded-xl border-border/70 bg-[hsl(var(--elevated))] hover:bg-[hsl(var(--elevated))]/80 hover:border-primary/50 hover:text-primary transition-all duration-200 [&>svg]:shrink-0"
+                onClick={() => {
+                  if (playlistSongRequired) {
+                    toast.error("Escolha uma música primeiro", {
+                      description: "Selecione a música acima antes de colar as playlists.",
+                    });
+                    return;
+                  }
+                  if (!access.writable) {
+                    toast.error("Esta campanha está bloqueada para novas playlists");
+                    return;
+                  }
+                  setPasteOpen(true);
+                }}
+                disabled={submitting || importing}
+              >
+                <ClipboardPaste className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline truncate">Colar várias</span>
+                <span className="sm:hidden truncate">Colar</span>
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 w-full px-2 sm:px-4 text-[12px] sm:text-[13px] font-medium rounded-xl border-border/70 bg-[hsl(var(--elevated))] hover:bg-[hsl(var(--elevated))]/80 hover:border-primary/50 hover:text-primary transition-all duration-200 [&>svg]:shrink-0"
                 onClick={handleDownloadTemplate}
                 disabled={importing}
               >
-                <Download className="h-4 w-4 mr-2" />
-                <span className="truncate"><span className="sm:hidden">Modelo</span><span className="hidden sm:inline">Baixar modelo</span></span>
+                <Download className="h-4 w-4 sm:mr-2" />
+                <span className="truncate"><span className="sm:hidden">Modelo</span><span className="hidden sm:inline">Modelo</span></span>
               </Button>
             </div>
+            <p className="text-[11px] text-muted-foreground/80 text-center pt-1 leading-relaxed">
+              Importe planilha (até 100) ou cole até 50 links de uma vez
+              <br />
+              <span className="opacity-70">Baixe o modelo pronto e envie preenchido</span>
+            </p>
+          </CardContent>
+        </Card>
+
+        <PasteUrlsDialog
+          open={pasteOpen}
+          onClose={() => setPasteOpen(false)}
+          publicToken={deal?.public_token ?? token ?? ""}
+          songId={selectedSongId}
+          songRequired={playlistSongRequired}
+          writable={access.writable}
+          onImported={() => load()}
+        />
+
+        {/* placeholder para manter estrutura do JSX original abaixo */}
+        <div className="hidden" />
             <p className="text-[11px] text-muted-foreground/80 text-center pt-1 leading-relaxed">
               Importe até 100 playlists (.CSV ou Excel)
               <br />
