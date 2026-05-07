@@ -1,87 +1,113 @@
-# NexEngine — Reformulação para Growth Manual
+# Sistema Inteligente de Navegação, Cache e Restore
 
-## Filosofia
-**A IA pensa, o humano decide.** Coleta/análise/aprendizado seguem automáticos. Criação, edição e publicação viram 1-clique manual.
+Objetivo: padronizar como o app lembra (ou esquece) estado entre navegações, com comportamento previsível tipo Spotify/YouTube/Notion.
 
-## Fase 1 — Banco e estrutura (backend mínimo)
+## Arquitetura
 
-1. **Tabela `managed_playlists`** (nova) — playlists reais que você opera.
-   - Campos: `id`, `spotify_playlist_id`, `spotify_url`, `name`, `cover_url`, `followers`, `tracks_count`, `genre_id`, `imported_at`, `archived_at`, `last_diagnosis_at`, `metadata jsonb`.
-   - RLS: `has_team_access()`.
-2. **Tabela `playlist_diagnoses`** (nova) — snapshots de sugestões da IA.
-   - Campos: `playlist_id`, `created_at`, `name_score`, `name_suggestion`, `tracks_suggestions jsonb`, `cover_suggestion`, `applied_at`, `applied_by`.
-3. Reaproveitar `track-playlist-metrics`, `genre_models`, `palavras_chave`, `padroes_nome`, `extract-replication-rules` apontando para `managed_playlists`.
+Criar 4 peças centrais em `src/lib/screen-state/`:
 
-## Fase 2 — Operação reformulada (frontend)
+### 1. `screenStateStore.ts` — store global
+- Map em memória `screenId → { state, scrollY, updatedAt, ttlMs }`
+- Espelha em `sessionStorage` (chave `nx:screen-state`) com debounce
+- API: `getScreenState(id)`, `setScreenState(id, patch)`, `resetScreenState(id)`, `purgeExpired()`
+- TTLs default: dashboards 5min, listas 2min, formulários = sessão, fluxos = 0 (sempre reset)
 
-Substituir as abas atuais de `Operacao.tsx` por:
+### 2. `useScreenState.ts` — hook principal para telas de CONTEXTO
+```ts
+const [tab, setTab] = useScreenField("operacao", "tab", "playlists");
+const [filters, setFilters] = useScreenField("performance", "filters", {});
+```
+- Lê do store no mount, persiste em mudança
+- Substitui `usePersistedState` aos poucos, mas mantém compatibilidade (mesma chave de sessionStorage não quebra)
 
-### Aba 1 — Minhas Playlists (principal)
-- Lista de cards das playlists importadas (capa, nome, seguidores, gênero, status).
-- Botão **"+ Importar playlist"** → cola URL Spotify → função `import-managed-playlist` puxa metadata.
-- Cada card tem ações: **Diagnosticar**, **Editar**, **Arquivar**.
-- **Drawer de diagnóstico** ao clicar Diagnosticar:
-  - Nome: score + sugestão (palavras-chave faltando) → botão "Aplicar nome no Spotify"
-  - Capa: comparação visual + sugestões → "Trocar capa" (upload / URL / IA)
-  - Faixas: lista de termos quentes faltando → "Adicionar faixas sugeridas"
-  - Posição vs concorrentes
-  - Cada sugestão: 1 botão = 1 ação no Spotify
+### 3. `useFlowState.ts` — hook para telas de FLUXO (reset ao reabrir)
+- Onboarding, wizards, success screens
+- No mount: se a navegação é "entrada nova" (PUSH/REPLACE) → `resetScreenState(id)`
+- Em POP (voltar) mantém só se ainda dentro do mesmo fluxo
 
-### Aba 2 — Criar nova (avançado, secundário)
-- Formulário simples: gênero + nome.
-- Capa em 3 opções (upload PC = padrão, URL, IA opcional).
-- Botão **"Publicar no Spotify"** (manual, sem cron).
+### 4. `ScreenStateManager` (component) — montado no `App.tsx`
+- Escuta navegação (já existe `ScrollManager`, vamos estendê-lo)
+- Em PUSH para rota classificada como "flow" → reseta state daquela rota
+- `purgeExpired()` a cada 60s
+- Salva scroll já é feito pelo `ScrollManager` — vamos integrar a leitura no mesmo storage
 
-### Aba 3 — Arquivadas
-- Lista read-only de playlists arquivadas (mantém histórico/métricas).
-- Botão "Restaurar".
+### 5. `screenRegistry.ts` — classificação por rota
+```ts
+{
+  "/": { kind: "context", ttl: 5*60_000 },
+  "/operacao": { kind: "context", ttl: 2*60_000 },
+  "/performance": { kind: "context", ttl: 2*60_000 },
+  "/playlist-deals": { kind: "context", ttl: 2*60_000 },
+  "/curadores": { kind: "context", ttl: 2*60_000 },
+  "/cerebro": { kind: "context", ttl: 5*60_000 },
+  "/sistema": { kind: "context", ttl: 60_000 },
+  "/comunidade-admin": { kind: "context", ttl: 2*60_000 },
+  "/comunidade/onboarding": { kind: "flow", ttl: 0 },
+  "/comunidade/join/*": { kind: "flow", ttl: 0 },
+}
+```
 
-## Fase 3 — Edge functions
+## Migração das telas existentes
 
-**Novas (manuais, chamadas por botão):**
-- `import-managed-playlist` — recebe URL, busca metadata Spotify, insere em `managed_playlists`.
-- `diagnose-managed-playlist` — roda análise (nome/faixas/capa) usando `genre_models`, salva em `playlist_diagnoses`.
-- `apply-playlist-change` — aplica 1 mudança no Spotify (rename | replace_cover | add_tracks).
-- `archive-managed-playlist` — soft delete local.
+Substituir `usePersistedState` nas telas de CONTEXTO sem quebrar storage atual:
+- `Operacao.tsx` (tab + filtros)
+- `Performance.tsx` (filtros)
+- `PlaylistDeals.tsx` (tabs)
+- `ComunidadeAdmin.tsx` (tab)
+- `Cerebro.tsx`, `Sistema.tsx`, `Curadores.tsx` (tabs/filtros)
 
-**Mantidas automáticas (cron continua):**
-- `daily-collect`, `track-playlist-metrics`, `analyze-genre`, `enrich-playlists`, `extract-replication-rules`, `learning-loop` (somente parte de coleta/análise).
+Aplicar reset em FLUXOS:
+- `comunidade/Onboarding.tsx` — sempre Step 1 ao reabrir
+- `JoinInvite.tsx` — limpa state ao desmontar
 
-**Desligar crons (manter código, virar botão "Rodar agora"):**
-- `auto-replicate-playlists`, `auto-adjust-playlists`, `autopilot-all-genres`, `genre-autopilot`.
-- Remover schedules em `pg_cron` dessas funções (manter as de coleta).
+## Cache leve de dados
 
-## Fase 4 — Reorganização do menu
+Já temos React Query (`QueryClient`). Configurar defaults globais em `App.tsx`:
+- `staleTime`: 60s (dados frescos)
+- `gcTime`: 5min (cache em memória)
+- `refetchOnWindowFocus`: true
+- `refetchOnReconnect`: true
+- `placeholderData: keepPreviousData` recomendado nas listas
+Isso já dá sensação de "navegação instantânea" sem mexer página por página.
 
-- **Operação** = Minhas Playlists (foco)
-- **Criação** vira sub-aba dentro de Operação (não mais item de menu principal)
-- **Performance** = passa a comparar antes/depois das playlists gerenciadas
-- **Cérebro/Sistema/Configurações** = sem mudança
+## Scroll restoration
 
-## Fase 5 — Capa: nova prioridade
-No editor de capa do diagnóstico e da criação:
-1. Upload do PC (padrão visível)
-2. Colar URL de imagem
-3. Gerar com IA (botão secundário, ícone de ✨)
+`ScrollManager` atual já faz POP→restaura, PUSH→topo. Adicionar:
+- Em rotas `kind: "flow"` → sempre topo, mesmo em POP
+- Salvar scroll dentro do mesmo store (chave única por rota)
 
-## Detalhes técnicos
-- Cron desativado via `cron.unschedule('nome-do-job')` para auto-replicate/auto-adjust/autopilot.
-- `requireTeamAccess` em todas as novas edge functions.
-- Storage bucket `playlist-covers` (já existe? se não, criar público).
-- `apply-playlist-change` usa token Spotify do `accounts` correspondente.
-- Frontend: novo hook `useManagedPlaylists`, componentes `ManagedPlaylistCard`, `DiagnosisDrawer`, `CoverPicker`.
+## Modais / Drawers
+- Padrão: `useFlowState` — fecha = limpa state interno
+- Não reabrir automaticamente (já é o comportamento atual; documentar)
 
-## Ordem de execução
-1. Migrations (tabelas + unschedule crons de ação)
-2. Edge functions novas
-3. Frontend: aba "Minhas Playlists" + import flow
-4. Drawer de diagnóstico + apply
-5. Mover criação para sub-aba + reordenar capa
-6. Aba arquivadas
-7. Performance: trocar fonte para `managed_playlists`
+## Loading UX
+- Já temos `SplashLoader`, `TopProgressBar`, `PageLoader`. Não mexer nisso.
+- Garantir que React Query com `keepPreviousData` evite skeleton em retorno.
 
-## Fora do escopo desta fase
-- Notificações automáticas de queda
-- A/B test de capas
-- Recomendação cross-playlist
-(vão para backlog "automações fortes" depois de validar growth real)
+## Helpers públicos
+Exportar de `src/lib/screen-state/index.ts`:
+- `useScreenField(screenId, field, initial)`
+- `useFlowField(screenId, field, initial)`
+- `resetScreenState(screenId)`
+- `persistScreenState(screenId, partial)`
+- `restoreScreenState<T>(screenId): T | null`
+
+## Arquivos novos
+- `src/lib/screen-state/store.ts`
+- `src/lib/screen-state/registry.ts`
+- `src/lib/screen-state/hooks.ts`
+- `src/lib/screen-state/index.ts`
+- `src/components/ScreenStateManager.tsx`
+
+## Arquivos editados
+- `src/App.tsx` (montar manager, configurar QueryClient defaults)
+- `src/components/ScrollManager.tsx` (consultar registry para flow)
+- `src/pages/Operacao.tsx`, `Performance.tsx`, `PlaylistDeals.tsx`, `ComunidadeAdmin.tsx`, `Cerebro.tsx`, `Sistema.tsx`, `Curadores.tsx` — trocar `usePersistedState` por `useScreenField` (mantendo chaves para não perder estado atual)
+- `src/pages/comunidade/Onboarding.tsx` — usar `useFlowField`
+- `src/hooks/usePersistedState.ts` — manter como está (compat)
+
+## Resultado
+- Volta numa lista → mesma tab, mesmo filtro, mesmo scroll
+- Reabre Onboarding → começa do Step 1
+- Cache React Query → navegação sem reload visual
+- `purgeExpired` evita state fantasma e memory leak
