@@ -1707,47 +1707,115 @@ export default function CuratorPage() {
                 </div>
               </div>
             ) : (
-              <ul className="space-y-2 max-h-[480px] overflow-y-auto pr-1 -mr-1 scroll-smooth [mask-image:linear-gradient(to_bottom,black_calc(100%-32px),transparent)]">
-                {[...snapshotHistory].reverse().map((entry, idx, arr) => {
-                  const next = arr[idx + 1];
-                  const delta = next
-                    ? Number(entry.total_plays) - Number(next.total_plays)
-                    : 0;
-                  return (
-                    <li key={entry.captured_at}>
-                      <div className="nx-subcard p-3 flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-lg bg-muted/40 ring-1 ring-border flex items-center justify-center shrink-0">
-                          <ImageIcon className="h-4 w-4 text-muted-foreground" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="text-[13px] font-semibold leading-tight">
-                            {entry.is_baseline ? "Baseline" : "Snapshot semanal"}
-                          </div>
-                          <div className="text-[11px] text-muted-foreground mt-0.5">
-                            {formatDateTime(entry.captured_at)} · {entry.playlists_count} {entry.playlists_count === 1 ? "playlist" : "playlists"}
-                          </div>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <div className="text-[13px] font-bold tabular-nums leading-tight">
-                            {Number(entry.total_plays).toLocaleString("pt-BR")}
-                          </div>
-                          {next && delta !== 0 && (
-                            <div
-                              className={cn(
-                                "text-[10.5px] font-semibold tabular-nums mt-0.5",
-                                delta >= 0 ? "text-success" : "text-destructive",
-                              )}
-                            >
-                              {delta >= 0 ? "+" : "−"}
-                              {Math.abs(delta).toLocaleString("pt-BR")}
+              (() => {
+                const reversed = [...snapshotHistory].reverse();
+                // Agrupa por dia local
+                const startOfDay = (iso: string) => {
+                  const d = new Date(iso);
+                  d.setHours(0, 0, 0, 0);
+                  return d.getTime();
+                };
+                const today = startOfDay(new Date().toISOString());
+                const oneDay = 24 * 60 * 60 * 1000;
+                const labelFor = (ts: number) => {
+                  if (ts === today) return "Hoje";
+                  if (ts === today - oneDay) return "Ontem";
+                  const d = new Date(ts);
+                  return d.toLocaleDateString("pt-BR", {
+                    day: "2-digit",
+                    month: "long",
+                    weekday: "short",
+                  });
+                };
+                const groups = new Map<number, typeof reversed>();
+                for (const e of reversed) {
+                  const k = startOfDay(e.captured_at);
+                  if (!groups.has(k)) groups.set(k, []);
+                  groups.get(k)!.push(e);
+                }
+                const orderedKeys = Array.from(groups.keys()).sort((a, b) => b - a);
+
+                return (
+                  <div className="max-h-[480px] overflow-y-auto pr-1 -mr-1 scroll-smooth space-y-5 [mask-image:linear-gradient(to_bottom,black_calc(100%-32px),transparent)]">
+                    {orderedKeys.map((key) => {
+                      const entries = groups.get(key)!;
+                      const dayTotal = entries.reduce(
+                        (acc, e) => acc + Number(e.total_plays || 0),
+                        0,
+                      );
+                      const dayPlaysAvg = entries.length > 0
+                        ? Math.round(dayTotal / entries.length)
+                        : 0;
+                      return (
+                        <section key={key} className="space-y-2">
+                          <div className="sticky top-0 z-10 -mx-1 px-1 py-1 bg-card/95 backdrop-blur-sm flex items-center justify-between gap-2">
+                            <div className="inline-flex items-center gap-2">
+                              <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-foreground">
+                                {labelFor(key)}
+                              </span>
+                              <span className="text-[10px] text-muted-foreground tabular-nums">
+                                {entries.length} {entries.length === 1 ? "print" : "prints"}
+                              </span>
                             </div>
-                          )}
-                        </div>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
+                            <span className="text-[10.5px] text-muted-foreground tabular-nums">
+                              média {dayPlaysAvg.toLocaleString("pt-BR")}
+                            </span>
+                          </div>
+                          <ul className="space-y-2">
+                            {entries.map((entry) => {
+                              // delta vs print imediatamente anterior na timeline global (reversed)
+                              const globalIdx = reversed.findIndex(
+                                (x) => x.captured_at === entry.captured_at,
+                              );
+                              const next = reversed[globalIdx + 1];
+                              const delta = next
+                                ? Number(entry.total_plays) - Number(next.total_plays)
+                                : 0;
+                              const time = new Date(entry.captured_at).toLocaleTimeString(
+                                "pt-BR",
+                                { hour: "2-digit", minute: "2-digit" },
+                              );
+                              return (
+                                <li key={entry.captured_at}>
+                                  <div className="nx-subcard p-3 flex items-center gap-3">
+                                    <div className="h-10 w-10 rounded-lg bg-muted/40 ring-1 ring-border flex items-center justify-center shrink-0">
+                                      <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                      <div className="text-[13px] font-semibold leading-tight">
+                                        {entry.is_baseline ? "Baseline" : "Snapshot"}
+                                      </div>
+                                      <div className="text-[11px] text-muted-foreground mt-0.5 tabular-nums">
+                                        {time} · {entry.playlists_count} {entry.playlists_count === 1 ? "playlist" : "playlists"}
+                                      </div>
+                                    </div>
+                                    <div className="text-right shrink-0">
+                                      <div className="text-[13px] font-bold tabular-nums leading-tight">
+                                        {Number(entry.total_plays).toLocaleString("pt-BR")}
+                                      </div>
+                                      {next && delta !== 0 && (
+                                        <div
+                                          className={cn(
+                                            "text-[10.5px] font-semibold tabular-nums mt-0.5",
+                                            delta >= 0 ? "text-success" : "text-destructive",
+                                          )}
+                                        >
+                                          {delta >= 0 ? "+" : "−"}
+                                          {Math.abs(delta).toLocaleString("pt-BR")}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        </section>
+                      );
+                    })}
+                  </div>
+                );
+              })()
             )}
           </CardContent>
         </Card>
