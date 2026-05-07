@@ -645,6 +645,39 @@ export type Database = {
           },
         ]
       }
+      community_points_ledger: {
+        Row: {
+          campaign_id: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          member_id: string
+          participation_id: string | null
+          points: number
+          reason: string
+        }
+        Insert: {
+          campaign_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          member_id: string
+          participation_id?: string | null
+          points: number
+          reason: string
+        }
+        Update: {
+          campaign_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          member_id?: string
+          participation_id?: string | null
+          points?: number
+          reason?: string
+        }
+        Relationships: []
+      }
       curator_deal_logs: {
         Row: {
           created_at: string
@@ -1707,6 +1740,7 @@ export type Database = {
           read: boolean
           title: string
           type: Database["public"]["Enums"]["notification_type"]
+          user_id: string | null
         }
         Insert: {
           action_url?: string | null
@@ -1717,6 +1751,7 @@ export type Database = {
           read?: boolean
           title: string
           type?: Database["public"]["Enums"]["notification_type"]
+          user_id?: string | null
         }
         Update: {
           action_url?: string | null
@@ -1727,6 +1762,7 @@ export type Database = {
           read?: boolean
           title?: string
           type?: Database["public"]["Enums"]["notification_type"]
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -2833,6 +2869,8 @@ export type Database = {
         Args: { p_campaign_id: string }
         Returns: Json
       }
+      community_audit_report: { Args: never; Returns: Json }
+      community_expire_stale: { Args: never; Returns: number }
       community_list_open_campaigns: {
         Args: never
         Returns: {
@@ -2849,10 +2887,42 @@ export type Database = {
           title: string
         }[]
       }
+      community_member_points: { Args: { p_member: string }; Returns: number }
+      community_my_participations: {
+        Args: never
+        Returns: {
+          created_at: string
+          expires_at: string
+          id: string
+          points_awarded: number
+          points_offered: number
+          proof_submitted_at: string
+          review_note: string
+          reviewed_at: string
+          song_artist: string
+          song_cover_url: string
+          song_name: string
+          status: string
+          title: string
+        }[]
+      }
+      community_recompute_member: {
+        Args: { p_member: string }
+        Returns: undefined
+      }
+      community_revert_participation: {
+        Args: { p_participation_id: string; p_reason?: string }
+        Returns: Json
+      }
+      community_review_participation: {
+        Args: { p_action: string; p_note?: string; p_participation_id: string }
+        Returns: Json
+      }
       community_submit_proof: {
         Args: { p_participation_id: string; p_proof_url: string }
         Returns: Json
       }
+      community_tier_for: { Args: { p_points: number }; Returns: string }
       compare_genre_versions: {
         Args: { p_genre_id: string; p_version_a: number; p_version_b: number }
         Returns: Json
@@ -3088,6 +3158,18 @@ export type Database = {
               playlist_id: string
             }[]
           }
+      notify_member: {
+        Args: {
+          p_action_url?: string
+          p_dedupe?: string
+          p_message: string
+          p_meta?: Json
+          p_title: string
+          p_type: string
+          p_user: string
+        }
+        Returns: string
+      }
       priority_from_performance: {
         Args: { p_class: string }
         Returns: {
