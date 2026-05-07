@@ -962,10 +962,10 @@ export function DealHistorySheet({
                 </TabsContent>
 
                 {/* === HISTÓRICO === */}
-                <TabsContent value="historico" className="m-0 px-6 py-5 space-y-2">
+                <TabsContent value="historico" className="m-0 px-6 py-5 space-y-3">
                   {reversedLogs.length === 0 ? (
-                    <div className="rounded-xl border border-white/[0.04] bg-[hsl(var(--elevated))]/40 py-10 flex flex-col items-center text-center gap-2">
-                      <div className="h-10 w-10 rounded-full bg-[hsl(var(--elevated))] border border-white/[0.04] flex items-center justify-center">
+                    <div className="rounded-2xl border border-border bg-card py-10 flex flex-col items-center text-center gap-2">
+                      <div className="h-10 w-10 rounded-full bg-[hsl(var(--elevated))] border border-border flex items-center justify-center">
                         <ImageOff className="h-4 w-4 text-muted-foreground" />
                       </div>
                       <div className="text-sm font-medium text-foreground">Nenhum registro ainda</div>
