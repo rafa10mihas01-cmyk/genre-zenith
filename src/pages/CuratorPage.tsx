@@ -260,7 +260,7 @@ export default function CuratorPage() {
   // Filtro visual por música (não afeta números — RPC já é agregada por deal)
   const [selectedSongId, setSelectedSongId] = useState<string | null>(null);
   // Tick a cada 60s pra atualizar countdown
-  const [, setNowTick] = useState(0);
+  const [playlistWindow, setPlaylistWindow] = useState<"24h" | "7d" | "28d">("7d");
   useEffect(() => {
     const id = setInterval(() => setNowTick((n) => n + 1), 60_000);
     return () => clearInterval(id);
