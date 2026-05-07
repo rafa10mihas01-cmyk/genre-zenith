@@ -571,18 +571,6 @@ export function DealHistorySheet({
                     <BarChart3 className="h-3.5 w-3.5" />
                     Resumo
                   </TabsTrigger>
-                  <TabsTrigger
-                    value="performance"
-                    className="data-[state=active]:bg-[hsl(var(--elevated))] data-[state=active]:text-foreground text-muted-foreground rounded-lg gap-2 h-9 px-3"
-                  >
-                    <Activity className="h-3.5 w-3.5" />
-                    Performance
-                    {todayBreakdown && todayBreakdown.total_today > 0 && (
-                      <span className="text-[10px] font-semibold tabular-nums text-primary">
-                        {fmtCompact(todayBreakdown.total_today)}
-                      </span>
-                    )}
-                  </TabsTrigger>
                   <span className="mx-1 h-5 w-px bg-border self-center" aria-hidden />
                   <TabsTrigger
                     value="playlists"
