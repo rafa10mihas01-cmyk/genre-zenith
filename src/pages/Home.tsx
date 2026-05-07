@@ -42,10 +42,12 @@ type Cockpit = {
   lastAnalysisAt: string | null;
 };
 
+type AttentionReason = "decline" | "stale" | "no_data" | "seo_low" | "old_cover";
+
 type AttentionItem = {
   id: string;
   nome: string;
-  reason: "decline" | "stale" | "no_data";
+  reason: AttentionReason;
   detail: string;
   to: string;
 };
