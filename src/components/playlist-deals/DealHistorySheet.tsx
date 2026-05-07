@@ -566,43 +566,48 @@ export function DealHistorySheet({
 
             {/* TABS */}
             <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)} className="flex-1 flex flex-col min-h-0">
-              <div className="px-6 pt-3 border-b border-border shrink-0">
-                <TabsList className="bg-transparent p-0 h-auto gap-1 flex-wrap">
+              <div className="px-3 sm:px-6 pt-3 border-b border-border shrink-0">
+                {/* Mobile: ícones grandes distribuídos. Desktop: tabs com texto. */}
+                <TabsList className="bg-transparent p-0 h-auto gap-1 grid grid-cols-4 w-full sm:flex sm:flex-wrap sm:w-auto">
                   <TabsTrigger
                     value="resumo"
-                    className="data-[state=active]:bg-[hsl(var(--elevated))] data-[state=active]:text-foreground text-muted-foreground rounded-lg gap-2 h-9 px-3"
+                    aria-label="Resumo"
+                    className="data-[state=active]:bg-[hsl(var(--elevated))] data-[state=active]:text-foreground text-muted-foreground rounded-lg gap-2 h-12 sm:h-9 px-2 sm:px-3 flex-col sm:flex-row"
                   >
-                    <BarChart3 className="h-3.5 w-3.5" />
-                    Resumo
+                    <BarChart3 className="h-6 w-6 sm:h-3.5 sm:w-3.5" />
+                    <span className="hidden sm:inline">Resumo</span>
                   </TabsTrigger>
-                  <span className="mx-1 h-5 w-px bg-border self-center" aria-hidden />
+                  <span className="hidden sm:block mx-1 h-5 w-px bg-border self-center" aria-hidden />
                   <TabsTrigger
                     value="playlists"
-                    className="data-[state=active]:bg-[hsl(var(--elevated))] data-[state=active]:text-foreground text-muted-foreground rounded-lg gap-2 h-9 px-3"
+                    aria-label="Curador"
+                    className="data-[state=active]:bg-[hsl(var(--elevated))] data-[state=active]:text-foreground text-muted-foreground rounded-lg gap-2 h-12 sm:h-9 px-2 sm:px-3 flex-col sm:flex-row"
                   >
-                    <ListMusic className="h-3.5 w-3.5" />
-                    Curador
+                    <ListMusic className="h-6 w-6 sm:h-3.5 sm:w-3.5" />
+                    <span className="hidden sm:inline">Curador</span>
                     <span className="text-[10px] font-semibold tabular-nums text-muted-foreground">
                       {curatorTotal}
                     </span>
                   </TabsTrigger>
                   <TabsTrigger
                     value="algoritmo"
-                    className="data-[state=active]:bg-[hsl(var(--elevated))] data-[state=active]:text-foreground text-muted-foreground rounded-lg gap-2 h-9 px-3"
+                    aria-label="Algoritmo"
+                    className="data-[state=active]:bg-[hsl(var(--elevated))] data-[state=active]:text-foreground text-muted-foreground rounded-lg gap-2 h-12 sm:h-9 px-2 sm:px-3 flex-col sm:flex-row"
                   >
-                    <Sparkles className="h-3.5 w-3.5" />
-                    Algoritmo
+                    <Sparkles className="h-6 w-6 sm:h-3.5 sm:w-3.5" />
+                    <span className="hidden sm:inline">Algoritmo</span>
                     <span className="text-[10px] font-semibold tabular-nums text-muted-foreground">
                       {algoTotal}
                     </span>
                   </TabsTrigger>
-                  <span className="mx-1 h-5 w-px bg-border self-center" aria-hidden />
+                  <span className="hidden sm:block mx-1 h-5 w-px bg-border self-center" aria-hidden />
                   <TabsTrigger
                     value="historico"
-                    className="data-[state=active]:bg-[hsl(var(--elevated))] data-[state=active]:text-foreground text-muted-foreground rounded-lg gap-2 h-9 px-3"
+                    aria-label="Histórico"
+                    className="data-[state=active]:bg-[hsl(var(--elevated))] data-[state=active]:text-foreground text-muted-foreground rounded-lg gap-2 h-12 sm:h-9 px-2 sm:px-3 flex-col sm:flex-row"
                   >
-                    <Clock className="h-3.5 w-3.5" />
-                    Histórico
+                    <Clock className="h-6 w-6 sm:h-3.5 sm:w-3.5" />
+                    <span className="hidden sm:inline">Histórico</span>
                     <span className="text-[10px] font-semibold tabular-nums text-muted-foreground">
                       {reversedLogs.length}
                     </span>
