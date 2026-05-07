@@ -454,7 +454,7 @@ function CampanhasTab({ adminId, onChange }: { adminId: string; onChange?: () =>
 }
 
 /* ============ CONVITES ============ */
-function ConvitesTab({ adminId }: { adminId: string }) {
+function ConvitesTab({ adminId, onChange }: { adminId: string; onChange?: () => void }) {
   const [list, setList] = useState<Invite[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -474,6 +474,9 @@ function ConvitesTab({ adminId }: { adminId: string }) {
   }
   useEffect(() => {
     load();
+    const h = () => setOpen(true);
+    window.addEventListener("comunidade-admin:new-invite", h);
+    return () => window.removeEventListener("comunidade-admin:new-invite", h);
   }, []);
 
   async function create() {
@@ -500,7 +503,7 @@ function ConvitesTab({ adminId }: { adminId: string }) {
     const link = `${baseUrl}/comunidade/join/${data!.code}`;
     await navigator.clipboard?.writeText(link).catch(() => {});
     toast.message("Link copiado", { description: link });
-    load();
+    load(); onChange?.();
   }
 
   async function revoke(id: string) {
@@ -509,7 +512,7 @@ function ConvitesTab({ adminId }: { adminId: string }) {
       .update({ status: "revoked" })
       .eq("id", id);
     if (error) return toast.error("Falha", { description: error.message });
-    load();
+    load(); onChange?.();
   }
 
   async function copyLink(code: string) {
@@ -521,13 +524,6 @@ function ConvitesTab({ adminId }: { adminId: string }) {
   return (
     <Card>
       <CardContent className="p-5 space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-muted-foreground">{list.length} convites</div>
-          <Button onClick={() => setOpen(true)} size="sm">
-            <Plus className="h-4 w-4" /> Novo convite
-          </Button>
-        </div>
-
         {loading ? (
           <div className="text-sm text-muted-foreground">Carregando…</div>
         ) : list.length === 0 ? (
