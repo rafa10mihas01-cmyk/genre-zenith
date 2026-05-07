@@ -2761,6 +2761,7 @@ export type Database = {
         Args: { p_type: string }
         Returns: Database["public"]["Enums"]["notification_type"]
       }
+      accept_community_invite: { Args: { p_code: string }; Returns: string }
       cleanup_old_logs_and_snapshots: {
         Args: never
         Returns: {
@@ -2870,6 +2871,17 @@ export type Database = {
           scope: string
           target: string
           value: Json
+        }[]
+      }
+      get_community_invite_by_code: {
+        Args: { p_code: string }
+        Returns: {
+          code: string
+          email: string
+          expires_at: string
+          id: string
+          invited_by_name: string
+          status: string
         }[]
       }
       get_cron_secret: { Args: never; Returns: string }
