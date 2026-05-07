@@ -631,77 +631,118 @@ export function DealHistorySheet({
                 </TabsContent>
 
                 {/* === HOJE — contribuição por playlist === */}
-                <TabsContent value="hoje" className="m-0 px-6 py-5 space-y-3">
-                  <div className="rounded-lg border border-white/[0.04] bg-[hsl(var(--elevated))]/40 px-3 py-2 text-[11px] text-muted-foreground leading-relaxed">
-                    Quanto cada playlist somou hoje. Cálculo: último snapshot de hoje menos o último snapshot de antes de hoje (ou baseline). Audita os números do card.
-                  </div>
-
+                <TabsContent value="performance" className="m-0 px-6 py-5 space-y-4">
                   {loadingToday ? (
                     <div className="text-xs text-muted-foreground py-6 text-center">Calculando…</div>
                   ) : !todayBreakdown || todayBreakdown.rows.length === 0 ? (
-                    <div className="rounded-lg border border-white/[0.04] bg-[hsl(var(--elevated))]/40 px-3 py-8 text-center">
-                      <Activity className="h-5 w-5 text-muted-foreground/40 mx-auto mb-2" />
-                      <div className="text-xs text-muted-foreground">
-                        Sem coletas hoje ainda. Aguardando próximo snapshot do robô.
+                    <div className="rounded-2xl border border-border bg-card py-10 flex flex-col items-center text-center gap-2">
+                      <Activity className="h-5 w-5 text-muted-foreground/50" />
+                      <div className="text-sm text-muted-foreground">
+                        Sem coletas ainda. Aguardando próximo snapshot do robô.
                       </div>
                     </div>
                   ) : (
                     <>
-                      <div className="flex items-baseline justify-between px-1">
-                        <div className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">
-                          Total hoje
-                        </div>
-                        <div className="text-lg font-semibold text-primary tabular-nums">
-                          {fmtCompact(todayBreakdown.total_today)} plays
-                        </div>
-                      </div>
-                      <div className="rounded-xl border border-white/[0.04] divide-y divide-white/[0.04] overflow-hidden">
-                        {todayBreakdown.rows.map((r) => {
-                          const isCurator = r.match_status === "curator" || r.is_baseline;
-                          return (
-                            <div key={r.playlist_id} className="px-3 py-2.5 flex items-center gap-3 hover:bg-[hsl(var(--elevated))]/40 transition-colors">
-                              <span
+                      {/* Card de janela */}
+                      <SectionCard
+                        title="Janela de leitura"
+                        right={
+                          <div className="inline-flex rounded-lg border border-border bg-[hsl(var(--elevated))] p-0.5">
+                            {(["24h", "7d", "28d"] as const).map((w) => (
+                              <button
+                                key={w}
+                                onClick={() => setPerfWindow(w)}
                                 className={cn(
-                                  "h-1.5 w-1.5 rounded-full shrink-0",
-                                  isCurator ? "bg-primary" : "bg-muted-foreground/60",
+                                  "h-7 px-3 rounded-md text-[11px] font-semibold tabular-nums transition-colors",
+                                  perfWindow === w
+                                    ? "bg-card text-foreground"
+                                    : "text-muted-foreground hover:text-foreground",
                                 )}
-                              />
-                              <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <div className="text-[13px] text-foreground font-medium truncate">
-                                    {r.playlist_name}
+                              >
+                                {w}
+                              </button>
+                            ))}
+                          </div>
+                        }
+                      >
+                        <div className="flex items-baseline justify-between">
+                          <div className="text-xs text-muted-foreground">
+                            Total na janela {perfWindow}
+                          </div>
+                          <div className="text-3xl font-semibold text-primary tabular-nums leading-none">
+                            {fmtCompact(
+                              perfWindow === "24h"
+                                ? todayBreakdown.total_24h
+                                : perfWindow === "7d"
+                                ? todayBreakdown.total_7d
+                                : todayBreakdown.total_28d,
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-[11px] text-muted-foreground mt-2">
+                          Soma direta dos contadores de cada playlist na janela {perfWindow} (Spotify for Artists). "Hoje" abaixo mostra o delta entre snapshots.
+                        </div>
+                      </SectionCard>
+
+                      {/* Lista por playlist */}
+                      <div className="rounded-2xl border border-border bg-card overflow-hidden">
+                        <div className="px-5 pt-4 pb-2 flex items-center justify-between">
+                          <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                            Por playlist
+                          </div>
+                          <div className="text-[10px] text-muted-foreground">
+                            valor = janela {perfWindow} · Δ = hoje
+                          </div>
+                        </div>
+                        <ul className="divide-y divide-border">
+                          {todayBreakdown.rows.map((r) => {
+                            const isCurator = r.match_status === "curator" || r.is_baseline;
+                            const winVal =
+                              perfWindow === "24h" ? r.plays_24h
+                              : perfWindow === "7d" ? r.plays_7d
+                              : r.plays_28d;
+                            return (
+                              <li key={r.playlist_id} className="px-5 py-3 flex items-center gap-3 hover:bg-[hsl(var(--elevated))] transition-colors">
+                                <span
+                                  className={cn(
+                                    "h-1.5 w-1.5 rounded-full shrink-0",
+                                    isCurator ? "bg-success" : "bg-muted-foreground/60",
+                                  )}
+                                />
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <div className="text-[13px] text-foreground font-medium truncate">
+                                      {r.playlist_name}
+                                    </div>
+                                    {r.spotify_url && (
+                                      <a
+                                        href={r.spotify_url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="text-muted-foreground hover:text-foreground shrink-0"
+                                        onClick={(e) => e.stopPropagation()}
+                                        aria-label="Abrir no Spotify"
+                                      >
+                                        <ExternalLinkIcon className="h-3 w-3" />
+                                      </a>
+                                    )}
                                   </div>
-                                  {r.spotify_url && (
-                                    <a
-                                      href={r.spotify_url}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className="text-muted-foreground hover:text-foreground shrink-0"
-                                      onClick={(e) => e.stopPropagation()}
-                                      aria-label="Abrir no Spotify"
-                                    >
-                                      <ExternalLinkIcon className="h-3 w-3" />
-                                    </a>
-                                  )}
+                                  <div className="text-[11px] text-muted-foreground tabular-nums mt-0.5">
+                                    {isCurator ? "curador" : "algoritmo"} · Δ hoje +{fmtCompact(r.today_plays)}
+                                  </div>
                                 </div>
-                                <div className="text-[10.5px] text-muted-foreground tabular-nums mt-0.5">
-                                  {fmtCompact(r.previous_total)} → {fmtCompact(r.last_total)}
-                                  {!isCurator && (
-                                    <span className="ml-2 text-muted-foreground/70">· algoritmo</span>
-                                  )}
+                                <div className="text-right shrink-0">
+                                  <div className="text-[15px] font-semibold text-foreground tabular-nums leading-tight">
+                                    {winVal != null ? fmtCompact(winVal) : "—"}
+                                  </div>
+                                  <div className="text-[9.5px] uppercase tracking-wider text-muted-foreground">
+                                    {perfWindow}
+                                  </div>
                                 </div>
-                              </div>
-                              <div className="text-right shrink-0">
-                                <div className="text-[14px] font-semibold text-primary tabular-nums leading-tight">
-                                  +{fmtCompact(r.today_plays)}
-                                </div>
-                                <div className="text-[9.5px] uppercase tracking-wider text-muted-foreground">
-                                  hoje
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
+                              </li>
+                            );
+                          })}
+                        </ul>
                       </div>
                     </>
                   )}
