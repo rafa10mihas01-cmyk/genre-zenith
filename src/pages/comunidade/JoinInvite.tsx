@@ -35,13 +35,28 @@ export default function JoinInvite() {
         setState({ status: "error", message: "Convite não encontrado." });
         return;
       }
+      // Se o convite já foi aceito E o usuário logado é o dono daquele email,
+      // não mostra erro — apenas leva pra área da comunidade.
+      if (row.status === "accepted") {
+        const inviteEmail = (row.email ?? "").toLowerCase();
+        const currentEmail = (user?.email ?? "").toLowerCase();
+        if (currentEmail && inviteEmail && currentEmail === inviteEmail) {
+          nav("/comunidade", { replace: true });
+          return;
+        }
+        setState({
+          status: "error",
+          message: inviteEmail
+            ? `Convite já usado por ${inviteEmail}. Faça login com essa conta para entrar na comunidade.`
+            : "Este convite já foi usado.",
+        });
+        return;
+      }
       if (row.status !== "pending") {
         setState({
           status: "error",
           message:
-            row.status === "accepted"
-              ? "Este convite já foi usado."
-              : row.status === "expired"
+            row.status === "expired"
               ? "Convite expirado. Peça outro a quem te indicou."
               : "Convite revogado.",
         });
