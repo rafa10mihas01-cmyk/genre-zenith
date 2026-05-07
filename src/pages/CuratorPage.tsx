@@ -1389,6 +1389,25 @@ export default function CuratorPage() {
                               )}
                             </div>
                           </div>
+                          {(() => {
+                            const v =
+                              playlistWindow === "24h"
+                                ? p.plays_24h
+                                : playlistWindow === "7d"
+                                ? p.plays_7d
+                                : p.plays_28d;
+                            const has = v !== null && v !== undefined;
+                            return (
+                              <div className="text-right shrink-0 mr-1">
+                                <div className={cn("text-[13px] font-semibold tabular-nums leading-none", has ? "text-foreground" : "text-muted-foreground/50")}>
+                                  {has ? formatPlays(Number(v)) : "—"}
+                                </div>
+                                <div className="text-[9px] uppercase tracking-wider text-muted-foreground mt-1">
+                                  plays {playlistWindow}
+                                </div>
+                              </div>
+                            );
+                          })()}
                           <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/60 group-hover:text-primary transition-colors shrink-0" />
                         </div>
                       </button>
