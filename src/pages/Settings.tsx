@@ -62,7 +62,7 @@ function loadSettings(): NxSettings {
   return DEFAULTS;
 }
 
-export default function Settings() {
+export default function Settings({ embedded = false }: { embedded?: boolean } = {}) {
   const { user, signOut } = useAuth();
   const [settings, setSettings] = useState<NxSettings>(loadSettings);
   const [testing, setTesting] = useState(false);
