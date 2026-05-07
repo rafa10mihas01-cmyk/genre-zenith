@@ -297,6 +297,9 @@ async function upsertSnapshot(
     ai_raw: any;
     batch_id: string | null;
     correlation_id?: string | null;
+    plays_24h?: number | null;
+    plays_7d?: number | null;
+    plays_28d?: number | null;
   },
 ): Promise<any> {
   if (!row.batch_id) {
@@ -317,6 +320,9 @@ async function upsertSnapshot(
         .from("curator_deal_snapshots")
         .update({
           plays: row.plays,
+          plays_24h: row.plays_24h ?? null,
+          plays_7d: row.plays_7d ?? null,
+          plays_28d: row.plays_28d ?? null,
           match_method: row.match_method,
           ai_raw: row.ai_raw,
           print_url: row.print_url,
