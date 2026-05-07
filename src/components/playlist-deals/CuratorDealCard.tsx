@@ -102,8 +102,8 @@ export function CuratorDealCard({
     : "Em progresso";
 
   const handleCopyCuratorLink = async () => {
-    const { curatorShareUrl } = await import("@/lib/curatorPublicUrl");
-    const url = curatorShareUrl({ slug: deal.slug, public_token: deal.public_token });
+    const { curatorPublicUrl } = await import("@/lib/curatorPublicUrl");
+    const url = curatorPublicUrl({ slug: deal.slug, public_token: deal.public_token });
     try {
       await navigator.clipboard.writeText(url);
       toast.success("Link do curador copiado", { description: url });
@@ -115,14 +115,14 @@ export function CuratorDealCard({
   const handleCopyClientLink = async (
     override?: { slug?: string | null; client_token?: string | null } | null,
   ) => {
-    const { clientShareUrl } = await import("@/lib/curatorPublicUrl");
+    const { clientCampaignUrl } = await import("@/lib/curatorPublicUrl");
     const slug = override?.slug ?? null;
     const token = override?.client_token ?? deal.client_token ?? null;
     if (!slug && !token) {
       toast.error("Link do cliente indisponível para esta música");
       return;
     }
-    const url = clientShareUrl({ slug, client_token: token });
+    const url = clientCampaignUrl({ slug, client_token: token });
     try {
       await navigator.clipboard.writeText(url);
       toast.success("Link do cliente copiado", { description: url });

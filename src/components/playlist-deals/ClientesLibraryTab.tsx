@@ -61,7 +61,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { useClients, type Client } from "@/hooks/useClients";
-import { clientCampaignUrl, clientShareUrl } from "@/lib/curatorPublicUrl";
+import { clientCampaignUrl } from "@/lib/curatorPublicUrl";
 import { cn } from "@/lib/utils";
 import type { CuratorDeal, CuratorDealSong } from "@/lib/curatorDealsUtils";
 
@@ -531,9 +531,7 @@ function ClientDetailContent({
               const url = (s.slug || s.client_token)
                 ? clientCampaignUrl({ slug: s.slug ?? null, client_token: s.client_token ?? null })
                 : null;
-              const shareUrl = (s.slug || s.client_token)
-                ? clientShareUrl({ slug: s.slug ?? null, client_token: s.client_token ?? null })
-                : null;
+              const shareUrl = url;
               return (
                 <Card key={s.id} className="overflow-hidden">
                   <CardContent className="p-4 flex items-center gap-3 min-w-0">
