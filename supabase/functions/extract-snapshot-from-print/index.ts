@@ -989,6 +989,7 @@ Deno.serve(async (req) => {
         last_auto_collect_at: new Date().toISOString(),
         next_auto_collect_at: nextAt,
         last_print_at: new Date().toISOString(),
+        queued_at: null,
       })
       .eq("id", song_id);
   }
