@@ -4,8 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
   Brain, ArrowRight, Activity,
-  Rocket, Image as ImageIcon, BarChart3,
-  Search, Lightbulb, Target, Wrench, Radio, Trophy, ListMusic,
+  Rocket, BarChart3,
+  Target, Trophy, AlertTriangle, Sparkles, TrendingDown, Clock,
 } from "lucide-react";
 import { formatNumber, timeAgo } from "@/lib/format";
 import { cn } from "@/lib/utils";
