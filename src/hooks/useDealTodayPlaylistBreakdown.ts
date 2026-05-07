@@ -100,7 +100,7 @@ export function useDealTodayPlaylistBreakdown(dealId: string | null | undefined)
 
       const { data: playlists } = await supabase
         .from("curator_playlists")
-        .select("id, playlist_name, spotify_url, spotify_owner_name, match_status, is_baseline")
+        .select("id, playlist_name, spotify_url, spotify_owner_name, image_url, match_status, is_baseline")
         .in("id", playlistIds);
 
       const plMap = new Map((playlists ?? []).map((p: any) => [p.id, p]));
@@ -117,6 +117,7 @@ export function useDealTodayPlaylistBreakdown(dealId: string | null | undefined)
           playlist_name: pl?.playlist_name ?? "(playlist removida)",
           spotify_url: pl?.spotify_url ?? null,
           spotify_owner_name: pl?.spotify_owner_name ?? null,
+          image_url: pl?.image_url ?? null,
           match_status: pl?.match_status ?? "curator",
           is_baseline: !!pl?.is_baseline,
           today_plays: delta,
