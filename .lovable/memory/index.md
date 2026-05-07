@@ -12,3 +12,4 @@ Concorrência do autopilot: unique partial index em `autopilot_runs(genre_id) WH
 ## Memories
 - [Page header pattern](mem://design/page-header-pattern) — Componente PageHeader obrigatório, regras de title/subtitle, proibições
 - [Brand assets](mem://design/brand-assets) — Variantes oficiais do logo (light/dark/mark/watermark) e quando usar cada uma
+- [Glossário Comunidade vs Premium](mem://preference/glossary-comunidade) — Vocabulário público (parceiro/membro/criador) vs interno (curador). Regras de copy e tom da Comunidade beta.
