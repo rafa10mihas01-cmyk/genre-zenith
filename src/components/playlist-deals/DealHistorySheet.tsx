@@ -741,7 +741,7 @@ export function DealHistorySheet({
                   )}
                 </TabsContent>
 
-                {/* === HOJE — contribuição por playlist === */}
+                {/* === PERFORMANCE — visão executiva (sem lista) === */}
                 <TabsContent value="performance" className="m-0 px-6 py-5 space-y-4">
                   {loadingToday ? (
                     <div className="text-xs text-muted-foreground py-6 text-center">Calculando…</div>
@@ -791,69 +791,35 @@ export function DealHistorySheet({
                           </div>
                         </div>
                         <div className="text-[11px] text-muted-foreground mt-2">
-                          Soma direta dos contadores de cada playlist na janela {perfWindow} (Spotify for Artists). "Hoje" abaixo mostra o delta entre snapshots.
+                          Soma direta dos contadores de cada playlist na janela {perfWindow} (Spotify for Artists). Veja o detalhe por origem nas abas Curador e Algoritmo.
                         </div>
                       </SectionCard>
 
-                      {/* Lista por playlist */}
-                      <div className="rounded-2xl border border-border bg-card overflow-hidden">
-                        <div className="px-5 pt-4 pb-2 flex items-center justify-between">
-                          <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                            Por playlist
-                          </div>
-                          <div className="text-[10px] text-muted-foreground">
-                            valor = janela {perfWindow} · Δ = hoje
-                          </div>
+                      {/* Split Curador vs Algoritmo */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <Kpi
+                          label="Curador"
+                          tone="success"
+                          value={fmtCompact(curatorWindowTotal)}
+                          hint={`${curatorBreakdownRows.length} playlist${curatorBreakdownRows.length === 1 ? "" : "s"} · janela ${perfWindow}`}
+                        />
+                        <Kpi
+                          label="Algoritmo"
+                          value={fmtCompact(algoWindowTotal)}
+                          hint={`${algoBreakdownRows.length} playlist${algoBreakdownRows.length === 1 ? "" : "s"} · janela ${perfWindow}`}
+                        />
+                      </div>
+
+                      <div className="rounded-2xl border border-border bg-card p-5">
+                        <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                          Δ hoje (delta entre snapshots)
                         </div>
-                        <ul className="divide-y divide-border">
-                          {todayBreakdown.rows.map((r) => {
-                            const isCurator = r.match_status === "curator";
-                            const winVal =
-                              perfWindow === "24h" ? r.plays_24h
-                              : perfWindow === "7d" ? r.plays_7d
-                              : r.plays_28d;
-                            return (
-                              <li key={r.playlist_id} className="px-5 py-3 flex items-center gap-3 hover:bg-[hsl(var(--elevated))] transition-colors">
-                                <span
-                                  className={cn(
-                                    "h-1.5 w-1.5 rounded-full shrink-0",
-                                    isCurator ? "bg-success" : "bg-muted-foreground/60",
-                                  )}
-                                />
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex items-center gap-2 min-w-0">
-                                    <div className="text-[13px] text-foreground font-medium truncate">
-                                      {r.playlist_name}
-                                    </div>
-                                    {r.spotify_url && (
-                                      <a
-                                        href={r.spotify_url}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="text-muted-foreground hover:text-foreground shrink-0"
-                                        onClick={(e) => e.stopPropagation()}
-                                        aria-label="Abrir no Spotify"
-                                      >
-                                        <ExternalLinkIcon className="h-3 w-3" />
-                                      </a>
-                                    )}
-                                  </div>
-                                  <div className="text-[11px] text-muted-foreground tabular-nums mt-0.5">
-                                    {isCurator ? "curador" : "algoritmo"} · Δ hoje +{fmtCompact(r.today_plays)}
-                                  </div>
-                                </div>
-                                <div className="text-right shrink-0">
-                                  <div className="text-[15px] font-semibold text-foreground tabular-nums leading-tight">
-                                    {winVal != null ? fmtCompact(winVal) : "—"}
-                                  </div>
-                                  <div className="text-[9.5px] uppercase tracking-wider text-muted-foreground">
-                                    {perfWindow}
-                                  </div>
-                                </div>
-                              </li>
-                            );
-                          })}
-                        </ul>
+                        <div className="text-3xl font-semibold text-foreground tabular-nums leading-none">
+                          +{fmtCompact(todayBreakdown.total_today)}
+                        </div>
+                        <div className="text-[11px] text-muted-foreground mt-2">
+                          Crescimento real desde o último snapshot do dia anterior.
+                        </div>
                       </div>
                     </>
                   )}
