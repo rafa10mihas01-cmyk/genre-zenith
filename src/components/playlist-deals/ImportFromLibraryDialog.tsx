@@ -148,6 +148,23 @@ export function ImportFromLibraryDialog({
         </DialogHeader>
 
         <div className="flex-1 overflow-hidden flex flex-col gap-3 min-h-0">
+          {multiSong && (
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Vincular à música</label>
+              <Select value={songId} onValueChange={setSongId} disabled={submitting}>
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue placeholder="Selecione a música" />
+                </SelectTrigger>
+                <SelectContent>
+                  {songs.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.song_name}{s.artist_name ? ` — ${s.artist_name}` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
