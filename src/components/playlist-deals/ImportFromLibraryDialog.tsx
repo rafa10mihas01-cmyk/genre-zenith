@@ -16,11 +16,13 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useCuratorLibrary } from "@/hooks/useCuratorLibrary";
-import type { CuratorDeal, CuratorPlaylist } from "@/lib/curatorDealsUtils";
+import type { CuratorDeal, CuratorDealSong, CuratorPlaylist } from "@/lib/curatorDealsUtils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export interface ImportFromLibraryDialogProps {
   open: boolean;
   deal: CuratorDeal | null;
+  songs?: CuratorDealSong[];
   existingPlaylists: CuratorPlaylist[];
   onClose: () => void;
   onImported?: () => void;
