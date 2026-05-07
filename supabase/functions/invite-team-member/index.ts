@@ -83,7 +83,10 @@ Deno.serve(async (req) => {
     if (targetUser) {
       targetUserId = targetUser.id;
     } else {
-      const { data: invite, error: inviteErr } = await admin.auth.admin.inviteUserByEmail(email);
+      const siteUrl = req.headers.get("origin") ?? "https://engine.nexcreatorx.com";
+      const { data: invite, error: inviteErr } = await admin.auth.admin.inviteUserByEmail(email, {
+        redirectTo: `${siteUrl}/reset-password`,
+      });
       if (inviteErr || !invite?.user) {
         return jr({
           ok: false,
