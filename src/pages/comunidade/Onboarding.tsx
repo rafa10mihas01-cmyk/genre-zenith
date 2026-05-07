@@ -75,7 +75,12 @@ export default function Onboarding() {
     });
     setSaving(false);
     if (error) {
-      toast.error("Não foi possível concluir", { description: error.message });
+      const dup = /duplicate key|unique/i.test(error.message);
+      toast.error("Não foi possível concluir", {
+        description: dup
+          ? "Esta playlist já está cadastrada por outro membro."
+          : error.message,
+      });
       return;
     }
     toast.success("Bem-vindo à comunidade");
