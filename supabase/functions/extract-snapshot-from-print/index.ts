@@ -850,6 +850,14 @@ Deno.serve(async (req) => {
       } catch (_) { /* ignora — capa não é crítica */ }
     }
 
+    // Janelas: vêm do DOM (direto ou via match). Gemini OCR não distingue janelas.
+    const domSrc = domHit
+      ? domItems.find((di) => di.id === domHit!.id)
+      : undefined;
+    const w24 = (pl as any).plays_24h ?? domSrc?.plays_24h ?? null;
+    const w7 = (pl as any).plays_7d ?? domSrc?.plays_7d ?? null;
+    const w28 = (pl as any).plays_28d ?? domSrc?.plays_28d ?? null;
+
     const insErr = await upsertSnapshot(supabase, {
       deal_id,
       song_id: song_id ?? null,
@@ -862,6 +870,9 @@ Deno.serve(async (req) => {
       ai_raw: { ...pl, dom_matched: !!domHit },
       batch_id: batch_id ?? null,
       correlation_id: correlation_id ?? null,
+      plays_24h: w24,
+      plays_7d: w7,
+      plays_28d: w28,
     });
     if (insErr) skipped++;
     else inserted++;
