@@ -305,7 +305,7 @@ export default function Settings() {
 
       <Tabs defaultValue="conexoes" className="mt-2">
         {/* TABS — mesmo padrão visual de Operação / Playlist Deals / Sistema */}
-        <TabsList className="h-auto bg-transparent p-0 rounded-none flex items-center gap-1 border-b border-border w-full justify-start overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden -mx-4 md:-mx-6 px-4 md:px-6">
+        <TabsList className="nx-tab-rail sticky top-0 z-30 h-auto bg-background/95 supports-[backdrop-filter]:bg-background/80 backdrop-blur-md p-0 rounded-none items-center gap-1 border-b border-border justify-start -mx-4 md:-mx-6 px-4 md:px-6">
           <TabsTrigger
             value="conexoes"
             className="px-4 h-10 inline-flex items-center gap-2 text-sm font-medium border-b-2 border-transparent text-muted-foreground rounded-none bg-transparent shadow-none -mb-px shrink-0 whitespace-nowrap transition-colors hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none"
