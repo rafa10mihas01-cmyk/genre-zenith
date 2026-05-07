@@ -558,7 +558,7 @@ export function DealHistorySheet({
             {/* TABS */}
             <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)} className="flex-1 flex flex-col min-h-0">
               <div className="px-3 sm:px-6 pt-3 border-b border-border shrink-0">
-                <TabsList className="bg-transparent p-0 h-auto gap-1 grid grid-cols-4 w-full sm:flex sm:flex-wrap sm:w-auto">
+                <TabsList className="bg-transparent p-0 h-auto gap-1 grid grid-cols-4 w-full sm:flex sm:items-center sm:justify-between sm:w-full">
                   <TabsTrigger
                     value="resumo"
                     aria-label="Resumo"
