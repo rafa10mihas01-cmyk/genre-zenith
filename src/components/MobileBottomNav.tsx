@@ -30,8 +30,8 @@ export function MobileBottomNav() {
         "shadow-[0_-4px_24px_rgba(0,0,0,0.08)]"
       )}
       style={{
-        paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 8px)",
-        paddingTop: "8px",
+        paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 14px)",
+        paddingTop: "10px",
         paddingLeft: "calc(env(safe-area-inset-left, 0px) + 16px)",
         paddingRight: "calc(env(safe-area-inset-right, 0px) + 16px)",
         minHeight: "calc(64px + env(safe-area-inset-bottom, 0px))",
