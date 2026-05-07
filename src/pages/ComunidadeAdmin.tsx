@@ -75,11 +75,15 @@ export default function ComunidadeAdmin() {
       <Tabs value={tab} onValueChange={setTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="convites">Convites</TabsTrigger>
+          <TabsTrigger value="campanhas">Campanhas</TabsTrigger>
           <TabsTrigger value="membros">Membros</TabsTrigger>
           <TabsTrigger value="aprovacoes">Aprovações</TabsTrigger>
         </TabsList>
         <TabsContent value="convites">
           <ConvitesTab adminId={user?.id ?? ""} />
+        </TabsContent>
+        <TabsContent value="campanhas">
+          <CampanhasTab adminId={user?.id ?? ""} />
         </TabsContent>
         <TabsContent value="membros">
           <MembrosTab />
@@ -89,6 +93,177 @@ export default function ComunidadeAdmin() {
         </TabsContent>
       </Tabs>
     </PageContainer>
+  );
+}
+
+/* ============ CAMPANHAS (admin) ============ */
+type AdminCampaign = {
+  id: string;
+  deal_id: string;
+  title: string;
+  brief: string | null;
+  points_per_member: number;
+  max_slots: number;
+  used_slots: number;
+  proof_window_hours: number;
+  status: string;
+  created_at: string;
+};
+type DealLite = { id: string; song_name: string; song_artist: string | null };
+
+function CampanhasTab({ adminId }: { adminId: string }) {
+  const [list, setList] = useState<AdminCampaign[]>([]);
+  const [deals, setDeals] = useState<DealLite[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [open, setOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [form, setForm] = useState({
+    deal_id: "",
+    title: "",
+    brief: "",
+    points: 100,
+    slots: 10,
+    window: 72,
+  });
+
+  async function load() {
+    setLoading(true);
+    const [c, d] = await Promise.all([
+      supabase.from("community_campaigns").select("*").order("created_at", { ascending: false }).limit(100),
+      supabase.from("curator_deals").select("id, song_name, song_artist").is("closed_at", null).order("created_at", { ascending: false }).limit(50),
+    ]);
+    setList((c.data as AdminCampaign[]) ?? []);
+    setDeals((d.data as DealLite[]) ?? []);
+    setLoading(false);
+  }
+  useEffect(() => { load(); }, []);
+
+  async function create() {
+    if (!form.deal_id || !form.title.trim()) return;
+    setCreating(true);
+    const { error } = await supabase.from("community_campaigns").insert({
+      deal_id: form.deal_id,
+      title: form.title.trim(),
+      brief: form.brief.trim() || null,
+      points_per_member: form.points,
+      max_slots: form.slots,
+      proof_window_hours: form.window,
+      status: "open",
+      opened_at: new Date().toISOString(),
+      created_by: adminId,
+    });
+    setCreating(false);
+    if (error) return toast.error("Falha", { description: error.message });
+    setOpen(false);
+    setForm({ deal_id: "", title: "", brief: "", points: 100, slots: 10, window: 72 });
+    toast.success("Campanha publicada");
+    load();
+  }
+
+  async function setStatus(id: string, status: string) {
+    const patch: Record<string, unknown> = { status };
+    if (status === "closed") patch.closed_at = new Date().toISOString();
+    const { error } = await supabase.from("community_campaigns").update(patch).eq("id", id);
+    if (error) return toast.error("Falha", { description: error.message });
+    load();
+  }
+
+  return (
+    <Card>
+      <CardContent className="p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-muted-foreground">{list.length} campanhas</div>
+          <Button onClick={() => setOpen(true)} size="sm">
+            <Plus className="h-4 w-4" /> Nova campanha
+          </Button>
+        </div>
+
+        {loading ? (
+          <div className="text-sm text-muted-foreground">Carregando…</div>
+        ) : list.length === 0 ? (
+          <div className="text-sm text-muted-foreground py-8 text-center">Nenhuma campanha ainda.</div>
+        ) : (
+          <ul className="divide-y divide-border">
+            {list.map((c) => (
+              <li key={c.id} className="flex items-center gap-3 py-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-sm truncate">{c.title}</span>
+                    <StatusBadge status={c.status} />
+                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground truncate">
+                    {c.used_slots}/{c.max_slots} vagas · {c.points_per_member} pts · prazo {c.proof_window_hours}h
+                  </div>
+                </div>
+                {c.status === "open" && (
+                  <Button variant="outline" size="sm" onClick={() => setStatus(c.id, "closed")}>Fechar</Button>
+                )}
+                {c.status === "closed" && (
+                  <Button variant="outline" size="sm" onClick={() => setStatus(c.id, "archived")}>Arquivar</Button>
+                )}
+                {c.status === "draft" && (
+                  <Button size="sm" onClick={() => setStatus(c.id, "open")}>Abrir</Button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Nova campanha</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Deal</Label>
+              <select
+                value={form.deal_id}
+                onChange={(e) => {
+                  const d = deals.find((x) => x.id === e.target.value);
+                  setForm((f) => ({ ...f, deal_id: e.target.value, title: f.title || (d ? `${d.song_name}${d.song_artist ? " — " + d.song_artist : ""}` : "") }));
+                }}
+                className="w-full h-10 rounded-md border border-border bg-elevated px-3 text-sm"
+              >
+                <option value="">Selecionar…</option>
+                {deals.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.song_name}{d.song_artist ? ` — ${d.song_artist}` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Título</Label>
+              <Input value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Briefing curto (opcional)</Label>
+              <Textarea value={form.brief} onChange={(e) => setForm((f) => ({ ...f, brief: e.target.value }))} rows={3} placeholder="Instruções para o membro…" />
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground">Pontos</Label>
+                <Input type="number" min={1} value={form.points} onChange={(e) => setForm((f) => ({ ...f, points: Math.max(1, +e.target.value || 0) }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground">Vagas</Label>
+                <Input type="number" min={1} value={form.slots} onChange={(e) => setForm((f) => ({ ...f, slots: Math.max(1, +e.target.value || 0) }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground">Prazo (h)</Label>
+                <Input type="number" min={1} value={form.window} onChange={(e) => setForm((f) => ({ ...f, window: Math.max(1, +e.target.value || 0) }))} />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setOpen(false)}>Cancelar</Button>
+            <Button onClick={create} disabled={creating || !form.deal_id || !form.title.trim()}>
+              {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : "Publicar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </Card>
   );
 }
 
