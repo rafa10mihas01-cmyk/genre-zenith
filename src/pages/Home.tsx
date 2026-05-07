@@ -35,29 +35,36 @@ type GenreRow = {
 };
 
 type Cockpit = {
-  // Descoberta
-  totalPlaylists: number;
-  activeGenres: number;
-  newPlaylists24h: number;
-  // Inteligência
-  totalGenres: number;
-  analyzedGenres: number;
-  lastAnalysisAt: string | null;
-  // Decisão
+  // Decisão (templates pendentes — fila enxuta)
   hotPending: number;
   mediumPending: number;
-  newOpportunities: number; // templates hot/medium criados nas últimas 24h sem ação
-  // Criação
-  queueTotal: number;
-  hotNoCover: number;
-  // Publicação
-  published: number;
-  activeAccounts: number;
   // Performance
   topName: string | null;
   topGrowth: number | null;
   growingCount: number;
-  lowPerfCount: number;
+  decliningCount: number;
+  totalPublished: number;
+  // Atenção hoje
+  withoutDataCount: number;
+  pendingSuggestions: number;
+  // Última análise (metadado)
+  lastAnalysisAt: string | null;
+};
+
+type AttentionItem = {
+  id: string;
+  nome: string;
+  reason: "decline" | "stale" | "no_data";
+  detail: string;
+  to: string;
+};
+
+type Suggestion = {
+  tipo: string;
+  playlist?: string;
+  motivo: string;
+  acao?: string;
+  prioridade: string;
 };
 
 type ActivityRow = {
