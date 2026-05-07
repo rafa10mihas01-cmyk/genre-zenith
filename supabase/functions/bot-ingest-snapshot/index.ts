@@ -125,6 +125,7 @@ Deno.serve(async (req) => {
           auto_collect_error: null,
           last_auto_collect_at: new Date().toISOString(),
           next_auto_collect_at: nextAt,
+          queued_at: null,
         })
         .eq("id", song_id);
       return jr({ ok: true, deduped: true, reason: "log within 90s exists" });
