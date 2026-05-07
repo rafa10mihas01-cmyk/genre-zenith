@@ -427,13 +427,14 @@ export function DealHistorySheet({
       const s = (p.match_status ?? (p.is_baseline ? "baseline" : "curator")) as CuratorMatchStatus;
       if (s !== "editorial" && s !== "algorithmic" && s !== "organic" && s !== "suspicious") return false;
       if (algoFilter !== "all" && s !== algoFilter) return false;
+      if (algoSongFilter !== "all" && (p.song_id ?? "") !== algoSongFilter) return false;
       if (!q) return true;
       return (
         (p.playlist_name ?? "").toLowerCase().includes(q) ||
         (p.spotify_owner_name ?? "").toLowerCase().includes(q)
       );
     });
-  }, [sortedPlaylists, algoQuery, algoFilter]);
+  }, [sortedPlaylists, algoQuery, algoFilter, algoSongFilter]);
 
   const curatorTotal = counts.curator + counts.baseline;
   const algoTotal = counts.editorial + counts.algorithmic + counts.organic + counts.suspicious;
