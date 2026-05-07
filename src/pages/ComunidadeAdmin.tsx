@@ -541,8 +541,10 @@ function ConvitesTab({ adminId, onChange }: { adminId: string; onChange?: () => 
                       <StatusBadge status={realStatus} />
                     </div>
                     <div className="mt-1 text-xs text-muted-foreground truncate">
-                      {i.email ?? "sem email"} · expira{" "}
-                      {format(new Date(i.expires_at), "dd MMM", { locale: ptBR })}
+                      {i.email ?? "sem email"}
+                      {realStatus === "pending" && (
+                        <> · expira {format(new Date(i.expires_at), "dd MMM", { locale: ptBR })}</>
+                      )}
                       {i.note ? ` · ${i.note}` : ""}
                     </div>
                   </div>
@@ -632,9 +634,37 @@ function MembrosTab({ onChange }: { onChange?: () => void }) {
                     <Badge variant="outline" className="capitalize text-[10px]">{m.tier}</Badge>
                     <StatusBadge status={m.status} />
                   </div>
-                  <div className="mt-1 text-xs text-muted-foreground truncate">
-                    {m.playlist_name ?? "sem playlist"} · {m.points} pts · entrou{" "}
-                    {format(new Date(m.joined_at), "dd MMM", { locale: ptBR })}
+                  <div className="mt-1 text-xs text-muted-foreground truncate flex items-center gap-1.5 flex-wrap">
+                    {m.playlist_url ? (
+                      <a
+                        href={m.playlist_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-primary hover:underline truncate max-w-[260px]"
+                        title={m.playlist_url}
+                      >
+                        {m.playlist_name ?? "abrir playlist"}
+                      </a>
+                    ) : (
+                      <span>{m.playlist_name ?? "sem playlist"}</span>
+                    )}
+                    {m.instagram_handle && (
+                      <>
+                        <span>·</span>
+                        <a
+                          href={`https://instagram.com/${m.instagram_handle.replace(/^@/, "")}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-primary hover:underline"
+                        >
+                          @{m.instagram_handle.replace(/^@/, "")}
+                        </a>
+                      </>
+                    )}
+                    <span>·</span>
+                    <span>{m.points} pts</span>
+                    <span>·</span>
+                    <span>entrou {format(new Date(m.joined_at), "dd MMM", { locale: ptBR })}</span>
                   </div>
                 </div>
                 {m.status === "active" ? (
