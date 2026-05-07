@@ -1574,7 +1574,7 @@ export default function CuratorPage() {
             <Button
               onClick={handleAdd}
               disabled={submitting || importing || !url.trim() || playlistSongRequired || !access.writable}
-              className="w-full h-10 text-[14px] font-semibold rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-[0_8px_24px_-8px_hsl(141_76%_48%_/_0.5)] transition-all duration-200"
+              className="w-full h-10 text-[14px] font-semibold rounded-xl"
             >
               {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               Adicionar
