@@ -1,5 +1,6 @@
 // /comunidade — Dashboard do membro.
-// Pontos + lista de campanhas (placeholder até Fase D) + progresso de tier.
+// Mesmo padrão visual da CuratorPage: cards nx-card, kickers em caps verde,
+// barra de progresso fina. Sem saudações ("Olá") — proibido pelo design system.
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Music2 } from "lucide-react";
@@ -58,59 +59,60 @@ export default function Dashboard() {
 
   return (
     <ComunidadeShell>
-      <div className="space-y-5">
-        {/* Pontos */}
-        <Card>
-          <CardContent className="p-5">
-            <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Pontos</div>
-            <div className="mt-1 text-4xl font-semibold tracking-tight">
-              {member.points.toLocaleString("pt-BR")}
-            </div>
-            <div className="mt-1 text-xs text-muted-foreground">
-              Olá, {member.display_name.split(" ")[0]}
-            </div>
+      {/* Pontos — card "hero" no padrão CuratorPage */}
+      <Card className="nx-card !p-0 overflow-hidden border-border">
+        <CardContent className="p-5 sm:p-6 space-y-1">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary/80">
+            Pontos
+          </div>
+          <div className="text-4xl font-semibold tracking-tight leading-none">
+            {member.points.toLocaleString("pt-BR")}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Campanhas */}
+      <section className="space-y-2">
+        <div className="flex items-center justify-between">
+          <h2 className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary/80">
+            Campanhas para você
+          </h2>
+          <span className="text-[11px] text-muted-foreground">0</span>
+        </div>
+        <Card className="nx-card !p-0 overflow-hidden border-border">
+          <CardContent className="p-6 flex flex-col items-center text-center gap-2">
+            <Music2 className="h-6 w-6 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">
+              Nenhuma campanha disponível ainda. Você será avisado quando chegar.
+            </p>
           </CardContent>
         </Card>
+      </section>
 
-        {/* Campanhas (placeholder Fase D) */}
-        <section>
-          <div className="mb-2 flex items-center justify-between">
-            <h2 className="text-[11px] uppercase tracking-wider text-muted-foreground">Campanhas para você</h2>
-            <span className="text-xs text-muted-foreground">0</span>
-          </div>
-          <Card>
-            <CardContent className="p-6 flex flex-col items-center text-center gap-2">
-              <Music2 className="h-6 w-6 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">
-                Nenhuma campanha disponível ainda. Você será avisado quando chegar.
+      {/* Progresso */}
+      <section className="space-y-2">
+        <h2 className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary/80">
+          Progresso
+        </h2>
+        <Card className="nx-card !p-0 overflow-hidden border-border">
+          <CardContent className="p-5 sm:p-6 space-y-2.5">
+            <div className="flex items-center justify-between text-sm">
+              <span className="font-medium capitalize">{member.tier}</span>
+              <span className="text-muted-foreground">{pct}%</span>
+            </div>
+            <div className="h-1.5 rounded-full bg-border overflow-hidden">
+              <div className="h-full bg-primary transition-all" style={{ width: `${pct}%` }} />
+            </div>
+            {tierInfo.next ? (
+              <p className="text-xs text-muted-foreground">
+                Faltam {remaining.toLocaleString("pt-BR")} pontos para {tierInfo.next}.
               </p>
-            </CardContent>
-          </Card>
-        </section>
-
-        {/* Progresso */}
-        <section>
-          <h2 className="mb-2 text-[11px] uppercase tracking-wider text-muted-foreground">Progresso</h2>
-          <Card>
-            <CardContent className="p-5 space-y-2.5">
-              <div className="flex items-center justify-between text-sm">
-                <span className="font-medium capitalize">{member.tier}</span>
-                <span className="text-muted-foreground">{pct}%</span>
-              </div>
-              <div className="h-1.5 rounded-full bg-border overflow-hidden">
-                <div className="h-full bg-primary transition-all" style={{ width: `${pct}%` }} />
-              </div>
-              {tierInfo.next ? (
-                <p className="text-xs text-muted-foreground">
-                  Faltam {remaining.toLocaleString("pt-BR")} pontos para {tierInfo.next}.
-                </p>
-              ) : (
-                <p className="text-xs text-muted-foreground">Você atingiu o nível máximo.</p>
-              )}
-            </CardContent>
-          </Card>
-        </section>
-      </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">Você atingiu o nível máximo.</p>
+            )}
+          </CardContent>
+        </Card>
+      </section>
     </ComunidadeShell>
   );
 }
