@@ -578,7 +578,7 @@ function ClientDetailContent({
                           variant="outline"
                           className="h-8 w-8 p-0"
                           title="Copiar link do cliente"
-                          onClick={() => copy(url)}
+                          onClick={() => copy(shareUrl ?? url)}
                         >
                           <Copy className="h-3.5 w-3.5" />
                         </Button>
