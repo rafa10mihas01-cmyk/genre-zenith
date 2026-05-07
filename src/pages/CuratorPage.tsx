@@ -77,6 +77,10 @@ type Playlist = {
   added_at_spotify?: string | null;
   match_status?: string | null;
   match_reason?: string | null;
+  plays_24h?: number | null;
+  plays_7d?: number | null;
+  plays_28d?: number | null;
+  last_window_capture_at?: string | null;
 };
 
 type DealSong = {
@@ -257,6 +261,8 @@ export default function CuratorPage() {
   const [selectedSongId, setSelectedSongId] = useState<string | null>(null);
   // Tick a cada 60s pra atualizar countdown
   const [, setNowTick] = useState(0);
+  // Janela visível nas playlists do curador
+  const [playlistWindow, setPlaylistWindow] = useState<"24h" | "7d" | "28d">("7d");
   useEffect(() => {
     const id = setInterval(() => setNowTick((n) => n + 1), 60_000);
     return () => clearInterval(id);
@@ -1289,19 +1295,38 @@ export default function CuratorPage() {
         {/* Playlists do curador */}
         <Card className="nx-card !p-0 border-border">
           <CardContent className="p-5 sm:p-6 pt-5 sm:pt-6 md:pt-6 space-y-4">
-            <div className="w-full flex items-center justify-between gap-4">
+            <div className="w-full flex items-center justify-between gap-4 flex-wrap">
               <div className="min-w-0 flex-1">
                 <h2 className="text-[14px] font-semibold inline-flex items-center gap-2 tracking-tight">
                   <ListMusic className="h-3.5 w-3.5 text-muted-foreground" />
                   Playlists monitoradas
                 </h2>
                 <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
-                  As playlists usadas no monitoramento da campanha aparecerão aqui
+                  Plays capturados na janela selecionada — atualizam após cada print enviado pelo produtor
                 </p>
               </div>
-              <span className="text-[11px] text-muted-foreground shrink-0">
-                {curatorGroupedByPlaylist.length} {curatorGroupedByPlaylist.length === 1 ? "playlist" : "playlists"}
-              </span>
+              <div className="flex items-center gap-2 shrink-0">
+                <div className="inline-flex rounded-full bg-[hsl(var(--elevated))] border border-border p-0.5">
+                  {(["24h", "7d", "28d"] as const).map((w) => (
+                    <button
+                      key={w}
+                      type="button"
+                      onClick={() => setPlaylistWindow(w)}
+                      className={cn(
+                        "px-2.5 py-1 text-[10.5px] font-semibold uppercase tracking-wider rounded-full transition-colors",
+                        playlistWindow === w
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      {w}
+                    </button>
+                  ))}
+                </div>
+                <span className="text-[11px] text-muted-foreground">
+                  {curatorGroupedByPlaylist.length} {curatorGroupedByPlaylist.length === 1 ? "playlist" : "playlists"}
+                </span>
+              </div>
             </div>
 
             {curatorGroupedByPlaylist.length === 0 ? (
@@ -1364,6 +1389,25 @@ export default function CuratorPage() {
                               )}
                             </div>
                           </div>
+                          {(() => {
+                            const v =
+                              playlistWindow === "24h"
+                                ? p.plays_24h
+                                : playlistWindow === "7d"
+                                ? p.plays_7d
+                                : p.plays_28d;
+                            const has = v !== null && v !== undefined;
+                            return (
+                              <div className="text-right shrink-0 mr-1">
+                                <div className={cn("text-[13px] font-semibold tabular-nums leading-none", has ? "text-foreground" : "text-muted-foreground/50")}>
+                                  {has ? formatPlays(Number(v)) : "—"}
+                                </div>
+                                <div className="text-[9px] uppercase tracking-wider text-muted-foreground mt-1">
+                                  plays {playlistWindow}
+                                </div>
+                              </div>
+                            );
+                          })()}
                           <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/60 group-hover:text-primary transition-colors shrink-0" />
                         </div>
                       </button>
