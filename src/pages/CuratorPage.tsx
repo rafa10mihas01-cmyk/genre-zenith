@@ -77,6 +77,10 @@ type Playlist = {
   added_at_spotify?: string | null;
   match_status?: string | null;
   match_reason?: string | null;
+  plays_24h?: number | null;
+  plays_7d?: number | null;
+  plays_28d?: number | null;
+  last_window_capture_at?: string | null;
 };
 
 type DealSong = {
