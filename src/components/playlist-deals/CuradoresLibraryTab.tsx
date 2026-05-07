@@ -507,13 +507,14 @@ export function CuradoresLibraryTab({
                   <div className="flex items-center gap-1.5 pt-0.5">
                     <Button
                       size="sm"
-                      className="flex-1 h-9 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 font-medium text-[13px]"
+                      variant="ghost"
+                      className="flex-1 h-9 gap-1.5 bg-[hsl(var(--elevated))] hover:bg-[hsl(var(--hover))] text-foreground/90 hover:text-foreground border border-border/60 font-medium text-[13px]"
                       onClick={(e) => {
                         e.stopPropagation();
                         setSelected(curator);
                       }}
                     >
-                      <ListMusic className="h-3.5 w-3.5" />
+                      <ListMusic className="h-3.5 w-3.5 text-primary" />
                       Ver biblioteca
                     </Button>
                     {curator.spotify_owner_url && (
