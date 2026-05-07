@@ -3,7 +3,7 @@
 import { Activity, Workflow, Music2, HeartPulse, Bot, Bell } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
-import { usePersistedState } from "@/hooks/usePersistedState";
+import { useScreenField } from "@/lib/screen-state";
 import { cn } from "@/lib/utils";
 import { AoVivoPainel } from "@/components/sistema/AoVivoPainel";
 import { FluxoVisual } from "@/components/sistema/fluxo/FluxoVisual";
@@ -24,7 +24,7 @@ const TABS: { id: SistemaTab; label: string; icon: typeof Activity }[] = [
 ];
 
 export default function Sistema() {
-  const [tab, setTab] = usePersistedState<SistemaTab>("sistema:tab", "fluxo");
+  const [tab, setTab] = useScreenField<SistemaTab>("/sistema", "tab", "fluxo");
 
   return (
     <PageContainer>

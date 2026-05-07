@@ -27,7 +27,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { usePersistedState } from "@/hooks/usePersistedState";
+import { useScreenField } from "@/lib/screen-state";
 import { formatNumber } from "@/lib/format";
 
 type Invite = {
@@ -60,7 +60,7 @@ const TABS: { id: AdminTab; label: string; icon: typeof Mail }[] = [
 
 export default function ComunidadeAdmin() {
   const { user } = useAuth();
-  const [tab, setTab] = usePersistedState<AdminTab>("comunidade-admin:tab:v1", "convites");
+  const [tab, setTab] = useScreenField<AdminTab>("/comunidade-admin", "tab", "convites");
   const [counts, setCounts] = useState({
     convites: 0, campanhas: 0, membros: 0, aprovacoes: 0,
     convitesPendentes: 0, campanhasAbertas: 0,

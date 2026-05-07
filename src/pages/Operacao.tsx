@@ -15,7 +15,7 @@ import { AccountsManager } from "@/components/operacao/AccountsManager";
 import { PageContainer } from "@/components/PageContainer";
 import { supabase } from "@/integrations/supabase/client";
 import { formatNumber, timeAgo } from "@/lib/format";
-import { usePersistedState } from "@/hooks/usePersistedState";
+import { useScreenField } from "@/lib/screen-state";
 import { useSetSidebarKpis } from "@/contexts/SidebarContext";
 
 /**
@@ -86,9 +86,9 @@ type AccountSummary = {
 };
 
 export default function Operacao() {
-  const [tab, setTab] = usePersistedState<TabId>("operacao:tab", "minhas");
-  const [filter, setFilter] = usePersistedState<"todas" | OpStatus>("operacao:filter", "todas");
-  const [search, setSearch] = usePersistedState<string>("operacao:search", "");
+  const [tab, setTab] = useScreenField<TabId>("/operacao", "tab", "minhas");
+  const [filter, setFilter] = useScreenField<"todas" | OpStatus>("/operacao", "filter", "todas");
+  const [search, setSearch] = useScreenField<string>("/operacao", "search", "");
   const [loading, setLoading] = useState(true);
   const [playlistsAll, setPlaylistsAll] = useState<OpPlaylist[]>([]);
   const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
