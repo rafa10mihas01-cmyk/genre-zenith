@@ -246,6 +246,7 @@ function BreakdownRow({ r, kind }: { r: BreakdownRowData; kind: "curator" | "alg
         </div>
         <div className="text-[11px] text-muted-foreground tabular-nums mt-0.5 pl-3.5">
           Δ hoje <span className="text-foreground font-medium">+{fmtCompact(r.today_plays)}</span>
+          {r.song_name && <> · <span className="text-foreground/80">♪ {r.song_name}</span></>}
           {r.spotify_owner_name && <> · {r.spotify_owner_name}</>}
         </div>
       </div>
