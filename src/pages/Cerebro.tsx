@@ -126,14 +126,7 @@ export default function Cerebro() {
     }
   };
 
-  if (genres.length === 0) {
-    return (
-      <div className="nx-card p-8 text-center">
-        <Loader2 className="h-6 w-6 mx-auto animate-spin text-muted-foreground" />
-        <p className="mt-3 text-sm text-muted-foreground">Carregando gêneros…</p>
-      </div>
-    );
-  }
+  if (genres.length === 0) return null;
 
   return (
     <PageContainer>
