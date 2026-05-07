@@ -9,14 +9,20 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90",
+        // Solid primary — verde da marca, mas com peso reduzido (sem brilho/glow agressivo).
+        // Use APENAS para a ação principal de cada tela. Para ações secundárias, use `soft`.
+        default:
+          "bg-primary/90 text-primary-foreground shadow-sm hover:bg-primary active:bg-primary/95",
         destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
         outline: "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
         secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
+        // Verde "soft" — sinaliza ação positiva sem dominar a tela. Padrão para a maioria dos CTAs.
+        soft:
+          "bg-primary/10 text-primary border border-primary/25 hover:bg-primary/15 hover:border-primary/40",
         premium:
-          "bg-[hsl(var(--elevated))] text-foreground border border-primary/30 shadow-[0_0_0_1px_hsl(var(--primary)/0.2),0_0_18px_-6px_hsl(var(--primary)/0.45)] transition-all duration-200 hover:border-primary/60 hover:text-primary hover:shadow-[0_0_0_1px_hsl(var(--primary)/0.45),0_0_28px_-4px_hsl(var(--primary)/0.7)] hover:-translate-y-[1px] active:translate-y-0",
+          "bg-[hsl(var(--elevated))] text-foreground border border-primary/25 shadow-sm transition-all duration-200 hover:border-primary/45 hover:text-primary hover:bg-[hsl(var(--elevated))]/80",
       },
       size: {
         default: "h-10 px-4 py-2",
