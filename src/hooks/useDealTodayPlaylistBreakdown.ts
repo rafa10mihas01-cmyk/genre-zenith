@@ -12,6 +12,7 @@ export type TodayPlaylistRow = {
   playlist_name: string;
   spotify_url: string | null;
   spotify_owner_name: string | null;
+  image_url: string | null;
   match_status: string;
   is_baseline: boolean;
   today_plays: number;
