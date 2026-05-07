@@ -367,6 +367,7 @@ export function DealHistorySheet({
   const [algoQuery, setAlgoQuery] = useState("");
   const [algoFilter, setAlgoFilter] = useState<"all" | "editorial" | "organic" | "suspicious">("all");
   const [algoSongFilter, setAlgoSongFilter] = useState<string>("all");
+  const [curatorSongFilter, setCuratorSongFilter] = useState<string>("all");
 
   const stats = deal ? computeCuratorStats(deal, allLogs, allPlaylists, progress ?? null) : null;
   const { data: breakdown } = useCuratorDealBreakdown(deal?.id ?? null);
