@@ -94,11 +94,16 @@ export function ImportFromLibraryDialog({
       toast.error("Selecione ao menos uma playlist");
       return;
     }
+    if (multiSong && !songId) {
+      toast.error("Selecione a música deste deal");
+      return;
+    }
     setSubmitting(true);
     try {
       const chosen = items.filter((p) => selected.has(p.id));
       const rows = chosen.map((p) => ({
         deal_id: deal.id,
+        song_id: multiSong ? songId : (songs[0]?.id ?? null),
         playlist_name: p.playlist_name,
         spotify_url: p.spotify_url,
         spotify_playlist_id: p.spotify_playlist_id,
