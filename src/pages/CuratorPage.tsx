@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useExternalSplash } from "@/hooks/useExternalSplash";
+import { PageLoader } from "@/components/PageLoader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -677,11 +678,7 @@ export default function CuratorPage() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <PageLoader />;
   }
 
   if (error || !deal) {

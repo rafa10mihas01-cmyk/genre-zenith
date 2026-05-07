@@ -6,6 +6,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useExternalSplash } from "@/hooks/useExternalSplash";
+import { PageLoader } from "@/components/PageLoader";
 import {
   Loader2,
   TrendingUp,
@@ -188,11 +189,7 @@ export default function ClientCampaignPage() {
   }, [series]);
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <PageLoader />;
   }
   if (error || !deal || !progress) {
     return (
