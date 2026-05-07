@@ -17,10 +17,17 @@ export type TodayPlaylistRow = {
   previous_total: number;    // total antes de hoje
   last_captured_at: string;
   previous_captured_at: string | null;
+  // Janelas oficiais do Spotify for Artists (último snapshot disponível)
+  plays_24h: number | null;
+  plays_7d: number | null;
+  plays_28d: number | null;
 };
 
 export type TodayBreakdown = {
   total_today: number;
+  total_24h: number;
+  total_7d: number;
+  total_28d: number;
   rows: TodayPlaylistRow[];
 };
 
