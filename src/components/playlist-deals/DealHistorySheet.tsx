@@ -919,11 +919,13 @@ export function DealHistorySheet({
                       Nenhum resultado pra essa busca.
                     </div>
                   ) : (
-                    <ul className="space-y-0.5 -mx-2">
-                      {curatorPlaylists.map((p) => (
-                        <PlaylistRow key={p.id} p={p} />
-                      ))}
-                    </ul>
+                    <div className="rounded-2xl border border-border bg-card overflow-hidden">
+                      <ul className="divide-y divide-border">
+                        {curatorPlaylists.map((p) => (
+                          <BreakdownRow key={p.id} r={toBreakdownRowData(p)} kind="curator" />
+                        ))}
+                      </ul>
+                    </div>
                   )}
                 </TabsContent>
 
