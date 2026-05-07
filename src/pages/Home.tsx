@@ -4,8 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
   Brain, ArrowRight, Activity,
-  Rocket, Image as ImageIcon, BarChart3,
-  Search, Lightbulb, Target, Wrench, Radio, Trophy, ListMusic,
+  Rocket, BarChart3,
+  Target, Trophy, AlertTriangle, Sparkles, TrendingDown, Clock, ChevronRight,
 } from "lucide-react";
 import { formatNumber, timeAgo } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -15,13 +15,8 @@ import { PageContainer } from "@/components/PageContainer";
 import { useSetSidebarKpis } from "@/contexts/SidebarContext";
 
 /**
- * HOME — Cockpit do sistema, organizado pelo PIPELINE:
- * Ações rápidas → Decisão + Performance (above the fold)
- * → Strip Descoberta/Inteligência/Criação/Publicação
- * → Lista compacta de gêneros
- * → Atividade recente
- *
- * 100% dados reais. Tudo clicável vai pro lugar certo.
+ * COCKPIT — foco em decisão, não em pipeline.
+ * Filosofia: growth + otimização. IA recomenda, humano decide.
  */
 
 type GenreRow = {
@@ -35,29 +30,32 @@ type GenreRow = {
 };
 
 type Cockpit = {
-  // Descoberta
-  totalPlaylists: number;
-  activeGenres: number;
-  newPlaylists24h: number;
-  // Inteligência
-  totalGenres: number;
-  analyzedGenres: number;
-  lastAnalysisAt: string | null;
-  // Decisão
   hotPending: number;
   mediumPending: number;
-  newOpportunities: number; // templates hot/medium criados nas últimas 24h sem ação
-  // Criação
-  queueTotal: number;
-  hotNoCover: number;
-  // Publicação
-  published: number;
-  activeAccounts: number;
-  // Performance
   topName: string | null;
   topGrowth: number | null;
   growingCount: number;
-  lowPerfCount: number;
+  decliningCount: number;
+  totalPublished: number;
+  withoutDataCount: number;
+  pendingSuggestions: number;
+  lastAnalysisAt: string | null;
+};
+
+type AttentionItem = {
+  id: string;
+  nome: string;
+  reason: "decline" | "stale" | "no_data";
+  detail: string;
+  to: string;
+};
+
+type Suggestion = {
+  tipo: string;
+  playlist?: string;
+  motivo: string;
+  acao?: string;
+  prioridade: string;
 };
 
 type ActivityRow = {
@@ -71,101 +69,119 @@ type ActivityRow = {
 export default function Home() {
   const [c, setC] = useState<Cockpit | null>(null);
   const [genres, setGenres] = useState<GenreRow[]>([]);
+  const [attention, setAttention] = useState<AttentionItem[]>([]);
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [activity, setActivity] = useState<ActivityRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
-    const since24h = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+    const staleThreshold = new Date(Date.now() - 36 * 3600 * 1000).toISOString();
 
     const [
       gsRes,
-      modelsRes,
-      totalGenresRes,
-      analyzedRes,
-      totalPlaylistsRes,
-      activeGenresRes,
-      newPlaylists24hRes,
       hotPendingRes,
       mediumPendingRes,
-      newOppRes,
-      hotNoCoverRes,
-      queueTotalRes,
-      publishedRes,
-      activeAccountsRes,
       perfRes,
       lowPerfRes,
       logsRes,
-      lastAnalysisRes,
+      lastInsightRes,
     ] = await Promise.all([
       supabase
         .from("genres")
         .select("id,slug,nome,status,total_playlists,total_musicas,ultima_coleta")
         .order("total_playlists", { ascending: false, nullsFirst: false }),
-      supabase.from("genre_models").select("genre_id"),
-      supabase.from("genres").select("*", { count: "exact", head: true }),
-      supabase.from("genres").select("*", { count: "exact", head: true }).eq("status", "analisado"),
-      supabase.from("search_results").select("*", { count: "exact", head: true }),
-      supabase.from("genres").select("*", { count: "exact", head: true }).eq("ativo", true),
-      supabase.from("search_results").select("*", { count: "exact", head: true }).gte("first_seen_at", since24h),
       supabase.from("playlist_templates").select("*", { count: "exact", head: true })
         .eq("quality_tier", "hot").in("status", ["pending", "approved"]).is("spotify_playlist_id", null),
       supabase.from("playlist_templates").select("*", { count: "exact", head: true })
         .eq("quality_tier", "medium").in("status", ["pending", "approved"]).is("spotify_playlist_id", null),
-      supabase.from("playlist_templates").select("*", { count: "exact", head: true })
-        .in("quality_tier", ["hot", "medium"]).in("status", ["pending", "approved"])
-        .is("spotify_playlist_id", null).gte("created_at", since24h),
-      supabase.from("playlist_templates").select("*", { count: "exact", head: true })
-        .eq("quality_tier", "hot").in("status", ["pending", "approved"]).is("spotify_playlist_id", null)
-        .or("cover_image_url.is.null,cover_selected_index.is.null"),
-      supabase.from("playlist_templates").select("*", { count: "exact", head: true })
-        .in("quality_tier", ["hot", "medium"]).in("status", ["pending", "approved"]).is("spotify_playlist_id", null),
-      supabase.from("playlist_templates").select("*", { count: "exact", head: true })
-        .not("spotify_playlist_id", "is", null),
-      supabase.from("accounts").select("*", { count: "exact", head: true }).eq("status", "active"),
-      supabase.rpc("get_performance_dataset", { p_min_age_hours: 24 }),
+      supabase.rpc("get_performance_dataset", { p_min_age_hours: 0 }),
       supabase.from("playlist_templates").select("*", { count: "exact", head: true })
         .eq("performance_class", "baixa"),
       supabase
         .from("collection_logs")
         .select("id,acao,status,mensagem,created_at")
         .order("created_at", { ascending: false })
-        .limit(8),
+        .limit(5),
       supabase
-        .from("genre_models")
-        .select("ultima_analise")
-        .order("ultima_analise", { ascending: false, nullsFirst: false })
+        .from("performance_insights")
+        .select("created_at, acoes_sugeridas")
+        .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle(),
     ]);
 
-    // Top performance
-    const perfRows = (perfRes.data ?? []) as Array<{ nome: string; crescimento_absoluto: number | null }>;
+    type PerfRow = {
+      template_id: string;
+      nome: string;
+      crescimento_absoluto: number | null;
+      followers_now: number | null;
+      last_snapshot_at: string | null;
+    };
+    const perfRows = (perfRes.data ?? []) as PerfRow[];
     const sorted = [...perfRows].sort(
       (a, b) => (b.crescimento_absoluto ?? 0) - (a.crescimento_absoluto ?? 0),
     );
     const top = sorted[0] ?? null;
     const growing = perfRows.filter(r => (r.crescimento_absoluto ?? 0) > 0).length;
+    const declining = perfRows.filter(r => (r.crescimento_absoluto ?? 0) < 0).length;
+    const withoutData = perfRows.filter(r => !r.followers_now || r.followers_now === 0).length;
+
+    // Atenção hoje: quedas + dados velhos + sem snapshot
+    const att: AttentionItem[] = [];
+    perfRows
+      .filter(r => (r.crescimento_absoluto ?? 0) < 0)
+      .sort((a, b) => (a.crescimento_absoluto ?? 0) - (b.crescimento_absoluto ?? 0))
+      .slice(0, 3)
+      .forEach(r => att.push({
+        id: r.template_id,
+        nome: r.nome,
+        reason: "decline",
+        detail: `${r.crescimento_absoluto} seguidores`,
+        to: "/performance",
+      }));
+    perfRows
+      .filter(r => r.last_snapshot_at && r.last_snapshot_at < staleThreshold && (r.followers_now ?? 0) > 0)
+      .slice(0, 2)
+      .forEach(r => att.push({
+        id: r.template_id,
+        nome: r.nome,
+        reason: "stale",
+        detail: `Sem coleta há ${timeAgo(r.last_snapshot_at!)}`,
+        to: "/performance",
+      }));
+    if (att.length < 5) {
+      perfRows
+        .filter(r => !r.followers_now || r.followers_now === 0)
+        .slice(0, 5 - att.length)
+        .forEach(r => att.push({
+          id: r.template_id,
+          nome: r.nome,
+          reason: "no_data",
+          detail: "Aguardando primeira coleta",
+          to: "/performance",
+        }));
+    }
+
+    const insightRow = lastInsightRes.data as { created_at: string; acoes_sugeridas: Suggestion[] } | null;
+    const sugList = Array.isArray(insightRow?.acoes_sugeridas) ? insightRow!.acoes_sugeridas : [];
+    const topSug = [...sugList]
+      .sort((a, b) => prioRank(b.prioridade) - prioRank(a.prioridade))
+      .slice(0, 4);
 
     setC({
-      totalPlaylists: totalPlaylistsRes.count ?? 0,
-      activeGenres: activeGenresRes.count ?? 0,
-      newPlaylists24h: newPlaylists24hRes.count ?? 0,
-      totalGenres: totalGenresRes.count ?? 0,
-      analyzedGenres: analyzedRes.count ?? 0,
-      lastAnalysisAt: (lastAnalysisRes.data as { ultima_analise: string | null } | null)?.ultima_analise ?? null,
       hotPending: hotPendingRes.count ?? 0,
       mediumPending: mediumPendingRes.count ?? 0,
-      newOpportunities: newOppRes.count ?? 0,
-      queueTotal: queueTotalRes.count ?? 0,
-      hotNoCover: hotNoCoverRes.count ?? 0,
-      published: publishedRes.count ?? 0,
-      activeAccounts: activeAccountsRes.count ?? 0,
       topName: top?.nome ?? null,
       topGrowth: top?.crescimento_absoluto ?? null,
       growingCount: growing,
-      lowPerfCount: lowPerfRes.count ?? 0,
+      decliningCount: declining,
+      totalPublished: perfRows.length,
+      withoutDataCount: withoutData,
+      pendingSuggestions: sugList.length,
+      lastAnalysisAt: insightRow?.created_at ?? null,
     });
-
+    setAttention(att);
+    setSuggestions(topSug);
     setGenres((gsRes.data ?? []) as GenreRow[]);
     setActivity((logsRes.data ?? []) as ActivityRow[]);
     setLoading(false);
@@ -177,14 +193,13 @@ export default function Home() {
     return () => clearInterval(t);
   }, []);
 
-  // Alimenta sidebar smart panel: prontos / médios / total
   useSetSidebarKpis(
     c
       ? [
-          { label: "Prontos", value: c.hotPending, intent: "primary" },
-          { label: "Médios", value: c.mediumPending, intent: "warning" },
-          { label: "Publicadas", value: c.published, intent: "success" },
-          { label: "Total playlists", value: c.totalPlaylists, intent: "default" },
+          { label: "Crescendo", value: c.growingCount, intent: "success" },
+          { label: "Em queda", value: c.decliningCount, intent: c.decliningCount > 0 ? "warning" : "default" },
+          { label: "Publicadas", value: c.totalPublished, intent: "primary" },
+          { label: "Sugestões IA", value: c.pendingSuggestions, intent: c.pendingSuggestions > 0 ? "primary" : "default" },
         ]
       : [],
   );
@@ -193,25 +208,11 @@ export default function Home() {
     <PageContainer>
       <PageHeader
         title="Cockpit"
-        subtitle="Acompanhe o pipeline e tome decisões rápidas"
+        subtitle="Decidir o que fazer hoje"
       />
 
-      {/* AÇÕES RÁPIDAS — sempre visível, decide tudo */}
-      <section className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        <QuickAction
-          to="/criacao?tier=hot"
-          icon={Rocket}
-          label="Publicar"
-          hint={c ? `${c.hotPending} prontos` : "—"}
-          highlight={!!c && c.hotPending > 0}
-        />
-        <QuickAction
-          to="/criacao?tier=hot&filter=no-cover"
-          icon={ImageIcon}
-          label="Capas"
-          hint={c ? `${c.hotNoCover} sem capa` : "—"}
-          highlight={!!c && c.hotNoCover > 0}
-        />
+      {/* AÇÕES RÁPIDAS — só o essencial */}
+      <section className="grid grid-cols-2 gap-3">
         <QuickAction
           to="/performance"
           icon={BarChart3}
@@ -219,88 +220,33 @@ export default function Home() {
           hint={c?.topName ? `Top: ${c.topName}` : "—"}
         />
         <QuickAction
-          to="/playlist-deals"
-          icon={ListMusic}
-          label="Deals"
-          hint="Financeiro"
+          to="/criacao?tier=hot"
+          icon={Rocket}
+          label="Publicar prontos"
+          hint={c ? `${c.hotPending} prontos` : "—"}
+          highlight={!!c && c.hotPending > 0}
         />
       </section>
 
-      {/* DECISÃO + PERFORMANCE — above the fold, lado a lado */}
+      {/* DECISÃO + PERFORMANCE */}
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <DecisionCard c={c} loading={loading} />
         <PerformanceCard c={c} loading={loading} />
       </section>
 
-      {/* PIPELINE STRIP — Descoberta → Inteligência → Criação → Publicação */}
-      <section>
-        <h2 className="text-xs uppercase tracking-[0.15em] text-muted-foreground font-semibold mb-3">
-          Pipeline
-        </h2>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <PipelineCard
-            to="/cerebro"
-            icon={Search}
-            step="1"
-            title="Descoberta"
-            primary={loading ? "—" : `${formatNumber(c?.totalPlaylists)} playlists`}
-            sub={
-              loading
-                ? "—"
-                : `${c?.activeGenres ?? 0} gêneros ativos${
-                    (c?.newPlaylists24h ?? 0) > 0 ? ` • +${c?.newPlaylists24h} hoje` : ""
-                  }`
-            }
-          />
-          <PipelineCard
-            to="/cerebro"
-            icon={Lightbulb}
-            step="2"
-            title="Inteligência"
-            primary={loading ? "—" : `${c?.analyzedGenres ?? 0}/${c?.totalGenres ?? 0} analisados`}
-            sub={
-              loading
-                ? "—"
-                : c?.lastAnalysisAt
-                ? `Atualizado ${timeAgo(c.lastAnalysisAt)}`
-                : "Sem análises ainda"
-            }
-          />
-          <PipelineCard
-            to="/criacao"
-            icon={Wrench}
-            step="4"
-            title="Criação"
-            primary={loading ? "—" : `${c?.queueTotal ?? 0} na fila`}
-            sub={
-              loading
-                ? "—"
-                : (c?.hotNoCover ?? 0) > 0
-                ? `${c?.hotNoCover} sem capa`
-                : "Capas em dia"
-            }
-          />
-          <PipelineCard
-            to="/operacao"
-            icon={Radio}
-            step="5"
-            title="Publicação"
-            primary={loading ? "—" : `${c?.published ?? 0} publicadas`}
-            sub={loading ? "—" : `${c?.activeAccounts ?? 0} contas ativas`}
-          />
-        </div>
+      {/* ATENÇÃO HOJE + RECOMENDAÇÕES IA */}
+      <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <AttentionCard items={attention} loading={loading} />
+        <SuggestionsCard suggestions={suggestions} total={c?.pendingSuggestions ?? 0} lastAt={c?.lastAnalysisAt ?? null} loading={loading} />
       </section>
 
-      {/* Gêneros — cards grandes coloridos (identidade do sistema) */}
+      {/* Gêneros */}
       <section className="space-y-3">
         <div className="flex items-end justify-between">
           <div>
             <h2 className="text-xs uppercase tracking-[0.15em] text-muted-foreground font-semibold">
               Gêneros
             </h2>
-            <p className="text-[11px] text-muted-foreground mt-1">
-              {loading ? "Carregando..." : `${genres.length} cadastrados • clique para abrir o Cérebro`}
-            </p>
           </div>
           <Button asChild variant="ghost" size="sm" className="rounded-full text-muted-foreground hover:text-foreground gap-1 h-7">
             <Link to="/cerebro">Ver tudo <ArrowRight className="h-3.5 w-3.5" /></Link>
@@ -324,7 +270,7 @@ export default function Home() {
         )}
       </section>
 
-      {/* Atividade recente — limpa, com ícone colorido e mensagem suave */}
+      {/* Atividade recente */}
       <section className="space-y-3">
         <h2 className="text-xs uppercase tracking-[0.15em] text-muted-foreground font-semibold">
           Atividade recente
@@ -374,6 +320,13 @@ export default function Home() {
  * Subcomponentes
  * ============================================================ */
 
+function prioRank(p: string): number {
+  const v = (p || "").toLowerCase();
+  if (v === "alta" || v === "high") return 3;
+  if (v === "media" || v === "média" || v === "medium") return 2;
+  return 1;
+}
+
 function QuickAction({
   to, icon: Icon, label, hint, highlight = false,
 }: {
@@ -411,7 +364,6 @@ function QuickAction({
 function DecisionCard({ c, loading }: { c: Cockpit | null; loading: boolean }) {
   const hot = c?.hotPending ?? 0;
   const med = c?.mediumPending ?? 0;
-  const opp = c?.newOpportunities ?? 0;
   const hasWork = hot + med > 0;
 
   return (
@@ -430,36 +382,21 @@ function DecisionCard({ c, loading }: { c: Cockpit | null; loading: boolean }) {
         <div className="h-20 rounded-md bg-muted/40 animate-pulse" />
       ) : (
         <>
-          <div className={cn(
-            "grid gap-4",
-            opp > 0 ? "grid-cols-3" : "grid-cols-2",
-          )}>
+          <div className="grid grid-cols-2 gap-4">
             <div className="min-w-0">
-              <div className="text-3xl font-bold tabular-nums leading-none flex items-center gap-1.5">
-                <span className="text-primary">🔥</span>
-                <span>{hot}</span>
-              </div>
+              <div className="text-3xl font-bold tabular-nums leading-none text-primary">{hot}</div>
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-2">Prontos</div>
             </div>
             <div className="min-w-0">
-              <div className="text-3xl font-bold tabular-nums leading-none flex items-center gap-1.5 text-warning">
-                <span>⚠️</span>
-                <span>{med}</span>
-              </div>
+              <div className="text-3xl font-bold tabular-nums leading-none text-warning">{med}</div>
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-2">Médios</div>
             </div>
-            {opp > 0 && (
-              <div className="min-w-0">
-                <div className="text-3xl font-bold tabular-nums leading-none">+{opp}</div>
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-2">Oportunidades 24h</div>
-              </div>
-            )}
           </div>
           <div className="text-xs text-muted-foreground">
             {hasWork
               ? hot > 0
-                ? "Há templates 🔥 prontos para publicação imediata."
-                : "Há templates ⚠️ aguardando aprovação."
+                ? "Há templates prontos para publicação imediata."
+                : "Há templates aguardando aprovação."
               : "Sem ações pendentes — pipeline em dia."}
           </div>
         </>
@@ -497,8 +434,8 @@ function PerformanceCard({ c, loading }: { c: Cockpit | null; loading: boolean }
           </div>
           <div className="flex items-center gap-4 text-xs text-muted-foreground">
             <span><b className="text-foreground">{c.growingCount}</b> crescendo</span>
-            {c.lowPerfCount > 0 && (
-              <span className="text-destructive"><b>{c.lowPerfCount}</b> em baixa</span>
+            {c.decliningCount > 0 && (
+              <span className="text-destructive"><b>{c.decliningCount}</b> em queda</span>
             )}
           </div>
         </>
@@ -511,28 +448,104 @@ function PerformanceCard({ c, loading }: { c: Cockpit | null; loading: boolean }
   );
 }
 
-function PipelineCard({
-  to, icon: Icon, step, title, primary, sub,
-}: {
-  to: string;
-  icon: any;
-  step: string;
-  title: string;
-  primary: string;
-  sub: string;
-}) {
+function AttentionCard({ items, loading }: { items: AttentionItem[]; loading: boolean }) {
   return (
-    <Link to={to} className="nx-card-hover p-4 flex flex-col gap-2 group">
+    <div className="nx-card p-5 flex flex-col gap-4 h-full">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-[9px] uppercase tracking-[0.15em] text-muted-foreground font-semibold">
-            {step} · {title}
+          <AlertTriangle className="h-4 w-4 text-warning" />
+          <span className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-semibold">
+            Atenção hoje
           </span>
         </div>
-        <Icon className="h-3.5 w-3.5 text-muted-foreground transition-colors group-hover:text-foreground" />
+        {items.length > 0 && (
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{items.length}</span>
+        )}
       </div>
-      <div className="text-base font-bold leading-tight">{primary}</div>
-      <div className="text-[11px] text-muted-foreground truncate">{sub}</div>
+      {loading ? (
+        <div className="h-24 rounded-md bg-muted/40 animate-pulse" />
+      ) : items.length === 0 ? (
+        <div className="text-xs text-muted-foreground py-4">
+          Nenhuma playlist precisa de atenção. Catálogo saudável.
+        </div>
+      ) : (
+        <ul className="space-y-2">
+          {items.map(i => {
+            const Icon = i.reason === "decline" ? TrendingDown : i.reason === "stale" ? Clock : Activity;
+            const tone = i.reason === "decline" ? "text-destructive" : "text-muted-foreground";
+            return (
+              <li key={`${i.id}-${i.reason}`}>
+                <Link to={i.to} className="flex items-center gap-3 -mx-2 px-2 py-1.5 rounded-lg hover:bg-muted/40 transition-colors group">
+                  <Icon className={cn("h-3.5 w-3.5 shrink-0", tone)} />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-semibold truncate leading-tight">{i.nome}</div>
+                    <div className="text-[11px] text-muted-foreground truncate">{i.detail}</div>
+                  </div>
+                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function SuggestionsCard({
+  suggestions, total, lastAt, loading,
+}: {
+  suggestions: Suggestion[];
+  total: number;
+  lastAt: string | null;
+  loading: boolean;
+}) {
+  return (
+    <Link to="/performance?tab=insights" className="nx-card-hover p-5 flex flex-col gap-4 group h-full">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-primary" />
+          <span className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-semibold">
+            Recomendações IA
+          </span>
+        </div>
+        <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+      </div>
+      {loading ? (
+        <div className="h-24 rounded-md bg-muted/40 animate-pulse" />
+      ) : suggestions.length === 0 ? (
+        <div className="text-xs text-muted-foreground py-4">
+          Nenhuma sugestão disponível. Rode uma análise em Performance.
+        </div>
+      ) : (
+        <>
+          <ul className="space-y-2">
+            {suggestions.map((s, i) => {
+              const high = prioRank(s.prioridade) === 3;
+              return (
+                <li key={i} className="flex items-start gap-2.5">
+                  <span className={cn(
+                    "mt-1 h-1.5 w-1.5 rounded-full shrink-0",
+                    high ? "bg-primary" : "bg-muted-foreground",
+                  )} />
+                  <div className="min-w-0 flex-1">
+                    {s.playlist && (
+                      <div className="text-[11px] font-semibold truncate">{s.playlist}</div>
+                    )}
+                    <div className="text-xs text-muted-foreground line-clamp-2 leading-snug">
+                      {s.acao || s.motivo}
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          <div className="text-[10px] text-muted-foreground flex items-center justify-between pt-1 border-t border-border/50">
+            <span>{total} sugestões no total</span>
+            {lastAt && <span className="tabular-nums">há {timeAgo(lastAt)}</span>}
+          </div>
+        </>
+      )}
     </Link>
   );
 }
@@ -545,7 +558,6 @@ function GenreCard({ g }: { g: GenreRow }) {
       style={genreStyleVars(g.slug || g.nome)}
       className="nx-card-hover relative p-4 min-h-[118px] flex flex-col justify-between overflow-hidden group"
     >
-      {/* glow sutil colorido por gênero */}
       <div
         aria-hidden
         className="pointer-events-none absolute -top-10 -right-10 h-32 w-32 rounded-full opacity-40 group-hover:opacity-60 transition-opacity blur-2xl"
@@ -589,7 +601,6 @@ function GenreCard({ g }: { g: GenreRow }) {
   );
 }
 
-/** Traduz nomes técnicos de ações de log pra linguagem humana. */
 function prettyAction(a: string): string {
   const map: Record<string, string> = {
     "analyze-genre": "Análise de gênero",

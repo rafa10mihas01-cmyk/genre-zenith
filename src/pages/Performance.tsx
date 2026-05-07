@@ -15,6 +15,8 @@ import { PriorityActionsCard } from "@/components/performance/PriorityActionsCar
 import { GenreRanking } from "@/components/performance/GenreRanking";
 import { PlaylistsTable } from "@/components/performance/PlaylistsTable";
 import { InsightsPanel } from "@/components/performance/InsightsPanel";
+import { TopMovers } from "@/components/performance/TopMovers";
+import { FollowersTimeline } from "@/components/performance/FollowersTimeline";
 import type { DatasetRow, Insight, GenreRow } from "@/components/performance/types";
 
 export default function Performance() {
@@ -138,47 +140,45 @@ export default function Performance() {
         </Card>
       ) : (
         <>
-          {/* 1. KPIs principais — o que está acontecendo (com skeletons enquanto carrega) */}
+          {/* 1. KPIs principais */}
           <PerformanceKpis dataset={dataset} loading={loading && totalPubs === 0} />
 
-          {/* 2. Próximas ações + última análise — o que fazer agora */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-4">
-            <PriorityActionsCard insight={insight} />
-            <Card className="p-4 md:p-5 flex items-center gap-3 md:gap-4 min-h-[88px] md:min-h-[96px]">
-              <div className="h-9 w-9 md:h-10 md:w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                <Brain className="h-4 w-4 md:h-5 md:w-5 text-primary" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <h3 className="font-bold text-sm">Última análise</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {insight
-                    ? `${new Date(insight.created_at).toLocaleString("pt-BR")} — ${insight.total_playlists_analisadas} playlists`
-                    : "Nenhuma análise gerada ainda."}
-                </p>
-                {insight?.generated_by_model && (
-                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground mt-1">
-                    {insight.generated_by_model}
-                  </p>
-                )}
-              </div>
-            </Card>
-          </div>
+          {/* 2. Timeline agregada — growth visual */}
+          <FollowersTimeline />
 
-          {/* 3. Ranking por gênero — onde investir */}
+          {/* 3. Top movers — quem cresceu / quem caiu */}
+          <TopMovers dataset={dataset} />
+
+          {/* 4. Próximas ações da IA */}
+          <PriorityActionsCard insight={insight} />
+
+          {/* 5. Ranking por gênero */}
           <GenreRanking dataset={dataset} genres={genres} />
 
-          {/* 4. Detalhe — playlists com filtros e padrões aprendidos */}
+          {/* 6. Detalhe — playlists e padrões */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-3 md:space-y-4">
             <TabsList>
               <TabsTrigger value="playlists">Playlists ({totalPubs})</TabsTrigger>
-              <TabsTrigger value="insights">Padrões</TabsTrigger>
+              <TabsTrigger value="insights" className="gap-1.5">
+                Padrões
+                {insight && Array.isArray(insight.acoes_sugeridas) && insight.acoes_sugeridas.length > 0 && (
+                  <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-primary/15 text-primary text-[10px] font-bold tabular-nums">
+                    {insight.acoes_sugeridas.length}
+                  </span>
+                )}
+              </TabsTrigger>
             </TabsList>
-            {/* min-h estável para evitar layout shift na troca de aba */}
             <TabsContent value="playlists" className="min-h-[480px] animate-tab-in mt-0">
               <PlaylistsTable dataset={dataset} genres={genres} altaIds={altaIds} baixaIds={baixaIds} />
             </TabsContent>
             <TabsContent value="insights" className="min-h-[480px] animate-tab-in mt-0">
               <InsightsPanel insight={insight} />
+              {insight && (
+                <p className="text-[10px] text-muted-foreground text-right mt-2">
+                  Última análise: {new Date(insight.created_at).toLocaleString("pt-BR")}
+                  {insight.generated_by_model ? ` • ${insight.generated_by_model}` : ""}
+                </p>
+              )}
             </TabsContent>
           </Tabs>
         </>
