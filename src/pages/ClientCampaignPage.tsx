@@ -404,7 +404,7 @@ export default function ClientCampaignPage() {
           {/* Músicas da campanha — filtro visual (espelha CuratorPage) */}
           {hasMultipleSongs && (
             <Card className="nx-card !p-0 border-border">
-              <CardContent className="p-5 sm:p-6 pt-5 sm:pt-6 md:pt-6 space-y-5">
+              <CardContent className="p-5 sm:p-6 pt-7 sm:pt-8 md:pt-8 space-y-5">
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <h2 className="text-[15px] font-semibold inline-flex items-center gap-2 tracking-tight">
@@ -521,7 +521,7 @@ export default function ClientCampaignPage() {
           {/* Gráfico — evolução */}
           {chartData.length > 1 && (
             <Card className="nx-card !p-0 border-border">
-              <CardContent className="p-5 sm:p-6 pt-6 sm:pt-7 space-y-5">
+                <CardContent className="p-5 sm:p-6 pt-8 sm:pt-9 space-y-5">
                 <div className="flex items-center justify-between gap-3 flex-wrap">
                   <div>
                     <h2 className="text-[15px] font-semibold inline-flex items-center gap-2 tracking-tight">
@@ -605,7 +605,7 @@ export default function ClientCampaignPage() {
           {/* Playlists monitoradas */}
           {playlists.length > 0 ? (
             <Card className="nx-card !p-0 border-border">
-              <CardContent className="p-5 sm:p-6 pt-6 sm:pt-7 space-y-5">
+              <CardContent className="p-5 sm:p-6 pt-8 sm:pt-9 space-y-5">
                 <div className="flex items-start justify-between gap-3 flex-wrap">
                   <div className="min-w-0">
                     <h2 className="text-[15px] font-semibold inline-flex items-center gap-2 tracking-tight">
