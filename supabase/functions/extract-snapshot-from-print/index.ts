@@ -562,6 +562,7 @@ Deno.serve(async (req) => {
           .update({
             auto_collect_status: "error",
             auto_collect_error: `extract: ${msg.slice(0, 400)}`,
+            queued_at: null,
           })
           .eq("id", song_id);
       }
