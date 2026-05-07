@@ -595,6 +595,11 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
       </section>
         </TabsContent>
 
+        {/* ───────────────────── CONTAS SPOTIFY ───────────────────── */}
+        <TabsContent value="contas-spotify" className="mt-4">
+          <AccountsManager />
+        </TabsContent>
+
         {/* ───────────────────────── EQUIPE ───────────────────────── */}
         <TabsContent value="equipe" className="mt-4">
           <EquipeTab />
