@@ -32,13 +32,13 @@ export function MobileBottomNav() {
       style={{
         paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 8px)",
         paddingTop: "8px",
-        paddingLeft: "8px",
-        paddingRight: "8px",
+        paddingLeft: "calc(env(safe-area-inset-left, 0px) + 12px)",
+        paddingRight: "calc(env(safe-area-inset-right, 0px) + 12px)",
         minHeight: "calc(64px + env(safe-area-inset-bottom, 0px))",
       }}
       aria-label="Navegação principal"
     >
-      <ul className="flex items-center justify-around w-full">
+      <ul className="flex items-center justify-around w-full gap-1">
         {items.map((item) => {
           const active = item.end
             ? location.pathname === item.to
