@@ -78,21 +78,85 @@ export default function ComunidadeAdmin() {
           <TabsTrigger value="campanhas">Campanhas</TabsTrigger>
           <TabsTrigger value="membros">Membros</TabsTrigger>
           <TabsTrigger value="aprovacoes">Aprovações</TabsTrigger>
+          <TabsTrigger value="auditoria">Auditoria</TabsTrigger>
         </TabsList>
-        <TabsContent value="convites">
-          <ConvitesTab adminId={user?.id ?? ""} />
-        </TabsContent>
-        <TabsContent value="campanhas">
-          <CampanhasTab adminId={user?.id ?? ""} />
-        </TabsContent>
-        <TabsContent value="membros">
-          <MembrosTab />
-        </TabsContent>
-        <TabsContent value="aprovacoes">
-          <AprovacoesTab />
-        </TabsContent>
+        <TabsContent value="convites"><ConvitesTab adminId={user?.id ?? ""} /></TabsContent>
+        <TabsContent value="campanhas"><CampanhasTab adminId={user?.id ?? ""} /></TabsContent>
+        <TabsContent value="membros"><MembrosTab /></TabsContent>
+        <TabsContent value="aprovacoes"><AprovacoesTab /></TabsContent>
+        <TabsContent value="auditoria"><AuditoriaTab /></TabsContent>
       </Tabs>
     </PageContainer>
+  );
+}
+
+/* ============ AUDITORIA ============ */
+function AuditoriaTab() {
+  const [report, setReport] = useState<{ generated_at: string; checks: Array<{ check: string; count: number; level: string }> } | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  async function run() {
+    setLoading(true);
+    const { data, error } = await supabase.rpc("community_audit_report" as never);
+    setLoading(false);
+    if (error) return toast.error("Falha", { description: error.message });
+    setReport(data as never);
+  }
+  useEffect(() => { run(); }, []);
+
+  const LABELS: Record<string, string> = {
+    orphan_participations: "Participações órfãs",
+    consumed_invites_no_member: "Convites consumidos sem membro",
+    campaign_slot_invariant: "Slots de campanha inválidos",
+    duplicate_playlists: "Playlists duplicadas",
+    points_vs_ledger: "Pontos divergentes do ledger",
+    stale_active_participations: "Participações expiradas ainda ativas",
+    accept_after_close: "Aceites após fechamento",
+    community_open_rls: "RLS abertas (USING true)",
+  };
+
+  return (
+    <Card>
+      <CardContent className="p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-muted-foreground">
+            {report ? `Última auditoria: ${format(new Date(report.generated_at), "dd MMM HH:mm", { locale: ptBR })}` : "—"}
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={async () => {
+              const { data, error } = await supabase.rpc("community_expire_stale" as never);
+              if (error) return toast.error("Falha", { description: error.message });
+              toast.success(`${data ?? 0} participações expiradas`);
+              run();
+            }}>Expirar vencidas</Button>
+            <Button size="sm" onClick={run} disabled={loading}>
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Reexecutar"}
+            </Button>
+          </div>
+        </div>
+        {!report ? (
+          <div className="text-sm text-muted-foreground">Carregando…</div>
+        ) : (
+          <ul className="divide-y divide-border">
+            {report.checks.map((c) => (
+              <li key={c.check} className="flex items-center justify-between py-2.5">
+                <div className="text-sm">{LABELS[c.check] ?? c.check}</div>
+                <Badge
+                  variant="outline"
+                  className={`text-[10px] ${
+                    c.level === "critical" ? "border-destructive/30 text-destructive"
+                    : c.level === "warning" ? "border-yellow-500/30 text-yellow-400"
+                    : "border-primary/30 text-primary"
+                  }`}
+                >
+                  {c.level.toUpperCase()} · {c.count}
+                </Badge>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -499,9 +563,11 @@ function AprovacoesTab() {
 
   async function review(p: Participation, action: "approve" | "reject") {
     setBusyId(p.id);
-    const { error } = await supabase.functions.invoke("approve-community-participation", {
-      body: { participation_id: p.id, action, points: p.points_offered },
-    });
+    const { error } = await supabase.rpc("community_review_participation" as never, {
+      p_participation_id: p.id,
+      p_action: action,
+      p_note: null,
+    } as never);
     setBusyId(null);
     if (error) return toast.error("Falha", { description: error.message });
     toast.success(action === "approve" ? "Aprovada" : "Recusada");

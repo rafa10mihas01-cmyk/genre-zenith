@@ -1,47 +1,45 @@
-// /comunidade/pontos — Histórico de pontos por participação.
+// /comunidade/pontos — Timeline de participações com pontos pendentes/aprovados.
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { ComunidadeShell } from "@/components/comunidade/ComunidadeShell";
 
 type Row = {
   id: string;
   status: string;
-  points_awarded: number;
+  title: string | null;
+  song_name: string | null;
+  song_artist: string | null;
   points_offered: number;
+  points_awarded: number;
   created_at: string;
+  proof_submitted_at: string | null;
+  reviewed_at: string | null;
+  expires_at: string | null;
+  review_note: string | null;
 };
 
-const STATUS_LABEL: Record<string, string> = {
-  accepted: "Aceita",
-  submitted: "Enviada",
-  approved: "Aprovada",
-  rejected: "Recusada",
-  expired: "Expirada",
-  passed: "Passou",
+const STATUS: Record<string, { label: string; tone: string }> = {
+  accepted:  { label: "Aceita",      tone: "border-primary/30 text-primary" },
+  submitted: { label: "Em análise",  tone: "border-yellow-500/30 text-yellow-400" },
+  approved:  { label: "Aprovada",    tone: "border-primary/30 text-primary" },
+  rejected:  { label: "Recusada",    tone: "border-destructive/30 text-destructive" },
+  expired:   { label: "Expirada",    tone: "border-border text-muted-foreground" },
 };
 
 export default function Pontos() {
-  const { user } = useAuth();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) return;
-    supabase
-      .from("community_participations")
-      .select("id,status,points_awarded,points_offered,created_at")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(50)
-      .then(({ data }) => {
-        setRows((data as Row[]) ?? []);
-        setLoading(false);
-      });
-  }, [user]);
+    supabase.rpc("community_my_participations" as never).then(({ data }) => {
+      setRows((data as Row[]) ?? []);
+      setLoading(false);
+    });
+  }, []);
 
   return (
     <ComunidadeShell>
@@ -60,24 +58,28 @@ export default function Pontos() {
             <CardContent className="p-0">
               <ul className="divide-y divide-border">
                 {rows.map((r) => {
-                  const value = r.points_awarded || r.points_offered;
+                  const meta = STATUS[r.status] ?? { label: r.status, tone: "border-border text-muted-foreground" };
                   const positive = r.status === "approved";
+                  const value = positive ? r.points_awarded : r.points_offered;
                   return (
-                    <li key={r.id} className="flex items-center justify-between gap-3 px-5 py-3">
-                      <div className="min-w-0">
-                        <div className="text-sm font-medium">{STATUS_LABEL[r.status] ?? r.status}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {format(new Date(r.created_at), "dd MMM", { locale: ptBR })}
+                    <li key={r.id} className="px-5 py-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium truncate">
+                            {r.title ?? r.song_name ?? "Campanha"}
+                          </div>
+                          <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
+                            <Badge variant="outline" className={`text-[10px] ${meta.tone}`}>{meta.label}</Badge>
+                            <span>{format(new Date(r.created_at), "dd MMM", { locale: ptBR })}</span>
+                          </div>
+                        </div>
+                        <div className={`text-sm font-semibold ${positive ? "text-primary" : "text-muted-foreground"}`}>
+                          {positive ? "+" : ""}{value}
                         </div>
                       </div>
-                      <div
-                        className={`text-sm font-semibold ${
-                          positive ? "text-primary" : "text-muted-foreground"
-                        }`}
-                      >
-                        {positive ? "+" : ""}
-                        {value}
-                      </div>
+                      {r.review_note && (
+                        <p className="mt-2 text-xs text-muted-foreground">{r.review_note}</p>
+                      )}
                     </li>
                   );
                 })}

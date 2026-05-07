@@ -53,6 +53,10 @@ const errMap: Record<string, string> = {
   invalid_proof_url: "Cole um link válido da prova.",
   expired: "O prazo para enviar a prova venceu.",
   invalid_state: "Essa participação não aceita mais envio.",
+  cooldown_active: "Aguarde alguns segundos antes de aceitar outra.",
+  daily_limit_reached: "Limite diário atingido. Tente amanhã.",
+  rate_limited: "Muitos envios seguidos. Tente em alguns minutos.",
+  campaign_not_found: "Campanha não encontrada.",
 };
 
 export default function Campanhas() {
