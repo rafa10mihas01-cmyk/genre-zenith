@@ -66,9 +66,9 @@ export function PrintThumbs({ urls, className, size = "md" }: PrintThumbsProps) 
         <DialogContent className="max-w-3xl p-0 bg-card border-border overflow-hidden">
           {open && (
             <div className="flex flex-col">
-              <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-[hsl(var(--elevated))]">
-                <NexEngineLogo variant="auto" className="h-6 w-auto" />
-                <div className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">
+              <div className="flex items-center justify-between gap-3 px-5 py-3 pr-12 border-b border-border bg-[hsl(var(--elevated))]">
+                <NexEngineLogo variant="auto" className="h-6 w-auto shrink-0" />
+                <div className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground truncate">
                   Print direto do Spotify for Artists
                 </div>
               </div>
