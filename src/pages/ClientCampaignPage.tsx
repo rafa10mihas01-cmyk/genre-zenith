@@ -95,12 +95,10 @@ function formatShortDate(iso: string | Date | null | undefined): string {
 function formatDateTime(iso: string | null | undefined): string {
   if (!iso) return "—";
   try {
-    return new Date(iso).toLocaleString("pt-BR", {
-      day: "2-digit",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    const d = new Date(iso);
+    const date = d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+    const time = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    return `${date} · ${time}`;
   } catch {
     return "—";
   }
