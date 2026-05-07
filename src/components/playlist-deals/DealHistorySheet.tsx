@@ -511,12 +511,9 @@ export function DealHistorySheet({
                     />
                   </div>
 
-                  {/* mini-status técnico */}
-                  <div className="rounded-xl border border-white/[0.04] bg-[hsl(var(--elevated))]/50 p-4 space-y-2.5">
-                    <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Estado da coleta
-                    </div>
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-[12px]">
+                  {/* Estado da coleta */}
+                  <SectionCard title="Estado da coleta">
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-[13px]">
                       <div className="text-muted-foreground">Baseline</div>
                       <div className="text-right tabular-nums font-medium">
                         {baseline > 0 ? fmt(baseline) : "—"}
@@ -534,18 +531,15 @@ export function DealHistorySheet({
                       <div className="text-muted-foreground">Investido</div>
                       <div className="text-right font-medium">{investido}</div>
                     </div>
-                  </div>
+                  </SectionCard>
 
-                  {/* breakdown de playlists */}
-                  <div className="rounded-xl border border-white/[0.04] bg-[hsl(var(--elevated))]/50 p-4">
-                    <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-                      Origem das playlists
-                    </div>
-                    <div className="space-y-2">
+                  {/* Origem das playlists */}
+                  <SectionCard title="Origem das playlists">
+                    <div className="space-y-2.5">
                       {(["curator", "editorial", "organic", "suspicious", "baseline"] as CuratorMatchStatus[])
                         .filter((s) => counts[s] > 0)
                         .map((s) => (
-                          <div key={s} className="flex items-center gap-2 text-[12px]">
+                          <div key={s} className="flex items-center gap-2 text-[13px]">
                             <span className={cn("h-1.5 w-1.5 rounded-full", STATUS_DOT[s])} />
                             <span className="text-foreground">{STATUS_LABEL[s]}</span>
                             <span className="ml-auto tabular-nums font-semibold text-muted-foreground">
@@ -554,12 +548,12 @@ export function DealHistorySheet({
                           </div>
                         ))}
                       {dealPlaylists.length === 0 && (
-                        <div className="text-[12px] text-muted-foreground">
+                        <div className="text-[13px] text-muted-foreground">
                           Nenhuma playlist registrada ainda.
                         </div>
                       )}
                     </div>
-                  </div>
+                  </SectionCard>
 
                   {/* Curador vs Ecossistema (RPC breakdown) */}
                   {breakdown && (
