@@ -112,14 +112,17 @@ export function CuratorDealCard({
     }
   };
 
-  const handleCopyClientLink = async (overrideToken?: string | null) => {
+  const handleCopyClientLink = async (
+    override?: { slug?: string | null; client_token?: string | null } | null,
+  ) => {
     const { clientCampaignUrl } = await import("@/lib/curatorPublicUrl");
-    const tokenToUse = overrideToken ?? deal.client_token ?? null;
-    if (!tokenToUse) {
+    const slug = override?.slug ?? null;
+    const token = override?.client_token ?? deal.client_token ?? null;
+    if (!slug && !token) {
       toast.error("Link do cliente indisponível para esta música");
       return;
     }
-    const url = clientCampaignUrl({ client_token: tokenToUse });
+    const url = clientCampaignUrl({ slug, client_token: token });
     try {
       await navigator.clipboard.writeText(url);
       toast.success("Link do cliente copiado", { description: url });
@@ -128,8 +131,8 @@ export function CuratorDealCard({
     }
   };
 
-  // Músicas com client_token (link público por faixa)
-  const songsWithClientLink = (songs ?? []).filter((s) => !!s.client_token);
+  // Músicas com link público (por faixa) — slug ou client_token
+  const songsWithClientLink = (songs ?? []).filter((s) => !!s.slug || !!s.client_token);
   const showPerSongLinks = songsWithClientLink.length > 1;
 
   const handleForceCollect = async () => {
@@ -490,7 +493,7 @@ export function CuratorDealCard({
                     <DropdownMenuItem
                       key={s.id}
                       className="gap-2 rounded-lg items-center py-2"
-                      onClick={() => handleCopyClientLink(s.client_token ?? null)}
+                      onClick={() => handleCopyClientLink({ slug: s.slug ?? null, client_token: s.client_token ?? null })}
                     >
                       <User className="h-4 w-4 shrink-0 text-muted-foreground" />
                       <span className="text-sm leading-tight font-medium truncate flex-1" title={s.song_name}>
@@ -503,8 +506,14 @@ export function CuratorDealCard({
               ) : (
                 <DropdownMenuItem
                   className="gap-2 rounded-lg items-start py-2"
-                  onClick={() => handleCopyClientLink(songsWithClientLink[0]?.client_token ?? deal.client_token ?? null)}
-                  disabled={!deal.client_token && !songsWithClientLink[0]?.client_token}
+                  onClick={() => {
+                    const first = songsWithClientLink[0];
+                    handleCopyClientLink({
+                      slug: first?.slug ?? null,
+                      client_token: first?.client_token ?? deal.client_token ?? null,
+                    });
+                  }}
+                  disabled={!deal.client_token && !songsWithClientLink[0]?.client_token && !songsWithClientLink[0]?.slug}
                 >
                   <User className="h-4 w-4 mt-0.5 shrink-0" />
                   <div className="flex flex-col min-w-0 flex-1">

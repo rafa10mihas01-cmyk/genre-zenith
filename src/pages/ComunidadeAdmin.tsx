@@ -31,7 +31,7 @@ import { useScreenField } from "@/lib/screen-state";
 import { formatNumber } from "@/lib/format";
 
 type Invite = {
-  id: string; code: string; email: string | null; status: string;
+  id: string; code: string; slug: string | null; email: string | null; status: string;
   expires_at: string; created_at: string; note: string | null;
 };
 type Member = {
@@ -503,7 +503,8 @@ function ConvitesTab({ adminId, onChange }: { adminId: string; onChange?: () => 
     setEmail("");
     setNote("");
     toast.success("Convite gerado");
-    const link = `${baseUrl}/comunidade/join/${data!.code}`;
+    const id = (data as Invite | null)?.slug || data!.code;
+    const link = `${baseUrl}/comunidade/join/${id}`;
     await navigator.clipboard?.writeText(link).catch(() => {});
     toast.message("Link copiado", { description: link });
     load(); onChange?.();
@@ -518,8 +519,9 @@ function ConvitesTab({ adminId, onChange }: { adminId: string; onChange?: () => 
     load(); onChange?.();
   }
 
-  async function copyLink(code: string) {
-    const link = `${baseUrl}/comunidade/join/${code}`;
+  async function copyLink(invite: Invite) {
+    const id = invite.slug || invite.code;
+    const link = `${baseUrl}/comunidade/join/${id}`;
     await navigator.clipboard?.writeText(link);
     toast.success("Link copiado");
   }
@@ -540,7 +542,7 @@ function ConvitesTab({ adminId, onChange }: { adminId: string; onChange?: () => 
                 <li key={i.id} className="flex items-center gap-3 py-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <code className="text-xs bg-elevated px-1.5 py-0.5 rounded">{i.code}</code>
+                      <code className="text-xs bg-elevated px-1.5 py-0.5 rounded">{i.slug || i.code}</code>
                       <StatusBadge status={realStatus} />
                     </div>
                     <div className="mt-1 text-xs text-muted-foreground truncate">
@@ -551,7 +553,7 @@ function ConvitesTab({ adminId, onChange }: { adminId: string; onChange?: () => 
                       {i.note ? ` · ${i.note}` : ""}
                     </div>
                   </div>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => copyLink(i.code)} title="Copiar link">
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => copyLink(i)} title="Copiar link">
                     <Copy className="h-4 w-4" />
                   </Button>
                   {i.status === "pending" && (

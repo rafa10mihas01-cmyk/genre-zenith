@@ -528,7 +528,9 @@ function ClientDetailContent({
           <div className="space-y-2.5">
             {songs.map((s) => {
               const deal = dealById.get(s.deal_id);
-              const url = s.client_token ? clientCampaignUrl({ client_token: s.client_token }) : null;
+              const url = (s.slug || s.client_token)
+                ? clientCampaignUrl({ slug: s.slug ?? null, client_token: s.client_token ?? null })
+                : null;
               return (
                 <Card key={s.id} className="overflow-hidden">
                   <CardContent className="p-4 flex items-center gap-3 min-w-0">
