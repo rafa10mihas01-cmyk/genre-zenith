@@ -1730,6 +1730,69 @@ export type Database = {
         }
         Relationships: []
       }
+      managed_playlists: {
+        Row: {
+          account_id: string | null
+          archived_at: string | null
+          cover_url: string | null
+          created_at: string
+          description: string | null
+          followers: number
+          genre_id: string | null
+          id: string
+          imported_at: string
+          imported_by: string | null
+          last_diagnosis_at: string | null
+          last_metrics_at: string | null
+          metadata: Json
+          name: string
+          spotify_playlist_id: string
+          spotify_url: string
+          tracks_count: number
+          updated_at: string
+        }
+        Insert: {
+          account_id?: string | null
+          archived_at?: string | null
+          cover_url?: string | null
+          created_at?: string
+          description?: string | null
+          followers?: number
+          genre_id?: string | null
+          id?: string
+          imported_at?: string
+          imported_by?: string | null
+          last_diagnosis_at?: string | null
+          last_metrics_at?: string | null
+          metadata?: Json
+          name: string
+          spotify_playlist_id: string
+          spotify_url: string
+          tracks_count?: number
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string | null
+          archived_at?: string | null
+          cover_url?: string | null
+          created_at?: string
+          description?: string | null
+          followers?: number
+          genre_id?: string | null
+          id?: string
+          imported_at?: string
+          imported_by?: string | null
+          last_diagnosis_at?: string | null
+          last_metrics_at?: string | null
+          metadata?: Json
+          name?: string
+          spotify_playlist_id?: string
+          spotify_url?: string
+          tracks_count?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           action_url: string | null
@@ -1987,6 +2050,68 @@ export type Database = {
           version?: number
         }
         Relationships: []
+      }
+      playlist_diagnoses: {
+        Row: {
+          applied_at: string | null
+          applied_by: string | null
+          applied_changes: Json
+          competitors: Json
+          cover_suggestion: Json
+          created_at: string
+          created_by: string | null
+          id: string
+          name_current: string | null
+          name_reasons: Json
+          name_score: number | null
+          name_suggestion: string | null
+          playlist_id: string
+          raw: Json
+          tracks_suggestions: Json
+        }
+        Insert: {
+          applied_at?: string | null
+          applied_by?: string | null
+          applied_changes?: Json
+          competitors?: Json
+          cover_suggestion?: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name_current?: string | null
+          name_reasons?: Json
+          name_score?: number | null
+          name_suggestion?: string | null
+          playlist_id: string
+          raw?: Json
+          tracks_suggestions?: Json
+        }
+        Update: {
+          applied_at?: string | null
+          applied_by?: string | null
+          applied_changes?: Json
+          competitors?: Json
+          cover_suggestion?: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name_current?: string | null
+          name_reasons?: Json
+          name_score?: number | null
+          name_suggestion?: string | null
+          playlist_id?: string
+          raw?: Json
+          tracks_suggestions?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "playlist_diagnoses_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "managed_playlists"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       playlist_metrics_snapshots: {
         Row: {

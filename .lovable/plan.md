@@ -1,113 +1,87 @@
-# Plano — Separação Curador↔Ecossistema + Observabilidade Fase A
+# NexEngine — Reformulação para Growth Manual
 
-Dois blocos independentes, entregues em ordem. Cada bloco é validável isoladamente.
+## Filosofia
+**A IA pensa, o humano decide.** Coleta/análise/aprendizado seguem automáticos. Criação, edição e publicação viram 1-clique manual.
 
----
+## Fase 1 — Banco e estrutura (backend mínimo)
 
-## BLOCO 1 — Separação estrutural Curador / Orgânico / Ecossistema
+1. **Tabela `managed_playlists`** (nova) — playlists reais que você opera.
+   - Campos: `id`, `spotify_playlist_id`, `spotify_url`, `name`, `cover_url`, `followers`, `tracks_count`, `genre_id`, `imported_at`, `archived_at`, `last_diagnosis_at`, `metadata jsonb`.
+   - RLS: `has_team_access()`.
+2. **Tabela `playlist_diagnoses`** (nova) — snapshots de sugestões da IA.
+   - Campos: `playlist_id`, `created_at`, `name_score`, `name_suggestion`, `tracks_suggestions jsonb`, `cover_suggestion`, `applied_at`, `applied_by`.
+3. Reaproveitar `track-playlist-metrics`, `genre_models`, `palavras_chave`, `padroes_nome`, `extract-replication-rules` apontando para `managed_playlists`.
 
-### Princípio
-- **Ingestão** continua salvando 100% do DOM bruto (já corrigido na rodada anterior).
-- **Classificação** acontece via `curator_playlists.match_status` (`curator | editorial | algorithmic | organic | suspicious | baseline`).
-- **Apresentação** passa a ter 3 visões explícitas, nunca misturadas no mesmo número.
+## Fase 2 — Operação reformulada (frontend)
 
-### Mudança de dados (uma migration pequena)
+Substituir as abas atuais de `Operacao.tsx` por:
 
-Nova RPC `get_curator_deal_breakdown(p_deal_id uuid)` retornando 3 blocos a partir de `curator_deal_snapshots` + `curator_playlists` mais recente por playlist:
+### Aba 1 — Minhas Playlists (principal)
+- Lista de cards das playlists importadas (capa, nome, seguidores, gênero, status).
+- Botão **"+ Importar playlist"** → cola URL Spotify → função `import-managed-playlist` puxa metadata.
+- Cada card tem ações: **Diagnosticar**, **Editar**, **Arquivar**.
+- **Drawer de diagnóstico** ao clicar Diagnosticar:
+  - Nome: score + sugestão (palavras-chave faltando) → botão "Aplicar nome no Spotify"
+  - Capa: comparação visual + sugestões → "Trocar capa" (upload / URL / IA)
+  - Faixas: lista de termos quentes faltando → "Adicionar faixas sugeridas"
+  - Posição vs concorrentes
+  - Cada sugestão: 1 botão = 1 ação no Spotify
 
-```
-{
-  curator:    { playlists, plays, delivered_vs_baseline },
-  ecosystem: {
-    editorial:   { playlists, plays },
-    algorithmic: { playlists, plays },
-    organic:     { playlists, plays }
-  },
-  total:      { playlists, plays }
-}
-```
+### Aba 2 — Criar nova (avançado, secundário)
+- Formulário simples: gênero + nome.
+- Capa em 3 opções (upload PC = padrão, URL, IA opcional).
+- Botão **"Publicar no Spotify"** (manual, sem cron).
 
-Regra anti-duplicação: para cada `playlist_id` pega-se o snapshot mais recente (`DISTINCT ON (playlist_id) ORDER BY captured_at DESC`). Soma por bucket. Baseline (`is_baseline=true`) é excluída de todos os totais. Isso garante: `total = curator + editorial + algorithmic + organic`, sem somar duas vezes a mesma playlist.
+### Aba 3 — Arquivadas
+- Lista read-only de playlists arquivadas (mantém histórico/métricas).
+- Botão "Restaurar".
 
-### Mudança de UI
+## Fase 3 — Edge functions
 
-| Tela | Hoje mostra | Passa a mostrar |
-|---|---|---|
-| `CuratorDealCard` (lista) | KPI único misturado | KPI principal **"Entrega do curador"** (whitelist) + linha secundária "+ X playlists ecossistema" |
-| `DealHistorySheet` | Tudo junto | 3 abas: **Curador** / **Ecossistema** / **Bruto** |
-| `DealLogDetailDialog` | Tudo | Mesma separação visual com badges por `match_status` |
-| `CuratorPage` (público do curador) | só whitelist | **inalterado** — só whitelist |
-| `ClientCampaignPage` (público do cliente) | só whitelist | **inalterado** — só whitelist |
-| PDF de fechamento | whitelist | **inalterado** |
+**Novas (manuais, chamadas por botão):**
+- `import-managed-playlist` — recebe URL, busca metadata Spotify, insere em `managed_playlists`.
+- `diagnose-managed-playlist` — roda análise (nome/faixas/capa) usando `genre_models`, salva em `playlist_diagnoses`.
+- `apply-playlist-change` — aplica 1 mudança no Spotify (rename | replace_cover | add_tracks).
+- `archive-managed-playlist` — soft delete local.
 
-### Regras intocadas (sem regressão)
-- `get_curator_deal_progress` continua filtrando `match_status='curator'` → progress/ETA/baseline/financeiro idênticos.
-- `cron-reconcile-curator-deals` continua usando snapshots curator → reconciled_total_plays inalterado.
-- `daily_goal`, `target_plays`, `cost`, CPP → inalterados.
-- Score de fraude continua recebendo organic/editorial como sinal (já implementado).
+**Mantidas automáticas (cron continua):**
+- `daily-collect`, `track-playlist-metrics`, `analyze-genre`, `enrich-playlists`, `extract-replication-rules`, `learning-loop` (somente parte de coleta/análise).
 
-### Prova de não-duplicação
-Antes do deploy: query de validação retroativa no deal `ae37e1d0`:
-```
-soma_breakdown(curator+editorial+algorithmic+organic) ?= soma_distinct_on_playlist
-```
-Se bater, não há dupla contagem.
+**Desligar crons (manter código, virar botão "Rodar agora"):**
+- `auto-replicate-playlists`, `auto-adjust-playlists`, `autopilot-all-genres`, `genre-autopilot`.
+- Remover schedules em `pg_cron` dessas funções (manter as de coleta).
 
----
+## Fase 4 — Reorganização do menu
 
-## BLOCO 2 — Observabilidade Fase A (endpoint-side apenas)
+- **Operação** = Minhas Playlists (foco)
+- **Criação** vira sub-aba dentro de Operação (não mais item de menu principal)
+- **Performance** = passa a comparar antes/depois das playlists gerenciadas
+- **Cérebro/Sistema/Configurações** = sem mudança
 
-**Sem alterar comportamento do worker da VPS.** Apenas instrumentação no lado Lovable + spec escrita pra VPS implementar depois.
+## Fase 5 — Capa: nova prioridade
+No editor de capa do diagnóstico e da criação:
+1. Upload do PC (padrão visível)
+2. Colar URL de imagem
+3. Gerar com IA (botão secundário, ícone de ✨)
 
-### Migration
-- `bot_events`: adicionar `correlation_id uuid`, `lifecycle_state text` (enum check: `FETCHED|ACCEPTED|QUEUED_LOCAL|STARTED|PRINT_UPLOADED|SNAPSHOT_SENT|FINISHED|FAILED|DISCARDED`), `discard_reason text`. Index em `correlation_id`.
-- `bot_print_batches`: adicionar `correlation_id uuid` + index.
-- `curator_deal_snapshots`: adicionar `correlation_id uuid` + index.
-- View `v_dispatch_trace`: join correlation_id → ordem cronológica de todos os eventos/batches/snapshots para um único dispatch.
-
-### Edge functions
-- **`bot-collect-queue`** — gera `correlation_id = crypto.randomUUID()` por song dispatchada, devolve no payload (`queue[i].correlation_id`), grava `bot_events` com `lifecycle_state='FETCHED'`.
-- **`bot-event-ingest`** — aceita `correlation_id` + `lifecycle_state` + `discard_reason` opcionais, valida enum, persiste.
-- **`bot-upload-print`** — lê `correlation_id` do body, propaga pra `bot_print_batches`, grava evento `PRINT_UPLOADED`.
-- **`extract-snapshot-from-print`** — propaga `correlation_id` do batch pros snapshots inseridos, grava `SNAPSHOT_SENT` e `FINISHED`.
-- **`bot-heartbeat`** — aceita campo opcional `processing_correlation_ids: string[]` no metadata (não força, só registra).
-
-### Spec escrita pra VPS (arquivo `docs/BOT_VPS_CONTRACT.md`)
-Documenta exatamente:
-- Headers obrigatórios
-- Fields obrigatórios em cada POST
-- Ordem dos lifecycle events
-- `discard_reason` obrigatório quando `DISCARDED`
-- Nunca silent return
-
-**Não toca em timeout/retry/recovery** — fica pra fase B só depois que a prova determinística estiver fechada.
-
-### View de debug
-`v_dispatch_trace`:
-```
-correlation_id, deal_id, song_id,
-fetched_at, accepted_at, started_at,
-print_uploaded_at, snapshot_sent_at, finished_at,
-discarded_at, discard_reason,
-batch_id, snapshot_count, total_plays_extracted
-```
-
-Permite query única: "cadê o dispatch X?" → mostra exatamente em que estado parou.
-
----
+## Detalhes técnicos
+- Cron desativado via `cron.unschedule('nome-do-job')` para auto-replicate/auto-adjust/autopilot.
+- `requireTeamAccess` em todas as novas edge functions.
+- Storage bucket `playlist-covers` (já existe? se não, criar público).
+- `apply-playlist-change` usa token Spotify do `accounts` correspondente.
+- Frontend: novo hook `useManagedPlaylists`, componentes `ManagedPlaylistCard`, `DiagnosisDrawer`, `CoverPicker`.
 
 ## Ordem de execução
-1. Migration Bloco 2 (correlation_id em 3 tabelas + view) — não-quebrante.
-2. Edge functions Bloco 2 — propagação de correlation_id.
-3. Spec VPS escrita.
-4. Migration Bloco 1 (RPC `get_curator_deal_breakdown`).
-5. Hook `useCuratorDealBreakdown` + UI nos 3 componentes.
-6. Validação anti-duplicação no deal `ae37e1d0`.
+1. Migrations (tabelas + unschedule crons de ação)
+2. Edge functions novas
+3. Frontend: aba "Minhas Playlists" + import flow
+4. Drawer de diagnóstico + apply
+5. Mover criação para sub-aba + reordenar capa
+6. Aba arquivadas
+7. Performance: trocar fonte para `managed_playlists`
 
-## O que NÃO vai mudar nesta rodada
-- Comportamento do worker VPS (só recebe spec).
-- Cálculo de progress/baseline/financeiro/PDF/reconcile.
-- Telas públicas (curador + cliente).
-- Regras de timeout/retry/recovery do `bot-collect-queue`.
-
-Confirma que pode prosseguir com os dois blocos nessa ordem?
+## Fora do escopo desta fase
+- Notificações automáticas de queda
+- A/B test de capas
+- Recomendação cross-playlist
+(vão para backlog "automações fortes" depois de validar growth real)

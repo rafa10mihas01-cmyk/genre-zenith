@@ -3,8 +3,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Activity, Pause, RefreshCw, ArrowDownRight, ArrowUpRight,
   Music2, FlaskConical, History, ListMusic, Search, Users, ExternalLink,
-  AlertCircle, Wrench, ChevronDown, ChevronUp, Server,
+  AlertCircle, Wrench, ChevronDown, ChevronUp, Server, Sparkles,
 } from "lucide-react";
+import { MinhasPlaylists } from "@/components/operacao/MinhasPlaylists";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -46,7 +47,8 @@ const ACTION_LABEL: Record<string, string> = {
 const labelAction = (a: string) => ACTION_LABEL[a] ?? a.replace(/_/g, " ");
 
 const TABS = [
-  { id: "playlists", label: "Playlists", icon: ListMusic },
+  { id: "minhas",    label: "Minhas Playlists", icon: Sparkles },
+  { id: "playlists", label: "Criadas (auto)", icon: ListMusic },
   { id: "ajustes",   label: "Ajustes",   icon: Wrench },
   { id: "contas",    label: "Contas",    icon: Users },
 ] as const;
@@ -84,7 +86,7 @@ type AccountSummary = {
 };
 
 export default function Operacao() {
-  const [tab, setTab] = usePersistedState<TabId>("operacao:tab", "playlists");
+  const [tab, setTab] = usePersistedState<TabId>("operacao:tab", "minhas");
   const [filter, setFilter] = usePersistedState<"todas" | OpStatus>("operacao:filter", "todas");
   const [search, setSearch] = usePersistedState<string>("operacao:search", "");
   const [loading, setLoading] = useState(true);
@@ -277,7 +279,14 @@ export default function Operacao() {
 
       {/* Container das tabs com altura mínima estável (evita layout shift) */}
       <div className="min-h-[640px]">
-        {/* PLAYLISTS */}
+        {/* MINHAS PLAYLISTS — foco principal */}
+        {tab === "minhas" && (
+          <section key="tab-minhas" className="animate-tab-in">
+            <MinhasPlaylists />
+          </section>
+        )}
+
+        {/* PLAYLISTS (criadas pelo sistema, legado) */}
         {tab === "playlists" && (
           <section key="tab-playlists" className="space-y-4 animate-tab-in">
             <div className="flex flex-col sm:flex-row sm:items-center gap-2">
