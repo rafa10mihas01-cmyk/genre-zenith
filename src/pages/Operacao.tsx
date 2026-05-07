@@ -3,8 +3,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Activity, Pause, RefreshCw, ArrowDownRight, ArrowUpRight,
   Music2, FlaskConical, History, ListMusic, Search, Users, ExternalLink,
-  AlertCircle, Wrench, ChevronDown, ChevronUp, Server,
+  AlertCircle, Wrench, ChevronDown, ChevronUp, Server, Sparkles,
 } from "lucide-react";
+import { MinhasPlaylists } from "@/components/operacao/MinhasPlaylists";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
