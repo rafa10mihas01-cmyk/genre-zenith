@@ -456,6 +456,29 @@ export function DealHistorySheet({
   const curatorWindowTotal = sumWindow(curatorBreakdownRows, perfWindow);
   const algoWindowTotal = sumWindow(algoBreakdownRows, perfWindow);
 
+  // Mapa playlist_id → breakdown (pra fundir cadastro + snapshot)
+  const breakdownMap = useMemo(() => {
+    const m = new Map<string, (typeof curatorBreakdownRows)[number]>();
+    for (const r of todayBreakdown?.rows ?? []) m.set(r.playlist_id, r);
+    return m;
+  }, [todayBreakdown]);
+
+  const toBreakdownRowData = (p: CuratorPlaylist): BreakdownRowData => {
+    const snap = breakdownMap.get(p.id);
+    return {
+      playlist_id: p.id,
+      playlist_name: p.playlist_name || "Playlist sem nome",
+      spotify_url: p.spotify_url ?? null,
+      spotify_owner_name: p.spotify_owner_name ?? null,
+      image_url: p.image_url ?? null,
+      match_status: p.match_status ?? "curator",
+      today_plays: snap?.today_plays ?? 0,
+      plays_24h: snap?.plays_24h ?? null,
+      plays_7d: snap?.plays_7d ?? null,
+      plays_28d: snap?.plays_28d ?? null,
+    };
+  };
+
   // dados auxiliares
   const baseline = Number(deal?.baseline_plays ?? 0);
   const target = Number(deal?.target_plays ?? 0);
