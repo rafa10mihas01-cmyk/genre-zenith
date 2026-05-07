@@ -962,10 +962,10 @@ export function DealHistorySheet({
                 </TabsContent>
 
                 {/* === HISTÓRICO === */}
-                <TabsContent value="historico" className="m-0 px-6 py-5 space-y-2">
+                <TabsContent value="historico" className="m-0 px-6 py-5 space-y-3">
                   {reversedLogs.length === 0 ? (
-                    <div className="rounded-xl border border-white/[0.04] bg-[hsl(var(--elevated))]/40 py-10 flex flex-col items-center text-center gap-2">
-                      <div className="h-10 w-10 rounded-full bg-[hsl(var(--elevated))] border border-white/[0.04] flex items-center justify-center">
+                    <div className="rounded-2xl border border-border bg-card py-10 flex flex-col items-center text-center gap-2">
+                      <div className="h-10 w-10 rounded-full bg-[hsl(var(--elevated))] border border-border flex items-center justify-center">
                         <ImageOff className="h-4 w-4 text-muted-foreground" />
                       </div>
                       <div className="text-sm font-medium text-foreground">Nenhum registro ainda</div>
@@ -1011,10 +1011,10 @@ export function DealHistorySheet({
                         <div
                           key={log.id}
                           className={cn(
-                            "rounded-xl border transition-colors overflow-hidden",
+                            "rounded-2xl border overflow-hidden transition-colors",
                             isExpanded
-                              ? "border-white/[0.10] bg-[hsl(var(--elevated))]"
-                              : "border-white/[0.04] bg-[hsl(var(--elevated))]/30 hover:bg-[hsl(var(--elevated))] hover:border-white/[0.08]",
+                              ? "border-primary/40 bg-card shadow-[0_0_0_1px_hsl(var(--primary)/0.15)]"
+                              : "border-border bg-card hover:border-border/80",
                           )}
                         >
                           <button
@@ -1022,13 +1022,16 @@ export function DealHistorySheet({
                             onClick={() =>
                               setSelectedLogId(isExpanded ? null : log.id)
                             }
-                            className="w-full text-left px-3 py-2.5 flex items-center gap-3"
+                            className={cn(
+                              "w-full text-left px-4 py-3 flex items-center gap-3",
+                              isExpanded && "bg-[hsl(var(--elevated))]",
+                            )}
                           >
                             {cover ? (
                               <img
                                 src={cover}
                                 alt=""
-                                className="h-11 w-11 rounded-lg object-cover shrink-0 ring-1 ring-white/[0.06]"
+                                className="h-11 w-11 rounded-lg object-cover shrink-0 ring-1 ring-border"
                               />
                             ) : (
                               <div className="h-11 w-11 rounded-lg bg-muted/40 flex items-center justify-center shrink-0">
@@ -1038,7 +1041,10 @@ export function DealHistorySheet({
 
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2">
-                                <span className="text-[13px] font-semibold leading-tight line-clamp-1">
+                                <span className={cn(
+                                  "text-[13px] leading-tight line-clamp-1",
+                                  isExpanded ? "font-bold text-foreground" : "font-semibold",
+                                )}>
                                   {songName}
                                 </span>
                                 {log.is_baseline && (
@@ -1100,14 +1106,14 @@ export function DealHistorySheet({
                             <ChevronRight
                               className={cn(
                                 "h-4 w-4 text-muted-foreground/60 shrink-0 transition-transform",
-                                isExpanded && "rotate-90",
+                                isExpanded && "rotate-90 text-primary",
                               )}
                             />
                           </button>
 
                           {/* CORPO EXPANDIDO INLINE — sem popup */}
                           {isExpanded && (
-                            <div className="border-t border-white/[0.06] px-3 py-3 space-y-3 bg-background/30">
+                            <div className="border-t border-border px-4 py-4 space-y-4 bg-card">
                               {log.note && (
                                 <div>
                                   <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
