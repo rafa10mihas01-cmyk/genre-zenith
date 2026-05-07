@@ -86,7 +86,7 @@ type AccountSummary = {
 };
 
 export default function Operacao() {
-  const [tab, setTab] = usePersistedState<TabId>("operacao:tab", "playlists");
+  const [tab, setTab] = usePersistedState<TabId>("operacao:tab", "minhas");
   const [filter, setFilter] = usePersistedState<"todas" | OpStatus>("operacao:filter", "todas");
   const [search, setSearch] = usePersistedState<string>("operacao:search", "");
   const [loading, setLoading] = useState(true);
