@@ -560,7 +560,7 @@ function Toolbar({
               className={cn(
                 "px-3 h-8 rounded-full text-[11px] font-semibold transition-colors",
                 statusFilter === k
-                  ? "bg-primary text-primary-foreground"
+                  ? "bg-primary/15 text-primary border border-primary/40"
                   : "text-muted-foreground hover:text-foreground",
               )}
             >
@@ -623,7 +623,7 @@ function Toolbar({
             className={cn(
               "px-3 h-7 rounded-full text-[11px] font-semibold transition-colors border",
               genreFilter === null
-                ? "bg-primary text-primary-foreground border-primary"
+                ? "bg-primary/15 text-primary border-primary/40"
                 : "bg-elevated text-muted-foreground border-border hover:text-foreground",
             )}
           >
@@ -636,7 +636,7 @@ function Toolbar({
               className={cn(
                 "px-3 h-7 rounded-full text-[11px] font-semibold transition-colors border inline-flex items-center gap-1.5 capitalize",
                 genreFilter === g.id
-                  ? "bg-primary text-primary-foreground border-primary"
+                  ? "bg-primary/15 text-primary border-primary/40"
                   : "bg-elevated text-muted-foreground border-border hover:text-foreground",
               )}
             >

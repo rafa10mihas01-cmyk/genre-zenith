@@ -67,7 +67,7 @@ export function Decisoes({ briefing, loading, onRegenerate, onAnalyzeDna, genera
                 className={cn(
                   "text-[11px] uppercase font-bold tracking-wider px-3 py-1.5 rounded-full border transition-colors",
                   filter === f
-                    ? "bg-primary text-primary-foreground border-primary"
+                    ? "bg-primary/15 text-primary border-primary/40"
                     : "bg-elevated/40 text-muted-foreground border-border hover:text-foreground hover:border-foreground/30",
                 )}
               >
