@@ -6,6 +6,7 @@ import {
   Brain, ArrowRight, Activity,
   Rocket, BarChart3,
   Target, Trophy, AlertTriangle, Sparkles, TrendingDown, Clock, ChevronRight,
+  Search, ImageIcon,
 } from "lucide-react";
 import { formatNumber, timeAgo } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -13,6 +14,9 @@ import { genreStyleVars } from "@/lib/genreColors";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
 import { useSetSidebarKpis } from "@/contexts/SidebarContext";
+import { computeSeoScore } from "@/lib/seoScore";
+import { OperationalHealthCard } from "@/components/home/OperationalHealthCard";
+import { WeeklySummaryCard } from "@/components/home/WeeklySummaryCard";
 
 /**
  * COCKPIT — foco em decisão, não em pipeline.
