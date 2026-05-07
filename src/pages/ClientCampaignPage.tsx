@@ -623,7 +623,7 @@ export default function ClientCampaignPage() {
                   </span>
                 </div>
 
-                <ul className="space-y-2">
+                <ul className="space-y-2 max-h-[420px] overflow-y-auto pr-1 nx-scroll">
                   {playlists.map((p, i) => (
                     <li key={`${p.name}-${i}`} className="nx-subcard !p-3">
                       <div className="flex items-center gap-3 min-w-0">
