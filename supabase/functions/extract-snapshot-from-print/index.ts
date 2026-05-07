@@ -101,6 +101,9 @@ interface ExtractedPlaylist {
   made_by?: string | null;
   plays: number;
   position?: number | null;
+  plays_24h?: number | null;
+  plays_7d?: number | null;
+  plays_28d?: number | null;
 }
 
 async function callGeminiChunked(printUrls: string[]): Promise<ExtractedPlaylist[]> {
