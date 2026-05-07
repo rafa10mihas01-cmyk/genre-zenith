@@ -73,14 +73,30 @@ Deno.serve(async (req) => {
       auth: { persistSession: false },
     });
 
-    // 1) Tenta resolver como token POR MÚSICA primeiro.
-    const { data: songRow } = await admin
+    // 1) Tenta resolver como token/slug POR MÚSICA primeiro.
+    // Aceita tanto client_token (hex) quanto slug amigável.
+    const looksLikeToken = /^[a-f0-9]{20,}$/i.test(token);
+    let songQuery = admin
       .from("curator_deal_songs")
       .select(
-        "id, deal_id, song_name, song_artist, song_cover_url, target_plays, daily_goal, baseline_plays, started_at, ends_at, smartlink_url, client_id, client_token",
-      )
-      .eq("client_token", token)
-      .maybeSingle();
+        "id, deal_id, song_name, song_artist, song_cover_url, target_plays, daily_goal, baseline_plays, started_at, ends_at, smartlink_url, client_id, client_token, slug",
+      );
+    songQuery = looksLikeToken
+      ? songQuery.eq("client_token", token)
+      : songQuery.eq("slug", token);
+    let { data: songRow } = await songQuery.maybeSingle();
+
+    // Fallback: se não achou por slug, tenta como token mesmo assim
+    if (!songRow && !looksLikeToken) {
+      const { data: byToken } = await admin
+        .from("curator_deal_songs")
+        .select(
+          "id, deal_id, song_name, song_artist, song_cover_url, target_plays, daily_goal, baseline_plays, started_at, ends_at, smartlink_url, client_id, client_token, slug",
+        )
+        .eq("client_token", token)
+        .maybeSingle();
+      songRow = byToken;
+    }
 
     let dealId: string | null = null;
     let selectedSongId: string | null = null;
