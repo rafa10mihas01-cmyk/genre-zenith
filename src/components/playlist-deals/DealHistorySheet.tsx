@@ -14,6 +14,10 @@ import {
   TrendingUp,
   Sparkles,
   Activity,
+  Radio,
+  Shuffle,
+  Disc3,
+  Compass,
   ExternalLink as ExternalLinkIcon,
 } from "lucide-react";
 import { format } from "date-fns";
@@ -163,6 +167,113 @@ function SectionCard({
       </div>
       {children}
     </section>
+  );
+}
+
+/* ------------------------------------------------------------------
+ * Ícone padrão para playlists algorítmicas (Radio, Mixes, Discover…)
+ * — Spotify não expõe imagem pública dessas, então usamos lucide.
+ * ------------------------------------------------------------------ */
+function algoIconFor(name: string | null | undefined) {
+  const n = (name ?? "").toLowerCase();
+  if (n.startsWith("radio")) return Radio;
+  if (n.startsWith("mix")) return Shuffle;
+  if (n.includes("discover")) return Compass;
+  if (n.includes("daily")) return Disc3;
+  return Sparkles;
+}
+
+/* ------------------------------------------------------------------
+ * Linha de breakdown — usada nas abas Curador e Algoritmo.
+ * Mostra capa (ou ícone algorítmico), nome, Δ hoje e 24h/7d/28d.
+ * ------------------------------------------------------------------ */
+type BreakdownRowData = {
+  playlist_id: string;
+  playlist_name: string;
+  spotify_url: string | null;
+  spotify_owner_name: string | null;
+  image_url: string | null;
+  match_status: string;
+  today_plays: number;
+  plays_24h: number | null;
+  plays_7d: number | null;
+  plays_28d: number | null;
+};
+
+function BreakdownRow({ r, kind }: { r: BreakdownRowData; kind: "curator" | "algo" }) {
+  const AlgoIcon = algoIconFor(r.playlist_name);
+  return (
+    <li className="px-5 py-3 flex items-center gap-3 hover:bg-[hsl(var(--elevated))] transition-colors">
+      {/* capa / ícone padrão */}
+      <div className="h-10 w-10 shrink-0 rounded-md overflow-hidden bg-[hsl(var(--elevated))] border border-white/[0.04] flex items-center justify-center">
+        {r.image_url ? (
+          <img src={r.image_url} alt="" className="h-full w-full object-cover" />
+        ) : kind === "algo" ? (
+          <AlgoIcon className="h-4 w-4 text-muted-foreground" />
+        ) : (
+          <ListMusic className="h-4 w-4 text-muted-foreground" />
+        )}
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2 min-w-0">
+          <span
+            className={cn(
+              "h-1.5 w-1.5 rounded-full shrink-0",
+              kind === "curator" ? "bg-success" : "bg-muted-foreground/60",
+            )}
+          />
+          <span className="text-[13px] text-foreground font-medium truncate">
+            {r.playlist_name}
+          </span>
+          {r.spotify_url && (
+            <a
+              href={r.spotify_url}
+              target="_blank"
+              rel="noreferrer"
+              className="text-muted-foreground hover:text-foreground shrink-0"
+              onClick={(e) => e.stopPropagation()}
+              aria-label="Abrir no Spotify"
+            >
+              <ExternalLinkIcon className="h-3 w-3" />
+            </a>
+          )}
+        </div>
+        <div className="text-[11px] text-muted-foreground tabular-nums mt-0.5 pl-3.5">
+          Δ hoje <span className="text-foreground font-medium">+{fmtCompact(r.today_plays)}</span>
+          {r.spotify_owner_name && <> · {r.spotify_owner_name}</>}
+        </div>
+      </div>
+
+      {/* 3 colunas: 24h / 7d / 28d */}
+      <div className="hidden sm:flex items-center gap-1 shrink-0">
+        {(["24h", "7d", "28d"] as const).map((w) => {
+          const v = w === "24h" ? r.plays_24h : w === "7d" ? r.plays_7d : r.plays_28d;
+          return (
+            <div
+              key={w}
+              className="w-14 text-right rounded-md px-1.5 py-1"
+              title={`Janela ${w} (Spotify for Artists)`}
+            >
+              <div className="text-[13px] font-semibold text-foreground tabular-nums leading-tight">
+                {v != null ? fmtCompact(v) : "—"}
+              </div>
+              <div className="text-[9.5px] uppercase tracking-wider text-muted-foreground">
+                {w}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* compacto no mobile */}
+      <div className="flex sm:hidden flex-col items-end shrink-0 tabular-nums">
+        <div className="text-[13px] font-semibold text-foreground leading-tight">
+          {r.plays_7d != null ? fmtCompact(r.plays_7d) : "—"}
+        </div>
+        <div className="text-[9.5px] uppercase tracking-wider text-muted-foreground">7d</div>
+      </div>
+    </li>
   );
 }
 
@@ -330,6 +441,43 @@ export function DealHistorySheet({
 
   const curatorTotal = counts.curator + counts.baseline;
   const algoTotal = counts.editorial + counts.organic + counts.suspicious;
+
+  // Breakdown por origem (usado nas abas Curador/Algoritmo + Performance)
+  const curatorBreakdownRows = useMemo(
+    () => (todayBreakdown?.rows ?? []).filter((r) => r.match_status === "curator"),
+    [todayBreakdown],
+  );
+  const algoBreakdownRows = useMemo(
+    () => (todayBreakdown?.rows ?? []).filter((r) => r.match_status !== "curator"),
+    [todayBreakdown],
+  );
+  const sumWindow = (rows: typeof curatorBreakdownRows, w: "24h" | "7d" | "28d") =>
+    rows.reduce((s, r) => s + (w === "24h" ? r.plays_24h ?? 0 : w === "7d" ? r.plays_7d ?? 0 : r.plays_28d ?? 0), 0);
+  const curatorWindowTotal = sumWindow(curatorBreakdownRows, perfWindow);
+  const algoWindowTotal = sumWindow(algoBreakdownRows, perfWindow);
+
+  // Mapa playlist_id → breakdown (pra fundir cadastro + snapshot)
+  const breakdownMap = useMemo(() => {
+    const m = new Map<string, (typeof curatorBreakdownRows)[number]>();
+    for (const r of todayBreakdown?.rows ?? []) m.set(r.playlist_id, r);
+    return m;
+  }, [todayBreakdown]);
+
+  const toBreakdownRowData = (p: CuratorPlaylist): BreakdownRowData => {
+    const snap = breakdownMap.get(p.id);
+    return {
+      playlist_id: p.id,
+      playlist_name: p.playlist_name || "Playlist sem nome",
+      spotify_url: p.spotify_url ?? null,
+      spotify_owner_name: p.spotify_owner_name ?? null,
+      image_url: p.image_url ?? null,
+      match_status: p.match_status ?? "curator",
+      today_plays: snap?.today_plays ?? 0,
+      plays_24h: snap?.plays_24h ?? null,
+      plays_7d: snap?.plays_7d ?? null,
+      plays_28d: snap?.plays_28d ?? null,
+    };
+  };
 
   // dados auxiliares
   const baseline = Number(deal?.baseline_plays ?? 0);
@@ -630,7 +778,7 @@ export function DealHistorySheet({
                   )}
                 </TabsContent>
 
-                {/* === HOJE — contribuição por playlist === */}
+                {/* === PERFORMANCE — visão executiva (sem lista) === */}
                 <TabsContent value="performance" className="m-0 px-6 py-5 space-y-4">
                   {loadingToday ? (
                     <div className="text-xs text-muted-foreground py-6 text-center">Calculando…</div>
@@ -680,69 +828,35 @@ export function DealHistorySheet({
                           </div>
                         </div>
                         <div className="text-[11px] text-muted-foreground mt-2">
-                          Soma direta dos contadores de cada playlist na janela {perfWindow} (Spotify for Artists). "Hoje" abaixo mostra o delta entre snapshots.
+                          Soma direta dos contadores de cada playlist na janela {perfWindow} (Spotify for Artists). Veja o detalhe por origem nas abas Curador e Algoritmo.
                         </div>
                       </SectionCard>
 
-                      {/* Lista por playlist */}
-                      <div className="rounded-2xl border border-border bg-card overflow-hidden">
-                        <div className="px-5 pt-4 pb-2 flex items-center justify-between">
-                          <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                            Por playlist
-                          </div>
-                          <div className="text-[10px] text-muted-foreground">
-                            valor = janela {perfWindow} · Δ = hoje
-                          </div>
+                      {/* Split Curador vs Algoritmo */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <Kpi
+                          label="Curador"
+                          tone="success"
+                          value={fmtCompact(curatorWindowTotal)}
+                          hint={`${curatorBreakdownRows.length} playlist${curatorBreakdownRows.length === 1 ? "" : "s"} · janela ${perfWindow}`}
+                        />
+                        <Kpi
+                          label="Algoritmo"
+                          value={fmtCompact(algoWindowTotal)}
+                          hint={`${algoBreakdownRows.length} playlist${algoBreakdownRows.length === 1 ? "" : "s"} · janela ${perfWindow}`}
+                        />
+                      </div>
+
+                      <div className="rounded-2xl border border-border bg-card p-5">
+                        <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                          Δ hoje (delta entre snapshots)
                         </div>
-                        <ul className="divide-y divide-border">
-                          {todayBreakdown.rows.map((r) => {
-                            const isCurator = r.match_status === "curator";
-                            const winVal =
-                              perfWindow === "24h" ? r.plays_24h
-                              : perfWindow === "7d" ? r.plays_7d
-                              : r.plays_28d;
-                            return (
-                              <li key={r.playlist_id} className="px-5 py-3 flex items-center gap-3 hover:bg-[hsl(var(--elevated))] transition-colors">
-                                <span
-                                  className={cn(
-                                    "h-1.5 w-1.5 rounded-full shrink-0",
-                                    isCurator ? "bg-success" : "bg-muted-foreground/60",
-                                  )}
-                                />
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex items-center gap-2 min-w-0">
-                                    <div className="text-[13px] text-foreground font-medium truncate">
-                                      {r.playlist_name}
-                                    </div>
-                                    {r.spotify_url && (
-                                      <a
-                                        href={r.spotify_url}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="text-muted-foreground hover:text-foreground shrink-0"
-                                        onClick={(e) => e.stopPropagation()}
-                                        aria-label="Abrir no Spotify"
-                                      >
-                                        <ExternalLinkIcon className="h-3 w-3" />
-                                      </a>
-                                    )}
-                                  </div>
-                                  <div className="text-[11px] text-muted-foreground tabular-nums mt-0.5">
-                                    {isCurator ? "curador" : "algoritmo"} · Δ hoje +{fmtCompact(r.today_plays)}
-                                  </div>
-                                </div>
-                                <div className="text-right shrink-0">
-                                  <div className="text-[15px] font-semibold text-foreground tabular-nums leading-tight">
-                                    {winVal != null ? fmtCompact(winVal) : "—"}
-                                  </div>
-                                  <div className="text-[9.5px] uppercase tracking-wider text-muted-foreground">
-                                    {perfWindow}
-                                  </div>
-                                </div>
-                              </li>
-                            );
-                          })}
-                        </ul>
+                        <div className="text-3xl font-semibold text-foreground tabular-nums leading-none">
+                          +{fmtCompact(todayBreakdown.total_today)}
+                        </div>
+                        <div className="text-[11px] text-muted-foreground mt-2">
+                          Crescimento real desde o último snapshot do dia anterior.
+                        </div>
                       </div>
                     </>
                   )}
@@ -805,11 +919,13 @@ export function DealHistorySheet({
                       Nenhum resultado pra essa busca.
                     </div>
                   ) : (
-                    <ul className="space-y-0.5 -mx-2">
-                      {curatorPlaylists.map((p) => (
-                        <PlaylistRow key={p.id} p={p} />
-                      ))}
-                    </ul>
+                    <div className="rounded-2xl border border-border bg-card overflow-hidden">
+                      <ul className="divide-y divide-border">
+                        {curatorPlaylists.map((p) => (
+                          <BreakdownRow key={p.id} r={toBreakdownRowData(p)} kind="curator" />
+                        ))}
+                      </ul>
+                    </div>
                   )}
                 </TabsContent>
 
@@ -874,11 +990,13 @@ export function DealHistorySheet({
                       Nenhum resultado pra esse filtro.
                     </div>
                   ) : (
-                    <ul className="space-y-0.5 -mx-2">
-                      {algoPlaylists.map((p) => (
-                        <PlaylistRow key={p.id} p={p} />
-                      ))}
-                    </ul>
+                    <div className="rounded-2xl border border-border bg-card overflow-hidden">
+                      <ul className="divide-y divide-border">
+                        {algoPlaylists.map((p) => (
+                          <BreakdownRow key={p.id} r={toBreakdownRowData(p)} kind="algo" />
+                        ))}
+                      </ul>
+                    </div>
                   )}
                 </TabsContent>
 
