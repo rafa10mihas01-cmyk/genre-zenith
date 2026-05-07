@@ -499,9 +499,11 @@ function AprovacoesTab() {
 
   async function review(p: Participation, action: "approve" | "reject") {
     setBusyId(p.id);
-    const { error } = await supabase.functions.invoke("approve-community-participation", {
-      body: { participation_id: p.id, action, points: p.points_offered },
-    });
+    const { error } = await supabase.rpc("community_review_participation" as never, {
+      p_participation_id: p.id,
+      p_action: action,
+      p_note: null,
+    } as never);
     setBusyId(null);
     if (error) return toast.error("Falha", { description: error.message });
     toast.success(action === "approve" ? "Aprovada" : "Recusada");
