@@ -14,7 +14,7 @@ import { SidebarSmartPanel } from "@/components/SidebarSmartPanel";
 // Menu reduzido a 6 itens primários — foco em decisão e crescimento.
 // Sistema, Deals e Criação foram absorvidos / despromovidos.
 const items = [
-  { title: "Cockpit", url: "/", icon: Home, end: true },
+  { title: "Hoje", url: "/", icon: Home, end: true },
   { title: "Catálogo", url: "/catalogo", icon: ListMusic },
   { title: "Performance", url: "/performance", icon: BarChart3 },
   { title: "Cérebro", url: "/cerebro", icon: Brain },
