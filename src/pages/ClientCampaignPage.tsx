@@ -625,6 +625,13 @@ export default function ClientCampaignPage() {
                   </span>
                 </div>
 
+                <div className="flex items-start gap-2 rounded-xl bg-[hsl(var(--elevated))] border border-border/60 px-3 py-2.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0 mt-0.5 text-primary" />
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    Atualizado automaticamente a partir dos prints enviados pelo curador. Esta página é apenas de leitura.
+                  </p>
+                </div>
+
                 <ul className="space-y-2 max-h-[420px] overflow-y-auto pr-1 nx-scroll">
                   {playlists.map((p, i) => (
                     <li
