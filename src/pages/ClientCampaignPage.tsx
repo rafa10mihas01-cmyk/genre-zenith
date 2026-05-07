@@ -625,6 +625,13 @@ export default function ClientCampaignPage() {
                   </span>
                 </div>
 
+                <div className="flex items-start gap-2 rounded-xl bg-[hsl(var(--elevated))] border border-border/60 px-3 py-2.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0 mt-0.5 text-primary" />
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    Atualizado automaticamente a partir dos prints enviados pelo curador. Esta página é apenas de leitura.
+                  </p>
+                </div>
+
                 <ul className="space-y-2 max-h-[420px] overflow-y-auto pr-1 nx-scroll">
                   {playlists.map((p, i) => (
                     <li
@@ -692,13 +699,28 @@ export default function ClientCampaignPage() {
             </Card>
           )}
 
-          {/* Rodapé de confiança */}
-          <div className="flex items-start gap-2.5 text-[11px] text-muted-foreground border-t border-border/50 pt-4 pb-2">
-            <CheckCircle2 className="h-3.5 w-3.5 shrink-0 mt-0.5 text-primary" />
-            <p className="leading-relaxed">
-              Dados atualizados automaticamente a partir das playlists monitoradas. Esta página é apenas de leitura.
-            </p>
-          </div>
+          {/* Footer — padrão NexEngine */}
+          <footer className="pt-6 pb-4 flex flex-col items-center justify-center gap-1.5 text-center">
+            <div className="text-[11px] text-muted-foreground/70">
+              © {new Date().getFullYear()} <span className="text-foreground/80 font-medium">NexEngine</span>
+            </div>
+            <div className="text-[11px] text-muted-foreground/60 max-w-xs leading-snug">
+              Infraestrutura para distribuição e inteligência musical
+            </div>
+            <div className="flex items-center justify-center gap-2 text-[11px] text-muted-foreground/60 mt-1">
+              <a href="mailto:suporte@nexengine.app" className="hover:text-foreground transition-colors">
+                Suporte
+              </a>
+              <span className="text-muted-foreground/30">•</span>
+              <a href="/termos" className="hover:text-foreground transition-colors">
+                Termos
+              </a>
+              <span className="text-muted-foreground/30">•</span>
+              <a href="/privacidade" className="hover:text-foreground transition-colors">
+                Privacidade
+              </a>
+            </div>
+          </footer>
         </div>
       </div>
     </div>
