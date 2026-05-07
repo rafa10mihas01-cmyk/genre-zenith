@@ -7,7 +7,7 @@ const items = [
   { to: "/cerebro", label: "Cérebro", icon: Brain },
   { to: "/criacao", label: "Criação", icon: Sparkles },
   { to: "/operacao", label: "Operação", icon: Activity },
-  { to: "/performance", label: "Performance", icon: BarChart3 },
+  { to: "/performance", label: "Métricas", icon: BarChart3 },
   { to: "/playlist-deals", label: "Deals", icon: ListMusic },
 ];
 
