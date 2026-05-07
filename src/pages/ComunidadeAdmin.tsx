@@ -503,7 +503,8 @@ function ConvitesTab({ adminId, onChange }: { adminId: string; onChange?: () => 
     setEmail("");
     setNote("");
     toast.success("Convite gerado");
-    const link = `${baseUrl}/comunidade/join/${data!.code}`;
+    const id = (data as Invite | null)?.slug || data!.code;
+    const link = `${baseUrl}/comunidade/join/${id}`;
     await navigator.clipboard?.writeText(link).catch(() => {});
     toast.message("Link copiado", { description: link });
     load(); onChange?.();
@@ -518,8 +519,9 @@ function ConvitesTab({ adminId, onChange }: { adminId: string; onChange?: () => 
     load(); onChange?.();
   }
 
-  async function copyLink(code: string) {
-    const link = `${baseUrl}/comunidade/join/${code}`;
+  async function copyLink(invite: Invite) {
+    const id = invite.slug || invite.code;
+    const link = `${baseUrl}/comunidade/join/${id}`;
     await navigator.clipboard?.writeText(link);
     toast.success("Link copiado");
   }
