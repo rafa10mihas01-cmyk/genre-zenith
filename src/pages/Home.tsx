@@ -6,6 +6,7 @@ import {
   Brain, ArrowRight, Activity,
   Rocket, BarChart3,
   Target, Trophy, AlertTriangle, Sparkles, TrendingDown, Clock, ChevronRight,
+  Search, ImageIcon,
 } from "lucide-react";
 import { formatNumber, timeAgo } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -13,6 +14,9 @@ import { genreStyleVars } from "@/lib/genreColors";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
 import { useSetSidebarKpis } from "@/contexts/SidebarContext";
+import { computeSeoScore } from "@/lib/seoScore";
+import { OperationalHealthCard } from "@/components/home/OperationalHealthCard";
+import { WeeklySummaryCard } from "@/components/home/WeeklySummaryCard";
 
 /**
  * COCKPIT — foco em decisão, não em pipeline.
@@ -42,10 +46,12 @@ type Cockpit = {
   lastAnalysisAt: string | null;
 };
 
+type AttentionReason = "decline" | "stale" | "no_data" | "seo_low" | "old_cover";
+
 type AttentionItem = {
   id: string;
   nome: string;
-  reason: "decline" | "stale" | "no_data";
+  reason: AttentionReason;
   detail: string;
   to: string;
 };
@@ -76,6 +82,7 @@ export default function Home() {
 
   const load = async () => {
     const staleThreshold = new Date(Date.now() - 36 * 3600 * 1000).toISOString();
+    const oldCoverThreshold = new Date(Date.now() - 90 * 86400000).toISOString();
 
     const [
       gsRes,
@@ -85,6 +92,8 @@ export default function Home() {
       lowPerfRes,
       logsRes,
       lastInsightRes,
+      seoRes,
+      oldCoverRes,
     ] = await Promise.all([
       supabase
         .from("genres")
@@ -108,6 +117,17 @@ export default function Home() {
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle(),
+      supabase
+        .from("playlist_templates")
+        .select("id, name, description, cover_image_url, cover_generated_at, tracks_added")
+        .not("spotify_playlist_id", "is", null)
+        .limit(500),
+      supabase
+        .from("playlist_templates")
+        .select("id, name")
+        .not("spotify_playlist_id", "is", null)
+        .lt("cover_generated_at", oldCoverThreshold)
+        .limit(20),
     ]);
 
     type PerfRow = {
@@ -126,7 +146,7 @@ export default function Home() {
     const declining = perfRows.filter(r => (r.crescimento_absoluto ?? 0) < 0).length;
     const withoutData = perfRows.filter(r => !r.followers_now || r.followers_now === 0).length;
 
-    // Atenção hoje: quedas + dados velhos + sem snapshot
+    // Atenção hoje: quedas + dados velhos + SEO ruim + capa antiga + sem snapshot
     const att: AttentionItem[] = [];
     perfRows
       .filter(r => (r.crescimento_absoluto ?? 0) < 0)
@@ -149,6 +169,38 @@ export default function Home() {
         detail: `Sem coleta há ${timeAgo(r.last_snapshot_at!)}`,
         to: "/performance",
       }));
+
+    // SEO baixo (score < 50) — usa heurística cliente-side
+    const seoBadList: AttentionItem[] = [];
+    for (const t of (seoRes.data ?? []) as any[]) {
+      const r = computeSeoScore({
+        name: t.name,
+        description: t.description,
+        cover_image_url: t.cover_image_url,
+        cover_generated_at: t.cover_generated_at,
+        tracks_added: t.tracks_added,
+      });
+      if (r.score < 50) {
+        seoBadList.push({
+          id: t.id,
+          nome: t.name || "Sem nome",
+          reason: "seo_low",
+          detail: `SEO ${r.score}/100`,
+          to: "/performance",
+        });
+      }
+    }
+    seoBadList.slice(0, 2).forEach(i => att.push(i));
+
+    // Capa antiga (>90d)
+    ((oldCoverRes.data ?? []) as any[]).slice(0, 2).forEach(t => att.push({
+      id: t.id,
+      nome: t.name || "Sem nome",
+      reason: "old_cover",
+      detail: "Capa com mais de 90 dias",
+      to: "/performance",
+    }));
+
     if (att.length < 5) {
       perfRows
         .filter(r => !r.followers_now || r.followers_now === 0)
@@ -238,6 +290,12 @@ export default function Home() {
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <AttentionCard items={attention} loading={loading} />
         <SuggestionsCard suggestions={suggestions} total={c?.pendingSuggestions ?? 0} lastAt={c?.lastAnalysisAt ?? null} loading={loading} />
+      </section>
+
+      {/* RESUMO DA SEMANA + SAÚDE OPERACIONAL */}
+      <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <WeeklySummaryCard />
+        <OperationalHealthCard />
       </section>
 
       {/* Gêneros */}
@@ -471,8 +529,15 @@ function AttentionCard({ items, loading }: { items: AttentionItem[]; loading: bo
       ) : (
         <ul className="space-y-2">
           {items.map(i => {
-            const Icon = i.reason === "decline" ? TrendingDown : i.reason === "stale" ? Clock : Activity;
-            const tone = i.reason === "decline" ? "text-destructive" : "text-muted-foreground";
+            const Icon =
+              i.reason === "decline" ? TrendingDown
+              : i.reason === "stale" ? Clock
+              : i.reason === "seo_low" ? Search
+              : i.reason === "old_cover" ? ImageIcon
+              : Activity;
+            const tone = i.reason === "decline" ? "text-destructive"
+              : i.reason === "seo_low" || i.reason === "old_cover" ? "text-warning"
+              : "text-muted-foreground";
             return (
               <li key={`${i.id}-${i.reason}`}>
                 <Link to={i.to} className="flex items-center gap-3 -mx-2 px-2 py-1.5 rounded-lg hover:bg-muted/40 transition-colors group">

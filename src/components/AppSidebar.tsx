@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { Home, Brain, Sparkles, BarChart3, Settings, LogOut, Activity, Monitor, Globe, ListMusic, Users } from "lucide-react";
+import { Home, Brain, BarChart3, Settings, LogOut, ListMusic, Users } from "lucide-react";
 import { NexEngineLogo } from "@/components/NexEngineLogo";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
@@ -11,17 +11,14 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { SidebarSmartPanel } from "@/components/SidebarSmartPanel";
 
-// Módulos do sistema. Padrão fixo, escalável.
-// `adminOnly` esconde o item para quem não é admin.
+// Menu reduzido a 6 itens primários — foco em decisão e crescimento.
+// Sistema, Deals e Criação foram absorvidos / despromovidos.
 const items = [
-  { title: "Home", url: "/", icon: Home, end: true },
-  { title: "Cérebro", url: "/cerebro", icon: Brain },
-  { title: "Criação", url: "/criacao", icon: Sparkles },
-  { title: "Operação", url: "/operacao", icon: Activity },
+  { title: "Cockpit", url: "/", icon: Home, end: true },
+  { title: "Catálogo", url: "/catalogo", icon: ListMusic },
   { title: "Performance", url: "/performance", icon: BarChart3 },
-  { title: "Playlist Deals", url: "/playlist-deals", icon: ListMusic },
+  { title: "Cérebro", url: "/cerebro", icon: Brain },
   { title: "Comunidade", url: "/comunidade-admin", icon: Users, adminOnly: true },
-  { title: "Sistema", url: "/sistema", icon: Monitor },
   { title: "Configurações", url: "/configuracoes", icon: Settings, adminOnly: true },
 ];
 

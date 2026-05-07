@@ -237,8 +237,8 @@ export default function Operacao() {
   return (
     <PageContainer>
       <PageHeader
-        title="Operação"
-        subtitle="Executar e gerenciar playlists"
+        title="Catálogo"
+        subtitle="Gerenciar playlists publicadas"
         actions={
           <Button variant="outline" className="rounded-full h-9 gap-1.5 max-w-full" onClick={load} disabled={loading} aria-label="Atualizar">
             <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} /> <span className="truncate">Atualizar</span>
