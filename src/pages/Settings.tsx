@@ -296,14 +296,17 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
     loadStats();
   }
 
+  const Wrapper: any = embedded ? "div" : PageContainer;
   return (
-    <PageContainer>
-      <PageHeader
-        title="Configurações"
-        subtitle="Ajustes do sistema"
-      />
+    <Wrapper>
+      {!embedded && (
+        <PageHeader
+          title="Configurações"
+          subtitle="Ajustes do sistema"
+        />
+      )}
 
-      <Tabs defaultValue="conexoes" className="mt-2">
+      <Tabs defaultValue="conexoes" className={embedded ? "" : "mt-2"}>
         {/* TABS — mesmo padrão visual de Operação / Playlist Deals / Sistema */}
         <div className="sticky top-0 z-30 bg-background/95 supports-[backdrop-filter]:bg-background/80 backdrop-blur-md border-b border-border -mx-4 md:-mx-6">
         <TabsList className="nx-tab-rail h-auto bg-transparent p-0 rounded-none items-center gap-1 justify-start px-4 md:px-6">
@@ -609,7 +612,7 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
           </section>
         </TabsContent>
       </Tabs>
-    </PageContainer>
+    </Wrapper>
   );
 }
 
