@@ -31,6 +31,9 @@ const RequestSchema = z.object({
         url: z.string().optional(),
         made_by: z.string().optional(),
         plays_text: z.string().optional(),
+        plays_24h: z.union([z.number(), z.string()]).nullable().optional(),
+        plays_7d: z.union([z.number(), z.string()]).nullable().optional(),
+        plays_28d: z.union([z.number(), z.string()]).nullable().optional(),
       }).passthrough(),
     )
     .optional(),
@@ -42,6 +45,12 @@ function parsePlaysText(s: string | null | undefined): number | null {
   if (!onlyDigits) return null;
   const n = parseInt(onlyDigits, 10);
   return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+function parseWindowNum(v: unknown): number | null {
+  if (v == null || v === "") return null;
+  const n = typeof v === "number" ? v : parseInt(String(v).replace(/[^\d]/g, ""), 10);
+  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : null;
 }
 
 const GeminiPlaylistSchema = z.object({
@@ -92,6 +101,9 @@ interface ExtractedPlaylist {
   made_by?: string | null;
   plays: number;
   position?: number | null;
+  plays_24h?: number | null;
+  plays_7d?: number | null;
+  plays_28d?: number | null;
 }
 
 async function callGeminiChunked(printUrls: string[]): Promise<ExtractedPlaylist[]> {
@@ -285,6 +297,9 @@ async function upsertSnapshot(
     ai_raw: any;
     batch_id: string | null;
     correlation_id?: string | null;
+    plays_24h?: number | null;
+    plays_7d?: number | null;
+    plays_28d?: number | null;
   },
 ): Promise<any> {
   if (!row.batch_id) {
@@ -305,6 +320,9 @@ async function upsertSnapshot(
         .from("curator_deal_snapshots")
         .update({
           plays: row.plays,
+          plays_24h: row.plays_24h ?? null,
+          plays_7d: row.plays_7d ?? null,
+          plays_28d: row.plays_28d ?? null,
           match_method: row.match_method,
           ai_raw: row.ai_raw,
           print_url: row.print_url,
@@ -385,20 +403,31 @@ Deno.serve(async (req) => {
   // Index DOM por nome/ID/posição. Filtra entradas com url vazia (algorítmicas
   // do Spotify como Radio, Mixes, Smart Shuffle, que não têm link no HTML).
   const norm = normName;
-  const domByName = new Map<string, { id: string; url: string; name: string; position?: number; plays?: number | null; made_by?: string | null }>();
-  const domByPos = new Map<number, { id: string; url: string; name: string; position: number; plays?: number | null; made_by?: string | null }>();
-  const domItems: Array<{ id: string; url: string; name: string; position?: number; plays?: number | null; made_by?: string | null }> = [];
+  type DomItem = {
+    id: string;
+    url: string;
+    name: string;
+    position?: number;
+    plays?: number | null;
+    made_by?: string | null;
+    plays_24h?: number | null;
+    plays_7d?: number | null;
+    plays_28d?: number | null;
+  };
+  const domByName = new Map<string, DomItem>();
+  const domByPos = new Map<number, DomItem>();
+  const domItems: DomItem[] = [];
   let domHasPlaysText = false;
   // Mantemos algorítmicas (made_by=Spotify) mesmo sem URL — id sintético "algo:<nome>".
   for (let i = 0; i < dom_playlists.length; i++) {
-    const d = dom_playlists[i];
+    const d = dom_playlists[i] as any;
     if (!d?.name) continue;
     const name = String(d.name).trim();
-    const madeBy = ((d as any).made_by ?? null) as string | null;
+    const madeBy = (d.made_by ?? null) as string | null;
     const isAlgoRow = (madeBy ?? "").trim().toLowerCase() === "spotify" || !d.url;
     let id: string;
     if (d.url) {
-      const m = d.url.match(/playlist[/:]([a-zA-Z0-9]{16,})/);
+      const m = String(d.url).match(/playlist[/:]([a-zA-Z0-9]{16,})/);
       if (!m) {
         if (!isAlgoRow) continue;
         id = `algo:${normName(name)}`;
@@ -409,22 +438,30 @@ Deno.serve(async (req) => {
       if (!isAlgoRow) continue;
       id = `algo:${normName(name)}`;
     }
-    const playsNum = parsePlaysText(d.plays_text);
+    const w24 = parseWindowNum(d.plays_24h);
+    const w7 = parseWindowNum(d.plays_7d);
+    const w28 = parseWindowNum(d.plays_28d);
+    // plays "principal" do DOM: prioriza 7d (janela default histórica), depois 24h, 28d, depois plays_text legado
+    const playsLegacy = parsePlaysText(d.plays_text);
+    const playsNum = w7 ?? w24 ?? w28 ?? playsLegacy;
     if (playsNum != null) domHasPlaysText = true;
-    const posRaw = (d as any).position;
+    const posRaw = d.position;
     const pos = typeof posRaw === "number"
       ? posRaw
       : posRaw != null ? parseInt(String(posRaw).replace(/\D/g, ""), 10) : NaN;
     const position = Number.isFinite(pos) && pos > 0 ? pos : (i + 1);
-    const item = {
+    const item: DomItem = {
       id,
       url: d.url ?? "",
       name,
       position,
       plays: playsNum,
       made_by: madeBy,
+      plays_24h: w24,
+      plays_7d: w7,
+      plays_28d: w28,
     };
-    domByName.set(norm(name), item);
+    domByName.set(normName(name), item);
     domByPos.set(position, item);
     domItems.push(item);
   }
@@ -500,6 +537,9 @@ Deno.serve(async (req) => {
         made_by: d.made_by ?? null,
         position: d.position ?? null,
         plays: d.plays ?? 0,
+        plays_24h: d.plays_24h ?? null,
+        plays_7d: d.plays_7d ?? null,
+        plays_28d: d.plays_28d ?? null,
       }));
     console.log(`[extract] usando DOM direto: ${extracted.length} playlists com plays_text`);
   } else {
@@ -682,6 +722,9 @@ Deno.serve(async (req) => {
           ai_raw: { ...pl, algorithmic: true },
           batch_id: batch_id ?? null,
           correlation_id: correlation_id ?? null,
+          plays_24h: (pl as any).plays_24h ?? null,
+          plays_7d: (pl as any).plays_7d ?? null,
+          plays_28d: (pl as any).plays_28d ?? null,
         });
       }
       continue;
@@ -807,6 +850,14 @@ Deno.serve(async (req) => {
       } catch (_) { /* ignora — capa não é crítica */ }
     }
 
+    // Janelas: vêm do DOM (direto ou via match). Gemini OCR não distingue janelas.
+    const domSrc = domHit
+      ? domItems.find((di) => di.id === domHit!.id)
+      : undefined;
+    const w24 = (pl as any).plays_24h ?? domSrc?.plays_24h ?? null;
+    const w7 = (pl as any).plays_7d ?? domSrc?.plays_7d ?? null;
+    const w28 = (pl as any).plays_28d ?? domSrc?.plays_28d ?? null;
+
     const insErr = await upsertSnapshot(supabase, {
       deal_id,
       song_id: song_id ?? null,
@@ -819,6 +870,9 @@ Deno.serve(async (req) => {
       ai_raw: { ...pl, dom_matched: !!domHit },
       batch_id: batch_id ?? null,
       correlation_id: correlation_id ?? null,
+      plays_24h: w24,
+      plays_7d: w7,
+      plays_28d: w28,
     });
     if (insErr) skipped++;
     else inserted++;
