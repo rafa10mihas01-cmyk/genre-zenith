@@ -298,7 +298,7 @@ type AdminCampaign = {
 };
 type DealLite = { id: string; song_name: string; song_artist: string | null };
 
-function CampanhasTab({ adminId }: { adminId: string }) {
+function CampanhasTab({ adminId, onChange }: { adminId: string; onChange?: () => void }) {
   const [list, setList] = useState<AdminCampaign[]>([]);
   const [deals, setDeals] = useState<DealLite[]>([]);
   const [loading, setLoading] = useState(true);
@@ -323,7 +323,12 @@ function CampanhasTab({ adminId }: { adminId: string }) {
     setDeals((d.data as DealLite[]) ?? []);
     setLoading(false);
   }
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    const h = () => setOpen(true);
+    window.addEventListener("comunidade-admin:new-campaign", h);
+    return () => window.removeEventListener("comunidade-admin:new-campaign", h);
+  }, []);
 
   async function create() {
     if (!form.deal_id || !form.title.trim()) return;
@@ -344,7 +349,7 @@ function CampanhasTab({ adminId }: { adminId: string }) {
     setOpen(false);
     setForm({ deal_id: "", title: "", brief: "", points: 100, slots: 10, window: 72 });
     toast.success("Campanha publicada");
-    load();
+    load(); onChange?.();
   }
 
   async function setStatus(id: string, status: string) {
@@ -353,19 +358,12 @@ function CampanhasTab({ adminId }: { adminId: string }) {
       : { status };
     const { error } = await supabase.from("community_campaigns").update(patch).eq("id", id);
     if (error) return toast.error("Falha", { description: error.message });
-    load();
+    load(); onChange?.();
   }
 
   return (
     <Card>
       <CardContent className="p-5 space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-muted-foreground">{list.length} campanhas</div>
-          <Button onClick={() => setOpen(true)} size="sm">
-            <Plus className="h-4 w-4" /> Nova campanha
-          </Button>
-        </div>
-
         {loading ? (
           <div className="text-sm text-muted-foreground">Carregando…</div>
         ) : list.length === 0 ? (
