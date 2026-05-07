@@ -37,13 +37,14 @@ export function PageHeader({
   className,
 }: PageHeaderProps) {
   return (
-    <div className="max-lg:h-[57px] max-lg:shrink-0 lg:contents">
+    <div className="h-[57px] shrink-0 lg:h-[104px]">
       <header
         className={cn(
           "flex",
           "max-lg:fixed max-lg:top-14 max-lg:left-0 max-lg:right-0 max-lg:z-40 max-lg:h-[57px] max-lg:px-4 max-lg:py-0",
           "max-lg:bg-background/90 max-lg:backdrop-blur-md max-lg:supports-[backdrop-filter]:bg-background/75",
-          "lg:sticky lg:top-0 lg:z-40 lg:-mt-8 lg:-mx-6 lg:px-6 lg:py-4 lg:bg-background",
+          "lg:fixed lg:top-14 lg:left-[var(--sidebar-width)] lg:right-0 lg:z-40 lg:h-[104px] lg:px-6 lg:py-4 lg:bg-background",
+          "peer-data-[state=collapsed]:lg:left-[var(--sidebar-width-icon)]",
           "border-b border-border/60",
           "flex-row items-center justify-between gap-3 md:gap-4 w-auto min-w-0 overflow-hidden",
           className,
