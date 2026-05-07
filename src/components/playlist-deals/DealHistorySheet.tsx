@@ -207,7 +207,7 @@ type BreakdownRowData = {
 function BreakdownRow({ r, kind }: { r: BreakdownRowData; kind: "curator" | "algo" }) {
   const AlgoIcon = algoIconFor(r.playlist_name);
   return (
-    <li className="px-5 py-3 flex items-center gap-3 hover:bg-[hsl(var(--elevated))] transition-colors">
+    <li className="min-w-[520px] sm:min-w-0 px-5 py-3 flex items-center gap-3 hover:bg-[hsl(var(--elevated))] transition-colors">
       {/* capa / ícone padrão */}
       <div className="h-10 w-10 shrink-0 rounded-md overflow-hidden bg-[hsl(var(--elevated))] border border-white/[0.04] flex items-center justify-center">
         {r.image_url ? (
@@ -250,7 +250,7 @@ function BreakdownRow({ r, kind }: { r: BreakdownRowData; kind: "curator" | "alg
       </div>
 
       {/* 3 colunas: 24h / 7d / 28d */}
-      <div className="hidden sm:flex items-center gap-1 shrink-0">
+      <div className="flex items-center gap-1 shrink-0">
         {(["24h", "7d", "28d"] as const).map((w) => {
           const v = w === "24h" ? r.plays_24h : w === "7d" ? r.plays_7d : r.plays_28d;
           return (
@@ -268,14 +268,6 @@ function BreakdownRow({ r, kind }: { r: BreakdownRowData; kind: "curator" | "alg
             </div>
           );
         })}
-      </div>
-
-      {/* compacto no mobile */}
-      <div className="flex sm:hidden flex-col items-end shrink-0 tabular-nums">
-        <div className="text-[13px] font-semibold text-foreground leading-tight">
-          {r.plays_7d != null ? fmtCompact(r.plays_7d) : "—"}
-        </div>
-        <div className="text-[9.5px] uppercase tracking-wider text-muted-foreground">7d</div>
       </div>
     </li>
   );
@@ -888,7 +880,7 @@ export function DealHistorySheet({
                       Nenhum resultado pra essa busca.
                     </div>
                   ) : (
-                    <div className="rounded-2xl border border-border bg-card overflow-hidden">
+                    <div className="rounded-2xl border border-border bg-card overflow-x-auto overflow-y-hidden overscroll-x-contain">
                       <ul className="divide-y divide-border">
                         {curatorPlaylists.map((p) => (
                           <BreakdownRow key={p.id} r={toBreakdownRowData(p)} kind="curator" />
@@ -959,7 +951,7 @@ export function DealHistorySheet({
                       Nenhum resultado pra esse filtro.
                     </div>
                   ) : (
-                    <div className="rounded-2xl border border-border bg-card overflow-hidden">
+                    <div className="rounded-2xl border border-border bg-card overflow-x-auto overflow-y-hidden overscroll-x-contain">
                       <ul className="divide-y divide-border">
                         {algoPlaylists.map((p) => (
                           <BreakdownRow key={p.id} r={toBreakdownRowData(p)} kind="algo" />
