@@ -906,6 +906,43 @@ export function DealHistorySheet({
                         placeholder="Buscar playlist ou owner…"
                         className="h-9 text-sm"
                       />
+                      {songs.length > 1 && (
+                        <div className="flex flex-wrap gap-1.5">
+                          <button
+                            onClick={() => setAlgoSongFilter("all")}
+                            className={cn(
+                              "h-7 px-2.5 rounded-full text-[11px] font-medium border transition-colors inline-flex items-center gap-1.5",
+                              algoSongFilter === "all"
+                                ? "bg-primary text-primary-foreground border-primary"
+                                : "bg-transparent border-white/[0.06] text-muted-foreground hover:text-foreground hover:bg-[hsl(var(--elevated))]",
+                            )}
+                          >
+                            Todas as músicas
+                          </button>
+                          {songs.map((s) => {
+                            const c = sortedPlaylists.filter((p) => {
+                              const st = (p.match_status ?? (p.is_baseline ? "baseline" : "curator")) as CuratorMatchStatus;
+                              return (st === "editorial" || st === "algorithmic" || st === "organic" || st === "suspicious") && p.song_id === s.id;
+                            }).length;
+                            return (
+                              <button
+                                key={s.id}
+                                onClick={() => setAlgoSongFilter(s.id)}
+                                className={cn(
+                                  "h-7 px-2.5 rounded-full text-[11px] font-medium border transition-colors inline-flex items-center gap-1.5 max-w-[220px]",
+                                  algoSongFilter === s.id
+                                    ? "bg-primary text-primary-foreground border-primary"
+                                    : "bg-transparent border-white/[0.06] text-muted-foreground hover:text-foreground hover:bg-[hsl(var(--elevated))]",
+                                )}
+                                title={`${s.song_name ?? ""} — ${s.song_artist ?? ""}`}
+                              >
+                                <span className="truncate">{s.song_name || "Música"}</span>
+                                <span className="tabular-nums opacity-70 shrink-0">{c}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
                       <div className="flex flex-wrap gap-1.5">
                         {(
                           [
