@@ -20,7 +20,7 @@ import { useSetSidebarKpis } from "@/contexts/SidebarContext";
 import { useAutopilot } from "@/hooks/useAutopilot";
 
 import type { GenreOpt } from "@/components/cerebro/_shared";
-import { GenreStrip, GenreHero, QuickActions, GenrePipeline, VisaoGeral } from "@/components/cerebro/VisaoGeral";
+import { CerebroTopBar } from "@/components/cerebro/CerebroTopBar";
 import { Decisoes } from "@/components/cerebro/Decisoes";
 import { Analises } from "@/components/cerebro/Analises";
 import { Section, CollapsibleSection } from "@/components/cerebro/Insights";
@@ -43,7 +43,7 @@ export default function Cerebro() {
   const navigate = useNavigate();
   const [genres, setGenres] = useState<GenreOpt[]>([]);
   const [activeSlug, setActiveSlug] = useState<string>(paramSlug ?? "");
-  const [tab, setTab] = useScreenField<string>("/cerebro", "tab", "visao");
+  const [tab, setTab] = useScreenField<string>("/cerebro", "tab", "decisoes");
   const [running, setRunning] = useState(false);
   const [sbStats, setSbStats] = useState<{ active: number; analyzed: number; needsAttention: number } | null>(null);
 
@@ -151,37 +151,34 @@ export default function Cerebro() {
         }
       />
 
-      {/* PAINEL DE PROGRESSO AO VIVO — aparece quando autopilot está rodando */}
+      {/* PAINEL DE PROGRESSO AO VIVO — só aparece quando autopilot está rodando */}
       <AutopilotLivePanel genreId={genre?.id} />
 
-      {/* FAIXA DE GÊNEROS — chips coloridos com scroll horizontal */}
-      <GenreStrip genres={genres} activeSlug={activeSlug} onPick={handleChangeGenre} />
-
-      {/* HERO do gênero ativo — cor própria + KPIs grandes */}
-      <GenreHero genre={genre} model={model} />
-
-      {/* AVISO DE SAÚDE — visível quando dataset não está fresh */}
-      <GenreHealthBanner
-        status={genre?.health_status}
-        lastSeenAt={genre?.health_last_seen_at}
-        hoursSince={genre?.health_hours_since}
+      {/* TOPBAR ENXUTO — seletor de gênero + 4 KPIs + chip de saúde (só se crítico) */}
+      <CerebroTopBar
+        genres={genres}
+        activeSlug={activeSlug}
+        onPick={handleChangeGenre}
+        genre={genre}
+        model={model}
       />
 
-      {/* AÇÕES RÁPIDAS — atalhos contextuais do gênero */}
-      <QuickActions slug={activeSlug} />
+      {/* Banner de saúde só aparece se status for crítico (não é "default") */}
+      {genre?.health_status && genre.health_status !== "healthy" && (
+        <GenreHealthBanner
+          status={genre?.health_status}
+          lastSeenAt={genre?.health_last_seen_at}
+          hoursSince={genre?.health_hours_since}
+        />
+      )}
 
-      {/* MINI-PIPELINE — estado do gênero atual */}
-      <GenrePipeline genre={genre} model={model} />
-
-
-      {/* TABS — 4 áreas (Visão / Decisões / Análises / Replicação) */}
+      {/* TABS — 3 áreas (Decisão / Dados / Replicação) */}
       <Tabs value={tab} onValueChange={setTab} className="space-y-5">
         <div className="sticky top-0 z-30 bg-background/95 supports-[backdrop-filter]:bg-background/80 backdrop-blur-md border-b border-border">
           <TabsList className="nx-tab-rail bg-transparent p-0 h-auto gap-4 sm:gap-6 rounded-none justify-start flex-nowrap">
             {[
-            { v: "visao", label: "Visão Geral" },
-            { v: "decisoes", label: "Decisões" },
-            { v: "analises", label: "Análises" },
+            { v: "decisoes", label: "Decisão" },
+            { v: "analises", label: "Dados" },
             { v: "replicacao", label: "Replicação" },
             ].map(t => (
             <TabsTrigger
@@ -195,9 +192,6 @@ export default function Cerebro() {
           </TabsList>
         </div>
 
-        <TabsContent value="visao" className="mt-0">
-          <VisaoGeral model={model} loading={loadingModel} genre={genre} />
-        </TabsContent>
         <TabsContent value="decisoes" className="mt-0">
           <Decisoes
             briefing={briefing}
