@@ -142,51 +142,49 @@ export default function Performance() {
         </Card>
       ) : (
         <>
-          {/* 1. KPIs principais */}
+          {/* KPIs sempre visíveis no topo */}
           <PerformanceKpis dataset={dataset} loading={loading && totalPubs === 0} />
 
-          {/* 2. Timeline agregada — growth visual */}
-          <FollowersTimeline />
-
-          {/* 3. Top movers — quem cresceu / quem caiu */}
-          <TopMovers dataset={dataset} />
-
-          {/* 4. Próximas ações da IA */}
-          <PriorityActionsCard insight={insight} />
-
-          {/* 5. SEO Score + Antes/Depois */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-4">
-            <SeoScorePanel />
-            <BeforeAfterTimeline />
-          </div>
-
-          {/* 6. Ranking por gênero */}
-          <GenreRanking dataset={dataset} genres={genres} />
-
-          {/* 6. Detalhe — playlists e padrões */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-3 md:space-y-4">
             <TabsList>
-              <TabsTrigger value="playlists">Playlists ({totalPubs})</TabsTrigger>
-              <TabsTrigger value="insights" className="gap-1.5">
-                Padrões
+              <TabsTrigger value="visao">Visão geral</TabsTrigger>
+              <TabsTrigger value="acoes" className="gap-1.5">
+                Ações
                 {insight && Array.isArray(insight.acoes_sugeridas) && insight.acoes_sugeridas.length > 0 && (
                   <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-primary/15 text-primary text-[10px] font-bold tabular-nums">
                     {insight.acoes_sugeridas.length}
                   </span>
                 )}
               </TabsTrigger>
+              <TabsTrigger value="detalhe">Detalhe ({totalPubs})</TabsTrigger>
             </TabsList>
-            <TabsContent value="playlists" className="min-h-[480px] animate-tab-in mt-0">
-              <PlaylistsTable dataset={dataset} genres={genres} altaIds={altaIds} baixaIds={baixaIds} />
+
+            {/* Visão geral — o que aconteceu */}
+            <TabsContent value="visao" className="space-y-3 md:space-y-4 animate-tab-in mt-0">
+              <FollowersTimeline />
+              <TopMovers dataset={dataset} />
+              <GenreRanking dataset={dataset} genres={genres} />
             </TabsContent>
-            <TabsContent value="insights" className="min-h-[480px] animate-tab-in mt-0">
+
+            {/* Ações — o que fazer */}
+            <TabsContent value="acoes" className="space-y-3 md:space-y-4 animate-tab-in mt-0">
+              <PriorityActionsCard insight={insight} />
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-4">
+                <SeoScorePanel />
+                <BeforeAfterTimeline />
+              </div>
               <InsightsPanel insight={insight} />
               {insight && (
-                <p className="text-[10px] text-muted-foreground text-right mt-2">
+                <p className="text-[10px] text-muted-foreground text-right">
                   Última análise: {new Date(insight.created_at).toLocaleString("pt-BR")}
                   {insight.generated_by_model ? ` • ${insight.generated_by_model}` : ""}
                 </p>
               )}
+            </TabsContent>
+
+            {/* Detalhe — tabela de playlists */}
+            <TabsContent value="detalhe" className="min-h-[480px] animate-tab-in mt-0">
+              <PlaylistsTable dataset={dataset} genres={genres} altaIds={altaIds} baixaIds={baixaIds} />
             </TabsContent>
           </Tabs>
         </>
