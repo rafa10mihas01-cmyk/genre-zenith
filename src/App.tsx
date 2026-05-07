@@ -32,6 +32,7 @@ import ComunidadeDashboard from "./pages/comunidade/Dashboard";
 import ComunidadeCampanhas from "./pages/comunidade/Campanhas";
 import ComunidadePontos from "./pages/comunidade/Pontos";
 import ComunidadeConta from "./pages/comunidade/Conta";
+import ComunidadeAdmin from "./pages/ComunidadeAdmin";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
