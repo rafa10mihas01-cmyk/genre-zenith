@@ -286,7 +286,7 @@ function PlaylistRow({ p }: { p: CuratorPlaylist }) {
   const position = typeof p.position_in_paste === "number" ? p.position_in_paste : null;
 
   return (
-    <li className="group flex items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-[hsl(var(--elevated))] transition-colors">
+    <li className="group flex items-center gap-3 rounded-lg px-3 py-2.5 min-h-[60px] hover:bg-[hsl(var(--elevated))] transition-colors">
       {/* posição */}
       {position !== null && (
         <div className="w-6 shrink-0 text-right text-[11px] font-semibold tabular-nums text-muted-foreground">
@@ -325,7 +325,7 @@ function PlaylistRow({ p }: { p: CuratorPlaylist }) {
       <div className="flex items-center gap-2 shrink-0">
         <span
           className={cn(
-            "text-[10px] font-semibold px-2 h-5 rounded-full inline-flex items-center",
+            "text-[10px] font-semibold px-2 h-5 rounded-full inline-flex items-center justify-center w-[78px]",
             STATUS_CHIP[status],
           )}
         >
