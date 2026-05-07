@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 
 // Bottom nav reduzido aos itens primários do novo menu.
 const items = [
-  { to: "/", label: "Cockpit", icon: Home, end: true },
+  { to: "/", label: "Hoje", icon: Home, end: true },
   { to: "/catalogo", label: "Catálogo", icon: ListMusic },
   { to: "/performance", label: "Métricas", icon: BarChart3 },
   { to: "/cerebro", label: "Cérebro", icon: Brain },

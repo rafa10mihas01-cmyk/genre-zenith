@@ -62,7 +62,7 @@ export function CommandPalette({
         <CommandGroup heading="Navegação">
           <CommandItem onSelect={() => go("/")}>
             <Home />
-            <span>Cockpit</span>
+            <span>Hoje</span>
             <CommandShortcut>G H</CommandShortcut>
           </CommandItem>
           <CommandItem onSelect={() => go("/cerebro")}>
