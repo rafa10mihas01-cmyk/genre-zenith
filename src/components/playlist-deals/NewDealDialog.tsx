@@ -1020,7 +1020,7 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
             throw err;
           }
         }
-        const link = curatorPublicUrl({ slug: deal.slug, public_token: deal.public_token });
+        const link = curatorShareUrl({ slug: deal.slug, public_token: deal.public_token });
         try {
           await navigator.clipboard.writeText(link);
         } catch {
