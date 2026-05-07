@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NexEngineLogo } from "@/components/NexEngineLogo";
+import { useFlowField } from "@/lib/screen-state";
 import { toast } from "sonner";
 
 const TOTAL = 3;
@@ -16,10 +17,10 @@ const TOTAL = 3;
 export default function Onboarding() {
   const { user } = useAuth();
   const nav = useNavigate();
-  const [step, setStep] = useState(1);
-  const [name, setName] = useState("");
-  const [instagram, setInstagram] = useState("");
-  const [playlistUrl, setPlaylistUrl] = useState("");
+  const [step, setStep] = useFlowField<number>("/comunidade/onboarding", "step", 1);
+  const [name, setName] = useFlowField<string>("/comunidade/onboarding", "name", "");
+  const [instagram, setInstagram] = useFlowField<string>("/comunidade/onboarding", "instagram", "");
+  const [playlistUrl, setPlaylistUrl] = useFlowField<string>("/comunidade/onboarding", "playlistUrl", "");
   const [meta, setMeta] = useState<{ name: string; followers: number; spotify_id?: string } | null>(null);
   const [validating, setValidating] = useState(false);
   const [saving, setSaving] = useState(false);
