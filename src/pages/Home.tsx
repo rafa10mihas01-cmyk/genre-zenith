@@ -292,6 +292,12 @@ export default function Home() {
         <SuggestionsCard suggestions={suggestions} total={c?.pendingSuggestions ?? 0} lastAt={c?.lastAnalysisAt ?? null} loading={loading} />
       </section>
 
+      {/* RESUMO DA SEMANA + SAÚDE OPERACIONAL */}
+      <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <WeeklySummaryCard />
+        <OperationalHealthCard />
+      </section>
+
       {/* Gêneros */}
       <section className="space-y-3">
         <div className="flex items-end justify-between">
@@ -523,8 +529,15 @@ function AttentionCard({ items, loading }: { items: AttentionItem[]; loading: bo
       ) : (
         <ul className="space-y-2">
           {items.map(i => {
-            const Icon = i.reason === "decline" ? TrendingDown : i.reason === "stale" ? Clock : Activity;
-            const tone = i.reason === "decline" ? "text-destructive" : "text-muted-foreground";
+            const Icon =
+              i.reason === "decline" ? TrendingDown
+              : i.reason === "stale" ? Clock
+              : i.reason === "seo_low" ? Search
+              : i.reason === "old_cover" ? ImageIcon
+              : Activity;
+            const tone = i.reason === "decline" ? "text-destructive"
+              : i.reason === "seo_low" || i.reason === "old_cover" ? "text-warning"
+              : "text-muted-foreground";
             return (
               <li key={`${i.id}-${i.reason}`}>
                 <Link to={i.to} className="flex items-center gap-3 -mx-2 px-2 py-1.5 rounded-lg hover:bg-muted/40 transition-colors group">
