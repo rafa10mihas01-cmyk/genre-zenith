@@ -252,7 +252,11 @@ export function PasteUrlsDialog({
                         l.status === "duplicate" ? "text-warning" : "text-destructive",
                       )}
                     >
-                      {l.status === "duplicate" ? "duplicada" : l.reason}
+                      {l.status === "duplicate"
+                        ? "duplicada"
+                        : l.status === "invalid"
+                          ? l.reason
+                          : ""}
                     </span>
                   </div>
                 ))}
