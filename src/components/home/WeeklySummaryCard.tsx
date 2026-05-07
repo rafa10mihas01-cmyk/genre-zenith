@@ -1,0 +1,179 @@
+import { useEffect, useState } from "react";
+import { Calendar, TrendingUp, TrendingDown } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { formatNumber } from "@/lib/format";
+import { cn } from "@/lib/utils";
+
+type WeekSummary = {
+  followersGained7d: number | null;
+  followersGainedToday: number | null;
+  best: { name: string; delta: number } | null;
+  worst: { name: string; delta: number } | null;
+  loading: boolean;
+  insufficient: boolean;
+};
+
+/**
+ * Resumo da semana — diff agregado de followers nos últimos 7 dias
+ * baseado em playlist_metrics_snapshots.
+ */
+export function WeeklySummaryCard() {
+  const [s, setS] = useState<WeekSummary>({
+    followersGained7d: null,
+    followersGainedToday: null,
+    best: null,
+    worst: null,
+    loading: true,
+    insufficient: false,
+  });
+
+  useEffect(() => {
+    (async () => {
+      const sinceISO = new Date(Date.now() - 8 * 86400000).toISOString();
+      const { data } = await supabase
+        .from("playlist_metrics_snapshots")
+        .select("spotify_playlist_id, followers, collected_at")
+        .gte("collected_at", sinceISO)
+        .order("collected_at", { ascending: true })
+        .limit(5000);
+
+      if (!data || data.length === 0) {
+        setS(p => ({ ...p, loading: false, insufficient: true }));
+        return;
+      }
+
+      // primeiro / último snapshot por playlist no período
+      const map = new Map<string, { first: number; last: number; firstTs: number; lastTs: number }>();
+      for (const r of data as any[]) {
+        const ts = new Date(r.collected_at).getTime();
+        const cur = map.get(r.spotify_playlist_id);
+        if (!cur) { map.set(r.spotify_playlist_id, { first: r.followers, last: r.followers, firstTs: ts, lastTs: ts }); continue; }
+        if (ts < cur.firstTs) { cur.first = r.followers; cur.firstTs = ts; }
+        if (ts > cur.lastTs) { cur.last = r.followers; cur.lastTs = ts; }
+      }
+
+      const ids = Array.from(map.keys());
+      // nomes via playlist_templates (1 batch)
+      const { data: tpls } = await supabase
+        .from("playlist_templates")
+        .select("name, spotify_playlist_id")
+        .in("spotify_playlist_id", ids);
+      const nameByPid = new Map((tpls ?? []).map((t: any) => [t.spotify_playlist_id, t.name]));
+
+      let total7d = 0;
+      const deltas: Array<{ name: string; delta: number }> = [];
+      for (const [pid, v] of map) {
+        if (v.firstTs === v.lastTs) continue;
+        const delta = v.last - v.first;
+        total7d += delta;
+        deltas.push({ name: nameByPid.get(pid) || "Sem nome", delta });
+      }
+
+      // hoje (últimas 24h) = soma do delta do último ponto vs ponto mais próximo de 24h atrás
+      const day = 86400000;
+      let today = 0;
+      let touchedToday = false;
+      const cutoff = Date.now() - day;
+      for (const r of data as any[]) {/* placeholder consumed above */}
+      // recompute today usando o map original — buscamos último snapshot e o anterior
+      const byPid = new Map<string, Array<{ ts: number; f: number }>>();
+      for (const r of data as any[]) {
+        const ts = new Date(r.collected_at).getTime();
+        const arr = byPid.get(r.spotify_playlist_id) ?? [];
+        arr.push({ ts, f: r.followers });
+        byPid.set(r.spotify_playlist_id, arr);
+      }
+      for (const arr of byPid.values()) {
+        arr.sort((a, b) => a.ts - b.ts);
+        const last = arr[arr.length - 1];
+        const prev = [...arr].reverse().find(x => x.ts <= cutoff);
+        if (prev && last.ts !== prev.ts) {
+          today += last.f - prev.f;
+          touchedToday = true;
+        }
+      }
+
+      deltas.sort((a, b) => b.delta - a.delta);
+      const best = deltas[0] ?? null;
+      const worst = deltas.length > 1 ? deltas[deltas.length - 1] : null;
+
+      setS({
+        followersGained7d: total7d,
+        followersGainedToday: touchedToday ? today : null,
+        best: best && best.delta > 0 ? best : null,
+        worst: worst && worst.delta < 0 ? worst : null,
+        loading: false,
+        insufficient: deltas.length === 0,
+      });
+    })();
+  }, []);
+
+  return (
+    <div className="nx-card p-5 flex flex-col gap-4 h-full">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Calendar className="h-4 w-4 text-muted-foreground" />
+          <span className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-semibold">
+            Resumo da semana
+          </span>
+        </div>
+      </div>
+
+      {s.loading ? (
+        <div className="h-24 rounded-md bg-muted/40 animate-pulse" />
+      ) : s.insufficient ? (
+        <div className="text-xs text-muted-foreground py-4">
+          Aguardando histórico suficiente para gerar resumo semanal.
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <div className={cn(
+                "text-2xl font-bold tabular-nums leading-none",
+                (s.followersGained7d ?? 0) >= 0 ? "text-primary" : "text-destructive",
+              )}>
+                {(s.followersGained7d ?? 0) > 0 ? "+" : ""}{formatNumber(s.followersGained7d)}
+              </div>
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-2">7 dias</div>
+            </div>
+            <div>
+              <div className={cn(
+                "text-2xl font-bold tabular-nums leading-none",
+                s.followersGainedToday === null ? "text-muted-foreground"
+                  : s.followersGainedToday >= 0 ? "text-foreground" : "text-destructive",
+              )}>
+                {s.followersGainedToday === null
+                  ? "—"
+                  : `${s.followersGainedToday > 0 ? "+" : ""}${formatNumber(s.followersGainedToday)}`}
+              </div>
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-2">Hoje</div>
+            </div>
+          </div>
+
+          <div className="space-y-1.5 pt-1 border-t border-border/50">
+            {s.best && (
+              <div className="flex items-center gap-2 text-xs">
+                <TrendingUp className="h-3.5 w-3.5 text-success shrink-0" />
+                <span className="text-muted-foreground shrink-0">Melhor:</span>
+                <span className="truncate font-semibold">{s.best.name}</span>
+                <span className="ml-auto text-success tabular-nums font-semibold shrink-0">+{formatNumber(s.best.delta)}</span>
+              </div>
+            )}
+            {s.worst && (
+              <div className="flex items-center gap-2 text-xs">
+                <TrendingDown className="h-3.5 w-3.5 text-destructive shrink-0" />
+                <span className="text-muted-foreground shrink-0">Pior:</span>
+                <span className="truncate font-semibold">{s.worst.name}</span>
+                <span className="ml-auto text-destructive tabular-nums font-semibold shrink-0">{formatNumber(s.worst.delta)}</span>
+              </div>
+            )}
+            {!s.best && !s.worst && (
+              <div className="text-[11px] text-muted-foreground">Nenhuma variação relevante.</div>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
