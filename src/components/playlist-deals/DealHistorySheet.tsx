@@ -107,7 +107,7 @@ function fmtCompact(n: number): string {
 }
 
 /* ------------------------------------------------------------------
- * KPI tile — limpo, sem "card-dentro-de-card".
+ * KPI tile — usa tokens do design system (card #171717, border #2E2E2E).
  * ------------------------------------------------------------------ */
 function Kpi({
   label,
@@ -129,17 +129,40 @@ function Kpi({
       ? "text-destructive"
       : "text-foreground";
   return (
-    <div className="rounded-xl bg-[hsl(var(--elevated))] border border-white/[0.04] p-4">
-      <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+    <div className="rounded-2xl bg-card border border-border p-5">
+      <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
         {label}
       </div>
-      <div className={cn("text-2xl font-bold leading-tight mt-1.5 tabular-nums", toneCls)}>
+      <div className={cn("text-[28px] font-semibold leading-tight mt-2 tabular-nums", toneCls)}>
         {value}
       </div>
       {hint && (
-        <div className="text-[11px] text-muted-foreground/80 mt-1 truncate">{hint}</div>
+        <div className="text-xs text-muted-foreground mt-1.5 truncate">{hint}</div>
       )}
     </div>
+  );
+}
+
+/* Card seção — wrapper para blocos de leitura no Resumo */
+function SectionCard({
+  title,
+  right,
+  children,
+}: {
+  title: string;
+  right?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-2xl bg-card border border-border p-5">
+      <div className="flex items-center justify-between mb-3">
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          {title}
+        </div>
+        {right}
+      </div>
+      {children}
+    </section>
   );
 }
 
