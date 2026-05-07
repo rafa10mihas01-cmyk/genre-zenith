@@ -46,12 +46,13 @@ export default function Onboarding() {
         body: { url: playlistUrl },
       });
       if (error) throw error;
-      const m = data?.meta || data;
-      if (!m?.name) throw new Error("Link não reconhecido");
+      if (!data?.ok || data?.type !== "playlist") {
+        throw new Error(data?.type ? "Cole o link de uma playlist (não de música/álbum)." : "Link não reconhecido");
+      }
       setMeta({
-        name: m.name,
-        followers: m.followers ?? 0,
-        spotify_id: m.id ?? m.spotify_playlist_id,
+        name: data.title ?? "Sua playlist",
+        followers: 0,
+        spotify_id: data.id,
       });
     } catch (err: any) {
       toast.error("Link inválido", { description: err?.message ?? "Cole o link de uma playlist Spotify." });
@@ -147,9 +148,7 @@ export default function Onboarding() {
                   <Check className="h-4 w-4 text-primary shrink-0" />
                   <div className="min-w-0">
                     <div className="font-medium truncate">{meta.name}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {meta.followers.toLocaleString("pt-BR")} seguidores
-                    </div>
+                    <div className="text-xs text-muted-foreground">Playlist validada</div>
                   </div>
                 </div>
               )}
