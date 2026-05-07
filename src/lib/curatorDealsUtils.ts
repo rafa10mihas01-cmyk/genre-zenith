@@ -84,6 +84,7 @@ export type CuratorPlaylist = {
   streams_total?: number | null;
   last_paste_at?: string | null;
   position_in_paste?: number | null;
+  song_id?: string | null;
 };
 
 export type CuratorDealLog = {
