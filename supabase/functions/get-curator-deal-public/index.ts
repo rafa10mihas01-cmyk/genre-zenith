@@ -64,6 +64,7 @@ Deno.serve(async (req) => {
       { data: songs, error: songsErr },
       { data: progressRpc, error: progressErr },
       { data: historyRpc, error: historyErr },
+      { data: latestSnaps, error: snapsErr },
     ] = await Promise.all([
       admin
         .from("curator_playlists")
@@ -82,12 +83,33 @@ Deno.serve(async (req) => {
         .order("position", { ascending: true }),
       admin.rpc("get_curator_deal_progress", { p_deal_id: deal.id }),
       admin.rpc("get_curator_deal_snapshot_history", { p_deal_id: deal.id }),
+      admin
+        .from("curator_deal_snapshots")
+        .select("playlist_id, captured_at, plays_24h, plays_7d, plays_28d, is_baseline")
+        .eq("deal_id", deal.id)
+        .eq("is_baseline", false)
+        .order("captured_at", { ascending: false }),
     ]);
 
     if (plErr) return jr({ ok: false, error: plErr.message }, 200);
     if (songsErr) return jr({ ok: false, error: songsErr.message }, 200);
     if (progressErr) return jr({ ok: false, error: progressErr.message }, 200);
     if (historyErr) return jr({ ok: false, error: historyErr.message }, 200);
+    if (snapsErr) return jr({ ok: false, error: snapsErr.message }, 200);
+
+    // Último snapshot por playlist (já vem ordenado desc).
+    const latestByPlaylist: Record<string, { plays_24h: number | null; plays_7d: number | null; plays_28d: number | null; captured_at: string }> = {};
+    for (const s of (latestSnaps ?? []) as any[]) {
+      if (!s.playlist_id) continue;
+      if (!latestByPlaylist[s.playlist_id]) {
+        latestByPlaylist[s.playlist_id] = {
+          plays_24h: s.plays_24h ?? null,
+          plays_7d: s.plays_7d ?? null,
+          plays_28d: s.plays_28d ?? null,
+          captured_at: s.captured_at,
+        };
+      }
+    }
 
     // Gate informativo: leitura segue permitida (curador vê o histórico),
     // mas o frontend usa esse flag pra desabilitar mutações.
