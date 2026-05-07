@@ -14,6 +14,7 @@ import {
   Music2,
   CalendarDays,
   ImageIcon,
+  ClipboardPaste,
 } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
