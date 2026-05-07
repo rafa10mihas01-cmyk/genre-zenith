@@ -60,7 +60,7 @@ export function PageHeader({
           <h1 className="text-[19px] sm:text-2xl lg:text-3xl font-semibold tracking-tight leading-tight truncate min-w-0">
             {title}
           </h1>
-          <p className="hidden lg:block text-sm text-muted-foreground max-w-2xl">{subtitle}</p>
+          <p className="block text-[12px] lg:text-sm text-muted-foreground max-w-2xl truncate lg:whitespace-normal">{subtitle}</p>
         </div>
         {actions && (
           <div
