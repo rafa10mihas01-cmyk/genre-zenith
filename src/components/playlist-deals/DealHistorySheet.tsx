@@ -625,7 +625,73 @@ export function DealHistorySheet({
                     </div>
                   )}
 
-                  {/* KPIs */}
+                  {/* Performance na janela (24h/7d/28d) */}
+                  {todayBreakdown && todayBreakdown.rows.length > 0 && (
+                    <SectionCard
+                      title="Performance na janela"
+                      right={
+                        <div className="inline-flex rounded-lg border border-border bg-[hsl(var(--elevated))] p-0.5">
+                          {(["24h", "7d", "28d"] as const).map((w) => (
+                            <button
+                              key={w}
+                              onClick={() => setPerfWindow(w)}
+                              className={cn(
+                                "h-7 px-3 rounded-md text-[11px] font-semibold tabular-nums transition-colors",
+                                perfWindow === w
+                                  ? "bg-card text-foreground"
+                                  : "text-muted-foreground hover:text-foreground",
+                              )}
+                            >
+                              {w}
+                            </button>
+                          ))}
+                        </div>
+                      }
+                    >
+                      <div className="grid grid-cols-3 gap-3">
+                        <div>
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Total</div>
+                          <div className="text-2xl font-semibold text-primary tabular-nums leading-tight mt-1">
+                            {fmtCompact(
+                              perfWindow === "24h"
+                                ? todayBreakdown.total_24h
+                                : perfWindow === "7d"
+                                ? todayBreakdown.total_7d
+                                : todayBreakdown.total_28d,
+                            )}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground mt-0.5">janela {perfWindow}</div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Curador</div>
+                          <div className="text-2xl font-semibold text-success tabular-nums leading-tight mt-1">
+                            {fmtCompact(curatorWindowTotal)}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground tabular-nums mt-0.5">
+                            {curatorBreakdownRows.length} playlist{curatorBreakdownRows.length === 1 ? "" : "s"}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Algoritmo</div>
+                          <div className="text-2xl font-semibold text-foreground tabular-nums leading-tight mt-1">
+                            {fmtCompact(algoWindowTotal)}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground tabular-nums mt-0.5">
+                            {algoBreakdownRows.length} playlist{algoBreakdownRows.length === 1 ? "" : "s"}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-baseline justify-between pt-3 mt-3 border-t border-border">
+                        <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
+                          Δ hoje
+                        </div>
+                        <div className="text-base font-semibold text-foreground tabular-nums">
+                          +{fmtCompact(todayBreakdown.total_today)}
+                        </div>
+                      </div>
+                    </SectionCard>
+                  )}
+
                   <div className="grid grid-cols-2 gap-3">
                     <Kpi
                       label="Plays entregues"
