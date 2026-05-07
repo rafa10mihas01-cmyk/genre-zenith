@@ -31,7 +31,7 @@ import { useScreenField } from "@/lib/screen-state";
 import { formatNumber } from "@/lib/format";
 
 type Invite = {
-  id: string; code: string; email: string | null; status: string;
+  id: string; code: string; slug: string | null; email: string | null; status: string;
   expires_at: string; created_at: string; note: string | null;
 };
 type Member = {
