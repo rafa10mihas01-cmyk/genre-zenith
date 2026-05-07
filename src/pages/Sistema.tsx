@@ -1,6 +1,6 @@
 // Sistema — painel de observabilidade completo.
 // Tabs no padrão visual do app (border-b + ícone + label), igual Operação / Playlist Deals / Comunidade.
-import { Activity, Workflow, Music2, HeartPulse, Bot, Bell } from "lucide-react";
+import { Activity, Workflow, Music2, HeartPulse, Bot, Bell, Settings as SettingsIcon } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
 import { useScreenField } from "@/lib/screen-state";
@@ -11,8 +11,9 @@ import { ColetaPanel } from "@/components/sistema/ColetaPanel";
 import { SaudeSistema } from "@/components/sistema/SaudeSistema";
 import { RoboAoVivo } from "@/components/sistema/RoboAoVivo";
 import { AlertasHistorico } from "@/components/sistema/AlertasHistorico";
+import Settings from "@/pages/Settings";
 
-type SistemaTab = "fluxo" | "ao-vivo" | "robo" | "coleta" | "saude" | "alertas";
+type SistemaTab = "fluxo" | "ao-vivo" | "robo" | "coleta" | "saude" | "alertas" | "configuracoes";
 
 const TABS: { id: SistemaTab; label: string; icon: typeof Activity }[] = [
   { id: "fluxo", label: "Fluxo", icon: Workflow },
@@ -21,6 +22,7 @@ const TABS: { id: SistemaTab; label: string; icon: typeof Activity }[] = [
   { id: "coleta", label: "Coleta", icon: Music2 },
   { id: "saude", label: "Saúde", icon: HeartPulse },
   { id: "alertas", label: "Alertas", icon: Bell },
+  { id: "configuracoes", label: "Configurações", icon: SettingsIcon },
 ];
 
 export default function Sistema() {
@@ -65,6 +67,7 @@ export default function Sistema() {
         {tab === "coleta" && <ColetaPanel />}
         {tab === "saude" && <SaudeSistema />}
         {tab === "alertas" && <AlertasHistorico />}
+        {tab === "configuracoes" && <Settings embedded />}
       </div>
     </PageContainer>
   );
