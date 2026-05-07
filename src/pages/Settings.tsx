@@ -323,6 +323,12 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
             <Database className="h-3.5 w-3.5" /> Coleta
           </TabsTrigger>
           <TabsTrigger
+            value="contas-spotify"
+            className="px-4 h-10 inline-flex items-center gap-2 text-sm font-medium border-b-2 border-transparent text-muted-foreground rounded-none bg-transparent shadow-none -mb-px shrink-0 whitespace-nowrap transition-colors hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+          >
+            <Music2 className="h-3.5 w-3.5" /> Contas Spotify
+          </TabsTrigger>
+          <TabsTrigger
             value="equipe"
             className="px-4 h-10 inline-flex items-center gap-2 text-sm font-medium border-b-2 border-transparent text-muted-foreground rounded-none bg-transparent shadow-none -mb-px shrink-0 whitespace-nowrap transition-colors hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none"
           >
