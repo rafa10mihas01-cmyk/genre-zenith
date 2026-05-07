@@ -34,7 +34,7 @@ export default function Sistema() {
       />
 
       {/* TABS — mesmo padrão visual de Operação / Playlist Deals */}
-      <div className="sticky top-0 z-30 -mt-px bg-background/95 supports-[backdrop-filter]:bg-background/80 backdrop-blur-md flex items-center gap-1 border-b border-border overflow-x-auto overscroll-x-contain touch-pan-x [scrollbar-width:none] [&::-webkit-scrollbar]:hidden -mx-4 md:-mx-6 px-4 md:px-6">
+      <div className="nx-tab-rail sticky top-0 z-30 -mt-px bg-background/95 supports-[backdrop-filter]:bg-background/80 backdrop-blur-md items-center gap-1 border-b border-border -mx-4 md:-mx-6 px-4 md:px-6">
         {TABS.map((t) => {
           const Icon = t.icon;
           const active = tab === t.id;
