@@ -573,7 +573,7 @@ export function DealHistorySheet({
                     aria-label="Resumo"
                     className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none gap-1 h-12 sm:h-9 px-2 sm:px-3 flex-col sm:flex-row"
                   >
-                    <BarChart3 className="h-5 w-5 sm:h-3.5 sm:w-3.5" />
+                    <BarChart3 className="h-6 w-6 sm:h-4 sm:w-4 shrink-0" />
                     <span className="hidden sm:inline">Resumo</span>
                   </TabsTrigger>
                   <span className="hidden sm:block mx-1 h-5 w-px bg-border self-center" aria-hidden />
@@ -582,7 +582,7 @@ export function DealHistorySheet({
                     aria-label="Curador"
                     className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none gap-1 h-12 sm:h-9 px-2 sm:px-3 flex-col sm:flex-row"
                   >
-                    <ListMusic className="h-5 w-5 sm:h-3.5 sm:w-3.5" />
+                    <ListMusic className="h-6 w-6 sm:h-4 sm:w-4 shrink-0" />
                     <span className="hidden sm:inline">Curador</span>
                     <span className="text-[10px] font-semibold tabular-nums">
                       {curatorTotal}
@@ -593,7 +593,7 @@ export function DealHistorySheet({
                     aria-label="Algoritmo"
                     className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none gap-1 h-12 sm:h-9 px-2 sm:px-3 flex-col sm:flex-row"
                   >
-                    <Sparkles className="h-5 w-5 sm:h-3.5 sm:w-3.5" />
+                    <Sparkles className="h-6 w-6 sm:h-4 sm:w-4 shrink-0" />
                     <span className="hidden sm:inline">Algoritmo</span>
                     <span className="text-[10px] font-semibold tabular-nums">
                       {algoTotal}
@@ -605,7 +605,7 @@ export function DealHistorySheet({
                     aria-label="Histórico"
                     className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none gap-1 h-12 sm:h-9 px-2 sm:px-3 flex-col sm:flex-row"
                   >
-                    <Clock className="h-5 w-5 sm:h-3.5 sm:w-3.5" />
+                    <Clock className="h-6 w-6 sm:h-4 sm:w-4 shrink-0" />
                     <span className="hidden sm:inline">Histórico</span>
                     <span className="text-[10px] font-semibold tabular-nums">
                       {reversedLogs.length}
