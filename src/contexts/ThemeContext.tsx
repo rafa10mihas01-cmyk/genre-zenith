@@ -33,6 +33,17 @@ function applyTheme(resolved: "light" | "dark") {
   root.classList.add(resolved);
   root.style.colorScheme = resolved;
 
+  // Sincroniza a cor da status bar do iOS/Android com o tema atual.
+  // Sem isso, o "notch" fica preto fixo mesmo no tema claro.
+  const themeColor = resolved === "dark" ? "#050505" : "#ffffff";
+  let meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+  if (!meta) {
+    meta = document.createElement("meta");
+    meta.name = "theme-color";
+    document.head.appendChild(meta);
+  }
+  meta.content = themeColor;
+
   // Força reflow + remove o bloqueio no próximo frame.
   // eslint-disable-next-line @typescript-eslint/no-unused-expressions
   window.getComputedStyle(css).opacity;
