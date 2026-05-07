@@ -168,8 +168,14 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               <Button
                 size="icon"
                 variant="ghost"
-                onClick={refresh}
-                className="hidden md:inline-flex lg:hidden h-9 w-9 rounded-md text-muted-foreground hover:text-foreground hover:bg-elevated/60 shrink-0"
+                onClick={() => {
+                  refresh();
+                  // força recarregar a casca do PWA também (bypassa cache)
+                  if (typeof window !== "undefined") {
+                    window.location.reload();
+                  }
+                }}
+                className="inline-flex lg:hidden h-9 w-9 rounded-md text-muted-foreground hover:text-foreground hover:bg-elevated/60 shrink-0"
                 aria-label="Atualizar"
               >
                 <RefreshCw className="h-[18px] w-[18px]" />
