@@ -442,6 +442,20 @@ export function DealHistorySheet({
   const curatorTotal = counts.curator + counts.baseline;
   const algoTotal = counts.editorial + counts.organic + counts.suspicious;
 
+  // Breakdown por origem (usado nas abas Curador/Algoritmo + Performance)
+  const curatorBreakdownRows = useMemo(
+    () => (todayBreakdown?.rows ?? []).filter((r) => r.match_status === "curator"),
+    [todayBreakdown],
+  );
+  const algoBreakdownRows = useMemo(
+    () => (todayBreakdown?.rows ?? []).filter((r) => r.match_status !== "curator"),
+    [todayBreakdown],
+  );
+  const sumWindow = (rows: typeof curatorBreakdownRows, w: "24h" | "7d" | "28d") =>
+    rows.reduce((s, r) => s + (w === "24h" ? r.plays_24h ?? 0 : w === "7d" ? r.plays_7d ?? 0 : r.plays_28d ?? 0), 0);
+  const curatorWindowTotal = sumWindow(curatorBreakdownRows, perfWindow);
+  const algoWindowTotal = sumWindow(algoBreakdownRows, perfWindow);
+
   // dados auxiliares
   const baseline = Number(deal?.baseline_plays ?? 0);
   const target = Number(deal?.target_plays ?? 0);
