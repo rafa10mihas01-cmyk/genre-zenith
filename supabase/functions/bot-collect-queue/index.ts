@@ -172,6 +172,7 @@ Deno.serve(async (req) => {
       .update({
         auto_collect_status: "queued",
         auto_collect_error: "Entregue ao robô; aguardando print/snapshot",
+        queued_at: new Date().toISOString(),
       })
       .in("id", ids);
   }
