@@ -40,28 +40,10 @@ function getRouteTitle(pathname: string): string {
  * - Padding/spacing consistente para todo conteúdo (px-8 py-6, max-w livre)
  */
 export default function AppLayout({ children }: { children: ReactNode }) {
-  const [lastUpdate, setLastUpdate] = useState<string | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const nav = useNavigate();
   const location = useLocation();
   const pageTitle = getRouteTitle(location.pathname);
-
-  // Puxa "última atividade global" pra exibir no topbar (dado real, não fake)
-  const refresh = async () => {
-    const { data } = await supabase
-      .from("collection_logs")
-      .select("created_at")
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    setLastUpdate(data?.created_at ?? null);
-  };
-
-  useEffect(() => {
-    refresh();
-    const t = setInterval(refresh, 30_000);
-    return () => clearInterval(t);
-  }, []);
 
   // Atalho global ⌘K / Ctrl+K — abre Command Palette de qualquer lugar
   useEffect(() => {
