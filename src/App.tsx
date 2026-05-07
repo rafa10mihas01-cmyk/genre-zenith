@@ -8,6 +8,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import AdminRoute from "@/components/AdminRoute";
 import AppLayout from "@/components/AppLayout";
 import ScrollManager from "@/components/ScrollManager";
+import ScreenStateManager from "@/components/ScreenStateManager";
 import { LoadingProvider } from "@/contexts/LoadingContext";
 import Login from "./pages/Login";
 import ResetPassword from "./pages/ResetPassword";
@@ -35,7 +36,20 @@ import ComunidadeConta from "./pages/comunidade/Conta";
 import ComunidadeAdmin from "./pages/ComunidadeAdmin";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+// Defaults globais de cache: navegação "instantânea" sem reload visual.
+// staleTime 60s = dados considerados frescos por 1min (não refaz fetch ao voltar).
+// gcTime 5min  = mantém em memória 5min após desmontar a query.
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 60_000,
+      gcTime: 5 * 60_000,
+      refetchOnWindowFocus: true,
+      refetchOnReconnect: true,
+      retry: 1,
+    },
+  },
+});
 
 const Protected = ({ children }: { children: React.ReactNode }) => (
   <ProtectedRoute>
@@ -50,6 +64,7 @@ const App = () => (
       <Sonner theme="dark" position="top-right" />
       <BrowserRouter>
         <ScrollManager />
+        <ScreenStateManager />
         <LoadingProvider>
           <AuthProvider>
             <Routes>
