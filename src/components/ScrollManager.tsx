@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useLocation, useNavigationType } from "react-router-dom";
+import { isFlowRoute } from "@/lib/screen-state";
 
 /**
  * ScrollManager — gerencia scroll entre rotas como app nativo.
