@@ -413,6 +413,57 @@ export type Database = {
           },
         ]
       }
+      community_campaigns: {
+        Row: {
+          brief: string | null
+          closed_at: string | null
+          created_at: string
+          created_by: string
+          deal_id: string
+          id: string
+          max_slots: number
+          opened_at: string | null
+          points_per_member: number
+          proof_window_hours: number
+          status: string
+          title: string
+          updated_at: string
+          used_slots: number
+        }
+        Insert: {
+          brief?: string | null
+          closed_at?: string | null
+          created_at?: string
+          created_by: string
+          deal_id: string
+          id?: string
+          max_slots?: number
+          opened_at?: string | null
+          points_per_member?: number
+          proof_window_hours?: number
+          status?: string
+          title: string
+          updated_at?: string
+          used_slots?: number
+        }
+        Update: {
+          brief?: string | null
+          closed_at?: string | null
+          created_at?: string
+          created_by?: string
+          deal_id?: string
+          id?: string
+          max_slots?: number
+          opened_at?: string | null
+          points_per_member?: number
+          proof_window_hours?: number
+          status?: string
+          title?: string
+          updated_at?: string
+          used_slots?: number
+        }
+        Relationships: []
+      }
       community_invites: {
         Row: {
           accepted_at: string | null
@@ -528,6 +579,7 @@ export type Database = {
       }
       community_participations: {
         Row: {
+          campaign_id: string | null
           created_at: string
           deal_id: string
           expires_at: string | null
@@ -546,6 +598,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          campaign_id?: string | null
           created_at?: string
           deal_id: string
           expires_at?: string | null
@@ -564,6 +617,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          campaign_id?: string | null
           created_at?: string
           deal_id?: string
           expires_at?: string | null
@@ -2774,6 +2828,30 @@ export type Database = {
       cleanup_stale_autopilot_runs: {
         Args: { p_minutes?: number }
         Returns: number
+      }
+      community_accept_campaign: {
+        Args: { p_campaign_id: string }
+        Returns: Json
+      }
+      community_list_open_campaigns: {
+        Args: never
+        Returns: {
+          already_accepted: boolean
+          brief: string
+          id: string
+          points_per_member: number
+          proof_window_hours: number
+          remaining_slots: number
+          song_artist: string
+          song_cover_url: string
+          song_name: string
+          song_spotify_url: string
+          title: string
+        }[]
+      }
+      community_submit_proof: {
+        Args: { p_participation_id: string; p_proof_url: string }
+        Returns: Json
       }
       compare_genre_versions: {
         Args: { p_genre_id: string; p_version_a: number; p_version_b: number }
