@@ -32,6 +32,7 @@ import ComunidadeDashboard from "./pages/comunidade/Dashboard";
 import ComunidadeCampanhas from "./pages/comunidade/Campanhas";
 import ComunidadePontos from "./pages/comunidade/Pontos";
 import ComunidadeConta from "./pages/comunidade/Conta";
+import ComunidadeAdmin from "./pages/ComunidadeAdmin";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -77,6 +78,7 @@ const App = () => (
               <Route path="/curadores" element={<Protected><Curadores /></Protected>} />
               <Route path="/curadoria-preview" element={<Protected><CuradoriaPreview /></Protected>} />
               <Route path="/sistema" element={<Protected><Sistema /></Protected>} />
+              <Route path="/comunidade-admin" element={<Protected><AdminRoute><ComunidadeAdmin /></AdminRoute></Protected>} />
               <Route path="/settings" element={<Protected><AdminRoute><Settings /></AdminRoute></Protected>} />
               <Route path="/configuracoes" element={<Protected><AdminRoute><Settings /></AdminRoute></Protected>} />
               <Route path="*" element={<NotFound />} />
