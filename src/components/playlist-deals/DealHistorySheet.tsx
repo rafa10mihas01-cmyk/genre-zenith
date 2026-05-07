@@ -557,19 +557,14 @@ export function DealHistorySheet({
 
                   {/* Curador vs Ecossistema (RPC breakdown) */}
                   {breakdown && (
-                    <div className="rounded-xl border border-white/[0.04] bg-[hsl(var(--elevated))]/50 p-4 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                          Entrega vs Ecossistema
-                        </div>
-                        <div className="text-[10px] text-muted-foreground/80">
-                          plays únicos por playlist
-                        </div>
-                      </div>
+                    <SectionCard
+                      title="Entrega vs Ecossistema"
+                      right={<span className="text-[10px] text-muted-foreground">plays únicos por playlist</span>}
+                    >
                       <div className="grid grid-cols-3 gap-3 text-[12px]">
                         <div>
                           <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Curador</div>
-                          <div className="text-base font-bold tabular-nums text-success leading-tight mt-0.5">
+                          <div className="text-base font-semibold tabular-nums text-success leading-tight mt-0.5">
                             {fmtCompact(breakdown.curator.plays)}
                           </div>
                           <div className="text-[10px] text-muted-foreground tabular-nums">
@@ -578,7 +573,7 @@ export function DealHistorySheet({
                         </div>
                         <div>
                           <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Ecossistema</div>
-                          <div className="text-base font-bold tabular-nums text-primary leading-tight mt-0.5">
+                          <div className="text-base font-semibold tabular-nums text-primary leading-tight mt-0.5">
                             {fmtCompact(eco.plays)}
                           </div>
                           <div className="text-[10px] text-muted-foreground tabular-nums">
@@ -587,7 +582,7 @@ export function DealHistorySheet({
                         </div>
                         <div>
                           <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Total bruto</div>
-                          <div className="text-base font-bold tabular-nums text-foreground leading-tight mt-0.5">
+                          <div className="text-base font-semibold tabular-nums text-foreground leading-tight mt-0.5">
                             {fmtCompact(breakdown.total.plays)}
                           </div>
                           <div className="text-[10px] text-muted-foreground tabular-nums">
@@ -595,7 +590,7 @@ export function DealHistorySheet({
                           </div>
                         </div>
                       </div>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-white/[0.04]">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-3 mt-3 border-t border-border">
                         {(["editorial","algorithmic","organic","suspicious"] as const).map((k) => {
                           const v = breakdown.ecosystem[k];
                           if (!v.playlists && !v.plays) return null;
@@ -610,22 +605,18 @@ export function DealHistorySheet({
                           );
                         })}
                       </div>
-                      <div className="text-[10.5px] text-muted-foreground/80 leading-relaxed pt-1 border-t border-white/[0.04]">
+                      <div className="text-[11px] text-muted-foreground leading-relaxed pt-3 mt-3 border-t border-border">
                         Apenas a coluna <span className="text-success font-medium">Curador</span> conta na meta contratual. Ecossistema é exibição.
                       </div>
-                    </div>
+                    </SectionCard>
                   )}
 
-                  {/* anti-fraude */}
-                  <div className="rounded-xl border border-white/[0.04] bg-[hsl(var(--elevated))]/50 p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <AlertTriangle className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        Monitoramento anti-fraude
-                      </span>
-                    </div>
+                  <SectionCard
+                    title="Monitoramento anti-fraude"
+                    right={<AlertTriangle className="h-3.5 w-3.5 text-muted-foreground" />}
+                  >
                     <FraudAlertsPanel dealId={deal.id} onReload={onReload} />
-                  </div>
+                  </SectionCard>
 
                   {deal.song_spotify_url && (
                     <Button
