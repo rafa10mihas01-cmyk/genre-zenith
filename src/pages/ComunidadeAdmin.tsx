@@ -553,7 +553,7 @@ function ConvitesTab({ adminId, onChange }: { adminId: string; onChange?: () => 
                       {i.note ? ` · ${i.note}` : ""}
                     </div>
                   </div>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => copyLink(i.code)} title="Copiar link">
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => copyLink(i)} title="Copiar link">
                     <Copy className="h-4 w-4" />
                   </Button>
                   {i.status === "pending" && (
