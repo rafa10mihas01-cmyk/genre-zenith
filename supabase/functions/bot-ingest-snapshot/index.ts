@@ -55,6 +55,7 @@ Deno.serve(async (req) => {
           auto_collect_status: "idle",
           auto_collect_error: gate.error,
           next_auto_collect_at: new Date(Date.now() + 60 * 60_000).toISOString(),
+          queued_at: null,
         })
         .eq("id", song_id);
       return jr({ ok: false, error: gate.error, code: gate.code, gated: true }, gate.status);
