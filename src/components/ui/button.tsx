@@ -9,10 +9,10 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        // Padrão: verde "soft" — sinaliza ação sem dominar a tela.
-        // É o que deve ser usado em 90% dos CTAs.
+        // Padrão: verde "soft" — fundo tintado + borda nítida em ambos os temas.
+        // Mesmo padrão visual do pill de alerta. Hover mais saturado e perceptível.
         default:
-          "bg-primary/12 text-primary border border-primary/30 hover:bg-primary/18 hover:border-primary/50 active:bg-primary/15",
+          "bg-primary/15 text-primary border border-primary/40 hover:bg-primary/25 hover:border-primary/70 hover:text-primary active:bg-primary/30 dark:bg-primary/12 dark:border-primary/30 dark:hover:bg-primary/20 dark:hover:border-primary/55",
         // Verde sólido — usar SOMENTE em ações raras, críticas, de submit final
         // (ex: "Confirmar pagamento", "Fechar deal"). Não usar em listas/cards.
         solid:
@@ -24,7 +24,7 @@ const buttonVariants = cva(
         link: "text-primary underline-offset-4 hover:underline",
         // Alias mantido para compatibilidade — equivale ao default soft.
         soft:
-          "bg-primary/12 text-primary border border-primary/30 hover:bg-primary/18 hover:border-primary/50",
+          "bg-primary/15 text-primary border border-primary/40 hover:bg-primary/25 hover:border-primary/70 dark:bg-primary/12 dark:border-primary/30 dark:hover:bg-primary/20 dark:hover:border-primary/55",
         premium:
           "bg-[hsl(var(--elevated))] text-foreground border border-primary/25 shadow-sm transition-all duration-200 hover:border-primary/45 hover:text-primary hover:bg-[hsl(var(--elevated))]/80",
       },
