@@ -85,6 +85,7 @@ const App = () => (
               <Route path="/comunidade/conta" element={<ProtectedRoute><ComunidadeConta /></ProtectedRoute>} />
               {/* "/" decide entre landing pública (visitantes) e Cockpit/Home (logados). */}
               <Route path="/" element={<RootRoute />} />
+              <Route path="/executivo" element={<Protected><Executivo /></Protected>} />
               <Route path="/cerebro" element={<Protected><Cerebro /></Protected>} />
               <Route path="/cerebro/:slug" element={<Protected><Cerebro /></Protected>} />
               <Route path="/criacao" element={<Protected><Criacao /></Protected>} />
