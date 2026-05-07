@@ -303,12 +303,33 @@ export default function Settings() {
         subtitle="Ajustes do sistema"
       />
 
-      <Tabs defaultValue="conexoes" className="mt-6">
-        <TabsList className="w-full max-w-2xl flex sm:grid sm:grid-cols-4 nx-tabs-scroll">
-          <TabsTrigger value="conexoes" className="shrink-0 whitespace-nowrap"><Plug className="h-3.5 w-3.5 mr-1.5" />Conexões</TabsTrigger>
-          <TabsTrigger value="coleta" className="shrink-0 whitespace-nowrap"><Database className="h-3.5 w-3.5 mr-1.5" />Coleta</TabsTrigger>
-          <TabsTrigger value="equipe" className="shrink-0 whitespace-nowrap"><Users className="h-3.5 w-3.5 mr-1.5" />Equipe</TabsTrigger>
-          <TabsTrigger value="conta" className="shrink-0 whitespace-nowrap"><UserCheck className="h-3.5 w-3.5 mr-1.5" />Conta</TabsTrigger>
+      <Tabs defaultValue="conexoes" className="mt-2">
+        {/* TABS — mesmo padrão visual de Operação / Playlist Deals / Sistema */}
+        <TabsList className="h-auto bg-transparent p-0 rounded-none flex items-center gap-1 border-b border-border w-full justify-start overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden -mx-4 md:-mx-6 px-4 md:px-6">
+          <TabsTrigger
+            value="conexoes"
+            className="px-4 h-10 inline-flex items-center gap-2 text-sm font-medium border-b-2 border-transparent text-muted-foreground rounded-none bg-transparent shadow-none -mb-px shrink-0 whitespace-nowrap transition-colors hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+          >
+            <Plug className="h-3.5 w-3.5" /> Conexões
+          </TabsTrigger>
+          <TabsTrigger
+            value="coleta"
+            className="px-4 h-10 inline-flex items-center gap-2 text-sm font-medium border-b-2 border-transparent text-muted-foreground rounded-none bg-transparent shadow-none -mb-px shrink-0 whitespace-nowrap transition-colors hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+          >
+            <Database className="h-3.5 w-3.5" /> Coleta
+          </TabsTrigger>
+          <TabsTrigger
+            value="equipe"
+            className="px-4 h-10 inline-flex items-center gap-2 text-sm font-medium border-b-2 border-transparent text-muted-foreground rounded-none bg-transparent shadow-none -mb-px shrink-0 whitespace-nowrap transition-colors hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+          >
+            <Users className="h-3.5 w-3.5" /> Equipe
+          </TabsTrigger>
+          <TabsTrigger
+            value="conta"
+            className="px-4 h-10 inline-flex items-center gap-2 text-sm font-medium border-b-2 border-transparent text-muted-foreground rounded-none bg-transparent shadow-none -mb-px shrink-0 whitespace-nowrap transition-colors hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+          >
+            <UserCheck className="h-3.5 w-3.5" /> Conta
+          </TabsTrigger>
         </TabsList>
 
         {/* ───────────────────────── CONEXÕES ───────────────────────── */}
