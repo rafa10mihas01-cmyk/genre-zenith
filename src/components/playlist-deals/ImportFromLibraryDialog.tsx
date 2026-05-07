@@ -158,7 +158,7 @@ export function ImportFromLibraryDialog({
                 <SelectContent>
                   {songs.map((s) => (
                     <SelectItem key={s.id} value={s.id}>
-                      {s.song_name}{s.artist_name ? ` — ${s.artist_name}` : ""}
+                      {s.song_name}
                     </SelectItem>
                   ))}
                 </SelectContent>
