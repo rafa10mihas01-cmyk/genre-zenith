@@ -403,7 +403,7 @@ export function DealHistorySheet({
 
   // contagens por categoria
   const counts = useMemo(() => {
-    const c = { curator: 0, editorial: 0, organic: 0, suspicious: 0, baseline: 0 } as Record<
+    const c = { curator: 0, editorial: 0, algorithmic: 0, organic: 0, suspicious: 0, baseline: 0 } as Record<
       CuratorMatchStatus,
       number
     >;
@@ -433,7 +433,7 @@ export function DealHistorySheet({
     const q = algoQuery.trim().toLowerCase();
     return sortedPlaylists.filter((p) => {
       const s = (p.match_status ?? (p.is_baseline ? "baseline" : "curator")) as CuratorMatchStatus;
-      if (s !== "editorial" && s !== "organic" && s !== "suspicious") return false;
+      if (s !== "editorial" && s !== "algorithmic" && s !== "organic" && s !== "suspicious") return false;
       if (algoFilter !== "all" && s !== algoFilter) return false;
       if (!q) return true;
       return (
@@ -444,7 +444,7 @@ export function DealHistorySheet({
   }, [sortedPlaylists, algoQuery, algoFilter]);
 
   const curatorTotal = counts.curator + counts.baseline;
-  const algoTotal = counts.editorial + counts.organic + counts.suspicious;
+  const algoTotal = counts.editorial + counts.algorithmic + counts.organic + counts.suspicious;
 
   // Breakdown por origem (usado nas abas Curador/Algoritmo + Performance)
   const curatorBreakdownRows = useMemo(
