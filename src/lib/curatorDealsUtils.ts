@@ -58,6 +58,7 @@ export type CuratorMatchStatus =
   | "curator"
   | "baseline"
   | "editorial"
+  | "algorithmic"
   | "suspicious"
   | "organic";
 
@@ -210,7 +211,7 @@ export function computeCuratorStats(
   for (const p of realPlaylists) {
     const status = (p.match_status ?? "curator") as CuratorMatchStatus;
     if (status === "suspicious") suspiciousCount++;
-    else if (status === "curator" || status === "organic" || status === "editorial") legitCount++;
+    else if (status === "curator" || status === "organic" || status === "editorial" || status === "algorithmic") legitCount++;
   }
   const legitShare = totalReal > 0 ? legitCount / totalReal : 1; // sem entregas ainda → assume 100%
   const suspiciousShare = totalReal > 0 ? suspiciousCount / totalReal : 0;

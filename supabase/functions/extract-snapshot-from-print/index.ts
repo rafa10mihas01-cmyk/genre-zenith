@@ -631,22 +631,29 @@ Deno.serve(async (req) => {
   const processedSpotifyIds = new Set<string>();
   const processedNames = new Set<string>();
 
-  // Blocklist: nomes exatos da seção "Ouvintes / Algorítmico" do Spotify for Artists.
-  // Essas linhas aparecem abaixo da curadoria e NÃO são playlists curadas.
+  // Blocklist: superfícies algorítmicas do Spotify for Artists.
+  // Importante: playlist oficial do Spotify COM link real (ex: "This Is", editoriais)
+  // não deve cair aqui só por made_by=Spotify; isso é Editorial, não Algorítmico.
   const ALGO_NAMES = new Set([
     "radio", "mixes", "daylist", "smart shuffle", "on repeat", "blend",
     "your dj", "discover weekly", "release radar", "made for you",
     "repeat rewind", "your top songs", "niche mixes", "uniquely yours",
   ]);
   const isAlgorithmic = (name: string | null, madeBy: string | null, spotifyId?: string | null) => {
-    if ((spotifyId ?? "").startsWith("37i9dQZF")) return true;
-    if ((madeBy ?? "").trim().toLowerCase() === "spotify") return true;
     const n = (name ?? "").trim().toLowerCase();
     if (!n) return false;
     if (ALGO_NAMES.has(n)) return true;
     // variações tipo "X Mix", "Daily Mix 1", "Discover Weekly"
     if (/\b(daily mix|mix \d+|on repeat|smart shuffle)\b/.test(n)) return true;
+    // Linhas sem playlist_id real vindas do Spotify são superfícies internas.
+    if ((madeBy ?? "").trim().toLowerCase() === "spotify" && !(spotifyId ?? "").trim()) return true;
     return false;
+  };
+  const isSpotifyEditorial = (name: string | null, madeBy: string | null, spotifyId?: string | null) => {
+    const hasRealPlaylistId = !!spotifyId && !spotifyId.startsWith("algo:");
+    if (!hasRealPlaylistId) return false;
+    if (isAlgorithmic(name, madeBy, spotifyId)) return false;
+    return (madeBy ?? "").trim().toLowerCase() === "spotify" || spotifyId.startsWith("37i9dQZF");
   };
 
   let filteredOut = 0;
@@ -654,7 +661,11 @@ Deno.serve(async (req) => {
   for (const pl of extracted) {
     const sName = pl.playlist_name ?? null;
     const plays = Math.max(0, parseInt(String(pl.plays ?? 0)) || 0);
-    const isAlgo = isAlgorithmic(sName, pl.made_by ?? null);
+    const preResolvedFromUrl = extractId(pl.spotify_url ?? "");
+    const preResolvedFromDom = !preResolvedFromUrl && sName ? domByName.get(norm(sName))?.id ?? null : null;
+    const preResolvedIdForKind = preResolvedFromUrl ?? preResolvedFromDom ?? null;
+    const isAlgo = isAlgorithmic(sName, pl.made_by ?? null, preResolvedIdForKind);
+    const isEditorial = isSpotifyEditorial(sName, pl.made_by ?? null, preResolvedIdForKind);
     // O histórico/base representa o total observado no Spotify for Artists.
     // A entrega contratada continua vindo apenas dos snapshots match_status='curator'
     // via get_curator_deal_progress.
@@ -662,11 +673,7 @@ Deno.serve(async (req) => {
 
     // Resolve spotify_playlist_id antecipadamente (Gemini URL ou DOM por nome)
     // para classificar whitelist do curador sem descartar as demais 100 linhas.
-    let preResolvedId = extractId(pl.spotify_url ?? "");
-    if (!preResolvedId && sName) {
-      const hit = domByName.get(norm(sName));
-      if (hit) preResolvedId = hit.id;
-    }
+    let preResolvedId = preResolvedIdForKind;
     const isWhitelistedCurator = !!preResolvedId && !preResolvedId.startsWith("algo:") && whitelist.has(preResolvedId);
     // ECOSSISTEMA COMPLETO: não descartamos mais linhas fora da whitelist.
     // Whitelist agora apenas marca origem (curator vs organic). Captura permanece 100%.
@@ -800,10 +807,10 @@ Deno.serve(async (req) => {
         .select("id")
         .eq("deal_id", deal_id)
         .eq("spotify_playlist_id", sId)
-        .eq("match_status", "organic")
+        .eq("match_status", isEditorial ? "editorial" : "organic")
         .maybeSingle();
       playlistId = organic?.id ?? null;
-      matchMethod = "organic";
+      matchMethod = isEditorial ? "editorial" : "organic";
     }
 
     if (!playlistId) {
@@ -817,8 +824,8 @@ Deno.serve(async (req) => {
           playlist_name: sName ?? "Sem nome",
           spotify_owner_name: pl.made_by ?? null,
           is_baseline: isWhitelistedCurator ? isBaseline : false,
-          match_status: isWhitelistedCurator ? "curator" : "organic",
-          match_reason: isWhitelistedCurator ? "curator_whitelist" : "sfa_detected_not_whitelisted",
+          match_status: isWhitelistedCurator ? "curator" : isEditorial ? "editorial" : "organic",
+          match_reason: isWhitelistedCurator ? "curator_whitelist" : isEditorial ? "spotify_editorial_detected" : "sfa_detected_not_whitelisted",
           position_in_paste: typeof pl.position === "number" ? pl.position : null,
           last_paste_at: new Date().toISOString(),
         })
@@ -896,6 +903,7 @@ Deno.serve(async (req) => {
     if (dom.id.startsWith("algo:")) continue; // já tratada no loop principal
     if (processedSpotifyIds.has(dom.id) || processedNames.has(norm(dom.name))) continue;
     if (isAlgorithmic(dom.name, dom.made_by ?? null, dom.id)) continue;
+    const isEditorialDom = isSpotifyEditorial(dom.name, dom.made_by ?? null, dom.id);
     // ECOSSISTEMA COMPLEMENTO DOM: não descartamos mais linhas fora da whitelist.
     // Persistimos como 'organic' para preservar 100% do DOM bruto.
 
@@ -925,8 +933,8 @@ Deno.serve(async (req) => {
         spotify_playlist_id: dom.id,
         playlist_name: dom.name,
         is_baseline: false,
-        match_status: "organic",
-        match_reason: "dom_only_link_no_visual_plays",
+        match_status: isEditorialDom ? "editorial" : "organic",
+        match_reason: isEditorialDom ? "spotify_editorial_dom_only" : "dom_only_link_no_visual_plays",
       });
     if (cErr) skipped++;
     else domLinked++;

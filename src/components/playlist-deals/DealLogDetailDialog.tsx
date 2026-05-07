@@ -25,6 +25,7 @@ const STATUS_LABEL: Record<CuratorMatchStatus, string> = {
   curator: "Do curador",
   baseline: "Inicial",
   editorial: "Editorial",
+  algorithmic: "Algorítmica",
   suspicious: "Suspeita",
   organic: "Orgânica",
 };
@@ -33,6 +34,7 @@ const STATUS_CLASS: Record<CuratorMatchStatus, string> = {
   curator: "bg-success/15 text-success",
   baseline: "bg-muted/40 text-muted-foreground",
   editorial: "bg-primary/15 text-primary",
+  algorithmic: "bg-muted/40 text-muted-foreground",
   suspicious: "bg-destructive/15 text-destructive",
   organic: "bg-muted/30 text-muted-foreground",
 };
