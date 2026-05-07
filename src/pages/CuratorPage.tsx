@@ -44,6 +44,7 @@ import { NexEngineLogo } from "@/components/NexEngineLogo";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { CuratorNotificationsBell } from "@/components/public/CuratorNotificationsBell";
 import { markCuratorPublicMode } from "@/lib/publicRouteMode";
+import { PasteUrlsDialog } from "@/components/curators/PasteUrlsDialog";
 
 type Deal = {
   id: string;
