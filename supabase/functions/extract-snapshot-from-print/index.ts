@@ -47,6 +47,12 @@ function parsePlaysText(s: string | null | undefined): number | null {
   return Number.isFinite(n) && n >= 0 ? n : null;
 }
 
+function parseWindowNum(v: unknown): number | null {
+  if (v == null || v === "") return null;
+  const n = typeof v === "number" ? v : parseInt(String(v).replace(/[^\d]/g, ""), 10);
+  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : null;
+}
+
 const GeminiPlaylistSchema = z.object({
   playlist_name: z.string().min(1).max(300),
   spotify_url: z.string().optional().nullable(),
