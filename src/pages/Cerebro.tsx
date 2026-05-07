@@ -185,7 +185,7 @@ export default function Cerebro() {
 
       {/* TABS — 6 áreas internas */}
       <Tabs value={tab} onValueChange={setTab} className="space-y-5">
-        <TabsList className="sticky top-0 z-30 bg-background/95 supports-[backdrop-filter]:bg-background/80 backdrop-blur-md p-0 h-auto gap-4 sm:gap-6 border-b border-border rounded-none w-full justify-start nx-tabs-scroll flex-nowrap touch-pan-x overscroll-x-contain">
+        <TabsList className="nx-tab-rail sticky top-0 z-30 bg-background/95 supports-[backdrop-filter]:bg-background/80 backdrop-blur-md p-0 h-auto gap-4 sm:gap-6 border-b border-border rounded-none justify-start flex-nowrap">
           {[
             { v: "visao", label: "Visão Geral" },
             { v: "decisoes", label: "Decisões" },
