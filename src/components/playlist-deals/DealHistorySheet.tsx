@@ -202,6 +202,7 @@ type BreakdownRowData = {
   plays_24h: number | null;
   plays_7d: number | null;
   plays_28d: number | null;
+  song_name?: string | null;
 };
 
 function BreakdownRow({ r, kind }: { r: BreakdownRowData; kind: "curator" | "algo" }) {
@@ -245,6 +246,7 @@ function BreakdownRow({ r, kind }: { r: BreakdownRowData; kind: "curator" | "alg
         </div>
         <div className="text-[11px] text-muted-foreground tabular-nums mt-0.5 pl-3.5">
           Δ hoje <span className="text-foreground font-medium">+{fmtCompact(r.today_plays)}</span>
+          {r.song_name && <> · <span className="text-foreground/80">♪ {r.song_name}</span></>}
           {r.spotify_owner_name && <> · {r.spotify_owner_name}</>}
         </div>
       </div>
@@ -365,6 +367,7 @@ export function DealHistorySheet({
   const [algoQuery, setAlgoQuery] = useState("");
   const [algoFilter, setAlgoFilter] = useState<"all" | "editorial" | "organic" | "suspicious">("all");
   const [algoSongFilter, setAlgoSongFilter] = useState<string>("all");
+  const [curatorSongFilter, setCuratorSongFilter] = useState<string>("all");
 
   const stats = deal ? computeCuratorStats(deal, allLogs, allPlaylists, progress ?? null) : null;
   const { data: breakdown } = useCuratorDealBreakdown(deal?.id ?? null);
@@ -412,13 +415,14 @@ export function DealHistorySheet({
     return sortedPlaylists.filter((p) => {
       const s = (p.match_status ?? (p.is_baseline ? "baseline" : "curator")) as CuratorMatchStatus;
       if (s !== "curator" && s !== "baseline") return false;
+      if (curatorSongFilter !== "all" && (p.song_id ?? "") !== curatorSongFilter) return false;
       if (!q) return true;
       return (
         (p.playlist_name ?? "").toLowerCase().includes(q) ||
         (p.spotify_owner_name ?? "").toLowerCase().includes(q)
       );
     });
-  }, [sortedPlaylists, plQuery]);
+  }, [sortedPlaylists, plQuery, curatorSongFilter]);
 
   // Aba "Algoritmo" → editorial + organic + suspicious
   const algoPlaylists = useMemo(() => {
@@ -462,6 +466,7 @@ export function DealHistorySheet({
 
   const toBreakdownRowData = (p: CuratorPlaylist): BreakdownRowData => {
     const snap = breakdownMap.get(p.id);
+    const song = p.song_id ? songs.find((s) => s.id === p.song_id) ?? null : null;
     return {
       playlist_id: p.id,
       playlist_name: p.playlist_name || "Playlist sem nome",
@@ -473,6 +478,7 @@ export function DealHistorySheet({
       plays_24h: snap?.plays_24h ?? null,
       plays_7d: snap?.plays_7d ?? null,
       plays_28d: snap?.plays_28d ?? null,
+      song_name: song?.song_name ?? null,
     };
   };
 
@@ -861,6 +867,44 @@ export function DealHistorySheet({
                       placeholder="Buscar playlist ou owner…"
                       className="h-9 text-sm"
                     />
+                  )}
+
+                  {curatorTotal > 0 && songs.length > 1 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      <button
+                        onClick={() => setCuratorSongFilter("all")}
+                        className={cn(
+                          "h-7 px-2.5 rounded-full text-[11px] font-medium border transition-colors inline-flex items-center gap-1.5",
+                          curatorSongFilter === "all"
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-transparent border-white/[0.06] text-muted-foreground hover:text-foreground hover:bg-[hsl(var(--elevated))]",
+                        )}
+                      >
+                        Todas as músicas
+                      </button>
+                      {songs.map((s) => {
+                        const c = sortedPlaylists.filter((p) => {
+                          const st = (p.match_status ?? (p.is_baseline ? "baseline" : "curator")) as CuratorMatchStatus;
+                          return (st === "curator" || st === "baseline") && p.song_id === s.id;
+                        }).length;
+                        return (
+                          <button
+                            key={s.id}
+                            onClick={() => setCuratorSongFilter(s.id)}
+                            className={cn(
+                              "h-7 px-2.5 rounded-full text-[11px] font-medium border transition-colors inline-flex items-center gap-1.5 max-w-[220px]",
+                              curatorSongFilter === s.id
+                                ? "bg-primary text-primary-foreground border-primary"
+                                : "bg-transparent border-white/[0.06] text-muted-foreground hover:text-foreground hover:bg-[hsl(var(--elevated))]",
+                            )}
+                            title={`${s.song_name ?? ""} — ${s.song_artist ?? ""}`}
+                          >
+                            <span className="truncate">{s.song_name || "Música"}</span>
+                            <span className="tabular-nums opacity-70 shrink-0">{c}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   )}
 
                   {/* lista */}
