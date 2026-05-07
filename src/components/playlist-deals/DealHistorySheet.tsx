@@ -1113,7 +1113,7 @@ export function DealHistorySheet({
 
                           {/* CORPO EXPANDIDO INLINE — sem popup */}
                           {isExpanded && (
-                            <div className="border-t border-white/[0.06] px-3 py-3 space-y-3 bg-background/30">
+                            <div className="border-t border-border px-4 py-4 space-y-4 bg-card">
                               {log.note && (
                                 <div>
                                   <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
