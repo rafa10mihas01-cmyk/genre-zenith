@@ -403,20 +403,31 @@ Deno.serve(async (req) => {
   // Index DOM por nome/ID/posição. Filtra entradas com url vazia (algorítmicas
   // do Spotify como Radio, Mixes, Smart Shuffle, que não têm link no HTML).
   const norm = normName;
-  const domByName = new Map<string, { id: string; url: string; name: string; position?: number; plays?: number | null; made_by?: string | null }>();
-  const domByPos = new Map<number, { id: string; url: string; name: string; position: number; plays?: number | null; made_by?: string | null }>();
-  const domItems: Array<{ id: string; url: string; name: string; position?: number; plays?: number | null; made_by?: string | null }> = [];
+  type DomItem = {
+    id: string;
+    url: string;
+    name: string;
+    position?: number;
+    plays?: number | null;
+    made_by?: string | null;
+    plays_24h?: number | null;
+    plays_7d?: number | null;
+    plays_28d?: number | null;
+  };
+  const domByName = new Map<string, DomItem>();
+  const domByPos = new Map<number, DomItem>();
+  const domItems: DomItem[] = [];
   let domHasPlaysText = false;
   // Mantemos algorítmicas (made_by=Spotify) mesmo sem URL — id sintético "algo:<nome>".
   for (let i = 0; i < dom_playlists.length; i++) {
-    const d = dom_playlists[i];
+    const d = dom_playlists[i] as any;
     if (!d?.name) continue;
     const name = String(d.name).trim();
-    const madeBy = ((d as any).made_by ?? null) as string | null;
+    const madeBy = (d.made_by ?? null) as string | null;
     const isAlgoRow = (madeBy ?? "").trim().toLowerCase() === "spotify" || !d.url;
     let id: string;
     if (d.url) {
-      const m = d.url.match(/playlist[/:]([a-zA-Z0-9]{16,})/);
+      const m = String(d.url).match(/playlist[/:]([a-zA-Z0-9]{16,})/);
       if (!m) {
         if (!isAlgoRow) continue;
         id = `algo:${normName(name)}`;
@@ -427,22 +438,30 @@ Deno.serve(async (req) => {
       if (!isAlgoRow) continue;
       id = `algo:${normName(name)}`;
     }
-    const playsNum = parsePlaysText(d.plays_text);
+    const w24 = parseWindowNum(d.plays_24h);
+    const w7 = parseWindowNum(d.plays_7d);
+    const w28 = parseWindowNum(d.plays_28d);
+    // plays "principal" do DOM: prioriza 7d (janela default histórica), depois 24h, 28d, depois plays_text legado
+    const playsLegacy = parsePlaysText(d.plays_text);
+    const playsNum = w7 ?? w24 ?? w28 ?? playsLegacy;
     if (playsNum != null) domHasPlaysText = true;
-    const posRaw = (d as any).position;
+    const posRaw = d.position;
     const pos = typeof posRaw === "number"
       ? posRaw
       : posRaw != null ? parseInt(String(posRaw).replace(/\D/g, ""), 10) : NaN;
     const position = Number.isFinite(pos) && pos > 0 ? pos : (i + 1);
-    const item = {
+    const item: DomItem = {
       id,
       url: d.url ?? "",
       name,
       position,
       plays: playsNum,
       made_by: madeBy,
+      plays_24h: w24,
+      plays_7d: w7,
+      plays_28d: w28,
     };
-    domByName.set(norm(name), item);
+    domByName.set(normName(name), item);
     domByPos.set(position, item);
     domItems.push(item);
   }
