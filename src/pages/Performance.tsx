@@ -17,6 +17,8 @@ import { PlaylistsTable } from "@/components/performance/PlaylistsTable";
 import { InsightsPanel } from "@/components/performance/InsightsPanel";
 import { TopMovers } from "@/components/performance/TopMovers";
 import { FollowersTimeline } from "@/components/performance/FollowersTimeline";
+import { SeoScorePanel } from "@/components/performance/SeoScorePanel";
+import { BeforeAfterTimeline } from "@/components/performance/BeforeAfterTimeline";
 import type { DatasetRow, Insight, GenreRow } from "@/components/performance/types";
 
 export default function Performance() {
@@ -152,7 +154,13 @@ export default function Performance() {
           {/* 4. Próximas ações da IA */}
           <PriorityActionsCard insight={insight} />
 
-          {/* 5. Ranking por gênero */}
+          {/* 5. SEO Score + Antes/Depois */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-4">
+            <SeoScorePanel />
+            <BeforeAfterTimeline />
+          </div>
+
+          {/* 6. Ranking por gênero */}
           <GenreRanking dataset={dataset} genres={genres} />
 
           {/* 6. Detalhe — playlists e padrões */}
