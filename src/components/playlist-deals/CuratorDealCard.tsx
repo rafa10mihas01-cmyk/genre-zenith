@@ -493,7 +493,7 @@ export function CuratorDealCard({
                     <DropdownMenuItem
                       key={s.id}
                       className="gap-2 rounded-lg items-center py-2"
-                      onClick={() => handleCopyClientLink(s.client_token ?? null)}
+                      onClick={() => handleCopyClientLink({ slug: s.slug ?? null, client_token: s.client_token ?? null })}
                     >
                       <User className="h-4 w-4 shrink-0 text-muted-foreground" />
                       <span className="text-sm leading-tight font-medium truncate flex-1" title={s.song_name}>
