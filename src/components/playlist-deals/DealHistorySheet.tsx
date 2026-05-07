@@ -1172,6 +1172,7 @@ export function DealHistorySheet({
       <ImportFromLibraryDialog
         open={importOpen}
         deal={deal}
+        songs={songs}
         existingPlaylists={allPlaylists}
         onClose={() => setImportOpen(false)}
         onImported={() => onReload?.()}
