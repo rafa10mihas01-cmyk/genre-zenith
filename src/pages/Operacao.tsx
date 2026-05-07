@@ -50,7 +50,6 @@ const TABS = [
   { id: "minhas",    label: "Minhas Playlists", icon: Sparkles },
   { id: "playlists", label: "Criadas (auto)", icon: ListMusic },
   { id: "ajustes",   label: "Ajustes",   icon: Wrench },
-  { id: "contas",    label: "Contas",    icon: Users },
 ] as const;
 
 type TabId = typeof TABS[number]["id"];
@@ -378,16 +377,15 @@ export default function Operacao() {
           </section>
         )}
 
-        {/* CONTAS — sem o card explicativo redundante */}
-        {tab === "contas" && (
-          <section key="tab-contas" className="animate-tab-in">
-            <AccountsManager />
-          </section>
-        )}
       </div>
     </PageContainer>
   );
 }
+
+// (Contas Spotify movido para Configurações → Contas)
+function _Removed() { return null; }
+function _RemovedAccounts() { return <AccountsManager />; }
+{/* placeholder */}
 
 /* ---------------- helpers UI ---------------- */
 
