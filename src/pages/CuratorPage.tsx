@@ -21,6 +21,7 @@ import * as XLSX from "xlsx";
 import { cn } from "@/lib/utils";
 
 import { supabase } from "@/integrations/supabase/client";
+import { useExternalSplash } from "@/hooks/useExternalSplash";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -245,6 +246,7 @@ function isPlaceholderToken(value: string): boolean {
 
 export default function CuratorPage() {
   const { token } = useParams<{ token: string }>();
+  const onExternal = useExternalSplash();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deal, setDeal] = useState<Deal | null>(null);
@@ -976,6 +978,7 @@ export default function CuratorPage() {
                     href={headerUrl}
                     target="_blank"
                     rel="noreferrer"
+                    onClick={() => onExternal()}
                     className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] text-muted-foreground hover:text-foreground bg-muted/40 ring-1 ring-border hover:ring-border hover:bg-muted/60 transition-colors"
                   >
                     <ExternalLink className="h-3 w-3" />
@@ -1488,6 +1491,7 @@ export default function CuratorPage() {
                   href={u}
                   target="_blank"
                   rel="noreferrer"
+                  onClick={() => onExternal()}
                   className="inline-flex items-center justify-center gap-1.5 text-[12px] text-primary hover:underline mt-2"
                 >
                   Abrir no Spotify <ExternalLink className="h-3 w-3" />
