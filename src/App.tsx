@@ -26,6 +26,7 @@ import CuratorPage from "./pages/CuratorPage";
 import ClientCampaignPage from "./pages/ClientCampaignPage";
 import CuradoriaPreview from "./pages/CuradoriaPreview";
 import Sistema from "./pages/Sistema";
+import Executivo from "./pages/Executivo";
 import Settings from "./pages/Settings";
 import JoinInvite from "./pages/comunidade/JoinInvite";
 import Onboarding from "./pages/comunidade/Onboarding";
@@ -84,6 +85,7 @@ const App = () => (
               <Route path="/comunidade/conta" element={<ProtectedRoute><ComunidadeConta /></ProtectedRoute>} />
               {/* "/" decide entre landing pública (visitantes) e Cockpit/Home (logados). */}
               <Route path="/" element={<RootRoute />} />
+              <Route path="/executivo" element={<Protected><Executivo /></Protected>} />
               <Route path="/cerebro" element={<Protected><Cerebro /></Protected>} />
               <Route path="/cerebro/:slug" element={<Protected><Cerebro /></Protected>} />
               <Route path="/criacao" element={<Protected><Criacao /></Protected>} />

@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { Home, Brain, BarChart3, Settings, LogOut, ListMusic, Users, Handshake, Activity } from "lucide-react";
+import { Home, Brain, BarChart3, Settings, LogOut, ListMusic, Users, Handshake, Activity, LayoutDashboard } from "lucide-react";
 import { NexEngineLogo } from "@/components/NexEngineLogo";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
@@ -14,6 +14,7 @@ import { SidebarSmartPanel } from "@/components/SidebarSmartPanel";
 // Menu reduzido a 6 itens primários — foco em decisão e crescimento.
 // Sistema, Deals e Criação foram absorvidos / despromovidos.
 const items = [
+  { title: "Executivo", url: "/executivo", icon: LayoutDashboard },
   { title: "Hoje", url: "/", icon: Home, end: true },
   { title: "Catálogo", url: "/catalogo", icon: ListMusic },
   { title: "Performance", url: "/performance", icon: BarChart3 },
