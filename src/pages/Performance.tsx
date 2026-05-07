@@ -17,6 +17,8 @@ import { PlaylistsTable } from "@/components/performance/PlaylistsTable";
 import { InsightsPanel } from "@/components/performance/InsightsPanel";
 import { TopMovers } from "@/components/performance/TopMovers";
 import { FollowersTimeline } from "@/components/performance/FollowersTimeline";
+import { SeoScorePanel } from "@/components/performance/SeoScorePanel";
+import { BeforeAfterTimeline } from "@/components/performance/BeforeAfterTimeline";
 import type { DatasetRow, Insight, GenreRow } from "@/components/performance/types";
 
 export default function Performance() {
