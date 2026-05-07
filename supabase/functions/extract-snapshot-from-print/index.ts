@@ -903,6 +903,7 @@ Deno.serve(async (req) => {
     if (dom.id.startsWith("algo:")) continue; // já tratada no loop principal
     if (processedSpotifyIds.has(dom.id) || processedNames.has(norm(dom.name))) continue;
     if (isAlgorithmic(dom.name, dom.made_by ?? null, dom.id)) continue;
+    const isEditorialDom = isSpotifyEditorial(dom.name, dom.made_by ?? null, dom.id);
     // ECOSSISTEMA COMPLEMENTO DOM: não descartamos mais linhas fora da whitelist.
     // Persistimos como 'organic' para preservar 100% do DOM bruto.
 
@@ -932,8 +933,8 @@ Deno.serve(async (req) => {
         spotify_playlist_id: dom.id,
         playlist_name: dom.name,
         is_baseline: false,
-        match_status: "organic",
-        match_reason: "dom_only_link_no_visual_plays",
+        match_status: isEditorialDom ? "editorial" : "organic",
+        match_reason: isEditorialDom ? "spotify_editorial_dom_only" : "dom_only_link_no_visual_plays",
       });
     if (cErr) skipped++;
     else domLinked++;
