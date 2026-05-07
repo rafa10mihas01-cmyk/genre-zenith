@@ -139,11 +139,11 @@ export default function Cerebro() {
               variant="outline"
               onClick={() => runBrain(true)}
               disabled={running || autopilotRunning || !genre?.id}
-              className="nx-pill"
+              className="nx-pill hidden xl:inline-flex"
               title="Ignora o cooldown de 1h"
               aria-label="Forçar execução"
             >
-              <span className="hidden xl:inline">Forçar execução</span>
+              <span>Forçar execução</span>
             </Button>
             <Button onClick={() => runBrain(false)} disabled={running || autopilotRunning || !genre?.id} className="nx-pill max-w-full" aria-label="Atualizar inteligência">
               {(running || autopilotRunning) ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
