@@ -631,7 +631,7 @@ export function DealHistorySheet({
                       title="Performance na janela"
                       right={
                         <div className="inline-flex rounded-lg border border-border bg-[hsl(var(--elevated))] p-0.5">
-                          {(["24h", "7d", "28d"] as const).map((w) => (
+                          {(["7d", "24h", "28d"] as const).map((w) => (
                             <button
                               key={w}
                               onClick={() => setPerfWindow(w)}
