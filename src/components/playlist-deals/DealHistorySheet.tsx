@@ -696,7 +696,7 @@ export function DealHistorySheet({
                         </div>
                         <ul className="divide-y divide-border">
                           {todayBreakdown.rows.map((r) => {
-                            const isCurator = r.match_status === "curator" || r.is_baseline;
+                            const isCurator = r.match_status === "curator";
                             const winVal =
                               perfWindow === "24h" ? r.plays_24h
                               : perfWindow === "7d" ? r.plays_7d
