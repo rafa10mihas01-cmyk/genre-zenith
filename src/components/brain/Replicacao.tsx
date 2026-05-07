@@ -216,7 +216,7 @@ export function Variacoes({ genreId }: { genreId?: string }) {
               className={cn(
                 "text-xs px-3 py-1.5 rounded-full border transition-colors tabular-nums",
                 active
-                  ? "bg-primary text-primary-foreground border-primary"
+                  ? "bg-primary/15 text-primary border-primary/40"
                   : "bg-elevated border-border text-muted-foreground hover:text-foreground hover:border-foreground/40",
               )}
             >
