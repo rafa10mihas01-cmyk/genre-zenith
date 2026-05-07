@@ -1011,10 +1011,10 @@ export function DealHistorySheet({
                         <div
                           key={log.id}
                           className={cn(
-                            "rounded-xl border transition-colors overflow-hidden",
+                            "rounded-2xl border overflow-hidden transition-colors",
                             isExpanded
-                              ? "border-white/[0.10] bg-[hsl(var(--elevated))]"
-                              : "border-white/[0.04] bg-[hsl(var(--elevated))]/30 hover:bg-[hsl(var(--elevated))] hover:border-white/[0.08]",
+                              ? "border-primary/40 bg-card shadow-[0_0_0_1px_hsl(var(--primary)/0.15)]"
+                              : "border-border bg-card hover:border-border/80",
                           )}
                         >
                           <button
@@ -1022,13 +1022,16 @@ export function DealHistorySheet({
                             onClick={() =>
                               setSelectedLogId(isExpanded ? null : log.id)
                             }
-                            className="w-full text-left px-3 py-2.5 flex items-center gap-3"
+                            className={cn(
+                              "w-full text-left px-4 py-3 flex items-center gap-3",
+                              isExpanded && "bg-[hsl(var(--elevated))]",
+                            )}
                           >
                             {cover ? (
                               <img
                                 src={cover}
                                 alt=""
-                                className="h-11 w-11 rounded-lg object-cover shrink-0 ring-1 ring-white/[0.06]"
+                                className="h-11 w-11 rounded-lg object-cover shrink-0 ring-1 ring-border"
                               />
                             ) : (
                               <div className="h-11 w-11 rounded-lg bg-muted/40 flex items-center justify-center shrink-0">
@@ -1038,7 +1041,10 @@ export function DealHistorySheet({
 
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2">
-                                <span className="text-[13px] font-semibold leading-tight line-clamp-1">
+                                <span className={cn(
+                                  "text-[13px] leading-tight line-clamp-1",
+                                  isExpanded ? "font-bold text-foreground" : "font-semibold",
+                                )}>
                                   {songName}
                                 </span>
                                 {log.is_baseline && (
@@ -1100,7 +1106,7 @@ export function DealHistorySheet({
                             <ChevronRight
                               className={cn(
                                 "h-4 w-4 text-muted-foreground/60 shrink-0 transition-transform",
-                                isExpanded && "rotate-90",
+                                isExpanded && "rotate-90 text-primary",
                               )}
                             />
                           </button>
