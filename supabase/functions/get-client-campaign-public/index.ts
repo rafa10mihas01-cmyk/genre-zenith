@@ -157,7 +157,8 @@ Deno.serve(async (req) => {
     const songsList = siblings.length > 0
       ? siblings.map((s) => ({
         id: String(s.id),
-        client_token: String(s.client_token ?? ""),
+        // Prefere slug bonito; cai pro client_token quando indisponível.
+        client_token: String(s.slug ?? s.client_token ?? ""),
         song_name: String(s.song_name ?? ""),
         song_artist: (s.song_artist as string | null) ?? null,
         song_cover_url: (s.song_cover_url as string | null) ?? null,
