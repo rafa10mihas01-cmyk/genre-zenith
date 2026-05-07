@@ -1057,6 +1057,16 @@ export default function CuratorPage() {
                               </div>
                             )}
                           </div>
+                          {(s.target_plays ?? 0) > 0 && (
+                            <div className="text-right shrink-0 ml-2">
+                              <div className="text-[12px] font-semibold tabular-nums leading-none">
+                                {formatPlays(s.target_plays)}
+                              </div>
+                              <div className="text-[9.5px] uppercase tracking-wider text-muted-foreground mt-1">
+                                meta · {formatPlays(s.daily_goal)}/dia
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </button>
                     </li>
