@@ -77,6 +77,29 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  // Trava global dos trilhos de abas: vertical wheel/trackpad não rola a página
+  // quando o cursor está em cima das tabs; somente gesto horizontal mexe o trilho.
+  useEffect(() => {
+    const onWheel = (e: WheelEvent) => {
+      const rail = (e.target as Element | null)?.closest?.(".nx-tab-rail, .nx-tabs-scroll") as HTMLElement | null;
+      if (!rail) return;
+
+      const vertical = Math.abs(e.deltaY) >= Math.abs(e.deltaX);
+      if (vertical && !e.shiftKey) {
+        e.preventDefault();
+        return;
+      }
+
+      if (Math.abs(e.deltaX) > 0) {
+        e.preventDefault();
+        rail.scrollLeft += e.deltaX;
+      }
+    };
+
+    document.addEventListener("wheel", onWheel, { passive: false, capture: true });
+    return () => document.removeEventListener("wheel", onWheel, { capture: true });
+  }, []);
+
   return (
     <SidebarProvider>
       <SidebarContextProvider>
