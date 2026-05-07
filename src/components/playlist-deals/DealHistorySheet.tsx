@@ -171,6 +171,113 @@ function SectionCard({
 }
 
 /* ------------------------------------------------------------------
+ * Ícone padrão para playlists algorítmicas (Radio, Mixes, Discover…)
+ * — Spotify não expõe imagem pública dessas, então usamos lucide.
+ * ------------------------------------------------------------------ */
+function algoIconFor(name: string | null | undefined) {
+  const n = (name ?? "").toLowerCase();
+  if (n.startsWith("radio")) return Radio;
+  if (n.startsWith("mix")) return Shuffle;
+  if (n.includes("discover")) return Compass;
+  if (n.includes("daily")) return Disc3;
+  return Sparkles;
+}
+
+/* ------------------------------------------------------------------
+ * Linha de breakdown — usada nas abas Curador e Algoritmo.
+ * Mostra capa (ou ícone algorítmico), nome, Δ hoje e 24h/7d/28d.
+ * ------------------------------------------------------------------ */
+type BreakdownRowData = {
+  playlist_id: string;
+  playlist_name: string;
+  spotify_url: string | null;
+  spotify_owner_name: string | null;
+  image_url: string | null;
+  match_status: string;
+  today_plays: number;
+  plays_24h: number | null;
+  plays_7d: number | null;
+  plays_28d: number | null;
+};
+
+function BreakdownRow({ r, kind }: { r: BreakdownRowData; kind: "curator" | "algo" }) {
+  const AlgoIcon = algoIconFor(r.playlist_name);
+  return (
+    <li className="px-5 py-3 flex items-center gap-3 hover:bg-[hsl(var(--elevated))] transition-colors">
+      {/* capa / ícone padrão */}
+      <div className="h-10 w-10 shrink-0 rounded-md overflow-hidden bg-[hsl(var(--elevated))] border border-white/[0.04] flex items-center justify-center">
+        {r.image_url ? (
+          <img src={r.image_url} alt="" className="h-full w-full object-cover" />
+        ) : kind === "algo" ? (
+          <AlgoIcon className="h-4 w-4 text-muted-foreground" />
+        ) : (
+          <ListMusic className="h-4 w-4 text-muted-foreground" />
+        )}
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2 min-w-0">
+          <span
+            className={cn(
+              "h-1.5 w-1.5 rounded-full shrink-0",
+              kind === "curator" ? "bg-success" : "bg-muted-foreground/60",
+            )}
+          />
+          <span className="text-[13px] text-foreground font-medium truncate">
+            {r.playlist_name}
+          </span>
+          {r.spotify_url && (
+            <a
+              href={r.spotify_url}
+              target="_blank"
+              rel="noreferrer"
+              className="text-muted-foreground hover:text-foreground shrink-0"
+              onClick={(e) => e.stopPropagation()}
+              aria-label="Abrir no Spotify"
+            >
+              <ExternalLinkIcon className="h-3 w-3" />
+            </a>
+          )}
+        </div>
+        <div className="text-[11px] text-muted-foreground tabular-nums mt-0.5 pl-3.5">
+          Δ hoje <span className="text-foreground font-medium">+{fmtCompact(r.today_plays)}</span>
+          {r.spotify_owner_name && <> · {r.spotify_owner_name}</>}
+        </div>
+      </div>
+
+      {/* 3 colunas: 24h / 7d / 28d */}
+      <div className="hidden sm:flex items-center gap-1 shrink-0">
+        {(["24h", "7d", "28d"] as const).map((w) => {
+          const v = w === "24h" ? r.plays_24h : w === "7d" ? r.plays_7d : r.plays_28d;
+          return (
+            <div
+              key={w}
+              className="w-14 text-right rounded-md px-1.5 py-1"
+              title={`Janela ${w} (Spotify for Artists)`}
+            >
+              <div className="text-[13px] font-semibold text-foreground tabular-nums leading-tight">
+                {v != null ? fmtCompact(v) : "—"}
+              </div>
+              <div className="text-[9.5px] uppercase tracking-wider text-muted-foreground">
+                {w}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* compacto no mobile */}
+      <div className="flex sm:hidden flex-col items-end shrink-0 tabular-nums">
+        <div className="text-[13px] font-semibold text-foreground leading-tight">
+          {r.plays_7d != null ? fmtCompact(r.plays_7d) : "—"}
+        </div>
+        <div className="text-[9.5px] uppercase tracking-wider text-muted-foreground">7d</div>
+      </div>
+    </li>
+  );
+}
+
+/* ------------------------------------------------------------------
  * Linha de playlist — densidade controlada, sem grupos artificiais.
  * ------------------------------------------------------------------ */
 function PlaylistRow({ p }: { p: CuratorPlaylist }) {
