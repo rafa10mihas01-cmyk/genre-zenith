@@ -1015,7 +1015,7 @@ export default function CuratorPage() {
                   className={cn(
                     "px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors ring-1",
                     selectedSongId === null
-                      ? "bg-primary text-primary-foreground ring-primary"
+                      ? "bg-primary/15 text-primary ring-primary/40"
                       : "bg-muted/40 text-muted-foreground ring-border hover:bg-muted/60",
                   )}
                 >
@@ -1318,7 +1318,7 @@ export default function CuratorPage() {
                       className={cn(
                         "px-2.5 py-1 text-[10.5px] font-semibold uppercase tracking-wider rounded-full transition-colors",
                         playlistWindow === w
-                          ? "bg-primary text-primary-foreground"
+                          ? "bg-primary/15 text-primary ring-1 ring-primary/40"
                           : "text-muted-foreground hover:text-foreground",
                       )}
                     >
