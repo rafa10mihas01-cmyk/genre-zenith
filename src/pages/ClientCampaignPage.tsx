@@ -476,7 +476,7 @@ export default function ClientCampaignPage() {
               {
                 icon: Activity,
                 label: "Ritmo",
-                value: PACE_LABEL[progress.pace].label,
+                value: PACE_LABEL[progress.pace].label.replace(/^Ritmo\s+/i, "") || "—",
                 tone: PACE_LABEL[progress.pace].tone,
               },
               {
@@ -486,12 +486,15 @@ export default function ClientCampaignPage() {
               },
               {
                 icon: CalendarDays,
-                label: "Dias decorridos",
-                value: `${progress.days_elapsed} / ${progress.target_days}`,
+                label: "Tempo",
+                value:
+                  progress.target_days > 0
+                    ? `Dia ${Math.max(0, Math.floor(progress.days_elapsed))} de ${progress.target_days}`
+                    : `${Math.max(0, Math.floor(progress.days_elapsed))} dias`,
               },
               {
                 icon: CheckCircle2,
-                label: "Última atualização",
+                label: "Atualizado",
                 value: formatDateTime(deal.last_update),
                 small: true,
               },
@@ -620,7 +623,7 @@ export default function ClientCampaignPage() {
                   </span>
                 </div>
 
-                <ul className="space-y-2">
+                <ul className="space-y-2 max-h-[420px] overflow-y-auto pr-1 nx-scroll">
                   {playlists.map((p, i) => (
                     <li key={`${p.name}-${i}`} className="nx-subcard !p-3">
                       <div className="flex items-center gap-3 min-w-0">
