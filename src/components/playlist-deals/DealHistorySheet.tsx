@@ -466,6 +466,7 @@ export function DealHistorySheet({
 
   const toBreakdownRowData = (p: CuratorPlaylist): BreakdownRowData => {
     const snap = breakdownMap.get(p.id);
+    const song = p.song_id ? songs.find((s) => s.id === p.song_id) ?? null : null;
     return {
       playlist_id: p.id,
       playlist_name: p.playlist_name || "Playlist sem nome",
@@ -477,6 +478,7 @@ export function DealHistorySheet({
       plays_24h: snap?.plays_24h ?? null,
       plays_7d: snap?.plays_7d ?? null,
       plays_28d: snap?.plays_28d ?? null,
+      song_name: song?.song_name ?? null,
     };
   };
 
