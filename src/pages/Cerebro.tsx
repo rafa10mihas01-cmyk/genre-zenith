@@ -22,10 +22,8 @@ import { useAutopilot } from "@/hooks/useAutopilot";
 import type { GenreOpt } from "@/components/cerebro/_shared";
 import { GenreStrip, GenreHero, QuickActions, GenrePipeline, VisaoGeral } from "@/components/cerebro/VisaoGeral";
 import { Decisoes } from "@/components/cerebro/Decisoes";
-import { Coleta } from "@/components/cerebro/Coleta";
-import { Base } from "@/components/cerebro/Base";
-import { Insights, Section, CollapsibleSection } from "@/components/cerebro/Insights";
-import { Visual } from "@/components/cerebro/Visual";
+import { Analises } from "@/components/cerebro/Analises";
+import { Section, CollapsibleSection } from "@/components/cerebro/Insights";
 
 // Re-exporta helpers compartilhados pra manter compatibilidade com qualquer
 // import externo eventual e centralizar o "ponto de entrada" do módulo.
@@ -176,17 +174,14 @@ export default function Cerebro() {
       <GenrePipeline genre={genre} model={model} />
 
 
-      {/* TABS — 6 áreas internas */}
+      {/* TABS — 4 áreas (Visão / Decisões / Análises / Replicação) */}
       <Tabs value={tab} onValueChange={setTab} className="space-y-5">
         <div className="sticky top-0 z-30 bg-background/95 supports-[backdrop-filter]:bg-background/80 backdrop-blur-md border-b border-border">
           <TabsList className="nx-tab-rail bg-transparent p-0 h-auto gap-4 sm:gap-6 rounded-none justify-start flex-nowrap">
             {[
             { v: "visao", label: "Visão Geral" },
             { v: "decisoes", label: "Decisões" },
-            { v: "coleta", label: "Coleta" },
-            { v: "base", label: "Base" },
-            { v: "insights", label: "Insights" },
-            { v: "visual", label: "Visual" },
+            { v: "analises", label: "Análises" },
             { v: "replicacao", label: "Replicação" },
             ].map(t => (
             <TabsTrigger
@@ -213,17 +208,16 @@ export default function Cerebro() {
             analyzingDna={analyzingDna}
           />
         </TabsContent>
-        <TabsContent value="coleta" className="mt-0">
-          <Coleta genreId={genre?.id} />
-        </TabsContent>
-        <TabsContent value="base" className="mt-0">
-          <Base model={model} loading={loadingModel} />
-        </TabsContent>
-        <TabsContent value="insights" className="mt-0">
-          <Insights model={model} loading={loadingModel} onReload={reloadModel} />
-        </TabsContent>
-        <TabsContent value="visual" className="mt-0">
-          <Visual briefing={briefing} loading={loadingBriefing} onAnalyze={analyzeVisualDna} analyzing={analyzingDna} />
+        <TabsContent value="analises" className="mt-0">
+          <Analises
+            model={model}
+            loading={loadingModel}
+            briefing={briefing}
+            loadingBriefing={loadingBriefing}
+            onReload={reloadModel}
+            onAnalyzeDna={analyzeVisualDna}
+            analyzingDna={analyzingDna}
+          />
         </TabsContent>
         <TabsContent value="replicacao" className="mt-0 space-y-6">
           {/* FUNIL: Moldes (origem) → Variações (geradas) → Histórico (publicadas) */}
