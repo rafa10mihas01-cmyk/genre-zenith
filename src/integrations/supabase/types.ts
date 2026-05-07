@@ -475,6 +475,7 @@ export type Database = {
           id: string
           invited_by: string
           note: string | null
+          slug: string | null
           status: string
           updated_at: string
         }
@@ -488,6 +489,7 @@ export type Database = {
           id?: string
           invited_by: string
           note?: string | null
+          slug?: string | null
           status?: string
           updated_at?: string
         }
@@ -501,6 +503,7 @@ export type Database = {
           id?: string
           invited_by?: string
           note?: string | null
+          slug?: string | null
           status?: string
           updated_at?: string
         }
@@ -839,6 +842,7 @@ export type Database = {
           position: number
           queued_at: string | null
           ramp_up_days: number
+          slug: string | null
           smartlink_url: string | null
           song_artist: string | null
           song_cover_url: string | null
@@ -870,6 +874,7 @@ export type Database = {
           position?: number
           queued_at?: string | null
           ramp_up_days?: number
+          slug?: string | null
           smartlink_url?: string | null
           song_artist?: string | null
           song_cover_url?: string | null
@@ -901,6 +906,7 @@ export type Database = {
           position?: number
           queued_at?: string | null
           ramp_up_days?: number
+          slug?: string | null
           smartlink_url?: string | null
           song_artist?: string | null
           song_cover_url?: string | null
@@ -3128,8 +3134,16 @@ export type Database = {
         }[]
       }
       extract_spotify_playlist_id: { Args: { p_url: string }; Returns: string }
+      generate_community_invite_slug: {
+        Args: { p_email: string; p_id: string; p_note: string }
+        Returns: string
+      }
       generate_curator_deal_slug: {
         Args: { p_curator: string; p_id: string; p_song: string }
+        Returns: string
+      }
+      generate_curator_deal_song_slug: {
+        Args: { p_artist: string; p_id: string; p_song: string }
         Returns: string
       }
       get_active_replication_rules: {
