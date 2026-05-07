@@ -415,13 +415,14 @@ export function DealHistorySheet({
     return sortedPlaylists.filter((p) => {
       const s = (p.match_status ?? (p.is_baseline ? "baseline" : "curator")) as CuratorMatchStatus;
       if (s !== "curator" && s !== "baseline") return false;
+      if (curatorSongFilter !== "all" && (p.song_id ?? "") !== curatorSongFilter) return false;
       if (!q) return true;
       return (
         (p.playlist_name ?? "").toLowerCase().includes(q) ||
         (p.spotify_owner_name ?? "").toLowerCase().includes(q)
       );
     });
-  }, [sortedPlaylists, plQuery]);
+  }, [sortedPlaylists, plQuery, curatorSongFilter]);
 
   // Aba "Algoritmo" → editorial + organic + suspicious
   const algoPlaylists = useMemo(() => {
