@@ -9,18 +9,22 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        // Solid primary — verde da marca, mas com peso reduzido (sem brilho/glow agressivo).
-        // Use APENAS para a ação principal de cada tela. Para ações secundárias, use `soft`.
+        // Padrão: verde "soft" — sinaliza ação sem dominar a tela.
+        // É o que deve ser usado em 90% dos CTAs.
         default:
+          "bg-primary/12 text-primary border border-primary/30 hover:bg-primary/18 hover:border-primary/50 active:bg-primary/15",
+        // Verde sólido — usar SOMENTE em ações raras, críticas, de submit final
+        // (ex: "Confirmar pagamento", "Fechar deal"). Não usar em listas/cards.
+        solid:
           "bg-primary/90 text-primary-foreground shadow-sm hover:bg-primary active:bg-primary/95",
         destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
         outline: "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
         secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
-        // Verde "soft" — sinaliza ação positiva sem dominar a tela. Padrão para a maioria dos CTAs.
+        // Alias mantido para compatibilidade — equivale ao default soft.
         soft:
-          "bg-primary/10 text-primary border border-primary/25 hover:bg-primary/15 hover:border-primary/40",
+          "bg-primary/12 text-primary border border-primary/30 hover:bg-primary/18 hover:border-primary/50",
         premium:
           "bg-[hsl(var(--elevated))] text-foreground border border-primary/25 shadow-sm transition-all duration-200 hover:border-primary/45 hover:text-primary hover:bg-[hsl(var(--elevated))]/80",
       },
