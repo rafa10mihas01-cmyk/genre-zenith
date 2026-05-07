@@ -141,16 +141,16 @@ Deno.serve(async (req) => {
     });
   }
 
-  // kind === "campanha"
+  // kind === "campanha" — slug ou client_token bate em curator_deal_songs.
   const filter = looksLikeToken(id) ? "client_token" : "slug";
-  const { data: campaign } = await admin
-    .from("clients")
-    .select("artist_name, song_name, song_cover_url, slug, client_token")
+  const { data: song } = await admin
+    .from("curator_deal_songs")
+    .select("song_name, song_artist, song_cover_url, target_plays, daily_goal, slug, client_token")
     .eq(filter, id)
     .maybeSingle();
 
   const redirect = `${PUBLIC_DOMAIN}/campanha/${id}`;
-  if (!campaign) {
+  if (!song) {
     return htmlPage({
       title: "Campanha · NexEngine",
       description: "Acompanhe sua campanha em tempo real.",
@@ -158,12 +158,16 @@ Deno.serve(async (req) => {
     });
   }
 
-  const artist = campaign.artist_name || "Campanha";
-  const song = campaign.song_name ? ` · ${campaign.song_name}` : "";
+  const songName = song.song_name || "Campanha";
+  const artist = song.song_artist ? ` — ${song.song_artist}` : "";
+  const target = formatPlays(song.target_plays);
+  const desc = target
+    ? `${songName}${artist} · meta ${target} plays`
+    : `${songName}${artist}`;
   return htmlPage({
-    title: `Campanha · ${artist}${song}`,
-    description: "Acompanhe a evolução da campanha em tempo real.",
-    image: campaign.song_cover_url,
+    title: `Campanha · ${songName}`,
+    description: desc,
+    image: song.song_cover_url,
     redirect,
   });
 });
