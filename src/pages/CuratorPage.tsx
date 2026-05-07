@@ -1677,15 +1677,6 @@ export default function CuratorPage() {
           onImported={() => load()}
         />
 
-        {/* placeholder para manter estrutura do JSX original abaixo */}
-        <div className="hidden" />
-            <p className="text-[11px] text-muted-foreground/80 text-center pt-1 leading-relaxed">
-              Importe até 100 playlists (.CSV ou Excel)
-              <br />
-              <span className="opacity-70">Baixe o modelo pronto e envie preenchido</span>
-            </p>
-          </CardContent>
-        </Card>
 
         {/* Histórico de prints — vem da RPC get_curator_deal_snapshot_history */}
         <Card className="nx-card !p-0 border-border">
