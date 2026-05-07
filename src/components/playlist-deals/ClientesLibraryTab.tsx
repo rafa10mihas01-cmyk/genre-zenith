@@ -61,7 +61,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { useClients, type Client } from "@/hooks/useClients";
-import { clientCampaignUrl } from "@/lib/curatorPublicUrl";
+import { clientCampaignUrl, clientShareUrl } from "@/lib/curatorPublicUrl";
 import { cn } from "@/lib/utils";
 import type { CuratorDeal, CuratorDealSong } from "@/lib/curatorDealsUtils";
 
