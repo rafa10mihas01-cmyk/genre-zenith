@@ -17,6 +17,8 @@ import { useSetSidebarKpis } from "@/contexts/SidebarContext";
 import { computeSeoScore } from "@/lib/seoScore";
 import { OperationalHealthCard } from "@/components/home/OperationalHealthCard";
 import { WeeklySummaryCard } from "@/components/home/WeeklySummaryCard";
+import { DealsPendingCard } from "@/components/home/DealsPendingCard";
+import { BrainFreshnessCard } from "@/components/home/BrainFreshnessCard";
 
 /**
  * COCKPIT — foco em decisão, não em pipeline.
@@ -259,8 +261,8 @@ export default function Home() {
   return (
     <PageContainer>
       <PageHeader
-        title="Cockpit"
-        subtitle="Decidir o que fazer hoje"
+        title="Hoje"
+        subtitle="Decidir o que fazer agora"
       />
 
       {/* AÇÕES RÁPIDAS — só o essencial */}
@@ -280,21 +282,38 @@ export default function Home() {
         />
       </section>
 
-      {/* DECISÃO + PERFORMANCE */}
-      <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <DecisionCard c={c} loading={loading} />
-        <PerformanceCard c={c} loading={loading} />
-      </section>
-
-      {/* ATENÇÃO HOJE + RECOMENDAÇÕES IA */}
-      <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <AttentionCard items={attention} loading={loading} />
-        <SuggestionsCard suggestions={suggestions} total={c?.pendingSuggestions ?? 0} lastAt={c?.lastAnalysisAt ?? null} loading={loading} />
-      </section>
-
-      {/* RESUMO DA SEMANA + SAÚDE OPERACIONAL */}
-      <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      {/* ZONA 1 — O QUE MUDOU (24h / semana) */}
+      <section className="space-y-3">
+        <h2 className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-semibold px-1">
+          O que mudou
+        </h2>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <DecisionCard c={c} loading={loading} />
+          <PerformanceCard c={c} loading={loading} />
+        </div>
         <WeeklySummaryCard />
+      </section>
+
+      {/* ZONA 2 — O QUE PRECISA DE VOCÊ */}
+      <section className="space-y-3">
+        <h2 className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-semibold px-1">
+          Precisa de você
+        </h2>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <AttentionCard items={attention} loading={loading} />
+          <SuggestionsCard suggestions={suggestions} total={c?.pendingSuggestions ?? 0} lastAt={c?.lastAnalysisAt ?? null} loading={loading} />
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <DealsPendingCard />
+          <BrainFreshnessCard />
+        </div>
+      </section>
+
+      {/* ZONA 3 — ESTÁ TUDO RODANDO? */}
+      <section className="space-y-3">
+        <h2 className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-semibold px-1">
+          Saúde do sistema
+        </h2>
         <OperationalHealthCard />
       </section>
 
