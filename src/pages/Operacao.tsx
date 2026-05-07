@@ -383,9 +383,6 @@ export default function Operacao() {
 }
 
 // (Contas Spotify movido para Configurações → Contas)
-function _Removed() { return null; }
-function _RemovedAccounts() { return <AccountsManager />; }
-{/* placeholder */}
 
 /* ---------------- helpers UI ---------------- */
 
