@@ -185,8 +185,9 @@ export default function Cerebro() {
 
       {/* TABS — 6 áreas internas */}
       <Tabs value={tab} onValueChange={setTab} className="space-y-5">
-        <TabsList className="nx-tab-rail sticky top-0 z-30 bg-background/95 supports-[backdrop-filter]:bg-background/80 backdrop-blur-md p-0 h-auto gap-4 sm:gap-6 border-b border-border rounded-none justify-start flex-nowrap">
-          {[
+        <div className="sticky top-0 z-30 bg-background/95 supports-[backdrop-filter]:bg-background/80 backdrop-blur-md border-b border-border">
+          <TabsList className="nx-tab-rail bg-transparent p-0 h-auto gap-4 sm:gap-6 rounded-none justify-start flex-nowrap">
+            {[
             { v: "visao", label: "Visão Geral" },
             { v: "decisoes", label: "Decisões" },
             { v: "coleta", label: "Coleta" },
@@ -194,7 +195,7 @@ export default function Cerebro() {
             { v: "insights", label: "Insights" },
             { v: "visual", label: "Visual" },
             { v: "replicacao", label: "Replicação" },
-          ].map(t => (
+            ].map(t => (
             <TabsTrigger
               key={t.v}
               value={t.v}
@@ -202,8 +203,9 @@ export default function Cerebro() {
             >
               {t.label}
             </TabsTrigger>
-          ))}
-        </TabsList>
+            ))}
+          </TabsList>
+        </div>
 
         <TabsContent value="visao" className="mt-0">
           <VisaoGeral model={model} loading={loadingModel} genre={genre} />
