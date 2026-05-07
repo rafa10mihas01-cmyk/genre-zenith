@@ -69,6 +69,7 @@ Deno.serve(async (req) => {
       .update({
         auto_collect_status: bot_error === "auth_required" ? "auth_required" : "error",
         auto_collect_error: String(bot_error).slice(0, 500),
+        queued_at: null,
       })
       .eq("id", song_id);
 
