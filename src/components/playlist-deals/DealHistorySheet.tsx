@@ -202,6 +202,7 @@ type BreakdownRowData = {
   plays_24h: number | null;
   plays_7d: number | null;
   plays_28d: number | null;
+  song_name?: string | null;
 };
 
 function BreakdownRow({ r, kind }: { r: BreakdownRowData; kind: "curator" | "algo" }) {
