@@ -28,7 +28,7 @@ export default function Performance() {
   const [loading, setLoading] = useState(false);
   const [tracking, setTracking] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
-  const [activeTab, setActiveTab] = useScreenField<string>("/performance", "tab", "playlists");
+  const [activeTab, setActiveTab] = useScreenField<string>("/performance", "tab", "visao");
 
   async function load() {
     setLoading(true);
