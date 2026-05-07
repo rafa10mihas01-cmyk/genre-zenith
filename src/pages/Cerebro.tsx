@@ -164,7 +164,7 @@ export default function Cerebro() {
       />
 
       {/* Banner de saúde só aparece se status for crítico (não é "default") */}
-      {genre?.health_status && genre.health_status !== "fresh" && (
+      {genre?.health_status && genre.health_status !== "healthy" && (
         <GenreHealthBanner
           status={genre?.health_status}
           lastSeenAt={genre?.health_last_seen_at}
