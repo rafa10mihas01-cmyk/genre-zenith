@@ -465,6 +465,15 @@ Deno.serve(async (req) => {
     domByPos.set(position, item);
     domItems.push(item);
   }
+  const domWindowCoverage = domItems.reduce(
+    (acc, item) => {
+      if (item.plays_24h != null) acc.with24h += 1;
+      if (item.plays_7d != null) acc.with7d += 1;
+      if (item.plays_28d != null) acc.with28d += 1;
+      return acc;
+    },
+    { total: domItems.length, with24h: 0, with7d: 0, with28d: 0 },
+  );
 
   // WHITELIST: só consideramos playlists declaradas pelo curador.
   // 🔒 BLINDAGEM: se o curador NÃO cadastrou nenhuma playlist, NÃO coleta.
