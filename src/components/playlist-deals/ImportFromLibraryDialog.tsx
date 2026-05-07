@@ -36,6 +36,7 @@ function fmt(n: number | null | undefined): string {
 export function ImportFromLibraryDialog({
   open,
   deal,
+  songs = [],
   existingPlaylists,
   onClose,
   onImported,
@@ -46,14 +47,19 @@ export function ImportFromLibraryDialog({
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
+  const multiSong = songs.length >= 2;
+  const [songId, setSongId] = useState<string>("");
 
   useEffect(() => {
     if (!open) {
       setSearch("");
       setSelected(new Set());
       setSubmitting(false);
+      setSongId("");
+    } else if (multiSong && !songId && songs[0]) {
+      setSongId(songs[0].id);
     }
-  }, [open]);
+  }, [open, multiSong, songs, songId]);
 
   // IDs já presentes no deal — não permitir duplicar
   const existingKeys = useMemo(() => {
