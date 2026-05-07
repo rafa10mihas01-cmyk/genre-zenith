@@ -78,6 +78,7 @@ const App = () => (
               <Route path="/curadores" element={<Protected><Curadores /></Protected>} />
               <Route path="/curadoria-preview" element={<Protected><CuradoriaPreview /></Protected>} />
               <Route path="/sistema" element={<Protected><Sistema /></Protected>} />
+              <Route path="/comunidade-admin" element={<Protected><AdminRoute><ComunidadeAdmin /></AdminRoute></Protected>} />
               <Route path="/settings" element={<Protected><AdminRoute><Settings /></AdminRoute></Protected>} />
               <Route path="/configuracoes" element={<Protected><AdminRoute><Settings /></AdminRoute></Protected>} />
               <Route path="*" element={<NotFound />} />
