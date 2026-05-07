@@ -420,7 +420,7 @@ export function CuratorDealCard({
           {!isClosed ? (
             <Button
               size="sm"
-              className="min-w-0 flex-1 h-9 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 font-medium text-[13px] px-3"
+              className="min-w-0 flex-1 h-9 gap-1.5 font-medium text-[13px] px-3"
               onClick={() => onLog(deal)}
             >
               <Camera className="h-3.5 w-3.5 shrink-0" />

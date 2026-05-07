@@ -377,7 +377,7 @@ export function ClientesLibraryTab({ deals, songs, loading }: Props) {
                   <div className="flex items-center gap-1.5 pt-0.5">
                     <Button
                       size="sm"
-                      className="flex-1 h-9 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 font-medium text-[13px]"
+                      className="flex-1 h-9 gap-1.5 font-medium text-[13px]"
                       onClick={(e) => {
                         e.stopPropagation();
                         setSelected(client);
