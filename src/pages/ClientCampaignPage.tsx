@@ -521,7 +521,7 @@ export default function ClientCampaignPage() {
           {/* Gráfico — evolução */}
           {chartData.length > 1 && (
             <Card className="nx-card !p-0 border-border">
-              <CardContent className="p-5 sm:p-6 space-y-4">
+              <CardContent className="p-5 sm:p-6 pt-6 sm:pt-7 space-y-5">
                 <div className="flex items-center justify-between gap-3 flex-wrap">
                   <div>
                     <h2 className="text-[15px] font-semibold inline-flex items-center gap-2 tracking-tight">
