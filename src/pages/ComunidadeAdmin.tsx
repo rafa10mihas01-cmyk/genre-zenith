@@ -589,7 +589,7 @@ function ConvitesTab({ adminId, onChange }: { adminId: string; onChange?: () => 
 }
 
 /* ============ MEMBROS ============ */
-function MembrosTab() {
+function MembrosTab({ onChange }: { onChange?: () => void }) {
   const [list, setList] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -612,13 +612,12 @@ function MembrosTab() {
       .update({ status, suspended_at: status === "suspended" ? new Date().toISOString() : null })
       .eq("id", id);
     if (error) return toast.error("Falha", { description: error.message });
-    load();
+    load(); onChange?.();
   }
 
   return (
     <Card>
       <CardContent className="p-5 space-y-4">
-        <div className="text-sm text-muted-foreground">{list.length} membros</div>
         {loading ? (
           <div className="text-sm text-muted-foreground">Carregando…</div>
         ) : list.length === 0 ? (
@@ -657,7 +656,7 @@ function MembrosTab() {
 }
 
 /* ============ APROVAÇÕES ============ */
-function AprovacoesTab() {
+function AprovacoesTab({ onChange }: { onChange?: () => void }) {
   const [list, setList] = useState<Participation[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -688,7 +687,7 @@ function AprovacoesTab() {
     setBusyId(null);
     if (error) return toast.error("Falha", { description: error.message });
     toast.success(action === "approve" ? "Aprovada" : "Recusada");
-    load();
+    load(); onChange?.();
   }
 
   const pending = list.filter((p) => p.status === "submitted");
@@ -696,7 +695,6 @@ function AprovacoesTab() {
   return (
     <Card>
       <CardContent className="p-5 space-y-4">
-        <div className="text-sm text-muted-foreground">{pending.length} aguardando revisão</div>
         {loading ? (
           <div className="text-sm text-muted-foreground">Carregando…</div>
         ) : list.length === 0 ? (
