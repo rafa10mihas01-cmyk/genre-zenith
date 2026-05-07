@@ -26,6 +26,12 @@ import ClientCampaignPage from "./pages/ClientCampaignPage";
 import CuradoriaPreview from "./pages/CuradoriaPreview";
 import Sistema from "./pages/Sistema";
 import Settings from "./pages/Settings";
+import JoinInvite from "./pages/comunidade/JoinInvite";
+import Onboarding from "./pages/comunidade/Onboarding";
+import ComunidadeDashboard from "./pages/comunidade/Dashboard";
+import ComunidadeCampanhas from "./pages/comunidade/Campanhas";
+import ComunidadePontos from "./pages/comunidade/Pontos";
+import ComunidadeConta from "./pages/comunidade/Conta";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -53,6 +59,13 @@ const App = () => (
               <Route path="/spotify/callback" element={<SpotifyCallback />} />
               <Route path="/curador/:token" element={<CuratorPage />} />
               <Route path="/campanha/:token" element={<ClientCampaignPage />} />
+              {/* Comunidade — beta fechado por convite. Membro não usa AppLayout. */}
+              <Route path="/comunidade/join/:code" element={<JoinInvite />} />
+              <Route path="/comunidade/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
+              <Route path="/comunidade" element={<ProtectedRoute><ComunidadeDashboard /></ProtectedRoute>} />
+              <Route path="/comunidade/campanhas" element={<ProtectedRoute><ComunidadeCampanhas /></ProtectedRoute>} />
+              <Route path="/comunidade/pontos" element={<ProtectedRoute><ComunidadePontos /></ProtectedRoute>} />
+              <Route path="/comunidade/conta" element={<ProtectedRoute><ComunidadeConta /></ProtectedRoute>} />
               {/* "/" decide entre landing pública (visitantes) e Cockpit/Home (logados). */}
               <Route path="/" element={<RootRoute />} />
               <Route path="/cerebro" element={<Protected><Cerebro /></Protected>} />
