@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { usePersistedState } from "@/hooks/usePersistedState";
+import { useScreenField } from "@/lib/screen-state";
 import { useSetSidebarKpis } from "@/contexts/SidebarContext";
 
 import { PerformanceKpis } from "@/components/performance/PerformanceKpis";
@@ -24,7 +24,7 @@ export default function Performance() {
   const [loading, setLoading] = useState(false);
   const [tracking, setTracking] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
-  const [activeTab, setActiveTab] = usePersistedState<string>("performance:tab", "playlists");
+  const [activeTab, setActiveTab] = useScreenField<string>("/performance", "tab", "playlists");
 
   async function load() {
     setLoading(true);

@@ -7,7 +7,7 @@ import { PageContainer } from "@/components/PageContainer";
 import { KpiBig } from "@/components/KpiBig";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { usePersistedState } from "@/hooks/usePersistedState";
+import { useScreenField } from "@/lib/screen-state";
 import { useSetSidebarKpis } from "@/contexts/SidebarContext";
 import { useCuratorDeals } from "@/hooks/useCuratorDeals";
 import { computeCuratorStats, type CuratorDeal } from "@/lib/curatorDealsUtils";
@@ -34,7 +34,7 @@ const TABS = [
 ];
 
 export default function PlaylistDeals() {
-  const [tab, setTab] = usePersistedState<DealsTab>("playlistdeals:tab:v5", "active");
+  const [tab, setTab] = useScreenField<DealsTab>("/playlist-deals", "tab", "active");
   const [newOpen, setNewOpen] = useState(false);
   const [logDeal, setLogDeal] = useState<CuratorDeal | null>(null);
   const [detailDeal, setDetailDeal] = useState<CuratorDeal | null>(null);

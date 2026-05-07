@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useLocation, useNavigationType } from "react-router-dom";
+import { isFlowRoute } from "@/lib/screen-state";
 
 /**
  * ScrollManager — gerencia scroll entre rotas como app nativo.
@@ -46,7 +47,8 @@ export default function ScrollManager() {
     }
 
     // Aplica scroll da nova rota
-    if (navType === "POP") {
+    // Telas de FLUXO sempre abrem no topo, mesmo em POP.
+    if (navType === "POP" && !isFlowRoute(pathname)) {
       const positions = readPositions();
       const y = positions[pathname] ?? 0;
       // dois rAF: garante que o conteúdo foi pintado antes de scrollar
@@ -56,7 +58,7 @@ export default function ScrollManager() {
         });
       });
     } else {
-      // navegação nova → topo, comportamento de app
+      // navegação nova ou tela de fluxo → topo
       window.scrollTo({ top: 0, left: 0, behavior: "instant" as ScrollBehavior });
     }
 

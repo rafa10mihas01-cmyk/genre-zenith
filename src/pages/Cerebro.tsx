@@ -15,7 +15,7 @@ import { Variacoes, Moldes } from "@/components/brain/Replicacao";
 import { AutopilotLivePanel } from "@/components/brain/AutopilotLivePanel";
 import { ReplicacaoAuto, ReplicacaoHistorico } from "@/components/brain/ReplicacaoAuto";
 import { GenreHealthBanner } from "@/components/brain/GenreHealthBanner";
-import { usePersistedState } from "@/hooks/usePersistedState";
+import { useScreenField } from "@/lib/screen-state";
 import { useSetSidebarKpis } from "@/contexts/SidebarContext";
 import { useAutopilot } from "@/hooks/useAutopilot";
 
@@ -45,7 +45,7 @@ export default function Cerebro() {
   const navigate = useNavigate();
   const [genres, setGenres] = useState<GenreOpt[]>([]);
   const [activeSlug, setActiveSlug] = useState<string>(paramSlug ?? "");
-  const [tab, setTab] = usePersistedState<string>("cerebro:tab", "visao");
+  const [tab, setTab] = useScreenField<string>("/cerebro", "tab", "visao");
   const [running, setRunning] = useState(false);
   const [sbStats, setSbStats] = useState<{ active: number; analyzed: number; needsAttention: number } | null>(null);
 
