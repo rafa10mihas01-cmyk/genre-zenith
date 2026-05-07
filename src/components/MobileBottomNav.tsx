@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { Home, Brain, BarChart3, ListMusic, Settings } from "lucide-react";
+import { Home, Handshake, BarChart3, ListMusic, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Bottom nav reduzido aos itens primários do novo menu.
@@ -7,7 +7,7 @@ const items = [
   { to: "/", label: "Hoje", icon: Home, end: true },
   { to: "/catalogo", label: "Catálogo", icon: ListMusic },
   { to: "/performance", label: "Métricas", icon: BarChart3 },
-  { to: "/cerebro", label: "Cérebro", icon: Brain },
+  { to: "/playlist-deals", label: "Playlist", icon: Handshake },
   { to: "/configuracoes", label: "Ajustes", icon: Settings },
 ];
 
