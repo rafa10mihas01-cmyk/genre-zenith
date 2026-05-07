@@ -98,7 +98,7 @@ export default function JoinInvite() {
       toast.error("Não foi possível entrar", { description: signInErr.message });
       return;
     }
-    // useEffect acima cuida do accept + redirect
+    // Após o login, a tela muda para confirmação explícita antes de aceitar o convite.
   }
 
   return (
@@ -120,7 +120,7 @@ export default function JoinInvite() {
             <h1 className="text-lg font-semibold">Convite indisponível</h1>
             <p className="text-sm text-muted-foreground">{state.message}</p>
             <Button asChild variant="outline" className="w-full">
-              <Link to="/">Voltar ao início</Link>
+              <Link to="/landing">Voltar para página pública</Link>
             </Button>
           </div>
         )}
