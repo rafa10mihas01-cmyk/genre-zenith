@@ -361,7 +361,7 @@ export function DealHistorySheet({
   onClose,
   onReload,
 }: DealHistorySheetProps) {
-  const [tab, setTab] = useState<"resumo" | "performance" | "playlists" | "algoritmo" | "historico">("resumo");
+  const [tab, setTab] = useState<"resumo" | "playlists" | "algoritmo" | "historico">("resumo");
   const [perfWindow, setPerfWindow] = useState<"24h" | "7d" | "28d">("7d");
   const [pasteOpen, setPasteOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -571,18 +571,6 @@ export function DealHistorySheet({
                     <BarChart3 className="h-3.5 w-3.5" />
                     Resumo
                   </TabsTrigger>
-                  <TabsTrigger
-                    value="performance"
-                    className="data-[state=active]:bg-[hsl(var(--elevated))] data-[state=active]:text-foreground text-muted-foreground rounded-lg gap-2 h-9 px-3"
-                  >
-                    <Activity className="h-3.5 w-3.5" />
-                    Performance
-                    {todayBreakdown && todayBreakdown.total_today > 0 && (
-                      <span className="text-[10px] font-semibold tabular-nums text-primary">
-                        {fmtCompact(todayBreakdown.total_today)}
-                      </span>
-                    )}
-                  </TabsTrigger>
                   <span className="mx-1 h-5 w-px bg-border self-center" aria-hidden />
                   <TabsTrigger
                     value="playlists"
@@ -637,7 +625,73 @@ export function DealHistorySheet({
                     </div>
                   )}
 
-                  {/* KPIs */}
+                  {/* Performance na janela (24h/7d/28d) */}
+                  {todayBreakdown && todayBreakdown.rows.length > 0 && (
+                    <SectionCard
+                      title="Performance na janela"
+                      right={
+                        <div className="inline-flex rounded-lg border border-border bg-[hsl(var(--elevated))] p-0.5">
+                          {(["24h", "7d", "28d"] as const).map((w) => (
+                            <button
+                              key={w}
+                              onClick={() => setPerfWindow(w)}
+                              className={cn(
+                                "h-7 px-3 rounded-md text-[11px] font-semibold tabular-nums transition-colors",
+                                perfWindow === w
+                                  ? "bg-card text-foreground"
+                                  : "text-muted-foreground hover:text-foreground",
+                              )}
+                            >
+                              {w}
+                            </button>
+                          ))}
+                        </div>
+                      }
+                    >
+                      <div className="grid grid-cols-3 gap-3">
+                        <div>
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Total</div>
+                          <div className="text-2xl font-semibold text-primary tabular-nums leading-tight mt-1">
+                            {fmtCompact(
+                              perfWindow === "24h"
+                                ? todayBreakdown.total_24h
+                                : perfWindow === "7d"
+                                ? todayBreakdown.total_7d
+                                : todayBreakdown.total_28d,
+                            )}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground mt-0.5">janela {perfWindow}</div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Curador</div>
+                          <div className="text-2xl font-semibold text-success tabular-nums leading-tight mt-1">
+                            {fmtCompact(curatorWindowTotal)}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground tabular-nums mt-0.5">
+                            {curatorBreakdownRows.length} playlist{curatorBreakdownRows.length === 1 ? "" : "s"}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Algoritmo</div>
+                          <div className="text-2xl font-semibold text-foreground tabular-nums leading-tight mt-1">
+                            {fmtCompact(algoWindowTotal)}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground tabular-nums mt-0.5">
+                            {algoBreakdownRows.length} playlist{algoBreakdownRows.length === 1 ? "" : "s"}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-baseline justify-between pt-3 mt-3 border-t border-border">
+                        <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
+                          Δ hoje
+                        </div>
+                        <div className="text-base font-semibold text-foreground tabular-nums">
+                          +{fmtCompact(todayBreakdown.total_today)}
+                        </div>
+                      </div>
+                    </SectionCard>
+                  )}
+
                   <div className="grid grid-cols-2 gap-3">
                     <Kpi
                       label="Plays entregues"
@@ -775,90 +829,6 @@ export function DealHistorySheet({
                       <ExternalLink className="h-3.5 w-3.5" />
                       Abrir música no Spotify
                     </Button>
-                  )}
-                </TabsContent>
-
-                {/* === PERFORMANCE — visão executiva (sem lista) === */}
-                <TabsContent value="performance" className="m-0 px-6 py-5 space-y-4">
-                  {loadingToday ? (
-                    <div className="text-xs text-muted-foreground py-6 text-center">Calculando…</div>
-                  ) : !todayBreakdown || todayBreakdown.rows.length === 0 ? (
-                    <div className="rounded-2xl border border-border bg-card py-10 flex flex-col items-center text-center gap-2">
-                      <Activity className="h-5 w-5 text-muted-foreground/50" />
-                      <div className="text-sm text-muted-foreground">
-                        Sem coletas ainda. Aguardando próximo snapshot do robô.
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      {/* Card de janela */}
-                      <SectionCard
-                        title="Janela de leitura"
-                        right={
-                          <div className="inline-flex rounded-lg border border-border bg-[hsl(var(--elevated))] p-0.5">
-                            {(["24h", "7d", "28d"] as const).map((w) => (
-                              <button
-                                key={w}
-                                onClick={() => setPerfWindow(w)}
-                                className={cn(
-                                  "h-7 px-3 rounded-md text-[11px] font-semibold tabular-nums transition-colors",
-                                  perfWindow === w
-                                    ? "bg-card text-foreground"
-                                    : "text-muted-foreground hover:text-foreground",
-                                )}
-                              >
-                                {w}
-                              </button>
-                            ))}
-                          </div>
-                        }
-                      >
-                        <div className="flex items-baseline justify-between">
-                          <div className="text-xs text-muted-foreground">
-                            Total na janela {perfWindow}
-                          </div>
-                          <div className="text-3xl font-semibold text-primary tabular-nums leading-none">
-                            {fmtCompact(
-                              perfWindow === "24h"
-                                ? todayBreakdown.total_24h
-                                : perfWindow === "7d"
-                                ? todayBreakdown.total_7d
-                                : todayBreakdown.total_28d,
-                            )}
-                          </div>
-                        </div>
-                        <div className="text-[11px] text-muted-foreground mt-2">
-                          Soma direta dos contadores de cada playlist na janela {perfWindow} (Spotify for Artists). Veja o detalhe por origem nas abas Curador e Algoritmo.
-                        </div>
-                      </SectionCard>
-
-                      {/* Split Curador vs Algoritmo */}
-                      <div className="grid grid-cols-2 gap-3">
-                        <Kpi
-                          label="Curador"
-                          tone="success"
-                          value={fmtCompact(curatorWindowTotal)}
-                          hint={`${curatorBreakdownRows.length} playlist${curatorBreakdownRows.length === 1 ? "" : "s"} · janela ${perfWindow}`}
-                        />
-                        <Kpi
-                          label="Algoritmo"
-                          value={fmtCompact(algoWindowTotal)}
-                          hint={`${algoBreakdownRows.length} playlist${algoBreakdownRows.length === 1 ? "" : "s"} · janela ${perfWindow}`}
-                        />
-                      </div>
-
-                      <div className="rounded-2xl border border-border bg-card p-5">
-                        <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                          Δ hoje (delta entre snapshots)
-                        </div>
-                        <div className="text-3xl font-semibold text-foreground tabular-nums leading-none">
-                          +{fmtCompact(todayBreakdown.total_today)}
-                        </div>
-                        <div className="text-[11px] text-muted-foreground mt-2">
-                          Crescimento real desde o último snapshot do dia anterior.
-                        </div>
-                      </div>
-                    </>
                   )}
                 </TabsContent>
 
