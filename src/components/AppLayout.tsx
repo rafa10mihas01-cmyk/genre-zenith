@@ -149,40 +149,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             </button>
 
             <div className="ml-auto flex items-center gap-1 shrink-0 min-w-0">
-              {/* Status pill — apenas desktop largo */}
-              <div className="hidden lg:inline-flex items-center gap-1.5 px-3 h-8 rounded-full bg-elevated border border-border text-xs text-muted-foreground shrink-0">
-                <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-                <span className="truncate max-w-[180px]">
-                  {lastUpdate ? `Atualizado ${timeAgo(lastUpdate)}` : "Aguardando dados"}
-                </span>
-              </div>
-              {/* Atualizar — desktop largo: botão com texto */}
-              <Button
-                size="sm"
-                variant="premium"
-                onClick={refresh}
-                className="rounded-full h-8 gap-1.5 hidden lg:inline-flex shrink-0"
-                aria-label="Atualizar"
-              >
-                <RefreshCw className="h-3.5 w-3.5" />
-                <span>Atualizar</span>
-              </Button>
-              {/* Atualizar — tablet/mobile: apenas ícone */}
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={() => {
-                  refresh();
-                  // força recarregar a casca do PWA também (bypassa cache)
-                  if (typeof window !== "undefined") {
-                    window.location.reload();
-                  }
-                }}
-                className="inline-flex lg:hidden h-9 w-9 rounded-md text-muted-foreground hover:text-foreground hover:bg-elevated/60 shrink-0"
-                aria-label="Atualizar"
-              >
-                <RefreshCw className="h-[18px] w-[18px]" />
-              </Button>
               {/* Lupa tablet/mobile — abre Command Palette */}
               <Button
                 variant="ghost"
