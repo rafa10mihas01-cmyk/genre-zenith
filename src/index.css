@@ -312,7 +312,7 @@
   /* Pill da marca — verde "soft" para CTAs sem dominar a tela.
      (Antes era verde sólido; suavizado para padronizar com o sistema de botões.) */
   .nx-pill {
-    @apply inline-flex items-center gap-2 rounded-full bg-primary/12 text-primary border border-primary/30 px-5 py-2 text-sm font-semibold tracking-wide transition-colors hover:bg-primary/18 hover:border-primary/50;
+    @apply inline-flex items-center gap-2 rounded-full bg-primary/10 text-primary border border-primary/30 px-5 py-2 text-sm font-semibold tracking-wide transition-colors hover:bg-primary/20 hover:border-primary/50;
   }
 
   /* ============================================================
