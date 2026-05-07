@@ -246,7 +246,7 @@ export default function Home() {
             primary={loading ? "—" : `${formatNumber(c?.totalPlaylists)} playlists`}
             sub={
               loading
-                ? "Carregando..."
+                ? "—"
                 : `${c?.activeGenres ?? 0} gêneros ativos${
                     (c?.newPlaylists24h ?? 0) > 0 ? ` • +${c?.newPlaylists24h} hoje` : ""
                   }`
@@ -260,7 +260,7 @@ export default function Home() {
             primary={loading ? "—" : `${c?.analyzedGenres ?? 0}/${c?.totalGenres ?? 0} analisados`}
             sub={
               loading
-                ? "Carregando..."
+                ? "—"
                 : c?.lastAnalysisAt
                 ? `Atualizado ${timeAgo(c.lastAnalysisAt)}`
                 : "Sem análises ainda"
@@ -274,7 +274,7 @@ export default function Home() {
             primary={loading ? "—" : `${c?.queueTotal ?? 0} na fila`}
             sub={
               loading
-                ? "Carregando..."
+                ? "—"
                 : (c?.hotNoCover ?? 0) > 0
                 ? `${c?.hotNoCover} sem capa`
                 : "Capas em dia"
@@ -286,7 +286,7 @@ export default function Home() {
             step="5"
             title="Publicação"
             primary={loading ? "—" : `${c?.published ?? 0} publicadas`}
-            sub={loading ? "Carregando..." : `${c?.activeAccounts ?? 0} contas ativas`}
+            sub={loading ? "—" : `${c?.activeAccounts ?? 0} contas ativas`}
           />
         </div>
       </section>
