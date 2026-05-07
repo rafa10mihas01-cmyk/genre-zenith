@@ -20,7 +20,7 @@ import { useSetSidebarKpis } from "@/contexts/SidebarContext";
 import { useAutopilot } from "@/hooks/useAutopilot";
 
 import type { GenreOpt } from "@/components/cerebro/_shared";
-import { GenreStrip, GenreHero, QuickActions, GenrePipeline, VisaoGeral } from "@/components/cerebro/VisaoGeral";
+import { CerebroTopBar } from "@/components/cerebro/CerebroTopBar";
 import { Decisoes } from "@/components/cerebro/Decisoes";
 import { Analises } from "@/components/cerebro/Analises";
 import { Section, CollapsibleSection } from "@/components/cerebro/Insights";
