@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { Home, Brain, BarChart3, Settings, LogOut, ListMusic, Users } from "lucide-react";
+import { Home, Brain, BarChart3, Settings, LogOut, ListMusic, Users, Handshake, Activity } from "lucide-react";
 import { NexEngineLogo } from "@/components/NexEngineLogo";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
@@ -18,7 +18,9 @@ const items = [
   { title: "Catálogo", url: "/catalogo", icon: ListMusic },
   { title: "Performance", url: "/performance", icon: BarChart3 },
   { title: "Cérebro", url: "/cerebro", icon: Brain },
+  { title: "Playlist Deals", url: "/playlist-deals", icon: Handshake },
   { title: "Comunidade", url: "/comunidade-admin", icon: Users, adminOnly: true },
+  { title: "Sistema", url: "/sistema", icon: Activity, adminOnly: true },
   { title: "Configurações", url: "/configuracoes", icon: Settings, adminOnly: true },
 ];
 
