@@ -51,6 +51,7 @@ export type CuratorDealSong = {
   last_print_at?: string | null;
   client_id?: string | null;
   client_token?: string | null;
+  slug?: string | null;
   smartlink_url?: string | null;
 };
 
