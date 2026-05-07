@@ -68,7 +68,8 @@ export interface DealHistorySheetProps {
  * ------------------------------------------------------------------ */
 const STATUS_LABEL: Record<CuratorMatchStatus, string> = {
   curator: "Curador",
-  editorial: "Algorítmica",
+  editorial: "Editorial",
+  algorithmic: "Algorítmica",
   organic: "Detectada",
   suspicious: "Suspeita",
   baseline: "Inicial",
@@ -77,6 +78,7 @@ const STATUS_LABEL: Record<CuratorMatchStatus, string> = {
 const STATUS_DOT: Record<CuratorMatchStatus, string> = {
   curator: "bg-success",
   editorial: "bg-primary",
+  algorithmic: "bg-muted-foreground/60",
   organic: "bg-muted-foreground/60",
   suspicious: "bg-destructive",
   baseline: "bg-muted-foreground/40",
@@ -85,6 +87,7 @@ const STATUS_DOT: Record<CuratorMatchStatus, string> = {
 const STATUS_CHIP: Record<CuratorMatchStatus, string> = {
   curator: "bg-success/15 text-success",
   editorial: "bg-primary/15 text-primary",
+  algorithmic: "bg-muted/60 text-muted-foreground",
   organic: "bg-muted/60 text-muted-foreground",
   suspicious: "bg-destructive/15 text-destructive",
   baseline: "bg-muted/40 text-muted-foreground",
@@ -93,9 +96,10 @@ const STATUS_CHIP: Record<CuratorMatchStatus, string> = {
 const STATUS_ORDER: Record<CuratorMatchStatus, number> = {
   curator: 0,
   editorial: 1,
-  organic: 2,
-  suspicious: 3,
-  baseline: 4,
+  algorithmic: 2,
+  organic: 3,
+  suspicious: 4,
+  baseline: 5,
 };
 
 function fmt(n: number): string {
