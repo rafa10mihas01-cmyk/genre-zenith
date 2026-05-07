@@ -37,11 +37,11 @@ export function PageHeader({
   className,
 }: PageHeaderProps) {
   return (
-    <div className="h-[57px] shrink-0 lg:h-[104px]">
+    <div className="h-[76px] shrink-0 lg:h-[104px]">
       <header
         className={cn(
           "flex",
-          "max-lg:fixed max-lg:top-14 max-lg:left-0 max-lg:right-0 max-lg:z-40 max-lg:h-[57px] max-lg:px-4 max-lg:py-0",
+          "max-lg:fixed max-lg:top-14 max-lg:left-0 max-lg:right-0 max-lg:z-40 max-lg:h-[76px] max-lg:px-4 max-lg:py-2",
           "max-lg:bg-background/90 max-lg:backdrop-blur-md max-lg:supports-[backdrop-filter]:bg-background/75",
           "lg:fixed lg:top-14 lg:left-[var(--sidebar-width)] lg:right-0 lg:z-40 lg:h-[104px] lg:px-6 lg:py-4 lg:bg-background",
           "peer-data-[state=collapsed]:lg:left-[var(--sidebar-width-icon)]",
@@ -60,7 +60,7 @@ export function PageHeader({
           <h1 className="text-[19px] sm:text-2xl lg:text-3xl font-semibold tracking-tight leading-tight truncate min-w-0">
             {title}
           </h1>
-          <p className="hidden lg:block text-sm text-muted-foreground max-w-2xl">{subtitle}</p>
+          <p className="block text-[12px] lg:text-sm text-muted-foreground max-w-2xl truncate lg:whitespace-normal">{subtitle}</p>
         </div>
         {actions && (
           <div
