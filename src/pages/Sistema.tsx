@@ -1,10 +1,10 @@
 // Sistema — painel de observabilidade completo.
-// 4 abas: Ao Vivo, Cérebro, Coleta, Saúde. Tudo em PT-BR, com realtime.
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+// Tabs no padrão visual do app (border-b + ícone + label), igual Operação / Playlist Deals / Comunidade.
 import { Activity, Workflow, Music2, HeartPulse, Bot, Bell } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
 import { usePersistedState } from "@/hooks/usePersistedState";
+import { cn } from "@/lib/utils";
 import { AoVivoPainel } from "@/components/sistema/AoVivoPainel";
 import { FluxoVisual } from "@/components/sistema/fluxo/FluxoVisual";
 import { ColetaPanel } from "@/components/sistema/ColetaPanel";
@@ -12,71 +12,58 @@ import { SaudeSistema } from "@/components/sistema/SaudeSistema";
 import { RoboAoVivo } from "@/components/sistema/RoboAoVivo";
 import { AlertasHistorico } from "@/components/sistema/AlertasHistorico";
 
+type SistemaTab = "fluxo" | "ao-vivo" | "robo" | "coleta" | "saude" | "alertas";
+
+const TABS: { id: SistemaTab; label: string; icon: typeof Activity }[] = [
+  { id: "fluxo", label: "Fluxo", icon: Workflow },
+  { id: "ao-vivo", label: "Ao Vivo", icon: Activity },
+  { id: "robo", label: "Robô", icon: Bot },
+  { id: "coleta", label: "Coleta", icon: Music2 },
+  { id: "saude", label: "Saúde", icon: HeartPulse },
+  { id: "alertas", label: "Alertas", icon: Bell },
+];
+
 export default function Sistema() {
-  const [tab, setTab] = usePersistedState<string>("sistema:tab", "fluxo");
+  const [tab, setTab] = usePersistedState<SistemaTab>("sistema:tab", "fluxo");
 
   return (
     <PageContainer>
       <PageHeader
-        kicker="Módulo de Sistema"
-        icon={Activity}
         title="Sistema"
-        subtitle="Veja o pipeline rodando em tempo real: de onde veio, o que aconteceu, por que passou."
+        subtitle="Acompanhar o pipeline em tempo real"
       />
 
-      <Tabs value={tab} onValueChange={setTab} className="w-full">
-        <TabsList className="grid grid-cols-6 w-full max-w-3xl mb-4">
-          <TabsTrigger value="fluxo" className="gap-1.5">
-            <Workflow className="h-3.5 w-3.5" />
-            Fluxo
-          </TabsTrigger>
-          <TabsTrigger value="ao-vivo" className="gap-1.5">
-            <Activity className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Ao Vivo</span>
-            <span className="sm:hidden">Vivo</span>
-          </TabsTrigger>
-          <TabsTrigger value="robo" className="gap-1.5">
-            <Bot className="h-3.5 w-3.5" />
-            Robô
-          </TabsTrigger>
-          <TabsTrigger value="coleta" className="gap-1.5">
-            <Music2 className="h-3.5 w-3.5" />
-            Coleta
-          </TabsTrigger>
-          <TabsTrigger value="saude" className="gap-1.5">
-            <HeartPulse className="h-3.5 w-3.5" />
-            Saúde
-          </TabsTrigger>
-          <TabsTrigger value="alertas" className="gap-1.5">
-            <Bell className="h-3.5 w-3.5" />
-            Alertas
-          </TabsTrigger>
-        </TabsList>
+      {/* TABS — mesmo padrão visual de Operação / Playlist Deals */}
+      <div className="flex items-center gap-1 border-b border-border overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden -mx-4 md:-mx-6 px-4 md:px-6">
+        {TABS.map((t) => {
+          const Icon = t.icon;
+          const active = tab === t.id;
+          return (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={cn(
+                "px-4 h-10 inline-flex items-center gap-2 text-sm font-medium border-b-2 transition-colors -mb-px shrink-0 whitespace-nowrap",
+                active
+                  ? "border-primary text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <Icon className="h-3.5 w-3.5" />
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
 
-        <TabsContent value="fluxo" className="mt-0">
-          <FluxoVisual />
-        </TabsContent>
-
-        <TabsContent value="ao-vivo" className="mt-0">
-          <AoVivoPainel />
-        </TabsContent>
-
-        <TabsContent value="robo" className="mt-0">
-          <RoboAoVivo />
-        </TabsContent>
-
-        <TabsContent value="coleta" className="mt-0">
-          <ColetaPanel />
-        </TabsContent>
-
-        <TabsContent value="saude" className="mt-0">
-          <SaudeSistema />
-        </TabsContent>
-
-        <TabsContent value="alertas" className="mt-0">
-          <AlertasHistorico />
-        </TabsContent>
-      </Tabs>
+      <div className="min-h-[480px] animate-tab-in">
+        {tab === "fluxo" && <FluxoVisual />}
+        {tab === "ao-vivo" && <AoVivoPainel />}
+        {tab === "robo" && <RoboAoVivo />}
+        {tab === "coleta" && <ColetaPanel />}
+        {tab === "saude" && <SaudeSistema />}
+        {tab === "alertas" && <AlertasHistorico />}
+      </div>
     </PageContainer>
   );
 }
