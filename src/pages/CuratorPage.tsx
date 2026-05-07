@@ -1067,6 +1067,51 @@ export default function CuratorPage() {
           </Card>
         )}
 
+        {/* Meta combinada — sempre visível, mesmo antes de cadastrar playlists.
+            É o número do contrato. Sem isso o curador não sabe o que entregar. */}
+        {(stats.target > 0 || stats.dailyGoal > 0) && (
+          <Card className="nx-card !p-0 border-border">
+            <CardContent className="p-5 sm:p-6 pt-5 sm:pt-6 md:pt-6">
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <div className="min-w-0">
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary/80 mb-1">
+                    Combinado
+                  </div>
+                  <h2 className="text-[15px] font-semibold tracking-tight">
+                    {selectedSong ? "Meta desta música" : hasMultipleSongs ? "Meta total da campanha" : "Meta da campanha"}
+                  </h2>
+                </div>
+                <Target className="h-4 w-4 text-muted-foreground shrink-0" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="nx-subcard p-4">
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
+                    Plays a entregar
+                  </div>
+                  <div className="text-[22px] font-bold tabular-nums leading-none text-foreground">
+                    {formatPlays(stats.target)}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground mt-1.5">
+                    Total contratado
+                  </div>
+                </div>
+                <div className="nx-subcard p-4">
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
+                    Meta diária
+                  </div>
+                  <div className="text-[22px] font-bold tabular-nums leading-none text-foreground">
+                    {formatPlays(stats.dailyGoal)}
+                    <span className="text-[12px] font-medium text-muted-foreground"> /dia</span>
+                  </div>
+                  <div className="text-[10px] text-muted-foreground mt-1.5">
+                    Ritmo combinado
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Estado vazio: sem playlists cadastradas pelo curador */}
         {!hasCuratorPlaylists && (
           <Card className="nx-card !p-0 border-primary/40 animate-nx-heartbeat">
