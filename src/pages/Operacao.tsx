@@ -279,7 +279,14 @@ export default function Operacao() {
 
       {/* Container das tabs com altura mínima estável (evita layout shift) */}
       <div className="min-h-[640px]">
-        {/* PLAYLISTS */}
+        {/* MINHAS PLAYLISTS — foco principal */}
+        {tab === "minhas" && (
+          <section key="tab-minhas" className="animate-tab-in">
+            <MinhasPlaylists />
+          </section>
+        )}
+
+        {/* PLAYLISTS (criadas pelo sistema, legado) */}
         {tab === "playlists" && (
           <section key="tab-playlists" className="space-y-4 animate-tab-in">
             <div className="flex flex-col sm:flex-row sm:items-center gap-2">
