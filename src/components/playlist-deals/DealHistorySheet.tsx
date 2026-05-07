@@ -325,7 +325,7 @@ function PlaylistRow({ p }: { p: CuratorPlaylist }) {
       <div className="flex items-center gap-2 shrink-0">
         <span
           className={cn(
-            "text-[10px] font-semibold px-2 h-5 rounded-full inline-flex items-center",
+            "text-[10px] font-semibold px-2 h-5 rounded-full inline-flex items-center justify-center w-[78px]",
             STATUS_CHIP[status],
           )}
         >
