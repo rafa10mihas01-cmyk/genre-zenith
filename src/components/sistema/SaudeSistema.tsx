@@ -112,7 +112,19 @@ export function SaudeSistema() {
         </Button>
       </div>
 
-      {/* Cards de saúde */}
+      {/* === BLOCO 1: ROBÔ COLETOR (bot dedicado, agrupado no topo) === */}
+      <div>
+        <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-bold mb-2">Robô coletor de prints</h3>
+        <div className="space-y-3">
+          <BotSaudeCard />
+          <ThroughputCard />
+        </div>
+      </div>
+
+      {/* Separador visual entre o robô e os serviços de infra */}
+      <div className="h-px bg-border/60" />
+
+      {/* === BLOCO 2: SERVIÇOS DE INFRA === */}
       <div>
         <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-bold mb-2">Status dos serviços</h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -145,10 +157,7 @@ export function SaudeSistema() {
         </div>
       </div>
 
-      <BotSaudeCard />
-
-      <ThroughputCard />
-
+      {/* === BLOCO 3: PRODUÇÃO DE HOJE === */}
       <div>
         <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-bold mb-2">Hoje</h3>
         <div className="grid grid-cols-3 gap-3">
