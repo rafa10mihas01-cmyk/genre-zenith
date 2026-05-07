@@ -22,7 +22,6 @@ const items = [
   { title: "Playlist Deals", url: "/playlist-deals", icon: ListMusic },
   { title: "Comunidade", url: "/comunidade-admin", icon: Users, adminOnly: true },
   { title: "Sistema", url: "/sistema", icon: Monitor },
-  { title: "Landing Page", url: "/landing", icon: Globe },
   { title: "Configurações", url: "/configuracoes", icon: Settings, adminOnly: true },
 ];
 
