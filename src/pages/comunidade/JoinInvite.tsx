@@ -55,19 +55,24 @@ export default function JoinInvite() {
     };
   }, [code]);
 
-  // Se já está logado, redireciona pro onboarding (consumindo o convite)
-  useEffect(() => {
-    if (user && state.status === "ok") {
-      (async () => {
-        const { error } = await supabase.rpc("accept_community_invite", { p_code: code });
-        if (error) {
-          toast.error("Não foi possível aceitar o convite", { description: error.message });
-          return;
-        }
-        nav("/comunidade/onboarding", { replace: true });
-      })();
+  // NUNCA aceita o convite automaticamente. Sempre exige ação explícita
+  // (caso contrário um admin logado consome o convite de outra pessoa por engano).
+
+  async function acceptAsCurrentUser() {
+    setSubmitting(true);
+    const { error } = await supabase.rpc("accept_community_invite", { p_code: code });
+    setSubmitting(false);
+    if (error) {
+      toast.error("Não foi possível aceitar o convite", { description: error.message });
+      return;
     }
-  }, [user, state, code, nav]);
+    nav("/comunidade/onboarding", { replace: true });
+  }
+
+  async function signOutAndStay() {
+    await supabase.auth.signOut();
+    // permanece na mesma rota — o componente vai re-renderizar sem user
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -120,7 +125,48 @@ export default function JoinInvite() {
           </div>
         )}
 
-        {state.status === "ok" && (
+        {state.status === "ok" && (() => {
+          const inviteEmail = state.invite.email?.toLowerCase() ?? null;
+          const currentEmail = user?.email?.toLowerCase() ?? null;
+          const emailMismatch = !!user && !!inviteEmail && inviteEmail !== currentEmail;
+
+          // Caso 1: já logado
+          if (user) {
+            return (
+              <div className="rounded-2xl border border-border bg-card p-6 space-y-5">
+                <div>
+                  <h1 className="text-lg font-semibold leading-tight">Convite de {state.invite.invited_by_name}</h1>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Você está logado como <span className="font-medium text-foreground">{user.email}</span>.
+                  </p>
+                </div>
+
+                {emailMismatch ? (
+                  <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+                    Este convite é para <span className="font-medium">{inviteEmail}</span>. Saia da conta atual para aceitar.
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Aceitar agora vai vincular esta comunidade à sua conta atual. Tem certeza?
+                  </p>
+                )}
+
+                <div className="space-y-2">
+                  {!emailMismatch && (
+                    <Button onClick={acceptAsCurrentUser} disabled={submitting} className="w-full">
+                      {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : `Aceitar como ${user.email}`}
+                    </Button>
+                  )}
+                  <Button onClick={signOutAndStay} variant="outline" className="w-full">
+                    Sair e usar outra conta
+                  </Button>
+                </div>
+              </div>
+            );
+          }
+
+          // Caso 2: visitante — fluxo de signup/login
+          return (
           <div className="rounded-2xl border border-border bg-card p-6 space-y-5">
             <div>
               <h1 className="text-lg font-semibold leading-tight">Você foi convidado</h1>
@@ -169,7 +215,8 @@ export default function JoinInvite() {
               </p>
             </form>
           </div>
-        )}
+          );
+        })()}
       </div>
     </div>
   );
