@@ -413,6 +413,184 @@ export type Database = {
           },
         ]
       }
+      community_invites: {
+        Row: {
+          accepted_at: string | null
+          accepted_by: string | null
+          code: string
+          created_at: string
+          email: string | null
+          expires_at: string
+          id: string
+          invited_by: string
+          note: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          code?: string
+          created_at?: string
+          email?: string | null
+          expires_at?: string
+          id?: string
+          invited_by: string
+          note?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          code?: string
+          created_at?: string
+          email?: string | null
+          expires_at?: string
+          id?: string
+          invited_by?: string
+          note?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      community_members: {
+        Row: {
+          created_at: string
+          display_name: string
+          id: string
+          instagram_handle: string | null
+          invite_id: string | null
+          invited_by: string | null
+          joined_at: string
+          playlist_followers: number | null
+          playlist_name: string | null
+          playlist_url: string | null
+          points: number
+          spotify_playlist_id: string | null
+          status: string
+          suspended_at: string | null
+          suspended_reason: string | null
+          tier: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          display_name: string
+          id?: string
+          instagram_handle?: string | null
+          invite_id?: string | null
+          invited_by?: string | null
+          joined_at?: string
+          playlist_followers?: number | null
+          playlist_name?: string | null
+          playlist_url?: string | null
+          points?: number
+          spotify_playlist_id?: string | null
+          status?: string
+          suspended_at?: string | null
+          suspended_reason?: string | null
+          tier?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string
+          id?: string
+          instagram_handle?: string | null
+          invite_id?: string | null
+          invited_by?: string | null
+          joined_at?: string
+          playlist_followers?: number | null
+          playlist_name?: string | null
+          playlist_url?: string | null
+          points?: number
+          spotify_playlist_id?: string | null
+          status?: string
+          suspended_at?: string | null
+          suspended_reason?: string | null
+          tier?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_members_invite_id_fkey"
+            columns: ["invite_id"]
+            isOneToOne: false
+            referencedRelation: "community_invites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      community_participations: {
+        Row: {
+          created_at: string
+          deal_id: string
+          expires_at: string | null
+          id: string
+          member_id: string
+          points_awarded: number
+          points_offered: number
+          proof_submitted_at: string | null
+          proof_url: string | null
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          song_id: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          deal_id: string
+          expires_at?: string | null
+          id?: string
+          member_id: string
+          points_awarded?: number
+          points_offered?: number
+          proof_submitted_at?: string | null
+          proof_url?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          song_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          deal_id?: string
+          expires_at?: string | null
+          id?: string
+          member_id?: string
+          points_awarded?: number
+          points_offered?: number
+          proof_submitted_at?: string | null
+          proof_url?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          song_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_participations_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "community_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       curator_deal_logs: {
         Row: {
           created_at: string
