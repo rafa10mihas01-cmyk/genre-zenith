@@ -136,7 +136,7 @@ Deno.serve(async (req) => {
     let siblingsQuery = admin
       .from("curator_deal_songs")
       .select(
-        "id, song_name, song_artist, song_cover_url, smartlink_url, client_id, client_token, position, target_plays, daily_goal, baseline_plays, started_at, ends_at",
+        "id, song_name, song_artist, song_cover_url, smartlink_url, client_id, client_token, slug, position, target_plays, daily_goal, baseline_plays, started_at, ends_at",
       )
       .eq("deal_id", dealId!)
       .order("position", { ascending: true });
