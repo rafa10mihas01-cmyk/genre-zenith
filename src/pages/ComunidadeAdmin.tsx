@@ -601,6 +601,26 @@ function ConvitesTab({ adminId, onChange }: { adminId: string; onChange?: () => 
               <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="convidado@email.com" />
             </div>
             <div className="space-y-1.5">
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Validade</Label>
+              <div className="grid grid-cols-4 gap-2">
+                {[1, 7, 14, 30].map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => setValidityDays(d)}
+                    className={cn(
+                      "h-9 rounded-md border text-sm font-medium transition-colors",
+                      validityDays === d
+                        ? "border-primary bg-primary/15 text-primary"
+                        : "border-border bg-elevated text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {d}d
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-1.5">
               <Label className="text-xs uppercase tracking-wider text-muted-foreground">Nota interna (opcional)</Label>
               <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Quem é, contexto…" rows={2} />
             </div>
