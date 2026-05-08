@@ -143,7 +143,7 @@ Depois aponte `SPOTIFY_STORAGE_STATE_PATH` no `.env` para esse arquivo. Quando a
 
 **Migração do bot monolítico:** rode os workers em paralelo ao bot antigo até estabilizar, depois `pm2 stop spotify-bot` na VPS. O `dedupe_key` impede coleta duplicada.
 
-## 9. Múltiplos bots / múltiplas VPS
+## 9. Workers de fila (queue/worker)
 
 O `ecosystem.config.cjs` sobe `WORKER_COUNT` processos `nexengine-worker-N` em paralelo ao agente. Cada worker:
 
@@ -185,7 +185,7 @@ Reinicie os workers: `pm2 restart /nexengine-worker-/`.
 | `WORKER_IDLE_SLEEP_MS` | `2000` | Pausa quando fila vazia |
 | `WORKER_HEARTBEAT_MS` | `15000` | Frequência de heartbeat |
 
-## 9. Troubleshooting
+## 10. Troubleshooting
 
 | Sintoma | Causa provável | Ação |
 |---|---|---|
