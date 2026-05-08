@@ -263,6 +263,8 @@ export default function CuratorPage() {
   const [submitting, setSubmitting] = useState(false);
   const [importing, setImporting] = useState(false);
   const [pasteOpen, setPasteOpen] = useState(false);
+  // Dialog: vincular uma música a uma playlist já cadastrada no deal
+  const [addSongToPlaylistFor, setAddSongToPlaylistFor] = useState<DealSong | null>(null);
   // Modal: músicas da campanha presentes em uma playlist do curador
   const [curatorPlaylistModalKey, setCuratorPlaylistModalKey] = useState<string | null>(null);
   // Filtro visual por música (não afeta números — RPC já é agregada por deal)
