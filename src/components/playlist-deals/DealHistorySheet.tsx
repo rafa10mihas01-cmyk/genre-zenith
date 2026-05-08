@@ -574,6 +574,9 @@ export function DealHistorySheet({
                   >
                     <BarChart3 className="h-6 w-6 sm:h-4 sm:w-4 shrink-0" />
                     <span className="hidden sm:inline">Resumo</span>
+                    <span className="text-[10px] font-semibold tabular-nums sm:hidden">
+                      &nbsp;
+                    </span>
                   </TabsTrigger>
                   <span className="hidden sm:block mx-1 h-5 w-px bg-border self-center" aria-hidden />
                   <TabsTrigger
