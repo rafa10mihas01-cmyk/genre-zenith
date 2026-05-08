@@ -457,6 +457,11 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
   const [submitting, setSubmitting] = useState(false);
   const [songs, setSongs] = useState<SongRow[]>([emptySong()]);
 
+  // Modelo de cobrança do deal
+  const [billingModel, setBillingModel] = useState<"per_streams" | "monthly_retainer">("per_streams");
+  const [monthlyAmountDigits, setMonthlyAmountDigits] = useState("");
+  const [cycleMonths, setCycleMonths] = useState("1");
+
   // Passo 1 — curador
   const [curatorMode, setCuratorMode] = useState<"select" | "new">("select");
   const [selectedCuratorId, setSelectedCuratorId] = useState<string | null>(null);
