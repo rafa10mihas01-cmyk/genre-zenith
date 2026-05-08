@@ -1,5 +1,5 @@
 // cron-cleanup-ops — TTLs em tabelas operacionais. Roda 1x/dia.
-// Mantém: bot_heartbeats=30d, bot_events=14d, ops_metrics=30d, collection_logs=60d.
+// Mantém: bot_heartbeats=30d, bot_events=14d, collection_logs=60d.
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -24,7 +24,6 @@ Deno.serve(async (req) => {
   const targets: Array<{ table: string; days: number }> = [
     { table: "bot_heartbeats", days: 30 },
     { table: "bot_events", days: 14 },
-    { table: "ops_metrics", days: 30 },
     { table: "collection_logs", days: 60 },
   ];
 
@@ -33,11 +32,7 @@ Deno.serve(async (req) => {
       .from(t.table)
       .delete({ count: "exact" })
       .lt("created_at", cutoff(t.days));
-    if (error) {
-      results[t.table] = `error: ${error.message}`;
-    } else {
-      results[t.table] = count ?? 0;
-    }
+    results[t.table] = error ? `error: ${error.message}` : (count ?? 0);
   }
 
   await supabase.from("collection_logs").insert({

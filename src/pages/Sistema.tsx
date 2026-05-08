@@ -1,6 +1,6 @@
 // Sistema — painel de observabilidade completo.
 // Tabs no padrão visual do app (border-b + ícone + label), igual Operação / Playlist Deals / Comunidade.
-import { Activity, Workflow, Music2, HeartPulse, Bot, Bell, Settings as SettingsIcon, Sparkles, Terminal, Sliders, Layers, Server } from "lucide-react";
+import { Activity, Workflow, Music2, HeartPulse, Bot, Bell, Settings as SettingsIcon } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
 import { useScreenField } from "@/lib/screen-state";
@@ -12,16 +12,10 @@ import { ColetaPanel } from "@/components/sistema/ColetaPanel";
 import { SaudeSistema } from "@/components/sistema/SaudeSistema";
 import { RoboAoVivo } from "@/components/sistema/RoboAoVivo";
 import { AlertasHistorico } from "@/components/sistema/AlertasHistorico";
-import { CopilotoPanel } from "@/components/sistema/copiloto/CopilotoPanel";
-import { TerminalPanel } from "@/components/sistema/terminal/TerminalPanel";
-import { ControlePanel } from "@/components/sistema/controle/ControlePanel";
-import { FilaPanel } from "@/components/sistema/fila/FilaPanel";
-import { WorkersPanel } from "@/components/sistema/fila/WorkersPanel";
 import Settings from "@/pages/Settings";
 
 type SistemaTab =
-  | "fluxo" | "ao-vivo" | "robo" | "fila" | "workers" | "coleta" | "saude" | "alertas"
-  | "copiloto" | "terminal" | "controle" | "configuracoes";
+  | "fluxo" | "ao-vivo" | "robo" | "coleta" | "saude" | "alertas" | "configuracoes";
 
 type TabDef = { id: SistemaTab; label: string; icon: typeof Activity; adminOnly?: boolean };
 
@@ -29,14 +23,9 @@ const TABS: TabDef[] = [
   { id: "fluxo", label: "Fluxo", icon: Workflow },
   { id: "ao-vivo", label: "Ao Vivo", icon: Activity },
   { id: "robo", label: "Robô", icon: Bot },
-  { id: "fila", label: "Fila", icon: Layers },
-  { id: "workers", label: "Workers", icon: Server },
   { id: "coleta", label: "Coleta", icon: Music2 },
   { id: "saude", label: "Saúde", icon: HeartPulse },
   { id: "alertas", label: "Alertas", icon: Bell },
-  { id: "copiloto", label: "Copiloto", icon: Sparkles, adminOnly: true },
-  { id: "terminal", label: "Terminal", icon: Terminal, adminOnly: true },
-  { id: "controle", label: "Controle", icon: Sliders, adminOnly: true },
   { id: "configuracoes", label: "Configurações", icon: SettingsIcon },
 ];
 
@@ -80,14 +69,9 @@ export default function Sistema() {
         {activeTab === "fluxo" && <FluxoVisual />}
         {activeTab === "ao-vivo" && <AoVivoPainel />}
         {activeTab === "robo" && <RoboAoVivo />}
-        {activeTab === "fila" && <FilaPanel />}
-        {activeTab === "workers" && <WorkersPanel />}
         {activeTab === "coleta" && <ColetaPanel />}
         {activeTab === "saude" && <SaudeSistema />}
         {activeTab === "alertas" && <AlertasHistorico />}
-        {activeTab === "copiloto" && isAdmin && <CopilotoPanel />}
-        {activeTab === "terminal" && isAdmin && <TerminalPanel />}
-        {activeTab === "controle" && isAdmin && <ControlePanel />}
         {activeTab === "configuracoes" && <Settings embedded />}
       </div>
     </PageContainer>
