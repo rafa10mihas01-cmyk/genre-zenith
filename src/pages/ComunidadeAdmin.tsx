@@ -570,7 +570,7 @@ function ConvitesTab({ adminId, onChange }: { adminId: string; onChange?: () => 
                     <div className="mt-1 text-xs text-muted-foreground truncate">
                       {i.email ?? "sem email"}
                       {realStatus === "pending" && (
-                        <> · expira {format(new Date(i.expires_at), "dd MMM", { locale: ptBR })}</>
+                        <> · {countdown(i.expires_at)}</>
                       )}
                       {i.note ? ` · ${i.note}` : ""}
                     </div>
