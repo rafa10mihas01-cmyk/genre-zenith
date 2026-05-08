@@ -128,6 +128,9 @@ Deno.serve(async (req) => {
     }
     const urls: string[] = Array.isArray(body?.urls) ? body.urls : [];
     const preview = body?.preview === true;
+    // Modo "música já está dentro": curador confirma que já adicionou a faixa
+    // na playlist. Inverte a checagem: bloqueia se NÃO encontrar.
+    const requireTrackPresent = body?.require_track_present === true;
 
     if (urls.length === 0) return jr({ ok: false, error: "urls vazio" }, 400);
     if (urls.length > 200) return jr({ ok: false, error: "máximo 200 URLs por chamada" }, 400);
