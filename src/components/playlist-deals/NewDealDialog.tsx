@@ -1003,6 +1003,13 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
       const cpp = curatorPurchasedPlays > 0 ? curatorTotalCost / curatorPurchasedPlays : 0;
       const dealCostRaw = cpp > 0 ? Math.round(songsTotalTarget * cpp * 100) / 100 : 0;
 
+      const monthlyAmountVal = currencyDigitsToNumber(monthlyAmountDigits) ?? 0;
+      const cycleMonthsVal = Number(cycleMonths) || null;
+      // Mensalista: cost = valor do ciclo todo (mensal × meses); per_streams: deriva do CPP
+      const finalCost = billingModel === "monthly_retainer"
+        ? (monthlyAmountVal > 0 && cycleMonthsVal ? monthlyAmountVal * cycleMonthsVal : monthlyAmountVal || null)
+        : (typeof dealCostRaw === "number" && dealCostRaw > 0 ? dealCostRaw : null);
+
       const payload = {
         curator_id: selectedCuratorId ?? null,
         curator_name: curatorName,
@@ -1012,16 +1019,19 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
         artist_candidates: primary.meta!.artist_candidates,
         song_cover_url: primary.meta!.thumbnail_url,
         target_plays: songsTotalTarget,
-        daily_goal: Number(primary.daily_goal),
+        daily_goal: Number(primary.daily_goal) || 0,
         duration_days: Number(primary.duration_days),
         baseline_plays: 0,
-        cost: typeof dealCostRaw === "number" && dealCostRaw > 0 ? dealCostRaw : null,
+        cost: finalCost,
         started_at: dealStart.toISOString(),
         ends_at: dealEnd.toISOString(),
         ramp_up_days: primary.ramp_up_days ? Math.max(0, Number(primary.ramp_up_days)) : 5,
         client_id: primary.client_id ?? null,
         smartlink_url: primary.smartlink_url.trim() || null,
         extra_songs: extras,
+        billing_model: billingModel,
+        monthly_amount: billingModel === "monthly_retainer" ? monthlyAmountVal : null,
+        cycle_months: billingModel === "monthly_retainer" ? cycleMonthsVal : null,
       };
 
       // Garante coerência: payload.target_plays é a soma. Se primary tiver target=0 (edge), usa total.
