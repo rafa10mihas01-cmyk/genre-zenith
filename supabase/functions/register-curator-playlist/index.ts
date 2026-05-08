@@ -413,6 +413,7 @@ Deno.serve(async (req) => {
         blocked: items.filter((it) => it.status === "blocked").length,
         duplicate: items.filter((it) => it.status === "duplicate").length,
         duplicate_in_payload: items.filter((it) => it.status === "duplicate_in_payload").length,
+        baseline_blocked: items.filter((it) => it.status === "baseline_blocked").length,
         track_already_present: items.filter((it) => it.status === "track_already_present").length,
         track_not_present: items.filter((it) => it.status === "track_not_present").length,
         invalid: items.filter((it) => it.status === "invalid_url").length,
