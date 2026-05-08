@@ -741,6 +741,9 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
       setBalancePlaysDigits("");
       setBalanceCostDigits("");
       setSongs([emptySong()]);
+      setBillingModel("per_streams");
+      setMonthlyAmountDigits("");
+      setCycleMonths("1");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, isEdit, editDeal?.id]);
