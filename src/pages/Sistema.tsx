@@ -38,6 +38,10 @@ const TABS: TabDef[] = [
 
 export default function Sistema() {
   const [tab, setTab] = useScreenField<SistemaTab>("/sistema", "tab", "fluxo");
+  const { isAdmin } = useUserRole();
+  const visibleTabs = TABS.filter((t) => !t.adminOnly || isAdmin);
+  const currentAllowed = visibleTabs.some((t) => t.id === tab);
+  const activeTab = currentAllowed ? tab : "fluxo";
 
   return (
     <PageContainer>
@@ -46,39 +50,39 @@ export default function Sistema() {
         subtitle="Acompanhar o pipeline em tempo real"
       />
 
-      {/* TABS — mesmo padrão visual de Operação / Playlist Deals */}
       <div className="sticky top-0 z-30 -mt-px bg-background/95 supports-[backdrop-filter]:bg-background/80 backdrop-blur-md border-b border-border -mx-4 md:-mx-6">
         <div className="nx-tab-rail items-center gap-1 px-4 md:px-6">
-          {TABS.map((t) => {
-          const Icon = t.icon;
-          const active = tab === t.id;
-          return (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={cn(
-                "px-4 h-10 inline-flex items-center gap-2 text-sm font-medium border-b-2 transition-colors -mb-px shrink-0 whitespace-nowrap",
-                active
-                  ? "border-primary text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <Icon className="h-3.5 w-3.5" />
-              {t.label}
-            </button>
-          );
+          {visibleTabs.map((t) => {
+            const Icon = t.icon;
+            const active = activeTab === t.id;
+            return (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className={cn(
+                  "px-4 h-10 inline-flex items-center gap-2 text-sm font-medium border-b-2 transition-colors -mb-px shrink-0 whitespace-nowrap",
+                  active ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {t.label}
+              </button>
+            );
           })}
         </div>
       </div>
 
       <div className="min-h-[480px] animate-tab-in">
-        {tab === "fluxo" && <FluxoVisual />}
-        {tab === "ao-vivo" && <AoVivoPainel />}
-        {tab === "robo" && <RoboAoVivo />}
-        {tab === "coleta" && <ColetaPanel />}
-        {tab === "saude" && <SaudeSistema />}
-        {tab === "alertas" && <AlertasHistorico />}
-        {tab === "configuracoes" && <Settings embedded />}
+        {activeTab === "fluxo" && <FluxoVisual />}
+        {activeTab === "ao-vivo" && <AoVivoPainel />}
+        {activeTab === "robo" && <RoboAoVivo />}
+        {activeTab === "coleta" && <ColetaPanel />}
+        {activeTab === "saude" && <SaudeSistema />}
+        {activeTab === "alertas" && <AlertasHistorico />}
+        {activeTab === "copiloto" && isAdmin && <CopilotoPanel />}
+        {activeTab === "terminal" && isAdmin && <TerminalPanel />}
+        {activeTab === "controle" && isAdmin && <ControlePanel />}
+        {activeTab === "configuracoes" && <Settings embedded />}
       </div>
     </PageContainer>
   );
