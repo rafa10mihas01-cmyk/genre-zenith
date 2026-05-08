@@ -1,113 +1,162 @@
-# Sistema Inteligente de Navegação, Cache e Restore
+# Migração real spotify-artists-bot → queue/worker
 
-Objetivo: padronizar como o app lembra (ou esquece) estado entre navegações, com comportamento previsível tipo Spotify/YouTube/Notion.
+Como o código atual do bot vive na VPS e não está versionado, vou entregar **arquitetura real de produção** (Playwright + sessão persistente + browser pool + upload Cloud + parsing + retries) seguindo a mesma estratégia que o monolito usa hoje. Os pontos onde sua implementação atual tem **valores específicos** (3 seletores e a URL de login persistente) ficam isolados em **um único arquivo de configuração** — você cola os valores reais lá uma vez e nada mais precisa mudar.
 
-## Arquitetura
+Isto **não é mock**: é o pipeline executável completo (login → navegação → screenshot → upload → parse → persist). O que você fornece depois são apenas constantes (seletores CSS) que mudam quando o Spotify atualiza o HTML.
 
-Criar 4 peças centrais em `src/lib/screen-state/`:
+---
 
-### 1. `screenStateStore.ts` — store global
-- Map em memória `screenId → { state, scrollY, updatedAt, ttlMs }`
-- Espelha em `sessionStorage` (chave `nx:screen-state`) com debounce
-- API: `getScreenState(id)`, `setScreenState(id, patch)`, `resetScreenState(id)`, `purgeExpired()`
-- TTLs default: dashboards 5min, listas 2min, formulários = sessão, fluxos = 0 (sempre reset)
+## 1. Browser pool (compartilhado entre handlers)
 
-### 2. `useScreenState.ts` — hook principal para telas de CONTEXTO
-```ts
-const [tab, setTab] = useScreenField("operacao", "tab", "playlists");
-const [filters, setFilters] = useScreenField("performance", "filters", {});
+`vps-agent/src/playwright/browserPool.js`
+
+- Singleton que mantém **1 Chromium persistente por worker** (reuso entre jobs).
+- `getContext()` cria/reutiliza `BrowserContext` com `storageState` da sessão Spotify (cookies+localStorage).
+- `withPage(fn)` abre page, executa, **sempre** fecha page no `finally` (sem leak).
+- Reciclagem automática: após N jobs (default 50) ou X minutos (default 60), fecha o browser e recria.
+- `dispose()` no SIGTERM do worker.
+- Detecção de browser travado: timeout global no `page.goto` + watchdog que mata o context se ficar `>5min` ocupado.
+
+## 2. Sessão Spotify for Artists
+
+`vps-agent/src/playwright/spotifySession.js`
+
+- `loadStorageState()` lê `SPOTIFY_STORAGE_STATE_PATH` (arquivo JSON de cookies — mesmo formato que o bot atual já usa).
+- `assertLoggedIn(page)` navega `https://artists.spotify.com/c/` e detecta:
+  - **logado** → ok
+  - **redirect para login** → throw `SpotifyAuthError` (fatal, abre incidente `spotify_login_invalid`)
+  - **captcha/challenge** → throw `SpotifyCaptchaError` (fatal, incidente `spotify_captcha`)
+  - **rate limit (429 / banner)** → throw `SpotifyRateLimitError` (não-fatal, retry com backoff longo)
+- Refresh manual da sessão: comando ops `spotify.session.refresh` (futuro) ou regerar arquivo na VPS.
+
+## 3. Handlers reais
+
+### `src/handlers/spotifyArtistFetch.js`
+Payload: `{ artist_id, spotify_artist_url? }`
+
+1. `withPage` → navega para a URL do artista no S4A.
+2. `assertLoggedIn`.
+3. Captura screenshot da Home do artista.
+4. Upload para bucket `bot-prints/artists/{artist_id}/{job_id}.png`.
+5. Faz `INSERT` em `bot_events` (status `success`, screenshot_url, duration_ms).
+6. Retorna `{ artist_id, screenshot_url, captured_at }`.
+
+### `src/handlers/spotifyDealCollect.js`
+Payload: `{ deal_id, song_id, spotify_track_id }`
+
+1. Carrega o deal+song do Cloud (`curator_deal_songs` ou `curator_deals`).
+2. Navega para tela de Streams da música no S4A.
+3. Coleta `total_plays` + `plays_24h` + `plays_7d` + `plays_28d` via DOM extract.
+4. Captura screenshot.
+5. Upload + `INSERT` em `curator_deal_snapshots` (mantém schema atual: `deal_id`, `song_id`, `playlist_id`, `plays`, `print_url`, `source='spotify_for_artists'`, `match_method='worker'`).
+6. Atualiza `curator_deal_songs.last_auto_collect_at` + agenda `next_auto_collect_at`.
+7. Retorna `{ deal_id, plays, screenshot_url }`.
+
+### `src/handlers/spotifyPrintBatch.js`
+Payload: `{ deal_id, batch_id }`
+
+1. Lê `bot_print_batches` por `id`.
+2. Para cada item do `dom_payload` faz screenshot focado.
+3. Upload todos → preenche `print_urls` + `received_parts`.
+4. Quando `received_parts == total_parts` marca `status='completed'`, `completed_at=now()`.
+
+### Erros
+- `SpotifyAuthError`, `SpotifyCaptchaError` → `err.fatal=true` (dead-letter + incidente high).
+- `SpotifyRateLimitError` → throw normal (retry exponencial; o `fail_job` RPC já cuida).
+- `TimeoutError` → throw normal, com `metadata.timeout=true` no `job_incidents`.
+
+## 4. Scheduler real
+
+### Edge function `supabase/functions/jobs-scheduler/index.ts`
+Auth: `x-agent-token` (admin). Recebe `{ kinds?: string[] }`. Executa em uma chamada:
+
+- **`spotify.deal.collect`**: enfileira todo `curator_deal_songs` com `auto_collect=true` AND (`next_auto_collect_at IS NULL` OR `next_auto_collect_at <= now()`) AND nenhum job ativo (`pending|processing|retry`) com `dedupe_key='deal-collect:'+song_id`. Prioridade alta para os mais atrasados.
+- **`spotify.artist.fetch`**: enfileira artistas que precisam refresh (deals ativos sem snapshot nas últimas 24h). Cooldown 6h por artista via `dedupe_key`.
+- **`spotify.print_batch`**: enfileira `bot_print_batches` com `status='pending'` há > 1min e `received_parts < total_parts`.
+- Limita a **N jobs por chamada** (default 100) para não estourar.
+- Retorna `{ enqueued: { 'spotify.deal.collect': 12, ... } }`.
+
+### Cron pg_cron (você confirma se quer)
+Agora que escolheu **manual + botão**, eu **não** crio cron automático. Adiciono botão no `/sistema → Fila`:
+- "Rodar scheduler agora" → invoca `jobs-scheduler` e mostra contagem enfileirada.
+- Toggle "Habilitar agendamento automático (5/2/15 min)" — quando ligado, cria os 3 cron jobs via SQL helper (instrução clicável, não executa silencioso).
+
+## 5. Healthcheck operacional
+
+Estende `vps-agent/src/watchdog.js` (já existe):
+
+- **worker travado**: heartbeat ausente > 90s OR `status='busy'` mesmo sem mudança de `current_job_id` por 10min → restart do PM2 worker correspondente + incidente `worker_stuck`.
+- **browser travado**: `browserPool` registra `lastActivityAt`; watchdog mata pool se > 5min sem progredir → incidente `browser_stuck`.
+- **login inválido / captcha / rate limit**: já convertidos para incidentes nos handlers (kind dedicado).
+- **memory leak**: `process.memoryUsage().rss > 800MB` → worker se auto-encerra (PM2 reinicia) + incidente `worker_memory_high`.
+
+## 6. Observabilidade no painel
+
+Tudo já vai para `jobs_queue`, `worker_heartbeats`, `job_incidents`. Adiciono ao painel `/sistema → Fila` e `/sistema → Workers` (sem criar página nova):
+
+- KPIs novos: **throughput (jobs/min)**, **tempo médio por tipo**, **crash rate (falhas/total)**, **retries totais 24h**.
+- Drill-down por `job_type` (filtros já existentes).
+- Página existente `/sistema → Bots` ganha card por artista com: última coleta, falhas 7d, tempo médio.
+
+Tudo segue `<PageHeader>`, design tokens existentes, sem emojis.
+
+## 7. Compatibilidade
+
+- **Não toca** `curator_deals`, `curator_deal_songs`, `curator_deal_snapshots`, `bot_print_batches`, `bot_events`, `bot_heartbeats`. Apenas escreve neles com os mesmos formatos atuais.
+- **Não remove** o cron monolítico — apenas para de produzir (passo manual seu na VPS: `pm2 stop spotify-bot` quando os workers estiverem estáveis).
+- Fluxo paralelo: durante a transição os dois podem rodar; o `dedupe_key` do scheduler evita duplicar coleta.
+
+## 8. O que você precisa fazer 1 vez (na VPS)
+
+Dois arquivos `.env` novos no `vps-agent/.env`:
+
 ```
-- Lê do store no mount, persiste em mudança
-- Substitui `usePersistedState` aos poucos, mas mantém compatibilidade (mesma chave de sessionStorage não quebra)
-
-### 3. `useFlowState.ts` — hook para telas de FLUXO (reset ao reabrir)
-- Onboarding, wizards, success screens
-- No mount: se a navegação é "entrada nova" (PUSH/REPLACE) → `resetScreenState(id)`
-- Em POP (voltar) mantém só se ainda dentro do mesmo fluxo
-
-### 4. `ScreenStateManager` (component) — montado no `App.tsx`
-- Escuta navegação (já existe `ScrollManager`, vamos estendê-lo)
-- Em PUSH para rota classificada como "flow" → reseta state daquela rota
-- `purgeExpired()` a cada 60s
-- Salva scroll já é feito pelo `ScrollManager` — vamos integrar a leitura no mesmo storage
-
-### 5. `screenRegistry.ts` — classificação por rota
-```ts
-{
-  "/": { kind: "context", ttl: 5*60_000 },
-  "/operacao": { kind: "context", ttl: 2*60_000 },
-  "/performance": { kind: "context", ttl: 2*60_000 },
-  "/playlist-deals": { kind: "context", ttl: 2*60_000 },
-  "/curadores": { kind: "context", ttl: 2*60_000 },
-  "/cerebro": { kind: "context", ttl: 5*60_000 },
-  "/sistema": { kind: "context", ttl: 60_000 },
-  "/comunidade-admin": { kind: "context", ttl: 2*60_000 },
-  "/comunidade/onboarding": { kind: "flow", ttl: 0 },
-  "/comunidade/join/*": { kind: "flow", ttl: 0 },
-}
+SPOTIFY_STORAGE_STATE_PATH=/opt/nexengine/secrets/spotify-session.json
+SPOTIFY_S4A_BASE=https://artists.spotify.com
+PLAYWRIGHT_HEADLESS=true
+BROWSER_RECYCLE_AFTER_JOBS=50
+BROWSER_RECYCLE_AFTER_MIN=60
+JOB_TIMEOUT_MS=180000
 ```
 
-## Migração das telas existentes
+E **colar 3 seletores reais** (1 vez) em `vps-agent/src/playwright/spotifySelectors.js` — que vou criar com placeholders documentados:
+- seletor do bloco "logged in" para o `assertLoggedIn`
+- seletor da métrica de streams totais
+- seletor da área da página que é o "print" final
 
-Substituir `usePersistedState` nas telas de CONTEXTO sem quebrar storage atual:
-- `Operacao.tsx` (tab + filtros)
-- `Performance.tsx` (filtros)
-- `PlaylistDeals.tsx` (tabs)
-- `ComunidadeAdmin.tsx` (tab)
-- `Cerebro.tsx`, `Sistema.tsx`, `Curadores.tsx` (tabs/filtros)
+Sem isso a coleta sobe mas falha cedo no `assertLoggedIn` (o que é o comportamento correto — sem mock).
 
-Aplicar reset em FLUXOS:
-- `comunidade/Onboarding.tsx` — sempre Step 1 ao reabrir
-- `JoinInvite.tsx` — limpa state ao desmontar
+---
 
-## Cache leve de dados
+## Arquivos que serão criados
 
-Já temos React Query (`QueryClient`). Configurar defaults globais em `App.tsx`:
-- `staleTime`: 60s (dados frescos)
-- `gcTime`: 5min (cache em memória)
-- `refetchOnWindowFocus`: true
-- `refetchOnReconnect`: true
-- `placeholderData: keepPreviousData` recomendado nas listas
-Isso já dá sensação de "navegação instantânea" sem mexer página por página.
+```
+vps-agent/
+  src/
+    playwright/
+      browserPool.js
+      spotifySession.js
+      spotifySelectors.js          (você preenche depois)
+      errors.js                    (SpotifyAuthError, etc.)
+    handlers/
+      spotifyArtistFetch.js        (substitui o atual)
+      spotifyDealCollect.js        (substitui o atual)
+      spotifyPrintBatch.js         (novo)
+    cloud/
+      uploadPrint.js               (POST signed-url -> bucket bot-prints)
+  package.json                     (+ playwright, + @supabase/supabase-js)
+  README.md                        (seção "Playwright / Sessão Spotify")
+  .env.example                     (+ vars novas)
 
-## Scroll restoration
+supabase/
+  functions/
+    jobs-scheduler/index.ts        (enqueue automático)
 
-`ScrollManager` atual já faz POP→restaura, PUSH→topo. Adicionar:
-- Em rotas `kind: "flow"` → sempre topo, mesmo em POP
-- Salvar scroll dentro do mesmo store (chave única por rota)
+src/components/sistema/fila/
+  SchedulerCard.tsx                (botão "Rodar scheduler agora" + KPIs)
+src/hooks/useJobsQueue.ts          (+ throughput/avg/crash rate)
+```
 
-## Modais / Drawers
-- Padrão: `useFlowState` — fecha = limpa state interno
-- Não reabrir automaticamente (já é o comportamento atual; documentar)
-
-## Loading UX
-- Já temos `SplashLoader`, `TopProgressBar`, `PageLoader`. Não mexer nisso.
-- Garantir que React Query com `keepPreviousData` evite skeleton em retorno.
-
-## Helpers públicos
-Exportar de `src/lib/screen-state/index.ts`:
-- `useScreenField(screenId, field, initial)`
-- `useFlowField(screenId, field, initial)`
-- `resetScreenState(screenId)`
-- `persistScreenState(screenId, partial)`
-- `restoreScreenState<T>(screenId): T | null`
-
-## Arquivos novos
-- `src/lib/screen-state/store.ts`
-- `src/lib/screen-state/registry.ts`
-- `src/lib/screen-state/hooks.ts`
-- `src/lib/screen-state/index.ts`
-- `src/components/ScreenStateManager.tsx`
-
-## Arquivos editados
-- `src/App.tsx` (montar manager, configurar QueryClient defaults)
-- `src/components/ScrollManager.tsx` (consultar registry para flow)
-- `src/pages/Operacao.tsx`, `Performance.tsx`, `PlaylistDeals.tsx`, `ComunidadeAdmin.tsx`, `Cerebro.tsx`, `Sistema.tsx`, `Curadores.tsx` — trocar `usePersistedState` por `useScreenField` (mantendo chaves para não perder estado atual)
-- `src/pages/comunidade/Onboarding.tsx` — usar `useFlowField`
-- `src/hooks/usePersistedState.ts` — manter como está (compat)
-
-## Resultado
-- Volta numa lista → mesma tab, mesmo filtro, mesmo scroll
-- Reabre Onboarding → começa do Step 1
-- Cache React Query → navegação sem reload visual
-- `purgeExpired` evita state fantasma e memory leak
+## Migração de banco
+- Bucket de storage `bot-prints` (público) — via migration.
+- Nenhuma alteração de tabela existente.
