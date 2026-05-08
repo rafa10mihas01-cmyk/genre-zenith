@@ -1,9 +1,10 @@
 // Sistema — painel de observabilidade completo.
 // Tabs no padrão visual do app (border-b + ícone + label), igual Operação / Playlist Deals / Comunidade.
-import { Activity, Workflow, Music2, HeartPulse, Bot, Bell, Settings as SettingsIcon } from "lucide-react";
+import { Activity, Workflow, Music2, HeartPulse, Bot, Bell, Settings as SettingsIcon, Sparkles, Terminal, Sliders } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
 import { useScreenField } from "@/lib/screen-state";
+import { useUserRole } from "@/hooks/useUserRole";
 import { cn } from "@/lib/utils";
 import { AoVivoPainel } from "@/components/sistema/AoVivoPainel";
 import { FluxoVisual } from "@/components/sistema/fluxo/FluxoVisual";
@@ -11,17 +12,27 @@ import { ColetaPanel } from "@/components/sistema/ColetaPanel";
 import { SaudeSistema } from "@/components/sistema/SaudeSistema";
 import { RoboAoVivo } from "@/components/sistema/RoboAoVivo";
 import { AlertasHistorico } from "@/components/sistema/AlertasHistorico";
+import { CopilotoPanel } from "@/components/sistema/copiloto/CopilotoPanel";
+import { TerminalPanel } from "@/components/sistema/terminal/TerminalPanel";
+import { ControlePanel } from "@/components/sistema/controle/ControlePanel";
 import Settings from "@/pages/Settings";
 
-type SistemaTab = "fluxo" | "ao-vivo" | "robo" | "coleta" | "saude" | "alertas" | "configuracoes";
+type SistemaTab =
+  | "fluxo" | "ao-vivo" | "robo" | "coleta" | "saude" | "alertas"
+  | "copiloto" | "terminal" | "controle" | "configuracoes";
 
-const TABS: { id: SistemaTab; label: string; icon: typeof Activity }[] = [
+type TabDef = { id: SistemaTab; label: string; icon: typeof Activity; adminOnly?: boolean };
+
+const TABS: TabDef[] = [
   { id: "fluxo", label: "Fluxo", icon: Workflow },
   { id: "ao-vivo", label: "Ao Vivo", icon: Activity },
   { id: "robo", label: "Robô", icon: Bot },
   { id: "coleta", label: "Coleta", icon: Music2 },
   { id: "saude", label: "Saúde", icon: HeartPulse },
   { id: "alertas", label: "Alertas", icon: Bell },
+  { id: "copiloto", label: "Copiloto", icon: Sparkles, adminOnly: true },
+  { id: "terminal", label: "Terminal", icon: Terminal, adminOnly: true },
+  { id: "controle", label: "Controle", icon: Sliders, adminOnly: true },
   { id: "configuracoes", label: "Configurações", icon: SettingsIcon },
 ];
 
