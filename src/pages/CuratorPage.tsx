@@ -1755,6 +1755,17 @@ export default function CuratorPage() {
           onImported={() => load()}
         />
 
+        <AddSongToPlaylistDialog
+          open={addSongToPlaylistFor !== null}
+          onOpenChange={(v) => {
+            if (!v) setAddSongToPlaylistFor(null);
+          }}
+          song={addSongToPlaylistFor}
+          publicToken={deal?.public_token ?? token ?? ""}
+          allPlaylists={playlists}
+          onAdded={() => load()}
+        />
+
 
         {/* Histórico de prints — vem da RPC get_curator_deal_snapshot_history */}
         <Card className="nx-card !p-0 border-border">
