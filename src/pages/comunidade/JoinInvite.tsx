@@ -24,6 +24,53 @@ export default function JoinInvite() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [needsConfirm, setNeedsConfirm] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
+
+  // tick a cada 30s pra contagem regressiva
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(t);
+  }, []);
+
+  function translateRpcError(msg?: string | null): string {
+    if (!msg) return "Não foi possível aceitar o convite.";
+    const m = msg.toLowerCase();
+    if (m.includes("invite_email_mismatch"))
+      return "Este convite é para outro email. Entre com a conta correta ou peça um novo convite.";
+    if (m.includes("invite_not_available") || m.includes("already") || m.includes("accepted"))
+      return "Este convite já foi usado ou não está mais disponível.";
+    if (m.includes("invite_invalid") || m.includes("not_found"))
+      return "Convite inválido ou expirado.";
+    if (m.includes("invite_expired") || m.includes("expired"))
+      return "Convite expirado. Peça um novo a quem te indicou.";
+    return msg;
+  }
+
+  function formatCountdown(iso: string): string {
+    const ms = new Date(iso).getTime() - now;
+    if (ms <= 0) return "expirado";
+    const min = Math.floor(ms / 60_000);
+    if (min < 60) return `expira em ${min} min`;
+    const h = Math.floor(min / 60);
+    if (h < 24) return `expira em ${h}h`;
+    const d = Math.floor(h / 24);
+    return `expira em ${d}d`;
+  }
+
+  async function resendConfirmation() {
+    if (!email) return;
+    setResending(true);
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email,
+      options: { emailRedirectTo: `${window.location.origin}/comunidade/join/${code}` },
+    });
+    setResending(false);
+    if (error) return toast.error("Falha ao reenviar", { description: error.message });
+    toast.success("Email de confirmação reenviado", { description: "Verifique sua caixa de entrada." });
+  }
 
   useEffect(() => {
     let mounted = true;
