@@ -553,26 +553,39 @@ export default function CuratorPage() {
       return;
     }
     const item = Array.isArray(data.items) ? data.items[0] : null;
-    if (item?.error) {
-      toast.error(item.error);
+    if (item?.status === "ok") {
+      // Cadastro feito. Se a música já estava lá, só avisa — não bloqueia.
+      if (item?.track_presence?.found) {
+        const pos = item.track_presence.position ? ` (posição ${item.track_presence.position})` : "";
+        toast.success("Playlist adicionada", {
+          description: `A música já estava dentro${pos}.`,
+        });
+      } else {
+        toast.success("Playlist adicionada");
+      }
+    } else if (item?.status === "duplicate") {
+      toast.warning("Essa playlist já está registrada nessa música");
       return;
-    }
-    if (item?.status === "duplicate") {
-      toast.warning("Essa playlist já está registrada nesse deal");
+    } else if (item?.status === "duplicate_in_payload") {
+      toast.warning("Link repetido");
       return;
-    }
-    if (item?.track_presence?.found) {
-      const pos = item.track_presence.position ? ` na posição ${item.track_presence.position}` : "";
-      toast.warning("Essa música já está dentro dessa playlist", {
-        description: `Detectei no Spotify${pos}; não registrei essa playlist.`,
+    } else if (item?.status === "baseline_blocked") {
+      toast.error("Essa playlist já existia antes do deal (baseline)", {
+        description: "Não conta como entrega do curador.",
       });
       return;
-    }
-    if (item?.status && item.status !== "ok") {
-      toast.error("Não foi possível registrar essa playlist");
+    } else if (item?.status === "invalid_url") {
+      toast.error("Link inválido");
       return;
-    } else {
-      toast.success("Playlist adicionada");
+    } else if (item?.status === "not_found") {
+      toast.error("Playlist não encontrada no Spotify");
+      return;
+    } else if (item?.status === "timeout") {
+      toast.error("Spotify demorou pra responder. Tenta de novo.");
+      return;
+    } else if (item?.error || (item?.status && item.status !== "ok")) {
+      toast.error(item?.error || "Não foi possível registrar essa playlist");
+      return;
     }
     setUrl("");
     setPosition("");
