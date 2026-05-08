@@ -52,6 +52,11 @@ export type Curator = {
   paused_at: string | null;
   created_at: string;
   updated_at: string;
+  deal_type: "avulso" | "mensal";
+  default_amount: number | null;
+  default_plays: number | null;
+  monthly_amount: number | null;
+  billing_day: number | null;
 };
 
 export type CuratorBalance = {
