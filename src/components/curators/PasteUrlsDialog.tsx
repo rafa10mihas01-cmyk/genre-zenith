@@ -71,6 +71,7 @@ type ServerStatus =
   | "blocked"
   | "duplicate"
   | "duplicate_in_payload"
+  | "baseline_blocked"
   | "track_already_present"
   | "invalid_url"
   | "not_found"
@@ -90,6 +91,7 @@ const STATUS_LABEL: Record<ServerStatus, string> = {
   blocked: "bloqueada",
   duplicate: "já existia no deal",
   duplicate_in_payload: "repetida na lista",
+  baseline_blocked: "já estava na baseline (antes do deal)",
   track_already_present: "já contém a música",
   invalid_url: "link inválido",
   not_found: "playlist não encontrada",
@@ -101,7 +103,7 @@ function isProblem(s: ServerStatus): boolean {
   return s === "invalid_url" || s === "not_found" || s === "error" || s === "timeout";
 }
 function isSoftIssue(s: ServerStatus): boolean {
-  return s === "duplicate" || s === "duplicate_in_payload" || s === "track_already_present" || s === "blocked";
+  return s === "duplicate" || s === "duplicate_in_payload" || s === "baseline_blocked" || s === "track_already_present" || s === "blocked";
 }
 
 export interface PasteUrlsDialogProps {
