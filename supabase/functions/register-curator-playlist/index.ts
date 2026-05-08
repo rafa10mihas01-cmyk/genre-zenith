@@ -226,11 +226,15 @@ Deno.serve(async (req) => {
       // ------- Carregar contexto de classificação -------
       const { data: existing } = await admin
         .from("curator_playlists")
-        .select("spotify_playlist_id, spotify_owner_id, playlist_name, match_status")
+        .select("spotify_playlist_id, spotify_owner_id, playlist_name, match_status, song_id")
         .eq("deal_id", deal.id);
 
+      // Duplicata é por (deal_id, song_id, playlist_id):
+      // a mesma playlist pode ser registrada para múltiplas músicas do mesmo deal,
+      // só não pode repetir dentro da MESMA música.
       const existingIds = new Set(
         (existing ?? [])
+          .filter((r: any) => (r.song_id ?? null) === (songIdInput ?? null))
           .map((r: any) => r.spotify_playlist_id)
           .filter((v: unknown): v is string => typeof v === "string" && v.length > 0),
       );
