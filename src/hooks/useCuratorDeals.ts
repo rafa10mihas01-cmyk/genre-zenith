@@ -113,6 +113,10 @@ export type NewCuratorDealInput = {
   ends_at?: string | null;
   ramp_up_days?: number;
   extra_songs?: DealSongInput[];
+  // Modelo de cobrança
+  billing_model?: "per_streams" | "monthly_retainer";
+  monthly_amount?: number | null;
+  cycle_months?: number | null;
 };
 
 export type NewCuratorLogInput = {
@@ -467,6 +471,9 @@ export function useCuratorDeals() {
         started_at: input.started_at ?? new Date().toISOString(),
         ends_at: input.ends_at ?? null,
         ramp_up_days: input.ramp_up_days ?? 5,
+        billing_model: input.billing_model ?? "per_streams",
+        monthly_amount: input.monthly_amount ?? null,
+        cycle_months: input.cycle_months ?? null,
       };
 
       const { data, error: rpcErr } = await supabase.rpc(
@@ -555,6 +562,9 @@ export function useCuratorDeals() {
           started_at: input.started_at ?? new Date().toISOString(),
           ends_at: input.ends_at ?? null,
           ramp_up_days: input.ramp_up_days ?? 5,
+          billing_model: input.billing_model ?? "per_streams",
+          monthly_amount: input.monthly_amount ?? null,
+          cycle_months: input.cycle_months ?? null,
         })
         .eq("id", dealId);
       if (updErr) throw updErr;

@@ -457,6 +457,11 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
   const [submitting, setSubmitting] = useState(false);
   const [songs, setSongs] = useState<SongRow[]>([emptySong()]);
 
+  // Modelo de cobrança do deal
+  const [billingModel, setBillingModel] = useState<"per_streams" | "monthly_retainer">("per_streams");
+  const [monthlyAmountDigits, setMonthlyAmountDigits] = useState("");
+  const [cycleMonths, setCycleMonths] = useState("1");
+
   // Passo 1 — curador
   const [curatorMode, setCuratorMode] = useState<"select" | "new">("select");
   const [selectedCuratorId, setSelectedCuratorId] = useState<string | null>(null);
@@ -655,6 +660,14 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
       setCuratorMode("select");
       setSelectedCuratorId(editDeal.curator_id ?? null);
 
+      // Hidrata modelo de cobrança
+      const editBilling = (editDeal as unknown as { billing_model?: string }).billing_model;
+      setBillingModel(editBilling === "monthly_retainer" ? "monthly_retainer" : "per_streams");
+      const editMonthly = (editDeal as unknown as { monthly_amount?: number | null }).monthly_amount;
+      setMonthlyAmountDigits(editMonthly ? String(Math.round(Number(editMonthly) * 100)) : "");
+      const editCycle = (editDeal as unknown as { cycle_months?: number | null }).cycle_months;
+      setCycleMonths(editCycle ? String(editCycle) : "1");
+
       const sourceSongs =
         editSongs && editSongs.length > 0
           ? [...editSongs].sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
@@ -728,6 +741,9 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
       setBalancePlaysDigits("");
       setBalanceCostDigits("");
       setSongs([emptySong()]);
+      setBillingModel("per_streams");
+      setMonthlyAmountDigits("");
+      setCycleMonths("1");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, isEdit, editDeal?.id]);
@@ -919,12 +935,26 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
       }
       const dg = Number(s.daily_goal);
       const dd = Number(s.duration_days);
-      if (!dg || dg <= 0) {
+      // No mensalista, meta diária é opcional (serve só pra acompanhamento)
+      if (billingModel === "per_streams" && (!dg || dg <= 0)) {
         toast.error(`Defina a meta diária da música ${i + 1}`);
         return;
       }
       if (!dd || dd <= 0) {
         toast.error(`Defina a duração (dias) da música ${i + 1}`);
+        return;
+      }
+    }
+
+    if (billingModel === "monthly_retainer") {
+      const mv = currencyDigitsToNumber(monthlyAmountDigits) ?? 0;
+      const cm = Number(cycleMonths);
+      if (mv <= 0) {
+        toast.error("Informe o valor mensal do curador");
+        return;
+      }
+      if (!cm || cm < 1) {
+        toast.error("Informe a quantidade de meses do ciclo");
         return;
       }
     }
@@ -973,6 +1003,13 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
       const cpp = curatorPurchasedPlays > 0 ? curatorTotalCost / curatorPurchasedPlays : 0;
       const dealCostRaw = cpp > 0 ? Math.round(songsTotalTarget * cpp * 100) / 100 : 0;
 
+      const monthlyAmountVal = currencyDigitsToNumber(monthlyAmountDigits) ?? 0;
+      const cycleMonthsVal = Number(cycleMonths) || null;
+      // Mensalista: cost = valor do ciclo todo (mensal × meses); per_streams: deriva do CPP
+      const finalCost = billingModel === "monthly_retainer"
+        ? (monthlyAmountVal > 0 && cycleMonthsVal ? monthlyAmountVal * cycleMonthsVal : monthlyAmountVal || null)
+        : (typeof dealCostRaw === "number" && dealCostRaw > 0 ? dealCostRaw : null);
+
       const payload = {
         curator_id: selectedCuratorId ?? null,
         curator_name: curatorName,
@@ -982,16 +1019,19 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
         artist_candidates: primary.meta!.artist_candidates,
         song_cover_url: primary.meta!.thumbnail_url,
         target_plays: songsTotalTarget,
-        daily_goal: Number(primary.daily_goal),
+        daily_goal: Number(primary.daily_goal) || 0,
         duration_days: Number(primary.duration_days),
         baseline_plays: 0,
-        cost: typeof dealCostRaw === "number" && dealCostRaw > 0 ? dealCostRaw : null,
+        cost: finalCost,
         started_at: dealStart.toISOString(),
         ends_at: dealEnd.toISOString(),
         ramp_up_days: primary.ramp_up_days ? Math.max(0, Number(primary.ramp_up_days)) : 5,
         client_id: primary.client_id ?? null,
         smartlink_url: primary.smartlink_url.trim() || null,
         extra_songs: extras,
+        billing_model: billingModel,
+        monthly_amount: billingModel === "monthly_retainer" ? monthlyAmountVal : null,
+        cycle_months: billingModel === "monthly_retainer" ? cycleMonthsVal : null,
       };
 
       // Garante coerência: payload.target_plays é a soma. Se primary tiver target=0 (edge), usa total.
