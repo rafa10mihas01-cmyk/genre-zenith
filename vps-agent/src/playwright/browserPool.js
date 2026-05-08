@@ -71,21 +71,29 @@ class BrowserPool {
   }
 
   async _create() {
-    ensureStealth();
-    const launcher = stealthApplied ? extraChromium : rawChromium;
-    log.info("iniciando Chromium (stealth)", {
+    const legacy = config.PLAYWRIGHT_LEGACY_MODE;
+    if (!legacy) ensureStealth();
+    const launcher = (!legacy && stealthApplied) ? extraChromium : rawChromium;
+    log.info("iniciando Chromium", {
+      mode: legacy ? "LEGACY" : "stealth",
       headless: config.PLAYWRIGHT_HEADLESS,
-      stealth: stealthApplied,
+      stealth: !legacy && stealthApplied,
       viewport: VIEWPORT,
       tz: TZ,
       locale: LOCALE,
     });
 
+    const legacyArgs = [
+      "--no-sandbox", "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage", "--disable-gpu",
+      "--disable-features=IsolateOrigins,site-per-process",
+      "--no-zygote",
+    ];
+
     this.browser = await launcher.launch({
       headless: config.PLAYWRIGHT_HEADLESS,
-      args: HARDENED_ARGS,
-      ignoreDefaultArgs: ["--enable-automation"],
-      chromiumSandbox: false,
+      args: legacy ? legacyArgs : HARDENED_ARGS,
+      ...(legacy ? {} : { ignoreDefaultArgs: ["--enable-automation"], chromiumSandbox: false }),
     });
 
     let storageState;
