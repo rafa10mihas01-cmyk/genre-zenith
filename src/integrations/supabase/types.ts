@@ -930,6 +930,7 @@ export type Database = {
       curator_deals: {
         Row: {
           baseline_plays: number
+          billing_model: string
           client_token: string
           closed_at: string | null
           closed_reason: string | null
@@ -938,11 +939,14 @@ export type Database = {
           created_at: string
           curator_id: string | null
           curator_name: string
+          cycle_months: number | null
           daily_goal: number
           ends_at: string | null
           final_report_url: string | null
           id: string
           last_reconciled_at: string | null
+          monthly_amount: number | null
+          next_invoice_at: string | null
           payout_window: string
           public_token: string
           ramp_up_days: number
@@ -965,6 +969,7 @@ export type Database = {
         }
         Insert: {
           baseline_plays?: number
+          billing_model?: string
           client_token?: string
           closed_at?: string | null
           closed_reason?: string | null
@@ -973,11 +978,14 @@ export type Database = {
           created_at?: string
           curator_id?: string | null
           curator_name: string
+          cycle_months?: number | null
           daily_goal?: number
           ends_at?: string | null
           final_report_url?: string | null
           id?: string
           last_reconciled_at?: string | null
+          monthly_amount?: number | null
+          next_invoice_at?: string | null
           payout_window?: string
           public_token?: string
           ramp_up_days?: number
@@ -1000,6 +1008,7 @@ export type Database = {
         }
         Update: {
           baseline_plays?: number
+          billing_model?: string
           client_token?: string
           closed_at?: string | null
           closed_reason?: string | null
@@ -1008,11 +1017,14 @@ export type Database = {
           created_at?: string
           curator_id?: string | null
           curator_name?: string
+          cycle_months?: number | null
           daily_goal?: number
           ends_at?: string | null
           final_report_url?: string | null
           id?: string
           last_reconciled_at?: string | null
+          monthly_amount?: number | null
+          next_invoice_at?: string | null
           payout_window?: string
           public_token?: string
           ramp_up_days?: number
