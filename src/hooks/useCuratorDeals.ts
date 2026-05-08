@@ -113,6 +113,10 @@ export type NewCuratorDealInput = {
   ends_at?: string | null;
   ramp_up_days?: number;
   extra_songs?: DealSongInput[];
+  // Modelo de cobrança
+  billing_model?: "per_streams" | "monthly_retainer";
+  monthly_amount?: number | null;
+  cycle_months?: number | null;
 };
 
 export type NewCuratorLogInput = {
