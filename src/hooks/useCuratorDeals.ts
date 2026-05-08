@@ -381,6 +381,11 @@ export function useCuratorDeals() {
           ...(input.spotify_owner_id !== undefined && { spotify_owner_id: input.spotify_owner_id ?? null }),
           ...(input.spotify_owner_url !== undefined && { spotify_owner_url: input.spotify_owner_url ?? null }),
           ...(input.notes !== undefined && { notes: input.notes ?? null }),
+          ...(input.deal_type !== undefined && { deal_type: input.deal_type }),
+          ...(input.default_amount !== undefined && { default_amount: input.default_amount ?? null }),
+          ...(input.default_plays !== undefined && { default_plays: input.default_plays ?? null }),
+          ...(input.monthly_amount !== undefined && { monthly_amount: input.monthly_amount ?? null }),
+          ...(input.billing_day !== undefined && { billing_day: input.billing_day ?? null }),
         })
         .eq("id", curatorId);
       if (updErr) throw updErr;
