@@ -51,7 +51,7 @@ export function WorkersPanel() {
         <KpiBig icon={Server} label="Workers ativos" value={formatNumber(stats.online)} hint={`${stats.total} registrados`} loading={loading} />
         <KpiBig icon={Activity} label="Ocupados" value={formatNumber(stats.busy)} tone="primary" hint="Processando agora" loading={loading} />
         <KpiBig icon={CheckCircle2} label="Jobs concluídos" value={formatNumber(stats.completed)} tone="success" hint="Sessão acumulada" loading={loading} />
-        <KpiBig icon={XCircle} label="Falhas" value={formatNumber(stats.failed)} tone={stats.failed > 0 ? "danger" : "default"} hint="Sessão acumulada" loading={loading} />
+        <KpiBig icon={XCircle} label="Falhas" value={formatNumber(stats.failed)} tone={stats.failed > 0 ? "destructive" : "default"} hint="Sessão acumulada" loading={loading} />
       </section>
 
       <Card>

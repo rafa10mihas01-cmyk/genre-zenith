@@ -146,7 +146,7 @@ export function FilaPanel() {
         <KpiBig icon={Clock} label="Pendentes" value={formatNumber(stats.by.pending + stats.by.retry)} hint={`${stats.by.retry} em retry`} loading={loading} />
         <KpiBig icon={Activity} label="Processando" value={formatNumber(stats.by.processing)} tone="primary" hint="Em execução" loading={loading} />
         <KpiBig icon={CheckCircle2} label="Concluídos" value={formatNumber(stats.by.completed)} tone="success" hint={`média ${fmtDuration(stats.avgMs)}`} loading={loading} />
-        <KpiBig icon={XCircle} label="Falharam" value={formatNumber(stats.by.failed)} tone={stats.by.failed > 0 ? "danger" : "default"} hint="Últimos 300" loading={loading} />
+        <KpiBig icon={XCircle} label="Falharam" value={formatNumber(stats.by.failed)} tone={stats.by.failed > 0 ? "destructive" : "default"} hint="Últimos 300" loading={loading} />
       </section>
 
       <Card>
