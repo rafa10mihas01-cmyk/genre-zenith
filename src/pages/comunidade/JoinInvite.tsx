@@ -125,7 +125,7 @@ export default function JoinInvite() {
     const { error } = await supabase.rpc("accept_community_invite", { p_code: code });
     setSubmitting(false);
     if (error) {
-      toast.error("Não foi possível aceitar o convite", { description: error.message });
+      toast.error("Não foi possível aceitar o convite", { description: translateRpcError(error.message) });
       return;
     }
     nav("/comunidade/onboarding", { replace: true });
@@ -140,27 +140,78 @@ export default function JoinInvite() {
     e.preventDefault();
     if (!email || !password) return;
     setSubmitting(true);
-    // Tenta criar conta. Se já existir, faz login.
-    const { error: signUpErr } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { emailRedirectTo: `${window.location.origin}/comunidade/join/${code}` },
-    });
+    setNeedsConfirm(false);
 
+    // Quando o convite tem email fixo, geralmente a conta JÁ existe (admin já convidou
+    // pelo Supabase e a pessoa só precisa logar). Por isso tentamos signIn primeiro.
+    const inviteHasEmail = state.status === "ok" && !!state.invite.email;
+
+    async function tryLogin() {
+      return supabase.auth.signInWithPassword({ email, password });
+    }
+    async function trySignup() {
+      return supabase.auth.signUp({
+        email,
+        password,
+        options: { emailRedirectTo: `${window.location.origin}/comunidade/join/${code}` },
+      });
+    }
+
+    if (inviteHasEmail) {
+      // 1) Login primeiro
+      const { error: loginErr } = await tryLogin();
+      if (!loginErr) { setSubmitting(false); return; }
+
+      const lm = loginErr.message.toLowerCase();
+      if (lm.includes("email not confirmed")) {
+        setNeedsConfirm(true);
+        setSubmitting(false);
+        toast.error("Email ainda não confirmado", { description: "Reenvie o link de confirmação abaixo." });
+        return;
+      }
+      if (lm.includes("invalid login")) {
+        // Conta provavelmente não existe — cria
+        const { error: signUpErr } = await trySignup();
+        if (signUpErr && !/already/i.test(signUpErr.message)) {
+          setSubmitting(false);
+          toast.error("Falha ao criar conta", { description: signUpErr.message });
+          return;
+        }
+        // tenta login de novo
+        const { error: loginErr2 } = await tryLogin();
+        setSubmitting(false);
+        if (loginErr2) {
+          if (loginErr2.message.toLowerCase().includes("email not confirmed")) {
+            setNeedsConfirm(true);
+            toast.error("Confirme seu email", { description: "Enviamos um link de confirmação." });
+          } else {
+            toast.error("Não foi possível entrar", { description: loginErr2.message });
+          }
+        }
+        return;
+      }
+      setSubmitting(false);
+      toast.error("Não foi possível entrar", { description: loginErr.message });
+      return;
+    }
+
+    // Convite sem email fixo: comportamento antigo (signUp → signIn)
+    const { error: signUpErr } = await trySignup();
     if (signUpErr && !/already/i.test(signUpErr.message)) {
       setSubmitting(false);
       toast.error("Falha ao criar conta", { description: signUpErr.message });
       return;
     }
-
-    // signIn (cobre o caso de conta já existente)
-    const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
+    const { error: signInErr } = await tryLogin();
     setSubmitting(false);
     if (signInErr) {
+      if (signInErr.message.toLowerCase().includes("email not confirmed")) {
+        setNeedsConfirm(true);
+        toast.error("Confirme seu email", { description: "Enviamos um link de confirmação." });
+        return;
+      }
       toast.error("Não foi possível entrar", { description: signInErr.message });
-      return;
     }
-    // Após o login, a tela muda para confirmação explícita antes de aceitar o convite.
   }
 
   return (
