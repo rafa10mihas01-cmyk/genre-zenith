@@ -130,6 +130,8 @@ class BrowserPool {
         Object.defineProperty(navigator, "plugins", {
           get: () => [1, 2, 3, 4, 5].map(() => ({ name: "Chromium PDF Plugin" })),
         });
+        Object.defineProperty(navigator, "hardwareConcurrency", { get: () => 8 });
+        Object.defineProperty(navigator, "deviceMemory", { get: () => 8 });
         // Chrome runtime
         // @ts-ignore
         window.chrome = window.chrome || { runtime: {}, app: {}, csi: () => {}, loadTimes: () => {} };
@@ -141,6 +143,15 @@ class BrowserPool {
               ? Promise.resolve({ state: Notification.permission })
               : origQuery(p);
         }
+        // WebGL vendor/renderer spoof (Apple/Intel — combina com UA Mac)
+        const getParam = WebGLRenderingContext.prototype.getParameter;
+        WebGLRenderingContext.prototype.getParameter = function (p) {
+          if (p === 37445) return "Intel Inc.";
+          if (p === 37446) return "Intel Iris OpenGL Engine";
+          return getParam.call(this, p);
+        };
+        // Notification permission default
+        try { Object.defineProperty(Notification, "permission", { get: () => "default" }); } catch {}
       } catch {}
     });
 
