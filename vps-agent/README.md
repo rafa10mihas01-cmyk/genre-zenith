@@ -195,3 +195,99 @@ Reinicie os workers: `pm2 restart /nexengine-worker-/`.
 | `docker ps` falha | Usuário sem permissão | `sudo usermod -aG docker $USER` + relogar, ou `DOCKER_ENABLED=false` |
 | Workers `offline` no painel | Heartbeat não chega | `pm2 logs nexengine-worker-0` — confira `OPS_AGENT_TOKEN` e `OPS_BASE` |
 | Jobs ficam em `processing` para sempre | Worker travou sem completar | `jobs-maintenance` requeue automático após `lease_seconds` |
+
+---
+
+## 11. Deploy operacional REAL (runtime VPS)
+
+Estrutura completa pronta para `git pull && npm install && pm2 start ecosystem.config.cjs`.
+
+### Layout final
+
+```
+vps-agent/
+├── ecosystem.config.cjs        # PM2: agent + N workers + scheduler + healthcheck
+├── Dockerfile                  # imagem Playwright + PM2 runtime
+├── docker-compose.worker.yml   # stack docker isolada (alternativa ao PM2 nativo)
+├── package.json                # scripts: setup, deploy, pm2:*, docker:*
+├── .env.example                # todas as variáveis documentadas
+├── scripts/
+│   ├── startup.sh              # primeira instalação (idempotente)
+│   ├── deploy.sh               # git pull + install + pm2 reload (zero-downtime)
+│   ├── healthcheck.sh          # check externo (cron/uptimerobot)
+│   └── spotify-session.sh      # gera storageState do S4A
+└── src/
+    ├── index.js                # ops agent (PM2/Docker/shell, métricas)
+    ├── worker.js               # consumidor de jobs_queue (×WORKER_COUNT)
+    ├── scheduler.js            # tick periódico → edge `jobs-scheduler`
+    ├── healthcheck.js          # HTTP /health + /metrics
+    ├── handlers/               # spotify.artist.fetch / deal.collect / print_batch
+    ├── playwright/             # browserPool, session, selectors, errors
+    └── cloud/                  # supabase service-role + uploadPrint
+```
+
+### Setup inicial (uma vez por VPS)
+
+```bash
+cd /opt && git clone <repo> nexengine && cd nexengine/vps-agent
+cp .env.example .env && nano .env       # OPS_AGENT_TOKEN + SUPABASE_SERVICE_ROLE_KEY
+npm run setup                            # = bash scripts/startup.sh
+npm run spotify:session                  # gera /opt/nexengine/secrets/spotify-session.json
+pm2 startup                              # auto-start no boot
+```
+
+### Deploy contínuo (cada release)
+
+```bash
+cd /opt/nexengine/vps-agent
+npm run deploy        # git pull + install + pm2 reload (zero-downtime)
+```
+
+### Monitor / observabilidade runtime
+
+| Comando | O que faz |
+|---|---|
+| `pm2 status` | Estado de todos os processos |
+| `pm2 logs` | Logs combinados em tempo real |
+| `npm run pm2:logs:workers` | Apenas logs dos workers |
+| `npm run pm2:logs:scheduler` | Apenas logs do scheduler |
+| `npm run healthcheck` | Bate em `/health` + valida PM2 |
+| `curl http://127.0.0.1:8787/health` | JSON com uptime, CPU, RAM, processos PM2 |
+| `curl http://127.0.0.1:8787/metrics` | Prometheus plain text |
+
+### Modo Docker (alternativo, opcional)
+
+```bash
+cd /opt/nexengine/vps-agent
+docker compose -f docker-compose.worker.yml up -d --build
+docker compose -f docker-compose.worker.yml logs -f
+```
+
+A imagem usa `mcr.microsoft.com/playwright:v1.47.2-jammy` (Chromium pré-instalado), `pm2-runtime` no PID 1, `shm_size: 1gb` para o Chromium, e expõe `/health` na porta 8787.
+
+### Scheduler
+
+`src/scheduler.js` é um processo PM2 dedicado que chama `jobs-scheduler` (edge function) em três cadências independentes — sem cron do SO, sem `pg_cron`. Tudo configurável via `.env`:
+
+| Variável | Default | Escopo |
+|---|---|---|
+| `SCHEDULER_MAIN_INTERVAL_MS` | 5 min | enfileira `spotify.deal.collect` + `spotify.artist.fetch` |
+| `SCHEDULER_RETRY_INTERVAL_MS` | 2 min | reprocessa `failed` com backoff |
+| `SCHEDULER_PRINT_INTERVAL_MS` | 15 min | enfileira `spotify.print_batch` pendentes |
+
+Para desligar (e usar apenas o botão "Rodar agora" do painel): `ENABLE_SCHEDULER=false`.
+
+### Migração do bot monolítico (zero downtime)
+
+```bash
+# 1. Sobe nova arquitetura em paralelo ao bot antigo
+pm2 start ecosystem.config.cjs
+
+# 2. Acompanha por algumas horas no painel /sistema → Fila + Workers
+#    O dedupe_key impede coleta duplicada.
+
+# 3. Quando estabilizar, para o bot antigo
+pm2 stop spotify-bot
+pm2 delete spotify-bot
+pm2 save
+```
