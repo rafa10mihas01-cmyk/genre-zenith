@@ -143,6 +143,27 @@ async function dumpAuthFail(page, reason, extra = {}) {
  * OU URL claramente autenticada sem redirect para login.
  */
 export async function assertLoggedIn(page) {
+  // Modo legacy: comportamento original pré-refactor (1 seletor, 8s wait, sem pop-up).
+  if (config.PLAYWRIGHT_LEGACY_MODE) {
+    if (!page.url() || page.url() === "about:blank") {
+      await page.goto(HOME_URL, { waitUntil: "domcontentloaded" });
+    }
+    if (await page.locator(SELECTORS.captchaMarker).first().count().catch(() => 0)) throw new SpotifyCaptchaError();
+    if (await page.locator(SELECTORS.rateLimitMarker).first().count().catch(() => 0)) throw new SpotifyRateLimitError();
+    if (await page.locator(SELECTORS.loginPageMarker).first().count().catch(() => 0)) throw new SpotifyAuthError();
+    try {
+      await page.locator(SELECTORS.loggedInIndicator).first().waitFor({ state: "attached", timeout: 8000 });
+      log.info("login OK (legacy)", { url: page.url() });
+      return;
+    } catch {
+      const url = page.url();
+      if (/\/login/.test(url)) throw new SpotifyAuthError();
+      throw new SpotifyAuthError(`Indicador de login ausente em ${url}`);
+    }
+  }
+
+  // === Detector novo (resiliente) ===
+
   if (!page.url() || page.url() === "about:blank") {
     await page.goto(HOME_URL, { waitUntil: "domcontentloaded" });
   }
