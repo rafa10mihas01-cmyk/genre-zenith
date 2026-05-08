@@ -88,18 +88,34 @@ export function useJobsQueue(opts: { limit?: number } = {}) {
       pending: 0, processing: 0, completed: 0, failed: 0, cancelled: 0, retry: 0,
     };
     let totalDur = 0, durCount = 0;
+    const durByType = new Map<string, { sum: number; n: number }>();
+    const failuresByType = new Map<string, number>();
+    let retriesTotal = 0;
+    let completedLastHour = 0;
+    const cutoffHour = Date.now() - 3_600_000;
+
     for (const j of jobs) {
       by[j.status] = (by[j.status] ?? 0) + 1;
-      if (j.duration_ms) { totalDur += j.duration_ms; durCount++; }
+      if (j.attempts > 1) retriesTotal += (j.attempts - 1);
+      if (j.duration_ms) {
+        totalDur += j.duration_ms; durCount++;
+        const cur = durByType.get(j.job_type) ?? { sum: 0, n: 0 };
+        cur.sum += j.duration_ms; cur.n++;
+        durByType.set(j.job_type, cur);
+      }
+      if (j.status === "failed") failuresByType.set(j.job_type, (failuresByType.get(j.job_type) ?? 0) + 1);
+      if (j.status === "completed" && j.finished_at && new Date(j.finished_at).getTime() >= cutoffHour) {
+        completedLastHour++;
+      }
     }
     const avgMs = durCount ? Math.round(totalDur / durCount) : 0;
+    const throughputPerMin = +(completedLastHour / 60).toFixed(2);
+    const total = jobs.length || 1;
+    const crashRate = +((by.failed / total) * 100).toFixed(1);
+    const avgByType = new Map<string, number>();
+    durByType.forEach((v, k) => avgByType.set(k, Math.round(v.sum / v.n)));
 
-    const failuresByType = new Map<string, number>();
-    for (const j of jobs) {
-      if (j.status === "failed") failuresByType.set(j.job_type, (failuresByType.get(j.job_type) ?? 0) + 1);
-    }
-
-    return { by, avgMs, totalJobs: jobs.length, failuresByType };
+    return { by, avgMs, totalJobs: jobs.length, failuresByType, throughputPerMin, crashRate, retriesTotal, avgByType };
   }, [jobs]);
 
   return { jobs, workers, loading, reload, stats };
