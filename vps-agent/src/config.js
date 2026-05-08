@@ -54,8 +54,8 @@ export const config = {
   SHELL_TIMEOUT_MS: num("SHELL_TIMEOUT_MS", 15000),
 
   // ===== Worker / Playwright =====
-  SUPABASE_URL: process.env.SUPABASE_URL?.trim() || "",
-  SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() || "",
+  // Persistência da VPS é 100% via worker-bridge (HTTP + x-agent-token).
+  // NENHUM service_role local — qualquer SUPABASE_* legado é ignorado.
 
   SPOTIFY_S4A_BASE: process.env.SPOTIFY_S4A_BASE?.trim() || "https://artists.spotify.com",
   SPOTIFY_STORAGE_STATE_PATH: process.env.SPOTIFY_STORAGE_STATE_PATH?.trim() || "",
