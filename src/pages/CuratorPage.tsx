@@ -1585,12 +1585,19 @@ export default function CuratorPage() {
                 {songs.map((s) => {
                   const isSelected = selectedSongId === s.id;
                   return (
-                    <button
+                    <div
                       key={s.id}
-                      type="button"
+                      role="button"
+                      tabIndex={0}
                       onClick={() => setSelectedSongId(s.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          setSelectedSongId(s.id);
+                        }
+                      }}
                       className={cn(
-                        "w-full flex items-center gap-3 rounded-xl px-3 py-2 text-left transition-all ring-1",
+                        "w-full flex items-center gap-3 rounded-xl px-3 py-2 text-left transition-all ring-1 cursor-pointer",
                         isSelected
                           ? "bg-primary/10 ring-primary/50 text-foreground"
                           : "bg-muted/30 ring-border hover:bg-muted/50 text-muted-foreground",
@@ -1602,7 +1609,21 @@ export default function CuratorPage() {
                         <div className="w-8 h-8 rounded-md bg-muted shrink-0" />
                       )}
                       <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">{s.song_name}</span>
-                    </button>
+                      {access.writable && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setAddSongToPlaylistFor(s);
+                          }}
+                          title={`Adicionar "${s.song_name}" em uma playlist já cadastrada`}
+                          aria-label={`Adicionar ${s.song_name} em playlist existente`}
+                          className="shrink-0 inline-flex items-center justify-center h-7 w-7 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
                   );
                 })}
               </div>
