@@ -471,6 +471,9 @@ export function useCuratorDeals() {
         started_at: input.started_at ?? new Date().toISOString(),
         ends_at: input.ends_at ?? null,
         ramp_up_days: input.ramp_up_days ?? 5,
+        billing_model: input.billing_model ?? "per_streams",
+        monthly_amount: input.monthly_amount ?? null,
+        cycle_months: input.cycle_months ?? null,
       };
 
       const { data, error: rpcErr } = await supabase.rpc(
