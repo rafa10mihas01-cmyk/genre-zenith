@@ -29,6 +29,8 @@ const TABS: TabDef[] = [
   { id: "fluxo", label: "Fluxo", icon: Workflow },
   { id: "ao-vivo", label: "Ao Vivo", icon: Activity },
   { id: "robo", label: "Robô", icon: Bot },
+  { id: "fila", label: "Fila", icon: Layers },
+  { id: "workers", label: "Workers", icon: Server },
   { id: "coleta", label: "Coleta", icon: Music2 },
   { id: "saude", label: "Saúde", icon: HeartPulse },
   { id: "alertas", label: "Alertas", icon: Bell },
