@@ -135,9 +135,27 @@ export async function checkTrackInPlaylist(
   }
 
   const token = await getSpotifyToken();
-  const fields = "items(track(id,name,artists(name))),next";
+  // Inclui linked_from pra cobrir track relinking (regional/remaster). O Spotify
+  // pode retornar um id diferente do "original" quando a faixa foi relincada.
+  const fields = "items(track(id,name,artists(name),linked_from(id),external_ids(isrc))),next";
   let offset = 0;
   let position = 0;
+
+  // Busca o ISRC da faixa "original" pra fallback de match (cobre casos onde o
+  // mesmo lançamento existe em álbuns/regiões diferentes com ids distintos).
+  let originalIsrc: string | null = null;
+  try {
+    const trRes = await fetchWithRetry(
+      `https://api.spotify.com/v1/tracks/${trackId}?market=from_token`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    if (trRes.ok) {
+      const tj = await trRes.json();
+      originalIsrc = tj?.external_ids?.isrc ?? null;
+    } else {
+      await trRes.text().catch(() => {});
+    }
+  } catch (_) { /* ignore */ }
 
   while (offset < 10000) {
     const url = new URL(`https://api.spotify.com/v1/playlists/${playlistId}/tracks`);
@@ -153,7 +171,12 @@ export async function checkTrackInPlaylist(
     for (const item of items) {
       position += 1;
       const track = item?.track;
-      if (track?.id === trackId) {
+      if (!track) continue;
+      const linkedId = track?.linked_from?.id ?? null;
+      const isrc = track?.external_ids?.isrc ?? null;
+      const idMatch = track.id === trackId || linkedId === trackId;
+      const isrcMatch = !!originalIsrc && !!isrc && originalIsrc === isrc;
+      if (idMatch || isrcMatch) {
         const artists = Array.isArray(track.artists) ? track.artists : [];
         return {
           found: true,
