@@ -230,11 +230,21 @@ vps-agent/
 
 ```bash
 cd /opt && git clone <repo> nexengine && cd nexengine/vps-agent
-cp .env.example .env && nano .env       # OPS_AGENT_TOKEN + SUPABASE_SERVICE_ROLE_KEY
+cp .env.example .env && nano .env       # OPS_AGENT_TOKEN (apenas)
 npm run setup                            # = bash scripts/startup.sh
-npm run spotify:session                  # gera /opt/nexengine/secrets/spotify-session.json
+npm run spotify:session                  # gera storageState com MESMO fingerprint do worker
+npm run spotify:validate                 # valida sessão headless ANTES de subir workers
 pm2 startup                              # auto-start no boot
 ```
+
+> **Stealth/anti-bot:** o Chromium dos workers usa `playwright-extra` +
+> `puppeteer-extra-plugin-stealth`, remove flags de automação, força UA/locale/timezone/
+> viewport/DPR estáveis e patcheia `navigator.webdriver`, `plugins`, `languages`,
+> `chrome` runtime e `permissions`. O `spotify-session.sh` aplica os mesmos valores de
+> `.env` (`PLAYWRIGHT_USER_AGENT`, `PLAYWRIGHT_LOCALE`, `PLAYWRIGHT_TZ`,
+> `PLAYWRIGHT_VIEWPORT_*`, `PLAYWRIGHT_DPR`) — **não altere esses valores depois de
+> gerar a sessão** ou o Spotify a invalida. Em falha de auth o worker salva
+> `auth-fails/<timestamp>-<reason>.png` no bucket `bot-prints` (URL no `bot_event`).
 
 ### Deploy contínuo (cada release)
 
