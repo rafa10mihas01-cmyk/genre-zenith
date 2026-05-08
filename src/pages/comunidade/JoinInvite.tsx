@@ -288,12 +288,17 @@ export default function JoinInvite() {
           }
 
           // Caso 2: visitante — fluxo de signup/login
+          const hasFixedEmail = !!state.invite.email;
           return (
           <div className="rounded-2xl border border-border bg-card p-6 space-y-5">
             <div>
               <h1 className="text-lg font-semibold leading-tight">Você foi convidado</h1>
               <p className="mt-1 text-sm text-muted-foreground">
-                Por {state.invite.invited_by_name}. Crie sua conta para entrar na comunidade.
+                Por {state.invite.invited_by_name}.{" "}
+                {hasFixedEmail ? "Entre com sua conta para acessar a comunidade." : "Crie sua conta para entrar na comunidade."}
+              </p>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                {formatCountdown(state.invite.expires_at)}
               </p>
             </div>
 
@@ -308,13 +313,13 @@ export default function JoinInvite() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  disabled={!!state.invite.email}
+                  disabled={hasFixedEmail}
                   className="bg-elevated"
                 />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="password" className="text-xs uppercase tracking-wider text-muted-foreground">
-                  Crie uma senha
+                  {hasFixedEmail ? "Senha" : "Crie uma senha"}
                 </Label>
                 <Input
                   id="password"
@@ -326,6 +331,18 @@ export default function JoinInvite() {
                   className="bg-elevated"
                 />
               </div>
+
+              {needsConfirm && (
+                <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/5 p-3 space-y-2">
+                  <p className="text-xs text-yellow-300">
+                    Seu email ainda não foi confirmado. Verifique sua caixa de entrada ou reenvie o link.
+                  </p>
+                  <Button type="button" variant="outline" size="sm" className="w-full" disabled={resending} onClick={resendConfirmation}>
+                    {resending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Reenviar email de confirmação"}
+                  </Button>
+                </div>
+              )}
+
               <Button type="submit" disabled={submitting} className="w-full">
                 {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Entrar na comunidade"}
               </Button>
