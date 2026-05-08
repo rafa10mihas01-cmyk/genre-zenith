@@ -8,10 +8,14 @@
   "engines": { "node": ">=18.17.0" },
   "scripts": {
     "start": "node src/index.js",
+    "start:worker": "node src/worker.js",
     "dev": "node --watch src/index.js",
+    "dev:worker": "node --watch src/worker.js",
     "pm2:start": "pm2 start ecosystem.config.cjs",
-    "pm2:logs": "pm2 logs nexengine-ops-agent",
-    "pm2:restart": "pm2 restart nexengine-ops-agent",
+    "pm2:logs": "pm2 logs",
+    "pm2:logs:agent": "pm2 logs nexengine-ops-agent",
+    "pm2:logs:workers": "pm2 logs /nexengine-worker-/",
+    "pm2:restart": "pm2 restart ecosystem.config.cjs",
     "pm2:save": "pm2 save"
   },
   "dependencies": {
