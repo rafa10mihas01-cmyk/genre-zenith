@@ -1076,21 +1076,6 @@ export default function CuratorPage() {
                             )}
                           </div>
                         </button>
-                        {access.writable && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setAddSongToPlaylistFor(s);
-                            }}
-                            title="Adicionar essa música em uma playlist já cadastrada"
-                            className="absolute top-1/2 -translate-y-1/2 right-2 inline-flex items-center gap-1 px-2.5 h-7 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-colors text-[11px] font-semibold shadow-sm"
-                            aria-label={`Adicionar ${s.song_name} em uma playlist existente`}
-                          >
-                            <Plus className="h-3 w-3" />
-                            <span className="hidden sm:inline">Em outra playlist</span>
-                          </button>
-                        )}
                       </div>
                     </li>
                   );
