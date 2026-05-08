@@ -261,6 +261,9 @@ export default function JoinInvite() {
                   <p className="mt-1 text-sm text-muted-foreground">
                     Você está logado como <span className="font-medium text-foreground">{user.email}</span>.
                   </p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    {formatCountdown(state.invite.expires_at)}
+                  </p>
                 </div>
 
                 {emailMismatch ? (
