@@ -12,6 +12,7 @@ import { KpiBig } from "@/components/KpiBig";
 import { formatNumber } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
 import { useJobsQueue, type Job, type JobStatus } from "@/hooks/useJobsQueue";
+import { SchedulerCard } from "./SchedulerCard";
 import { cn } from "@/lib/utils";
 
 const STATUS_META: Record<JobStatus, { label: string; tone: string; icon: typeof Clock }> = {
@@ -142,11 +143,13 @@ export function FilaPanel() {
 
   return (
     <div className="space-y-6">
+      <SchedulerCard stats={stats} onRan={reload} />
+
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiBig icon={Clock} label="Pendentes" value={formatNumber(stats.by.pending + stats.by.retry)} hint={`${stats.by.retry} em retry`} loading={loading} />
         <KpiBig icon={Activity} label="Processando" value={formatNumber(stats.by.processing)} tone="primary" hint="Em execução" loading={loading} />
         <KpiBig icon={CheckCircle2} label="Concluídos" value={formatNumber(stats.by.completed)} tone="success" hint={`média ${fmtDuration(stats.avgMs)}`} loading={loading} />
-        <KpiBig icon={XCircle} label="Falharam" value={formatNumber(stats.by.failed)} tone={stats.by.failed > 0 ? "destructive" : "default"} hint="Últimos 300" loading={loading} />
+        <KpiBig icon={XCircle} label="Falharam" value={formatNumber(stats.by.failed)} tone={stats.by.failed > 0 ? "destructive" : "default"} hint={`crash ${stats.crashRate.toFixed(1)}%`} loading={loading} />
       </section>
 
       <Card>

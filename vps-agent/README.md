@@ -93,7 +93,57 @@ cd vps-agent && npm install --omit=dev
 pm2 restart nexengine-ops-agent
 ```
 
-## 8. Workers de fila (queue/worker)
+## 8. Playwright / Sessão Spotify (handlers reais)
+
+Os workers executam **coleta real** no Spotify for Artists via Playwright + sessão persistente.
+
+**Setup único na VPS:**
+
+```bash
+cd /opt/nexengine/vps-agent
+npm install                          # instala playwright
+npx playwright install --with-deps chromium
+
+# Gere a sessão logada uma vez (interativo, browser real)
+node -e "(async () => {
+  const { chromium } = require('playwright');
+  const b = await chromium.launch({ headless: false });
+  const c = await b.newContext();
+  const p = await c.newPage();
+  await p.goto('https://artists.spotify.com');
+  console.log('Faça login manualmente e pressione ENTER aqui...');
+  process.stdin.once('data', async () => {
+    await c.storageState({ path: '/opt/nexengine/secrets/spotify-session.json' });
+    await b.close(); process.exit(0);
+  });
+})();"
+```
+
+Depois aponte `SPOTIFY_STORAGE_STATE_PATH` no `.env` para esse arquivo. Quando a sessão expirar, o handler abre incidente `spotify_login_invalid` no painel — basta regerar o JSON.
+
+**Seletores reais:** centralizados em `src/playwright/spotifySelectors.js`. Quando o Spotify muda o HTML, é o único lugar a tocar (ou via `SEL_*` no `.env` sem rebuild).
+
+**Garantias do browser pool:**
+- 1 Chromium persistente por worker (reutilizado entre jobs)
+- reciclado após `BROWSER_RECYCLE_AFTER_JOBS` ou `BROWSER_RECYCLE_AFTER_MIN`
+- `page.close()` no `finally` (sem leak)
+- watchdog interno mata o pool se ficar > `BROWSER_STUCK_AFTER_MS` ocupado
+- worker se auto-encerra (PM2 reinicia) se RSS > `WORKER_MEMORY_LIMIT_MB`
+
+**Tipos de erro tratados:**
+| Erro | fatal? | Comportamento |
+|---|---|---|
+| `SpotifyAuthError` | sim | dead-letter + incidente `spotify_login_invalid` |
+| `SpotifyCaptchaError` | sim | dead-letter + incidente `spotify_captcha` |
+| `SpotifyRateLimitError` | não | retry com backoff exponencial |
+| `JobTimeoutError` (>`JOB_TIMEOUT_MS`) | não | retry |
+| Selector ausente / parse falhou | não | retry (3x) → falha |
+
+**Scheduler:** painel `/sistema → Fila` tem botão "Rodar agora" que invoca a edge `jobs-scheduler` e enfileira automaticamente coletas/refresh/print batches respeitando `dedupe_key` e cooldowns.
+
+**Migração do bot monolítico:** rode os workers em paralelo ao bot antigo até estabilizar, depois `pm2 stop spotify-bot` na VPS. O `dedupe_key` impede coleta duplicada.
+
+## 9. Workers de fila (queue/worker)
 
 O `ecosystem.config.cjs` sobe `WORKER_COUNT` processos `nexengine-worker-N` em paralelo ao agente. Cada worker:
 
@@ -135,7 +185,7 @@ Reinicie os workers: `pm2 restart /nexengine-worker-/`.
 | `WORKER_IDLE_SLEEP_MS` | `2000` | Pausa quando fila vazia |
 | `WORKER_HEARTBEAT_MS` | `15000` | Frequência de heartbeat |
 
-## 9. Troubleshooting
+## 10. Troubleshooting
 
 | Sintoma | Causa provável | Ação |
 |---|---|---|
