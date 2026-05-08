@@ -130,6 +130,8 @@ class BrowserPool {
         Object.defineProperty(navigator, "plugins", {
           get: () => [1, 2, 3, 4, 5].map(() => ({ name: "Chromium PDF Plugin" })),
         });
+        Object.defineProperty(navigator, "hardwareConcurrency", { get: () => 8 });
+        Object.defineProperty(navigator, "deviceMemory", { get: () => 8 });
         // Chrome runtime
         // @ts-ignore
         window.chrome = window.chrome || { runtime: {}, app: {}, csi: () => {}, loadTimes: () => {} };
@@ -141,6 +143,15 @@ class BrowserPool {
               ? Promise.resolve({ state: Notification.permission })
               : origQuery(p);
         }
+        // WebGL vendor/renderer spoof (Apple/Intel — combina com UA Mac)
+        const getParam = WebGLRenderingContext.prototype.getParameter;
+        WebGLRenderingContext.prototype.getParameter = function (p) {
+          if (p === 37445) return "Intel Inc.";
+          if (p === 37446) return "Intel Iris OpenGL Engine";
+          return getParam.call(this, p);
+        };
+        // Notification permission default
+        try { Object.defineProperty(Notification, "permission", { get: () => "default" }); } catch {}
       } catch {}
     });
 
@@ -160,6 +171,23 @@ class BrowserPool {
 
   async withPage(fn) {
     await this._ensure();
+    // Precheck de cookies — uma vez por contexto. Se faltar sp_dc, sinaliza warn
+    // mas não bloqueia (assertLoggedIn captura o erro com screenshot).
+    if (!this._cookiesChecked) {
+      this._cookiesChecked = true;
+      try {
+        const cookies = await this.context.cookies("https://artists.spotify.com");
+        const required = ["sp_dc", "sp_t", "sp_key"];
+        const present = required.filter((n) => cookies.some((c) => c.name === n));
+        if (present.length === 0) {
+          log.error("precheck: NENHUM cookie de sessão Spotify (sp_dc/sp_t/sp_key) — login vai falhar");
+        } else {
+          log.info("precheck cookies", { present, total: cookies.length });
+        }
+      } catch (e) {
+        log.warn("precheck cookies falhou", { error: String(e?.message || e) });
+      }
+    }
     this.busy = true;
     this.lastActivityAt = Date.now();
     let page;

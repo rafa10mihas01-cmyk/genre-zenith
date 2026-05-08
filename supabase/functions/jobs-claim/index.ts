@@ -25,5 +25,8 @@ Deno.serve(async (req) => {
   });
 
   if (error) return jr({ error: error.message }, 500);
-  return jr({ job: data ?? null }, 200);
+  // claim_next_job retorna RECORD jobs_queue — quando não há job, devolve uma
+  // linha com TODAS as colunas NULL (não NULL puro). Normalizamos aqui.
+  const job = data && typeof data === "object" && (data as any).id ? data : null;
+  return jr({ job }, 200);
 });

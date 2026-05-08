@@ -85,6 +85,17 @@ async function processOne() {
   const job = claim?.job;
   if (!job) return false;
 
+  // Guard rail: payload pode vir malformado (id/type nulos) se a RPC retornar
+  // shape inesperado. NUNCA chamar complete() sem job.id válido.
+  if (!job.id || !job.job_type) {
+    log.warn("job inválido recebido (id/type nulos) — ignorando", {
+      raw_claim: JSON.stringify(claim).slice(0, 500),
+    });
+    // Pequeno backoff p/ evitar loop quente caso a RPC esteja repetindo lixo.
+    await new Promise((r) => setTimeout(r, 1500));
+    return false;
+  }
+
   stats.status = "busy";
   stats.current_job_id = job.id;
   stats.current_job_type = job.job_type;
