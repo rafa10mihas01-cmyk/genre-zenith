@@ -22,7 +22,7 @@ fi
 if [[ ! -f .env ]]; then
   echo "==> criando .env a partir de .env.example (preencha os valores!)"
   cp .env.example .env
-  echo "[!] EDITE .env antes de continuar (OPS_AGENT_TOKEN, SUPABASE_SERVICE_ROLE_KEY)."
+  echo "[!] EDITE .env antes de continuar (OPS_AGENT_TOKEN)."
   exit 1
 fi
 
