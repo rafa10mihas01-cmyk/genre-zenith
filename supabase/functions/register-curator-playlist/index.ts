@@ -321,7 +321,15 @@ Deno.serve(async (req) => {
                 ITEM_TIMEOUT_MS,
                 "spotify_timeout",
               );
-              if (item.track_presence.found) {
+              if (requireTrackPresent) {
+                // Curador disse "já adicionei" → exige presença real
+                if (!item.track_presence.found) {
+                  item.status = "track_not_present";
+                  return;
+                }
+                // Encontrou: segue como "ok" (insere)
+              } else if (item.track_presence.found) {
+                // Fluxo clássico (colando link): se já está dentro, bloqueia
                 item.status = "track_already_present";
                 return;
               }
