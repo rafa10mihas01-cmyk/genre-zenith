@@ -1533,6 +1533,109 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
               </div>
             )}
 
+            {/* Modelo de cobrança */}
+            <div className="rounded-xl border border-border/60 bg-[hsl(var(--elevated))] p-4 space-y-3 shadow-sm">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                    Modelo de cobrança
+                  </div>
+                  <div className="text-sm font-semibold text-foreground">
+                    {billingModel === "per_streams" ? "Por meta de streams" : "Mensal fixo"}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground mt-0.5">
+                    {billingModel === "per_streams"
+                      ? "Curador entrega meta total — custo derivado do CPP do saldo."
+                      : "Curador recebe valor fixo por mês durante o ciclo, independente da meta."}
+                  </div>
+                </div>
+                <div className="inline-flex rounded-lg border border-border/60 bg-background p-0.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setBillingModel("per_streams")}
+                    className={cn(
+                      "px-3 h-8 text-xs font-medium rounded-md transition-colors",
+                      billingModel === "per_streams"
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    Streams
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBillingModel("monthly_retainer")}
+                    className={cn(
+                      "px-3 h-8 text-xs font-medium rounded-md transition-colors",
+                      billingModel === "monthly_retainer"
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    Mensal
+                  </button>
+                </div>
+              </div>
+
+              {billingModel === "monthly_retainer" && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+                  <div className="flex flex-col gap-1 sm:col-span-2">
+                    <span className="text-xs text-muted-foreground">Valor mensal</span>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                        R$
+                      </span>
+                      <Input
+                        type="text"
+                        inputMode="numeric"
+                        className="h-9 pl-9 tabular-nums"
+                        placeholder="0,00"
+                        value={
+                          monthlyAmountDigits
+                            ? formatCurrencyBRL(monthlyAmountDigits).replace("R$", "").trim()
+                            : ""
+                        }
+                        onChange={(e) => {
+                          const digits = e.target.value.replace(/\D/g, "");
+                          setMonthlyAmountDigits(digits);
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs text-muted-foreground">Meses (ciclo)</span>
+                    <Input
+                      type="number"
+                      inputMode="numeric"
+                      min={1}
+                      max={36}
+                      className="h-9 tabular-nums"
+                      value={cycleMonths}
+                      onChange={(e) => setCycleMonths(e.target.value)}
+                    />
+                  </div>
+                  {(() => {
+                    const mv = currencyDigitsToNumber(monthlyAmountDigits) ?? 0;
+                    const cm = Number(cycleMonths) || 0;
+                    if (mv <= 0 || cm <= 0) return null;
+                    const total = mv * cm;
+                    return (
+                      <div className="sm:col-span-3 text-[11px] text-muted-foreground">
+                        Total do contrato:{" "}
+                        <span className="text-foreground font-semibold tabular-nums">
+                          {total.toLocaleString("pt-BR", {
+                            style: "currency",
+                            currency: "BRL",
+                          })}
+                        </span>{" "}
+                        ({cm} {cm === 1 ? "mês" : "meses"} × {mv.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })})
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
+
             {/* Lista de músicas */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
