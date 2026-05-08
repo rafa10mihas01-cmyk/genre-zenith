@@ -339,17 +339,14 @@ Deno.serve(async (req) => {
                 "spotify_timeout",
               );
               if (requireTrackPresent) {
-                // Curador disse "já adicionei" → exige presença real
+                // Botão "+" na música: curador disse "já adicionei" → exige presença real.
                 if (!item.track_presence.found) {
                   item.status = "track_not_present";
                   return;
                 }
-                // Encontrou: segue como "ok" (insere)
-              } else if (item.track_presence.found) {
-                // Fluxo clássico (colando link): se já está dentro, bloqueia
-                item.status = "track_already_present";
-                return;
               }
+              // Fluxo de colar link: NÃO bloqueia se a música já estiver na playlist.
+              // O bloqueio real é via baseline (feito na pré-classificação acima).
             } catch (e) {
               const msg = e instanceof Error ? e.message : String(e);
               item.status = msg === "spotify_timeout" ? "timeout" : "error";
