@@ -1769,6 +1769,119 @@ export type Database = {
         }
         Relationships: []
       }
+      job_incidents: {
+        Row: {
+          created_at: string
+          details: Json
+          id: string
+          job_id: string | null
+          kind: string
+          message: string
+          resolved_at: string | null
+          severity: string
+          worker_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          details?: Json
+          id?: string
+          job_id?: string | null
+          kind: string
+          message: string
+          resolved_at?: string | null
+          severity?: string
+          worker_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          details?: Json
+          id?: string
+          job_id?: string | null
+          kind?: string
+          message?: string
+          resolved_at?: string | null
+          severity?: string
+          worker_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_incidents_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs_queue"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      jobs_queue: {
+        Row: {
+          attempts: number
+          correlation_id: string | null
+          created_at: string
+          created_by: string | null
+          dedupe_key: string | null
+          duration_ms: number | null
+          error: string | null
+          finished_at: string | null
+          id: string
+          job_type: string
+          max_attempts: number
+          payload: Json
+          priority: number
+          reserved_at: string | null
+          result: Json | null
+          scheduled_for: string
+          started_at: string | null
+          status: string
+          updated_at: string
+          worker_id: string | null
+        }
+        Insert: {
+          attempts?: number
+          correlation_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          dedupe_key?: string | null
+          duration_ms?: number | null
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          job_type: string
+          max_attempts?: number
+          payload?: Json
+          priority?: number
+          reserved_at?: string | null
+          result?: Json | null
+          scheduled_for?: string
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+          worker_id?: string | null
+        }
+        Update: {
+          attempts?: number
+          correlation_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          dedupe_key?: string | null
+          duration_ms?: number | null
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          job_type?: string
+          max_attempts?: number
+          payload?: Json
+          priority?: number
+          reserved_at?: string | null
+          result?: Json | null
+          scheduled_for?: string
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+          worker_id?: string | null
+        }
+        Relationships: []
+      }
       learning_loop_runs: {
         Row: {
           duracao_ms: number | null
@@ -3080,6 +3193,69 @@ export type Database = {
         }
         Relationships: []
       }
+      worker_heartbeats: {
+        Row: {
+          agent_version: string | null
+          cpu_percent: number | null
+          created_at: string
+          current_job_id: string | null
+          current_job_type: string | null
+          hostname: string | null
+          id: string
+          jobs_completed: number
+          jobs_failed: number
+          last_seen_at: string
+          mem_percent: number | null
+          metadata: Json
+          pid: string | null
+          status: string
+          updated_at: string
+          uptime_seconds: number | null
+          worker_id: string
+          worker_kind: string
+        }
+        Insert: {
+          agent_version?: string | null
+          cpu_percent?: number | null
+          created_at?: string
+          current_job_id?: string | null
+          current_job_type?: string | null
+          hostname?: string | null
+          id?: string
+          jobs_completed?: number
+          jobs_failed?: number
+          last_seen_at?: string
+          mem_percent?: number | null
+          metadata?: Json
+          pid?: string | null
+          status?: string
+          updated_at?: string
+          uptime_seconds?: number | null
+          worker_id: string
+          worker_kind?: string
+        }
+        Update: {
+          agent_version?: string | null
+          cpu_percent?: number | null
+          created_at?: string
+          current_job_id?: string | null
+          current_job_type?: string | null
+          hostname?: string | null
+          id?: string
+          jobs_completed?: number
+          jobs_failed?: number
+          last_seen_at?: string
+          mem_percent?: number | null
+          metadata?: Json
+          pid?: string | null
+          status?: string
+          updated_at?: string
+          uptime_seconds?: number | null
+          worker_id?: string
+          worker_kind?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       curator_playlist_library_stats: {
@@ -3263,6 +3439,41 @@ export type Database = {
         Returns: Database["public"]["Enums"]["notification_type"]
       }
       accept_community_invite: { Args: { p_code: string }; Returns: Json }
+      claim_next_job: {
+        Args: {
+          p_job_types?: string[]
+          p_lease_seconds?: number
+          p_worker_id: string
+        }
+        Returns: {
+          attempts: number
+          correlation_id: string | null
+          created_at: string
+          created_by: string | null
+          dedupe_key: string | null
+          duration_ms: number | null
+          error: string | null
+          finished_at: string | null
+          id: string
+          job_type: string
+          max_attempts: number
+          payload: Json
+          priority: number
+          reserved_at: string | null
+          result: Json | null
+          scheduled_for: string
+          started_at: string | null
+          status: string
+          updated_at: string
+          worker_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "jobs_queue"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       cleanup_old_logs_and_snapshots: {
         Args: never
         Returns: {
@@ -3337,6 +3548,37 @@ export type Database = {
       compare_genre_versions: {
         Args: { p_genre_id: string; p_version_a: number; p_version_b: number }
         Returns: Json
+      }
+      complete_job: {
+        Args: { p_job_id: string; p_result?: Json; p_worker_id: string }
+        Returns: {
+          attempts: number
+          correlation_id: string | null
+          created_at: string
+          created_by: string | null
+          dedupe_key: string | null
+          duration_ms: number | null
+          error: string | null
+          finished_at: string | null
+          id: string
+          job_type: string
+          max_attempts: number
+          payload: Json
+          priority: number
+          reserved_at: string | null
+          result: Json | null
+          scheduled_for: string
+          started_at: string | null
+          status: string
+          updated_at: string
+          worker_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "jobs_queue"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       count_recent_backfill_attempts: {
         Args: { p_genre_id: string; p_hours?: number }
@@ -3414,6 +3656,42 @@ export type Database = {
         }[]
       }
       extract_spotify_playlist_id: { Args: { p_url: string }; Returns: string }
+      fail_job: {
+        Args: {
+          p_error: string
+          p_force_dead?: boolean
+          p_job_id: string
+          p_worker_id: string
+        }
+        Returns: {
+          attempts: number
+          correlation_id: string | null
+          created_at: string
+          created_by: string | null
+          dedupe_key: string | null
+          duration_ms: number | null
+          error: string | null
+          finished_at: string | null
+          id: string
+          job_type: string
+          max_attempts: number
+          payload: Json
+          priority: number
+          reserved_at: string | null
+          result: Json | null
+          scheduled_for: string
+          started_at: string | null
+          status: string
+          updated_at: string
+          worker_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "jobs_queue"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       generate_community_invite_slug: {
         Args: { p_email: string; p_id: string; p_note: string }
         Returns: string
@@ -3648,6 +3926,10 @@ export type Database = {
           print_urls: Json
           song_id: string
         }[]
+      }
+      requeue_stale_jobs: {
+        Args: { p_lease_seconds?: number }
+        Returns: number
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
