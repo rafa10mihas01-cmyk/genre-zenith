@@ -1,6 +1,6 @@
 // Sistema — painel de observabilidade completo.
 // Tabs no padrão visual do app (border-b + ícone + label), igual Operação / Playlist Deals / Comunidade.
-import { Activity, Workflow, Music2, HeartPulse, Bot, Bell, Settings as SettingsIcon, Sparkles, Terminal, Sliders } from "lucide-react";
+import { Activity, Workflow, Music2, HeartPulse, Bot, Bell, Settings as SettingsIcon, Sparkles, Terminal, Sliders, Layers, Server } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
 import { useScreenField } from "@/lib/screen-state";
@@ -15,10 +15,12 @@ import { AlertasHistorico } from "@/components/sistema/AlertasHistorico";
 import { CopilotoPanel } from "@/components/sistema/copiloto/CopilotoPanel";
 import { TerminalPanel } from "@/components/sistema/terminal/TerminalPanel";
 import { ControlePanel } from "@/components/sistema/controle/ControlePanel";
+import { FilaPanel } from "@/components/sistema/fila/FilaPanel";
+import { WorkersPanel } from "@/components/sistema/fila/WorkersPanel";
 import Settings from "@/pages/Settings";
 
 type SistemaTab =
-  | "fluxo" | "ao-vivo" | "robo" | "coleta" | "saude" | "alertas"
+  | "fluxo" | "ao-vivo" | "robo" | "fila" | "workers" | "coleta" | "saude" | "alertas"
   | "copiloto" | "terminal" | "controle" | "configuracoes";
 
 type TabDef = { id: SistemaTab; label: string; icon: typeof Activity; adminOnly?: boolean };
