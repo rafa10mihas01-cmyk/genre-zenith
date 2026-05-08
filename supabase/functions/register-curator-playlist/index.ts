@@ -94,7 +94,7 @@ type DealRow = {
 type ProcessedItem = {
   url: string;
   playlist_id: string | null;
-  status: "ok" | "blocked" | "duplicate" | "duplicate_in_payload" | "track_already_present" | "track_not_present" | "invalid_url" | "not_found" | "error" | "timeout";
+  status: "ok" | "blocked" | "duplicate" | "duplicate_in_payload" | "baseline_blocked" | "track_already_present" | "track_not_present" | "invalid_url" | "not_found" | "error" | "timeout";
   match_status?: ClassifyResult["match_status"];
   match_reason?: string;
   meta?: SpotifyPlaylistMeta;
@@ -241,6 +241,18 @@ Deno.serve(async (req) => {
           .map((r: any) => r.spotify_playlist_id)
           .filter((v: unknown): v is string => typeof v === "string" && v.length > 0),
       );
+      // Playlists que JÁ foram capturadas como baseline para esse deal+música.
+      // Se o curador tentar registrar uma delas como sua, é bloqueio rígido —
+      // ela existia antes do deal começar, não conta como entrega dele.
+      const baselineIds = new Set(
+        (existing ?? [])
+          .filter((r: any) =>
+            (r.song_id ?? null) === (songIdInput ?? null) &&
+            r.match_status === "baseline"
+          )
+          .map((r: any) => r.spotify_playlist_id)
+          .filter((v: unknown): v is string => typeof v === "string" && v.length > 0),
+      );
       const knownCuratorOwnerIds = Array.from(
         new Set(
           (existing ?? [])
@@ -279,6 +291,11 @@ Deno.serve(async (req) => {
           continue;
         }
         seenInPayload.add(pid);
+        if (baselineIds.has(pid)) {
+          // Bloqueio forte: estava na baseline, então não é entrega do curador.
+          item.status = "baseline_blocked";
+          continue;
+        }
         if (existingIds.has(pid)) {
           item.status = "duplicate";
         }
@@ -322,17 +339,14 @@ Deno.serve(async (req) => {
                 "spotify_timeout",
               );
               if (requireTrackPresent) {
-                // Curador disse "já adicionei" → exige presença real
+                // Botão "+" na música: curador disse "já adicionei" → exige presença real.
                 if (!item.track_presence.found) {
                   item.status = "track_not_present";
                   return;
                 }
-                // Encontrou: segue como "ok" (insere)
-              } else if (item.track_presence.found) {
-                // Fluxo clássico (colando link): se já está dentro, bloqueia
-                item.status = "track_already_present";
-                return;
               }
+              // Fluxo de colar link: NÃO bloqueia se a música já estiver na playlist.
+              // O bloqueio real é via baseline (feito na pré-classificação acima).
             } catch (e) {
               const msg = e instanceof Error ? e.message : String(e);
               item.status = msg === "spotify_timeout" ? "timeout" : "error";
@@ -399,6 +413,7 @@ Deno.serve(async (req) => {
         blocked: items.filter((it) => it.status === "blocked").length,
         duplicate: items.filter((it) => it.status === "duplicate").length,
         duplicate_in_payload: items.filter((it) => it.status === "duplicate_in_payload").length,
+        baseline_blocked: items.filter((it) => it.status === "baseline_blocked").length,
         track_already_present: items.filter((it) => it.status === "track_already_present").length,
         track_not_present: items.filter((it) => it.status === "track_not_present").length,
         invalid: items.filter((it) => it.status === "invalid_url").length,
