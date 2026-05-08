@@ -47,6 +47,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { CuratorNotificationsBell } from "@/components/public/CuratorNotificationsBell";
 import { markCuratorPublicMode } from "@/lib/publicRouteMode";
 import { PasteUrlsDialog } from "@/components/curators/PasteUrlsDialog";
+import { AddSongToPlaylistDialog } from "@/components/curators/AddSongToPlaylistDialog";
 
 type Deal = {
   id: string;
