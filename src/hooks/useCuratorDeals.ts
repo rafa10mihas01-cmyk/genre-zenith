@@ -342,6 +342,11 @@ export function useCuratorDeals() {
           spotify_owner_id: input.spotify_owner_id ?? null,
           spotify_owner_url: input.spotify_owner_url ?? null,
           notes: input.notes ?? null,
+          deal_type: input.deal_type ?? 'avulso',
+          default_amount: input.default_amount ?? null,
+          default_plays: input.default_plays ?? null,
+          monthly_amount: input.monthly_amount ?? null,
+          billing_day: input.billing_day ?? null,
         })
         .select()
         .single();
