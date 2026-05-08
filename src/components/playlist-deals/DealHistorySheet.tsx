@@ -369,6 +369,18 @@ export function DealHistorySheet({
   const [algoSongFilter, setAlgoSongFilter] = useState<string>("all");
   const [curatorSongFilter, setCuratorSongFilter] = useState<string>("all");
 
+  // Reset filtros ao trocar de deal — evita que filtro de música/busca de um deal anterior
+  // (ex: deal multi-música) zere a lista ao abrir um deal diferente.
+  useEffect(() => {
+    setPlQuery("");
+    setAlgoQuery("");
+    setAlgoFilter("all");
+    setAlgoSongFilter("all");
+    setCuratorSongFilter("all");
+    setSelectedLogId(null);
+    setTab("resumo");
+  }, [deal?.id]);
+
   const stats = deal ? computeCuratorStats(deal, allLogs, allPlaylists, progress ?? null) : null;
   const { data: breakdown } = useCuratorDealBreakdown(deal?.id ?? null);
   const { data: todayBreakdown, isLoading: loadingToday } = useDealTodayPlaylistBreakdown(deal?.id ?? null);
