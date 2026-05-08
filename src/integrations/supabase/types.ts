@@ -207,48 +207,87 @@ export type Database = {
       }
       bot_heartbeats: {
         Row: {
+          agent_version: string | null
           bot_name: string
+          chrome_instances: number | null
+          cpu_percent: number | null
           created_at: string
+          disk_percent: number | null
+          disk_total_gb: number | null
+          disk_used_gb: number | null
           hostname: string | null
           id: string
           last_collect_at: string | null
+          load_avg: Json | null
+          mem_percent: number | null
+          mem_total_mb: number | null
+          mem_used_mb: number | null
           message: string | null
           metadata: Json
+          pm2_processes: Json | null
           process_id: string | null
           processing_correlation_ids: string[] | null
           spotify_session_valid: boolean
           status: string
+          swap_percent: number | null
           timer_id: string | null
+          uptime_seconds: number | null
           worker_id: string | null
         }
         Insert: {
+          agent_version?: string | null
           bot_name?: string
+          chrome_instances?: number | null
+          cpu_percent?: number | null
           created_at?: string
+          disk_percent?: number | null
+          disk_total_gb?: number | null
+          disk_used_gb?: number | null
           hostname?: string | null
           id?: string
           last_collect_at?: string | null
+          load_avg?: Json | null
+          mem_percent?: number | null
+          mem_total_mb?: number | null
+          mem_used_mb?: number | null
           message?: string | null
           metadata?: Json
+          pm2_processes?: Json | null
           process_id?: string | null
           processing_correlation_ids?: string[] | null
           spotify_session_valid?: boolean
           status?: string
+          swap_percent?: number | null
           timer_id?: string | null
+          uptime_seconds?: number | null
           worker_id?: string | null
         }
         Update: {
+          agent_version?: string | null
           bot_name?: string
+          chrome_instances?: number | null
+          cpu_percent?: number | null
           created_at?: string
+          disk_percent?: number | null
+          disk_total_gb?: number | null
+          disk_used_gb?: number | null
           hostname?: string | null
           id?: string
           last_collect_at?: string | null
+          load_avg?: Json | null
+          mem_percent?: number | null
+          mem_total_mb?: number | null
+          mem_used_mb?: number | null
           message?: string | null
           metadata?: Json
+          pm2_processes?: Json | null
           process_id?: string | null
           processing_correlation_ids?: string[] | null
           spotify_session_valid?: boolean
           status?: string
+          swap_percent?: number | null
           timer_id?: string | null
+          uptime_seconds?: number | null
           worker_id?: string | null
         }
         Relationships: []
@@ -1847,6 +1886,220 @@ export type Database = {
         }
         Relationships: []
       }
+      ops_actions_log: {
+        Row: {
+          action: string
+          confirmed_at: string | null
+          confirmed_by: string | null
+          created_at: string
+          duration_ms: number | null
+          error: string | null
+          finished_at: string | null
+          id: string
+          payload: Json
+          requires_confirmation: boolean
+          result: Json
+          scope: string
+          status: string
+          target: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          duration_ms?: number | null
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          payload?: Json
+          requires_confirmation?: boolean
+          result?: Json
+          scope?: string
+          status?: string
+          target?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          duration_ms?: number | null
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          payload?: Json
+          requires_confirmation?: boolean
+          result?: Json
+          scope?: string
+          status?: string
+          target?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      ops_agent_commands: {
+        Row: {
+          action_log_id: string | null
+          agent_id: string
+          args: Json
+          command: string | null
+          created_at: string
+          created_by: string | null
+          duration_ms: number | null
+          exit_code: number | null
+          finished_at: string | null
+          id: string
+          kind: string
+          picked_at: string | null
+          started_at: string | null
+          status: string
+          stderr: string | null
+          stdout: string | null
+          timeout_ms: number
+        }
+        Insert: {
+          action_log_id?: string | null
+          agent_id?: string
+          args?: Json
+          command?: string | null
+          created_at?: string
+          created_by?: string | null
+          duration_ms?: number | null
+          exit_code?: number | null
+          finished_at?: string | null
+          id?: string
+          kind: string
+          picked_at?: string | null
+          started_at?: string | null
+          status?: string
+          stderr?: string | null
+          stdout?: string | null
+          timeout_ms?: number
+        }
+        Update: {
+          action_log_id?: string | null
+          agent_id?: string
+          args?: Json
+          command?: string | null
+          created_at?: string
+          created_by?: string | null
+          duration_ms?: number | null
+          exit_code?: number | null
+          finished_at?: string | null
+          id?: string
+          kind?: string
+          picked_at?: string | null
+          started_at?: string | null
+          status?: string
+          stderr?: string | null
+          stdout?: string | null
+          timeout_ms?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ops_agent_commands_action_log_id_fkey"
+            columns: ["action_log_id"]
+            isOneToOne: false
+            referencedRelation: "ops_actions_log"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ops_chat_messages: {
+        Row: {
+          attachments: Json
+          content: string | null
+          created_at: string
+          error: string | null
+          id: string
+          model: string | null
+          role: string
+          status: string
+          thread_id: string
+          tokens_in: number | null
+          tokens_out: number | null
+          tool_call_id: string | null
+          tool_calls: Json
+        }
+        Insert: {
+          attachments?: Json
+          content?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          model?: string | null
+          role: string
+          status?: string
+          thread_id: string
+          tokens_in?: number | null
+          tokens_out?: number | null
+          tool_call_id?: string | null
+          tool_calls?: Json
+        }
+        Update: {
+          attachments?: Json
+          content?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          model?: string | null
+          role?: string
+          status?: string
+          thread_id?: string
+          tokens_in?: number | null
+          tokens_out?: number | null
+          tool_call_id?: string | null
+          tool_calls?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ops_chat_messages_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "ops_chat_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ops_chat_threads: {
+        Row: {
+          archived_at: string | null
+          created_at: string
+          id: string
+          last_message_at: string | null
+          model: string
+          pinned: boolean
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          archived_at?: string | null
+          created_at?: string
+          id?: string
+          last_message_at?: string | null
+          model?: string
+          pinned?: boolean
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          archived_at?: string | null
+          created_at?: string
+          id?: string
+          last_message_at?: string | null
+          model?: string
+          pinned?: boolean
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       ops_metrics: {
         Row: {
           created_at: string
@@ -3285,6 +3538,7 @@ export type Database = {
         Returns: number
       }
       is_admin: { Args: never; Returns: boolean }
+      is_current_user_admin: { Args: never; Returns: boolean }
       match_curator_playlist:
         | {
             Args: {
