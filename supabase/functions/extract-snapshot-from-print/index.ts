@@ -606,6 +606,44 @@ Deno.serve(async (req) => {
     }
   }
 
+  // 1.5. Dedupe temporal — se já existe log dessa (deal, song) nos últimos 90s,
+  // ignora pra evitar duplicação quando "forçar coleta" + cron + bot disparam
+  // quase juntos (ou quando o mesmo lote de prints é processado 2x).
+  // Mesmo padrão do bot-ingest-snapshot.
+  {
+    const since = new Date(Date.now() - 90_000).toISOString();
+    let recentQuery = supabase
+      .from("curator_deal_logs")
+      .select("id, created_at, is_baseline")
+      .eq("deal_id", deal_id)
+      .gte("created_at", since)
+      .limit(1);
+    recentQuery = song_id
+      ? recentQuery.eq("song_id", song_id)
+      : recentQuery.is("song_id", null);
+    const { data: recent } = await recentQuery;
+    if (recent && recent.length > 0) {
+      console.log(`[extract] deduped deal=${deal_id} song=${song_id ?? "null"} — log within 90s exists`);
+      if (song_id) {
+        await supabase
+          .from("curator_deal_songs")
+          .update({
+            auto_collect_status: "idle",
+            auto_collect_error: null,
+            queued_at: null,
+          })
+          .eq("id", song_id);
+      }
+      if (batch_id) {
+        await supabase
+          .from("curator_print_batches")
+          .update({ status: "processed", processed_at: new Date().toISOString() })
+          .eq("id", batch_id);
+      }
+      return jr({ ok: true, deduped: true, reason: "log within 90s exists" });
+    }
+  }
+
   // 2. Detecta baseline — escopa por (deal_id, song_id) pra não confundir
   // coletas de outros deals/legados.
   let baselineQuery = supabase
