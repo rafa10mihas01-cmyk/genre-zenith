@@ -1044,7 +1044,7 @@ export default function CuratorPage() {
                           aria-pressed={isSelected}
                           className="w-full text-left"
                         >
-                          <div className="flex items-center gap-3 pr-10">
+                          <div className="flex items-center gap-3 pr-10 sm:pr-44">
                             {s.song_cover_url ? (
                               <img
                                 src={s.song_cover_url}
