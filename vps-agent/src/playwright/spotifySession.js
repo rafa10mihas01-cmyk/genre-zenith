@@ -73,6 +73,14 @@ export async function assertLoggedIn(page) {
     await page.goto(HOME_URL, { waitUntil: "domcontentloaded" });
   }
 
+  // Detecta redirect imediato p/ accounts.spotify.com/login
+  if (await urlLooksLikeLogin(page)) {
+    const screenshot = await dumpAuthFail(page, "redirect-login");
+    throw new SpotifyAuthError(
+      `Redirect para login detectado: ${page.url()}${screenshot ? ` — debug: ${screenshot}` : ""}`
+    );
+  }
+
   // Captcha tem prioridade.
   const captcha = await page.locator(SELECTORS.captchaMarker).first().count().catch(() => 0);
   if (captcha > 0) {
@@ -89,12 +97,31 @@ export async function assertLoggedIn(page) {
   // Espera rede assentar um pouco (S4A é SPA).
   await page.waitForLoadState("networkidle", { timeout: 10000 }).catch(() => {});
 
+  // Re-checa URL pós networkidle (pode ter redirecionado depois)
+  if (await urlLooksLikeLogin(page)) {
+    const screenshot = await dumpAuthFail(page, "redirect-login-late");
+    throw new SpotifyAuthError(
+      `Redirect tardio para login: ${page.url()}${screenshot ? ` — debug: ${screenshot}` : ""}`
+    );
+  }
+
   // Sinal positivo (qualquer 1)
   const positive = await anyVisible(page, LOGGED_IN_SIGNALS, 6000);
   if (positive) {
     log.debug?.("login OK", { signal: positive, url: page.url() });
     return;
   }
+
+  // Sinal negativo OU URL de login → auth error.
+  const negative = await anyVisible(page, LOGGED_OUT_SIGNALS, 0);
+  const onLoginUrl = await urlLooksLikeLogin(page);
+
+  const reason = negative ? "logged-out-marker" : onLoginUrl ? "login-url" : "no-positive-signal";
+  const screenshot = await dumpAuthFail(page, reason);
+  throw new SpotifyAuthError(
+    `Indicador de login ausente (${reason}) em ${page.url()}${screenshot ? ` — debug: ${screenshot}` : ""}`
+  );
+}
 
   // Sinal negativo OU URL de login → auth error.
   const negative = await anyVisible(page, LOGGED_OUT_SIGNALS, 0);

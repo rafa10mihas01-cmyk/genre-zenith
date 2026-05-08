@@ -171,6 +171,23 @@ class BrowserPool {
 
   async withPage(fn) {
     await this._ensure();
+    // Precheck de cookies — uma vez por contexto. Se faltar sp_dc, sinaliza warn
+    // mas não bloqueia (assertLoggedIn captura o erro com screenshot).
+    if (!this._cookiesChecked) {
+      this._cookiesChecked = true;
+      try {
+        const cookies = await this.context.cookies("https://artists.spotify.com");
+        const required = ["sp_dc", "sp_t", "sp_key"];
+        const present = required.filter((n) => cookies.some((c) => c.name === n));
+        if (present.length === 0) {
+          log.error("precheck: NENHUM cookie de sessão Spotify (sp_dc/sp_t/sp_key) — login vai falhar");
+        } else {
+          log.info("precheck cookies", { present, total: cookies.length });
+        }
+      } catch (e) {
+        log.warn("precheck cookies falhou", { error: String(e?.message || e) });
+      }
+    }
     this.busy = true;
     this.lastActivityAt = Date.now();
     let page;
