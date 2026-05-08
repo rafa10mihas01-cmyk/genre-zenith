@@ -52,6 +52,11 @@ export type Curator = {
   paused_at: string | null;
   created_at: string;
   updated_at: string;
+  deal_type: "avulso" | "mensal";
+  default_amount: number | null;
+  default_plays: number | null;
+  monthly_amount: number | null;
+  billing_day: number | null;
 };
 
 export type CuratorBalance = {
@@ -74,6 +79,11 @@ export type NewCuratorInput = {
   purchased_plays?: number;
   total_cost?: number | null;
   notes?: string | null;
+  deal_type?: "avulso" | "mensal";
+  default_amount?: number | null;
+  default_plays?: number | null;
+  monthly_amount?: number | null;
+  billing_day?: number | null;
 };
 
 export type DealSongInput = {
@@ -332,6 +342,11 @@ export function useCuratorDeals() {
           spotify_owner_id: input.spotify_owner_id ?? null,
           spotify_owner_url: input.spotify_owner_url ?? null,
           notes: input.notes ?? null,
+          deal_type: input.deal_type ?? 'avulso',
+          default_amount: input.default_amount ?? null,
+          default_plays: input.default_plays ?? null,
+          monthly_amount: input.monthly_amount ?? null,
+          billing_day: input.billing_day ?? null,
         })
         .select()
         .single();
@@ -366,6 +381,11 @@ export function useCuratorDeals() {
           ...(input.spotify_owner_id !== undefined && { spotify_owner_id: input.spotify_owner_id ?? null }),
           ...(input.spotify_owner_url !== undefined && { spotify_owner_url: input.spotify_owner_url ?? null }),
           ...(input.notes !== undefined && { notes: input.notes ?? null }),
+          ...(input.deal_type !== undefined && { deal_type: input.deal_type }),
+          ...(input.default_amount !== undefined && { default_amount: input.default_amount ?? null }),
+          ...(input.default_plays !== undefined && { default_plays: input.default_plays ?? null }),
+          ...(input.monthly_amount !== undefined && { monthly_amount: input.monthly_amount ?? null }),
+          ...(input.billing_day !== undefined && { billing_day: input.billing_day ?? null }),
         })
         .eq("id", curatorId);
       if (updErr) throw updErr;

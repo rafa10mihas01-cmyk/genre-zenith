@@ -1445,9 +1445,14 @@ export type Database = {
       curators: {
         Row: {
           archived_at: string | null
+          billing_day: number | null
           contact: string | null
           created_at: string
+          deal_type: string
+          default_amount: number | null
+          default_plays: number | null
           id: string
+          monthly_amount: number | null
           name: string
           notes: string | null
           paused_at: string | null
@@ -1460,9 +1465,14 @@ export type Database = {
         }
         Insert: {
           archived_at?: string | null
+          billing_day?: number | null
           contact?: string | null
           created_at?: string
+          deal_type?: string
+          default_amount?: number | null
+          default_plays?: number | null
           id?: string
+          monthly_amount?: number | null
           name: string
           notes?: string | null
           paused_at?: string | null
@@ -1475,9 +1485,14 @@ export type Database = {
         }
         Update: {
           archived_at?: string | null
+          billing_day?: number | null
           contact?: string | null
           created_at?: string
+          deal_type?: string
+          default_amount?: number | null
+          default_plays?: number | null
           id?: string
+          monthly_amount?: number | null
           name?: string
           notes?: string | null
           paused_at?: string | null
