@@ -1044,7 +1044,7 @@ export default function CuratorPage() {
                           aria-pressed={isSelected}
                           className="w-full text-left"
                         >
-                          <div className="flex items-center gap-3 pr-10">
+                          <div className="flex items-center gap-3 pr-10 sm:pr-44">
                             {s.song_cover_url ? (
                               <img
                                 src={s.song_cover_url}
@@ -1084,10 +1084,11 @@ export default function CuratorPage() {
                               setAddSongToPlaylistFor(s);
                             }}
                             title="Adicionar essa música em uma playlist já cadastrada"
-                            className="absolute top-1/2 -translate-y-1/2 right-2 h-7 w-7 inline-flex items-center justify-center rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors ring-1 ring-primary/30"
+                            className="absolute top-1/2 -translate-y-1/2 right-2 inline-flex items-center gap-1 px-2.5 h-7 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-colors text-[11px] font-semibold shadow-sm"
                             aria-label={`Adicionar ${s.song_name} em uma playlist existente`}
                           >
-                            <Plus className="h-3.5 w-3.5" />
+                            <Plus className="h-3 w-3" />
+                            <span className="hidden sm:inline">Em outra playlist</span>
                           </button>
                         )}
                       </div>
