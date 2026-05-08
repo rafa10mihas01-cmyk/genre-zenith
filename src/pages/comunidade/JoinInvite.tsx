@@ -24,6 +24,53 @@ export default function JoinInvite() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [needsConfirm, setNeedsConfirm] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
+
+  // tick a cada 30s pra contagem regressiva
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(t);
+  }, []);
+
+  function translateRpcError(msg?: string | null): string {
+    if (!msg) return "Não foi possível aceitar o convite.";
+    const m = msg.toLowerCase();
+    if (m.includes("invite_email_mismatch"))
+      return "Este convite é para outro email. Entre com a conta correta ou peça um novo convite.";
+    if (m.includes("invite_not_available") || m.includes("already") || m.includes("accepted"))
+      return "Este convite já foi usado ou não está mais disponível.";
+    if (m.includes("invite_invalid") || m.includes("not_found"))
+      return "Convite inválido ou expirado.";
+    if (m.includes("invite_expired") || m.includes("expired"))
+      return "Convite expirado. Peça um novo a quem te indicou.";
+    return msg;
+  }
+
+  function formatCountdown(iso: string): string {
+    const ms = new Date(iso).getTime() - now;
+    if (ms <= 0) return "expirado";
+    const min = Math.floor(ms / 60_000);
+    if (min < 60) return `expira em ${min} min`;
+    const h = Math.floor(min / 60);
+    if (h < 24) return `expira em ${h}h`;
+    const d = Math.floor(h / 24);
+    return `expira em ${d}d`;
+  }
+
+  async function resendConfirmation() {
+    if (!email) return;
+    setResending(true);
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email,
+      options: { emailRedirectTo: `${window.location.origin}/comunidade/join/${code}` },
+    });
+    setResending(false);
+    if (error) return toast.error("Falha ao reenviar", { description: error.message });
+    toast.success("Email de confirmação reenviado", { description: "Verifique sua caixa de entrada." });
+  }
 
   useEffect(() => {
     let mounted = true;
@@ -78,7 +125,7 @@ export default function JoinInvite() {
     const { error } = await supabase.rpc("accept_community_invite", { p_code: code });
     setSubmitting(false);
     if (error) {
-      toast.error("Não foi possível aceitar o convite", { description: error.message });
+      toast.error("Não foi possível aceitar o convite", { description: translateRpcError(error.message) });
       return;
     }
     nav("/comunidade/onboarding", { replace: true });
@@ -93,27 +140,78 @@ export default function JoinInvite() {
     e.preventDefault();
     if (!email || !password) return;
     setSubmitting(true);
-    // Tenta criar conta. Se já existir, faz login.
-    const { error: signUpErr } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { emailRedirectTo: `${window.location.origin}/comunidade/join/${code}` },
-    });
+    setNeedsConfirm(false);
 
+    // Quando o convite tem email fixo, geralmente a conta JÁ existe (admin já convidou
+    // pelo Supabase e a pessoa só precisa logar). Por isso tentamos signIn primeiro.
+    const inviteHasEmail = state.status === "ok" && !!state.invite.email;
+
+    async function tryLogin() {
+      return supabase.auth.signInWithPassword({ email, password });
+    }
+    async function trySignup() {
+      return supabase.auth.signUp({
+        email,
+        password,
+        options: { emailRedirectTo: `${window.location.origin}/comunidade/join/${code}` },
+      });
+    }
+
+    if (inviteHasEmail) {
+      // 1) Login primeiro
+      const { error: loginErr } = await tryLogin();
+      if (!loginErr) { setSubmitting(false); return; }
+
+      const lm = loginErr.message.toLowerCase();
+      if (lm.includes("email not confirmed")) {
+        setNeedsConfirm(true);
+        setSubmitting(false);
+        toast.error("Email ainda não confirmado", { description: "Reenvie o link de confirmação abaixo." });
+        return;
+      }
+      if (lm.includes("invalid login")) {
+        // Conta provavelmente não existe — cria
+        const { error: signUpErr } = await trySignup();
+        if (signUpErr && !/already/i.test(signUpErr.message)) {
+          setSubmitting(false);
+          toast.error("Falha ao criar conta", { description: signUpErr.message });
+          return;
+        }
+        // tenta login de novo
+        const { error: loginErr2 } = await tryLogin();
+        setSubmitting(false);
+        if (loginErr2) {
+          if (loginErr2.message.toLowerCase().includes("email not confirmed")) {
+            setNeedsConfirm(true);
+            toast.error("Confirme seu email", { description: "Enviamos um link de confirmação." });
+          } else {
+            toast.error("Não foi possível entrar", { description: loginErr2.message });
+          }
+        }
+        return;
+      }
+      setSubmitting(false);
+      toast.error("Não foi possível entrar", { description: loginErr.message });
+      return;
+    }
+
+    // Convite sem email fixo: comportamento antigo (signUp → signIn)
+    const { error: signUpErr } = await trySignup();
     if (signUpErr && !/already/i.test(signUpErr.message)) {
       setSubmitting(false);
       toast.error("Falha ao criar conta", { description: signUpErr.message });
       return;
     }
-
-    // signIn (cobre o caso de conta já existente)
-    const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
+    const { error: signInErr } = await tryLogin();
     setSubmitting(false);
     if (signInErr) {
+      if (signInErr.message.toLowerCase().includes("email not confirmed")) {
+        setNeedsConfirm(true);
+        toast.error("Confirme seu email", { description: "Enviamos um link de confirmação." });
+        return;
+      }
       toast.error("Não foi possível entrar", { description: signInErr.message });
-      return;
     }
-    // Após o login, a tela muda para confirmação explícita antes de aceitar o convite.
   }
 
   return (
@@ -163,6 +261,9 @@ export default function JoinInvite() {
                   <p className="mt-1 text-sm text-muted-foreground">
                     Você está logado como <span className="font-medium text-foreground">{user.email}</span>.
                   </p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    {formatCountdown(state.invite.expires_at)}
+                  </p>
                 </div>
 
                 {emailMismatch ? (
@@ -190,12 +291,17 @@ export default function JoinInvite() {
           }
 
           // Caso 2: visitante — fluxo de signup/login
+          const hasFixedEmail = !!state.invite.email;
           return (
           <div className="rounded-2xl border border-border bg-card p-6 space-y-5">
             <div>
               <h1 className="text-lg font-semibold leading-tight">Você foi convidado</h1>
               <p className="mt-1 text-sm text-muted-foreground">
-                Por {state.invite.invited_by_name}. Crie sua conta para entrar na comunidade.
+                Por {state.invite.invited_by_name}.{" "}
+                {hasFixedEmail ? "Entre com sua conta para acessar a comunidade." : "Crie sua conta para entrar na comunidade."}
+              </p>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                {formatCountdown(state.invite.expires_at)}
               </p>
             </div>
 
@@ -210,13 +316,13 @@ export default function JoinInvite() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  disabled={!!state.invite.email}
+                  disabled={hasFixedEmail}
                   className="bg-elevated"
                 />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="password" className="text-xs uppercase tracking-wider text-muted-foreground">
-                  Crie uma senha
+                  {hasFixedEmail ? "Senha" : "Crie uma senha"}
                 </Label>
                 <Input
                   id="password"
@@ -228,6 +334,18 @@ export default function JoinInvite() {
                   className="bg-elevated"
                 />
               </div>
+
+              {needsConfirm && (
+                <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/5 p-3 space-y-2">
+                  <p className="text-xs text-yellow-300">
+                    Seu email ainda não foi confirmado. Verifique sua caixa de entrada ou reenvie o link.
+                  </p>
+                  <Button type="button" variant="outline" size="sm" className="w-full" disabled={resending} onClick={resendConfirmation}>
+                    {resending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Reenviar email de confirmação"}
+                  </Button>
+                </div>
+              )}
+
               <Button type="submit" disabled={submitting} className="w-full">
                 {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Entrar na comunidade"}
               </Button>

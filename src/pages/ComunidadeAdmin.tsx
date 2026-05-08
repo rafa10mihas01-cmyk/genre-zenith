@@ -463,7 +463,26 @@ function ConvitesTab({ adminId, onChange }: { adminId: string; onChange?: () => 
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [note, setNote] = useState("");
+  const [validityDays, setValidityDays] = useState<number>(14);
   const [creating, setCreating] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
+
+  // tick a cada minuto pra manter contagem regressiva fresca
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(t);
+  }, []);
+
+  function countdown(iso: string): string {
+    const ms = new Date(iso).getTime() - now;
+    if (ms <= 0) return "expirado";
+    const min = Math.floor(ms / 60_000);
+    if (min < 60) return `expira em ${min} min`;
+    const h = Math.floor(min / 60);
+    if (h < 24) return `expira em ${h}h`;
+    const d = Math.floor(h / 24);
+    return `expira em ${d}d`;
+  }
 
   async function load() {
     setLoading(true);
@@ -485,12 +504,14 @@ function ConvitesTab({ adminId, onChange }: { adminId: string; onChange?: () => 
   async function create() {
     if (!adminId) return;
     setCreating(true);
+    const expiresAt = new Date(Date.now() + validityDays * 24 * 60 * 60 * 1000).toISOString();
     const { error, data } = await supabase
       .from("community_invites")
       .insert({
         invited_by: adminId,
         email: email.trim() || null,
         note: note.trim() || null,
+        expires_at: expiresAt,
       })
       .select()
       .single();
@@ -502,6 +523,7 @@ function ConvitesTab({ adminId, onChange }: { adminId: string; onChange?: () => 
     setOpen(false);
     setEmail("");
     setNote("");
+    setValidityDays(14);
     toast.success("Convite gerado");
     const id = (data as Invite | null)?.slug || data!.code;
     const link = `${baseUrl}/comunidade/join/${id}`;
@@ -548,7 +570,7 @@ function ConvitesTab({ adminId, onChange }: { adminId: string; onChange?: () => 
                     <div className="mt-1 text-xs text-muted-foreground truncate">
                       {i.email ?? "sem email"}
                       {realStatus === "pending" && (
-                        <> · expira {format(new Date(i.expires_at), "dd MMM", { locale: ptBR })}</>
+                        <> · {countdown(i.expires_at)}</>
                       )}
                       {i.note ? ` · ${i.note}` : ""}
                     </div>
@@ -577,6 +599,26 @@ function ConvitesTab({ adminId, onChange }: { adminId: string; onChange?: () => 
             <div className="space-y-1.5">
               <Label className="text-xs uppercase tracking-wider text-muted-foreground">Email (opcional)</Label>
               <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="convidado@email.com" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Validade</Label>
+              <div className="grid grid-cols-4 gap-2">
+                {[1, 7, 14, 30].map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => setValidityDays(d)}
+                    className={cn(
+                      "h-9 rounded-md border text-sm font-medium transition-colors",
+                      validityDays === d
+                        ? "border-primary bg-primary/15 text-primary"
+                        : "border-border bg-elevated text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {d}d
+                  </button>
+                ))}
+              </div>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs uppercase tracking-wider text-muted-foreground">Nota interna (opcional)</Label>
