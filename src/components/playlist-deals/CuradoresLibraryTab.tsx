@@ -517,24 +517,6 @@ export function CuradoresLibraryTab({
                       <ListMusic className="h-3.5 w-3.5 text-primary" />
                       Ver biblioteca
                     </Button>
-                    {curator.spotify_owner_url && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-9 gap-1.5 text-[12px]"
-                        asChild
-                      >
-                        <a
-                          href={curator.spotify_owner_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <ExternalLink className="h-3.5 w-3.5" />
-                          Spotify
-                        </a>
-                      </Button>
-                    )}
                   </div>
                 </CardContent>
               </Card>
