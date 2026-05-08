@@ -660,6 +660,14 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
       setCuratorMode("select");
       setSelectedCuratorId(editDeal.curator_id ?? null);
 
+      // Hidrata modelo de cobrança
+      const editBilling = (editDeal as unknown as { billing_model?: string }).billing_model;
+      setBillingModel(editBilling === "monthly_retainer" ? "monthly_retainer" : "per_streams");
+      const editMonthly = (editDeal as unknown as { monthly_amount?: number | null }).monthly_amount;
+      setMonthlyAmountDigits(editMonthly ? String(Math.round(Number(editMonthly) * 100)) : "");
+      const editCycle = (editDeal as unknown as { cycle_months?: number | null }).cycle_months;
+      setCycleMonths(editCycle ? String(editCycle) : "1");
+
       const sourceSongs =
         editSongs && editSongs.length > 0
           ? [...editSongs].sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
