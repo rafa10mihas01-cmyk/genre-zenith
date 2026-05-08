@@ -94,7 +94,7 @@ type DealRow = {
 type ProcessedItem = {
   url: string;
   playlist_id: string | null;
-  status: "ok" | "blocked" | "duplicate" | "duplicate_in_payload" | "track_already_present" | "invalid_url" | "not_found" | "error" | "timeout";
+  status: "ok" | "blocked" | "duplicate" | "duplicate_in_payload" | "track_already_present" | "track_not_present" | "invalid_url" | "not_found" | "error" | "timeout";
   match_status?: ClassifyResult["match_status"];
   match_reason?: string;
   meta?: SpotifyPlaylistMeta;
@@ -128,6 +128,9 @@ Deno.serve(async (req) => {
     }
     const urls: string[] = Array.isArray(body?.urls) ? body.urls : [];
     const preview = body?.preview === true;
+    // Modo "música já está dentro": curador confirma que já adicionou a faixa
+    // na playlist. Inverte a checagem: bloqueia se NÃO encontrar.
+    const requireTrackPresent = body?.require_track_present === true;
 
     if (urls.length === 0) return jr({ ok: false, error: "urls vazio" }, 400);
     if (urls.length > 200) return jr({ ok: false, error: "máximo 200 URLs por chamada" }, 400);
@@ -318,7 +321,15 @@ Deno.serve(async (req) => {
                 ITEM_TIMEOUT_MS,
                 "spotify_timeout",
               );
-              if (item.track_presence.found) {
+              if (requireTrackPresent) {
+                // Curador disse "já adicionei" → exige presença real
+                if (!item.track_presence.found) {
+                  item.status = "track_not_present";
+                  return;
+                }
+                // Encontrou: segue como "ok" (insere)
+              } else if (item.track_presence.found) {
+                // Fluxo clássico (colando link): se já está dentro, bloqueia
                 item.status = "track_already_present";
                 return;
               }
@@ -383,6 +394,7 @@ Deno.serve(async (req) => {
         duplicate: items.filter((it) => it.status === "duplicate").length,
         duplicate_in_payload: items.filter((it) => it.status === "duplicate_in_payload").length,
         track_already_present: items.filter((it) => it.status === "track_already_present").length,
+        track_not_present: items.filter((it) => it.status === "track_not_present").length,
         invalid: items.filter((it) => it.status === "invalid_url").length,
         not_found: items.filter((it) => it.status === "not_found").length,
         timeout: items.filter((it) => it.status === "timeout").length,

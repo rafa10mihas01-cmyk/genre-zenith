@@ -15,6 +15,7 @@ import {
   CalendarDays,
   ImageIcon,
   ClipboardPaste,
+  Plus,
 } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
@@ -47,6 +48,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { CuratorNotificationsBell } from "@/components/public/CuratorNotificationsBell";
 import { markCuratorPublicMode } from "@/lib/publicRouteMode";
 import { PasteUrlsDialog } from "@/components/curators/PasteUrlsDialog";
+import { AddSongToPlaylistDialog } from "@/components/curators/AddSongToPlaylistDialog";
 
 type Deal = {
   id: string;
@@ -261,6 +263,8 @@ export default function CuratorPage() {
   const [submitting, setSubmitting] = useState(false);
   const [importing, setImporting] = useState(false);
   const [pasteOpen, setPasteOpen] = useState(false);
+  // Dialog: vincular uma música a uma playlist já cadastrada no deal
+  const [addSongToPlaylistFor, setAddSongToPlaylistFor] = useState<DealSong | null>(null);
   // Modal: músicas da campanha presentes em uma playlist do curador
   const [curatorPlaylistModalKey, setCuratorPlaylistModalKey] = useState<string | null>(null);
   // Filtro visual por música (não afeta números — RPC já é agregada por deal)
@@ -1028,47 +1032,65 @@ export default function CuratorPage() {
                   const isSelected = selectedSongId === s.id;
                   return (
                     <li key={s.id}>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedSongId(isSelected ? null : s.id)}
+                      <div
                         className={cn(
-                          "w-full text-left px-3 py-2.5 transition-all",
+                          "relative w-full px-3 py-2.5 transition-all",
                           isSelected ? "nx-subcard ring-1 ring-primary/40 !border-primary/40" : "nx-subcard-hover",
                         )}
-                        aria-pressed={isSelected}
                       >
-                        <div className="flex items-center gap-3">
-                          {s.song_cover_url ? (
-                            <img
-                              src={s.song_cover_url}
-                              alt={s.song_name}
-                              className="w-9 h-9 rounded-md object-cover ring-1 ring-border shrink-0"
-                            />
-                          ) : (
-                            <div className="w-9 h-9 rounded-md bg-muted shrink-0" />
-                          )}
-                          <div className="min-w-0 flex-1">
-                            <div className="text-[12.5px] font-semibold leading-tight truncate">
-                              {s.song_name}
+                        <button
+                          type="button"
+                          onClick={() => setSelectedSongId(isSelected ? null : s.id)}
+                          aria-pressed={isSelected}
+                          className="w-full text-left"
+                        >
+                          <div className="flex items-center gap-3 pr-10">
+                            {s.song_cover_url ? (
+                              <img
+                                src={s.song_cover_url}
+                                alt={s.song_name}
+                                className="w-9 h-9 rounded-md object-cover ring-1 ring-border shrink-0"
+                              />
+                            ) : (
+                              <div className="w-9 h-9 rounded-md bg-muted shrink-0" />
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <div className="text-[12.5px] font-semibold leading-tight truncate">
+                                {s.song_name}
+                              </div>
+                              {s.song_artist && (
+                                <div className="text-[11px] text-muted-foreground truncate mt-0.5">
+                                  {s.song_artist}
+                                </div>
+                              )}
                             </div>
-                            {s.song_artist && (
-                              <div className="text-[11px] text-muted-foreground truncate mt-0.5">
-                                {s.song_artist}
+                            {(s.target_plays ?? 0) > 0 && (
+                              <div className="text-right shrink-0 ml-2">
+                                <div className="text-[12px] font-semibold tabular-nums leading-none">
+                                  {formatPlays(s.target_plays)}
+                                </div>
+                                <div className="text-[9.5px] uppercase tracking-wider text-muted-foreground mt-1">
+                                  meta · {formatPlays(s.daily_goal)}/dia
+                                </div>
                               </div>
                             )}
                           </div>
-                          {(s.target_plays ?? 0) > 0 && (
-                            <div className="text-right shrink-0 ml-2">
-                              <div className="text-[12px] font-semibold tabular-nums leading-none">
-                                {formatPlays(s.target_plays)}
-                              </div>
-                              <div className="text-[9.5px] uppercase tracking-wider text-muted-foreground mt-1">
-                                meta · {formatPlays(s.daily_goal)}/dia
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </button>
+                        </button>
+                        {access.writable && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setAddSongToPlaylistFor(s);
+                            }}
+                            title="Adicionar essa música em uma playlist já cadastrada"
+                            className="absolute top-1/2 -translate-y-1/2 right-2 h-7 w-7 inline-flex items-center justify-center rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors ring-1 ring-primary/30"
+                            aria-label={`Adicionar ${s.song_name} em uma playlist existente`}
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </li>
                   );
                 })}
@@ -1731,6 +1753,17 @@ export default function CuratorPage() {
           songRequired={playlistSongRequired}
           writable={access.writable}
           onImported={() => load()}
+        />
+
+        <AddSongToPlaylistDialog
+          open={addSongToPlaylistFor !== null}
+          onOpenChange={(v) => {
+            if (!v) setAddSongToPlaylistFor(null);
+          }}
+          song={addSongToPlaylistFor}
+          publicToken={deal?.public_token ?? token ?? ""}
+          allPlaylists={playlists}
+          onAdded={() => load()}
         />
 
 
