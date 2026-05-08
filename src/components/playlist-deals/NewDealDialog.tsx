@@ -935,12 +935,26 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
       }
       const dg = Number(s.daily_goal);
       const dd = Number(s.duration_days);
-      if (!dg || dg <= 0) {
+      // No mensalista, meta diária é opcional (serve só pra acompanhamento)
+      if (billingModel === "per_streams" && (!dg || dg <= 0)) {
         toast.error(`Defina a meta diária da música ${i + 1}`);
         return;
       }
       if (!dd || dd <= 0) {
         toast.error(`Defina a duração (dias) da música ${i + 1}`);
+        return;
+      }
+    }
+
+    if (billingModel === "monthly_retainer") {
+      const mv = currencyDigitsToNumber(monthlyAmountDigits) ?? 0;
+      const cm = Number(cycleMonths);
+      if (mv <= 0) {
+        toast.error("Informe o valor mensal do curador");
+        return;
+      }
+      if (!cm || cm < 1) {
+        toast.error("Informe a quantidade de meses do ciclo");
         return;
       }
     }
