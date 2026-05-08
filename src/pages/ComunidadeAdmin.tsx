@@ -463,7 +463,26 @@ function ConvitesTab({ adminId, onChange }: { adminId: string; onChange?: () => 
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [note, setNote] = useState("");
+  const [validityDays, setValidityDays] = useState<number>(14);
   const [creating, setCreating] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
+
+  // tick a cada minuto pra manter contagem regressiva fresca
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(t);
+  }, []);
+
+  function countdown(iso: string): string {
+    const ms = new Date(iso).getTime() - now;
+    if (ms <= 0) return "expirado";
+    const min = Math.floor(ms / 60_000);
+    if (min < 60) return `expira em ${min} min`;
+    const h = Math.floor(min / 60);
+    if (h < 24) return `expira em ${h}h`;
+    const d = Math.floor(h / 24);
+    return `expira em ${d}d`;
+  }
 
   async function load() {
     setLoading(true);
@@ -485,12 +504,14 @@ function ConvitesTab({ adminId, onChange }: { adminId: string; onChange?: () => 
   async function create() {
     if (!adminId) return;
     setCreating(true);
+    const expiresAt = new Date(Date.now() + validityDays * 24 * 60 * 60 * 1000).toISOString();
     const { error, data } = await supabase
       .from("community_invites")
       .insert({
         invited_by: adminId,
         email: email.trim() || null,
         note: note.trim() || null,
+        expires_at: expiresAt,
       })
       .select()
       .single();
@@ -502,6 +523,7 @@ function ConvitesTab({ adminId, onChange }: { adminId: string; onChange?: () => 
     setOpen(false);
     setEmail("");
     setNote("");
+    setValidityDays(14);
     toast.success("Convite gerado");
     const id = (data as Invite | null)?.slug || data!.code;
     const link = `${baseUrl}/comunidade/join/${id}`;
