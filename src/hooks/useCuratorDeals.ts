@@ -79,6 +79,11 @@ export type NewCuratorInput = {
   purchased_plays?: number;
   total_cost?: number | null;
   notes?: string | null;
+  deal_type?: "avulso" | "mensal";
+  default_amount?: number | null;
+  default_plays?: number | null;
+  monthly_amount?: number | null;
+  billing_day?: number | null;
 };
 
 export type DealSongInput = {
