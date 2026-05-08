@@ -373,7 +373,13 @@ Deno.serve(async (req) => {
           .from("curator_playlists")
           .insert(toInsert, { count: "exact" });
         if (insErr) {
-          return jr({ ok: false, error: insErr.message, items }, 200);
+          const raw = insErr.message ?? "";
+          const friendly = /duplicate key|unique constraint/i.test(raw)
+            ? "Essa playlist já está vinculada a essa música."
+            : /violates row-level security/i.test(raw)
+            ? "Você não tem permissão para registrar essa playlist."
+            : raw || "Não foi possível salvar a playlist.";
+          return jr({ ok: false, error: friendly, items }, 200);
         }
         inserted = count ?? toInsert.length;
         await admin
