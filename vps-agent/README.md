@@ -12,6 +12,7 @@ Agente Node oficial que roda na sua VPS, conecta no painel **/sistema** (Lovable
 - ✅ Logs estruturados via PM2
 - ✅ Incident tracking com anti-flood (5min/tipo) e pausa por crashloop
 - ✅ Limite configurável de restarts/hora antes de abrir incidente crítico
+- ✅ **Workers de fila** (queue/worker) — N processos consumindo `jobs_queue` com retries, heartbeat e claim atômico (substitui execução monolítica do `spotify-artists-bot`)
 
 Arquitetura desacoplada: **painel** (web) ↔ **edge functions** (Lovable Cloud) ↔ **agente VPS** ↔ **bots** (PM2/Docker). O agente é o único componente que toca o SO da VPS.
 
@@ -92,7 +93,49 @@ cd vps-agent && npm install --omit=dev
 pm2 restart nexengine-ops-agent
 ```
 
-## 8. Troubleshooting
+## 8. Workers de fila (queue/worker)
+
+O `ecosystem.config.cjs` sobe `WORKER_COUNT` processos `nexengine-worker-N` em paralelo ao agente. Cada worker:
+
+1. Faz `POST /jobs-claim` — reserva um job atomicamente (`FOR UPDATE SKIP LOCKED`).
+2. Executa o handler registrado em `src/handlers/index.js` para o `job_type`.
+3. Faz `POST /jobs-complete` (status `completed` ou `failed`).
+4. Em paralelo: `POST /workers-heartbeat` a cada `WORKER_HEARTBEAT_MS` com CPU/RAM/jobs.
+
+Falhas voltam para a fila com **backoff exponencial** até `max_attempts` do job. Lance `Error` com `err.fatal = true` no handler para forçar dead-letter imediato (sem retry).
+
+**Adicionar um novo tipo de job:**
+
+```js
+// src/handlers/meuJob.js
+export async function meuJob(job) {
+  const { algo } = job.payload;
+  if (!algo) { const e = new Error("payload.algo obrigatório"); e.fatal = true; throw e; }
+  // ... lógica real
+  return { ok: true };
+}
+
+// src/handlers/index.js
+import { meuJob } from "./meuJob.js";
+export const handlers = { ...handlers, "meu.job": meuJob };
+```
+
+Reinicie os workers: `pm2 restart /nexengine-worker-/`.
+
+**Acompanhar:** painel `/sistema → Fila` (KPIs e jobs) e `/sistema → Workers` (heartbeats).
+
+**Variáveis de worker** (`.env`):
+
+| Variável | Padrão | O que faz |
+|---|---|---|
+| `WORKER_COUNT` | `2` | Quantos workers o ecosystem sobe |
+| `WORKER_KIND` | `spotify-artists-worker` | Rótulo lógico (aparece no painel) |
+| `WORKER_JOB_TYPES` | `spotify.artist.fetch,spotify.deal.collect` | Tipos que este worker aceita |
+| `WORKER_LEASE_SECONDS` | `300` | Tempo de lease antes de requeue automático |
+| `WORKER_IDLE_SLEEP_MS` | `2000` | Pausa quando fila vazia |
+| `WORKER_HEARTBEAT_MS` | `15000` | Frequência de heartbeat |
+
+## 9. Troubleshooting
 
 | Sintoma | Causa provável | Ação |
 |---|---|---|
@@ -100,3 +143,5 @@ pm2 restart nexengine-ops-agent
 | Comandos ficam em "running" | Agente parado / sem rede | `pm2 status` + `pm2 logs nexengine-ops-agent` |
 | `pm2 jlist` retorna vazio | PM2 não está no PATH do user que roda o agente | Rode o agente com o mesmo user que tem o PM2 daemon |
 | `docker ps` falha | Usuário sem permissão | `sudo usermod -aG docker $USER` + relogar, ou `DOCKER_ENABLED=false` |
+| Workers `offline` no painel | Heartbeat não chega | `pm2 logs nexengine-worker-0` — confira `OPS_AGENT_TOKEN` e `OPS_BASE` |
+| Jobs ficam em `processing` para sempre | Worker travou sem completar | `jobs-maintenance` requeue automático após `lease_seconds` |
