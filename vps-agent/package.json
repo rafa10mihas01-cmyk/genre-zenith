@@ -33,7 +33,6 @@
     "docker:logs": "docker compose -f docker-compose.worker.yml logs -f"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.45.4",
     "dotenv": "^16.4.5",
     "node-fetch": "^3.3.2",
     "playwright": "^1.47.2",
