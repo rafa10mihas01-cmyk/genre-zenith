@@ -27,10 +27,10 @@ export function MobileBottomNav() {
         "lg:hidden fixed bottom-0 left-0 right-0 z-50",
         "bg-background/95 backdrop-blur-xl",
         "border-t border-border/60",
-        "shadow-[0_-4px_24px_rgba(0,0,0,0.08)]"
+        "shadow-[0_-1px_8px_rgba(0,0,0,0.04)]"
       )}
       style={{
-        paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 14px)",
+        paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 6px)",
         paddingTop: "10px",
         paddingLeft: "calc(env(safe-area-inset-left, 0px) + 16px)",
         paddingRight: "calc(env(safe-area-inset-right, 0px) + 16px)",
@@ -38,7 +38,7 @@ export function MobileBottomNav() {
       }}
       aria-label="Navegação principal"
     >
-      <ul className="flex items-center justify-around w-full gap-1">
+      <ul className="flex items-center w-full gap-1">
         {items.map((item) => {
           const active = item.end
             ? location.pathname === item.to
