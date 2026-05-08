@@ -15,13 +15,13 @@ import { supabase } from "@/integrations/supabase/client";
 
 type DealPlaylist = {
   id: string;
-  spotify_playlist_id: string | null;
-  spotify_url: string | null;
-  playlist_name: string | null;
-  image_url: string | null;
-  followers: number | null;
-  match_status: string | null;
-  song_id: string | null;
+  spotify_playlist_id?: string | null;
+  spotify_url?: string | null;
+  playlist_name?: string | null;
+  image_url?: string | null;
+  followers?: number | null;
+  match_status?: string | null;
+  song_id?: string | null;
 };
 
 type Song = {
