@@ -1,20 +1,64 @@
 /**
- * Browser pool — 1 Chromium persistente por worker, reutilizado entre jobs.
+ * Browser pool — Chromium persistente com stealth hardening (anti-headless detection).
  *
- * Garantias:
- *  - context/page são SEMPRE fechados no `finally` (sem leak).
- *  - Reciclagem após N jobs ou X minutos (config.BROWSER_RECYCLE_*).
- *  - `getActivityAge()` permite ao watchdog detectar pool travado.
- *  - `dispose()` limpa Chromium em SIGTERM.
- *
- * Sessão: usa `storageState` em SPOTIFY_STORAGE_STATE_PATH (cookies+localStorage).
+ * Stack:
+ *  - playwright-extra + puppeteer-extra-plugin-stealth → mascara `navigator.webdriver`,
+ *    plugins, languages, chrome runtime, permissions, WebGL vendor, etc.
+ *  - Fingerprint estável: UA, locale, timezone, viewport, deviceScaleFactor.
+ *  - Launch flags hardening: remove `--enable-automation`, ignora prefs default.
+ *  - Reciclagem (jobs/min) e detecção de pool travado mantidas.
  */
 import fs from "node:fs";
-import { chromium } from "playwright";
+import { chromium as rawChromium } from "playwright";
+import { chromium as extraChromium } from "playwright-extra";
+import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import { config } from "../config.js";
 import { makeLogger } from "../logger.js";
 
 const log = makeLogger("browser-pool");
+
+// Aplica stealth uma vez (idempotente).
+let stealthApplied = false;
+function ensureStealth() {
+  if (stealthApplied) return;
+  try {
+    extraChromium.use(StealthPlugin());
+    stealthApplied = true;
+    log.info("playwright-extra stealth aplicado");
+  } catch (e) {
+    log.error("falha ao aplicar stealth, caindo no chromium puro", { error: String(e?.message || e) });
+  }
+}
+
+const STEALTH_UA =
+  process.env.PLAYWRIGHT_USER_AGENT?.trim() ||
+  "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+
+const VIEWPORT = {
+  width: Number(process.env.PLAYWRIGHT_VIEWPORT_W) || 1440,
+  height: Number(process.env.PLAYWRIGHT_VIEWPORT_H) || 900,
+};
+const DPR = Number(process.env.PLAYWRIGHT_DPR) || 2;
+const LOCALE = process.env.PLAYWRIGHT_LOCALE?.trim() || "pt-BR";
+const TZ = process.env.PLAYWRIGHT_TZ?.trim() || "America/Sao_Paulo";
+
+const HARDENED_ARGS = [
+  "--no-sandbox",
+  "--disable-setuid-sandbox",
+  "--disable-dev-shm-usage",
+  "--disable-gpu",
+  "--disable-features=IsolateOrigins,site-per-process,AutomationControlled",
+  "--disable-blink-features=AutomationControlled",
+  "--no-zygote",
+  "--disable-infobars",
+  "--disable-extensions-except=",
+  "--disable-default-apps",
+  "--no-first-run",
+  "--no-default-browser-check",
+  "--password-store=basic",
+  "--use-mock-keychain",
+  "--lang=pt-BR",
+];
 
 class BrowserPool {
   constructor() {
@@ -27,22 +71,30 @@ class BrowserPool {
   }
 
   async _create() {
-    log.info("iniciando Chromium", { headless: config.PLAYWRIGHT_HEADLESS });
-    this.browser = await chromium.launch({
+    ensureStealth();
+    const launcher = stealthApplied ? extraChromium : rawChromium;
+    log.info("iniciando Chromium (stealth)", {
       headless: config.PLAYWRIGHT_HEADLESS,
-      args: [
-        "--no-sandbox", "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage", "--disable-gpu",
-        "--disable-features=IsolateOrigins,site-per-process",
-        "--no-zygote",
-      ],
+      stealth: stealthApplied,
+      viewport: VIEWPORT,
+      tz: TZ,
+      locale: LOCALE,
+    });
+
+    this.browser = await launcher.launch({
+      headless: config.PLAYWRIGHT_HEADLESS,
+      args: HARDENED_ARGS,
+      ignoreDefaultArgs: ["--enable-automation"],
+      chromiumSandbox: false,
     });
 
     let storageState;
     if (config.SPOTIFY_STORAGE_STATE_PATH && fs.existsSync(config.SPOTIFY_STORAGE_STATE_PATH)) {
       try {
         storageState = JSON.parse(fs.readFileSync(config.SPOTIFY_STORAGE_STATE_PATH, "utf8"));
-        log.info("storageState carregado", { path: config.SPOTIFY_STORAGE_STATE_PATH });
+        const cookies = Array.isArray(storageState.cookies) ? storageState.cookies.length : 0;
+        log.info("storageState carregado", { path: config.SPOTIFY_STORAGE_STATE_PATH, cookies });
+        if (!cookies) log.warn("storageState sem cookies — login certamente vai falhar");
       } catch (e) {
         log.error("storageState inválido", { error: String(e?.message || e) });
       }
@@ -52,15 +104,45 @@ class BrowserPool {
 
     this.context = await this.browser.newContext({
       storageState,
-      viewport: { width: 1440, height: 900 },
-      userAgent:
-        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) " +
-        "Chrome/124.0.0.0 Safari/537.36",
-      locale: "pt-BR",
-      timezoneId: "America/Sao_Paulo",
+      viewport: VIEWPORT,
+      deviceScaleFactor: DPR,
+      userAgent: STEALTH_UA,
+      locale: LOCALE,
+      timezoneId: TZ,
+      colorScheme: "dark",
+      reducedMotion: "no-preference",
+      isMobile: false,
+      hasTouch: false,
+      javaScriptEnabled: true,
+      bypassCSP: false,
+      extraHTTPHeaders: {
+        "Accept-Language": `${LOCALE},pt;q=0.9,en;q=0.8`,
+      },
     });
     this.context.setDefaultNavigationTimeout(config.PLAYWRIGHT_NAV_TIMEOUT_MS);
     this.context.setDefaultTimeout(config.PLAYWRIGHT_ACTION_TIMEOUT_MS);
+
+    // Patch extra (defesa em profundidade, mesmo com stealth ativo).
+    await this.context.addInitScript(() => {
+      try {
+        Object.defineProperty(navigator, "webdriver", { get: () => undefined });
+        Object.defineProperty(navigator, "languages", { get: () => ["pt-BR", "pt", "en-US", "en"] });
+        Object.defineProperty(navigator, "plugins", {
+          get: () => [1, 2, 3, 4, 5].map(() => ({ name: "Chromium PDF Plugin" })),
+        });
+        // Chrome runtime
+        // @ts-ignore
+        window.chrome = window.chrome || { runtime: {}, app: {}, csi: () => {}, loadTimes: () => {} };
+        // Permissions API
+        const origQuery = window.navigator.permissions?.query;
+        if (origQuery) {
+          window.navigator.permissions.query = (p) =>
+            p && p.name === "notifications"
+              ? Promise.resolve({ state: Notification.permission })
+              : origQuery(p);
+        }
+      } catch {}
+    });
 
     this.createdAt = Date.now();
     this.jobsServed = 0;
@@ -93,6 +175,16 @@ class BrowserPool {
       if (page) {
         try { await page.close({ runBeforeUnload: false }); } catch {}
       }
+    }
+  }
+
+  /** Captura screenshot full-page p/ debug de auth fail. Retorna Buffer ou null. */
+  async captureDebug(page, label = "auth-fail") {
+    try {
+      return await page.screenshot({ type: "png", fullPage: true });
+    } catch (e) {
+      log.warn("captureDebug falhou", { label, error: String(e?.message || e) });
+      return null;
     }
   }
 
