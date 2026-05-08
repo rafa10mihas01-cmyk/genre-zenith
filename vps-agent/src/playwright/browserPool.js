@@ -71,21 +71,29 @@ class BrowserPool {
   }
 
   async _create() {
-    ensureStealth();
-    const launcher = stealthApplied ? extraChromium : rawChromium;
-    log.info("iniciando Chromium (stealth)", {
+    const legacy = config.PLAYWRIGHT_LEGACY_MODE;
+    if (!legacy) ensureStealth();
+    const launcher = (!legacy && stealthApplied) ? extraChromium : rawChromium;
+    log.info("iniciando Chromium", {
+      mode: legacy ? "LEGACY" : "stealth",
       headless: config.PLAYWRIGHT_HEADLESS,
-      stealth: stealthApplied,
+      stealth: !legacy && stealthApplied,
       viewport: VIEWPORT,
       tz: TZ,
       locale: LOCALE,
     });
 
+    const legacyArgs = [
+      "--no-sandbox", "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage", "--disable-gpu",
+      "--disable-features=IsolateOrigins,site-per-process",
+      "--no-zygote",
+    ];
+
     this.browser = await launcher.launch({
       headless: config.PLAYWRIGHT_HEADLESS,
-      args: HARDENED_ARGS,
-      ignoreDefaultArgs: ["--enable-automation"],
-      chromiumSandbox: false,
+      args: legacy ? legacyArgs : HARDENED_ARGS,
+      ...(legacy ? {} : { ignoreDefaultArgs: ["--enable-automation"], chromiumSandbox: false }),
     });
 
     let storageState;
@@ -102,58 +110,67 @@ class BrowserPool {
       log.warn("storageState ausente — assertLoggedIn vai falhar", { path: config.SPOTIFY_STORAGE_STATE_PATH });
     }
 
-    this.context = await this.browser.newContext({
-      storageState,
-      viewport: VIEWPORT,
-      deviceScaleFactor: DPR,
-      userAgent: STEALTH_UA,
-      locale: LOCALE,
-      timezoneId: TZ,
-      colorScheme: "dark",
-      reducedMotion: "no-preference",
-      isMobile: false,
-      hasTouch: false,
-      javaScriptEnabled: true,
-      bypassCSP: false,
-      extraHTTPHeaders: {
-        "Accept-Language": `${LOCALE},pt;q=0.9,en;q=0.8`,
-      },
-    });
+    const LEGACY_UA =
+      "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+
+    this.context = await this.browser.newContext(
+      legacy
+        ? {
+            storageState,
+            viewport: { width: 1440, height: 900 },
+            userAgent: LEGACY_UA,
+            locale: "pt-BR",
+            timezoneId: "America/Sao_Paulo",
+          }
+        : {
+            storageState,
+            viewport: VIEWPORT,
+            deviceScaleFactor: DPR,
+            userAgent: STEALTH_UA,
+            locale: LOCALE,
+            timezoneId: TZ,
+            colorScheme: "dark",
+            reducedMotion: "no-preference",
+            isMobile: false,
+            hasTouch: false,
+            javaScriptEnabled: true,
+            bypassCSP: false,
+            extraHTTPHeaders: { "Accept-Language": `${LOCALE},pt;q=0.9,en;q=0.8` },
+          }
+    );
     this.context.setDefaultNavigationTimeout(config.PLAYWRIGHT_NAV_TIMEOUT_MS);
     this.context.setDefaultTimeout(config.PLAYWRIGHT_ACTION_TIMEOUT_MS);
 
-    // Patch extra (defesa em profundidade, mesmo com stealth ativo).
-    await this.context.addInitScript(() => {
-      try {
-        Object.defineProperty(navigator, "webdriver", { get: () => undefined });
-        Object.defineProperty(navigator, "languages", { get: () => ["pt-BR", "pt", "en-US", "en"] });
-        Object.defineProperty(navigator, "plugins", {
-          get: () => [1, 2, 3, 4, 5].map(() => ({ name: "Chromium PDF Plugin" })),
-        });
-        Object.defineProperty(navigator, "hardwareConcurrency", { get: () => 8 });
-        Object.defineProperty(navigator, "deviceMemory", { get: () => 8 });
-        // Chrome runtime
-        // @ts-ignore
-        window.chrome = window.chrome || { runtime: {}, app: {}, csi: () => {}, loadTimes: () => {} };
-        // Permissions API
-        const origQuery = window.navigator.permissions?.query;
-        if (origQuery) {
-          window.navigator.permissions.query = (p) =>
-            p && p.name === "notifications"
-              ? Promise.resolve({ state: Notification.permission })
-              : origQuery(p);
-        }
-        // WebGL vendor/renderer spoof (Apple/Intel — combina com UA Mac)
-        const getParam = WebGLRenderingContext.prototype.getParameter;
-        WebGLRenderingContext.prototype.getParameter = function (p) {
-          if (p === 37445) return "Intel Inc.";
-          if (p === 37446) return "Intel Iris OpenGL Engine";
-          return getParam.call(this, p);
-        };
-        // Notification permission default
-        try { Object.defineProperty(Notification, "permission", { get: () => "default" }); } catch {}
-      } catch {}
-    });
+    // Patch extra (defesa em profundidade) — DESABILITADO em LEGACY_MODE.
+    if (!legacy) {
+      await this.context.addInitScript(() => {
+        try {
+          Object.defineProperty(navigator, "webdriver", { get: () => undefined });
+          Object.defineProperty(navigator, "languages", { get: () => ["pt-BR", "pt", "en-US", "en"] });
+          Object.defineProperty(navigator, "plugins", {
+            get: () => [1, 2, 3, 4, 5].map(() => ({ name: "Chromium PDF Plugin" })),
+          });
+          Object.defineProperty(navigator, "hardwareConcurrency", { get: () => 8 });
+          Object.defineProperty(navigator, "deviceMemory", { get: () => 8 });
+          // @ts-ignore
+          window.chrome = window.chrome || { runtime: {}, app: {}, csi: () => {}, loadTimes: () => {} };
+          const origQuery = window.navigator.permissions?.query;
+          if (origQuery) {
+            window.navigator.permissions.query = (p) =>
+              p && p.name === "notifications"
+                ? Promise.resolve({ state: Notification.permission })
+                : origQuery(p);
+          }
+          const getParam = WebGLRenderingContext.prototype.getParameter;
+          WebGLRenderingContext.prototype.getParameter = function (p) {
+            if (p === 37445) return "Intel Inc.";
+            if (p === 37446) return "Intel Iris OpenGL Engine";
+            return getParam.call(this, p);
+          };
+          try { Object.defineProperty(Notification, "permission", { get: () => "default" }); } catch {}
+        } catch {}
+      });
+    }
 
     this.createdAt = Date.now();
     this.jobsServed = 0;

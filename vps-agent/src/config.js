@@ -60,6 +60,13 @@ export const config = {
   SPOTIFY_S4A_BASE: process.env.SPOTIFY_S4A_BASE?.trim() || "https://artists.spotify.com",
   SPOTIFY_STORAGE_STATE_PATH: process.env.SPOTIFY_STORAGE_STATE_PATH?.trim() || "",
   PLAYWRIGHT_HEADLESS: bool("PLAYWRIGHT_HEADLESS", true),
+  // Modo legacy: restaura o runtime antes do refactor stealth.
+  // - sem playwright-extra/stealth
+  // - sem addInitScript (sem patch WebGL/plugins/webdriver)
+  // - launch args mínimos
+  // - UA Linux original
+  // - assertLoggedIn simples (1 seletor, 8s wait)
+  PLAYWRIGHT_LEGACY_MODE: bool("PLAYWRIGHT_LEGACY_MODE", false),
   PLAYWRIGHT_NAV_TIMEOUT_MS: num("PLAYWRIGHT_NAV_TIMEOUT_MS", 45000),
   PLAYWRIGHT_ACTION_TIMEOUT_MS: num("PLAYWRIGHT_ACTION_TIMEOUT_MS", 15000),
 
