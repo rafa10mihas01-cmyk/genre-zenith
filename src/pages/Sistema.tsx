@@ -80,6 +80,8 @@ export default function Sistema() {
         {activeTab === "fluxo" && <FluxoVisual />}
         {activeTab === "ao-vivo" && <AoVivoPainel />}
         {activeTab === "robo" && <RoboAoVivo />}
+        {activeTab === "fila" && <FilaPanel />}
+        {activeTab === "workers" && <WorkersPanel />}
         {activeTab === "coleta" && <ColetaPanel />}
         {activeTab === "saude" && <SaudeSistema />}
         {activeTab === "alertas" && <AlertasHistorico />}
