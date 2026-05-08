@@ -123,16 +123,7 @@ export async function assertLoggedIn(page) {
   );
 }
 
-  // Sinal negativo OU URL de login → auth error.
-  const negative = await anyVisible(page, LOGGED_OUT_SIGNALS, 0);
-  const onLoginUrl = await urlLooksLikeLogin(page);
 
-  const reason = negative ? "logged-out-marker" : onLoginUrl ? "login-url" : "no-positive-signal";
-  const screenshot = await dumpAuthFail(page, reason);
-  throw new SpotifyAuthError(
-    `Indicador de login ausente (${reason}) em ${page.url()}${screenshot ? ` — debug: ${screenshot}` : ""}`
-  );
-}
 
 /**
  * Pré-flight: valida cookies sp_dc/sp_key no storageState antes de iniciar jobs.
