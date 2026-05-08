@@ -241,6 +241,18 @@ Deno.serve(async (req) => {
           .map((r: any) => r.spotify_playlist_id)
           .filter((v: unknown): v is string => typeof v === "string" && v.length > 0),
       );
+      // Playlists que JÁ foram capturadas como baseline para esse deal+música.
+      // Se o curador tentar registrar uma delas como sua, é bloqueio rígido —
+      // ela existia antes do deal começar, não conta como entrega dele.
+      const baselineIds = new Set(
+        (existing ?? [])
+          .filter((r: any) =>
+            (r.song_id ?? null) === (songIdInput ?? null) &&
+            r.match_status === "baseline"
+          )
+          .map((r: any) => r.spotify_playlist_id)
+          .filter((v: unknown): v is string => typeof v === "string" && v.length > 0),
+      );
       const knownCuratorOwnerIds = Array.from(
         new Set(
           (existing ?? [])
@@ -279,6 +291,11 @@ Deno.serve(async (req) => {
           continue;
         }
         seenInPayload.add(pid);
+        if (baselineIds.has(pid)) {
+          // Bloqueio forte: estava na baseline, então não é entrega do curador.
+          item.status = "baseline_blocked";
+          continue;
+        }
         if (existingIds.has(pid)) {
           item.status = "duplicate";
         }
