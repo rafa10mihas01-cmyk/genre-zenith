@@ -5,7 +5,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 import type { CuratorDeal, CuratorDealLog, CuratorDealSong, CuratorPlaylist, CuratorDealProgress } from "@/lib/curatorDealsUtils";
-import { computeCuratorStats } from "@/lib/curatorDealsUtils";
+import { computeCuratorStats, dedupeCuratorPlaylists } from "@/lib/curatorDealsUtils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
