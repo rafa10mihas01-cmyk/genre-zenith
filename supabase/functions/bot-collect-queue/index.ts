@@ -44,23 +44,24 @@ Deno.serve(async (req) => {
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
-  // Recovery de handoff: se a música ficou "queued" por mais de 3 min sem o bot
-  // devolver print/snapshot, assumimos que a entrega se perdeu antes da AI/print.
-  // Isso NÃO muda o ciclo diário; só reentrega tentativa travada de baseline/coleta.
-  // Recovery correto: usa queued_at (quando virou queued), NÃO next_auto_collect_at.
-  const handoffTimeoutAgo = new Date(Date.now() - 3 * 60 * 1000).toISOString();
+  // Recovery de handoff: se a música ficou "queued" por mais de 5 min sem o bot
+  // devolver print/snapshot, assumimos que a entrega se perdeu (bot reiniciou,
+  // crash, queda de rede). Reseta para 'idle' pra reentrega imediata sem
+  // intervenção manual. Cobre tanto rows com queued_at antigo quanto rows sem
+  // queued_at (legado / inserts manuais).
+  const STUCK_MS = 5 * 60 * 1000;
+  const stuckCutoff = new Date(Date.now() - STUCK_MS).toISOString();
   const { data: stuckRows } = await supabase
     .from("curator_deal_songs")
-    .select("id, queued_at")
+    .select("id, queued_at, updated_at")
     .eq("auto_collect_status", "queued")
-    .not("queued_at", "is", null)
-    .lt("queued_at", handoffTimeoutAgo);
+    .or(`queued_at.lt.${stuckCutoff},and(queued_at.is.null,updated_at.lt.${stuckCutoff})`);
   if (stuckRows && stuckRows.length) {
     await supabase
       .from("curator_deal_songs")
       .update({
-        auto_collect_status: "error",
-        auto_collect_error: "Queued >3min sem retorno do bot — reentregando",
+        auto_collect_status: "idle",
+        auto_collect_error: "Queued >5min sem retorno do bot — reset automático",
         queued_at: null,
       })
       .in("id", stuckRows.map((r: any) => r.id));
@@ -73,7 +74,7 @@ Deno.serve(async (req) => {
           song_id: r.id,
           step: "recovery",
           status: "warning",
-          message: "queued >3min — reentregando",
+          message: "queued >5min — reset para idle",
           metadata: { queue_age_ms: ageMs },
         });
       } catch (_) { /* ignore */ }
