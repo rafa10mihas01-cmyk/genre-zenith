@@ -448,7 +448,10 @@ export function DealHistorySheet({
       const s = (p.match_status ?? (p.is_baseline ? "baseline" : "curator")) as CuratorMatchStatus;
       if (s !== "editorial" && s !== "algorithmic" && s !== "organic" && s !== "suspicious") return false;
       if (algoFilter !== "all" && s !== algoFilter) return false;
-      if (algoSongFilter !== "all" && (p.song_id ?? "") !== algoSongFilter) return false;
+      if (algoSongFilter !== "all") {
+        const ids = p.song_ids?.length ? p.song_ids : (p.song_id ? [p.song_id] : []);
+        if (!ids.includes(algoSongFilter)) return false;
+      }
       if (!q) return true;
       return (
         (p.playlist_name ?? "").toLowerCase().includes(q) ||
