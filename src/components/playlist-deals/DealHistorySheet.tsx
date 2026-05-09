@@ -279,12 +279,23 @@ function BreakdownRow({ r, kind }: { r: BreakdownRowData; kind: "curator" | "alg
 /* ------------------------------------------------------------------
  * Linha de playlist — densidade controlada, sem grupos artificiais.
  * ------------------------------------------------------------------ */
-function PlaylistRow({ p }: { p: CuratorPlaylist }) {
+function PlaylistRow({
+  p,
+  snapshot7d,
+}: {
+  p: CuratorPlaylist;
+  snapshot7d?: number | null;
+}) {
   const status = (p.match_status ??
     (p.is_baseline ? "baseline" : "curator")) as CuratorMatchStatus;
   const owner = p.spotify_owner_name?.trim() || null;
   const followers = p.followers ? `${fmtCompact(Number(p.followers))} seguidores` : null;
-  const plays7d = p.streams_7d ? `${fmtCompact(Number(p.streams_7d))} plays/7d` : null;
+  const plays7d =
+    snapshot7d != null
+      ? `${fmtCompact(snapshot7d)} plays/7d`
+      : p.streams_7d
+      ? `${fmtCompact(Number(p.streams_7d))} plays/7d (paste)`
+      : null;
   const meta = [owner, followers, plays7d].filter(Boolean).join(" · ");
   const position = typeof p.position_in_paste === "number" ? p.position_in_paste : null;
 
