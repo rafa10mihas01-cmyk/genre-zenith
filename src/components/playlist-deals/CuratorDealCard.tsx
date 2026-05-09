@@ -56,7 +56,7 @@ export function CuratorDealCard({
   const showSongList = songs.length > 1;
 
   // Breakdown de origem das playlists deste deal (alinhado com a sheet)
-  const dealPlaylists = playlists.filter((p) => p.deal_id === deal.id);
+  const dealPlaylists = dedupeCuratorPlaylists(playlists.filter((p) => p.deal_id === deal.id), songs);
   const plBreakdown = dealPlaylists.reduce(
     (acc, p) => {
       const s = (p.match_status ?? (p.is_baseline ? "baseline" : "curator")) as string;
