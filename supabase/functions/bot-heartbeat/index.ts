@@ -54,13 +54,16 @@ Deno.serve(async (req) => {
   });
   if (error) return jr({ error: error.message }, 500);
 
-  // Se sessão inválida, dispara notificação (1x por hora — checa último alerta)
+  // Se sessão inválida, dispara notificação + email (ambos 1x por hora)
   if (body.spotify_session_valid === false) {
+    const oneHourAgo = new Date(Date.now() - 3600_000).toISOString();
+
+    // 1) Notificação in-app (throttle 1h)
     const { data: recent } = await supabase
       .from("notifications")
       .select("id")
       .eq("title", "Bot Spotify precisa reautenticar")
-      .gte("created_at", new Date(Date.now() - 3600_000).toISOString())
+      .gte("created_at", oneHourAgo)
       .limit(1);
     if (!recent?.length) {
       await supabase.rpc("create_notification", {
@@ -70,6 +73,54 @@ Deno.serve(async (req) => {
         p_action_url: "/playlist-deals",
         p_metadata: body.metadata ?? {},
       });
+    }
+
+    // 2) Email para admin (throttle 1h via email_send_log)
+    try {
+      const { data: lastEmail } = await supabase
+        .from("email_send_log")
+        .select("id")
+        .eq("template_name", "spotify-session-expired")
+        .gte("created_at", oneHourAgo)
+        .limit(1);
+
+      if (!lastEmail?.length) {
+        // Última coleta bem-sucedida (último heartbeat com last_collect_at preenchido,
+        // ou o snapshot mais recente). Preferir bot_heartbeats.last_collect_at.
+        const { data: lastHb } = await supabase
+          .from("bot_heartbeats")
+          .select("last_collect_at")
+          .not("last_collect_at", "is", null)
+          .order("last_collect_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        const fmt = (iso: string | null | undefined) => {
+          if (!iso) return null;
+          try {
+            return new Date(iso).toLocaleString("pt-BR", {
+              timeZone: "America/Sao_Paulo",
+              dateStyle: "short",
+              timeStyle: "short",
+            }) + " BRT";
+          } catch { return iso; }
+        };
+
+        await supabase.functions.invoke("send-transactional-email", {
+          body: {
+            templateName: "spotify-session-expired",
+            idempotencyKey: `spotify-session-expired-${Math.floor(Date.now() / 3600_000)}`,
+            templateData: {
+              detectedAt: fmt(new Date().toISOString()),
+              lastSuccessfulCollectAt: fmt(lastHb?.last_collect_at) ?? "sem registro recente",
+              panelUrl: "https://engine.nexcreatorx.com/sistema",
+              botMessage: body.message ?? null,
+            },
+          },
+        });
+      }
+    } catch (e) {
+      console.error("Failed to enqueue spotify-session-expired email", e);
     }
   }
   return jr({ ok: true });
