@@ -314,6 +314,22 @@ function PlaylistRow({ p }: { p: CuratorPlaylist }) {
           <span className="text-[13px] font-medium text-foreground truncate">
             {p.playlist_name || "Playlist sem nome"}
           </span>
+          {p.song_names && p.song_names.length > 0 && (
+            <span className="flex items-center gap-1 shrink-0">
+              {p.song_names.slice(0, 3).map((n) => (
+                <span
+                  key={n}
+                  className="text-[9.5px] uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-muted/40 text-muted-foreground truncate max-w-[120px]"
+                  title={n}
+                >
+                  ♪ {n}
+                </span>
+              ))}
+              {p.song_names.length > 3 && (
+                <span className="text-[9.5px] text-muted-foreground">+{p.song_names.length - 3}</span>
+              )}
+            </span>
+          )}
         </div>
         {meta && (
           <div className="text-[11px] text-muted-foreground truncate mt-0.5 pl-3.5">
