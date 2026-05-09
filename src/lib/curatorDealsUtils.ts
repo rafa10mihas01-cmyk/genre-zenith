@@ -338,12 +338,13 @@ export function computeCuratorStats(
   let etaFinal = eta;
   if (progressOverride) {
     const delivered = Number(progressOverride.delivered_curator ?? 0);
-    const latest = Number(progressOverride.latest_total ?? 0);
+    const latestRaw = progressOverride.latest_total;
+    const latest = latestRaw == null ? NaN : Number(latestRaw);
     const dailyAvg = Number(progressOverride.daily_avg ?? 0);
     const pctRpc = progressOverride.progress_pct;
     const etaRpc = progressOverride.eta_days;
     earnedFinal = Math.max(0, delivered);
-    latestPlaysFinal = latest > 0 ? latest : latestPlays;
+    latestPlaysFinal = Number.isFinite(latest) ? Math.max(0, latest) : latestPlays;
     pctFinal = pctRpc != null ? Math.min(100, Math.round(Number(pctRpc))) :
       (target > 0 ? Math.min(100, Math.round((earnedFinal / target) * 100)) : 0);
     velFinal = dailyAvg > 0 ? dailyAvg : null;
