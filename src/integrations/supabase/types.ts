@@ -3410,30 +3410,18 @@ export type Database = {
       }
       is_admin: { Args: never; Returns: boolean }
       is_current_user_admin: { Args: never; Returns: boolean }
-      match_curator_playlist:
-        | {
-            Args: {
-              p_deal_id: string
-              p_playlist_name: string
-              p_spotify_playlist_id: string
-            }
-            Returns: {
-              match_method: string
-              playlist_id: string
-            }[]
-          }
-        | {
-            Args: {
-              p_deal_id: string
-              p_playlist_name: string
-              p_song_id?: string
-              p_spotify_playlist_id: string
-            }
-            Returns: {
-              match_method: string
-              playlist_id: string
-            }[]
-          }
+      match_curator_playlist: {
+        Args: {
+          p_deal_id: string
+          p_playlist_name: string
+          p_song_id?: string
+          p_spotify_playlist_id: string
+        }
+        Returns: {
+          match_method: string
+          playlist_id: string
+        }[]
+      }
       move_to_dlq: {
         Args: {
           dlq_name: string

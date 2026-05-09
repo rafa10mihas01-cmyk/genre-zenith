@@ -1,0 +1,1 @@
+DROP FUNCTION IF EXISTS public.match_curator_playlist(uuid, text, text);
