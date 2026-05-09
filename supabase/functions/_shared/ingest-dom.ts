@@ -132,6 +132,7 @@ export async function processDomItem(
         p_deal_id: deal_id,
         p_spotify_playlist_id: sId,
         p_playlist_name: sName,
+        p_song_id: song_id,
       });
       const row = Array.isArray(matchData) ? matchData[0] : null;
       if ((row as any)?.playlist_id) {
