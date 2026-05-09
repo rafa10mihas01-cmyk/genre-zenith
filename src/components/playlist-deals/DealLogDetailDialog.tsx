@@ -14,11 +14,12 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { PrintThumbs } from "./PrintThumbs";
 
-import type {
-  CuratorDealLog,
-  CuratorDealSong,
-  CuratorPlaylist,
-  CuratorMatchStatus,
+import {
+  dedupeCuratorPlaylists,
+  type CuratorDealLog,
+  type CuratorDealSong,
+  type CuratorPlaylist,
+  type CuratorMatchStatus,
 } from "@/lib/curatorDealsUtils";
 
 const STATUS_LABEL: Record<CuratorMatchStatus, string> = {
@@ -70,29 +71,22 @@ export function DealLogDetailDialog({
 }: DealLogDetailDialogProps) {
   const linkedPlaylists = useMemo(() => {
     if (!log) return [] as CuratorPlaylist[];
-    // Playlists vinculadas a este registro:
-    // - se baseline: todas as is_baseline=true do mesmo song_id (ou do deal se não houver song_id)
-    // - se update normal: as adicionadas naquele dia (proxy: por song_id se existir)
     const isBaseline = log.is_baseline === true;
     const songId = log.song_id ?? null;
 
-    return playlists
-      .filter((p) => {
-        // mesmo deal sempre
-        if (p.deal_id !== log.deal_id) return false;
-        // se há song_id no log, filtra por song_id da playlist (quando a coluna existir)
-        if (songId && (p as any).song_id) {
-          return (p as any).song_id === songId;
-        }
-        // se for baseline, mostrar só baselines
-        if (isBaseline) return p.is_baseline === true;
-        return true;
-      })
-      .sort(
-        (a, b) =>
-          (Number(b.streams_7d) || 0) - (Number(a.streams_7d) || 0),
-      );
-  }, [log, playlists]);
+    const filtered = playlists.filter((p) => {
+      if (p.deal_id !== log.deal_id) return false;
+      if (songId && (p as any).song_id) {
+        return (p as any).song_id === songId;
+      }
+      if (isBaseline) return p.is_baseline === true;
+      return true;
+    });
+
+    return dedupeCuratorPlaylists(filtered, song ? [{ id: song.id, song_name: song.song_name }] : []).sort(
+      (a, b) => (Number(b.streams_7d) || 0) - (Number(a.streams_7d) || 0),
+    );
+  }, [log, playlists, song]);
 
   if (!log) return null;
 

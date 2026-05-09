@@ -39,6 +39,7 @@ import { useDealTodayPlaylistBreakdown } from "@/hooks/useDealTodayPlaylistBreak
 
 import {
   computeCuratorStats,
+  dedupeCuratorPlaylists,
   type CuratorDeal,
   type CuratorDealLog,
   type CuratorDealSong,
@@ -313,6 +314,22 @@ function PlaylistRow({ p }: { p: CuratorPlaylist }) {
           <span className="text-[13px] font-medium text-foreground truncate">
             {p.playlist_name || "Playlist sem nome"}
           </span>
+          {p.song_names && p.song_names.length > 0 && (
+            <span className="flex items-center gap-1 shrink-0">
+              {p.song_names.slice(0, 3).map((n) => (
+                <span
+                  key={n}
+                  className="text-[9.5px] uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-muted/40 text-muted-foreground truncate max-w-[120px]"
+                  title={n}
+                >
+                  ♪ {n}
+                </span>
+              ))}
+              {p.song_names.length > 3 && (
+                <span className="text-[9.5px] text-muted-foreground">+{p.song_names.length - 3}</span>
+              )}
+            </span>
+          )}
         </div>
         {meta && (
           <div className="text-[11px] text-muted-foreground truncate mt-0.5 pl-3.5">
@@ -393,10 +410,11 @@ export function DealHistorySheet({
 
   const reversedLogs = stats ? [...stats.dealLogs].reverse() : [];
 
-  const dealPlaylists = useMemo(
-    () => (deal ? allPlaylists.filter((p) => p.deal_id === deal.id) : []),
-    [allPlaylists, deal],
-  );
+  const dealPlaylists = useMemo(() => {
+    if (!deal) return [] as CuratorPlaylist[];
+    const raw = allPlaylists.filter((p) => p.deal_id === deal.id);
+    return dedupeCuratorPlaylists(raw, songs);
+  }, [allPlaylists, deal, songs]);
 
   const sortedPlaylists = useMemo(() => {
     return [...dealPlaylists].sort((a, b) => {
@@ -427,7 +445,10 @@ export function DealHistorySheet({
     return sortedPlaylists.filter((p) => {
       const s = (p.match_status ?? (p.is_baseline ? "baseline" : "curator")) as CuratorMatchStatus;
       if (s !== "curator" && s !== "baseline") return false;
-      if (curatorSongFilter !== "all" && (p.song_id ?? "") !== curatorSongFilter) return false;
+      if (curatorSongFilter !== "all") {
+        const ids = p.song_ids?.length ? p.song_ids : (p.song_id ? [p.song_id] : []);
+        if (!ids.includes(curatorSongFilter)) return false;
+      }
       if (!q) return true;
       return (
         (p.playlist_name ?? "").toLowerCase().includes(q) ||
@@ -443,7 +464,10 @@ export function DealHistorySheet({
       const s = (p.match_status ?? (p.is_baseline ? "baseline" : "curator")) as CuratorMatchStatus;
       if (s !== "editorial" && s !== "algorithmic" && s !== "organic" && s !== "suspicious") return false;
       if (algoFilter !== "all" && s !== algoFilter) return false;
-      if (algoSongFilter !== "all" && (p.song_id ?? "") !== algoSongFilter) return false;
+      if (algoSongFilter !== "all") {
+        const ids = p.song_ids?.length ? p.song_ids : (p.song_id ? [p.song_id] : []);
+        if (!ids.includes(algoSongFilter)) return false;
+      }
       if (!q) return true;
       return (
         (p.playlist_name ?? "").toLowerCase().includes(q) ||
