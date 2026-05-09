@@ -39,6 +39,7 @@ import { useDealTodayPlaylistBreakdown } from "@/hooks/useDealTodayPlaylistBreak
 
 import {
   computeCuratorStats,
+  dedupeCuratorPlaylists,
   type CuratorDeal,
   type CuratorDealLog,
   type CuratorDealSong,
