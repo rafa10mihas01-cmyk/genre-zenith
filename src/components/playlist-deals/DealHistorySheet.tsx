@@ -394,10 +394,11 @@ export function DealHistorySheet({
 
   const reversedLogs = stats ? [...stats.dealLogs].reverse() : [];
 
-  const dealPlaylists = useMemo(
-    () => (deal ? allPlaylists.filter((p) => p.deal_id === deal.id) : []),
-    [allPlaylists, deal],
-  );
+  const dealPlaylists = useMemo(() => {
+    if (!deal) return [] as CuratorPlaylist[];
+    const raw = allPlaylists.filter((p) => p.deal_id === deal.id);
+    return dedupeCuratorPlaylists(raw, songs);
+  }, [allPlaylists, deal, songs]);
 
   const sortedPlaylists = useMemo(() => {
     return [...dealPlaylists].sort((a, b) => {
