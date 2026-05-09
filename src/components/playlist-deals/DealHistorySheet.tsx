@@ -279,12 +279,23 @@ function BreakdownRow({ r, kind }: { r: BreakdownRowData; kind: "curator" | "alg
 /* ------------------------------------------------------------------
  * Linha de playlist — densidade controlada, sem grupos artificiais.
  * ------------------------------------------------------------------ */
-function PlaylistRow({ p }: { p: CuratorPlaylist }) {
+function PlaylistRow({
+  p,
+  snapshot7d,
+}: {
+  p: CuratorPlaylist;
+  snapshot7d?: number | null;
+}) {
   const status = (p.match_status ??
     (p.is_baseline ? "baseline" : "curator")) as CuratorMatchStatus;
   const owner = p.spotify_owner_name?.trim() || null;
   const followers = p.followers ? `${fmtCompact(Number(p.followers))} seguidores` : null;
-  const plays7d = p.streams_7d ? `${fmtCompact(Number(p.streams_7d))} plays/7d` : null;
+  const plays7d =
+    snapshot7d != null
+      ? `${fmtCompact(snapshot7d)} plays/7d`
+      : p.streams_7d
+      ? `${fmtCompact(Number(p.streams_7d))} plays/7d (paste)`
+      : null;
   const meta = [owner, followers, plays7d].filter(Boolean).join(" · ");
   const position = typeof p.position_in_paste === "number" ? p.position_in_paste : null;
 
@@ -884,6 +895,16 @@ export function DealHistorySheet({
                     Playlists cadastradas pelo curador — é o que conta como entrega contratada.
                   </div>
 
+                  {curatorTotal > 0 && curatorWindowTotal === 0 && (
+                    <div className="rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-[11px] text-foreground leading-relaxed">
+                      <strong className="font-semibold">Curador ainda não detectado no Spotify for Artists.</strong>
+                      <div className="text-muted-foreground mt-1">
+                        As playlists estão na whitelist mas ainda não apareceram nos snapshots do S4A.
+                        Plays de orgânicas/editoriais aparecem na aba <span className="text-foreground font-medium">Algoritmo</span> e não contam para a meta.
+                      </div>
+                    </div>
+                  )}
+
                   {/* ações */}
                   {deal.curator_id && (
                     <div className="flex items-center gap-2">
@@ -1267,7 +1288,11 @@ export function DealHistorySheet({
                                 ) : (
                                   <ul className="rounded-2xl border border-border bg-card divide-y divide-border overflow-x-auto overflow-y-hidden overscroll-x-contain">
                                     {linked.map((p) => (
-                                      <PlaylistRow key={p.id} p={p} />
+                                      <PlaylistRow
+                                        key={p.id}
+                                        p={p}
+                                        snapshot7d={breakdownMap.get(p.id)?.plays_7d ?? null}
+                                      />
                                     ))}
                                   </ul>
                                 )}
