@@ -250,6 +250,26 @@ export function useCuratorDeals() {
     load();
   }, [load]);
 
+  // Polling de fallback: enquanto houver música em coleta ativa (queued/collecting),
+  // recarrega a cada 5s para garantir que o status volte para "idle" no UI mesmo
+  // que o evento realtime seja perdido.
+  const hasActiveCollection = useMemo(
+    () =>
+      songs.some(
+        (s) =>
+          s.auto_collect_status === "queued" ||
+          s.auto_collect_status === "collecting",
+      ),
+    [songs],
+  );
+  useEffect(() => {
+    if (!hasActiveCollection) return;
+    const id = setInterval(() => {
+      load();
+    }, 5000);
+    return () => clearInterval(id);
+  }, [hasActiveCollection, load]);
+
   // ============================================================
   // FASE 6 — Progresso via TanStack Query (cache + realtime)
   // ============================================================
