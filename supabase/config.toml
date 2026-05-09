@@ -6,6 +6,9 @@ verify_jwt = false
 [functions.bot-heartbeat]
 verify_jwt = false
 
+[functions.bot-ingest-dom]
+verify_jwt = false
+
 [functions.process-email-queue]
 verify_jwt = true
 
