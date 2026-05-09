@@ -85,7 +85,90 @@ export type CuratorPlaylist = {
   last_paste_at?: string | null;
   position_in_paste?: number | null;
   song_id?: string | null;
+  // Campos UI-only preenchidos por dedupeCuratorPlaylists
+  song_ids?: string[];
+  song_names?: string[];
+  duplicate_count?: number;
 };
+
+/**
+ * Deduplicates curator_playlists rows that represent the SAME playlist
+ * (Spotify-side) but were inserted multiple times — one per song — by
+ * an old version of the paste flow. Identity preference:
+ *   1) spotify_playlist_id
+ *   2) spotify_url
+ *   3) deal_id + lowercased playlist_name
+ *
+ * Mantém a linha mais antiga (added_at) como representante e agrega
+ * song_ids / song_names + max(streams_*) das duplicatas.
+ */
+export function dedupeCuratorPlaylists(
+  playlists: CuratorPlaylist[],
+  songs: { id: string; song_name: string }[] = [],
+): CuratorPlaylist[] {
+  const songMap = new Map(songs.map((s) => [s.id, s.song_name] as const));
+  const buckets = new Map<string, CuratorPlaylist[]>();
+
+  for (const p of playlists) {
+    const key =
+      (p.spotify_playlist_id && `pid:${p.spotify_playlist_id}`) ||
+      (p.spotify_url && `url:${p.spotify_url.trim().toLowerCase()}`) ||
+      `name:${p.deal_id}:${(p.playlist_name ?? "").trim().toLowerCase()}`;
+    const arr = buckets.get(key) ?? [];
+    arr.push(p);
+    buckets.set(key, arr);
+  }
+
+  const out: CuratorPlaylist[] = [];
+  for (const group of buckets.values()) {
+    const sorted = group
+      .slice()
+      .sort((a, b) => new Date(a.added_at).getTime() - new Date(b.added_at).getTime());
+    const head = sorted[0];
+    const song_ids = Array.from(
+      new Set(sorted.map((g) => g.song_id ?? null).filter((x): x is string => !!x)),
+    );
+    const song_names = song_ids
+      .map((id) => songMap.get(id))
+      .filter((x): x is string => !!x);
+    const maxNum = (key: keyof CuratorPlaylist) =>
+      sorted.reduce((m, g) => {
+        const v = Number(g[key] ?? 0);
+        return Number.isFinite(v) && v > m ? v : m;
+      }, 0);
+    out.push({
+      ...head,
+      streams_7d: maxNum("streams_7d") || head.streams_7d || null,
+      streams_28d: maxNum("streams_28d") || head.streams_28d || null,
+      streams_total: maxNum("streams_total") || head.streams_total || null,
+      song_ids,
+      song_names,
+      duplicate_count: sorted.length,
+    });
+  }
+
+  // Mantém ordem original do primeiro aparecimento
+  const firstIndex = new Map<string, number>();
+  playlists.forEach((p, i) => {
+    const key =
+      (p.spotify_playlist_id && `pid:${p.spotify_playlist_id}`) ||
+      (p.spotify_url && `url:${p.spotify_url.trim().toLowerCase()}`) ||
+      `name:${p.deal_id}:${(p.playlist_name ?? "").trim().toLowerCase()}`;
+    if (!firstIndex.has(key)) firstIndex.set(key, i);
+  });
+  out.sort((a, b) => {
+    const ka =
+      (a.spotify_playlist_id && `pid:${a.spotify_playlist_id}`) ||
+      (a.spotify_url && `url:${a.spotify_url.trim().toLowerCase()}`) ||
+      `name:${a.deal_id}:${(a.playlist_name ?? "").trim().toLowerCase()}`;
+    const kb =
+      (b.spotify_playlist_id && `pid:${b.spotify_playlist_id}`) ||
+      (b.spotify_url && `url:${b.spotify_url.trim().toLowerCase()}`) ||
+      `name:${b.deal_id}:${(b.playlist_name ?? "").trim().toLowerCase()}`;
+    return (firstIndex.get(ka) ?? 0) - (firstIndex.get(kb) ?? 0);
+  });
+  return out;
+}
 
 export type CuratorDealLog = {
   id: string;
