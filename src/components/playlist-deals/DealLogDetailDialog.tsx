@@ -14,11 +14,12 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { PrintThumbs } from "./PrintThumbs";
 
-import type {
-  CuratorDealLog,
-  CuratorDealSong,
-  CuratorPlaylist,
-  CuratorMatchStatus,
+import {
+  dedupeCuratorPlaylists,
+  type CuratorDealLog,
+  type CuratorDealSong,
+  type CuratorPlaylist,
+  type CuratorMatchStatus,
 } from "@/lib/curatorDealsUtils";
 
 const STATUS_LABEL: Record<CuratorMatchStatus, string> = {
