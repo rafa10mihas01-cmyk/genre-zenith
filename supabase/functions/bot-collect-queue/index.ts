@@ -82,7 +82,8 @@ Deno.serve(async (req) => {
 
   // Candidatas: auto_collect=true E (next_auto_collect_at <= now OR next null)
   // E (status idle OU error) — não pega running/queued
-  // E deal não fechado/pausado (state ∈ {awaiting_playlists, collecting, active})
+  // E deal não fechado/pausado (state ∈ {collecting, active})
+  // awaiting_playlists fica DE FORA: sem playlist declarada pelo curador, não coleta
   const { data, error } = await supabase
     .from("curator_deal_songs")
     .select(`
