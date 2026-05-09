@@ -895,6 +895,16 @@ export function DealHistorySheet({
                     Playlists cadastradas pelo curador — é o que conta como entrega contratada.
                   </div>
 
+                  {curatorTotal > 0 && curatorWindowTotal === 0 && (
+                    <div className="rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-[11px] text-foreground leading-relaxed">
+                      <strong className="font-semibold">Curador ainda não detectado no Spotify for Artists.</strong>
+                      <div className="text-muted-foreground mt-1">
+                        As playlists estão na whitelist mas ainda não apareceram nos snapshots do S4A.
+                        Plays de orgânicas/editoriais aparecem na aba <span className="text-foreground font-medium">Algoritmo</span> e não contam para a meta.
+                      </div>
+                    </div>
+                  )}
+
                   {/* ações */}
                   {deal.curator_id && (
                     <div className="flex items-center gap-2">
