@@ -1157,9 +1157,44 @@ export default function CuratorPage() {
                 <p className="text-[12.5px] text-muted-foreground leading-relaxed">
                   A medição é feita exclusivamente sobre as playlists cadastradas nesta campanha.
                 </p>
+                <div className="inline-flex items-center gap-2 mt-2 px-3 py-1 rounded-full bg-muted/60 border border-border/60">
+                  <span className="text-[11px] font-semibold tabular-nums text-foreground">0</span>
+                  <span className="text-[11px] text-muted-foreground">playlists declaradas</span>
+                </div>
+                <p className="text-[11px] text-amber-600 dark:text-amber-500 leading-relaxed mt-2 font-medium">
+                  ⚠ Playlists adicionadas após o início da coleta contam como orgânicas e não somam na meta.
+                </p>
               </div>
+              <Button
+                size="sm"
+                disabled
+                className="rounded-full opacity-60"
+                title="Adicione pelo menos 1 playlist para iniciar"
+              >
+                Iniciar campanha
+              </Button>
             </CardContent>
           </Card>
+        )}
+
+        {/* Banner pós-cadastro: contador + aviso permanente */}
+        {hasCuratorPlaylists && (
+          <div className="nx-card !p-3 flex items-center justify-between gap-3 border-border/60">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center ring-1 ring-primary/20 shrink-0">
+                <ListMusic className="h-4 w-4 text-primary" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-[12.5px] font-semibold leading-tight">
+                  <span className="tabular-nums">{curatorPlaylists.length}</span>{" "}
+                  {curatorPlaylists.length === 1 ? "playlist declarada" : "playlists declaradas"}
+                </div>
+                <div className="text-[11px] text-muted-foreground leading-tight mt-0.5">
+                  Playlists adicionadas após o início contam como orgânicas e não somam na meta.
+                </div>
+              </div>
+            </div>
+          </div>
         )}
 
 
