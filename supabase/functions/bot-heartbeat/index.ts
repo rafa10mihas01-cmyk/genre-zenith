@@ -59,6 +59,36 @@ Deno.serve(async (req) => {
   });
   if (error) return jr({ error: error.message }, 500);
 
+  // Piggyback: processa snapshots DOM enviados junto com o heartbeat
+  let domResults: any[] | undefined;
+  const domSnapshots = Array.isArray(body.dom_snapshots) ? body.dom_snapshots : null;
+  if (domSnapshots && domSnapshots.length > 0) {
+    const correlationHeader = req.headers.get("x-correlation-id");
+    domResults = [];
+    let domInserted = 0, domSkipped = 0, domErrors = 0;
+    for (const raw of domSnapshots) {
+      const item: DomItem = {
+        ...(raw as any),
+        correlation_id: (raw as any)?.correlation_id ?? correlationHeader ?? null,
+      };
+      try {
+        const r = await processDomItem(supabase, item);
+        domResults.push(r);
+        domInserted += r.inserted ?? 0;
+        domSkipped += r.skipped ?? 0;
+        if (!r.ok) domErrors++;
+      } catch (e) {
+        domErrors++;
+        domResults.push({ song_id: (item as any)?.song_id ?? "", ok: false, error: (e as Error).message });
+      }
+    }
+    await supabase.from("collection_logs").insert({
+      acao: "bot_ingest_dom",
+      status: domErrors > 0 ? "parcial" : "ok",
+      mensagem: `[via heartbeat] items=${domSnapshots.length} inserted=${domInserted} skipped=${domSkipped} errors=${domErrors}`,
+    });
+  }
+
   // Se sessão inválida, dispara notificação + email (ambos 1x por hora)
   if (body.spotify_session_valid === false) {
     const oneHourAgo = new Date(Date.now() - 3600_000).toISOString();
