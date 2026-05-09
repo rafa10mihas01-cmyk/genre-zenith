@@ -158,5 +158,5 @@ Deno.serve(async (req) => {
       console.error("Failed to enqueue spotify-session-expired email", e);
     }
   }
-  return jr({ ok: true });
+  return jr({ ok: true, dom_results: domResults });
 });
