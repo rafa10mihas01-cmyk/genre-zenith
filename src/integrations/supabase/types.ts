@@ -3513,6 +3513,7 @@ export type Database = {
         }
         Returns: Json
       }
+      recover_stuck_auto_collect: { Args: never; Returns: number }
       recover_stuck_print_batches: {
         Args: never
         Returns: {
