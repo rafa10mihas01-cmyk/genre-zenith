@@ -523,13 +523,7 @@ export function CuratorDealCard({
                   <Copy className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" />
                 </DropdownMenuItem>
               )}
-              {!isClosed && (onForceCollect || onEdit) && <DropdownMenuSeparator />}
-              {!isClosed && onForceCollect && (
-                <DropdownMenuItem className="gap-2 rounded-lg" onClick={handleForceCollect}>
-                  <Zap className="h-4 w-4" />
-                  Forçar coleta
-                </DropdownMenuItem>
-              )}
+              {!isClosed && onEdit && <DropdownMenuSeparator />}
               {!isClosed && onEdit && (
                 <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => onEdit(deal)}>
                   <Pencil className="h-4 w-4" />
