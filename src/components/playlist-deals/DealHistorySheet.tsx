@@ -429,7 +429,10 @@ export function DealHistorySheet({
     return sortedPlaylists.filter((p) => {
       const s = (p.match_status ?? (p.is_baseline ? "baseline" : "curator")) as CuratorMatchStatus;
       if (s !== "curator" && s !== "baseline") return false;
-      if (curatorSongFilter !== "all" && (p.song_id ?? "") !== curatorSongFilter) return false;
+      if (curatorSongFilter !== "all") {
+        const ids = p.song_ids?.length ? p.song_ids : (p.song_id ? [p.song_id] : []);
+        if (!ids.includes(curatorSongFilter)) return false;
+      }
       if (!q) return true;
       return (
         (p.playlist_name ?? "").toLowerCase().includes(q) ||
