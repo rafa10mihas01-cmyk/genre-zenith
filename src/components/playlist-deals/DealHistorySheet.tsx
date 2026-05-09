@@ -1278,7 +1278,11 @@ export function DealHistorySheet({
                                 ) : (
                                   <ul className="rounded-2xl border border-border bg-card divide-y divide-border overflow-x-auto overflow-y-hidden overscroll-x-contain">
                                     {linked.map((p) => (
-                                      <PlaylistRow key={p.id} p={p} />
+                                      <PlaylistRow
+                                        key={p.id}
+                                        p={p}
+                                        snapshot7d={breakdownMap.get(p.id)?.plays_7d ?? null}
+                                      />
                                     ))}
                                   </ul>
                                 )}
