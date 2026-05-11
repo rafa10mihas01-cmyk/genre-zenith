@@ -1,131 +1,146 @@
-# Fase 2 — Playlist Intelligence + Health Engine
+# Fase 3 — Account + VPS Orchestration
 
-Objetivo: ensinar o sistema a avaliar cada playlist canônica (`playlists`) com 5 scores 0–100 recalculados diariamente, e expor na tela **Operação > Minhas Playlists** — sem quebrar nada existente.
+Objetivo: dar ao sistema a noção de "qual VPS executa qual conta do Spotify para quais playlists", sem quebrar nada existente.
+
+Observação importante (descoberta na análise): já existe a tabela `accounts` (1 linha hoje: "Baile Hits Oficial") que armazena a identidade da conta Spotify (`spotify_user_id`, `email`, `display_name`, `status`, `max_playlists`). Ela é referenciada por `managed_playlists.account_id` e por todo o pipeline de bot.
+
+A nova tabela `spotify_accounts` pedida no enunciado se sobrepõe a `accounts`. Vou seguir o spec do usuário e criar `spotify_accounts` como **camada de orquestração operacional** (sessão + VPS), com FK para `accounts` (fonte da verdade da identidade). Os campos `email` e `display_name` em `spotify_accounts` são apenas cache para o bot ler sem join — sempre sincronizados a partir de `accounts`.
+
+Se você preferir consolidar tudo em `accounts` adicionando `vps_node_id`/`session_file_path`/`last_login_at` direto lá, é uma alternativa mais enxuta. Sigo com `spotify_accounts` separado como pedido; me avise se quiser inverter.
 
 ---
 
-## 1. Nova tabela `playlist_scores`
+## 1. Nova tabela `vps_nodes`
 
 ```text
-playlist_scores
-├── id               uuid PK
-├── playlist_id      uuid NOT NULL REFERENCES playlists(id) ON DELETE CASCADE  UNIQUE
-├── health_score     smallint NOT NULL DEFAULT 0   (0-100)
-├── delivery_score   smallint NOT NULL DEFAULT 0
-├── capacity_score   smallint NOT NULL DEFAULT 0
-├── risk_score       smallint NOT NULL DEFAULT 0
-├── activity_score   smallint NOT NULL DEFAULT 0
-├── calculated_at    timestamptz NOT NULL DEFAULT now()
-├── metadata         jsonb NOT NULL DEFAULT '{}'   (insumos do cálculo)
-└── created_at       timestamptz NOT NULL DEFAULT now()
+vps_nodes
+├── id                         uuid PK
+├── hostname                   text UNIQUE NOT NULL
+├── ip                         inet NOT NULL
+├── status                     text NOT NULL  check in ('active','inactive')  default 'active'
+├── max_concurrent_sessions    smallint NOT NULL default 1
+├── notes                      text NULL
+├── last_heartbeat_at          timestamptz NULL
+├── created_at                 timestamptz NOT NULL default now()
+└── updated_at                 timestamptz NOT NULL default now()
 ```
 
-- `UNIQUE(playlist_id)` → 1 linha por playlist; recálculo faz `UPSERT`.
-- RLS `has_team_access()` em SELECT/INSERT/UPDATE/DELETE.
-- Índices: `(health_score DESC)`, `(calculated_at)`.
+Seed do VPS atual:
+```sql
+INSERT INTO vps_nodes (hostname, ip, status, max_concurrent_sessions)
+VALUES ('nexengine-bot-02', '178.156.161.146', 'active', 1)
+ON CONFLICT (hostname) DO NOTHING;
+```
 
-Tabela é **derivada/cacheada**: pode ser truncada e recriada sem perder dados de negócio.
-
----
-
-## 2. Fontes de dados (sem alterar nada)
-
-| Score | Fonte primária | Janela |
-|---|---|---|
-| capacity | `curator_deal_snapshots.plays_28d` agregado por `spotify_playlist_id`; fallback `curator_playlists.streams_28d`/`streams_7d` | 28d |
-| delivery | `curator_playlists.streams_total` somado por `canonical_playlist_id` em deals fechados / com música ativa | lifetime nas campanhas |
-| activity | `curator_playlist_library.last_used_at` + `times_used`; para `own`: `managed_playlists.updated_at`/`last_synced_at` se existir | 90d |
-| risk | desvio entre `plays_7d` (×4) vs `plays_28d` no último snapshot por playlist; e drop entre snapshots consecutivos | últimos 2–3 snapshots |
-| health | composto ponderado: `0.30·capacity + 0.25·delivery + 0.20·activity + 0.25·(100−risk)` | derivado |
-
-Tudo lido via **`canonical_playlist_id`** (Fase 1). Playlists sem canonical_id ficam com scores 0 e `metadata.reason='no_canonical'`.
+RLS `has_team_access()` em SELECT/INSERT/UPDATE/DELETE. Trigger leve para `updated_at`.
 
 ---
 
-## 3. Função SQL `recalc_playlist_scores()`
+## 2. Nova tabela `spotify_accounts`
 
-`SECURITY DEFINER`, `search_path = public`. Executa em uma transação:
+```text
+spotify_accounts
+├── id                  uuid PK
+├── account_id          uuid NOT NULL UNIQUE REFERENCES accounts(id) ON DELETE CASCADE
+├── vps_node_id         uuid NULL REFERENCES vps_nodes(id) ON DELETE SET NULL
+├── email               text NULL          (cache de accounts.email)
+├── display_name        text NULL          (cache de accounts.display_name)
+├── session_file_path   text NULL          (ex: /opt/bot/sessions/<id>.json)
+├── status              text NOT NULL      check in ('active','expired','inactive')  default 'inactive'
+├── last_login_at       timestamptz NULL
+├── notes               text NULL
+├── created_at          timestamptz NOT NULL default now()
+└── updated_at          timestamptz NOT NULL default now()
+```
 
-1. CTE `agg_snapshots`: agrega `curator_deal_snapshots` por `canonical_playlist_id` (via JOIN com `curator_playlists`) → soma `plays_28d`, `plays_7d`, `plays_24h`, `max(captured_at)`.
-2. CTE `agg_deals`: soma `streams_total`, `streams_28d`, `streams_7d` por `canonical_playlist_id` em `curator_playlists`.
-3. CTE `agg_library`: `times_used`, `last_used_at` por `canonical_playlist_id` em `curator_playlist_library`.
-4. CTE `agg_managed`: `last_synced_at`/`updated_at` por `canonical_playlist_id` em `managed_playlists`.
-5. CTE `scores`: aplica fórmulas de normalização (escala log para volumes, capping em 100, mínimo 0).
-6. `INSERT … ON CONFLICT (playlist_id) DO UPDATE SET …` em `playlist_scores`.
+- `UNIQUE(account_id)` → 1 spotify_account por account.
+- Trigger sincroniza `email` e `display_name` a partir de `accounts` em INSERT/UPDATE quando vierem NULL.
+- RLS `has_team_access()`.
 
-Fórmulas de normalização (resumo):
-
-- `capacity_score = LEAST(100, GREATEST(0, round(100 * ln(1 + plays_28d) / ln(1 + 50000))))`
-- `delivery_score = LEAST(100, GREATEST(0, round(100 * ln(1 + streams_total) / ln(1 + 500000))))`
-- `activity_score`: 100 se `last_used_at < 7d`; degrau até 0 em 90d
-- `risk_score`: `|4*plays_7d − plays_28d| / NULLIF(plays_28d,0)` normalizado (cap 100); +20 se queda >50% entre 2 últimos snapshots
-- `health_score`: combinação ponderada acima
-
-Os tetos (50k, 500k, 90d) ficam em uma CTE `params` no topo da função para ajuste futuro sem migration.
-
-`metadata` armazena os insumos brutos: `{plays_28d, plays_7d, streams_total, times_used, last_used_at, last_snapshot_at}` — útil para depurar e para a UI mostrar "por quê".
+Seed: para cada linha em `accounts` que ainda não tenha spotify_account, criar uma com `status='inactive'` (vai virar `active` quando o bot logar e gravar o session file). Vincular ao `nexengine-bot-02` por padrão (único VPS hoje).
 
 ---
 
-## 4. Cron diário
+## 3. Vínculo VPS ↔ managed_playlists
 
-`pg_cron` (já habilitado no projeto, usado em outros lugares):
+O usuário pediu "vincula as 109 playlists próprias ao vps_node_id". Como `managed_playlists.account_id` já existe e cada `account` agora tem `spotify_account` que aponta para `vps_node`, o vínculo é **derivado**, não precisa coluna nova:
+
+```text
+managed_playlists.account_id → accounts.id → spotify_accounts.account_id → spotify_accounts.vps_node_id → vps_nodes
+```
+
+Para o bot consultar de forma direta, crio a view `v_playlist_vps_assignment` (read-only, segura via RLS das tabelas base):
 
 ```sql
-SELECT cron.schedule(
-  'recalc-playlist-scores-daily',
-  '15 3 * * *',  -- 03:15 UTC diário
-  $$ SELECT public.recalc_playlist_scores(); $$
-);
+CREATE VIEW v_playlist_vps_assignment AS
+SELECT mp.id AS managed_playlist_id, mp.spotify_playlist_id, mp.canonical_playlist_id,
+       sa.id AS spotify_account_id, sa.session_file_path, sa.status AS account_status,
+       v.id AS vps_node_id, v.hostname, v.ip
+FROM managed_playlists mp
+JOIN accounts a          ON a.id  = mp.account_id
+JOIN spotify_accounts sa ON sa.account_id = a.id
+LEFT JOIN vps_nodes v    ON v.id  = sa.vps_node_id
+WHERE mp.archived_at IS NULL;
 ```
 
-Sem `pg_net`, sem edge function — roda 100% no DB, custo zero. Idempotente por design (UPSERT).
-
-Também exponho um RPC `trigger_recalc_playlist_scores()` (chamado pelo botão "Recalcular agora" na UI; gated por `has_team_access()` via security definer com check interno).
+Sem alterar a tabela existente, sem coluna nova em `managed_playlists`, sem mudança no contrato do bot atual.
 
 ---
 
-## 5. UI — Operação > Minhas Playlists
+## 4. Painel admin — nova aba "Infraestrutura"
 
-Localizar a página atual (provavelmente `src/pages/Playlists.tsx` ou similar) e adicionar **sem remover nada**:
+Criar `src/pages/admin/Infrastructure.tsx` (ou seção dentro de uma página admin existente — vou detectar):
 
-- 4 KPI tiles no topo: média de health, capacidade total estimada (28d), playlists em risco (risk ≥ 60), playlists inativas (activity < 30).
-- Coluna nova nas rows existentes (ou cells na grid):
-  - `<StatusDot variant={health → success/warning/danger}>` + número
-  - 4 mini-barras (`Progress` compacto) para os outros 4 scores, com tooltip mostrando o número exato
-- Botão discreto "Recalcular scores" no header (chama o RPC; toast com `calculated_at` mais recente).
-- Filtros já existentes continuam intactos; adiciono ordenação por `health_score`.
+- **Card 1: VPS Nodes** — lista compacta (`hostname · ip · status dot · sessões ativas / max · último heartbeat`). Ação: editar `max_concurrent_sessions`, alternar status.
+- **Card 2: Contas Spotify** — lista (`display_name · email · status dot · VPS atribuído · última sessão`). Ação: trocar VPS (dropdown), forçar status, abrir notas.
+- **Card 3: Mapa de Atribuição** — tabela `Conta → VPS → quantas playlists`. Só leitura.
 
-Apenas frontend de leitura — nenhuma escrita nova além do botão de recálculo manual.
+Componentes seguem o design system: `StatusDot`, `MetricCell`, rows compactos (~64px). Usa `PageHeader title="Infraestrutura" subtitle="Orquestrar VPS e sessões"`.
+
+Rota: `/admin/infrastructure`, protegida por `has_team_access()` (já temos guard).
+
+---
+
+## 5. Contrato do bot (futuro, sem mudar nada agora)
+
+A view `v_playlist_vps_assignment` já entrega `spotify_account_id` por playlist. Quando o orquestrador for atualizado (próxima fase ou no próprio bot agent), basta consultar:
+
+```sql
+SELECT spotify_account_id, session_file_path FROM v_playlist_vps_assignment
+WHERE spotify_playlist_id = $1;
+```
+
+Nenhum job, edge function ou tabela atual é alterado nesta fase. A integração real fica para quando o bot for atualizado.
 
 ---
 
 ## 6. O que **NÃO** será feito
 
-- Sem alterar tabelas existentes.
-- Sem mudar bot, edge functions, RPCs antigas.
-- Sem deletar a tela antiga ou mudar rotas.
-- Sem alertas/notificações automáticos (Fase 3).
-- Sem expor scores para curador/cliente (apenas operação).
+- Não alterar `accounts`, `managed_playlists`, `bot_events`, `bot_heartbeats`.
+- Não alterar nenhuma edge function existente.
+- Não escrever no VPS, não tocar em `session.json` real — apenas registrar o `session_file_path`.
+- Não criar lógica de balanceamento entre VPS (fica para Fase 4+).
 
 ---
 
 ## 7. Entregáveis
 
 1. **Migration** com:
-   - Tabela `playlist_scores` + RLS + índices.
-   - Função `recalc_playlist_scores()`.
-   - Função `trigger_recalc_playlist_scores()` (security definer wrapper).
-   - Primeiro recálculo executado dentro da migration (`SELECT recalc_playlist_scores();`).
-2. **SQL via insert tool** (não migration — contém URLs/keys de cron) para o `cron.schedule`.
-3. **Frontend**: hook `usePlaylistScores`, componente `PlaylistScoreCell`, integração na página de Minhas Playlists, botão "Recalcular".
+   - `vps_nodes` + RLS + seed do nexengine-bot-02.
+   - `spotify_accounts` + RLS + trigger de sync cache + seed a partir de `accounts`.
+   - View `v_playlist_vps_assignment`.
+2. **Frontend**:
+   - Página `/admin/infrastructure` com 3 cards descritos.
+   - Hook `useInfrastructure` para fetch consolidado.
+   - Entrada no menu admin (sem remover nada).
 
 ---
 
 ## 8. Verificação
 
-- `SELECT count(*) FROM playlist_scores;` deve ≈ count playlists com canonical ligado.
-- `SELECT avg(health_score), max(health_score), min(health_score) FROM playlist_scores;` — distribuição plausível.
-- UI renderiza scores nas linhas existentes sem regressão.
+- `SELECT count(*) FROM vps_nodes;` → 1
+- `SELECT count(*) FROM spotify_accounts;` → 1 (1 account existente)
+- `SELECT count(*) FROM v_playlist_vps_assignment;` → 109 (todas as managed playlists não-arquivadas com VPS resolvido)
+- UI renderiza as 3 entidades corretamente.
 
 Posso prosseguir.
