@@ -3186,6 +3186,10 @@ export type Database = {
         Returns: Database["public"]["Enums"]["notification_type"]
       }
       accept_community_invite: { Args: { p_code: string }; Returns: Json }
+      bump_ai_quota: {
+        Args: { p_month_start: string; p_tokens: number; p_user_id: string }
+        Returns: Json
+      }
       bump_rate_limit: {
         Args: { p_key: string; p_limit?: number; p_window_seconds?: number }
         Returns: Json
