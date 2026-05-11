@@ -1406,6 +1406,8 @@ export type Database = {
         Row: {
           added_at: string
           added_at_spotify: string | null
+          attribution_method: string
+          attribution_reason: string | null
           deal_id: string
           followers: number | null
           id: string
@@ -1428,6 +1430,8 @@ export type Database = {
         Insert: {
           added_at?: string
           added_at_spotify?: string | null
+          attribution_method?: string
+          attribution_reason?: string | null
           deal_id: string
           followers?: number | null
           id?: string
@@ -1450,6 +1454,8 @@ export type Database = {
         Update: {
           added_at?: string
           added_at_spotify?: string | null
+          attribution_method?: string
+          attribution_reason?: string | null
           deal_id?: string
           followers?: number | null
           id?: string
