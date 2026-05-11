@@ -64,6 +64,63 @@ export type Database = {
           },
         ]
       }
+      ai_print_cache: {
+        Row: {
+          created_at: string
+          hits: number
+          last_hit_at: string
+          model: string
+          print_hash: string
+          result: Json
+          tokens_used: number | null
+        }
+        Insert: {
+          created_at?: string
+          hits?: number
+          last_hit_at?: string
+          model: string
+          print_hash: string
+          result: Json
+          tokens_used?: number | null
+        }
+        Update: {
+          created_at?: string
+          hits?: number
+          last_hit_at?: string
+          model?: string
+          print_hash?: string
+          result?: Json
+          tokens_used?: number | null
+        }
+        Relationships: []
+      }
+      ai_quota_user: {
+        Row: {
+          blocked: boolean
+          cap_tokens: number
+          month_start: string
+          tokens_used: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          blocked?: boolean
+          cap_tokens?: number
+          month_start: string
+          tokens_used?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          blocked?: boolean
+          cap_tokens?: number
+          month_start?: string
+          tokens_used?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       autopilot_runs: {
         Row: {
           cache_hits: Json
@@ -2400,6 +2457,24 @@ export type Database = {
           },
         ]
       }
+      rate_limits: {
+        Row: {
+          count: number
+          key: string
+          window_start: string
+        }
+        Insert: {
+          count?: number
+          key: string
+          window_start: string
+        }
+        Update: {
+          count?: number
+          key?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
       replication_rules: {
         Row: {
           active: boolean
@@ -3111,6 +3186,11 @@ export type Database = {
         Returns: Database["public"]["Enums"]["notification_type"]
       }
       accept_community_invite: { Args: { p_code: string }; Returns: Json }
+      bump_rate_limit: {
+        Args: { p_key: string; p_limit?: number; p_window_seconds?: number }
+        Returns: Json
+      }
+      cleanup_old_bot_prints: { Args: never; Returns: Json }
       cleanup_old_logs_and_snapshots: {
         Args: never
         Returns: {
@@ -3120,6 +3200,7 @@ export type Database = {
         }[]
       }
       cleanup_operational_logs: { Args: never; Returns: Json }
+      cleanup_rate_limits_and_ai_cache: { Args: never; Returns: Json }
       cleanup_stale_autopilot_runs: {
         Args: { p_minutes?: number }
         Returns: number
