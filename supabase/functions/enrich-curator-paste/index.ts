@@ -231,14 +231,24 @@ Deno.serve(async (req) => {
       .filter((p) => p.match_status === "curator" || p.match_status === "baseline")
       .map((p) => p.playlist_name);
 
+    // Quota check: bloqueia se usuário estourou cap mensal.
+    const quota = await checkAiQuota(userId);
+    if (!quota.allowed) return aiQuotaResponse(corsHeaders);
+
     // 1) Parse via IA
     let parsed: ParsedRow[];
+    let aiTokens = 0;
     try {
-      parsed = await callAI(text);
+      const out = await callAI(text);
+      parsed = out.rows;
+      aiTokens = out.tokens;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       return jr({ ok: false, error: msg }, 200);
     }
+
+    // Conta tokens mesmo se parse falhar parcialmente.
+    if (aiTokens > 0) await bumpAiQuota(userId, aiTokens);
 
     if (parsed.length === 0) {
       return jr({ ok: false, error: "Nenhuma playlist encontrada no texto" }, 200);
