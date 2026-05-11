@@ -319,7 +319,10 @@ export function MinhasPlaylists() {
                 )}
               </div>
               <div className="p-2.5 flex-1 flex flex-col gap-1.5">
-                <h4 className="text-[13px] font-semibold leading-tight line-clamp-1" title={p.name}>{p.name}</h4>
+                <div className="flex items-start gap-1.5">
+                  <h4 className="flex-1 text-[13px] font-semibold leading-tight line-clamp-1" title={p.name}>{p.name}</h4>
+                  <PlaylistScoreBadge scores={p.canonical_playlist_id ? scores[p.canonical_playlist_id] ?? null : null} />
+                </div>
                 <div className="flex items-center justify-between text-[11px] tabular-nums text-muted-foreground">
                   <span><span className="font-semibold text-foreground">{formatNumber(p.followers)}</span> seg.</span>
                   <span><span className="font-semibold text-foreground">{p.tracks_count || "—"}</span> fx</span>
