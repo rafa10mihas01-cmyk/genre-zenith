@@ -1374,8 +1374,20 @@ export default function CuratorPage() {
                     <li key={p.playlist_id} className="nx-subcard p-3">
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0 flex-1">
-                          <div className="text-[13px] font-semibold leading-tight truncate">
-                            {p.playlist_name ?? "Playlist removida"}
+                          <div className="text-[13px] font-semibold leading-tight truncate flex items-center gap-2">
+                            <span className="truncate">{p.playlist_name ?? "Playlist removida"}</span>
+                            {(p.attribution_method === "late_discovery_zero" || p.attribution_method === "manual_zero") && (
+                              <span
+                                className="shrink-0 text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/15 text-primary border border-primary/30"
+                                title={
+                                  p.attribution_method === "manual_zero"
+                                    ? "Atribuição manual: baseline forçado em 0, todos os plays contam para a meta."
+                                    : "Playlist cadastrada após o início do deal: baseline = 0, todos os plays contam para a meta."
+                                }
+                              >
+                                {p.attribution_method === "manual_zero" ? "manual 0" : "base 0"}
+                              </span>
+                            )}
                           </div>
                           <div className="mt-1 flex items-center gap-2 text-[10.5px] text-muted-foreground tabular-nums">
                             <span>base {formatPlays(baseline)}</span>
