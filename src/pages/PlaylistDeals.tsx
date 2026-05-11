@@ -14,7 +14,7 @@ import { computeCuratorStats, type CuratorDeal } from "@/lib/curatorDealsUtils";
 import { formatNumber } from "@/lib/format";
 import { CuratorDealCard } from "@/components/playlist-deals/CuratorDealCard";
 import { DealRow } from "@/components/playlist-deals/DealRow";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { NewDealDialog } from "@/components/playlist-deals/NewDealDialog";
 import { LogPrintDialog } from "@/components/playlist-deals/LogPrintDialog";
 import { DealHistorySheet } from "@/components/playlist-deals/DealHistorySheet";
@@ -47,6 +47,11 @@ export default function PlaylistDeals() {
   const { clients } = useClients();
   const [searchParams] = useSearchParams();
   const useLegacyCards = searchParams.get("legacy") === "1";
+  const navigate = useNavigate();
+  const openDetail = (deal: CuratorDeal) => {
+    if (useLegacyCards) setDetailDeal(deal);
+    else navigate(`/playlist-deals/${deal.id}`);
+  };
 
   // KPIs do topo — derivados dos deals + logs + playlists
   const kpi = useMemo(() => {
