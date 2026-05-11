@@ -1374,6 +1374,7 @@ export type Database = {
       }
       curator_playlist_library: {
         Row: {
+          canonical_playlist_id: string | null
           created_at: string
           curator_id: string
           first_seen_at: string
@@ -1393,6 +1394,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          canonical_playlist_id?: string | null
           created_at?: string
           curator_id: string
           first_seen_at?: string
@@ -1412,6 +1414,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          canonical_playlist_id?: string | null
           created_at?: string
           curator_id?: string
           first_seen_at?: string
@@ -1430,7 +1433,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "curator_playlist_library_canonical_playlist_id_fkey"
+            columns: ["canonical_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "playlists"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       curator_playlists: {
         Row: {
@@ -1438,6 +1449,7 @@ export type Database = {
           added_at_spotify: string | null
           attribution_method: string
           attribution_reason: string | null
+          canonical_playlist_id: string | null
           deal_id: string
           followers: number | null
           id: string
@@ -1462,6 +1474,7 @@ export type Database = {
           added_at_spotify?: string | null
           attribution_method?: string
           attribution_reason?: string | null
+          canonical_playlist_id?: string | null
           deal_id: string
           followers?: number | null
           id?: string
@@ -1486,6 +1499,7 @@ export type Database = {
           added_at_spotify?: string | null
           attribution_method?: string
           attribution_reason?: string | null
+          canonical_playlist_id?: string | null
           deal_id?: string
           followers?: number | null
           id?: string
@@ -1506,6 +1520,13 @@ export type Database = {
           streams_total?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "curator_playlists_canonical_playlist_id_fkey"
+            columns: ["canonical_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "playlists"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "curator_playlists_deal_id_fkey"
             columns: ["deal_id"]
@@ -2034,6 +2055,7 @@ export type Database = {
         Row: {
           account_id: string | null
           archived_at: string | null
+          canonical_playlist_id: string | null
           cover_url: string | null
           created_at: string
           description: string | null
@@ -2054,6 +2076,7 @@ export type Database = {
         Insert: {
           account_id?: string | null
           archived_at?: string | null
+          canonical_playlist_id?: string | null
           cover_url?: string | null
           created_at?: string
           description?: string | null
@@ -2074,6 +2097,7 @@ export type Database = {
         Update: {
           account_id?: string | null
           archived_at?: string | null
+          canonical_playlist_id?: string | null
           cover_url?: string | null
           created_at?: string
           description?: string | null
@@ -2091,7 +2115,15 @@ export type Database = {
           tracks_count?: number
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "managed_playlists_canonical_playlist_id_fkey"
+            columns: ["canonical_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "playlists"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       notifications: {
         Row: {
@@ -2540,6 +2572,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      playlists: {
+        Row: {
+          account_id: string | null
+          cover_url: string | null
+          created_at: string
+          first_seen_at: string
+          followers: number | null
+          id: string
+          last_seen_at: string
+          name: string | null
+          ownership: string
+          source: string
+          spotify_playlist_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          cover_url?: string | null
+          created_at?: string
+          first_seen_at?: string
+          followers?: number | null
+          id?: string
+          last_seen_at?: string
+          name?: string | null
+          ownership?: string
+          source?: string
+          spotify_playlist_id: string
+        }
+        Update: {
+          account_id?: string | null
+          cover_url?: string | null
+          created_at?: string
+          first_seen_at?: string
+          followers?: number | null
+          id?: string
+          last_seen_at?: string
+          name?: string | null
+          ownership?: string
+          source?: string
+          spotify_playlist_id?: string
+        }
+        Relationships: []
       }
       rate_limits: {
         Row: {
