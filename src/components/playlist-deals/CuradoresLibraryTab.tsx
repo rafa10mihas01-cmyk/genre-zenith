@@ -3,15 +3,11 @@ import {
   Search,
   Users,
   ListMusic,
-  ExternalLink,
-  Activity,
   CheckCircle2,
   DollarSign,
   Clock,
   Archive,
   ArchiveRestore,
-  Music2,
-  TrendingUp,
   MoreHorizontal,
   Pencil,
   Trash2,
@@ -22,11 +18,12 @@ import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { StatusDot, type StatusVariant } from "@/components/ui/status-dot";
+import { MetricCell } from "@/components/ui/metric-cell";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -189,9 +186,9 @@ export function CuradoresLibraryTab({
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="flex flex-col gap-2">
           {[0, 1, 2].map((i) => (
-            <div key={i} className="nx-card h-72 animate-pulse" />
+            <div key={i} className="h-[88px] rounded-2xl border border-border/50 bg-card animate-pulse" />
           ))}
         </div>
       ) : rows.length === 0 ? (
@@ -202,7 +199,7 @@ export function CuradoresLibraryTab({
           </p>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="flex flex-col gap-2">
           {rows.map((row) => {
             const {
               curator,
@@ -219,13 +216,6 @@ export function CuradoresLibraryTab({
               cpp,
             } = row;
 
-            const statusLabel =
-              activeDeals > 0
-                ? `${activeDeals} ativo${activeDeals > 1 ? "s" : ""}`
-                : totalDeals > 0
-                ? "Sem deals ativos"
-                : "Sem deals";
-
             const initials = curator.name
               .split(/\s+/)
               .filter(Boolean)
@@ -233,267 +223,206 @@ export function CuradoresLibraryTab({
               .map((s) => s[0]?.toUpperCase())
               .join("");
 
+            const status: { variant: StatusVariant; label: string } = curator.paused_at
+              ? { variant: "warning", label: "Pausado" }
+              : overbooked
+              ? { variant: "danger", label: "Saldo estourado" }
+              : activeDeals > 0
+              ? { variant: "success", label: `${activeDeals} ativo${activeDeals > 1 ? "s" : ""}` }
+              : totalDeals > 0
+              ? { variant: "neutral", label: "Sem deals ativos" }
+              : { variant: "neutral", label: "Sem deals" };
+
             return (
-              <Card
+              <div
                 key={curator.id}
-                className={cn(
-                  "overflow-hidden border-border/60 transition-all duration-200 cursor-pointer",
-                  "hover:border-foreground/25 hover:-translate-y-[1px]",
-                  "hover:shadow-[0_18px_40px_-18px_rgba(0,0,0,0.85),0_0_32px_-8px_hsl(141_76%_48%_/_0.18)]",
-                  "bg-[linear-gradient(180deg,rgba(255,255,255,0.025)_0%,transparent_40%),hsl(var(--card))]",
-                )}
                 onClick={() => setSelected(curator)}
+                className={cn(
+                  "group relative rounded-2xl border border-border/50 bg-card transition-colors cursor-pointer",
+                  "hover:border-foreground/20 hover:bg-[hsl(var(--elevated))]",
+                )}
               >
-                <CardContent className="p-5 pt-5 md:pt-5 flex flex-col gap-4">
-                  {/* Header: avatar + nome + status */}
-                  <div className="flex items-start gap-3 min-w-0 pb-1">
-                    <div className="h-11 w-11 rounded-xl bg-primary/15 border border-primary/30 flex items-center justify-center text-[14px] font-bold text-primary shrink-0">
-                      {initials || <Users className="h-5 w-5" />}
+                {/* Linha 1 — identidade */}
+                <div className="flex items-center gap-3 px-4 pt-3.5 pb-2.5 min-w-0">
+                  <div className="h-10 w-10 rounded-md bg-primary/15 border border-primary/25 flex items-center justify-center text-[13px] font-bold text-primary shrink-0">
+                    {initials || <Users className="h-4 w-4" />}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[14px] font-semibold text-foreground truncate leading-tight">
+                      {curator.name}
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-1">
-                        Curador
-                      </div>
-                      <div className="text-[20px] font-semibold tracking-tight text-foreground truncate leading-tight">
-                        {curator.name}
-                      </div>
+                    <div className="text-[11.5px] text-muted-foreground truncate mt-0.5">
+                      <span>Curador</span>
                       {curator.contact && (
-                        <div className="text-[12px] text-muted-foreground truncate mt-0.5">
-                          {curator.contact}
-                        </div>
+                        <>
+                          <span className="mx-1.5 opacity-50">·</span>
+                          <span>{curator.contact}</span>
+                        </>
+                      )}
+                      {totalDeals > 0 && (
+                        <>
+                          <span className="mx-1.5 opacity-50">·</span>
+                          <span>{totalDeals} deal{totalDeals > 1 ? "s" : ""}</span>
+                        </>
                       )}
                     </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <Badge
-                        variant="secondary"
-                        className={cn(
-                          "text-[10px] px-2.5 py-0.5 h-6 font-semibold gap-1 rounded-full",
-                          curator.paused_at
-                            ? "bg-amber-500/15 text-amber-400 border-amber-500/30"
-                            : activeDeals > 0 && "bg-primary/15 text-primary",
-                        )}
+                  </div>
+                  <StatusDot variant={status.variant} label={status.label} className="shrink-0" />
+                  {(onUpdateCurator || onArchiveCurator || onDeleteCurator || onPauseCurator) && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-foreground shrink-0"
+                          onClick={(e) => e.stopPropagation()}
+                          aria-label="Mais ações"
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        align="end"
+                        className="w-44 rounded-xl p-1.5"
+                        onClick={(e) => e.stopPropagation()}
                       >
-                        {curator.paused_at ? (
-                          <>
-                            <Pause className="h-2.5 w-2.5" />
-                            Pausado
-                          </>
-                        ) : (
-                          <>
-                            {activeDeals > 0 && <Activity className="h-2.5 w-2.5" />}
-                            {statusLabel}
-                          </>
-                        )}
-                      </Badge>
-                      {(onUpdateCurator || onArchiveCurator || onDeleteCurator || onPauseCurator) && (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                              onClick={(e) => e.stopPropagation()}
-                              aria-label="Mais ações"
-                            >
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent
-                            align="end"
-                            className="w-44"
-                            onClick={(e) => e.stopPropagation()}
+                        <DropdownMenuItem
+                          className="gap-2 rounded-lg"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelected(curator);
+                          }}
+                        >
+                          <ListMusic className="h-4 w-4" /> Ver biblioteca
+                        </DropdownMenuItem>
+                        {onUpdateCurator && (
+                          <DropdownMenuItem
+                            className="gap-2 rounded-lg"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditing(curator);
+                            }}
                           >
-                            {onUpdateCurator && (
-                              <DropdownMenuItem
-                                className="gap-2"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setEditing(curator);
-                                }}
-                              >
-                                <Pencil className="h-4 w-4" />
-                                Editar
-                              </DropdownMenuItem>
+                            <Pencil className="h-4 w-4" /> Editar
+                          </DropdownMenuItem>
+                        )}
+                        {(onArchiveCurator || onDeleteCurator || onPauseCurator) && (
+                          <DropdownMenuSeparator />
+                        )}
+                        {onPauseCurator && !curator.archived_at && (
+                          <DropdownMenuItem
+                            className="gap-2 rounded-lg"
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              const pause = !curator.paused_at;
+                              try {
+                                await onPauseCurator(curator.id, pause);
+                                toast.success(pause ? "Curador pausado — coleta congelada" : "Curador retomado");
+                              } catch {
+                                toast.error("Erro ao alterar pausa");
+                              }
+                            }}
+                          >
+                            {curator.paused_at ? (
+                              <><Play className="h-4 w-4" /> Retomar</>
+                            ) : (
+                              <><Pause className="h-4 w-4" /> Pausar</>
                             )}
-                            {(onArchiveCurator || onDeleteCurator || onPauseCurator) && (
-                              <DropdownMenuSeparator />
-                            )}
-                            {onPauseCurator && !curator.archived_at && (
-                              <DropdownMenuItem
-                                className="gap-2"
-                                onClick={async (e) => {
-                                  e.stopPropagation();
-                                  const pause = !curator.paused_at;
-                                  try {
-                                    await onPauseCurator(curator.id, pause);
-                                    toast.success(pause ? "Curador pausado — coleta congelada" : "Curador retomado");
-                                  } catch {
-                                    toast.error("Erro ao alterar pausa");
-                                  }
-                                }}
-                              >
-                                {curator.paused_at ? (
-                                  <>
-                                    <Play className="h-4 w-4" />
-                                    Retomar
-                                  </>
-                                ) : (
-                                  <>
-                                    <Pause className="h-4 w-4" />
-                                    Pausar
-                                  </>
-                                )}
-                              </DropdownMenuItem>
-                            )}
-                            {onArchiveCurator && !curator.archived_at && (
-                              <DropdownMenuItem
-                                className="gap-2"
-                                onClick={async (e) => {
-                                  e.stopPropagation();
-                                  if (activeDeals > 0) {
-                                    toast.error("Curador tem deals ativos — encerre antes de arquivar");
-                                    return;
-                                  }
-                                  if (!confirm(`Arquivar ${curator.name}? Ele sai da biblioteca mas o histórico fica.`)) return;
-                                  try {
-                                    await onArchiveCurator(curator.id, true);
-                                    toast.success("Curador arquivado");
-                                  } catch {
-                                    toast.error("Erro ao arquivar");
-                                  }
-                                }}
-                              >
-                                <Archive className="h-4 w-4" />
-                                Arquivar
-                              </DropdownMenuItem>
-                            )}
-                            {onArchiveCurator && curator.archived_at && (
-                              <DropdownMenuItem
-                                className="gap-2"
-                                onClick={async (e) => {
-                                  e.stopPropagation();
-                                  try {
-                                    await onArchiveCurator(curator.id, false);
-                                    toast.success("Curador restaurado");
-                                  } catch {
-                                    toast.error("Erro ao restaurar");
-                                  }
-                                }}
-                              >
-                                <ArchiveRestore className="h-4 w-4" />
-                                Restaurar
-                              </DropdownMenuItem>
-                            )}
-                            {onDeleteCurator && (
-                              <DropdownMenuItem
-                                className="gap-2 text-destructive focus:text-destructive"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setConfirmDelete({ curator, hasDeals: totalDeals > 0 });
-                                }}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                                Excluir
-                              </DropdownMenuItem>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Alert overbooking */}
-                  {overbooked && (
-                    <div className="rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-1.5 flex items-center gap-1.5">
-                      <TrendingUp className="h-3.5 w-3.5 text-destructive shrink-0" />
-                      <span className="text-[11px] text-destructive font-medium">
-                        Saldo estourado — consumo acima do comprado
-                      </span>
-                    </div>
+                          </DropdownMenuItem>
+                        )}
+                        {onArchiveCurator && !curator.archived_at && (
+                          <DropdownMenuItem
+                            className="gap-2 rounded-lg"
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              if (activeDeals > 0) {
+                                toast.error("Curador tem deals ativos — encerre antes de arquivar");
+                                return;
+                              }
+                              if (!confirm(`Arquivar ${curator.name}? Ele sai da biblioteca mas o histórico fica.`)) return;
+                              try {
+                                await onArchiveCurator(curator.id, true);
+                                toast.success("Curador arquivado");
+                              } catch {
+                                toast.error("Erro ao arquivar");
+                              }
+                            }}
+                          >
+                            <Archive className="h-4 w-4" /> Arquivar
+                          </DropdownMenuItem>
+                        )}
+                        {onArchiveCurator && curator.archived_at && (
+                          <DropdownMenuItem
+                            className="gap-2 rounded-lg"
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              try {
+                                await onArchiveCurator(curator.id, false);
+                                toast.success("Curador restaurado");
+                              } catch {
+                                toast.error("Erro ao restaurar");
+                              }
+                            }}
+                          >
+                            <ArchiveRestore className="h-4 w-4" /> Restaurar
+                          </DropdownMenuItem>
+                        )}
+                        {onDeleteCurator && (
+                          <DropdownMenuItem
+                            className="gap-2 rounded-lg text-destructive focus:text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setConfirmDelete({ curator, hasDeals: totalDeals > 0 });
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" /> Excluir
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   )}
+                </div>
 
-                  {/* KPIs — números grandes (espelha CuratorDealCard) */}
-                  <div className="grid grid-cols-2 divide-x divide-border/50 rounded-xl bg-[hsl(var(--elevated))] border border-border/40">
-                    <div className="px-4 py-3">
-                      <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-1.5">
-                        Plays comprados
-                      </div>
-                      <div className="text-[24px] font-bold tabular-nums text-foreground leading-none tracking-tight">
-                        {formatPlays(purchased)}
-                      </div>
-                      {totalCost > 0 && (
-                        <div className="text-[11px] text-muted-foreground mt-1.5 tabular-nums">
-                          {formatBRL(totalCost)} total
-                        </div>
-                      )}
-                    </div>
-                    <div className="px-4 py-3">
-                      <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-1.5">
-                        Restante
-                      </div>
-                      <div className="text-[24px] font-bold tabular-nums leading-none tracking-tight">
-                        <span className={cn(overbooked ? "text-destructive" : "text-primary")}>
-                          {overbooked ? "Estourado" : formatPlays(remaining)}
-                        </span>
-                      </div>
-                      <div className="text-[11px] text-muted-foreground mt-1.5 tabular-nums">
-                        {formatPlays(consumed)} consumido
-                      </div>
-                    </div>
-                  </div>
+                <div className="mx-4 border-t border-border/40" />
 
-                  {/* Progress bar — % consumido */}
+                {/* Linha 2 — métricas + barra + meta */}
+                <div className="flex items-center gap-4 px-4 py-3 min-w-0">
+                  <MetricCell
+                    label="Comprados"
+                    value={formatPlays(purchased)}
+                    size="sm"
+                    className="w-[88px] shrink-0"
+                  />
+                  <MetricCell
+                    label="Restante"
+                    value={overbooked ? "Estourado" : formatPlays(remaining)}
+                    size="sm"
+                    className={cn("w-[96px] shrink-0", overbooked && "[&_*]:text-destructive")}
+                  />
                   {purchased > 0 && (
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-semibold">
-                          Saldo consumido
-                        </span>
-                        <span className="tabular-nums text-[14px] font-bold text-foreground">
-                          {consumedPct}%
-                        </span>
+                    <div className="flex-1 min-w-0 flex flex-col gap-1 max-w-[280px]">
+                      <div className="flex items-center justify-between text-[10.5px] text-muted-foreground">
+                        <span className="uppercase tracking-[0.12em] font-medium">Consumido</span>
+                        <span className="tabular-nums font-semibold text-foreground">{consumedPct}%</span>
                       </div>
-                      <Progress value={consumedPct} className="h-2.5 rounded-full" />
+                      <Progress value={consumedPct} className="h-1.5 rounded-full" />
+                      <div className="text-[10.5px] text-muted-foreground tabular-nums">
+                        {formatPlays(consumed)} / {formatPlays(purchased)}
+                      </div>
                     </div>
                   )}
-
-                  {/* Chips: deals + custo/play + última atividade */}
-                  <div className="flex items-center gap-3 flex-wrap text-[11px] text-muted-foreground border-t border-border/40 pt-2.5">
-                    {activeDeals > 0 && (
-                      <span className="inline-flex items-center gap-1">
-                        <Activity className="h-3 w-3 text-primary" />
-                        <span className="tabular-nums font-semibold text-foreground">
-                          {activeDeals}
-                        </span>{" "}
-                        ativo{activeDeals > 1 ? "s" : ""}
-                      </span>
-                    )}
-                    {closedDeals > 0 && (
-                      <span className="inline-flex items-center gap-1">
-                        <CheckCircle2 className="h-3 w-3" />
-                        <span className="tabular-nums font-semibold text-foreground">
-                          {closedDeals}
-                        </span>{" "}
-                        concluído{closedDeals > 1 ? "s" : ""}
-                      </span>
-                    )}
-                    {totalDeals === 0 && (
-                      <span className="inline-flex items-center gap-1">
-                        <Music2 className="h-3 w-3" />
-                        Sem deals ainda
-                      </span>
-                    )}
+                  <div className="flex items-center gap-3 ml-auto text-[11px] text-muted-foreground shrink-0">
                     {cpp !== null && (
-                      <span className="inline-flex items-center gap-1">
+                      <span className="inline-flex items-center gap-1 tabular-nums">
                         <DollarSign className="h-3 w-3" />
-                        <span className="text-foreground font-medium">
-                          {formatCPP(cpp)}
-                        </span>
-                        /play
+                        <span className="text-foreground font-medium">{formatCPP(cpp)}</span>/play
                       </span>
+                    )}
+                    {totalCost > 0 && (
+                      <span className="hidden md:inline tabular-nums">{formatBRL(totalCost)}</span>
                     )}
                     {lastTs > 0 && (
-                      <span className="inline-flex items-center gap-1 ml-auto">
+                      <span className="inline-flex items-center gap-1 whitespace-nowrap">
                         <Clock className="h-3 w-3" />
                         {formatDistanceToNow(new Date(lastTs), {
                           addSuffix: true,
@@ -501,25 +430,15 @@ export function CuradoresLibraryTab({
                         })}
                       </span>
                     )}
+                    {closedDeals > 0 && (
+                      <span className="hidden lg:inline-flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3" />
+                        {closedDeals}
+                      </span>
+                    )}
                   </div>
-
-                  {/* Ações */}
-                  <div className="flex items-center gap-1.5 pt-0.5">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="flex-1 h-9 gap-1.5 bg-[hsl(var(--elevated))] hover:bg-[hsl(var(--hover))] text-foreground/90 hover:text-foreground border border-border/60 font-medium text-[13px]"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelected(curator);
-                      }}
-                    >
-                      <ListMusic className="h-3.5 w-3.5 text-primary" />
-                      Ver biblioteca
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             );
           })}
         </div>
