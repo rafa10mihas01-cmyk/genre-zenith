@@ -215,6 +215,27 @@ Deno.serve(async (req) => {
     if (insErr) skipped++; else inserted++;
   }
 
+  // Se for baseline, persiste blacklist de playlists do deal.
+  if (isBaseline) {
+    const { data: allPls } = await supabase
+      .from("curator_playlists")
+      .select("spotify_playlist_id, playlist_name")
+      .eq("deal_id", deal_id)
+      .not("spotify_playlist_id", "is", null);
+    const rows = (allPls ?? [])
+      .filter((p: any) => p.spotify_playlist_id && !String(p.spotify_playlist_id).startsWith("algo:"))
+      .map((p: any) => ({
+        deal_id,
+        spotify_playlist_id: p.spotify_playlist_id,
+        playlist_name: p.playlist_name ?? null,
+      }));
+    if (rows.length > 0) {
+      await supabase
+        .from("curator_deal_baseline_playlists")
+        .upsert(rows, { onConflict: "deal_id,spotify_playlist_id", ignoreDuplicates: true });
+    }
+  }
+
   // Log do total na tabela curator_deal_logs.
   // Se total_plays vier ausente ou zero, calcula automaticamente somando snapshots[].plays.
   const computedTotal =
