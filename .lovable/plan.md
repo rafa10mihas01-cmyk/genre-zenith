@@ -1,162 +1,200 @@
-# Migração real spotify-artists-bot → queue/worker
+# Reorganização Visual — Engine Next
 
-Como o código atual do bot vive na VPS e não está versionado, vou entregar **arquitetura real de produção** (Playwright + sessão persistente + browser pool + upload Cloud + parsing + retries) seguindo a mesma estratégia que o monolito usa hoje. Os pontos onde sua implementação atual tem **valores específicos** (3 seletores e a URL de login persistente) ficam isolados em **um único arquivo de configuração** — você cola os valores reais lá uma vez e nada mais precisa mudar.
-
-Isto **não é mock**: é o pipeline executável completo (login → navegação → screenshot → upload → parse → persist). O que você fornece depois são apenas constantes (seletores CSS) que mudam quando o Spotify atualiza o HTML.
+Objetivo: transformar a UI atual (densa, técnica, com popups em cascata) em uma plataforma com leitura executiva tipo Stripe/Linear, **sem alterar nenhuma linha de backend, RPC, edge function, cron, contrato de bot, cálculo ou regra de negócio**. Apenas frontend, presentation e arquitetura visual.
 
 ---
 
-## 1. Browser pool (compartilhado entre handlers)
+## 1. Auditoria visual atual
 
-`vps-agent/src/playwright/browserPool.js`
+**Tela `/playlist-deals` (PlaylistDeals.tsx, 354 linhas)**
+- Lista de `CuratorDealCard` (628 linhas/card) — cada card carrega: capa, música, artista, curador, deal info, baseline, plays, snapshot, status, badges múltiplos, botões inline de print/histórico/abrir, alertas de fraude, progresso, score, previsão, atalhos. Tudo no mesmo nível visual.
+- Abre `DealHistorySheet` (1.329 linhas) que internamente abre `LogPrintDialog`, `DealLogDetailDialog`, `CloseDealDialog` → **popup dentro de popup dentro de popup**.
+- Painéis paralelos: `FraudAlertsPanel`, abas `Clientes/Curadores/Financeiro`, `CuradoresLibraryTab`, todos competindo por atenção.
 
-- Singleton que mantém **1 Chromium persistente por worker** (reuso entre jobs).
-- `getContext()` cria/reutiliza `BrowserContext` com `storageState` da sessão Spotify (cookies+localStorage).
-- `withPage(fn)` abre page, executa, **sempre** fecha page no `finally` (sem leak).
-- Reciclagem automática: após N jobs (default 50) ou X minutos (default 60), fecha o browser e recria.
-- `dispose()` no SIGTERM do worker.
-- Detecção de browser travado: timeout global no `page.goto` + watchdog que mata o context se ficar `>5min` ocupado.
-
-## 2. Sessão Spotify for Artists
-
-`vps-agent/src/playwright/spotifySession.js`
-
-- `loadStorageState()` lê `SPOTIFY_STORAGE_STATE_PATH` (arquivo JSON de cookies — mesmo formato que o bot atual já usa).
-- `assertLoggedIn(page)` navega `https://artists.spotify.com/c/` e detecta:
-  - **logado** → ok
-  - **redirect para login** → throw `SpotifyAuthError` (fatal, abre incidente `spotify_login_invalid`)
-  - **captcha/challenge** → throw `SpotifyCaptchaError` (fatal, incidente `spotify_captcha`)
-  - **rate limit (429 / banner)** → throw `SpotifyRateLimitError` (não-fatal, retry com backoff longo)
-- Refresh manual da sessão: comando ops `spotify.session.refresh` (futuro) ou regerar arquivo na VPS.
-
-## 3. Handlers reais
-
-### `src/handlers/spotifyArtistFetch.js`
-Payload: `{ artist_id, spotify_artist_url? }`
-
-1. `withPage` → navega para a URL do artista no S4A.
-2. `assertLoggedIn`.
-3. Captura screenshot da Home do artista.
-4. Upload para bucket `bot-prints/artists/{artist_id}/{job_id}.png`.
-5. Faz `INSERT` em `bot_events` (status `success`, screenshot_url, duration_ms).
-6. Retorna `{ artist_id, screenshot_url, captured_at }`.
-
-### `src/handlers/spotifyDealCollect.js`
-Payload: `{ deal_id, song_id, spotify_track_id }`
-
-1. Carrega o deal+song do Cloud (`curator_deal_songs` ou `curator_deals`).
-2. Navega para tela de Streams da música no S4A.
-3. Coleta `total_plays` + `plays_24h` + `plays_7d` + `plays_28d` via DOM extract.
-4. Captura screenshot.
-5. Upload + `INSERT` em `curator_deal_snapshots` (mantém schema atual: `deal_id`, `song_id`, `playlist_id`, `plays`, `print_url`, `source='spotify_for_artists'`, `match_method='worker'`).
-6. Atualiza `curator_deal_songs.last_auto_collect_at` + agenda `next_auto_collect_at`.
-7. Retorna `{ deal_id, plays, screenshot_url }`.
-
-### `src/handlers/spotifyPrintBatch.js`
-Payload: `{ deal_id, batch_id }`
-
-1. Lê `bot_print_batches` por `id`.
-2. Para cada item do `dom_payload` faz screenshot focado.
-3. Upload todos → preenche `print_urls` + `received_parts`.
-4. Quando `received_parts == total_parts` marca `status='completed'`, `completed_at=now()`.
-
-### Erros
-- `SpotifyAuthError`, `SpotifyCaptchaError` → `err.fatal=true` (dead-letter + incidente high).
-- `SpotifyRateLimitError` → throw normal (retry exponencial; o `fail_job` RPC já cuida).
-- `TimeoutError` → throw normal, com `metadata.timeout=true` no `job_incidents`.
-
-## 4. Scheduler real
-
-### Edge function `supabase/functions/jobs-scheduler/index.ts`
-Auth: `x-agent-token` (admin). Recebe `{ kinds?: string[] }`. Executa em uma chamada:
-
-- **`spotify.deal.collect`**: enfileira todo `curator_deal_songs` com `auto_collect=true` AND (`next_auto_collect_at IS NULL` OR `next_auto_collect_at <= now()`) AND nenhum job ativo (`pending|processing|retry`) com `dedupe_key='deal-collect:'+song_id`. Prioridade alta para os mais atrasados.
-- **`spotify.artist.fetch`**: enfileira artistas que precisam refresh (deals ativos sem snapshot nas últimas 24h). Cooldown 6h por artista via `dedupe_key`.
-- **`spotify.print_batch`**: enfileira `bot_print_batches` com `status='pending'` há > 1min e `received_parts < total_parts`.
-- Limita a **N jobs por chamada** (default 100) para não estourar.
-- Retorna `{ enqueued: { 'spotify.deal.collect': 12, ... } }`.
-
-### Cron pg_cron (você confirma se quer)
-Agora que escolheu **manual + botão**, eu **não** crio cron automático. Adiciono botão no `/sistema → Fila`:
-- "Rodar scheduler agora" → invoca `jobs-scheduler` e mostra contagem enfileirada.
-- Toggle "Habilitar agendamento automático (5/2/15 min)" — quando ligado, cria os 3 cron jobs via SQL helper (instrução clicável, não executa silencioso).
-
-## 5. Healthcheck operacional
-
-Estende `vps-agent/src/watchdog.js` (já existe):
-
-- **worker travado**: heartbeat ausente > 90s OR `status='busy'` mesmo sem mudança de `current_job_id` por 10min → restart do PM2 worker correspondente + incidente `worker_stuck`.
-- **browser travado**: `browserPool` registra `lastActivityAt`; watchdog mata pool se > 5min sem progredir → incidente `browser_stuck`.
-- **login inválido / captcha / rate limit**: já convertidos para incidentes nos handlers (kind dedicado).
-- **memory leak**: `process.memoryUsage().rss > 800MB` → worker se auto-encerra (PM2 reinicia) + incidente `worker_memory_high`.
-
-## 6. Observabilidade no painel
-
-Tudo já vai para `jobs_queue`, `worker_heartbeats`, `job_incidents`. Adiciono ao painel `/sistema → Fila` e `/sistema → Workers` (sem criar página nova):
-
-- KPIs novos: **throughput (jobs/min)**, **tempo médio por tipo**, **crash rate (falhas/total)**, **retries totais 24h**.
-- Drill-down por `job_type` (filtros já existentes).
-- Página existente `/sistema → Bots` ganha card por artista com: última coleta, falhas 7d, tempo médio.
-
-Tudo segue `<PageHeader>`, design tokens existentes, sem emojis.
-
-## 7. Compatibilidade
-
-- **Não toca** `curator_deals`, `curator_deal_songs`, `curator_deal_snapshots`, `bot_print_batches`, `bot_events`, `bot_heartbeats`. Apenas escreve neles com os mesmos formatos atuais.
-- **Não remove** o cron monolítico — apenas para de produzir (passo manual seu na VPS: `pm2 stop spotify-bot` quando os workers estiverem estáveis).
-- Fluxo paralelo: durante a transição os dois podem rodar; o `dedupe_key` do scheduler evita duplicar coleta.
-
-## 8. O que você precisa fazer 1 vez (na VPS)
-
-Dois arquivos `.env` novos no `vps-agent/.env`:
-
-```
-SPOTIFY_STORAGE_STATE_PATH=/opt/nexengine/secrets/spotify-session.json
-SPOTIFY_S4A_BASE=https://artists.spotify.com
-PLAYWRIGHT_HEADLESS=true
-BROWSER_RECYCLE_AFTER_JOBS=50
-BROWSER_RECYCLE_AFTER_MIN=60
-JOB_TIMEOUT_MS=180000
-```
-
-E **colar 3 seletores reais** (1 vez) em `vps-agent/src/playwright/spotifySelectors.js` — que vou criar com placeholders documentados:
-- seletor do bloco "logged in" para o `assertLoggedIn`
-- seletor da métrica de streams totais
-- seletor da área da página que é o "print" final
-
-Sem isso a coleta sobe mas falha cedo no `assertLoggedIn` (o que é o comportamento correto — sem mock).
+**Sintomas concretos**
+- Densidade: ~12 elementos informativos por card, todos com peso visual similar.
+- Excesso de badges/pills coloridos (status, baseline, coleta, score, tendência, alerta) — paleta cromática briga entre si.
+- Sem hierarquia tipográfica clara entre "decisão" (progresso/velocidade) e "técnico" (baseline/coleta/log).
+- Detalhes operacionais (snapshots, prints, logs) visíveis na camada executiva.
+- Modais em cascata quebram o fluxo de leitura.
 
 ---
 
-## Arquivos que serão criados
+## 2. Mapa de reorganização (3 camadas)
 
-```
-vps-agent/
-  src/
-    playwright/
-      browserPool.js
-      spotifySession.js
-      spotifySelectors.js          (você preenche depois)
-      errors.js                    (SpotifyAuthError, etc.)
-    handlers/
-      spotifyArtistFetch.js        (substitui o atual)
-      spotifyDealCollect.js        (substitui o atual)
-      spotifyPrintBatch.js         (novo)
-    cloud/
-      uploadPrint.js               (POST signed-url -> bucket bot-prints)
-  package.json                     (+ playwright, + @supabase/supabase-js)
-  README.md                        (seção "Playwright / Sessão Spotify")
-  .env.example                     (+ vars novas)
-
-supabase/
-  functions/
-    jobs-scheduler/index.ts        (enqueue automático)
-
-src/components/sistema/fila/
-  SchedulerCard.tsx                (botão "Rodar scheduler agora" + KPIs)
-src/hooks/useJobsQueue.ts          (+ throughput/avg/crash rate)
+```text
+┌─────────────────────────────────────────────────┐
+│ CAMADA EXECUTIVA   /playlist-deals              │
+│   - Lista compacta de campanhas (cockpit)       │
+│   - Apenas: status, progresso, velocidade,      │
+│     score, tendência, previsão                  │
+└────────────────┬────────────────────────────────┘
+                 │ clique no card
+                 ▼
+┌─────────────────────────────────────────────────┐
+│ CAMADA OPERACIONAL  /playlist-deals/:id         │
+│   (página dedicada OU side panel persistente)   │
+│   Abas: Resumo · Curadores · Algoritmo ·        │
+│         Histórico · Auditoria                   │
+└────────────────┬────────────────────────────────┘
+                 │ ação específica
+                 ▼
+┌─────────────────────────────────────────────────┐
+│ CAMADA AUDITORIA  (drawer terciário)            │
+│   - Prints, logs raw, snapshots, eventos bot    │
+│   - Acessível só dentro da aba Auditoria        │
+└─────────────────────────────────────────────────┘
 ```
 
-## Migração de banco
-- Bucket de storage `bot-prints` (público) — via migration.
-- Nenhuma alteração de tabela existente.
+**Regra de ouro**: cada nível só revela detalhes do próximo nível por intenção explícita do usuário (clique). Nunca empilhar modais.
+
+---
+
+## 3. Novo fluxo UX
+
+1. Usuário entra em `/playlist-deals` → vê **lista cockpit** (1 linha por deal, alta densidade horizontal, baixa vertical).
+2. Clica num deal → navega para `/playlist-deals/:id` (rota dedicada) com **abas internas**. Estado preservado na URL (`?tab=curadores`).
+3. Dentro da aba Auditoria, ações como "ver print" abrem drawer lateral, não modal sobre modal.
+4. Ações rápidas (enviar print, fechar deal) ficam num menu kebab no card, sem poluir a linha principal.
+
+Vantagem: zero quebra de fluxo — todas as ações existentes continuam acessíveis, só mudam de camada.
+
+---
+
+## 4. Nova hierarquia visual
+
+| Prioridade | Elementos | Tratamento |
+|---|---|---|
+| **Alta** | progresso, velocidade (plays/dia), score, tendência | Tipografia grande, números tabular, sem cor exceto sinal (verde/vermelho sutil) |
+| **Média** | playlists detectadas, crescimento, previsão de fechamento | Texto secundário, ícone pequeno |
+| **Baixa** | baseline, última coleta, status técnico, IDs | Tooltip ou aba Auditoria — nunca na camada executiva |
+
+**Sistema de status unificado** (substitui ~8 variações de badge atuais):
+- `success` (verde sutil) · `warning` (âmbar) · `danger` (vermelho sutil) · `neutral` (cinza)
+- Componente único `<StatusDot variant="success" label="Saudável" />` — bola 6px + label, sem pill cheio de cor.
+
+---
+
+## 5. Card principal (novo)
+
+Reduzir de ~280px de altura para **~72px** (linha tipo Linear/Stripe).
+
+```text
+┌──────────────────────────────────────────────────────────────────────┐
+│ [capa 40px]  Música — Artista          ● Saudável                    │
+│              Curador · 12 playlists                                  │
+│ ─────────────────────────────────────────────────────────────────── │
+│  1.240/dia    62%  ▓▓▓▓▓▓░░░░    Score 8.4    ↗ +12%   ETA 4d  ⋯   │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+- 2 linhas visuais, números alinhados em grid tabular.
+- Menu `⋯` consolida: abrir, histórico, enviar print, fechar.
+- Sem badges coloridos múltiplos — só um `StatusDot`.
+
+---
+
+## 6. Página de detalhe da campanha
+
+Rota nova: `/playlist-deals/:dealId` (substitui o Sheet). Layout:
+
+```text
+┌─ Header: música · artista · curador · StatusDot · ações ──────────┐
+│ Tabs: Resumo | Curadores | Algoritmo | Histórico | Auditoria      │
+├───────────────────────────────────────────────────────────────────┤
+│ [conteúdo da aba ativa]                                           │
+└───────────────────────────────────────────────────────────────────┘
+```
+
+**Resumo** — 4 KPIs grandes (velocidade, progresso, score, previsão) + 1 gráfico de tendência. Nada técnico.
+
+**Curadores** — tabela de playlists do curador: nome, plays, crescimento, entrega, saúde. Sem IDs, sem timestamps de coleta.
+
+**Algoritmo** — mesma tabela mas para playlists algorítmicas, peso visual menor (cards menores, opacidade levemente reduzida).
+
+**Histórico** — timeline compacta, 1 linha por evento: `data · plays · Δ · n playlists`. Sem cards grandes.
+
+**Auditoria** — única aba onde aparecem: baseline, snapshots, prints, logs, eventos do bot, JSON cru. Power-user mode.
+
+---
+
+## 7. Componentes sugeridos (novos, todos UI-only)
+
+- `DealRow` — substitui visual do `CuratorDealCard` (mesmas props, novo layout)
+- `StatusDot` — substitui ~8 variações de badge
+- `MetricCell` — número + label + delta opcional, tipografia tabular
+- `KpiTile` — versão grande para aba Resumo
+- `Timeline` — componente histórico compacto
+- `DetailTabs` — wrapper de Tabs já existentes do shadcn
+- `SidePanel` (opcional) — alternativa à rota dedicada
+
+**Reuso**: 100% das chamadas a hooks/queries/RPCs existentes permanecem. Só muda a apresentação.
+
+---
+
+## 8. Grid, densidade e espaçamento
+
+- Container: `max-w-[1400px]` centralizado, padding lateral 24px (já é o padrão do projeto via memória).
+- Lista de deals: grid de 1 coluna, gap 8px (linhas compactas).
+- Página de detalhe: grid de 12 colunas, KPIs ocupam 3 cada.
+- Tipografia: títulos 14px semibold, números 24px tabular, secundário 12px muted.
+- Cores: manter design system atual (#050505 bg, #171717 card, #1DB954 accent) — apenas reduzir uso do verde a CTAs e tendências positivas. Resto em tons de cinza.
+
+---
+
+## 9. Navegação
+
+- Sidebar atual mantida.
+- Adicionar breadcrumb no topo da página de detalhe: `Campanhas / [música]`.
+- URL passa a refletir estado: `?tab=auditoria&log=123` (deep-linking).
+
+---
+
+## 10. Plano de implementação seguro (sem quebrar nada)
+
+**Fase A — Fundação visual (1 PR)**
+1. Criar `StatusDot`, `MetricCell`, `KpiTile`, `Timeline` em `src/components/ui/`.
+2. Não tocar em nada existente. Apenas adicionar.
+
+**Fase B — Card cockpit (1 PR)**
+1. Criar `DealRow.tsx` ao lado do `CuratorDealCard.tsx` (não substituir).
+2. Em `PlaylistDeals.tsx`, trocar render do card pelo `DealRow` mantendo todas as props e callbacks atuais.
+3. `CuratorDealCard.tsx` fica no repo como fallback até validação.
+
+**Fase C — Página de detalhe (1 PR)**
+1. Criar rota `/playlist-deals/:dealId` apontando para nova página `DealDetail.tsx`.
+2. Mover o conteúdo do `DealHistorySheet` para abas dessa página, **sem alterar nenhuma query/RPC**.
+3. Manter o Sheet acessível por feature flag local (`?legacy=1`) durante validação.
+4. Subdrawers (LogPrintDialog, DealLogDetailDialog) viram drawer lateral único e só abrem dentro da aba Auditoria.
+
+**Fase D — Limpeza de badges (1 PR)**
+1. Substituir badges múltiplos por `StatusDot` em toda a árvore `playlist-deals/`.
+2. Remover cores não-semânticas.
+
+**Fase E — Polimento (1 PR)**
+1. Ajuste fino de espaçamento, tipografia tabular, animações de transição entre abas (framer-motion).
+2. Acessibilidade: foco visível, navegação por teclado nas abas.
+
+**Cada fase é independente, reversível, e não toca**: `supabase/`, `_shared/`, hooks de dados, RPCs, cron, edge functions, contratos do bot, cálculos de score/baseline/pacing.
+
+---
+
+## 11. Riscos e mitigação
+
+| Risco | Mitigação |
+|---|---|
+| Quebrar fluxo de print/log | Manter `DealHistorySheet` no repo + feature flag `?legacy=1` |
+| Perder ações no card compacto | Menu `⋯` consolida 100% das ações atuais |
+| Usuário power perder densidade | Aba Auditoria preserva visão técnica completa |
+| Regressão visual em outras telas | Componentes novos isolados em `src/components/ui/`, sem alterar tokens globais |
+
+---
+
+## 12. Próximo passo
+
+Aprovar este plano e indicar:
+- **(a)** Começar pela Fase A+B (fundação + card cockpit) — entrega visual rápida, baixíssimo risco.
+- **(b)** Ir direto para Fase C (página de detalhe) — maior impacto percebido, risco médio.
+- **(c)** Ajustar algo neste plano antes de iniciar.
+
+Nenhum código foi alterado até aqui.
