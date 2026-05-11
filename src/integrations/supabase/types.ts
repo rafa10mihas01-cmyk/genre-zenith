@@ -2436,6 +2436,53 @@ export type Database = {
         }
         Relationships: []
       }
+      playlist_scores: {
+        Row: {
+          activity_score: number
+          calculated_at: string
+          capacity_score: number
+          created_at: string
+          delivery_score: number
+          health_score: number
+          id: string
+          metadata: Json
+          playlist_id: string
+          risk_score: number
+        }
+        Insert: {
+          activity_score?: number
+          calculated_at?: string
+          capacity_score?: number
+          created_at?: string
+          delivery_score?: number
+          health_score?: number
+          id?: string
+          metadata?: Json
+          playlist_id: string
+          risk_score?: number
+        }
+        Update: {
+          activity_score?: number
+          calculated_at?: string
+          capacity_score?: number
+          created_at?: string
+          delivery_score?: number
+          health_score?: number
+          id?: string
+          metadata?: Json
+          playlist_id?: string
+          risk_score?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "playlist_scores_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: true
+            referencedRelation: "playlists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       playlist_templates: {
         Row: {
           approved_at: string | null
@@ -3722,6 +3769,7 @@ export type Database = {
           read_ct: number
         }[]
       }
+      recalc_playlist_scores: { Args: never; Returns: number }
       recompute_curator_deal_state: {
         Args: { p_deal_id: string }
         Returns: undefined
@@ -3778,6 +3826,7 @@ export type Database = {
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       slugify: { Args: { p_text: string }; Returns: string }
+      trigger_recalc_playlist_scores: { Args: never; Returns: number }
       unaccent: { Args: { "": string }; Returns: string }
     }
     Enums: {

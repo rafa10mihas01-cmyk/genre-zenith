@@ -1,134 +1,131 @@
-# Fase 1 — Canonical Playlist Layer
+# Fase 2 — Playlist Intelligence + Health Engine
 
-Objetivo: criar uma camada central de identidade de playlists (`public.playlists`) e linkar — sem quebrar nada — as 3 tabelas existentes (`managed_playlists`, `curator_playlist_library`, `curator_playlists`) via uma nova coluna `canonical_playlist_id`.
-
-Princípios:
-- Nada existente é alterado, renomeado ou removido.
-- Novas colunas são **nullable** e sem default destrutivo.
-- Sem foreign keys "duras" para evitar quebra de inserts vindos do bot/edge functions (usaremos FK com `ON DELETE SET NULL`).
-- Backfill é idempotente: se rodar 2x, não duplica nada (`ON CONFLICT (spotify_playlist_id) DO UPDATE`).
-- RLS segue padrão do projeto: `has_team_access()` para SELECT/INSERT/UPDATE/DELETE.
+Objetivo: ensinar o sistema a avaliar cada playlist canônica (`playlists`) com 5 scores 0–100 recalculados diariamente, e expor na tela **Operação > Minhas Playlists** — sem quebrar nada existente.
 
 ---
 
-## 1. Nova tabela `public.playlists`
+## 1. Nova tabela `playlist_scores`
 
 ```text
-playlists
-├── id                    uuid PK              default gen_random_uuid()
-├── spotify_playlist_id   text UNIQUE NOT NULL
-├── name                  text
-├── ownership             text NOT NULL        check in ('own','curator','external')  default 'external'
-├── account_id            uuid NULL            (sem FK dura; lógica aplicacional)
-├── source                text NOT NULL        check in ('managed','library','deal','bot','apify')  default 'external'
-├── followers             bigint
-├── cover_url             text
-├── first_seen_at         timestamptz NOT NULL default now()
-├── last_seen_at          timestamptz NOT NULL default now()
-└── created_at            timestamptz NOT NULL default now()
+playlist_scores
+├── id               uuid PK
+├── playlist_id      uuid NOT NULL REFERENCES playlists(id) ON DELETE CASCADE  UNIQUE
+├── health_score     smallint NOT NULL DEFAULT 0   (0-100)
+├── delivery_score   smallint NOT NULL DEFAULT 0
+├── capacity_score   smallint NOT NULL DEFAULT 0
+├── risk_score       smallint NOT NULL DEFAULT 0
+├── activity_score   smallint NOT NULL DEFAULT 0
+├── calculated_at    timestamptz NOT NULL DEFAULT now()
+├── metadata         jsonb NOT NULL DEFAULT '{}'   (insumos do cálculo)
+└── created_at       timestamptz NOT NULL DEFAULT now()
 ```
 
-Observação: `source` no enunciado tem valor `'external'` implícito (usado em `ownership`). Vou aceitar os 5 valores listados (`managed | library | deal | bot | apify`) e usar `'managed'` como default seguro no backfill conforme origem da linha. Confirma se prefere outro default.
+- `UNIQUE(playlist_id)` → 1 linha por playlist; recálculo faz `UPSERT`.
+- RLS `has_team_access()` em SELECT/INSERT/UPDATE/DELETE.
+- Índices: `(health_score DESC)`, `(calculated_at)`.
 
-Índices:
-- `UNIQUE (spotify_playlist_id)` (já vem do constraint)
-- `INDEX (ownership)`, `INDEX (account_id)`, `INDEX (source)`
-
-RLS: `ENABLE`, com 4 policies `has_team_access()` (padrão do projeto).
-
-Trigger: `update_updated_at` não se aplica (não existe coluna `updated_at`); mas adiciono trigger leve para manter `last_seen_at = now()` em UPDATE.
+Tabela é **derivada/cacheada**: pode ser truncada e recriada sem perder dados de negócio.
 
 ---
 
-## 2. Coluna `canonical_playlist_id` nas 3 tabelas
+## 2. Fontes de dados (sem alterar nada)
 
-Adicionada como **nullable**, sem default, com FK `ON DELETE SET NULL`:
+| Score | Fonte primária | Janela |
+|---|---|---|
+| capacity | `curator_deal_snapshots.plays_28d` agregado por `spotify_playlist_id`; fallback `curator_playlists.streams_28d`/`streams_7d` | 28d |
+| delivery | `curator_playlists.streams_total` somado por `canonical_playlist_id` em deals fechados / com música ativa | lifetime nas campanhas |
+| activity | `curator_playlist_library.last_used_at` + `times_used`; para `own`: `managed_playlists.updated_at`/`last_synced_at` se existir | 90d |
+| risk | desvio entre `plays_7d` (×4) vs `plays_28d` no último snapshot por playlist; e drop entre snapshots consecutivos | últimos 2–3 snapshots |
+| health | composto ponderado: `0.30·capacity + 0.25·delivery + 0.20·activity + 0.25·(100−risk)` | derivado |
+
+Tudo lido via **`canonical_playlist_id`** (Fase 1). Playlists sem canonical_id ficam com scores 0 e `metadata.reason='no_canonical'`.
+
+---
+
+## 3. Função SQL `recalc_playlist_scores()`
+
+`SECURITY DEFINER`, `search_path = public`. Executa em uma transação:
+
+1. CTE `agg_snapshots`: agrega `curator_deal_snapshots` por `canonical_playlist_id` (via JOIN com `curator_playlists`) → soma `plays_28d`, `plays_7d`, `plays_24h`, `max(captured_at)`.
+2. CTE `agg_deals`: soma `streams_total`, `streams_28d`, `streams_7d` por `canonical_playlist_id` em `curator_playlists`.
+3. CTE `agg_library`: `times_used`, `last_used_at` por `canonical_playlist_id` em `curator_playlist_library`.
+4. CTE `agg_managed`: `last_synced_at`/`updated_at` por `canonical_playlist_id` em `managed_playlists`.
+5. CTE `scores`: aplica fórmulas de normalização (escala log para volumes, capping em 100, mínimo 0).
+6. `INSERT … ON CONFLICT (playlist_id) DO UPDATE SET …` em `playlist_scores`.
+
+Fórmulas de normalização (resumo):
+
+- `capacity_score = LEAST(100, GREATEST(0, round(100 * ln(1 + plays_28d) / ln(1 + 50000))))`
+- `delivery_score = LEAST(100, GREATEST(0, round(100 * ln(1 + streams_total) / ln(1 + 500000))))`
+- `activity_score`: 100 se `last_used_at < 7d`; degrau até 0 em 90d
+- `risk_score`: `|4*plays_7d − plays_28d| / NULLIF(plays_28d,0)` normalizado (cap 100); +20 se queda >50% entre 2 últimos snapshots
+- `health_score`: combinação ponderada acima
+
+Os tetos (50k, 500k, 90d) ficam em uma CTE `params` no topo da função para ajuste futuro sem migration.
+
+`metadata` armazena os insumos brutos: `{plays_28d, plays_7d, streams_total, times_used, last_used_at, last_snapshot_at}` — útil para depurar e para a UI mostrar "por quê".
+
+---
+
+## 4. Cron diário
+
+`pg_cron` (já habilitado no projeto, usado em outros lugares):
 
 ```sql
-ALTER TABLE managed_playlists         ADD COLUMN canonical_playlist_id uuid NULL REFERENCES playlists(id) ON DELETE SET NULL;
-ALTER TABLE curator_playlist_library  ADD COLUMN canonical_playlist_id uuid NULL REFERENCES playlists(id) ON DELETE SET NULL;
-ALTER TABLE curator_playlists         ADD COLUMN canonical_playlist_id uuid NULL REFERENCES playlists(id) ON DELETE SET NULL;
+SELECT cron.schedule(
+  'recalc-playlist-scores-daily',
+  '15 3 * * *',  -- 03:15 UTC diário
+  $$ SELECT public.recalc_playlist_scores(); $$
+);
 ```
 
-Índices em cada tabela: `CREATE INDEX ... ON <tabela>(canonical_playlist_id);`
+Sem `pg_net`, sem edge function — roda 100% no DB, custo zero. Idempotente por design (UPSERT).
 
-Nenhuma coluna existente é alterada. Bot e edge functions continuam inserindo exatamente como antes — a coluna nova fica `NULL` em inserts legados e é preenchida pelo backfill / por triggers futuras (Fase 2).
-
----
-
-## 3. Backfill idempotente (dentro da mesma migration)
-
-Lógica (em SQL, executada na ordem abaixo):
-
-**Passo A — managed_playlists → playlists (ownership='own', source='managed'):**
-```sql
-INSERT INTO playlists (spotify_playlist_id, name, ownership, account_id, source, followers, cover_url, first_seen_at, last_seen_at)
-SELECT mp.spotify_playlist_id, mp.name, 'own', mp.account_id, 'managed',
-       mp.followers, mp.cover_url, COALESCE(mp.created_at, now()), now()
-FROM managed_playlists mp
-WHERE mp.spotify_playlist_id IS NOT NULL
-ON CONFLICT (spotify_playlist_id) DO UPDATE
-  SET name       = COALESCE(playlists.name, EXCLUDED.name),
-      followers  = COALESCE(EXCLUDED.followers, playlists.followers),
-      cover_url  = COALESCE(EXCLUDED.cover_url, playlists.cover_url),
-      last_seen_at = now();
-
-UPDATE managed_playlists mp
-SET canonical_playlist_id = p.id
-FROM playlists p
-WHERE p.spotify_playlist_id = mp.spotify_playlist_id
-  AND mp.canonical_playlist_id IS NULL;
-```
-
-**Passo B — curator_playlist_library → playlists (ownership='curator', source='library'):**
-Mesma estrutura. Para linhas que já existem na tabela `playlists` (vindas do passo A com `ownership='own'`), o `ON CONFLICT` **não rebaixa** o ownership — mantemos o ownership existente (uso `playlists.ownership` no SET, não EXCLUDED).
-
-**Passo C — curator_playlists → playlists (ownership='curator', source='deal'):**
-Idem. Nunca sobrescreve `ownership='own'` ou `'curator'` já gravado.
-
-Regra anti-rebaixamento (aplicada nos 3 ON CONFLICT):
-```sql
-ownership = CASE
-  WHEN playlists.ownership = 'own'     THEN 'own'
-  WHEN playlists.ownership = 'curator' THEN 'curator'
-  ELSE EXCLUDED.ownership
-END
-```
-
-Resultado: cada `spotify_playlist_id` distinto vira **1** linha em `playlists`; as 3 tabelas ficam todas com `canonical_playlist_id` preenchido para qualquer linha que tinha `spotify_playlist_id` válido.
+Também exponho um RPC `trigger_recalc_playlist_scores()` (chamado pelo botão "Recalcular agora" na UI; gated por `has_team_access()` via security definer com check interno).
 
 ---
 
-## 4. O que **NÃO** será feito nesta fase
+## 5. UI — Operação > Minhas Playlists
 
-- Sem alterar/remover colunas existentes.
-- Sem mudar contratos do bot, edge functions, RPCs, triggers existentes.
-- Sem tornar `canonical_playlist_id` `NOT NULL`.
-- Sem deduplicar linhas das tabelas originais.
-- Sem unificar `curator_playlists` (snapshot por deal) com `curator_playlist_library` — continuam coexistindo.
-- Sem expor a tabela no frontend (Fase 2).
+Localizar a página atual (provavelmente `src/pages/Playlists.tsx` ou similar) e adicionar **sem remover nada**:
 
----
+- 4 KPI tiles no topo: média de health, capacidade total estimada (28d), playlists em risco (risk ≥ 60), playlists inativas (activity < 30).
+- Coluna nova nas rows existentes (ou cells na grid):
+  - `<StatusDot variant={health → success/warning/danger}>` + número
+  - 4 mini-barras (`Progress` compacto) para os outros 4 scores, com tooltip mostrando o número exato
+- Botão discreto "Recalcular scores" no header (chama o RPC; toast com `calculated_at` mais recente).
+- Filtros já existentes continuam intactos; adiciono ordenação por `health_score`.
 
-## 5. Entregáveis desta fase
-
-1 migration SQL única contendo:
-- `CREATE TABLE playlists` + índices + RLS + policies + trigger `last_seen_at`.
-- 3 × `ALTER TABLE ADD COLUMN canonical_playlist_id` + índices.
-- Backfill idempotente (passos A, B, C).
-
-Após aprovação da migration, **nenhuma alteração de código TS é necessária** nesta fase — types.ts será regenerado automaticamente e tudo segue funcionando.
+Apenas frontend de leitura — nenhuma escrita nova além do botão de recálculo manual.
 
 ---
 
-## 6. Verificação pós-migration
+## 6. O que **NÃO** será feito
 
-Vou rodar como SELECTs de sanidade:
-- `SELECT count(*) FROM playlists;`
-- `SELECT count(*) FROM managed_playlists WHERE canonical_playlist_id IS NULL AND spotify_playlist_id IS NOT NULL;` → esperado **0**
-- Idem para `curator_playlist_library` e `curator_playlists`.
-- `SELECT ownership, count(*) FROM playlists GROUP BY 1;`
+- Sem alterar tabelas existentes.
+- Sem mudar bot, edge functions, RPCs antigas.
+- Sem deletar a tela antiga ou mudar rotas.
+- Sem alertas/notificações automáticos (Fase 3).
+- Sem expor scores para curador/cliente (apenas operação).
 
-Se tudo zerar/bater, Fase 1 está concluída e segura para Fase 2 (triggers de sincronização + uso no frontend).
+---
 
-Posso prosseguir e gerar a migration?
+## 7. Entregáveis
+
+1. **Migration** com:
+   - Tabela `playlist_scores` + RLS + índices.
+   - Função `recalc_playlist_scores()`.
+   - Função `trigger_recalc_playlist_scores()` (security definer wrapper).
+   - Primeiro recálculo executado dentro da migration (`SELECT recalc_playlist_scores();`).
+2. **SQL via insert tool** (não migration — contém URLs/keys de cron) para o `cron.schedule`.
+3. **Frontend**: hook `usePlaylistScores`, componente `PlaylistScoreCell`, integração na página de Minhas Playlists, botão "Recalcular".
+
+---
+
+## 8. Verificação
+
+- `SELECT count(*) FROM playlist_scores;` deve ≈ count playlists com canonical ligado.
+- `SELECT avg(health_score), max(health_score), min(health_score) FROM playlist_scores;` — distribuição plausível.
+- UI renderiza scores nas linhas existentes sem regressão.
+
+Posso prosseguir.

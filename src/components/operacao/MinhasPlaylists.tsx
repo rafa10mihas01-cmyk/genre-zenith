@@ -14,8 +14,9 @@ import { cn } from "@/lib/utils";
 import { formatNumber, timeAgo } from "@/lib/format";
 import {
   Plus, RefreshCw, ExternalLink, Music2, Sparkles, Archive, ArchiveRestore,
-  ListMusic, AlertCircle,
+  ListMusic, AlertCircle, Activity,
 } from "lucide-react";
+import { PlaylistScoreBadge, type PlaylistScoreRow } from "./PlaylistScoreBadge";
 
 type ManagedPlaylist = {
   id: string;
@@ -29,6 +30,7 @@ type ManagedPlaylist = {
   archived_at: string | null;
   last_diagnosis_at: string | null;
   imported_at: string;
+  canonical_playlist_id: string | null;
 };
 
 type Diagnosis = {
@@ -44,6 +46,8 @@ type Diagnosis = {
 
 export function MinhasPlaylists() {
   const [items, setItems] = useState<ManagedPlaylist[]>([]);
+  const [scores, setScores] = useState<Record<string, PlaylistScoreRow>>({});
+  const [recalcing, setRecalcing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showArchived, setShowArchived] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -73,6 +77,17 @@ export function MinhasPlaylists() {
   const [diagnosis, setDiagnosis] = useState<Diagnosis | null>(null);
   const [diagLoading, setDiagLoading] = useState(false);
 
+  const loadScores = useCallback(async (canonicalIds: string[]) => {
+    if (!canonicalIds.length) { setScores({}); return; }
+    const { data } = await supabase
+      .from("playlist_scores")
+      .select("playlist_id, health_score, delivery_score, capacity_score, risk_score, activity_score, calculated_at")
+      .in("playlist_id", canonicalIds);
+    const map: Record<string, PlaylistScoreRow> = {};
+    (data ?? []).forEach((r: any) => { map[r.playlist_id] = r; });
+    setScores(map);
+  }, []);
+
   const load = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase
@@ -80,9 +95,27 @@ export function MinhasPlaylists() {
       .select("*")
       .order("imported_at", { ascending: false });
     if (error) toast({ title: "Erro ao carregar", description: error.message, variant: "destructive" });
-    setItems((data ?? []) as ManagedPlaylist[]);
+    const list = (data ?? []) as ManagedPlaylist[];
+    setItems(list);
     setLoading(false);
-  }, []);
+    const canonicals = list.map(i => i.canonical_playlist_id).filter(Boolean) as string[];
+    loadScores(canonicals);
+  }, [loadScores]);
+
+  async function handleRecalc() {
+    setRecalcing(true);
+    try {
+      const { error } = await supabase.rpc("trigger_recalc_playlist_scores");
+      if (error) throw error;
+      toast({ title: "Scores recalculados" });
+      const canonicals = items.map(i => i.canonical_playlist_id).filter(Boolean) as string[];
+      await loadScores(canonicals);
+    } catch (e: any) {
+      toast({ title: "Erro ao recalcular", description: e.message, variant: "destructive" });
+    } finally {
+      setRecalcing(false);
+    }
+  }
 
   useEffect(() => { load(); }, [load]);
 
@@ -153,8 +186,40 @@ export function MinhasPlaylists() {
     load();
   }
 
+  // KPI agregados sobre as playlists visíveis (não-arquivadas)
+  const activeItems = items.filter(i => !i.archived_at);
+  const scoreRows = activeItems
+    .map(i => i.canonical_playlist_id ? scores[i.canonical_playlist_id] : null)
+    .filter(Boolean) as PlaylistScoreRow[];
+  const avgHealth = scoreRows.length ? Math.round(scoreRows.reduce((a, s) => a + s.health_score, 0) / scoreRows.length) : 0;
+  const atRisk = scoreRows.filter(s => s.risk_score >= 60).length;
+  const inactive = scoreRows.filter(s => s.activity_score < 30).length;
+  const topPerf = scoreRows.filter(s => s.health_score >= 70).length;
+
   return (
     <section className="space-y-4">
+      {/* KPI bar */}
+      {activeItems.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <div className="nx-card !p-3 flex flex-col gap-0.5">
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Health médio</span>
+            <span className="text-lg font-semibold tabular-nums">{avgHealth}</span>
+          </div>
+          <div className="nx-card !p-3 flex flex-col gap-0.5">
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Top performers</span>
+            <span className="text-lg font-semibold tabular-nums text-primary">{topPerf}</span>
+          </div>
+          <div className="nx-card !p-3 flex flex-col gap-0.5">
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Em risco</span>
+            <span className={cn("text-lg font-semibold tabular-nums", atRisk > 0 && "text-destructive")}>{atRisk}</span>
+          </div>
+          <div className="nx-card !p-3 flex flex-col gap-0.5">
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Inativas</span>
+            <span className={cn("text-lg font-semibold tabular-nums", inactive > 0 && "text-warning")}>{inactive}</span>
+          </div>
+        </div>
+      )}
+
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2">
         <Button onClick={() => setImportOpen(true)} className="gap-1.5">
@@ -171,6 +236,10 @@ export function MinhasPlaylists() {
         </Button>
         <Button variant="outline" onClick={load} disabled={loading} className="gap-1.5">
           <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} /> Atualizar
+        </Button>
+        <Button variant="outline" onClick={handleRecalc} disabled={recalcing} className="gap-1.5">
+          <Activity className={cn("h-4 w-4", recalcing && "animate-pulse")} />
+          {recalcing ? "Recalculando…" : "Recalcular scores"}
         </Button>
         <div className="ml-auto flex items-center gap-1.5">
           <button
@@ -250,7 +319,10 @@ export function MinhasPlaylists() {
                 )}
               </div>
               <div className="p-2.5 flex-1 flex flex-col gap-1.5">
-                <h4 className="text-[13px] font-semibold leading-tight line-clamp-1" title={p.name}>{p.name}</h4>
+                <div className="flex items-start gap-1.5">
+                  <h4 className="flex-1 text-[13px] font-semibold leading-tight line-clamp-1" title={p.name}>{p.name}</h4>
+                  <PlaylistScoreBadge scores={p.canonical_playlist_id ? scores[p.canonical_playlist_id] ?? null : null} />
+                </div>
                 <div className="flex items-center justify-between text-[11px] tabular-nums text-muted-foreground">
                   <span><span className="font-semibold text-foreground">{formatNumber(p.followers)}</span> seg.</span>
                   <span><span className="font-semibold text-foreground">{p.tracks_count || "—"}</span> fx</span>
