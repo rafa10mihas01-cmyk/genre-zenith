@@ -318,6 +318,7 @@ async function callGeminiOnce(printUrls: string[], startIndex: number): Promise<
     tool_choice: { type: "function", function: { name: "report_playlists" } },
   };
 
+  const aiStart = Date.now();
   const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -329,9 +330,28 @@ async function callGeminiOnce(printUrls: string[], startIndex: number): Promise<
 
   if (!resp.ok) {
     const t = await resp.text();
+    await logAiUsage({
+      functionName: "extract-snapshot-from-print",
+      model: "google/gemini-2.5-flash",
+      durationMs: Date.now() - aiStart,
+      status: "error",
+      error: `HTTP ${resp.status}: ${t.slice(0, 200)}`,
+      metadata: { prints: printUrls.length },
+    });
     throw new Error(`gemini ${resp.status}: ${t.slice(0, 500)}`);
   }
   const data = await resp.json();
+  const usage = data?.usage ?? {};
+  await logAiUsage({
+    functionName: "extract-snapshot-from-print",
+    model: "google/gemini-2.5-flash",
+    tokensIn: Number(usage.prompt_tokens) || null,
+    tokensOut: Number(usage.completion_tokens) || null,
+    tokensTotal: Number(usage.total_tokens) || null,
+    durationMs: Date.now() - aiStart,
+    status: "ok",
+    metadata: { prints: printUrls.length, cache: "miss" },
+  });
   const tc = data?.choices?.[0]?.message?.tool_calls?.[0];
   if (!tc?.function?.arguments) {
     throw new Error("gemini: no tool_call returned");
