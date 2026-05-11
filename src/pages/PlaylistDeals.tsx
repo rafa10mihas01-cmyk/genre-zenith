@@ -299,7 +299,7 @@ export default function PlaylistDeals() {
                 progress={progressByDeal[d.id]}
                 songs={songs.filter((s) => s.deal_id === d.id)}
                 onLog={(deal) => setLogDeal(deal)}
-                onDetail={(deal) => setDetailDeal(deal)}
+                onDetail={openDetail}
                 onDelete={(deal) => handleDelete(deal.id)}
                 onEdit={(deal) => setEditDeal(deal)}
                 onClose={(deal) => setCloseDealOpen(deal)}
@@ -319,7 +319,7 @@ export default function PlaylistDeals() {
                 progress={progressByDeal[d.id]}
                 songs={songs.filter((s) => s.deal_id === d.id)}
                 onLog={(deal) => setLogDeal(deal)}
-                onDetail={(deal) => setDetailDeal(deal)}
+                onDetail={openDetail}
                 onDelete={(deal) => handleDelete(deal.id)}
                 onEdit={(deal) => setEditDeal(deal)}
                 onClose={(deal) => setCloseDealOpen(deal)}
