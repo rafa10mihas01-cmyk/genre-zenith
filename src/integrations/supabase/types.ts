@@ -825,6 +825,36 @@ export type Database = {
         }
         Relationships: []
       }
+      curator_deal_baseline_playlists: {
+        Row: {
+          captured_at: string
+          created_at: string
+          deal_id: string
+          id: string
+          playlist_name: string | null
+          snapshot_id: string | null
+          spotify_playlist_id: string
+        }
+        Insert: {
+          captured_at?: string
+          created_at?: string
+          deal_id: string
+          id?: string
+          playlist_name?: string | null
+          snapshot_id?: string | null
+          spotify_playlist_id: string
+        }
+        Update: {
+          captured_at?: string
+          created_at?: string
+          deal_id?: string
+          id?: string
+          playlist_name?: string | null
+          snapshot_id?: string | null
+          spotify_playlist_id?: string
+        }
+        Relationships: []
+      }
       curator_deal_logs: {
         Row: {
           created_at: string
@@ -3550,6 +3580,10 @@ export type Database = {
       }
       is_admin: { Args: never; Returns: boolean }
       is_current_user_admin: { Args: never; Returns: boolean }
+      is_playlist_in_deal_baseline: {
+        Args: { p_deal_id: string; p_spotify_playlist_id: string }
+        Returns: boolean
+      }
       log_ai_usage: {
         Args: {
           p_duration_ms?: number
