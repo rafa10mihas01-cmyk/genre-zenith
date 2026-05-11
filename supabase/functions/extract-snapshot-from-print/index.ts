@@ -625,7 +625,7 @@ Deno.serve(async (req) => {
     console.log(`[extract] usando DOM direto: ${extracted.length} playlists com plays_text`);
   } else {
     try {
-      extracted = await callGeminiChunked(print_urls);
+      extracted = await callGeminiChunked(print_urls, supabase);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       console.error("gemini extract failed", msg);
