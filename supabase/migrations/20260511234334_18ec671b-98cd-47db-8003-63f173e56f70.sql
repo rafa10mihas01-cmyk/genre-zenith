@@ -1,0 +1,1 @@
+ALTER VIEW public.v_playlist_vps_assignment SET (security_invoker = on);
