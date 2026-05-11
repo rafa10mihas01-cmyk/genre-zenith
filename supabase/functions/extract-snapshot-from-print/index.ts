@@ -185,7 +185,9 @@ async function callGeminiChunked(
     const slice = printUrls.slice(i, i + CHUNK);
     let part: ExtractedPlaylist[] = [];
     try {
-      part = await callGeminiOnce(slice, runningIndex);
+      part = cacheClient
+        ? await callGeminiOnceCached(slice, runningIndex, cacheClient)
+        : await callGeminiOnce(slice, runningIndex);
     } catch (e) {
       console.warn(`gemini chunk ${i / CHUNK + 1} falhou, segue`, e instanceof Error ? e.message : e);
       runningIndex += 12; // estima ~6 linhas por print pra não colidir posições
