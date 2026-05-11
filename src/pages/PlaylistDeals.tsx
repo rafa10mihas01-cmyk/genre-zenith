@@ -13,6 +13,8 @@ import { useCuratorDeals } from "@/hooks/useCuratorDeals";
 import { computeCuratorStats, type CuratorDeal } from "@/lib/curatorDealsUtils";
 import { formatNumber } from "@/lib/format";
 import { CuratorDealCard } from "@/components/playlist-deals/CuratorDealCard";
+import { DealRow } from "@/components/playlist-deals/DealRow";
+import { useSearchParams } from "react-router-dom";
 import { NewDealDialog } from "@/components/playlist-deals/NewDealDialog";
 import { LogPrintDialog } from "@/components/playlist-deals/LogPrintDialog";
 import { DealHistorySheet } from "@/components/playlist-deals/DealHistorySheet";
@@ -43,6 +45,8 @@ export default function PlaylistDeals() {
 
   const { deals, logs, playlists, songs, alerts, curators, balances, progressByDeal, loading, deleteDeal, addLog, addBaseline, insertSnapshots, closeDeal, reopenDeal, forceCollectNow, updateCurator, archiveCurator, deleteCurator, pauseCurator, reload } = useCuratorDeals();
   const { clients } = useClients();
+  const [searchParams] = useSearchParams();
+  const useLegacyCards = searchParams.get("legacy") === "1";
 
   // KPIs do topo — derivados dos deals + logs + playlists
   const kpi = useMemo(() => {
@@ -279,10 +283,30 @@ export default function PlaylistDeals() {
               )}
             </div>
           </div>
-        ) : (
+        ) : useLegacyCards ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filtered.map((d) => (
               <CuratorDealCard
+                key={d.id}
+                deal={d}
+                logs={logs}
+                playlists={playlists}
+                progress={progressByDeal[d.id]}
+                songs={songs.filter((s) => s.deal_id === d.id)}
+                onLog={(deal) => setLogDeal(deal)}
+                onDetail={(deal) => setDetailDeal(deal)}
+                onDelete={(deal) => handleDelete(deal.id)}
+                onEdit={(deal) => setEditDeal(deal)}
+                onClose={(deal) => setCloseDealOpen(deal)}
+                onReopen={handleReopen}
+                onForceCollect={(deal) => forceCollectNow(deal.id)}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {filtered.map((d) => (
+              <DealRow
                 key={d.id}
                 deal={d}
                 logs={logs}
