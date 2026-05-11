@@ -46,6 +46,8 @@ type Diagnosis = {
 
 export function MinhasPlaylists() {
   const [items, setItems] = useState<ManagedPlaylist[]>([]);
+  const [scores, setScores] = useState<Record<string, PlaylistScoreRow>>({});
+  const [recalcing, setRecalcing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showArchived, setShowArchived] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -75,6 +77,17 @@ export function MinhasPlaylists() {
   const [diagnosis, setDiagnosis] = useState<Diagnosis | null>(null);
   const [diagLoading, setDiagLoading] = useState(false);
 
+  const loadScores = useCallback(async (canonicalIds: string[]) => {
+    if (!canonicalIds.length) { setScores({}); return; }
+    const { data } = await supabase
+      .from("playlist_scores")
+      .select("playlist_id, health_score, delivery_score, capacity_score, risk_score, activity_score, calculated_at")
+      .in("playlist_id", canonicalIds);
+    const map: Record<string, PlaylistScoreRow> = {};
+    (data ?? []).forEach((r: any) => { map[r.playlist_id] = r; });
+    setScores(map);
+  }, []);
+
   const load = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase
@@ -82,9 +95,27 @@ export function MinhasPlaylists() {
       .select("*")
       .order("imported_at", { ascending: false });
     if (error) toast({ title: "Erro ao carregar", description: error.message, variant: "destructive" });
-    setItems((data ?? []) as ManagedPlaylist[]);
+    const list = (data ?? []) as ManagedPlaylist[];
+    setItems(list);
     setLoading(false);
-  }, []);
+    const canonicals = list.map(i => i.canonical_playlist_id).filter(Boolean) as string[];
+    loadScores(canonicals);
+  }, [loadScores]);
+
+  async function handleRecalc() {
+    setRecalcing(true);
+    try {
+      const { error } = await supabase.rpc("trigger_recalc_playlist_scores");
+      if (error) throw error;
+      toast({ title: "Scores recalculados" });
+      const canonicals = items.map(i => i.canonical_playlist_id).filter(Boolean) as string[];
+      await loadScores(canonicals);
+    } catch (e: any) {
+      toast({ title: "Erro ao recalcular", description: e.message, variant: "destructive" });
+    } finally {
+      setRecalcing(false);
+    }
+  }
 
   useEffect(() => { load(); }, [load]);
 
