@@ -87,6 +87,11 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  // Rate limit: 240/min por IP — scrapers de OG (WhatsApp/Telegram) batem várias vezes.
+  const ip = clientIp(req);
+  const rl = await checkRateLimit(`share-link:${ip}`, 60, 240);
+  if (!rl.allowed) return rateLimitResponse(corsHeaders);
+
   const url = new URL(req.url);
   // path = /share-link/curador/slug  OR /functions/v1/share-link/curador/slug
   const parts = url.pathname.split("/").filter(Boolean);
