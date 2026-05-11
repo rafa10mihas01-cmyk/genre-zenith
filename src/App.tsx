@@ -36,6 +36,7 @@ import ComunidadeCampanhas from "./pages/comunidade/Campanhas";
 import ComunidadePontos from "./pages/comunidade/Pontos";
 import ComunidadeConta from "./pages/comunidade/Conta";
 import ComunidadeAdmin from "./pages/ComunidadeAdmin";
+import Infraestrutura from "./pages/Infraestrutura";
 import NotFound from "./pages/NotFound";
 
 // Defaults globais de cache: navegação "instantânea" sem reload visual.
