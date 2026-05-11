@@ -121,6 +121,54 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_usage_log: {
+        Row: {
+          created_at: string
+          duration_ms: number | null
+          error: string | null
+          function_name: string
+          id: string
+          metadata: Json
+          model: string | null
+          provider: string
+          status: string
+          tokens_in: number | null
+          tokens_out: number | null
+          tokens_total: number | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          duration_ms?: number | null
+          error?: string | null
+          function_name: string
+          id?: string
+          metadata?: Json
+          model?: string | null
+          provider?: string
+          status?: string
+          tokens_in?: number | null
+          tokens_out?: number | null
+          tokens_total?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          duration_ms?: number | null
+          error?: string | null
+          function_name?: string
+          id?: string
+          metadata?: Json
+          model?: string | null
+          provider?: string
+          status?: string
+          tokens_in?: number | null
+          tokens_out?: number | null
+          tokens_total?: number | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       autopilot_runs: {
         Row: {
           cache_hits: Json
@@ -3195,6 +3243,7 @@ export type Database = {
         Returns: Json
       }
       cleanup_old_bot_prints: { Args: never; Returns: Json }
+      cleanup_old_logs: { Args: never; Returns: Json }
       cleanup_old_logs_and_snapshots: {
         Args: never
         Returns: {
@@ -3495,6 +3544,22 @@ export type Database = {
       }
       is_admin: { Args: never; Returns: boolean }
       is_current_user_admin: { Args: never; Returns: boolean }
+      log_ai_usage: {
+        Args: {
+          p_duration_ms?: number
+          p_error?: string
+          p_function_name: string
+          p_metadata?: Json
+          p_model?: string
+          p_provider?: string
+          p_status?: string
+          p_tokens_in?: number
+          p_tokens_out?: number
+          p_tokens_total?: number
+          p_user_id: string
+        }
+        Returns: string
+      }
       match_curator_playlist: {
         Args: {
           p_deal_id: string
