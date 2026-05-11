@@ -25,6 +25,11 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  // Rate limit: 120 req/min por IP.
+  const ip = clientIp(req);
+  const rl = await checkRateLimit(`get-curator-deal-public:${ip}`, 60, 120);
+  if (!rl.allowed) return rateLimitResponse(corsHeaders);
+
   try {
     const body = await req.json().catch(() => ({}));
     const token = typeof body?.public_token === "string" ? body.public_token.trim() : "";
