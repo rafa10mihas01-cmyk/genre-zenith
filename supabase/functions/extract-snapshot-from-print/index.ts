@@ -1108,6 +1108,32 @@ Deno.serve(async (req) => {
     }
   }
 
+  // 3.9. Se for baseline, persiste a "blacklist" de playlists do deal:
+  // tudo que já existia no Spotify for Artists antes da campanha começar.
+  // Curador que tentar cadastrar uma playlist com spotify_playlist_id contido
+  // aqui será bloqueado pelo trigger enforce_curator_playlist_baseline().
+  if (isBaseline) {
+    const { data: allPls } = await supabase
+      .from("curator_playlists")
+      .select("spotify_playlist_id, playlist_name")
+      .eq("deal_id", deal_id)
+      .not("spotify_playlist_id", "is", null);
+    const rows = (allPls ?? [])
+      .filter((p: any) => p.spotify_playlist_id && !String(p.spotify_playlist_id).startsWith("algo:"))
+      .map((p: any) => ({
+        deal_id,
+        spotify_playlist_id: p.spotify_playlist_id,
+        playlist_name: p.playlist_name ?? null,
+      }));
+    if (rows.length > 0) {
+      const { error: bErr } = await supabase
+        .from("curator_deal_baseline_playlists")
+        .upsert(rows, { onConflict: "deal_id,spotify_playlist_id", ignoreDuplicates: true });
+      if (bErr) console.error("[extract] baseline blacklist upsert error", bErr);
+      else console.log(`[extract] baseline blacklist: ${rows.length} playlists registradas para deal=${deal_id}`);
+    }
+  }
+
   // 4. Log
   await supabase.from("curator_deal_logs").insert({
     deal_id,
