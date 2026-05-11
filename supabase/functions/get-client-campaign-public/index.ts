@@ -63,6 +63,11 @@ function pace(args: { pct: number; daysElapsed: number; targetDays: number }):
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
+  // Rate limit: 120 req/min por IP.
+  const ip = clientIp(req);
+  const rl = await checkRateLimit(`get-client-campaign-public:${ip}`, 60, 120);
+  if (!rl.allowed) return rateLimitResponse(corsHeaders);
+
   try {
     const body = await req.json().catch(() => ({}));
     const token = typeof body?.client_token === "string" ? body.client_token.trim() : "";
