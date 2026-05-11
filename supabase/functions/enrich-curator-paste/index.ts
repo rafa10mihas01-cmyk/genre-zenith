@@ -91,7 +91,7 @@ type ParsedRow = {
   added_at: string | null;
 };
 
-async function callAI(text: string): Promise<ParsedRow[]> {
+async function callAI(text: string): Promise<{ rows: ParsedRow[]; tokens: number }> {
   const safeText = text.slice(0, 80_000);
   const aiRes = await fetch(
     "https://ai.gateway.lovable.dev/v1/chat/completions",
@@ -121,11 +121,12 @@ async function callAI(text: string): Promise<ParsedRow[]> {
   }
   const aiJson = await aiRes.json();
   const content = aiJson?.choices?.[0]?.message?.content ?? "";
+  const tokens = Number(aiJson?.usage?.total_tokens ?? 0) || 0;
   const parsed = firstJson(content) as { playlists?: unknown } | null;
   if (!parsed || !Array.isArray(parsed.playlists)) {
     throw new Error("IA não retornou JSON válido");
   }
-  return (parsed.playlists as Record<string, unknown>[])
+  const rows = (parsed.playlists as Record<string, unknown>[])
     .map((it): ParsedRow => ({
       position: typeof it.position === "number" ? Math.round(it.position) : null,
       name: typeof it.name === "string" ? it.name.trim() : "",
@@ -139,6 +140,7 @@ async function callAI(text: string): Promise<ParsedRow[]> {
         : null,
     }))
     .filter((it) => it.name.length > 0);
+  return { rows, tokens };
 }
 
 /** Busca a playlist no Spotify pelo nome + creator. Retorna o melhor match. */
