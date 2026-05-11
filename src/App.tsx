@@ -21,6 +21,7 @@ import Criacao from "./pages/Criacao";
 import Operacao from "./pages/Operacao";
 import Performance from "./pages/Performance";
 import PlaylistDeals from "./pages/PlaylistDeals";
+import DealDetail from "./pages/DealDetail";
 import Curadores from "./pages/Curadores";
 import CuratorPage from "./pages/CuratorPage";
 import ClientCampaignPage from "./pages/ClientCampaignPage";
@@ -93,6 +94,7 @@ const App = () => (
               <Route path="/catalogo" element={<Protected><Operacao /></Protected>} />
               <Route path="/performance" element={<Protected><Performance /></Protected>} />
               <Route path="/playlist-deals" element={<Protected><PlaylistDeals /></Protected>} />
+              <Route path="/playlist-deals/:dealId" element={<Protected><DealDetail /></Protected>} />
               <Route path="/curadores" element={<Protected><Curadores /></Protected>} />
               <Route path="/curadoria-preview" element={<Protected><CuradoriaPreview /></Protected>} />
               <Route path="/sistema" element={<Protected><Sistema /></Protected>} />
