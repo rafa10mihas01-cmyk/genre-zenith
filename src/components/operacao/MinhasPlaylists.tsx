@@ -14,8 +14,9 @@ import { cn } from "@/lib/utils";
 import { formatNumber, timeAgo } from "@/lib/format";
 import {
   Plus, RefreshCw, ExternalLink, Music2, Sparkles, Archive, ArchiveRestore,
-  ListMusic, AlertCircle,
+  ListMusic, AlertCircle, Activity,
 } from "lucide-react";
+import { PlaylistScoreBadge, type PlaylistScoreRow } from "./PlaylistScoreBadge";
 
 type ManagedPlaylist = {
   id: string;
@@ -29,6 +30,7 @@ type ManagedPlaylist = {
   archived_at: string | null;
   last_diagnosis_at: string | null;
   imported_at: string;
+  canonical_playlist_id: string | null;
 };
 
 type Diagnosis = {
