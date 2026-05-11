@@ -9,6 +9,7 @@ import {
   fetchPlaylistMeta,
   type MatchStatus,
 } from "../_shared/curator-playlist.ts";
+import { bumpAiQuota, checkAiQuota, aiQuotaResponse } from "../_shared/rate-limit.ts";
 
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -90,7 +91,7 @@ type ParsedRow = {
   added_at: string | null;
 };
 
-async function callAI(text: string): Promise<ParsedRow[]> {
+async function callAI(text: string): Promise<{ rows: ParsedRow[]; tokens: number }> {
   const safeText = text.slice(0, 80_000);
   const aiRes = await fetch(
     "https://ai.gateway.lovable.dev/v1/chat/completions",
@@ -120,11 +121,12 @@ async function callAI(text: string): Promise<ParsedRow[]> {
   }
   const aiJson = await aiRes.json();
   const content = aiJson?.choices?.[0]?.message?.content ?? "";
+  const tokens = Number(aiJson?.usage?.total_tokens ?? 0) || 0;
   const parsed = firstJson(content) as { playlists?: unknown } | null;
   if (!parsed || !Array.isArray(parsed.playlists)) {
     throw new Error("IA não retornou JSON válido");
   }
-  return (parsed.playlists as Record<string, unknown>[])
+  const rows = (parsed.playlists as Record<string, unknown>[])
     .map((it): ParsedRow => ({
       position: typeof it.position === "number" ? Math.round(it.position) : null,
       name: typeof it.name === "string" ? it.name.trim() : "",
@@ -138,6 +140,7 @@ async function callAI(text: string): Promise<ParsedRow[]> {
         : null,
     }))
     .filter((it) => it.name.length > 0);
+  return { rows, tokens };
 }
 
 /** Busca a playlist no Spotify pelo nome + creator. Retorna o melhor match. */
@@ -228,14 +231,24 @@ Deno.serve(async (req) => {
       .filter((p) => p.match_status === "curator" || p.match_status === "baseline")
       .map((p) => p.playlist_name);
 
+    // Quota check: bloqueia se usuário estourou cap mensal.
+    const quota = await checkAiQuota(userId);
+    if (!quota.allowed) return aiQuotaResponse(corsHeaders);
+
     // 1) Parse via IA
     let parsed: ParsedRow[];
+    let aiTokens = 0;
     try {
-      parsed = await callAI(text);
+      const out = await callAI(text);
+      parsed = out.rows;
+      aiTokens = out.tokens;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       return jr({ ok: false, error: msg }, 200);
     }
+
+    // Conta tokens mesmo se parse falhar parcialmente.
+    if (aiTokens > 0) await bumpAiQuota(userId, aiTokens);
 
     if (parsed.length === 0) {
       return jr({ ok: false, error: "Nenhuma playlist encontrada no texto" }, 200);

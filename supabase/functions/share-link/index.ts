@@ -8,6 +8,7 @@
 //   /share-link/campanha/{slug-ou-token} → portal do cliente
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { checkRateLimit, clientIp, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -85,6 +86,11 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
+
+  // Rate limit: 240/min por IP — scrapers de OG (WhatsApp/Telegram) batem várias vezes.
+  const ip = clientIp(req);
+  const rl = await checkRateLimit(`share-link:${ip}`, 60, 240);
+  if (!rl.allowed) return rateLimitResponse(corsHeaders);
 
   const url = new URL(req.url);
   // path = /share-link/curador/slug  OR /functions/v1/share-link/curador/slug

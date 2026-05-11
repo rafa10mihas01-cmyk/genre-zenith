@@ -13,6 +13,7 @@
 // match_status/score, custos, CPP, ledger, IDs internos sensíveis.
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { checkRateLimit, clientIp, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -61,6 +62,11 @@ function pace(args: { pct: number; daysElapsed: number; targetDays: number }):
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  // Rate limit: 120 req/min por IP.
+  const ip = clientIp(req);
+  const rl = await checkRateLimit(`get-client-campaign-public:${ip}`, 60, 120);
+  if (!rl.allowed) return rateLimitResponse(corsHeaders);
 
   try {
     const body = await req.json().catch(() => ({}));
