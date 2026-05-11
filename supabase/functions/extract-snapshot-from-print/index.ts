@@ -191,7 +191,7 @@ async function callGeminiOnce(printUrls: string[], startIndex: number): Promise<
   ];
 
   const body = {
-    model: "google/gemini-2.5-pro",
+    model: "google/gemini-2.5-flash",
     messages: [
       {
         role: "system",
