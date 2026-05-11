@@ -22,6 +22,7 @@ const items = [
   { title: "Playlist Deals", url: "/playlist-deals", icon: Handshake },
   { title: "Comunidade", url: "/comunidade-admin", icon: Users, adminOnly: true },
   { title: "Sistema", url: "/sistema", icon: Activity, adminOnly: true },
+  { title: "Infraestrutura", url: "/infraestrutura", icon: Server, adminOnly: true },
 ];
 
 export function AppSidebar() {
