@@ -36,6 +36,7 @@ import ComunidadeCampanhas from "./pages/comunidade/Campanhas";
 import ComunidadePontos from "./pages/comunidade/Pontos";
 import ComunidadeConta from "./pages/comunidade/Conta";
 import ComunidadeAdmin from "./pages/ComunidadeAdmin";
+import Infraestrutura from "./pages/Infraestrutura";
 import NotFound from "./pages/NotFound";
 
 // Defaults globais de cache: navegação "instantânea" sem reload visual.
@@ -99,6 +100,7 @@ const App = () => (
               <Route path="/curadoria-preview" element={<Protected><CuradoriaPreview /></Protected>} />
               <Route path="/sistema" element={<Protected><Sistema /></Protected>} />
               <Route path="/comunidade-admin" element={<Protected><AdminRoute><ComunidadeAdmin /></AdminRoute></Protected>} />
+              <Route path="/infraestrutura" element={<Protected><AdminRoute><Infraestrutura /></AdminRoute></Protected>} />
               <Route path="/settings" element={<Protected><AdminRoute><Settings /></AdminRoute></Protected>} />
               <Route path="/configuracoes" element={<Protected><AdminRoute><Settings /></AdminRoute></Protected>} />
               <Route path="*" element={<NotFound />} />

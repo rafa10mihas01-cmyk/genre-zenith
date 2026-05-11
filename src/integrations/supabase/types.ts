@@ -2407,6 +2407,13 @@ export type Database = {
             referencedRelation: "managed_playlists"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "playlist_diagnoses_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_playlist_vps_assignment"
+            referencedColumns: ["managed_playlist_id"]
+          },
         ]
       }
       playlist_metrics_snapshots: {
@@ -2794,6 +2801,13 @@ export type Database = {
             referencedRelation: "accounts"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "replications_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "v_playlist_vps_assignment"
+            referencedColumns: ["account_id"]
+          },
         ]
       }
       search_results: {
@@ -3029,6 +3043,77 @@ export type Database = {
           },
         ]
       }
+      spotify_accounts: {
+        Row: {
+          account_id: string
+          created_at: string
+          display_name: string | null
+          email: string | null
+          id: string
+          last_login_at: string | null
+          notes: string | null
+          session_file_path: string | null
+          status: string
+          updated_at: string
+          vps_node_id: string | null
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          id?: string
+          last_login_at?: string | null
+          notes?: string | null
+          session_file_path?: string | null
+          status?: string
+          updated_at?: string
+          vps_node_id?: string | null
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          id?: string
+          last_login_at?: string | null
+          notes?: string | null
+          session_file_path?: string | null
+          status?: string
+          updated_at?: string
+          vps_node_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "spotify_accounts_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: true
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "spotify_accounts_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: true
+            referencedRelation: "v_playlist_vps_assignment"
+            referencedColumns: ["account_id"]
+          },
+          {
+            foreignKeyName: "spotify_accounts_vps_node_id_fkey"
+            columns: ["vps_node_id"]
+            isOneToOne: false
+            referencedRelation: "v_playlist_vps_assignment"
+            referencedColumns: ["vps_node_id"]
+          },
+          {
+            foreignKeyName: "spotify_accounts_vps_node_id_fkey"
+            columns: ["vps_node_id"]
+            isOneToOne: false
+            referencedRelation: "vps_nodes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       spotify_email_allowlist: {
         Row: {
           created_at: string
@@ -3221,6 +3306,42 @@ export type Database = {
         }
         Relationships: []
       }
+      vps_nodes: {
+        Row: {
+          created_at: string
+          hostname: string
+          id: string
+          ip: unknown
+          last_heartbeat_at: string | null
+          max_concurrent_sessions: number
+          notes: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          hostname: string
+          id?: string
+          ip: unknown
+          last_heartbeat_at?: string | null
+          max_concurrent_sessions?: number
+          notes?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          hostname?: string
+          id?: string
+          ip?: unknown
+          last_heartbeat_at?: string | null
+          max_concurrent_sessions?: number
+          notes?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       curator_playlist_library_stats: {
@@ -3383,6 +3504,31 @@ export type Database = {
           workers_seen: string[] | null
         }
         Relationships: []
+      }
+      v_playlist_vps_assignment: {
+        Row: {
+          account_id: string | null
+          account_name: string | null
+          account_status: string | null
+          canonical_playlist_id: string | null
+          hostname: string | null
+          ip: unknown
+          managed_playlist_id: string | null
+          session_file_path: string | null
+          spotify_account_id: string | null
+          spotify_playlist_id: string | null
+          vps_node_id: string | null
+          vps_status: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "managed_playlists_canonical_playlist_id_fkey"
+            columns: ["canonical_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "playlists"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Functions: {
