@@ -581,14 +581,16 @@ export function DealHistorySheet({
                     Curador: <span className="text-foreground font-medium">{deal.curator_name}</span>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="h-8 w-8 shrink-0 rounded-md flex items-center justify-center text-muted-foreground hover:bg-[hsl(var(--elevated))] hover:text-foreground transition-colors"
-                  aria-label="Fechar"
-                >
-                  <X className="h-4 w-4" />
-                </button>
+                {!asPage && (
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="h-8 w-8 shrink-0 rounded-md flex items-center justify-center text-muted-foreground hover:bg-[hsl(var(--elevated))] hover:text-foreground transition-colors"
+                    aria-label="Fechar"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
               </div>
 
               {/* progresso linear principal */}
