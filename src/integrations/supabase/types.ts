@@ -469,6 +469,120 @@ export type Database = {
           },
         ]
       }
+      campaign_allocations: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          delivered_plays: number
+          id: string
+          notes: string | null
+          playlist_id: string
+          position: number
+          status: string
+          target_plays: number
+          updated_at: string
+          weight: number
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          delivered_plays?: number
+          id?: string
+          notes?: string | null
+          playlist_id: string
+          position?: number
+          status?: string
+          target_plays?: number
+          updated_at?: string
+          weight?: number
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          delivered_plays?: number
+          id?: string
+          notes?: string | null
+          playlist_id?: string
+          position?: number
+          status?: string
+          target_plays?: number
+          updated_at?: string
+          weight?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_allocations_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_allocations_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "playlists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaigns: {
+        Row: {
+          artist: string | null
+          cover_url: string | null
+          created_at: string
+          created_by: string | null
+          deadline: string
+          goal_plays: number
+          id: string
+          notes: string | null
+          spotify_track_id: string | null
+          spotify_track_url: string | null
+          started_at: string
+          status: string
+          total_allocated: number
+          total_delivered: number
+          track_name: string
+          updated_at: string
+        }
+        Insert: {
+          artist?: string | null
+          cover_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          deadline: string
+          goal_plays: number
+          id?: string
+          notes?: string | null
+          spotify_track_id?: string | null
+          spotify_track_url?: string | null
+          started_at?: string
+          status?: string
+          total_allocated?: number
+          total_delivered?: number
+          track_name: string
+          updated_at?: string
+        }
+        Update: {
+          artist?: string | null
+          cover_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          deadline?: string
+          goal_plays?: number
+          id?: string
+          notes?: string | null
+          spotify_track_id?: string | null
+          spotify_track_url?: string | null
+          started_at?: string
+          status?: string
+          total_allocated?: number
+          total_delivered?: number
+          track_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       clients: {
         Row: {
           archived_at: string | null
@@ -3915,6 +4029,10 @@ export type Database = {
           read_ct: number
         }[]
       }
+      recalc_campaign_progress: {
+        Args: { p_campaign_id?: string }
+        Returns: number
+      }
       recalc_playlist_scores: { Args: never; Returns: number }
       recompute_curator_deal_state: {
         Args: { p_deal_id: string }
@@ -3972,6 +4090,22 @@ export type Database = {
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       slugify: { Args: { p_text: string }; Returns: string }
+      suggest_campaign_playlists: {
+        Args: { p_deadline: string; p_exclude_active?: boolean; p_goal: number }
+        Returns: {
+          capacity_score: number
+          composite_score: number
+          cover_url: string
+          expected_delivery: number
+          followers: number
+          health_score: number
+          playlist_id: string
+          playlist_name: string
+          risk_score: number
+          suggested_target: number
+          suggested_weight: number
+        }[]
+      }
       trigger_recalc_playlist_scores: { Args: never; Returns: number }
       unaccent: { Args: { "": string }; Returns: string }
     }
