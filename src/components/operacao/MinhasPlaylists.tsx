@@ -49,6 +49,26 @@ export function MinhasPlaylists() {
   const [importOpen, setImportOpen] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importUrl, setImportUrl] = useState("");
+  const [bulkImporting, setBulkImporting] = useState(false);
+
+  async function handleBulkImport() {
+    setBulkImporting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("import-account-playlists", {
+        body: {},
+      });
+      if (error || !data?.ok) throw new Error(error?.message ?? data?.error ?? "Falhou");
+      toast({
+        title: "Importação concluída",
+        description: `${data.imported} playlists da conta (${data.others_count} ignoradas por não serem suas)`,
+      });
+      load();
+    } catch (e: any) {
+      toast({ title: "Erro na importação em massa", description: e.message, variant: "destructive" });
+    } finally {
+      setBulkImporting(false);
+    }
+  }
   const [drawerPl, setDrawerPl] = useState<ManagedPlaylist | null>(null);
   const [diagnosis, setDiagnosis] = useState<Diagnosis | null>(null);
   const [diagLoading, setDiagLoading] = useState(false);
@@ -139,6 +159,15 @@ export function MinhasPlaylists() {
       <div className="flex flex-wrap items-center gap-2">
         <Button onClick={() => setImportOpen(true)} className="gap-1.5">
           <Plus className="h-4 w-4" /> Importar playlist
+        </Button>
+        <Button
+          variant="outline"
+          onClick={handleBulkImport}
+          disabled={bulkImporting}
+          className="gap-1.5"
+        >
+          <RefreshCw className={cn("h-4 w-4", bulkImporting && "animate-spin")} />
+          {bulkImporting ? "Importando da conta…" : "Importar tudo da conta"}
         </Button>
         <Button variant="outline" onClick={load} disabled={loading} className="gap-1.5">
           <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} /> Atualizar
