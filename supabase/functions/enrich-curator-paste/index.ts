@@ -238,17 +238,36 @@ Deno.serve(async (req) => {
     // 1) Parse via IA
     let parsed: ParsedRow[];
     let aiTokens = 0;
+    const aiStart = Date.now();
     try {
       const out = await callAI(text);
       parsed = out.rows;
       aiTokens = out.tokens;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
+      await logAiUsage({
+        userId,
+        functionName: "enrich-curator-paste",
+        model: "google/gemini-2.5-flash",
+        durationMs: Date.now() - aiStart,
+        status: "error",
+        error: msg.slice(0, 300),
+        metadata: { deal_id: dealId },
+      });
       return jr({ ok: false, error: msg }, 200);
     }
 
-    // Conta tokens mesmo se parse falhar parcialmente.
+    // Conta tokens (quota) e loga o uso (observabilidade).
     if (aiTokens > 0) await bumpAiQuota(userId, aiTokens);
+    await logAiUsage({
+      userId,
+      functionName: "enrich-curator-paste",
+      model: "google/gemini-2.5-flash",
+      tokensTotal: aiTokens,
+      durationMs: Date.now() - aiStart,
+      status: "ok",
+      metadata: { deal_id: dealId, parsed_rows: parsed.length },
+    });
 
     if (parsed.length === 0) {
       return jr({ ok: false, error: "Nenhuma playlist encontrada no texto" }, 200);
