@@ -186,8 +186,40 @@ export function MinhasPlaylists() {
     load();
   }
 
+  // KPI agregados sobre as playlists visíveis (não-arquivadas)
+  const activeItems = items.filter(i => !i.archived_at);
+  const scoreRows = activeItems
+    .map(i => i.canonical_playlist_id ? scores[i.canonical_playlist_id] : null)
+    .filter(Boolean) as PlaylistScoreRow[];
+  const avgHealth = scoreRows.length ? Math.round(scoreRows.reduce((a, s) => a + s.health_score, 0) / scoreRows.length) : 0;
+  const atRisk = scoreRows.filter(s => s.risk_score >= 60).length;
+  const inactive = scoreRows.filter(s => s.activity_score < 30).length;
+  const topPerf = scoreRows.filter(s => s.health_score >= 70).length;
+
   return (
     <section className="space-y-4">
+      {/* KPI bar */}
+      {activeItems.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <div className="nx-card !p-3 flex flex-col gap-0.5">
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Health médio</span>
+            <span className="text-lg font-semibold tabular-nums">{avgHealth}</span>
+          </div>
+          <div className="nx-card !p-3 flex flex-col gap-0.5">
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Top performers</span>
+            <span className="text-lg font-semibold tabular-nums text-primary">{topPerf}</span>
+          </div>
+          <div className="nx-card !p-3 flex flex-col gap-0.5">
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Em risco</span>
+            <span className={cn("text-lg font-semibold tabular-nums", atRisk > 0 && "text-destructive")}>{atRisk}</span>
+          </div>
+          <div className="nx-card !p-3 flex flex-col gap-0.5">
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Inativas</span>
+            <span className={cn("text-lg font-semibold tabular-nums", inactive > 0 && "text-warning")}>{inactive}</span>
+          </div>
+        </div>
+      )}
+
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2">
         <Button onClick={() => setImportOpen(true)} className="gap-1.5">
@@ -204,6 +236,10 @@ export function MinhasPlaylists() {
         </Button>
         <Button variant="outline" onClick={load} disabled={loading} className="gap-1.5">
           <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} /> Atualizar
+        </Button>
+        <Button variant="outline" onClick={handleRecalc} disabled={recalcing} className="gap-1.5">
+          <Activity className={cn("h-4 w-4", recalcing && "animate-pulse")} />
+          {recalcing ? "Recalculando…" : "Recalcular scores"}
         </Button>
         <div className="ml-auto flex items-center gap-1.5">
           <button
