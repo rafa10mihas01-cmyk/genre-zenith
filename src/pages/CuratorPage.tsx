@@ -117,6 +117,7 @@ type ProgressPerPlaylist = {
   delivered: number;
   last_captured_at: string | null;
   snapshot_count: number;
+  attribution_method?: string | null;
 };
 
 type DealProgress = {
