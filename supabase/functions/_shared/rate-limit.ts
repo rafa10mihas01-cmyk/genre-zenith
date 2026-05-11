@@ -115,6 +115,41 @@ export async function bumpAiQuota(userId: string, tokens: number): Promise<void>
   }
 }
 
+/** Log a single AI call into ai_usage_log for cost attribution. */
+export interface AiUsageLog {
+  userId?: string | null;
+  functionName: string;
+  provider?: string; // 'lovable' | 'claude' | ...
+  model?: string | null;
+  tokensIn?: number | null;
+  tokensOut?: number | null;
+  tokensTotal?: number | null;
+  durationMs?: number | null;
+  status?: "ok" | "error";
+  error?: string | null;
+  metadata?: Record<string, unknown>;
+}
+
+export async function logAiUsage(entry: AiUsageLog): Promise<void> {
+  try {
+    await admin().rpc("log_ai_usage", {
+      p_user_id: entry.userId ?? null,
+      p_function_name: entry.functionName,
+      p_provider: entry.provider ?? "lovable",
+      p_model: entry.model ?? null,
+      p_tokens_in: entry.tokensIn ?? null,
+      p_tokens_out: entry.tokensOut ?? null,
+      p_tokens_total: entry.tokensTotal ?? null,
+      p_duration_ms: entry.durationMs ?? null,
+      p_status: entry.status ?? "ok",
+      p_error: entry.error ?? null,
+      p_metadata: entry.metadata ?? {},
+    });
+  } catch {
+    /* fail-silent */
+  }
+}
+
 export function aiQuotaResponse(corsHeaders: Record<string, string>) {
   return new Response(
     JSON.stringify({
