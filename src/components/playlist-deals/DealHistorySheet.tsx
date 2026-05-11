@@ -57,6 +57,11 @@ export interface DealHistorySheetProps {
   progress?: CuratorDealProgress | null;
   onClose: () => void;
   onReload?: () => void;
+  /**
+   * Quando true, renderiza o conteúdo como página dedicada (sem o Sheet drawer).
+   * Usado pela rota /playlist-deals/:dealId — mesma UI/lógica, sem overlay.
+   */
+  asPage?: boolean;
 }
 
 /* ------------------------------------------------------------------
@@ -385,6 +390,7 @@ export function DealHistorySheet({
   progress,
   onClose,
   onReload,
+  asPage = false,
 }: DealHistorySheetProps) {
   const [tab, setTab] = useState<"resumo" | "playlists" | "algoritmo" | "historico">("resumo");
   const [perfWindow, setPerfWindow] = useState<"24h" | "7d" | "28d">("7d");
@@ -546,17 +552,8 @@ export function DealHistorySheet({
 
   const hasCuratorWhitelist = counts.curator > 0;
 
-  return (
-    <Sheet
-      open={open}
-      onOpenChange={(o) => {
-        if (!o) onClose();
-      }}
-    >
-      <SheetContent
-        side="right"
-        className="w-full sm:max-w-2xl p-0 flex flex-col gap-0"
-      >
+  const body = (
+    <>
         {deal && stats && (
           <>
             {/* HEADER */}
@@ -1308,8 +1305,11 @@ export function DealHistorySheet({
             </Tabs>
           </>
         )}
-      </SheetContent>
+    </>
+  );
 
+  const dialogs = (
+    <>
       <PastePlaylistsDialog
         open={pasteOpen}
         deal={deal}
@@ -1324,6 +1324,29 @@ export function DealHistorySheet({
         onClose={() => setImportOpen(false)}
         onImported={() => onReload?.()}
       />
+    </>
+  );
+
+  if (asPage) {
+    return (
+      <div className="flex flex-col min-h-[calc(100vh-8rem)] rounded-2xl border border-border/50 bg-card overflow-hidden">
+        {body}
+        {dialogs}
+      </div>
+    );
+  }
+
+  return (
+    <Sheet
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) onClose();
+      }}
+    >
+      <SheetContent side="right" className="w-full sm:max-w-2xl p-0 flex flex-col gap-0">
+        {body}
+      </SheetContent>
+      {dialogs}
     </Sheet>
   );
 }
