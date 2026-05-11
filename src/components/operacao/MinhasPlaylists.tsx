@@ -160,6 +160,15 @@ export function MinhasPlaylists() {
         <Button onClick={() => setImportOpen(true)} className="gap-1.5">
           <Plus className="h-4 w-4" /> Importar playlist
         </Button>
+        <Button
+          variant="outline"
+          onClick={handleBulkImport}
+          disabled={bulkImporting}
+          className="gap-1.5"
+        >
+          <RefreshCw className={cn("h-4 w-4", bulkImporting && "animate-spin")} />
+          {bulkImporting ? "Importando da conta…" : "Importar tudo da conta"}
+        </Button>
         <Button variant="outline" onClick={load} disabled={loading} className="gap-1.5">
           <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} /> Atualizar
         </Button>
