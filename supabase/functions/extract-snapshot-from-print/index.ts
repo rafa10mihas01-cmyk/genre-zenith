@@ -106,7 +106,76 @@ interface ExtractedPlaylist {
   plays_28d?: number | null;
 }
 
-async function callGeminiChunked(printUrls: string[]): Promise<ExtractedPlaylist[]> {
+// Hash estável da URL de storage (ignora token de assinatura)
+function stripSignedQuery(u: string): string {
+  try {
+    const url = new URL(u);
+    return url.origin + url.pathname;
+  } catch {
+    return u;
+  }
+}
+
+async function sha256Hex(input: string): Promise<string> {
+  const buf = new TextEncoder().encode(input);
+  const digest = await crypto.subtle.digest("SHA-256", buf);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+// Cache de IA por hash de print: evita reprocessar o mesmo lote com Gemini.
+async function callGeminiOnceCached(
+  printUrls: string[],
+  startIndex: number,
+  cacheClient: ReturnType<typeof createClient>,
+): Promise<ExtractedPlaylist[]> {
+  const MODEL = "google/gemini-2.5-flash";
+  const key = await sha256Hex(MODEL + "|" + printUrls.map(stripSignedQuery).sort().join("\n"));
+
+  // 1) tenta cache
+  try {
+    const { data: cached } = await cacheClient
+      .from("ai_print_cache")
+      .select("result")
+      .eq("print_hash", key)
+      .maybeSingle();
+    if (cached?.result?.playlists) {
+      await cacheClient
+        .from("ai_print_cache")
+        .update({ hits: (cached as any).hits + 1 || 1, last_hit_at: new Date().toISOString() })
+        .eq("print_hash", key);
+      return cached.result.playlists as ExtractedPlaylist[];
+    }
+  } catch (e) {
+    console.warn("ai_print_cache read failed (ignore):", e instanceof Error ? e.message : e);
+  }
+
+  // 2) chama o modelo
+  const fresh = await callGeminiOnce(printUrls, startIndex);
+
+  // 3) grava no cache (best-effort)
+  try {
+    await cacheClient.from("ai_print_cache").upsert(
+      {
+        print_hash: key,
+        model: MODEL,
+        result: { playlists: fresh },
+        hits: 0,
+      },
+      { onConflict: "print_hash" },
+    );
+  } catch (e) {
+    console.warn("ai_print_cache write failed (ignore):", e instanceof Error ? e.message : e);
+  }
+
+  return fresh;
+}
+
+async function callGeminiChunked(
+  printUrls: string[],
+  cacheClient?: ReturnType<typeof createClient>,
+): Promise<ExtractedPlaylist[]> {
   // Processa em pedaços de 2 prints pra evitar truncamento de tool_call.
   const CHUNK = 2;
   const all: ExtractedPlaylist[] = [];
