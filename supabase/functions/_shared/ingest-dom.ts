@@ -175,6 +175,26 @@ export async function processDomItem(
     if (insErr) skipped++; else inserted++;
   }
 
+  if (isBaseline) {
+    const { data: allPls } = await supabase
+      .from("curator_playlists")
+      .select("spotify_playlist_id, playlist_name")
+      .eq("deal_id", deal_id)
+      .not("spotify_playlist_id", "is", null);
+    const rows = (allPls ?? [])
+      .filter((p: any) => p.spotify_playlist_id && !String(p.spotify_playlist_id).startsWith("algo:"))
+      .map((p: any) => ({
+        deal_id,
+        spotify_playlist_id: p.spotify_playlist_id,
+        playlist_name: p.playlist_name ?? null,
+      }));
+    if (rows.length > 0) {
+      await supabase
+        .from("curator_deal_baseline_playlists")
+        .upsert(rows, { onConflict: "deal_id,spotify_playlist_id", ignoreDuplicates: true });
+    }
+  }
+
   await supabase.from("curator_deal_logs").insert({
     deal_id,
     song_id,
