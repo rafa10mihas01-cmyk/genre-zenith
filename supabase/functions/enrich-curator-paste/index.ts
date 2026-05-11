@@ -9,6 +9,7 @@ import {
   fetchPlaylistMeta,
   type MatchStatus,
 } from "../_shared/curator-playlist.ts";
+import { bumpAiQuota, checkAiQuota, aiQuotaResponse } from "../_shared/rate-limit.ts";
 
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
