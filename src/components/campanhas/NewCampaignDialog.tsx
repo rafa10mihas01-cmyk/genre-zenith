@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Loader2, ChevronLeft, ChevronRight, Search } from "lucide-react";
 
 type Suggestion = {
   playlist_id: string;
@@ -51,6 +51,8 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
   );
   const [notes, setNotes] = useState("");
 
+  const [fetchingMeta, setFetchingMeta] = useState(false);
+
   // step 2
   const [loadingSugg, setLoadingSugg] = useState(false);
   const [items, setItems] = useState<Selection[]>([]);
@@ -66,6 +68,24 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
   };
 
   const close = (v: boolean) => { if (!v) reset(); onOpenChange(v); };
+
+  async function fetchMeta() {
+    const url = trackUrl.trim();
+    if (!url) {
+      toast({ title: "Cole a URL do Spotify primeiro", variant: "destructive" });
+      return;
+    }
+    setFetchingMeta(true);
+    const { data, error } = await supabase.functions.invoke("fetch-spotify-meta", { body: { url } });
+    setFetchingMeta(false);
+    if (error || !data?.ok) {
+      toast({ title: "Não consegui buscar a música", description: error?.message ?? data?.error, variant: "destructive" });
+      return;
+    }
+    if (data.title) setTrackName(data.title);
+    if (data.artist) setArtist(data.artist);
+    toast({ title: "Música encontrada", description: `${data.title}${data.artist ? ` — ${data.artist}` : ""}` });
+  }
 
   const allocatedSum = items.filter(i => i.selected).reduce((s, i) => s + (i.target_override || 0), 0);
   const coverage = goal > 0 ? Math.round((allocatedSum / goal) * 100) : 0;
@@ -177,7 +197,19 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
               </div>
               <div className="space-y-2 md:col-span-2">
                 <Label>URL Spotify (opcional)</Label>
-                <Input value={trackUrl} onChange={e => setTrackUrl(e.target.value)} placeholder="https://open.spotify.com/track/..." />
+                <div className="flex gap-2">
+                  <Input
+                    value={trackUrl}
+                    onChange={e => setTrackUrl(e.target.value)}
+                    placeholder="https://open.spotify.com/track/..."
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); fetchMeta(); } }}
+                  />
+                  <Button type="button" variant="secondary" onClick={fetchMeta} disabled={fetchingMeta || !trackUrl.trim()}>
+                    {fetchingMeta ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                    <span className="ml-2 hidden sm:inline">Buscar</span>
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">Cole o link e clique em Buscar para preencher nome e artista automaticamente.</p>
               </div>
               <div className="space-y-2">
                 <Label>Meta de plays *</Label>
