@@ -1,0 +1,1 @@
+DELETE FROM public.curator_playlist_library WHERE curator_id = 'd1f15533-5a67-44e8-97ee-8cea04802df4';
