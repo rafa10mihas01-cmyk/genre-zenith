@@ -189,24 +189,26 @@ export default function Infraestrutura() {
         ) : assignments.length === 0 ? (
           <p className="text-sm text-muted-foreground py-6 text-center">Nenhuma playlist atribuída.</p>
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-[11px] uppercase tracking-wider text-muted-foreground border-b border-border">
-                <th className="text-left font-medium py-2">Conta</th>
-                <th className="text-left font-medium py-2">VPS</th>
-                <th className="text-right font-medium py-2">Playlists</th>
-              </tr>
-            </thead>
-            <tbody>
-              {assignments.map((a, i) => (
-                <tr key={i} className="border-b border-border/60 last:border-0">
-                  <td className="py-2 truncate">{a.account_name}</td>
-                  <td className="py-2 text-muted-foreground">{a.hostname ?? <span className="text-warning">não atribuído</span>}</td>
-                  <td className="py-2 text-right font-semibold tabular-nums">{a.playlist_count}</td>
+          <div className="-mx-2 overflow-x-auto">
+            <table className="w-full text-sm min-w-[420px]">
+              <thead>
+                <tr className="text-[11px] uppercase tracking-wider text-muted-foreground border-b border-border">
+                  <th className="text-left font-medium py-2 px-2">Conta</th>
+                  <th className="text-left font-medium py-2 px-2">VPS</th>
+                  <th className="text-right font-medium py-2 px-2">Playlists</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {assignments.map((a, i) => (
+                  <tr key={i} className="border-b border-border/60 last:border-0">
+                    <td className="py-2 px-2 truncate">{a.account_name}</td>
+                    <td className="py-2 px-2 text-muted-foreground">{a.hostname ?? <span className="text-warning">não atribuído</span>}</td>
+                    <td className="py-2 px-2 text-right font-semibold tabular-nums">{a.playlist_count}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
 
