@@ -190,7 +190,7 @@ export function DealRow(props: DealRowProps) {
       <div className="mx-4 border-t border-border/40" />
 
       {/* Linha 2 — métricas + progress + ações */}
-      <div className="flex items-center gap-4 px-4 py-3 min-w-0">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-3 px-4 py-3 min-w-0">
         {hasBaseline ? (
           <>
             <MetricCell
@@ -206,7 +206,7 @@ export function DealRow(props: DealRowProps) {
               size="sm"
               className="w-[64px] shrink-0"
             />
-            <div className="flex-1 min-w-0 flex flex-col gap-1 max-w-[280px]">
+            <div className="flex-1 min-w-[140px] flex flex-col gap-1 max-w-[280px]">
               <div className="flex items-center justify-between text-[10.5px] text-muted-foreground">
                 <span className="uppercase tracking-[0.12em] font-medium">Progresso</span>
                 <span className="tabular-nums font-semibold text-foreground">{pct}%</span>
@@ -227,9 +227,9 @@ export function DealRow(props: DealRowProps) {
             )}
           </>
         ) : (
-          <div className="flex items-center gap-2 flex-1 text-[12px] text-warning">
+          <div className="flex items-center gap-2 flex-1 min-w-0 text-[12px] text-warning">
             <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-            <span>Print inicial pendente para liberar baseline</span>
+            <span className="truncate">Print inicial pendente para liberar baseline</span>
           </div>
         )}
 
