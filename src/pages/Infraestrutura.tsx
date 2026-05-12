@@ -103,12 +103,12 @@ export default function Infraestrutura() {
       <div className="grid gap-6 lg:grid-cols-2">
         {/* VPS Nodes */}
         <section className="nx-card">
-          <header className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Server className="h-4 w-4 text-muted-foreground" />
-              <h2 className="text-sm font-semibold">Servidores</h2>
+          <header className="flex items-center justify-between gap-2 mb-3 min-w-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <Server className="h-4 w-4 text-muted-foreground shrink-0" />
+              <h2 className="text-sm font-semibold truncate">Servidores</h2>
             </div>
-            <span className="text-[11px] text-muted-foreground">{vps.length} nó(s)</span>
+            <span className="text-[11px] text-muted-foreground whitespace-nowrap shrink-0">{vps.length} nó(s)</span>
           </header>
           {loading && !vps.length ? (
             <Skeleton className="h-16 w-full" />
@@ -119,17 +119,17 @@ export default function Infraestrutura() {
               {vps.map((v) => {
                 const assigned = accounts.filter(a => a.vps_node_id === v.id && a.status === "active").length;
                 return (
-                  <li key={v.id} className="rounded-xl border border-border bg-elevated px-3 py-2.5 flex items-center gap-3">
+                  <li key={v.id} className="rounded-xl border border-border bg-elevated px-3 py-2.5 flex items-center gap-2 min-w-0">
                     <StatusDot variant={v.status === "active" ? "success" : "neutral"} pulse={v.status === "active"} />
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-semibold leading-tight truncate">{v.hostname}</div>
-                      <div className="text-[11px] text-muted-foreground tabular-nums">{v.ip}</div>
+                      <div className="text-[11px] text-muted-foreground tabular-nums truncate">{v.ip}</div>
                     </div>
-                    <div className="text-right text-[11px] text-muted-foreground tabular-nums">
+                    <div className="text-right text-[11px] text-muted-foreground tabular-nums whitespace-nowrap shrink-0">
                       <div><span className="text-foreground font-semibold">{assigned}</span>/{v.max_concurrent_sessions} sessões</div>
-                      <div>{v.last_heartbeat_at ? `hb ${timeAgo(v.last_heartbeat_at)}` : "sem heartbeat"}</div>
+                      <div className="truncate max-w-[110px]">{v.last_heartbeat_at ? `hb ${timeAgo(v.last_heartbeat_at)}` : "sem heartbeat"}</div>
                     </div>
-                    <Button size="icon" variant="ghost" onClick={() => setEditVps(v)}>
+                    <Button size="icon" variant="ghost" className="shrink-0 h-8 w-8" onClick={() => setEditVps(v)}>
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
                   </li>
@@ -141,12 +141,12 @@ export default function Infraestrutura() {
 
         {/* Spotify Accounts */}
         <section className="nx-card">
-          <header className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <KeyRound className="h-4 w-4 text-muted-foreground" />
-              <h2 className="text-sm font-semibold">Contas Spotify</h2>
+          <header className="flex items-center justify-between gap-2 mb-3 min-w-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <KeyRound className="h-4 w-4 text-muted-foreground shrink-0" />
+              <h2 className="text-sm font-semibold truncate">Contas Spotify</h2>
             </div>
-            <span className="text-[11px] text-muted-foreground">{accounts.length} conta(s)</span>
+            <span className="text-[11px] text-muted-foreground whitespace-nowrap shrink-0">{accounts.length} conta(s)</span>
           </header>
           {loading && !accounts.length ? (
             <Skeleton className="h-16 w-full" />
@@ -157,17 +157,17 @@ export default function Infraestrutura() {
               {accounts.map((a) => {
                 const node = vps.find(v => v.id === a.vps_node_id);
                 return (
-                  <li key={a.id} className="rounded-xl border border-border bg-elevated px-3 py-2.5 flex items-center gap-3">
+                  <li key={a.id} className="rounded-xl border border-border bg-elevated px-3 py-2.5 flex items-center gap-2 min-w-0">
                     <StatusDot variant={ACCOUNT_TONE[a.status]} pulse={a.status === "active"} />
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-semibold leading-tight truncate">{a.display_name ?? "—"}</div>
                       <div className="text-[11px] text-muted-foreground truncate">{a.email ?? "—"}</div>
                     </div>
-                    <div className="text-right text-[11px] text-muted-foreground tabular-nums">
-                      <div className="truncate max-w-[120px]">{node?.hostname ?? "sem VPS"}</div>
-                      <div>{a.last_login_at ? `login ${timeAgo(a.last_login_at)}` : "nunca logou"}</div>
+                    <div className="text-right text-[11px] text-muted-foreground tabular-nums whitespace-nowrap shrink-0">
+                      <div className="truncate max-w-[110px]">{node?.hostname ?? "sem VPS"}</div>
+                      <div className="truncate max-w-[110px]">{a.last_login_at ? `login ${timeAgo(a.last_login_at)}` : "nunca logou"}</div>
                     </div>
-                    <Button size="icon" variant="ghost" onClick={() => setEditAcc(a)}>
+                    <Button size="icon" variant="ghost" className="shrink-0 h-8 w-8" onClick={() => setEditAcc(a)}>
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
                   </li>
@@ -189,24 +189,26 @@ export default function Infraestrutura() {
         ) : assignments.length === 0 ? (
           <p className="text-sm text-muted-foreground py-6 text-center">Nenhuma playlist atribuída.</p>
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-[11px] uppercase tracking-wider text-muted-foreground border-b border-border">
-                <th className="text-left font-medium py-2">Conta</th>
-                <th className="text-left font-medium py-2">VPS</th>
-                <th className="text-right font-medium py-2">Playlists</th>
-              </tr>
-            </thead>
-            <tbody>
-              {assignments.map((a, i) => (
-                <tr key={i} className="border-b border-border/60 last:border-0">
-                  <td className="py-2 truncate">{a.account_name}</td>
-                  <td className="py-2 text-muted-foreground">{a.hostname ?? <span className="text-warning">não atribuído</span>}</td>
-                  <td className="py-2 text-right font-semibold tabular-nums">{a.playlist_count}</td>
+          <div className="-mx-2 overflow-x-auto">
+            <table className="w-full text-sm min-w-[420px]">
+              <thead>
+                <tr className="text-[11px] uppercase tracking-wider text-muted-foreground border-b border-border">
+                  <th className="text-left font-medium py-2 px-2">Conta</th>
+                  <th className="text-left font-medium py-2 px-2">VPS</th>
+                  <th className="text-right font-medium py-2 px-2">Playlists</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {assignments.map((a, i) => (
+                  <tr key={i} className="border-b border-border/60 last:border-0">
+                    <td className="py-2 px-2 truncate">{a.account_name}</td>
+                    <td className="py-2 px-2 text-muted-foreground">{a.hostname ?? <span className="text-warning">não atribuído</span>}</td>
+                    <td className="py-2 px-2 text-right font-semibold tabular-nums">{a.playlist_count}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
 
