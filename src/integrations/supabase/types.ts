@@ -539,7 +539,7 @@ export type Database = {
           cover_url: string | null
           created_at: string
           created_by: string | null
-          deadline: string
+          deadline: string | null
           goal_plays: number
           id: string
           notes: string | null
@@ -557,7 +557,7 @@ export type Database = {
           cover_url?: string | null
           created_at?: string
           created_by?: string | null
-          deadline: string
+          deadline?: string | null
           goal_plays: number
           id?: string
           notes?: string | null
@@ -575,7 +575,7 @@ export type Database = {
           cover_url?: string | null
           created_at?: string
           created_by?: string | null
-          deadline?: string
+          deadline?: string | null
           goal_plays?: number
           id?: string
           notes?: string | null
