@@ -157,17 +157,17 @@ export default function Infraestrutura() {
               {accounts.map((a) => {
                 const node = vps.find(v => v.id === a.vps_node_id);
                 return (
-                  <li key={a.id} className="rounded-xl border border-border bg-elevated px-3 py-2.5 flex items-center gap-3">
+                  <li key={a.id} className="rounded-xl border border-border bg-elevated px-3 py-2.5 flex items-center gap-2 min-w-0">
                     <StatusDot variant={ACCOUNT_TONE[a.status]} pulse={a.status === "active"} />
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-semibold leading-tight truncate">{a.display_name ?? "—"}</div>
                       <div className="text-[11px] text-muted-foreground truncate">{a.email ?? "—"}</div>
                     </div>
-                    <div className="text-right text-[11px] text-muted-foreground tabular-nums">
-                      <div className="truncate max-w-[120px]">{node?.hostname ?? "sem VPS"}</div>
-                      <div>{a.last_login_at ? `login ${timeAgo(a.last_login_at)}` : "nunca logou"}</div>
+                    <div className="text-right text-[11px] text-muted-foreground tabular-nums whitespace-nowrap shrink-0">
+                      <div className="truncate max-w-[110px]">{node?.hostname ?? "sem VPS"}</div>
+                      <div className="truncate max-w-[110px]">{a.last_login_at ? `login ${timeAgo(a.last_login_at)}` : "nunca logou"}</div>
                     </div>
-                    <Button size="icon" variant="ghost" onClick={() => setEditAcc(a)}>
+                    <Button size="icon" variant="ghost" className="shrink-0 h-8 w-8" onClick={() => setEditAcc(a)}>
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
                   </li>
