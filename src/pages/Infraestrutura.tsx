@@ -103,12 +103,12 @@ export default function Infraestrutura() {
       <div className="grid gap-6 lg:grid-cols-2">
         {/* VPS Nodes */}
         <section className="nx-card">
-          <header className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Server className="h-4 w-4 text-muted-foreground" />
-              <h2 className="text-sm font-semibold">Servidores</h2>
+          <header className="flex items-center justify-between gap-2 mb-3 min-w-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <Server className="h-4 w-4 text-muted-foreground shrink-0" />
+              <h2 className="text-sm font-semibold truncate">Servidores</h2>
             </div>
-            <span className="text-[11px] text-muted-foreground">{vps.length} nó(s)</span>
+            <span className="text-[11px] text-muted-foreground whitespace-nowrap shrink-0">{vps.length} nó(s)</span>
           </header>
           {loading && !vps.length ? (
             <Skeleton className="h-16 w-full" />
