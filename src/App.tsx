@@ -37,6 +37,8 @@ import ComunidadePontos from "./pages/comunidade/Pontos";
 import ComunidadeConta from "./pages/comunidade/Conta";
 import ComunidadeAdmin from "./pages/ComunidadeAdmin";
 import Infraestrutura from "./pages/Infraestrutura";
+import Campanhas from "./pages/Campanhas";
+import CampanhaDetalhe from "./pages/CampanhaDetalhe";
 import NotFound from "./pages/NotFound";
 
 // Defaults globais de cache: navegação "instantânea" sem reload visual.
@@ -96,6 +98,8 @@ const App = () => (
               <Route path="/performance" element={<Protected><Performance /></Protected>} />
               <Route path="/playlist-deals" element={<Protected><PlaylistDeals /></Protected>} />
               <Route path="/playlist-deals/:dealId" element={<Protected><DealDetail /></Protected>} />
+              <Route path="/campanhas" element={<Protected><Campanhas /></Protected>} />
+              <Route path="/campanhas/:id" element={<Protected><CampanhaDetalhe /></Protected>} />
               <Route path="/curadores" element={<Protected><Curadores /></Protected>} />
               <Route path="/curadoria-preview" element={<Protected><CuradoriaPreview /></Protected>} />
               <Route path="/sistema" element={<Protected><Sistema /></Protected>} />
