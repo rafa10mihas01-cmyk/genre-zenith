@@ -229,7 +229,7 @@ Deno.serve(async (req) => {
       // ------- Carregar contexto de classificação -------
       const { data: existing } = await admin
         .from("curator_playlists")
-        .select("spotify_playlist_id, spotify_owner_id, playlist_name, match_status, song_id")
+        .select("spotify_playlist_id, spotify_owner_id, playlist_name, match_status, song_id, is_baseline")
         .eq("deal_id", deal.id);
 
       // Duplicata é por (deal_id, song_id, playlist_id):
@@ -241,14 +241,15 @@ Deno.serve(async (req) => {
           .map((r: any) => r.spotify_playlist_id)
           .filter((v: unknown): v is string => typeof v === "string" && v.length > 0),
       );
-      // Playlists que JÁ foram capturadas como baseline para esse deal+música.
-      // Se o curador tentar registrar uma delas como sua, é bloqueio rígido —
-      // ela existia antes do deal começar, não conta como entrega dele.
+      // Playlists que JÁ foram capturadas como baseline real para esse deal+música.
+      // Fonte de verdade: flag is_baseline=true (setada quando a playlist já listava
+      // a música ANTES do deal começar). Se o curador tentar registrar uma delas
+      // como sua, é bloqueio rígido — não conta como entrega dele.
       const baselineIds = new Set(
         (existing ?? [])
           .filter((r: any) =>
             (r.song_id ?? null) === (songIdInput ?? null) &&
-            r.match_status === "baseline"
+            r.is_baseline === true
           )
           .map((r: any) => r.spotify_playlist_id)
           .filter((v: unknown): v is string => typeof v === "string" && v.length > 0),

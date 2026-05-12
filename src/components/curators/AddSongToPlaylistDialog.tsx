@@ -22,6 +22,7 @@ type DealPlaylist = {
   followers?: number | null;
   match_status?: string | null;
   song_id?: string | null;
+  is_baseline?: boolean | null;
 };
 
 type Song = {
@@ -61,12 +62,13 @@ export function AddSongToPlaylistDialog({
     }
   }, [open]);
 
-  // Playlists já cadastradas pelo curador no deal — dedup por spotify_playlist_id
+  // Playlists do deal disponíveis pra vincular novas músicas — qualquer uma que
+  // NÃO seja baseline real (is_baseline=true). Independe de match_status:
+  // organic, curator, suspicious, todas valem. Só baseline real bloqueia.
   const options = useMemo(() => {
     const seen = new Map<string, DealPlaylist>();
     for (const p of allPlaylists) {
-      const status = (p.match_status ?? "curator") as string;
-      if (status !== "curator") continue;
+      if (p.is_baseline === true) continue;
       const key = p.spotify_playlist_id || p.spotify_url || p.id;
       if (!key) continue;
       if (!seen.has(key)) seen.set(key, p);
