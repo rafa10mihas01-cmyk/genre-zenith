@@ -76,6 +76,9 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
   // step 3
   const [activate, setActivate] = useState(true);
 
+  // filtro do passo 2
+  const [onlyOwn, setOnlyOwn] = useState(false);
+
   const reset = () => {
     setStep(1); setBusy(false);
     setTrackName(""); setArtist(""); setTrackUrl(""); setGoal(50000); setNotes("");
