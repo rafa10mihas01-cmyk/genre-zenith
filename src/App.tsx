@@ -40,6 +40,7 @@ import Infraestrutura from "./pages/Infraestrutura";
 import Campanhas from "./pages/Campanhas";
 import CampanhaDetalhe from "./pages/CampanhaDetalhe";
 import Analytics from "./pages/Analytics";
+import Valuation from "./pages/Valuation";
 import NotFound from "./pages/NotFound";
 
 // Defaults globais de cache: navegação "instantânea" sem reload visual.
