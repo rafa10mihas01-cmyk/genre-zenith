@@ -218,13 +218,30 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
                 </div>
                 <p className="text-xs text-muted-foreground">Cole o link e clique em Buscar para preencher nome e artista automaticamente.</p>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 md:col-span-2">
                 <Label>Meta de plays *</Label>
                 <Input type="number" min={1} value={goal} onChange={e => setGoal(Number(e.target.value))} />
+                <p className="text-xs text-muted-foreground tabular-nums">
+                  {goal > 0
+                    ? <>{goal.toLocaleString("pt-BR")} plays <span className="text-foreground/70">· {formatPlaysShort(goal)}</span></>
+                    : "Informe a quantidade de plays desejada"}
+                </p>
               </div>
               <div className="space-y-2">
-                <Label>Prazo *</Label>
-                <Input type="date" value={deadline} onChange={e => setDeadline(e.target.value)} />
+                <Label>Início *</Label>
+                <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Término <span className="text-muted-foreground font-normal">(opcional)</span></Label>
+                <div className="flex gap-2">
+                  <Input type="date" value={deadline} min={startDate} onChange={e => setDeadline(e.target.value)} />
+                  {deadline && (
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setDeadline("")}>Limpar</Button>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {deadline ? "Campanha encerra na data definida." : "Sem término — campanha rotativa até você encerrar manualmente."}
+                </p>
               </div>
               <div className="space-y-2 md:col-span-2">
                 <Label>Notas</Label>
