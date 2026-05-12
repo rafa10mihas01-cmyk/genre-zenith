@@ -1,139 +1,141 @@
 
-# Fase 4 — Campaign Engine
+# Fase 5 — Analytics + Learning
 
-Motor interno para criar campanhas próprias do tipo "quero X plays em N dias", com sugestão automática de playlists (baseada em scores da Fase 2), cálculo de pacing e acompanhamento de progresso.
-
-**Princípio fundamental:** isto é uma camada paralela. `curator_deals` (campanhas para clientes externos) continua intocado. As novas tabelas vivem ao lado, sem conflito.
+Fechar o loop: comparar o que foi **prometido** (alocações de campanha) com o que foi **entregue** (plays reais) e usar isso para refinar o sistema. Camada de leitura e refinamento — nenhuma quebra de contrato existente.
 
 ---
 
-## 1. Banco de dados (migration)
+## 1. Banco de dados (migration única)
 
-### Tabela `campaigns`
-Campanha interna ligada a uma música.
+### 1.1. View `v_playlist_delivery_history` (materializada lógica via view normal)
+Agrega histórico por playlist canônica:
 
-- `id` uuid PK
-- `track_name` text NOT NULL
-- `artist` text
-- `spotify_track_id` text — opcional, se o usuário colar URL
-- `spotify_track_url` text
-- `cover_url` text
-- `goal_plays` bigint NOT NULL CHECK (> 0)
-- `deadline` date NOT NULL
-- `started_at` timestamptz DEFAULT now()
-- `status` text — `draft | active | paused | completed | cancelled` (default `draft`)
-- `total_allocated` bigint DEFAULT 0 — soma das allocations
-- `total_delivered` bigint DEFAULT 0 — soma de plays reais entregues (cache)
-- `notes` text
-- `created_by` uuid (auth.uid())
-- `created_at`, `updated_at` timestamptz
-- RLS: `has_team_access()` em todas as operações.
+```text
+playlist_id
+campaigns_count          -- nº de campanhas em que participou
+total_promised           -- soma dos target_plays
+total_delivered          -- soma dos delivered_plays
+fulfillment_rate         -- delivered / promised (0-1, NULL se promised=0)
+avg_daily_delivery       -- delivered / dias ativos
+last_campaign_at         -- max(campaigns.created_at)
+```
 
-### Tabela `campaign_allocations`
-Quanto de uma campanha cada playlist própria deve entregar.
+Origem: `campaign_allocations` JOIN `campaigns` (apenas campanhas com status `active`, `completed`, `paused`).
 
-- `id` uuid PK
-- `campaign_id` uuid FK → `campaigns(id)` ON DELETE CASCADE
-- `playlist_id` uuid FK → `playlists(id)` — canonical layer da Fase 1
-- `target_plays` bigint NOT NULL CHECK (>= 0)
-- `weight` numeric NOT NULL DEFAULT 1 — peso usado no rateio
-- `delivered_plays` bigint DEFAULT 0
-- `status` text — `suggested | approved | active | paused | completed` (default `suggested`)
-- `position` smallint — ordem de prioridade
-- `notes` text
-- `created_at`, `updated_at`
-- UNIQUE (`campaign_id`, `playlist_id`)
-- RLS: `has_team_access()`.
+### 1.2. View `v_campaign_velocity`
+Por campanha: `delivered_per_day = total_delivered / dias_decorridos`, `on_pace = delivered / (goal * dias_decorridos / dias_totais)`.
 
-### Índices
-- `campaigns(status, deadline)`
-- `campaign_allocations(campaign_id)`, `(playlist_id, status)`
+### 1.3. Atualizar `recalc_playlist_scores()` — incorporar delivery real
+Hoje o `delivery_score` usa apenas `curator_deal_snapshots`. Vai passar a usar uma média ponderada:
 
-### Função: `suggest_campaign_playlists(goal bigint, deadline_date date, exclude_active boolean default true)`
-Retorna até 20 playlists próprias ranqueadas para atender a meta.
+```text
+delivery_real      = fulfillment_rate de v_playlist_delivery_history (0-1)
+delivery_observed  = score atual via snapshots (0-1)
 
-Lógica:
-1. Pega `playlists` com `ownership = 'own'` (vindos da Fase 1) que tenham `playlist_scores` recente.
-2. Se `exclude_active`, remove playlists que já estão em `campaign_allocations` com status `approved|active`.
-3. Calcula `weekly_capacity = capacity_score` traduzido para plays/semana (usando `metadata->>'avg_weekly_plays'` do `playlist_scores` quando disponível; senão fallback proporcional ao capacity_score).
-4. `expected_delivery = weekly_capacity * (semanas até deadline)`.
-5. Ranqueia por score composto: `0.5 * capacity + 0.3 * health + 0.2 * (100 - risk)`.
-6. Retorna: `playlist_id, name, capacity_score, health_score, risk_score, expected_delivery, suggested_target, suggested_weight`.
+new_delivery_score = clamp(
+  100 * (0.6 * delivery_real + 0.4 * delivery_observed),  -- quando há histórico (campaigns_count >= 1)
+  0, 100
+)
+```
 
-A função distribui `goal_plays` proporcionalmente ao `expected_delivery` das top playlists até cobrir a meta (ou usar todas se a capacidade total for menor que a meta — nesse caso a UI mostra aviso).
+Se a playlist ainda não participou de nenhuma campanha, mantém a lógica antiga (só snapshots). O `metadata` ganha `{fulfillment_rate, campaigns_count, source: 'history+snapshots' | 'snapshots'}`.
 
-### Função: `recalc_campaign_progress(p_campaign_id uuid)`
-Atualiza `total_delivered` no `campaigns` e `delivered_plays` em cada `campaign_allocations` com base nos plays observados em `curator_deal_snapshots` ligados às mesmas playlists no período da campanha. Chamada via RPC pelo frontend e por cron diário.
+### 1.4. Atualizar `suggest_campaign_playlists()` — ranking ajustado
+Composite passa de:
+```text
+0.5*capacity + 0.3*health + 0.2*(100-risk)
+```
+para:
+```text
+0.40*capacity + 0.25*health + 0.20*delivery + 0.15*(100-risk)
+```
+Onde `delivery` agora reflete a entrega real (porque o `delivery_score` foi atualizado).
 
-### Cron
-Job pg_cron diário (03:30 UTC) chama `recalc_campaign_progress` para todas as campanhas com status `active`.
+Também adiciona ao retorno: `campaigns_count`, `fulfillment_rate`, `historical_avg_delivery` (vindos da view), para exibição no wizard.
+
+### 1.5. Função RPC `get_campaign_analytics_overview()`
+Retorna em um único call os KPIs do dashboard:
+
+```text
+- total_campaigns, active_campaigns, completed_campaigns
+- total_promised, total_delivered (acumulado lifetime)
+- avg_fulfillment_rate (média ponderada)
+- top_performers: 10 playlists com maior fulfillment_rate (min 1 campanha)
+- bottom_performers: 10 playlists com menor fulfillment_rate (min 1 campanha)
+- cost_per_play: SUM(curator_purchases.amount) / SUM(curator_deal_snapshots delta) — só se houver dados financeiros, senão NULL
+- campaigns_by_status_over_time: array {month, status, count} dos últimos 12 meses
+```
+
+Tudo `SECURITY DEFINER`, `STABLE`, `GRANT EXECUTE TO authenticated`.
+
+### 1.6. Sem novas tabelas, sem alteração de schema existente
+Tudo é função/view derivada. Zero risco de quebrar bot, edge functions ou contratos.
 
 ---
 
 ## 2. Frontend
 
-### Nova página `/campanhas` (e item no sidebar "Campanhas internas")
-- Lista de campanhas em cards usando o design system (`PageHeader`, cards padrão).
-- Status filtros: Todas / Ativas / Concluídas / Rascunho.
-- KPIs no topo: total ativas, plays prometidos, plays entregues, % médio de cumprimento.
-- Botão "Nova campanha" abre wizard.
+### 2.1. Nova página `/analytics` (item no sidebar "Analytics", ícone `LineChart`)
+Componentes:
 
-### Wizard "Nova campanha" (dialog em 3 passos)
-**Passo 1 — Música & meta**
-- Inputs: nome da música, artista, URL Spotify (opcional, faz lookup do cover), meta de plays, prazo (date picker).
+**Top KPIs (4 cards)**
+- Campanhas totais / ativas
+- Plays prometidos vs entregues (com %)
+- Cumprimento médio
+- Custo por play (ou "—" se sem dados)
 
-**Passo 2 — Sugestão de playlists**
-- Chama RPC `suggest_campaign_playlists(goal, deadline)`.
-- Mostra tabela: playlist, capacity, health, risk, plays sugeridos, peso.
-- Permite ajustar target manualmente por linha, remover, ou adicionar outra playlist própria.
-- Resumo lateral: soma allocada vs meta (badge verde/amarelo/vermelho).
+**Seção "Performance por playlist"**
+- Tabela ordenável: Playlist | Campanhas | Prometido | Entregue | % Cumprimento | Velocidade média
+- Filtro: top 10 / bottom 10 / todas
+- Cor verde para >100%, amarelo 70-100%, vermelho <70%
 
-**Passo 3 — Revisão**
-- Resumo final, status inicial: salvar como `draft` ou ativar (`active`).
-- Cria registros em `campaigns` + `campaign_allocations`.
+**Seção "Campanhas ao longo do tempo"**
+- Gráfico de barras empilhadas (Recharts) — campanhas por status por mês.
 
-### Página de detalhe `/campanhas/:id`
-- Header: música, cover, meta vs entregue (barra de progresso), dias restantes.
-- Tabela de allocations: playlist, target, entregue, %, status, ações (pausar, ajustar, remover).
-- Gráfico simples de pacing (linha real vs linha ideal) — Recharts.
-- Botão "Recalcular progresso" → RPC.
+**Seção "Velocidade real vs ideal"**
+- Lista de campanhas ativas com badge on-pace / lento / adiantado, baseado em `v_campaign_velocity`.
 
-### Componentes novos
-- `src/pages/Campanhas.tsx`
-- `src/pages/CampanhaDetalhe.tsx`
-- `src/components/campanhas/NewCampaignDialog.tsx`
-- `src/components/campanhas/CampaignSuggestionTable.tsx`
-- `src/components/campanhas/CampaignProgressChart.tsx`
-- `src/components/campanhas/CampaignCard.tsx`
+### 2.2. Wizard de nova campanha — mostrar histórico
+No passo 2 (`CampaignSuggestionTable`), adicionar duas colunas:
+- **Histórico**: `campaigns_count` ("3 camp.") + tooltip com fulfillment rate
+- **Cumpre**: badge colorido com `fulfillment_rate` (— se sem histórico)
 
-### Roteamento e sidebar
-- Adicionar rota em `App.tsx` protegida por `has_team_access`.
-- Adicionar item "Campanhas" no `AppSidebar.tsx` (ícone `Target` ou `Rocket`), na seção Operação.
+Esse é o sinal visual de "aprendizado" para o operador.
+
+### 2.3. Componentes novos
+- `src/pages/Analytics.tsx`
+- `src/components/analytics/PlaylistPerformanceTable.tsx`
+- `src/components/analytics/CampaignsOverTimeChart.tsx`
+- `src/components/analytics/VelocityList.tsx`
+
+### 2.4. Atualizações pequenas
+- `App.tsx`: rota `/analytics`.
+- `AppSidebar.tsx`: item "Analytics".
+- `NewCampaignDialog.tsx`: novas colunas no step 2.
 
 ---
 
 ## 3. O que NÃO muda
 
-- `curator_deals`, `curator_deal_songs`, `curator_deal_snapshots`, `curator_playlists`, `curator_playlist_library`: nenhuma alteração de schema ou contrato.
-- `managed_playlists`, `playlists`, `playlist_scores`, `accounts`, `spotify_accounts`, `vps_nodes`: nenhuma alteração.
-- Bot e edge functions: nenhuma mudança. As campanhas internas hoje são camada de planejamento/atribuição; a execução real continua passando por `curator_deal_snapshots` (que já mede plays por playlist), e o motor lê dali para atualizar progresso.
+- Nenhuma alteração de schema em tabelas existentes.
+- `curator_deals`, `curator_deal_snapshots`, `bot_events`, edge functions: zero impacto.
+- `recalc_playlist_scores` ganha lógica nova mas mesma assinatura, mesma tabela destino, mesmo cron.
+- Comportamento atual sem histórico: idêntico ao de hoje (fallback automático).
 
 ---
 
 ## 4. Verificações pós-deploy
 
-1. Criar campanha de teste (5k plays, 14 dias) e validar sugestão.
-2. Confirmar que `total_allocated` ≈ `goal_plays`.
-3. Conferir que nenhuma RLS de `curator_*` foi tocada (linter).
-4. Rodar `recalc_campaign_progress` manualmente e confirmar atualização.
+1. Rodar `recalc_playlist_scores()` manualmente e conferir que `metadata.source` aparece como `'snapshots'` (ainda não há campanhas finalizadas) ou `'history+snapshots'` se já tiver.
+2. Abrir `/analytics` e confirmar que os KPIs zerados/parciais renderizam sem erro.
+3. Verificar com o linter que nenhuma policy quebrou.
 
 ---
 
 ## 5. Entregáveis
 
-- 1 migration SQL (tabelas + funções + cron + RLS).
-- 6 componentes/páginas novos React.
-- 2 edits: `App.tsx`, `AppSidebar.tsx`.
-- Atualização de `.lovable/plan.md` marcando Fase 4 concluída.
+- 1 migration (2 views + 2 functions atualizadas + 1 função nova).
+- 4 arquivos React novos.
+- 3 edits leves (`App.tsx`, `AppSidebar.tsx`, `NewCampaignDialog.tsx`).
 
-Aprova para eu começar a executar?
+Aprova?
