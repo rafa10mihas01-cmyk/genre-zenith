@@ -147,3 +147,93 @@ diagnosticar "cadê o dispatch X" — não confiar em logs textuais.
 Só após termos prova determinística de pelo menos 50 dispatches completos
 (`v_dispatch_trace.finished_at IS NOT NULL`) é que se discute alterar
 timeout/retry/recovery. Não antes.
+
+---
+
+## 9. Loop de execução (ADD automático em playlist) — NOVO
+
+Loop **independente** do coletor. Mesma sessão Spotify (`stela.ladosulmusic@gmail.com`),
+mas processo/timer separado. Coleta é read-only; execução é mutação. Não compartilhar
+lock nem fila com `bot-collect-queue`.
+
+### 9.1. Endpoints
+
+Auth: `x-bot-key` (mesma chave do coletor). Headers de identidade obrigatórios:
+`x-worker-id`, `x-process-id`, `x-hostname`, `x-timer-id` (use `execution-loop`),
+`x-bot-name`, `x-bot-session`.
+
+#### `GET /functions/v1/bot-execution-queue?limit=3`
+
+Resposta:
+```json
+{
+  "ok": true,
+  "count": 1,
+  "queue": [
+    {
+      "id": "<job_uuid>",
+      "job_type": "playlist.track.add",
+      "correlation_id": "<uuid>",
+      "spotify_playlist_id": "37i9dQ...",
+      "spotify_track_id": "4uLU6h...",
+      "allocation_id": "<uuid>",
+      "attempts": 1,
+      "max_attempts": 3
+    }
+  ]
+}
+```
+
+O endpoint já marca cada job como `claimed` com lease de 5min e gera o
+`correlation_id`. Não precisa fazer outro POST de "aceito".
+
+#### `POST /functions/v1/bot-execution-complete`
+
+Body:
+```json
+{
+  "job_id": "<uuid>",
+  "correlation_id": "<uuid>",
+  "status": "done" | "failed",
+  "error": "<string opcional, obrigatória se failed>"
+}
+```
+
+- `done` → marca job concluído e seta a `campaign_allocations` correspondente como `live`.
+- `failed` → re-enfileira com backoff exponencial (2min, 8min, 30min, ...) até `max_attempts`.
+  Depois disso vira `failed` definitivo e exige retry manual pelo painel.
+
+### 9.2. Fluxo do worker de execução
+
+```
+loop {
+  jobs = GET /bot-execution-queue?limit=3
+  for job in jobs:
+    try:
+      page.goto(`https://open.spotify.com/playlist/${job.spotify_playlist_id}`)
+      adicionar faixa via UI (search por spotify:track:<id>)
+      validar que faixa apareceu na lista
+      POST /bot-execution-complete { job_id, correlation_id, status: 'done' }
+    catch err:
+      POST /bot-execution-complete { job_id, correlation_id, status: 'failed', error: str(err) }
+  sleep(15s) se queue vazia, 2s caso contrário
+}
+```
+
+### 9.3. Regras
+
+- **Nunca silent return**. Toda tarefa recebida tem que terminar com `done` OU `failed`.
+  Se o worker decidir não executar (sessão expirada, playlist não encontrada, faixa já
+  presente) → manda `failed` com `error` descritivo. O backoff/limite cuidam do resto.
+- **Detecta "faixa já presente"** antes de tentar adicionar. Se já estiver na playlist,
+  retorna `done` (operação idempotente do ponto de vista do plano).
+- **Lease de 5min**: se o worker travar, o próprio `bot-execution-queue` reenfileira
+  automaticamente quando outro worker for buscar. Sem ação manual.
+- **Headers de identidade ausentes** não bloqueiam, mas zeram a rastreabilidade no painel.
+
+### 9.4. Painel
+
+`/sistema → Execução` mostra a fila em tempo real (KPIs + tabela com retry/cancelar).
+Toda chamada do worker gera `bot_events` (`lifecycle_state` + `correlation_id`)
+exatamente como o coletor — mesma ferramenta de debug.
+

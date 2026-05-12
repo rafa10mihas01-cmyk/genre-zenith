@@ -2537,6 +2537,78 @@ export type Database = {
           },
         ]
       }
+      playlist_execution_jobs: {
+        Row: {
+          allocation_id: string | null
+          attempts: number
+          campaign_id: string | null
+          claimed_at: string | null
+          claimed_by: string | null
+          completed_at: string | null
+          correlation_id: string | null
+          created_at: string
+          dedupe_key: string
+          id: string
+          job_type: string
+          last_error: string | null
+          lease_expires_at: string | null
+          max_attempts: number
+          metadata: Json
+          playlist_id: string | null
+          scheduled_for: string
+          spotify_playlist_id: string
+          spotify_track_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          allocation_id?: string | null
+          attempts?: number
+          campaign_id?: string | null
+          claimed_at?: string | null
+          claimed_by?: string | null
+          completed_at?: string | null
+          correlation_id?: string | null
+          created_at?: string
+          dedupe_key: string
+          id?: string
+          job_type?: string
+          last_error?: string | null
+          lease_expires_at?: string | null
+          max_attempts?: number
+          metadata?: Json
+          playlist_id?: string | null
+          scheduled_for?: string
+          spotify_playlist_id: string
+          spotify_track_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          allocation_id?: string | null
+          attempts?: number
+          campaign_id?: string | null
+          claimed_at?: string | null
+          claimed_by?: string | null
+          completed_at?: string | null
+          correlation_id?: string | null
+          created_at?: string
+          dedupe_key?: string
+          id?: string
+          job_type?: string
+          last_error?: string | null
+          lease_expires_at?: string | null
+          max_attempts?: number
+          metadata?: Json
+          playlist_id?: string | null
+          scheduled_for?: string
+          spotify_playlist_id?: string
+          spotify_track_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       playlist_metrics_snapshots: {
         Row: {
           collected_at: string
