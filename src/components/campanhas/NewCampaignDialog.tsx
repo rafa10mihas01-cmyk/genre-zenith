@@ -12,6 +12,21 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/hooks/use-toast";
 import { Loader2, ChevronLeft, ChevronRight, Search } from "lucide-react";
 
+function formatPlaysShort(n: number): string {
+  if (!n || n < 1) return "0";
+  if (n >= 1_000_000) {
+    const v = n / 1_000_000;
+    const s = v >= 10 ? Math.round(v).toString() : v.toFixed(1).replace(/\.0$/, "").replace(".", ",");
+    return `${s} ${v >= 2 ? "milhões" : "milhão"}`;
+  }
+  if (n >= 1_000) {
+    const v = n / 1_000;
+    const s = v >= 10 ? Math.round(v).toString() : v.toFixed(1).replace(/\.0$/, "").replace(".", ",");
+    return `${s} mil`;
+  }
+  return n.toLocaleString("pt-BR");
+}
+
 type Suggestion = {
   playlist_id: string;
   playlist_name: string;
