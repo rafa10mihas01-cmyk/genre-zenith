@@ -352,9 +352,14 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
             <div className="rounded-lg border border-border p-4 space-y-2">
               <div className="text-sm text-muted-foreground">Música</div>
               <div className="text-lg font-semibold">{trackName} {artist && <span className="text-muted-foreground font-normal">— {artist}</span>}</div>
-              <div className="grid grid-cols-3 gap-3 pt-2 text-sm">
-                <div><div className="text-muted-foreground text-xs">Meta</div><div className="font-medium">{goal.toLocaleString()}</div></div>
-                <div><div className="text-muted-foreground text-xs">Prazo</div><div className="font-medium">{deadline}</div></div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2 text-sm">
+                <div>
+                  <div className="text-muted-foreground text-xs">Meta</div>
+                  <div className="font-medium tabular-nums">{goal.toLocaleString("pt-BR")}</div>
+                  <div className="text-xs text-muted-foreground">{formatPlaysShort(goal)}</div>
+                </div>
+                <div><div className="text-muted-foreground text-xs">Início</div><div className="font-medium">{startDate}</div></div>
+                <div><div className="text-muted-foreground text-xs">Término</div><div className="font-medium">{deadline || "—"}</div></div>
                 <div><div className="text-muted-foreground text-xs">Playlists</div><div className="font-medium">{items.filter(i => i.selected).length}</div></div>
               </div>
             </div>
