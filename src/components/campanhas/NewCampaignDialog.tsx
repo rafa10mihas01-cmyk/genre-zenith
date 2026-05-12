@@ -219,11 +219,20 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
                       <th className="px-3 py-2 text-right">Cap.</th>
                       <th className="px-3 py-2 text-right">Saúde</th>
                       <th className="px-3 py-2 text-right">Risco</th>
+                      <th className="px-3 py-2 text-right" title="Histórico em campanhas">Hist.</th>
+                      <th className="px-3 py-2 text-right" title="Taxa de cumprimento histórica">Cumpre</th>
                       <th className="px-3 py-2 text-right">Plays</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {items.map((it, idx) => (
+                    {items.map((it, idx) => {
+                      const fr = it.fulfillment_rate;
+                      const frPct = fr != null ? Math.round(Number(fr) * 100) : null;
+                      const frTone =
+                        frPct == null ? "text-muted-foreground" :
+                        frPct >= 100 ? "text-primary" :
+                        frPct >= 70 ? "text-foreground" : "text-destructive";
+                      return (
                       <tr key={it.playlist_id} className="border-t border-border">
                         <td className="px-3 py-2">
                           <Checkbox
@@ -234,12 +243,18 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
                           />
                         </td>
                         <td className="px-3 py-2">
-                          <div className="font-medium truncate max-w-[260px]">{it.playlist_name}</div>
+                          <div className="font-medium truncate max-w-[240px]">{it.playlist_name}</div>
                           <div className="text-xs text-muted-foreground">{(it.followers ?? 0).toLocaleString()} seguidores</div>
                         </td>
                         <td className="px-3 py-2 text-right tabular-nums">{Math.round(Number(it.capacity_score))}</td>
                         <td className="px-3 py-2 text-right tabular-nums">{Math.round(Number(it.health_score))}</td>
                         <td className="px-3 py-2 text-right tabular-nums">{Math.round(Number(it.risk_score))}</td>
+                        <td className="px-3 py-2 text-right tabular-nums text-xs text-muted-foreground">
+                          {it.campaigns_count ? `${it.campaigns_count}` : "—"}
+                        </td>
+                        <td className={`px-3 py-2 text-right tabular-nums text-xs font-medium ${frTone}`}>
+                          {frPct != null ? `${frPct}%` : "—"}
+                        </td>
                         <td className="px-3 py-2 text-right">
                           <Input
                             type="number"
@@ -253,7 +268,7 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
                           />
                         </td>
                       </tr>
-                    ))}
+                    );})}
                   </tbody>
                 </table>
               </div>
