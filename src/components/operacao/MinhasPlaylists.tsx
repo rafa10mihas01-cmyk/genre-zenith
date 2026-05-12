@@ -269,6 +269,13 @@ export function MinhasPlaylists() {
           <Activity className={cn("h-4 w-4", recalcing && "animate-pulse")} />
           {recalcing ? "Recalculando…" : "Recalcular scores"}
         </Button>
+        <Button
+          variant="outline"
+          onClick={() => setSortBy(sortBy === "valuation" ? "recent" : "valuation")}
+          className="gap-1.5"
+        >
+          {sortBy === "valuation" ? "Ordem: valuation" : "Ordem: recente"}
+        </Button>
         <div className="ml-auto flex items-center gap-1.5">
           <button
             onClick={() => setShowArchived(false)}
