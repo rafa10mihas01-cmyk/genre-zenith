@@ -1,0 +1,117 @@
+// bot-execution-queue — Devolve fila de execução (add/remove track em playlist).
+// Auth: header x-bot-key (compara com env BOT_API_KEY).
+// GET ?limit=3
+import { createClient } from "npm:@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "content-type, x-bot-key, x-worker-id, x-process-id, x-hostname, x-timer-id, x-bot-name, x-bot-session",
+  "Access-Control-Allow-Methods": "GET, OPTIONS",
+};
+
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const BOT_API_KEY = Deno.env.get("BOT_API_KEY")!;
+
+const LEASE_MS = 5 * 60 * 1000;
+
+function jr(p: unknown, status = 200) {
+  return new Response(JSON.stringify(p), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.headers.get("x-bot-key") !== BOT_API_KEY) return jr({ error: "unauthorized" }, 401);
+
+  const url = new URL(req.url);
+  const limit = Math.min(Math.max(parseInt(url.searchParams.get("limit") ?? "3"), 1), 10);
+
+  const workerId = req.headers.get("x-worker-id") || "unknown";
+  const processId = req.headers.get("x-process-id") || null;
+  const hostname = req.headers.get("x-hostname") || null;
+  const timerId = req.headers.get("x-timer-id") || null;
+  const botName = req.headers.get("x-bot-name") || "spotify-artists-bot";
+  const session = req.headers.get("x-bot-session") || null;
+
+  const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+
+  // Recovery: jobs claimed com lease vencido voltam pra pending
+  const nowIso = new Date().toISOString();
+  await supabase
+    .from("playlist_execution_jobs")
+    .update({ status: "pending", claimed_by: null, claimed_at: null, lease_expires_at: null })
+    .eq("status", "claimed")
+    .lt("lease_expires_at", nowIso);
+
+  // Busca candidatos
+  const { data: candidates, error: selErr } = await supabase
+    .from("playlist_execution_jobs")
+    .select("id, job_type, allocation_id, campaign_id, playlist_id, spotify_playlist_id, spotify_track_id, attempts, max_attempts")
+    .eq("status", "pending")
+    .lte("scheduled_for", nowIso)
+    .order("scheduled_for", { ascending: true })
+    .limit(limit);
+
+  if (selErr) return jr({ error: selErr.message }, 500);
+  if (!candidates || candidates.length === 0) return jr({ ok: true, count: 0, queue: [] });
+
+  const ids = candidates.map((c: any) => c.id);
+  const lease = new Date(Date.now() + LEASE_MS).toISOString();
+
+  // Marca claimed e gera correlation_id
+  const updates = candidates.map((c: any) => ({
+    id: c.id,
+    correlation_id: crypto.randomUUID(),
+  }));
+
+  // Update um a um pra ter correlation_id por linha (poucas linhas, ok)
+  const claimed: any[] = [];
+  for (const u of updates) {
+    const { data, error } = await supabase
+      .from("playlist_execution_jobs")
+      .update({
+        status: "claimed",
+        claimed_by: workerId,
+        claimed_at: nowIso,
+        lease_expires_at: lease,
+        correlation_id: u.correlation_id,
+        attempts: (candidates.find((c: any) => c.id === u.id) as any).attempts + 1,
+      })
+      .eq("id", u.id)
+      .eq("status", "pending") // double-check
+      .select("id, job_type, allocation_id, campaign_id, playlist_id, spotify_playlist_id, spotify_track_id, correlation_id, attempts, max_attempts")
+      .maybeSingle();
+    if (!error && data) claimed.push(data);
+  }
+
+  // Eventos de lifecycle
+  if (claimed.length) {
+    const events = claimed.map((c: any) => ({
+      bot_name: botName,
+      session_id: session,
+      step: "execution_dispatch",
+      status: "running",
+      lifecycle_state: "FETCHED",
+      correlation_id: c.correlation_id,
+      worker_id: workerId,
+      process_id: processId,
+      hostname,
+      timer_id: timerId,
+      message: `Execution dispatched: ${c.job_type}`,
+      metadata: {
+        job_id: c.id,
+        spotify_playlist_id: c.spotify_playlist_id,
+        spotify_track_id: c.spotify_track_id,
+        allocation_id: c.allocation_id,
+        attempt: c.attempts,
+      },
+    }));
+    await supabase.from("bot_events").insert(events);
+  }
+
+  return jr({ ok: true, count: claimed.length, queue: claimed });
+});
