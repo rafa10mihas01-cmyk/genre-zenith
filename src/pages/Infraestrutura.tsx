@@ -119,17 +119,17 @@ export default function Infraestrutura() {
               {vps.map((v) => {
                 const assigned = accounts.filter(a => a.vps_node_id === v.id && a.status === "active").length;
                 return (
-                  <li key={v.id} className="rounded-xl border border-border bg-elevated px-3 py-2.5 flex items-center gap-3">
+                  <li key={v.id} className="rounded-xl border border-border bg-elevated px-3 py-2.5 flex items-center gap-2 min-w-0">
                     <StatusDot variant={v.status === "active" ? "success" : "neutral"} pulse={v.status === "active"} />
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-semibold leading-tight truncate">{v.hostname}</div>
-                      <div className="text-[11px] text-muted-foreground tabular-nums">{v.ip}</div>
+                      <div className="text-[11px] text-muted-foreground tabular-nums truncate">{v.ip}</div>
                     </div>
-                    <div className="text-right text-[11px] text-muted-foreground tabular-nums">
+                    <div className="text-right text-[11px] text-muted-foreground tabular-nums whitespace-nowrap shrink-0">
                       <div><span className="text-foreground font-semibold">{assigned}</span>/{v.max_concurrent_sessions} sessões</div>
-                      <div>{v.last_heartbeat_at ? `hb ${timeAgo(v.last_heartbeat_at)}` : "sem heartbeat"}</div>
+                      <div className="truncate max-w-[110px]">{v.last_heartbeat_at ? `hb ${timeAgo(v.last_heartbeat_at)}` : "sem heartbeat"}</div>
                     </div>
-                    <Button size="icon" variant="ghost" onClick={() => setEditVps(v)}>
+                    <Button size="icon" variant="ghost" className="shrink-0 h-8 w-8" onClick={() => setEditVps(v)}>
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
                   </li>
