@@ -51,6 +51,8 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
   );
   const [notes, setNotes] = useState("");
 
+  const [fetchingMeta, setFetchingMeta] = useState(false);
+
   // step 2
   const [loadingSugg, setLoadingSugg] = useState(false);
   const [items, setItems] = useState<Selection[]>([]);
