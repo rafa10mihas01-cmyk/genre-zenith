@@ -44,12 +44,22 @@ type Diagnosis = {
   created_at: string;
 };
 
+type Valuation = {
+  spotify_playlist_id: string;
+  valuation_score: number;
+  recommendation: string;
+  estimated_monthly_plays: number;
+  risk_level: string;
+};
+
 export function MinhasPlaylists() {
   const [items, setItems] = useState<ManagedPlaylist[]>([]);
   const [scores, setScores] = useState<Record<string, PlaylistScoreRow>>({});
+  const [valuations, setValuations] = useState<Record<string, Valuation>>({});
   const [recalcing, setRecalcing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showArchived, setShowArchived] = useState(false);
+  const [sortBy, setSortBy] = useState<"recent" | "valuation">("recent");
   const [importOpen, setImportOpen] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importUrl, setImportUrl] = useState("");
