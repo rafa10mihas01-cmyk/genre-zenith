@@ -69,6 +69,24 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
 
   const close = (v: boolean) => { if (!v) reset(); onOpenChange(v); };
 
+  async function fetchMeta() {
+    const url = trackUrl.trim();
+    if (!url) {
+      toast({ title: "Cole a URL do Spotify primeiro", variant: "destructive" });
+      return;
+    }
+    setFetchingMeta(true);
+    const { data, error } = await supabase.functions.invoke("fetch-spotify-meta", { body: { url } });
+    setFetchingMeta(false);
+    if (error || !data?.ok) {
+      toast({ title: "Não consegui buscar a música", description: error?.message ?? data?.error, variant: "destructive" });
+      return;
+    }
+    if (data.title) setTrackName(data.title);
+    if (data.artist) setArtist(data.artist);
+    toast({ title: "Música encontrada", description: `${data.title}${data.artist ? ` — ${data.artist}` : ""}` });
+  }
+
   const allocatedSum = items.filter(i => i.selected).reduce((s, i) => s + (i.target_override || 0), 0);
   const coverage = goal > 0 ? Math.round((allocatedSum / goal) * 100) : 0;
 
