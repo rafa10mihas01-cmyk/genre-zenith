@@ -98,6 +98,15 @@ export function MinhasPlaylists() {
     setScores(map);
   }, []);
 
+  const loadValuations = useCallback(async (spotifyIds: string[]) => {
+    if (!spotifyIds.length) { setValuations({}); return; }
+    const { data, error } = await supabase.rpc("evaluate_playlists_batch", { p_spotify_ids: spotifyIds });
+    if (error) return;
+    const map: Record<string, Valuation> = {};
+    (data ?? []).forEach((r: any) => { map[r.spotify_playlist_id] = r; });
+    setValuations(map);
+  }, []);
+
   const load = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase
@@ -110,7 +119,8 @@ export function MinhasPlaylists() {
     setLoading(false);
     const canonicals = list.map(i => i.canonical_playlist_id).filter(Boolean) as string[];
     loadScores(canonicals);
-  }, [loadScores]);
+    loadValuations(list.map(i => i.spotify_playlist_id).filter(Boolean));
+  }, [loadScores, loadValuations]);
 
   async function handleRecalc() {
     setRecalcing(true);
