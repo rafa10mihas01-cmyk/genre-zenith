@@ -141,38 +141,40 @@ export default function Analytics() {
           }
         >
           <div className="border border-border rounded-2xl overflow-hidden bg-card">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/40 text-xs uppercase tracking-wider text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-3 text-left">Playlist</th>
-                  <th className="px-4 py-3 text-right">Camp.</th>
-                  <th className="px-4 py-3 text-right">Prometido</th>
-                  <th className="px-4 py-3 text-right">Entregue</th>
-                  <th className="px-4 py-3 text-right">Cumprimento</th>
-                  <th className="px-4 py-3 text-right">Plays/dia</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr><td colSpan={6} className="p-4"><Skeleton className="h-12" /></td></tr>
-                ) : performers.length === 0 ? (
-                  <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">Sem histórico de campanhas ainda.</td></tr>
-                ) : performers.map(p => {
-                  const pct = Math.round(p.fulfillment_rate * 100);
-                  const tone = pct >= 100 ? "text-primary" : pct >= 70 ? "text-foreground" : "text-destructive";
-                  return (
-                    <tr key={p.playlist_id} className="border-t border-border">
-                      <td className="px-4 py-3"><div className="font-medium truncate max-w-[280px]">{p.playlist_name}</div></td>
-                      <td className="px-4 py-3 text-right tabular-nums">{p.campaigns_count}</td>
-                      <td className="px-4 py-3 text-right tabular-nums">{Number(p.total_promised).toLocaleString()}</td>
-                      <td className="px-4 py-3 text-right tabular-nums">{Number(p.total_delivered).toLocaleString()}</td>
-                      <td className={`px-4 py-3 text-right tabular-nums font-medium ${tone}`}>{pct}%</td>
-                      <td className="px-4 py-3 text-right tabular-nums">{Math.round(Number(p.avg_daily_delivery))}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[640px]">
+                <thead className="bg-muted/40 text-xs uppercase tracking-wider text-muted-foreground">
+                  <tr>
+                    <th className="px-4 py-3 text-left">Playlist</th>
+                    <th className="px-4 py-3 text-right">Camp.</th>
+                    <th className="px-4 py-3 text-right">Prometido</th>
+                    <th className="px-4 py-3 text-right">Entregue</th>
+                    <th className="px-4 py-3 text-right">Cumprimento</th>
+                    <th className="px-4 py-3 text-right">Plays/dia</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr><td colSpan={6} className="p-4"><Skeleton className="h-12" /></td></tr>
+                  ) : performers.length === 0 ? (
+                    <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">Sem histórico de campanhas ainda.</td></tr>
+                  ) : performers.map(p => {
+                    const pct = Math.round(p.fulfillment_rate * 100);
+                    const tone = pct >= 100 ? "text-primary" : pct >= 70 ? "text-foreground" : "text-destructive";
+                    return (
+                      <tr key={p.playlist_id} className="border-t border-border">
+                        <td className="px-4 py-3"><div className="font-medium truncate max-w-[280px]">{p.playlist_name}</div></td>
+                        <td className="px-4 py-3 text-right tabular-nums">{p.campaigns_count}</td>
+                        <td className="px-4 py-3 text-right tabular-nums">{Number(p.total_promised).toLocaleString()}</td>
+                        <td className="px-4 py-3 text-right tabular-nums">{Number(p.total_delivered).toLocaleString()}</td>
+                        <td className={`px-4 py-3 text-right tabular-nums font-medium ${tone}`}>{pct}%</td>
+                        <td className="px-4 py-3 text-right tabular-nums">{Math.round(Number(p.avg_daily_delivery))}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         </Section>
 
