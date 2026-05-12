@@ -1,6 +1,6 @@
 // Sistema — painel de observabilidade completo.
 // Tabs no padrão visual do app (border-b + ícone + label), igual Operação / Playlist Deals / Comunidade.
-import { Activity, Workflow, Music2, HeartPulse, Bot, Bell, Settings as SettingsIcon } from "lucide-react";
+import { Activity, Workflow, Music2, HeartPulse, Bot, Bell, ListPlus, Settings as SettingsIcon } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
 import { useScreenField } from "@/lib/screen-state";
@@ -12,10 +12,11 @@ import { ColetaPanel } from "@/components/sistema/ColetaPanel";
 import { SaudeSistema } from "@/components/sistema/SaudeSistema";
 import { RoboAoVivo } from "@/components/sistema/RoboAoVivo";
 import { AlertasHistorico } from "@/components/sistema/AlertasHistorico";
+import { ExecucaoPanel } from "@/components/sistema/ExecucaoPanel";
 import Settings from "@/pages/Settings";
 
 type SistemaTab =
-  | "fluxo" | "ao-vivo" | "robo" | "coleta" | "saude" | "alertas" | "configuracoes";
+  | "fluxo" | "ao-vivo" | "robo" | "coleta" | "execucao" | "saude" | "alertas" | "configuracoes";
 
 type TabDef = { id: SistemaTab; label: string; icon: typeof Activity; adminOnly?: boolean };
 
@@ -24,6 +25,7 @@ const TABS: TabDef[] = [
   { id: "ao-vivo", label: "Ao Vivo", icon: Activity },
   { id: "robo", label: "Robô", icon: Bot },
   { id: "coleta", label: "Coleta", icon: Music2 },
+  { id: "execucao", label: "Execução", icon: ListPlus },
   { id: "saude", label: "Saúde", icon: HeartPulse },
   { id: "alertas", label: "Alertas", icon: Bell },
   { id: "configuracoes", label: "Configurações", icon: SettingsIcon },
@@ -70,6 +72,7 @@ export default function Sistema() {
         {activeTab === "ao-vivo" && <AoVivoPainel />}
         {activeTab === "robo" && <RoboAoVivo />}
         {activeTab === "coleta" && <ColetaPanel />}
+        {activeTab === "execucao" && <ExecucaoPanel />}
         {activeTab === "saude" && <SaudeSistema />}
         {activeTab === "alertas" && <AlertasHistorico />}
         {activeTab === "configuracoes" && <Settings embedded />}
