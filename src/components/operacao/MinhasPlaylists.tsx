@@ -44,12 +44,22 @@ type Diagnosis = {
   created_at: string;
 };
 
+type Valuation = {
+  spotify_playlist_id: string;
+  valuation_score: number;
+  recommendation: string;
+  estimated_monthly_plays: number;
+  risk_level: string;
+};
+
 export function MinhasPlaylists() {
   const [items, setItems] = useState<ManagedPlaylist[]>([]);
   const [scores, setScores] = useState<Record<string, PlaylistScoreRow>>({});
+  const [valuations, setValuations] = useState<Record<string, Valuation>>({});
   const [recalcing, setRecalcing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showArchived, setShowArchived] = useState(false);
+  const [sortBy, setSortBy] = useState<"recent" | "valuation">("recent");
   const [importOpen, setImportOpen] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importUrl, setImportUrl] = useState("");
@@ -88,6 +98,15 @@ export function MinhasPlaylists() {
     setScores(map);
   }, []);
 
+  const loadValuations = useCallback(async (spotifyIds: string[]) => {
+    if (!spotifyIds.length) { setValuations({}); return; }
+    const { data, error } = await supabase.rpc("evaluate_playlists_batch", { p_spotify_ids: spotifyIds });
+    if (error) return;
+    const map: Record<string, Valuation> = {};
+    (data ?? []).forEach((r: any) => { map[r.spotify_playlist_id] = r; });
+    setValuations(map);
+  }, []);
+
   const load = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase
@@ -100,7 +119,8 @@ export function MinhasPlaylists() {
     setLoading(false);
     const canonicals = list.map(i => i.canonical_playlist_id).filter(Boolean) as string[];
     loadScores(canonicals);
-  }, [loadScores]);
+    loadValuations(list.map(i => i.spotify_playlist_id).filter(Boolean));
+  }, [loadScores, loadValuations]);
 
   async function handleRecalc() {
     setRecalcing(true);
@@ -119,7 +139,15 @@ export function MinhasPlaylists() {
 
   useEffect(() => { load(); }, [load]);
 
-  const visible = items.filter((p) => (showArchived ? !!p.archived_at : !p.archived_at));
+  const visible = items
+    .filter((p) => (showArchived ? !!p.archived_at : !p.archived_at))
+    .slice()
+    .sort((a, b) => {
+      if (sortBy !== "valuation") return 0;
+      const va = valuations[a.spotify_playlist_id]?.valuation_score ?? -1;
+      const vb = valuations[b.spotify_playlist_id]?.valuation_score ?? -1;
+      return vb - va;
+    });
 
   async function handleImport() {
     if (!importUrl.trim()) return;
@@ -241,6 +269,13 @@ export function MinhasPlaylists() {
           <Activity className={cn("h-4 w-4", recalcing && "animate-pulse")} />
           {recalcing ? "Recalculando…" : "Recalcular scores"}
         </Button>
+        <Button
+          variant="outline"
+          onClick={() => setSortBy(sortBy === "valuation" ? "recent" : "valuation")}
+          className="gap-1.5"
+        >
+          {sortBy === "valuation" ? "Ordem: valuation" : "Ordem: recente"}
+        </Button>
         <div className="ml-auto flex items-center gap-1.5">
           <button
             onClick={() => setShowArchived(false)}
@@ -315,6 +350,19 @@ export function MinhasPlaylists() {
                 {p.last_diagnosis_at && (
                   <span className="absolute top-1.5 right-1.5 inline-flex items-center gap-1 px-2 h-6 rounded-full bg-primary/20 border border-primary/40 text-primary text-[10px] font-medium">
                     <Sparkles className="h-3 w-3" /> diag {timeAgo(p.last_diagnosis_at)}
+                  </span>
+                )}
+                {valuations[p.spotify_playlist_id] && (
+                  <span
+                    title={`Valuation ${valuations[p.spotify_playlist_id].valuation_score}/100`}
+                    className={cn(
+                      "absolute top-1.5 left-1.5 inline-flex items-center px-2 h-6 rounded-full border text-[10px] font-bold tabular-nums",
+                      valuations[p.spotify_playlist_id].recommendation === "buy" && "bg-primary/20 border-primary/40 text-primary",
+                      valuations[p.spotify_playlist_id].recommendation === "maybe" && "bg-warning/15 border-warning/40 text-warning",
+                      valuations[p.spotify_playlist_id].recommendation === "skip" && "bg-muted/30 border-border text-muted-foreground",
+                    )}
+                  >
+                    V {Math.round(valuations[p.spotify_playlist_id].valuation_score)}
                   </span>
                 )}
               </div>

@@ -3882,6 +3882,18 @@ export type Database = {
         Args: { payload: Json; queue_name: string }
         Returns: number
       }
+      evaluate_playlist: { Args: { p_spotify_id: string }; Returns: Json }
+      evaluate_playlist_by_url: { Args: { p_url: string }; Returns: Json }
+      evaluate_playlists_batch: {
+        Args: { p_spotify_ids: string[] }
+        Returns: {
+          estimated_monthly_plays: number
+          recommendation: string
+          risk_level: string
+          spotify_playlist_id: string
+          valuation_score: number
+        }[]
+      }
       expire_stale_medium_templates: {
         Args: { p_hours?: number }
         Returns: {
