@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
@@ -11,6 +11,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/hooks/use-toast";
 import { Loader2, ChevronLeft, ChevronRight, Search } from "lucide-react";
+import { useFormDraft } from "@/hooks/useFormDraft";
+import { DraftBanner, DraftIndicator } from "@/components/forms/DraftBanner";
 
 function formatPlaysShort(n: number): string {
   if (!n || n < 1) return "0";
@@ -82,7 +84,65 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
     setItems([]); setActivate(true);
   };
 
-  const close = (v: boolean) => { if (!v) reset(); onOpenChange(v); };
+  // ─── Rascunho persistente ─────────────────────────────────────────────────
+  // Mantém os campos preenchidos mesmo se o usuário fechar o dialog ou recarregar a página.
+  const draftSnapshot = useMemo(() => ({
+    step, trackName, artist, trackUrl, goal, startDate, deadline, notes,
+    items: items.map(i => ({
+      playlist_id: i.playlist_id, selected: i.selected, target_override: i.target_override,
+    })),
+    activate,
+  }), [step, trackName, artist, trackUrl, goal, startDate, deadline, notes, items, activate]);
+
+  const isDraftEmpty = !trackName.trim() && !artist.trim() && !trackUrl.trim() && !notes.trim()
+    && step === 1 && goal === 50000 && !deadline;
+
+  const { hasDraft, restoreDraft, clearDraft, lastSavedAt } = useFormDraft(
+    "new-campaign",
+    { enabled: open, isEmpty: isDraftEmpty },
+    draftSnapshot,
+  );
+
+  const [draftDismissed, setDraftDismissed] = useState(false);
+  const showDraftBanner = open && hasDraft && !draftDismissed && isDraftEmpty;
+
+  const handleRestore = () => {
+    const d = restoreDraft() as typeof draftSnapshot | null;
+    if (!d) { setDraftDismissed(true); return; }
+    setStep((d.step ?? 1) as 1 | 2 | 3);
+    setTrackName(d.trackName ?? "");
+    setArtist(d.artist ?? "");
+    setTrackUrl(d.trackUrl ?? "");
+    setGoal(d.goal ?? 50000);
+    setStartDate(d.startDate ?? new Date().toISOString().slice(0, 10));
+    setDeadline(d.deadline ?? "");
+    setNotes(d.notes ?? "");
+    setActivate(d.activate ?? true);
+    setDraftDismissed(true);
+    // Se o draft estava no passo 2, refaz a sugestão e reaplica seleções
+    if ((d.step ?? 1) >= 2) {
+      void (async () => {
+        await fetchSuggestions();
+        setItems(prev => prev.map(p => {
+          const saved = d.items?.find(i => i.playlist_id === p.playlist_id);
+          return saved ? { ...p, selected: saved.selected, target_override: saved.target_override } : p;
+        }));
+      })();
+    }
+    toast({ title: "Rascunho restaurado" });
+  };
+
+  const handleDiscardDraft = () => {
+    clearDraft();
+    setDraftDismissed(true);
+    reset();
+  };
+
+  // Fechar SEM resetar — o rascunho fica salvo automaticamente.
+  const close = (v: boolean) => {
+    if (!v) setDraftDismissed(false);
+    onOpenChange(v);
+  };
 
   async function fetchMeta() {
     const url = trackUrl.trim();
@@ -190,21 +250,30 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
     } else {
       toast({ title: "Campanha criada" });
     }
+    clearDraft();
+    reset();
     onCreated(camp.id);
-    close(false);
+    onOpenChange(false);
   }
 
   return (
     <Dialog open={open} onOpenChange={close}>
       <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Nova campanha — passo {step} de 3</DialogTitle>
+          <div className="flex items-center justify-between gap-3">
+            <DialogTitle>Nova campanha — passo {step} de 3</DialogTitle>
+            <DraftIndicator lastSavedAt={lastSavedAt} />
+          </div>
           <DialogDescription>
             {step === 1 && "Defina a música, a meta de plays e o prazo."}
             {step === 2 && "Revise a sugestão de playlists e ajuste se necessário."}
             {step === 3 && "Confira e ative a campanha."}
           </DialogDescription>
         </DialogHeader>
+
+        {showDraftBanner && (
+          <DraftBanner onRestore={handleRestore} onDiscard={handleDiscardDraft} />
+        )}
 
         {step === 1 && (
           <div className="space-y-4">
