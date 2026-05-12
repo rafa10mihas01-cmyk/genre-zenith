@@ -114,8 +114,12 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
 
   async function goNext() {
     if (step === 1) {
-      if (!trackName.trim() || !goal || !deadline) {
-        toast({ title: "Preencha música, meta e prazo", variant: "destructive" });
+      if (!trackName.trim() || !goal || !startDate) {
+        toast({ title: "Preencha música, meta e data de início", variant: "destructive" });
+        return;
+      }
+      if (deadline && deadline < startDate) {
+        toast({ title: "Término precisa ser depois do início", variant: "destructive" });
         return;
       }
       setStep(2);
