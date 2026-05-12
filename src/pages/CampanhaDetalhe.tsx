@@ -178,7 +178,7 @@ export default function CampanhaDetalhe() {
                     <td className="px-4 py-3 text-right tabular-nums">{ap}%</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <StatusDot tone={a.status === "active" || a.status === "approved" ? "success" : a.status === "paused" ? "warning" : "neutral"} size="sm" />
+                        <StatusDot variant={a.status === "active" || a.status === "approved" ? "success" : a.status === "paused" ? "warning" : "neutral"} />
                         <span className="text-xs">{a.status}</span>
                       </div>
                     </td>

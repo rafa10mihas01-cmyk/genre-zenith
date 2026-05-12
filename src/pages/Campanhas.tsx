@@ -166,7 +166,7 @@ function CampaignRow({ c }: { c: Campaign }) {
     >
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
-          <StatusDot tone={STATUS_TONE[c.status]} size="sm" />
+          <StatusDot variant={STATUS_TONE[c.status]} />
           <span className="text-xs uppercase tracking-wider text-muted-foreground">{STATUS_LABEL[c.status]}</span>
           <span className="text-xs text-muted-foreground">·</span>
           <span className="text-xs text-muted-foreground">
