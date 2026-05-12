@@ -22,6 +22,7 @@ const items = [
   { title: "Playlist Deals", url: "/playlist-deals", icon: Handshake },
   { title: "Campanhas", url: "/campanhas", icon: Target },
   { title: "Analytics", url: "/analytics", icon: LineChart },
+  { title: "Valuation", url: "/valuation", icon: Gauge },
   { title: "Comunidade", url: "/comunidade-admin", icon: Users, adminOnly: true },
   { title: "Sistema", url: "/sistema", icon: Activity, adminOnly: true },
   { title: "Infraestrutura", url: "/infraestrutura", icon: Server, adminOnly: true },
