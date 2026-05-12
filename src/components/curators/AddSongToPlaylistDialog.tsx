@@ -22,6 +22,7 @@ type DealPlaylist = {
   followers?: number | null;
   match_status?: string | null;
   song_id?: string | null;
+  is_baseline?: boolean | null;
 };
 
 type Song = {
