@@ -92,9 +92,11 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
 
   async function fetchSuggestions() {
     setLoadingSugg(true);
+    // Para sugestão precisamos de um horizonte; se não houver término, usa 90 dias a partir do início.
+    const horizon = deadline || new Date(new Date(startDate).getTime() + 90 * 86400_000).toISOString().slice(0, 10);
     const { data, error } = await (supabase.rpc as any)("suggest_campaign_playlists", {
       p_goal: goal,
-      p_deadline: deadline,
+      p_deadline: horizon,
       p_exclude_active: true,
     });
     setLoadingSugg(false);
