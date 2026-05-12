@@ -352,6 +352,19 @@ export function MinhasPlaylists() {
                     <Sparkles className="h-3 w-3" /> diag {timeAgo(p.last_diagnosis_at)}
                   </span>
                 )}
+                {valuations[p.spotify_playlist_id] && (
+                  <span
+                    title={`Valuation ${valuations[p.spotify_playlist_id].valuation_score}/100`}
+                    className={cn(
+                      "absolute top-1.5 left-1.5 inline-flex items-center px-2 h-6 rounded-full border text-[10px] font-bold tabular-nums",
+                      valuations[p.spotify_playlist_id].recommendation === "buy" && "bg-primary/20 border-primary/40 text-primary",
+                      valuations[p.spotify_playlist_id].recommendation === "maybe" && "bg-warning/15 border-warning/40 text-warning",
+                      valuations[p.spotify_playlist_id].recommendation === "skip" && "bg-muted/30 border-border text-muted-foreground",
+                    )}
+                  >
+                    V {Math.round(valuations[p.spotify_playlist_id].valuation_score)}
+                  </span>
+                )}
               </div>
               <div className="p-2.5 flex-1 flex flex-col gap-1.5">
                 <div className="flex items-start gap-1.5">
