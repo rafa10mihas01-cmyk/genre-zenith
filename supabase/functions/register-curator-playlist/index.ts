@@ -229,7 +229,7 @@ Deno.serve(async (req) => {
       // ------- Carregar contexto de classificação -------
       const { data: existing } = await admin
         .from("curator_playlists")
-        .select("spotify_playlist_id, spotify_owner_id, playlist_name, match_status, song_id")
+        .select("spotify_playlist_id, spotify_owner_id, playlist_name, match_status, song_id, is_baseline")
         .eq("deal_id", deal.id);
 
       // Duplicata é por (deal_id, song_id, playlist_id):
