@@ -84,7 +84,65 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
     setItems([]); setActivate(true);
   };
 
-  const close = (v: boolean) => { if (!v) reset(); onOpenChange(v); };
+  // ─── Rascunho persistente ─────────────────────────────────────────────────
+  // Mantém os campos preenchidos mesmo se o usuário fechar o dialog ou recarregar a página.
+  const draftSnapshot = useMemo(() => ({
+    step, trackName, artist, trackUrl, goal, startDate, deadline, notes,
+    items: items.map(i => ({
+      playlist_id: i.playlist_id, selected: i.selected, target_override: i.target_override,
+    })),
+    activate,
+  }), [step, trackName, artist, trackUrl, goal, startDate, deadline, notes, items, activate]);
+
+  const isDraftEmpty = !trackName.trim() && !artist.trim() && !trackUrl.trim() && !notes.trim()
+    && step === 1 && goal === 50000 && !deadline;
+
+  const { hasDraft, restoreDraft, clearDraft, lastSavedAt } = useFormDraft(
+    "new-campaign",
+    { enabled: open, isEmpty: isDraftEmpty },
+    draftSnapshot,
+  );
+
+  const [draftDismissed, setDraftDismissed] = useState(false);
+  const showDraftBanner = open && hasDraft && !draftDismissed && isDraftEmpty;
+
+  const handleRestore = () => {
+    const d = restoreDraft() as typeof draftSnapshot | null;
+    if (!d) { setDraftDismissed(true); return; }
+    setStep((d.step ?? 1) as 1 | 2 | 3);
+    setTrackName(d.trackName ?? "");
+    setArtist(d.artist ?? "");
+    setTrackUrl(d.trackUrl ?? "");
+    setGoal(d.goal ?? 50000);
+    setStartDate(d.startDate ?? new Date().toISOString().slice(0, 10));
+    setDeadline(d.deadline ?? "");
+    setNotes(d.notes ?? "");
+    setActivate(d.activate ?? true);
+    setDraftDismissed(true);
+    // Se o draft estava no passo 2, refaz a sugestão e reaplica seleções
+    if ((d.step ?? 1) >= 2) {
+      void (async () => {
+        await fetchSuggestions();
+        setItems(prev => prev.map(p => {
+          const saved = d.items?.find(i => i.playlist_id === p.playlist_id);
+          return saved ? { ...p, selected: saved.selected, target_override: saved.target_override } : p;
+        }));
+      })();
+    }
+    toast({ title: "Rascunho restaurado" });
+  };
+
+  const handleDiscardDraft = () => {
+    clearDraft();
+    setDraftDismissed(true);
+    reset();
+  };
+
+  // Fechar SEM resetar — o rascunho fica salvo automaticamente.
+  const close = (v: boolean) => {
+    if (!v) setDraftDismissed(false);
+    onOpenChange(v);
+  };
 
   async function fetchMeta() {
     const url = trackUrl.trim();
