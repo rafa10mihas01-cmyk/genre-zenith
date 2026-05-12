@@ -46,9 +46,8 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
   const [artist, setArtist] = useState("");
   const [trackUrl, setTrackUrl] = useState("");
   const [goal, setGoal] = useState<number>(50000);
-  const [deadline, setDeadline] = useState<string>(
-    new Date(Date.now() + 30 * 86400_000).toISOString().slice(0, 10)
-  );
+  const [startDate, setStartDate] = useState<string>(new Date().toISOString().slice(0, 10));
+  const [deadline, setDeadline] = useState<string>("");
   const [notes, setNotes] = useState("");
 
   const [fetchingMeta, setFetchingMeta] = useState(false);
