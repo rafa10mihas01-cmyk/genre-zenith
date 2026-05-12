@@ -518,6 +518,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "campaign_allocations_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "v_campaign_velocity"
+            referencedColumns: ["campaign_id"]
+          },
+          {
             foreignKeyName: "campaign_allocations_playlist_id_fkey"
             columns: ["playlist_id"]
             isOneToOne: false
@@ -3538,6 +3545,48 @@ export type Database = {
         }
         Relationships: []
       }
+      v_campaign_velocity: {
+        Row: {
+          campaign_id: string | null
+          days_elapsed: number | null
+          days_total: number | null
+          deadline: string | null
+          delivered_per_day: number | null
+          goal_plays: number | null
+          pace_ratio: number | null
+          started_at: string | null
+          status: string | null
+          total_delivered: number | null
+          track_name: string | null
+        }
+        Insert: {
+          campaign_id?: string | null
+          days_elapsed?: never
+          days_total?: never
+          deadline?: string | null
+          delivered_per_day?: never
+          goal_plays?: number | null
+          pace_ratio?: never
+          started_at?: string | null
+          status?: string | null
+          total_delivered?: number | null
+          track_name?: string | null
+        }
+        Update: {
+          campaign_id?: string | null
+          days_elapsed?: never
+          days_total?: never
+          deadline?: string | null
+          delivered_per_day?: never
+          goal_plays?: number | null
+          pace_ratio?: never
+          started_at?: string | null
+          status?: string | null
+          total_delivered?: number | null
+          track_name?: string | null
+        }
+        Relationships: []
+      }
       v_curator_balance: {
         Row: {
           archived_at: string | null
@@ -3618,6 +3667,26 @@ export type Database = {
           workers_seen: string[] | null
         }
         Relationships: []
+      }
+      v_playlist_delivery_history: {
+        Row: {
+          avg_daily_delivery: number | null
+          campaigns_count: number | null
+          fulfillment_rate: number | null
+          last_campaign_at: string | null
+          playlist_id: string | null
+          total_delivered: number | null
+          total_promised: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_allocations_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "playlists"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       v_playlist_vps_assignment: {
         Row: {
@@ -3847,6 +3916,7 @@ export type Database = {
           value: Json
         }[]
       }
+      get_campaign_analytics_overview: { Args: never; Returns: Json }
       get_community_invite_by_code: {
         Args: { p_code: string }
         Returns: {
@@ -4093,11 +4163,14 @@ export type Database = {
       suggest_campaign_playlists: {
         Args: { p_deadline: string; p_exclude_active?: boolean; p_goal: number }
         Returns: {
+          campaigns_count: number
           capacity_score: number
           composite_score: number
           cover_url: string
+          delivery_score: number
           expected_delivery: number
           followers: number
+          fulfillment_rate: number
           health_score: number
           playlist_id: string
           playlist_name: string
