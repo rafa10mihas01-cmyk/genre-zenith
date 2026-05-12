@@ -76,6 +76,9 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
   // step 3
   const [activate, setActivate] = useState(true);
 
+  // filtro do passo 2
+  const [onlyOwn, setOnlyOwn] = useState(false);
+
   const reset = () => {
     setStep(1); setBusy(false);
     setTrackName(""); setArtist(""); setTrackUrl(""); setGoal(50000); setNotes("");
@@ -167,12 +170,12 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
 
   async function fetchSuggestions() {
     setLoadingSugg(true);
-    // Para sugestão precisamos de um horizonte; se não houver término, usa 90 dias a partir do início.
     const horizon = deadline || new Date(new Date(startDate).getTime() + 90 * 86400_000).toISOString().slice(0, 10);
     const { data, error } = await (supabase.rpc as any)("suggest_campaign_playlists", {
       p_goal: goal,
       p_deadline: horizon,
       p_exclude_active: true,
+      p_only_own: onlyOwn,
     });
     setLoadingSugg(false);
     if (error) {
@@ -337,6 +340,28 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
 
         {step === 2 && (
           <div className="space-y-3">
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/20 px-3 py-2">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="only-own"
+                  checked={onlyOwn}
+                  onCheckedChange={(v) => {
+                    const nv = !!v;
+                    setOnlyOwn(nv);
+                    // refaz a busca aplicando o filtro
+                    setTimeout(() => { void fetchSuggestions(); }, 0);
+                  }}
+                />
+                <Label htmlFor="only-own" className="cursor-pointer text-sm">
+                  Somente minhas playlists
+                  <span className="text-muted-foreground font-normal ml-1">(ignora curadores)</span>
+                </Label>
+              </div>
+              <Button type="button" variant="ghost" size="sm" onClick={() => fetchSuggestions()} disabled={loadingSugg}>
+                {loadingSugg && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />}
+                Atualizar
+              </Button>
+            </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">
                 Meta: <span className="text-foreground font-medium">{goal.toLocaleString()}</span> plays
