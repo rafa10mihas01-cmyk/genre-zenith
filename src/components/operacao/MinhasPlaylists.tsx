@@ -139,7 +139,15 @@ export function MinhasPlaylists() {
 
   useEffect(() => { load(); }, [load]);
 
-  const visible = items.filter((p) => (showArchived ? !!p.archived_at : !p.archived_at));
+  const visible = items
+    .filter((p) => (showArchived ? !!p.archived_at : !p.archived_at))
+    .slice()
+    .sort((a, b) => {
+      if (sortBy !== "valuation") return 0;
+      const va = valuations[a.spotify_playlist_id]?.valuation_score ?? -1;
+      const vb = valuations[b.spotify_playlist_id]?.valuation_score ?? -1;
+      return vb - va;
+    });
 
   async function handleImport() {
     if (!importUrl.trim()) return;
