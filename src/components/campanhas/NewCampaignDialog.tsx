@@ -20,6 +20,9 @@ type Suggestion = {
   capacity_score: number;
   health_score: number;
   risk_score: number;
+  delivery_score?: number;
+  campaigns_count?: number;
+  fulfillment_rate?: number | null;
   expected_delivery: number;
   suggested_target: number;
   suggested_weight: number;
