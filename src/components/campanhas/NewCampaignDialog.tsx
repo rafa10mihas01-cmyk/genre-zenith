@@ -62,7 +62,8 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
   const reset = () => {
     setStep(1); setBusy(false);
     setTrackName(""); setArtist(""); setTrackUrl(""); setGoal(50000); setNotes("");
-    setDeadline(new Date(Date.now() + 30 * 86400_000).toISOString().slice(0, 10));
+    setStartDate(new Date().toISOString().slice(0, 10));
+    setDeadline("");
     setItems([]); setActivate(true);
   };
 
