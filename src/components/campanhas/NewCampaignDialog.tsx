@@ -197,7 +197,19 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
               </div>
               <div className="space-y-2 md:col-span-2">
                 <Label>URL Spotify (opcional)</Label>
-                <Input value={trackUrl} onChange={e => setTrackUrl(e.target.value)} placeholder="https://open.spotify.com/track/..." />
+                <div className="flex gap-2">
+                  <Input
+                    value={trackUrl}
+                    onChange={e => setTrackUrl(e.target.value)}
+                    placeholder="https://open.spotify.com/track/..."
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); fetchMeta(); } }}
+                  />
+                  <Button type="button" variant="secondary" onClick={fetchMeta} disabled={fetchingMeta || !trackUrl.trim()}>
+                    {fetchingMeta ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                    <span className="ml-2 hidden sm:inline">Buscar</span>
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">Cole o link e clique em Buscar para preencher nome e artista automaticamente.</p>
               </div>
               <div className="space-y-2">
                 <Label>Meta de plays *</Label>
