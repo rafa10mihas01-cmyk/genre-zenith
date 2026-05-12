@@ -103,6 +103,7 @@ const App = () => (
               <Route path="/campanhas" element={<Protected><Campanhas /></Protected>} />
               <Route path="/campanhas/:id" element={<Protected><CampanhaDetalhe /></Protected>} />
               <Route path="/analytics" element={<Protected><Analytics /></Protected>} />
+              <Route path="/valuation" element={<Protected><Valuation /></Protected>} />
               <Route path="/curadores" element={<Protected><Curadores /></Protected>} />
               <Route path="/curadoria-preview" element={<Protected><CuradoriaPreview /></Protected>} />
               <Route path="/sistema" element={<Protected><Sistema /></Protected>} />
