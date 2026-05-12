@@ -1,0 +1,1 @@
+ALTER TABLE public.campaigns ALTER COLUMN deadline DROP NOT NULL;

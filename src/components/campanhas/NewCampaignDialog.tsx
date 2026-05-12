@@ -12,6 +12,21 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/hooks/use-toast";
 import { Loader2, ChevronLeft, ChevronRight, Search } from "lucide-react";
 
+function formatPlaysShort(n: number): string {
+  if (!n || n < 1) return "0";
+  if (n >= 1_000_000) {
+    const v = n / 1_000_000;
+    const s = v >= 10 ? Math.round(v).toString() : v.toFixed(1).replace(/\.0$/, "").replace(".", ",");
+    return `${s} ${v >= 2 ? "milhões" : "milhão"}`;
+  }
+  if (n >= 1_000) {
+    const v = n / 1_000;
+    const s = v >= 10 ? Math.round(v).toString() : v.toFixed(1).replace(/\.0$/, "").replace(".", ",");
+    return `${s} mil`;
+  }
+  return n.toLocaleString("pt-BR");
+}
+
 type Suggestion = {
   playlist_id: string;
   playlist_name: string;
@@ -46,9 +61,8 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
   const [artist, setArtist] = useState("");
   const [trackUrl, setTrackUrl] = useState("");
   const [goal, setGoal] = useState<number>(50000);
-  const [deadline, setDeadline] = useState<string>(
-    new Date(Date.now() + 30 * 86400_000).toISOString().slice(0, 10)
-  );
+  const [startDate, setStartDate] = useState<string>(new Date().toISOString().slice(0, 10));
+  const [deadline, setDeadline] = useState<string>("");
   const [notes, setNotes] = useState("");
 
   const [fetchingMeta, setFetchingMeta] = useState(false);
@@ -63,7 +77,8 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
   const reset = () => {
     setStep(1); setBusy(false);
     setTrackName(""); setArtist(""); setTrackUrl(""); setGoal(50000); setNotes("");
-    setDeadline(new Date(Date.now() + 30 * 86400_000).toISOString().slice(0, 10));
+    setStartDate(new Date().toISOString().slice(0, 10));
+    setDeadline("");
     setItems([]); setActivate(true);
   };
 
@@ -92,9 +107,11 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
 
   async function fetchSuggestions() {
     setLoadingSugg(true);
+    // Para sugestão precisamos de um horizonte; se não houver término, usa 90 dias a partir do início.
+    const horizon = deadline || new Date(new Date(startDate).getTime() + 90 * 86400_000).toISOString().slice(0, 10);
     const { data, error } = await (supabase.rpc as any)("suggest_campaign_playlists", {
       p_goal: goal,
-      p_deadline: deadline,
+      p_deadline: horizon,
       p_exclude_active: true,
     });
     setLoadingSugg(false);
@@ -112,8 +129,12 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
 
   async function goNext() {
     if (step === 1) {
-      if (!trackName.trim() || !goal || !deadline) {
-        toast({ title: "Preencha música, meta e prazo", variant: "destructive" });
+      if (!trackName.trim() || !goal || !startDate) {
+        toast({ title: "Preencha música, meta e data de início", variant: "destructive" });
+        return;
+      }
+      if (deadline && deadline < startDate) {
+        toast({ title: "Término precisa ser depois do início", variant: "destructive" });
         return;
       }
       setStep(2);
@@ -138,7 +159,8 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
         artist: artist.trim() || null,
         spotify_track_url: trackUrl.trim() || null,
         goal_plays: goal,
-        deadline,
+        started_at: new Date(startDate).toISOString(),
+        deadline: deadline || null,
         notes: notes.trim() || null,
         status: activate ? "active" : "draft",
         created_by: user?.id ?? null,
@@ -211,13 +233,30 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
                 </div>
                 <p className="text-xs text-muted-foreground">Cole o link e clique em Buscar para preencher nome e artista automaticamente.</p>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 md:col-span-2">
                 <Label>Meta de plays *</Label>
                 <Input type="number" min={1} value={goal} onChange={e => setGoal(Number(e.target.value))} />
+                <p className="text-xs text-muted-foreground tabular-nums">
+                  {goal > 0
+                    ? <>{goal.toLocaleString("pt-BR")} plays <span className="text-foreground/70">· {formatPlaysShort(goal)}</span></>
+                    : "Informe a quantidade de plays desejada"}
+                </p>
               </div>
               <div className="space-y-2">
-                <Label>Prazo *</Label>
-                <Input type="date" value={deadline} onChange={e => setDeadline(e.target.value)} />
+                <Label>Início *</Label>
+                <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Término <span className="text-muted-foreground font-normal">(opcional)</span></Label>
+                <div className="flex gap-2">
+                  <Input type="date" value={deadline} min={startDate} onChange={e => setDeadline(e.target.value)} />
+                  {deadline && (
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setDeadline("")}>Limpar</Button>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {deadline ? "Campanha encerra na data definida." : "Sem término — campanha rotativa até você encerrar manualmente."}
+                </p>
               </div>
               <div className="space-y-2 md:col-span-2">
                 <Label>Notas</Label>
@@ -313,9 +352,14 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
             <div className="rounded-lg border border-border p-4 space-y-2">
               <div className="text-sm text-muted-foreground">Música</div>
               <div className="text-lg font-semibold">{trackName} {artist && <span className="text-muted-foreground font-normal">— {artist}</span>}</div>
-              <div className="grid grid-cols-3 gap-3 pt-2 text-sm">
-                <div><div className="text-muted-foreground text-xs">Meta</div><div className="font-medium">{goal.toLocaleString()}</div></div>
-                <div><div className="text-muted-foreground text-xs">Prazo</div><div className="font-medium">{deadline}</div></div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2 text-sm">
+                <div>
+                  <div className="text-muted-foreground text-xs">Meta</div>
+                  <div className="font-medium tabular-nums">{goal.toLocaleString("pt-BR")}</div>
+                  <div className="text-xs text-muted-foreground">{formatPlaysShort(goal)}</div>
+                </div>
+                <div><div className="text-muted-foreground text-xs">Início</div><div className="font-medium">{startDate}</div></div>
+                <div><div className="text-muted-foreground text-xs">Término</div><div className="font-medium">{deadline || "—"}</div></div>
                 <div><div className="text-muted-foreground text-xs">Playlists</div><div className="font-medium">{items.filter(i => i.selected).length}</div></div>
               </div>
             </div>
