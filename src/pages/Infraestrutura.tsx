@@ -141,12 +141,12 @@ export default function Infraestrutura() {
 
         {/* Spotify Accounts */}
         <section className="nx-card">
-          <header className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <KeyRound className="h-4 w-4 text-muted-foreground" />
-              <h2 className="text-sm font-semibold">Contas Spotify</h2>
+          <header className="flex items-center justify-between gap-2 mb-3 min-w-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <KeyRound className="h-4 w-4 text-muted-foreground shrink-0" />
+              <h2 className="text-sm font-semibold truncate">Contas Spotify</h2>
             </div>
-            <span className="text-[11px] text-muted-foreground">{accounts.length} conta(s)</span>
+            <span className="text-[11px] text-muted-foreground whitespace-nowrap shrink-0">{accounts.length} conta(s)</span>
           </header>
           {loading && !accounts.length ? (
             <Skeleton className="h-16 w-full" />
