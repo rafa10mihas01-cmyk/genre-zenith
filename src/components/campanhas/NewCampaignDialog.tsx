@@ -250,21 +250,30 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
     } else {
       toast({ title: "Campanha criada" });
     }
+    clearDraft();
+    reset();
     onCreated(camp.id);
-    close(false);
+    onOpenChange(false);
   }
 
   return (
     <Dialog open={open} onOpenChange={close}>
       <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Nova campanha — passo {step} de 3</DialogTitle>
+          <div className="flex items-center justify-between gap-3">
+            <DialogTitle>Nova campanha — passo {step} de 3</DialogTitle>
+            <DraftIndicator lastSavedAt={lastSavedAt} />
+          </div>
           <DialogDescription>
             {step === 1 && "Defina a música, a meta de plays e o prazo."}
             {step === 2 && "Revise a sugestão de playlists e ajuste se necessário."}
             {step === 3 && "Confira e ative a campanha."}
           </DialogDescription>
         </DialogHeader>
+
+        {showDraftBanner && (
+          <DraftBanner onRestore={handleRestore} onDiscard={handleDiscardDraft} />
+        )}
 
         {step === 1 && (
           <div className="space-y-4">
