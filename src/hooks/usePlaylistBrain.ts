@@ -62,7 +62,7 @@ export function usePlaylistBrain(playlistId?: string) {
         .eq("playlist_id", playlistId!)
         .maybeSingle();
       if (error) throw error;
-      return data as PlaylistBrain | null;
+      return data as unknown as PlaylistBrain | null;
     },
   });
 }
