@@ -41,6 +41,7 @@ import Campanhas from "./pages/Campanhas";
 import CampanhaDetalhe from "./pages/CampanhaDetalhe";
 import Analytics from "./pages/Analytics";
 import Valuation from "./pages/Valuation";
+import PlaylistDetail from "./pages/PlaylistDetail";
 import NotFound from "./pages/NotFound";
 
 // Defaults globais de cache: navegação "instantânea" sem reload visual.
@@ -97,6 +98,7 @@ const App = () => (
               <Route path="/criacao" element={<Protected><Criacao /></Protected>} />
               <Route path="/operacao" element={<Protected><Operacao /></Protected>} />
               <Route path="/catalogo" element={<Protected><Operacao /></Protected>} />
+              <Route path="/playlists/:id" element={<Protected><PlaylistDetail /></Protected>} />
               <Route path="/performance" element={<Protected><Performance /></Protected>} />
               <Route path="/playlist-deals" element={<Protected><PlaylistDeals /></Protected>} />
               <Route path="/playlist-deals/:dealId" element={<Protected><DealDetail /></Protected>} />
