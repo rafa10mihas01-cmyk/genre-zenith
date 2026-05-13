@@ -71,15 +71,24 @@ async function calcOne(supabase: any, playlistId: string) {
     .order("collected_at", { ascending: false })
     .limit(20);
 
-  // 4. Genre model (identidade)
+  // 4. Genre model (identidade) + benchmark do nicho (concorrentes)
   let genreModel: any = null;
+  let benchmark: any = null;
   if (mgd?.genre_id) {
-    const { data: g } = await supabase
-      .from("genre_models")
-      .select("nome, palavras_chave, insights")
-      .eq("genre_id", mgd.genre_id)
-      .maybeSingle();
+    const [{ data: g }, { data: bm }] = await Promise.all([
+      supabase
+        .from("genre_models")
+        .select("nome, palavras_chave, insights")
+        .eq("genre_id", mgd.genre_id)
+        .maybeSingle(),
+      supabase
+        .from("genre_benchmarks")
+        .select("sample_size, followers_p50, followers_p75, followers_p90, tracks_p50, tracks_p75, plays_per_follower_estimate, avg_growth_pct_30d, calculated_at")
+        .eq("genre_id", mgd.genre_id)
+        .maybeSingle(),
+    ]);
     genreModel = g;
+    benchmark = bm;
   }
 
   // ============ CÁLCULOS ============
@@ -127,18 +136,25 @@ async function calcOne(supabase: any, playlistId: string) {
     snapshots_count: snapsArr.length,
   };
 
-  // capacity_total: estimativa rough (followers × multiplicador)
-  // Quando tiver capacity_score do playlist_scores, usa ele como ajuste fino
-  const baseCapacity = Math.round(followers * DEFAULT_PLAYS_PER_FOLLOWER_DAY);
+  // capacity_total: usa estimativa do nicho se houver, senão default
+  const playsPerFollower = benchmark?.plays_per_follower_estimate ?? DEFAULT_PLAYS_PER_FOLLOWER_DAY;
+  const baseCapacity = Math.round(followers * playsPerFollower);
   const capacityAdjust = score?.capacity_score ? score.capacity_score / 100 : 1;
   const capacityTotal = Math.round(baseCapacity * Math.max(0.3, capacityAdjust));
 
-  // capacity_per_slot: precisa de série de plays — não temos ainda → null
+  // capacity_per_slot: precisa de série de plays — ainda null
   const capacityPerSlot: number | null = null;
 
-  // capacity_ceiling: depende de concorrentes (Fase 2) → null
-  const capacityCeiling: number | null = null;
-  const headroomPct: number | null = null;
+  // capacity_ceiling: derivado do p90 do nicho (concorrentes)
+  let capacityCeiling: number | null = null;
+  let headroomPct: number | null = null;
+  if (benchmark?.followers_p90 && benchmark.sample_size >= 3) {
+    capacityCeiling = Math.round(benchmark.followers_p90 * playsPerFollower);
+    if (capacityCeiling > 0) {
+      const ratio = capacityTotal / capacityCeiling;
+      headroomPct = Math.round(Math.max(0, Math.min(100, (1 - ratio) * 100)));
+    }
+  }
 
   // health_trend: por enquanto baseado em snapshots de followers
   let healthTrend: "crescendo" | "estavel" | "encolhendo" | "novo" | "sem_dados" = "sem_dados";
@@ -243,7 +259,41 @@ async function calcOne(supabase: any, playlistId: string) {
     });
   }
 
-  // recommendations (derivadas dos signals)
+  // === Sinais de comparação com benchmark do nicho ===
+  if (mgd?.genre_id && (!benchmark || benchmark.sample_size < 3)) {
+    signals.push({
+      code: "sem_concorrentes",
+      severity: "low",
+      message: "Nicho ainda sem concorrentes mapeados — capacity_ceiling indisponível",
+      detected_at: sigDate,
+    });
+  }
+  if (benchmark && benchmark.sample_size >= 3 && benchmark.followers_p50) {
+    if (followers > 0 && followers < benchmark.followers_p50 * 0.4) {
+      signals.push({
+        code: "muito_abaixo_da_mediana",
+        severity: "medium",
+        message: `${followers.toLocaleString("pt-BR")} seguidores — mediana do nicho é ${benchmark.followers_p50.toLocaleString("pt-BR")}`,
+        detected_at: sigDate,
+      });
+    }
+    if (followers >= benchmark.followers_p75) {
+      signals.push({
+        code: "acima_do_p75",
+        severity: "low",
+        message: `Top 25% do nicho (p75 = ${benchmark.followers_p75.toLocaleString("pt-BR")} seguidores)`,
+        detected_at: sigDate,
+      });
+    }
+  }
+  if (benchmark?.tracks_p50 && tracksCount > 0 && tracksCount < benchmark.tracks_p50 * 0.6) {
+    signals.push({
+      code: "subpopulada_vs_nicho",
+      severity: "medium",
+      message: `${tracksCount} faixas vs mediana do nicho ${benchmark.tracks_p50}`,
+      detected_at: sigDate,
+    });
+  }
   const recommendations: Recommendation[] = [];
   if (signals.find((s) => s.code === "sem_snapshot")) {
     recommendations.push({
@@ -294,16 +344,38 @@ async function calcOne(supabase: any, playlistId: string) {
       reason: "Identifica gaps de palavras-chave e sugestões de faixas",
     });
   }
+  if (signals.find((s) => s.code === "subpopulada_vs_nicho")) {
+    recommendations.push({
+      priority: 2,
+      action: `Aumentar para ~${benchmark?.tracks_p50 ?? 50} faixas`,
+      reason: "Playlists do nicho com volume mediano entregam mais",
+    });
+  }
+  if (signals.find((s) => s.code === "muito_abaixo_da_mediana")) {
+    recommendations.push({
+      priority: 2,
+      action: "Plano de crescimento de seguidores (capa, descrição, divulgação cruzada)",
+      reason: "Distância grande da mediana do nicho limita teto de entrega",
+    });
+  }
+  if (signals.find((s) => s.code === "sem_concorrentes")) {
+    recommendations.push({
+      priority: 3,
+      action: "Mapear concorrentes do nicho (botão sync no painel do gênero)",
+      reason: "Sem amostra externa não é possível calcular teto realista",
+    });
+  }
   recommendations.sort((a, b) => a.priority - b.priority);
 
   // confidence_score (0-100) — quanto confiar nos cálculos
   let confidence = 0;
-  if (snapsArr.length > 0) confidence += 30;
+  if (snapsArr.length > 0) confidence += 25;
   if (snapsArr.length >= 5) confidence += 10;
-  if (score) confidence += 20;
-  if (mgd?.genre_id) confidence += 20;
+  if (score) confidence += 15;
+  if (mgd?.genre_id) confidence += 15;
   if (mgd?.last_diagnosis_at) confidence += 10;
   if (mgd) confidence += 10;
+  if (benchmark && benchmark.sample_size >= 3) confidence += 15;
   confidence = Math.min(100, confidence);
 
   // ============ UPSERT ============
@@ -325,6 +397,8 @@ async function calcOne(supabase: any, playlistId: string) {
       followers_at_calc: followers,
       score_health_at_calc: score?.health_score ?? null,
       genre_name: genreModel?.nome ?? null,
+      benchmark_sample_size: benchmark?.sample_size ?? 0,
+      plays_per_follower: playsPerFollower,
     },
   };
 
