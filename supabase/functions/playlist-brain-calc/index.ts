@@ -71,15 +71,24 @@ async function calcOne(supabase: any, playlistId: string) {
     .order("collected_at", { ascending: false })
     .limit(20);
 
-  // 4. Genre model (identidade)
+  // 4. Genre model (identidade) + benchmark do nicho (concorrentes)
   let genreModel: any = null;
+  let benchmark: any = null;
   if (mgd?.genre_id) {
-    const { data: g } = await supabase
-      .from("genre_models")
-      .select("nome, palavras_chave, insights")
-      .eq("genre_id", mgd.genre_id)
-      .maybeSingle();
+    const [{ data: g }, { data: bm }] = await Promise.all([
+      supabase
+        .from("genre_models")
+        .select("nome, palavras_chave, insights")
+        .eq("genre_id", mgd.genre_id)
+        .maybeSingle(),
+      supabase
+        .from("genre_benchmarks")
+        .select("sample_size, followers_p50, followers_p75, followers_p90, tracks_p50, tracks_p75, plays_per_follower_estimate, avg_growth_pct_30d, calculated_at")
+        .eq("genre_id", mgd.genre_id)
+        .maybeSingle(),
+    ]);
     genreModel = g;
+    benchmark = bm;
   }
 
   // ============ CÁLCULOS ============
@@ -127,18 +136,25 @@ async function calcOne(supabase: any, playlistId: string) {
     snapshots_count: snapsArr.length,
   };
 
-  // capacity_total: estimativa rough (followers × multiplicador)
-  // Quando tiver capacity_score do playlist_scores, usa ele como ajuste fino
-  const baseCapacity = Math.round(followers * DEFAULT_PLAYS_PER_FOLLOWER_DAY);
+  // capacity_total: usa estimativa do nicho se houver, senão default
+  const playsPerFollower = benchmark?.plays_per_follower_estimate ?? DEFAULT_PLAYS_PER_FOLLOWER_DAY;
+  const baseCapacity = Math.round(followers * playsPerFollower);
   const capacityAdjust = score?.capacity_score ? score.capacity_score / 100 : 1;
   const capacityTotal = Math.round(baseCapacity * Math.max(0.3, capacityAdjust));
 
-  // capacity_per_slot: precisa de série de plays — não temos ainda → null
+  // capacity_per_slot: precisa de série de plays — ainda null
   const capacityPerSlot: number | null = null;
 
-  // capacity_ceiling: depende de concorrentes (Fase 2) → null
-  const capacityCeiling: number | null = null;
-  const headroomPct: number | null = null;
+  // capacity_ceiling: derivado do p90 do nicho (concorrentes)
+  let capacityCeiling: number | null = null;
+  let headroomPct: number | null = null;
+  if (benchmark?.followers_p90 && benchmark.sample_size >= 3) {
+    capacityCeiling = Math.round(benchmark.followers_p90 * playsPerFollower);
+    if (capacityCeiling > 0) {
+      const ratio = capacityTotal / capacityCeiling;
+      headroomPct = Math.round(Math.max(0, Math.min(100, (1 - ratio) * 100)));
+    }
+  }
 
   // health_trend: por enquanto baseado em snapshots de followers
   let healthTrend: "crescendo" | "estavel" | "encolhendo" | "novo" | "sem_dados" = "sem_dados";
