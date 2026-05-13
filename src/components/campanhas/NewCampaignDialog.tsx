@@ -172,7 +172,6 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
       p_goal: goal,
       p_deadline: horizon,
       p_exclude_active: true,
-      p_only_own: onlyOwn,
     });
     setLoadingSugg(false);
     if (error) {
