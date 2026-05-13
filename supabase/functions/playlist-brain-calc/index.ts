@@ -382,13 +382,15 @@ Deno.serve(async (req) => {
 
       const results: any[] = [];
       const errors: any[] = [];
-      for (const p of subset) {
-        try {
-          const r = await calcOne(supabase, p.id);
-          results.push(r);
-        } catch (e) {
-          errors.push({ playlist_id: p.id, error: (e as Error).message });
-        }
+      // Paralelismo controlado: 8 por vez
+      const CONCURRENCY = 8;
+      for (let i = 0; i < subset.length; i += CONCURRENCY) {
+        const chunk = subset.slice(i, i + CONCURRENCY);
+        const settled = await Promise.allSettled(chunk.map((p) => calcOne(supabase, p.id)));
+        settled.forEach((s, idx) => {
+          if (s.status === "fulfilled") results.push(s.value);
+          else errors.push({ playlist_id: chunk[idx].id, error: s.reason?.message ?? String(s.reason) });
+        });
       }
       return jr({
         ok: true,
