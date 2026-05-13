@@ -1,0 +1,408 @@
+// playlist-brain-calc — calcula o "perfil vivo" de cada playlist própria.
+// Lê dados existentes (managed_playlists, playlist_scores, snapshots, genre_models)
+// e materializa em playlist_brain (1 linha por playlist) + playlist_brain_history (trend).
+//
+// Modos:
+//  - { playlist_id: "uuid" }  → calcula 1 playlist
+//  - { batch: true }          → calcula TODAS playlists ownership='own' ativas (modo cron)
+//
+// Auth: service_role OU user com team_access.
+import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { requireTeamAccess } from "../_shared/auth.ts";
+
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const CALC_VERSION = 1;
+
+function jr(p: unknown, status = 200) {
+  return new Response(JSON.stringify(p), {
+    status, headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+type Signal = {
+  code: string;
+  severity: "low" | "medium" | "high";
+  message: string;
+  detected_at: string;
+};
+
+type Recommendation = {
+  priority: number;
+  action: string;
+  reason: string;
+};
+
+/**
+ * Multiplicador rough de plays/dia por seguidor.
+ * Default conservador: 5% dos seguidores ativos por dia.
+ * Em fase 2 (concorrentes) isso vira derivado do nicho.
+ */
+const DEFAULT_PLAYS_PER_FOLLOWER_DAY = 0.05;
+
+async function calcOne(supabase: any, playlistId: string) {
+  // 1. Carrega playlist canonical + managed (se existir)
+  const { data: pl, error: plErr } = await supabase
+    .from("playlists")
+    .select("id, spotify_playlist_id, name, ownership, followers")
+    .eq("id", playlistId)
+    .maybeSingle();
+  if (plErr || !pl) throw new Error(`playlist ${playlistId} não encontrada`);
+
+  const { data: mgd } = await supabase
+    .from("managed_playlists")
+    .select("id, name, genre_id, tracks_count, last_diagnosis_at, last_metrics_at, metadata")
+    .eq("spotify_playlist_id", pl.spotify_playlist_id)
+    .maybeSingle();
+
+  // 2. Score atual (capacity_score, health_score etc)
+  const { data: score } = await supabase
+    .from("playlist_scores")
+    .select("health_score, capacity_score, delivery_score, activity_score, risk_score, calculated_at")
+    .eq("playlist_id", pl.id)
+    .maybeSingle();
+
+  // 3. Snapshots (séries temporais — usados pra freq_update e trend)
+  const { data: snaps } = await supabase
+    .from("playlist_metrics_snapshots")
+    .select("followers, total_tracks, collected_at")
+    .eq("spotify_playlist_id", pl.spotify_playlist_id)
+    .order("collected_at", { ascending: false })
+    .limit(20);
+
+  // 4. Genre model (identidade)
+  let genreModel: any = null;
+  if (mgd?.genre_id) {
+    const { data: g } = await supabase
+      .from("genre_models")
+      .select("nome, palavras_chave, insights")
+      .eq("genre_id", mgd.genre_id)
+      .maybeSingle();
+    genreModel = g;
+  }
+
+  // ============ CÁLCULOS ============
+  const now = new Date();
+  const followers = pl.followers ?? 0;
+  const tracksCount = mgd?.tracks_count ?? 0;
+  const snapsArr = snaps ?? [];
+
+  // identity
+  const nameLower = (pl.name ?? "").toLowerCase();
+  const keywords: string[] = Array.isArray(genreModel?.palavras_chave)
+    ? genreModel.palavras_chave.map((k: any) => typeof k === "string" ? k : k?.termo ?? "").filter(Boolean)
+    : [];
+  const matchedKw = keywords.filter((k) => nameLower.includes(k.toLowerCase()));
+
+  const identity = {
+    nicho: genreModel?.nome ?? null,
+    keywords_matched: matchedKw,
+    keywords_total: keywords.length,
+    has_genre: !!mgd?.genre_id,
+  };
+
+  // personality
+  let freqUpdateDias: number | null = null;
+  if (snapsArr.length >= 2) {
+    // Detecta mudança de tracks_count entre snapshots → frequência média de update
+    const changes: number[] = [];
+    for (let i = 0; i < snapsArr.length - 1; i++) {
+      const a = snapsArr[i];
+      const b = snapsArr[i + 1];
+      if (a.total_tracks !== b.total_tracks) {
+        const diffDays =
+          (new Date(a.collected_at).getTime() - new Date(b.collected_at).getTime()) / (1000 * 60 * 60 * 24);
+        if (diffDays > 0) changes.push(diffDays);
+      }
+    }
+    if (changes.length > 0) {
+      freqUpdateDias = Math.round(changes.reduce((a, b) => a + b, 0) / changes.length);
+    }
+  }
+
+  const personality = {
+    total_tracks: tracksCount,
+    freq_update_dias: freqUpdateDias,
+    snapshots_count: snapsArr.length,
+  };
+
+  // capacity_total: estimativa rough (followers × multiplicador)
+  // Quando tiver capacity_score do playlist_scores, usa ele como ajuste fino
+  const baseCapacity = Math.round(followers * DEFAULT_PLAYS_PER_FOLLOWER_DAY);
+  const capacityAdjust = score?.capacity_score ? score.capacity_score / 100 : 1;
+  const capacityTotal = Math.round(baseCapacity * Math.max(0.3, capacityAdjust));
+
+  // capacity_per_slot: precisa de série de plays — não temos ainda → null
+  const capacityPerSlot: number | null = null;
+
+  // capacity_ceiling: depende de concorrentes (Fase 2) → null
+  const capacityCeiling: number | null = null;
+  const headroomPct: number | null = null;
+
+  // health_trend: por enquanto baseado em snapshots de followers
+  let healthTrend: "crescendo" | "estavel" | "encolhendo" | "novo" | "sem_dados" = "sem_dados";
+  if (snapsArr.length === 0) healthTrend = "sem_dados";
+  else if (snapsArr.length === 1) healthTrend = "novo";
+  else {
+    const newest = snapsArr[0].followers;
+    const oldest = snapsArr[snapsArr.length - 1].followers;
+    const delta = newest - oldest;
+    const pct = oldest > 0 ? (delta / oldest) * 100 : 0;
+    if (pct > 2) healthTrend = "crescendo";
+    else if (pct < -2) healthTrend = "encolhendo";
+    else healthTrend = "estavel";
+  }
+
+  // signals
+  const signals: Signal[] = [];
+  const sigDate = now.toISOString();
+
+  if (snapsArr.length === 0) {
+    signals.push({
+      code: "sem_snapshot",
+      severity: "high",
+      message: "Sem snapshot — bot não está coletando essa playlist",
+      detected_at: sigDate,
+    });
+  } else {
+    const lastSnap = new Date(snapsArr[0].collected_at);
+    const daysSince = (now.getTime() - lastSnap.getTime()) / (1000 * 60 * 60 * 24);
+    if (daysSince > 7) {
+      signals.push({
+        code: "snapshot_atrasado",
+        severity: "medium",
+        message: `Último snapshot há ${Math.round(daysSince)} dias`,
+        detected_at: sigDate,
+      });
+    }
+  }
+
+  if (!mgd?.genre_id) {
+    signals.push({
+      code: "sem_nicho",
+      severity: "medium",
+      message: "Playlist sem gênero definido — limita análise de identidade",
+      detected_at: sigDate,
+    });
+  }
+
+  if (!mgd?.last_diagnosis_at) {
+    signals.push({
+      code: "nunca_diagnosticada",
+      severity: "low",
+      message: "Nunca passou por diagnóstico contra o cérebro do nicho",
+      detected_at: sigDate,
+    });
+  } else {
+    const diagDays =
+      (now.getTime() - new Date(mgd.last_diagnosis_at).getTime()) / (1000 * 60 * 60 * 24);
+    if (diagDays > 30) {
+      signals.push({
+        code: "diagnostico_antigo",
+        severity: "low",
+        message: `Último diagnóstico há ${Math.round(diagDays)} dias`,
+        detected_at: sigDate,
+      });
+    }
+  }
+
+  if (score && score.health_score < 40) {
+    signals.push({
+      code: "saude_baixa",
+      severity: "high",
+      message: `Health score ${score.health_score}/100 — abaixo do saudável`,
+      detected_at: sigDate,
+    });
+  }
+
+  if (tracksCount > 0 && tracksCount < 30) {
+    signals.push({
+      code: "subpopulada",
+      severity: "medium",
+      message: `Só ${tracksCount} faixas — playlists do nicho costumam ter 50+`,
+      detected_at: sigDate,
+    });
+  }
+
+  if (keywords.length > 0 && matchedKw.length === 0) {
+    signals.push({
+      code: "identidade_diluida",
+      severity: "medium",
+      message: "Nome não reflete nenhuma palavra-chave do nicho",
+      detected_at: sigDate,
+    });
+  }
+
+  if (healthTrend === "encolhendo") {
+    signals.push({
+      code: "encolhendo",
+      severity: "high",
+      message: "Tendência de queda de seguidores",
+      detected_at: sigDate,
+    });
+  }
+
+  // recommendations (derivadas dos signals)
+  const recommendations: Recommendation[] = [];
+  if (signals.find((s) => s.code === "sem_snapshot")) {
+    recommendations.push({
+      priority: 1,
+      action: "Habilitar coleta automática no bot",
+      reason: "Sem snapshots não é possível medir capacidade real",
+    });
+  }
+  if (signals.find((s) => s.code === "sem_nicho")) {
+    recommendations.push({
+      priority: 1,
+      action: "Definir gênero da playlist",
+      reason: "Necessário para análise de identidade e benchmarks",
+    });
+  }
+  if (signals.find((s) => s.code === "identidade_diluida")) {
+    recommendations.push({
+      priority: 2,
+      action: "Revisar nome incluindo palavras-chave do nicho",
+      reason: "Aumenta descobribilidade e identidade da playlist",
+    });
+  }
+  if (signals.find((s) => s.code === "subpopulada")) {
+    recommendations.push({
+      priority: 2,
+      action: "Adicionar faixas até atingir 50+",
+      reason: "Playlists do nicho com mais faixas tendem a entregar mais",
+    });
+  }
+  if (signals.find((s) => s.code === "saude_baixa")) {
+    recommendations.push({
+      priority: 1,
+      action: "Aquecer playlist com músicas de tração comprovada",
+      reason: "Score de saúde baixo indica baixa atividade ou entrega",
+    });
+  }
+  if (signals.find((s) => s.code === "encolhendo")) {
+    recommendations.push({
+      priority: 1,
+      action: "Atualizar capa e descrição + injeção de músicas virais",
+      reason: "Tendência de queda precisa intervenção",
+    });
+  }
+  if (signals.find((s) => s.code === "diagnostico_antigo" || s.code === "nunca_diagnosticada")) {
+    recommendations.push({
+      priority: 3,
+      action: "Rodar diagnóstico contra cérebro do nicho",
+      reason: "Identifica gaps de palavras-chave e sugestões de faixas",
+    });
+  }
+  recommendations.sort((a, b) => a.priority - b.priority);
+
+  // confidence_score (0-100) — quanto confiar nos cálculos
+  let confidence = 0;
+  if (snapsArr.length > 0) confidence += 30;
+  if (snapsArr.length >= 5) confidence += 10;
+  if (score) confidence += 20;
+  if (mgd?.genre_id) confidence += 20;
+  if (mgd?.last_diagnosis_at) confidence += 10;
+  if (mgd) confidence += 10;
+  confidence = Math.min(100, confidence);
+
+  // ============ UPSERT ============
+  const payload = {
+    playlist_id: pl.id,
+    identity,
+    personality,
+    capacity_total: capacityTotal,
+    capacity_per_slot: capacityPerSlot,
+    capacity_ceiling: capacityCeiling,
+    headroom_pct: headroomPct,
+    health_trend: healthTrend,
+    signals,
+    recommendations,
+    confidence_score: confidence,
+    last_calculated_at: now.toISOString(),
+    calculation_version: CALC_VERSION,
+    metadata: {
+      followers_at_calc: followers,
+      score_health_at_calc: score?.health_score ?? null,
+      genre_name: genreModel?.nome ?? null,
+    },
+  };
+
+  const { error: upsertErr } = await supabase
+    .from("playlist_brain")
+    .upsert(payload, { onConflict: "playlist_id" });
+  if (upsertErr) throw new Error(`upsert playlist_brain: ${upsertErr.message}`);
+
+  // History (1 linha por cálculo, leve)
+  await supabase.from("playlist_brain_history").insert({
+    playlist_id: pl.id,
+    capacity_total: capacityTotal,
+    capacity_per_slot: capacityPerSlot,
+    health_score: score?.health_score ?? null,
+    signals_count: signals.length,
+    confidence_score: confidence,
+  });
+
+  return {
+    playlist_id: pl.id,
+    name: pl.name,
+    confidence_score: confidence,
+    signals_count: signals.length,
+    recommendations_count: recommendations.length,
+    health_trend: healthTrend,
+  };
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  const guard = await requireTeamAccess(req);
+  if (!guard.ok) return guard.resp;
+
+  try {
+    const body = await req.json().catch(() => ({}));
+    const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+
+    // Modo single
+    if (body?.playlist_id) {
+      const result = await calcOne(supabase, body.playlist_id);
+      return jr({ ok: true, mode: "single", result });
+    }
+
+    // Modo batch (cron)
+    if (body?.batch === true) {
+      const { data: list, error: lErr } = await supabase
+        .from("playlists")
+        .select("id")
+        .eq("ownership", "own");
+      if (lErr) throw new Error(lErr.message);
+
+      const limit = Math.min(body?.limit ?? 200, 500);
+      const subset = (list ?? []).slice(0, limit);
+
+      const results: any[] = [];
+      const errors: any[] = [];
+      // Paralelismo controlado: 8 por vez
+      const CONCURRENCY = 8;
+      for (let i = 0; i < subset.length; i += CONCURRENCY) {
+        const chunk = subset.slice(i, i + CONCURRENCY);
+        const settled = await Promise.allSettled(chunk.map((p) => calcOne(supabase, p.id)));
+        settled.forEach((s, idx) => {
+          if (s.status === "fulfilled") results.push(s.value);
+          else errors.push({ playlist_id: chunk[idx].id, error: s.reason?.message ?? String(s.reason) });
+        });
+      }
+      return jr({
+        ok: true,
+        mode: "batch",
+        processed: results.length,
+        errors_count: errors.length,
+        errors: errors.slice(0, 10),
+      });
+    }
+
+    return jr({ ok: false, error: "informe playlist_id ou batch:true" }, 400);
+  } catch (e) {
+    return jr({ ok: false, error: (e as Error).message }, 500);
+  }
+});

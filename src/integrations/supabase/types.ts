@@ -2441,6 +2441,115 @@ export type Database = {
         }
         Relationships: []
       }
+      playlist_brain: {
+        Row: {
+          calculation_version: number
+          capacity_ceiling: number | null
+          capacity_per_slot: number | null
+          capacity_total: number | null
+          confidence_score: number
+          created_at: string
+          headroom_pct: number | null
+          health_trend: string
+          id: string
+          identity: Json
+          last_calculated_at: string
+          metadata: Json
+          personality: Json
+          playlist_id: string
+          recommendations: Json
+          signals: Json
+          updated_at: string
+        }
+        Insert: {
+          calculation_version?: number
+          capacity_ceiling?: number | null
+          capacity_per_slot?: number | null
+          capacity_total?: number | null
+          confidence_score?: number
+          created_at?: string
+          headroom_pct?: number | null
+          health_trend?: string
+          id?: string
+          identity?: Json
+          last_calculated_at?: string
+          metadata?: Json
+          personality?: Json
+          playlist_id: string
+          recommendations?: Json
+          signals?: Json
+          updated_at?: string
+        }
+        Update: {
+          calculation_version?: number
+          capacity_ceiling?: number | null
+          capacity_per_slot?: number | null
+          capacity_total?: number | null
+          confidence_score?: number
+          created_at?: string
+          headroom_pct?: number | null
+          health_trend?: string
+          id?: string
+          identity?: Json
+          last_calculated_at?: string
+          metadata?: Json
+          personality?: Json
+          playlist_id?: string
+          recommendations?: Json
+          signals?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "playlist_brain_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: true
+            referencedRelation: "playlists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      playlist_brain_history: {
+        Row: {
+          calculated_at: string
+          capacity_per_slot: number | null
+          capacity_total: number | null
+          confidence_score: number
+          health_score: number | null
+          id: string
+          playlist_id: string
+          signals_count: number
+        }
+        Insert: {
+          calculated_at?: string
+          capacity_per_slot?: number | null
+          capacity_total?: number | null
+          confidence_score?: number
+          health_score?: number | null
+          id?: string
+          playlist_id: string
+          signals_count?: number
+        }
+        Update: {
+          calculated_at?: string
+          capacity_per_slot?: number | null
+          capacity_total?: number | null
+          confidence_score?: number
+          health_score?: number | null
+          id?: string
+          playlist_id?: string
+          signals_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "playlist_brain_history_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "playlists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       playlist_briefings: {
         Row: {
           briefings: Json

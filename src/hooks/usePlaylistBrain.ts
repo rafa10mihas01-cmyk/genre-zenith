@@ -1,0 +1,107 @@
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+
+export type BrainSignal = {
+  code: string;
+  severity: "low" | "medium" | "high";
+  message: string;
+  detected_at: string;
+};
+
+export type BrainRecommendation = {
+  priority: number;
+  action: string;
+  reason: string;
+};
+
+export type PlaylistBrain = {
+  id: string;
+  playlist_id: string;
+  identity: {
+    nicho?: string | null;
+    keywords_matched?: string[];
+    keywords_total?: number;
+    has_genre?: boolean;
+  };
+  personality: {
+    total_tracks?: number;
+    freq_update_dias?: number | null;
+    snapshots_count?: number;
+  };
+  capacity_total: number | null;
+  capacity_per_slot: number | null;
+  capacity_ceiling: number | null;
+  headroom_pct: number | null;
+  health_trend: "crescendo" | "estavel" | "encolhendo" | "novo" | "sem_dados";
+  signals: BrainSignal[];
+  recommendations: BrainRecommendation[];
+  confidence_score: number;
+  last_calculated_at: string;
+  metadata: Record<string, any>;
+};
+
+export type BrainHistoryPoint = {
+  capacity_total: number | null;
+  capacity_per_slot: number | null;
+  health_score: number | null;
+  signals_count: number;
+  confidence_score: number;
+  calculated_at: string;
+};
+
+/** Carrega o cérebro vivo da playlist (1 linha por playlist). */
+export function usePlaylistBrain(playlistId?: string) {
+  return useQuery({
+    queryKey: ["playlist_brain", playlistId],
+    enabled: !!playlistId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("playlist_brain")
+        .select("*")
+        .eq("playlist_id", playlistId!)
+        .maybeSingle();
+      if (error) throw error;
+      return data as unknown as PlaylistBrain | null;
+    },
+  });
+}
+
+/** Histórico leve para gráficos de trend. */
+export function usePlaylistBrainHistory(playlistId?: string, limit = 30) {
+  return useQuery({
+    queryKey: ["playlist_brain_history", playlistId, limit],
+    enabled: !!playlistId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("playlist_brain_history")
+        .select("capacity_total, capacity_per_slot, health_score, signals_count, confidence_score, calculated_at")
+        .eq("playlist_id", playlistId!)
+        .order("calculated_at", { ascending: false })
+        .limit(limit);
+      if (error) throw error;
+      return (data ?? []) as BrainHistoryPoint[];
+    },
+  });
+}
+
+/** Recalcula sob demanda (chama edge function). */
+export function useRecalcPlaylistBrain() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (playlistId: string) => {
+      const { data, error } = await supabase.functions.invoke("playlist-brain-calc", {
+        body: { playlist_id: playlistId },
+      });
+      if (error) throw error;
+      if (!data?.ok) throw new Error(data?.error ?? "Falha ao recalcular");
+      return data;
+    },
+    onSuccess: (_, playlistId) => {
+      qc.invalidateQueries({ queryKey: ["playlist_brain", playlistId] });
+      qc.invalidateQueries({ queryKey: ["playlist_brain_history", playlistId] });
+      toast.success("Cérebro atualizado");
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao recalcular"),
+  });
+}
