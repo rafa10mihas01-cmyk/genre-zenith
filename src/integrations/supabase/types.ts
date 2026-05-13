@@ -2792,7 +2792,7 @@ export type Database = {
           followers: number
           id: string
           spotify_playlist_id: string
-          template_id: string
+          template_id: string | null
           total_tracks: number | null
         }
         Insert: {
@@ -2800,7 +2800,7 @@ export type Database = {
           followers?: number
           id?: string
           spotify_playlist_id: string
-          template_id: string
+          template_id?: string | null
           total_tracks?: number | null
         }
         Update: {
@@ -2808,7 +2808,7 @@ export type Database = {
           followers?: number
           id?: string
           spotify_playlist_id?: string
-          template_id?: string
+          template_id?: string | null
           total_tracks?: number | null
         }
         Relationships: []

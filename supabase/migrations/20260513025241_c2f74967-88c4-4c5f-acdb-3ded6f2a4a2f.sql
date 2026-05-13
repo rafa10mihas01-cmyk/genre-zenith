@@ -1,0 +1,2 @@
+ALTER TABLE public.playlist_metrics_snapshots ALTER COLUMN template_id DROP NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_pms_spotify_collected ON public.playlist_metrics_snapshots(spotify_playlist_id, collected_at DESC);
