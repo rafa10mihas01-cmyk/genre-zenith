@@ -47,10 +47,10 @@ Deno.serve(async (req) => {
     .eq("status", "claimed")
     .lt("lease_expires_at", nowIso);
 
-  // Busca candidatos
+  // Busca candidatos (com JOIN em playlists para pegar o nome)
   const { data: candidates, error: selErr } = await supabase
     .from("playlist_execution_jobs")
-    .select("id, job_type, allocation_id, campaign_id, playlist_id, spotify_playlist_id, spotify_track_id, attempts, max_attempts")
+    .select("id, job_type, allocation_id, campaign_id, playlist_id, spotify_playlist_id, spotify_track_id, attempts, max_attempts, playlists(name)")
     .eq("status", "pending")
     .lte("scheduled_for", nowIso)
     .order("scheduled_for", { ascending: true })
@@ -85,7 +85,11 @@ Deno.serve(async (req) => {
       .eq("status", "pending") // double-check
       .select("id, job_type, allocation_id, campaign_id, playlist_id, spotify_playlist_id, spotify_track_id, correlation_id, attempts, max_attempts")
       .maybeSingle();
-    if (!error && data) claimed.push(data);
+    if (!error && data) {
+      const src: any = candidates.find((c: any) => c.id === u.id);
+      (data as any).playlist_name = src?.playlists?.name ?? null;
+      claimed.push(data);
+    }
   }
 
   // Eventos de lifecycle
