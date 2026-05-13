@@ -4252,54 +4252,25 @@ export type Database = {
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       slugify: { Args: { p_text: string }; Returns: string }
-      suggest_campaign_playlists:
-        | {
-            Args: {
-              p_deadline: string
-              p_exclude_active?: boolean
-              p_goal: number
-            }
-            Returns: {
-              campaigns_count: number
-              capacity_score: number
-              composite_score: number
-              cover_url: string
-              delivery_score: number
-              expected_delivery: number
-              followers: number
-              fulfillment_rate: number
-              health_score: number
-              playlist_id: string
-              playlist_name: string
-              risk_score: number
-              suggested_target: number
-              suggested_weight: number
-            }[]
-          }
-        | {
-            Args: {
-              p_deadline: string
-              p_exclude_active?: boolean
-              p_goal: number
-              p_only_own?: boolean
-            }
-            Returns: {
-              campaigns_count: number
-              capacity_score: number
-              composite_score: number
-              cover_url: string
-              delivery_score: number
-              expected_delivery: number
-              followers: number
-              fulfillment_rate: number
-              health_score: number
-              playlist_id: string
-              playlist_name: string
-              risk_score: number
-              suggested_target: number
-              suggested_weight: number
-            }[]
-          }
+      suggest_campaign_playlists: {
+        Args: { p_deadline: string; p_exclude_active?: boolean; p_goal: number }
+        Returns: {
+          campaigns_count: number
+          capacity_score: number
+          composite_score: number
+          cover_url: string
+          delivery_score: number
+          expected_delivery: number
+          followers: number
+          fulfillment_rate: number
+          health_score: number
+          playlist_id: string
+          playlist_name: string
+          risk_score: number
+          suggested_target: number
+          suggested_weight: number
+        }[]
+      }
       trigger_recalc_playlist_scores: { Args: never; Returns: number }
       unaccent: { Args: { "": string }; Returns: string }
     }
