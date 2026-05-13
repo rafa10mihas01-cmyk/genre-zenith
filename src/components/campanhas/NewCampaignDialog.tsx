@@ -337,22 +337,9 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
         {step === 2 && (
           <div className="space-y-3">
             <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/20 px-3 py-2">
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="only-own"
-                  checked={onlyOwn}
-                  onCheckedChange={(v) => {
-                    const nv = !!v;
-                    setOnlyOwn(nv);
-                    // refaz a busca aplicando o filtro
-                    setTimeout(() => { void fetchSuggestions(); }, 0);
-                  }}
-                />
-                <Label htmlFor="only-own" className="cursor-pointer text-sm">
-                  Somente minhas playlists
-                  <span className="text-muted-foreground font-normal ml-1">(ignora curadores)</span>
-                </Label>
-              </div>
+              <p className="text-xs text-muted-foreground">
+                Sugestões consideram apenas <span className="text-foreground font-medium">suas playlists</span> (ownership próprio). Playlists de curadores não entram em campanhas internas.
+              </p>
               <Button type="button" variant="ghost" size="sm" onClick={() => fetchSuggestions()} disabled={loadingSugg}>
                 {loadingSugg && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />}
                 Atualizar
