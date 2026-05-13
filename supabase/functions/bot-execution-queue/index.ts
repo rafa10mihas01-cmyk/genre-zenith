@@ -47,10 +47,10 @@ Deno.serve(async (req) => {
     .eq("status", "claimed")
     .lt("lease_expires_at", nowIso);
 
-  // Busca candidatos
+  // Busca candidatos (com JOIN em playlists para pegar o nome)
   const { data: candidates, error: selErr } = await supabase
     .from("playlist_execution_jobs")
-    .select("id, job_type, allocation_id, campaign_id, playlist_id, spotify_playlist_id, spotify_track_id, attempts, max_attempts")
+    .select("id, job_type, allocation_id, campaign_id, playlist_id, spotify_playlist_id, spotify_track_id, attempts, max_attempts, playlists(name)")
     .eq("status", "pending")
     .lte("scheduled_for", nowIso)
     .order("scheduled_for", { ascending: true })
