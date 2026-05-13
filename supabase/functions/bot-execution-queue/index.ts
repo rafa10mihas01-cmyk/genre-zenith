@@ -85,7 +85,11 @@ Deno.serve(async (req) => {
       .eq("status", "pending") // double-check
       .select("id, job_type, allocation_id, campaign_id, playlist_id, spotify_playlist_id, spotify_track_id, correlation_id, attempts, max_attempts")
       .maybeSingle();
-    if (!error && data) claimed.push(data);
+    if (!error && data) {
+      const src: any = candidates.find((c: any) => c.id === u.id);
+      (data as any).playlist_name = src?.playlists?.name ?? null;
+      claimed.push(data);
+    }
   }
 
   // Eventos de lifecycle
