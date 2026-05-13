@@ -344,16 +344,38 @@ async function calcOne(supabase: any, playlistId: string) {
       reason: "Identifica gaps de palavras-chave e sugestões de faixas",
     });
   }
+  if (signals.find((s) => s.code === "subpopulada_vs_nicho")) {
+    recommendations.push({
+      priority: 2,
+      action: `Aumentar para ~${benchmark?.tracks_p50 ?? 50} faixas`,
+      reason: "Playlists do nicho com volume mediano entregam mais",
+    });
+  }
+  if (signals.find((s) => s.code === "muito_abaixo_da_mediana")) {
+    recommendations.push({
+      priority: 2,
+      action: "Plano de crescimento de seguidores (capa, descrição, divulgação cruzada)",
+      reason: "Distância grande da mediana do nicho limita teto de entrega",
+    });
+  }
+  if (signals.find((s) => s.code === "sem_concorrentes")) {
+    recommendations.push({
+      priority: 3,
+      action: "Mapear concorrentes do nicho (botão sync no painel do gênero)",
+      reason: "Sem amostra externa não é possível calcular teto realista",
+    });
+  }
   recommendations.sort((a, b) => a.priority - b.priority);
 
   // confidence_score (0-100) — quanto confiar nos cálculos
   let confidence = 0;
-  if (snapsArr.length > 0) confidence += 30;
+  if (snapsArr.length > 0) confidence += 25;
   if (snapsArr.length >= 5) confidence += 10;
-  if (score) confidence += 20;
-  if (mgd?.genre_id) confidence += 20;
+  if (score) confidence += 15;
+  if (mgd?.genre_id) confidence += 15;
   if (mgd?.last_diagnosis_at) confidence += 10;
   if (mgd) confidence += 10;
+  if (benchmark && benchmark.sample_size >= 3) confidence += 15;
   confidence = Math.min(100, confidence);
 
   // ============ UPSERT ============
