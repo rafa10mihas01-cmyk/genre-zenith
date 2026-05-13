@@ -397,6 +397,8 @@ async function calcOne(supabase: any, playlistId: string) {
       followers_at_calc: followers,
       score_health_at_calc: score?.health_score ?? null,
       genre_name: genreModel?.nome ?? null,
+      benchmark_sample_size: benchmark?.sample_size ?? 0,
+      plays_per_follower: playsPerFollower,
     },
   };
 
