@@ -259,7 +259,41 @@ async function calcOne(supabase: any, playlistId: string) {
     });
   }
 
-  // recommendations (derivadas dos signals)
+  // === Sinais de comparação com benchmark do nicho ===
+  if (mgd?.genre_id && (!benchmark || benchmark.sample_size < 3)) {
+    signals.push({
+      code: "sem_concorrentes",
+      severity: "low",
+      message: "Nicho ainda sem concorrentes mapeados — capacity_ceiling indisponível",
+      detected_at: sigDate,
+    });
+  }
+  if (benchmark && benchmark.sample_size >= 3 && benchmark.followers_p50) {
+    if (followers > 0 && followers < benchmark.followers_p50 * 0.4) {
+      signals.push({
+        code: "muito_abaixo_da_mediana",
+        severity: "medium",
+        message: `${followers.toLocaleString("pt-BR")} seguidores — mediana do nicho é ${benchmark.followers_p50.toLocaleString("pt-BR")}`,
+        detected_at: sigDate,
+      });
+    }
+    if (followers >= benchmark.followers_p75) {
+      signals.push({
+        code: "acima_do_p75",
+        severity: "low",
+        message: `Top 25% do nicho (p75 = ${benchmark.followers_p75.toLocaleString("pt-BR")} seguidores)`,
+        detected_at: sigDate,
+      });
+    }
+  }
+  if (benchmark?.tracks_p50 && tracksCount > 0 && tracksCount < benchmark.tracks_p50 * 0.6) {
+    signals.push({
+      code: "subpopulada_vs_nicho",
+      severity: "medium",
+      message: `${tracksCount} faixas vs mediana do nicho ${benchmark.tracks_p50}`,
+      detected_at: sigDate,
+    });
+  }
   const recommendations: Recommendation[] = [];
   if (signals.find((s) => s.code === "sem_snapshot")) {
     recommendations.push({
