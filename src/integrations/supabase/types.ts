@@ -1911,6 +1911,66 @@ export type Database = {
         }
         Relationships: []
       }
+      genre_benchmarks: {
+        Row: {
+          avg_growth_pct_30d: number | null
+          calculated_at: string
+          followers_p50: number | null
+          followers_p75: number | null
+          followers_p90: number | null
+          genre_id: string
+          metadata: Json
+          plays_per_follower_estimate: number
+          sample_size: number
+          tracks_p50: number | null
+          tracks_p75: number | null
+          tracks_p90: number | null
+        }
+        Insert: {
+          avg_growth_pct_30d?: number | null
+          calculated_at?: string
+          followers_p50?: number | null
+          followers_p75?: number | null
+          followers_p90?: number | null
+          genre_id: string
+          metadata?: Json
+          plays_per_follower_estimate?: number
+          sample_size?: number
+          tracks_p50?: number | null
+          tracks_p75?: number | null
+          tracks_p90?: number | null
+        }
+        Update: {
+          avg_growth_pct_30d?: number | null
+          calculated_at?: string
+          followers_p50?: number | null
+          followers_p75?: number | null
+          followers_p90?: number | null
+          genre_id?: string
+          metadata?: Json
+          plays_per_follower_estimate?: number
+          sample_size?: number
+          tracks_p50?: number | null
+          tracks_p75?: number | null
+          tracks_p90?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "genre_benchmarks_genre_id_fkey"
+            columns: ["genre_id"]
+            isOneToOne: true
+            referencedRelation: "genres"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "genre_benchmarks_genre_id_fkey"
+            columns: ["genre_id"]
+            isOneToOne: true
+            referencedRelation: "genres_with_health"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       genre_filters: {
         Row: {
           base_daily: number
@@ -2944,8 +3004,10 @@ export type Database = {
           created_at: string
           first_seen_at: string
           followers: number | null
+          genre_id: string | null
           id: string
           last_seen_at: string
+          monitored: boolean
           name: string | null
           ownership: string
           source: string
@@ -2957,8 +3019,10 @@ export type Database = {
           created_at?: string
           first_seen_at?: string
           followers?: number | null
+          genre_id?: string | null
           id?: string
           last_seen_at?: string
+          monitored?: boolean
           name?: string | null
           ownership?: string
           source?: string
@@ -2970,14 +3034,31 @@ export type Database = {
           created_at?: string
           first_seen_at?: string
           followers?: number | null
+          genre_id?: string | null
           id?: string
           last_seen_at?: string
+          monitored?: boolean
           name?: string | null
           ownership?: string
           source?: string
           spotify_playlist_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "playlists_genre_id_fkey"
+            columns: ["genre_id"]
+            isOneToOne: false
+            referencedRelation: "genres"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "playlists_genre_id_fkey"
+            columns: ["genre_id"]
+            isOneToOne: false
+            referencedRelation: "genres_with_health"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       rate_limits: {
         Row: {
