@@ -3754,6 +3754,39 @@ export type Database = {
         }
         Relationships: []
       }
+      sync_log: {
+        Row: {
+          created_at: string
+          duration_ms: number | null
+          errors: Json | null
+          failed: number
+          id: string
+          recalculated: number
+          source: string
+          synced: number
+        }
+        Insert: {
+          created_at?: string
+          duration_ms?: number | null
+          errors?: Json | null
+          failed?: number
+          id?: string
+          recalculated?: number
+          source?: string
+          synced?: number
+        }
+        Update: {
+          created_at?: string
+          duration_ms?: number | null
+          errors?: Json | null
+          failed?: number
+          id?: string
+          recalculated?: number
+          source?: string
+          synced?: number
+        }
+        Relationships: []
+      }
       system_flags: {
         Row: {
           apify_blocked: boolean
