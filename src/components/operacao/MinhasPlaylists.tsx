@@ -457,6 +457,9 @@ export function MinhasPlaylists() {
           <RefreshCw className={cn("h-4 w-4", recalcing && "animate-spin")} />
           {recalcing ? "Sincronizando…" : "Sincronizar tudo"}
         </Button>
+        <Button variant="outline" onClick={openLogs} className="gap-1.5">
+          <History className="h-4 w-4" /> Diário
+        </Button>
         <Button
           variant="outline"
           onClick={() => setSortBy(sortBy === "valuation" ? "recent" : "valuation")}
