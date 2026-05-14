@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useSearchParams } from "react-router-dom";
+import { PlaylistTracksTab } from "@/components/playlists/PlaylistTracksTab";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
@@ -73,6 +74,13 @@ export default function PlaylistDetail() {
   const { data: brain, isLoading: brainLoading } = usePlaylistBrain(id);
   const { data: history } = usePlaylistBrainHistory(id, 30);
   const recalc = useRecalcPlaylistBrain();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = (searchParams.get("tab") === "faixas" ? "faixas" : "geral") as "geral" | "faixas";
+  const setTab = (t: "geral" | "faixas") => {
+    const next = new URLSearchParams(searchParams);
+    if (t === "geral") next.delete("tab"); else next.set("tab", t);
+    setSearchParams(next, { replace: true });
+  };
 
   useEffect(() => {
     if (!id) return;
@@ -183,6 +191,31 @@ export default function PlaylistDetail() {
         </div>
       </div>
 
+      {/* Tabs */}
+      <div className="flex gap-1 border-b border-border">
+        {([
+          { k: "geral", label: "Visão geral" },
+          { k: "faixas", label: "Faixas" },
+        ] as const).map((t) => (
+          <button
+            key={t.k}
+            onClick={() => setTab(t.k)}
+            className={cn(
+              "px-3 h-9 text-sm font-medium border-b-2 -mb-px transition-colors",
+              tab === t.k
+                ? "border-primary text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "faixas" ? (
+        id && <PlaylistTracksTab playlistId={id} />
+      ) : (
+        <>
       {/* KPI strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiCard
@@ -342,6 +375,8 @@ export default function PlaylistDetail() {
             </table>
           </div>
         </Card>
+      )}
+        </>
       )}
     </PageContainer>
   );
