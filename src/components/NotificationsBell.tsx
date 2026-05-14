@@ -286,5 +286,7 @@ export function NotificationsBell() {
         </ScrollArea>
       </PopoverContent>
     </Popover>
+    <AlertPreferencesDialog open={prefsOpen} onOpenChange={setPrefsOpen} />
+    </>
   );
 }
