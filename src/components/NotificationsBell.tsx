@@ -196,6 +196,16 @@ export function NotificationsBell() {
                   <span className="hidden sm:inline">{pushOn ? "Push on" : "Push off"}</span>
                 </Button>
               )}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => { setOpen(false); setPrefsOpen(true); }}
+                title="Preferências de alerta"
+                aria-label="Preferências de alerta"
+              >
+                <Settings2 className="h-3.5 w-3.5" />
+              </Button>
               {unreadCount > 0 && (
                 <Button
                   variant="ghost"
