@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { Bell, AlertTriangle, AlertCircle, Info, CheckCheck } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Bell, AlertTriangle, AlertCircle, Info, CheckCheck, BellRing, BellOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -15,6 +15,8 @@ import {
 import { timeAgo } from "@/lib/format";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { enablePush, disablePush, pushEnabled, pushSupport } from "@/lib/browserPush";
+import { toast } from "sonner";
 
 type Tab = "all" | "critical" | "bot" | "curator" | "system";
 
