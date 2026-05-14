@@ -1201,6 +1201,10 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
                   />
                 </div>
 
+                <div className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                  <Brain className="h-3 w-3 text-primary" />
+                  Ordenado por trust score (cérebro do curador)
+                </div>
                 <div className="max-h-72 overflow-y-auto space-y-1.5 -mx-1 px-1">
                   {visibleCurators.length === 0 ? (
                     <div className="text-center text-sm text-muted-foreground py-8">
