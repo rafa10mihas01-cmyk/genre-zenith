@@ -473,6 +473,13 @@ export function MinhasPlaylists() {
                     <Sparkles className="h-4 w-4" />
                     {diagLoading ? "Analisando..." : diagnosis ? "Rodar novo diagnóstico" : "Diagnosticar agora"}
                   </Button>
+                  {drawerPl.canonical_playlist_id && (
+                    <Button variant="outline" asChild className="gap-1.5">
+                      <Link to={`/playlists/${drawerPl.canonical_playlist_id}`}>
+                        <Brain className="h-4 w-4" /> Perfil vivo
+                      </Link>
+                    </Button>
+                  )}
                   <Button variant="outline" asChild>
                     <a href={drawerPl.spotify_url} target="_blank" rel="noreferrer" className="gap-1.5">
                       <ExternalLink className="h-4 w-4" /> Abrir no Spotify
