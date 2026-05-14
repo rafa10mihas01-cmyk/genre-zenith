@@ -18,6 +18,7 @@ import { GenreHealthBanner } from "@/components/brain/GenreHealthBanner";
 import { useScreenField } from "@/lib/screen-state";
 import { useSetSidebarKpis } from "@/contexts/SidebarContext";
 import { useAutopilot } from "@/hooks/useAutopilot";
+import { MinhasRecomendacoes } from "@/components/cerebro/MinhasRecomendacoes";
 
 import type { GenreOpt } from "@/components/cerebro/_shared";
 import { CerebroTopBar } from "@/components/cerebro/CerebroTopBar";
@@ -172,14 +173,14 @@ export default function Cerebro() {
         />
       )}
 
-      {/* TABS — 3 áreas (Decisão / Dados / Replicação) */}
+      {/* TABS — separa o que é nosso, o que é mercado e o que é produção */}
       <Tabs value={tab} onValueChange={setTab} className="space-y-5">
         <div className="sticky top-0 z-30 bg-background/95 supports-[backdrop-filter]:bg-background/80 backdrop-blur-md border-b border-border">
           <TabsList className="nx-tab-rail bg-transparent p-0 h-auto gap-4 sm:gap-6 rounded-none justify-start flex-nowrap">
             {[
-            { v: "decisoes", label: "Decisão" },
-            { v: "analises", label: "Dados" },
-            { v: "replicacao", label: "Replicação" },
+            { v: "minhas", label: "Minhas playlists" },
+            { v: "mercado", label: "Base do mercado" },
+            { v: "replicacao", label: "Criar novas" },
             ].map(t => (
             <TabsTrigger
               key={t.v}
@@ -193,6 +194,21 @@ export default function Cerebro() {
         </div>
 
         <TabsContent value="decisoes" className="mt-0">
+          <MinhasRecomendacoes genreId={genre?.id} />
+        </TabsContent>
+        <TabsContent value="minhas" className="mt-0">
+          <MinhasRecomendacoes genreId={genre?.id} />
+        </TabsContent>
+        <TabsContent value="mercado" className="mt-0 space-y-6">
+          <Analises
+            model={model}
+            loading={loadingModel}
+            briefing={briefing}
+            loadingBriefing={loadingBriefing}
+            onReload={reloadModel}
+            onAnalyzeDna={analyzeVisualDna}
+            analyzingDna={analyzingDna}
+          />
           <Decisoes
             briefing={briefing}
             loading={loadingBriefing}
