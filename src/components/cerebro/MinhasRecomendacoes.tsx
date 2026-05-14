@@ -267,14 +267,14 @@ function PlaylistRecommendationCard({ playlist, brain }: { playlist: ManagedPlay
 function MiniStat({ icon: Icon, label, value, tone = "default" }: { icon: any; label: string; value: string; tone?: "default" | "primary" | "warning" }) {
   return (
     <div className={cn(
-      "rounded-xl border px-3 py-2 min-w-[104px] bg-background/70",
+      "rounded-xl border px-2.5 py-2 bg-background/70",
       tone === "primary" ? "border-primary/35" : tone === "warning" ? "border-warning/35" : "border-border",
     )}>
       <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
         <Icon className="h-3.5 w-3.5" />
         <span className="text-[9px] uppercase tracking-wider font-bold">{label}</span>
       </div>
-      <div className="text-lg font-bold tabular-nums">{value}</div>
+      <div className="text-base sm:text-lg font-bold tabular-nums">{value}</div>
     </div>
   );
 }
