@@ -217,9 +217,8 @@ export function PlanejadorMeta() {
       dailyTarget,
       multiplier: profileObj.mult,
       days,
-      maxSlotsPerPlaylist: maxSlots,
     }),
-    [filtered, dailyTarget, profileObj.mult, days, maxSlots],
+    [filtered, dailyTarget, profileObj.mult, days],
   );
 
   const ind = useMemo(() => calcIndicators(slots, dailyTarget, filtered.length), [slots, dailyTarget, filtered.length]);
