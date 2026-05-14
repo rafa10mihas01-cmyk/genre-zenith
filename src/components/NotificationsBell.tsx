@@ -63,7 +63,31 @@ export function NotificationsBell() {
   const { items, unreadCount, markRead, markAllRead } = useNotifications();
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<Tab>("all");
+  const [pushOn, setPushOn] = useState(false);
+  const [pushAvail, setPushAvail] = useState(true);
   const nav = useNavigate();
+
+  useEffect(() => {
+    setPushOn(pushEnabled());
+    setPushAvail(pushSupport() !== "unsupported");
+  }, [open]);
+
+  const togglePush = async () => {
+    if (pushOn) {
+      disablePush();
+      setPushOn(false);
+      toast.success("Alertas do navegador desativados");
+    } else {
+      const ok = await enablePush();
+      setPushOn(ok);
+      if (ok) toast.success("Alertas do navegador ativados", {
+        description: "Você receberá críticos mesmo com a aba em background.",
+      });
+      else toast.error("Permissão negada", {
+        description: "Habilite notificações deste site nas configurações do navegador.",
+      });
+    }
+  };
 
   const { critical, warnings, infos } = useMemo(() => {
     let c = 0, w = 0, i = 0;
