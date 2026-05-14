@@ -317,28 +317,29 @@ export function PlanejadorMeta() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <SimKpi label="Meta / dia" value={formatNumber(dailyTarget)} hint={`${formatNumber(meta)} em ${days} ${days === 1 ? "dia" : "dias"}`} />
         <SimKpi
-          label="Capacidade natural"
+          label={`Capacidade — ${INTENSITY_LABEL[plan.intensity].label}`}
           value={formatNumber(plan.naturalCapacity)}
-          hint={`${filtered.length} playlists no nicho`}
+          hint={INTENSITY_LABEL[plan.intensity].hint}
+          tone={INTENSITY_LABEL[plan.intensity].tone}
         />
         <SimKpi
           label="Entregue / dia"
           value={formatNumber(plan.delivered)}
-          hint={`${Math.round(ind.coverage * 100)}% da meta`}
+          hint={`${Math.round(ind.coverage * 100)}% da meta · ${slots.length}/${filtered.length} playlists`}
           tone={ind.coverage >= 0.85 ? "ok" : ind.coverage >= 0.6 ? "warn" : "bad"}
         />
         {plan.deficit > 0 ? (
           <SimKpi
             label="Falta / dia"
             value={formatNumber(plan.deficit)}
-            hint={`${formatNumber(plan.deficit * days)} no total`}
+            hint={`teto do nicho: ${formatNumber(plan.maxCapacity)}/dia`}
             tone="bad"
           />
         ) : (
           <SimKpi
             label="Saldo ocioso"
             value={formatNumber(plan.surplus)}
-            hint="capacidade não usada"
+            hint={`teto do nicho: ${formatNumber(plan.maxCapacity)}/dia`}
             tone="ok"
           />
         )}
@@ -349,11 +350,12 @@ export function PlanejadorMeta() {
         <div className="nx-card flex items-start gap-3 !py-3 border-warning/40">
           <AlertTriangle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
           <p className="text-xs leading-relaxed">
-            <strong className="text-warning">Capacidade insuficiente.</strong>{" "}
+            <strong className="text-warning">Ecossistema no teto.</strong>{" "}
             <span className="text-muted-foreground">
-              As {filtered.length} playlists do nicho entregam, no máximo natural, {formatNumber(plan.naturalCapacity)} plays/dia.
+              Mesmo puxando todas as {filtered.length} playlists do nicho para posições altas (modo Máximo),
+              o teto teórico é <strong className="text-foreground tabular-nums">{formatNumber(plan.maxCapacity)}/dia</strong>.
               Faltam <strong className="text-foreground tabular-nums">{formatNumber(plan.deficit)}/dia</strong>{" "}
-              ({formatNumber(plan.deficit * days)} no total) para completar a meta sem forçar.
+              ({formatNumber(plan.deficit * days)} no total) para fechar a meta sem spam.
             </span>
           </p>
         </div>
