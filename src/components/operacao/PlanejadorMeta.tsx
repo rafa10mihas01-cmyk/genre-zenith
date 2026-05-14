@@ -223,7 +223,7 @@ export function PlanejadorMeta() {
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Field label="Meta de plays">
+          <Field label="Meta de plays" hint={metaExtenso(meta)}>
             <Input
               type="number"
               value={meta}
