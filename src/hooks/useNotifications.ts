@@ -100,6 +100,15 @@ export function useNotifications() {
             const opts = { description: n.message } as const;
             if (n.type === "critical") toast.error(n.title, { ...opts, duration: 10_000 });
             else if (n.type === "warning") toast.warning(n.title, { ...opts, duration: 6_000 });
+            // Browser push nativo: dispara só se aba estiver oculta (a função decide).
+            if (n.type === "critical" || n.type === "warning") {
+              showPush({
+                title: n.title,
+                body: n.message,
+                tag: n.metadata?.dedupe_key ?? n.metadata?.kind ?? n.id,
+                url: n.action_url ?? undefined,
+              });
+            }
           }
         }
       )
