@@ -148,13 +148,15 @@ export function MinhasPlaylists() {
   async function handleRecalc() {
     setRecalcing(true);
     try {
-      const { error } = await supabase.rpc("trigger_recalc_playlist_scores");
-      if (error) throw error;
-      toast({ title: "Scores recalculados" });
-      const canonicals = items.map(i => i.canonical_playlist_id).filter(Boolean) as string[];
-      await loadScores(canonicals);
+      const { data, error } = await supabase.functions.invoke("sync-managed-playlists", { body: {} });
+      if (error || !data?.ok) throw new Error(error?.message ?? data?.error ?? "Falhou");
+      toast({
+        title: "Sincronizado",
+        description: `${data.synced} playlists atualizadas · ${data.recalculated} scores recalculados${data.failed ? ` · ${data.failed} falharam` : ""}`,
+      });
+      await load();
     } catch (e: any) {
-      toast({ title: "Erro ao recalcular", description: e.message, variant: "destructive" });
+      toast({ title: "Erro ao sincronizar", description: e.message, variant: "destructive" });
     } finally {
       setRecalcing(false);
     }
@@ -431,12 +433,9 @@ export function MinhasPlaylists() {
           <RefreshCw className={cn("h-4 w-4", bulkImporting && "animate-spin")} />
           {bulkImporting ? "Importando da conta…" : "Importar tudo da conta"}
         </Button>
-        <Button variant="outline" onClick={load} disabled={loading} className="gap-1.5">
-          <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} /> Atualizar
-        </Button>
         <Button variant="outline" onClick={handleRecalc} disabled={recalcing} className="gap-1.5">
-          <Activity className={cn("h-4 w-4", recalcing && "animate-pulse")} />
-          {recalcing ? "Recalculando…" : "Recalcular scores"}
+          <RefreshCw className={cn("h-4 w-4", recalcing && "animate-spin")} />
+          {recalcing ? "Sincronizando…" : "Sincronizar tudo"}
         </Button>
         <Button
           variant="outline"
