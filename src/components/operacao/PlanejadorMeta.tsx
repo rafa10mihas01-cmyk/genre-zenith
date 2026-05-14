@@ -57,61 +57,81 @@ function planDistribution(opts: {
   dailyTarget: number;
   multiplier: number;
   days: number;
-  maxSlotsPerPlaylist: number;
 }): Slot[] {
-  const { playlists, dailyTarget, multiplier, maxSlotsPerPlaylist } = opts;
+  const { playlists, dailyTarget, multiplier } = opts;
   if (!playlists.length || dailyTarget <= 0) return [];
 
-  // Gera todos os candidatos (playlist × posição) com capacidade teórica diária.
-  type Candidate = { p: Playlist; pos: number; cap: number };
-  const candidates: Candidate[] = [];
-  for (const p of playlists) {
-    if (!p.followers) continue;
-    const monthly = p.followers * multiplier;
-    const dailyTotal = monthly / 30;
-    const maxPos = Math.max(p.tracks_count || 20, 8);
-    for (let pos = 1; pos <= Math.min(maxPos, 15); pos++) {
-      candidates.push({ p, pos, cap: Math.round(dailyTotal * posPct(pos)) });
-    }
-  }
+  // Regra: 1 playlist = 1 posição. Espalhar entre o máximo de playlists do nicho.
+  // Cap por playlist = 20% da meta diária (anti-concentração).
+  const HARD_CAP = Math.max(Math.round(dailyTarget * 0.20), 1);
 
-  // Ordena por capacidade decrescente, mas com leve preferência por meio (3-7) p/ parecer natural.
-  candidates.sort((a, b) => {
-    const naturalA = a.pos >= 3 && a.pos <= 7 ? 1.05 : 1;
-    const naturalB = b.pos >= 3 && b.pos <= 7 ? 1.05 : 1;
-    return (b.cap * naturalB) - (a.cap * naturalA);
-  });
+  // Ordena playlists das maiores p/ menores (maiores entram primeiro p/ pegar share maior).
+  const pool = playlists.filter(p => p.followers > 0).slice().sort((a, b) => b.followers - a.followers);
+  if (!pool.length) return [];
 
-  const used = new Map<string, number>(); // playlistId -> # de slots usados
-  const usedPos = new Set<string>(); // playlistId+pos
+  // Rotação de bandas para parecer natural: top, mid, low, mid, top, low...
+  const BAND_ROTATION: Array<"top" | "mid" | "low"> = ["top", "mid", "low", "mid", "top", "low", "mid"];
+  const RANGES: Record<"top" | "mid" | "low", number[]> = {
+    top: [2, 3, 4, 5],          // evita #1 puro p/ parecer mais natural
+    mid: [6, 7, 8, 9, 10],
+    low: [11, 12, 13, 14, 15, 16, 17, 18],
+  };
+
+  // Share ideal por playlist (distribuição horizontal).
+  const idealShare = Math.min(dailyTarget / pool.length, HARD_CAP);
+
   const chosen: Slot[] = [];
   let remaining = dailyTarget;
 
-  for (const c of candidates) {
+  for (let i = 0; i < pool.length; i++) {
     if (remaining <= 0) break;
-    const slotsUsed = used.get(c.p.id) ?? 0;
-    if (slotsUsed >= maxSlotsPerPlaylist) continue;
-    const key = `${c.p.id}-${c.pos}`;
-    if (usedPos.has(key)) continue;
-    if (c.cap <= 0) continue;
+    const p = pool[i];
+    const dailyTotal = (p.followers * multiplier) / 30;
+    const maxPos = Math.max(p.tracks_count || 20, 18);
 
-    // Anti-concentração: nenhum slot pode contribuir mais que 25% do daily target restante inicial
-    const maxShare = Math.max(Math.round(dailyTarget * 0.25), 5000);
-    const take = Math.min(c.cap, remaining, maxShare);
-    if (take < 100) continue;
+    // Banda alvo (rotacionando) — fallback para outras se a banda não couber.
+    const bandOrder = [
+      BAND_ROTATION[i % BAND_ROTATION.length],
+      ...(["top", "mid", "low"] as const).filter(b => b !== BAND_ROTATION[i % BAND_ROTATION.length]),
+    ];
 
-    used.set(c.p.id, slotsUsed + 1);
-    usedPos.add(key);
+    let bestPos = -1;
+    let bestDelta = Infinity;
+    let bestBand: "top" | "mid" | "low" = "mid";
+    let bestCap = 0;
+
+    for (const band of bandOrder) {
+      for (const pos of RANGES[band]) {
+        if (pos > maxPos) continue;
+        const cap = Math.round(dailyTotal * posPct(pos));
+        if (cap < 50) continue;
+        const take = Math.min(cap, HARD_CAP, remaining);
+        // Queremos a posição cuja entrega fique mais perto do idealShare,
+        // sem ultrapassar HARD_CAP nem o restante.
+        const delta = Math.abs(take - idealShare);
+        if (delta < bestDelta) {
+          bestDelta = delta;
+          bestPos = pos;
+          bestBand = band;
+          bestCap = take;
+        }
+      }
+      // Se já achou na banda preferida com share ≥ 50% do ideal, fica nela.
+      if (bestPos !== -1 && bestCap >= idealShare * 0.5) break;
+    }
+
+    if (bestPos === -1 || bestCap <= 0) continue;
+
     chosen.push({
-      playlistId: c.p.id,
-      playlistName: c.p.name,
-      cover: c.p.cover_url,
-      position: c.pos,
-      playsDay: take,
-      playsMonth: take * 30,
-      band: c.pos <= 5 ? "top" : c.pos <= 10 ? "mid" : "low",
+      playlistId: p.id,
+      playlistName: p.name,
+      cover: p.cover_url,
+      position: bestPos,
+      playsDay: bestCap,
+      playsMonth: bestCap * 30,
+      band: bestBand,
     });
-    remaining -= take;
+    remaining -= bestCap;
   }
 
   return chosen;
@@ -156,7 +176,7 @@ export function PlanejadorMeta() {
   const [days, setDays] = useState<number>(30);
   const [genreId, setGenreId] = useState<string>("");
   const [profile, setProfile] = useState<typeof PROFILES[number]["id"]>("mercado");
-  const [maxSlots, setMaxSlots] = useState<number>(2);
+  
 
   useEffect(() => {
     (async () => {
@@ -197,9 +217,8 @@ export function PlanejadorMeta() {
       dailyTarget,
       multiplier: profileObj.mult,
       days,
-      maxSlotsPerPlaylist: maxSlots,
     }),
-    [filtered, dailyTarget, profileObj.mult, days, maxSlots],
+    [filtered, dailyTarget, profileObj.mult, days],
   );
 
   const ind = useMemo(() => calcIndicators(slots, dailyTarget, filtered.length), [slots, dailyTarget, filtered.length]);
@@ -260,22 +279,8 @@ export function PlanejadorMeta() {
           </Field>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
-          <span>Máx. posições por playlist:</span>
-          {[1, 2, 3].map(n => (
-            <button
-              key={n}
-              onClick={() => setMaxSlots(n)}
-              className={cn(
-                "h-6 px-2.5 rounded-full border tabular-nums",
-                maxSlots === n
-                  ? "bg-primary/15 text-primary border-primary/40"
-                  : "bg-elevated border-border hover:border-foreground/25",
-              )}
-            >
-              {n}
-            </button>
-          ))}
+        <div className="text-[11px] text-muted-foreground">
+          Distribuição: 1 posição por playlist · máx. 20% da meta por playlist · espalha entre todas as playlists do nicho.
         </div>
       </div>
 
