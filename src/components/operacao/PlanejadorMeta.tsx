@@ -144,7 +144,7 @@ function calcIndicators(slots: Slot[], dailyTarget: number, totalPlaylists: numb
   if (coverage < 0.6 || concentration > 0.4 || saturation > 0.85) risk = "alto";
   else if (coverage < 0.85 || concentration > 0.25 || saturation > 0.6) risk = "medio";
 
-  return { delivered, coverage, concentration, naturalness, saturation, risk };
+  return { delivered, coverage, concentration, diversity, naturalness, saturation, risk };
 }
 
 export function PlanejadorMeta() {
