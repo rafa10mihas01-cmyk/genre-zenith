@@ -9,10 +9,10 @@ import { ResumoGenero } from "@/components/cerebro/ResumoGenero";
 type SubTab = "resumo" | "insights" | "base" | "visual";
 
 const SUBS: { id: SubTab; label: string; icon: typeof Database }[] = [
-  { id: "resumo", label: "Resumo", icon: LayoutDashboard },
-  { id: "insights", label: "Insights", icon: Lightbulb },
-  { id: "base", label: "Base de dados", icon: Database },
-  { id: "visual", label: "DNA visual", icon: Palette },
+  { id: "resumo", label: "Resumo do mercado", icon: LayoutDashboard },
+  { id: "insights", label: "O que aprendeu", icon: Lightbulb },
+  { id: "base", label: "Playlists usadas", icon: Database },
+  { id: "visual", label: "Capas do mercado", icon: Palette },
 ];
 
 /**
@@ -40,6 +40,17 @@ export function Analises({
 
   return (
     <div className="space-y-4">
+      <section className="nx-card p-5">
+        <div className="flex items-center gap-2 text-muted-foreground mb-2">
+          <Database className="h-4 w-4" />
+          <span className="text-[11px] uppercase tracking-[0.18em] font-bold">Base externa</span>
+        </div>
+        <h2 className="text-lg font-bold leading-tight">Dados de mercado usados como referência</h2>
+        <p className="text-sm text-muted-foreground mt-1.5 max-w-3xl leading-relaxed">
+          Esta área não é das suas playlists. Aqui ficam as playlists, faixas, termos e capas que o cérebro puxou do mercado para comparar e criar a base do gênero.
+        </p>
+      </section>
+
       <div className="flex items-center gap-1 border-b border-border overflow-x-auto nx-scroll">
         {SUBS.map((s) => {
           const Icon = s.icon;
