@@ -181,17 +181,31 @@ export function NotificationsBell() {
                 {unreadCount === 0 && <span>Tudo em dia</span>}
               </p>
             </div>
-            {unreadCount > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 text-xs gap-1.5"
-                onClick={() => markAllRead()}
-              >
-                <CheckCheck className="h-3.5 w-3.5" />
-                Marcar todas
-              </Button>
-            )}
+            <div className="flex items-center gap-1">
+              {pushAvail && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs gap-1.5"
+                  onClick={togglePush}
+                  title={pushOn ? "Desativar alertas do navegador" : "Ativar alertas do navegador"}
+                >
+                  {pushOn ? <BellRing className="h-3.5 w-3.5 text-primary" /> : <BellOff className="h-3.5 w-3.5" />}
+                  <span className="hidden sm:inline">{pushOn ? "Push on" : "Push off"}</span>
+                </Button>
+              )}
+              {unreadCount > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs gap-1.5"
+                  onClick={() => markAllRead()}
+                >
+                  <CheckCheck className="h-3.5 w-3.5" />
+                  Marcar todas
+                </Button>
+              )}
+            </div>
           </div>
           <div className="flex gap-1 overflow-x-auto -mx-1 px-1 scrollbar-none">
             <TabBtn id="all" label="Tudo" />
