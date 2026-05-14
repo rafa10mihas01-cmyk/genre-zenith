@@ -809,7 +809,7 @@ function DistributionTable({
                         {formatNumber(s.playsMonth)}
                       </td>
                     </tr>
-                  </>
+                  </React.Fragment>
                 );
               })}
             </tbody>
