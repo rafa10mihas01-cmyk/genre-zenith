@@ -281,6 +281,33 @@ export function MinhasPlaylists() {
   const inactive = scoreRows.filter(s => s.activity_score < 30).length;
   const topPerf = scoreRows.filter(s => s.health_score >= 70).length;
 
+  // ====== Match score: top oportunidades ======
+  // Score = headroom_pct * (confidence/100), penaliza sinais e capacidade desconhecida.
+  const opportunities = useMemo(() => {
+    return activeItems
+      .map((p) => {
+        const cId = p.canonical_playlist_id;
+        const b = cId ? brains[cId] : null;
+        if (!b || b.headroom_pct === null || b.headroom_pct === undefined) return null;
+        const sigCount = Array.isArray(b.signals) ? b.signals.length : 0;
+        const sigPenalty = Math.min(0.4, sigCount * 0.08);
+        const conf = (b.confidence_score ?? 50) / 100;
+        const matchScore = Math.max(
+          0,
+          Math.round(Number(b.headroom_pct) * conf * (1 - sigPenalty)),
+        );
+        return { pl: p, brain: b, matchScore, sigCount };
+      })
+      .filter(Boolean)
+      .sort((a, b) => (b!.matchScore - a!.matchScore))
+      .slice(0, 6) as Array<{
+      pl: ManagedPlaylist;
+      brain: BrainRow;
+      matchScore: number;
+      sigCount: number;
+    }>;
+  }, [activeItems, brains]);
+
   return (
     <section className="space-y-4">
       {/* KPI bar */}
