@@ -2,7 +2,7 @@ import { NavLink, useLocation } from "react-router-dom";
 import { Home, Brain, BarChart3, Settings, LogOut, ListMusic, Users, Handshake, Activity, LayoutDashboard, Server, Target, LineChart, Gauge, Sparkles } from "lucide-react";
 import { NexEngineLogo } from "@/components/NexEngineLogo";
 import {
-  Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
+  Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, SidebarFooter, useSidebar,
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/contexts/AuthContext";
