@@ -159,8 +159,19 @@ export function MinhasRecomendacoes({ genreId }: { genreId?: string }) {
           <Brain className="h-8 w-8 mx-auto text-muted-foreground mb-3" />
           <h3 className="font-bold">Nenhuma playlist sua ligada a este gênero</h3>
           <p className="text-sm text-muted-foreground mt-1 max-w-xl mx-auto">
-            O mercado pode existir aqui, mas a recomendação das suas playlists só aparece quando a playlist importada está marcada com este gênero.
+            O cérebro analisou o mercado deste gênero, mas não encontrou playlist do seu catálogo marcada nele.
+            Sem esse vínculo, ele não mistura recomendação sua com dado de fora.
           </p>
+          {otherGenreGroups.length > 0 && (
+            <div className="mt-4 flex items-center justify-center gap-2 flex-wrap">
+              <span className="text-xs text-muted-foreground">Suas playlists ativas estão em:</span>
+              {otherGenreGroups.map((g) => (
+                <span key={g.id} className="text-xs font-bold rounded-full border border-border bg-elevated px-3 py-1">
+                  {g.name} · {g.count}
+                </span>
+              ))}
+            </div>
+          )}
           <Button asChild className="mt-4" variant="outline">
             <Link to="/operacao">Abrir minhas playlists</Link>
           </Button>
