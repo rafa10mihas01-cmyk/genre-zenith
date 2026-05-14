@@ -252,7 +252,7 @@ function MiniStat({ icon: Icon, label, value, tone = "default" }: { icon: any; l
 }
 
 function TrendBadge({ trend }: { trend: string }) {
-  const label = trend === "crescendo" ? "crescendo" : trend === "encolhendo" ? "caindo" : trend === "estavel" ? "estável" : trend.replaceAll("_", " ");
+  const label = trend === "crescendo" ? "crescendo" : trend === "encolhendo" ? "caindo" : trend === "estavel" ? "estável" : trend.split("_").join(" ");
   return (
     <span className="text-[10px] px-2 py-0.5 rounded-full bg-elevated border border-border text-muted-foreground">
       {label}
