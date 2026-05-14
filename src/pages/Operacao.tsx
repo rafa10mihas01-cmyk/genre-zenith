@@ -98,7 +98,7 @@ export default function Operacao() {
     setLoading(true);
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
 
-    const [{ data: tpls }, { data: snaps }, { data: adjs }, { data: genres }, { data: accs }] = await Promise.all([
+    const [{ data: tpls }, { data: snaps }, { data: adjs }, { data: genres }, { data: accs }, { data: managed }] = await Promise.all([
       supabase
         .from("playlist_templates")
         .select("id,name,genre_id,status,spotify_playlist_id,spotify_url,created_on_spotify_at,followers_at_creation,tracks_added,performance_class,cover_image_url,cover_variations,cover_selected_index")
@@ -115,7 +115,14 @@ export default function Operacao() {
         .order("created_at", { ascending: false }),
       supabase.from("genres").select("id,nome"),
       supabase.from("accounts").select("status,current_playlists,max_playlists"),
+      supabase.from("managed_playlists").select("followers").is("archived_at", null),
     ]);
+
+    const managedRows = (managed ?? []) as Array<{ followers: number | null }>;
+    setManagedFollowers({
+      sum: managedRows.reduce((s, r) => s + (r.followers ?? 0), 0),
+      count: managedRows.length,
+    });
 
     // último snapshot por template
     const lastSnap = new Map<string, { followers: number; total_tracks: number | null }>();
