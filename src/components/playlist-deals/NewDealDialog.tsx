@@ -17,7 +17,10 @@ import {
   AlertTriangle,
   PlusCircle,
   Pencil,
+  Brain,
 } from "lucide-react";
+
+import { useCuratorBrainsByIds } from "@/hooks/useCuratorBrain";
 
 import {
   Dialog,
