@@ -369,6 +369,13 @@ export default function Operacao() {
           </section>
         )}
 
+        {/* SIMULADOR — estimativa teórica de entrega */}
+        {tab === "simulador" && (
+          <section key="tab-simulador" className="animate-tab-in">
+            <SimuladorEntrega />
+          </section>
+        )}
+
         {/* AJUSTES — manutenção do dia-a-dia */}
         {tab === "ajustes" && (
           <section key="tab-ajustes" className="space-y-4 animate-tab-in">
