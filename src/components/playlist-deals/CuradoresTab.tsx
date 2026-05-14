@@ -29,8 +29,8 @@ import type {
   NewCuratorInput,
 } from "@/hooks/useCuratorDeals";
 import { useUserRole } from "@/hooks/useUserRole";
-import { useCuratorBrainsByIds, useRecalcCuratorBrain } from "@/hooks/useCuratorBrain";
-import { Brain, RefreshCw } from "lucide-react";
+import { useCuratorBrain, useCuratorBrainsByIds, useRecalcCuratorBrain } from "@/hooks/useCuratorBrain";
+import { Brain, RefreshCw, Lightbulb, AlertCircle, CheckCircle2, Activity } from "lucide-react";
 import { formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
