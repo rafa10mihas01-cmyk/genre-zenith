@@ -511,6 +511,29 @@ export function MinhasPlaylists() {
               </SheetHeader>
 
               <div className="mt-6 space-y-4">
+                {/* Genre tagger */}
+                <div className="nx-card flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Gênero</div>
+                    <div className="text-sm font-medium truncate">
+                      {drawerPl.genre_id
+                        ? genres.find(g => g.id === drawerPl.genre_id)?.nome ?? "—"
+                        : <span className="text-warning">não definido</span>}
+                    </div>
+                  </div>
+                  <select
+                    value={drawerPl.genre_id ?? ""}
+                    disabled={savingGenre}
+                    onChange={(e) => setPlaylistGenre(drawerPl, e.target.value || null)}
+                    className="h-9 px-2 rounded-md bg-elevated border border-border text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                  >
+                    <option value="">— sem gênero —</option>
+                    {genres.map(g => (
+                      <option key={g.id} value={g.id}>{g.nome}</option>
+                    ))}
+                  </select>
+                </div>
+
                 <div className="flex flex-wrap gap-2">
                   <Button onClick={() => runDiagnosis(drawerPl)} disabled={diagLoading} className="gap-1.5">
                     <Sparkles className="h-4 w-4" />
