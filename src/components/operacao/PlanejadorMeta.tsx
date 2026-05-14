@@ -612,3 +612,255 @@ function WhyRow({ label, value, weight }: { label: string; value: string; weight
     </div>
   );
 }
+
+function DistributionTable({
+  loading, slots, filteredCount, dailyTarget, delivered, coverage,
+}: {
+  loading: boolean;
+  slots: Slot[];
+  filteredCount: number;
+  dailyTarget: number;
+  delivered: number;
+  coverage: number;
+}) {
+  const [query, setQuery] = useState("");
+  const [grouped, setGrouped] = useState(true);
+
+  const sorted = useMemo(
+    () => [...slots].sort((a, b) => b.playsDay - a.playsDay),
+    [slots],
+  );
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return sorted;
+    return sorted.filter(s => s.playlistName.toLowerCase().includes(q));
+  }, [sorted, query]);
+
+  const ordered = useMemo(() => {
+    if (!grouped) return filtered;
+    const order = { top: 0, mid: 1, low: 2 } as const;
+    return [...filtered].sort((a, b) => order[a.band] - order[b.band] || b.playsDay - a.playsDay);
+  }, [filtered, grouped]);
+
+  const maxPlays = sorted[0]?.playsDay ?? 1;
+
+  // Totais por faixa para mini sumário
+  const bandTotals = useMemo(() => {
+    const t = { top: 0, mid: 0, low: 0 };
+    slots.forEach(s => { t[s.band] += s.playsDay; });
+    return t;
+  }, [slots]);
+  const bandCounts = useMemo(() => {
+    const c = { top: 0, mid: 0, low: 0 };
+    slots.forEach(s => { c[s.band] += 1; });
+    return c;
+  }, [slots]);
+
+  return (
+    <div className="nx-card !p-0 overflow-hidden">
+      {/* Header */}
+      <div className="p-4 sm:p-5 space-y-3 border-b border-border">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-semibold">Distribuição automática sugerida</h3>
+          </div>
+          <div className="text-[11px] text-muted-foreground tabular-nums">
+            {slots.length} alocações · {filteredCount} playlists no nicho
+          </div>
+        </div>
+
+        {/* Mini sumário por faixa */}
+        <div className="grid grid-cols-3 gap-2">
+          <BandSummary tone="top" label="Topo" count={bandCounts.top} plays={bandTotals.top} delivered={delivered} />
+          <BandSummary tone="mid" label="Meio" count={bandCounts.mid} plays={bandTotals.mid} delivered={delivered} />
+          <BandSummary tone="low" label="Cauda" count={bandCounts.low} plays={bandTotals.low} delivered={delivered} />
+        </div>
+
+        {/* Toolbar: busca + agrupar */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="relative flex-1 min-w-[180px]">
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Filtrar playlists..."
+              className="h-8 bg-elevated border-border rounded-full text-xs pl-3"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => setGrouped(g => !g)}
+            className={cn(
+              "h-8 px-3 rounded-full text-[11px] font-medium border transition-colors",
+              grouped
+                ? "bg-primary/15 text-primary border-primary/40"
+                : "bg-elevated text-muted-foreground border-border hover:text-foreground",
+            )}
+          >
+            {grouped ? "Agrupado por faixa" : "Ordenar por plays"}
+          </button>
+        </div>
+      </div>
+
+      {/* Body */}
+      {loading ? (
+        <div className="p-4 space-y-2">
+          {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-11 rounded-lg" />)}
+        </div>
+      ) : ordered.length === 0 ? (
+        <div className="text-sm text-muted-foreground text-center py-8 flex flex-col items-center gap-2">
+          <AlertTriangle className="h-5 w-5 text-warning" />
+          {slots.length === 0
+            ? "Nenhuma distribuição possível com os parâmetros atuais."
+            : "Nenhuma playlist encontrada com esse filtro."}
+          {filteredCount === 0 && <span className="text-xs">Nenhuma playlist neste nicho.</span>}
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs border-separate border-spacing-0">
+            <thead className="bg-elevated/40">
+              <tr className="text-muted-foreground">
+                <th className="text-left font-medium py-2.5 px-3 w-10 border-b border-border">#</th>
+                <th className="text-left font-medium py-2.5 px-3 border-b border-border">Playlist</th>
+                <th className="text-left font-medium py-2.5 px-3 w-16 border-b border-border">Pos.</th>
+                <th className="text-left font-medium py-2.5 px-3 border-b border-border min-w-[160px]">Participação</th>
+                <th className="text-right font-medium py-2.5 px-3 w-24 border-b border-border">Plays/dia</th>
+                <th className="text-right font-medium py-2.5 px-3 w-24 border-b border-border hidden sm:table-cell">Plays/mês</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ordered.map((s, i) => {
+                const prev = ordered[i - 1];
+                const showBandHeader = grouped && (!prev || prev.band !== s.band);
+                const sharePct = dailyTarget ? (s.playsDay / dailyTarget) * 100 : 0;
+                const widthPct = Math.max(2, (s.playsDay / maxPlays) * 100);
+                const barColor =
+                  s.band === "top" ? "bg-primary" :
+                  s.band === "mid" ? "bg-warning" :
+                  "bg-muted-foreground/40";
+                return (
+                  <>
+                    {showBandHeader && (
+                      <tr key={`hd-${s.band}`} className="bg-elevated/60">
+                        <td colSpan={6} className="py-1.5 px-3 text-[10px] uppercase tracking-[0.15em] font-semibold text-muted-foreground border-b border-border">
+                          <span className="inline-flex items-center gap-1.5">
+                            <span className={cn(
+                              "w-1.5 h-1.5 rounded-full",
+                              s.band === "top" && "bg-primary",
+                              s.band === "mid" && "bg-warning",
+                              s.band === "low" && "bg-muted-foreground/50",
+                            )} />
+                            {s.band === "top" ? "Topo · #1–#5" : s.band === "mid" ? "Meio · #6–#10" : "Cauda · #11+"}
+                            <span className="text-muted-foreground/70 normal-case tracking-normal font-normal ml-1">
+                              ({bandCounts[s.band]} playlist{bandCounts[s.band] !== 1 ? "s" : ""})
+                            </span>
+                          </span>
+                        </td>
+                      </tr>
+                    )}
+                    <tr
+                      key={`${s.playlistId}-${s.position}-${i}`}
+                      className={cn(
+                        "transition-colors hover:bg-elevated/60 group",
+                        i % 2 === 1 && "bg-elevated/20",
+                      )}
+                    >
+                      <td className="py-2.5 px-3 tabular-nums text-muted-foreground border-b border-border/30">
+                        {i + 1}
+                      </td>
+                      <td className="py-2.5 px-3 border-b border-border/30">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-8 h-8 rounded-md bg-elevated border border-border overflow-hidden shrink-0">
+                            {s.cover ? (
+                              <img src={s.cover} alt="" className="w-full h-full object-cover" loading="lazy" />
+                            ) : (
+                              <div className="w-full h-full grid place-items-center text-muted-foreground">
+                                <ListMusic className="h-3.5 w-3.5" />
+                              </div>
+                            )}
+                          </div>
+                          <span className="truncate font-medium" title={s.playlistName}>{s.playlistName}</span>
+                        </div>
+                      </td>
+                      <td className="py-2.5 px-3 border-b border-border/30">
+                        <span className={cn(
+                          "inline-flex items-center justify-center min-w-[36px] h-5 px-1.5 rounded text-[10px] font-semibold tabular-nums border",
+                          s.band === "top" && "bg-primary/15 text-primary border-primary/40",
+                          s.band === "mid" && "bg-warning/10 text-warning border-warning/30",
+                          s.band === "low" && "bg-muted text-muted-foreground border-border",
+                        )}>
+                          #{s.position}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 border-b border-border/30">
+                        <div className="flex items-center gap-2 min-w-[140px]">
+                          <div className="flex-1 h-1.5 bg-elevated rounded-full overflow-hidden">
+                            <div className={cn("h-full rounded-full transition-all", barColor)} style={{ width: `${widthPct}%` }} />
+                          </div>
+                          <span className="tabular-nums text-[11px] text-muted-foreground w-10 text-right">
+                            {sharePct.toFixed(1)}%
+                          </span>
+                        </div>
+                      </td>
+                      <td className="py-2.5 px-3 tabular-nums text-right font-semibold border-b border-border/30">
+                        {formatNumber(s.playsDay)}
+                      </td>
+                      <td className="py-2.5 px-3 tabular-nums text-right text-muted-foreground border-b border-border/30 hidden sm:table-cell">
+                        {formatNumber(s.playsMonth)}
+                      </td>
+                    </tr>
+                  </>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              <tr className="font-semibold bg-elevated/40">
+                <td colSpan={3} className="py-2.5 px-3 text-muted-foreground text-[11px] uppercase tracking-[0.15em]">
+                  Total simulado
+                </td>
+                <td className="py-2.5 px-3 text-right text-muted-foreground tabular-nums">
+                  {dailyTarget ? Math.round(coverage * 100) : 0}% da meta
+                </td>
+                <td className="py-2.5 px-3 tabular-nums text-right">{formatNumber(delivered)}</td>
+                <td className="py-2.5 px-3 tabular-nums text-right text-muted-foreground hidden sm:table-cell">
+                  {formatNumber(delivered * 30)}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BandSummary({ tone, label, count, plays, delivered }: {
+  tone: "top" | "mid" | "low"; label: string; count: number; plays: number; delivered: number;
+}) {
+  const pct = delivered > 0 ? Math.round((plays / delivered) * 100) : 0;
+  return (
+    <div className={cn(
+      "rounded-lg border bg-elevated/40 px-3 py-2 space-y-1",
+      tone === "top" && "border-primary/30",
+      tone === "mid" && "border-warning/30",
+      tone === "low" && "border-border",
+    )}>
+      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-semibold">
+        <span className={cn(
+          "w-1.5 h-1.5 rounded-full",
+          tone === "top" && "bg-primary",
+          tone === "mid" && "bg-warning",
+          tone === "low" && "bg-muted-foreground/50",
+        )} />
+        {label}
+      </div>
+      <div className="flex items-baseline gap-1.5">
+        <span className="text-base font-semibold tabular-nums">{count}</span>
+        <span className="text-[10px] text-muted-foreground">{count === 1 ? "playlist" : "playlists"}</span>
+      </div>
+      <div className="text-[10px] text-muted-foreground tabular-nums">
+        {formatNumber(plays)}/dia · {pct}%
+      </div>
+    </div>
+  );
+}
