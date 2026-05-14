@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Bell, AlertTriangle, AlertCircle, Info, CheckCheck, BellRing, BellOff } from "lucide-react";
+import { Bell, AlertTriangle, AlertCircle, Info, CheckCheck, BellRing, BellOff, Settings2 } from "lucide-react";
+import { AlertPreferencesDialog } from "@/components/AlertPreferencesDialog";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
