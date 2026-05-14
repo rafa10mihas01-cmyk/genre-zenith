@@ -19,6 +19,7 @@ import { OperationalHealthCard } from "@/components/home/OperationalHealthCard";
 import { WeeklySummaryCard } from "@/components/home/WeeklySummaryCard";
 import { DealsPendingCard } from "@/components/home/DealsPendingCard";
 import { BrainFreshnessCard } from "@/components/home/BrainFreshnessCard";
+import { ProactiveAlertsCard } from "@/components/home/ProactiveAlertsCard";
 
 /**
  * COCKPIT — foco em decisão, não em pipeline.
