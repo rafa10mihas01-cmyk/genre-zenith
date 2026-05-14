@@ -228,8 +228,10 @@ export default function Operacao() {
     const queda = playlistsAll.filter(p => p.status === "queda").length;
     const crescendo = playlistsAll.filter(p => p.status === "crescimento").length;
     const autoFollowers = playlistsAll.reduce((s, p) => s + (p.seguidores ?? 0), 0);
-    const totalFollowers = autoFollowers + managedFollowers.sum;
-    const totalPlaylists = playlistsAll.length + managedFollowers.count;
+    // Salvamentos totais conta só playlists IMPORTADAS (catálogo do usuário).
+    // Templates auto-criados pelo NexEngine ainda têm ~0 seguidores e diluem o número.
+    const totalFollowers = managedFollowers.sum;
+    const totalPlaylists = managedFollowers.count;
     return {
       total: playlistsAll.length,
       crescendo,
