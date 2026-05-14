@@ -66,6 +66,25 @@ Deno.serve(async (req) => {
     }
 
     const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+    const now = new Date().toISOString();
+    const { data: canonical, error: canonicalError } = await supabase
+      .from("playlists")
+      .upsert({
+        spotify_playlist_id: playlistId,
+        name,
+        ownership: "own",
+        account_id: null,
+        source: "managed",
+        followers,
+        cover_url,
+        genre_id: genreId,
+        monitored: true,
+        last_seen_at: now,
+      }, { onConflict: "spotify_playlist_id" })
+      .select("id")
+      .single();
+    if (canonicalError) return jr({ ok: false, error: canonicalError.message }, 500);
+
     const { data, error } = await supabase
       .from("managed_playlists")
       .upsert({
@@ -77,7 +96,8 @@ Deno.serve(async (req) => {
         tracks_count,
         description,
         genre_id: genreId,
-        last_metrics_at: new Date().toISOString(),
+        canonical_playlist_id: canonical.id,
+        last_metrics_at: now,
         imported_by: guard.via === "user" ? guard.userId : null,
         metadata: { source: "import-managed-playlist" },
       }, { onConflict: "spotify_playlist_id" })
