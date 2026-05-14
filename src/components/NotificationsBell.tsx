@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { Bell, AlertTriangle, AlertCircle, Info, CheckCheck } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Bell, AlertTriangle, AlertCircle, Info, CheckCheck, BellRing, BellOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -15,6 +15,8 @@ import {
 import { timeAgo } from "@/lib/format";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { enablePush, disablePush, pushEnabled, pushSupport } from "@/lib/browserPush";
+import { toast } from "sonner";
 
 type Tab = "all" | "critical" | "bot" | "curator" | "system";
 
@@ -61,7 +63,31 @@ export function NotificationsBell() {
   const { items, unreadCount, markRead, markAllRead } = useNotifications();
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<Tab>("all");
+  const [pushOn, setPushOn] = useState(false);
+  const [pushAvail, setPushAvail] = useState(true);
   const nav = useNavigate();
+
+  useEffect(() => {
+    setPushOn(pushEnabled());
+    setPushAvail(pushSupport() !== "unsupported");
+  }, [open]);
+
+  const togglePush = async () => {
+    if (pushOn) {
+      disablePush();
+      setPushOn(false);
+      toast.success("Alertas do navegador desativados");
+    } else {
+      const ok = await enablePush();
+      setPushOn(ok);
+      if (ok) toast.success("Alertas do navegador ativados", {
+        description: "Você receberá críticos mesmo com a aba em background.",
+      });
+      else toast.error("Permissão negada", {
+        description: "Habilite notificações deste site nas configurações do navegador.",
+      });
+    }
+  };
 
   const { critical, warnings, infos } = useMemo(() => {
     let c = 0, w = 0, i = 0;
@@ -155,17 +181,31 @@ export function NotificationsBell() {
                 {unreadCount === 0 && <span>Tudo em dia</span>}
               </p>
             </div>
-            {unreadCount > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 text-xs gap-1.5"
-                onClick={() => markAllRead()}
-              >
-                <CheckCheck className="h-3.5 w-3.5" />
-                Marcar todas
-              </Button>
-            )}
+            <div className="flex items-center gap-1">
+              {pushAvail && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs gap-1.5"
+                  onClick={togglePush}
+                  title={pushOn ? "Desativar alertas do navegador" : "Ativar alertas do navegador"}
+                >
+                  {pushOn ? <BellRing className="h-3.5 w-3.5 text-primary" /> : <BellOff className="h-3.5 w-3.5" />}
+                  <span className="hidden sm:inline">{pushOn ? "Push on" : "Push off"}</span>
+                </Button>
+              )}
+              {unreadCount > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs gap-1.5"
+                  onClick={() => markAllRead()}
+                >
+                  <CheckCheck className="h-3.5 w-3.5" />
+                  Marcar todas
+                </Button>
+              )}
+            </div>
           </div>
           <div className="flex gap-1 overflow-x-auto -mx-1 px-1 scrollbar-none">
             <TabBtn id="all" label="Tudo" />
