@@ -53,10 +53,20 @@ type Valuation = {
   risk_level: string;
 };
 
+type BrainRow = {
+  playlist_id: string;
+  capacity_total: number | null;
+  capacity_ceiling: number | null;
+  headroom_pct: number | null;
+  confidence_score: number;
+  signals: any;
+};
+
 export function MinhasPlaylists() {
   const [items, setItems] = useState<ManagedPlaylist[]>([]);
   const [scores, setScores] = useState<Record<string, PlaylistScoreRow>>({});
   const [valuations, setValuations] = useState<Record<string, Valuation>>({});
+  const [brains, setBrains] = useState<Record<string, BrainRow>>({});
   const [recalcing, setRecalcing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showArchived, setShowArchived] = useState(false);
