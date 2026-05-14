@@ -266,41 +266,91 @@ function SimDetail({ playlist, onBack }: { playlist: SimPlaylist; onBack: () => 
       </div>
 
       <div className="nx-card space-y-3">
-        <div className="flex items-center gap-2">
-          <Calculator className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-semibold">Distribuição teórica por posição</h3>
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
+            <Calculator className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-semibold">Distribuição teórica por posição</h3>
+          </div>
+          <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-primary" /> Topo #1–#5
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-warning" /> Meio #6–#10
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-muted-foreground/50" /> Cauda #11+
+            </span>
+          </div>
         </div>
+
         <div className="overflow-x-auto -mx-1">
-          <table className="w-full text-xs">
+          <table className="w-full text-xs border-separate border-spacing-0">
             <thead>
-              <tr className="text-left text-muted-foreground border-b border-border">
-                <th className="py-2 px-2 w-16">Posição</th>
-                <th className="py-2 px-2">Faixa</th>
-                <th className="py-2 px-2 text-right">% tráfego</th>
-                <th className="py-2 px-2 text-right">Plays/dia</th>
-                <th className="py-2 px-2 text-right">Plays/mês</th>
+              <tr className="text-muted-foreground">
+                <th className="text-left font-medium py-2 px-3 w-20 border-b border-border">Posição</th>
+                <th className="text-left font-medium py-2 px-3 w-20 border-b border-border">Faixa</th>
+                <th className="text-left font-medium py-2 px-3 border-b border-border">Tráfego</th>
+                <th className="text-right font-medium py-2 px-3 w-24 border-b border-border">Plays/dia</th>
+                <th className="text-right font-medium py-2 px-3 w-24 border-b border-border">Plays/mês</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map(r => (
-                <tr key={r.position} className="border-b border-border/40">
-                  <td className="py-2 px-2 tabular-nums font-semibold">#{r.position}</td>
-                  <td className="py-2 px-2">
-                    <span className={cn(
-                      "inline-flex items-center px-1.5 h-5 rounded text-[10px] font-medium border",
-                      r.band === "top"      && "bg-primary/15 text-primary border-primary/40",
-                      r.band === "mid"      && "bg-warning/10 text-warning border-warning/30",
-                      r.band === "low"      && "bg-muted text-muted-foreground border-border",
-                      r.band === "residual" && "bg-muted/50 text-muted-foreground border-border",
-                    )}>
-                      {r.band === "top" ? "Topo" : r.band === "mid" ? "Meio" : r.band === "low" ? "Cauda" : "Residual"}
-                    </span>
-                  </td>
-                  <td className="py-2 px-2 tabular-nums text-right">{(r.pct * 100).toFixed(1)}%</td>
-                  <td className="py-2 px-2 tabular-nums text-right font-medium">{formatNumber(r.plays)}</td>
-                  <td className="py-2 px-2 tabular-nums text-right text-muted-foreground">{formatNumber(r.plays * 30)}</td>
-                </tr>
-              ))}
+              {rows.map((r, i) => {
+                const prev = rows[i - 1];
+                const bandChanged = !prev || prev.band !== r.band;
+                const barColor =
+                  r.band === "top" ? "bg-primary" :
+                  r.band === "mid" ? "bg-warning" :
+                  "bg-muted-foreground/40";
+                // Normaliza barra ao maior pct (posição #1 = 100%)
+                const maxPct = rows[0]?.pct ?? r.pct;
+                const widthPct = Math.max(2, (r.pct / maxPct) * 100);
+                return (
+                  <tr
+                    key={r.position}
+                    className={cn(
+                      "transition-colors hover:bg-elevated/60",
+                      i % 2 === 1 && "bg-elevated/30",
+                      bandChanged && i > 0 && "[&>td]:border-t-2 [&>td]:border-t-border",
+                    )}
+                  >
+                    <td className="py-2.5 px-3 tabular-nums font-semibold border-b border-border/30">
+                      #{r.position}
+                    </td>
+                    <td className="py-2.5 px-3 border-b border-border/30">
+                      <span className={cn(
+                        "inline-flex items-center px-1.5 h-5 rounded text-[10px] font-medium border",
+                        r.band === "top"      && "bg-primary/15 text-primary border-primary/40",
+                        r.band === "mid"      && "bg-warning/10 text-warning border-warning/30",
+                        r.band === "low"      && "bg-muted text-muted-foreground border-border",
+                        r.band === "residual" && "bg-muted/50 text-muted-foreground border-border",
+                      )}>
+                        {r.band === "top" ? "Topo" : r.band === "mid" ? "Meio" : r.band === "low" ? "Cauda" : "Residual"}
+                      </span>
+                    </td>
+                    <td className="py-2.5 px-3 border-b border-border/30">
+                      <div className="flex items-center gap-2 min-w-[140px]">
+                        <div className="flex-1 h-1.5 bg-elevated rounded-full overflow-hidden">
+                          <div
+                            className={cn("h-full rounded-full transition-all", barColor)}
+                            style={{ width: `${widthPct}%` }}
+                          />
+                        </div>
+                        <span className="tabular-nums text-[11px] text-muted-foreground w-10 text-right">
+                          {(r.pct * 100).toFixed(1)}%
+                        </span>
+                      </div>
+                    </td>
+                    <td className="py-2.5 px-3 tabular-nums text-right font-semibold border-b border-border/30">
+                      {formatNumber(r.plays)}
+                    </td>
+                    <td className="py-2.5 px-3 tabular-nums text-right text-muted-foreground border-b border-border/30">
+                      {formatNumber(r.plays * 30)}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
