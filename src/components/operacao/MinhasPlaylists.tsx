@@ -162,8 +162,42 @@ export function MinhasPlaylists() {
 
   useEffect(() => { load(); }, [load]);
 
+  const [genres, setGenres] = useState<{ id: string; nome: string }[]>([]);
+  const [filterMissingGenre, setFilterMissingGenre] = useState(false);
+  const [savingGenre, setSavingGenre] = useState(false);
+
+  useEffect(() => {
+    supabase.from("genres").select("id, nome").order("nome").then(({ data }) => {
+      setGenres((data ?? []) as any);
+    });
+  }, []);
+
+  async function setPlaylistGenre(pl: ManagedPlaylist, genreId: string | null) {
+    setSavingGenre(true);
+    const { error } = await supabase
+      .from("managed_playlists")
+      .update({ genre_id: genreId })
+      .eq("id", pl.id);
+    setSavingGenre(false);
+    if (error) {
+      toast({ title: "Erro ao salvar gênero", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Gênero atualizado", description: "Recalculando perfil vivo…" });
+    setItems((prev) => prev.map((x) => (x.id === pl.id ? { ...x, genre_id: genreId } : x)));
+    setDrawerPl((prev) => (prev && prev.id === pl.id ? { ...prev, genre_id: genreId } : prev));
+    if (pl.canonical_playlist_id) {
+      supabase.functions.invoke("playlist-brain-calc", {
+        body: { playlist_id: pl.canonical_playlist_id },
+      }).then(() => load());
+    }
+  }
+
+  const missingGenreCount = items.filter(i => !i.archived_at && !i.genre_id).length;
+
   const visible = items
     .filter((p) => (showArchived ? !!p.archived_at : !p.archived_at))
+    .filter((p) => (filterMissingGenre ? !p.genre_id : true))
     .slice()
     .sort((a, b) => {
       if (sortBy !== "valuation") return 0;
@@ -299,6 +333,15 @@ export function MinhasPlaylists() {
         >
           {sortBy === "valuation" ? "Ordem: valuation" : "Ordem: recente"}
         </Button>
+        {missingGenreCount > 0 && (
+          <Button
+            variant={filterMissingGenre ? "default" : "outline"}
+            onClick={() => setFilterMissingGenre(v => !v)}
+            className="gap-1.5"
+          >
+            <AlertCircle className="h-4 w-4" /> Sem gênero ({missingGenreCount})
+          </Button>
+        )}
         <div className="ml-auto flex items-center gap-1.5">
           <button
             onClick={() => setShowArchived(false)}
@@ -468,6 +511,29 @@ export function MinhasPlaylists() {
               </SheetHeader>
 
               <div className="mt-6 space-y-4">
+                {/* Genre tagger */}
+                <div className="nx-card flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Gênero</div>
+                    <div className="text-sm font-medium truncate">
+                      {drawerPl.genre_id
+                        ? genres.find(g => g.id === drawerPl.genre_id)?.nome ?? "—"
+                        : <span className="text-warning">não definido</span>}
+                    </div>
+                  </div>
+                  <select
+                    value={drawerPl.genre_id ?? ""}
+                    disabled={savingGenre}
+                    onChange={(e) => setPlaylistGenre(drawerPl, e.target.value || null)}
+                    className="h-9 px-2 rounded-md bg-elevated border border-border text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                  >
+                    <option value="">— sem gênero —</option>
+                    {genres.map(g => (
+                      <option key={g.id} value={g.id}>{g.nome}</option>
+                    ))}
+                  </select>
+                </div>
+
                 <div className="flex flex-wrap gap-2">
                   <Button onClick={() => runDiagnosis(drawerPl)} disabled={diagLoading} className="gap-1.5">
                     <Sparkles className="h-4 w-4" />
