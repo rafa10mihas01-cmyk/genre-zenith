@@ -73,14 +73,45 @@ Deno.serve(async (req) => {
           };
           if (meta.name && meta.name !== p.name) update.name = meta.name;
           if (meta.cover_url && meta.cover_url !== p.cover_url) update.cover_url = meta.cover_url;
+          let canonicalId = p.canonical_playlist_id;
+          if (!canonicalId) {
+            const { data: canonical, error: canonicalError } = await supabase
+              .from("playlists")
+              .upsert({
+                spotify_playlist_id: p.spotify_playlist_id,
+                name: meta.name ?? p.name,
+                ownership: "own",
+                source: "managed",
+                followers: meta.followers,
+                cover_url: meta.cover_url ?? p.cover_url,
+                monitored: true,
+                last_seen_at: new Date().toISOString(),
+              }, { onConflict: "spotify_playlist_id" })
+              .select("id")
+              .single();
+            if (canonicalError) throw new Error(canonicalError.message);
+            canonicalId = canonical.id;
+            update.canonical_playlist_id = canonicalId;
+          } else {
+            await supabase.from("playlists").update({
+              name: meta.name ?? p.name,
+              followers: meta.followers,
+              cover_url: meta.cover_url ?? p.cover_url,
+              ownership: "own",
+              source: "managed",
+              monitored: true,
+              last_seen_at: new Date().toISOString(),
+            }).eq("id", canonicalId);
+          }
+
           await supabase.from("managed_playlists").update(update).eq("id", p.id);
           synced++;
 
-          if (p.canonical_playlist_id) {
+          if (canonicalId) {
             const r = await fetch(`${SUPABASE_URL}/functions/v1/playlist-brain-calc`, {
               method: "POST",
               headers: { "Content-Type": "application/json", Authorization: `Bearer ${SERVICE_KEY}` },
-              body: JSON.stringify({ playlist_ids: [p.canonical_playlist_id] }),
+              body: JSON.stringify({ playlist_id: canonicalId }),
             });
             if (r.ok) recalculated++;
           }
