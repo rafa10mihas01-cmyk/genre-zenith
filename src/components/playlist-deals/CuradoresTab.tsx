@@ -29,6 +29,8 @@ import type {
   NewCuratorInput,
 } from "@/hooks/useCuratorDeals";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useCuratorBrainsByIds, useRecalcCuratorBrain } from "@/hooks/useCuratorBrain";
+import { Brain, RefreshCw } from "lucide-react";
 import { formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -286,6 +288,10 @@ export function CuradoresTab({
       });
   }, [curators, showArchived, balanceById]);
 
+  const curatorIds = useMemo(() => visibleCurators.map((c) => c.id), [visibleCurators]);
+  const { data: brainsMap = {} } = useCuratorBrainsByIds(curatorIds);
+  const recalcBrain = useRecalcCuratorBrain();
+
   const overbookedCount = useMemo(
     () => balances.filter((b) => b.overbooked_plays > 0 && !b.archived_at).length,
     [balances],
@@ -429,6 +435,27 @@ export function CuradoresTab({
                 const cdeals = (dealsByCurator.get(c.id) ?? []).filter((d) => !d.closed_at);
                 const isExpanded = expanded.has(c.id);
 
+                const brain = brainsMap[c.id] as
+                  | {
+                      trust_score: number;
+                      confidence_score: number;
+                      delivery_rate_pct: number | null;
+                      on_time_rate_pct: number | null;
+                      signals: Array<{ code: string; severity: string; message: string }>;
+                    }
+                  | undefined;
+                const trust = brain?.trust_score ?? null;
+                const sigCount = brain?.signals?.length ?? 0;
+                const highSigs = brain?.signals?.filter((s) => s.severity === "high").length ?? 0;
+                const trustTone =
+                  trust === null
+                    ? "muted"
+                    : trust >= 75
+                    ? "success"
+                    : trust >= 50
+                    ? "primary"
+                    : "destructive";
+
                 return (
                   <article
                     key={c.id}
@@ -507,7 +534,66 @@ export function CuradoresTab({
                         </div>
                       </div>
 
-                      {/* KPIs — números grandes (mesma estrutura do CuratorDealCard) */}
+                      {/* Trust badge (curator brain) */}
+                      <div
+                        className={cn(
+                          "flex items-center justify-between gap-2 rounded-xl px-3 py-2 border",
+                          trustTone === "success" && "bg-success/10 border-success/30",
+                          trustTone === "primary" && "bg-primary/10 border-primary/30",
+                          trustTone === "destructive" && "bg-destructive/10 border-destructive/30",
+                          trustTone === "muted" && "bg-muted/30 border-border/40",
+                        )}
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Brain
+                            className={cn(
+                              "h-4 w-4 shrink-0",
+                              trustTone === "success" && "text-success",
+                              trustTone === "primary" && "text-primary",
+                              trustTone === "destructive" && "text-destructive",
+                              trustTone === "muted" && "text-muted-foreground",
+                            )}
+                          />
+                          <div className="min-w-0">
+                            <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-semibold leading-none">
+                              Trust score
+                            </div>
+                            <div className="flex items-baseline gap-1.5 mt-1">
+                              <span className="text-[16px] font-bold tabular-nums leading-none">
+                                {trust !== null ? `${trust}` : "—"}
+                                {trust !== null && (
+                                  <span className="text-[10px] text-muted-foreground font-medium">/100</span>
+                                )}
+                              </span>
+                              {sigCount > 0 && (
+                                <span
+                                  className={cn(
+                                    "text-[10px] font-semibold tabular-nums",
+                                    highSigs > 0 ? "text-destructive" : "text-muted-foreground",
+                                  )}
+                                >
+                                  · {sigCount} sinal{sigCount > 1 ? "is" : ""}
+                                  {highSigs > 0 ? ` (${highSigs} alto)` : ""}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 shrink-0"
+                          onClick={() => recalcBrain.mutate(c.id)}
+                          disabled={recalcBrain.isPending}
+                          title="Recalcular cérebro"
+                        >
+                          <RefreshCw
+                            className={cn("h-3 w-3", recalcBrain.isPending && "animate-spin")}
+                          />
+                        </Button>
+                      </div>
+
+
                       <div className="grid grid-cols-2 divide-x divide-border/50 rounded-xl bg-[hsl(var(--elevated))] border border-border/40">
                         <div className="px-4 py-3">
                           <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-1.5">
