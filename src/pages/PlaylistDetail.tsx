@@ -376,6 +376,8 @@ export default function PlaylistDetail() {
           </div>
         </Card>
       )}
+        </>
+      )}
     </PageContainer>
   );
 }
