@@ -771,6 +771,74 @@ export function MinhasPlaylists() {
           )}
         </SheetContent>
       </Sheet>
+
+      {/* Diário de sincronização */}
+      <Sheet open={logOpen} onOpenChange={setLogOpen}>
+        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <History className="h-4 w-4" /> Diário de sincronização
+            </SheetTitle>
+            <SheetDescription>
+              Histórico das últimas execuções (cron diário às 06:00 UTC + manuais).
+            </SheetDescription>
+          </SheetHeader>
+          <div className="mt-4 space-y-2">
+            {logsLoading ? (
+              <div className="text-sm text-muted-foreground">Carregando…</div>
+            ) : logs.length === 0 ? (
+              <div className="nx-card text-sm text-muted-foreground text-center py-6">
+                Nenhuma execução registrada ainda.
+              </div>
+            ) : (
+              logs.map((l) => {
+                const errs = Array.isArray(l.errors) ? l.errors : [];
+                const ok = l.failed === 0 && errs.length === 0;
+                return (
+                  <div key={l.id} className="nx-card !p-3 space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        {ok ? (
+                          <CheckCircle2 className="h-4 w-4 text-success" />
+                        ) : (
+                          <XCircle className="h-4 w-4 text-destructive" />
+                        )}
+                        <span className="text-[11px] uppercase tracking-wider font-semibold">
+                          {l.source}
+                        </span>
+                      </div>
+                      <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {timeAgo(l.created_at)}
+                      </span>
+                    </div>
+                    <div className="text-[12px] tabular-nums flex flex-wrap gap-x-3 gap-y-0.5">
+                      <span><b className="text-foreground">{l.synced}</b> <span className="text-muted-foreground">sincronizadas</span></span>
+                      <span><b className="text-foreground">{l.recalculated}</b> <span className="text-muted-foreground">scores</span></span>
+                      {l.failed > 0 && (
+                        <span className="text-destructive"><b>{l.failed}</b> falharam</span>
+                      )}
+                      {l.duration_ms != null && (
+                        <span className="text-muted-foreground ml-auto">{(l.duration_ms / 1000).toFixed(1)}s</span>
+                      )}
+                    </div>
+                    {errs.length > 0 && (
+                      <div className="text-[11px] text-destructive/80 space-y-0.5 pt-1 border-t border-border/40">
+                        {errs.slice(0, 3).map((e: string, i: number) => (
+                          <div key={i} className="truncate">· {e}</div>
+                        ))}
+                        {errs.length > 3 && (
+                          <div className="text-muted-foreground">+ {errs.length - 3} outros</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
     </section>
   );
 }
