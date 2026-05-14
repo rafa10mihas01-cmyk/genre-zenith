@@ -536,9 +536,11 @@ export function CuradoresTab({
                       </div>
 
                       {/* Trust badge (curator brain) */}
-                      <div
+                      <button
+                        type="button"
+                        onClick={() => setBrainTarget(c)}
                         className={cn(
-                          "flex items-center justify-between gap-2 rounded-xl px-3 py-2 border",
+                          "flex items-center justify-between gap-2 rounded-xl px-3 py-2 border text-left transition-colors hover:brightness-110",
                           trustTone === "success" && "bg-success/10 border-success/30",
                           trustTone === "primary" && "bg-primary/10 border-primary/30",
                           trustTone === "destructive" && "bg-destructive/10 border-destructive/30",
