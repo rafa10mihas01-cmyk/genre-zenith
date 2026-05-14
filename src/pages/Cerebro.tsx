@@ -109,6 +109,7 @@ export default function Cerebro() {
   // analyze-genre → briefing → blueprints → templates → covers.
   // Antes chamava brain-run (só análise) e gerava autopilot_runs "success" zeradas.
   const { isRunning: autopilotRunning, start: startAutopilot } = useAutopilot(genre?.id);
+  const visibleTab = tab === "decisoes" ? "minhas" : tab === "analises" ? "mercado" : tab;
 
   const handleChangeGenre = (s: string) => {
     setActiveSlug(s);
@@ -174,7 +175,7 @@ export default function Cerebro() {
       )}
 
       {/* TABS — separa o que é nosso, o que é mercado e o que é produção */}
-      <Tabs value={tab} onValueChange={setTab} className="space-y-5">
+      <Tabs value={visibleTab} onValueChange={setTab} className="space-y-5">
         <div className="sticky top-0 z-30 bg-background/95 supports-[backdrop-filter]:bg-background/80 backdrop-blur-md border-b border-border">
           <TabsList className="nx-tab-rail bg-transparent p-0 h-auto gap-4 sm:gap-6 rounded-none justify-start flex-nowrap">
             {[
@@ -193,9 +194,6 @@ export default function Cerebro() {
           </TabsList>
         </div>
 
-        <TabsContent value="decisoes" className="mt-0">
-          <MinhasRecomendacoes genreId={genre?.id} />
-        </TabsContent>
         <TabsContent value="minhas" className="mt-0">
           <MinhasRecomendacoes genreId={genre?.id} />
         </TabsContent>
@@ -215,17 +213,6 @@ export default function Cerebro() {
             onRegenerate={async () => { try { await regenerate(); toast.success("Briefing regenerado"); } catch (e: any) { toast.error(e?.message); } }}
             onAnalyzeDna={async () => { try { await analyzeVisualDna(); toast.success("DNA visual atualizado"); } catch (e: any) { toast.error(e?.message); } }}
             generating={generating}
-            analyzingDna={analyzingDna}
-          />
-        </TabsContent>
-        <TabsContent value="analises" className="mt-0">
-          <Analises
-            model={model}
-            loading={loadingModel}
-            briefing={briefing}
-            loadingBriefing={loadingBriefing}
-            onReload={reloadModel}
-            onAnalyzeDna={analyzeVisualDna}
             analyzingDna={analyzingDna}
           />
         </TabsContent>
