@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,7 +15,7 @@ import { cn } from "@/lib/utils";
 import { formatNumber, timeAgo } from "@/lib/format";
 import {
   Plus, RefreshCw, ExternalLink, Music2, Sparkles, Archive, ArchiveRestore,
-  ListMusic, AlertCircle, Activity,
+  ListMusic, AlertCircle, Activity, Brain, ArrowUpRight,
 } from "lucide-react";
 import { PlaylistScoreBadge, type PlaylistScoreRow } from "./PlaylistScoreBadge";
 
@@ -52,10 +53,20 @@ type Valuation = {
   risk_level: string;
 };
 
+type BrainRow = {
+  playlist_id: string;
+  capacity_total: number | null;
+  capacity_ceiling: number | null;
+  headroom_pct: number | null;
+  confidence_score: number;
+  signals: any;
+};
+
 export function MinhasPlaylists() {
   const [items, setItems] = useState<ManagedPlaylist[]>([]);
   const [scores, setScores] = useState<Record<string, PlaylistScoreRow>>({});
   const [valuations, setValuations] = useState<Record<string, Valuation>>({});
+  const [brains, setBrains] = useState<Record<string, BrainRow>>({});
   const [recalcing, setRecalcing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showArchived, setShowArchived] = useState(false);
@@ -107,6 +118,17 @@ export function MinhasPlaylists() {
     setValuations(map);
   }, []);
 
+  const loadBrains = useCallback(async (canonicalIds: string[]) => {
+    if (!canonicalIds.length) { setBrains({}); return; }
+    const { data } = await supabase
+      .from("playlist_brain")
+      .select("playlist_id, capacity_total, capacity_ceiling, headroom_pct, confidence_score, signals")
+      .in("playlist_id", canonicalIds);
+    const map: Record<string, BrainRow> = {};
+    (data ?? []).forEach((r: any) => { map[r.playlist_id] = r; });
+    setBrains(map);
+  }, []);
+
   const load = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase
@@ -119,8 +141,9 @@ export function MinhasPlaylists() {
     setLoading(false);
     const canonicals = list.map(i => i.canonical_playlist_id).filter(Boolean) as string[];
     loadScores(canonicals);
+    loadBrains(canonicals);
     loadValuations(list.map(i => i.spotify_playlist_id).filter(Boolean));
-  }, [loadScores, loadValuations]);
+  }, [loadScores, loadValuations, loadBrains]);
 
   async function handleRecalc() {
     setRecalcing(true);
@@ -375,6 +398,28 @@ export function MinhasPlaylists() {
                   <span><span className="font-semibold text-foreground">{formatNumber(p.followers)}</span> seg.</span>
                   <span><span className="font-semibold text-foreground">{p.tracks_count || "—"}</span> fx</span>
                 </div>
+                {(() => {
+                  const b = p.canonical_playlist_id ? brains[p.canonical_playlist_id] : null;
+                  if (!b) return null;
+                  const sigCount = Array.isArray(b.signals) ? b.signals.length : 0;
+                  const headroom = b.headroom_pct;
+                  return (
+                    <Link
+                      to={`/playlists/${p.canonical_playlist_id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="mt-1 -mx-2.5 -mb-2.5 px-2.5 py-1.5 border-t border-border bg-elevated/50 hover:bg-elevated text-[10px] flex items-center justify-between text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <span className="inline-flex items-center gap-1">
+                        <Brain className="h-3 w-3 text-primary/70" />
+                        {headroom !== null
+                          ? <>headroom <span className="font-semibold text-foreground tabular-nums">{headroom}%</span></>
+                          : <>perfil vivo</>}
+                        {sigCount > 0 && <span className="ml-1">· {sigCount} sinais</span>}
+                      </span>
+                      <ArrowUpRight className="h-3 w-3" />
+                    </Link>
+                  );
+                })()}
               </div>
             </button>
           ))}
@@ -428,6 +473,13 @@ export function MinhasPlaylists() {
                     <Sparkles className="h-4 w-4" />
                     {diagLoading ? "Analisando..." : diagnosis ? "Rodar novo diagnóstico" : "Diagnosticar agora"}
                   </Button>
+                  {drawerPl.canonical_playlist_id && (
+                    <Button variant="outline" asChild className="gap-1.5">
+                      <Link to={`/playlists/${drawerPl.canonical_playlist_id}`}>
+                        <Brain className="h-4 w-4" /> Perfil vivo
+                      </Link>
+                    </Button>
+                  )}
                   <Button variant="outline" asChild>
                     <a href={drawerPl.spotify_url} target="_blank" rel="noreferrer" className="gap-1.5">
                       <ExternalLink className="h-4 w-4" /> Abrir no Spotify
