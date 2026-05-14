@@ -194,45 +194,45 @@ function PlaylistRecommendationCard({ playlist, brain }: { playlist: ManagedPlay
   const detailUrl = playlist.canonical_playlist_id ? `/playlists/${playlist.canonical_playlist_id}` : "/operacao";
 
   return (
-    <article className={cn("nx-card p-4", hasActions ? "border-primary/35" : "")}> 
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+    <article className={cn("nx-card p-3 sm:p-4", hasActions ? "border-primary/35" : "")}>
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="flex items-start gap-3 min-w-0 flex-1">
           {playlist.cover_url ? (
-            <img src={playlist.cover_url} alt="" className="h-16 w-16 rounded-lg object-cover border border-border shrink-0" loading="lazy" />
+            <img src={playlist.cover_url} alt="" className="h-12 w-12 sm:h-16 sm:w-16 rounded-lg object-cover border border-border shrink-0" loading="lazy" />
           ) : (
-            <div className="h-16 w-16 rounded-lg border border-border bg-elevated grid place-items-center shrink-0">
+            <div className="h-12 w-12 sm:h-16 sm:w-16 rounded-lg border border-border bg-elevated grid place-items-center shrink-0">
               <Music2 className="h-5 w-5 text-muted-foreground" />
             </div>
           )}
 
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 flex-wrap mb-1">
-              <span className="text-[10px] uppercase tracking-[0.16em] font-bold text-primary">Minha playlist</span>
+            <div className="flex items-center gap-1.5 flex-wrap mb-1">
+              <span className="text-[10px] uppercase tracking-[0.14em] font-bold text-primary">Minha playlist</span>
               {brain?.health_trend && <TrendBadge trend={brain.health_trend} />}
               {typeof brain?.confidence_score === "number" && (
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-elevated border border-border text-muted-foreground">
-                  confiança {brain.confidence_score}%
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-elevated border border-border text-muted-foreground">
+                  conf. {brain.confidence_score}%
                 </span>
               )}
             </div>
 
-            <h3 className="text-base font-bold leading-tight truncate">{playlist.name}</h3>
-            <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1 tabular-nums flex-wrap">
+            <h3 className="text-sm sm:text-base font-bold leading-tight truncate">{playlist.name}</h3>
+            <div className="flex items-center gap-x-2.5 gap-y-0.5 text-[11px] sm:text-xs text-muted-foreground mt-1 tabular-nums flex-wrap">
               <span className="inline-flex items-center gap-1"><Users className="h-3 w-3" />{formatNumber(playlist.followers)}</span>
               <span className="inline-flex items-center gap-1"><Music2 className="h-3 w-3" />{formatNumber(playlist.tracks_count)} faixas</span>
-              <span>{brain?.last_calculated_at ? `cérebro ${timeAgo(brain.last_calculated_at)}` : "sem cálculo do cérebro"}</span>
+              <span className="truncate">{brain?.last_calculated_at ? `cérebro ${timeAgo(brain.last_calculated_at)}` : "sem cálculo"}</span>
             </div>
 
             <div className="mt-3 space-y-2">
               {hasActions ? (
                 recommendations.slice(0, 3).map((rec, index) => (
-                  <div key={`${rec.action}-${index}`} className="flex gap-2 text-sm leading-relaxed">
-                    <span className="mt-0.5 h-5 min-w-5 rounded-full bg-primary/15 text-primary text-[11px] font-bold grid place-items-center">
+                  <div key={`${rec.action}-${index}`} className="flex gap-2 text-[13px] sm:text-sm leading-snug">
+                    <span className="mt-0.5 h-5 min-w-5 rounded-full bg-primary/15 text-primary text-[11px] font-bold grid place-items-center shrink-0">
                       {rec.priority ?? index + 1}
                     </span>
                     <div className="min-w-0">
                       <div className="font-medium text-foreground/90">{rec.action}</div>
-                      {rec.reason && <div className="text-xs text-muted-foreground">{rec.reason}</div>}
+                      {rec.reason && <div className="text-[11px] sm:text-xs text-muted-foreground leading-snug">{rec.reason}</div>}
                     </div>
                   </div>
                 ))
@@ -251,7 +251,7 @@ function PlaylistRecommendationCard({ playlist, brain }: { playlist: ManagedPlay
           </div>
         </div>
 
-        <div className="flex lg:flex-col gap-2 lg:items-end shrink-0">
+        <div className="flex items-center justify-between gap-2 lg:flex-col lg:items-end lg:shrink-0 pt-2 border-t border-border lg:border-0 lg:pt-0">
           <StatusPill actions={recommendations.length} signals={signals.length} />
           <Button asChild variant={hasActions ? "default" : "outline"} size="sm" className="shrink-0">
             <Link to={detailUrl}>
