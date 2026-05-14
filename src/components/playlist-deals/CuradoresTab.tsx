@@ -435,6 +435,27 @@ export function CuradoresTab({
                 const cdeals = (dealsByCurator.get(c.id) ?? []).filter((d) => !d.closed_at);
                 const isExpanded = expanded.has(c.id);
 
+                const brain = brainsMap[c.id] as
+                  | {
+                      trust_score: number;
+                      confidence_score: number;
+                      delivery_rate_pct: number | null;
+                      on_time_rate_pct: number | null;
+                      signals: Array<{ code: string; severity: string; message: string }>;
+                    }
+                  | undefined;
+                const trust = brain?.trust_score ?? null;
+                const sigCount = brain?.signals?.length ?? 0;
+                const highSigs = brain?.signals?.filter((s) => s.severity === "high").length ?? 0;
+                const trustTone =
+                  trust === null
+                    ? "muted"
+                    : trust >= 75
+                    ? "success"
+                    : trust >= 50
+                    ? "primary"
+                    : "destructive";
+
                 return (
                   <article
                     key={c.id}
