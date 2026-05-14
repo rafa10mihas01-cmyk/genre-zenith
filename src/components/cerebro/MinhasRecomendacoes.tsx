@@ -12,6 +12,7 @@ import {
 type ManagedPlaylist = {
   id: string;
   canonical_playlist_id: string | null;
+  genre_id: string | null;
   spotify_playlist_id: string;
   spotify_url: string | null;
   name: string;
@@ -40,6 +41,7 @@ type BrainRow = {
 
 export function MinhasRecomendacoes({ genreId }: { genreId?: string }) {
   const [playlists, setPlaylists] = useState<ManagedPlaylist[]>([]);
+  const [genreNames, setGenreNames] = useState<Record<string, string>>({});
   const [brains, setBrains] = useState<Record<string, BrainRow>>({});
   const [loading, setLoading] = useState(true);
 
@@ -55,12 +57,14 @@ export function MinhasRecomendacoes({ genreId }: { genreId?: string }) {
       }
 
       setLoading(true);
-      const { data } = await supabase
+      const [{ data }, { data: genreRows }] = await Promise.all([
+        supabase
         .from("managed_playlists")
-        .select("id, canonical_playlist_id, spotify_playlist_id, spotify_url, name, cover_url, followers, tracks_count, last_diagnosis_at, imported_at")
-        .eq("genre_id", genreId)
+        .select("id, canonical_playlist_id, genre_id, spotify_playlist_id, spotify_url, name, cover_url, followers, tracks_count, last_diagnosis_at, imported_at")
         .is("archived_at", null)
-        .order("followers", { ascending: false, nullsFirst: false });
+        .order("followers", { ascending: false, nullsFirst: false }),
+        supabase.from("genres").select("id, nome"),
+      ]);
 
       const list = (data ?? []) as ManagedPlaylist[];
       const canonicalIds = list.map((p) => p.canonical_playlist_id).filter(Boolean) as string[];
@@ -79,6 +83,7 @@ export function MinhasRecomendacoes({ genreId }: { genreId?: string }) {
 
       if (!cancelled) {
         setPlaylists(list);
+        setGenreNames(Object.fromEntries((genreRows ?? []).map((g: any) => [g.id, g.nome])));
         setBrains(brainMap);
         setLoading(false);
       }
@@ -90,6 +95,7 @@ export function MinhasRecomendacoes({ genreId }: { genreId?: string }) {
 
   const rows = useMemo(() => {
     return playlists
+      .filter((playlist) => playlist.genre_id === genreId)
       .map((playlist) => ({ playlist, brain: playlist.canonical_playlist_id ? brains[playlist.canonical_playlist_id] : undefined }))
       .sort((a, b) => {
         const ar = a.brain?.recommendations?.length ?? 0;
@@ -101,6 +107,17 @@ export function MinhasRecomendacoes({ genreId }: { genreId?: string }) {
         return (b.playlist.followers ?? 0) - (a.playlist.followers ?? 0);
       });
   }, [playlists, brains]);
+
+  const otherGenreGroups = useMemo(() => {
+    const groups = new Map<string, { id: string; name: string; count: number }>();
+    playlists.forEach((playlist) => {
+      if (!playlist.genre_id || playlist.genre_id === genreId) return;
+      const current = groups.get(playlist.genre_id) ?? { id: playlist.genre_id, name: genreNames[playlist.genre_id] ?? "Sem gênero", count: 0 };
+      current.count += 1;
+      groups.set(playlist.genre_id, current);
+    });
+    return Array.from(groups.values()).sort((a, b) => b.count - a.count);
+  }, [playlists, genreId, genreNames]);
 
   const summary = useMemo(() => {
     const withBrain = rows.filter((r) => !!r.brain).length;
