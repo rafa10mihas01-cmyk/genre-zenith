@@ -1287,6 +1287,11 @@ function BrainDetailDialog({
         )}
 
         <DialogFooter>
+          {curator && (
+            <Button variant="outline" asChild>
+              <a href={`/curadores/${curator.id}`}>Abrir perfil completo</a>
+            </Button>
+          )}
           <Button
             variant="outline"
             onClick={() => curator && recalc.mutate(curator.id)}
