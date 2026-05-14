@@ -203,7 +203,7 @@ export function PlanejadorMeta() {
   const profileObj = PROFILES.find(p => p.id === profile)!;
   const dailyTarget = days > 0 ? Math.ceil(meta / days) : 0;
 
-  const slots = useMemo(
+  const plan = useMemo(
     () => planDistribution({
       playlists: filtered,
       dailyTarget,
@@ -212,6 +212,7 @@ export function PlanejadorMeta() {
     }),
     [filtered, dailyTarget, profileObj.mult, days],
   );
+  const slots = plan.slots;
 
   const ind = useMemo(() => calcIndicators(slots, dailyTarget, filtered.length), [slots, dailyTarget, filtered.length]);
 
