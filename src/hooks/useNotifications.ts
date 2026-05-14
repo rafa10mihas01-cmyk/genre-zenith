@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { showPush } from "@/lib/browserPush";
+import { passesAlertPrefs } from "@/lib/alertPrefs";
 
 export type NotificationType = "critical" | "warning" | "info";
 export type NotificationDomain =
@@ -47,9 +48,9 @@ const TOAST_COOLDOWN_MS = 60_000;
 const recentToasts = new Map<string, number>();
 
 function shouldToast(n: NotificationRow): boolean {
-  // Regras: info nunca vira toast (apenas badge); silent suprime; respeita cooldown por dedupe_key
+  // Regras: silent suprime; respeita cooldown por dedupe_key; honra prefs do usuário (críticos sempre passam)
   if (n.metadata?.silent) return false;
-  if (n.type === "info") return false;
+  if (!passesAlertPrefs(n.type, n.metadata?.domain)) return false;
 
   const key = n.metadata?.dedupe_key ?? n.metadata?.kind ?? n.id;
   const last = recentToasts.get(key);

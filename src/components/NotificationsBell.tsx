@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Bell, AlertTriangle, AlertCircle, Info, CheckCheck, BellRing, BellOff } from "lucide-react";
+import { Bell, AlertTriangle, AlertCircle, Info, CheckCheck, BellRing, BellOff, Settings2 } from "lucide-react";
+import { AlertPreferencesDialog } from "@/components/AlertPreferencesDialog";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -65,6 +66,7 @@ export function NotificationsBell() {
   const [tab, setTab] = useState<Tab>("all");
   const [pushOn, setPushOn] = useState(false);
   const [pushAvail, setPushAvail] = useState(true);
+  const [prefsOpen, setPrefsOpen] = useState(false);
   const nav = useNavigate();
 
   useEffect(() => {
@@ -141,6 +143,7 @@ export function NotificationsBell() {
   );
 
   return (
+    <>
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
@@ -194,6 +197,16 @@ export function NotificationsBell() {
                   <span className="hidden sm:inline">{pushOn ? "Push on" : "Push off"}</span>
                 </Button>
               )}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => { setOpen(false); setPrefsOpen(true); }}
+                title="Preferências de alerta"
+                aria-label="Preferências de alerta"
+              >
+                <Settings2 className="h-3.5 w-3.5" />
+              </Button>
               {unreadCount > 0 && (
                 <Button
                   variant="ghost"
@@ -273,5 +286,7 @@ export function NotificationsBell() {
         </ScrollArea>
       </PopoverContent>
     </Popover>
+    <AlertPreferencesDialog open={prefsOpen} onOpenChange={setPrefsOpen} />
+    </>
   );
 }
