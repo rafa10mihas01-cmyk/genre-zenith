@@ -118,6 +118,7 @@ export function CuradoresTab({
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [editTarget, setEditTarget] = useState<Curator | null>(null);
   const [archiveTarget, setArchiveTarget] = useState<Curator | null>(null);
+  const [brainTarget, setBrainTarget] = useState<Curator | null>(null);
 
   const balanceById = useMemo(() => {
     const m = new Map<string, CuratorBalance>();
