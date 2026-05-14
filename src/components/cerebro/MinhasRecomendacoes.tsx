@@ -128,20 +128,20 @@ export function MinhasRecomendacoes({ genreId }: { genreId?: string }) {
 
   return (
     <div className="space-y-5">
-      <section className="nx-card p-5 border-primary/30 bg-primary/5">
+      <section className="nx-card p-4 sm:p-5 border-primary/30 bg-primary/5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0 max-w-3xl">
             <div className="flex items-center gap-2 text-primary mb-2">
               <Target className="h-4 w-4" />
               <span className="text-[11px] uppercase tracking-[0.18em] font-bold">Suas playlists</span>
             </div>
-            <h2 className="text-lg font-bold leading-tight">Recomendações das playlists que já estão no catálogo</h2>
-            <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
+            <h2 className="text-base sm:text-lg font-bold leading-tight">Recomendações das playlists que já estão no catálogo</h2>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1.5 leading-relaxed">
               Esta área é só do que é seu. O cérebro cruza as playlists importadas, os dados coletados e o cálculo de cada playlist para dizer o que mexer agora.
             </p>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 shrink-0">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 lg:shrink-0">
             <MiniStat icon={ListMusic} label="Minhas" value={formatNumber(rows.length)} />
             <MiniStat icon={Brain} label="Calculadas" value={formatNumber(summary.withBrain)} />
             <MiniStat icon={ListChecks} label="Ações" value={formatNumber(summary.actions)} tone="primary" />
