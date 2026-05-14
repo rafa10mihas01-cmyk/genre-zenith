@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 import { formatNumber, timeAgo } from "@/lib/format";
 import {
   Plus, RefreshCw, ExternalLink, Music2, Sparkles, Archive, ArchiveRestore,
-  ListMusic, AlertCircle, Activity, Brain, ArrowUpRight,
+  ListMusic, AlertCircle, Activity, Brain, ArrowUpRight, Target, TrendingUp,
 } from "lucide-react";
 import { PlaylistScoreBadge, type PlaylistScoreRow } from "./PlaylistScoreBadge";
 
