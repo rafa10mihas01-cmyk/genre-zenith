@@ -182,11 +182,11 @@ export function SidebarSmartPanel() {
           <div className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40 px-1">
             Contexto
           </div>
-          <div className="rounded-lg bg-sidebar-accent/40 border border-sidebar-border/60 divide-y divide-sidebar-border/40">
+          <div className="rounded-lg bg-sidebar-accent/70 border border-sidebar-border divide-y divide-sidebar-border/60">
             {kpis.slice(0, 4).map((k) => (
               <div key={k.label} className="flex items-center justify-between px-2.5 py-1.5">
-                <span className="text-[11px] text-sidebar-foreground/70 truncate">{k.label}</span>
-                <span className={cn("text-[12px] font-bold tabular-nums", INTENT_CLS[k.intent ?? "default"])}>
+                <span className="text-[11px] text-sidebar-foreground/85 truncate">{k.label}</span>
+                <span className={cn("text-[13px] font-bold tabular-nums", k.intent && k.intent !== "default" ? INTENT_CLS[k.intent] : "text-sidebar-foreground")}>
                   {k.value}
                 </span>
               </div>
