@@ -582,19 +582,25 @@ export function CuradoresTab({
                             </div>
                           </div>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6 shrink-0"
-                          onClick={() => recalcBrain.mutate(c.id)}
-                          disabled={recalcBrain.isPending}
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          aria-label="Recalcular cérebro"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            recalcBrain.mutate(c.id);
+                          }}
+                          className={cn(
+                            "h-6 w-6 shrink-0 inline-flex items-center justify-center rounded-md hover:bg-foreground/10 cursor-pointer",
+                            recalcBrain.isPending && "opacity-50 pointer-events-none",
+                          )}
                           title="Recalcular cérebro"
                         >
                           <RefreshCw
                             className={cn("h-3 w-3", recalcBrain.isPending && "animate-spin")}
                           />
-                        </Button>
-                      </div>
+                        </span>
+                      </button>
 
 
                       <div className="grid grid-cols-2 divide-x divide-border/50 rounded-xl bg-[hsl(var(--elevated))] border border-border/40">
