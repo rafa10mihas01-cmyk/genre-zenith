@@ -333,6 +333,15 @@ export function MinhasPlaylists() {
         >
           {sortBy === "valuation" ? "Ordem: valuation" : "Ordem: recente"}
         </Button>
+        {missingGenreCount > 0 && (
+          <Button
+            variant={filterMissingGenre ? "default" : "outline"}
+            onClick={() => setFilterMissingGenre(v => !v)}
+            className="gap-1.5"
+          >
+            <AlertCircle className="h-4 w-4" /> Sem gênero ({missingGenreCount})
+          </Button>
+        )}
         <div className="ml-auto flex items-center gap-1.5">
           <button
             onClick={() => setShowArchived(false)}
