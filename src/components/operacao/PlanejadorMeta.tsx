@@ -313,60 +313,84 @@ export function PlanejadorMeta() {
         </div>
       </div>
 
-      {/* Resumo da meta vs capacidade natural */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      {/* VEREDITO — diagnóstico humano da campanha */}
+      <VerdictCard
+        plan={plan}
+        ind={ind}
+        dailyTarget={dailyTarget}
+        meta={meta}
+        days={days}
+        filteredCount={filtered.length}
+      />
+
+      {/* 3 KPIs essenciais */}
+      <div className="grid grid-cols-3 gap-3">
         <SimKpi label="Meta / dia" value={formatNumber(dailyTarget)} hint={`${formatNumber(meta)} em ${days} ${days === 1 ? "dia" : "dias"}`} />
-        <SimKpi
-          label={`Capacidade — ${INTENSITY_LABEL[plan.intensity].label}`}
-          value={formatNumber(plan.naturalCapacity)}
-          hint={INTENSITY_LABEL[plan.intensity].hint}
-          tone={INTENSITY_LABEL[plan.intensity].tone}
-        />
         <SimKpi
           label="Entregue / dia"
           value={formatNumber(plan.delivered)}
-          hint={`${Math.round(ind.coverage * 100)}% da meta · ${slots.length}/${filtered.length} playlists`}
+          hint={`${Math.round(ind.coverage * 100)}% da meta`}
           tone={ind.coverage >= 0.85 ? "ok" : ind.coverage >= 0.6 ? "warn" : "bad"}
         />
         {plan.deficit > 0 ? (
           <SimKpi
             label="Falta / dia"
             value={formatNumber(plan.deficit)}
-            hint={`teto do nicho: ${formatNumber(plan.maxCapacity)}/dia`}
+            hint={`${formatNumber(plan.deficit * days)} no total`}
             tone="bad"
           />
         ) : (
           <SimKpi
             label="Saldo ocioso"
             value={formatNumber(plan.surplus)}
-            hint={`teto do nicho: ${formatNumber(plan.maxCapacity)}/dia`}
+            hint="capacidade de sobra"
             tone="ok"
           />
         )}
       </div>
 
-      {/* Aviso de déficit */}
-      {plan.deficit > 0 && (
-        <div className="nx-card flex items-start gap-3 !py-3 border-warning/40">
-          <AlertTriangle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
-          <p className="text-xs leading-relaxed">
-            <strong className="text-warning">Ecossistema no teto.</strong>{" "}
-            <span className="text-muted-foreground">
-              Mesmo puxando todas as {filtered.length} playlists do nicho para posições altas (modo Máximo),
-              o teto teórico é <strong className="text-foreground tabular-nums">{formatNumber(plan.maxCapacity)}/dia</strong>.
-              Faltam <strong className="text-foreground tabular-nums">{formatNumber(plan.deficit)}/dia</strong>{" "}
-              ({formatNumber(plan.deficit * days)} no total) para fechar a meta sem spam.
-            </span>
-          </p>
-        </div>
-      )}
-
-      {/* Indicadores */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Indicator label="Concentração" value={ind.concentration} invert />
-        <Indicator label="Diversidade" value={ind.diversity} />
-        <Indicator label="Naturalidade" value={ind.naturalness} />
-        <Indicator label="Saturação teórica" value={ind.saturation} invert />
+      {/* Selos de saúde — linguagem leiga, com ✓/⚠/✕ */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <HealthCheck
+          label="Concentração"
+          status={ind.concentration <= 0.20 ? "ok" : ind.concentration <= 0.35 ? "warn" : "bad"}
+          headline={
+            ind.concentration <= 0.20 ? "Sem playlist dominante" :
+            ind.concentration <= 0.35 ? "Uma playlist puxando muito" :
+            "Concentrado demais numa playlist"
+          }
+          detail={`A maior playlist responde por ${Math.round(ind.concentration * 100)}% da entrega · saudável até 20%`}
+        />
+        <HealthCheck
+          label="Diversidade"
+          status={ind.diversity >= 0.85 ? "ok" : ind.diversity >= 0.6 ? "warn" : "bad"}
+          headline={
+            ind.diversity >= 0.85 ? "Espalhado em várias playlists" :
+            ind.diversity >= 0.6 ? "Poucas playlists carregando" :
+            "Pouquíssimas playlists ativas"
+          }
+          detail={`${slots.length} de ${filtered.length} playlists do nicho em uso`}
+        />
+        <HealthCheck
+          label="Naturalidade"
+          status={ind.naturalness >= 0.7 ? "ok" : ind.naturalness >= 0.4 ? "warn" : "bad"}
+          headline={
+            ind.naturalness >= 0.7 ? "Mix natural topo · meio · cauda" :
+            ind.naturalness >= 0.4 ? "Distribuição um pouco torta" :
+            "Empilhado nas posições do topo"
+          }
+          detail={`Quanto mais equilibrado entre topo, meio e cauda, mais natural — aqui: ${Math.round(ind.naturalness * 100)}%`}
+        />
+        <HealthCheck
+          label="Saturação do nicho"
+          status={ind.saturation <= 0.6 ? "ok" : ind.saturation <= 0.85 ? "warn" : "bad"}
+          headline={
+            ind.saturation <= 0.6 ? "Sobra capacidade no nicho" :
+            ind.saturation <= 0.85 ? "Quase no limite do nicho" :
+            "Nicho no teto — sem folga"
+          }
+          detail={`${Math.round(ind.saturation * 100)}% das playlists do nicho engajadas · saudável até 60%`}
+        />
       </div>
 
       {/* Distribuição */}
