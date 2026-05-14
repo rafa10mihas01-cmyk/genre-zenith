@@ -92,9 +92,9 @@ export default function CuradorDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("curator_deals")
-        .select("id, song_name, cost, target_plays, opened_at, closed_at, status")
+        .select("id, song_name, cost, target_plays, started_at, closed_at, state")
         .eq("curator_id", id!)
-        .order("opened_at", { ascending: false })
+        .order("started_at", { ascending: false })
         .limit(30);
       if (error) throw error;
       return data ?? [];
