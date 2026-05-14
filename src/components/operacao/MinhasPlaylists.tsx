@@ -433,12 +433,9 @@ export function MinhasPlaylists() {
           <RefreshCw className={cn("h-4 w-4", bulkImporting && "animate-spin")} />
           {bulkImporting ? "Importando da conta…" : "Importar tudo da conta"}
         </Button>
-        <Button variant="outline" onClick={load} disabled={loading} className="gap-1.5">
-          <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} /> Atualizar
-        </Button>
         <Button variant="outline" onClick={handleRecalc} disabled={recalcing} className="gap-1.5">
-          <Activity className={cn("h-4 w-4", recalcing && "animate-pulse")} />
-          {recalcing ? "Recalculando…" : "Recalcular scores"}
+          <RefreshCw className={cn("h-4 w-4", recalcing && "animate-spin")} />
+          {recalcing ? "Sincronizando…" : "Sincronizar tudo"}
         </Button>
         <Button
           variant="outline"
