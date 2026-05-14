@@ -111,6 +111,7 @@ const App = () => (
               <Route path="/analytics" element={<Protected><Analytics /></Protected>} />
               <Route path="/valuation" element={<Protected><Valuation /></Protected>} />
               <Route path="/curadores" element={<Protected><Curadores /></Protected>} />
+              <Route path="/curadores/comparar" element={<Protected><CompararCuradores /></Protected>} />
               <Route path="/curadores/:id" element={<Protected><CuradorDetail /></Protected>} />
               <Route path="/curadoria-preview" element={<Protected><CuradoriaPreview /></Protected>} />
               <Route path="/benchmarks" element={<Protected><Benchmarks /></Protected>} />
