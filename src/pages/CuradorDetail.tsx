@@ -140,14 +140,22 @@ export default function CuradorDetail() {
             subtitle="Acompanhar trust score, sinais e histórico de performance"
           />
         </div>
-        <Button
-          variant="outline"
-          onClick={() => recalc.mutate(id)}
-          disabled={recalc.isPending}
-        >
-          <RefreshCw className={cn("h-4 w-4 mr-2", recalc.isPending && "animate-spin")} />
-          Recalcular cérebro
-        </Button>
+        <div className="flex items-center gap-2">
+          <Link to="/curadores/comparar">
+            <Button variant="outline" size="sm">
+              <Activity className="h-4 w-4 mr-2" />
+              Comparar
+            </Button>
+          </Link>
+          <Button
+            variant="outline"
+            onClick={() => recalc.mutate(id)}
+            disabled={recalc.isPending}
+          >
+            <RefreshCw className={cn("h-4 w-4 mr-2", recalc.isPending && "animate-spin")} />
+            Recalcular cérebro
+          </Button>
+        </div>
       </div>
 
       {loadingBrain ? (
