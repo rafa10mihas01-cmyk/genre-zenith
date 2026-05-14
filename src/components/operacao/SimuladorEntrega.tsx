@@ -218,6 +218,11 @@ function SimDetail({ playlist, onBack }: { playlist: SimPlaylist; onBack: () => 
   const tracks = Math.max(playlist.tracks_count, 20);
   const rows = useMemo(() => buildDistribution(daily, tracks), [daily, tracks]);
 
+  // KPIs derivados da curva — relevância operacional
+  const topDaily = rows.filter(r => r.position <= 5).reduce((s, r) => s + r.plays, 0);
+  const peakDaily = rows[0]?.plays ?? 0; // posição #1
+  const topShare = daily > 0 ? topDaily / daily : 0;
+
   return (
     <section className="space-y-4 animate-tab-in">
       <button
@@ -228,10 +233,15 @@ function SimDetail({ playlist, onBack }: { playlist: SimPlaylist; onBack: () => 
         Voltar para a lista
       </button>
 
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <SimKpi label="Saves da playlist" value={formatNumber(playlist.followers)} hint="dados reais" />
         <SimKpi label="Plays teóricos / mês" value={formatNumber(monthly)} hint={`${formatNumber(playlist.followers)} × 30`} />
         <SimKpi label="Plays teóricos / dia" value={formatNumber(daily)} hint="média mensal ÷ 30" />
+        <SimKpi
+          label="Topo #1–#5 / dia"
+          value={formatNumber(topDaily)}
+          hint={`${Math.round(topShare * 100)}% do tráfego · pico #1: ${formatNumber(peakDaily)}/dia`}
+        />
       </div>
 
       <div className="nx-card flex flex-col sm:flex-row gap-4 items-start">
