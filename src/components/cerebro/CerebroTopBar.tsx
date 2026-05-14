@@ -45,7 +45,7 @@ export function CerebroTopBar({
         <Select value={activeSlug} onValueChange={onPick}>
           <SelectTrigger
             aria-label="Trocar gênero"
-            className="h-auto md:min-w-[200px] gap-3 px-4 py-2.5 m-1 bg-muted/40 hover:bg-muted/70 border border-border/40 rounded-lg [&>svg:last-child]:opacity-60"
+            className="h-auto w-auto md:w-[220px] shrink-0 gap-3 px-4 py-2.5 m-1 bg-muted/40 hover:bg-muted/70 border border-border/40 rounded-lg [&>svg:last-child]:opacity-60"
           >
             <span
               className="h-2 w-2 rounded-full shrink-0"
@@ -55,8 +55,8 @@ export function CerebroTopBar({
               <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold leading-tight">
                 Gênero
               </span>
-              <div className="flex items-center gap-2">
-                <span className="text-foreground font-bold text-sm capitalize">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-foreground font-bold text-sm capitalize truncate">
                   {genre?.nome ?? activeSlug}
                 </span>
                 {genre?.total_playlists != null && (
