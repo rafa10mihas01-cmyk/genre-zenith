@@ -532,27 +532,158 @@ function SimKpi({ label, value, hint, tone }: { label: string; value: string; hi
   );
 }
 
-function Indicator({ label, value, invert }: { label: string; value: number; invert?: boolean }) {
-  const pct = Math.max(0, Math.min(1, value));
-  // Quando invert=true, valor alto = ruim (concentração, saturação)
-  const score = invert ? 1 - pct : pct;
-  const tone = score >= 0.7 ? "ok" : score >= 0.4 ? "warn" : "bad";
+function HealthCheck({
+  label, status, headline, detail,
+}: { label: string; status: "ok" | "warn" | "bad"; headline: string; detail: string }) {
+  const Icon = status === "ok" ? CheckCircle2 : status === "warn" ? AlertTriangle : XCircle;
   return (
-    <div className="nx-card space-y-2">
-      <div className="flex items-center justify-between">
+    <div className={cn(
+      "nx-card flex items-start gap-3 border",
+      status === "ok"   && "border-primary/30",
+      status === "warn" && "border-warning/30",
+      status === "bad"  && "border-destructive/30",
+    )}>
+      <Icon className={cn(
+        "h-4 w-4 mt-0.5 shrink-0",
+        status === "ok"   && "text-primary",
+        status === "warn" && "text-warning",
+        status === "bad"  && "text-destructive",
+      )} />
+      <div className="space-y-1 min-w-0">
         <div className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-semibold">{label}</div>
-        <div className="text-xs tabular-nums font-medium">{Math.round(pct * 100)}%</div>
+        <div className="text-sm font-medium">{headline}</div>
+        <div className="text-[11px] text-muted-foreground leading-relaxed">{detail}</div>
       </div>
-      <div className="h-1.5 rounded-full bg-elevated overflow-hidden">
-        <div
-          className={cn(
-            "h-full rounded-full transition-all",
-            tone === "ok" && "bg-primary",
-            tone === "warn" && "bg-warning",
-            tone === "bad" && "bg-destructive",
+    </div>
+  );
+}
+
+type VerdictTone = "ok" | "warn" | "bad";
+
+function buildVerdict(opts: {
+  plan: PlanResult; ind: ReturnType<typeof calcIndicators>; dailyTarget: number; meta: number; days: number;
+}): { tone: VerdictTone; title: string; recommendation: string; score: number } {
+  const { plan, ind, dailyTarget, meta, days } = opts;
+  const coverage = ind.coverage; // 0..1
+  // Score 0..100: meta atendida pesa 60%, naturalidade 20%, anti-concentração 10%, anti-saturação 10%
+  const score = Math.round(
+    coverage * 60 +
+    ind.naturalness * 20 +
+    (1 - Math.min(1, ind.concentration / 0.5)) * 10 +
+    (1 - Math.min(1, ind.saturation / 1)) * 10
+  );
+
+  if (plan.deficit > 0) {
+    // Inviável — sugere alternativas concretas
+    const newDays = Math.max(days + 1, Math.ceil(meta / Math.max(plan.maxCapacity, 1)));
+    const viableMeta = plan.maxCapacity * days;
+    return {
+      tone: "bad",
+      title: "Inviável sem forçar o ecossistema",
+      score,
+      recommendation:
+        `Para fechar essa meta no natural, estenda para ~${newDays} dias ` +
+        `ou reduza para até ${formatNumber(viableMeta)} no mesmo prazo. ` +
+        (plan.intensity === "maximo" ? "O nicho já está no modo Máximo." : ""),
+    };
+  }
+
+  if (plan.intensity === "maximo" || ind.naturalness < 0.4 || ind.concentration > 0.4) {
+    return {
+      tone: "warn",
+      title: "Forçando o ecossistema",
+      score,
+      recommendation:
+        "A meta cabe, mas puxa posições altas demais ou concentra numa playlist. " +
+        "Aumente o prazo, abra o nicho ou reduza a meta para uma campanha mais natural.",
+    };
+  }
+
+  if (coverage >= 0.95 && ind.naturalness >= 0.6 && ind.concentration <= 0.25) {
+    return {
+      tone: "ok",
+      title: "Campanha saudável",
+      score,
+      recommendation:
+        "Distribuição equilibrada entre topo, meio e cauda, sem concentração. Pode operar tranquilo.",
+    };
+  }
+
+  return {
+    tone: "warn",
+    title: "Operável, mas pode melhorar",
+    score,
+    recommendation:
+      "A meta cabe no nicho. Para deixar mais natural, considere mais dias ou abrir o filtro de nicho.",
+  };
+}
+
+function VerdictCard({
+  plan, ind, dailyTarget, meta, days, filteredCount,
+}: {
+  plan: PlanResult; ind: ReturnType<typeof calcIndicators>;
+  dailyTarget: number; meta: number; days: number; filteredCount: number;
+}) {
+  const v = buildVerdict({ plan, ind, dailyTarget, meta, days });
+  const [openWhy, setOpenWhy] = useState(false);
+  const Icon = v.tone === "ok" ? CheckCircle2 : v.tone === "warn" ? AlertTriangle : XCircle;
+  return (
+    <div className={cn(
+      "nx-card border-l-4",
+      v.tone === "ok"   && "border-l-primary",
+      v.tone === "warn" && "border-l-warning",
+      v.tone === "bad"  && "border-l-destructive",
+    )}>
+      <div className="flex items-start gap-4">
+        <Icon className={cn(
+          "h-6 w-6 shrink-0 mt-0.5",
+          v.tone === "ok"   && "text-primary",
+          v.tone === "warn" && "text-warning",
+          v.tone === "bad"  && "text-destructive",
+        )} />
+        <div className="flex-1 min-w-0 space-y-2">
+          <div className="flex items-center gap-3 flex-wrap">
+            <h3 className="text-base font-semibold">{v.title}</h3>
+            <span className={cn(
+              "inline-flex items-center gap-1 h-6 px-2 rounded-full text-[10px] font-semibold tabular-nums border",
+              v.tone === "ok"   && "bg-primary/10 text-primary border-primary/40",
+              v.tone === "warn" && "bg-warning/10 text-warning border-warning/40",
+              v.tone === "bad"  && "bg-destructive/10 text-destructive border-destructive/40",
+            )}>Saúde {v.score}/100</span>
+            <span className="inline-flex items-center gap-1 h-6 px-2 rounded-full text-[10px] font-medium border bg-elevated text-muted-foreground border-border">
+              Modo {INTENSITY_LABEL[plan.intensity].label}
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground leading-relaxed">{v.recommendation}</p>
+          <button
+            type="button"
+            onClick={() => setOpenWhy(o => !o)}
+            className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ChevronDown className={cn("h-3 w-3 transition-transform", openWhy && "rotate-180")} />
+            {openWhy ? "Ocultar diagnóstico" : "Por que essa nota?"}
+          </button>
+          {openWhy && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 text-[11px] animate-tab-in">
+              <WhyRow label="Cobertura" value={`${Math.round(ind.coverage * 100)}%`} weight="60%" />
+              <WhyRow label="Naturalidade" value={`${Math.round(ind.naturalness * 100)}%`} weight="20%" />
+              <WhyRow label="Anti-concentração" value={`${Math.round((1 - Math.min(1, ind.concentration / 0.5)) * 100)}%`} weight="10%" />
+              <WhyRow label="Folga do nicho" value={`${Math.round((1 - ind.saturation) * 100)}%`} weight="10%" />
+            </div>
           )}
-          style={{ width: `${pct * 100}%` }}
-        />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function WhyRow({ label, value, weight }: { label: string; value: string; weight: string }) {
+  return (
+    <div className="rounded-md bg-elevated/50 border border-border px-2 py-1.5 space-y-0.5">
+      <div className="text-[9px] uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="flex items-baseline gap-1">
+        <span className="text-sm font-semibold tabular-nums">{value}</span>
+        <span className="text-[9px] text-muted-foreground">peso {weight}</span>
       </div>
     </div>
   );
