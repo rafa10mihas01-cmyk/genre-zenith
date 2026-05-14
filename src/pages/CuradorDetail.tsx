@@ -440,8 +440,8 @@ export default function CuradorDetail() {
                           {formatNumber(Number(d.target_plays ?? 0))}
                         </td>
                         <td className="px-3 py-3 text-muted-foreground">
-                          {d.opened_at
-                            ? new Date(d.opened_at).toLocaleDateString("pt-BR")
+                          {d.started_at
+                            ? new Date(d.started_at).toLocaleDateString("pt-BR")
                             : "—"}
                         </td>
                         <td className="px-5 py-3 text-right">
@@ -453,7 +453,7 @@ export default function CuradorDetail() {
                                 : "bg-primary/15 text-primary",
                             )}
                           >
-                            {d.closed_at ? "Fechado" : d.status ?? "Aberto"}
+                            {d.closed_at ? "Fechado" : d.state ?? "Aberto"}
                           </span>
                         </td>
                       </tr>
