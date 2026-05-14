@@ -176,7 +176,7 @@ export function PlanejadorMeta() {
   const [days, setDays] = useState<number>(30);
   const [genreId, setGenreId] = useState<string>("");
   const [profile, setProfile] = useState<typeof PROFILES[number]["id"]>("mercado");
-  const [maxSlots, setMaxSlots] = useState<number>(2);
+  
 
   useEffect(() => {
     (async () => {
