@@ -61,24 +61,16 @@ function planDistribution(opts: {
   const { playlists, dailyTarget, multiplier } = opts;
   if (!playlists.length || dailyTarget <= 0) return [];
 
-  // Regra: 1 playlist = 1 posição. Espalhar entre o máximo de playlists do nicho.
   // Cap por playlist = 20% da meta diária (anti-concentração).
   const HARD_CAP = Math.max(Math.round(dailyTarget * 0.20), 1);
 
-  // Ordena playlists das maiores p/ menores (maiores entram primeiro p/ pegar share maior).
+  // Ordena por followers desc — maiores entram primeiro p/ pegar share maior.
   const pool = playlists.filter(p => p.followers > 0).slice().sort((a, b) => b.followers - a.followers);
   if (!pool.length) return [];
 
-  // Rotação de bandas para parecer natural: top, mid, low, mid, top, low...
-  const BAND_ROTATION: Array<"top" | "mid" | "low"> = ["top", "mid", "low", "mid", "top", "low", "mid"];
-  const RANGES: Record<"top" | "mid" | "low", number[]> = {
-    top: [2, 3, 4, 5],          // evita #1 puro p/ parecer mais natural
-    mid: [6, 7, 8, 9, 10],
-    low: [11, 12, 13, 14, 15, 16, 17, 18],
-  };
-
-  // Share ideal por playlist (distribuição horizontal).
-  const idealShare = Math.min(dailyTarget / pool.length, HARD_CAP);
+  // Sequência fixa de posições para garantir mistura visual real (topo/meio/cauda intercalados).
+  // 1 playlist = 1 posição, todas distintas em ordem que parece campanha natural.
+  const POSITION_SEQUENCE = [3, 8, 2, 12, 5, 10, 4, 15, 6, 9, 7, 17, 11, 13, 14, 18, 16, 19, 20];
 
   const chosen: Slot[] = [];
   let remaining = dailyTarget;
@@ -89,49 +81,25 @@ function planDistribution(opts: {
     const dailyTotal = (p.followers * multiplier) / 30;
     const maxPos = Math.max(p.tracks_count || 20, 18);
 
-    // Banda alvo (rotacionando) — fallback para outras se a banda não couber.
-    const bandOrder = [
-      BAND_ROTATION[i % BAND_ROTATION.length],
-      ...(["top", "mid", "low"] as const).filter(b => b !== BAND_ROTATION[i % BAND_ROTATION.length]),
-    ];
+    const pos = POSITION_SEQUENCE[i % POSITION_SEQUENCE.length];
+    if (pos > maxPos) continue;
 
-    let bestPos = -1;
-    let bestDelta = Infinity;
-    let bestBand: "top" | "mid" | "low" = "mid";
-    let bestCap = 0;
+    const cap = Math.round(dailyTotal * posPct(pos));
+    if (cap <= 0) continue;
 
-    for (const band of bandOrder) {
-      for (const pos of RANGES[band]) {
-        if (pos > maxPos) continue;
-        const cap = Math.round(dailyTotal * posPct(pos));
-        if (cap < 50) continue;
-        const take = Math.min(cap, HARD_CAP, remaining);
-        // Queremos a posição cuja entrega fique mais perto do idealShare,
-        // sem ultrapassar HARD_CAP nem o restante.
-        const delta = Math.abs(take - idealShare);
-        if (delta < bestDelta) {
-          bestDelta = delta;
-          bestPos = pos;
-          bestBand = band;
-          bestCap = take;
-        }
-      }
-      // Se já achou na banda preferida com share ≥ 50% do ideal, fica nela.
-      if (bestPos !== -1 && bestCap >= idealShare * 0.5) break;
-    }
-
-    if (bestPos === -1 || bestCap <= 0) continue;
+    const take = Math.min(cap, HARD_CAP, remaining);
+    if (take < 1) continue;
 
     chosen.push({
       playlistId: p.id,
       playlistName: p.name,
       cover: p.cover_url,
-      position: bestPos,
-      playsDay: bestCap,
-      playsMonth: bestCap * 30,
-      band: bestBand,
+      position: pos,
+      playsDay: take,
+      playsMonth: take * 30,
+      band: pos <= 5 ? "top" : pos <= 10 ? "mid" : "low",
     });
-    remaining -= bestCap;
+    remaining -= take;
   }
 
   return chosen;
