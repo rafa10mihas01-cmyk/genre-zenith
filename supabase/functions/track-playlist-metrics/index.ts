@@ -39,7 +39,7 @@ Deno.serve(async (req) => {
   const guard = await requireTeamAccess(req);
   if (!guard.ok) return guard.resp;
 
-  let body: { template_ids?: string[]; limit?: number } = {};
+  let body: { template_ids?: string[]; limit?: number; include_managed?: boolean } = {};
   try { if (req.method === "POST") body = await req.json(); } catch { /* allow empty */ }
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
@@ -56,7 +56,40 @@ Deno.serve(async (req) => {
 
   const { data: tpls, error } = await q;
   if (error) return jr({ error: error.message }, 500);
-  if (!tpls?.length) return jr({ ok: true, processed: 0, snapshots: [] });
+
+  // Também coleta snapshots das playlists IMPORTADAS (managed_playlists)
+  // — sem isso o playlist_brain nunca tem histórico das playlists do catálogo
+  // e fica disparando "Habilitar coleta automática no bot" pra todas.
+  // Só busca quando NÃO foi pedido um conjunto específico de templates.
+  const includeManaged = body.include_managed !== false && !body.template_ids?.length;
+  type ManagedRow = { spotify_playlist_id: string };
+  let managed: ManagedRow[] = [];
+  if (includeManaged) {
+    const { data: mp } = await supabase
+      .from("managed_playlists")
+      .select("spotify_playlist_id")
+      .is("archived_at", null)
+      .not("spotify_playlist_id", "is", null)
+      .limit(body.limit ?? 200);
+    managed = (mp ?? []) as ManagedRow[];
+  }
+
+  // Deduplica spotify_playlist_id entre templates e managed (templates têm prioridade
+  // pra preservar o backfill de followers_at_creation)
+  const seen = new Set<string>();
+  const targets: Array<{ kind: "template" | "managed"; spotify_playlist_id: string; tpl?: any }> = [];
+  for (const t of tpls ?? []) {
+    if (!t.spotify_playlist_id || seen.has(t.spotify_playlist_id)) continue;
+    seen.add(t.spotify_playlist_id);
+    targets.push({ kind: "template", spotify_playlist_id: t.spotify_playlist_id, tpl: t });
+  }
+  for (const m of managed) {
+    if (seen.has(m.spotify_playlist_id)) continue;
+    seen.add(m.spotify_playlist_id);
+    targets.push({ kind: "managed", spotify_playlist_id: m.spotify_playlist_id });
+  }
+
+  if (targets.length === 0) return jr({ ok: true, processed: 0, snapshots: [] });
 
   let token: string;
   try { token = await getSpotifyToken(); } catch (e) {
@@ -67,46 +100,45 @@ Deno.serve(async (req) => {
   let unauthRetried = false;
   let ok = 0, failed = 0;
 
-  for (const tpl of tpls) {
+  for (const target of targets) {
     try {
-      let meta = await fetchPlaylistMeta(token, tpl.spotify_playlist_id!).catch(async (e) => {
+      let meta = await fetchPlaylistMeta(token, target.spotify_playlist_id).catch(async (e) => {
         if ((e as Error).message === "UNAUTH" && !unauthRetried) {
           unauthRetried = true;
           token = await getSpotifyToken(true);
-          return fetchPlaylistMeta(token, tpl.spotify_playlist_id!);
+          return fetchPlaylistMeta(token, target.spotify_playlist_id);
         }
         throw e;
       });
       if (!meta) { failed++; continue; }
 
-      const row = {
-        template_id: tpl.id,
-        spotify_playlist_id: tpl.spotify_playlist_id!,
+      const row: any = {
+        template_id: target.tpl?.id ?? null,
+        spotify_playlist_id: target.spotify_playlist_id,
         followers: meta.followers,
         total_tracks: meta.total_tracks,
       };
       const { error: insErr } = await supabase.from("playlist_metrics_snapshots").insert(row);
       if (insErr) { failed++; continue; }
 
-      // Backfill followers_at_creation APENAS se template foi criado há <1h.
-      // Acima disso, capturar followers atuais como "baseline" enviesa o cálculo
-      // de crescimento (já houve tempo pra ganhar seguidores).
-      // create-spotify-playlist popula corretamente no momento da criação.
-      if (tpl.followers_at_creation == null && tpl.created_on_spotify_at) {
-        const ageMs = Date.now() - new Date(tpl.created_on_spotify_at).getTime();
-        if (ageMs < 60 * 60 * 1000) {
-          await supabase
-            .from("playlist_templates")
-            .update({ followers_at_creation: meta.followers })
-            .eq("id", tpl.id);
+      // Backfill followers_at_creation APENAS pra templates recém-criados (<1h).
+      if (target.kind === "template" && target.tpl) {
+        const tpl = target.tpl;
+        if (tpl.followers_at_creation == null && tpl.created_on_spotify_at) {
+          const ageMs = Date.now() - new Date(tpl.created_on_spotify_at).getTime();
+          if (ageMs < 60 * 60 * 1000) {
+            await supabase
+              .from("playlist_templates")
+              .update({ followers_at_creation: meta.followers })
+              .eq("id", tpl.id);
+          }
         }
       }
       snapshots.push(row);
       ok++;
-      // pequeno delay
       await new Promise((r) => setTimeout(r, 60));
     } catch (e) {
-      console.error("snapshot failed", tpl.id, e);
+      console.error("snapshot failed", target.spotify_playlist_id, e);
       failed++;
     }
   }
