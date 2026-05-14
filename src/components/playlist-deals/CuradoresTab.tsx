@@ -886,6 +886,12 @@ export function CuradoresTab({
         </div>
       ) : null}
 
+      {/* Cérebro do curador */}
+      <BrainDetailDialog
+        curator={brainTarget}
+        onClose={() => setBrainTarget(null)}
+      />
+
       {/* Editar curador */}
       <EditCuratorDialog
         curator={editTarget}
