@@ -273,27 +273,55 @@ export function PlanejadorMeta() {
         </div>
 
         <div className="text-[11px] text-muted-foreground">
-          Distribuição: 1 posição por playlist · máx. 20% da meta por playlist · espalha entre todas as playlists do nicho.
+          Cada playlist entra 1 vez, na sua capacidade natural. Maiores no topo, médias no meio, menores na cauda.
         </div>
       </div>
 
-      {/* Resumo da meta */}
+      {/* Resumo da meta vs capacidade natural */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <SimKpi label="Meta total" value={formatNumber(meta)} hint={`${days} dias`} />
-        <SimKpi label="Necessário/dia" value={formatNumber(dailyTarget)} hint="meta ÷ duração" />
+        <SimKpi label="Meta / dia" value={formatNumber(dailyTarget)} hint={`${formatNumber(meta)} em ${days} ${days === 1 ? "dia" : "dias"}`} />
         <SimKpi
-          label="Cobertura simulada"
-          value={`${Math.round(ind.coverage * 100)}%`}
-          hint={`${formatNumber(ind.delivered)}/dia entregue`}
+          label="Capacidade natural"
+          value={formatNumber(plan.naturalCapacity)}
+          hint={`${filtered.length} playlists no nicho`}
+        />
+        <SimKpi
+          label="Entregue / dia"
+          value={formatNumber(plan.delivered)}
+          hint={`${Math.round(ind.coverage * 100)}% da meta`}
           tone={ind.coverage >= 0.85 ? "ok" : ind.coverage >= 0.6 ? "warn" : "bad"}
         />
-        <SimKpi
-          label="Risco da campanha"
-          value={ind.risk === "baixo" ? "Baixo" : ind.risk === "medio" ? "Médio" : "Alto"}
-          hint="cobertura + concentração"
-          tone={ind.risk === "baixo" ? "ok" : ind.risk === "medio" ? "warn" : "bad"}
-        />
+        {plan.deficit > 0 ? (
+          <SimKpi
+            label="Falta / dia"
+            value={formatNumber(plan.deficit)}
+            hint={`${formatNumber(plan.deficit * days)} no total`}
+            tone="bad"
+          />
+        ) : (
+          <SimKpi
+            label="Saldo ocioso"
+            value={formatNumber(plan.surplus)}
+            hint="capacidade não usada"
+            tone="ok"
+          />
+        )}
       </div>
+
+      {/* Aviso de déficit */}
+      {plan.deficit > 0 && (
+        <div className="nx-card flex items-start gap-3 !py-3 border-warning/40">
+          <AlertTriangle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
+          <p className="text-xs leading-relaxed">
+            <strong className="text-warning">Capacidade insuficiente.</strong>{" "}
+            <span className="text-muted-foreground">
+              As {filtered.length} playlists do nicho entregam, no máximo natural, {formatNumber(plan.naturalCapacity)} plays/dia.
+              Faltam <strong className="text-foreground tabular-nums">{formatNumber(plan.deficit)}/dia</strong>{" "}
+              ({formatNumber(plan.deficit * days)} no total) para completar a meta sem forçar.
+            </span>
+          </p>
+        </div>
+      )}
 
       {/* Indicadores */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
