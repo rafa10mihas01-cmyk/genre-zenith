@@ -490,12 +490,24 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
     return map;
   }, [balances]);
 
+  const activeCuratorIds = useMemo(
+    () => curators.filter((c) => !c.archived_at).map((c) => c.id),
+    [curators],
+  );
+  const { data: brainsMap = {} } = useCuratorBrainsByIds(activeCuratorIds);
+
   const visibleCurators = useMemo(() => {
     const term = curatorSearch.trim().toLowerCase();
     return curators
       .filter((c) => !c.archived_at)
-      .filter((c) => (term ? c.name.toLowerCase().includes(term) : true));
-  }, [curators, curatorSearch]);
+      .filter((c) => (term ? c.name.toLowerCase().includes(term) : true))
+      .slice()
+      .sort((a, b) => {
+        const ta = (brainsMap as any)[a.id]?.trust_score ?? -1;
+        const tb = (brainsMap as any)[b.id]?.trust_score ?? -1;
+        return tb - ta;
+      });
+  }, [curators, curatorSearch, brainsMap]);
 
   const selectedCurator: Curator | null = useMemo(
     () => curators.find((c) => c.id === selectedCuratorId) ?? null,
