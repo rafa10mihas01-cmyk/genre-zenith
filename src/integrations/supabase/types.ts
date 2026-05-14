@@ -946,6 +946,117 @@ export type Database = {
         }
         Relationships: []
       }
+      curator_brain: {
+        Row: {
+          avg_cpp: number | null
+          calculation_version: number
+          capacity_avg_per_deal: number | null
+          capacity_p90: number | null
+          confidence_score: number
+          created_at: string
+          curator_id: string
+          delivery_rate_pct: number | null
+          economics: Json
+          id: string
+          identity: Json
+          last_calculated_at: string
+          metadata: Json
+          on_time_rate_pct: number | null
+          recommendations: Json
+          reliability: Json
+          risk: Json
+          roi_score: number | null
+          signals: Json
+          trust_score: number
+          updated_at: string
+        }
+        Insert: {
+          avg_cpp?: number | null
+          calculation_version?: number
+          capacity_avg_per_deal?: number | null
+          capacity_p90?: number | null
+          confidence_score?: number
+          created_at?: string
+          curator_id: string
+          delivery_rate_pct?: number | null
+          economics?: Json
+          id?: string
+          identity?: Json
+          last_calculated_at?: string
+          metadata?: Json
+          on_time_rate_pct?: number | null
+          recommendations?: Json
+          reliability?: Json
+          risk?: Json
+          roi_score?: number | null
+          signals?: Json
+          trust_score?: number
+          updated_at?: string
+        }
+        Update: {
+          avg_cpp?: number | null
+          calculation_version?: number
+          capacity_avg_per_deal?: number | null
+          capacity_p90?: number | null
+          confidence_score?: number
+          created_at?: string
+          curator_id?: string
+          delivery_rate_pct?: number | null
+          economics?: Json
+          id?: string
+          identity?: Json
+          last_calculated_at?: string
+          metadata?: Json
+          on_time_rate_pct?: number | null
+          recommendations?: Json
+          reliability?: Json
+          risk?: Json
+          roi_score?: number | null
+          signals?: Json
+          trust_score?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      curator_brain_history: {
+        Row: {
+          avg_cpp: number | null
+          calculated_at: string
+          capacity_avg_per_deal: number | null
+          confidence_score: number
+          curator_id: string
+          delivery_rate_pct: number | null
+          id: string
+          on_time_rate_pct: number | null
+          signals_count: number
+          trust_score: number | null
+        }
+        Insert: {
+          avg_cpp?: number | null
+          calculated_at?: string
+          capacity_avg_per_deal?: number | null
+          confidence_score?: number
+          curator_id: string
+          delivery_rate_pct?: number | null
+          id?: string
+          on_time_rate_pct?: number | null
+          signals_count?: number
+          trust_score?: number | null
+        }
+        Update: {
+          avg_cpp?: number | null
+          calculated_at?: string
+          capacity_avg_per_deal?: number | null
+          confidence_score?: number
+          curator_id?: string
+          delivery_rate_pct?: number | null
+          id?: string
+          on_time_rate_pct?: number | null
+          signals_count?: number
+          trust_score?: number | null
+        }
+        Relationships: []
+      }
       curator_deal_baseline_playlists: {
         Row: {
           captured_at: string
