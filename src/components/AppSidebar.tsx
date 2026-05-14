@@ -11,22 +11,40 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { SidebarSmartPanel } from "@/components/SidebarSmartPanel";
 
-// Menu reduzido a 6 itens primários — foco em decisão e crescimento.
-// Sistema, Deals e Criação foram absorvidos / despromovidos.
-const items = [
-  { title: "Executivo", url: "/executivo", icon: LayoutDashboard },
-  { title: "Hoje", url: "/", icon: Home, end: true },
-  { title: "Catálogo", url: "/catalogo", icon: ListMusic },
-  { title: "Performance", url: "/performance", icon: BarChart3 },
-  { title: "Cérebro", url: "/cerebro", icon: Brain },
-  { title: "Playlist Deals", url: "/playlist-deals", icon: Handshake },
-  { title: "Campanhas", url: "/campanhas", icon: Target },
-  { title: "Analytics", url: "/analytics", icon: LineChart },
-  { title: "Inteligência", url: "/inteligencia", icon: Sparkles },
-  { title: "Valuation", url: "/valuation", icon: Gauge },
-  { title: "Comunidade", url: "/comunidade-admin", icon: Users, adminOnly: true },
-  { title: "Sistema", url: "/sistema", icon: Activity, adminOnly: true },
-  { title: "Infraestrutura", url: "/infraestrutura", icon: Server, adminOnly: true },
+// Sidebar agrupada em 3 seções (Operar / Ativos / Infra) — nada removido,
+// só organizado por função mental do uso diário.
+type NavItem = { title: string; url: string; icon: any; end?: boolean; adminOnly?: boolean };
+type NavSection = { label: string; items: NavItem[] };
+
+const sections: NavSection[] = [
+  {
+    label: "Operar",
+    items: [
+      { title: "Hoje", url: "/", icon: Home, end: true },
+      { title: "Executivo", url: "/executivo", icon: LayoutDashboard },
+      { title: "Cérebro", url: "/cerebro", icon: Brain },
+      { title: "Inteligência", url: "/inteligencia", icon: Sparkles },
+      { title: "Campanhas", url: "/campanhas", icon: Target },
+      { title: "Performance", url: "/performance", icon: BarChart3 },
+      { title: "Analytics", url: "/analytics", icon: LineChart },
+      { title: "Valuation", url: "/valuation", icon: Gauge },
+    ],
+  },
+  {
+    label: "Ativos",
+    items: [
+      { title: "Catálogo", url: "/catalogo", icon: ListMusic },
+      { title: "Playlist Deals", url: "/playlist-deals", icon: Handshake },
+      { title: "Comunidade", url: "/comunidade-admin", icon: Users, adminOnly: true },
+    ],
+  },
+  {
+    label: "Infra",
+    items: [
+      { title: "Sistema", url: "/sistema", icon: Activity, adminOnly: true },
+      { title: "Infraestrutura", url: "/infraestrutura", icon: Server, adminOnly: true },
+    ],
+  },
 ];
 
 export function AppSidebar() {
