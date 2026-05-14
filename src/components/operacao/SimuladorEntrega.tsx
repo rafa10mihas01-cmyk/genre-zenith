@@ -3,8 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatNumber } from "@/lib/format";
-import { ArrowLeft, Calculator, Search, Info, ListMusic } from "lucide-react";
+import { ArrowLeft, Calculator, Search, Info, ListMusic, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PlanejadorMeta } from "./PlanejadorMeta";
+
+type SimMode = "playlist" | "meta";
 
 type SimPlaylist = {
   id: string;
