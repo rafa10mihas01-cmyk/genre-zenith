@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 import { formatNumber, timeAgo } from "@/lib/format";
 import {
   Plus, RefreshCw, ExternalLink, Music2, Sparkles, Archive, ArchiveRestore,
-  ListMusic, AlertCircle, Activity, Brain, ArrowUpRight,
+  ListMusic, AlertCircle, Activity, Brain, ArrowUpRight, Target, TrendingUp,
 } from "lucide-react";
 import { PlaylistScoreBadge, type PlaylistScoreRow } from "./PlaylistScoreBadge";
 
@@ -281,6 +281,33 @@ export function MinhasPlaylists() {
   const inactive = scoreRows.filter(s => s.activity_score < 30).length;
   const topPerf = scoreRows.filter(s => s.health_score >= 70).length;
 
+  // ====== Match score: top oportunidades ======
+  // Score = headroom_pct * (confidence/100), penaliza sinais e capacidade desconhecida.
+  const opportunities = useMemo(() => {
+    return activeItems
+      .map((p) => {
+        const cId = p.canonical_playlist_id;
+        const b = cId ? brains[cId] : null;
+        if (!b || b.headroom_pct === null || b.headroom_pct === undefined) return null;
+        const sigCount = Array.isArray(b.signals) ? b.signals.length : 0;
+        const sigPenalty = Math.min(0.4, sigCount * 0.08);
+        const conf = (b.confidence_score ?? 50) / 100;
+        const matchScore = Math.max(
+          0,
+          Math.round(Number(b.headroom_pct) * conf * (1 - sigPenalty)),
+        );
+        return { pl: p, brain: b, matchScore, sigCount };
+      })
+      .filter(Boolean)
+      .sort((a, b) => (b!.matchScore - a!.matchScore))
+      .slice(0, 6) as Array<{
+      pl: ManagedPlaylist;
+      brain: BrainRow;
+      matchScore: number;
+      sigCount: number;
+    }>;
+  }, [activeItems, brains]);
+
   return (
     <section className="space-y-4">
       {/* KPI bar */}
@@ -301,6 +328,91 @@ export function MinhasPlaylists() {
           <div className="nx-card !p-3 flex flex-col gap-0.5">
             <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Inativas</span>
             <span className={cn("text-lg font-semibold tabular-nums", inactive > 0 && "text-warning")}>{inactive}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Top oportunidades — match score */}
+      {opportunities.length > 0 && (
+        <div className="nx-card !p-4 space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <h3 className="text-[14px] font-semibold flex items-center gap-1.5">
+                <Target className="h-4 w-4 text-primary" />
+                Top oportunidades
+              </h3>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Onde alimentar primeiro · headroom × confiança × penalidade de sinais
+              </p>
+            </div>
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              {opportunities.length} sugest{opportunities.length === 1 ? "ão" : "ões"}
+            </span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            {opportunities.map((o) => {
+              const tone =
+                o.matchScore >= 60
+                  ? "success"
+                  : o.matchScore >= 30
+                  ? "primary"
+                  : "muted";
+              return (
+                <Link
+                  key={o.pl.id}
+                  to={`/playlists/${o.pl.canonical_playlist_id}`}
+                  className={cn(
+                    "group rounded-xl border px-3 py-2.5 transition-all hover:-translate-y-[1px] hover:border-foreground/30",
+                    tone === "success" && "border-success/30 bg-success/5",
+                    tone === "primary" && "border-primary/30 bg-primary/5",
+                    tone === "muted" && "border-border/40 bg-[hsl(var(--elevated))]",
+                  )}
+                >
+                  <div className="flex items-start gap-2.5">
+                    {o.pl.cover_url ? (
+                      <img
+                        src={o.pl.cover_url}
+                        alt=""
+                        className="h-10 w-10 rounded-md object-cover shrink-0"
+                      />
+                    ) : (
+                      <div className="h-10 w-10 rounded-md bg-muted shrink-0 flex items-center justify-center">
+                        <ListMusic className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[13px] font-semibold truncate group-hover:text-primary transition-colors">
+                        {o.pl.name}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground tabular-nums flex items-center gap-1.5 flex-wrap mt-0.5">
+                        <span className="inline-flex items-center gap-0.5">
+                          <TrendingUp className="h-3 w-3" />
+                          {Math.round(Number(o.brain.headroom_pct))}% headroom
+                        </span>
+                        {o.sigCount > 0 && (
+                          <span className="text-warning">· {o.sigCount} sinal{o.sigCount > 1 ? "is" : ""}</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div
+                        className={cn(
+                          "text-[18px] font-bold tabular-nums leading-none",
+                          tone === "success" && "text-success",
+                          tone === "primary" && "text-primary",
+                          tone === "muted" && "text-muted-foreground",
+                        )}
+                      >
+                        {o.matchScore}
+                      </div>
+                      <div className="text-[9px] uppercase tracking-wider text-muted-foreground mt-0.5">
+                        match
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         </div>
       )}
