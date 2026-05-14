@@ -44,6 +44,7 @@ import Analytics from "./pages/Analytics";
 import Valuation from "./pages/Valuation";
 import PlaylistDetail from "./pages/PlaylistDetail";
 import Benchmarks from "./pages/Benchmarks";
+import MatrizPlaylists from "./pages/MatrizPlaylists";
 import NotFound from "./pages/NotFound";
 
 // Defaults globais de cache: navegação "instantânea" sem reload visual.
@@ -112,6 +113,7 @@ const App = () => (
               <Route path="/curadores/:id" element={<Protected><CuradorDetail /></Protected>} />
               <Route path="/curadoria-preview" element={<Protected><CuradoriaPreview /></Protected>} />
               <Route path="/benchmarks" element={<Protected><Benchmarks /></Protected>} />
+              <Route path="/matriz" element={<Protected><MatrizPlaylists /></Protected>} />
               <Route path="/sistema" element={<Protected><Sistema /></Protected>} />
               <Route path="/comunidade-admin" element={<Protected><AdminRoute><ComunidadeAdmin /></AdminRoute></Protected>} />
               <Route path="/infraestrutura" element={<Protected><AdminRoute><Infraestrutura /></AdminRoute></Protected>} />
