@@ -228,6 +228,12 @@ function SimDetail({ playlist, onBack }: { playlist: SimPlaylist; onBack: () => 
         Voltar para a lista
       </button>
 
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+        <SimKpi label="Saves da playlist" value={formatNumber(playlist.followers)} hint="dados reais" />
+        <SimKpi label="Plays teóricos / mês" value={formatNumber(monthly)} hint={`${formatNumber(playlist.followers)} × 30`} />
+        <SimKpi label="Plays teóricos / dia" value={formatNumber(daily)} hint="média mensal ÷ 30" />
+      </div>
+
       <div className="nx-card flex flex-col sm:flex-row gap-4 items-start">
         <div className="w-20 h-20 rounded-xl bg-elevated overflow-hidden border border-border shrink-0">
           {playlist.cover_url ? (
@@ -247,12 +253,6 @@ function SimDetail({ playlist, onBack }: { playlist: SimPlaylist; onBack: () => 
             Baseado em {formatNumber(playlist.followers)} salvamentos · {playlist.tracks_count} faixas reais
           </p>
         </div>
-      </div>
-
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-        <SimKpi label="Saves da playlist" value={formatNumber(playlist.followers)} hint="dados reais" />
-        <SimKpi label="Plays teóricos / mês" value={formatNumber(monthly)} hint={`${formatNumber(playlist.followers)} × 30`} />
-        <SimKpi label="Plays teóricos / dia" value={formatNumber(daily)} hint="média mensal ÷ 30" />
       </div>
 
       <div className="nx-card space-y-3">
