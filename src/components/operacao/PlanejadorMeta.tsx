@@ -279,22 +279,8 @@ export function PlanejadorMeta() {
           </Field>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
-          <span>Máx. posições por playlist:</span>
-          {[1, 2, 3].map(n => (
-            <button
-              key={n}
-              onClick={() => setMaxSlots(n)}
-              className={cn(
-                "h-6 px-2.5 rounded-full border tabular-nums",
-                maxSlots === n
-                  ? "bg-primary/15 text-primary border-primary/40"
-                  : "bg-elevated border-border hover:border-foreground/25",
-              )}
-            >
-              {n}
-            </button>
-          ))}
+        <div className="text-[11px] text-muted-foreground">
+          Distribuição: 1 posição por playlist · máx. 20% da meta por playlist · espalha entre todas as playlists do nicho.
         </div>
       </div>
 
