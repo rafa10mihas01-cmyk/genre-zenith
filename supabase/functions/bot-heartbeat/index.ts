@@ -61,14 +61,11 @@ Deno.serve(async (req) => {
 
   // Atualiza vps_nodes.last_heartbeat_at quando o hostname é conhecido
   if (hostname) {
-    try {
-      await supabase
-        .from("vps_nodes")
-        .update({ last_heartbeat_at: new Date().toISOString(), status: "online" })
-        .eq("hostname", hostname);
-    } catch (e) {
-      console.error("Failed to update vps_nodes.last_heartbeat_at", e);
-    }
+    const { error: vpsErr } = await supabase
+      .from("vps_nodes")
+      .update({ last_heartbeat_at: new Date().toISOString(), status: "active" })
+      .eq("hostname", hostname);
+    if (vpsErr) console.error("vps_nodes update failed:", vpsErr);
   }
 
   // Piggyback: processa snapshots DOM enviados junto com o heartbeat
