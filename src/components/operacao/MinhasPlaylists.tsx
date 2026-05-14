@@ -398,6 +398,28 @@ export function MinhasPlaylists() {
                   <span><span className="font-semibold text-foreground">{formatNumber(p.followers)}</span> seg.</span>
                   <span><span className="font-semibold text-foreground">{p.tracks_count || "—"}</span> fx</span>
                 </div>
+                {(() => {
+                  const b = p.canonical_playlist_id ? brains[p.canonical_playlist_id] : null;
+                  if (!b) return null;
+                  const sigCount = Array.isArray(b.signals) ? b.signals.length : 0;
+                  const headroom = b.headroom_pct;
+                  return (
+                    <Link
+                      to={`/playlists/${p.canonical_playlist_id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="mt-1 -mx-2.5 -mb-2.5 px-2.5 py-1.5 border-t border-border bg-elevated/50 hover:bg-elevated text-[10px] flex items-center justify-between text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <span className="inline-flex items-center gap-1">
+                        <Brain className="h-3 w-3 text-primary/70" />
+                        {headroom !== null
+                          ? <>headroom <span className="font-semibold text-foreground tabular-nums">{headroom}%</span></>
+                          : <>perfil vivo</>}
+                        {sigCount > 0 && <span className="ml-1">· {sigCount} sinais</span>}
+                      </span>
+                      <ArrowUpRight className="h-3 w-3" />
+                    </Link>
+                  );
+                })()}
               </div>
             </button>
           ))}
