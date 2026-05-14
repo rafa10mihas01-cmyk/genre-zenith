@@ -66,6 +66,7 @@ export function SimuladorEntrega() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [mode, setMode] = useState<SimMode>("playlist");
 
   useEffect(() => {
     (async () => {
