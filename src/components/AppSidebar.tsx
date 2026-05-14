@@ -53,7 +53,9 @@ export function AppSidebar() {
   const { signOut, user } = useAuth();
   const { isAdmin } = useUserRole();
   const location = useLocation();
-  const visibleItems = items.filter((i) => !i.adminOnly || isAdmin);
+  const visibleSections = sections
+    .map((s) => ({ ...s, items: s.items.filter((i) => !i.adminOnly || isAdmin) }))
+    .filter((s) => s.items.length > 0);
 
   // Fecha o drawer mobile ao escolher um item — comportamento app-like
   const handleNav = () => {
