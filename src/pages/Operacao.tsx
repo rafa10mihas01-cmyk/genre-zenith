@@ -227,6 +227,9 @@ export default function Operacao() {
   const kpi = useMemo(() => {
     const queda = playlistsAll.filter(p => p.status === "queda").length;
     const crescendo = playlistsAll.filter(p => p.status === "crescimento").length;
+    const autoFollowers = playlistsAll.reduce((s, p) => s + (p.seguidores ?? 0), 0);
+    const totalFollowers = autoFollowers + managedFollowers.sum;
+    const totalPlaylists = playlistsAll.length + managedFollowers.count;
     return {
       total: playlistsAll.length,
       crescendo,
@@ -237,8 +240,10 @@ export default function Operacao() {
       capacidadePct: accountsSummary.capacity_max > 0
         ? (accountsSummary.capacity_used / accountsSummary.capacity_max) * 100
         : 0,
+      totalFollowers,
+      totalPlaylists,
     };
-  }, [playlistsAll, accountsSummary]);
+  }, [playlistsAll, accountsSummary, managedFollowers]);
 
 
   return (
