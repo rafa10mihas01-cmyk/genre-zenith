@@ -217,6 +217,7 @@ function SimDetail({ playlist, onBack }: { playlist: SimPlaylist; onBack: () => 
   const daily = Math.round(monthly / 30);
   const tracks = Math.max(playlist.tracks_count, 20);
   const rows = useMemo(() => buildDistribution(daily, tracks), [daily, tracks]);
+  const [open, setOpen] = useState(true);
 
   // KPIs derivados da curva — relevância operacional
   const topDaily = rows.filter(r => r.position <= 5).reduce((s, r) => s + r.plays, 0);
