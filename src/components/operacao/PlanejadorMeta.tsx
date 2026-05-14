@@ -394,90 +394,14 @@ export function PlanejadorMeta() {
       </div>
 
       {/* Distribuição */}
-      <div className="nx-card space-y-3">
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-primary" />
-            <h3 className="text-sm font-semibold">Distribuição automática sugerida</h3>
-          </div>
-          <div className="text-[11px] text-muted-foreground tabular-nums">
-            {slots.length} alocações · {filtered.length} playlists no nicho
-          </div>
-        </div>
-
-        {loading ? (
-          <div className="space-y-2">
-            {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12 rounded-lg" />)}
-          </div>
-        ) : slots.length === 0 ? (
-          <div className="text-sm text-muted-foreground text-center py-6 flex flex-col items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-warning" />
-            Nenhuma distribuição possível com os parâmetros atuais.
-            {filtered.length === 0 && <span className="text-xs">Nenhuma playlist neste nicho.</span>}
-          </div>
-        ) : (
-          <div className="overflow-x-auto -mx-1">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="text-left text-muted-foreground border-b border-border">
-                  <th className="py-2 px-2">Playlist</th>
-                  <th className="py-2 px-2 w-20">Posição</th>
-                  <th className="py-2 px-2">Faixa</th>
-                  <th className="py-2 px-2 text-right">Plays/dia</th>
-                  <th className="py-2 px-2 text-right">Plays/mês</th>
-                  <th className="py-2 px-2 text-right">% da meta</th>
-                </tr>
-              </thead>
-              <tbody>
-                {slots.map((s, i) => (
-                  <tr key={`${s.playlistId}-${s.position}-${i}`} className="border-b border-border/40">
-                    <td className="py-2 px-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div className="w-7 h-7 rounded-md bg-elevated border border-border overflow-hidden shrink-0">
-                          {s.cover ? (
-                            <img src={s.cover} alt="" className="w-full h-full object-cover" loading="lazy" />
-                          ) : (
-                            <div className="w-full h-full grid place-items-center text-muted-foreground">
-                              <ListMusic className="h-3.5 w-3.5" />
-                            </div>
-                          )}
-                        </div>
-                        <span className="truncate font-medium">{s.playlistName}</span>
-                      </div>
-                    </td>
-                    <td className="py-2 px-2 tabular-nums font-semibold">#{s.position}</td>
-                    <td className="py-2 px-2">
-                      <span className={cn(
-                        "inline-flex items-center px-1.5 h-5 rounded text-[10px] font-medium border",
-                        s.band === "top" && "bg-primary/15 text-primary border-primary/40",
-                        s.band === "mid" && "bg-warning/10 text-warning border-warning/30",
-                        s.band === "low" && "bg-muted text-muted-foreground border-border",
-                      )}>
-                        {s.band === "top" ? "Topo" : s.band === "mid" ? "Meio" : "Cauda"}
-                      </span>
-                    </td>
-                    <td className="py-2 px-2 tabular-nums text-right font-medium">{formatNumber(s.playsDay)}</td>
-                    <td className="py-2 px-2 tabular-nums text-right text-muted-foreground">{formatNumber(s.playsMonth)}</td>
-                    <td className="py-2 px-2 tabular-nums text-right text-muted-foreground">
-                      {dailyTarget ? ((s.playsDay / dailyTarget) * 100).toFixed(1) : "0"}%
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="font-semibold">
-                  <td colSpan={3} className="py-2 px-2 text-muted-foreground">Total simulado</td>
-                  <td className="py-2 px-2 tabular-nums text-right">{formatNumber(ind.delivered)}</td>
-                  <td className="py-2 px-2 tabular-nums text-right">{formatNumber(ind.delivered * 30)}</td>
-                  <td className="py-2 px-2 tabular-nums text-right">
-                    {dailyTarget ? Math.round(ind.coverage * 100) : 0}%
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        )}
-      </div>
+      <DistributionTable
+        loading={loading}
+        slots={slots}
+        filteredCount={filtered.length}
+        dailyTarget={dailyTarget}
+        delivered={ind.delivered}
+        coverage={ind.coverage}
+      />
 
       <div className="nx-card flex items-start gap-3 !py-3">
         <Info className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
