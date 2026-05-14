@@ -3,9 +3,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Activity, Pause, RefreshCw, ArrowDownRight, ArrowUpRight,
   Music2, FlaskConical, History, ListMusic, Search, Users, ExternalLink,
-  AlertCircle, Wrench, ChevronDown, ChevronUp, Server, Sparkles, Heart,
+  AlertCircle, Wrench, ChevronDown, ChevronUp, Server, Sparkles, Heart, Calculator,
 } from "lucide-react";
 import { MinhasPlaylists } from "@/components/operacao/MinhasPlaylists";
+import { SimuladorEntrega } from "@/components/operacao/SimuladorEntrega";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -49,6 +50,7 @@ const labelAction = (a: string) => ACTION_LABEL[a] ?? a.replace(/_/g, " ");
 const TABS = [
   { id: "minhas",    label: "Minhas Playlists", icon: Sparkles },
   { id: "playlists", label: "Criadas (auto)", icon: ListMusic },
+  { id: "simulador", label: "Simulador", icon: Calculator },
   { id: "ajustes",   label: "Ajustes",   icon: Wrench },
 ] as const;
 
@@ -364,6 +366,13 @@ export default function Operacao() {
 
             {/* Histórico colapsável no rodapé */}
             <HistoryDrawer adjustments={adjustments} playlistsAll={playlistsAll} />
+          </section>
+        )}
+
+        {/* SIMULADOR — estimativa teórica de entrega */}
+        {tab === "simulador" && (
+          <section key="tab-simulador" className="animate-tab-in">
+            <SimuladorEntrega />
           </section>
         )}
 
