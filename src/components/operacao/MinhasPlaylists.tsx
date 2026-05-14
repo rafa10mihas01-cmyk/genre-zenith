@@ -162,8 +162,42 @@ export function MinhasPlaylists() {
 
   useEffect(() => { load(); }, [load]);
 
+  const [genres, setGenres] = useState<{ id: string; nome: string }[]>([]);
+  const [filterMissingGenre, setFilterMissingGenre] = useState(false);
+  const [savingGenre, setSavingGenre] = useState(false);
+
+  useEffect(() => {
+    supabase.from("genres").select("id, nome").order("nome").then(({ data }) => {
+      setGenres((data ?? []) as any);
+    });
+  }, []);
+
+  async function setPlaylistGenre(pl: ManagedPlaylist, genreId: string | null) {
+    setSavingGenre(true);
+    const { error } = await supabase
+      .from("managed_playlists")
+      .update({ genre_id: genreId })
+      .eq("id", pl.id);
+    setSavingGenre(false);
+    if (error) {
+      toast({ title: "Erro ao salvar gênero", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Gênero atualizado", description: "Recalculando perfil vivo…" });
+    setItems((prev) => prev.map((x) => (x.id === pl.id ? { ...x, genre_id: genreId } : x)));
+    setDrawerPl((prev) => (prev && prev.id === pl.id ? { ...prev, genre_id: genreId } : prev));
+    if (pl.canonical_playlist_id) {
+      supabase.functions.invoke("playlist-brain-calc", {
+        body: { playlist_id: pl.canonical_playlist_id },
+      }).then(() => load());
+    }
+  }
+
+  const missingGenreCount = items.filter(i => !i.archived_at && !i.genre_id).length;
+
   const visible = items
     .filter((p) => (showArchived ? !!p.archived_at : !p.archived_at))
+    .filter((p) => (filterMissingGenre ? !p.genre_id : true))
     .slice()
     .sort((a, b) => {
       if (sortBy !== "valuation") return 0;
