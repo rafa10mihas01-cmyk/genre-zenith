@@ -24,6 +24,7 @@ import PlaylistDeals from "./pages/PlaylistDeals";
 import DealDetail from "./pages/DealDetail";
 import Curadores from "./pages/Curadores";
 import CuradorDetail from "./pages/CuradorDetail";
+import CompararCuradores from "./pages/CompararCuradores";
 import CuratorPage from "./pages/CuratorPage";
 import ClientCampaignPage from "./pages/ClientCampaignPage";
 import CuradoriaPreview from "./pages/CuradoriaPreview";
