@@ -118,6 +118,17 @@ export function MinhasPlaylists() {
     setValuations(map);
   }, []);
 
+  const loadBrains = useCallback(async (canonicalIds: string[]) => {
+    if (!canonicalIds.length) { setBrains({}); return; }
+    const { data } = await supabase
+      .from("playlist_brain")
+      .select("playlist_id, capacity_total, capacity_ceiling, headroom_pct, confidence_score, signals")
+      .in("playlist_id", canonicalIds);
+    const map: Record<string, BrainRow> = {};
+    (data ?? []).forEach((r: any) => { map[r.playlist_id] = r; });
+    setBrains(map);
+  }, []);
+
   const load = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase
@@ -130,8 +141,9 @@ export function MinhasPlaylists() {
     setLoading(false);
     const canonicals = list.map(i => i.canonical_playlist_id).filter(Boolean) as string[];
     loadScores(canonicals);
+    loadBrains(canonicals);
     loadValuations(list.map(i => i.spotify_playlist_id).filter(Boolean));
-  }, [loadScores, loadValuations]);
+  }, [loadScores, loadValuations, loadBrains]);
 
   async function handleRecalc() {
     setRecalcing(true);
