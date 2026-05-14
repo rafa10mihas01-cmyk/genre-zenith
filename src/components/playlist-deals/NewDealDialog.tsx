@@ -17,7 +17,10 @@ import {
   AlertTriangle,
   PlusCircle,
   Pencil,
+  Brain,
 } from "lucide-react";
+
+import { useCuratorBrainsByIds } from "@/hooks/useCuratorBrain";
 
 import {
   Dialog,
@@ -487,12 +490,24 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
     return map;
   }, [balances]);
 
+  const activeCuratorIds = useMemo(
+    () => curators.filter((c) => !c.archived_at).map((c) => c.id),
+    [curators],
+  );
+  const { data: brainsMap = {} } = useCuratorBrainsByIds(activeCuratorIds);
+
   const visibleCurators = useMemo(() => {
     const term = curatorSearch.trim().toLowerCase();
     return curators
       .filter((c) => !c.archived_at)
-      .filter((c) => (term ? c.name.toLowerCase().includes(term) : true));
-  }, [curators, curatorSearch]);
+      .filter((c) => (term ? c.name.toLowerCase().includes(term) : true))
+      .slice()
+      .sort((a, b) => {
+        const ta = (brainsMap as any)[a.id]?.trust_score ?? -1;
+        const tb = (brainsMap as any)[b.id]?.trust_score ?? -1;
+        return tb - ta;
+      });
+  }, [curators, curatorSearch, brainsMap]);
 
   const selectedCurator: Curator | null = useMemo(
     () => curators.find((c) => c.id === selectedCuratorId) ?? null,
@@ -1186,6 +1201,10 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
                   />
                 </div>
 
+                <div className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                  <Brain className="h-3 w-3 text-primary" />
+                  Ordenado por trust score (cérebro do curador)
+                </div>
                 <div className="max-h-72 overflow-y-auto space-y-1.5 -mx-1 px-1">
                   {visibleCurators.length === 0 ? (
                     <div className="text-center text-sm text-muted-foreground py-8">
@@ -1200,6 +1219,19 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
                       const purchasedC = bal?.purchased_plays ?? c.purchased_plays;
                       const remainingC = bal?.remaining_plays ?? purchasedC;
                       const overC = (bal?.overbooked_plays ?? 0) > 0;
+                      const brain = (brainsMap as any)[c.id] as
+                        | { trust_score: number; signals: any[]; delivery_rate_pct: number | null }
+                        | undefined;
+                      const trust = brain?.trust_score ?? null;
+                      const sigs = brain?.signals?.length ?? 0;
+                      const trustTone =
+                        trust === null
+                          ? "muted"
+                          : trust >= 75
+                          ? "success"
+                          : trust >= 50
+                          ? "primary"
+                          : "destructive";
                       return (
                         <button
                           key={c.id}
@@ -1223,18 +1255,44 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
                                 {sel && <Check className="h-3.5 w-3.5 text-primary shrink-0" />}
                                 {c.name}
                               </div>
-                              <div className="text-xs text-muted-foreground tabular-nums">
-                                {formatNumber(purchasedC)} comprado •{" "}
+                              <div className="text-xs text-muted-foreground tabular-nums flex items-center gap-1.5 flex-wrap">
+                                <span>{formatNumber(purchasedC)} comprado</span>
+                                <span>•</span>
                                 <span className={cn(remainingC < 0 && "text-destructive")}>
                                   {formatNumber(remainingC)} restante
                                 </span>
+                                {brain?.delivery_rate_pct !== null && brain?.delivery_rate_pct !== undefined && (
+                                  <>
+                                    <span>•</span>
+                                    <span>{brain.delivery_rate_pct}% entrega</span>
+                                  </>
+                                )}
                               </div>
                             </div>
-                            {overC && (
-                              <span className="text-[10px] uppercase tracking-wide font-bold text-destructive bg-destructive/10 ring-1 ring-destructive/30 px-1.5 py-0.5 rounded shrink-0">
-                                Estourado
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <span
+                                className={cn(
+                                  "inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded",
+                                  trustTone === "success" && "bg-success/15 text-success ring-1 ring-success/30",
+                                  trustTone === "primary" && "bg-primary/15 text-primary ring-1 ring-primary/30",
+                                  trustTone === "destructive" && "bg-destructive/15 text-destructive ring-1 ring-destructive/30",
+                                  trustTone === "muted" && "bg-muted text-muted-foreground ring-1 ring-border/40",
+                                )}
+                                title={
+                                  trust !== null
+                                    ? `Trust ${trust}/100 · ${sigs} sinal(is)`
+                                    : "Cérebro não calculado"
+                                }
+                              >
+                                <Brain className="h-3 w-3" />
+                                {trust !== null ? trust : "—"}
                               </span>
-                            )}
+                              {overC && (
+                                <span className="text-[10px] uppercase tracking-wide font-bold text-destructive bg-destructive/10 ring-1 ring-destructive/30 px-1.5 py-0.5 rounded">
+                                  Estourado
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </button>
                       );
