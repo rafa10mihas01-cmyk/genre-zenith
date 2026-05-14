@@ -66,6 +66,7 @@ export function NotificationsBell() {
   const [tab, setTab] = useState<Tab>("all");
   const [pushOn, setPushOn] = useState(false);
   const [pushAvail, setPushAvail] = useState(true);
+  const [prefsOpen, setPrefsOpen] = useState(false);
   const nav = useNavigate();
 
   useEffect(() => {
