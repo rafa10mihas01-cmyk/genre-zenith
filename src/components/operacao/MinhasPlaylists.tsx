@@ -332,6 +332,91 @@ export function MinhasPlaylists() {
         </div>
       )}
 
+      {/* Top oportunidades — match score */}
+      {opportunities.length > 0 && (
+        <div className="nx-card !p-4 space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <h3 className="text-[14px] font-semibold flex items-center gap-1.5">
+                <Target className="h-4 w-4 text-primary" />
+                Top oportunidades
+              </h3>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Onde alimentar primeiro · headroom × confiança × penalidade de sinais
+              </p>
+            </div>
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              {opportunities.length} sugest{opportunities.length === 1 ? "ão" : "ões"}
+            </span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            {opportunities.map((o) => {
+              const tone =
+                o.matchScore >= 60
+                  ? "success"
+                  : o.matchScore >= 30
+                  ? "primary"
+                  : "muted";
+              return (
+                <Link
+                  key={o.pl.id}
+                  to={`/playlists/${o.pl.canonical_playlist_id}`}
+                  className={cn(
+                    "group rounded-xl border px-3 py-2.5 transition-all hover:-translate-y-[1px] hover:border-foreground/30",
+                    tone === "success" && "border-success/30 bg-success/5",
+                    tone === "primary" && "border-primary/30 bg-primary/5",
+                    tone === "muted" && "border-border/40 bg-[hsl(var(--elevated))]",
+                  )}
+                >
+                  <div className="flex items-start gap-2.5">
+                    {o.pl.cover_url ? (
+                      <img
+                        src={o.pl.cover_url}
+                        alt=""
+                        className="h-10 w-10 rounded-md object-cover shrink-0"
+                      />
+                    ) : (
+                      <div className="h-10 w-10 rounded-md bg-muted shrink-0 flex items-center justify-center">
+                        <ListMusic className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[13px] font-semibold truncate group-hover:text-primary transition-colors">
+                        {o.pl.name}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground tabular-nums flex items-center gap-1.5 flex-wrap mt-0.5">
+                        <span className="inline-flex items-center gap-0.5">
+                          <TrendingUp className="h-3 w-3" />
+                          {Math.round(Number(o.brain.headroom_pct))}% headroom
+                        </span>
+                        {o.sigCount > 0 && (
+                          <span className="text-warning">· {o.sigCount} sinal{o.sigCount > 1 ? "is" : ""}</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div
+                        className={cn(
+                          "text-[18px] font-bold tabular-nums leading-none",
+                          tone === "success" && "text-success",
+                          tone === "primary" && "text-primary",
+                          tone === "muted" && "text-muted-foreground",
+                        )}
+                      >
+                        {o.matchScore}
+                      </div>
+                      <div className="text-[9px] uppercase tracking-wider text-muted-foreground mt-0.5">
+                        match
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2">
         <Button onClick={() => setImportOpen(true)} className="gap-1.5">
