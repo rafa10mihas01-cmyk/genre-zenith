@@ -52,13 +52,50 @@ type Slot = {
   band: "top" | "mid" | "low";
 };
 
+type Intensity = "leve" | "normal" | "forte" | "maximo";
+
 type PlanResult = {
   slots: Slot[];
-  naturalCapacity: number; // capacidade natural total (sem forçar) das playlists do nicho
-  delivered: number;       // o que efetivamente entra na campanha (cap em dailyTarget)
-  deficit: number;         // o que falta p/ completar a meta (0 se sobrou)
-  surplus: number;         // capacidade ociosa (0 se faltou)
+  naturalCapacity: number; // capacidade total do modo escolhido
+  baselineCapacity: number; // capacidade natural no modo "normal" (referência de mercado)
+  maxCapacity: number;      // teto absoluto do nicho (modo "maximo")
+  delivered: number;
+  deficit: number;
+  surplus: number;
+  intensity: Intensity;
 };
+
+// Mix de posições por intensidade. Mais pressão = posições melhores em mais playlists.
+// Cada playlist segue 1 vez (1 música por playlist), mas escolhemos a posição da curva.
+const INTENSITY_MODES: Record<Intensity, {
+  topShare: number; midShare: number; // resto = low
+  topPos: number[]; midPos: number[]; lowPos: number[];
+}> = {
+  leve:    { topShare: 0.15, midShare: 0.30, topPos: [4, 5],          midPos: [8, 9, 10],          lowPos: [12, 14, 15, 16, 17, 18] },
+  normal:  { topShare: 0.30, midShare: 0.40, topPos: [2, 3, 4, 5],    midPos: [6, 7, 8, 9, 10],    lowPos: [11, 12, 13, 14, 15, 16, 17, 18] },
+  forte:   { topShare: 0.55, midShare: 0.35, topPos: [2, 3, 4],       midPos: [5, 6, 7, 8],        lowPos: [9, 10, 11, 12] },
+  maximo:  { topShare: 0.80, midShare: 0.20, topPos: [2, 3],          midPos: [4, 5, 6],           lowPos: [7, 8, 9] },
+};
+
+type Candidate = { p: Playlist; pos: number; cap: number; band: "top" | "mid" | "low" };
+
+function buildCandidates(pool: Playlist[], multiplier: number, mode: Intensity): Candidate[] {
+  const m = INTENSITY_MODES[mode];
+  const total = pool.length;
+  const topCount = Math.max(1, Math.round(total * m.topShare));
+  const midCount = Math.max(0, Math.round(total * m.midShare));
+  return pool.map((p, i) => {
+    let bandPos: number[]; let band: "top" | "mid" | "low";
+    if (i < topCount) { bandPos = m.topPos; band = "top"; }
+    else if (i < topCount + midCount) { bandPos = m.midPos; band = "mid"; }
+    else { bandPos = m.lowPos; band = "low"; }
+    const idxInBand = band === "top" ? i : band === "mid" ? i - topCount : i - topCount - midCount;
+    const pos = bandPos[idxInBand % bandPos.length];
+    const dailyTotal = (p.followers * multiplier) / 30;
+    const cap = Math.round(dailyTotal * posPct(pos));
+    return { p, pos, cap, band };
+  });
+}
 
 function planDistribution(opts: {
   playlists: Playlist[];
@@ -67,67 +104,66 @@ function planDistribution(opts: {
   days: number;
 }): PlanResult {
   const { playlists, dailyTarget, multiplier } = opts;
-  const empty: PlanResult = { slots: [], naturalCapacity: 0, delivered: 0, deficit: dailyTarget, surplus: 0 };
+  const empty: PlanResult = {
+    slots: [], naturalCapacity: 0, baselineCapacity: 0, maxCapacity: 0,
+    delivered: 0, deficit: dailyTarget, surplus: 0, intensity: "normal",
+  };
   if (!playlists.length || dailyTarget <= 0) return empty;
 
-  // Ordena playlists por followers desc — maiores ficam no topo (#2-#5), médias no meio, pequenas na cauda.
   const pool = playlists.filter(p => p.followers > 0).slice().sort((a, b) => b.followers - a.followers);
   if (!pool.length) return empty;
 
-  // Tiering: 30% topo / 40% meio / 30% cauda. Posições rotacionam dentro de cada tier (todas distintas
-  // entre si por playlist — mas vale repetir #3 em duas playlists diferentes, pois é 1 música por playlist).
-  const TOP_POS = [2, 3, 4, 5];
-  const MID_POS = [6, 7, 8, 9, 10];
-  const LOW_POS = [11, 12, 13, 14, 15, 16, 17, 18];
-  const total = pool.length;
-  const topCount = Math.max(1, Math.round(total * 0.30));
-  const midCount = Math.max(0, Math.round(total * 0.40));
+  // Capacidades de referência
+  const baselineCands = buildCandidates(pool, multiplier, "normal");
+  const baselineCapacity = baselineCands.reduce((s, c) => s + c.cap, 0);
+  const maxCands = buildCandidates(pool, multiplier, "maximo");
+  const maxCapacity = maxCands.reduce((s, c) => s + c.cap, 0);
 
-  // Monta lista (playlist, posição natural, capacidade natural a essa posição).
-  type Candidate = { p: Playlist; pos: number; cap: number; band: "top" | "mid" | "low" };
-  const candidates: Candidate[] = pool.map((p, i) => {
-    let bandPos: number[];
-    let band: "top" | "mid" | "low";
-    if (i < topCount) { bandPos = TOP_POS; band = "top"; }
-    else if (i < topCount + midCount) { bandPos = MID_POS; band = "mid"; }
-    else { bandPos = LOW_POS; band = "low"; }
-    const idxInBand = (band === "top") ? i : (band === "mid") ? i - topCount : i - topCount - midCount;
-    const pos = bandPos[idxInBand % bandPos.length];
-    const dailyTotal = (p.followers * multiplier) / 30;
-    const cap = Math.round(dailyTotal * posPct(pos)); // capacidade natural — SEM forçar nem capar
-    return { p, pos, cap, band };
-  });
+  // Escolhe a menor intensidade cuja capacidade já cobre a meta (entrega sem forçar).
+  // Se nem o "maximo" cobre, usa "maximo" e expõe déficit.
+  const order: Intensity[] = ["leve", "normal", "forte", "maximo"];
+  let chosen: Intensity = "maximo";
+  let chosenCands: Candidate[] = maxCands;
+  let chosenCap = maxCapacity;
+  for (const mode of order) {
+    const cands = mode === "normal" ? baselineCands : mode === "maximo" ? maxCands : buildCandidates(pool, multiplier, mode);
+    const cap = cands.reduce((s, c) => s + c.cap, 0);
+    if (cap >= dailyTarget) {
+      chosen = mode; chosenCands = cands; chosenCap = cap; break;
+    }
+  }
 
-  const naturalCapacity = candidates.reduce((s, c) => s + c.cap, 0);
-
+  // Distribuição: usa capacidade natural do modo até bater meta; última entra parcial se passar.
   const slots: Slot[] = [];
   let remaining = dailyTarget;
-
-  // Estratégia: usar capacidade natural até bater meta. Se passar, a última entra parcial.
-  // Se não bater, mostra todas no máximo natural e expõe déficit.
-  for (const c of candidates) {
+  for (const c of chosenCands) {
     if (c.cap <= 0) continue;
     if (remaining <= 0) break;
     const take = Math.min(c.cap, remaining);
     if (take < 1) continue;
     slots.push({
-      playlistId: c.p.id,
-      playlistName: c.p.name,
-      cover: c.p.cover_url,
-      position: c.pos,
-      playsDay: take,
-      playsMonth: take * 30,
-      band: c.band,
+      playlistId: c.p.id, playlistName: c.p.name, cover: c.p.cover_url,
+      position: c.pos, playsDay: take, playsMonth: take * 30, band: c.band,
     });
     remaining -= take;
   }
 
   const delivered = slots.reduce((s, x) => s + x.playsDay, 0);
   const deficit = Math.max(0, dailyTarget - delivered);
-  const surplus = Math.max(0, naturalCapacity - delivered);
+  const surplus = Math.max(0, chosenCap - delivered);
 
-  return { slots, naturalCapacity, delivered, deficit, surplus };
+  return {
+    slots, naturalCapacity: chosenCap, baselineCapacity, maxCapacity,
+    delivered, deficit, surplus, intensity: chosen,
+  };
 }
+
+const INTENSITY_LABEL: Record<Intensity, { label: string; hint: string; tone: "ok" | "warn" | "bad" }> = {
+  leve:   { label: "Leve",     hint: "campanha tranquila — posições naturais baixas/médias", tone: "ok" },
+  normal: { label: "Natural",  hint: "mix de mercado — topo, meio e cauda equilibrados", tone: "ok" },
+  forte:  { label: "Forte",    hint: "puxando posições melhores em mais playlists", tone: "warn" },
+  maximo: { label: "Máximo",   hint: "ecossistema no teto — todas em posições altas", tone: "bad" },
+};
 
 function calcIndicators(slots: Slot[], dailyTarget: number, totalPlaylists: number) {
   const delivered = slots.reduce((s, x) => s + x.playsDay, 0);
