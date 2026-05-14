@@ -148,13 +148,15 @@ export function MinhasPlaylists() {
   async function handleRecalc() {
     setRecalcing(true);
     try {
-      const { error } = await supabase.rpc("trigger_recalc_playlist_scores");
-      if (error) throw error;
-      toast({ title: "Scores recalculados" });
-      const canonicals = items.map(i => i.canonical_playlist_id).filter(Boolean) as string[];
-      await loadScores(canonicals);
+      const { data, error } = await supabase.functions.invoke("sync-managed-playlists", { body: {} });
+      if (error || !data?.ok) throw new Error(error?.message ?? data?.error ?? "Falhou");
+      toast({
+        title: "Sincronizado",
+        description: `${data.synced} playlists atualizadas · ${data.recalculated} scores recalculados${data.failed ? ` · ${data.failed} falharam` : ""}`,
+      });
+      await load();
     } catch (e: any) {
-      toast({ title: "Erro ao recalcular", description: e.message, variant: "destructive" });
+      toast({ title: "Erro ao sincronizar", description: e.message, variant: "destructive" });
     } finally {
       setRecalcing(false);
     }
