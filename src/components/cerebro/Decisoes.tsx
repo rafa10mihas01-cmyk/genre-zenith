@@ -31,10 +31,10 @@ export function Decisoes({ briefing, loading, onRegenerate, onAnalyzeDna, genera
       {/* Header explicativo + ações em massa */}
       <div className="nx-card p-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div className="min-w-0 flex-1">
-          <h3 className="font-bold text-base">Briefings de playlist</h3>
+          <h3 className="font-bold text-base">Receitas para criar novas playlists</h3>
           <p className="text-xs text-muted-foreground mt-1 max-w-2xl">
-            Cada briefing é uma <span className="text-foreground">receita pronta de playlist</span> que a IA decidiu
-            replicar com base nos padrões do gênero. Clique em um para ver descrição, capa, músicas-base e replicar.
+            Não são playlists suas. Cada receita veio dos padrões do mercado e serve para criar ou replicar uma nova playlist.
+            Clique em uma para ver referências, capa, músicas-base e regras de criação.
           </p>
           {hasBriefing && (
             <p className="text-[11px] text-muted-foreground mt-1.5 tabular-nums">
