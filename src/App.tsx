@@ -46,6 +46,7 @@ import Valuation from "./pages/Valuation";
 import PlaylistDetail from "./pages/PlaylistDetail";
 import Benchmarks from "./pages/Benchmarks";
 import MatrizPlaylists from "./pages/MatrizPlaylists";
+import HeatmapEntregas from "./pages/HeatmapEntregas";
 import NotFound from "./pages/NotFound";
 
 // Defaults globais de cache: navegação "instantânea" sem reload visual.
