@@ -144,7 +144,7 @@ Deno.serve(async (req) => {
   }
 
   // C.1 — falha sistêmica vira alerta visível
-  const totalProcessed = tpls.length;
+  const totalProcessed = targets.length;
   const failureRate = totalProcessed > 0 ? failed / totalProcessed : 0;
   const isSystemicFailure = totalProcessed >= 5 && failureRate > 0.5;
 
