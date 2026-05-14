@@ -3,8 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatNumber } from "@/lib/format";
-import { ArrowLeft, Calculator, Search, Info, ListMusic } from "lucide-react";
+import { ArrowLeft, Calculator, Search, Info, ListMusic, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PlanejadorMeta } from "./PlanejadorMeta";
+
+type SimMode = "playlist" | "meta";
 
 type SimPlaylist = {
   id: string;
@@ -63,6 +66,7 @@ export function SimuladorEntrega() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [mode, setMode] = useState<SimMode>("playlist");
 
   useEffect(() => {
     (async () => {
@@ -91,17 +95,52 @@ export function SimuladorEntrega() {
 
   const selected = items.find(i => i.id === selectedId) ?? null;
 
+  const ModeToggle = (
+    <div className="inline-flex p-0.5 rounded-full bg-elevated border border-border">
+      {([
+        { id: "playlist" as const, label: "Por playlist", icon: Calculator },
+        { id: "meta" as const, label: "Planejador de meta", icon: Target },
+      ]).map(m => {
+        const Icon = m.icon;
+        const active = mode === m.id;
+        return (
+          <button
+            key={m.id}
+            onClick={() => { setMode(m.id); setSelectedId(null); }}
+            className={cn(
+              "inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-xs font-medium transition-colors",
+              active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <Icon className="h-3.5 w-3.5" />
+            {m.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+
   if (selected) {
     return (
-      <SimDetail
-        playlist={selected}
-        onBack={() => setSelectedId(null)}
-      />
+      <div className="space-y-4">
+        {ModeToggle}
+        <SimDetail playlist={selected} onBack={() => setSelectedId(null)} />
+      </div>
+    );
+  }
+
+  if (mode === "meta") {
+    return (
+      <div className="space-y-4">
+        {ModeToggle}
+        <PlanejadorMeta />
+      </div>
     );
   }
 
   return (
     <section className="space-y-4 animate-tab-in">
+      {ModeToggle}
       <div className="nx-card flex items-start gap-3 !py-3">
         <Info className="h-4 w-4 text-primary mt-0.5 shrink-0" />
         <p className="text-xs text-muted-foreground leading-relaxed">
