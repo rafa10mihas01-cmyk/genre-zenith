@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatNumber } from "@/lib/format";
-import { Target, Info, Sparkles, ListMusic, AlertTriangle } from "lucide-react";
+import { Target, Info, Sparkles, ListMusic, AlertTriangle, CheckCircle2, XCircle, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
