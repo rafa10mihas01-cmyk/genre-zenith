@@ -2,7 +2,7 @@ import { NavLink, useLocation } from "react-router-dom";
 import { Home, Brain, BarChart3, Settings, LogOut, ListMusic, Users, Handshake, Activity, LayoutDashboard, Server, Target, LineChart, Gauge, Sparkles } from "lucide-react";
 import { NexEngineLogo } from "@/components/NexEngineLogo";
 import {
-  Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
+  Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, SidebarFooter, useSidebar,
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/contexts/AuthContext";
@@ -11,22 +11,40 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { SidebarSmartPanel } from "@/components/SidebarSmartPanel";
 
-// Menu reduzido a 6 itens primários — foco em decisão e crescimento.
-// Sistema, Deals e Criação foram absorvidos / despromovidos.
-const items = [
-  { title: "Executivo", url: "/executivo", icon: LayoutDashboard },
-  { title: "Hoje", url: "/", icon: Home, end: true },
-  { title: "Catálogo", url: "/catalogo", icon: ListMusic },
-  { title: "Performance", url: "/performance", icon: BarChart3 },
-  { title: "Cérebro", url: "/cerebro", icon: Brain },
-  { title: "Playlist Deals", url: "/playlist-deals", icon: Handshake },
-  { title: "Campanhas", url: "/campanhas", icon: Target },
-  { title: "Analytics", url: "/analytics", icon: LineChart },
-  { title: "Inteligência", url: "/inteligencia", icon: Sparkles },
-  { title: "Valuation", url: "/valuation", icon: Gauge },
-  { title: "Comunidade", url: "/comunidade-admin", icon: Users, adminOnly: true },
-  { title: "Sistema", url: "/sistema", icon: Activity, adminOnly: true },
-  { title: "Infraestrutura", url: "/infraestrutura", icon: Server, adminOnly: true },
+// Sidebar agrupada em 3 seções (Operar / Ativos / Infra) — nada removido,
+// só organizado por função mental do uso diário.
+type NavItem = { title: string; url: string; icon: any; end?: boolean; adminOnly?: boolean };
+type NavSection = { label: string; items: NavItem[] };
+
+const sections: NavSection[] = [
+  {
+    label: "Operar",
+    items: [
+      { title: "Hoje", url: "/", icon: Home, end: true },
+      { title: "Executivo", url: "/executivo", icon: LayoutDashboard },
+      { title: "Cérebro", url: "/cerebro", icon: Brain },
+      { title: "Inteligência", url: "/inteligencia", icon: Sparkles },
+      { title: "Campanhas", url: "/campanhas", icon: Target },
+      { title: "Performance", url: "/performance", icon: BarChart3 },
+      { title: "Analytics", url: "/analytics", icon: LineChart },
+      { title: "Valuation", url: "/valuation", icon: Gauge },
+    ],
+  },
+  {
+    label: "Ativos",
+    items: [
+      { title: "Catálogo", url: "/catalogo", icon: ListMusic },
+      { title: "Playlist Deals", url: "/playlist-deals", icon: Handshake },
+      { title: "Comunidade", url: "/comunidade-admin", icon: Users, adminOnly: true },
+    ],
+  },
+  {
+    label: "Infra",
+    items: [
+      { title: "Sistema", url: "/sistema", icon: Activity, adminOnly: true },
+      { title: "Infraestrutura", url: "/infraestrutura", icon: Server, adminOnly: true },
+    ],
+  },
 ];
 
 export function AppSidebar() {
@@ -35,7 +53,9 @@ export function AppSidebar() {
   const { signOut, user } = useAuth();
   const { isAdmin } = useUserRole();
   const location = useLocation();
-  const visibleItems = items.filter((i) => !i.adminOnly || isAdmin);
+  const visibleSections = sections
+    .map((s) => ({ ...s, items: s.items.filter((i) => !i.adminOnly || isAdmin) }))
+    .filter((s) => s.items.length > 0);
 
   // Fecha o drawer mobile ao escolher um item — comportamento app-like
   const handleNav = () => {
@@ -68,39 +88,45 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent className="px-2 py-3">
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu className="gap-0.5">
-              {visibleItems.map((item) => {
-                const active = item.end
-                  ? location.pathname === item.url
-                  : location.pathname.startsWith(item.url);
-                return (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={active}
-                      className={cn(
-                        "h-9 rounded-md transition-colors relative",
-                        "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/60",
-                        active && "bg-sidebar-accent !text-sidebar-foreground font-medium",
-                      )}
-                    >
-                      <NavLink to={item.url} end={item.end} onClick={handleNav} className="flex items-center gap-3 px-3">
-                        {/* Barra verde à esquerda quando ativo (estilo Spotify) */}
-                        {active && !collapsed && (
-                          <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r bg-primary" />
+        {visibleSections.map((section) => (
+          <SidebarGroup key={section.label}>
+            {!collapsed && (
+              <SidebarGroupLabel className="px-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-sidebar-foreground/40">
+                {section.label}
+              </SidebarGroupLabel>
+            )}
+            <SidebarGroupContent>
+              <SidebarMenu className="gap-0.5">
+                {section.items.map((item) => {
+                  const active = item.end
+                    ? location.pathname === item.url
+                    : location.pathname.startsWith(item.url);
+                  return (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={active}
+                        className={cn(
+                          "h-9 rounded-md transition-colors relative",
+                          "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/60",
+                          active && "bg-sidebar-accent !text-sidebar-foreground font-medium",
                         )}
-                        <item.icon className={cn("h-[18px] w-[18px] shrink-0", active ? "text-primary" : "text-sidebar-foreground/60")} />
-                        {!collapsed && <span className="text-[14px]">{item.title}</span>}
-                      </NavLink>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+                      >
+                        <NavLink to={item.url} end={item.end} onClick={handleNav} className="flex items-center gap-3 px-3">
+                          {active && !collapsed && (
+                            <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r bg-primary" />
+                          )}
+                          <item.icon className={cn("h-[18px] w-[18px] shrink-0", active ? "text-primary" : "text-sidebar-foreground/60")} />
+                          {!collapsed && <span className="text-[14px]">{item.title}</span>}
+                        </NavLink>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ))}
       </SidebarContent>
 
       {/* Painel inteligente: KPIs contextuais + Quick Actions + Alertas */}
