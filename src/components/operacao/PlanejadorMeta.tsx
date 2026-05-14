@@ -52,57 +52,81 @@ type Slot = {
   band: "top" | "mid" | "low";
 };
 
+type PlanResult = {
+  slots: Slot[];
+  naturalCapacity: number; // capacidade natural total (sem forçar) das playlists do nicho
+  delivered: number;       // o que efetivamente entra na campanha (cap em dailyTarget)
+  deficit: number;         // o que falta p/ completar a meta (0 se sobrou)
+  surplus: number;         // capacidade ociosa (0 se faltou)
+};
+
 function planDistribution(opts: {
   playlists: Playlist[];
   dailyTarget: number;
   multiplier: number;
   days: number;
-}): Slot[] {
+}): PlanResult {
   const { playlists, dailyTarget, multiplier } = opts;
-  if (!playlists.length || dailyTarget <= 0) return [];
+  const empty: PlanResult = { slots: [], naturalCapacity: 0, delivered: 0, deficit: dailyTarget, surplus: 0 };
+  if (!playlists.length || dailyTarget <= 0) return empty;
 
-  // Cap por playlist = 20% da meta diária (anti-concentração).
-  const HARD_CAP = Math.max(Math.round(dailyTarget * 0.20), 1);
-
-  // Ordena por followers desc — maiores entram primeiro p/ pegar share maior.
+  // Ordena playlists por followers desc — maiores ficam no topo (#2-#5), médias no meio, pequenas na cauda.
   const pool = playlists.filter(p => p.followers > 0).slice().sort((a, b) => b.followers - a.followers);
-  if (!pool.length) return [];
+  if (!pool.length) return empty;
 
-  // Sequência fixa de posições para garantir mistura visual real (topo/meio/cauda intercalados).
-  // 1 playlist = 1 posição, todas distintas em ordem que parece campanha natural.
-  const POSITION_SEQUENCE = [3, 8, 2, 12, 5, 10, 4, 15, 6, 9, 7, 17, 11, 13, 14, 18, 16, 19, 20];
+  // Tiering: 30% topo / 40% meio / 30% cauda. Posições rotacionam dentro de cada tier (todas distintas
+  // entre si por playlist — mas vale repetir #3 em duas playlists diferentes, pois é 1 música por playlist).
+  const TOP_POS = [2, 3, 4, 5];
+  const MID_POS = [6, 7, 8, 9, 10];
+  const LOW_POS = [11, 12, 13, 14, 15, 16, 17, 18];
+  const total = pool.length;
+  const topCount = Math.max(1, Math.round(total * 0.30));
+  const midCount = Math.max(0, Math.round(total * 0.40));
 
-  const chosen: Slot[] = [];
+  // Monta lista (playlist, posição natural, capacidade natural a essa posição).
+  type Candidate = { p: Playlist; pos: number; cap: number; band: "top" | "mid" | "low" };
+  const candidates: Candidate[] = pool.map((p, i) => {
+    let bandPos: number[];
+    let band: "top" | "mid" | "low";
+    if (i < topCount) { bandPos = TOP_POS; band = "top"; }
+    else if (i < topCount + midCount) { bandPos = MID_POS; band = "mid"; }
+    else { bandPos = LOW_POS; band = "low"; }
+    const idxInBand = (band === "top") ? i : (band === "mid") ? i - topCount : i - topCount - midCount;
+    const pos = bandPos[idxInBand % bandPos.length];
+    const dailyTotal = (p.followers * multiplier) / 30;
+    const cap = Math.round(dailyTotal * posPct(pos)); // capacidade natural — SEM forçar nem capar
+    return { p, pos, cap, band };
+  });
+
+  const naturalCapacity = candidates.reduce((s, c) => s + c.cap, 0);
+
+  const slots: Slot[] = [];
   let remaining = dailyTarget;
 
-  for (let i = 0; i < pool.length; i++) {
+  // Estratégia: usar capacidade natural até bater meta. Se passar, a última entra parcial.
+  // Se não bater, mostra todas no máximo natural e expõe déficit.
+  for (const c of candidates) {
+    if (c.cap <= 0) continue;
     if (remaining <= 0) break;
-    const p = pool[i];
-    const dailyTotal = (p.followers * multiplier) / 30;
-    const maxPos = Math.max(p.tracks_count || 20, 18);
-
-    const pos = POSITION_SEQUENCE[i % POSITION_SEQUENCE.length];
-    if (pos > maxPos) continue;
-
-    const cap = Math.round(dailyTotal * posPct(pos));
-    if (cap <= 0) continue;
-
-    const take = Math.min(cap, HARD_CAP, remaining);
+    const take = Math.min(c.cap, remaining);
     if (take < 1) continue;
-
-    chosen.push({
-      playlistId: p.id,
-      playlistName: p.name,
-      cover: p.cover_url,
-      position: pos,
+    slots.push({
+      playlistId: c.p.id,
+      playlistName: c.p.name,
+      cover: c.p.cover_url,
+      position: c.pos,
       playsDay: take,
       playsMonth: take * 30,
-      band: pos <= 5 ? "top" : pos <= 10 ? "mid" : "low",
+      band: c.band,
     });
     remaining -= take;
   }
 
-  return chosen;
+  const delivered = slots.reduce((s, x) => s + x.playsDay, 0);
+  const deficit = Math.max(0, dailyTarget - delivered);
+  const surplus = Math.max(0, naturalCapacity - delivered);
+
+  return { slots, naturalCapacity, delivered, deficit, surplus };
 }
 
 function calcIndicators(slots: Slot[], dailyTarget: number, totalPlaylists: number) {
@@ -179,7 +203,7 @@ export function PlanejadorMeta() {
   const profileObj = PROFILES.find(p => p.id === profile)!;
   const dailyTarget = days > 0 ? Math.ceil(meta / days) : 0;
 
-  const slots = useMemo(
+  const plan = useMemo(
     () => planDistribution({
       playlists: filtered,
       dailyTarget,
@@ -188,6 +212,7 @@ export function PlanejadorMeta() {
     }),
     [filtered, dailyTarget, profileObj.mult, days],
   );
+  const slots = plan.slots;
 
   const ind = useMemo(() => calcIndicators(slots, dailyTarget, filtered.length), [slots, dailyTarget, filtered.length]);
 
@@ -248,27 +273,55 @@ export function PlanejadorMeta() {
         </div>
 
         <div className="text-[11px] text-muted-foreground">
-          Distribuição: 1 posição por playlist · máx. 20% da meta por playlist · espalha entre todas as playlists do nicho.
+          Cada playlist entra 1 vez, na sua capacidade natural. Maiores no topo, médias no meio, menores na cauda.
         </div>
       </div>
 
-      {/* Resumo da meta */}
+      {/* Resumo da meta vs capacidade natural */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <SimKpi label="Meta total" value={formatNumber(meta)} hint={`${days} dias`} />
-        <SimKpi label="Necessário/dia" value={formatNumber(dailyTarget)} hint="meta ÷ duração" />
+        <SimKpi label="Meta / dia" value={formatNumber(dailyTarget)} hint={`${formatNumber(meta)} em ${days} ${days === 1 ? "dia" : "dias"}`} />
         <SimKpi
-          label="Cobertura simulada"
-          value={`${Math.round(ind.coverage * 100)}%`}
-          hint={`${formatNumber(ind.delivered)}/dia entregue`}
+          label="Capacidade natural"
+          value={formatNumber(plan.naturalCapacity)}
+          hint={`${filtered.length} playlists no nicho`}
+        />
+        <SimKpi
+          label="Entregue / dia"
+          value={formatNumber(plan.delivered)}
+          hint={`${Math.round(ind.coverage * 100)}% da meta`}
           tone={ind.coverage >= 0.85 ? "ok" : ind.coverage >= 0.6 ? "warn" : "bad"}
         />
-        <SimKpi
-          label="Risco da campanha"
-          value={ind.risk === "baixo" ? "Baixo" : ind.risk === "medio" ? "Médio" : "Alto"}
-          hint="cobertura + concentração"
-          tone={ind.risk === "baixo" ? "ok" : ind.risk === "medio" ? "warn" : "bad"}
-        />
+        {plan.deficit > 0 ? (
+          <SimKpi
+            label="Falta / dia"
+            value={formatNumber(plan.deficit)}
+            hint={`${formatNumber(plan.deficit * days)} no total`}
+            tone="bad"
+          />
+        ) : (
+          <SimKpi
+            label="Saldo ocioso"
+            value={formatNumber(plan.surplus)}
+            hint="capacidade não usada"
+            tone="ok"
+          />
+        )}
       </div>
+
+      {/* Aviso de déficit */}
+      {plan.deficit > 0 && (
+        <div className="nx-card flex items-start gap-3 !py-3 border-warning/40">
+          <AlertTriangle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
+          <p className="text-xs leading-relaxed">
+            <strong className="text-warning">Capacidade insuficiente.</strong>{" "}
+            <span className="text-muted-foreground">
+              As {filtered.length} playlists do nicho entregam, no máximo natural, {formatNumber(plan.naturalCapacity)} plays/dia.
+              Faltam <strong className="text-foreground tabular-nums">{formatNumber(plan.deficit)}/dia</strong>{" "}
+              ({formatNumber(plan.deficit * days)} no total) para completar a meta sem forçar.
+            </span>
+          </p>
+        </div>
+      )}
 
       {/* Indicadores */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
