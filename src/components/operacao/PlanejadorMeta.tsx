@@ -402,13 +402,31 @@ export function PlanejadorMeta() {
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children, hint }: { label: string; children: React.ReactNode; hint?: string }) {
   return (
     <div className="space-y-1.5">
       <div className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-semibold">{label}</div>
       {children}
+      {hint && <div className="text-[11px] text-primary tabular-nums font-medium">{hint}</div>}
     </div>
   );
+}
+
+function metaExtenso(n: number): string {
+  if (!n || n <= 0) return "—";
+  if (n >= 1_000_000_000) {
+    const v = n / 1_000_000_000;
+    return `${v.toFixed(v >= 10 ? 0 : 1).replace(".", ",")} ${v === 1 ? "bilhão" : "bilhões"}`;
+  }
+  if (n >= 1_000_000) {
+    const v = n / 1_000_000;
+    return `${v.toFixed(v >= 10 ? 0 : 1).replace(".", ",")} ${v === 1 ? "milhão" : "milhões"}`;
+  }
+  if (n >= 1_000) {
+    const v = n / 1_000;
+    return `${v.toFixed(v >= 10 ? 0 : 1).replace(".", ",")} mil`;
+  }
+  return n.toLocaleString("pt-BR");
 }
 
 function SimKpi({ label, value, hint, tone }: { label: string; value: string; hint?: string; tone?: "ok" | "warn" | "bad" }) {
