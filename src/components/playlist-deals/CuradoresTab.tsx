@@ -288,6 +288,10 @@ export function CuradoresTab({
       });
   }, [curators, showArchived, balanceById]);
 
+  const curatorIds = useMemo(() => visibleCurators.map((c) => c.id), [visibleCurators]);
+  const { data: brainsMap = {} } = useCuratorBrainsByIds(curatorIds);
+  const recalcBrain = useRecalcCuratorBrain();
+
   const overbookedCount = useMemo(
     () => balances.filter((b) => b.overbooked_plays > 0 && !b.archived_at).length,
     [balances],
