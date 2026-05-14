@@ -3,7 +3,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Activity, Pause, RefreshCw, ArrowDownRight, ArrowUpRight,
   Music2, FlaskConical, History, ListMusic, Search, Users, ExternalLink,
-  AlertCircle, Wrench, ChevronDown, ChevronUp, Server, Sparkles,
+  AlertCircle, Wrench, ChevronDown, ChevronUp, Server, Sparkles, Heart,
 } from "lucide-react";
 import { MinhasPlaylists } from "@/components/operacao/MinhasPlaylists";
 import { Input } from "@/components/ui/input";
@@ -92,12 +92,13 @@ export default function Operacao() {
   const [playlistsAll, setPlaylistsAll] = useState<OpPlaylist[]>([]);
   const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
   const [accountsSummary, setAccountsSummary] = useState<AccountSummary>({ total: 0, active: 0, capacity_used: 0, capacity_max: 0 });
+  const [managedFollowers, setManagedFollowers] = useState<{ sum: number; count: number }>({ sum: 0, count: 0 });
 
   const load = async () => {
     setLoading(true);
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
 
-    const [{ data: tpls }, { data: snaps }, { data: adjs }, { data: genres }, { data: accs }] = await Promise.all([
+    const [{ data: tpls }, { data: snaps }, { data: adjs }, { data: genres }, { data: accs }, { data: managed }] = await Promise.all([
       supabase
         .from("playlist_templates")
         .select("id,name,genre_id,status,spotify_playlist_id,spotify_url,created_on_spotify_at,followers_at_creation,tracks_added,performance_class,cover_image_url,cover_variations,cover_selected_index")
@@ -114,7 +115,14 @@ export default function Operacao() {
         .order("created_at", { ascending: false }),
       supabase.from("genres").select("id,nome"),
       supabase.from("accounts").select("status,current_playlists,max_playlists"),
+      supabase.from("managed_playlists").select("followers").is("archived_at", null),
     ]);
+
+    const managedRows = (managed ?? []) as Array<{ followers: number | null }>;
+    setManagedFollowers({
+      sum: managedRows.reduce((s, r) => s + (r.followers ?? 0), 0),
+      count: managedRows.length,
+    });
 
     // último snapshot por template
     const lastSnap = new Map<string, { followers: number; total_tracks: number | null }>();
@@ -219,6 +227,9 @@ export default function Operacao() {
   const kpi = useMemo(() => {
     const queda = playlistsAll.filter(p => p.status === "queda").length;
     const crescendo = playlistsAll.filter(p => p.status === "crescimento").length;
+    const autoFollowers = playlistsAll.reduce((s, p) => s + (p.seguidores ?? 0), 0);
+    const totalFollowers = autoFollowers + managedFollowers.sum;
+    const totalPlaylists = playlistsAll.length + managedFollowers.count;
     return {
       total: playlistsAll.length,
       crescendo,
@@ -229,8 +240,10 @@ export default function Operacao() {
       capacidadePct: accountsSummary.capacity_max > 0
         ? (accountsSummary.capacity_used / accountsSummary.capacity_max) * 100
         : 0,
+      totalFollowers,
+      totalPlaylists,
     };
-  }, [playlistsAll, accountsSummary]);
+  }, [playlistsAll, accountsSummary, managedFollowers]);
 
 
   return (
@@ -251,7 +264,8 @@ export default function Operacao() {
       />
 
       {/* KPIs operacionais — focados em decisão */}
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <section className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <KpiBig icon={Heart}         label="Salvamentos totais" value={formatNumber(kpi.totalFollowers)} tone="primary" hint={`Somando ${formatNumber(kpi.totalPlaylists)} playlists`} loading={loading} className="col-span-2 lg:col-span-1" />
         <KpiBig icon={Activity}      label="Total ativas"  value={formatNumber(kpi.total)}     hint="Playlists em operação" loading={loading} />
         <KpiBig icon={ArrowUpRight}  label="Crescendo"     value={formatNumber(kpi.crescendo)} tone="primary"     hint="Variação positiva"     loading={loading} />
         <KpiBig icon={AlertCircle}   label="Precisa atenção" value={formatNumber(kpi.atencao)} tone={kpi.atencao > 0 ? "destructive" : "default"} hint="Playlists em queda" loading={loading} />
