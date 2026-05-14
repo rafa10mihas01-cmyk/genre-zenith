@@ -1,0 +1,231 @@
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import {
+  AlertTriangle,
+  TrendingDown,
+  Brain,
+  Gauge,
+  ChevronRight,
+  CheckCircle2,
+} from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
+
+/**
+ * ProactiveAlertsCard — surface things going wrong before user looks.
+ *
+ * Detecta:
+ *  - Curadores com queda de trust score (vs última medição histórica)
+ *  - Curadores com sinais de severidade alta abertos
+ *  - Playlists saturadas (headroom < 15%)
+ */
+
+type AlertItem = {
+  id: string;
+  kind: "trust_drop" | "high_signal" | "saturated";
+  title: string;
+  detail: string;
+  to: string;
+  severity: "high" | "medium";
+};
+
+export function ProactiveAlertsCard() {
+  const [alerts, setAlerts] = useState<AlertItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      try {
+        const out: AlertItem[] = [];
+
+        // 1) Curadores com cérebro
+        const { data: brains } = await supabase
+          .from("curator_brain")
+          .select("curator_id, trust_score, signals")
+          .limit(500);
+
+        const curatorIds = (brains ?? []).map((b: any) => b.curator_id);
+
+        // 2) Nomes
+        const { data: cur } = curatorIds.length
+          ? await supabase
+              .from("curators")
+              .select("id, name, archived_at")
+              .in("id", curatorIds)
+          : { data: [] as any[] };
+        const nameById = new Map<string, string>();
+        const archivedById = new Map<string, string | null>();
+        (cur ?? []).forEach((c: any) => {
+          nameById.set(c.id, c.name);
+          archivedById.set(c.id, c.archived_at);
+        });
+
+        // 3) Histórico recente (penúltima medição) p/ detectar queda
+        const { data: hist } = curatorIds.length
+          ? await supabase
+              .from("curator_brain_history")
+              .select("curator_id, trust_score, calculated_at")
+              .in("curator_id", curatorIds)
+              .order("calculated_at", { ascending: false })
+              .limit(curatorIds.length * 5)
+          : { data: [] as any[] };
+
+        // pega a 2ª medição mais recente por curador (a 1ª deve ser o snapshot atual)
+        const prevTrustByCurator = new Map<string, number>();
+        const seenCount = new Map<string, number>();
+        (hist ?? []).forEach((h: any) => {
+          const n = (seenCount.get(h.curator_id) ?? 0) + 1;
+          seenCount.set(h.curator_id, n);
+          if (n === 2 && h.trust_score !== null) {
+            prevTrustByCurator.set(h.curator_id, Number(h.trust_score));
+          }
+        });
+
+        for (const b of brains ?? []) {
+          if (archivedById.get(b.curator_id)) continue;
+          const name = nameById.get(b.curator_id) ?? "Curador";
+          const sigs = Array.isArray(b.signals) ? b.signals : [];
+          const highSigs = sigs.filter((s: any) => s?.severity === "high");
+          const prev = prevTrustByCurator.get(b.curator_id);
+          const cur = Number(b.trust_score ?? 0);
+          if (prev !== undefined && prev - cur >= 10) {
+            out.push({
+              id: `trust-${b.curator_id}`,
+              kind: "trust_drop",
+              title: name,
+              detail: `Trust caiu ${prev - cur} pts (${prev} → ${cur})`,
+              to: `/curadores/${b.curator_id}`,
+              severity: prev - cur >= 20 ? "high" : "medium",
+            });
+          } else if (highSigs.length > 0) {
+            out.push({
+              id: `sig-${b.curator_id}`,
+              kind: "high_signal",
+              title: name,
+              detail: `${highSigs.length} sinal(is) de severidade alta`,
+              to: `/curadores/${b.curator_id}`,
+              severity: "high",
+            });
+          }
+        }
+
+        // 4) Playlists saturadas (headroom baixo)
+        const { data: pBrains } = await supabase
+          .from("playlist_brain")
+          .select("playlist_id, headroom_pct, confidence_score")
+          .lt("headroom_pct", 15)
+          .gte("confidence_score", 40)
+          .limit(20);
+
+        const pIds = (pBrains ?? []).map((p: any) => p.playlist_id);
+        const { data: pls } = pIds.length
+          ? await supabase
+              .from("managed_playlists")
+              .select("id, name, canonical_playlist_id, archived_at")
+              .in("canonical_playlist_id", pIds)
+          : { data: [] as any[] };
+
+        for (const p of pls ?? []) {
+          if (p.archived_at) continue;
+          const b = (pBrains ?? []).find((x: any) => x.playlist_id === p.canonical_playlist_id);
+          out.push({
+            id: `sat-${p.id}`,
+            kind: "saturated",
+            title: p.name,
+            detail: `Headroom ${Math.round(Number(b?.headroom_pct ?? 0))}% — sem espaço pra novas plays`,
+            to: `/playlists/${p.canonical_playlist_id}`,
+            severity: "medium",
+          });
+        }
+
+        // ordenar high primeiro, limitar
+        out.sort((a, b) => (a.severity === "high" ? -1 : 1) - (b.severity === "high" ? -1 : 1));
+        setAlerts(out.slice(0, 6));
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  const counts = useMemo(() => {
+    const high = alerts.filter((a) => a.severity === "high").length;
+    return { high, total: alerts.length };
+  }, [alerts]);
+
+  return (
+    <Card className="p-4 md:p-5 h-full">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <AlertTriangle
+            className={cn(
+              "h-4 w-4",
+              counts.high > 0 ? "text-destructive" : alerts.length > 0 ? "text-warning" : "text-success",
+            )}
+          />
+          <span className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-semibold">
+            Alertas proativos
+          </span>
+        </div>
+        {alerts.length > 0 && (
+          <span
+            className={cn(
+              "text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded",
+              counts.high > 0
+                ? "bg-destructive/15 text-destructive"
+                : "bg-warning/15 text-warning",
+            )}
+          >
+            {counts.total}
+            {counts.high > 0 ? ` · ${counts.high} alto` : ""}
+          </span>
+        )}
+      </div>
+
+      {loading ? (
+        <div className="text-[12px] text-muted-foreground">Analisando…</div>
+      ) : alerts.length === 0 ? (
+        <div className="flex items-center gap-2 text-[12px] text-success">
+          <CheckCircle2 className="h-4 w-4" /> Tudo sob controle
+        </div>
+      ) : (
+        <ul className="space-y-1.5">
+          {alerts.map((a) => {
+            const Icon =
+              a.kind === "trust_drop"
+                ? TrendingDown
+                : a.kind === "high_signal"
+                ? Brain
+                : Gauge;
+            return (
+              <li key={a.id}>
+                <Link
+                  to={a.to}
+                  className={cn(
+                    "flex items-center gap-2.5 rounded-lg border px-2.5 py-2 text-[12px] transition-colors group",
+                    a.severity === "high"
+                      ? "border-destructive/30 bg-destructive/5 hover:bg-destructive/10"
+                      : "border-warning/30 bg-warning/5 hover:bg-warning/10",
+                  )}
+                >
+                  <Icon
+                    className={cn(
+                      "h-3.5 w-3.5 shrink-0",
+                      a.severity === "high" ? "text-destructive" : "text-warning",
+                    )}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold truncate">{a.title}</div>
+                    <div className="text-muted-foreground text-[11px] truncate">{a.detail}</div>
+                  </div>
+                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0 group-hover:translate-x-0.5 transition-transform" />
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </Card>
+  );
+}
