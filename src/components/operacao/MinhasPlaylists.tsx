@@ -76,6 +76,25 @@ export function MinhasPlaylists() {
   const [importing, setImporting] = useState(false);
   const [importUrl, setImportUrl] = useState("");
   const [bulkImporting, setBulkImporting] = useState(false);
+  const [logOpen, setLogOpen] = useState(false);
+  const [logs, setLogs] = useState<Array<{ id: string; source: string; synced: number; failed: number; recalculated: number; errors: any; duration_ms: number | null; created_at: string }>>([]);
+  const [logsLoading, setLogsLoading] = useState(false);
+
+  async function loadLogs() {
+    setLogsLoading(true);
+    const { data } = await supabase
+      .from("sync_log")
+      .select("id, source, synced, failed, recalculated, errors, duration_ms, created_at")
+      .order("created_at", { ascending: false })
+      .limit(30);
+    setLogs((data ?? []) as any);
+    setLogsLoading(false);
+  }
+
+  function openLogs() {
+    setLogOpen(true);
+    loadLogs();
+  }
 
   async function handleBulkImport() {
     setBulkImporting(true);
