@@ -739,7 +739,7 @@ function DistributionTable({
                   s.band === "mid" ? "bg-warning" :
                   "bg-muted-foreground/40";
                 return (
-                  <>
+                  <React.Fragment key={`${s.playlistId}-${s.position}-${i}`}>
                     {showBandHeader && (
                       <tr key={`hd-${s.band}`} className="bg-elevated/60">
                         <td colSpan={6} className="py-1.5 px-3 text-[10px] uppercase tracking-[0.15em] font-semibold text-muted-foreground border-b border-border">
