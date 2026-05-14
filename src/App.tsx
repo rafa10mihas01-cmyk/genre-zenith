@@ -23,6 +23,7 @@ import Performance from "./pages/Performance";
 import PlaylistDeals from "./pages/PlaylistDeals";
 import DealDetail from "./pages/DealDetail";
 import Curadores from "./pages/Curadores";
+import CuradorDetail from "./pages/CuradorDetail";
 import CuratorPage from "./pages/CuratorPage";
 import ClientCampaignPage from "./pages/ClientCampaignPage";
 import CuradoriaPreview from "./pages/CuradoriaPreview";
