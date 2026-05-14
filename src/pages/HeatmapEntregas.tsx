@@ -160,11 +160,8 @@ export default function HeatmapEntregas() {
                 </div>
               ))}
               {DAYS.map((day, d) => (
-                <>
-                  <div
-                    key={`l-${d}`}
-                    className="text-[11px] text-muted-foreground pr-2 flex items-center justify-end h-8"
-                  >
+                <Fragment key={`row-${d}`}>
+                  <div className="text-[11px] text-muted-foreground pr-2 flex items-center justify-end h-8">
                     {day}
                   </div>
                   {HOURS.map((h) => {
@@ -184,7 +181,7 @@ export default function HeatmapEntregas() {
                       />
                     );
                   })}
-                </>
+                </Fragment>
               ))}
             </div>
           </div>
