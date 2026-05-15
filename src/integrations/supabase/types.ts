@@ -1986,6 +1986,84 @@ export type Database = {
         }
         Relationships: []
       }
+      external_curators: {
+        Row: {
+          activity: string | null
+          created_at: string
+          description: string | null
+          email: string | null
+          favorite: boolean
+          followers: number | null
+          id: string
+          instagram: string | null
+          last_modified: string | null
+          links: string | null
+          name: string
+          notes: string | null
+          owner_name: string | null
+          score: string | null
+          score_raw: number | null
+          social: string | null
+          spotify_playlist_id: string | null
+          spotify_url: string | null
+          status: string
+          track_popularity: number | null
+          tracks: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          activity?: string | null
+          created_at?: string
+          description?: string | null
+          email?: string | null
+          favorite?: boolean
+          followers?: number | null
+          id?: string
+          instagram?: string | null
+          last_modified?: string | null
+          links?: string | null
+          name: string
+          notes?: string | null
+          owner_name?: string | null
+          score?: string | null
+          score_raw?: number | null
+          social?: string | null
+          spotify_playlist_id?: string | null
+          spotify_url?: string | null
+          status?: string
+          track_popularity?: number | null
+          tracks?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          activity?: string | null
+          created_at?: string
+          description?: string | null
+          email?: string | null
+          favorite?: boolean
+          followers?: number | null
+          id?: string
+          instagram?: string | null
+          last_modified?: string | null
+          links?: string | null
+          name?: string
+          notes?: string | null
+          owner_name?: string | null
+          score?: string | null
+          score_raw?: number | null
+          social?: string | null
+          spotify_playlist_id?: string | null
+          spotify_url?: string | null
+          status?: string
+          track_popularity?: number | null
+          tracks?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       genre_backfill_attempts: {
         Row: {
           details: Json
