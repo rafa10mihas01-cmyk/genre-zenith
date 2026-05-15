@@ -1054,7 +1054,9 @@ Deno.serve(async (req) => {
   // que a lista de links fique completa, sem inventar streams.
   for (const dom of domItems) {
     if (dom.id.startsWith("algo:")) continue; // já tratada no loop principal
-    if (processedSpotifyIds.has(dom.id) || processedNames.has(norm(dom.name))) continue;
+    // Dedup APENAS por spotify_playlist_id. Nomes parecidos (ex.: várias playlists
+    // do Spotify com "Tubarões…" no título) são playlists DIFERENTES e devem entrar.
+    if (processedSpotifyIds.has(dom.id)) continue;
     if (isAlgorithmic(dom.name, dom.made_by ?? null, dom.id)) continue;
     const isEditorialDom = isSpotifyEditorial(dom.name, dom.made_by ?? null, dom.id);
     // ECOSSISTEMA COMPLEMENTO DOM: não descartamos mais linhas fora da whitelist.
