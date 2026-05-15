@@ -241,5 +241,5 @@ export async function processDomItem(
     })
     .eq("id", song_id);
 
-  return { song_id, ok: true, inserted, skipped };
+  return { song_id, ok: true, inserted, skipped, deduped_in_batch: dedupedOut };
 }
