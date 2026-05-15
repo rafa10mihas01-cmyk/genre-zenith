@@ -224,6 +224,17 @@ const STATUS_META: Record<Status, { label: string; cls: string }> = {
   blacklist:   { label: "Blacklist",  cls: "bg-destructive/10 text-destructive border-destructive/30" },
 };
 
+type SizeBucket = "todos" | "micro" | "pequeno" | "medio" | "grande" | "macro";
+
+const SIZE_BUCKETS: { id: SizeBucket; label: string; min: number; max: number }[] = [
+  { id: "todos",   label: "Todos tamanhos", min: 0,      max: Infinity },
+  { id: "micro",   label: "0–500",          min: 0,      max: 500 },
+  { id: "pequeno", label: "500–1k",         min: 500,    max: 1000 },
+  { id: "medio",   label: "1k–5k",          min: 1000,   max: 5000 },
+  { id: "grande",  label: "5k–20k",         min: 5000,   max: 20000 },
+  { id: "macro",   label: "20k+",           min: 20000,  max: Infinity },
+];
+
 export function CuradoresCRM() {
   const [rows, setRows] = useState<CuradorRow[]>([]);
   const [loading, setLoading] = useState(true);
