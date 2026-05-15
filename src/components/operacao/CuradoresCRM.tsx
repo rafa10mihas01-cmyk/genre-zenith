@@ -262,7 +262,7 @@ export function CuradoresCRM() {
       });
 
       if (filtered.length === 0) {
-        toast.warning("Nenhuma playlist passou nos filtros (≥2k seguidores + contato + não-corporativa)");
+        toast.warning("Nenhuma playlist passou nos filtros (precisa ter email, social ou link e não ser selo corporativo)");
         return;
       }
 
