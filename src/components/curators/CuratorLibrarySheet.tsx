@@ -206,46 +206,59 @@ export function CuratorLibrarySheet({ curator, deals, balance, onAddPurchase, on
                 const totalCost = Number(balance?.total_cost ?? curator.total_cost ?? 0) || 0;
                 const consumedPct = purchased > 0 ? Math.min(100, Math.round((consumed / purchased) * 100)) : 0;
                 const cpp = consumed > 0 && totalCost > 0 ? totalCost / consumed : null;
-                if (purchased === 0 && totalCost === 0) return null;
+                if (purchased === 0 && totalCost === 0 && !onAddPurchase) return null;
                 return (
                   <div className="px-6 py-5 border-b border-border/40 space-y-4 bg-[hsl(var(--elevated))]">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-3">
                       <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
                         Saldo
                       </h3>
-                      {cpp !== null && (
-                        <span className="text-[11px] text-muted-foreground">
-                          Custo/play <span className="text-foreground font-semibold">{formatCPP(cpp)}</span>
-                        </span>
-                      )}
-                    </div>
-                    <div className="grid grid-cols-3 gap-3">
-                      <div className="rounded-xl bg-card border border-border/40 px-4 py-3">
-                        <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-1.5">
-                          Plays comprados
-                        </div>
-                        <div className="text-[22px] font-bold tabular-nums leading-none">{formatPlays(purchased)}</div>
-                        {totalCost > 0 && (
-                          <div className="text-[11px] text-muted-foreground mt-1.5 tabular-nums">{formatBRL(totalCost)} total</div>
+                      <div className="flex items-center gap-3">
+                        {cpp !== null && (
+                          <span className="text-[11px] text-muted-foreground">
+                            Custo/play <span className="text-foreground font-semibold">{formatCPP(cpp)}</span>
+                          </span>
+                        )}
+                        {onAddPurchase && (
+                          <Button size="sm" variant="outline" onClick={() => setBuyOpen(true)} className="gap-1.5 h-7 text-xs">
+                            <Plus className="size-3.5" /> Adicionar crédito
+                          </Button>
                         )}
                       </div>
-                      <div className="rounded-xl bg-card border border-border/40 px-4 py-3">
-                        <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-1.5">
-                          Restante
-                        </div>
-                        <div className={cn("text-[22px] font-bold tabular-nums leading-none", overbooked ? "text-destructive" : "text-primary")}>
-                          {overbooked ? "Estourado" : formatPlays(remaining)}
-                        </div>
-                        <div className="text-[11px] text-muted-foreground mt-1.5 tabular-nums">{formatPlays(consumed)} consumido</div>
-                      </div>
-                      <div className="rounded-xl bg-card border border-border/40 px-4 py-3">
-                        <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-1.5">
-                          Consumido
-                        </div>
-                        <div className="text-[22px] font-bold tabular-nums leading-none">{consumedPct}%</div>
-                        <div className="mt-2"><Progress value={consumedPct} className="h-1.5 rounded-full" /></div>
-                      </div>
                     </div>
+                    {purchased === 0 && totalCost === 0 ? (
+                      <div className="text-xs text-muted-foreground">
+                        Nenhuma compra registrada. Adicione plays comprados para começar a controlar o saldo deste curador.
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="rounded-xl bg-card border border-border/40 px-4 py-3">
+                          <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-1.5">
+                            Plays comprados
+                          </div>
+                          <div className="text-[22px] font-bold tabular-nums leading-none">{formatPlays(purchased)}</div>
+                          {totalCost > 0 && (
+                            <div className="text-[11px] text-muted-foreground mt-1.5 tabular-nums">{formatBRL(totalCost)} total</div>
+                          )}
+                        </div>
+                        <div className="rounded-xl bg-card border border-border/40 px-4 py-3">
+                          <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-1.5">
+                            Restante
+                          </div>
+                          <div className={cn("text-[22px] font-bold tabular-nums leading-none", overbooked ? "text-destructive" : "text-primary")}>
+                            {overbooked ? "Estourado" : formatPlays(remaining)}
+                          </div>
+                          <div className="text-[11px] text-muted-foreground mt-1.5 tabular-nums">{formatPlays(consumed)} consumido</div>
+                        </div>
+                        <div className="rounded-xl bg-card border border-border/40 px-4 py-3">
+                          <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-1.5">
+                            Consumido
+                          </div>
+                          <div className="text-[22px] font-bold tabular-nums leading-none">{consumedPct}%</div>
+                          <div className="mt-2"><Progress value={consumedPct} className="h-1.5 rounded-full" /></div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })()}
