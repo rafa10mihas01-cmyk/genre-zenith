@@ -427,6 +427,52 @@ export function CuratorLibrarySheet({ curator, deals, balance, onAddPurchase, on
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={buyOpen} onOpenChange={setBuyOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Adicionar crédito</DialogTitle>
+            <DialogDescription>
+              Registre uma nova compra de plays com {curator?.name}. O saldo é recalculado automaticamente.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Plays comprados</Label>
+              <Input
+                inputMode="numeric"
+                value={buyPlays}
+                onChange={(e) => setBuyPlays(e.target.value)}
+                placeholder="Ex.: 500000"
+              />
+            </div>
+            <div>
+              <Label>Valor pago (R$)</Label>
+              <Input
+                inputMode="decimal"
+                value={buyAmount}
+                onChange={(e) => setBuyAmount(e.target.value)}
+                placeholder="Ex.: 1500,00"
+              />
+            </div>
+            <div>
+              <Label>Nota (opcional)</Label>
+              <Input
+                value={buyNote}
+                onChange={(e) => setBuyNote(e.target.value)}
+                placeholder="Ex.: pacote junho, pix"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setBuyOpen(false)}>Cancelar</Button>
+            <Button onClick={handleBuy} disabled={buying}>
+              {buying && <Loader2 className="size-4 animate-spin mr-2" />}
+              Adicionar crédito
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
