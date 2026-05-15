@@ -438,6 +438,16 @@ export function CuradoresCRM() {
             <Star className="h-3 w-3 inline mr-1" /> Favoritos
           </Chip>
         </div>
+
+        {/* Faixa de tamanho (seguidores) */}
+        <div className="flex items-center gap-1.5 flex-wrap mt-2">
+          <span className="text-[10.5px] uppercase tracking-[0.12em] text-muted-foreground mr-1">Tamanho</span>
+          {SIZE_BUCKETS.map((b) => (
+            <Chip key={b.id} active={sizeFilter === b.id} onClick={() => setSizeFilter(b.id)}>
+              {b.label}
+            </Chip>
+          ))}
+        </div>
       </div>
 
       {/* Stats */}
