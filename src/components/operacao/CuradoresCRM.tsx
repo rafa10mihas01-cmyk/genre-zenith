@@ -231,6 +231,7 @@ export function CuradoresCRM() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"todos" | Status>("todos");
   const [scoreFilter, setScoreFilter] = useState<"todos" | "A+" | "A" | "B" | "C" | "D">("todos");
+  const [sizeFilter, setSizeFilter] = useState<SizeBucket>("todos");
   const [favOnly, setFavOnly] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
