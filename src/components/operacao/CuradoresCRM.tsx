@@ -43,8 +43,6 @@ type CuradorRow = {
   notes: string | null;
 };
 
-const MIN_FOLLOWERS = 2000;
-
 // Selos/owners corporativos a remover automaticamente
 const BLOCKED_OWNERS = [
   "spotify", "filtr", "topsify", "universal", "sony", "warner",
@@ -211,6 +209,58 @@ function extractFromDesc(desc: string | null): string | null {
 
 function hasContact(r: Imported | CuradorRow): boolean {
   return Boolean(r.email || r.instagram || r.links || r.social);
+}
+
+type CuratorIdentity = Pick<Imported, "spotify_playlist_id" | "spotify_url" | "name" | "owner_name">;
+
+type IdentityRegistry = {
+  ids: Set<string>;
+  urls: Set<string>;
+  nameOwners: Set<string>;
+};
+
+function normalizeIdentity(value: string | null | undefined): string {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[⧉↗→]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function normalizeUrl(value: string | null | undefined): string {
+  return normalizeIdentity(value).replace(/[?#].*$/, "").replace(/\/$/, "");
+}
+
+function registerIdentity(registry: IdentityRegistry, row: CuratorIdentity) {
+  const id = normalizeIdentity(row.spotify_playlist_id);
+  const url = normalizeUrl(row.spotify_url);
+  const name = normalizeIdentity(row.name);
+  const owner = normalizeIdentity(row.owner_name);
+
+  if (id) registry.ids.add(id);
+  if (url) registry.urls.add(url);
+  if (name && owner) registry.nameOwners.add(`${name}|${owner}`);
+}
+
+function hasIdentityMatch(registry: IdentityRegistry, row: CuratorIdentity): boolean {
+  const id = normalizeIdentity(row.spotify_playlist_id);
+  const url = normalizeUrl(row.spotify_url);
+  const name = normalizeIdentity(row.name);
+  const owner = normalizeIdentity(row.owner_name);
+
+  return Boolean(
+    (id && registry.ids.has(id)) ||
+    (url && registry.urls.has(url)) ||
+    (name && owner && registry.nameOwners.has(`${name}|${owner}`)),
+  );
+}
+
+function createIdentityRegistry(rows: CuratorIdentity[]): IdentityRegistry {
+  const registry: IdentityRegistry = { ids: new Set(), urls: new Set(), nameOwners: new Set() };
+  rows.forEach((row) => registerIdentity(registry, row));
+  return registry;
 }
 
 /* ============================================================
