@@ -409,6 +409,13 @@ export default function Operacao() {
           </section>
         )}
 
+        {/* CURADORES — CRM de playlists independentes (importadas de XLSX/CSV) */}
+        {tab === "curadores" && (
+          <section key="tab-curadores" className="animate-tab-in">
+            <CuradoresCRM />
+          </section>
+        )}
+
       </div>
     </PageContainer>
   );
