@@ -147,9 +147,26 @@ Deno.serve(async (req) => {
     return m ? m[1] : null;
   };
 
+  // Dedupe dentro do lote (bot manda mesma playlist em vários scrolls)
+  const scoreSnap = (x: any) =>
+    (x.plays_24h != null ? 1 : 0) +
+    (x.plays_7d  != null ? 1 : 0) +
+    (x.plays_28d != null ? 1 : 0) +
+    (x.plays     != null ? 1 : 0) +
+    (x.followers != null ? 1 : 0);
+  const dedupMap = new Map<string, any>();
+  for (const s of snapshots) {
+    const key = extractId(s.spotify_url) ?? `name:${String(s.playlist_name ?? "").trim().toLowerCase()}`;
+    if (!key) continue;
+    const prev = dedupMap.get(key);
+    if (!prev || scoreSnap(s) > scoreSnap(prev)) dedupMap.set(key, s);
+  }
+  const dedupedSnapshots = Array.from(dedupMap.values());
+  const dedupedOut = snapshots.length - dedupedSnapshots.length;
+
   let inserted = 0;
   let skipped = 0;
-  for (const snap of snapshots) {
+  for (const snap of dedupedSnapshots) {
     const sUrl = snap.spotify_url ?? "";
     const sName = snap.playlist_name ?? null;
     const sId = extractId(sUrl);
