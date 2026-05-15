@@ -93,6 +93,7 @@ export function CuradoresLibraryTab({
   deals,
   loading,
   onUpdateCurator,
+  onAddPurchase,
   onArchiveCurator,
   onDeleteCurator,
   onPauseCurator,
