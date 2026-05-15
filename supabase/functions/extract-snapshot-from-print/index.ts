@@ -553,6 +553,9 @@ Deno.serve(async (req) => {
       plays_7d: w7,
       plays_28d: w28,
     };
+    // Dedup interno: se o bot mandar a mesma playlist em prints diferentes,
+    // mantém apenas a 1ª ocorrência (por spotify_playlist_id / id sintético algo:).
+    if (domItems.some((x) => x.id === id)) continue;
     domByName.set(normName(name), item);
     domByPos.set(position, item);
     domItems.push(item);
