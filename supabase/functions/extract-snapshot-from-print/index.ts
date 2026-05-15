@@ -716,6 +716,29 @@ Deno.serve(async (req) => {
     const { data: recent } = await recentQuery;
     if (recent && recent.length > 0) {
       console.log(`[extract] deduped deal=${deal_id} song=${song_id ?? "null"} — log within 90s exists`);
+      const recentLog = recent[0];
+      const firstPrintUrl = print_urls[0] ?? null;
+
+      await supabase
+        .from("curator_deal_logs")
+        .update({ print_urls })
+        .eq("id", recentLog.id);
+
+      let snapshotPatch: Record<string, unknown> = {
+        batch_id: batch_id ?? null,
+        correlation_id: correlation_id ?? null,
+      };
+      if (firstPrintUrl) snapshotPatch.print_url = firstPrintUrl;
+
+      let snapQ = supabase
+        .from("curator_deal_snapshots")
+        .update(snapshotPatch)
+        .eq("deal_id", deal_id)
+        .eq("is_baseline", recentLog.is_baseline)
+        .gte("created_at", since);
+      snapQ = song_id ? snapQ.eq("song_id", song_id) : snapQ.is("song_id", null);
+      await snapQ;
+
       if (song_id) {
         await supabase
           .from("curator_deal_songs")
@@ -728,7 +751,7 @@ Deno.serve(async (req) => {
       }
       if (batch_id) {
         await supabase
-          .from("curator_print_batches")
+          .from("bot_print_batches")
           .update({ status: "processed", processed_at: new Date().toISOString() })
           .eq("id", batch_id);
       }
