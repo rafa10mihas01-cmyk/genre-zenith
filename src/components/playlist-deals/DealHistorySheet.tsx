@@ -208,6 +208,10 @@ type BreakdownRowData = {
   plays_24h: number | null;
   plays_7d: number | null;
   plays_28d: number | null;
+  total_delivered: number;
+  baseline_total: number;
+  last_total: number;
+  last_captured_at: string | null;
   song_name?: string | null;
 };
 
@@ -251,7 +255,9 @@ function BreakdownRow({ r, kind }: { r: BreakdownRowData; kind: "curator" | "alg
           )}
         </div>
         <div className="text-[11px] text-muted-foreground tabular-nums mt-0.5 pl-3.5">
-          Δ hoje <span className="text-foreground font-medium">+{fmtCompact(r.today_plays)}</span>
+          Total <span className="text-foreground font-medium">{fmtCompact(r.total_delivered)}</span>
+          <span className="text-muted-foreground/70"> · Δ hoje </span>
+          <span className="text-foreground font-medium">+{fmtCompact(r.today_plays)}</span>
           {r.song_name && <> · <span className="text-foreground/80">♪ {r.song_name}</span></>}
           {r.spotify_owner_name && <> · {r.spotify_owner_name}</>}
         </div>
@@ -268,10 +274,10 @@ function BreakdownRow({ r, kind }: { r: BreakdownRowData; kind: "curator" | "alg
               title={`Janela ${w} (Spotify for Artists)`}
             >
               <div className="text-[13px] font-semibold text-foreground tabular-nums leading-tight">
-                {v != null ? fmtCompact(v) : "—"}
+                {w === "28d" && r.total_delivered > 0 ? fmtCompact(r.total_delivered) : v != null ? fmtCompact(v) : "—"}
               </div>
               <div className="text-[9.5px] uppercase tracking-wider text-muted-foreground">
-                {w}
+                {w === "28d" && r.total_delivered > 0 ? "TOTAL" : w}
               </div>
             </div>
           );
