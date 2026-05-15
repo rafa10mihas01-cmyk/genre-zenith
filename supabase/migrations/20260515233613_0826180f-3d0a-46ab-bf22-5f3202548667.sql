@@ -1,0 +1,1 @@
+GRANT EXECUTE ON FUNCTION public.get_cron_secret() TO service_role;

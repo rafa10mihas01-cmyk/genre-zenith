@@ -113,19 +113,32 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const cronSecret = Deno.env.get("CRON_SECRET");
-    const provided = req.headers.get("x-cron-secret");
-    if (!cronSecret || provided !== cronSecret) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
+
+    // Auth: aceita o CRON_SECRET vindo de DUAS fontes (env da função OU
+    // vault.get_cron_secret() usado pelo pg_cron). Elas drifaram em produção
+    // e o cron de 6h passou semanas batendo 401 — deals nunca eram
+    // reconciliados. Validar contra as duas fontes elimina esse risco.
+    const provided = req.headers.get("x-cron-secret");
+    const envSecret = Deno.env.get("CRON_SECRET");
+    let vaultSecret: string | null = null;
+    try {
+      const { data } = await supabase.rpc("get_cron_secret" as never);
+      if (typeof data === "string") vaultSecret = data;
+    } catch (_) { /* ignore — env fallback abaixo */ }
+    const ok = !!provided && (
+      (!!envSecret && provided === envSecret) ||
+      (!!vaultSecret && provided === vaultSecret)
+    );
+    if (!ok) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized", env_set: !!envSecret, vault_set: !!vaultSecret }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
     const cutoff = new Date(Date.now() - 7 * 86400000).toISOString();
     // Apenas deals ATIVOS (não encerrados). Campanhas com closed_at != null
