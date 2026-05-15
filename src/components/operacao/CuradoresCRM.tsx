@@ -471,7 +471,7 @@ export function CuradoresCRM() {
           </p>
           <p className="text-xs text-muted-foreground">
             {rows.length === 0
-              ? "Importe um XLSX/CSV do PlaylistSupply pra começar. Vamos filtrar automaticamente apenas playlists ≥2k com contato real."
+              ? "Importe um XLSX/CSV do PlaylistSupply pra começar. Trazemos toda playlist com email, social ou link — você filtra o tamanho aqui em cima."
               : "Tente outro filtro ou limpe a busca."}
           </p>
         </Card>
