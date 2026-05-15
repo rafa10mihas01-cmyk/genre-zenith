@@ -81,6 +81,7 @@ interface Props {
   deals: CuratorDeal[];
   loading: boolean;
   onUpdateCurator?: (curatorId: string, input: Partial<NewCuratorInput>) => Promise<void>;
+  onAddPurchase?: (curatorId: string, input: { plays_purchased: number; amount: number; note?: string | null }) => Promise<void>;
   onArchiveCurator?: (curatorId: string, archive?: boolean) => Promise<void>;
   onDeleteCurator?: (curatorId: string) => Promise<void>;
   onPauseCurator?: (curatorId: string, pause?: boolean) => Promise<void>;
