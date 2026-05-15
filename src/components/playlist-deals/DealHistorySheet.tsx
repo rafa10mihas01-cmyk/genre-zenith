@@ -512,7 +512,7 @@ export function DealHistorySheet({
     [todayBreakdown],
   );
   const sumWindow = (rows: typeof curatorBreakdownRows, w: "24h" | "7d" | "28d") =>
-    rows.reduce((s, r) => s + (w === "24h" ? r.plays_24h ?? 0 : w === "7d" ? r.plays_7d ?? 0 : r.plays_28d ?? 0), 0);
+    rows.reduce((s, r) => s + (w === "24h" ? r.plays_24h ?? 0 : w === "7d" ? r.plays_7d ?? 0 : r.total_delivered || r.plays_28d || 0), 0);
   const curatorWindowTotal = sumWindow(curatorBreakdownRows, perfWindow);
   const algoWindowTotal = sumWindow(algoBreakdownRows, perfWindow);
 
@@ -734,7 +734,7 @@ export function DealHistorySheet({
                             {fmtCompact(curatorWindowTotal)}
                           </div>
                           <div className="text-[10px] text-muted-foreground tabular-nums mt-0.5">
-                            {curatorBreakdownRows.length} playlist{curatorBreakdownRows.length === 1 ? "" : "s"}
+                          {curatorBreakdownRows.length} detectada{curatorBreakdownRows.length === 1 ? "" : "s"} · {curatorTotal} cadastrada{curatorTotal === 1 ? "" : "s"}
                           </div>
                         </div>
                         <div>
