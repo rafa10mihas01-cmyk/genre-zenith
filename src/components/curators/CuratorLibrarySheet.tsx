@@ -64,10 +64,11 @@ interface Props {
   curator: Curator | null;
   deals: CuratorDeal[];
   balance?: CuratorBalance | null;
+  onAddPurchase?: (curatorId: string, input: { plays_purchased: number; amount: number; note?: string | null }) => Promise<void>;
   onClose: () => void;
 }
 
-export function CuratorLibrarySheet({ curator, deals, balance, onClose }: Props) {
+export function CuratorLibrarySheet({ curator, deals, balance, onAddPurchase, onClose }: Props) {
   const open = !!curator;
   const { items, stats, performance, loading, addManual, remove } = useCuratorLibrary(curator?.id ?? null);
 
