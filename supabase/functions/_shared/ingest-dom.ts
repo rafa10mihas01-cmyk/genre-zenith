@@ -25,6 +25,7 @@ export type DomItemResult = {
   inserted?: number;
   skipped?: number;
   deduped?: boolean;
+  deduped_in_batch?: number;
   error?: string;
 };
 
