@@ -45,6 +45,26 @@ const EMPTY: TodayBreakdown = {
   rows: [],
 };
 
+type SnapshotRow = {
+  playlist_id: string | null;
+  plays: number | null;
+  plays_24h: number | null;
+  plays_7d: number | null;
+  plays_28d: number | null;
+  captured_at: string;
+  is_baseline: boolean | null;
+};
+
+type PlaylistMetaRow = {
+  id: string;
+  playlist_name: string | null;
+  spotify_url: string | null;
+  spotify_owner_name: string | null;
+  image_url: string | null;
+  match_status: string | null;
+  is_baseline: boolean | null;
+};
+
 export function useDealTodayPlaylistBreakdown(dealId: string | null | undefined) {
   return useQuery({
     queryKey: ["deal-today-playlist-breakdown", dealId],
@@ -54,7 +74,7 @@ export function useDealTodayPlaylistBreakdown(dealId: string | null | undefined)
     queryFn: async (): Promise<TodayBreakdown> => {
       if (!dealId) return EMPTY;
 
-      const snaps: any[] = [];
+      const snaps: SnapshotRow[] = [];
       const pageSize = 1000;
       for (let from = 0; from < 20_000; from += pageSize) {
         const { data, error } = await supabase
@@ -64,7 +84,7 @@ export function useDealTodayPlaylistBreakdown(dealId: string | null | undefined)
           .order("captured_at", { ascending: true })
           .range(from, from + pageSize - 1);
         if (error) throw error;
-        snaps.push(...(data ?? []));
+        snaps.push(...((data ?? []) as SnapshotRow[]));
         if (!data || data.length < pageSize) break;
       }
 
@@ -117,11 +137,11 @@ export function useDealTodayPlaylistBreakdown(dealId: string | null | undefined)
         .select("id, playlist_name, spotify_url, spotify_owner_name, image_url, match_status, is_baseline")
         .in("id", playlistIds);
 
-      const plMap = new Map((playlists ?? []).map((p: any) => [p.id, p]));
+      const plMap = new Map(((playlists ?? []) as PlaylistMetaRow[]).map((p) => [p.id, p]));
 
       const rows: TodayPlaylistRow[] = playlistIds.map((pid) => {
         const b = map.get(pid)!;
-        const pl = plMap.get(pid) as any;
+        const pl = plMap.get(pid);
         const last = b.last!;
         const todayLast = b.todayLast;
         const prev = b.prev;
