@@ -221,7 +221,7 @@ function StageCard({
 }) {
   const palette = {
     pending: { ring: "border-border", bg: "bg-elevated/40", icon: "text-muted-foreground/50", dot: "bg-muted-foreground/30", label: "Aguardando" },
-    running: { ring: "border-primary/50 ring-1 ring-primary/30", bg: "bg-primary/5", icon: "text-primary", dot: "bg-primary animate-pulse", label: "Fazendo agora" },
+    running: { ring: "border-primary ring-2 ring-primary/40 shadow-[0_0_24px_-4px_hsl(var(--primary)/0.45)] animate-pulse", bg: "bg-primary/10", icon: "text-primary", dot: "bg-primary animate-pulse", label: "Fazendo agora" },
     success: { ring: "border-border", bg: "bg-card", icon: "text-primary", dot: "bg-primary", label: "Feito" },
     error:   { ring: "border-destructive/40", bg: "bg-destructive/5", icon: "text-destructive", dot: "bg-destructive", label: "Falhou" },
     warning: { ring: "border-warning/40", bg: "bg-warning/5", icon: "text-warning", dot: "bg-warning", label: "Atenção" },
