@@ -1147,8 +1147,8 @@ export function DealHistorySheet({
                       const linked = allPlaylists
                         .filter((p) => {
                           if (p.deal_id !== log.deal_id) return false;
-                          if (log.song_id && (p as any).song_id) {
-                            return (p as any).song_id === log.song_id;
+                          if (log.song_id && p.song_id) {
+                            return p.song_id === log.song_id;
                           }
                           if (log.is_baseline) return p.is_baseline === true;
                           return true;
