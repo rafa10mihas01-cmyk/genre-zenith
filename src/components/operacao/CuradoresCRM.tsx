@@ -122,6 +122,19 @@ function formatN(n: number) {
   return n.toLocaleString("pt-BR");
 }
 
+function parseCount(value: unknown): number {
+  if (typeof value === "number") return Math.round(value);
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (!raw) return 0;
+  const multiplier = raw.includes("k") ? 1_000 : raw.includes("m") ? 1_000_000 : 1;
+  const compact = raw.replace(/[\s+]/g, "").replace(/[km]/g, "");
+  const normalized = compact.includes(",") && compact.includes(".")
+    ? compact.replace(/\./g, "").replace(",", ".")
+    : compact.replace(/[.,](?=\d{3}(\D|$))/g, "").replace(",", ".");
+  const n = Number(normalized.replace(/[^\d.]/g, ""));
+  return Number.isFinite(n) ? Math.round(n * multiplier) : 0;
+}
+
 /* ============================================================
    Parser XLSX/CSV (PlaylistSupply-like)
    ============================================================ */
@@ -169,8 +182,8 @@ function parseSheet(file: File): Promise<Imported[]> {
           const url = String(get(iUrl) ?? "").trim() || null;
           const name = String(get(iName) ?? "").trim();
           if (!name) continue;
-          const followers = Number(get(iFollow)) || 0;
-          const tracks = Number(get(iTracksReal >= 0 ? iTracksReal : iTracks)) || 0;
+          const followers = parseCount(get(iFollow));
+          const tracks = parseCount(get(iTracksReal >= 0 ? iTracksReal : iTracks));
           const desc = get(iDesc) ? String(get(iDesc)) : null;
           const email = extractEmail(get(iEmail), get(iSocial), desc);
           const instagram = normalizeInstagram(get(iSocial) ?? get(iLinks) ?? extractFromDesc(desc));
