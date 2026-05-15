@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import * as XLSX from "xlsx";
 
 import { supabase } from "@/integrations/supabase/client";
+import type { TablesInsert } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -42,6 +43,9 @@ type CuradorRow = {
   favorite: boolean;
   notes: string | null;
 };
+
+type ExternalCuratorInsert = TablesInsert<"external_curators">;
+type SheetCell = string | number | boolean | Date | null;
 
 // Selos/owners corporativos a remover automaticamente
 const BLOCKED_OWNERS = [
@@ -133,7 +137,7 @@ function parseSheet(file: File): Promise<Imported[]> {
         const wb = XLSX.read(data, { type: "binary" });
         const sheet = wb.Sheets[wb.SheetNames[0]];
         // Pega como matriz e procura linha de cabeçalho
-        const matrix: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null });
+        const matrix = XLSX.utils.sheet_to_json<SheetCell[]>(sheet, { header: 1, defval: null });
         let headerIdx = matrix.findIndex((row) =>
           row.some((c) => typeof c === "string" && /nome|playlist name|name/i.test(c)) &&
           row.some((c) => typeof c === "string" && /follower/i.test(c)),
@@ -361,7 +365,7 @@ export function CuradoresCRM() {
         const chunk = payload.slice(i, i + 200);
         const { error } = await supabase
           .from("external_curators")
-          .insert(chunk as any);
+          .insert(chunk as ExternalCuratorInsert[]);
         if (error) throw error;
         ok += chunk.length;
       }
