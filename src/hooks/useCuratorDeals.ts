@@ -915,6 +915,7 @@ export function useCuratorDeals() {
     // Curadores
     addCurator,
     updateCurator,
+    addCuratorPurchase,
     archiveCurator,
     deleteCurator,
     pauseCurator,
