@@ -54,11 +54,21 @@ const BLOCKED_OWNERS = [
   "som livre", "somlivre", "atlantic", "republic records",
 ];
 
-function isBlockedOwner(owner: string | null | undefined, name: string | null | undefined): boolean {
+function isBlockedOwner(owner: string | null | undefined): boolean {
   const o = (owner ?? "").toLowerCase().trim();
-  const n = (name ?? "").toLowerCase().trim();
-  if (!o && !n) return false;
-  return BLOCKED_OWNERS.some((b) => o.includes(b) || n.startsWith(b + " "));
+  if (!o) return false;
+  // Só bloqueia quando o owner bate com um selo conhecido — não usa o nome da playlist
+  // pra evitar falsos positivos (ex: "Sony Music Vibes" feito por curador independente).
+  return BLOCKED_OWNERS.some((b) => o === b || o.startsWith(b + " ") || o.endsWith(" " + b));
+}
+
+function findUrlInRow(row: SheetCell[]): string | null {
+  for (const cell of row) {
+    if (typeof cell !== "string") continue;
+    const m = cell.match(/https?:\/\/[^\s,;]+/i);
+    if (m) return m[0];
+  }
+  return null;
 }
 
 function extractPlaylistId(url: string | null | undefined): string | null {
