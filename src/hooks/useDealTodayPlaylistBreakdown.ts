@@ -23,6 +23,8 @@ export type TodayPlaylistRow = {
   plays_24h: number | null;
   plays_7d: number | null;
   plays_28d: number | null;
+  total_delivered: number;
+  baseline_total: number;
 };
 
 export type TodayBreakdown = {
@@ -30,6 +32,7 @@ export type TodayBreakdown = {
   total_24h: number;
   total_7d: number;
   total_28d: number;
+  total_delivered: number;
   rows: TodayPlaylistRow[];
 };
 
@@ -38,6 +41,7 @@ const EMPTY: TodayBreakdown = {
   total_24h: 0,
   total_7d: 0,
   total_28d: 0,
+  total_delivered: 0,
   rows: [],
 };
 
@@ -50,14 +54,19 @@ export function useDealTodayPlaylistBreakdown(dealId: string | null | undefined)
     queryFn: async (): Promise<TodayBreakdown> => {
       if (!dealId) return EMPTY;
 
-      const sinceIso = new Date(Date.now() - 8 * 86400_000).toISOString();
-      const { data: snaps, error } = await supabase
-        .from("curator_deal_snapshots")
-        .select("playlist_id, plays, plays_24h, plays_7d, plays_28d, captured_at, is_baseline")
-        .eq("deal_id", dealId)
-        .gte("captured_at", sinceIso)
-        .order("captured_at", { ascending: true });
-      if (error) throw error;
+      const snaps: any[] = [];
+      const pageSize = 1000;
+      for (let from = 0; from < 20_000; from += pageSize) {
+        const { data, error } = await supabase
+          .from("curator_deal_snapshots")
+          .select("playlist_id, plays, plays_24h, plays_7d, plays_28d, captured_at, is_baseline")
+          .eq("deal_id", dealId)
+          .order("captured_at", { ascending: true })
+          .range(from, from + pageSize - 1);
+        if (error) throw error;
+        snaps.push(...(data ?? []));
+        if (!data || data.length < pageSize) break;
+      }
 
       const todayKey = new Date().toISOString().slice(0, 10);
 
@@ -70,23 +79,28 @@ export function useDealTodayPlaylistBreakdown(dealId: string | null | undefined)
       };
       type Bucket = {
         last: LastSnap | null;
+        todayLast: LastSnap | null;
         prev: { plays: number; at: string } | null;
+        baseline: { plays: number; at: string } | null;
       };
       const map = new Map<string, Bucket>();
-      for (const s of (snaps ?? []) as any[]) {
+      for (const s of snaps) {
         if (!s.playlist_id) continue;
         const day = String(s.captured_at).slice(0, 10);
-        const b = map.get(s.playlist_id) ?? { last: null, prev: null };
+        const lastSnap: LastSnap = {
+          plays: Number(s.plays ?? 0),
+          at: s.captured_at,
+          plays_24h: s.plays_24h != null ? Number(s.plays_24h) : null,
+          plays_7d: s.plays_7d != null ? Number(s.plays_7d) : null,
+          plays_28d: s.plays_28d != null ? Number(s.plays_28d) : null,
+        };
+        const b = map.get(s.playlist_id) ?? { last: null, todayLast: null, prev: null, baseline: null };
+        if (!b.last || s.captured_at > b.last.at) b.last = lastSnap;
+        if (s.is_baseline && (!b.baseline || s.captured_at > b.baseline.at)) {
+          b.baseline = { plays: Number(s.plays ?? 0), at: s.captured_at };
+        }
         if (day === todayKey) {
-          if (!b.last || s.captured_at > b.last.at) {
-            b.last = {
-              plays: Number(s.plays ?? 0),
-              at: s.captured_at,
-              plays_24h: s.plays_24h != null ? Number(s.plays_24h) : null,
-              plays_7d: s.plays_7d != null ? Number(s.plays_7d) : null,
-              plays_28d: s.plays_28d != null ? Number(s.plays_28d) : null,
-            };
-          }
+          if (!b.todayLast || s.captured_at > b.todayLast.at) b.todayLast = lastSnap;
         } else {
           if (!b.prev || s.captured_at > b.prev.at) {
             b.prev = { plays: Number(s.plays ?? 0), at: s.captured_at };
@@ -109,9 +123,12 @@ export function useDealTodayPlaylistBreakdown(dealId: string | null | undefined)
         const b = map.get(pid)!;
         const pl = plMap.get(pid) as any;
         const last = b.last!;
+        const todayLast = b.todayLast;
         const prev = b.prev;
         const previousTotal = prev ? prev.plays : 0;
-        const delta = Math.max(0, last.plays - previousTotal);
+        const delta = todayLast ? Math.max(0, todayLast.plays - previousTotal) : 0;
+        const baselineTotal = b.baseline?.plays ?? 0;
+        const totalDelivered = Math.max(0, last.plays - baselineTotal);
         return {
           playlist_id: pid,
           playlist_name: pl?.playlist_name ?? "(playlist removida)",
@@ -128,15 +145,18 @@ export function useDealTodayPlaylistBreakdown(dealId: string | null | undefined)
           plays_24h: last.plays_24h,
           plays_7d: last.plays_7d,
           plays_28d: last.plays_28d,
+          total_delivered: totalDelivered,
+          baseline_total: baselineTotal,
         };
       });
 
-      rows.sort((a, b) => b.today_plays - a.today_plays);
+      rows.sort((a, b) => b.total_delivered - a.total_delivered || b.today_plays - a.today_plays);
       const total_today = rows.reduce((s, r) => s + r.today_plays, 0);
       const total_24h = rows.reduce((s, r) => s + (r.plays_24h ?? 0), 0);
       const total_7d = rows.reduce((s, r) => s + (r.plays_7d ?? 0), 0);
       const total_28d = rows.reduce((s, r) => s + (r.plays_28d ?? 0), 0);
-      return { total_today, total_24h, total_7d, total_28d, rows };
+      const total_delivered = rows.reduce((s, r) => s + r.total_delivered, 0);
+      return { total_today, total_24h, total_7d, total_28d, total_delivered, rows };
     },
   });
 }
