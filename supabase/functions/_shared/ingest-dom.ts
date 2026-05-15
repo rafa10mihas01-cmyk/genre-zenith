@@ -110,11 +110,28 @@ export async function processDomItem(
     .eq("song_id", song_id);
   const isBaseline = (existingLogs ?? 0) === 0;
 
+  // Dedupe dentro do lote: o bot pode mandar a mesma playlist várias vezes
+  // (scrolls/re-renders). Mantém a entrada com mais dados preenchidos.
+  const score = (x: any) =>
+    (x.plays_24h != null ? 1 : 0) +
+    (x.plays_7d  != null ? 1 : 0) +
+    (x.plays_28d != null ? 1 : 0) +
+    (x.followers != null ? 1 : 0);
+  const dedupMap = new Map<string, any>();
+  for (const p of playlists) {
+    const key = extractId(p.spotify_url) ?? `name:${(p.playlist_name ?? "").trim().toLowerCase()}`;
+    if (!key) continue;
+    const prev = dedupMap.get(key);
+    if (!prev || score(p) > score(prev)) dedupMap.set(key, p);
+  }
+  const dedupedPlaylists = Array.from(dedupMap.values());
+  const dedupedOut = playlists.length - dedupedPlaylists.length;
+
   let inserted = 0;
   let skipped = 0;
   let totalPlays = 0;
 
-  for (const p of playlists) {
+  for (const p of dedupedPlaylists) {
     const sUrl = p.spotify_url ?? "";
     const sName = p.playlist_name ?? null;
     const sId = extractId(sUrl);
