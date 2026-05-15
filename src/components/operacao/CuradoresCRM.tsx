@@ -253,9 +253,9 @@ export function CuradoresCRM() {
     setImporting(true);
     try {
       const parsed = await parseSheet(file);
-      // Aplicar filtros
+      // Filtros de import: precisa ter contato (email/social/links) e não ser selo corporativo.
+      // Sem mínimo de seguidores — filtro por tamanho fica na UI.
       const filtered = parsed.filter((r) => {
-        if (r.followers < MIN_FOLLOWERS) return false;
         if (isBlockedOwner(r.owner_name, r.name)) return false;
         if (!hasContact(r)) return false;
         return true;
