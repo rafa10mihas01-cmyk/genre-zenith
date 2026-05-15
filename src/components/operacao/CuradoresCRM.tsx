@@ -593,8 +593,8 @@ export function CuradoresCRM() {
 
       {/* Lista */}
       {loading ? (
-        <div className="flex flex-col gap-2">
-          {[0,1,2,3].map((i) => <div key={i} className="h-24 rounded-2xl border border-border/40 bg-card animate-pulse" />)}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+          {[0,1,2,3,4,5].map((i) => <div key={i} className="h-56 rounded-2xl border border-border/40 bg-card animate-pulse" />)}
         </div>
       ) : filtered.length === 0 ? (
         <Card className="p-12 text-center">
@@ -628,7 +628,7 @@ export function CuradoresCRM() {
               ))}
             </div>
           </div>
-          <div className="flex flex-col gap-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
             {pageRows.map((r) => <CuradorRowCard key={r.id} r={r} onUpdate={updateRow} onRemove={removeRow} />)}
           </div>
           {totalPages > 1 && (
@@ -691,7 +691,6 @@ function CuradorRowCard({
   onRemove: (id: string) => void;
 }) {
   const sc = scoreOf(r);
-  const initials = (r.name || "?").split(/\s+/).filter(Boolean).slice(0, 2).map((s) => s[0]?.toUpperCase()).join("");
 
   const copyEmail = () => {
     if (!r.email) return;
@@ -708,111 +707,187 @@ function CuradorRowCard({
   };
   const igUrl = r.instagram ? `https://instagram.com/${r.instagram.replace(/^@/, "")}` : null;
 
+  // Status dot color
+  const statusDot =
+    r.status === "comprado"   ? "bg-primary shadow-[0_0_8px_rgba(29,185,84,0.5)]" :
+    r.status === "negociando" ? "bg-blue-500" :
+    r.status === "blacklist"  ? "bg-destructive" :
+                                "bg-primary shadow-[0_0_8px_rgba(29,185,84,0.5)]";
+
+  // Score color (A+/A = primary, B = foreground, C = warning, D = destructive)
+  const scoreColor =
+    sc.label === "A+" || sc.label === "A" ? "text-primary" :
+    sc.label === "B"                       ? "text-foreground" :
+    sc.label === "C"                       ? "text-warning" :
+                                             "text-destructive";
+
+  // Activity color
+  const actLower = (r.activity ?? "").toLowerCase();
+  const actColor =
+    actLower === "high"   ? "text-primary" :
+    actLower === "medium" ? "text-warning" :
+    actLower === "low"    ? "text-muted-foreground" : "text-foreground/70";
+  const actLabel = actLower ? actLower.charAt(0).toUpperCase() + actLower.slice(1) : "—";
+
   return (
     <div className={cn(
-      "rounded-2xl border bg-card transition-colors",
-      r.status === "blacklist" ? "border-destructive/20 opacity-60" : "border-border/50 hover:border-foreground/20",
+      "bg-card rounded-2xl border border-border/40 overflow-hidden flex flex-col transition-colors group",
+      r.status === "blacklist" ? "opacity-60 hover:border-destructive/40" : "hover:border-primary/40",
     )}>
-      {/* Linha 1 — identidade */}
-      <div className="flex items-center gap-3 px-3 sm:px-4 pt-3 pb-2.5 min-w-0">
-        <div className="h-10 w-10 rounded-md bg-primary/15 border border-primary/25 flex items-center justify-center text-[12px] font-bold text-primary shrink-0">
-          {initials || <Users className="h-4 w-4" />}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className={cn("inline-flex items-center justify-center h-5 px-1.5 min-w-[28px] text-[10.5px] font-bold rounded-md border", sc.tone)}>
-              {sc.label}
+      {/* Header: nome + score */}
+      <div className="p-4 flex justify-between items-start gap-3 border-b border-border/40">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <span className={cn("w-2 h-2 rounded-full shrink-0", statusDot)} />
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">
+              {STATUS_META[r.status].label}
             </span>
-            <h3 className="text-[14px] font-semibold text-foreground truncate leading-tight">{r.name}</h3>
-            {r.favorite && <Star className="h-3.5 w-3.5 fill-warning text-warning shrink-0" />}
+            {r.favorite && <Star className="h-3 w-3 fill-warning text-warning shrink-0 ml-auto" />}
           </div>
-          <div className="text-[11.5px] text-muted-foreground truncate mt-0.5">
-            <span>{r.owner_name || "—"}</span>
-            <span className="mx-1.5 opacity-50">·</span>
-            <span className="tabular-nums text-foreground/80 font-medium">{formatN(r.followers)}</span> salv.
-            {r.tracks > 0 && <><span className="mx-1.5 opacity-50">·</span><span className="tabular-nums">{r.tracks} faixas</span></>}
-            {r.activity && <><span className="mx-1.5 opacity-50">·</span><span className="capitalize">{r.activity}</span></>}
-          </div>
+          <h3 className="text-foreground font-bold text-sm leading-tight line-clamp-2" title={r.name}>
+            {r.name}
+          </h3>
+          <p className="text-muted-foreground text-xs truncate mt-0.5">{r.owner_name || "—"}</p>
         </div>
-        <span className={cn("inline-flex items-center h-6 px-2 rounded-full border text-[10.5px] font-medium shrink-0", STATUS_META[r.status].cls)}>
-          {STATUS_META[r.status].label}
-        </span>
+        <div className="flex flex-col items-center shrink-0">
+          <span className={cn("text-2xl font-black leading-none tabular-nums", scoreColor)}>
+            {sc.label}
+          </span>
+          <span className="text-[9px] uppercase font-bold text-muted-foreground mt-0.5">Score</span>
+        </div>
       </div>
 
-      <div className="mx-3 sm:mx-4 border-t border-border/40" />
+      {/* Stats */}
+      <div className="p-4 grid grid-cols-3 gap-2 border-b border-border/40">
+        <div className="flex flex-col min-w-0">
+          <span className="text-[10px] text-muted-foreground uppercase font-bold truncate">Salvam.</span>
+          <span className="text-foreground text-xs font-semibold tabular-nums truncate">{formatN(r.followers)}</span>
+        </div>
+        <div className="flex flex-col min-w-0">
+          <span className="text-[10px] text-muted-foreground uppercase font-bold truncate">Faixas</span>
+          <span className="text-foreground text-xs font-semibold tabular-nums truncate">{r.tracks || "—"}</span>
+        </div>
+        <div className="flex flex-col min-w-0">
+          <span className="text-[10px] text-muted-foreground uppercase font-bold truncate">Atividade</span>
+          <span className={cn("text-xs font-semibold truncate", actColor)}>{actLabel}</span>
+        </div>
+      </div>
 
-      {/* Linha 2 — contatos + ações */}
-      <div className="flex items-center gap-2 px-3 sm:px-4 py-2.5 flex-wrap">
-        {/* Contatos */}
-        <div className="flex items-center gap-1.5 flex-wrap min-w-0 flex-1">
+      {/* Contact badges */}
+      <div className="px-4 py-3 flex flex-wrap gap-1.5 min-h-[44px]">
+        {r.email && (
+          <button
+            onClick={copyEmail}
+            className="px-2 py-0.5 bg-elevated border border-border rounded text-[10px] text-foreground/80 font-medium flex items-center gap-1 hover:border-primary/40 transition-colors max-w-full"
+            title={r.email}
+          >
+            <Mail className="w-3 h-3 text-primary shrink-0" />
+            <span className="truncate">{r.email}</span>
+          </button>
+        )}
+        {igUrl && (
+          <a
+            href={igUrl} target="_blank" rel="noreferrer"
+            className="px-2 py-0.5 bg-elevated border border-border rounded text-[10px] text-foreground/80 font-medium flex items-center gap-1 hover:border-primary/40 transition-colors"
+          >
+            <Instagram className="w-3 h-3 text-pink-500" />
+            <span className="truncate max-w-[120px]">@{r.instagram?.replace(/^@/, "")}</span>
+          </a>
+        )}
+        {r.links && (
+          <a
+            href={r.links.startsWith("http") ? r.links : `https://${r.links}`}
+            target="_blank" rel="noreferrer"
+            className="px-2 py-0.5 bg-elevated border border-border rounded text-[10px] text-foreground/80 font-medium flex items-center gap-1 hover:border-primary/40 transition-colors"
+          >
+            <Link2 className="w-3 h-3 text-blue-400" />
+            Link
+          </a>
+        )}
+        {!r.email && !igUrl && !r.links && (
+          <span className="text-[10px] text-muted-foreground italic self-center">Sem contato direto</span>
+        )}
+      </div>
+
+      {/* Action bar */}
+      <div className="mt-auto p-2 bg-black/30 flex items-center justify-between gap-1">
+        <div className="flex items-center gap-0.5">
+          {r.spotify_url && (
+            <a
+              href={r.spotify_url} target="_blank" rel="noreferrer"
+              className="p-1.5 hover:bg-primary/20 text-muted-foreground hover:text-primary rounded transition-colors"
+              title="Abrir no Spotify"
+            >
+              <ExternalLink className="w-4 h-4" />
+            </a>
+          )}
           {r.email && (
-            <button onClick={copyEmail} className="inline-flex items-center gap-1 h-7 px-2 rounded-full text-[11px] bg-elevated border border-border hover:border-foreground/30 text-foreground max-w-[200px] truncate" title={r.email}>
-              <Mail className="h-3 w-3 shrink-0" /><span className="truncate">{r.email}</span>
+            <button
+              onClick={mailto}
+              className="p-1.5 hover:bg-primary/20 text-muted-foreground hover:text-primary rounded transition-colors"
+              title="Enviar email"
+            >
+              <Mail className="w-4 h-4" />
             </button>
           )}
-          {igUrl && (
-            <a href={igUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 h-7 px-2 rounded-full text-[11px] bg-elevated border border-border hover:border-primary/40 text-foreground" onClick={(e) => e.stopPropagation()}>
-              <Instagram className="h-3 w-3" /> @{r.instagram?.replace(/^@/, "")}
-            </a>
-          )}
-          {r.links && (
-            <a href={r.links.startsWith("http") ? r.links : `https://${r.links}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 h-7 px-2 rounded-full text-[11px] bg-elevated border border-border hover:border-primary/40 text-foreground">
-              <Link2 className="h-3 w-3" /> Link
-            </a>
-          )}
-          {!r.email && !igUrl && !r.links && (
-            <span className="text-[11px] text-muted-foreground italic">Sem contato direto</span>
-          )}
-        </div>
-
-        {/* Ações */}
-        <div className="flex items-center gap-1 shrink-0">
           {r.email && (
-            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={mailto} title="Enviar email">
-              <Mail className="h-3.5 w-3.5" />
-            </Button>
+            <button
+              onClick={copyEmail}
+              className="p-1.5 hover:bg-elevated text-muted-foreground hover:text-foreground rounded transition-colors"
+              title="Copiar email"
+            >
+              <Copy className="w-4 h-4" />
+            </button>
           )}
-          {r.email && (
-            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={copyEmail} title="Copiar email">
-              <Copy className="h-3.5 w-3.5" />
-            </Button>
-          )}
-          {r.spotify_url && (
-            <Button asChild size="icon" variant="ghost" className="h-7 w-7" title="Abrir no Spotify">
-              <a href={r.spotify_url} target="_blank" rel="noreferrer"><ExternalLink className="h-3.5 w-3.5" /></a>
-            </Button>
-          )}
-          <Button
-            size="icon" variant="ghost" className="h-7 w-7"
+          <button
             onClick={() => onUpdate(r.id, { favorite: !r.favorite })}
+            className={cn(
+              "p-1.5 hover:bg-warning/20 hover:text-warning rounded transition-colors",
+              r.favorite ? "text-warning" : "text-muted-foreground",
+            )}
             title={r.favorite ? "Desfavoritar" : "Favoritar"}
           >
-            <Star className={cn("h-3.5 w-3.5", r.favorite && "fill-warning text-warning")} />
-          </Button>
-          <Button
-            size="icon" variant="ghost" className="h-7 w-7"
+            <Star className={cn("w-4 h-4", r.favorite && "fill-warning")} />
+          </button>
+          <button
             onClick={() => onUpdate(r.id, { status: r.status === "negociando" ? "novo" : "negociando" })}
+            className={cn(
+              "p-1.5 rounded transition-colors hover:bg-blue-500/20 hover:text-blue-400",
+              r.status === "negociando" ? "text-blue-400 bg-blue-500/15" : "text-muted-foreground",
+            )}
             title="Marcar negociando"
           >
-            <CheckCircle2 className={cn("h-3.5 w-3.5", r.status === "negociando" && "text-warning")} />
-          </Button>
-          <Button
-            size="icon" variant="ghost" className="h-7 w-7"
+            <CheckCircle2 className="w-4 h-4" />
+          </button>
+          <button
             onClick={() => onUpdate(r.id, { status: r.status === "comprado" ? "novo" : "comprado" })}
+            className={cn(
+              "p-1.5 rounded transition-colors hover:bg-primary/20 hover:text-primary",
+              r.status === "comprado" ? "text-primary bg-primary/15" : "text-muted-foreground",
+            )}
             title="Marcar comprada"
           >
-            <CheckCircle2 className={cn("h-3.5 w-3.5", r.status === "comprado" && "text-primary fill-primary/20")} />
-          </Button>
-          <Button
-            size="icon" variant="ghost" className="h-7 w-7"
+            <CheckCircle2 className={cn("w-4 h-4", r.status === "comprado" && "fill-primary/20")} />
+          </button>
+        </div>
+        <div className="flex items-center gap-0.5">
+          <button
             onClick={() => onUpdate(r.id, { status: r.status === "blacklist" ? "novo" : "blacklist" })}
+            className={cn(
+              "p-1.5 hover:bg-destructive/20 hover:text-destructive rounded transition-colors",
+              r.status === "blacklist" ? "text-destructive bg-destructive/15" : "text-muted-foreground",
+            )}
             title="Blacklist"
           >
-            <Ban className={cn("h-3.5 w-3.5", r.status === "blacklist" && "text-destructive")} />
-          </Button>
-          <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => onRemove(r.id)} title="Excluir">
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
+            <Ban className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => onRemove(r.id)}
+            className="p-1.5 hover:bg-destructive hover:text-white text-muted-foreground rounded transition-colors"
+            title="Excluir"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
         </div>
       </div>
     </div>
