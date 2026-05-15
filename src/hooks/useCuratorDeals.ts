@@ -414,6 +414,31 @@ export function useCuratorDeals() {
     [load],
   );
 
+  // Adiciona crédito (compra) ao curador. Plays/custo são derivados do ledger via trigger.
+  const addCuratorPurchase = useCallback(
+    async (
+      curatorId: string,
+      input: { plays_purchased: number; amount: number; note?: string | null },
+    ) => {
+      if (!user) throw new Error("Sem usuário");
+      const plays = Math.max(0, Math.floor(Number(input.plays_purchased) || 0));
+      const amount = Math.max(0, Number(input.amount) || 0);
+      if (plays === 0 && amount === 0) {
+        throw new Error("Informe plays ou valor");
+      }
+      const { error: insErr } = await supabase.from("curator_purchases").insert({
+        user_id: user.id,
+        curator_id: curatorId,
+        plays_purchased: plays,
+        amount,
+        note: input.note?.trim() || null,
+      });
+      if (insErr) throw insErr;
+      await load();
+    },
+    [user, load],
+  );
+
   const archiveCurator = useCallback(
     async (curatorId: string, archive = true) => {
       const { error: updErr } = await supabase
