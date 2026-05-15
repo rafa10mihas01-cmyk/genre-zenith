@@ -147,9 +147,26 @@ Deno.serve(async (req) => {
     return m ? m[1] : null;
   };
 
+  // Dedupe dentro do lote (bot manda mesma playlist em vários scrolls)
+  const scoreSnap = (x: any) =>
+    (x.plays_24h != null ? 1 : 0) +
+    (x.plays_7d  != null ? 1 : 0) +
+    (x.plays_28d != null ? 1 : 0) +
+    (x.plays     != null ? 1 : 0) +
+    (x.followers != null ? 1 : 0);
+  const dedupMap = new Map<string, any>();
+  for (const s of snapshots) {
+    const key = extractId(s.spotify_url) ?? `name:${String(s.playlist_name ?? "").trim().toLowerCase()}`;
+    if (!key) continue;
+    const prev = dedupMap.get(key);
+    if (!prev || scoreSnap(s) > scoreSnap(prev)) dedupMap.set(key, s);
+  }
+  const dedupedSnapshots = Array.from(dedupMap.values());
+  const dedupedOut = snapshots.length - dedupedSnapshots.length;
+
   let inserted = 0;
   let skipped = 0;
-  for (const snap of snapshots) {
+  for (const snap of dedupedSnapshots) {
     const sUrl = snap.spotify_url ?? "";
     const sName = snap.playlist_name ?? null;
     const sId = extractId(sUrl);
@@ -284,7 +301,7 @@ Deno.serve(async (req) => {
   await supabase.from("collection_logs").insert({
     acao: "bot_collect",
     status: skipped > 0 ? "parcial" : "ok",
-    mensagem: `song=${song_id} inserted=${inserted} skipped=${skipped}`,
+    mensagem: `song=${song_id} inserted=${inserted} skipped=${skipped} deduped_in_batch=${dedupedOut}`,
   });
 
   recordMetric(supabase, {
@@ -297,5 +314,5 @@ Deno.serve(async (req) => {
     metadata: { inserted, skipped, queue_age_ms: queueAgeMs },
   });
 
-  return jr({ ok: true, inserted, skipped, next_auto_collect_at: nextAt });
+  return jr({ ok: true, inserted, skipped, deduped_in_batch: dedupedOut, next_auto_collect_at: nextAt });
 });
