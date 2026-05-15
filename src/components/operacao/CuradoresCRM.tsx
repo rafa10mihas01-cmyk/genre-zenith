@@ -195,8 +195,13 @@ function parseSheet(file: File): Promise<Imported[]> {
           const followers = parseCount(get(iFollow));
           const tracks = parseCount(get(iTracksReal >= 0 ? iTracksReal : iTracks));
           const desc = get(iDesc) ? String(get(iDesc)) : null;
-          const email = extractEmail(get(iEmail), get(iSocial), desc);
-          const instagram = normalizeInstagram(get(iSocial) ?? get(iLinks) ?? extractFromDesc(desc));
+          // Varre TODAS as células da linha pra achar contato — independe de nome de coluna
+          const email = extractEmail(...row);
+          const instagram = normalizeInstagram(
+            get(iSocial) ?? get(iLinks) ?? extractFromDesc(desc) ?? findInstagramInRow(row),
+          );
+          const linkInRow = String(get(iLinks) ?? "").trim() || findUrlInRow(row);
+          const socialInRow = String(get(iSocial) ?? "").trim() || null;
           const scoreRawN = Number(get(iScore));
 
           rows.push({
@@ -211,8 +216,8 @@ function parseSheet(file: File): Promise<Imported[]> {
             last_modified: get(iMod) ? String(get(iMod)) : null,
             email,
             instagram,
-            social: get(iSocial) ? String(get(iSocial)).trim() : null,
-            links: get(iLinks) ? String(get(iLinks)).trim() : null,
+            social: socialInRow,
+            links: linkInRow,
             description: desc,
             score: null,
             score_raw: Number.isFinite(scoreRawN) ? scoreRawN : null,
@@ -226,6 +231,15 @@ function parseSheet(file: File): Promise<Imported[]> {
     reader.onerror = () => reject(reader.error);
     reader.readAsBinaryString(file);
   });
+}
+
+function findInstagramInRow(row: SheetCell[]): string | null {
+  for (const cell of row) {
+    if (typeof cell !== "string") continue;
+    const m = cell.match(/(?:instagram\.com\/|@)([A-Za-z0-9_.]+)/i);
+    if (m) return m[1];
+  }
+  return null;
 }
 
 function extractFromDesc(desc: string | null): string | null {
