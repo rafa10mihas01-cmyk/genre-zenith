@@ -3694,6 +3694,45 @@ export type Database = {
           },
         ]
       }
+      spotify_apps: {
+        Row: {
+          client_id: string
+          client_secret: string
+          created_at: string
+          id: string
+          is_default: boolean
+          max_accounts: number
+          name: string
+          notes: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          client_secret: string
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          max_accounts?: number
+          name: string
+          notes?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          client_secret?: string
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          max_accounts?: number
+          name?: string
+          notes?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       spotify_email_allowlist: {
         Row: {
           created_at: string
@@ -3720,6 +3759,7 @@ export type Database = {
       }
       spotify_oauth_states: {
         Row: {
+          app_id: string | null
           consumed_at: string | null
           created_at: string
           flow: string
@@ -3727,6 +3767,7 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          app_id?: string | null
           consumed_at?: string | null
           created_at?: string
           flow?: string
@@ -3734,17 +3775,27 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          app_id?: string | null
           consumed_at?: string | null
           created_at?: string
           flow?: string
           state?: string
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "spotify_oauth_states_app_id_fkey"
+            columns: ["app_id"]
+            isOneToOne: false
+            referencedRelation: "spotify_apps"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       spotify_tokens: {
         Row: {
           access_token: string
+          app_id: string | null
           created_at: string
           expires_at: string
           id: string
@@ -3752,6 +3803,7 @@ export type Database = {
         }
         Insert: {
           access_token: string
+          app_id?: string | null
           created_at?: string
           expires_at: string
           id?: string
@@ -3759,16 +3811,26 @@ export type Database = {
         }
         Update: {
           access_token?: string
+          app_id?: string | null
           created_at?: string
           expires_at?: string
           id?: string
           singleton_key?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "spotify_tokens_app_id_fkey"
+            columns: ["app_id"]
+            isOneToOne: false
+            referencedRelation: "spotify_apps"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       spotify_user_tokens: {
         Row: {
           access_token: string
+          app_id: string | null
           created_at: string
           display_name: string | null
           email: string | null
@@ -3782,6 +3844,7 @@ export type Database = {
         }
         Insert: {
           access_token: string
+          app_id?: string | null
           created_at?: string
           display_name?: string | null
           email?: string | null
@@ -3795,6 +3858,7 @@ export type Database = {
         }
         Update: {
           access_token?: string
+          app_id?: string | null
           created_at?: string
           display_name?: string | null
           email?: string | null
@@ -3806,7 +3870,15 @@ export type Database = {
           spotify_user_id?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "spotify_user_tokens_app_id_fkey"
+            columns: ["app_id"]
+            isOneToOne: false
+            referencedRelation: "spotify_apps"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       suppressed_emails: {
         Row: {
@@ -4587,6 +4659,15 @@ export type Database = {
           p_user: string
         }
         Returns: string
+      }
+      pick_next_account: {
+        Args: { p_app_id?: string; p_purpose?: string }
+        Returns: {
+          account_id: string
+          app_id: string
+          slots_remaining: number
+          spotify_user_id: string
+        }[]
       }
       priority_from_performance: {
         Args: { p_class: string }
