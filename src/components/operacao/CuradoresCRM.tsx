@@ -195,13 +195,16 @@ function parseSheet(file: File): Promise<Imported[]> {
           const followers = parseCount(get(iFollow));
           const tracks = parseCount(get(iTracksReal >= 0 ? iTracksReal : iTracks));
           const desc = get(iDesc) ? String(get(iDesc)) : null;
-          // Varre TODAS as células da linha pra achar contato — independe de nome de coluna
-          const email = extractEmail(...row);
-          const instagram = normalizeInstagram(
-            get(iSocial) ?? get(iLinks) ?? extractFromDesc(desc) ?? findInstagramInRow(row),
-          );
-          const linkInRow = String(get(iLinks) ?? "").trim() || findUrlInRow(row);
-          const socialInRow = String(get(iSocial) ?? "").trim() || null;
+          // Estritamente as 3 colunas: Links, Social, E-mail.
+          // Email pode aparecer em qualquer uma das 3.
+          const emailCellRaw = String(get(iEmail) ?? "").trim() || null;
+          const socialCellRaw = String(get(iSocial) ?? "").trim() || null;
+          const linksCellRaw = String(get(iLinks) ?? "").trim() || null;
+          const email = extractEmail(emailCellRaw, socialCellRaw, linksCellRaw);
+          // Instagram é só pra exibição — extraído do que estiver em Social/Links
+          const instagram = normalizeInstagram(socialCellRaw ?? linksCellRaw);
+          const linkInRow = linksCellRaw;
+          const socialInRow = socialCellRaw;
           const scoreRawN = Number(get(iScore));
 
           rows.push({
@@ -249,7 +252,8 @@ function extractFromDesc(desc: string | null): string | null {
 }
 
 function hasContact(r: Imported | CuradorRow): boolean {
-  return Boolean(r.email || r.instagram || r.links || r.social);
+  // Estritamente: precisa ter algo em Links, Social ou E-mail (não usa owner/descrição).
+  return Boolean(r.email || r.social || r.links);
 }
 
 type CuratorIdentity = Pick<Imported, "spotify_playlist_id" | "spotify_url" | "name" | "owner_name">;
