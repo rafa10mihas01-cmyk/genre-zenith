@@ -435,6 +435,17 @@ export function CuradoresCRM() {
     else toast.success("Removido");
   };
 
+  const clearAll = async () => {
+    if (rows.length === 0) { toast.info("CRM já está vazio"); return; }
+    if (!confirm(`Apagar TODOS os ${rows.length} curadores do CRM? Essa ação não pode ser desfeita.`)) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { toast.error("Sessão expirada"); return; }
+    const { error } = await supabase.from("external_curators").delete().eq("user_id", user.id);
+    if (error) { toast.error("Erro ao limpar"); return; }
+    setRows([]);
+    toast.success("CRM zerado — pode importar de novo");
+  };
+
   /* -------- derived -------- */
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
