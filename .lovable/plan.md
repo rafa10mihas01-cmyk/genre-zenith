@@ -1,6 +1,6 @@
 # Plano: Multi-App Spotify sem quebrar o sistema atual
 
-Objetivo: permitir conectar várias **apps Spotify** (cada uma com seu Client ID/Secret e seu próprio limite de ~25 contas), distribuindo as contas conectadas entre elas, **sem nenhum downtime** e **sem quebrar nada do que já funciona hoje**.
+Objetivo: permitir conectar várias **apps Spotify** (cada uma com seu Client ID/Secret e seu próprio limite de **5 contas por app** — limite real do Spotify em modo Development), distribuindo as contas conectadas entre elas, **sem nenhum downtime** e **sem quebrar nada do que já funciona hoje**.
 
 A regra de ouro do plano: em **cada fase**, o sistema continua 100% funcional como está hoje. Só ativamos uma fase quando a anterior está estável.
 
