@@ -351,11 +351,14 @@ export function CuradoresCRM() {
   /* -------- derived -------- */
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
+    const bucket = SIZE_BUCKETS.find((b) => b.id === sizeFilter)!;
     return rows
       .filter((r) => {
         if (statusFilter !== "todos" && r.status !== statusFilter) return false;
         if (scoreFilter !== "todos" && r.score !== scoreFilter) return false;
         if (favOnly && !r.favorite) return false;
+        const f = r.followers ?? 0;
+        if (f < bucket.min || f >= bucket.max) return false;
         if (q && !(r.name.toLowerCase().includes(q) || (r.owner_name ?? "").toLowerCase().includes(q) || (r.email ?? "").toLowerCase().includes(q))) return false;
         return true;
       })
@@ -363,7 +366,7 @@ export function CuradoresCRM() {
         if (a.favorite !== b.favorite) return a.favorite ? -1 : 1;
         return (b.followers ?? 0) - (a.followers ?? 0);
       });
-  }, [rows, search, statusFilter, scoreFilter, favOnly]);
+  }, [rows, search, statusFilter, scoreFilter, sizeFilter, favOnly]);
 
   const stats = useMemo(() => {
     const total = rows.length;
