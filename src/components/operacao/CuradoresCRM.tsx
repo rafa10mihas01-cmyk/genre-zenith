@@ -224,6 +224,17 @@ const STATUS_META: Record<Status, { label: string; cls: string }> = {
   blacklist:   { label: "Blacklist",  cls: "bg-destructive/10 text-destructive border-destructive/30" },
 };
 
+type SizeBucket = "todos" | "micro" | "pequeno" | "medio" | "grande" | "macro";
+
+const SIZE_BUCKETS: { id: SizeBucket; label: string; min: number; max: number }[] = [
+  { id: "todos",   label: "Todos tamanhos", min: 0,      max: Infinity },
+  { id: "micro",   label: "0–500",          min: 0,      max: 500 },
+  { id: "pequeno", label: "500–1k",         min: 500,    max: 1000 },
+  { id: "medio",   label: "1k–5k",          min: 1000,   max: 5000 },
+  { id: "grande",  label: "5k–20k",         min: 5000,   max: 20000 },
+  { id: "macro",   label: "20k+",           min: 20000,  max: Infinity },
+];
+
 export function CuradoresCRM() {
   const [rows, setRows] = useState<CuradorRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -231,6 +242,7 @@ export function CuradoresCRM() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"todos" | Status>("todos");
   const [scoreFilter, setScoreFilter] = useState<"todos" | "A+" | "A" | "B" | "C" | "D">("todos");
+  const [sizeFilter, setSizeFilter] = useState<SizeBucket>("todos");
   const [favOnly, setFavOnly] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -253,16 +265,16 @@ export function CuradoresCRM() {
     setImporting(true);
     try {
       const parsed = await parseSheet(file);
-      // Aplicar filtros
+      // Filtros de import: precisa ter contato (email/social/links) e não ser selo corporativo.
+      // Sem mínimo de seguidores — filtro por tamanho fica na UI.
       const filtered = parsed.filter((r) => {
-        if (r.followers < MIN_FOLLOWERS) return false;
         if (isBlockedOwner(r.owner_name, r.name)) return false;
         if (!hasContact(r)) return false;
         return true;
       });
 
       if (filtered.length === 0) {
-        toast.warning("Nenhuma playlist passou nos filtros (≥2k seguidores + contato + não-corporativa)");
+        toast.warning("Nenhuma playlist passou nos filtros (precisa ter email, social ou link e não ser selo corporativo)");
         return;
       }
 
@@ -339,11 +351,14 @@ export function CuradoresCRM() {
   /* -------- derived -------- */
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
+    const bucket = SIZE_BUCKETS.find((b) => b.id === sizeFilter)!;
     return rows
       .filter((r) => {
         if (statusFilter !== "todos" && r.status !== statusFilter) return false;
         if (scoreFilter !== "todos" && r.score !== scoreFilter) return false;
         if (favOnly && !r.favorite) return false;
+        const f = r.followers ?? 0;
+        if (f < bucket.min || f >= bucket.max) return false;
         if (q && !(r.name.toLowerCase().includes(q) || (r.owner_name ?? "").toLowerCase().includes(q) || (r.email ?? "").toLowerCase().includes(q))) return false;
         return true;
       })
@@ -351,7 +366,7 @@ export function CuradoresCRM() {
         if (a.favorite !== b.favorite) return a.favorite ? -1 : 1;
         return (b.followers ?? 0) - (a.followers ?? 0);
       });
-  }, [rows, search, statusFilter, scoreFilter, favOnly]);
+  }, [rows, search, statusFilter, scoreFilter, sizeFilter, favOnly]);
 
   const stats = useMemo(() => {
     const total = rows.length;
@@ -423,6 +438,16 @@ export function CuradoresCRM() {
             <Star className="h-3 w-3 inline mr-1" /> Favoritos
           </Chip>
         </div>
+
+        {/* Faixa de tamanho (seguidores) */}
+        <div className="flex items-center gap-1.5 flex-wrap mt-2">
+          <span className="text-[10.5px] uppercase tracking-[0.12em] text-muted-foreground mr-1">Tamanho</span>
+          {SIZE_BUCKETS.map((b) => (
+            <Chip key={b.id} active={sizeFilter === b.id} onClick={() => setSizeFilter(b.id)}>
+              {b.label}
+            </Chip>
+          ))}
+        </div>
       </div>
 
       {/* Stats */}
@@ -446,7 +471,7 @@ export function CuradoresCRM() {
           </p>
           <p className="text-xs text-muted-foreground">
             {rows.length === 0
-              ? "Importe um XLSX/CSV do PlaylistSupply pra começar. Vamos filtrar automaticamente apenas playlists ≥2k com contato real."
+              ? "Importe um XLSX/CSV do PlaylistSupply pra começar. Trazemos toda playlist com email, social ou link — você filtra o tamanho aqui em cima."
               : "Tente outro filtro ou limpe a busca."}
           </p>
         </Card>
