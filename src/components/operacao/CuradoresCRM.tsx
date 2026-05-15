@@ -484,6 +484,15 @@ export function CuradoresCRM() {
       });
   }, [rows, search, statusFilter, scoreFilter, sizeFilter, favOnly]);
 
+  // Reseta página quando filtros mudam
+  useEffect(() => { setPage(1); }, [search, statusFilter, scoreFilter, sizeFilter, favOnly, pageSize]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const pageStart = (safePage - 1) * pageSize;
+  const pageEnd = Math.min(pageStart + pageSize, filtered.length);
+  const pageRows = filtered.slice(pageStart, pageEnd);
+
   const stats = useMemo(() => {
     const total = rows.length;
     const aplus = rows.filter((r) => r.score === "A+" || r.score === "A").length;
