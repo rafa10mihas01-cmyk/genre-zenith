@@ -67,7 +67,7 @@ function extractPlaylistId(url: string | null | undefined): string | null {
   return m ? m[1] : null;
 }
 
-function normalizeInstagram(text: string | null | undefined): string | null {
+function normalizeInstagram(text: unknown): string | null {
   if (!text) return null;
   const s = String(text).trim().replace(/[⧉↗→]/g, "");
   const m = s.match(/(?:instagram\.com\/|@)([A-Za-z0-9_.]+)/i);
@@ -76,7 +76,7 @@ function normalizeInstagram(text: string | null | undefined): string | null {
   return s || null;
 }
 
-function extractEmail(...sources: (string | null | undefined)[]): string | null {
+function extractEmail(...sources: unknown[]): string | null {
   const blob = sources.filter(Boolean).join(" ");
   const m = blob.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
   return m ? m[0] : null;
