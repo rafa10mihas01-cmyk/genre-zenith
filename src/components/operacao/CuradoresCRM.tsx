@@ -252,7 +252,8 @@ function extractFromDesc(desc: string | null): string | null {
 }
 
 function hasContact(r: Imported | CuradorRow): boolean {
-  return Boolean(r.email || r.instagram || r.links || r.social);
+  // Estritamente: precisa ter algo em Links, Social ou E-mail (não usa owner/descrição).
+  return Boolean(r.email || r.social || r.links);
 }
 
 type CuratorIdentity = Pick<Imported, "spotify_playlist_id" | "spotify_url" | "name" | "owner_name">;
