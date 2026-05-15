@@ -133,7 +133,19 @@ function formatN(n: number) {
 }
 
 function parseCount(value: unknown): number {
-  if (typeof value === "number") return Math.round(value);
+  if (typeof value === "number") {
+    // Planilhas em pt-BR vêm com ponto como separador de milhar.
+    // Excel lê "2.312" como o número 2.312. Reconstruímos: se for fracionário
+    // com 1-3 casas decimais, tratamos a parte decimal como milhares.
+    if (Number.isInteger(value)) return value;
+    const str = String(value);
+    const [intPart, decPart = ""] = str.split(".");
+    if (decPart.length >= 1 && decPart.length <= 3) {
+      const padded = decPart.padEnd(3, "0");
+      return Math.round(Number(intPart) * 1000 + Number(padded));
+    }
+    return Math.round(value);
+  }
   const raw = String(value ?? "").trim().toLowerCase();
   if (!raw) return 0;
   const multiplier = raw.includes("k") ? 1_000 : raw.includes("m") ? 1_000_000 : 1;
