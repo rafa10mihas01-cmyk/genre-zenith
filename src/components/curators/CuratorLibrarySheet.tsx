@@ -64,10 +64,11 @@ interface Props {
   curator: Curator | null;
   deals: CuratorDeal[];
   balance?: CuratorBalance | null;
+  onAddPurchase?: (curatorId: string, input: { plays_purchased: number; amount: number; note?: string | null }) => Promise<void>;
   onClose: () => void;
 }
 
-export function CuratorLibrarySheet({ curator, deals, balance, onClose }: Props) {
+export function CuratorLibrarySheet({ curator, deals, balance, onAddPurchase, onClose }: Props) {
   const open = !!curator;
   const { items, stats, performance, loading, addManual, remove } = useCuratorLibrary(curator?.id ?? null);
 
@@ -77,6 +78,33 @@ export function CuratorLibrarySheet({ curator, deals, balance, onClose }: Props)
   const [followers, setFollowers] = useState("");
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [buyOpen, setBuyOpen] = useState(false);
+  const [buyPlays, setBuyPlays] = useState("");
+  const [buyAmount, setBuyAmount] = useState("");
+  const [buyNote, setBuyNote] = useState("");
+  const [buying, setBuying] = useState(false);
+
+  const handleBuy = async () => {
+    if (!curator || !onAddPurchase) return;
+    const plays = parseInt(buyPlays.replace(/\D/g, ""), 10) || 0;
+    const amount = Number(buyAmount.replace(",", ".")) || 0;
+    if (plays <= 0 && amount <= 0) {
+      toast.error("Informe plays e/ou valor");
+      return;
+    }
+    setBuying(true);
+    try {
+      await onAddPurchase(curator.id, { plays_purchased: plays, amount, note: buyNote });
+      toast.success("Crédito adicionado");
+      setBuyPlays(""); setBuyAmount(""); setBuyNote("");
+      setBuyOpen(false);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      toast.error("Erro ao adicionar crédito", { description: msg });
+    } finally {
+      setBuying(false);
+    }
+  };
 
   const draftKey = curator ? `curator-library-add:${curator.id}` : "curator-library-add:none";
   const isDraftEmpty = !name.trim() && !url.trim() && !followers.trim();
@@ -178,46 +206,59 @@ export function CuratorLibrarySheet({ curator, deals, balance, onClose }: Props)
                 const totalCost = Number(balance?.total_cost ?? curator.total_cost ?? 0) || 0;
                 const consumedPct = purchased > 0 ? Math.min(100, Math.round((consumed / purchased) * 100)) : 0;
                 const cpp = consumed > 0 && totalCost > 0 ? totalCost / consumed : null;
-                if (purchased === 0 && totalCost === 0) return null;
+                if (purchased === 0 && totalCost === 0 && !onAddPurchase) return null;
                 return (
                   <div className="px-6 py-5 border-b border-border/40 space-y-4 bg-[hsl(var(--elevated))]">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-3">
                       <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
                         Saldo
                       </h3>
-                      {cpp !== null && (
-                        <span className="text-[11px] text-muted-foreground">
-                          Custo/play <span className="text-foreground font-semibold">{formatCPP(cpp)}</span>
-                        </span>
-                      )}
-                    </div>
-                    <div className="grid grid-cols-3 gap-3">
-                      <div className="rounded-xl bg-card border border-border/40 px-4 py-3">
-                        <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-1.5">
-                          Plays comprados
-                        </div>
-                        <div className="text-[22px] font-bold tabular-nums leading-none">{formatPlays(purchased)}</div>
-                        {totalCost > 0 && (
-                          <div className="text-[11px] text-muted-foreground mt-1.5 tabular-nums">{formatBRL(totalCost)} total</div>
+                      <div className="flex items-center gap-3">
+                        {cpp !== null && (
+                          <span className="text-[11px] text-muted-foreground">
+                            Custo/play <span className="text-foreground font-semibold">{formatCPP(cpp)}</span>
+                          </span>
+                        )}
+                        {onAddPurchase && (
+                          <Button size="sm" variant="outline" onClick={() => setBuyOpen(true)} className="gap-1.5 h-7 text-xs">
+                            <Plus className="size-3.5" /> Adicionar crédito
+                          </Button>
                         )}
                       </div>
-                      <div className="rounded-xl bg-card border border-border/40 px-4 py-3">
-                        <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-1.5">
-                          Restante
-                        </div>
-                        <div className={cn("text-[22px] font-bold tabular-nums leading-none", overbooked ? "text-destructive" : "text-primary")}>
-                          {overbooked ? "Estourado" : formatPlays(remaining)}
-                        </div>
-                        <div className="text-[11px] text-muted-foreground mt-1.5 tabular-nums">{formatPlays(consumed)} consumido</div>
-                      </div>
-                      <div className="rounded-xl bg-card border border-border/40 px-4 py-3">
-                        <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-1.5">
-                          Consumido
-                        </div>
-                        <div className="text-[22px] font-bold tabular-nums leading-none">{consumedPct}%</div>
-                        <div className="mt-2"><Progress value={consumedPct} className="h-1.5 rounded-full" /></div>
-                      </div>
                     </div>
+                    {purchased === 0 && totalCost === 0 ? (
+                      <div className="text-xs text-muted-foreground">
+                        Nenhuma compra registrada. Adicione plays comprados para começar a controlar o saldo deste curador.
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="rounded-xl bg-card border border-border/40 px-4 py-3">
+                          <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-1.5">
+                            Plays comprados
+                          </div>
+                          <div className="text-[22px] font-bold tabular-nums leading-none">{formatPlays(purchased)}</div>
+                          {totalCost > 0 && (
+                            <div className="text-[11px] text-muted-foreground mt-1.5 tabular-nums">{formatBRL(totalCost)} total</div>
+                          )}
+                        </div>
+                        <div className="rounded-xl bg-card border border-border/40 px-4 py-3">
+                          <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-1.5">
+                            Restante
+                          </div>
+                          <div className={cn("text-[22px] font-bold tabular-nums leading-none", overbooked ? "text-destructive" : "text-primary")}>
+                            {overbooked ? "Estourado" : formatPlays(remaining)}
+                          </div>
+                          <div className="text-[11px] text-muted-foreground mt-1.5 tabular-nums">{formatPlays(consumed)} consumido</div>
+                        </div>
+                        <div className="rounded-xl bg-card border border-border/40 px-4 py-3">
+                          <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-1.5">
+                            Consumido
+                          </div>
+                          <div className="text-[22px] font-bold tabular-nums leading-none">{consumedPct}%</div>
+                          <div className="mt-2"><Progress value={consumedPct} className="h-1.5 rounded-full" /></div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })()}
@@ -386,6 +427,52 @@ export function CuratorLibrarySheet({ curator, deals, balance, onClose }: Props)
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={buyOpen} onOpenChange={setBuyOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Adicionar crédito</DialogTitle>
+            <DialogDescription>
+              Registre uma nova compra de plays com {curator?.name}. O saldo é recalculado automaticamente.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Plays comprados</Label>
+              <Input
+                inputMode="numeric"
+                value={buyPlays}
+                onChange={(e) => setBuyPlays(e.target.value)}
+                placeholder="Ex.: 500000"
+              />
+            </div>
+            <div>
+              <Label>Valor pago (R$)</Label>
+              <Input
+                inputMode="decimal"
+                value={buyAmount}
+                onChange={(e) => setBuyAmount(e.target.value)}
+                placeholder="Ex.: 1500,00"
+              />
+            </div>
+            <div>
+              <Label>Nota (opcional)</Label>
+              <Input
+                value={buyNote}
+                onChange={(e) => setBuyNote(e.target.value)}
+                placeholder="Ex.: pacote junho, pix"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setBuyOpen(false)}>Cancelar</Button>
+            <Button onClick={handleBuy} disabled={buying}>
+              {buying && <Loader2 className="size-4 animate-spin mr-2" />}
+              Adicionar crédito
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

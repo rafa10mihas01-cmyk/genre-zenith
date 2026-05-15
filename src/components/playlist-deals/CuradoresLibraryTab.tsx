@@ -81,6 +81,7 @@ interface Props {
   deals: CuratorDeal[];
   loading: boolean;
   onUpdateCurator?: (curatorId: string, input: Partial<NewCuratorInput>) => Promise<void>;
+  onAddPurchase?: (curatorId: string, input: { plays_purchased: number; amount: number; note?: string | null }) => Promise<void>;
   onArchiveCurator?: (curatorId: string, archive?: boolean) => Promise<void>;
   onDeleteCurator?: (curatorId: string) => Promise<void>;
   onPauseCurator?: (curatorId: string, pause?: boolean) => Promise<void>;
@@ -92,6 +93,7 @@ export function CuradoresLibraryTab({
   deals,
   loading,
   onUpdateCurator,
+  onAddPurchase,
   onArchiveCurator,
   onDeleteCurator,
   onPauseCurator,
@@ -448,6 +450,7 @@ export function CuradoresLibraryTab({
         curator={selected}
         deals={deals.filter((d) => d.curator_id === selected?.id)}
         balance={balances.find((b) => b.curator_id === selected?.id) ?? null}
+        onAddPurchase={onAddPurchase}
         onClose={() => setSelected(null)}
       />
 
