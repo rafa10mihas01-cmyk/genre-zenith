@@ -1136,22 +1136,35 @@ Deno.serve(async (req) => {
   // Curador que tentar cadastrar uma playlist com spotify_playlist_id contido
   // aqui será bloqueado pelo trigger enforce_curator_playlist_baseline().
   if (isBaseline) {
-    const { data: allPls } = await supabase
-      .from("curator_playlists")
-      .select("spotify_playlist_id, playlist_name")
+    let baselineQ = supabase
+      .from("curator_deal_snapshots")
+      .select("id, captured_at, curator_playlists!inner(spotify_playlist_id, playlist_name, match_status)")
       .eq("deal_id", deal_id)
-      .not("spotify_playlist_id", "is", null);
-    const rows = (allPls ?? [])
-      .filter((p: any) => p.spotify_playlist_id && !String(p.spotify_playlist_id).startsWith("algo:"))
+      .eq("is_baseline", true);
+    baselineQ = batch_id
+      ? baselineQ.eq("batch_id", batch_id)
+      : baselineQ.gte("created_at", new Date(Date.now() - 10 * 60_000).toISOString());
+    baselineQ = song_id ? baselineQ.eq("song_id", song_id) : baselineQ.is("song_id", null);
+
+    const { data: baselineSnaps } = await baselineQ;
+    const rows = (baselineSnaps ?? [])
+      .map((s: any) => ({ snapshot: s, playlist: s.curator_playlists }))
+      .filter(({ playlist }: any) =>
+        playlist?.spotify_playlist_id &&
+        !String(playlist.spotify_playlist_id).startsWith("algo:") &&
+        playlist.match_status !== "algorithmic",
+      )
       .map((p: any) => ({
         deal_id,
-        spotify_playlist_id: p.spotify_playlist_id,
-        playlist_name: p.playlist_name ?? null,
+        spotify_playlist_id: p.playlist.spotify_playlist_id,
+        playlist_name: p.playlist.playlist_name ?? null,
+        snapshot_id: p.snapshot.id,
+        captured_at: p.snapshot.captured_at,
       }));
     if (rows.length > 0) {
       const { error: bErr } = await supabase
         .from("curator_deal_baseline_playlists")
-        .upsert(rows, { onConflict: "deal_id,spotify_playlist_id", ignoreDuplicates: true });
+        .upsert(rows, { onConflict: "deal_id,spotify_playlist_id" });
       if (bErr) console.error("[extract] baseline blacklist upsert error", bErr);
       else console.log(`[extract] baseline blacklist: ${rows.length} playlists registradas para deal=${deal_id}`);
     }
