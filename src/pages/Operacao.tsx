@@ -269,13 +269,13 @@ export default function Operacao() {
         }
       />
 
-      {/* KPIs operacionais — focados em decisão */}
+      {/* KPIs operacionais — todos referenciam o catálogo importado (managed_playlists) */}
       <section className="grid grid-cols-2 lg:grid-cols-6 gap-4">
         <KpiBig icon={Heart}         label="Salvamentos totais" value={formatNumber(kpi.totalFollowers)} tone="primary" hint={`Somando ${formatNumber(kpi.totalPlaylists)} playlists`} loading={loading} className="col-span-2 lg:col-span-1" />
         <KpiBig icon={Calculator}    label="Plays teóricos / mês" value={formatNumber(kpi.totalFollowers * 30)} tone="primary" hint={`${formatNumber(kpi.totalFollowers)} × 30 saves`} loading={loading} />
-        <KpiBig icon={Activity}      label="Total ativas"  value={formatNumber(kpi.total)}     hint="Playlists em operação" loading={loading} />
-        <KpiBig icon={ArrowUpRight}  label="Crescendo"     value={formatNumber(kpi.crescendo)} tone="primary"     hint="Variação positiva"     loading={loading} />
-        <KpiBig icon={AlertCircle}   label="Precisa atenção" value={formatNumber(kpi.atencao)} tone={kpi.atencao > 0 ? "destructive" : "default"} hint="Playlists em queda" loading={loading} />
+        <KpiBig icon={Activity}      label="Total ativas"  value={formatNumber(kpi.totalPlaylists)} hint="Catálogo importado" loading={loading} />
+        <KpiBig icon={Sparkles}      label="Criadas (auto)" value={formatNumber(kpi.total)} hint="Templates do NexEngine" loading={loading} />
+        <KpiBig icon={AlertCircle}   label="Precisa atenção" value={formatNumber(kpi.atencao)} tone={kpi.atencao > 0 ? "destructive" : "default"} hint="Auto em queda" loading={loading} />
         <KpiBig icon={Server}        label="Capacidade"    value={kpi.capacidade}              tone={kpi.capacidadePct >= 80 ? "warning" : "default"} hint={`${accountsSummary.active} contas ativas`} loading={loading} />
       </section>
 
