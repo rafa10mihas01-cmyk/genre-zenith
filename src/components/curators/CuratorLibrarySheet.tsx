@@ -78,6 +78,33 @@ export function CuratorLibrarySheet({ curator, deals, balance, onAddPurchase, on
   const [followers, setFollowers] = useState("");
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [buyOpen, setBuyOpen] = useState(false);
+  const [buyPlays, setBuyPlays] = useState("");
+  const [buyAmount, setBuyAmount] = useState("");
+  const [buyNote, setBuyNote] = useState("");
+  const [buying, setBuying] = useState(false);
+
+  const handleBuy = async () => {
+    if (!curator || !onAddPurchase) return;
+    const plays = parseInt(buyPlays.replace(/\D/g, ""), 10) || 0;
+    const amount = Number(buyAmount.replace(",", ".")) || 0;
+    if (plays <= 0 && amount <= 0) {
+      toast.error("Informe plays e/ou valor");
+      return;
+    }
+    setBuying(true);
+    try {
+      await onAddPurchase(curator.id, { plays_purchased: plays, amount, note: buyNote });
+      toast.success("Crédito adicionado");
+      setBuyPlays(""); setBuyAmount(""); setBuyNote("");
+      setBuyOpen(false);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      toast.error("Erro ao adicionar crédito", { description: msg });
+    } finally {
+      setBuying(false);
+    }
+  };
 
   const draftKey = curator ? `curator-library-add:${curator.id}` : "curator-library-add:none";
   const isDraftEmpty = !name.trim() && !url.trim() && !followers.trim();
