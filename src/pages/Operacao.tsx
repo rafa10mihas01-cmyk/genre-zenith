@@ -3,10 +3,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Activity, Pause, RefreshCw, ArrowDownRight, ArrowUpRight,
   Music2, FlaskConical, History, ListMusic, Search, Users, ExternalLink,
-  AlertCircle, Wrench, ChevronDown, ChevronUp, Server, Sparkles, Heart, Calculator,
+  AlertCircle, Wrench, ChevronDown, ChevronUp, Server, Sparkles, Heart, Calculator, UserSearch,
 } from "lucide-react";
 import { MinhasPlaylists } from "@/components/operacao/MinhasPlaylists";
 import { SimuladorEntrega } from "@/components/operacao/SimuladorEntrega";
+import { CuradoresCRM } from "@/components/operacao/CuradoresCRM";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -52,6 +53,7 @@ const TABS = [
   { id: "playlists", label: "Criadas (auto)", icon: ListMusic },
   { id: "simulador", label: "Simulador", icon: Calculator },
   { id: "ajustes",   label: "Ajustes",   icon: Wrench },
+  { id: "curadores", label: "Curadores", icon: UserSearch },
 ] as const;
 
 type TabId = typeof TABS[number]["id"];
@@ -404,6 +406,13 @@ export default function Operacao() {
               </div>
               <EmptyInline msg="Nenhum teste ativo." />
             </div>
+          </section>
+        )}
+
+        {/* CURADORES — CRM de playlists independentes (importadas de XLSX/CSV) */}
+        {tab === "curadores" && (
+          <section key="tab-curadores" className="animate-tab-in">
+            <CuradoresCRM />
           </section>
         )}
 
