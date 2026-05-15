@@ -175,12 +175,19 @@ export function RoboAoVivo() {
           Etapas
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {STAGES.map((stage) => {
+          {STAGES.map((stage, idx) => {
             const evt = stepStatusMap.get(stage.key);
-            const isCurrent = currentStep === stage.key;
-            const status: "pending" | "running" | "success" | "error" | "warning" = isCurrent
-              ? "running"
-              : (evt?.status as any) ?? "pending";
+            const currentIdx = STAGES.findIndex((s) => s.key === currentStep);
+            const lastEvtForStage = evt;
+            // Progressão linear: tudo antes do atual = feito; atual = rodando; depois = aguardando.
+            // Se o evento da etapa registrou erro/warning, preserva esse status.
+            let status: "pending" | "running" | "success" | "error" | "warning";
+            if (lastEvtForStage?.status === "error") status = "error";
+            else if (lastEvtForStage?.status === "warning") status = "warning";
+            else if (currentIdx === -1) status = (evt?.status as any) ?? "pending";
+            else if (idx < currentIdx) status = "success";
+            else if (idx === currentIdx) status = "running";
+            else status = "pending";
 
             return (
               <StageCard
