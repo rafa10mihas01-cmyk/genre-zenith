@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import * as XLSX from "xlsx";
 
 import { supabase } from "@/integrations/supabase/client";
+import type { TablesInsert } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -43,7 +44,8 @@ type CuradorRow = {
   notes: string | null;
 };
 
-const MIN_FOLLOWERS = 2000;
+type ExternalCuratorInsert = TablesInsert<"external_curators">;
+type SheetCell = string | number | boolean | Date | null;
 
 // Selos/owners corporativos a remover automaticamente
 const BLOCKED_OWNERS = [
@@ -65,7 +67,7 @@ function extractPlaylistId(url: string | null | undefined): string | null {
   return m ? m[1] : null;
 }
 
-function normalizeInstagram(text: string | null | undefined): string | null {
+function normalizeInstagram(text: unknown): string | null {
   if (!text) return null;
   const s = String(text).trim().replace(/[⧉↗→]/g, "");
   const m = s.match(/(?:instagram\.com\/|@)([A-Za-z0-9_.]+)/i);
@@ -74,7 +76,7 @@ function normalizeInstagram(text: string | null | undefined): string | null {
   return s || null;
 }
 
-function extractEmail(...sources: (string | null | undefined)[]): string | null {
+function extractEmail(...sources: unknown[]): string | null {
   const blob = sources.filter(Boolean).join(" ");
   const m = blob.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
   return m ? m[0] : null;
@@ -120,6 +122,19 @@ function formatN(n: number) {
   return n.toLocaleString("pt-BR");
 }
 
+function parseCount(value: unknown): number {
+  if (typeof value === "number") return Math.round(value);
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (!raw) return 0;
+  const multiplier = raw.includes("k") ? 1_000 : raw.includes("m") ? 1_000_000 : 1;
+  const compact = raw.replace(/[\s+]/g, "").replace(/[km]/g, "");
+  const normalized = compact.includes(",") && compact.includes(".")
+    ? compact.replace(/\./g, "").replace(",", ".")
+    : compact.replace(/[.,](?=\d{3}(\D|$))/g, "").replace(",", ".");
+  const n = Number(normalized.replace(/[^\d.]/g, ""));
+  return Number.isFinite(n) ? Math.round(n * multiplier) : 0;
+}
+
 /* ============================================================
    Parser XLSX/CSV (PlaylistSupply-like)
    ============================================================ */
@@ -135,7 +150,7 @@ function parseSheet(file: File): Promise<Imported[]> {
         const wb = XLSX.read(data, { type: "binary" });
         const sheet = wb.Sheets[wb.SheetNames[0]];
         // Pega como matriz e procura linha de cabeçalho
-        const matrix: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null });
+        const matrix = XLSX.utils.sheet_to_json<SheetCell[]>(sheet, { header: 1, defval: null });
         let headerIdx = matrix.findIndex((row) =>
           row.some((c) => typeof c === "string" && /nome|playlist name|name/i.test(c)) &&
           row.some((c) => typeof c === "string" && /follower/i.test(c)),
@@ -167,8 +182,8 @@ function parseSheet(file: File): Promise<Imported[]> {
           const url = String(get(iUrl) ?? "").trim() || null;
           const name = String(get(iName) ?? "").trim();
           if (!name) continue;
-          const followers = Number(get(iFollow)) || 0;
-          const tracks = Number(get(iTracksReal >= 0 ? iTracksReal : iTracks)) || 0;
+          const followers = parseCount(get(iFollow));
+          const tracks = parseCount(get(iTracksReal >= 0 ? iTracksReal : iTracks));
           const desc = get(iDesc) ? String(get(iDesc)) : null;
           const email = extractEmail(get(iEmail), get(iSocial), desc);
           const instagram = normalizeInstagram(get(iSocial) ?? get(iLinks) ?? extractFromDesc(desc));
@@ -211,6 +226,58 @@ function extractFromDesc(desc: string | null): string | null {
 
 function hasContact(r: Imported | CuradorRow): boolean {
   return Boolean(r.email || r.instagram || r.links || r.social);
+}
+
+type CuratorIdentity = Pick<Imported, "spotify_playlist_id" | "spotify_url" | "name" | "owner_name">;
+
+type IdentityRegistry = {
+  ids: Set<string>;
+  urls: Set<string>;
+  nameOwners: Set<string>;
+};
+
+function normalizeIdentity(value: string | null | undefined): string {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[⧉↗→]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function normalizeUrl(value: string | null | undefined): string {
+  return normalizeIdentity(value).replace(/[?#].*$/, "").replace(/\/$/, "");
+}
+
+function registerIdentity(registry: IdentityRegistry, row: CuratorIdentity) {
+  const id = normalizeIdentity(row.spotify_playlist_id);
+  const url = normalizeUrl(row.spotify_url);
+  const name = normalizeIdentity(row.name);
+  const owner = normalizeIdentity(row.owner_name);
+
+  if (id) registry.ids.add(id);
+  if (url) registry.urls.add(url);
+  if (name && owner) registry.nameOwners.add(`${name}|${owner}`);
+}
+
+function hasIdentityMatch(registry: IdentityRegistry, row: CuratorIdentity): boolean {
+  const id = normalizeIdentity(row.spotify_playlist_id);
+  const url = normalizeUrl(row.spotify_url);
+  const name = normalizeIdentity(row.name);
+  const owner = normalizeIdentity(row.owner_name);
+
+  return Boolean(
+    (id && registry.ids.has(id)) ||
+    (url && registry.urls.has(url)) ||
+    (name && owner && registry.nameOwners.has(`${name}|${owner}`)),
+  );
+}
+
+function createIdentityRegistry(rows: CuratorIdentity[]): IdentityRegistry {
+  const registry: IdentityRegistry = { ids: new Set(), urls: new Set(), nameOwners: new Set() };
+  rows.forEach((row) => registerIdentity(registry, row));
+  return registry;
 }
 
 /* ============================================================
@@ -278,16 +345,11 @@ export function CuradoresCRM() {
         return;
       }
 
-      // Anti-duplicidade local
-      const existingIds = new Set(rows.map((r) => r.spotify_playlist_id).filter(Boolean));
-      const existingKeys = new Set(rows.map((r) => `${(r.name ?? "").toLowerCase().trim()}|${(r.owner_name ?? "").toLowerCase().trim()}`));
-
+      const existingRegistry = createIdentityRegistry(rows);
+      const batchRegistry = createIdentityRegistry([]);
       const toInsert = filtered.filter((r) => {
-        if (r.spotify_playlist_id && existingIds.has(r.spotify_playlist_id)) return false;
-        const k = `${r.name.toLowerCase().trim()}|${(r.owner_name ?? "").toLowerCase().trim()}`;
-        if (existingKeys.has(k)) return false;
-        existingKeys.add(k);
-        if (r.spotify_playlist_id) existingIds.add(r.spotify_playlist_id);
+        if (hasIdentityMatch(existingRegistry, r) || hasIdentityMatch(batchRegistry, r)) return false;
+        registerIdentity(batchRegistry, r);
         return true;
       });
 
@@ -310,14 +372,15 @@ export function CuradoresCRM() {
         };
       });
 
-      // Upsert em lotes de 200
+      // Insert em lotes de 200. A duplicidade já é validada por ID, URL e nome+owner antes do envio.
       let ok = 0;
       for (let i = 0; i < payload.length; i += 200) {
         const chunk = payload.slice(i, i + 200);
         const { error } = await supabase
           .from("external_curators")
-          .upsert(chunk as any, { onConflict: "user_id,spotify_playlist_id", ignoreDuplicates: true });
-        if (!error) ok += chunk.length;
+          .insert(chunk as ExternalCuratorInsert[]);
+        if (error) throw error;
+        ok += chunk.length;
       }
 
       toast.success(
