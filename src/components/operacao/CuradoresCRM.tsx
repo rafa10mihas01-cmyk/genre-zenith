@@ -609,9 +609,40 @@ export function CuradoresCRM() {
           </p>
         </Card>
       ) : (
-        <div className="flex flex-col gap-2">
-          {filtered.map((r) => <CuradorRowCard key={r.id} r={r} onUpdate={updateRow} onRemove={removeRow} />)}
-        </div>
+        <>
+          <div className="flex items-center justify-between text-[11px] text-muted-foreground px-1">
+            <span>
+              Mostrando <span className="text-foreground font-medium">{pageStart + 1}–{pageEnd}</span> de <span className="text-foreground font-medium">{filtered.length}</span>
+              {filtered.length !== rows.length && <span className="opacity-60"> · {rows.length} no total</span>}
+            </span>
+            <div className="flex items-center gap-2">
+              <span>Por página</span>
+              {[25, 50, 100, 200].map((n) => (
+                <button
+                  key={n}
+                  onClick={() => setPageSize(n)}
+                  className={`px-2 py-0.5 rounded-md transition-colors ${pageSize === n ? "bg-primary/15 text-primary" : "hover:bg-elevated text-muted-foreground"}`}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            {pageRows.map((r) => <CuradorRowCard key={r.id} r={r} onUpdate={updateRow} onRemove={removeRow} />)}
+          </div>
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-1 pt-2">
+              <Button variant="outline" size="sm" className="rounded-full h-8" disabled={safePage === 1} onClick={() => setPage(1)}>«</Button>
+              <Button variant="outline" size="sm" className="rounded-full h-8" disabled={safePage === 1} onClick={() => setPage(safePage - 1)}>‹</Button>
+              <span className="text-xs text-muted-foreground px-3">
+                Página <span className="text-foreground font-medium">{safePage}</span> de <span className="text-foreground font-medium">{totalPages}</span>
+              </span>
+              <Button variant="outline" size="sm" className="rounded-full h-8" disabled={safePage === totalPages} onClick={() => setPage(safePage + 1)}>›</Button>
+              <Button variant="outline" size="sm" className="rounded-full h-8" disabled={safePage === totalPages} onClick={() => setPage(totalPages)}>»</Button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
