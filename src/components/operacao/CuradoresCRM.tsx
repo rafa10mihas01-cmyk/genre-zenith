@@ -328,16 +328,11 @@ export function CuradoresCRM() {
         return;
       }
 
-      // Anti-duplicidade local
-      const existingIds = new Set(rows.map((r) => r.spotify_playlist_id).filter(Boolean));
-      const existingKeys = new Set(rows.map((r) => `${(r.name ?? "").toLowerCase().trim()}|${(r.owner_name ?? "").toLowerCase().trim()}`));
-
+      const existingRegistry = createIdentityRegistry(rows);
+      const batchRegistry = createIdentityRegistry([]);
       const toInsert = filtered.filter((r) => {
-        if (r.spotify_playlist_id && existingIds.has(r.spotify_playlist_id)) return false;
-        const k = `${r.name.toLowerCase().trim()}|${(r.owner_name ?? "").toLowerCase().trim()}`;
-        if (existingKeys.has(k)) return false;
-        existingKeys.add(k);
-        if (r.spotify_playlist_id) existingIds.add(r.spotify_playlist_id);
+        if (hasIdentityMatch(existingRegistry, r) || hasIdentityMatch(batchRegistry, r)) return false;
+        registerIdentity(batchRegistry, r);
         return true;
       });
 
@@ -360,14 +355,15 @@ export function CuradoresCRM() {
         };
       });
 
-      // Upsert em lotes de 200
+      // Insert em lotes de 200. A duplicidade já é validada por ID, URL e nome+owner antes do envio.
       let ok = 0;
       for (let i = 0; i < payload.length; i += 200) {
         const chunk = payload.slice(i, i + 200);
         const { error } = await supabase
           .from("external_curators")
-          .upsert(chunk as any, { onConflict: "user_id,spotify_playlist_id", ignoreDuplicates: true });
-        if (!error) ok += chunk.length;
+          .insert(chunk as any);
+        if (error) throw error;
+        ok += chunk.length;
       }
 
       toast.success(
