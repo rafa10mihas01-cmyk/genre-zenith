@@ -78,6 +78,23 @@ SNAPSHOT_SENT   (gerado pelo endpoint quando extract grava snapshots)
 FINISHED        (gerado pelo endpoint após extract concluir)
 ```
 
+### 3.1 Prints e DOM payload (anti-duplicata e anti-overshoot)
+
+Regras obrigatórias do worker ao montar `dom_payload` e enviar prints:
+
+1. **Scroll até o fim da lista virtualizada**. Pare quando:
+   - `playlistCount` lido do header **≤** itens já capturados, **OU**
+   - 3 scroll-passes consecutivos sem novo `data-testid="row"` aparecer.
+2. **Nunca duplicar** linhas no `dom_payload`: dedup por `spotify_playlist_id`
+   (e por `algo:<nome>` para Radio/Mixes/Smart Shuffle).
+3. **Nunca enviar prints redundantes**. `total_parts` deve ser **exatamente**
+   `ceil(linhas_únicas / linhas_por_print)`. Se a tela cabe em 4 prints, não
+   mande 6 — o ingest passou a deduplicar internamente, mas prints sobrando
+   geram storage lixo e custo de IA.
+4. **Ordem dos prints** monotônica (parte 1 = topo, parte N = fundo).
+5. Se `playlistCount` do header divergir do capturado, emitir `DISCARDED`
+   com `discard_reason="scroll_incomplete"` em vez de mandar payload parcial.
+
 Sequências de erro:
 
 ```
