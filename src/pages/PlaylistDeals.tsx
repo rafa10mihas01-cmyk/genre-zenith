@@ -253,6 +253,7 @@ export default function PlaylistDeals() {
             deals={deals}
             loading={loading}
             onUpdateCurator={updateCurator}
+            onAddPurchase={addCuratorPurchase}
             onArchiveCurator={archiveCurator}
             onDeleteCurator={deleteCurator}
             onPauseCurator={pauseCurator}
