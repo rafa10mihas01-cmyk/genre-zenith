@@ -1,6 +1,6 @@
 # Plano: Multi-App Spotify sem quebrar o sistema atual
 
-Objetivo: permitir conectar várias **apps Spotify** (cada uma com seu Client ID/Secret e seu próprio limite de ~25 contas), distribuindo as contas conectadas entre elas, **sem nenhum downtime** e **sem quebrar nada do que já funciona hoje**.
+Objetivo: permitir conectar várias **apps Spotify** (cada uma com seu Client ID/Secret e seu próprio limite de **5 contas por app** — limite real do Spotify em modo Development), distribuindo as contas conectadas entre elas, **sem nenhum downtime** e **sem quebrar nada do que já funciona hoje**.
 
 A regra de ouro do plano: em **cada fase**, o sistema continua 100% funcional como está hoje. Só ativamos uma fase quando a anterior está estável.
 
@@ -25,7 +25,7 @@ Migração SQL (aditiva, segura):
   - `name text` (ex: "App Principal", "App Secundária")
   - `client_id text not null`
   - `client_secret text not null` (criptografado via vault ou guardado em secrets — ver nota abaixo)
-  - `max_accounts int default 25`
+  - `max_accounts int default 5` (limite real do Spotify por app em Development Mode)
   - `status text default 'active'` (active/paused)
   - `is_default boolean default false`
   - `created_at`, `updated_at`
@@ -68,7 +68,7 @@ Adicionar na tela de **Configurações → Spotify** (não em Operação):
 
 - Lista de apps cadastradas (nome, # de contas conectadas, # de slots livres, status).
 - Botão "Adicionar nova app Spotify" → form pedindo nome + client_id + client_secret + max_accounts.
-- Em **AccountsManager** (Operação), agrupar contas por app, mostrando uso por app: `Baile Hits (15/25)`, `Lado Sul (0/25)`, etc.
+- Em **AccountsManager** (Operação), agrupar contas por app, mostrando uso por app: `App Principal (3/5)`, `App 2 (0/5)`, etc.
 - No fluxo de "Conectar nova conta Spotify", se houver mais de 1 app, mostrar dropdown "Conectar em qual app?" — sugerindo automaticamente a app com mais espaço.
 
 Usar a RPC `pick_next_account` em qualquer função que hoje faz "pega a default" (ex: criação de playlists).
@@ -90,7 +90,7 @@ Sem alteração de código nesta fase. É só dado.
 
 - **Throttle por app**: contador in-memory + lock no DB para limitar ~10 req/s por `app_id`.
 - **Retry com backoff exponencial** em 429/5xx nas funções que chamam Spotify API.
-- **Alertas**: notificar quando uma app passa de 90% de uso (22+/25 contas) ou quando tokens falham repetidamente.
+- **Alertas**: notificar quando uma app passa de 80% de uso (4/5 contas) ou quando tokens falham repetidamente.
 - **Métricas**: dashboard simples com requests/min por app, taxa de erro, tokens próximos de expirar.
 
 ---
