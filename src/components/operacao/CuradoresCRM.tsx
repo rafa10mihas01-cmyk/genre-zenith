@@ -516,6 +516,14 @@ export function CuradoresCRM() {
           <Button variant="outline" size="sm" className="rounded-full h-9" onClick={exportCSV}>
             <Download className="h-3.5 w-3.5 mr-1.5" /> Exportar
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded-full h-9 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
+            onClick={clearAll}
+          >
+            <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Limpar tudo
+          </Button>
         </div>
 
         {/* Chips */}
