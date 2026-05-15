@@ -301,7 +301,7 @@ Deno.serve(async (req) => {
   await supabase.from("collection_logs").insert({
     acao: "bot_collect",
     status: skipped > 0 ? "parcial" : "ok",
-    mensagem: `song=${song_id} inserted=${inserted} skipped=${skipped}`,
+    mensagem: `song=${song_id} inserted=${inserted} skipped=${skipped} deduped_in_batch=${dedupedOut}`,
   });
 
   recordMetric(supabase, {
@@ -314,5 +314,5 @@ Deno.serve(async (req) => {
     metadata: { inserted, skipped, queue_age_ms: queueAgeMs },
   });
 
-  return jr({ ok: true, inserted, skipped, next_auto_collect_at: nextAt });
+  return jr({ ok: true, inserted, skipped, deduped_in_batch: dedupedOut, next_auto_collect_at: nextAt });
 });
