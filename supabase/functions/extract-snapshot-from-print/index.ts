@@ -553,6 +553,9 @@ Deno.serve(async (req) => {
       plays_7d: w7,
       plays_28d: w28,
     };
+    // Dedup interno: se o bot mandar a mesma playlist em prints diferentes,
+    // mantém apenas a 1ª ocorrência (por spotify_playlist_id / id sintético algo:).
+    if (domItems.some((x) => x.id === id)) continue;
     domByName.set(normName(name), item);
     domByPos.set(position, item);
     domItems.push(item);
@@ -1054,7 +1057,9 @@ Deno.serve(async (req) => {
   // que a lista de links fique completa, sem inventar streams.
   for (const dom of domItems) {
     if (dom.id.startsWith("algo:")) continue; // já tratada no loop principal
-    if (processedSpotifyIds.has(dom.id) || processedNames.has(norm(dom.name))) continue;
+    // Dedup APENAS por spotify_playlist_id. Nomes parecidos (ex.: várias playlists
+    // do Spotify com "Tubarões…" no título) são playlists DIFERENTES e devem entrar.
+    if (processedSpotifyIds.has(dom.id)) continue;
     if (isAlgorithmic(dom.name, dom.made_by ?? null, dom.id)) continue;
     const isEditorialDom = isSpotifyEditorial(dom.name, dom.made_by ?? null, dom.id);
     // ECOSSISTEMA COMPLEMENTO DOM: não descartamos mais linhas fora da whitelist.
