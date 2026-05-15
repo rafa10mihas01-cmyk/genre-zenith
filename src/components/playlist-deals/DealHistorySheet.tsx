@@ -537,6 +537,10 @@ export function DealHistorySheet({
       plays_24h: snap?.plays_24h ?? null,
       plays_7d: snap?.plays_7d ?? null,
       plays_28d: snap?.plays_28d ?? null,
+      total_delivered: snap?.total_delivered ?? 0,
+      baseline_total: snap?.baseline_total ?? 0,
+      last_total: snap?.last_total ?? 0,
+      last_captured_at: snap?.last_captured_at ?? null,
       song_name: song?.song_name ?? null,
     };
   };
