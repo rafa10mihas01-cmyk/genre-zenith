@@ -351,6 +351,8 @@ export function CuradoresCRM() {
   const [scoreFilter, setScoreFilter] = useState<"todos" | "A+" | "A" | "B" | "C" | "D">("todos");
   const [sizeFilter, setSizeFilter] = useState<SizeBucket>("todos");
   const [favOnly, setFavOnly] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(50);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const load = async () => {
@@ -482,6 +484,15 @@ export function CuradoresCRM() {
       });
   }, [rows, search, statusFilter, scoreFilter, sizeFilter, favOnly]);
 
+  // Reseta página quando filtros mudam
+  useEffect(() => { setPage(1); }, [search, statusFilter, scoreFilter, sizeFilter, favOnly, pageSize]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const pageStart = (safePage - 1) * pageSize;
+  const pageEnd = Math.min(pageStart + pageSize, filtered.length);
+  const pageRows = filtered.slice(pageStart, pageEnd);
+
   const stats = useMemo(() => {
     const total = rows.length;
     const aplus = rows.filter((r) => r.score === "A+" || r.score === "A").length;
@@ -598,9 +609,40 @@ export function CuradoresCRM() {
           </p>
         </Card>
       ) : (
-        <div className="flex flex-col gap-2">
-          {filtered.map((r) => <CuradorRowCard key={r.id} r={r} onUpdate={updateRow} onRemove={removeRow} />)}
-        </div>
+        <>
+          <div className="flex items-center justify-between text-[11px] text-muted-foreground px-1">
+            <span>
+              Mostrando <span className="text-foreground font-medium">{pageStart + 1}–{pageEnd}</span> de <span className="text-foreground font-medium">{filtered.length}</span>
+              {filtered.length !== rows.length && <span className="opacity-60"> · {rows.length} no total</span>}
+            </span>
+            <div className="flex items-center gap-2">
+              <span>Por página</span>
+              {[25, 50, 100, 200].map((n) => (
+                <button
+                  key={n}
+                  onClick={() => setPageSize(n)}
+                  className={`px-2 py-0.5 rounded-md transition-colors ${pageSize === n ? "bg-primary/15 text-primary" : "hover:bg-elevated text-muted-foreground"}`}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            {pageRows.map((r) => <CuradorRowCard key={r.id} r={r} onUpdate={updateRow} onRemove={removeRow} />)}
+          </div>
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-1 pt-2">
+              <Button variant="outline" size="sm" className="rounded-full h-8" disabled={safePage === 1} onClick={() => setPage(1)}>«</Button>
+              <Button variant="outline" size="sm" className="rounded-full h-8" disabled={safePage === 1} onClick={() => setPage(safePage - 1)}>‹</Button>
+              <span className="text-xs text-muted-foreground px-3">
+                Página <span className="text-foreground font-medium">{safePage}</span> de <span className="text-foreground font-medium">{totalPages}</span>
+              </span>
+              <Button variant="outline" size="sm" className="rounded-full h-8" disabled={safePage === totalPages} onClick={() => setPage(safePage + 1)}>›</Button>
+              <Button variant="outline" size="sm" className="rounded-full h-8" disabled={safePage === totalPages} onClick={() => setPage(totalPages)}>»</Button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
