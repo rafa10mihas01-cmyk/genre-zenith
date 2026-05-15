@@ -716,6 +716,29 @@ Deno.serve(async (req) => {
     const { data: recent } = await recentQuery;
     if (recent && recent.length > 0) {
       console.log(`[extract] deduped deal=${deal_id} song=${song_id ?? "null"} — log within 90s exists`);
+      const recentLog = recent[0];
+      const firstPrintUrl = print_urls[0] ?? null;
+
+      await supabase
+        .from("curator_deal_logs")
+        .update({ print_urls })
+        .eq("id", recentLog.id);
+
+      let snapshotPatch: Record<string, unknown> = {
+        batch_id: batch_id ?? null,
+        correlation_id: correlation_id ?? null,
+      };
+      if (firstPrintUrl) snapshotPatch.print_url = firstPrintUrl;
+
+      let snapQ = supabase
+        .from("curator_deal_snapshots")
+        .update(snapshotPatch)
+        .eq("deal_id", deal_id)
+        .eq("is_baseline", recentLog.is_baseline)
+        .gte("created_at", since);
+      snapQ = song_id ? snapQ.eq("song_id", song_id) : snapQ.is("song_id", null);
+      await snapQ;
+
       if (song_id) {
         await supabase
           .from("curator_deal_songs")
@@ -728,7 +751,7 @@ Deno.serve(async (req) => {
       }
       if (batch_id) {
         await supabase
-          .from("curator_print_batches")
+          .from("bot_print_batches")
           .update({ status: "processed", processed_at: new Date().toISOString() })
           .eq("id", batch_id);
       }
@@ -1113,22 +1136,35 @@ Deno.serve(async (req) => {
   // Curador que tentar cadastrar uma playlist com spotify_playlist_id contido
   // aqui será bloqueado pelo trigger enforce_curator_playlist_baseline().
   if (isBaseline) {
-    const { data: allPls } = await supabase
-      .from("curator_playlists")
-      .select("spotify_playlist_id, playlist_name")
+    let baselineQ = supabase
+      .from("curator_deal_snapshots")
+      .select("id, captured_at, curator_playlists!inner(spotify_playlist_id, playlist_name, match_status)")
       .eq("deal_id", deal_id)
-      .not("spotify_playlist_id", "is", null);
-    const rows = (allPls ?? [])
-      .filter((p: any) => p.spotify_playlist_id && !String(p.spotify_playlist_id).startsWith("algo:"))
+      .eq("is_baseline", true);
+    baselineQ = batch_id
+      ? baselineQ.eq("batch_id", batch_id)
+      : baselineQ.gte("created_at", new Date(Date.now() - 10 * 60_000).toISOString());
+    baselineQ = song_id ? baselineQ.eq("song_id", song_id) : baselineQ.is("song_id", null);
+
+    const { data: baselineSnaps } = await baselineQ;
+    const rows = (baselineSnaps ?? [])
+      .map((s: any) => ({ snapshot: s, playlist: s.curator_playlists }))
+      .filter(({ playlist }: any) =>
+        playlist?.spotify_playlist_id &&
+        !String(playlist.spotify_playlist_id).startsWith("algo:") &&
+        playlist.match_status !== "algorithmic",
+      )
       .map((p: any) => ({
         deal_id,
-        spotify_playlist_id: p.spotify_playlist_id,
-        playlist_name: p.playlist_name ?? null,
+        spotify_playlist_id: p.playlist.spotify_playlist_id,
+        playlist_name: p.playlist.playlist_name ?? null,
+        snapshot_id: p.snapshot.id,
+        captured_at: p.snapshot.captured_at,
       }));
     if (rows.length > 0) {
       const { error: bErr } = await supabase
         .from("curator_deal_baseline_playlists")
-        .upsert(rows, { onConflict: "deal_id,spotify_playlist_id", ignoreDuplicates: true });
+        .upsert(rows, { onConflict: "deal_id,spotify_playlist_id" });
       if (bErr) console.error("[extract] baseline blacklist upsert error", bErr);
       else console.log(`[extract] baseline blacklist: ${rows.length} playlists registradas para deal=${deal_id}`);
     }
