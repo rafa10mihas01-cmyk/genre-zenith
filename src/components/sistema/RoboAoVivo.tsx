@@ -175,12 +175,19 @@ export function RoboAoVivo() {
           Etapas
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {STAGES.map((stage) => {
+          {STAGES.map((stage, idx) => {
             const evt = stepStatusMap.get(stage.key);
-            const isCurrent = currentStep === stage.key;
-            const status: "pending" | "running" | "success" | "error" | "warning" = isCurrent
-              ? "running"
-              : (evt?.status as any) ?? "pending";
+            const currentIdx = STAGES.findIndex((s) => s.key === currentStep);
+            const lastEvtForStage = evt;
+            // Progressão linear: tudo antes do atual = feito; atual = rodando; depois = aguardando.
+            // Se o evento da etapa registrou erro/warning, preserva esse status.
+            let status: "pending" | "running" | "success" | "error" | "warning";
+            if (lastEvtForStage?.status === "error") status = "error";
+            else if (lastEvtForStage?.status === "warning") status = "warning";
+            else if (currentIdx === -1) status = (evt?.status as any) ?? "pending";
+            else if (idx < currentIdx) status = "success";
+            else if (idx === currentIdx) status = "running";
+            else status = "pending";
 
             return (
               <StageCard
@@ -214,7 +221,7 @@ function StageCard({
 }) {
   const palette = {
     pending: { ring: "border-border", bg: "bg-elevated/40", icon: "text-muted-foreground/50", dot: "bg-muted-foreground/30", label: "Aguardando" },
-    running: { ring: "border-primary/50 ring-1 ring-primary/30", bg: "bg-primary/5", icon: "text-primary", dot: "bg-primary animate-pulse", label: "Fazendo agora" },
+    running: { ring: "border-primary ring-2 ring-primary/40 shadow-[0_0_24px_-4px_hsl(var(--primary)/0.45)] animate-pulse", bg: "bg-primary/10", icon: "text-primary", dot: "bg-primary animate-pulse", label: "Fazendo agora" },
     success: { ring: "border-border", bg: "bg-card", icon: "text-primary", dot: "bg-primary", label: "Feito" },
     error:   { ring: "border-destructive/40", bg: "bg-destructive/5", icon: "text-destructive", dot: "bg-destructive", label: "Falhou" },
     warning: { ring: "border-warning/40", bg: "bg-warning/5", icon: "text-warning", dot: "bg-warning", label: "Atenção" },
