@@ -593,8 +593,8 @@ export function CuradoresCRM() {
 
       {/* Lista */}
       {loading ? (
-        <div className="flex flex-col gap-2">
-          {[0,1,2,3].map((i) => <div key={i} className="h-24 rounded-2xl border border-border/40 bg-card animate-pulse" />)}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+          {[0,1,2,3,4,5].map((i) => <div key={i} className="h-56 rounded-2xl border border-border/40 bg-card animate-pulse" />)}
         </div>
       ) : filtered.length === 0 ? (
         <Card className="p-12 text-center">
