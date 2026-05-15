@@ -54,11 +54,21 @@ const BLOCKED_OWNERS = [
   "som livre", "somlivre", "atlantic", "republic records",
 ];
 
-function isBlockedOwner(owner: string | null | undefined, name: string | null | undefined): boolean {
+function isBlockedOwner(owner: string | null | undefined): boolean {
   const o = (owner ?? "").toLowerCase().trim();
-  const n = (name ?? "").toLowerCase().trim();
-  if (!o && !n) return false;
-  return BLOCKED_OWNERS.some((b) => o.includes(b) || n.startsWith(b + " "));
+  if (!o) return false;
+  // Só bloqueia quando o owner bate com um selo conhecido — não usa o nome da playlist
+  // pra evitar falsos positivos (ex: "Sony Music Vibes" feito por curador independente).
+  return BLOCKED_OWNERS.some((b) => o === b || o.startsWith(b + " ") || o.endsWith(" " + b));
+}
+
+function findUrlInRow(row: SheetCell[]): string | null {
+  for (const cell of row) {
+    if (typeof cell !== "string") continue;
+    const m = cell.match(/https?:\/\/[^\s,;]+/i);
+    if (m) return m[0];
+  }
+  return null;
 }
 
 function extractPlaylistId(url: string | null | undefined): string | null {
@@ -185,8 +195,13 @@ function parseSheet(file: File): Promise<Imported[]> {
           const followers = parseCount(get(iFollow));
           const tracks = parseCount(get(iTracksReal >= 0 ? iTracksReal : iTracks));
           const desc = get(iDesc) ? String(get(iDesc)) : null;
-          const email = extractEmail(get(iEmail), get(iSocial), desc);
-          const instagram = normalizeInstagram(get(iSocial) ?? get(iLinks) ?? extractFromDesc(desc));
+          // Varre TODAS as células da linha pra achar contato — independe de nome de coluna
+          const email = extractEmail(...row);
+          const instagram = normalizeInstagram(
+            get(iSocial) ?? get(iLinks) ?? extractFromDesc(desc) ?? findInstagramInRow(row),
+          );
+          const linkInRow = String(get(iLinks) ?? "").trim() || findUrlInRow(row);
+          const socialInRow = String(get(iSocial) ?? "").trim() || null;
           const scoreRawN = Number(get(iScore));
 
           rows.push({
@@ -201,8 +216,8 @@ function parseSheet(file: File): Promise<Imported[]> {
             last_modified: get(iMod) ? String(get(iMod)) : null,
             email,
             instagram,
-            social: get(iSocial) ? String(get(iSocial)).trim() : null,
-            links: get(iLinks) ? String(get(iLinks)).trim() : null,
+            social: socialInRow,
+            links: linkInRow,
             description: desc,
             score: null,
             score_raw: Number.isFinite(scoreRawN) ? scoreRawN : null,
@@ -216,6 +231,15 @@ function parseSheet(file: File): Promise<Imported[]> {
     reader.onerror = () => reject(reader.error);
     reader.readAsBinaryString(file);
   });
+}
+
+function findInstagramInRow(row: SheetCell[]): string | null {
+  for (const cell of row) {
+    if (typeof cell !== "string") continue;
+    const m = cell.match(/(?:instagram\.com\/|@)([A-Za-z0-9_.]+)/i);
+    if (m) return m[1];
+  }
+  return null;
 }
 
 function extractFromDesc(desc: string | null): string | null {
@@ -335,7 +359,7 @@ export function CuradoresCRM() {
       // Filtros de import: precisa ter contato (email/social/links) e não ser selo corporativo.
       // Sem mínimo de seguidores — filtro por tamanho fica na UI.
       const filtered = parsed.filter((r) => {
-        if (isBlockedOwner(r.owner_name, r.name)) return false;
+        if (isBlockedOwner(r.owner_name)) return false;
         if (!hasContact(r)) return false;
         return true;
       });
@@ -411,6 +435,17 @@ export function CuradoresCRM() {
     else toast.success("Removido");
   };
 
+  const clearAll = async () => {
+    if (rows.length === 0) { toast.info("CRM já está vazio"); return; }
+    if (!confirm(`Apagar TODOS os ${rows.length} curadores do CRM? Essa ação não pode ser desfeita.`)) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { toast.error("Sessão expirada"); return; }
+    const { error } = await supabase.from("external_curators").delete().eq("user_id", user.id);
+    if (error) { toast.error("Erro ao limpar"); return; }
+    setRows([]);
+    toast.success("CRM zerado — pode importar de novo");
+  };
+
   /* -------- derived -------- */
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -480,6 +515,14 @@ export function CuradoresCRM() {
           </div>
           <Button variant="outline" size="sm" className="rounded-full h-9" onClick={exportCSV}>
             <Download className="h-3.5 w-3.5 mr-1.5" /> Exportar
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded-full h-9 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
+            onClick={clearAll}
+          >
+            <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Limpar tudo
           </Button>
         </div>
 
