@@ -450,6 +450,7 @@ export function CuradoresLibraryTab({
         curator={selected}
         deals={deals.filter((d) => d.curator_id === selected?.id)}
         balance={balances.find((b) => b.curator_id === selected?.id) ?? null}
+        onAddPurchase={onAddPurchase}
         onClose={() => setSelected(null)}
       />
 
