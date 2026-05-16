@@ -1,7 +1,7 @@
 import { NavLink, useLocation } from "react-router-dom";
 import {
   Home, Sparkles, BarChart3, Settings, LogOut, ListMusic, Users, Handshake,
-  Server, Target, ChevronRight,
+  Server, Target, ChevronRight, User,
 } from "lucide-react";
 import { NexEngineLogo } from "@/components/NexEngineLogo";
 import {
