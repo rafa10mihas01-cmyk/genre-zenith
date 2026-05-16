@@ -1,0 +1,1 @@
+DELETE FROM public.curators WHERE id='359ec8c6-804c-4491-82f4-571dfe6cf58d';
