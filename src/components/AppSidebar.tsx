@@ -124,8 +124,14 @@ function itemIsActive(item: NavItem, pathname: string): boolean {
   );
 }
 
-function subIsActive(sub: SubItem, pathname: string): boolean {
-  return pathname === sub.url || pathname.startsWith(sub.url + "/");
+function subIsActive(sub: SubItem, pathname: string, search: string): boolean {
+  const [subPath, subQuery] = sub.url.split("?");
+  if (pathname !== subPath && !pathname.startsWith(subPath + "/")) return false;
+  if (!subQuery) return true;
+  const current = new URLSearchParams(search);
+  const expected = new URLSearchParams(subQuery);
+  for (const [k, v] of expected) if (current.get(k) !== v) return false;
+  return true;
 }
 
 export function AppSidebar() {
