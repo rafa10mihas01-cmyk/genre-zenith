@@ -96,28 +96,45 @@ export default function PlaylistDeals() {
       tab === "done" ? deals.filter((d) => !!d.closed_at)
       : tab === "active" ? deals.filter((d) => !d.closed_at)
       : deals;
-    // Ordem: 1) ativos com baseline, 2) ativos sem baseline, 3) encerrados.
-    // Dentro de cada grupo, agrupa por curador (deals do mesmo curador ficam juntos).
+    // Agrupa por CAMPANHA (mesmo nome de música fica junto), independente de curador.
+    // Dentro de cada campanha: ativos com baseline > ativos sem baseline > encerrados.
+    // Ordem das campanhas: a primeira campanha que tiver um deal "mais ativo" aparece antes.
     const dealsWithBaseline = new Set(
       logs.filter((l) => l.is_baseline).map((l) => l.deal_id),
     );
     const rank = (d: typeof deals[number]) =>
       d.closed_at ? 2 : dealsWithBaseline.has(d.id) ? 0 : 1;
-    // Ordem de primeira aparição de cada curador dentro de cada rank (mantém estabilidade).
-    const curatorOrder = new Map<string, number>();
+    const campaignKey = (d: typeof deals[number]) =>
+      (d.song_name ?? "").trim().toLowerCase() || `__deal_${d.id}`;
+
+    // Menor rank por campanha define a ordem das campanhas.
+    const bestRankByCampaign = new Map<string, number>();
+    for (const d of base) {
+      const k = campaignKey(d);
+      const r = rank(d);
+      const prev = bestRankByCampaign.get(k);
+      if (prev === undefined || r < prev) bestRankByCampaign.set(k, r);
+    }
+    // Ordem de primeira aparição (estabilidade) dentro do mesmo bestRank.
+    const campaignOrder = new Map<string, number>();
     let idx = 0;
     [...base]
-      .sort((a, b) => rank(a) - rank(b))
+      .sort((a, b) => (bestRankByCampaign.get(campaignKey(a))! - bestRankByCampaign.get(campaignKey(b))!))
       .forEach((d) => {
-        const key = `${rank(d)}::${d.curator_id ?? d.curator_name}`;
-        if (!curatorOrder.has(key)) curatorOrder.set(key, idx++);
+        const k = campaignKey(d);
+        if (!campaignOrder.has(k)) campaignOrder.set(k, idx++);
       });
+
     return [...base].sort((a, b) => {
-      const r = rank(a) - rank(b);
-      if (r !== 0) return r;
-      const ka = `${rank(a)}::${a.curator_id ?? a.curator_name}`;
-      const kb = `${rank(b)}::${b.curator_id ?? b.curator_name}`;
-      return (curatorOrder.get(ka) ?? 0) - (curatorOrder.get(kb) ?? 0);
+      const ka = campaignKey(a);
+      const kb = campaignKey(b);
+      if (ka !== kb) {
+        const br = bestRankByCampaign.get(ka)! - bestRankByCampaign.get(kb)!;
+        if (br !== 0) return br;
+        return (campaignOrder.get(ka) ?? 0) - (campaignOrder.get(kb) ?? 0);
+      }
+      // mesma campanha: ativos primeiro
+      return rank(a) - rank(b);
     });
   }, [deals, logs, tab]);
 
