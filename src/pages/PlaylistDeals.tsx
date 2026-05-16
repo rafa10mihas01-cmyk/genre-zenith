@@ -96,13 +96,16 @@ export default function PlaylistDeals() {
       tab === "done" ? deals.filter((d) => !!d.closed_at)
       : tab === "active" ? deals.filter((d) => !d.closed_at)
       : deals;
-    // Ativos primeiro, depois encerrados — preservando ordem interna (created_at desc).
+    // Ordem: 1) ativos rodando (com baseline), 2) ativos sem baseline, 3) encerrados.
+    const dealsWithBaseline = new Set(
+      logs.filter((l) => l.is_baseline).map((l) => l.deal_id),
+    );
     return [...base].sort((a, b) => {
-      const aClosed = a.closed_at ? 1 : 0;
-      const bClosed = b.closed_at ? 1 : 0;
-      return aClosed - bClosed;
+      const rank = (d: typeof a) =>
+        d.closed_at ? 2 : dealsWithBaseline.has(d.id) ? 0 : 1;
+      return rank(a) - rank(b);
     });
-  }, [deals, tab]);
+  }, [deals, logs, tab]);
 
   const handleNew = () => setNewOpen(true);
 
