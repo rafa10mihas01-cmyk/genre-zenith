@@ -323,7 +323,7 @@ export function CuratorDealCard({
         )}
         {/* Algoritmo / Ecossistema intencionalmente omitidos do card — visíveis só no histórico/sheet. */}
         {!isClosed && songs.length > 0 && (
-          <BotStatusRow songs={songs} />
+          <BotStatusRow songs={songs} awaitingPlaylists={!hasWhitelist} />
         )}
 
         {/* Aviso sem baseline */}
@@ -551,7 +551,7 @@ export function CuratorDealCard({
 }
 
 // Mini-painel do robô: status + countdown pra próxima coleta
-function BotStatusRow({ songs }: { songs: CuratorDealSong[] }) {
+function BotStatusRow({ songs, awaitingPlaylists }: { songs: CuratorDealSong[]; awaitingPlaylists?: boolean }) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
@@ -564,6 +564,18 @@ function BotStatusRow({ songs }: { songs: CuratorDealSong[] }) {
       <div className="rounded-md border border-border/40 bg-[hsl(var(--elevated))] px-2.5 py-1.5 flex items-center gap-1.5">
         <Bot className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
         <span className="text-[11px] text-muted-foreground">Auto-coleta desligada</span>
+      </div>
+    );
+  }
+
+  // Sem playlists cadastradas → coleta não pode rodar. Mostra estado correto em vez de countdown vencido.
+  if (awaitingPlaylists) {
+    return (
+      <div className="rounded-md border border-warning/30 bg-warning/10 px-2.5 py-1.5 flex items-center gap-1.5">
+        <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0" />
+        <span className="text-[11px] text-warning font-medium">
+          Aguardando curador cadastrar playlists
+        </span>
       </div>
     );
   }
