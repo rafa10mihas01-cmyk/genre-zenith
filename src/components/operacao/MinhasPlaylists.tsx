@@ -16,7 +16,7 @@ import { formatNumber, timeAgo } from "@/lib/format";
 import {
   Plus, RefreshCw, ExternalLink, Music2, Sparkles, Archive, ArchiveRestore,
   ListMusic, AlertCircle, Activity, Brain, ArrowUpRight, Target, TrendingUp,
-  History, CheckCircle2, XCircle, Clock,
+  History, CheckCircle2, XCircle, Clock, Trash2,
 } from "lucide-react";
 import { PlaylistScoreBadge, type PlaylistScoreRow } from "./PlaylistScoreBadge";
 
@@ -288,8 +288,37 @@ export function MinhasPlaylists() {
       toast({ title: "Erro", description: error.message, variant: "destructive" });
       return;
     }
-    toast({ title: restore ? "Restaurada" : "Arquivada" });
+    toast({ title: restore ? "Restaurada" : "Movida para lixeira" });
     setDrawerPl(null);
+    load();
+  }
+
+  async function deletePermanent(pl: ManagedPlaylist) {
+    if (!confirm(`Excluir permanentemente "${pl.name}"? Esta ação não pode ser desfeita.`)) return;
+    const { data, error } = await supabase.functions.invoke("delete-managed-playlist", {
+      body: { playlist_id: pl.id },
+    });
+    if (error || !(data as any)?.ok) {
+      toast({ title: "Erro", description: error?.message || (data as any)?.error || "Falha ao excluir", variant: "destructive" });
+      return;
+    }
+    toast({ title: "Excluída permanentemente" });
+    setDrawerPl(null);
+    load();
+  }
+
+  async function emptyTrash() {
+    const archivedCount = items.filter(i => i.archived_at).length;
+    if (archivedCount === 0) return;
+    if (!confirm(`Esvaziar lixeira? ${archivedCount} playlist(s) serão excluídas permanentemente. Esta ação não pode ser desfeita.`)) return;
+    const { data, error } = await supabase.functions.invoke("delete-managed-playlist", {
+      body: { delete_all_archived: true },
+    });
+    if (error || !(data as any)?.ok) {
+      toast({ title: "Erro", description: error?.message || (data as any)?.error || "Falha ao esvaziar", variant: "destructive" });
+      return;
+    }
+    toast({ title: `${(data as any)?.deleted ?? 0} playlist(s) excluídas` });
     load();
   }
 
@@ -494,7 +523,17 @@ export function MinhasPlaylists() {
                 ? "bg-primary/15 border-primary/40 text-primary"
                 : "bg-elevated border-border text-muted-foreground hover:text-foreground",
             )}
-          >Arquivadas ({items.filter(i => i.archived_at).length})</button>
+          >Lixeira ({items.filter(i => i.archived_at).length})</button>
+          {showArchived && items.filter(i => i.archived_at).length > 0 && (
+            <Button
+              onClick={emptyTrash}
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1.5 text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+            >
+              <Trash2 className="h-3.5 w-3.5" /> Esvaziar lixeira
+            </Button>
+          )}
         </div>
       </div>
 
@@ -693,12 +732,21 @@ export function MinhasPlaylists() {
                     </a>
                   </Button>
                   {drawerPl.archived_at ? (
-                    <Button variant="outline" onClick={() => archive(drawerPl, true)} className="gap-1.5">
-                      <ArchiveRestore className="h-4 w-4" /> Restaurar
-                    </Button>
+                    <>
+                      <Button variant="outline" onClick={() => archive(drawerPl, true)} className="gap-1.5">
+                        <ArchiveRestore className="h-4 w-4" /> Restaurar
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => deletePermanent(drawerPl)}
+                        className="gap-1.5 text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" /> Excluir permanentemente
+                      </Button>
+                    </>
                   ) : (
                     <Button variant="outline" onClick={() => archive(drawerPl)} className="gap-1.5">
-                      <Archive className="h-4 w-4" /> Arquivar
+                      <Archive className="h-4 w-4" /> Mover para lixeira
                     </Button>
                   )}
                 </div>
