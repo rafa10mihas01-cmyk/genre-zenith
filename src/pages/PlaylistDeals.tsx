@@ -351,6 +351,14 @@ export default function PlaylistDeals() {
         onSaved={reload}
       />
 
+      <DuplicateDealDialog
+        open={duplicateDeal !== null}
+        onOpenChange={(v) => { if (!v) setDuplicateDeal(null); }}
+        sourceDeal={duplicateDeal}
+        sourceSongs={duplicateDeal ? songs.filter((s) => s.deal_id === duplicateDeal.id) : []}
+        onSaved={reload}
+      />
+
       <LogPrintDialog
         open={logDeal !== null}
         deal={logDeal}
