@@ -1,7 +1,7 @@
 import { NavLink, useLocation } from "react-router-dom";
 import {
   Home, Sparkles, BarChart3, Settings, LogOut, ListMusic, Users, Handshake,
-  Server, Target, ChevronRight,
+  Server, Target, ChevronRight, User,
 } from "lucide-react";
 import { NexEngineLogo } from "@/components/NexEngineLogo";
 import {
@@ -45,7 +45,7 @@ const sections: NavSection[] = [
   {
     label: "Cockpit",
     items: [
-      { title: "Início", url: "/", icon: Home, end: true, matchPaths: ["/executivo"] },
+      { title: "Cockpit", url: "/", icon: Home, end: true, matchPaths: ["/executivo"] },
     ],
   },
   {
@@ -53,12 +53,12 @@ const sections: NavSection[] = [
     items: [
       { title: "Campanhas", url: "/campanhas", icon: Target },
       {
-        title: "Playlist Deals",
+        title: "Deals",
         url: "/deals",
         icon: Handshake,
         matchPaths: ["/playlist-deals", "/curadores"],
         children: [
-          { title: "Deals", url: "/deals" },
+          { title: "Todos os Deals", url: "/deals", end: true },
           { title: "Curadores", url: "/curadores" },
           { title: "Comparar", url: "/deals/comparar" },
         ],
@@ -75,7 +75,7 @@ const sections: NavSection[] = [
     label: "Inteligência",
     items: [
       {
-        title: "Inteligência",
+        title: "Recomendações",
         url: "/inteligencia",
         icon: Sparkles,
         matchPaths: ["/cerebro"],
@@ -100,10 +100,16 @@ const sections: NavSection[] = [
     items: [
       {
         title: "Infra",
-        url: "/infra",
+        url: "/sistema",
         icon: Server,
         adminOnly: true,
-        matchPaths: ["/sistema", "/infraestrutura"],
+        matchPaths: ["/infra", "/infraestrutura"],
+        children: [
+          { title: "Sistema", url: "/sistema?tab=fluxo" },
+          { title: "Saúde", url: "/sistema?tab=saude" },
+          { title: "Jobs", url: "/sistema?tab=execucao" },
+          { title: "Aposentadoria", url: "/sistema?tab=aposentadoria" },
+        ],
       },
       { title: "Comunidade", url: "/comunidade-admin", icon: Users, adminOnly: true },
     ],
@@ -118,8 +124,14 @@ function itemIsActive(item: NavItem, pathname: string): boolean {
   );
 }
 
-function subIsActive(sub: SubItem, pathname: string): boolean {
-  return pathname === sub.url || pathname.startsWith(sub.url + "/");
+function subIsActive(sub: SubItem, pathname: string, search: string): boolean {
+  const [subPath, subQuery] = sub.url.split("?");
+  if (pathname !== subPath && !pathname.startsWith(subPath + "/")) return false;
+  if (!subQuery) return true;
+  const current = new URLSearchParams(search);
+  const expected = new URLSearchParams(subQuery);
+  for (const [k, v] of expected) if (current.get(k) !== v) return false;
+  return true;
 }
 
 export function AppSidebar() {
@@ -243,7 +255,7 @@ export function AppSidebar() {
                         <CollapsibleContent>
                           <SidebarMenuSub className="border-sidebar-border/60">
                             {item.children!.map((sub) => {
-                              const subActive = subIsActive(sub, location.pathname);
+                              const subActive = subIsActive(sub, location.pathname, location.search);
                               return (
                                 <SidebarMenuSubItem key={sub.url}>
                                   <SidebarMenuSubButton
@@ -291,6 +303,17 @@ export function AppSidebar() {
               </NavLink>
             </Button>
             <Button
+              asChild
+              variant="ghost"
+              size="icon"
+              className="w-full h-9 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/60"
+              aria-label="Perfil"
+            >
+              <NavLink to="/configuracoes" onClick={handleNav}>
+                <User className="h-4 w-4" />
+              </NavLink>
+            </Button>
+            <Button
               variant="ghost"
               size="icon"
               className="w-full h-9 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/60"
@@ -328,6 +351,18 @@ export function AppSidebar() {
                 </NavLink>
               </Button>
             )}
+            <Button
+              asChild
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 shrink-0 text-sidebar-foreground/50 hover:text-sidebar-foreground opacity-60 group-hover:opacity-100 transition-opacity"
+              aria-label="Perfil"
+              title="Perfil"
+            >
+              <NavLink to="/configuracoes" onClick={handleNav}>
+                <User className="h-3.5 w-3.5" />
+              </NavLink>
+            </Button>
             <Button
               variant="ghost"
               size="icon"

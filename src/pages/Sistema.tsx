@@ -1,5 +1,7 @@
 // Sistema — painel de observabilidade completo.
 // Tabs no padrão visual do app (border-b + ícone + label), igual Operação / Playlist Deals / Comunidade.
+import { useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { Activity, Workflow, Music2, HeartPulse, Bot, Bell, ListPlus, Settings as SettingsIcon, Archive } from "lucide-react";
 import { DeprecationPanel } from "@/components/sistema/DeprecationPanel";
 import { PageHeader } from "@/components/PageHeader";
@@ -37,6 +39,16 @@ export default function Sistema() {
   const [tab, setTab] = useScreenField<SistemaTab>("/sistema", "tab", "fluxo");
   const { isAdmin } = useUserRole();
   const visibleTabs = TABS.filter((t) => !t.adminOnly || isAdmin);
+  const location = useLocation();
+
+  // Deep-link via ?tab= (sidebar Admin > Infra > submenus apontam pra cá).
+  useEffect(() => {
+    const sp = new URLSearchParams(location.search);
+    const t = sp.get("tab") as SistemaTab | null;
+    if (t && TABS.some((x) => x.id === t)) setTab(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.search]);
+
   const currentAllowed = visibleTabs.some((t) => t.id === tab);
   const activeTab = currentAllowed ? tab : "fluxo";
 
