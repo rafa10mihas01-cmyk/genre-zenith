@@ -1,5 +1,5 @@
 // Wave 2 — Painel debug Playlist Ecosystem Score
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,6 +56,10 @@ function fmtPct(n: number | null | undefined): string {
   return `${sign}${n.toFixed(1)}%`;
 }
 
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 export function PlaylistScorePanel() {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
@@ -66,7 +70,7 @@ export function PlaylistScorePanel() {
   const [recalcSingle, setRecalcSingle] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase
       .from("playlist_ecosystem_score")
@@ -76,9 +80,9 @@ export function PlaylistScorePanel() {
     if (error) toast({ title: "Erro ao carregar", description: error.message, variant: "destructive" });
     setRows((data ?? []) as Row[]);
     setLoading(false);
-  };
+  }, [toast]);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [load]);
 
   const filtered = useMemo(() => {
     return rows.filter((r) => {
@@ -102,7 +106,6 @@ export function PlaylistScorePanel() {
     const limit = 20;
     let totalOk = 0, totalFailed = 0, grandTotal = 0;
     try {
-      // eslint-disable-next-line no-constant-condition
       while (true) {
         const { data, error } = await supabase.functions.invoke("calculate-playlist-ecosystem-score", {
           body: { mode: "batch", offset, limit },
@@ -120,8 +123,8 @@ export function PlaylistScorePanel() {
       }
       toast({ title: "Recálculo completo", description: `${totalOk} ok · ${totalFailed} falhas (${grandTotal} total)` });
       await load();
-    } catch (e: any) {
-      toast({ title: "Erro no lote", description: e?.message ?? String(e), variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Erro no lote", description: errorMessage(e), variant: "destructive" });
     } finally {
       setRecalcAll(false);
     }
@@ -136,8 +139,8 @@ export function PlaylistScorePanel() {
       if (error) throw error;
       toast({ title: "Playlist recalculada" });
       await load();
-    } catch (e: any) {
-      toast({ title: "Erro", description: e?.message ?? String(e), variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Erro", description: errorMessage(e), variant: "destructive" });
     } finally {
       setRecalcSingle(null);
     }
