@@ -186,6 +186,7 @@ export function DuplicateDealDialog({
         Date.now() + Number(durationDays) * 86400000,
       ).toISOString();
       const cost = brlDigitsToNumber(costDigits);
+      const src = sourceDeal as any;
 
       const payload = {
         curator_id: sourceDeal.curator_id ?? null,
@@ -203,9 +204,9 @@ export function DuplicateDealDialog({
         started_at: startedAt,
         ends_at: endsAt,
         ramp_up_days: Number(rampUpDays) || 0,
-        billing_model: sourceDeal.billing_model ?? "per_streams",
-        monthly_amount: sourceDeal.monthly_amount ?? null,
-        cycle_months: sourceDeal.cycle_months ?? null,
+        billing_model: src.billing_model ?? "per_streams",
+        monthly_amount: src.monthly_amount ?? null,
+        cycle_months: src.cycle_months ?? null,
       };
 
       try {
