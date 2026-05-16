@@ -45,7 +45,7 @@ const sections: NavSection[] = [
   {
     label: "Cockpit",
     items: [
-      { title: "Início", url: "/", icon: Home, end: true, matchPaths: ["/executivo"] },
+      { title: "Cockpit", url: "/", icon: Home, end: true, matchPaths: ["/executivo"] },
     ],
   },
   {
@@ -53,12 +53,12 @@ const sections: NavSection[] = [
     items: [
       { title: "Campanhas", url: "/campanhas", icon: Target },
       {
-        title: "Playlist Deals",
+        title: "Deals",
         url: "/deals",
         icon: Handshake,
         matchPaths: ["/playlist-deals", "/curadores"],
         children: [
-          { title: "Deals", url: "/deals" },
+          { title: "Todos os Deals", url: "/deals", end: true },
           { title: "Curadores", url: "/curadores" },
           { title: "Comparar", url: "/deals/comparar" },
         ],
@@ -75,7 +75,7 @@ const sections: NavSection[] = [
     label: "Inteligência",
     items: [
       {
-        title: "Inteligência",
+        title: "Recomendações",
         url: "/inteligencia",
         icon: Sparkles,
         matchPaths: ["/cerebro"],
@@ -100,10 +100,16 @@ const sections: NavSection[] = [
     items: [
       {
         title: "Infra",
-        url: "/infra",
+        url: "/sistema",
         icon: Server,
         adminOnly: true,
-        matchPaths: ["/sistema", "/infraestrutura"],
+        matchPaths: ["/infra", "/infraestrutura"],
+        children: [
+          { title: "Sistema", url: "/sistema?tab=fluxo" },
+          { title: "Saúde", url: "/sistema?tab=saude" },
+          { title: "Jobs", url: "/sistema?tab=execucao" },
+          { title: "Aposentadoria", url: "/sistema?tab=aposentadoria" },
+        ],
       },
       { title: "Comunidade", url: "/comunidade-admin", icon: Users, adminOnly: true },
     ],
