@@ -75,6 +75,7 @@ export default function PlaylistDetail() {
   const { data: brain, isLoading: brainLoading } = usePlaylistBrain(id);
   const { data: history } = usePlaylistBrainHistory(id, 30);
   const recalc = useRecalcPlaylistBrain();
+  const diagnose = useDiagnoseManagedPlaylist();
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = (searchParams.get("tab") === "faixas" ? "faixas" : "geral") as "geral" | "faixas";
   const setTab = (t: "geral" | "faixas") => {
