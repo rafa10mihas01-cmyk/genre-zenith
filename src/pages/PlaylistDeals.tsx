@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { ListMusic, Plus, CheckCircle2, Layers, Activity, Target, Users, Receipt, User, ChevronDown, Briefcase } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
@@ -46,11 +47,76 @@ export default function PlaylistDeals() {
   const [duplicateDeal, setDuplicateDeal] = useState<CuratorDeal | null>(null);
   const [closeDealOpen, setCloseDealOpen] = useState<CuratorDeal | null>(null);
 
+  // Pré-fill vindo de /sistema (painel de Recomendações)
+  const [prefillSongUrl, setPrefillSongUrl] = useState<string | null>(null);
+  const [prefillCuratorId, setPrefillCuratorId] = useState<string | null>(null);
+  const [sourceFitId, setSourceFitId] = useState<string | null>(null);
+
   const { deals, logs, playlists, songs, alerts, curators, balances, progressByDeal, loading, deleteDeal, addLog, addBaseline, insertSnapshots, closeDeal, reopenDeal, forceCollectNow, updateCurator, addCuratorPurchase, archiveCurator, deleteCurator, pauseCurator, reload } = useCuratorDeals();
   const { clients } = useClients();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const useLegacyCards = searchParams.get("legacy") === "1";
   const navigate = useNavigate();
+
+  // Resolve curador a partir do link da playlist e abre o NewDealDialog
+  useEffect(() => {
+    if (searchParams.get("new") !== "1") return;
+    const songUrl = searchParams.get("prefill_song_url");
+    const playlistUrl = searchParams.get("prefill_playlist_url");
+    const fitId = searchParams.get("from_fit");
+    if (!songUrl) return;
+
+    setPrefillSongUrl(songUrl);
+    setSourceFitId(fitId);
+
+    const m = playlistUrl?.match(/playlist[/:]([a-zA-Z0-9]{10,})/);
+    const playlistId = m?.[1] ?? null;
+
+    (async () => {
+      let curatorId: string | null = null;
+      if (playlistId) {
+        const { data } = await supabase
+          .from("curator_playlists")
+          .select("deal_id")
+          .eq("spotify_playlist_id", playlistId)
+          .limit(50);
+        const dealIds = Array.from(new Set((data ?? []).map((r: any) => r.deal_id).filter(Boolean)));
+        if (dealIds.length > 0) {
+          const { data: dealsData } = await supabase
+            .from("curator_deals")
+            .select("curator_id")
+            .in("id", dealIds);
+          const counts = new Map<string, number>();
+          for (const d of (dealsData ?? []) as any[]) {
+            if (!d.curator_id) continue;
+            counts.set(d.curator_id, (counts.get(d.curator_id) ?? 0) + 1);
+          }
+          let best: string | null = null;
+          let bestN = 0;
+          counts.forEach((n, id) => { if (n > bestN) { bestN = n; best = id; } });
+          curatorId = best;
+        }
+      }
+      setPrefillCuratorId(curatorId);
+      setNewOpen(true);
+      const next = new URLSearchParams(searchParams);
+      ["new", "from_fit", "prefill_song_url", "prefill_playlist_url"].forEach((k) => next.delete(k));
+      setSearchParams(next, { replace: true });
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleDealCreatedFromFit = async (deal: CuratorDeal) => {
+    if (!sourceFitId) return;
+    try {
+      await supabase
+        .from("recommendation_feedback")
+        .update({ deal_id: deal.id } as any)
+        .eq("fit_id", sourceFitId);
+    } catch (e) {
+      console.error("[PlaylistDeals] feedback.deal_id update failed", e);
+    }
+  };
   const openDetail = (deal: CuratorDeal) => {
     if (useLegacyCards) setDetailDeal(deal);
     else navigate(`/playlist-deals/${deal.id}`);
@@ -449,6 +515,9 @@ export default function PlaylistDeals() {
           if (!v) {
             setNewOpen(false);
             setEditDeal(null);
+            setPrefillSongUrl(null);
+            setPrefillCuratorId(null);
+            setSourceFitId(null);
           } else if (!editDeal) {
             setNewOpen(true);
           }
@@ -456,6 +525,10 @@ export default function PlaylistDeals() {
         editDeal={editDeal}
         editSongs={editDeal ? songs.filter((s) => s.deal_id === editDeal.id) : []}
         onSaved={reload}
+        prefillSongUrl={editDeal ? null : prefillSongUrl}
+        prefillCuratorId={editDeal ? null : prefillCuratorId}
+        sourceFitId={editDeal ? null : sourceFitId}
+        onCreated={handleDealCreatedFromFit}
       />
 
       <DuplicateDealDialog

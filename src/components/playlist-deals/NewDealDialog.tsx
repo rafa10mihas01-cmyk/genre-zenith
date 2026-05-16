@@ -85,6 +85,13 @@ export interface NewDealDialogProps {
   editSongs?: CuratorDealSong[];
   /** Callback para a página recarregar a lista após salvar. */
   onSaved?: () => void | Promise<void>;
+  /** Pré-fill (vindo do painel de Recomendações) */
+  prefillSongUrl?: string | null;
+  prefillCuratorId?: string | null;
+  /** ID do fit que originou esse deal — gravado em curator_deals.source_fit_id */
+  sourceFitId?: string | null;
+  /** Disparado após criar o deal, recebe o deal criado (id). */
+  onCreated?: (deal: CuratorDeal) => void | Promise<void>;
 }
 
 // ============================================================
@@ -450,7 +457,7 @@ function ClientPicker({
 // ============================================================
 // Componente
 // ============================================================
-export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved }: NewDealDialogProps) {
+export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved, prefillSongUrl, prefillCuratorId, sourceFitId, onCreated }: NewDealDialogProps) {
   const { addDeal, updateDeal, addCurator, updateCurator, curators, balances } = useCuratorDeals();
   const { clients, addClient } = useClients();
   const { addPurchase } = useCuratorFinance();
@@ -762,6 +769,33 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, isEdit, editDeal?.id]);
+
+  // Pré-fill vindo do painel de Recomendações (modo novo)
+  useEffect(() => {
+    if (!open || isEdit) return;
+    if (prefillCuratorId) {
+      setCuratorMode("select");
+      setSelectedCuratorId(prefillCuratorId);
+    }
+    if (prefillSongUrl) {
+      setSongs((prev) => {
+        const next = [...prev];
+        if (next.length === 0) next.push(emptySong());
+        next[0] = { ...next[0], url: prefillSongUrl, meta: null, error: undefined };
+        return next;
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, isEdit, prefillSongUrl, prefillCuratorId]);
+
+  // Auto-buscar metadados da música pré-preenchida
+  useEffect(() => {
+    if (!open || isEdit || !prefillSongUrl) return;
+    if (songs[0]?.url === prefillSongUrl && !songs[0]?.meta && !songs[0]?.searching) {
+      void handleSearchSong(0);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, isEdit, prefillSongUrl, songs[0]?.url]);
 
   // ============================================================
   // Songs handlers
@@ -1080,6 +1114,20 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
           await navigator.clipboard.writeText(link);
         } catch {
           // ignora
+        }
+        // Marca origem (Recomendações) se aplicável
+        if (sourceFitId) {
+          try {
+            await supabase.from("curator_deals").update({
+              source: "recommendation",
+              source_fit_id: sourceFitId,
+            } as any).eq("id", deal.id);
+          } catch (e) {
+            console.error("[NewDealDialog] source update failed", e);
+          }
+        }
+        try { await Promise.resolve(onCreated?.(deal)); } catch (e) {
+          console.error("[NewDealDialog] onCreated error", e);
         }
         toast.success("Deal criado", {
           description: `${validSongs.length} música${validSongs.length > 1 ? "s" : ""} • link copiado`,
