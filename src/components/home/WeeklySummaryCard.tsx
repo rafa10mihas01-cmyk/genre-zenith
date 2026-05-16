@@ -65,6 +65,7 @@ export function WeeklySummaryCard() {
       const deltas: Array<{ name: string; delta: number }> = [];
       for (const [pid, v] of map) {
         if (v.firstTs === v.lastTs) continue;
+        if (!nameByPid.has(pid)) continue; // ignora playlists não-gerenciadas
         const delta = v.last - v.first;
         total7d += delta;
         deltas.push({ name: nameByPid.get(pid) || "Sem nome", delta });
