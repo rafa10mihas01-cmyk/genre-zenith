@@ -228,6 +228,16 @@ Deno.serve(async (req) => {
       const seenUrls = new Set(prevDom.map((d) => d?.url).filter(Boolean));
       const newOnes = domPlaylists.filter((d) => d?.url && !seenUrls.has(d.url));
       mergedDom = [...prevDom, ...newOnes];
+
+      // A5 — Overshoot detector: parte recebida sem nenhuma playlist nova
+      // = print redundante (bot ignorou §3.1 do contrato). Loga pra auditoria.
+      if (newOnes.length === 0 && parsed.part > 1) {
+        void supabase.from("collection_logs").insert({
+          acao: "bot_print_overshoot",
+          status: "warning",
+          mensagem: `batch=${existing.id} part=${parsed.part}/${parsed.total} brought 0 new rows (total_unique=${prevDom.length}). Worker está enviando prints redundantes.`,
+        });
+      }
       const isComplete = receivedParts >= (existing.total_parts ?? parsed.total);
       const updatePatch: Record<string, unknown> = {
         received_parts: receivedParts,
