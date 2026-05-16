@@ -337,16 +337,39 @@ export function RecomendacoesPanel() {
                     ))}
                   </div>
 
-                  <div className="flex items-center gap-2 mt-3">
+                  <div className="flex flex-wrap items-center gap-2 mt-3">
                     <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setEvidenceRow(r)}>
-                      <FileSearch className="h-3 w-3 mr-1.5" /> Ver evidência
+                      <FileSearch className="h-3 w-3 mr-1.5" /> Evidência
                     </Button>
+                    <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => openSpotify(r)}>
+                      <ExternalLink className="h-3 w-3 mr-1.5" /> Spotify
+                    </Button>
+                    {r.recommendation_kind === "adicionar" && (
+                      <Button
+                        variant="default" size="sm" className="h-7 text-xs"
+                        onClick={() => handleCreateDeal(r)}
+                        disabled={fb === "converted_to_deal"}
+                      >
+                        <Plus className="h-3 w-3 mr-1.5" />
+                        {fb === "converted_to_deal" ? "Deal criado" : "Criar deal"}
+                      </Button>
+                    )}
+                    {r.recommendation_kind === "remover" && (
+                      <Button
+                        variant="default" size="sm" className="h-7 text-xs"
+                        onClick={() => setRemovalRow(r)}
+                        disabled={fb === "removal_requested"}
+                      >
+                        <Mail className="h-3 w-3 mr-1.5" />
+                        {fb === "removal_requested" ? "Pedido enviado" : "Pedir remoção"}
+                      </Button>
+                    )}
                     <Button
                       variant="ghost" size="sm" className="h-7 text-xs"
                       onClick={() => handleFeedback(r, "visto")}
                       disabled={fb === "visto"}
                     >
-                      <Check className="h-3 w-3 mr-1.5" /> {fb === "visto" ? "Vista" : "Marcar vista"}
+                      <Check className="h-3 w-3 mr-1.5" /> {fb === "visto" ? "Vista" : "Vista"}
                     </Button>
                     <Button
                       variant="ghost" size="sm" className="h-7 text-xs ml-auto"
