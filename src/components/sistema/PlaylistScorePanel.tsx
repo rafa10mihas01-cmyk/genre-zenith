@@ -96,20 +96,32 @@ export function PlaylistScorePanel() {
   }, [rows, filter, search]);
 
   const handleRecalcAll = async () => {
-    if (!confirm("Recalcular todas as playlists? Pode demorar.")) return;
+    if (!confirm("Recalcular todas as playlists? Pode demorar alguns minutos (processa em lotes).")) return;
     setRecalcAll(true);
+    let offset = 0;
+    const limit = 60;
+    let totalOk = 0, totalFailed = 0, grandTotal = 0;
     try {
-      const { data, error } = await supabase.functions.invoke("calculate-playlist-ecosystem-score", {
-        body: { mode: "full" },
-      });
-      if (error) throw error;
-      toast({
-        title: "Recálculo completo",
-        description: `${data?.ok ?? 0} ok / ${data?.failed ?? 0} falharam (${data?.total ?? 0} total)`,
-      });
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { data, error } = await supabase.functions.invoke("calculate-playlist-ecosystem-score", {
+          body: { mode: "batch", offset, limit },
+        });
+        if (error) throw error;
+        totalOk += data?.ok ?? 0;
+        totalFailed += data?.failed ?? 0;
+        grandTotal = data?.total ?? grandTotal;
+        toast({
+          title: `Lote ${offset}–${data?.processed_to ?? offset}`,
+          description: `${totalOk}/${grandTotal} ok · ${totalFailed} falhas`,
+        });
+        if (!data?.has_more) break;
+        offset = data.processed_to;
+      }
+      toast({ title: "Recálculo completo", description: `${totalOk} ok · ${totalFailed} falhas (${grandTotal} total)` });
       await load();
     } catch (e: any) {
-      toast({ title: "Erro", description: e?.message ?? String(e), variant: "destructive" });
+      toast({ title: "Erro no lote", description: e?.message ?? String(e), variant: "destructive" });
     } finally {
       setRecalcAll(false);
     }
