@@ -299,6 +299,39 @@ export default function PlaylistDeals() {
         </div>
       </div>
 
+      {/* Sub-filtro da aba Ativos */}
+      {tab === "active" && activeCounts.all > 0 && (
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {([
+            { id: "all" as const,     label: "Todos",             count: activeCounts.all },
+            { id: "running" as const, label: "Rodando",           count: activeCounts.running },
+            { id: "waiting" as const, label: "Aguardando início", count: activeCounts.waiting },
+          ]).map((f) => {
+            const isActive = activeSubFilter === f.id;
+            return (
+              <button
+                key={f.id}
+                onClick={() => setActiveSubFilter(f.id)}
+                className={cn(
+                  "h-8 px-3 inline-flex items-center gap-1.5 rounded-full text-[12px] font-medium border transition-colors",
+                  isActive
+                    ? "bg-primary/15 text-primary border-primary/30"
+                    : "bg-transparent text-muted-foreground border-border hover:text-foreground hover:bg-muted/40",
+                )}
+              >
+                {f.label}
+                <span className={cn(
+                  "inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold tabular-nums",
+                  isActive ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground",
+                )}>
+                  {f.count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* Conteúdo — altura mínima estável evita layout shift entre abas */}
       <div className="min-h-[480px] animate-tab-in">
         {tab === "clients" ? (
