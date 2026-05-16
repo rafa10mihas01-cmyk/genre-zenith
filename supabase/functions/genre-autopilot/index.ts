@@ -19,6 +19,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
 
+import { deprecationGate } from "../_shared/_deprecation.ts";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
@@ -962,6 +963,8 @@ async function runPipeline(
 // HTTP handler
 // ============================================================
 Deno.serve(async (req) => {
+  const __dep = await deprecationGate(req, "genre-autopilot");
+  if (__dep) return __dep;
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return jr({ error: "method not allowed" }, 405);
 

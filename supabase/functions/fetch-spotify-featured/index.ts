@@ -13,6 +13,7 @@ import { getSpotifyToken } from "../_shared/spotify.ts";
 import { classifyOwner } from "../_shared/labels.ts";
 import { requireTeamAccess } from "../_shared/auth.ts";
 
+import { deprecationGate } from "../_shared/_deprecation.ts";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
@@ -86,6 +87,8 @@ async function hydratePlaylist(token: string, id: string): Promise<{ followers: 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
 Deno.serve(async (req) => {
+  const __dep = await deprecationGate(req, "fetch-spotify-featured");
+  if (__dep) return __dep;
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "OPTIONS") {
     const guard = await requireTeamAccess(req);

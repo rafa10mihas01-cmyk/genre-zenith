@@ -16,6 +16,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { getSpotifyToken } from "../_shared/spotify.ts";
 import { requireTeamAccess } from "../_shared/auth.ts";
 
+import { deprecationGate } from "../_shared/_deprecation.ts";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
@@ -69,6 +70,8 @@ async function fetchPlaylistTracks(
 }
 
 Deno.serve(async (req) => {
+  const __dep = await deprecationGate(req, "fetch-tracks-spotify");
+  if (__dep) return __dep;
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "OPTIONS") {
     const guard = await requireTeamAccess(req);
