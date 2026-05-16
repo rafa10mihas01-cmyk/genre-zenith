@@ -921,7 +921,11 @@ export function DealHistorySheet({
                         size="sm"
                         variant="outline"
                         className="h-9 gap-1.5 text-xs"
-                        onClick={() => setImportOpen(true)}
+                        onClick={() => {
+                          const firstSongId = curatorSongFilter !== "all" ? curatorSongFilter : (songs[0]?.id ?? "all");
+                          setCuratorSongFilter(firstSongId);
+                          setImportOpen(true);
+                        }}
                       >
                         <Library className="h-3.5 w-3.5" />
                         Catálogo do curador
@@ -1333,6 +1337,7 @@ export function DealHistorySheet({
         deal={deal}
         songs={songs}
         existingPlaylists={allPlaylists}
+        initialSongId={curatorSongFilter !== "all" ? curatorSongFilter : null}
         onClose={() => setImportOpen(false)}
         onImported={() => onReload?.()}
       />
