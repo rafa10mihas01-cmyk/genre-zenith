@@ -230,15 +230,18 @@ export function ImportFromLibraryDialog({
                   const key = p.spotify_playlist_id
                     ? `id:${p.spotify_playlist_id}`
                     : `name:${p.playlist_name.trim().toLowerCase()}`;
-                  const alreadyInDeal = existingKeys.has(key);
+                  const currentStatus = existingMap.get(key);
+                  const isCurator = currentStatus === "curator";
+                  const isOrganic = !!currentStatus && !isCurator;
+                  const blocked = isCurator; // só bloqueia se já é curador
                   const isSelected = selected.has(p.id);
                   return (
                     <li
                       key={p.id}
-                      onClick={() => toggle(p.id, alreadyInDeal)}
+                      onClick={() => toggle(p.id, blocked)}
                       className={cn(
                         "px-3 py-2.5 flex items-center gap-3 transition-colors",
-                        alreadyInDeal
+                        blocked
                           ? "opacity-50 cursor-not-allowed"
                           : "cursor-pointer hover:bg-muted/30",
                         isSelected && "bg-primary/5",
@@ -259,9 +262,14 @@ export function ImportFromLibraryDialog({
                           <span className="text-sm text-foreground truncate">
                             {p.playlist_name}
                           </span>
-                          {alreadyInDeal && (
+                          {isCurator && (
                             <Badge className="shrink-0 text-[10px] h-4 px-1.5 bg-muted/40 text-muted-foreground border-0">
                               já no deal
+                            </Badge>
+                          )}
+                          {isOrganic && (
+                            <Badge className="shrink-0 text-[10px] h-4 px-1.5 bg-primary/10 text-primary border-0">
+                              promover a curador
                             </Badge>
                           )}
                         </div>
