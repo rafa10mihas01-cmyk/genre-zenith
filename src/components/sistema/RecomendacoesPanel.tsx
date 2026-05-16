@@ -29,7 +29,7 @@ type FitRow = {
   calculated_at: string;
 };
 
-type FeedbackAction = "visto" | "descartado";
+type FeedbackAction = "visto" | "descartado" | "converted_to_deal" | "removal_requested";
 
 const KIND_COLORS: Record<string, string> = {
   adicionar: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
