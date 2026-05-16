@@ -38,6 +38,7 @@ const TABS: TabDef[] = [
   { id: "ecosystem-score", label: "Ecosystem Score", icon: Gauge, adminOnly: true },
   { id: "playlist-score", label: "Playlist Score", icon: ListMusic, adminOnly: true },
   { id: "recomendacoes", label: "Recomendações", icon: Sparkles, adminOnly: true },
+  { id: "impacto", label: "Impacto", icon: TrendingUp, adminOnly: true },
   { id: "aposentadoria", label: "Aposentadoria", icon: Archive, adminOnly: true },
   { id: "configuracoes", label: "Configurações", icon: SettingsIcon },
 ];
