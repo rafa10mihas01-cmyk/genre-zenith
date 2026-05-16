@@ -303,6 +303,17 @@ export function AppSidebar() {
               </NavLink>
             </Button>
             <Button
+              asChild
+              variant="ghost"
+              size="icon"
+              className="w-full h-9 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/60"
+              aria-label="Perfil"
+            >
+              <NavLink to="/configuracoes" onClick={handleNav}>
+                <User className="h-4 w-4" />
+              </NavLink>
+            </Button>
+            <Button
               variant="ghost"
               size="icon"
               className="w-full h-9 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/60"
