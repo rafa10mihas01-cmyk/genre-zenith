@@ -53,12 +53,13 @@ export function WeeklySummaryCard() {
       }
 
       const ids = Array.from(map.keys());
-      // nomes via playlist_templates (1 batch)
-      const { data: tpls } = await supabase
-        .from("playlist_templates")
+      // restringe às minhas playlists (managed_playlists ativas)
+      const { data: mgd } = await supabase
+        .from("managed_playlists")
         .select("name, spotify_playlist_id")
-        .in("spotify_playlist_id", ids);
-      const nameByPid = new Map((tpls ?? []).map((t: any) => [t.spotify_playlist_id, t.name]));
+        .in("spotify_playlist_id", ids)
+        .is("archived_at", null);
+      const nameByPid = new Map((mgd ?? []).map((t: any) => [t.spotify_playlist_id, t.name]));
 
       let total7d = 0;
       const deltas: Array<{ name: string; delta: number }> = [];
