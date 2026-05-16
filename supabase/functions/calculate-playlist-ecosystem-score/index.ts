@@ -260,7 +260,7 @@ Deno.serve(async (req) => {
     // mode "full" (compat) = batch a partir de offset=0 com limit padrão.
     // mode "batch" {offset, limit} = janela explícita. Retorna {total, processed_to, has_more}.
     const offset = Number(body?.offset ?? 0);
-    const limit = Math.min(Number(body?.limit ?? 60), 100);
+    const limit = Math.min(Number(body?.limit ?? 20), 40);
 
     const targets: { id: string; kind: "curator" | "managed" }[] = [];
     const seen = new Set<string>();
