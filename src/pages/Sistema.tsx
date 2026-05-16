@@ -97,6 +97,7 @@ export default function Sistema() {
         {activeTab === "alertas" && <AlertasHistorico />}
         {activeTab === "ecosystem-score" && <EcosystemScorePanel />}
         {activeTab === "playlist-score" && <PlaylistScorePanel />}
+        {activeTab === "recomendacoes" && <RecomendacoesPanel />}
         {activeTab === "aposentadoria" && <DeprecationPanel />}
         {activeTab === "configuracoes" && <Settings embedded />}
       </div>
