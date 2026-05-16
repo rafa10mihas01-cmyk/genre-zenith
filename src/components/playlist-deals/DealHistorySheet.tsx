@@ -622,50 +622,45 @@ export function DealHistorySheet({
             {/* TABS */}
             <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)} className="flex-1 flex flex-col min-h-0">
               <div className="px-3 sm:px-6 pt-3 border-b border-border shrink-0">
-                <TabsList className="bg-transparent p-0 h-auto gap-1 grid grid-cols-4 w-full sm:flex sm:items-center sm:justify-between sm:w-full">
+                <TabsList className="bg-transparent p-0 h-auto gap-0 grid grid-cols-4 w-full sm:w-full">
                   <TabsTrigger
                     value="resumo"
                     aria-label="Resumo"
-                    className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none gap-1 h-12 sm:h-9 px-2 sm:px-3 flex-col sm:flex-row"
+                    className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none gap-1.5 h-12 sm:h-10 px-2 sm:px-3 flex-col sm:flex-row"
                   >
-                    <BarChart3 className="h-6 w-6 sm:h-4 sm:w-4 shrink-0" />
-                    <span className="hidden sm:inline">Resumo</span>
-                    <span className="text-[10px] font-semibold tabular-nums sm:hidden">
-                      &nbsp;
-                    </span>
+                    <BarChart3 className="h-5 w-5 sm:h-4 sm:w-4 shrink-0" />
+                    <span className="hidden sm:inline text-sm">Resumo</span>
                   </TabsTrigger>
-                  <span className="hidden sm:block mx-1 h-5 w-px bg-border self-center" aria-hidden />
                   <TabsTrigger
                     value="playlists"
                     aria-label="Curador"
-                    className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none gap-1 h-12 sm:h-9 px-2 sm:px-3 flex-col sm:flex-row"
+                    className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none gap-1.5 h-12 sm:h-10 px-2 sm:px-3 flex-col sm:flex-row sm:border-l sm:border-border"
                   >
-                    <ListMusic className="h-6 w-6 sm:h-4 sm:w-4 shrink-0" />
-                    <span className="hidden sm:inline">Curador</span>
-                    <span className="text-[10px] font-semibold tabular-nums">
+                    <ListMusic className="h-5 w-5 sm:h-4 sm:w-4 shrink-0" />
+                    <span className="hidden sm:inline text-sm">Curador</span>
+                    <span className="text-[10px] sm:text-xs font-semibold tabular-nums">
                       {curatorTotal}
                     </span>
                   </TabsTrigger>
                   <TabsTrigger
                     value="algoritmo"
                     aria-label="Algoritmo"
-                    className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none gap-1 h-12 sm:h-9 px-2 sm:px-3 flex-col sm:flex-row"
+                    className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none gap-1.5 h-12 sm:h-10 px-2 sm:px-3 flex-col sm:flex-row sm:border-l sm:border-border"
                   >
-                    <Sparkles className="h-6 w-6 sm:h-4 sm:w-4 shrink-0" />
-                    <span className="hidden sm:inline">Algoritmo</span>
-                    <span className="text-[10px] font-semibold tabular-nums">
+                    <Sparkles className="h-5 w-5 sm:h-4 sm:w-4 shrink-0" />
+                    <span className="hidden sm:inline text-sm">Algoritmo</span>
+                    <span className="text-[10px] sm:text-xs font-semibold tabular-nums">
                       {algoTotal}
                     </span>
                   </TabsTrigger>
-                  <span className="hidden sm:block mx-1 h-5 w-px bg-border self-center" aria-hidden />
                   <TabsTrigger
                     value="historico"
                     aria-label="Histórico"
-                    className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none gap-1 h-12 sm:h-9 px-2 sm:px-3 flex-col sm:flex-row"
+                    className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none gap-1.5 h-12 sm:h-10 px-2 sm:px-3 flex-col sm:flex-row sm:border-l sm:border-border"
                   >
-                    <Clock className="h-6 w-6 sm:h-4 sm:w-4 shrink-0" />
-                    <span className="hidden sm:inline">Histórico</span>
-                    <span className="text-[10px] font-semibold tabular-nums">
+                    <Clock className="h-5 w-5 sm:h-4 sm:w-4 shrink-0" />
+                    <span className="hidden sm:inline text-sm">Histórico</span>
+                    <span className="text-[10px] sm:text-xs font-semibold tabular-nums">
                       {reversedLogs.length}
                     </span>
                   </TabsTrigger>
