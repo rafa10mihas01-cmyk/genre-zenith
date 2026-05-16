@@ -38,6 +38,7 @@ const TABS = [
 
 export default function PlaylistDeals() {
   const [tab, setTab] = useScreenField<DealsTab>("/playlist-deals", "tab", "active");
+  const [activeSubFilter, setActiveSubFilter] = useScreenField<"all" | "running" | "waiting">("/playlist-deals", "activeSub", "all");
   const [newOpen, setNewOpen] = useState(false);
   const [logDeal, setLogDeal] = useState<CuratorDeal | null>(null);
   const [detailDeal, setDetailDeal] = useState<CuratorDeal | null>(null);
@@ -91,17 +92,35 @@ export default function PlaylistDeals() {
       : [],
   );
 
+  const dealsWithBaseline = useMemo(
+    () => new Set(logs.filter((l) => l.is_baseline).map((l) => l.deal_id)),
+    [logs],
+  );
+
+  const activeCounts = useMemo(() => {
+    const actives = deals.filter((d) => !d.closed_at);
+    let running = 0;
+    let waiting = 0;
+    for (const d of actives) {
+      if (dealsWithBaseline.has(d.id)) running++;
+      else waiting++;
+    }
+    return { all: actives.length, running, waiting };
+  }, [deals, dealsWithBaseline]);
+
   const filtered = useMemo(() => {
-    const base =
+    let base =
       tab === "done" ? deals.filter((d) => !!d.closed_at)
       : tab === "active" ? deals.filter((d) => !d.closed_at)
       : deals;
+
+    if (tab === "active") {
+      if (activeSubFilter === "running") base = base.filter((d) => dealsWithBaseline.has(d.id));
+      else if (activeSubFilter === "waiting") base = base.filter((d) => !dealsWithBaseline.has(d.id));
+    }
     // Agrupa por CAMPANHA (mesmo nome de música fica junto), independente de curador.
     // Dentro de cada campanha: ativos com baseline > ativos sem baseline > encerrados.
     // Ordem das campanhas: a primeira campanha que tiver um deal "mais ativo" aparece antes.
-    const dealsWithBaseline = new Set(
-      logs.filter((l) => l.is_baseline).map((l) => l.deal_id),
-    );
     const rank = (d: typeof deals[number]) =>
       d.closed_at ? 2 : dealsWithBaseline.has(d.id) ? 0 : 1;
     const campaignKey = (d: typeof deals[number]) =>
@@ -136,7 +155,7 @@ export default function PlaylistDeals() {
       // mesma campanha: ativos primeiro
       return rank(a) - rank(b);
     });
-  }, [deals, logs, tab]);
+  }, [deals, dealsWithBaseline, tab, activeSubFilter]);
 
   const handleNew = () => setNewOpen(true);
 
@@ -279,6 +298,39 @@ export default function PlaylistDeals() {
           })}
         </div>
       </div>
+
+      {/* Sub-filtro da aba Ativos */}
+      {tab === "active" && activeCounts.all > 0 && (
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {([
+            { id: "all" as const,     label: "Todos",             count: activeCounts.all },
+            { id: "running" as const, label: "Rodando",           count: activeCounts.running },
+            { id: "waiting" as const, label: "Aguardando início", count: activeCounts.waiting },
+          ]).map((f) => {
+            const isActive = activeSubFilter === f.id;
+            return (
+              <button
+                key={f.id}
+                onClick={() => setActiveSubFilter(f.id)}
+                className={cn(
+                  "h-8 px-3 inline-flex items-center gap-1.5 rounded-full text-[12px] font-medium border transition-colors",
+                  isActive
+                    ? "bg-primary/15 text-primary border-primary/30"
+                    : "bg-transparent text-muted-foreground border-border hover:text-foreground hover:bg-muted/40",
+                )}
+              >
+                {f.label}
+                <span className={cn(
+                  "inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold tabular-nums",
+                  isActive ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground",
+                )}>
+                  {f.count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Conteúdo — altura mínima estável evita layout shift entre abas */}
       <div className="min-h-[480px] animate-tab-in">
