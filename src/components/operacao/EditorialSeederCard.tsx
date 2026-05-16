@@ -26,6 +26,12 @@ type FetchResult = {
 };
 
 export function EditorialSeederCard() {
+  // Fase 1 de aposentadoria — CO Apify desligado. Card oculto.
+  return null;
+  // eslint-disable-next-line no-unreachable
+  // @ts-ignore — corpo original preservado abaixo para rollback rápido.
+  // ──────────────────────────────────────────────────────────────────────────
+  function _legacy() {
   const [genres, setGenres] = useState<Genre[]>([]);
   const [genreId, setGenreId] = useState<string>("");
   const [running, setRunning] = useState(false);
