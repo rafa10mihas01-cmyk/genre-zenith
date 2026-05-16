@@ -256,11 +256,14 @@ Deno.serve(async (req) => {
       });
     }
 
-    // FULL: distinct (kind, spotify_playlist_id)
+    // FULL / BATCH: distinct (kind, spotify_playlist_id), processado em lote.
+    // mode "full" (compat) = batch a partir de offset=0 com limit padrão.
+    // mode "batch" {offset, limit} = janela explícita. Retorna {total, processed_to, has_more}.
+    const offset = Number(body?.offset ?? 0);
+    const limit = Math.min(Number(body?.limit ?? 60), 100);
+
     const targets: { id: string; kind: "curator" | "managed" }[] = [];
     const seen = new Set<string>();
-
-    // Curator
     const PAGE = 1000;
     for (let from = 0; from < 50000; from += PAGE) {
       const { data, error } = await supabase
@@ -277,7 +280,6 @@ Deno.serve(async (req) => {
       }
       if (arr.length < PAGE) break;
     }
-    // Managed
     const { data: managed } = await supabase
       .from("managed_playlists")
       .select("spotify_playlist_id")
@@ -286,20 +288,28 @@ Deno.serve(async (req) => {
       const k = `managed|${r.spotify_playlist_id}`;
       if (!seen.has(k)) { seen.add(k); targets.push({ id: r.spotify_playlist_id, kind: "managed" }); }
     }
+    // Ordenação estável para batches reprodutíveis
+    targets.sort((a, b) => (a.kind + a.id).localeCompare(b.kind + b.id));
 
+    const slice = targets.slice(offset, offset + limit);
     let ok = 0, failed = 0;
     const errors: string[] = [];
-    const BATCH = 8;
-    for (let i = 0; i < targets.length; i += BATCH) {
-      const slice = targets.slice(i, i + BATCH);
-      const results = await Promise.all(slice.map((t) => processPlaylist(supabase, t.id, t.kind)));
+    const BATCH = 4;
+    for (let i = 0; i < slice.length; i += BATCH) {
+      const sub = slice.slice(i, i + BATCH);
+      const results = await Promise.all(sub.map((t) => processPlaylist(supabase, t.id, t.kind)));
       for (const r of results) {
-        if (r.ok) ok++; else { failed++; if (errors.length < 10 && r.error) errors.push(r.error); }
+        if (r.ok) ok++; else { failed++; if (errors.length < 5 && r.error) errors.push(r.error); }
       }
     }
 
+    const processed_to = offset + slice.length;
+    const has_more = processed_to < targets.length;
     return new Response(JSON.stringify({
-      mode: "full", total: targets.length, ok, failed, sampleErrors: errors,
+      mode: body?.mode ?? "full",
+      total: targets.length,
+      offset, limit, processed_to, has_more,
+      ok, failed, sampleErrors: errors,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     return new Response(JSON.stringify({ error: String(e) }), {
