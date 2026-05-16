@@ -99,7 +99,7 @@ export default function Executivo() {
         supabase.from("collection_logs").select("created_at")
           .order("created_at", { ascending: false }).limit(1).maybeSingle(),
         supabase.from("curators").select("id", { count: "exact", head: true })
-          .eq("status", "active"),
+          .is("archived_at", null),
       ]);
 
       setManaged((mRes.data ?? []) as Managed[]);
