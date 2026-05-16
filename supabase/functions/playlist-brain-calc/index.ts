@@ -52,9 +52,16 @@ async function calcOne(supabase: any, playlistId: string) {
 
   const { data: mgd } = await supabase
     .from("managed_playlists")
-    .select("id, name, genre_id, tracks_count, last_diagnosis_at, last_metrics_at, metadata")
+    .select("id, name, genre_id, tracks_count, last_diagnosis_at, last_metrics_at, metadata, archived_at")
     .eq("spotify_playlist_id", pl.spotify_playlist_id)
     .maybeSingle();
+
+  // Se a playlist está arquivada (lixeira), não calcula cérebro — ela some
+  // de KPIs, Matriz, recomendações etc. Volta quando restaurada.
+  if (mgd?.archived_at) {
+    await supabase.from("playlist_brain").delete().eq("playlist_id", playlistId);
+    return { skipped: true, reason: "archived" };
+  }
 
   // 2. Score atual (capacity_score, health_score etc)
   const { data: score } = await supabase
