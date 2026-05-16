@@ -1,5 +1,7 @@
-// Wave 2 — Painel de Recomendações (Curadoria assistida, read-only)
+// Wave 2/3 — Painel de Recomendações (Curadoria assistida)
+// Wave 3 adicionou: Abrir Spotify · Criar deal · Pedir remoção
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,9 +10,10 @@ import { Card } from "@/components/ui/card";
 import {
   Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription,
 } from "@/components/ui/drawer";
-import { ArrowRight, Check, EyeOff, RefreshCw, RotateCw, Search, FileSearch } from "lucide-react";
+import { ArrowRight, Check, EyeOff, RefreshCw, RotateCw, Search, FileSearch, ExternalLink, Plus, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { PedirRemocaoDialog } from "./PedirRemocaoDialog";
 
 type FitRow = {
   id: string;
@@ -26,7 +29,7 @@ type FitRow = {
   calculated_at: string;
 };
 
-type FeedbackAction = "visto" | "descartado";
+type FeedbackAction = "visto" | "descartado" | "converted_to_deal" | "removal_requested";
 
 const KIND_COLORS: Record<string, string> = {
   adicionar: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
@@ -59,6 +62,8 @@ export function RecomendacoesPanel() {
   const [recalcAll, setRecalcAll] = useState(false);
   const [feedbackMap, setFeedbackMap] = useState<Record<string, FeedbackAction>>({});
   const [evidenceRow, setEvidenceRow] = useState<FitRow | null>(null);
+  const [removalRow, setRemovalRow] = useState<FitRow | null>(null);
+  const navigate = useNavigate();
   const { toast } = useToast();
 
   const load = useCallback(async () => {
@@ -144,25 +149,46 @@ export function RecomendacoesPanel() {
     }
   };
 
-  const handleFeedback = async (r: FitRow, action: FeedbackAction) => {
+  const handleFeedback = async (r: FitRow, action: FeedbackAction, extra?: { deal_id?: string }) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       toast({ title: "Faça login", variant: "destructive" });
       return;
     }
-    // upsert por (user_id, fit_id)
+    const payload: any = { user_id: user.id, fit_id: r.id, action };
+    if (extra?.deal_id) payload.deal_id = extra.deal_id;
     const { error } = await supabase
       .from("recommendation_feedback")
-      .upsert(
-        { user_id: user.id, fit_id: r.id, action },
-        { onConflict: "user_id,fit_id" },
-      );
+      .upsert(payload, { onConflict: "user_id,fit_id" });
     if (error) {
-      // fallback se não houver unique constraint
-      await supabase.from("recommendation_feedback").insert({ user_id: user.id, fit_id: r.id, action });
+      await supabase.from("recommendation_feedback").insert(payload);
     }
     setFeedbackMap((m) => ({ ...m, [r.id]: action }));
-    toast({ title: action === "visto" ? "Marcada como vista" : "Sugestão descartada" });
+    const labels: Record<FeedbackAction, string> = {
+      visto: "Marcada como vista",
+      descartado: "Sugestão descartada",
+      converted_to_deal: "Sugestão enviada pro fluxo de deal",
+      removal_requested: "Remoção marcada como pedida",
+    };
+    toast({ title: labels[action] ?? "Feedback registrado" });
+  };
+
+  const handleCreateDeal = async (r: FitRow) => {
+    await handleFeedback(r, "converted_to_deal");
+    const playlistUrl = r.evidence?.playlist?.spotify_url ?? `https://open.spotify.com/playlist/${r.spotify_playlist_id}`;
+    const trackUrl = r.evidence?.track?.spotify_url ?? `https://open.spotify.com/track/${r.spotify_track_id}`;
+    const params = new URLSearchParams({
+      new: "1",
+      from_fit: r.id,
+      prefill_song_url: trackUrl,
+      prefill_playlist_url: playlistUrl,
+    });
+    navigate(`/playlist-deals?${params.toString()}`);
+  };
+
+  const openSpotify = (r: FitRow) => {
+    const url = r.evidence?.playlist?.spotify_url ?? `https://open.spotify.com/playlist/${r.spotify_playlist_id}`;
+    window.open(url, "_blank", "noopener,noreferrer");
   };
 
   return (
@@ -311,16 +337,39 @@ export function RecomendacoesPanel() {
                     ))}
                   </div>
 
-                  <div className="flex items-center gap-2 mt-3">
+                  <div className="flex flex-wrap items-center gap-2 mt-3">
                     <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setEvidenceRow(r)}>
-                      <FileSearch className="h-3 w-3 mr-1.5" /> Ver evidência
+                      <FileSearch className="h-3 w-3 mr-1.5" /> Evidência
                     </Button>
+                    <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => openSpotify(r)}>
+                      <ExternalLink className="h-3 w-3 mr-1.5" /> Spotify
+                    </Button>
+                    {r.recommendation_kind === "adicionar" && (
+                      <Button
+                        variant="default" size="sm" className="h-7 text-xs"
+                        onClick={() => handleCreateDeal(r)}
+                        disabled={fb === "converted_to_deal"}
+                      >
+                        <Plus className="h-3 w-3 mr-1.5" />
+                        {fb === "converted_to_deal" ? "Deal criado" : "Criar deal"}
+                      </Button>
+                    )}
+                    {r.recommendation_kind === "remover" && (
+                      <Button
+                        variant="default" size="sm" className="h-7 text-xs"
+                        onClick={() => setRemovalRow(r)}
+                        disabled={fb === "removal_requested"}
+                      >
+                        <Mail className="h-3 w-3 mr-1.5" />
+                        {fb === "removal_requested" ? "Pedido enviado" : "Pedir remoção"}
+                      </Button>
+                    )}
                     <Button
                       variant="ghost" size="sm" className="h-7 text-xs"
                       onClick={() => handleFeedback(r, "visto")}
                       disabled={fb === "visto"}
                     >
-                      <Check className="h-3 w-3 mr-1.5" /> {fb === "visto" ? "Vista" : "Marcar vista"}
+                      <Check className="h-3 w-3 mr-1.5" /> {fb === "visto" ? "Vista" : "Vista"}
                     </Button>
                     <Button
                       variant="ghost" size="sm" className="h-7 text-xs ml-auto"
@@ -385,6 +434,17 @@ export function RecomendacoesPanel() {
           )}
         </DrawerContent>
       </Drawer>
+
+      <PedirRemocaoDialog
+        open={!!removalRow}
+        onOpenChange={(v) => !v && setRemovalRow(null)}
+        curatorName={removalRow?.evidence?.playlist?.curator ?? null}
+        trackName={removalRow?.evidence?.track?.name ?? null}
+        trackArtist={removalRow?.evidence?.track?.artist ?? null}
+        playlistName={removalRow?.evidence?.playlist?.name ?? null}
+        reason={(removalRow?.fit_reason ?? []).join(", ")}
+        onConfirm={async () => { if (removalRow) await handleFeedback(removalRow, "removal_requested"); }}
+      />
     </div>
   );
 }
