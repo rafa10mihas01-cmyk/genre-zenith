@@ -35,7 +35,11 @@ function formatDuration(ms: number) {
   return `${m}m${r.toString().padStart(2, "0")}s`;
 }
 
-export function AutopilotLivePanel({ genreId }: { genreId?: string | null }) {
+export function AutopilotLivePanel(_props: { genreId?: string | null }) {
+  // Fase 1 de aposentadoria — autopilot desligado. Painel oculto.
+  return null;
+  // eslint-disable-next-line no-unreachable
+  const genreId = _props.genreId;
   const { run } = useAutopilot(genreId ?? null);
   const [now, setNow] = useState(Date.now());
   const [collapsed, setCollapsed] = useState(false);

@@ -1,6 +1,7 @@
 // Sistema — painel de observabilidade completo.
 // Tabs no padrão visual do app (border-b + ícone + label), igual Operação / Playlist Deals / Comunidade.
-import { Activity, Workflow, Music2, HeartPulse, Bot, Bell, ListPlus, Settings as SettingsIcon } from "lucide-react";
+import { Activity, Workflow, Music2, HeartPulse, Bot, Bell, ListPlus, Settings as SettingsIcon, Archive } from "lucide-react";
+import { DeprecationPanel } from "@/components/sistema/DeprecationPanel";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
 import { useScreenField } from "@/lib/screen-state";
@@ -16,7 +17,7 @@ import { ExecucaoPanel } from "@/components/sistema/ExecucaoPanel";
 import Settings from "@/pages/Settings";
 
 type SistemaTab =
-  | "fluxo" | "ao-vivo" | "robo" | "coleta" | "execucao" | "saude" | "alertas" | "configuracoes";
+  | "fluxo" | "ao-vivo" | "robo" | "coleta" | "execucao" | "saude" | "alertas" | "aposentadoria" | "configuracoes";
 
 type TabDef = { id: SistemaTab; label: string; icon: typeof Activity; adminOnly?: boolean };
 
@@ -28,6 +29,7 @@ const TABS: TabDef[] = [
   { id: "execucao", label: "Execução", icon: ListPlus },
   { id: "saude", label: "Saúde", icon: HeartPulse },
   { id: "alertas", label: "Alertas", icon: Bell },
+  { id: "aposentadoria", label: "Aposentadoria", icon: Archive, adminOnly: true },
   { id: "configuracoes", label: "Configurações", icon: SettingsIcon },
 ];
 
@@ -75,6 +77,7 @@ export default function Sistema() {
         {activeTab === "execucao" && <ExecucaoPanel />}
         {activeTab === "saude" && <SaudeSistema />}
         {activeTab === "alertas" && <AlertasHistorico />}
+        {activeTab === "aposentadoria" && <DeprecationPanel />}
         {activeTab === "configuracoes" && <Settings embedded />}
       </div>
     </PageContainer>
