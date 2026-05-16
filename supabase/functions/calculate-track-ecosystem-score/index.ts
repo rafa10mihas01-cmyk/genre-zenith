@@ -187,8 +187,6 @@ async function processTrack(
       },
       { onConflict: "spotify_track_id" },
     );
-      { onConflict: "spotify_track_id" },
-    );
 
   if (error) return { ok: false, error: error.message };
   return { ok: true };
