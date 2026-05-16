@@ -105,3 +105,30 @@ export function useRecalcPlaylistBrain() {
     onError: (e: any) => toast.error(e?.message ?? "Erro ao recalcular"),
   });
 }
+
+/** Roda o diagnóstico de IA (gaps de nome, sugestões de faixas) e recalcula o cérebro. */
+export function useDiagnoseManagedPlaylist() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: { managedId: string; playlistId: string }) => {
+      const { data, error } = await supabase.functions.invoke("diagnose-managed-playlist", {
+        body: { playlist_id: args.managedId },
+      });
+      if (error) throw error;
+      if (!data?.ok) throw new Error(data?.error ?? "Falha ao diagnosticar");
+      // Recalcula o cérebro pra refletir o novo last_diagnosis_at e remover o sinal
+      const { error: calcErr } = await supabase.functions.invoke("playlist-brain-calc", {
+        body: { playlist_id: args.playlistId },
+      });
+      if (calcErr) throw calcErr;
+      return data;
+    },
+    onSuccess: (_, args) => {
+      qc.invalidateQueries({ queryKey: ["playlist_brain", args.playlistId] });
+      qc.invalidateQueries({ queryKey: ["playlist_brain_history", args.playlistId] });
+      toast.success("Diagnóstico concluído");
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao diagnosticar"),
+  });
+}
+
