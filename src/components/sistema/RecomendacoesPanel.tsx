@@ -434,6 +434,17 @@ export function RecomendacoesPanel() {
           )}
         </DrawerContent>
       </Drawer>
+
+      <PedirRemocaoDialog
+        open={!!removalRow}
+        onOpenChange={(v) => !v && setRemovalRow(null)}
+        curatorName={removalRow?.evidence?.playlist?.curator ?? null}
+        trackName={removalRow?.evidence?.track?.name ?? null}
+        trackArtist={removalRow?.evidence?.track?.artist ?? null}
+        playlistName={removalRow?.evidence?.playlist?.name ?? null}
+        reason={(removalRow?.fit_reason ?? []).join(", ")}
+        onConfirm={async () => { if (removalRow) await handleFeedback(removalRow, "removal_requested"); }}
+      />
     </div>
   );
 }
