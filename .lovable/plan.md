@@ -1,218 +1,200 @@
+# Reorganização da Sidebar — Plano em 3 Fases
 
-# Fase 1 — Desligar Execução (autopilot + CO Apify)
+Objetivo: sidebar que se entende batendo o olho, sem quebrar nada, sem expor arquitetura antiga, e com decisão de remoção baseada em uso real.
 
-Objetivo: parar TODA execução automática do pipeline de criação/replicação/CO de pesquisa Apify, mantendo o código intacto e reversível. Nada é deletado nesta fase — só desativado e instrumentado para detectar quem ainda chama.
-
-Duração sugerida em produção: 5–7 dias de observação antes da Fase 2.
-
----
-
-## 1.1 Inventário do que está ATIVO hoje
-
-Varredura no `cron.job` confirmou que destes 7 alvos só 1 ainda existe como cron ativo:
-
-| Alvo pedido pelo usuário | Status atual no cron | Ação Fase 1 |
-|---|---|---|
-| `genre-autopilot` | sem cron (rodava manual via botão) | desligar gatilho de UI |
-| `autopilot-all-genres` | sem cron | desligar gatilho de UI |
-| `auto-replicate-playlists` | sem cron | desligar gatilho de UI |
-| `collect-batch` | sem cron direto | desligar gatilho de UI |
-| `daily-collect` | sem cron | desligar gatilho de UI |
-| `genre-backfill` | sem cron | desligar gatilho de UI |
-| `cron-backfill-dead` | **ativo** — `backfill-dead-genres-6h` (jobid 19, `17 */6 * * *`) | UNSCHEDULE |
-
-Cron adicionais suspeitos detectados que entram no escopo da Fase 1:
-- `learning-loop-daily` (jobid 8, `0 4 * * *`) → alimenta o CO Apify. UNSCHEDULE.
-- `recover-stuck-auto-collect` (jobid 28, `*/5 * * * *`) → watchdog do pipeline de auto-coleta. UNSCHEDULE.
-
-Cron que NÃO entram nesta fase (permanecem ativos): `daily-sync-managed-playlists`, `diagnose-managed-playlists-daily`, `execution-planner-every-minute`, `genre-benchmarks-calc-daily`, `playlist-brain-daily`, `curator-brain-calc-daily`, `track-playlist-metrics-6h`, `track-external-metrics-daily`, `recalc-playlist-scores-daily`, `recalc-campaign-progress-daily`, `reconcile-*`, `recover-print-batches-5min`, `reset-stuck-bot-songs`, `spotify-token-watchdog-10min`, `ops-alerts-cron-every-5min`, `process-email-queue`, e todos os `cleanup-*`. Esses sustentam gestão de playlists, deals, analytics e bot S4A.
+Princípios não-negociáveis das 3 fases:
+- Zero quebra de URL. Tudo que existe hoje continua acessível por rota direta.
+- Zero remoção de código nesta etapa. Só reorganização e ocultação.
+- Cada fase é independente, mergeável sozinha, reversível em 1 commit.
+- Nada de telemetria → nada de remoção. Fase C só roda depois de dados reais.
 
 ---
 
-## 1.2 Ordem de execução (do mais seguro ao mais sensível)
+## Fase A — Reorganização visual segura (sem destruir nada)
+
+Entrega: nova estrutura de sidebar em 4 grupos, submenus contextuais, rodapé com Configurações. Todas as rotas antigas continuam funcionando como alias.
+
+### Nova estrutura visível
 
 ```text
-Passo 1  → Instrumentar telemetria (não desliga nada)
-Passo 2  → Desligar gatilhos de UI (botões)
-Passo 3  → Bloquear no servidor (kill-switch nas edge functions alvo)
-Passo 4  → UNSCHEDULE dos 3 crons (cron-backfill-dead, learning-loop, recover-stuck-auto-collect)
-Passo 5  → Bloquear enqueue de jobs relacionados (jobs_queue / collection_logs)
-Passo 6  → Janela de observação 5–7 dias
+COCKPIT
+  Início                  /                      (Hoje + Executivo como abas internas)
+
+OPERAÇÃO
+  Campanhas               /campanhas
+  Playlist Deals          /deals
+    └ Deals               /deals
+    └ Curadores           /curadores
+    └ Comparar            /deals/comparar
+  Playlists               /playlists             (alias: /catalogo, /operacao)
+
+INTELIGÊNCIA
+  Inteligência            /inteligencia          (alias: /cerebro)
+  Analytics               /analytics
+    └ Performance         /analytics/performance
+    └ Valuation           /analytics/valuation
+    └ Benchmarks          /benchmarks
+    └ Matriz              /matriz
+    └ Heatmap             /heatmap
+
+ADMIN (só admin)
+  Infra                   /infra                 (Sistema + Infraestrutura + Aposentadoria como abas)
+  Comunidade              /comunidade
+
+RODAPÉ (ícone discreto, ao lado do logout)
+  Configurações           /configuracoes         (alias: /settings)
 ```
 
-A ordem importa: instrumentação antes do bloqueio garante que vamos ver QUEM ainda chama no momento em que começamos a recusar.
+De 13 itens visíveis → 5 itens base + 2 admin. Submenus só abrem quando o grupo está ativo.
+
+### Checklist Fase A
+
+1. Atualizar `src/components/AppSidebar.tsx` com a nova hierarquia (grupos + submenus colapsáveis).
+2. Mover Configurações pro `SidebarFooter` (ícone gear ao lado do logout).
+3. Adicionar rotas alias em `src/App.tsx`:
+   - `/catalogo` → renderiza Playlists
+   - `/operacao` → renderiza Playlists
+   - `/cerebro` → renderiza Inteligência (ainda é a página antiga nesta fase)
+   - `/settings` → renderiza Configurações
+4. Consolidar tabs internas em **Início** (Hoje + Executivo) e em **Infra** (Sistema + Infraestrutura + Aposentadoria).
+5. Corrigir `SidebarSmartPanel.tsx`: remover atalhos quebrados (`?tab=coleta|insights|replicacao`, `?tab=cover-queue`). Substituir por atalhos vivos (ex.: "Ver deals ativos", "Playlists em queda").
+6. Highlight do item ativo + grupo pai expandido automaticamente via `useLocation`.
+
+### Impacto esperado
+
+- Carga visual da sidebar cai ~60%.
+- Zero links quebrados (todos os alias resolvem).
+- Nenhum dado/funcionalidade removida.
+
+### Rollback
+
+- Reverter o commit da `AppSidebar.tsx` e do `App.tsx`. Páginas continuam intactas.
+
+### Validação pós-deploy
+
+- Clicar em cada item e cada submenu → tela carrega.
+- Acessar cada URL antiga direto pelo browser → resolve.
+- `SidebarSmartPanel` sem `onClick` apontando pra tab inexistente (grep por `?tab=`).
 
 ---
 
-## 1.3 Passo 1 — Telemetria (detector de dependências ocultas)
+## Fase B — Fusão conceitual Cérebro → Inteligência
 
-Criar tabela leve para registrar toda invocação dos alvos durante a janela de observação:
+Entrega: uma única página de Inteligência que absorve o que sobrou do Cérebro pós-Fase 1, sem perder nenhum widget útil.
 
-- Tabela `deprecation_hits` com colunas: function_name, source (`ui` | `cron` | `internal` | `unknown`), caller_user_id, request_headers (JSONB resumido), called_at.
-- Helper compartilhado em `supabase/functions/_shared/_deprecation.ts` exportando `logDeprecationHit(req, name)` que faz INSERT non-blocking.
-- Chamar `logDeprecationHit` no topo do handler de cada função alvo (lista completa em 1.7), ANTES de qualquer lógica. Função continua rodando normalmente nesta etapa.
-- Card no `/sistema` ("Aposentadoria — chamadas residuais nas últimas 24h / 7d") consultando essa tabela.
+Pré-requisito: Fase A em produção há pelo menos 3 dias sem reclamação.
 
-Resultado: durante a Fase 1 inteira (mesmo após kill-switch), conseguimos ver tentativas e identificar callers escondidos (cron, outras funções, jobs antigos).
+### O que sobrou útil em /cerebro pós-Fase 1
 
----
+- Painel de recomendações (sugestões de troca de playlist)
+- Visão por gênero (`/cerebro/:genero`)
+- Sinais agregados de S4A
 
-## 1.4 Passo 2 — Desligar gatilhos na UI
+### O que já está em /inteligencia hoje
 
-Esconder/desabilitar (não deletar) os componentes que disparam o pipeline. Cada um vira no-op com toast "Aposentado — Fase 1" para ainda gerar `deprecation_hits` se algo automatizado clicar:
+(verificar no momento da execução; provavelmente: scoring, ranking, leituras)
 
-- `src/components/brain/AutopilotButton.tsx` → desabilitado.
-- `src/components/brain/AutopilotLivePanel.tsx` → esconder das páginas.
-- `src/components/brain/ReplicacaoAuto.tsx` / `Replicacao.tsx` → esconder.
-- `src/components/cerebro/Coleta.tsx`, `Analises.tsx`, `Decisoes.tsx`, `Insights.tsx`, `Visual.tsx`, `MinhasRecomendacoes.tsx`, `Base.tsx`, `ResumoGenero.tsx`, `VisaoGeral.tsx` → ainda renderizam, mas qualquer botão de ação dispara no-op + toast.
-- `src/components/operacao/EditorialSeederCard.tsx` → esconder.
-- `src/components/sistema/AoVivoFeed.tsx`, `AoVivoPainel.tsx`, `fluxo/*` → manter visíveis em modo somente-leitura (servem de telemetria) mas remover botões de "rodar agora".
-- `src/pages/Criacao.tsx` → adicionar banner "Em aposentadoria — Fase 1" e desabilitar botões de criação/replicação. Não removemos a rota.
-- `src/pages/Cerebro.tsx` → idem banner.
-- `src/components/CommandPalette.tsx` → remover entradas que disparam autopilot / replicate / collect.
+### Checklist Fase B
 
-UI continua acessível para diagnóstico, mas não consegue mais iniciar nada. Essa é a parte mais reversível (puro front).
+1. Inventário lado a lado: listar cada widget de `Cerebro.tsx` e `Inteligencia.tsx` e marcar: **manter / fundir / descartar**.
+2. Criar `src/pages/Inteligencia.tsx` v2 com layout em abas:
+   - **Visão geral** (recomendações + sinais)
+   - **Por gênero** (substitui `/cerebro/:genero`)
+   - **Histórico de decisões** (o que foi sugerido e o que foi feito)
+3. Manter `/cerebro` e `/cerebro/:genero` como **redirect 301 client-side** pra `/inteligencia` e `/inteligencia/genero/:genero`.
+4. Remover label "Cérebro" da sidebar (já feito na Fase A; aqui só confirma).
+5. Atualizar links internos do app que ainda apontam pra `/cerebro` (grep + replace).
 
----
+### Impacto esperado
 
-## 1.5 Passo 3 — Kill-switch nas edge functions
+- Some um conceito duplicado. Operador para de perguntar "Cérebro ou Inteligência?".
+- Zero perda funcional.
 
-Em cada função alvo, no início do handler (depois do `logDeprecationHit`), checar flag `DEPRECATED_PHASE1_ENABLED` (env var booleana). Quando `true`:
+### Rollback
 
-```ts
-return new Response(JSON.stringify({
-  ok: false, error: "deprecated_phase1", function: "<name>"
-}), { status: 410, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-```
+- Reverter o redirect e o componente novo. Páginas antigas voltam intactas (não foram deletadas).
 
-Vantagens:
-- Reversível em segundos (flipa env var).
-- 410 Gone deixa claro nos logs e fica visível no painel de aposentadoria.
-- Funciona como dique mesmo se algum cron órfão ainda existir.
+### Validação pós-deploy
 
-Funções com kill-switch (Passo 3 + telemetria do Passo 1):
-
-Bloco autopilot/criação:
-`genre-autopilot`, `autopilot-all-genres`, `analyze-genre`, `generate-playlists-briefing`, `extract-blueprints`, `generate-templates`, `score-templates`, `expire-stale-templates`, `replicate-top`, `auto-replicate-playlists`, `create-spotify-playlist`.
-
-Bloco CO Apify:
-`run-search`, `enrich-playlists`, `fetch-tracks-spotify`, `fetch-spotify-featured`, `genre-competitors-sync`, `genre-backfill`, `cron-backfill-dead`, `collect-batch`, `daily-collect`, `generate-terms`, `seed-editorial-terms`, `learning-loop`, `extract-replication-rules`, `revalidate-dataset`.
-
-Bloco auxiliar (criação de capa que só serve para o autopilot):
-`generate-cover-variations`, `analyze-genre-visual-dna`.
-
-NÃO recebem kill-switch (permanecem ativos): gestão de playlists, deals, S4A bot, OAuth Spotify, analytics, alerts, planner — lista completa em 1.1.
+- `/cerebro` redireciona pra `/inteligencia` sem flash.
+- Todos os widgets úteis aparecem na nova página.
+- Nenhum erro 404 nos logs (`function_edge_logs` + console).
 
 ---
 
-## 1.6 Passo 4 — Desativar crons
+## Fase C — Limpeza definitiva baseada em telemetria
 
-Usar `cron.unschedule(jobid)` (NÃO drop) para preservar histórico em `cron.job_run_details`:
+Entrega: remoção de código morto e rotas órfãs. Só roda depois de dados reais.
+
+Pré-requisito: 14 dias de telemetria de `page_hits` rodando após Fase B.
+
+### Setup de telemetria (executar no início da Fase B, não no fim)
+
+Tabela mínima:
 
 ```sql
-SELECT cron.unschedule(19); -- backfill-dead-genres-6h
-SELECT cron.unschedule(8);  -- learning-loop-daily
-SELECT cron.unschedule(28); -- recover-stuck-auto-collect
+create table public.page_hits (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid,
+  path text not null,
+  referrer text,
+  hit_at timestamptz not null default now()
+);
+create index on page_hits (path, hit_at desc);
 ```
 
-Rollback: re-schedule com mesmo schedule string (guardado em 1.10 abaixo).
+Hook global `usePageHit()` em `App.tsx` que dispara um insert a cada mudança de rota (debounce 500ms, ignora bots/admin se quiser).
 
----
+### Candidatos a remoção (avaliar com dados, não com achismo)
 
-## 1.7 Passo 5 — Bloquear enqueue residual
-
-Em `jobs_queue` e `collection_logs` existem caminhos de enfileiramento usados pelo autopilot. Adicionar guard:
-
-- Migration: trigger `BEFORE INSERT` em `jobs_queue` que recusa rows com `job_type` na lista `('autopilot','genre-autopilot','autopilot-all-genres','collect-batch','daily-collect','run-search','enrich-playlists','genre-backfill','cron-backfill-dead','auto-replicate-playlists','replicate-top','generate-templates','extract-blueprints','create-spotify-playlist','generate-terms','learning-loop')` quando GUC `app.deprecation_phase1` = `'on'`.
-- Mesmo padrão para `collection_logs` se houver insert-as-trigger.
-- GUC ligado via `ALTER DATABASE ... SET app.deprecation_phase1 = 'on'` — reversível com `RESET`.
-
----
-
-## 1.8 Passo 6 — Observação (5–7 dias)
-
-Painel novo em `/sistema` → aba "Aposentadoria":
-- Tabela de `deprecation_hits` agregada (por função, por source, últimas 24h e 7d).
-- Lista de tentativas de INSERT bloqueadas em `jobs_queue` (capturadas pelo trigger em outra tabela `deprecation_blocked_jobs`).
-- Top 5 callers por user_id.
-- Botão "Exportar CSV" para auditoria.
-
-Critério de avanço para Fase 2:
-- 7 dias com zero hits originados de `cron` ou `internal`.
-- Hits remanescentes devem ser exclusivamente `unknown`/scanners externos ou cliques em botões já desativados.
-
----
-
-## 1.9 Riscos e dependências ocultas previstas
-
-| Risco | Mitigação |
+| Rota | Critério de remoção |
 |---|---|
-| `execution-planner-every-minute` chamar internamente algum alvo | Telemetria pega imediatamente; planner permanece ativo, só observa. |
-| `recover-stuck-auto-collect` ressuscitar jobs antigos | É desligado no Passo 4; jobs já marcados "stuck" ficam quietos. |
-| Cron externo (não pg_cron) chamando via HTTP | Kill-switch retorna 410 e gera hit visível. |
-| Frontend cacheado em browser do usuário ainda disparar | Toast informa "Aposentado"; backend bloqueia mesmo assim. |
-| Triggers de DB chamarem edge function via `net.http_post` | Grep no schema (Passo 0 abaixo) lista todas as funções pgsql que chamam `net.http_post`; se alguma apontar para alvo, neutralizar antes do Passo 3. |
-| Bot VPS chamar endpoint deprecated | docs/BOT_VPS_CONTRACT.md já lista contratos; revisar para garantir que bot só fala com endpoints permitidos. |
+| `/benchmarks` | < 5 hits/semana por 2 semanas |
+| `/matriz` | idem |
+| `/heatmap` | idem |
+| `/curadoria-preview` | idem |
+| `/executivo` (se virou aba de Início) | rota direta com < 5 hits |
+| Componentes deprecados visualmente em Fase 1 | já ocultos, agora apaga arquivo |
 
-Passo 0 (varredura prévia, antes do Passo 1):
-- `rg -n "net\\.http_post" supabase/migrations` filtrando por nomes de função alvo.
-- `rg -n "supabase\\.functions\\.invoke\\(|/functions/v1/" supabase/functions` para mapear chamadas function→function.
-- Listar resultado em `docs/DEPRECATION_PHASE1.md` para revisão antes de qualquer desligamento.
+### Checklist Fase C
 
----
+1. Rodar query: `select path, count(*) from page_hits where hit_at > now() - interval '14 days' group by 1 order by 2`.
+2. Para cada rota abaixo do threshold:
+   - Remover do `App.tsx`
+   - Deletar a página
+   - Deletar componentes filhos só usados ali
+   - `rg` no projeto pra confirmar zero imports órfãos
+3. Rodar `depcheck` (ou `bunx knip`) → listar dependências npm sem uso → remover.
+4. Auditar edge functions já marcadas como deprecated na Fase 1 (`410 Gone`):
+   - Se 14 dias sem nenhum hit em `deprecation_hits` → deletar a função.
+   - Se ainda tem hit de caller ≠ "ui"/"cron" → investigar antes de deletar.
+5. Revisar quotas/custos: comparar gasto de edge functions e DB do mês corrente vs. mês pré-Fase 1.
 
-## 1.10 Plano de rollback (por passo)
+### Impacto esperado
 
-| Passo | Como reverter | Tempo |
-|---|---|---|
-| 1 Telemetria | Drop tabela `deprecation_hits` (opcional, é inerte). | imediato |
-| 2 UI | Reverter commit do front. | 1 deploy |
-| 3 Kill-switch | `DEPRECATED_PHASE1_ENABLED=false` em Secrets. | <1 min |
-| 4 Crons | `SELECT cron.schedule('backfill-dead-genres-6h','17 */6 * * *', $$...$$);` (SQLs salvos em `docs/DEPRECATION_PHASE1.md`). | <1 min |
-| 5 Triggers | `ALTER DATABASE postgres RESET app.deprecation_phase1;` ou DROP TRIGGER. | <1 min |
+- Redução real de superfície de código e de custo.
+- Decisão defensável (baseada em uso, não em opinião).
 
-Nada nesta fase é destrutivo. Código continua deployado, dados continuam intactos.
+### Rollback
 
----
+- Cada remoção vira um commit separado. Reverter individualmente se algo aparecer.
 
-## 1.11 Checklist executável (Fase 1)
+### Validação pós-deploy
 
-Pré-requisitos:
-- [ ] Varredura `net.http_post` em migrations + `functions.invoke` no código (Passo 0)
-- [ ] Documento `docs/DEPRECATION_PHASE1.md` criado com inventário + SQLs de rollback
-
-Implementação:
-- [ ] Migration: tabela `deprecation_hits` + `deprecation_blocked_jobs`
-- [ ] Edge function shared: `_deprecation.ts`
-- [ ] Adicionar `logDeprecationHit` em todas as 27 funções alvo (1.5)
-- [ ] Adicionar kill-switch (env var) nas mesmas 27 funções
-- [ ] Secret `DEPRECATED_PHASE1_ENABLED=false` (default off — ativamos via flip controlado)
-- [ ] UI: desabilitar botões / esconder cards (1.4)
-- [ ] Migration: trigger guard em `jobs_queue`
-- [ ] Painel "Aposentadoria" em `/sistema`
-
-Ativação (em ordem, com janela de 24h entre eles):
-- [ ] Dia 0: deploy telemetria + UI desabilitada (Passos 1–2)
-- [ ] Dia 1: revisar `deprecation_hits` — se silêncio de UI, ativar kill-switch (Passo 3)
-- [ ] Dia 2: `cron.unschedule` dos 3 jobs (Passo 4) + ligar GUC do trigger (Passo 5)
-- [ ] Dia 2–9: observar painel
-- [ ] Dia 9: relatório consolidado → decidir Fase 2
-
-Validação pós-deploy:
-- [ ] `cron.job WHERE active=true` não contém os 3 jobids desativados
-- [ ] `curl` em cada função alvo retorna 410
-- [ ] `INSERT INTO jobs_queue (job_type='autopilot', ...)` é recusado
-- [ ] Painel "Aposentadoria" carrega
-- [ ] Sync de managed playlists, deals, S4A bot, OAuth, métricas continuam verdes em `/sistema`
+- Build passa, smoke test das rotas que sobraram.
+- Custos Cloud caem na semana seguinte (verificar dashboard).
 
 ---
 
-## 1.12 O que NÃO faz parte desta fase
+## Detalhes técnicos relevantes (apêndice)
 
-- Apagar edge functions (Fase 3)
-- Apagar páginas/componentes (Fase 2)
-- Apagar tabelas Apify/blueprints/templates (Fase 4)
-- Remover env vars APIFY_* (Fase 4)
-- Limpar `cron.job_run_details` antigo (Fase 4)
+- A nova `AppSidebar` usa o padrão shadcn `Sidebar` + `SidebarGroup` + `SidebarMenuSub` para submenus contextuais. `collapsible="icon"` mantém a versão estreita com ícones.
+- Submenu só renderiza expandido quando a rota ativa pertence ao grupo (via `useLocation` + `isActive`).
+- Alias de rota = `<Route path="/catalogo" element={<Playlists />} />`. Sem redirect, sem flash, sem mudança de URL na barra do browser.
+- Redirect Fase B = `<Route path="/cerebro" element={<Navigate to="/inteligencia" replace />} />`.
+- Telemetria não depende de Lovable Cloud externo: insert direto na tabela `page_hits` com RLS `auth.uid() = user_id`.
+- Nenhuma mudança em edge functions, deals, autopilot ou Spotify nesta reorganização. É puramente camada de navegação e apresentação.
 
-Confirme se posso implementar a Fase 1 nessa ordem (começando pelo Passo 0 + Passo 1 hoje).
+---
+
+Próximo passo: aprovar este plano e eu começo pela Fase A.

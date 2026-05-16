@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Sparkles, ImageIcon, Rocket, Brain, Search, Activity, TrendingUp, AlertTriangle, ArrowUpRight } from "lucide-react";
+import { Sparkles, Handshake, ListMusic, BarChart3, Target, TrendingUp, AlertTriangle, ArrowUpRight, Gauge } from "lucide-react";
 import { useSidebarContext, SidebarAlert } from "@/contexts/SidebarContext";
 import { useSidebar } from "@/components/ui/sidebar";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,37 +23,76 @@ type QuickAction = {
   to: string;
 };
 
-/** Mapa estático de Quick Actions por rota. Atalhos contextuais. */
+/**
+ * Mapa estático de Quick Actions por rota — todos apontam para fluxos VIVOS
+ * pós-Fase 1. Removidos todos os atalhos do velho autopilot/coleta Apify
+ * (`?tab=coleta|insights|replicacao|cover-queue`).
+ */
 const QUICK_ACTIONS_BY_ROUTE: Record<string, QuickAction[]> = {
   "/": [
-    { label: "Criar template", icon: Sparkles, to: "/criacao" },
-    { label: "Gerar capas", icon: ImageIcon, to: "/criacao?tab=cover-queue" },
-    { label: "Publicar", icon: Rocket, to: "/operacao" },
+    { label: "Deals", icon: Handshake, to: "/deals" },
+    { label: "Playlists", icon: ListMusic, to: "/playlists" },
+    { label: "Analytics", icon: BarChart3, to: "/analytics" },
+  ],
+  "/inteligencia": [
+    { label: "Analytics", icon: BarChart3, to: "/analytics" },
+    { label: "Deals", icon: Handshake, to: "/deals" },
+    { label: "Playlists", icon: ListMusic, to: "/playlists" },
   ],
   "/cerebro": [
-    { label: "Coletar", icon: Search, to: "/cerebro?tab=coleta" },
-    { label: "Analisar", icon: Brain, to: "/cerebro?tab=insights" },
-    { label: "Replicar", icon: Rocket, to: "/cerebro?tab=replicacao" },
+    { label: "Analytics", icon: BarChart3, to: "/analytics" },
+    { label: "Deals", icon: Handshake, to: "/deals" },
+    { label: "Playlists", icon: ListMusic, to: "/playlists" },
   ],
-  "/criacao": [
-    { label: "Novo template", icon: Sparkles, to: "/criacao" },
-    { label: "Gerar capas", icon: ImageIcon, to: "/criacao?tab=cover-queue" },
-    { label: "Publicar", icon: Rocket, to: "/operacao" },
+  "/deals": [
+    { label: "Curadores", icon: Sparkles, to: "/curadores" },
+    { label: "Comparar", icon: TrendingUp, to: "/deals/comparar" },
+    { label: "Analytics", icon: BarChart3, to: "/analytics" },
+  ],
+  "/playlist-deals": [
+    { label: "Curadores", icon: Sparkles, to: "/curadores" },
+    { label: "Comparar", icon: TrendingUp, to: "/deals/comparar" },
+    { label: "Analytics", icon: BarChart3, to: "/analytics" },
+  ],
+  "/playlists": [
+    { label: "Performance", icon: TrendingUp, to: "/analytics/performance" },
+    { label: "Deals", icon: Handshake, to: "/deals" },
+    { label: "Campanhas", icon: Target, to: "/campanhas" },
   ],
   "/operacao": [
-    { label: "Aprovar", icon: Sparkles, to: "/criacao?status=pending" },
-    { label: "Publicar", icon: Rocket, to: "/operacao" },
-    { label: "Performance", icon: TrendingUp, to: "/performance" },
+    { label: "Performance", icon: TrendingUp, to: "/analytics/performance" },
+    { label: "Deals", icon: Handshake, to: "/deals" },
+    { label: "Campanhas", icon: Target, to: "/campanhas" },
+  ],
+  "/catalogo": [
+    { label: "Performance", icon: TrendingUp, to: "/analytics/performance" },
+    { label: "Deals", icon: Handshake, to: "/deals" },
+    { label: "Campanhas", icon: Target, to: "/campanhas" },
+  ],
+  "/analytics": [
+    { label: "Performance", icon: TrendingUp, to: "/analytics/performance" },
+    { label: "Valuation", icon: Gauge, to: "/analytics/valuation" },
+    { label: "Playlists", icon: ListMusic, to: "/playlists" },
   ],
   "/performance": [
-    { label: "Ver Big", icon: TrendingUp, to: "/performance?filter=big" },
-    { label: "Replicar Top", icon: Rocket, to: "/cerebro?tab=replicacao" },
-    { label: "Insights", icon: Brain, to: "/cerebro?tab=insights" },
+    { label: "Valuation", icon: Gauge, to: "/analytics/valuation" },
+    { label: "Playlists", icon: ListMusic, to: "/playlists" },
+    { label: "Deals", icon: Handshake, to: "/deals" },
+  ],
+  "/valuation": [
+    { label: "Performance", icon: TrendingUp, to: "/analytics/performance" },
+    { label: "Playlists", icon: ListMusic, to: "/playlists" },
+    { label: "Deals", icon: Handshake, to: "/deals" },
+  ],
+  "/campanhas": [
+    { label: "Playlists", icon: ListMusic, to: "/playlists" },
+    { label: "Deals", icon: Handshake, to: "/deals" },
+    { label: "Analytics", icon: BarChart3, to: "/analytics" },
   ],
   "/configuracoes": [
-    { label: "Coleta", icon: Search, to: "/cerebro?tab=coleta" },
-    { label: "Operação", icon: Activity, to: "/operacao" },
-    { label: "Performance", icon: TrendingUp, to: "/performance" },
+    { label: "Analytics", icon: BarChart3, to: "/analytics" },
+    { label: "Deals", icon: Handshake, to: "/deals" },
+    { label: "Playlists", icon: ListMusic, to: "/playlists" },
   ],
 };
 
@@ -122,7 +161,7 @@ export function SidebarSmartPanel() {
             id: "low-volume",
             label: `Baixo volume 24h (${count ?? 0})`,
             intent: "info",
-            to: "/cerebro?tab=coleta",
+            to: "/analytics",
           });
         }
       } catch {

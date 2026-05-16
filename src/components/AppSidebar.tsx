@@ -1,51 +1,126 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { Home, Brain, BarChart3, Settings, LogOut, ListMusic, Users, Handshake, Activity, LayoutDashboard, Server, Target, LineChart, Gauge, Sparkles } from "lucide-react";
+import {
+  Home, Sparkles, BarChart3, Settings, LogOut, ListMusic, Users, Handshake,
+  Server, Target, ChevronRight,
+} from "lucide-react";
 import { NexEngineLogo } from "@/components/NexEngineLogo";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
-  SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, SidebarFooter, useSidebar,
+  SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarMenuSub, SidebarMenuSubButton,
+  SidebarMenuSubItem, SidebarHeader, SidebarFooter, useSidebar,
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { SidebarSmartPanel } from "@/components/SidebarSmartPanel";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
-// Sidebar agrupada em 3 seções (Operar / Ativos / Infra) — nada removido,
-// só organizado por função mental do uso diário.
-type NavItem = { title: string; url: string; icon: any; end?: boolean; adminOnly?: boolean };
+/**
+ * Sidebar reorganizada (Fase A do plano de reorganização).
+ *
+ * 4 grupos enxutos + submenus contextuais que só expandem quando o grupo está ativo:
+ *  - Cockpit (Início)
+ *  - Operação (Campanhas, Playlist Deals, Playlists)
+ *  - Inteligência (Inteligência, Analytics)
+ *  - Admin (Infra, Comunidade)  — só para admin
+ *
+ * Configurações foi movido para o rodapé (ícone gear ao lado do logout).
+ * Nenhuma rota antiga foi removida; todas continuam acessíveis via alias em App.tsx.
+ */
+type SubItem = { title: string; url: string; end?: boolean };
+type NavItem = {
+  title: string;
+  url: string;
+  icon: any;
+  end?: boolean;
+  adminOnly?: boolean;
+  children?: SubItem[];
+  /** Outras rotas que devem marcar este item como ativo (aliases legados). */
+  matchPaths?: string[];
+};
 type NavSection = { label: string; items: NavItem[] };
 
 const sections: NavSection[] = [
   {
-    label: "Operar",
+    label: "Cockpit",
     items: [
-      { title: "Hoje", url: "/", icon: Home, end: true },
-      { title: "Executivo", url: "/executivo", icon: LayoutDashboard },
-      { title: "Cérebro", url: "/cerebro", icon: Brain },
-      { title: "Inteligência", url: "/inteligencia", icon: Sparkles },
-      { title: "Campanhas", url: "/campanhas", icon: Target },
-      { title: "Performance", url: "/performance", icon: BarChart3 },
-      { title: "Analytics", url: "/analytics", icon: LineChart },
-      { title: "Valuation", url: "/valuation", icon: Gauge },
+      { title: "Início", url: "/", icon: Home, end: true, matchPaths: ["/executivo"] },
     ],
   },
   {
-    label: "Ativos",
+    label: "Operação",
     items: [
-      { title: "Catálogo", url: "/catalogo", icon: ListMusic },
-      { title: "Playlist Deals", url: "/playlist-deals", icon: Handshake },
+      { title: "Campanhas", url: "/campanhas", icon: Target },
+      {
+        title: "Playlist Deals",
+        url: "/deals",
+        icon: Handshake,
+        matchPaths: ["/playlist-deals", "/curadores"],
+        children: [
+          { title: "Deals", url: "/deals" },
+          { title: "Curadores", url: "/curadores" },
+          { title: "Comparar", url: "/deals/comparar" },
+        ],
+      },
+      {
+        title: "Playlists",
+        url: "/playlists",
+        icon: ListMusic,
+        matchPaths: ["/catalogo", "/operacao"],
+      },
+    ],
+  },
+  {
+    label: "Inteligência",
+    items: [
+      {
+        title: "Inteligência",
+        url: "/inteligencia",
+        icon: Sparkles,
+        matchPaths: ["/cerebro"],
+      },
+      {
+        title: "Analytics",
+        url: "/analytics",
+        icon: BarChart3,
+        matchPaths: ["/performance", "/valuation", "/benchmarks", "/matriz", "/heatmap"],
+        children: [
+          { title: "Performance", url: "/analytics/performance" },
+          { title: "Valuation", url: "/analytics/valuation" },
+          { title: "Benchmarks", url: "/benchmarks" },
+          { title: "Matriz", url: "/matriz" },
+          { title: "Heatmap", url: "/heatmap" },
+        ],
+      },
+    ],
+  },
+  {
+    label: "Admin",
+    items: [
+      {
+        title: "Infra",
+        url: "/infra",
+        icon: Server,
+        adminOnly: true,
+        matchPaths: ["/sistema", "/infraestrutura"],
+      },
       { title: "Comunidade", url: "/comunidade-admin", icon: Users, adminOnly: true },
     ],
   },
-  {
-    label: "Infra",
-    items: [
-      { title: "Sistema", url: "/sistema", icon: Activity, adminOnly: true },
-      { title: "Infraestrutura", url: "/infraestrutura", icon: Server, adminOnly: true },
-    ],
-  },
 ];
+
+function itemIsActive(item: NavItem, pathname: string): boolean {
+  if (item.end) return pathname === item.url;
+  if (pathname === item.url || pathname.startsWith(item.url + "/")) return true;
+  return (item.matchPaths ?? []).some(
+    (p) => pathname === p || pathname.startsWith(p + "/"),
+  );
+}
+
+function subIsActive(sub: SubItem, pathname: string): boolean {
+  return pathname === sub.url || pathname.startsWith(sub.url + "/");
+}
 
 export function AppSidebar() {
   const { state, isMobile, setOpenMobile } = useSidebar();
@@ -57,16 +132,12 @@ export function AppSidebar() {
     .map((s) => ({ ...s, items: s.items.filter((i) => !i.adminOnly || isAdmin) }))
     .filter((s) => s.items.length > 0);
 
-  // Fecha o drawer mobile ao escolher um item — comportamento app-like
   const handleNav = () => {
     if (isMobile) setOpenMobile(false);
   };
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
-      {/* Header da sidebar: altura idêntica ao topbar (h-14).
-          Usamos apenas o mark "N" — o logo completo tem subtítulo em corpo muito pequeno
-          que vira ilegível em qualquer tamanho razoável de header. */}
       <SidebarHeader className="h-14 px-4 border-b border-sidebar-border flex flex-row items-center gap-2.5">
         <button
           type="button"
@@ -98,29 +169,103 @@ export function AppSidebar() {
             <SidebarGroupContent>
               <SidebarMenu className="gap-0.5">
                 {section.items.map((item) => {
-                  const active = item.end
-                    ? location.pathname === item.url
-                    : location.pathname.startsWith(item.url);
-                  return (
-                    <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={active}
-                        className={cn(
-                          "h-9 rounded-md transition-colors relative",
-                          "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/60",
-                          active && "bg-sidebar-accent !text-sidebar-foreground font-medium",
-                        )}
-                      >
-                        <NavLink to={item.url} end={item.end} onClick={handleNav} className="flex items-center gap-3 px-3">
-                          {active && !collapsed && (
-                            <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r bg-primary" />
+                  const active = itemIsActive(item, location.pathname);
+                  const hasChildren = !!item.children?.length;
+
+                  // Item simples (sem filhos) — comportamento idêntico ao antigo.
+                  if (!hasChildren) {
+                    return (
+                      <SidebarMenuItem key={item.title}>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={active}
+                          className={cn(
+                            "h-9 rounded-md transition-colors relative",
+                            "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/60",
+                            active && "bg-sidebar-accent !text-sidebar-foreground font-medium",
                           )}
-                          <item.icon className={cn("h-[18px] w-[18px] shrink-0", active ? "text-primary" : "text-sidebar-foreground/60")} />
-                          {!collapsed && <span className="text-[14px]">{item.title}</span>}
-                        </NavLink>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
+                        >
+                          <NavLink to={item.url} end={item.end} onClick={handleNav} className="flex items-center gap-3 px-3">
+                            {active && !collapsed && (
+                              <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r bg-primary" />
+                            )}
+                            <item.icon className={cn("h-[18px] w-[18px] shrink-0", active ? "text-primary" : "text-sidebar-foreground/60")} />
+                            {!collapsed && <span className="text-[14px]">{item.title}</span>}
+                          </NavLink>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  }
+
+                  // Item com submenu: colapsável, abre auto quando o grupo está ativo.
+                  // Quando a sidebar está colapsada, vira link direto (sem submenu).
+                  if (collapsed) {
+                    return (
+                      <SidebarMenuItem key={item.title}>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={active}
+                          tooltip={item.title}
+                          className={cn(
+                            "h-9 rounded-md transition-colors relative",
+                            "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/60",
+                            active && "bg-sidebar-accent !text-sidebar-foreground font-medium",
+                          )}
+                        >
+                          <NavLink to={item.url} onClick={handleNav} className="flex items-center justify-center px-3">
+                            <item.icon className={cn("h-[18px] w-[18px] shrink-0", active ? "text-primary" : "text-sidebar-foreground/60")} />
+                          </NavLink>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  }
+
+                  return (
+                    <Collapsible key={item.title} defaultOpen={active} className="group/collapsible">
+                      <SidebarMenuItem>
+                        <CollapsibleTrigger asChild>
+                          <SidebarMenuButton
+                            isActive={active}
+                            className={cn(
+                              "h-9 rounded-md transition-colors relative w-full",
+                              "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/60",
+                              active && "bg-sidebar-accent !text-sidebar-foreground font-medium",
+                            )}
+                          >
+                            {active && (
+                              <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r bg-primary" />
+                            )}
+                            <item.icon className={cn("h-[18px] w-[18px] shrink-0", active ? "text-primary" : "text-sidebar-foreground/60")} />
+                            <span className="text-[14px] flex-1 text-left">{item.title}</span>
+                            <ChevronRight className="h-3.5 w-3.5 shrink-0 text-sidebar-foreground/40 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                          </SidebarMenuButton>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <SidebarMenuSub className="border-sidebar-border/60">
+                            {item.children!.map((sub) => {
+                              const subActive = subIsActive(sub, location.pathname);
+                              return (
+                                <SidebarMenuSubItem key={sub.url}>
+                                  <SidebarMenuSubButton
+                                    asChild
+                                    isActive={subActive}
+                                    className={cn(
+                                      "h-8 text-[13px]",
+                                      "text-sidebar-foreground/60 hover:text-sidebar-foreground",
+                                      subActive && "!text-sidebar-foreground font-medium bg-sidebar-accent/60",
+                                    )}
+                                  >
+                                    <NavLink to={sub.url} end={sub.end} onClick={handleNav}>
+                                      <span>{sub.title}</span>
+                                    </NavLink>
+                                  </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                              );
+                            })}
+                          </SidebarMenuSub>
+                        </CollapsibleContent>
+                      </SidebarMenuItem>
+                    </Collapsible>
                   );
                 })}
               </SidebarMenu>
@@ -129,21 +274,32 @@ export function AppSidebar() {
         ))}
       </SidebarContent>
 
-      {/* Painel inteligente: KPIs contextuais + Quick Actions + Alertas */}
       <SidebarSmartPanel />
 
-      {/* Footer: uma linha só, avatar + nome + botão sair inline (estilo Spotify) */}
       <SidebarFooter className="border-t border-sidebar-border p-2">
         {collapsed ? (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="w-full h-9 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/60"
-            onClick={signOut}
-            aria-label="Sair"
-          >
-            <LogOut className="h-4 w-4" />
-          </Button>
+          <div className="flex flex-col items-center gap-1">
+            <Button
+              asChild
+              variant="ghost"
+              size="icon"
+              className="w-full h-9 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/60"
+              aria-label="Configurações"
+            >
+              <NavLink to="/configuracoes" onClick={handleNav}>
+                <Settings className="h-4 w-4" />
+              </NavLink>
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="w-full h-9 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/60"
+              onClick={signOut}
+              aria-label="Sair"
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
         ) : (
           <div className="flex items-center gap-2 px-2 h-10 rounded-md hover:bg-sidebar-accent/40 transition-colors group">
             {user && (
@@ -157,6 +313,20 @@ export function AppSidebar() {
                   </div>
                 </div>
               </>
+            )}
+            {isAdmin && (
+              <Button
+                asChild
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 shrink-0 text-sidebar-foreground/50 hover:text-sidebar-foreground opacity-60 group-hover:opacity-100 transition-opacity"
+                aria-label="Configurações"
+                title="Configurações"
+              >
+                <NavLink to="/configuracoes" onClick={handleNav}>
+                  <Settings className="h-3.5 w-3.5" />
+                </NavLink>
+              </Button>
             )}
             <Button
               variant="ghost"

@@ -108,9 +108,16 @@ const App = () => (
               <Route path="/performance" element={<Protected><Performance /></Protected>} />
               <Route path="/playlist-deals" element={<Protected><PlaylistDeals /></Protected>} />
               <Route path="/playlist-deals/:dealId" element={<Protected><DealDetail /></Protected>} />
+              {/* Aliases da Fase A — nova nomenclatura da sidebar reorganizada. */}
+              <Route path="/deals" element={<Protected><PlaylistDeals /></Protected>} />
+              <Route path="/deals/comparar" element={<Protected><CompararCuradores /></Protected>} />
+              <Route path="/deals/:dealId" element={<Protected><DealDetail /></Protected>} />
+              <Route path="/playlists" element={<Protected><Operacao /></Protected>} />
               <Route path="/campanhas" element={<Protected><Campanhas /></Protected>} />
               <Route path="/campanhas/:id" element={<Protected><CampanhaDetalhe /></Protected>} />
               <Route path="/analytics" element={<Protected><Analytics /></Protected>} />
+              <Route path="/analytics/performance" element={<Protected><Performance /></Protected>} />
+              <Route path="/analytics/valuation" element={<Protected><Valuation /></Protected>} />
               <Route path="/valuation" element={<Protected><Valuation /></Protected>} />
               <Route path="/curadores" element={<Protected><Curadores /></Protected>} />
               <Route path="/curadores/comparar" element={<Protected><CompararCuradores /></Protected>} />
@@ -121,6 +128,7 @@ const App = () => (
               <Route path="/heatmap" element={<Protected><HeatmapEntregas /></Protected>} />
               <Route path="/inteligencia" element={<Protected><Inteligencia /></Protected>} />
               <Route path="/sistema" element={<Protected><Sistema /></Protected>} />
+              <Route path="/infra" element={<Protected><AdminRoute><Sistema /></AdminRoute></Protected>} />
               <Route path="/comunidade-admin" element={<Protected><AdminRoute><ComunidadeAdmin /></AdminRoute></Protected>} />
               <Route path="/infraestrutura" element={<Protected><AdminRoute><Infraestrutura /></AdminRoute></Protected>} />
               <Route path="/settings" element={<Protected><AdminRoute><Settings /></AdminRoute></Protected>} />
