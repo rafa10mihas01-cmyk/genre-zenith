@@ -199,9 +199,9 @@ export function PlaylistScorePanel() {
       </Card>
 
       <Card className="overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="max-h-[640px] overflow-auto">
           <table className="w-full text-sm">
-            <thead className="bg-muted/30 text-muted-foreground text-xs uppercase tracking-wider">
+            <thead className="sticky top-0 z-10 bg-card text-muted-foreground text-xs uppercase tracking-wider shadow-[0_1px_0_hsl(var(--border))]">
               <tr>
                 <th className="w-8" />
                 <th className="text-left px-3 py-3 font-medium">Playlist</th>
@@ -224,11 +224,11 @@ export function PlaylistScorePanel() {
                   Nenhuma playlist. Rode "Recalcular tudo" para popular.
                 </td></tr>
               )}
-              {visibleRows.map((r) => {
+              {filtered.map((r) => {
                 const isOpen = expanded === r.id;
                 return (
-                  <>
-                    <tr key={r.id} className="border-t border-border hover:bg-muted/20">
+                  <Fragment key={r.id}>
+                    <tr className="border-t border-border hover:bg-muted/20">
                       <td className="px-2 py-2 align-top">
                         <button
                           onClick={() => setExpanded(isOpen ? null : r.id)}
@@ -289,26 +289,17 @@ export function PlaylistScorePanel() {
                         </td>
                       </tr>
                     )}
-                  </>
+                  </Fragment>
                 );
               })}
-              {hasMore && (
-                <tr ref={sentinelRef}>
-                  <td colSpan={10} className="text-center py-6 text-xs text-muted-foreground">
-                    Carregando mais… ({visibleRows.length} de {filtered.length})
-                  </td>
-                </tr>
-              )}
-              {!hasMore && filtered.length > 15 && (
-                <tr>
-                  <td colSpan={10} className="text-center py-4 text-xs text-muted-foreground">
-                    {filtered.length} playlists exibidas
-                  </td>
-                </tr>
-              )}
             </tbody>
           </table>
         </div>
+        {!loading && filtered.length > 0 && (
+          <div className="border-t border-border px-4 py-3 text-xs text-muted-foreground">
+            {filtered.length.toLocaleString("pt-BR")} playlists na lista
+          </div>
+        )}
       </Card>
     </div>
   );
