@@ -69,8 +69,8 @@ async function processTrack(
   const ids = (songIds ?? []).map((s: any) => s.id);
   const dealIds = Array.from(new Set((songIds ?? []).map((s: any) => s.deal_id)));
 
-  // Total reconciliado (vem de curator_deals — confiável)
-  let streams_total = 0;
+  // Conta deals ativos (reconciled_total_plays é pouco confiável — pode estar 0).
+  let reconciledTotal = 0;
   let deal_active_count = 0;
   if (dealIds.length > 0) {
     const { data: dealRows } = await supabase
@@ -78,58 +78,88 @@ async function processTrack(
       .select("reconciled_total_plays, closed_at")
       .in("id", dealIds as any);
     for (const d of (dealRows ?? []) as any[]) {
-      streams_total += Number(d.reconciled_total_plays ?? 0);
+      reconciledTotal += Number(d.reconciled_total_plays ?? 0);
       if (!d.closed_at) deal_active_count++;
     }
   }
 
-  // Snapshots (paginados) → agregar por dia (SUM plays entre playlists no mesmo dia).
-  // reconciled_streams_7d/28d nos deals estão sempre 0, então derivamos tudo daqui.
-  let dailyAgg: { day: string; total: number }[] = [];
+  // Snapshots: `plays` é cumulativo por (song, playlist), então pegamos o ÚLTIMO
+  // snapshot de cada par e somamos. Somar tudo direto causa double-count.
+  type Snap = { song_id: string; playlist_id: string; plays: number; plays_7d: number; plays_28d: number; captured_at: string };
+  const allSnaps: Snap[] = [];
   let lastSnapshotAt: string | null = null;
-  let snapshotsUsed = 0;
   if (ids.length > 0) {
     const since = new Date(Date.now() - 35 * 86400_000).toISOString();
-    const byDay = new Map<string, number>();
     const PAGE = 1000;
-    for (let from = 0; from < 20000; from += PAGE) {
+    for (let from = 0; from < 30000; from += PAGE) {
       const { data: snapRows, error: snapErr } = await supabase
         .from("curator_deal_snapshots")
-        .select("plays, captured_at")
+        .select("song_id, playlist_id, plays, plays_7d, plays_28d, captured_at")
         .in("song_id", ids)
         .gte("captured_at", since)
         .order("captured_at", { ascending: false })
         .range(from, from + PAGE - 1);
       if (snapErr) break;
-      const rows = (snapRows ?? []) as { plays: number | null; captured_at: string }[];
+      const rows = (snapRows ?? []) as any[];
       if (rows.length === 0) break;
-      if (snapshotsUsed === 0) lastSnapshotAt = rows[0]?.captured_at ?? null;
-      snapshotsUsed += rows.length;
+      if (!lastSnapshotAt) lastSnapshotAt = rows[0]?.captured_at ?? null;
       for (const r of rows) {
-        const day = r.captured_at.slice(0, 10);
-        byDay.set(day, (byDay.get(day) ?? 0) + Number(r.plays ?? 0));
+        allSnaps.push({
+          song_id: r.song_id,
+          playlist_id: r.playlist_id,
+          plays: Number(r.plays ?? 0),
+          plays_7d: Number(r.plays_7d ?? 0),
+          plays_28d: Number(r.plays_28d ?? 0),
+          captured_at: r.captured_at,
+        });
       }
       if (rows.length < PAGE) break;
     }
-    dailyAgg = [...byDay.entries()]
-      .map(([day, total]) => ({ day, total }))
-      .sort((a, b) => (a.day < b.day ? 1 : -1)); // desc
   }
+  const snapshotsUsed = allSnaps.length;
 
-  const distinctDays = dailyAgg.length;
+  // Latest por (song, playlist) — totais atuais
+  const latestPerPair = new Map<string, Snap>();
+  for (const s of allSnaps) {
+    const key = `${s.song_id}|${s.playlist_id}`;
+    const ex = latestPerPair.get(key);
+    if (!ex || s.captured_at > ex.captured_at) latestPerPair.set(key, s);
+  }
+  let streams_total_from_snaps = 0;
+  let streams_7d = 0;
+  let streams_28d = 0;
+  for (const s of latestPerPair.values()) {
+    streams_total_from_snaps += s.plays;
+    streams_7d += s.plays_7d;
+    streams_28d += s.plays_28d;
+  }
+  const streams_total = Math.max(reconciledTotal, streams_total_from_snaps);
+
+  // Daily agg para growth: por dia, latest-por-playlist daquele dia, soma.
+  const dayPairLatest = new Map<string, Map<string, Snap>>();
+  const distinctDaysSet = new Set<string>();
+  for (const s of allSnaps) {
+    const day = s.captured_at.slice(0, 10);
+    distinctDaysSet.add(day);
+    let pairMap = dayPairLatest.get(day);
+    if (!pairMap) { pairMap = new Map(); dayPairLatest.set(day, pairMap); }
+    const key = `${s.song_id}|${s.playlist_id}`;
+    const ex = pairMap.get(key);
+    if (!ex || s.captured_at > ex.captured_at) pairMap.set(key, s);
+  }
+  const dailyAgg = [...dayPairLatest.entries()]
+    .map(([day, m]) => ({ day, total: [...m.values()].reduce((a, b) => a + b.plays, 0) }))
+    .sort((a, b) => (a.day < b.day ? 1 : -1));
+  const distinctDays = distinctDaysSet.size;
   const latestDay = dailyAgg[0];
-  const findDayAround = (targetDaysAgo: number) => {
-    const cutoff = Date.now() - targetDaysAgo * 86400_000;
+  const findDayAround = (n: number) => {
+    const cutoff = Date.now() - n * 86400_000;
     return dailyAgg.find((d) => new Date(d.day).getTime() <= cutoff);
   };
   const ref7 = findDayAround(7);
   const ref28 = findDayAround(28);
-  const growth_7d_pct =
-    latestDay && ref7 && ref7.total > 0 ? pct(latestDay.total, ref7.total) : null;
-  const growth_28d_pct =
-    latestDay && ref28 && ref28.total > 0 ? pct(latestDay.total, ref28.total) : null;
-  const streams_7d = latestDay && ref7 ? Math.max(0, latestDay.total - ref7.total) : 0;
-  const streams_28d = latestDay && ref28 ? Math.max(0, latestDay.total - ref28.total) : 0;
+  const growth_7d_pct = latestDay && ref7 && ref7.total > 0 ? pct(latestDay.total, ref7.total) : null;
+  const growth_28d_pct = latestDay && ref28 && ref28.total > 0 ? pct(latestDay.total, ref28.total) : null;
   const acceleration =
     growth_7d_pct !== null && growth_28d_pct !== null ? growth_7d_pct - growth_28d_pct : null;
 
