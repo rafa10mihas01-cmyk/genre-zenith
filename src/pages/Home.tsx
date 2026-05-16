@@ -20,6 +20,9 @@ import { WeeklySummaryCard } from "@/components/home/WeeklySummaryCard";
 import { DealsPendingCard } from "@/components/home/DealsPendingCard";
 import { BrainFreshnessCard } from "@/components/home/BrainFreshnessCard";
 import { ProactiveAlertsCard } from "@/components/home/ProactiveAlertsCard";
+import { ManagedPlaylistsKpis } from "@/components/home/ManagedPlaylistsKpis";
+import { PlaylistsInDeclineCard } from "@/components/home/PlaylistsInDeclineCard";
+import { ChevronDown } from "lucide-react";
 
 /**
  * COCKPIT — foco em decisão, não em pipeline.
