@@ -24,6 +24,7 @@ export interface CuratorDealCardProps {
   onDetail: (deal: CuratorDeal) => void;
   onDelete: (deal: CuratorDeal) => void;
   onEdit?: (deal: CuratorDeal) => void;
+  onDuplicate?: (deal: CuratorDeal) => void;
   onClose?: (deal: CuratorDeal) => void;
   onReopen?: (deal: CuratorDeal) => void;
   onForceCollect?: (deal: CuratorDeal) => Promise<void> | void;
