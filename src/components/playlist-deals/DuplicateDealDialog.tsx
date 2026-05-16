@@ -96,9 +96,10 @@ export function DuplicateDealDialog({
     setSearching(false);
     setSearchError(undefined);
     if (primary) {
-      setDailyGoal(primary.daily_goal ? String(primary.daily_goal) : "");
-      setDurationDays(primary.duration_days ? String(primary.duration_days) : "30");
-      setRampUpDays(primary.ramp_up_days != null ? String(primary.ramp_up_days) : "5");
+      const p = primary as any;
+      setDailyGoal(p.daily_goal ? String(p.daily_goal) : "");
+      setDurationDays(p.duration_days ? String(p.duration_days) : "30");
+      setRampUpDays(p.ramp_up_days != null ? String(p.ramp_up_days) : "5");
     } else {
       setDailyGoal("");
       setDurationDays("30");
