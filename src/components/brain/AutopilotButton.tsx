@@ -112,24 +112,20 @@ export function AutopilotButton({
     Date.now() - new Date(run.finished_at).getTime() < 5 * 60 * 1000;
 
   // ── Estado: idle ────────────────────────────────────────────
+  // Fase 1 de aposentadoria: autopilot desligado. Botão permanece visível
+  // como placeholder, mas inerte (sem onClick).
   return (
     <div className="flex items-center gap-2">
       <Button
         size={size}
-        variant="premium"
-        onClick={() => start(maxTemplates)}
-        disabled={!genreId || isRunning}
+        variant="outline"
+        disabled
         className="gap-1.5"
+        title="Autopilot aposentado — Fase 1"
       >
-        <Sparkles className={cn("h-3.5 w-3.5", recentSuccess && "text-primary")} />
-        {recentSuccess ? "Usar inteligência novamente" : "Usar inteligência"}
+        <Sparkles className="h-3.5 w-3.5 opacity-50" />
+        Autopilot aposentado
       </Button>
-      {recentSuccess && (
-        <span className="text-[11px] text-success flex items-center gap-1">
-          <CheckCircle2 className="h-3 w-3" />
-          {run.summary ?? "Concluído"}
-        </span>
-      )}
     </div>
   );
 }
