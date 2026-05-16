@@ -1,132 +1,130 @@
-# Wave 1 — Track Ecosystem Score
+# Wave 2 — Inteligência por Playlist + Recomendações Read-Only
 
-Objetivo: criar a **camada base de inteligência** que vai alimentar tudo depois (análise de playlists, recomendações, execução). Sem essa camada confiável, as Waves 2 e 3 não fazem sentido.
-
-Nada de UI de recomendação ainda. Nada de execução. Só **score + página de debug** pra você validar se os sinais batem com a realidade.
+Wave 1 entregou o raio-x **por faixa**. Wave 2 vira a câmera 90° e olha **por playlist**: como cada playlist está performando, quais faixas estão "puxando" ou "puxando pra baixo", e o que faz sentido adicionar/remover. Tudo **observação + sugestão**. Humano decide.
 
 ---
 
-## O que será construído
+## 1. Tabela `playlist_ecosystem_score`
 
-### 1. Tabela `track_ecosystem_score`
+Uma linha por playlist (curator ou managed), recalculada periodicamente.
 
-Uma linha por `spotify_track_id`, recalculada periodicamente. Guarda o "raio-x" de cada faixa dentro do ecossistema NexEngine.
+Campos principais:
 
-Campos principais (além de id/timestamps):
-
-- `spotify_track_id` (unique)
-- `track_name`, `artist_name` (denormalizado pra debug rápido)
-- **Crescimento** (vindo dos snapshots de Spotify for Artists):
-  - `streams_total`
-  - `streams_7d`, `streams_28d`
-  - `growth_7d_pct`, `growth_28d_pct`
-  - `acceleration` (derivada — diferença entre growth 7d e 28d)
-- **Presença no ecossistema**:
-  - `managed_playlist_count` (em quantas playlists nossas está)
-  - `curator_playlist_count` (em quantas playlists de curadores está)
-  - `total_playlist_count`
-  - `deal_active_count` (em quantos `curator_deals` ativos aparece)
+- `playlist_id` (FK curator_playlists ou managed_playlists)
+- `playlist_kind`: `curator` | `managed`
+- `playlist_name`, `curator_name` (denormalizado)
+- **Volume**:
+  - `track_count` (faixas nossas ativas nela)
+  - `total_streams` (soma dos cumulativos das nossas faixas nela)
+  - `streams_7d`, `streams_28d` (soma dos plays_7d/28d das nossas faixas nela)
+- **Saúde**:
+  - `growth_28d_pct` (delta agregado da playlist nas últimas semanas)
+  - `avg_track_momentum` (média ponderada dos momentum_class das faixas)
+  - `pct_subindo`, `pct_caindo`, `pct_saturada` (composição)
 - **Diagnóstico**:
-  - `saturation_index` (0–1: muita presença + pouco crescimento = saturada)
-  - `frequency_score` (0–1)
-  - `momentum_class`: `subindo` | `forte` | `estavel` | `caindo` | `saturada` | `fraca` | `sem_dados`
-  - `confidence` (0–1: baseado em quantidade de snapshots disponíveis)
+  - `health_class`: `aquecida` | `estavel` | `esfriando` | `saturada` | `subutilizada` | `sem_dados`
+  - `efficiency_score` (0–1: streams por faixa nossa vs benchmark)
+  - `confidence` (0–1: baseado em snapshots disponíveis)
 - `last_snapshot_at`, `calculated_at`
 
-RLS: leitura para usuários autenticados, escrita só via service_role (edge function).
+RLS: leitura autenticada, escrita só service_role.
 
-Índices em `spotify_track_id`, `momentum_class`, `calculated_at`.
+## 2. Tabela `track_playlist_fit`
 
-### 2. Edge function `calculate-track-ecosystem-score`
+Sugestões **read-only** geradas pelo motor: "essa faixa faz sentido nessa playlist?".
+Uma linha por par (track, playlist) com score relevante.
 
-Roda em batch. Para cada faixa relevante:
+Campos:
+- `spotify_track_id`, `playlist_id`, `playlist_kind`
+- `fit_score` (0–100)
+- `fit_reason`: array de tags (`genre_match`, `momentum_alinhado`, `curador_aceita_estilo`, `playlist_aquecida`, `gap_de_repertorio`)
+- `recommendation_kind`: `adicionar` | `remover` | `reorganizar` | `manter`
+- `evidence`: jsonb com os números crus que justificam (pra debug)
+- `already_present` (boolean — está na playlist hoje?)
+- `confidence` (0–1)
+- `calculated_at`
 
-1. Coleta últimos N snapshots (`spotify_artist_snapshots` ou equivalente que já existe).
-2. Calcula streams 7d/28d e % de crescimento.
-3. Conta presença em `managed_playlists` + `curator_playlists` (estado atual).
-4. Conta `curator_deals` ativos.
-5. Calcula `acceleration`, `saturation_index`, `frequency_score`.
-6. Classifica `momentum_class` por regras claras (não ML — regras determinísticas, auditáveis).
-7. Upsert em `track_ecosystem_score`.
+**Importante:** essa tabela é cache de sugestão. Nada aqui executa nada. UI lê e mostra. Humano decide.
 
-Suporta dois modos:
-- `mode: "full"` — recalcula tudo
-- `mode: "single", track_id: "..."` — recalcula uma faixa (pra debug/teste)
+## 3. Edge function `calculate-playlist-ecosystem-score`
 
-### 3. Job agendado (pg_cron)
+Modos: `full` | `single` (playlist_id).
+Para cada playlist:
+1. Lista as faixas nossas presentes (via `curator_playlists.song_id` ou `managed_playlists`).
+2. Junta com `track_ecosystem_score` pra pegar momentum/streams já calculado.
+3. Agrega: soma streams, calcula % por momentum_class, calcula growth da playlist via snapshots agregados.
+4. Classifica `health_class` por regras determinísticas.
+5. Upsert em `playlist_ecosystem_score`.
 
-1x por dia, madrugada (ex: 04:00 BRT). Chama a edge function em modo `full`.
+## 4. Edge function `calculate-track-playlist-fit`
 
-### 4. Página de debug `/sistema?tab=ecosystem-score`
+Modos: `full` | `single` (track_id ou playlist_id).
+Heurísticas determinísticas (sem ML):
+- **Gap detection**: faixa `subindo` ou `forte` que NÃO está em playlist `aquecida` do mesmo gênero do curador → `adicionar` com fit alto.
+- **Saturação**: faixa `saturada` presente em playlist `esfriando` há muito tempo → `remover`.
+- **Reorganizar**: faixa `subindo` em playlist mas em posição ruim (se tivermos posição) → flag.
+- **Manter**: faixa `estavel` + playlist `estavel` → confirma status quo.
 
-Nova aba dentro de **Admin > Infra > Sistema** (já existe deep-link via `?tab=`). Mostra:
+Cada sugestão guarda `evidence` (jsonb) com os números brutos: "streams_7d=X, growth=Y%, playlist health=Z" pra você auditar.
 
-- Tabela com todas as faixas e seus scores
-- Filtros por `momentum_class`, `confidence`, busca por nome/artista
-- Coluna "raio-x" expansível mostrando os números crus (streams 7d/28d, presença, snapshots usados)
-- Botão "Recalcular esta faixa" (chama edge function modo single)
-- Botão "Recalcular tudo" (chama modo full, com confirmação)
-- Última execução do job + status
+## 5. Cron
 
-Sem ações de recomendação. Só leitura + recálculo. O objetivo dessa página é **você bater o olho e dizer "esses números fazem sentido"**.
+`calculate-playlist-ecosystem-score`: 1x/dia, 04:30 BRT (depois do score de track).
+`calculate-track-playlist-fit`: 1x/dia, 05:00 BRT.
 
----
+## 6. UI: nova aba `/sistema?tab=playlist-score`
 
-## Regras de classificação (`momentum_class`)
+Mesma cara da tela de Wave 1 (tabela densa, filtros, expand pra raio-x). Mostra todas as playlists com health_class, top faixas, faixas problemáticas. Botão "Recalcular esta playlist".
 
-Determinísticas, ajustáveis depois:
+## 7. UI: `/sistema?tab=recomendacoes`
 
-```text
-sem_dados   → confidence < 0.3 (poucos snapshots)
-subindo     → growth_7d > 20% E acceleration > 0
-forte       → growth_28d > 50% E presença alta E não saturada
-estavel     → |growth_28d| <= 10%
-caindo      → growth_28d < -15%
-saturada    → presença alta (top 20%) E growth_28d < 5%
-fraca       → presença baixa E growth_28d <= 0
-```
+A **tela de curadoria assistida** que você descreveu no prompt original. Read-only.
 
-Valores serão constantes nomeadas no topo da edge function pra você tunar fácil depois de ver os dados reais.
+Layout:
+- **Filtros no topo**: tipo (adicionar/remover/reorganizar), curador, gênero, fit mínimo, confidence mínima.
+- **Lista de cards de recomendação**, cada um:
+  - Faixa (nome + artista + momentum badge)
+  - → Playlist alvo (nome + curador + health badge)
+  - Fit score grande (ex: `87 / 100`)
+  - Tags de motivo (`genre_match`, `momentum_alinhado`, etc)
+  - Botão **"Ver evidência"** → drawer com os números crus (track_ecosystem_score + playlist_ecosystem_score lado a lado)
+  - Botão **"Marcar como vista"** (registra que você revisou, sem executar nada)
+  - Botão **"Descartar"** (registra que rejeitou a sugestão — feedback pra ajustar pesos depois)
 
----
+Sem botão "Adicionar agora". Sem execução. O humano abre o Spotify e age — ou, em wave futura, dispara um deal manualmente.
 
-## Detalhes técnicos
-
-- **Fonte de snapshots**: vou verificar exatamente qual tabela contém os snapshots S4A (`spotify_artist_snapshots`, `track_snapshots`, etc) antes de escrever a query.
-- **Performance**: se a base de tracks for grande (>10k), o job processa em lotes de 500 com `Promise.all` controlado.
-- **Idempotência**: upsert por `spotify_track_id`.
-- **Sem dependência externa nova**: só Postgres + edge function + pg_cron (já habilitado).
-- **Sem mudança no bot**: zero impacto na coleta atual.
-
----
-
-## Entregáveis Wave 1
-
-1. Migração: tabela `track_ecosystem_score` + RLS + índices
-2. Edge function `calculate-track-ecosystem-score`
-3. Cron job 1x/dia
-4. Página de debug em `/sistema?tab=ecosystem-score`
-5. Item "Ecosystem Score" no submenu de Sistema na sidebar
+Pra trackear visto/descartado: tabela leve `recommendation_feedback (user_id, fit_id, action, created_at)`.
 
 ---
 
-## Critério de sucesso (pra liberar Wave 2)
+## Critério de sucesso (pra liberar Wave 3)
 
-Você abre a página de debug, olha 20 faixas que conhece bem, e fala:
-- "Essa tá subindo mesmo" ✅
-- "Essa tá saturada, faz sentido" ✅
-- "Essa tá classificada errada" → ajustamos os thresholds
+Você abre a tela de recomendações, olha as primeiras 30 sugestões e fala:
+- "Faz sentido, eu faria isso" → 70%+
+- "Não faria, mas entendo o motivo" → 20%
+- "Tá errado" → ajustamos thresholds/pesos
 
-Quando 80%+ das classificações baterem com seu julgamento manual, Wave 2 (análise de playlists + UI de recomendação read-only) está liberada.
+Quando bater 70%+, Wave 3 (execução assistida via deals + tracking de impacto) está liberada.
 
 ---
 
 ## Fora de escopo nessa Wave
 
-- ❌ Análise por playlist
-- ❌ UI de recomendações (Add/Remove/Reorder)
-- ❌ Tabela `playlist_recommendations`
-- ❌ Execução automática
-- ❌ Mudanças na coleta do bot
+- ❌ Executar adição/remoção
+- ❌ Criar deals automaticamente
+- ❌ ML / embeddings (continua tudo regra determinística)
+- ❌ Alertas push/email
+- ❌ Mudanças no bot
 
-Posso começar pela migração + verificação das tabelas de snapshot existentes?
+---
+
+## Sequência sugerida de entrega
+
+1. Migração: `playlist_ecosystem_score` + `track_playlist_fit` + `recommendation_feedback` + RLS + índices
+2. Edge function `calculate-playlist-ecosystem-score` + tela debug `?tab=playlist-score`
+3. **Pausa pra você validar** os números da playlist (mesmo critério da Wave 1)
+4. Edge function `calculate-track-playlist-fit` + tela `?tab=recomendacoes`
+5. Cron jobs
+6. Iteração de thresholds com base no seu feedback
+
+Posso começar pela migração + edge function de playlist score?
