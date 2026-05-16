@@ -92,17 +92,35 @@ export default function PlaylistDeals() {
       : [],
   );
 
+  const dealsWithBaseline = useMemo(
+    () => new Set(logs.filter((l) => l.is_baseline).map((l) => l.deal_id)),
+    [logs],
+  );
+
+  const activeCounts = useMemo(() => {
+    const actives = deals.filter((d) => !d.closed_at);
+    let running = 0;
+    let waiting = 0;
+    for (const d of actives) {
+      if (dealsWithBaseline.has(d.id)) running++;
+      else waiting++;
+    }
+    return { all: actives.length, running, waiting };
+  }, [deals, dealsWithBaseline]);
+
   const filtered = useMemo(() => {
-    const base =
+    let base =
       tab === "done" ? deals.filter((d) => !!d.closed_at)
       : tab === "active" ? deals.filter((d) => !d.closed_at)
       : deals;
+
+    if (tab === "active") {
+      if (activeSubFilter === "running") base = base.filter((d) => dealsWithBaseline.has(d.id));
+      else if (activeSubFilter === "waiting") base = base.filter((d) => !dealsWithBaseline.has(d.id));
+    }
     // Agrupa por CAMPANHA (mesmo nome de música fica junto), independente de curador.
     // Dentro de cada campanha: ativos com baseline > ativos sem baseline > encerrados.
     // Ordem das campanhas: a primeira campanha que tiver um deal "mais ativo" aparece antes.
-    const dealsWithBaseline = new Set(
-      logs.filter((l) => l.is_baseline).map((l) => l.deal_id),
-    );
     const rank = (d: typeof deals[number]) =>
       d.closed_at ? 2 : dealsWithBaseline.has(d.id) ? 0 : 1;
     const campaignKey = (d: typeof deals[number]) =>
@@ -137,7 +155,7 @@ export default function PlaylistDeals() {
       // mesma campanha: ativos primeiro
       return rank(a) - rank(b);
     });
-  }, [deals, logs, tab]);
+  }, [deals, dealsWithBaseline, tab, activeSubFilter]);
 
   const handleNew = () => setNewOpen(true);
 
