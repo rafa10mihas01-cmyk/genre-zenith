@@ -2,9 +2,10 @@
 // Tabs no padrão visual do app (border-b + ícone + label), igual Operação / Playlist Deals / Comunidade.
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import { Activity, Workflow, Music2, HeartPulse, Bot, Bell, ListPlus, Settings as SettingsIcon, Archive, Gauge, ListMusic } from "lucide-react";
+import { Activity, Workflow, Music2, HeartPulse, Bot, Bell, ListPlus, Settings as SettingsIcon, Archive, Gauge, ListMusic, Sparkles } from "lucide-react";
 import { EcosystemScorePanel } from "@/components/sistema/EcosystemScorePanel";
 import { PlaylistScorePanel } from "@/components/sistema/PlaylistScorePanel";
+import { RecomendacoesPanel } from "@/components/sistema/RecomendacoesPanel";
 import { DeprecationPanel } from "@/components/sistema/DeprecationPanel";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
@@ -21,7 +22,7 @@ import { ExecucaoPanel } from "@/components/sistema/ExecucaoPanel";
 import Settings from "@/pages/Settings";
 
 type SistemaTab =
-  | "fluxo" | "ao-vivo" | "robo" | "coleta" | "execucao" | "saude" | "alertas" | "ecosystem-score" | "playlist-score" | "aposentadoria" | "configuracoes";
+  | "fluxo" | "ao-vivo" | "robo" | "coleta" | "execucao" | "saude" | "alertas" | "ecosystem-score" | "playlist-score" | "recomendacoes" | "aposentadoria" | "configuracoes";
 
 type TabDef = { id: SistemaTab; label: string; icon: typeof Activity; adminOnly?: boolean };
 
@@ -35,6 +36,7 @@ const TABS: TabDef[] = [
   { id: "alertas", label: "Alertas", icon: Bell },
   { id: "ecosystem-score", label: "Ecosystem Score", icon: Gauge, adminOnly: true },
   { id: "playlist-score", label: "Playlist Score", icon: ListMusic, adminOnly: true },
+  { id: "recomendacoes", label: "Recomendações", icon: Sparkles, adminOnly: true },
   { id: "aposentadoria", label: "Aposentadoria", icon: Archive, adminOnly: true },
   { id: "configuracoes", label: "Configurações", icon: SettingsIcon },
 ];
@@ -95,6 +97,7 @@ export default function Sistema() {
         {activeTab === "alertas" && <AlertasHistorico />}
         {activeTab === "ecosystem-score" && <EcosystemScorePanel />}
         {activeTab === "playlist-score" && <PlaylistScorePanel />}
+        {activeTab === "recomendacoes" && <RecomendacoesPanel />}
         {activeTab === "aposentadoria" && <DeprecationPanel />}
         {activeTab === "configuracoes" && <Settings embedded />}
       </div>
