@@ -770,6 +770,33 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, isEdit, editDeal?.id]);
 
+  // Pré-fill vindo do painel de Recomendações (modo novo)
+  useEffect(() => {
+    if (!open || isEdit) return;
+    if (prefillCuratorId) {
+      setCuratorMode("select");
+      setSelectedCuratorId(prefillCuratorId);
+    }
+    if (prefillSongUrl) {
+      setSongs((prev) => {
+        const next = [...prev];
+        if (next.length === 0) next.push(emptySong());
+        next[0] = { ...next[0], url: prefillSongUrl, meta: null, error: undefined };
+        return next;
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, isEdit, prefillSongUrl, prefillCuratorId]);
+
+  // Auto-buscar metadados da música pré-preenchida
+  useEffect(() => {
+    if (!open || isEdit || !prefillSongUrl) return;
+    if (songs[0]?.url === prefillSongUrl && !songs[0]?.meta && !songs[0]?.searching) {
+      void handleSearchSong(0);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, isEdit, prefillSongUrl, songs[0]?.url]);
+
   // ============================================================
   // Songs handlers
   // ============================================================
