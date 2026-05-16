@@ -246,7 +246,7 @@ export function PlaylistScorePanel() {
                   Nenhuma playlist. Rode "Recalcular tudo" para popular.
                 </td></tr>
               )}
-              {filtered.map((r) => {
+              {visibleRows.map((r) => {
                 const isOpen = expanded === r.id;
                 return (
                   <>
