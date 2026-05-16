@@ -15,6 +15,7 @@ import {
   usePlaylistBrain,
   usePlaylistBrainHistory,
   useRecalcPlaylistBrain,
+  useDiagnoseManagedPlaylist,
   type BrainSignal,
   type BrainRecommendation,
 } from "@/hooks/usePlaylistBrain";
@@ -74,6 +75,7 @@ export default function PlaylistDetail() {
   const { data: brain, isLoading: brainLoading } = usePlaylistBrain(id);
   const { data: history } = usePlaylistBrainHistory(id, 30);
   const recalc = useRecalcPlaylistBrain();
+  const diagnose = useDiagnoseManagedPlaylist();
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = (searchParams.get("tab") === "faixas" ? "faixas" : "geral") as "geral" | "faixas";
   const setTab = (t: "geral" | "faixas") => {
@@ -144,6 +146,19 @@ export default function PlaylistDetail() {
                 <a href={mgd.spotify_url} target="_blank" rel="noreferrer">
                   Spotify <ExternalLink className="h-3.5 w-3.5 ml-1" />
                 </a>
+              </Button>
+            )}
+            {mgd?.id && (
+              <Button
+                onClick={() => id && mgd?.id && diagnose.mutate({ managedId: mgd.id, playlistId: id })}
+                disabled={diagnose.isPending}
+                variant="outline"
+                className="nx-pill"
+              >
+                {diagnose.isPending
+                  ? <Loader2 className="h-4 w-4 animate-spin" />
+                  : <Sparkles className="h-4 w-4" />}
+                <span className="ml-1.5">Diagnosticar agora</span>
               </Button>
             )}
             <Button
