@@ -1,200 +1,132 @@
-# Reorganização da Sidebar — Plano em 3 Fases
+# Wave 1 — Track Ecosystem Score
 
-Objetivo: sidebar que se entende batendo o olho, sem quebrar nada, sem expor arquitetura antiga, e com decisão de remoção baseada em uso real.
+Objetivo: criar a **camada base de inteligência** que vai alimentar tudo depois (análise de playlists, recomendações, execução). Sem essa camada confiável, as Waves 2 e 3 não fazem sentido.
 
-Princípios não-negociáveis das 3 fases:
-- Zero quebra de URL. Tudo que existe hoje continua acessível por rota direta.
-- Zero remoção de código nesta etapa. Só reorganização e ocultação.
-- Cada fase é independente, mergeável sozinha, reversível em 1 commit.
-- Nada de telemetria → nada de remoção. Fase C só roda depois de dados reais.
+Nada de UI de recomendação ainda. Nada de execução. Só **score + página de debug** pra você validar se os sinais batem com a realidade.
 
 ---
 
-## Fase A — Reorganização visual segura (sem destruir nada)
+## O que será construído
 
-Entrega: nova estrutura de sidebar em 4 grupos, submenus contextuais, rodapé com Configurações. Todas as rotas antigas continuam funcionando como alias.
+### 1. Tabela `track_ecosystem_score`
 
-### Nova estrutura visível
+Uma linha por `spotify_track_id`, recalculada periodicamente. Guarda o "raio-x" de cada faixa dentro do ecossistema NexEngine.
+
+Campos principais (além de id/timestamps):
+
+- `spotify_track_id` (unique)
+- `track_name`, `artist_name` (denormalizado pra debug rápido)
+- **Crescimento** (vindo dos snapshots de Spotify for Artists):
+  - `streams_total`
+  - `streams_7d`, `streams_28d`
+  - `growth_7d_pct`, `growth_28d_pct`
+  - `acceleration` (derivada — diferença entre growth 7d e 28d)
+- **Presença no ecossistema**:
+  - `managed_playlist_count` (em quantas playlists nossas está)
+  - `curator_playlist_count` (em quantas playlists de curadores está)
+  - `total_playlist_count`
+  - `deal_active_count` (em quantos `curator_deals` ativos aparece)
+- **Diagnóstico**:
+  - `saturation_index` (0–1: muita presença + pouco crescimento = saturada)
+  - `frequency_score` (0–1)
+  - `momentum_class`: `subindo` | `forte` | `estavel` | `caindo` | `saturada` | `fraca` | `sem_dados`
+  - `confidence` (0–1: baseado em quantidade de snapshots disponíveis)
+- `last_snapshot_at`, `calculated_at`
+
+RLS: leitura para usuários autenticados, escrita só via service_role (edge function).
+
+Índices em `spotify_track_id`, `momentum_class`, `calculated_at`.
+
+### 2. Edge function `calculate-track-ecosystem-score`
+
+Roda em batch. Para cada faixa relevante:
+
+1. Coleta últimos N snapshots (`spotify_artist_snapshots` ou equivalente que já existe).
+2. Calcula streams 7d/28d e % de crescimento.
+3. Conta presença em `managed_playlists` + `curator_playlists` (estado atual).
+4. Conta `curator_deals` ativos.
+5. Calcula `acceleration`, `saturation_index`, `frequency_score`.
+6. Classifica `momentum_class` por regras claras (não ML — regras determinísticas, auditáveis).
+7. Upsert em `track_ecosystem_score`.
+
+Suporta dois modos:
+- `mode: "full"` — recalcula tudo
+- `mode: "single", track_id: "..."` — recalcula uma faixa (pra debug/teste)
+
+### 3. Job agendado (pg_cron)
+
+1x por dia, madrugada (ex: 04:00 BRT). Chama a edge function em modo `full`.
+
+### 4. Página de debug `/sistema?tab=ecosystem-score`
+
+Nova aba dentro de **Admin > Infra > Sistema** (já existe deep-link via `?tab=`). Mostra:
+
+- Tabela com todas as faixas e seus scores
+- Filtros por `momentum_class`, `confidence`, busca por nome/artista
+- Coluna "raio-x" expansível mostrando os números crus (streams 7d/28d, presença, snapshots usados)
+- Botão "Recalcular esta faixa" (chama edge function modo single)
+- Botão "Recalcular tudo" (chama modo full, com confirmação)
+- Última execução do job + status
+
+Sem ações de recomendação. Só leitura + recálculo. O objetivo dessa página é **você bater o olho e dizer "esses números fazem sentido"**.
+
+---
+
+## Regras de classificação (`momentum_class`)
+
+Determinísticas, ajustáveis depois:
 
 ```text
-COCKPIT
-  Início                  /                      (Hoje + Executivo como abas internas)
-
-OPERAÇÃO
-  Campanhas               /campanhas
-  Playlist Deals          /deals
-    └ Deals               /deals
-    └ Curadores           /curadores
-    └ Comparar            /deals/comparar
-  Playlists               /playlists             (alias: /catalogo, /operacao)
-
-INTELIGÊNCIA
-  Inteligência            /inteligencia          (alias: /cerebro)
-  Analytics               /analytics
-    └ Performance         /analytics/performance
-    └ Valuation           /analytics/valuation
-    └ Benchmarks          /benchmarks
-    └ Matriz              /matriz
-    └ Heatmap             /heatmap
-
-ADMIN (só admin)
-  Infra                   /infra                 (Sistema + Infraestrutura + Aposentadoria como abas)
-  Comunidade              /comunidade
-
-RODAPÉ (ícone discreto, ao lado do logout)
-  Configurações           /configuracoes         (alias: /settings)
+sem_dados   → confidence < 0.3 (poucos snapshots)
+subindo     → growth_7d > 20% E acceleration > 0
+forte       → growth_28d > 50% E presença alta E não saturada
+estavel     → |growth_28d| <= 10%
+caindo      → growth_28d < -15%
+saturada    → presença alta (top 20%) E growth_28d < 5%
+fraca       → presença baixa E growth_28d <= 0
 ```
 
-De 13 itens visíveis → 5 itens base + 2 admin. Submenus só abrem quando o grupo está ativo.
-
-### Checklist Fase A
-
-1. Atualizar `src/components/AppSidebar.tsx` com a nova hierarquia (grupos + submenus colapsáveis).
-2. Mover Configurações pro `SidebarFooter` (ícone gear ao lado do logout).
-3. Adicionar rotas alias em `src/App.tsx`:
-   - `/catalogo` → renderiza Playlists
-   - `/operacao` → renderiza Playlists
-   - `/cerebro` → renderiza Inteligência (ainda é a página antiga nesta fase)
-   - `/settings` → renderiza Configurações
-4. Consolidar tabs internas em **Início** (Hoje + Executivo) e em **Infra** (Sistema + Infraestrutura + Aposentadoria).
-5. Corrigir `SidebarSmartPanel.tsx`: remover atalhos quebrados (`?tab=coleta|insights|replicacao`, `?tab=cover-queue`). Substituir por atalhos vivos (ex.: "Ver deals ativos", "Playlists em queda").
-6. Highlight do item ativo + grupo pai expandido automaticamente via `useLocation`.
-
-### Impacto esperado
-
-- Carga visual da sidebar cai ~60%.
-- Zero links quebrados (todos os alias resolvem).
-- Nenhum dado/funcionalidade removida.
-
-### Rollback
-
-- Reverter o commit da `AppSidebar.tsx` e do `App.tsx`. Páginas continuam intactas.
-
-### Validação pós-deploy
-
-- Clicar em cada item e cada submenu → tela carrega.
-- Acessar cada URL antiga direto pelo browser → resolve.
-- `SidebarSmartPanel` sem `onClick` apontando pra tab inexistente (grep por `?tab=`).
+Valores serão constantes nomeadas no topo da edge function pra você tunar fácil depois de ver os dados reais.
 
 ---
 
-## Fase B — Fusão conceitual Cérebro → Inteligência
+## Detalhes técnicos
 
-Entrega: uma única página de Inteligência que absorve o que sobrou do Cérebro pós-Fase 1, sem perder nenhum widget útil.
-
-Pré-requisito: Fase A em produção há pelo menos 3 dias sem reclamação.
-
-### O que sobrou útil em /cerebro pós-Fase 1
-
-- Painel de recomendações (sugestões de troca de playlist)
-- Visão por gênero (`/cerebro/:genero`)
-- Sinais agregados de S4A
-
-### O que já está em /inteligencia hoje
-
-(verificar no momento da execução; provavelmente: scoring, ranking, leituras)
-
-### Checklist Fase B
-
-1. Inventário lado a lado: listar cada widget de `Cerebro.tsx` e `Inteligencia.tsx` e marcar: **manter / fundir / descartar**.
-2. Criar `src/pages/Inteligencia.tsx` v2 com layout em abas:
-   - **Visão geral** (recomendações + sinais)
-   - **Por gênero** (substitui `/cerebro/:genero`)
-   - **Histórico de decisões** (o que foi sugerido e o que foi feito)
-3. Manter `/cerebro` e `/cerebro/:genero` como **redirect 301 client-side** pra `/inteligencia` e `/inteligencia/genero/:genero`.
-4. Remover label "Cérebro" da sidebar (já feito na Fase A; aqui só confirma).
-5. Atualizar links internos do app que ainda apontam pra `/cerebro` (grep + replace).
-
-### Impacto esperado
-
-- Some um conceito duplicado. Operador para de perguntar "Cérebro ou Inteligência?".
-- Zero perda funcional.
-
-### Rollback
-
-- Reverter o redirect e o componente novo. Páginas antigas voltam intactas (não foram deletadas).
-
-### Validação pós-deploy
-
-- `/cerebro` redireciona pra `/inteligencia` sem flash.
-- Todos os widgets úteis aparecem na nova página.
-- Nenhum erro 404 nos logs (`function_edge_logs` + console).
+- **Fonte de snapshots**: vou verificar exatamente qual tabela contém os snapshots S4A (`spotify_artist_snapshots`, `track_snapshots`, etc) antes de escrever a query.
+- **Performance**: se a base de tracks for grande (>10k), o job processa em lotes de 500 com `Promise.all` controlado.
+- **Idempotência**: upsert por `spotify_track_id`.
+- **Sem dependência externa nova**: só Postgres + edge function + pg_cron (já habilitado).
+- **Sem mudança no bot**: zero impacto na coleta atual.
 
 ---
 
-## Fase C — Limpeza definitiva baseada em telemetria
+## Entregáveis Wave 1
 
-Entrega: remoção de código morto e rotas órfãs. Só roda depois de dados reais.
-
-Pré-requisito: 14 dias de telemetria de `page_hits` rodando após Fase B.
-
-### Setup de telemetria (executar no início da Fase B, não no fim)
-
-Tabela mínima:
-
-```sql
-create table public.page_hits (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid,
-  path text not null,
-  referrer text,
-  hit_at timestamptz not null default now()
-);
-create index on page_hits (path, hit_at desc);
-```
-
-Hook global `usePageHit()` em `App.tsx` que dispara um insert a cada mudança de rota (debounce 500ms, ignora bots/admin se quiser).
-
-### Candidatos a remoção (avaliar com dados, não com achismo)
-
-| Rota | Critério de remoção |
-|---|---|
-| `/benchmarks` | < 5 hits/semana por 2 semanas |
-| `/matriz` | idem |
-| `/heatmap` | idem |
-| `/curadoria-preview` | idem |
-| `/executivo` (se virou aba de Início) | rota direta com < 5 hits |
-| Componentes deprecados visualmente em Fase 1 | já ocultos, agora apaga arquivo |
-
-### Checklist Fase C
-
-1. Rodar query: `select path, count(*) from page_hits where hit_at > now() - interval '14 days' group by 1 order by 2`.
-2. Para cada rota abaixo do threshold:
-   - Remover do `App.tsx`
-   - Deletar a página
-   - Deletar componentes filhos só usados ali
-   - `rg` no projeto pra confirmar zero imports órfãos
-3. Rodar `depcheck` (ou `bunx knip`) → listar dependências npm sem uso → remover.
-4. Auditar edge functions já marcadas como deprecated na Fase 1 (`410 Gone`):
-   - Se 14 dias sem nenhum hit em `deprecation_hits` → deletar a função.
-   - Se ainda tem hit de caller ≠ "ui"/"cron" → investigar antes de deletar.
-5. Revisar quotas/custos: comparar gasto de edge functions e DB do mês corrente vs. mês pré-Fase 1.
-
-### Impacto esperado
-
-- Redução real de superfície de código e de custo.
-- Decisão defensável (baseada em uso, não em opinião).
-
-### Rollback
-
-- Cada remoção vira um commit separado. Reverter individualmente se algo aparecer.
-
-### Validação pós-deploy
-
-- Build passa, smoke test das rotas que sobraram.
-- Custos Cloud caem na semana seguinte (verificar dashboard).
+1. Migração: tabela `track_ecosystem_score` + RLS + índices
+2. Edge function `calculate-track-ecosystem-score`
+3. Cron job 1x/dia
+4. Página de debug em `/sistema?tab=ecosystem-score`
+5. Item "Ecosystem Score" no submenu de Sistema na sidebar
 
 ---
 
-## Detalhes técnicos relevantes (apêndice)
+## Critério de sucesso (pra liberar Wave 2)
 
-- A nova `AppSidebar` usa o padrão shadcn `Sidebar` + `SidebarGroup` + `SidebarMenuSub` para submenus contextuais. `collapsible="icon"` mantém a versão estreita com ícones.
-- Submenu só renderiza expandido quando a rota ativa pertence ao grupo (via `useLocation` + `isActive`).
-- Alias de rota = `<Route path="/catalogo" element={<Playlists />} />`. Sem redirect, sem flash, sem mudança de URL na barra do browser.
-- Redirect Fase B = `<Route path="/cerebro" element={<Navigate to="/inteligencia" replace />} />`.
-- Telemetria não depende de Lovable Cloud externo: insert direto na tabela `page_hits` com RLS `auth.uid() = user_id`.
-- Nenhuma mudança em edge functions, deals, autopilot ou Spotify nesta reorganização. É puramente camada de navegação e apresentação.
+Você abre a página de debug, olha 20 faixas que conhece bem, e fala:
+- "Essa tá subindo mesmo" ✅
+- "Essa tá saturada, faz sentido" ✅
+- "Essa tá classificada errada" → ajustamos os thresholds
+
+Quando 80%+ das classificações baterem com seu julgamento manual, Wave 2 (análise de playlists + UI de recomendação read-only) está liberada.
 
 ---
 
-Próximo passo: aprovar este plano e eu começo pela Fase A.
+## Fora de escopo nessa Wave
+
+- ❌ Análise por playlist
+- ❌ UI de recomendações (Add/Remove/Reorder)
+- ❌ Tabela `playlist_recommendations`
+- ❌ Execução automática
+- ❌ Mudanças na coleta do bot
+
+Posso começar pela migração + verificação das tabelas de snapshot existentes?
