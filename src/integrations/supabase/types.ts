@@ -1065,6 +1065,7 @@ export type Database = {
           id: string
           playlist_name: string | null
           snapshot_id: string | null
+          song_id: string | null
           spotify_playlist_id: string
         }
         Insert: {
@@ -1074,6 +1075,7 @@ export type Database = {
           id?: string
           playlist_name?: string | null
           snapshot_id?: string | null
+          song_id?: string | null
           spotify_playlist_id: string
         }
         Update: {
@@ -1083,6 +1085,7 @@ export type Database = {
           id?: string
           playlist_name?: string | null
           snapshot_id?: string | null
+          song_id?: string | null
           spotify_playlist_id?: string
         }
         Relationships: []
@@ -4607,10 +4610,19 @@ export type Database = {
       }
       is_admin: { Args: never; Returns: boolean }
       is_current_user_admin: { Args: never; Returns: boolean }
-      is_playlist_in_deal_baseline: {
-        Args: { p_deal_id: string; p_spotify_playlist_id: string }
-        Returns: boolean
-      }
+      is_playlist_in_deal_baseline:
+        | {
+            Args: { p_deal_id: string; p_spotify_playlist_id: string }
+            Returns: boolean
+          }
+        | {
+            Args: {
+              p_deal_id: string
+              p_song_id?: string
+              p_spotify_playlist_id: string
+            }
+            Returns: boolean
+          }
       log_ai_usage: {
         Args: {
           p_duration_ms?: number

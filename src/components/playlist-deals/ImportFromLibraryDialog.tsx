@@ -34,6 +34,15 @@ function fmt(n: number | null | undefined): string {
   return Math.round(n).toLocaleString("pt-BR");
 }
 
+function errorMessage(e: unknown): string {
+  if (e instanceof Error) return e.message;
+  if (e && typeof e === "object") {
+    const obj = e as { message?: unknown; details?: unknown; hint?: unknown; code?: unknown };
+    return [obj.message, obj.details, obj.hint, obj.code].filter(Boolean).map(String).join(" · ") || "Erro desconhecido";
+  }
+  return String(e || "Erro desconhecido");
+}
+
 export function ImportFromLibraryDialog({
   open,
   deal,
@@ -171,7 +180,7 @@ export function ImportFromLibraryDialog({
       onImported?.();
       onClose();
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
+      const msg = errorMessage(e);
       toast.error("Não foi possível importar", { description: msg });
     } finally {
       setSubmitting(false);
