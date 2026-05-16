@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
         "Authorization": `Bearer ${SERVICE_KEY}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({}),
+      body: JSON.stringify({ batch: true, limit: 500 }),
     });
   } catch (_) { /* ignore */ }
 
