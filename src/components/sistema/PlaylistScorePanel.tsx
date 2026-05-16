@@ -64,6 +64,8 @@ export function PlaylistScorePanel() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [recalcAll, setRecalcAll] = useState(false);
   const [recalcSingle, setRecalcSingle] = useState<string | null>(null);
+  const [visibleCount, setVisibleCount] = useState(15);
+  const sentinelRef = useRef<HTMLTableRowElement | null>(null);
   const { toast } = useToast();
 
   const load = async () => {
