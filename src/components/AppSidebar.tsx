@@ -108,6 +108,7 @@ const sections: NavSection[] = [
           { title: "Sistema", url: "/sistema?tab=fluxo" },
           { title: "Saúde", url: "/sistema?tab=saude" },
           { title: "Jobs", url: "/sistema?tab=execucao" },
+          { title: "Ecosystem Score", url: "/sistema?tab=ecosystem-score" },
           { title: "Aposentadoria", url: "/sistema?tab=aposentadoria" },
         ],
       },

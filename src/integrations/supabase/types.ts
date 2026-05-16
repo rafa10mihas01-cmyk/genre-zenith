@@ -4036,6 +4036,84 @@ export type Database = {
         }
         Relationships: []
       }
+      track_ecosystem_score: {
+        Row: {
+          acceleration: number | null
+          artist_name: string | null
+          calculated_at: string
+          confidence: number | null
+          created_at: string
+          curator_playlist_count: number | null
+          deal_active_count: number | null
+          frequency_score: number | null
+          growth_28d_pct: number | null
+          growth_7d_pct: number | null
+          id: string
+          last_snapshot_at: string | null
+          managed_playlist_count: number | null
+          momentum_class: string
+          saturation_index: number | null
+          snapshots_used: number | null
+          spotify_track_id: string
+          streams_28d: number | null
+          streams_7d: number | null
+          streams_total: number | null
+          total_playlist_count: number | null
+          track_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          acceleration?: number | null
+          artist_name?: string | null
+          calculated_at?: string
+          confidence?: number | null
+          created_at?: string
+          curator_playlist_count?: number | null
+          deal_active_count?: number | null
+          frequency_score?: number | null
+          growth_28d_pct?: number | null
+          growth_7d_pct?: number | null
+          id?: string
+          last_snapshot_at?: string | null
+          managed_playlist_count?: number | null
+          momentum_class?: string
+          saturation_index?: number | null
+          snapshots_used?: number | null
+          spotify_track_id: string
+          streams_28d?: number | null
+          streams_7d?: number | null
+          streams_total?: number | null
+          total_playlist_count?: number | null
+          track_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          acceleration?: number | null
+          artist_name?: string | null
+          calculated_at?: string
+          confidence?: number | null
+          created_at?: string
+          curator_playlist_count?: number | null
+          deal_active_count?: number | null
+          frequency_score?: number | null
+          growth_28d_pct?: number | null
+          growth_7d_pct?: number | null
+          id?: string
+          last_snapshot_at?: string | null
+          managed_playlist_count?: number | null
+          momentum_class?: string
+          saturation_index?: number | null
+          snapshots_used?: number | null
+          spotify_track_id?: string
+          streams_28d?: number | null
+          streams_7d?: number | null
+          streams_total?: number | null
+          total_playlist_count?: number | null
+          track_name?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
