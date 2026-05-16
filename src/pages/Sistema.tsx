@@ -2,10 +2,11 @@
 // Tabs no padrão visual do app (border-b + ícone + label), igual Operação / Playlist Deals / Comunidade.
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import { Activity, Workflow, Music2, HeartPulse, Bot, Bell, ListPlus, Settings as SettingsIcon, Archive, Gauge, ListMusic, Sparkles } from "lucide-react";
+import { Activity, Workflow, Music2, HeartPulse, Bot, Bell, ListPlus, Settings as SettingsIcon, Archive, Gauge, ListMusic, Sparkles, TrendingUp } from "lucide-react";
 import { EcosystemScorePanel } from "@/components/sistema/EcosystemScorePanel";
 import { PlaylistScorePanel } from "@/components/sistema/PlaylistScorePanel";
 import { RecomendacoesPanel } from "@/components/sistema/RecomendacoesPanel";
+import { ImpactoPanel } from "@/components/sistema/ImpactoPanel";
 import { DeprecationPanel } from "@/components/sistema/DeprecationPanel";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
