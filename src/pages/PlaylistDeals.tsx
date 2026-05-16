@@ -515,6 +515,9 @@ export default function PlaylistDeals() {
           if (!v) {
             setNewOpen(false);
             setEditDeal(null);
+            setPrefillSongUrl(null);
+            setPrefillCuratorId(null);
+            setSourceFitId(null);
           } else if (!editDeal) {
             setNewOpen(true);
           }
@@ -522,6 +525,10 @@ export default function PlaylistDeals() {
         editDeal={editDeal}
         editSongs={editDeal ? songs.filter((s) => s.deal_id === editDeal.id) : []}
         onSaved={reload}
+        prefillSongUrl={editDeal ? null : prefillSongUrl}
+        prefillCuratorId={editDeal ? null : prefillCuratorId}
+        sourceFitId={editDeal ? null : sourceFitId}
+        onCreated={handleDealCreatedFromFit}
       />
 
       <DuplicateDealDialog
