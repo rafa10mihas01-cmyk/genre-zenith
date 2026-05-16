@@ -1,5 +1,5 @@
 // Wave 2 — Painel debug Playlist Ecosystem Score
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,6 +56,10 @@ function fmtPct(n: number | null | undefined): string {
   return `${sign}${n.toFixed(1)}%`;
 }
 
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 export function PlaylistScorePanel() {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,11 +68,9 @@ export function PlaylistScorePanel() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [recalcAll, setRecalcAll] = useState(false);
   const [recalcSingle, setRecalcSingle] = useState<string | null>(null);
-  const [visibleCount, setVisibleCount] = useState(15);
-  const sentinelRef = useRef<HTMLTableRowElement | null>(null);
   const { toast } = useToast();
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase
       .from("playlist_ecosystem_score")
@@ -78,9 +80,9 @@ export function PlaylistScorePanel() {
     if (error) toast({ title: "Erro ao carregar", description: error.message, variant: "destructive" });
     setRows((data ?? []) as Row[]);
     setLoading(false);
-  };
+  }, [toast]);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [load]);
 
   const filtered = useMemo(() => {
     return rows.filter((r) => {
@@ -97,26 +99,6 @@ export function PlaylistScorePanel() {
     });
   }, [rows, filter, search]);
 
-  // Reseta scroll infinito quando filtros mudam
-  useEffect(() => { setVisibleCount(15); }, [filter, search, rows.length]);
-
-  const visibleRows = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
-  const hasMore = visibleCount < filtered.length;
-
-  // IntersectionObserver para carregar mais ao chegar no fim
-  useEffect(() => {
-    if (!hasMore) return;
-    const el = sentinelRef.current;
-    if (!el) return;
-    const io = new IntersectionObserver((entries) => {
-      if (entries.some((e) => e.isIntersecting)) {
-        setVisibleCount((c) => Math.min(c + 15, filtered.length));
-      }
-    }, { rootMargin: "200px" });
-    io.observe(el);
-    return () => io.disconnect();
-  }, [hasMore, filtered.length]);
-
   const handleRecalcAll = async () => {
     if (!confirm("Recalcular todas as playlists? Pode demorar alguns minutos (processa em lotes).")) return;
     setRecalcAll(true);
@@ -124,7 +106,6 @@ export function PlaylistScorePanel() {
     const limit = 20;
     let totalOk = 0, totalFailed = 0, grandTotal = 0;
     try {
-      // eslint-disable-next-line no-constant-condition
       while (true) {
         const { data, error } = await supabase.functions.invoke("calculate-playlist-ecosystem-score", {
           body: { mode: "batch", offset, limit },
@@ -142,8 +123,8 @@ export function PlaylistScorePanel() {
       }
       toast({ title: "Recálculo completo", description: `${totalOk} ok · ${totalFailed} falhas (${grandTotal} total)` });
       await load();
-    } catch (e: any) {
-      toast({ title: "Erro no lote", description: e?.message ?? String(e), variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Erro no lote", description: errorMessage(e), variant: "destructive" });
     } finally {
       setRecalcAll(false);
     }
@@ -158,8 +139,8 @@ export function PlaylistScorePanel() {
       if (error) throw error;
       toast({ title: "Playlist recalculada" });
       await load();
-    } catch (e: any) {
-      toast({ title: "Erro", description: e?.message ?? String(e), variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Erro", description: errorMessage(e), variant: "destructive" });
     } finally {
       setRecalcSingle(null);
     }
@@ -221,9 +202,9 @@ export function PlaylistScorePanel() {
       </Card>
 
       <Card className="overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="max-h-[640px] overflow-auto">
           <table className="w-full text-sm">
-            <thead className="bg-muted/30 text-muted-foreground text-xs uppercase tracking-wider">
+            <thead className="sticky top-0 z-10 bg-card text-muted-foreground text-xs uppercase tracking-wider shadow-[0_1px_0_hsl(var(--border))]">
               <tr>
                 <th className="w-8" />
                 <th className="text-left px-3 py-3 font-medium">Playlist</th>
@@ -246,11 +227,11 @@ export function PlaylistScorePanel() {
                   Nenhuma playlist. Rode "Recalcular tudo" para popular.
                 </td></tr>
               )}
-              {visibleRows.map((r) => {
+              {filtered.map((r) => {
                 const isOpen = expanded === r.id;
                 return (
-                  <>
-                    <tr key={r.id} className="border-t border-border hover:bg-muted/20">
+                  <Fragment key={r.id}>
+                    <tr className="border-t border-border hover:bg-muted/20">
                       <td className="px-2 py-2 align-top">
                         <button
                           onClick={() => setExpanded(isOpen ? null : r.id)}
@@ -311,26 +292,17 @@ export function PlaylistScorePanel() {
                         </td>
                       </tr>
                     )}
-                  </>
+                  </Fragment>
                 );
               })}
-              {hasMore && (
-                <tr ref={sentinelRef}>
-                  <td colSpan={10} className="text-center py-6 text-xs text-muted-foreground">
-                    Carregando mais… ({visibleRows.length} de {filtered.length})
-                  </td>
-                </tr>
-              )}
-              {!hasMore && filtered.length > 15 && (
-                <tr>
-                  <td colSpan={10} className="text-center py-4 text-xs text-muted-foreground">
-                    {filtered.length} playlists exibidas
-                  </td>
-                </tr>
-              )}
             </tbody>
           </table>
         </div>
+        {!loading && filtered.length > 0 && (
+          <div className="border-t border-border px-4 py-3 text-xs text-muted-foreground">
+            {filtered.length.toLocaleString("pt-BR")} playlists na lista
+          </div>
+        )}
       </Card>
     </div>
   );
