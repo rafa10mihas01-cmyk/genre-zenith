@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS public.curator_playlists_deal_spotify_unique;
