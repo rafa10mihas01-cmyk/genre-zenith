@@ -1,5 +1,7 @@
-// Wave 2 — Painel de Recomendações (Curadoria assistida, read-only)
+// Wave 2/3 — Painel de Recomendações (Curadoria assistida)
+// Wave 3 adicionou: Abrir Spotify · Criar deal · Pedir remoção
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,9 +10,10 @@ import { Card } from "@/components/ui/card";
 import {
   Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription,
 } from "@/components/ui/drawer";
-import { ArrowRight, Check, EyeOff, RefreshCw, RotateCw, Search, FileSearch } from "lucide-react";
+import { ArrowRight, Check, EyeOff, RefreshCw, RotateCw, Search, FileSearch, ExternalLink, Plus, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { PedirRemocaoDialog } from "./PedirRemocaoDialog";
 
 type FitRow = {
   id: string;
