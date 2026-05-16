@@ -148,6 +148,19 @@ export default function PlaylistDetail() {
                 </a>
               </Button>
             )}
+            {mgd?.id && (
+              <Button
+                onClick={() => id && mgd?.id && diagnose.mutate({ managedId: mgd.id, playlistId: id })}
+                disabled={diagnose.isPending}
+                variant="outline"
+                className="nx-pill"
+              >
+                {diagnose.isPending
+                  ? <Loader2 className="h-4 w-4 animate-spin" />
+                  : <Sparkles className="h-4 w-4" />}
+                <span className="ml-1.5">Diagnosticar agora</span>
+              </Button>
+            )}
             <Button
               onClick={() => id && recalc.mutate(id)}
               disabled={recalc.isPending}
