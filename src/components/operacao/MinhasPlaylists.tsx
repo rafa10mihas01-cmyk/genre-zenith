@@ -288,8 +288,37 @@ export function MinhasPlaylists() {
       toast({ title: "Erro", description: error.message, variant: "destructive" });
       return;
     }
-    toast({ title: restore ? "Restaurada" : "Arquivada" });
+    toast({ title: restore ? "Restaurada" : "Movida para lixeira" });
     setDrawerPl(null);
+    load();
+  }
+
+  async function deletePermanent(pl: ManagedPlaylist) {
+    if (!confirm(`Excluir permanentemente "${pl.name}"? Esta ação não pode ser desfeita.`)) return;
+    const { data, error } = await supabase.functions.invoke("delete-managed-playlist", {
+      body: { playlist_id: pl.id },
+    });
+    if (error || !(data as any)?.ok) {
+      toast({ title: "Erro", description: error?.message || (data as any)?.error || "Falha ao excluir", variant: "destructive" });
+      return;
+    }
+    toast({ title: "Excluída permanentemente" });
+    setDrawerPl(null);
+    load();
+  }
+
+  async function emptyTrash() {
+    const archivedCount = items.filter(i => i.archived_at).length;
+    if (archivedCount === 0) return;
+    if (!confirm(`Esvaziar lixeira? ${archivedCount} playlist(s) serão excluídas permanentemente. Esta ação não pode ser desfeita.`)) return;
+    const { data, error } = await supabase.functions.invoke("delete-managed-playlist", {
+      body: { delete_all_archived: true },
+    });
+    if (error || !(data as any)?.ok) {
+      toast({ title: "Erro", description: error?.message || (data as any)?.error || "Falha ao esvaziar", variant: "destructive" });
+      return;
+    }
+    toast({ title: `${(data as any)?.deleted ?? 0} playlist(s) excluídas` });
     load();
   }
 
