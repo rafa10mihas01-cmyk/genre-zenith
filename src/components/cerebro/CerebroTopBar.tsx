@@ -86,7 +86,7 @@ export function CerebroTopBar({
 
         {/* KPIs */}
         <div className="flex-1 grid grid-cols-4 items-center px-3 pb-2 md:pb-0 md:px-1">
-          <Kpi icon={ListMusic} label="Playlists" value={formatNumber(genre?.total_playlists)} accent />
+          <Kpi icon={ListMusic} label="Base mercado" value={formatNumber(genre?.total_playlists)} accent />
           <Kpi icon={Music2} label="Faixas" value={formatNumber(genre?.total_musicas)} />
           <Kpi icon={TrendingUp} label="Termos" value={formatNumber(genre?.total_termos)} />
           <Kpi icon={Clock} label="Análise" value={lastAnalysis ? timeAgo(lastAnalysis) : "—"} small />
