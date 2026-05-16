@@ -100,6 +100,7 @@ export default function Sistema() {
         {activeTab === "ecosystem-score" && <EcosystemScorePanel />}
         {activeTab === "playlist-score" && <PlaylistScorePanel />}
         {activeTab === "recomendacoes" && <RecomendacoesPanel />}
+        {activeTab === "impacto" && <ImpactoPanel />}
         {activeTab === "aposentadoria" && <DeprecationPanel />}
         {activeTab === "configuracoes" && <Settings embedded />}
       </div>
