@@ -53,7 +53,7 @@ const TABS = [
   { id: "playlists", label: "Criadas (auto)", icon: ListMusic },
   { id: "simulador", label: "Simulador", icon: Calculator },
   { id: "ajustes",   label: "Ajustes",   icon: Wrench },
-  { id: "curadores", label: "Curadores", icon: UserSearch },
+  { id: "curadores", label: "Prospecção", icon: UserSearch },
 ] as const;
 
 type TabId = typeof TABS[number]["id"];
