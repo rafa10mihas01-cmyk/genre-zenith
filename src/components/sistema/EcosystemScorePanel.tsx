@@ -1,6 +1,6 @@
 // Wave 1 — Debug panel for Track Ecosystem Score.
 // Read-only table + recalc buttons. Sem ações de recomendação.
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
