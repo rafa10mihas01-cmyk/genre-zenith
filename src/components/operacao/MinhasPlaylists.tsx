@@ -523,7 +523,17 @@ export function MinhasPlaylists() {
                 ? "bg-primary/15 border-primary/40 text-primary"
                 : "bg-elevated border-border text-muted-foreground hover:text-foreground",
             )}
-          >Arquivadas ({items.filter(i => i.archived_at).length})</button>
+          >Lixeira ({items.filter(i => i.archived_at).length})</button>
+          {showArchived && items.filter(i => i.archived_at).length > 0 && (
+            <Button
+              onClick={emptyTrash}
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1.5 text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+            >
+              <Trash2 className="h-3.5 w-3.5" /> Esvaziar lixeira
+            </Button>
+          )}
         </div>
       </div>
 
