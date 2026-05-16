@@ -457,7 +457,7 @@ function ClientPicker({
 // ============================================================
 // Componente
 // ============================================================
-export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved }: NewDealDialogProps) {
+export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved, prefillSongUrl, prefillCuratorId, sourceFitId, onCreated }: NewDealDialogProps) {
   const { addDeal, updateDeal, addCurator, updateCurator, curators, balances } = useCuratorDeals();
   const { clients, addClient } = useClients();
   const { addPurchase } = useCuratorFinance();
