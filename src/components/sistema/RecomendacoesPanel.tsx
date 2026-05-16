@@ -62,6 +62,8 @@ export function RecomendacoesPanel() {
   const [recalcAll, setRecalcAll] = useState(false);
   const [feedbackMap, setFeedbackMap] = useState<Record<string, FeedbackAction>>({});
   const [evidenceRow, setEvidenceRow] = useState<FitRow | null>(null);
+  const [removalRow, setRemovalRow] = useState<FitRow | null>(null);
+  const navigate = useNavigate();
   const { toast } = useToast();
 
   const load = useCallback(async () => {
