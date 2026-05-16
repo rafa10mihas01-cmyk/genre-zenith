@@ -60,7 +60,7 @@ async function processTrack(
     .limit(1)
     .maybeSingle();
 
-  // Snapshots (via deal_songs → deal_snapshots)
+  // Deals + songs ligados a essa faixa
   const { data: songIds } = await supabase
     .from("curator_deal_songs")
     .select("id, deal_id")
@@ -69,41 +69,67 @@ async function processTrack(
   const ids = (songIds ?? []).map((s: any) => s.id);
   const dealIds = Array.from(new Set((songIds ?? []).map((s: any) => s.deal_id)));
 
-  let snaps: Snap[] = [];
-  let lastSnapshotAt: string | null = null;
-  if (ids.length > 0) {
-    const { data: snapRows } = await supabase
-      .from("curator_deal_snapshots")
-      .select("plays, plays_7d, plays_28d, captured_at")
-      .in("song_id", ids)
-      .order("captured_at", { ascending: false })
-      .limit(60);
-    snaps = (snapRows ?? []) as Snap[];
-    lastSnapshotAt = snaps[0]?.captured_at ?? null;
+  // Totais oficiais reconciliados (vêm de curator_deals)
+  let streams_total = 0;
+  let streams_7d = 0;
+  let streams_28d = 0;
+  let deal_active_count = 0;
+  if (dealIds.length > 0) {
+    const { data: dealRows } = await supabase
+      .from("curator_deals")
+      .select("reconciled_total_plays, reconciled_streams_7d, reconciled_streams_28d, closed_at")
+      .in("id", dealIds as any);
+    for (const d of (dealRows ?? []) as any[]) {
+      streams_total += Number(d.reconciled_total_plays ?? 0);
+      streams_7d += Number(d.reconciled_streams_7d ?? 0);
+      streams_28d += Number(d.reconciled_streams_28d ?? 0);
+      if (!d.closed_at) deal_active_count++;
+    }
   }
 
-  // Last snapshot drives streams_total/7d/28d
-  const last = snaps[0];
-  const streams_total = Number(last?.plays ?? 0);
-  const streams_7d = Number(last?.plays_7d ?? 0);
-  const streams_28d = Number(last?.plays_28d ?? 0);
+  // Growth: agregar snapshots por dia (SUM plays entre playlists no mesmo dia)
+  // Depois comparar dia mais recente vs dia ~7d/28d atrás.
+  let dailyAgg: { day: string; total: number }[] = [];
+  let lastSnapshotAt: string | null = null;
+  let snapshotsUsed = 0;
+  if (ids.length > 0) {
+    const since = new Date(Date.now() - 35 * 86400_000).toISOString();
+    const { data: snapRows } = await supabase
+      .from("curator_deal_snapshots")
+      .select("plays, captured_at")
+      .in("song_id", ids)
+      .gte("captured_at", since)
+      .order("captured_at", { ascending: false })
+      .limit(5000);
+    const rows = (snapRows ?? []) as { plays: number | null; captured_at: string }[];
+    snapshotsUsed = rows.length;
+    lastSnapshotAt = rows[0]?.captured_at ?? null;
+    const byDay = new Map<string, number>();
+    for (const r of rows) {
+      const day = r.captured_at.slice(0, 10);
+      byDay.set(day, (byDay.get(day) ?? 0) + Number(r.plays ?? 0));
+    }
+    dailyAgg = [...byDay.entries()]
+      .map(([day, total]) => ({ day, total }))
+      .sort((a, b) => (a.day < b.day ? 1 : -1)); // desc
+  }
 
-  // Growth: comparar último snapshot vs snapshot mais antigo dentro da janela
-  // Janela 7d: snapshot mais antigo com captured_at >= now-14d (proxy)
-  const now = Date.now();
-  const olderFor = (days: number): Snap | undefined => {
-    const cutoff = now - days * 86400_000;
-    // pega o mais antigo APÓS cutoff (=> ~days atrás)
-    const candidates = snaps.filter((s) => new Date(s.captured_at).getTime() <= cutoff);
-    return candidates[0]; // já ordenado desc, primeiro <= cutoff é o mais recente antes do cutoff
+  const distinctDays = dailyAgg.length;
+  const latestDay = dailyAgg[0];
+  const findDayAround = (targetDaysAgo: number) => {
+    const cutoff = Date.now() - targetDaysAgo * 86400_000;
+    return dailyAgg.find((d) => new Date(d.day).getTime() <= cutoff);
   };
-  const prev7 = olderFor(7);
-  const prev28 = olderFor(28);
-  const growth_7d_pct = prev7 ? pct(streams_total, Number(prev7.plays ?? 0)) : null;
-  const growth_28d_pct = prev28 ? pct(streams_total, Number(prev28.plays ?? 0)) : null;
-  const acceleration = growth_7d_pct !== null && growth_28d_pct !== null ? growth_7d_pct - growth_28d_pct : null;
+  const ref7 = findDayAround(7);
+  const ref28 = findDayAround(28);
+  const growth_7d_pct =
+    latestDay && ref7 && ref7.total > 0 ? pct(latestDay.total, ref7.total) : null;
+  const growth_28d_pct =
+    latestDay && ref28 && ref28.total > 0 ? pct(latestDay.total, ref28.total) : null;
+  const acceleration =
+    growth_7d_pct !== null && growth_28d_pct !== null ? growth_7d_pct - growth_28d_pct : null;
 
-  // Presença em curator_playlists (via deal+song)
+  // Presença em curator_playlists (via song_id)
   let curator_playlist_count = 0;
   if (ids.length > 0) {
     const { count } = await supabase
@@ -112,27 +138,14 @@ async function processTrack(
       .in("song_id", ids);
     curator_playlist_count = count ?? 0;
   }
-  // Managed playlists: sem join table track↔playlist disponível ainda → 0
-  const managed_playlist_count = 0;
+  const managed_playlist_count = 0; // sem join table track↔managed_playlist ainda
   const total_playlist_count = curator_playlist_count + managed_playlist_count;
 
-  // Deals ativos com essa faixa
-  let deal_active_count = 0;
-  if (dealIds.length > 0) {
-    const { count } = await supabase
-      .from("curator_deals")
-      .select("id", { count: "exact", head: true })
-      .in("id", dealIds as any)
-      .is("closed_at", null);
-    deal_active_count = count ?? 0;
-  }
-
-  // Scores
-  const confidence = Math.min(1, snaps.length / TH.MIN_SNAPSHOTS_CONFIDENT);
+  // Confidence baseado em quantos dias distintos temos (não em qtd bruta de snapshots)
+  const confidence = Math.min(1, distinctDays / TH.MIN_SNAPSHOTS_CONFIDENT);
   const presence_high = total_playlist_count >= presenceHighThreshold && presenceHighThreshold > 0;
   const presence_low = total_playlist_count <= 1;
   const frequency_score = Math.min(1, total_playlist_count / Math.max(1, presenceHighThreshold || 10));
-  // saturação: alta presença com baixo crescimento
   const sat_growth = growth_28d_pct ?? 0;
   const saturation_index = presence_high
     ? Math.max(0, Math.min(1, (TH.SATURATED_GROWTH_MAX - sat_growth) / 100))
@@ -168,10 +181,12 @@ async function processTrack(
         frequency_score,
         momentum_class,
         confidence,
-        snapshots_used: snaps.length,
+        snapshots_used: snapshotsUsed,
         last_snapshot_at: lastSnapshotAt,
         calculated_at: new Date().toISOString(),
       },
+      { onConflict: "spotify_track_id" },
+    );
       { onConflict: "spotify_track_id" },
     );
 
