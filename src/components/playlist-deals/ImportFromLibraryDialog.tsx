@@ -61,14 +61,17 @@ export function ImportFromLibraryDialog({
     }
   }, [open, multiSong, songs, songId]);
 
-  // IDs já presentes no deal — não permitir duplicar
-  const existingKeys = useMemo(() => {
-    const set = new Set<string>();
+  // Mapa de playlists já presentes no deal e seu match_status atual.
+  // Se já existe como 'curator' → bloqueia (não duplica).
+  // Se existe como 'organic'/'algorithmic'/etc → permite "promover" a curator.
+  const existingMap = useMemo(() => {
+    const map = new Map<string, string>(); // key → match_status
     existingPlaylists.forEach((p) => {
-      if (p.spotify_playlist_id) set.add(`id:${p.spotify_playlist_id}`);
-      else if (p.playlist_name) set.add(`name:${p.playlist_name.trim().toLowerCase()}`);
+      const status = (p as any).match_status ?? "organic";
+      if (p.spotify_playlist_id) map.set(`id:${p.spotify_playlist_id}`, status);
+      else if (p.playlist_name) map.set(`name:${p.playlist_name.trim().toLowerCase()}`, status);
     });
-    return set;
+    return map;
   }, [existingPlaylists]);
 
   const visible = useMemo(() => {
