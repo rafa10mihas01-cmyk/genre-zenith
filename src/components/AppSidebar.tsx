@@ -352,6 +352,18 @@ export function AppSidebar() {
               </Button>
             )}
             <Button
+              asChild
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 shrink-0 text-sidebar-foreground/50 hover:text-sidebar-foreground opacity-60 group-hover:opacity-100 transition-opacity"
+              aria-label="Perfil"
+              title="Perfil"
+            >
+              <NavLink to="/configuracoes" onClick={handleNav}>
+                <User className="h-3.5 w-3.5" />
+              </NavLink>
+            </Button>
+            <Button
               variant="ghost"
               size="icon"
               className="h-7 w-7 shrink-0 text-sidebar-foreground/50 hover:text-sidebar-foreground opacity-60 group-hover:opacity-100 transition-opacity"
