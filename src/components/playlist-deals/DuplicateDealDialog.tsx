@@ -260,7 +260,7 @@ export function DuplicateDealDialog({
             </div>
             <div className="font-medium">{sourceDeal?.curator_name}</div>
             <div className="text-muted-foreground mt-0.5 text-[11.5px]">
-              Modelo: {sourceDeal?.billing_model === "monthly_retainer" ? "Mensal" : "Por streams"}
+              Modelo: {(sourceDeal as any)?.billing_model === "monthly_retainer" ? "Mensal" : "Por streams"}
               {primary ? ` · Origem: ${primary.song_name}` : null}
             </div>
           </div>
