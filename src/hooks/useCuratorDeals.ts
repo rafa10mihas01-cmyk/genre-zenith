@@ -301,11 +301,20 @@ export function useCuratorDeals() {
     return map;
   }, [progressQueries, dealIds]);
 
-  // Realtime: invalida cache quando snapshots mudam e recarrega status das músicas
+  // Realtime: invalida cache quando snapshots mudam e recarrega status das músicas.
+  // Também recarrega a lista quando deals são criados/alterados fora da tela atual
+  // (ex.: separação manual de campanhas em deals independentes).
   useEffect(() => {
     if (!user || dealIds.length === 0) return;
     const channel = supabase
       .channel(`curator-deals-live-${user.id}-${Math.random().toString(36).slice(2)}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "curator_deals" },
+        () => {
+          load();
+        },
+      )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "curator_deal_snapshots" },
@@ -334,6 +343,17 @@ export function useCuratorDeals() {
       supabase.removeChannel(channel);
     };
   }, [user, dealIds, queryClient, load]);
+
+  useEffect(() => {
+    if (!user) return;
+    const refresh = () => load();
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [user, load]);
 
   const invalidateProgress = useCallback(
     (dealId?: string) => {
