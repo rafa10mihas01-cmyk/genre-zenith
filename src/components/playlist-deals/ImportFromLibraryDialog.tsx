@@ -24,6 +24,7 @@ export interface ImportFromLibraryDialogProps {
   deal: CuratorDeal | null;
   songs?: CuratorDealSong[];
   existingPlaylists: CuratorPlaylist[];
+  initialSongId?: string | null;
   onClose: () => void;
   onImported?: () => void;
 }
@@ -38,6 +39,7 @@ export function ImportFromLibraryDialog({
   deal,
   songs = [],
   existingPlaylists,
+  initialSongId = null,
   onClose,
   onImported,
 }: ImportFromLibraryDialogProps) {
@@ -57,16 +59,19 @@ export function ImportFromLibraryDialog({
       setSubmitting(false);
       setSongId("");
     } else if (multiSong && !songId && songs[0]) {
-      setSongId(songs[0].id);
+      const initial = initialSongId && songs.some((s) => s.id === initialSongId)
+        ? initialSongId
+        : songs[0].id;
+      setSongId(initial);
     }
-  }, [open, multiSong, songs, songId]);
+  }, [open, multiSong, songs, songId, initialSongId]);
 
   // Mapa de playlists já presentes no deal, mantendo a música vinculada.
   // A mesma playlist pode existir em músicas diferentes; só bloqueia duplicata
   // quando já é curator na MESMA música selecionada.
   const existingMap = useMemo(() => {
     const map = new Map<string, { id: string; status: string; songId: string | null }[]>();
-    existingPlaylists.forEach((p) => {
+    existingPlaylists.filter((p) => p.deal_id === deal?.id).forEach((p) => {
       const status = (p as any).match_status ?? "organic";
       const entry = { id: p.id, status, songId: (p as any).song_id ?? null };
       const add = (key: string) => map.set(key, [...(map.get(key) ?? []), entry]);
@@ -74,7 +79,7 @@ export function ImportFromLibraryDialog({
       else if (p.playlist_name) add(`name:${p.playlist_name.trim().toLowerCase()}`);
     });
     return map;
-  }, [existingPlaylists]);
+  }, [existingPlaylists, deal?.id]);
 
   const targetSongId = multiSong ? songId : (songs[0]?.id ?? null);
 
