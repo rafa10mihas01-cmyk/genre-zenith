@@ -44,12 +44,27 @@ function safeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
+async function hasValidCronSecret(req: Request): Promise<boolean> {
+  const cronSecret = req.headers.get("x-cron-secret")?.trim();
+  if (!cronSecret) return false;
+
+  const supabase = createClient(SUPABASE_URL, SERVICE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { data, error } = await supabase.rpc("get_cron_secret");
+  return !error && typeof data === "string" && safeEqual(cronSecret, data);
+}
+
 /**
  * Garante que a chamada vem do service role OU de um usuário admin/curador.
  * Use no início de qualquer edge function que dispara IA cara, publica no Spotify
  * ou modifica dados sensíveis.
  */
 export async function requireTeamAccess(req: Request): Promise<AuthGuardResult> {
+  if (await hasValidCronSecret(req)) {
+    return { ok: true, via: "service_role" };
+  }
+
   const authHeader = req.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) {
     return { ok: false, resp: jr({ error: "unauthorized" }, 401) };
