@@ -61,18 +61,27 @@ export function ImportFromLibraryDialog({
     }
   }, [open, multiSong, songs, songId]);
 
-  // Mapa de playlists já presentes no deal e seu match_status atual.
-  // Se já existe como 'curator' → bloqueia (não duplica).
-  // Se existe como 'organic'/'algorithmic'/etc → permite "promover" a curator.
+  // Mapa de playlists já presentes no deal, mantendo a música vinculada.
+  // A mesma playlist pode existir em músicas diferentes; só bloqueia duplicata
+  // quando já é curator na MESMA música selecionada.
   const existingMap = useMemo(() => {
-    const map = new Map<string, string>(); // key → match_status
+    const map = new Map<string, { id: string; status: string; songId: string | null }[]>();
     existingPlaylists.forEach((p) => {
       const status = (p as any).match_status ?? "organic";
-      if (p.spotify_playlist_id) map.set(`id:${p.spotify_playlist_id}`, status);
-      else if (p.playlist_name) map.set(`name:${p.playlist_name.trim().toLowerCase()}`, status);
+      const entry = { id: p.id, status, songId: (p as any).song_id ?? null };
+      const add = (key: string) => map.set(key, [...(map.get(key) ?? []), entry]);
+      if (p.spotify_playlist_id) add(`id:${p.spotify_playlist_id}`);
+      else if (p.playlist_name) add(`name:${p.playlist_name.trim().toLowerCase()}`);
     });
     return map;
   }, [existingPlaylists]);
+
+  const targetSongId = multiSong ? songId : (songs[0]?.id ?? null);
+
+  const getExistingForTarget = (key: string) => {
+    const rows = existingMap.get(key) ?? [];
+    return rows.find((row) => row.songId === targetSongId) ?? null;
+  };
 
   const visible = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -104,19 +113,17 @@ export function ImportFromLibraryDialog({
     setSubmitting(true);
     try {
       const chosen = items.filter((p) => selected.has(p.id));
-      const targetSongId = multiSong ? songId : (songs[0]?.id ?? null);
-
       // Separar: novas (insert) vs já existentes como organic/etc (promote → update)
       const toInsert: any[] = [];
-      const toPromote: { spotify_playlist_id: string }[] = [];
+      const toPromote: { id: string }[] = [];
       for (const p of chosen) {
         const key = p.spotify_playlist_id
           ? `id:${p.spotify_playlist_id}`
           : `name:${p.playlist_name.trim().toLowerCase()}`;
-        const currentStatus = existingMap.get(key);
-        if (currentStatus && currentStatus !== "curator" && p.spotify_playlist_id) {
-          toPromote.push({ spotify_playlist_id: p.spotify_playlist_id });
-        } else if (!currentStatus) {
+        const current = getExistingForTarget(key);
+        if (current && current.status !== "curator") {
+          toPromote.push({ id: current.id });
+        } else if (!current) {
           toInsert.push({
             deal_id: deal.id,
             song_id: targetSongId,
@@ -148,8 +155,7 @@ export function ImportFromLibraryDialog({
             match_status: "curator",
             match_reason: "Promovida do orgânico via catálogo do curador",
           })
-          .eq("deal_id", deal.id)
-          .eq("spotify_playlist_id", pr.spotify_playlist_id);
+          .eq("id", pr.id);
         if (error) throw error;
       }
 
@@ -230,9 +236,9 @@ export function ImportFromLibraryDialog({
                   const key = p.spotify_playlist_id
                     ? `id:${p.spotify_playlist_id}`
                     : `name:${p.playlist_name.trim().toLowerCase()}`;
-                  const currentStatus = existingMap.get(key);
-                  const isCurator = currentStatus === "curator";
-                  const isOrganic = !!currentStatus && !isCurator;
+                  const current = getExistingForTarget(key);
+                  const isCurator = current?.status === "curator";
+                  const isOrganic = !!current && !isCurator;
                   const blocked = isCurator; // só bloqueia se já é curador
                   const isSelected = selected.has(p.id);
                   return (
