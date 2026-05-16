@@ -1367,6 +1367,8 @@ export type Database = {
           song_cover_url: string | null
           song_name: string
           song_spotify_url: string
+          source: string | null
+          source_fit_id: string | null
           spotify_owner_id: string | null
           spotify_owner_url: string | null
           started_at: string
@@ -1406,6 +1408,8 @@ export type Database = {
           song_cover_url?: string | null
           song_name: string
           song_spotify_url: string
+          source?: string | null
+          source_fit_id?: string | null
           spotify_owner_id?: string | null
           spotify_owner_url?: string | null
           started_at?: string
@@ -1445,6 +1449,8 @@ export type Database = {
           song_cover_url?: string | null
           song_name?: string
           song_spotify_url?: string
+          source?: string | null
+          source_fit_id?: string | null
           spotify_owner_id?: string | null
           spotify_owner_url?: string | null
           started_at?: string
@@ -3424,6 +3430,7 @@ export type Database = {
         Row: {
           action: string
           created_at: string
+          deal_id: string | null
           fit_id: string
           id: string
           note: string | null
@@ -3432,6 +3439,7 @@ export type Database = {
         Insert: {
           action: string
           created_at?: string
+          deal_id?: string | null
           fit_id: string
           id?: string
           note?: string | null
@@ -3440,6 +3448,7 @@ export type Database = {
         Update: {
           action?: string
           created_at?: string
+          deal_id?: string | null
           fit_id?: string
           id?: string
           note?: string | null
@@ -3448,6 +3457,56 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "recommendation_feedback_fit_id_fkey"
+            columns: ["fit_id"]
+            isOneToOne: false
+            referencedRelation: "track_playlist_fit"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recommendation_outcome: {
+        Row: {
+          created_at: string
+          detected_at: string | null
+          fit_id: string
+          id: string
+          impact_delta_pct: number | null
+          notes: string | null
+          outcome_kind: string
+          streams_after_28d: number | null
+          streams_before_28d: number | null
+          updated_at: string
+          verdict: string | null
+        }
+        Insert: {
+          created_at?: string
+          detected_at?: string | null
+          fit_id: string
+          id?: string
+          impact_delta_pct?: number | null
+          notes?: string | null
+          outcome_kind?: string
+          streams_after_28d?: number | null
+          streams_before_28d?: number | null
+          updated_at?: string
+          verdict?: string | null
+        }
+        Update: {
+          created_at?: string
+          detected_at?: string | null
+          fit_id?: string
+          id?: string
+          impact_delta_pct?: number | null
+          notes?: string | null
+          outcome_kind?: string
+          streams_after_28d?: number | null
+          streams_before_28d?: number | null
+          updated_at?: string
+          verdict?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recommendation_outcome_fit_id_fkey"
             columns: ["fit_id"]
             isOneToOne: false
             referencedRelation: "track_playlist_fit"
