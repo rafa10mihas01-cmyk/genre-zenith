@@ -255,7 +255,7 @@ export function AppSidebar() {
                         <CollapsibleContent>
                           <SidebarMenuSub className="border-sidebar-border/60">
                             {item.children!.map((sub) => {
-                              const subActive = subIsActive(sub, location.pathname);
+                              const subActive = subIsActive(sub, location.pathname, location.search);
                               return (
                                 <SidebarMenuSubItem key={sub.url}>
                                   <SidebarMenuSubButton
