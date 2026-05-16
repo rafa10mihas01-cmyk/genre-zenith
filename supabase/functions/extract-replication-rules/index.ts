@@ -9,6 +9,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
 
+import { deprecationGate } from "../_shared/_deprecation.ts";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const CLAUDE_API_KEY = Deno.env.get("CLAUDE_API_KEY") ?? "";
@@ -88,6 +89,8 @@ async function callClaude(system: string, user: string) {
 }
 
 Deno.serve(async (req) => {
+  const __dep = await deprecationGate(req, "extract-replication-rules");
+  if (__dep) return __dep;
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   if (req.method !== "OPTIONS") {

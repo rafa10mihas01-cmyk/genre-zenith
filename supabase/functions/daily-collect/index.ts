@@ -3,12 +3,15 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { requireTeamAccess } from "../_shared/auth.ts";
 
+import { deprecationGate } from "../_shared/_deprecation.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 Deno.serve(async (req) => {
+  const __dep = await deprecationGate(req, "daily-collect");
+  if (__dep) return __dep;
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   if (req.method !== "OPTIONS") {

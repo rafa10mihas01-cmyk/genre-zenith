@@ -15,6 +15,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { applyWatermark } from "./_watermark.ts";
 
+import { deprecationGate } from "../_shared/_deprecation.ts";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
@@ -842,6 +843,8 @@ function dataUrlToBytes(dataUrl: string): { bytes: Uint8Array; contentType: stri
 // HANDLER
 // ============================================================
 Deno.serve(async (req) => {
+  const __dep = await deprecationGate(req, "generate-cover-variations");
+  if (__dep) return __dep;
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return jr({ error: "POST only" }, 405);
 
