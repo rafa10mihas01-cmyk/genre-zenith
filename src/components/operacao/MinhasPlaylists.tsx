@@ -732,12 +732,21 @@ export function MinhasPlaylists() {
                     </a>
                   </Button>
                   {drawerPl.archived_at ? (
-                    <Button variant="outline" onClick={() => archive(drawerPl, true)} className="gap-1.5">
-                      <ArchiveRestore className="h-4 w-4" /> Restaurar
-                    </Button>
+                    <>
+                      <Button variant="outline" onClick={() => archive(drawerPl, true)} className="gap-1.5">
+                        <ArchiveRestore className="h-4 w-4" /> Restaurar
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => deletePermanent(drawerPl)}
+                        className="gap-1.5 text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" /> Excluir permanentemente
+                      </Button>
+                    </>
                   ) : (
                     <Button variant="outline" onClick={() => archive(drawerPl)} className="gap-1.5">
-                      <Archive className="h-4 w-4" /> Arquivar
+                      <Archive className="h-4 w-4" /> Mover para lixeira
                     </Button>
                   )}
                 </div>
