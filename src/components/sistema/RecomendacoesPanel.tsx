@@ -57,7 +57,7 @@ export function RecomendacoesPanel() {
   const [loading, setLoading] = useState(true);
   const [kindFilter, setKindFilter] = useState<typeof KIND_FILTERS[number]>("todos");
   const [search, setSearch] = useState("");
-  const [minFit, setMinFit] = useState(60);
+  const [minFit, setMinFit] = useState(50);
   const [minConf, setMinConf] = useState(0);
   const [recalcAll, setRecalcAll] = useState(false);
   const [feedbackMap, setFeedbackMap] = useState<Record<string, FeedbackAction>>({});
