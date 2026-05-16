@@ -314,6 +314,20 @@ export function PlaylistScorePanel() {
                   </>
                 );
               })}
+              {hasMore && (
+                <tr ref={sentinelRef}>
+                  <td colSpan={10} className="text-center py-6 text-xs text-muted-foreground">
+                    Carregando mais… ({visibleRows.length} de {filtered.length})
+                  </td>
+                </tr>
+              )}
+              {!hasMore && filtered.length > 15 && (
+                <tr>
+                  <td colSpan={10} className="text-center py-4 text-xs text-muted-foreground">
+                    {filtered.length} playlists exibidas
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
