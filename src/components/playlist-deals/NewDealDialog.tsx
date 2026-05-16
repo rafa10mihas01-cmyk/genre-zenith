@@ -85,6 +85,13 @@ export interface NewDealDialogProps {
   editSongs?: CuratorDealSong[];
   /** Callback para a página recarregar a lista após salvar. */
   onSaved?: () => void | Promise<void>;
+  /** Pré-fill (vindo do painel de Recomendações) */
+  prefillSongUrl?: string | null;
+  prefillCuratorId?: string | null;
+  /** ID do fit que originou esse deal — gravado em curator_deals.source_fit_id */
+  sourceFitId?: string | null;
+  /** Disparado após criar o deal, recebe o deal criado (id). */
+  onCreated?: (deal: CuratorDeal) => void | Promise<void>;
 }
 
 // ============================================================
