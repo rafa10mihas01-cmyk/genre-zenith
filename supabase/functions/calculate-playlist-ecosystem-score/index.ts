@@ -260,7 +260,7 @@ Deno.serve(async (req) => {
     // mode "full" (compat) = batch a partir de offset=0 com limit padrão.
     // mode "batch" {offset, limit} = janela explícita. Retorna {total, processed_to, has_more}.
     const offset = Number(body?.offset ?? 0);
-    const limit = Math.min(Number(body?.limit ?? 60), 100);
+    const limit = Math.min(Number(body?.limit ?? 20), 40);
 
     const targets: { id: string; kind: "curator" | "managed" }[] = [];
     const seen = new Set<string>();
@@ -294,7 +294,7 @@ Deno.serve(async (req) => {
     const slice = targets.slice(offset, offset + limit);
     let ok = 0, failed = 0;
     const errors: string[] = [];
-    const BATCH = 4;
+    const BATCH = 2;
     for (let i = 0; i < slice.length; i += BATCH) {
       const sub = slice.slice(i, i + BATCH);
       const results = await Promise.all(sub.map((t) => processPlaylist(supabase, t.id, t.kind)));
