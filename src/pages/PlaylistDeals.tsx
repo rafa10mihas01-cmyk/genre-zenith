@@ -305,6 +305,7 @@ export default function PlaylistDeals() {
                 onDetail={openDetail}
                 onDelete={(deal) => handleDelete(deal.id)}
                 onEdit={(deal) => setEditDeal(deal)}
+                onDuplicate={(deal) => setDuplicateDeal(deal)}
                 onClose={(deal) => setCloseDealOpen(deal)}
                 onReopen={handleReopen}
                 onForceCollect={(deal) => forceCollectNow(deal.id)}
@@ -325,6 +326,7 @@ export default function PlaylistDeals() {
                 onDetail={openDetail}
                 onDelete={(deal) => handleDelete(deal.id)}
                 onEdit={(deal) => setEditDeal(deal)}
+                onDuplicate={(deal) => setDuplicateDeal(deal)}
                 onClose={(deal) => setCloseDealOpen(deal)}
                 onReopen={handleReopen}
                 onForceCollect={(deal) => forceCollectNow(deal.id)}
