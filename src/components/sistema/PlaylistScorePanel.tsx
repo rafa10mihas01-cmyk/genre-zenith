@@ -1,5 +1,5 @@
 // Wave 2 — Painel debug Playlist Ecosystem Score
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -64,8 +64,6 @@ export function PlaylistScorePanel() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [recalcAll, setRecalcAll] = useState(false);
   const [recalcSingle, setRecalcSingle] = useState<string | null>(null);
-  const [visibleCount, setVisibleCount] = useState(15);
-  const sentinelRef = useRef<HTMLTableRowElement | null>(null);
   const { toast } = useToast();
 
   const load = async () => {
@@ -96,26 +94,6 @@ export function PlaylistScorePanel() {
       return true;
     });
   }, [rows, filter, search]);
-
-  // Reseta scroll infinito quando filtros mudam
-  useEffect(() => { setVisibleCount(15); }, [filter, search, rows.length]);
-
-  const visibleRows = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
-  const hasMore = visibleCount < filtered.length;
-
-  // IntersectionObserver para carregar mais ao chegar no fim
-  useEffect(() => {
-    if (!hasMore) return;
-    const el = sentinelRef.current;
-    if (!el) return;
-    const io = new IntersectionObserver((entries) => {
-      if (entries.some((e) => e.isIntersecting)) {
-        setVisibleCount((c) => Math.min(c + 15, filtered.length));
-      }
-    }, { rootMargin: "200px" });
-    io.observe(el);
-    return () => io.disconnect();
-  }, [hasMore, filtered.length]);
 
   const handleRecalcAll = async () => {
     if (!confirm("Recalcular todas as playlists? Pode demorar alguns minutos (processa em lotes).")) return;
