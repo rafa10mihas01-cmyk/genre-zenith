@@ -111,6 +111,7 @@ const sections: NavSection[] = [
           { title: "Ecosystem Score", url: "/sistema?tab=ecosystem-score" },
           { title: "Playlist Score", url: "/sistema?tab=playlist-score" },
           { title: "Recomendações", url: "/sistema?tab=recomendacoes" },
+          { title: "Impacto", url: "/sistema?tab=impacto" },
           { title: "Aposentadoria", url: "/sistema?tab=aposentadoria" },
         ],
       },
