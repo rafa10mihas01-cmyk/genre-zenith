@@ -99,7 +99,7 @@ export function PlaylistScorePanel() {
     if (!confirm("Recalcular todas as playlists? Pode demorar alguns minutos (processa em lotes).")) return;
     setRecalcAll(true);
     let offset = 0;
-    const limit = 60;
+    const limit = 20;
     let totalOk = 0, totalFailed = 0, grandTotal = 0;
     try {
       // eslint-disable-next-line no-constant-condition
