@@ -1163,13 +1163,14 @@ Deno.serve(async (req) => {
         deal_id,
         spotify_playlist_id: p.playlist.spotify_playlist_id,
         playlist_name: p.playlist.playlist_name ?? null,
+        song_id: p.snapshot.song_id ?? null,
         snapshot_id: p.snapshot.id,
         captured_at: p.snapshot.captured_at,
       }));
     if (rows.length > 0) {
       const { error: bErr } = await supabase
         .from("curator_deal_baseline_playlists")
-        .upsert(rows, { onConflict: "deal_id,spotify_playlist_id" });
+        .upsert(rows, { onConflict: song_id ? "deal_id,song_id,spotify_playlist_id" : "deal_id,spotify_playlist_id" });
       if (bErr) console.error("[extract] baseline blacklist upsert error", bErr);
       else console.log(`[extract] baseline blacklist: ${rows.length} playlists registradas para deal=${deal_id}`);
     }
