@@ -104,28 +104,58 @@ export function ImportFromLibraryDialog({
     setSubmitting(true);
     try {
       const chosen = items.filter((p) => selected.has(p.id));
-      const rows = chosen.map((p) => ({
-        deal_id: deal.id,
-        song_id: multiSong ? songId : (songs[0]?.id ?? null),
-        playlist_name: p.playlist_name,
-        spotify_url: p.spotify_url,
-        spotify_playlist_id: p.spotify_playlist_id,
-        spotify_owner_id: p.spotify_owner_id,
-        spotify_owner_name: p.spotify_owner_name,
-        followers: p.followers,
-        image_url: p.image_url,
-        match_status: "curator" as const,
-        match_reason: "Importada da biblioteca do curador",
-        is_baseline: false,
-        // Streams sempre zerados — deal novo começa do zero
-        streams_total: 0,
-        streams_28d: 0,
-        streams_7d: 0,
-      }));
-      const { error } = await supabase.from("curator_playlists").insert(rows);
-      if (error) throw error;
+      const targetSongId = multiSong ? songId : (songs[0]?.id ?? null);
+
+      // Separar: novas (insert) vs já existentes como organic/etc (promote → update)
+      const toInsert: any[] = [];
+      const toPromote: { spotify_playlist_id: string }[] = [];
+      for (const p of chosen) {
+        const key = p.spotify_playlist_id
+          ? `id:${p.spotify_playlist_id}`
+          : `name:${p.playlist_name.trim().toLowerCase()}`;
+        const currentStatus = existingMap.get(key);
+        if (currentStatus && currentStatus !== "curator" && p.spotify_playlist_id) {
+          toPromote.push({ spotify_playlist_id: p.spotify_playlist_id });
+        } else if (!currentStatus) {
+          toInsert.push({
+            deal_id: deal.id,
+            song_id: targetSongId,
+            playlist_name: p.playlist_name,
+            spotify_url: p.spotify_url,
+            spotify_playlist_id: p.spotify_playlist_id,
+            spotify_owner_id: p.spotify_owner_id,
+            spotify_owner_name: p.spotify_owner_name,
+            followers: p.followers,
+            image_url: p.image_url,
+            match_status: "curator" as const,
+            match_reason: "Importada da biblioteca do curador",
+            is_baseline: false,
+            streams_total: 0,
+            streams_28d: 0,
+            streams_7d: 0,
+          });
+        }
+      }
+
+      if (toInsert.length) {
+        const { error } = await supabase.from("curator_playlists").insert(toInsert);
+        if (error) throw error;
+      }
+      for (const pr of toPromote) {
+        const { error } = await supabase
+          .from("curator_playlists")
+          .update({
+            match_status: "curator",
+            match_reason: "Promovida do orgânico via catálogo do curador",
+          })
+          .eq("deal_id", deal.id)
+          .eq("spotify_playlist_id", pr.spotify_playlist_id);
+        if (error) throw error;
+      }
+
+      const total = toInsert.length + toPromote.length;
       toast.success(
-        `${rows.length} playlist${rows.length > 1 ? "s" : ""} importada${rows.length > 1 ? "s" : ""} do catálogo`,
+        `${total} playlist${total > 1 ? "s" : ""} ${toPromote.length > 0 ? "atualizada" : "importada"}${total > 1 ? "s" : ""} do catálogo`,
       );
       onImported?.();
       onClose();
