@@ -266,134 +266,176 @@ export default function Home() {
     <PageContainer>
       <PageHeader
         title="Hoje"
-        subtitle="Decidir o que fazer agora"
+        subtitle="O que precisa de ação agora"
       />
 
-      {/* AÇÕES RÁPIDAS — só o essencial */}
-      <section className="grid grid-cols-2 gap-3">
-        <QuickAction
-          to="/performance"
-          icon={BarChart3}
-          label="Performance"
-          hint={c?.topName ? `Top: ${c.topName}` : "—"}
-        />
-        <QuickAction
-          to="/criacao?tier=hot"
-          icon={Rocket}
-          label="Publicar prontos"
-          hint={c ? `${c.hotPending} prontos` : "—"}
-          highlight={!!c && c.hotPending > 0}
-        />
-      </section>
+      {/* KPIs DAS MINHAS PLAYLISTS */}
+      <ManagedPlaylistsKpis />
 
-      {/* ZONA 1 — O QUE MUDOU (24h / semana) */}
+      {/* AÇÃO AGORA — playlists em queda + deals abertos */}
       <section className="space-y-3">
         <h2 className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-semibold px-1">
-          O que mudou
+          Ação agora
         </h2>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <DecisionCard c={c} loading={loading} />
-          <PerformanceCard c={c} loading={loading} />
+          <PlaylistsInDeclineCard />
+          <DealsPendingCard />
         </div>
+      </section>
+
+      {/* ALERTAS DOS CURADORES */}
+      <section className="space-y-3">
+        <h2 className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-semibold px-1">
+          Alertas dos curadores
+        </h2>
+        <ProactiveAlertsCard />
+      </section>
+
+      {/* RESUMO SEMANAL DAS MINHAS PLAYLISTS */}
+      <section className="space-y-3">
+        <h2 className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-semibold px-1">
+          Resumo semanal
+        </h2>
         <WeeklySummaryCard />
       </section>
 
-      {/* ZONA 2 — O QUE PRECISA DE VOCÊ */}
-      <section className="space-y-3">
-        <h2 className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-semibold px-1">
-          Precisa de você
-        </h2>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <AttentionCard items={attention} loading={loading} />
-          <SuggestionsCard suggestions={suggestions} total={c?.pendingSuggestions ?? 0} lastAt={c?.lastAnalysisAt ?? null} loading={loading} />
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <ProactiveAlertsCard />
-          <DealsPendingCard />
-          <BrainFreshnessCard />
-        </div>
-      </section>
-
-      {/* ZONA 3 — ESTÁ TUDO RODANDO? */}
+      {/* SAÚDE DO SISTEMA — compacto */}
       <section className="space-y-3">
         <h2 className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-semibold px-1">
           Saúde do sistema
         </h2>
-        <OperationalHealthCard />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <OperationalHealthCard />
+          <BrainFreshnessCard />
+        </div>
       </section>
 
-      {/* Gêneros */}
-      <section className="space-y-3">
-        <div className="flex items-end justify-between">
-          <div>
-            <h2 className="text-xs uppercase tracking-[0.15em] text-muted-foreground font-semibold">
-              Gêneros
+      {/* MUNDO DE CRIAÇÃO AUTOMÁTICA — colapsado */}
+      <details className="group nx-card overflow-hidden">
+        <summary className="cursor-pointer list-none px-5 py-4 flex items-center justify-between hover:bg-elevated/40 transition-colors">
+          <div className="flex flex-col">
+            <span className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-semibold">
+              Criação automática
+            </span>
+            <span className="text-sm font-medium text-foreground mt-0.5">
+              Templates gerados pelo sistema
+            </span>
+          </div>
+          <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" />
+        </summary>
+
+        <div className="px-5 pb-5 pt-2 space-y-6 border-t border-border/50">
+          {/* AÇÕES RÁPIDAS */}
+          <section className="grid grid-cols-2 gap-3">
+            <QuickAction
+              to="/performance"
+              icon={BarChart3}
+              label="Performance"
+              hint={c?.topName ? `Top: ${c.topName}` : "—"}
+            />
+            <QuickAction
+              to="/criacao?tier=hot"
+              icon={Rocket}
+              label="Publicar prontos"
+              hint={c ? `${c.hotPending} prontos` : "—"}
+              highlight={!!c && c.hotPending > 0}
+            />
+          </section>
+
+          {/* O QUE MUDOU (templates) */}
+          <section className="space-y-3">
+            <h2 className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-semibold px-1">
+              O que mudou (templates)
             </h2>
-          </div>
-          <Button asChild variant="ghost" size="sm" className="rounded-full text-muted-foreground hover:text-foreground gap-1 h-7">
-            <Link to="/cerebro">Ver tudo <ArrowRight className="h-3.5 w-3.5" /></Link>
-          </Button>
-        </div>
-        {loading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="h-[118px] rounded-2xl bg-muted/40 animate-pulse" />
-            ))}
-          </div>
-        ) : genres.length === 0 ? (
-          <div className="nx-card p-8 text-center">
-            <Brain className="h-7 w-7 mx-auto text-muted-foreground" />
-            <p className="mt-2 text-xs text-muted-foreground">Nenhum gênero cadastrado.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-            {genres.map(g => <GenreCard key={g.id} g={g} />)}
-          </div>
-        )}
-      </section>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <DecisionCard c={c} loading={loading} />
+              <PerformanceCard c={c} loading={loading} />
+            </div>
+          </section>
 
-      {/* Atividade recente */}
-      <section className="space-y-3">
-        <h2 className="text-xs uppercase tracking-[0.15em] text-muted-foreground font-semibold">
-          Atividade recente
-        </h2>
-        <div className="nx-card overflow-hidden">
-          {loading && activity.length === 0 && (
-            <div className="p-6 text-center text-xs text-muted-foreground">Carregando…</div>
-          )}
-          {!loading && activity.length === 0 && (
-            <div className="p-6 text-center text-xs text-muted-foreground">Sem atividade registrada.</div>
-          )}
-          <ul className="divide-y divide-border">
-            {activity.map(l => {
-              const tone =
-                l.status === "sucesso" ? "text-primary bg-primary/10"
-                : l.status === "erro" ? "text-destructive bg-destructive/10"
-                : "text-warning bg-warning/10";
-              return (
-                <li key={l.id} className="flex items-center gap-3 px-4 py-3">
-                  <span className={cn("h-7 w-7 rounded-full flex items-center justify-center shrink-0", tone)}>
-                    <Activity className="h-3.5 w-3.5" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-sm font-semibold leading-tight truncate">
-                      {prettyAction(l.acao)}
-                    </div>
-                    {l.mensagem && (
-                      <div className="text-[11px] text-muted-foreground truncate mt-0.5">
-                        {l.mensagem}
+          {/* PRECISA DE VOCÊ (templates) */}
+          <section className="space-y-3">
+            <h2 className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-semibold px-1">
+              Precisa de você (templates)
+            </h2>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <AttentionCard items={attention} loading={loading} />
+              <SuggestionsCard suggestions={suggestions} total={c?.pendingSuggestions ?? 0} lastAt={c?.lastAnalysisAt ?? null} loading={loading} />
+            </div>
+          </section>
+
+          {/* Gêneros */}
+          <section className="space-y-3">
+            <div className="flex items-end justify-between">
+              <h2 className="text-xs uppercase tracking-[0.15em] text-muted-foreground font-semibold">
+                Gêneros
+              </h2>
+              <Button asChild variant="ghost" size="sm" className="rounded-full text-muted-foreground hover:text-foreground gap-1 h-7">
+                <Link to="/cerebro">Ver tudo <ArrowRight className="h-3.5 w-3.5" /></Link>
+              </Button>
+            </div>
+            {loading ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="h-[118px] rounded-2xl bg-muted/40 animate-pulse" />
+                ))}
+              </div>
+            ) : genres.length === 0 ? (
+              <div className="nx-card p-8 text-center">
+                <Brain className="h-7 w-7 mx-auto text-muted-foreground" />
+                <p className="mt-2 text-xs text-muted-foreground">Nenhum gênero cadastrado.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                {genres.map(g => <GenreCard key={g.id} g={g} />)}
+              </div>
+            )}
+          </section>
+
+          {/* Atividade recente */}
+          <section className="space-y-3">
+            <h2 className="text-xs uppercase tracking-[0.15em] text-muted-foreground font-semibold">
+              Atividade recente
+            </h2>
+            <div className="nx-card overflow-hidden">
+              {loading && activity.length === 0 && (
+                <div className="p-6 text-center text-xs text-muted-foreground">Carregando…</div>
+              )}
+              {!loading && activity.length === 0 && (
+                <div className="p-6 text-center text-xs text-muted-foreground">Sem atividade registrada.</div>
+              )}
+              <ul className="divide-y divide-border">
+                {activity.map(l => {
+                  const tone =
+                    l.status === "sucesso" ? "text-primary bg-primary/10"
+                    : l.status === "erro" ? "text-destructive bg-destructive/10"
+                    : "text-warning bg-warning/10";
+                  return (
+                    <li key={l.id} className="flex items-center gap-3 px-4 py-3">
+                      <span className={cn("h-7 w-7 rounded-full flex items-center justify-center shrink-0", tone)}>
+                        <Activity className="h-3.5 w-3.5" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-semibold leading-tight truncate">
+                          {prettyAction(l.acao)}
+                        </div>
+                        {l.mensagem && (
+                          <div className="text-[11px] text-muted-foreground truncate mt-0.5">
+                            {l.mensagem}
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                  <span className="text-[11px] text-muted-foreground shrink-0 tabular-nums">
-                    {timeAgo(l.created_at)}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
+                      <span className="text-[11px] text-muted-foreground shrink-0 tabular-nums">
+                        {timeAgo(l.created_at)}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </section>
         </div>
-      </section>
+      </details>
     </PageContainer>
   );
 }
