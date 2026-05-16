@@ -49,7 +49,10 @@ const STATUS_META: Record<string, { label: string; cls: string; icon: any }> = {
   skipped:    { label: "Ignorado",   cls: "bg-muted/40 text-muted-foreground border-border", icon: XCircle },
 };
 
-export function ReplicacaoAuto({ genreId }: { genreId?: string }) {
+export function ReplicacaoAuto({ genreId: _genreId }: { genreId?: string }) {
+  // Fase 1 de aposentadoria — replicação automática desligada. Card oculto.
+  return null;
+  // eslint-disable-next-line no-unreachable
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [reps, setReps] = useState<Replication[]>([]);
   const [loading, setLoading] = useState(true);
