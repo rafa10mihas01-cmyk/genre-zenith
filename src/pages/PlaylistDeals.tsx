@@ -42,6 +42,7 @@ export default function PlaylistDeals() {
   const [logDeal, setLogDeal] = useState<CuratorDeal | null>(null);
   const [detailDeal, setDetailDeal] = useState<CuratorDeal | null>(null);
   const [editDeal, setEditDeal] = useState<CuratorDeal | null>(null);
+  const [duplicateDeal, setDuplicateDeal] = useState<CuratorDeal | null>(null);
   const [closeDealOpen, setCloseDealOpen] = useState<CuratorDeal | null>(null);
 
   const { deals, logs, playlists, songs, alerts, curators, balances, progressByDeal, loading, deleteDeal, addLog, addBaseline, insertSnapshots, closeDeal, reopenDeal, forceCollectNow, updateCurator, addCuratorPurchase, archiveCurator, deleteCurator, pauseCurator, reload } = useCuratorDeals();
