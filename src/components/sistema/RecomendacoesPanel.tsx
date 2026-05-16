@@ -149,25 +149,46 @@ export function RecomendacoesPanel() {
     }
   };
 
-  const handleFeedback = async (r: FitRow, action: FeedbackAction) => {
+  const handleFeedback = async (r: FitRow, action: FeedbackAction, extra?: { deal_id?: string }) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       toast({ title: "Faça login", variant: "destructive" });
       return;
     }
-    // upsert por (user_id, fit_id)
+    const payload: any = { user_id: user.id, fit_id: r.id, action };
+    if (extra?.deal_id) payload.deal_id = extra.deal_id;
     const { error } = await supabase
       .from("recommendation_feedback")
-      .upsert(
-        { user_id: user.id, fit_id: r.id, action },
-        { onConflict: "user_id,fit_id" },
-      );
+      .upsert(payload, { onConflict: "user_id,fit_id" });
     if (error) {
-      // fallback se não houver unique constraint
-      await supabase.from("recommendation_feedback").insert({ user_id: user.id, fit_id: r.id, action });
+      await supabase.from("recommendation_feedback").insert(payload);
     }
     setFeedbackMap((m) => ({ ...m, [r.id]: action }));
-    toast({ title: action === "visto" ? "Marcada como vista" : "Sugestão descartada" });
+    const labels: Record<FeedbackAction, string> = {
+      visto: "Marcada como vista",
+      descartado: "Sugestão descartada",
+      converted_to_deal: "Sugestão enviada pro fluxo de deal",
+      removal_requested: "Remoção marcada como pedida",
+    };
+    toast({ title: labels[action] ?? "Feedback registrado" });
+  };
+
+  const handleCreateDeal = async (r: FitRow) => {
+    await handleFeedback(r, "converted_to_deal");
+    const playlistUrl = r.evidence?.playlist?.spotify_url ?? `https://open.spotify.com/playlist/${r.spotify_playlist_id}`;
+    const trackUrl = r.evidence?.track?.spotify_url ?? `https://open.spotify.com/track/${r.spotify_track_id}`;
+    const params = new URLSearchParams({
+      new: "1",
+      from_fit: r.id,
+      prefill_song_url: trackUrl,
+      prefill_playlist_url: playlistUrl,
+    });
+    navigate(`/playlist-deals?${params.toString()}`);
+  };
+
+  const openSpotify = (r: FitRow) => {
+    const url = r.evidence?.playlist?.spotify_url ?? `https://open.spotify.com/playlist/${r.spotify_playlist_id}`;
+    window.open(url, "_blank", "noopener,noreferrer");
   };
 
   return (
