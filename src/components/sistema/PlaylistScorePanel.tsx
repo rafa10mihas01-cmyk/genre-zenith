@@ -97,6 +97,26 @@ export function PlaylistScorePanel() {
     });
   }, [rows, filter, search]);
 
+  // Reseta scroll infinito quando filtros mudam
+  useEffect(() => { setVisibleCount(15); }, [filter, search, rows.length]);
+
+  const visibleRows = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
+  const hasMore = visibleCount < filtered.length;
+
+  // IntersectionObserver para carregar mais ao chegar no fim
+  useEffect(() => {
+    if (!hasMore) return;
+    const el = sentinelRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) {
+        setVisibleCount((c) => Math.min(c + 15, filtered.length));
+      }
+    }, { rootMargin: "200px" });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [hasMore, filtered.length]);
+
   const handleRecalcAll = async () => {
     if (!confirm("Recalcular todas as playlists? Pode demorar alguns minutos (processa em lotes).")) return;
     setRecalcAll(true);
