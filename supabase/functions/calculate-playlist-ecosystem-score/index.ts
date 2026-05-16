@@ -294,7 +294,7 @@ Deno.serve(async (req) => {
     const slice = targets.slice(offset, offset + limit);
     let ok = 0, failed = 0;
     const errors: string[] = [];
-    const BATCH = 4;
+    const BATCH = 2;
     for (let i = 0; i < slice.length; i += BATCH) {
       const sub = slice.slice(i, i + BATCH);
       const results = await Promise.all(sub.map((t) => processPlaylist(supabase, t.id, t.kind)));
