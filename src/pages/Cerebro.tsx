@@ -25,6 +25,7 @@ import { CerebroTopBar } from "@/components/cerebro/CerebroTopBar";
 import { Decisoes } from "@/components/cerebro/Decisoes";
 import { Analises } from "@/components/cerebro/Analises";
 import { Section, CollapsibleSection } from "@/components/cerebro/Insights";
+import { DeprecationBanner } from "@/components/DeprecationBanner";
 
 // Re-exporta helpers compartilhados pra manter compatibilidade com qualquer
 // import externo eventual e centralizar o "ponto de entrada" do módulo.
@@ -130,6 +131,10 @@ export default function Cerebro() {
 
   return (
     <PageContainer>
+      <DeprecationBanner
+        title="Cérebro em aposentadoria (Fase 1)"
+        message="O CO de pesquisa Apify e o autopilot foram desligados. As análises continuam visíveis em modo leitura para auditoria."
+      />
       <PageHeader
         title="Cérebro"
         subtitle="Analisar dados e gerar inteligência"

@@ -21,6 +21,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { LoadMore, usePagination } from "@/components/LoadMore";
 import { useSetSidebarKpis } from "@/contexts/SidebarContext";
+import { DeprecationBanner } from "@/components/DeprecationBanner";
 
 /**
  * CRIAÇÃO — Cockpit de Execução.
@@ -326,6 +327,10 @@ export default function Criacao() {
 
   return (
     <PageContainer>
+      <DeprecationBanner
+        title="Criação em aposentadoria (Fase 1)"
+        message="A criação automática de playlists e capas via API foi desligada. Botões de execução estão inertes; a leitura do histórico segue disponível para auditoria."
+      />
       <PageHeader
         title="Criação"
         subtitle="Gerar e preparar playlists"
