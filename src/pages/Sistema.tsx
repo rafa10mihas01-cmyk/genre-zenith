@@ -2,7 +2,8 @@
 // Tabs no padrão visual do app (border-b + ícone + label), igual Operação / Playlist Deals / Comunidade.
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import { Activity, Workflow, Music2, HeartPulse, Bot, Bell, ListPlus, Settings as SettingsIcon, Archive } from "lucide-react";
+import { Activity, Workflow, Music2, HeartPulse, Bot, Bell, ListPlus, Settings as SettingsIcon, Archive, Gauge } from "lucide-react";
+import { EcosystemScorePanel } from "@/components/sistema/EcosystemScorePanel";
 import { DeprecationPanel } from "@/components/sistema/DeprecationPanel";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
@@ -19,7 +20,7 @@ import { ExecucaoPanel } from "@/components/sistema/ExecucaoPanel";
 import Settings from "@/pages/Settings";
 
 type SistemaTab =
-  | "fluxo" | "ao-vivo" | "robo" | "coleta" | "execucao" | "saude" | "alertas" | "aposentadoria" | "configuracoes";
+  | "fluxo" | "ao-vivo" | "robo" | "coleta" | "execucao" | "saude" | "alertas" | "ecosystem-score" | "aposentadoria" | "configuracoes";
 
 type TabDef = { id: SistemaTab; label: string; icon: typeof Activity; adminOnly?: boolean };
 
@@ -31,6 +32,7 @@ const TABS: TabDef[] = [
   { id: "execucao", label: "Execução", icon: ListPlus },
   { id: "saude", label: "Saúde", icon: HeartPulse },
   { id: "alertas", label: "Alertas", icon: Bell },
+  { id: "ecosystem-score", label: "Ecosystem Score", icon: Gauge, adminOnly: true },
   { id: "aposentadoria", label: "Aposentadoria", icon: Archive, adminOnly: true },
   { id: "configuracoes", label: "Configurações", icon: SettingsIcon },
 ];
@@ -89,6 +91,7 @@ export default function Sistema() {
         {activeTab === "execucao" && <ExecucaoPanel />}
         {activeTab === "saude" && <SaudeSistema />}
         {activeTab === "alertas" && <AlertasHistorico />}
+        {activeTab === "ecosystem-score" && <EcosystemScorePanel />}
         {activeTab === "aposentadoria" && <DeprecationPanel />}
         {activeTab === "configuracoes" && <Settings embedded />}
       </div>
