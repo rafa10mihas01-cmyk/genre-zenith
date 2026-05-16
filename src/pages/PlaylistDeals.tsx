@@ -96,14 +96,28 @@ export default function PlaylistDeals() {
       tab === "done" ? deals.filter((d) => !!d.closed_at)
       : tab === "active" ? deals.filter((d) => !d.closed_at)
       : deals;
-    // Ordem: 1) ativos rodando (com baseline), 2) ativos sem baseline, 3) encerrados.
+    // Ordem: 1) ativos com baseline, 2) ativos sem baseline, 3) encerrados.
+    // Dentro de cada grupo, agrupa por curador (deals do mesmo curador ficam juntos).
     const dealsWithBaseline = new Set(
       logs.filter((l) => l.is_baseline).map((l) => l.deal_id),
     );
+    const rank = (d: typeof deals[number]) =>
+      d.closed_at ? 2 : dealsWithBaseline.has(d.id) ? 0 : 1;
+    // Ordem de primeira aparição de cada curador dentro de cada rank (mantém estabilidade).
+    const curatorOrder = new Map<string, number>();
+    let idx = 0;
+    [...base]
+      .sort((a, b) => rank(a) - rank(b))
+      .forEach((d) => {
+        const key = `${rank(d)}::${d.curator_id ?? d.curator_name}`;
+        if (!curatorOrder.has(key)) curatorOrder.set(key, idx++);
+      });
     return [...base].sort((a, b) => {
-      const rank = (d: typeof a) =>
-        d.closed_at ? 2 : dealsWithBaseline.has(d.id) ? 0 : 1;
-      return rank(a) - rank(b);
+      const r = rank(a) - rank(b);
+      if (r !== 0) return r;
+      const ka = `${rank(a)}::${a.curator_id ?? a.curator_name}`;
+      const kb = `${rank(b)}::${b.curator_id ?? b.curator_name}`;
+      return (curatorOrder.get(ka) ?? 0) - (curatorOrder.get(kb) ?? 0);
     });
   }, [deals, logs, tab]);
 
