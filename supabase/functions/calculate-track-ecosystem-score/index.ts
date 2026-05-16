@@ -69,45 +69,47 @@ async function processTrack(
   const ids = (songIds ?? []).map((s: any) => s.id);
   const dealIds = Array.from(new Set((songIds ?? []).map((s: any) => s.deal_id)));
 
-  // Totais oficiais reconciliados (vêm de curator_deals)
+  // Total reconciliado (vem de curator_deals — confiável)
   let streams_total = 0;
-  let streams_7d = 0;
-  let streams_28d = 0;
   let deal_active_count = 0;
   if (dealIds.length > 0) {
     const { data: dealRows } = await supabase
       .from("curator_deals")
-      .select("reconciled_total_plays, reconciled_streams_7d, reconciled_streams_28d, closed_at")
+      .select("reconciled_total_plays, closed_at")
       .in("id", dealIds as any);
     for (const d of (dealRows ?? []) as any[]) {
       streams_total += Number(d.reconciled_total_plays ?? 0);
-      streams_7d += Number(d.reconciled_streams_7d ?? 0);
-      streams_28d += Number(d.reconciled_streams_28d ?? 0);
       if (!d.closed_at) deal_active_count++;
     }
   }
 
-  // Growth: agregar snapshots por dia (SUM plays entre playlists no mesmo dia)
-  // Depois comparar dia mais recente vs dia ~7d/28d atrás.
+  // Snapshots (paginados) → agregar por dia (SUM plays entre playlists no mesmo dia).
+  // reconciled_streams_7d/28d nos deals estão sempre 0, então derivamos tudo daqui.
   let dailyAgg: { day: string; total: number }[] = [];
   let lastSnapshotAt: string | null = null;
   let snapshotsUsed = 0;
   if (ids.length > 0) {
     const since = new Date(Date.now() - 35 * 86400_000).toISOString();
-    const { data: snapRows } = await supabase
-      .from("curator_deal_snapshots")
-      .select("plays, captured_at")
-      .in("song_id", ids)
-      .gte("captured_at", since)
-      .order("captured_at", { ascending: false })
-      .limit(5000);
-    const rows = (snapRows ?? []) as { plays: number | null; captured_at: string }[];
-    snapshotsUsed = rows.length;
-    lastSnapshotAt = rows[0]?.captured_at ?? null;
     const byDay = new Map<string, number>();
-    for (const r of rows) {
-      const day = r.captured_at.slice(0, 10);
-      byDay.set(day, (byDay.get(day) ?? 0) + Number(r.plays ?? 0));
+    const PAGE = 1000;
+    for (let from = 0; from < 20000; from += PAGE) {
+      const { data: snapRows, error: snapErr } = await supabase
+        .from("curator_deal_snapshots")
+        .select("plays, captured_at")
+        .in("song_id", ids)
+        .gte("captured_at", since)
+        .order("captured_at", { ascending: false })
+        .range(from, from + PAGE - 1);
+      if (snapErr) break;
+      const rows = (snapRows ?? []) as { plays: number | null; captured_at: string }[];
+      if (rows.length === 0) break;
+      if (snapshotsUsed === 0) lastSnapshotAt = rows[0]?.captured_at ?? null;
+      snapshotsUsed += rows.length;
+      for (const r of rows) {
+        const day = r.captured_at.slice(0, 10);
+        byDay.set(day, (byDay.get(day) ?? 0) + Number(r.plays ?? 0));
+      }
+      if (rows.length < PAGE) break;
     }
     dailyAgg = [...byDay.entries()]
       .map(([day, total]) => ({ day, total }))
@@ -126,6 +128,8 @@ async function processTrack(
     latestDay && ref7 && ref7.total > 0 ? pct(latestDay.total, ref7.total) : null;
   const growth_28d_pct =
     latestDay && ref28 && ref28.total > 0 ? pct(latestDay.total, ref28.total) : null;
+  const streams_7d = latestDay && ref7 ? Math.max(0, latestDay.total - ref7.total) : 0;
+  const streams_28d = latestDay && ref28 ? Math.max(0, latestDay.total - ref28.total) : 0;
   const acceleration =
     growth_7d_pct !== null && growth_28d_pct !== null ? growth_7d_pct - growth_28d_pct : null;
 
@@ -185,8 +189,6 @@ async function processTrack(
         last_snapshot_at: lastSnapshotAt,
         calculated_at: new Date().toISOString(),
       },
-      { onConflict: "spotify_track_id" },
-    );
       { onConflict: "spotify_track_id" },
     );
 
