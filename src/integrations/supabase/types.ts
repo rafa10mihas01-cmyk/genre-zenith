@@ -1902,6 +1902,54 @@ export type Database = {
         }
         Relationships: []
       }
+      deprecation_blocked_jobs: {
+        Row: {
+          blocked_at: string
+          id: number
+          job_type: string
+          payload: Json | null
+        }
+        Insert: {
+          blocked_at?: string
+          id?: number
+          job_type: string
+          payload?: Json | null
+        }
+        Update: {
+          blocked_at?: string
+          id?: number
+          job_type?: string
+          payload?: Json | null
+        }
+        Relationships: []
+      }
+      deprecation_hits: {
+        Row: {
+          called_at: string
+          caller_user_id: string | null
+          function_name: string
+          id: number
+          request_meta: Json | null
+          source: string
+        }
+        Insert: {
+          called_at?: string
+          caller_user_id?: string | null
+          function_name: string
+          id?: number
+          request_meta?: Json | null
+          source?: string
+        }
+        Update: {
+          called_at?: string
+          caller_user_id?: string | null
+          function_name?: string
+          id?: number
+          request_meta?: Json | null
+          source?: string
+        }
+        Relationships: []
+      }
       email_send_log: {
         Row: {
           created_at: string
