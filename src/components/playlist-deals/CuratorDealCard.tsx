@@ -24,6 +24,7 @@ export interface CuratorDealCardProps {
   onDetail: (deal: CuratorDeal) => void;
   onDelete: (deal: CuratorDeal) => void;
   onEdit?: (deal: CuratorDeal) => void;
+  onDuplicate?: (deal: CuratorDeal) => void;
   onClose?: (deal: CuratorDeal) => void;
   onReopen?: (deal: CuratorDeal) => void;
   onForceCollect?: (deal: CuratorDeal) => Promise<void> | void;
@@ -38,7 +39,7 @@ function formatPlays(n: number): string {
 }
 
 export function CuratorDealCard({
-  deal, logs, playlists, songs = [], progress, onLog, onDetail, onDelete, onEdit, onClose, onReopen, onForceCollect,
+  deal, logs, playlists, songs = [], progress, onLog, onDetail, onDelete, onEdit, onDuplicate, onClose, onReopen, onForceCollect,
 }: CuratorDealCardProps) {
   const stats = computeCuratorStats(deal, logs, playlists, progress ?? null);
   const { earned, pct, vel, eta, latestPlays, todayPlays, hasBaseline, newPlaylists } = stats;
@@ -528,6 +529,12 @@ export function CuratorDealCard({
                 <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => onEdit(deal)}>
                   <Pencil className="h-4 w-4" />
                   Editar deal
+                </DropdownMenuItem>
+              )}
+              {onDuplicate && (
+                <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => onDuplicate(deal)}>
+                  <Copy className="h-4 w-4" />
+                  Duplicar pra outra música
                 </DropdownMenuItem>
               )}
               <DropdownMenuSeparator />

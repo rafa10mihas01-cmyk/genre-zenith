@@ -16,6 +16,7 @@ import { CuratorDealCard } from "@/components/playlist-deals/CuratorDealCard";
 import { DealRow } from "@/components/playlist-deals/DealRow";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { NewDealDialog } from "@/components/playlist-deals/NewDealDialog";
+import { DuplicateDealDialog } from "@/components/playlist-deals/DuplicateDealDialog";
 import { LogPrintDialog } from "@/components/playlist-deals/LogPrintDialog";
 import { DealHistorySheet } from "@/components/playlist-deals/DealHistorySheet";
 import { CuradoresLibraryTab } from "@/components/playlist-deals/CuradoresLibraryTab";
@@ -41,6 +42,7 @@ export default function PlaylistDeals() {
   const [logDeal, setLogDeal] = useState<CuratorDeal | null>(null);
   const [detailDeal, setDetailDeal] = useState<CuratorDeal | null>(null);
   const [editDeal, setEditDeal] = useState<CuratorDeal | null>(null);
+  const [duplicateDeal, setDuplicateDeal] = useState<CuratorDeal | null>(null);
   const [closeDealOpen, setCloseDealOpen] = useState<CuratorDeal | null>(null);
 
   const { deals, logs, playlists, songs, alerts, curators, balances, progressByDeal, loading, deleteDeal, addLog, addBaseline, insertSnapshots, closeDeal, reopenDeal, forceCollectNow, updateCurator, addCuratorPurchase, archiveCurator, deleteCurator, pauseCurator, reload } = useCuratorDeals();
@@ -303,6 +305,7 @@ export default function PlaylistDeals() {
                 onDetail={openDetail}
                 onDelete={(deal) => handleDelete(deal.id)}
                 onEdit={(deal) => setEditDeal(deal)}
+                onDuplicate={(deal) => setDuplicateDeal(deal)}
                 onClose={(deal) => setCloseDealOpen(deal)}
                 onReopen={handleReopen}
                 onForceCollect={(deal) => forceCollectNow(deal.id)}
@@ -323,6 +326,7 @@ export default function PlaylistDeals() {
                 onDetail={openDetail}
                 onDelete={(deal) => handleDelete(deal.id)}
                 onEdit={(deal) => setEditDeal(deal)}
+                onDuplicate={(deal) => setDuplicateDeal(deal)}
                 onClose={(deal) => setCloseDealOpen(deal)}
                 onReopen={handleReopen}
                 onForceCollect={(deal) => forceCollectNow(deal.id)}
@@ -344,6 +348,14 @@ export default function PlaylistDeals() {
         }}
         editDeal={editDeal}
         editSongs={editDeal ? songs.filter((s) => s.deal_id === editDeal.id) : []}
+        onSaved={reload}
+      />
+
+      <DuplicateDealDialog
+        open={duplicateDeal !== null}
+        onOpenChange={(v) => { if (!v) setDuplicateDeal(null); }}
+        sourceDeal={duplicateDeal}
+        sourceSongs={duplicateDeal ? songs.filter((s) => s.deal_id === duplicateDeal.id) : []}
         onSaved={reload}
       />
 

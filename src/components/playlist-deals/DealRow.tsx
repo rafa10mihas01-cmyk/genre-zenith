@@ -46,6 +46,7 @@ export interface DealRowProps {
   onDetail: (deal: CuratorDeal) => void;
   onDelete: (deal: CuratorDeal) => void;
   onEdit?: (deal: CuratorDeal) => void;
+  onDuplicate?: (deal: CuratorDeal) => void;
   onClose?: (deal: CuratorDeal) => void;
   onReopen?: (deal: CuratorDeal) => void;
   onForceCollect?: (deal: CuratorDeal) => Promise<void> | void;
@@ -315,6 +316,11 @@ export function DealRow(props: DealRowProps) {
                     <Pencil className="h-4 w-4" /> Editar deal
                   </DropdownMenuItem>
                 </>
+              )}
+              {props.onDuplicate && (
+                <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => props.onDuplicate!(deal)}>
+                  <Copy className="h-4 w-4" /> Duplicar pra outra música
+                </DropdownMenuItem>
               )}
               <DropdownMenuSeparator />
               <DropdownMenuItem
