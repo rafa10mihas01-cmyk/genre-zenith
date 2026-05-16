@@ -1115,6 +1115,20 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
         } catch {
           // ignora
         }
+        // Marca origem (Recomendações) se aplicável
+        if (sourceFitId) {
+          try {
+            await supabase.from("curator_deals").update({
+              source: "recommendation",
+              source_fit_id: sourceFitId,
+            } as any).eq("id", deal.id);
+          } catch (e) {
+            console.error("[NewDealDialog] source update failed", e);
+          }
+        }
+        try { await Promise.resolve(onCreated?.(deal)); } catch (e) {
+          console.error("[NewDealDialog] onCreated error", e);
+        }
         toast.success("Deal criado", {
           description: `${validSongs.length} música${validSongs.length > 1 ? "s" : ""} • link copiado`,
         });
