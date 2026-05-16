@@ -15,6 +15,7 @@ import {
   usePlaylistBrain,
   usePlaylistBrainHistory,
   useRecalcPlaylistBrain,
+  useDiagnoseManagedPlaylist,
   type BrainSignal,
   type BrainRecommendation,
 } from "@/hooks/usePlaylistBrain";
