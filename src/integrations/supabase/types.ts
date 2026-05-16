@@ -2964,6 +2964,90 @@ export type Database = {
           },
         ]
       }
+      playlist_ecosystem_score: {
+        Row: {
+          avg_track_momentum: number | null
+          calculated_at: string
+          confidence: number
+          created_at: string
+          curator_name: string | null
+          efficiency_score: number
+          followers: number
+          growth_28d_pct: number | null
+          health_class: string
+          id: string
+          image_url: string | null
+          last_snapshot_at: string | null
+          pct_caindo: number
+          pct_estavel: number
+          pct_saturada: number
+          pct_subindo: number
+          playlist_kind: string
+          playlist_name: string | null
+          snapshots_used: number
+          spotify_playlist_id: string
+          streams_28d: number
+          streams_7d: number
+          total_streams: number
+          track_count: number
+          updated_at: string
+        }
+        Insert: {
+          avg_track_momentum?: number | null
+          calculated_at?: string
+          confidence?: number
+          created_at?: string
+          curator_name?: string | null
+          efficiency_score?: number
+          followers?: number
+          growth_28d_pct?: number | null
+          health_class?: string
+          id?: string
+          image_url?: string | null
+          last_snapshot_at?: string | null
+          pct_caindo?: number
+          pct_estavel?: number
+          pct_saturada?: number
+          pct_subindo?: number
+          playlist_kind: string
+          playlist_name?: string | null
+          snapshots_used?: number
+          spotify_playlist_id: string
+          streams_28d?: number
+          streams_7d?: number
+          total_streams?: number
+          track_count?: number
+          updated_at?: string
+        }
+        Update: {
+          avg_track_momentum?: number | null
+          calculated_at?: string
+          confidence?: number
+          created_at?: string
+          curator_name?: string | null
+          efficiency_score?: number
+          followers?: number
+          growth_28d_pct?: number | null
+          health_class?: string
+          id?: string
+          image_url?: string | null
+          last_snapshot_at?: string | null
+          pct_caindo?: number
+          pct_estavel?: number
+          pct_saturada?: number
+          pct_subindo?: number
+          playlist_kind?: string
+          playlist_name?: string | null
+          snapshots_used?: number
+          spotify_playlist_id?: string
+          streams_28d?: number
+          streams_7d?: number
+          total_streams?: number
+          track_count?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       playlist_execution_jobs: {
         Row: {
           allocation_id: string | null
@@ -3335,6 +3419,41 @@ export type Database = {
           window_start?: string
         }
         Relationships: []
+      }
+      recommendation_feedback: {
+        Row: {
+          action: string
+          created_at: string
+          fit_id: string
+          id: string
+          note: string | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          fit_id: string
+          id?: string
+          note?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          fit_id?: string
+          id?: string
+          note?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recommendation_feedback_fit_id_fkey"
+            columns: ["fit_id"]
+            isOneToOne: false
+            referencedRelation: "track_playlist_fit"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       replication_rules: {
         Row: {
@@ -4110,6 +4229,54 @@ export type Database = {
           streams_total?: number | null
           total_playlist_count?: number | null
           track_name?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      track_playlist_fit: {
+        Row: {
+          already_present: boolean
+          calculated_at: string
+          confidence: number
+          created_at: string
+          evidence: Json
+          fit_reason: string[]
+          fit_score: number
+          id: string
+          playlist_kind: string
+          recommendation_kind: string
+          spotify_playlist_id: string
+          spotify_track_id: string
+          updated_at: string
+        }
+        Insert: {
+          already_present?: boolean
+          calculated_at?: string
+          confidence?: number
+          created_at?: string
+          evidence?: Json
+          fit_reason?: string[]
+          fit_score?: number
+          id?: string
+          playlist_kind: string
+          recommendation_kind: string
+          spotify_playlist_id: string
+          spotify_track_id: string
+          updated_at?: string
+        }
+        Update: {
+          already_present?: boolean
+          calculated_at?: string
+          confidence?: number
+          created_at?: string
+          evidence?: Json
+          fit_reason?: string[]
+          fit_score?: number
+          id?: string
+          playlist_kind?: string
+          recommendation_kind?: string
+          spotify_playlist_id?: string
+          spotify_track_id?: string
           updated_at?: string
         }
         Relationships: []
