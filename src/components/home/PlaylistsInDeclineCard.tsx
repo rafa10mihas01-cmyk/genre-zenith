@@ -75,7 +75,7 @@ export function PlaylistsInDeclineCard() {
   }, []);
 
   return (
-    <div className="nx-card p-5 flex flex-col gap-3 h-full">
+    <div className="nx-card-hover p-5 flex flex-col gap-3 h-full">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <TrendingDown className="h-4 w-4 text-destructive" />
