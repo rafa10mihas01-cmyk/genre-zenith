@@ -1,130 +1,129 @@
-# Wave 2 — Inteligência por Playlist + Recomendações Read-Only
+# Wave 3 — Execução Assistida + Tracking de Impacto
 
-Wave 1 entregou o raio-x **por faixa**. Wave 2 vira a câmera 90° e olha **por playlist**: como cada playlist está performando, quais faixas estão "puxando" ou "puxando pra baixo", e o que faz sentido adicionar/remover. Tudo **observação + sugestão**. Humano decide.
+Wave 1 entregou raio-x **por faixa**. Wave 2 entregou raio-x **por playlist** + recomendações read-only. Wave 3 fecha o loop: **agir sobre as recomendações** sem sair do app e **medir se a ação funcionou**.
 
----
-
-## 1. Tabela `playlist_ecosystem_score`
-
-Uma linha por playlist (curator ou managed), recalculada periodicamente.
-
-Campos principais:
-
-- `playlist_id` (FK curator_playlists ou managed_playlists)
-- `playlist_kind`: `curator` | `managed`
-- `playlist_name`, `curator_name` (denormalizado)
-- **Volume**:
-  - `track_count` (faixas nossas ativas nela)
-  - `total_streams` (soma dos cumulativos das nossas faixas nela)
-  - `streams_7d`, `streams_28d` (soma dos plays_7d/28d das nossas faixas nela)
-- **Saúde**:
-  - `growth_28d_pct` (delta agregado da playlist nas últimas semanas)
-  - `avg_track_momentum` (média ponderada dos momentum_class das faixas)
-  - `pct_subindo`, `pct_caindo`, `pct_saturada` (composição)
-- **Diagnóstico**:
-  - `health_class`: `aquecida` | `estavel` | `esfriando` | `saturada` | `subutilizada` | `sem_dados`
-  - `efficiency_score` (0–1: streams por faixa nossa vs benchmark)
-  - `confidence` (0–1: baseado em snapshots disponíveis)
-- `last_snapshot_at`, `calculated_at`
-
-RLS: leitura autenticada, escrita só service_role.
-
-## 2. Tabela `track_playlist_fit`
-
-Sugestões **read-only** geradas pelo motor: "essa faixa faz sentido nessa playlist?".
-Uma linha por par (track, playlist) com score relevante.
-
-Campos:
-- `spotify_track_id`, `playlist_id`, `playlist_kind`
-- `fit_score` (0–100)
-- `fit_reason`: array de tags (`genre_match`, `momentum_alinhado`, `curador_aceita_estilo`, `playlist_aquecida`, `gap_de_repertorio`)
-- `recommendation_kind`: `adicionar` | `remover` | `reorganizar` | `manter`
-- `evidence`: jsonb com os números crus que justificam (pra debug)
-- `already_present` (boolean — está na playlist hoje?)
-- `confidence` (0–1)
-- `calculated_at`
-
-**Importante:** essa tabela é cache de sugestão. Nada aqui executa nada. UI lê e mostra. Humano decide.
-
-## 3. Edge function `calculate-playlist-ecosystem-score`
-
-Modos: `full` | `single` (playlist_id).
-Para cada playlist:
-1. Lista as faixas nossas presentes (via `curator_playlists.song_id` ou `managed_playlists`).
-2. Junta com `track_ecosystem_score` pra pegar momentum/streams já calculado.
-3. Agrega: soma streams, calcula % por momentum_class, calcula growth da playlist via snapshots agregados.
-4. Classifica `health_class` por regras determinísticas.
-5. Upsert em `playlist_ecosystem_score`.
-
-## 4. Edge function `calculate-track-playlist-fit`
-
-Modos: `full` | `single` (track_id ou playlist_id).
-Heurísticas determinísticas (sem ML):
-- **Gap detection**: faixa `subindo` ou `forte` que NÃO está em playlist `aquecida` do mesmo gênero do curador → `adicionar` com fit alto.
-- **Saturação**: faixa `saturada` presente em playlist `esfriando` há muito tempo → `remover`.
-- **Reorganizar**: faixa `subindo` em playlist mas em posição ruim (se tivermos posição) → flag.
-- **Manter**: faixa `estavel` + playlist `estavel` → confirma status quo.
-
-Cada sugestão guarda `evidence` (jsonb) com os números brutos: "streams_7d=X, growth=Y%, playlist health=Z" pra você auditar.
-
-## 5. Cron
-
-`calculate-playlist-ecosystem-score`: 1x/dia, 04:30 BRT (depois do score de track).
-`calculate-track-playlist-fit`: 1x/dia, 05:00 BRT.
-
-## 6. UI: nova aba `/sistema?tab=playlist-score`
-
-Mesma cara da tela de Wave 1 (tabela densa, filtros, expand pra raio-x). Mostra todas as playlists com health_class, top faixas, faixas problemáticas. Botão "Recalcular esta playlist".
-
-## 7. UI: `/sistema?tab=recomendacoes`
-
-A **tela de curadoria assistida** que você descreveu no prompt original. Read-only.
-
-Layout:
-- **Filtros no topo**: tipo (adicionar/remover/reorganizar), curador, gênero, fit mínimo, confidence mínima.
-- **Lista de cards de recomendação**, cada um:
-  - Faixa (nome + artista + momentum badge)
-  - → Playlist alvo (nome + curador + health badge)
-  - Fit score grande (ex: `87 / 100`)
-  - Tags de motivo (`genre_match`, `momentum_alinhado`, etc)
-  - Botão **"Ver evidência"** → drawer com os números crus (track_ecosystem_score + playlist_ecosystem_score lado a lado)
-  - Botão **"Marcar como vista"** (registra que você revisou, sem executar nada)
-  - Botão **"Descartar"** (registra que rejeitou a sugestão — feedback pra ajustar pesos depois)
-
-Sem botão "Adicionar agora". Sem execução. O humano abre o Spotify e age — ou, em wave futura, dispara um deal manualmente.
-
-Pra trackear visto/descartado: tabela leve `recommendation_feedback (user_id, fit_id, action, created_at)`.
+Continua tudo determinístico, sem ML. Humano continua no comando — só ganha botão.
 
 ---
 
-## Critério de sucesso (pra liberar Wave 3)
+## 0. Crons da Wave 2 (pré-requisito)
 
-Você abre a tela de recomendações, olha as primeiras 30 sugestões e fala:
-- "Faz sentido, eu faria isso" → 70%+
-- "Não faria, mas entendo o motivo" → 20%
-- "Tá errado" → ajustamos thresholds/pesos
+Antes de começar Wave 3, ativar crons que faltaram:
+- `calculate-track-ecosystem-score` → diário 04:00 BRT
+- `calculate-playlist-ecosystem-score` → diário 04:30 BRT
+- `calculate-track-playlist-fit` → diário 05:00 BRT
 
-Quando bater 70%+, Wave 3 (execução assistida via deals + tracking de impacto) está liberada.
+Tabela `cron_jobs` no painel Sistema → Configurações (já existe infraestrutura).
+
+---
+
+## 1. Ações na tela de Recomendações
+
+Hoje cada card tem só **Ver evidência / Marcar como vista / Descartar**. Adicionar:
+
+- **"Criar deal a partir desta sugestão"** (recommendation_kind = `adicionar`)
+  → Abre o `NewDealDialog` já existente, pré-preenchido com: curador alvo, faixa, playlist alvo.
+  → Usuário confirma valores e fecha. Cria deal normal no fluxo de Playlist Deals.
+  → Grava `recommendation_feedback.action = 'converted_to_deal'` + `deal_id`.
+
+- **"Pedir remoção ao curador"** (recommendation_kind = `remover`)
+  → Abre dialog que gera mensagem template ("Olá Fulano, podemos remover a faixa X da playlist Y?") com botão copiar.
+  → Grava feedback `action = 'removal_requested'`.
+
+- **"Abrir no Spotify"** → link direto pra playlist (já temos `spotify_url`).
+
+Sem execução silenciosa. Toda ação passa por confirmação humana.
+
+## 2. Tabela `recommendation_outcome`
+
+Pra medir se a sugestão funcionou:
+
+- `fit_id` (FK track_playlist_fit)
+- `outcome_kind`: `added` | `removed` | `ignored` | `pending`
+- `detected_at`: quando o sistema notou a mudança real no Spotify (faixa entrou/saiu da playlist)
+- `streams_before_28d`, `streams_after_28d`
+- `impact_delta_pct`: variação real após a ação
+- `verdict`: `acertou` | `errou` | `inconclusivo` (calculado 28 dias após a ação)
+
+Edge function `detect-recommendation-outcomes` roda 1x/dia e cruza:
+- snapshot atual de `curator_playlists` vs sugestões com `recommendation_feedback`
+- se faixa apareceu/sumiu da playlist → marca `detected_at`
+- depois de 28 dias compara streams e dá veredito
+
+## 3. Aba `/sistema?tab=impacto`
+
+Dashboard pra fechar o ciclo de aprendizado:
+
+- **KPIs no topo**: sugestões geradas / convertidas em ação / detectadas no Spotify / com veredito positivo
+- **Taxa de acerto por tipo**: `adicionar` X%, `remover` Y%
+- **Taxa de acerto por tag de motivo**: `genre_match` X%, `gap_de_repertorio` Y%
+- **Lista**: últimas 20 sugestões já com veredito, mostrando antes/depois
+- **Curadores ranqueados** por taxa de conversão (quem mais aceita nossas sugestões)
+
+Esses dados depois alimentam o ajuste dos thresholds do `calculate-track-playlist-fit` (Wave 4: auto-tuning de pesos).
+
+## 4. Integração com Playlist Deals existente
+
+Quando um deal é criado a partir de uma sugestão:
+- `curator_deals.source = 'recommendation'`
+- `curator_deals.source_fit_id` → link de volta
+- No detalhe do deal, mostrar badge **"Originado de recomendação"** + link pro card
+
+Quando o deal fecha e a faixa entra na playlist, o `detect-recommendation-outcomes` automaticamente fecha o ciclo.
+
+## 5. Notificação proativa (opcional, leve)
+
+Se uma recomendação com `fit_score >= 90` e `confidence >= 0.8` aparecer, dispara card no Home (`ProactiveAlertsCard` já existe) com:
+- "3 sugestões de alto fit aparecidas hoje"
+- Link direto pra `/sistema?tab=recomendacoes&min_fit=90`
+
+Sem email/push nessa wave — só in-app.
+
+---
+
+## Detalhes técnicos
+
+```text
+Wave 3 architecture
+───────────────────
+recommendation card (UI)
+   ├─ "Criar deal" ──► NewDealDialog (pré-preenchido)
+   │                       └─► curator_deals (source='recommendation')
+   ├─ "Pedir remoção" ──► template dialog (copy/paste)
+   └─ "Descartar" ──► recommendation_feedback
+
+cron detect-recommendation-outcomes (1x/dia)
+   ├─ varre recommendation_feedback com action ∈ {converted_to_deal, removal_requested}
+   ├─ cruza com curator_playlists atual (faixa entrou/saiu?)
+   ├─ atualiza recommendation_outcome.detected_at
+   └─ se passou 28d desde detected_at → calcula impact_delta_pct + verdict
+
+aba Impacto (UI)
+   └─ lê recommendation_outcome agregado → dashboard
+```
+
+Tabelas novas: `recommendation_outcome`. Tabelas alteradas: `curator_deals` (+2 colunas), `recommendation_feedback` (já existe).
 
 ---
 
 ## Fora de escopo nessa Wave
 
-- ❌ Executar adição/remoção
-- ❌ Criar deals automaticamente
-- ❌ ML / embeddings (continua tudo regra determinística)
-- ❌ Alertas push/email
-- ❌ Mudanças no bot
+- ❌ Auto-tuning de pesos via ML (Wave 4)
+- ❌ Execução automática sem confirmação humana
+- ❌ Notificações email/push
+- ❌ Bot do Spotify entrando em playlist sozinho
 
 ---
 
-## Sequência sugerida de entrega
+## Sequência de entrega
 
-1. Migração: `playlist_ecosystem_score` + `track_playlist_fit` + `recommendation_feedback` + RLS + índices
-2. Edge function `calculate-playlist-ecosystem-score` + tela debug `?tab=playlist-score`
-3. **Pausa pra você validar** os números da playlist (mesmo critério da Wave 1)
-4. Edge function `calculate-track-playlist-fit` + tela `?tab=recomendacoes`
-5. Cron jobs
-6. Iteração de thresholds com base no seu feedback
+1. Ativar crons da Wave 2 (5 min)
+2. Migração: `recommendation_outcome` + colunas em `curator_deals`
+3. Botão "Criar deal" no card de recomendação + integração com `NewDealDialog`
+4. Botão "Pedir remoção" + dialog template
+5. Edge function `detect-recommendation-outcomes`
+6. Aba `/sistema?tab=impacto`
+7. Badge "Originado de recomendação" em Playlist Deals
+8. (Opcional) Card no Home com sugestões de alto fit
 
-Posso começar pela migração + edge function de playlist score?
+Posso começar pelos crons + migração?
