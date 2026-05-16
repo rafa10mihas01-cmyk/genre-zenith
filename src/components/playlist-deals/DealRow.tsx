@@ -165,12 +165,16 @@ export function DealRow(props: DealRowProps) {
           aria-label={`Abrir detalhes de ${songLabel}`}
         >
           <div className="text-[14px] font-semibold text-foreground truncate leading-tight">
-            {songLabel}
+            {deal.curator_name}
           </div>
           <div className="text-[11.5px] text-muted-foreground truncate mt-0.5">
-            <span>{artistLabel}</span>
-            <span className="mx-1.5 opacity-50">·</span>
-            <span>{deal.curator_name}</span>
+            <span>{songLabel}</span>
+            {artistLabel && artistLabel !== deal.curator_name && (
+              <>
+                <span className="mx-1.5 opacity-50">·</span>
+                <span>{artistLabel}</span>
+              </>
+            )}
             {curatorCount > 0 && (
               <>
                 <span className="mx-1.5 opacity-50">·</span>

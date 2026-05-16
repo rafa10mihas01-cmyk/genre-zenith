@@ -92,10 +92,16 @@ export default function PlaylistDeals() {
   );
 
   const filtered = useMemo(() => {
-    if (tab === "all") return deals;
-    if (tab === "done") return deals.filter((d) => !!d.closed_at);
-    if (tab === "active") return deals.filter((d) => !d.closed_at);
-    return deals;
+    const base =
+      tab === "done" ? deals.filter((d) => !!d.closed_at)
+      : tab === "active" ? deals.filter((d) => !d.closed_at)
+      : deals;
+    // Ativos primeiro, depois encerrados — preservando ordem interna (created_at desc).
+    return [...base].sort((a, b) => {
+      const aClosed = a.closed_at ? 1 : 0;
+      const bClosed = b.closed_at ? 1 : 0;
+      return aClosed - bClosed;
+    });
   }, [deals, tab]);
 
   const handleNew = () => setNewOpen(true);
