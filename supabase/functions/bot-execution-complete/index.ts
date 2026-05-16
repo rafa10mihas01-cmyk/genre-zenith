@@ -1,6 +1,6 @@
-// bot-execution-complete — Bot reporta resultado de uma tarefa de execução.
+// bot-execution-complete — Bot reporta resultado de execução de playlist OU coleta de song.
 // Auth: header x-bot-key.
-// POST { job_id, correlation_id, status: 'done'|'failed', error? }
+// POST { job_id?, song_id?, deal_id?, correlation_id, status: 'done'|'failed', error? }
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -39,6 +39,8 @@ Deno.serve(async (req) => {
   }
 
   const jobId = body?.job_id;
+  const songId = body?.song_id;
+  const dealId = body?.deal_id ?? null;
   const status = body?.status;
   const errorMsg = body?.error ?? null;
   const correlationId = body?.correlation_id ?? null;
@@ -46,11 +48,54 @@ Deno.serve(async (req) => {
   const botName = req.headers.get("x-bot-name") || "spotify-artists-bot";
   const session = req.headers.get("x-bot-session") || null;
 
-  if (!jobId || !["done", "failed"].includes(status)) {
+  if ((!jobId && !songId) || !["done", "failed"].includes(status)) {
     return jr({ error: "invalid_input" }, 400);
   }
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+  const nowIso = new Date().toISOString();
+
+  // Novo ciclo de coleta: o bot encerra a song diretamente, não via playlist_execution_jobs.
+  // Isso impede rows de curator_deal_songs ficarem presas em queued quando o bot finaliza sem snapshot.
+  if (songId && !jobId) {
+    const { data: song, error: songErr } = await supabase
+      .from("curator_deal_songs")
+      .select("id, deal_id, auto_collect_interval_minutes, queued_at")
+      .eq("id", songId)
+      .maybeSingle();
+    if (songErr || !song) return jr({ error: "song_not_found" }, 404);
+
+    const intervalMin = song.auto_collect_interval_minutes ?? 1440;
+    const nextAt = new Date(Date.now() + intervalMin * 60_000).toISOString();
+    const queueAgeMs = song.queued_at ? Date.now() - new Date(song.queued_at).getTime() : null;
+
+    await supabase
+      .from("curator_deal_songs")
+      .update({
+        auto_collect_status: status === "done" ? "idle" : "error",
+        auto_collect_error: status === "done" ? null : (errorMsg ?? "bot execution failed"),
+        last_auto_collect_at: nowIso,
+        next_auto_collect_at: nextAt,
+        queued_at: null,
+      })
+      .eq("id", songId);
+
+    await supabase.from("bot_events").insert({
+      bot_name: botName,
+      session_id: session,
+      deal_id: dealId ?? song.deal_id,
+      song_id: songId,
+      step: "collect_complete",
+      status: status === "done" ? "success" : "error",
+      lifecycle_state: status === "done" ? "FINISHED" : "FAILED",
+      correlation_id: correlationId,
+      worker_id: workerId,
+      message: status === "done" ? "collect done" : String(errorMsg ?? "collect failed").slice(0, 500),
+      metadata: { queue_age_ms: queueAgeMs, next_auto_collect_at: nextAt },
+    });
+
+    return jr({ ok: true, status, song_id: songId, next_auto_collect_at: nextAt });
+  }
 
   const { data: job, error: jobErr } = await supabase
     .from("playlist_execution_jobs")
@@ -58,8 +103,6 @@ Deno.serve(async (req) => {
     .eq("id", jobId)
     .maybeSingle();
   if (jobErr || !job) return jr({ error: "job_not_found" }, 404);
-
-  const nowIso = new Date().toISOString();
 
   if (status === "done") {
     await supabase
