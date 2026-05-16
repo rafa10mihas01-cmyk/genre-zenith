@@ -141,12 +141,11 @@ async function processTrack(
   const managed_playlist_count = 0; // sem join table track↔managed_playlist ainda
   const total_playlist_count = curator_playlist_count + managed_playlist_count;
 
-  // Scores
-  const confidence = Math.min(1, snaps.length / TH.MIN_SNAPSHOTS_CONFIDENT);
+  // Confidence baseado em quantos dias distintos temos (não em qtd bruta de snapshots)
+  const confidence = Math.min(1, distinctDays / TH.MIN_SNAPSHOTS_CONFIDENT);
   const presence_high = total_playlist_count >= presenceHighThreshold && presenceHighThreshold > 0;
   const presence_low = total_playlist_count <= 1;
   const frequency_score = Math.min(1, total_playlist_count / Math.max(1, presenceHighThreshold || 10));
-  // saturação: alta presença com baixo crescimento
   const sat_growth = growth_28d_pct ?? 0;
   const saturation_index = presence_high
     ? Math.max(0, Math.min(1, (TH.SATURATED_GROWTH_MAX - sat_growth) / 100))
@@ -182,10 +181,12 @@ async function processTrack(
         frequency_score,
         momentum_class,
         confidence,
-        snapshots_used: snaps.length,
+        snapshots_used: snapshotsUsed,
         last_snapshot_at: lastSnapshotAt,
         calculated_at: new Date().toISOString(),
       },
+      { onConflict: "spotify_track_id" },
+    );
       { onConflict: "spotify_track_id" },
     );
 
