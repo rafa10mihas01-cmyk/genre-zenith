@@ -16,6 +16,7 @@ import { CuratorDealCard } from "@/components/playlist-deals/CuratorDealCard";
 import { DealRow } from "@/components/playlist-deals/DealRow";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { NewDealDialog } from "@/components/playlist-deals/NewDealDialog";
+import { DuplicateDealDialog } from "@/components/playlist-deals/DuplicateDealDialog";
 import { LogPrintDialog } from "@/components/playlist-deals/LogPrintDialog";
 import { DealHistorySheet } from "@/components/playlist-deals/DealHistorySheet";
 import { CuradoresLibraryTab } from "@/components/playlist-deals/CuradoresLibraryTab";
