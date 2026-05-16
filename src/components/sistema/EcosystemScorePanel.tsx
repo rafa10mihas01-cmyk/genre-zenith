@@ -215,8 +215,8 @@ export function EcosystemScorePanel() {
               {filtered.map((r) => {
                 const isOpen = expanded === r.id;
                 return (
-                  <>
-                    <tr key={r.id} className="border-t border-border hover:bg-muted/20">
+                  <Fragment key={r.id}>
+                    <tr className="border-t border-border hover:bg-muted/20">
                       <td className="px-2 py-2 align-top">
                         <button
                           onClick={() => setExpanded(isOpen ? null : r.id)}
@@ -236,7 +236,12 @@ export function EcosystemScorePanel() {
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums">{fmtNum(r.streams_total)}</td>
                       <td className="px-3 py-2 text-right tabular-nums">{fmtPct(r.growth_7d_pct)}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{fmtPct(r.growth_28d_pct)}</td>
+                      <td
+                        className="px-3 py-2 text-right tabular-nums"
+                        title={r.growth_28d_pct == null ? "Histórico insuficiente (precisa de 28+ dias de snapshots)" : undefined}
+                      >
+                        {fmtPct(r.growth_28d_pct)}
+                      </td>
                       <td className="px-3 py-2 text-right tabular-nums">{r.total_playlist_count}</td>
                       <td className="px-3 py-2 text-right tabular-nums">{r.deal_active_count}</td>
                       <td className="px-3 py-2 text-right tabular-nums">{(r.confidence * 100).toFixed(0)}%</td>
@@ -273,7 +278,7 @@ export function EcosystemScorePanel() {
                         </td>
                       </tr>
                     )}
-                  </>
+                  </Fragment>
                 );
               })}
             </tbody>
