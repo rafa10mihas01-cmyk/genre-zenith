@@ -766,6 +766,8 @@ export function CuradoresCRM({ segment }: { segment?: Segment } = {}) {
                   curatorName: row.owner_name || row.name,
                   playlistName: row.name,
                 })}
+                onSendFollowup={sendFollowup}
+                onOpenDetail={(row) => setDetailCurator(toDetail(row))}
               />
             ))}
           </div>
@@ -788,6 +790,33 @@ export function CuradoresCRM({ segment }: { segment?: Segment } = {}) {
         onOpenChange={(v) => { if (!v) setEmailTarget(null); }}
         target={emailTarget}
         onSent={() => load()}
+      />
+
+      <CuradorDetailSheet
+        open={!!detailCurator}
+        onOpenChange={(v) => { if (!v) setDetailCurator(null); }}
+        curator={detailCurator}
+        onChanged={() => { load(); }}
+        onSendEmail={(c) => {
+          if (!c.email) return;
+          setEmailTarget({
+            externalCuratorId: c.id,
+            recipientEmail: c.email,
+            curatorName: c.owner_name ?? c.name,
+            playlistName: c.name,
+          });
+        }}
+        onSendFollowup={(c) => {
+          if (!c.email) return;
+          const n = (Math.min(2, (c.followup_count ?? 0) + 1)) as 1 | 2;
+          setEmailTarget({
+            externalCuratorId: c.id,
+            recipientEmail: c.email,
+            curatorName: c.owner_name ?? c.name,
+            playlistName: c.name,
+            followupNumber: n,
+          });
+        }}
       />
     </div>
   );
