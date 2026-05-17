@@ -942,7 +942,7 @@ function CuradorRowCard({
           )}
           {r.email && (
             <button
-              onClick={mailto}
+              onClick={openEmail}
               className="p-1.5 hover:bg-primary/20 text-muted-foreground hover:text-primary rounded transition-colors"
               title="Enviar email"
             >
