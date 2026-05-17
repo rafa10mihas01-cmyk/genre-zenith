@@ -33,7 +33,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
   const [budget, setBudget] = useState(40_000);
   const [modo, setModo] = useState<Modo>("simultaneo");
   const [perfil, setPerfil] = useState<Perfil>("mercado");
-  const [splitEco, setSplitEco] = useState(DEFAULT_SPLIT.eco);
+  const [splitEco, setSplitEco] = useState<number>(DEFAULT_SPLIT.eco);
 
   // Quando fonte = orçamento, meta vira derivada
   const effectiveMeta = useMemo(() => {
