@@ -113,7 +113,7 @@ export default function SpotifyCallback() {
 
         setStatus("success");
         // Pequeno delay pra mostrar a tela de sucesso, depois entra no painel
-        setTimeout(() => navigate("/operacao", { replace: true }), 900);
+        setTimeout(() => navigate("/catalogo", { replace: true }), 900);
       } catch (e) {
         setStatus("error");
         setError((e as Error)?.message ?? "Erro de rede ao concluir a conexão.");

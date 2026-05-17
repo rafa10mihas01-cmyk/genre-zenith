@@ -182,7 +182,7 @@ export default function Privacy() {
           </p>
           {user ? (
             <Button asChild size="lg" className="nx-cta-btn gap-2 min-w-[240px] h-12 text-sm">
-              <Link to="/operacao">
+              <Link to="/catalogo">
                 <LayoutDashboard className="h-4 w-4" />
                 Entrar no painel
               </Link>

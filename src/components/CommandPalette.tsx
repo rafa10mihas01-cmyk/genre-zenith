@@ -11,8 +11,8 @@ import {
   CommandShortcut,
 } from "@/components/ui/command";
 import {
-  Home, Brain, Sparkles, Activity, BarChart3, Settings,
-  Search as SearchIcon, RefreshCw,
+  Home, Sparkles, Activity, BarChart3, Settings, Target, Handshake,
+  ListMusic, Server, Users, Search as SearchIcon,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -59,48 +59,75 @@ export function CommandPalette({
       <CommandList>
         <CommandEmpty>Nada encontrado.</CommandEmpty>
 
-        <CommandGroup heading="Navegação">
+        <CommandGroup heading="Cockpit">
           <CommandItem onSelect={() => go("/")}>
             <Home />
-            <span>Hoje</span>
+            <span>Início</span>
             <CommandShortcut>G H</CommandShortcut>
-          </CommandItem>
-          <CommandItem onSelect={() => go("/inteligencia")}>
-            <Brain />
-            <span>Inteligência</span>
-            <CommandShortcut>G I</CommandShortcut>
-          </CommandItem>
-          <CommandItem onSelect={() => go("/catalogo")}>
-            <Activity />
-            <span>Catálogo</span>
-            <CommandShortcut>G O</CommandShortcut>
-          </CommandItem>
-          <CommandItem onSelect={() => go("/deals")}>
-            <Sparkles />
-            <span>Deals</span>
-            <CommandShortcut>G D</CommandShortcut>
-          </CommandItem>
-          <CommandItem onSelect={() => go("/performance")}>
-            <BarChart3 />
-            <span>Performance</span>
-            <CommandShortcut>G P</CommandShortcut>
-          </CommandItem>
-          <CommandItem onSelect={() => go("/configuracoes")}>
-            <Settings />
-            <span>Configurações</span>
           </CommandItem>
         </CommandGroup>
 
         <CommandSeparator />
 
-        <CommandGroup heading="Ações rápidas">
-          <CommandItem onSelect={() => go("/catalogo")}>
-            <RefreshCw />
-            <span>Ver coleta / atividade</span>
+        <CommandGroup heading="Operação">
+          <CommandItem onSelect={() => go("/campanhas")}>
+            <Target />
+            <span>Campanhas</span>
+            <CommandShortcut>G C</CommandShortcut>
+          </CommandItem>
+          <CommandItem onSelect={() => go("/deals")}>
+            <Handshake />
+            <span>Playlist Deals</span>
+            <CommandShortcut>G D</CommandShortcut>
           </CommandItem>
           <CommandItem onSelect={() => go("/deals?tab=library")}>
-            <SearchIcon />
-            <span>Procurar curadores</span>
+            <Users />
+            <span>Curadores</span>
+          </CommandItem>
+          <CommandItem onSelect={() => go("/catalogo")}>
+            <ListMusic />
+            <span>Playlists</span>
+            <CommandShortcut>G P</CommandShortcut>
+          </CommandItem>
+        </CommandGroup>
+
+        <CommandSeparator />
+
+        <CommandGroup heading="Inteligência">
+          <CommandItem onSelect={() => go("/inteligencia")}>
+            <Sparkles />
+            <span>Inteligência</span>
+            <CommandShortcut>G I</CommandShortcut>
+          </CommandItem>
+          <CommandItem onSelect={() => go("/analytics")}>
+            <BarChart3 />
+            <span>Analytics</span>
+            <CommandShortcut>G A</CommandShortcut>
+          </CommandItem>
+          <CommandItem onSelect={() => go("/performance")}>
+            <Activity />
+            <span>Performance</span>
+          </CommandItem>
+          <CommandItem onSelect={() => go("/valuation")}>
+            <BarChart3 />
+            <span>Valuation</span>
+          </CommandItem>
+        </CommandGroup>
+
+        <CommandSeparator />
+
+        <CommandGroup heading="Sistema">
+          <CommandItem onSelect={() => go("/sistema")}>
+            <Server />
+            <span>Infra</span>
+          </CommandItem>
+          <CommandItem onSelect={() => go("/comunidade-admin")}>
+            <Users />
+            <span>Comunidade</span>
+          </CommandItem>
+          <CommandItem onSelect={() => go("/configuracoes")}>
+            <Settings />
+            <span>Configurações</span>
           </CommandItem>
         </CommandGroup>
 

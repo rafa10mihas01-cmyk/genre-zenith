@@ -116,7 +116,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
             {user ? (
               // Usuário logado → botão único para entrar no painel
               <Button asChild size="sm" className="nx-cta-btn gap-1.5 px-3 sm:px-4 text-xs sm:text-sm">
-                <Link to="/operacao">
+                <Link to="/catalogo">
                   <LayoutDashboard className="h-3.5 w-3.5" />
                   <span className="hidden sm:inline">Entrar no painel</span>
                   <span className="sm:hidden">Painel</span>
@@ -169,7 +169,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
               Política de Privacidade
             </Link>
             <Link
-              to={user ? "/operacao" : "/login"}
+              to={user ? "/catalogo" : "/login"}
               className="text-muted-foreground hover:text-foreground transition-colors"
             >
               {user ? "Entrar no painel" : "Conectar Spotify"}

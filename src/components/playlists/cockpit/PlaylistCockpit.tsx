@@ -198,21 +198,22 @@ export function PlaylistCockpit({
   const idealRange = market?.ideal_track_count_range;
 
   return (
-    <div className="space-y-8">
+    <div className="mx-auto w-full max-w-[1600px] px-4 md:px-8 py-6 md:py-8 space-y-6">
       {/* ============ 1. HERO ============ */}
-      <Card className="overflow-hidden border-0 bg-gradient-to-br from-primary/[0.06] via-card to-card">
-        <div className="p-6 flex flex-col md:flex-row gap-6 items-start">
+      <Card className="overflow-hidden border-0 bg-gradient-to-br from-primary/[0.08] via-card to-card relative">
+        <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.12),transparent_55%)]" />
+        <div className="relative p-6 md:p-8 flex flex-col md:flex-row gap-6 md:gap-8 items-start">
           <div className="relative shrink-0">
             {coverUrl ? (
               <img src={coverUrl} alt={playlistName}
-                className="w-32 h-32 md:w-40 md:h-40 rounded-2xl object-cover shadow-2xl ring-1 ring-white/5" />
+                className="w-36 h-36 md:w-44 md:h-44 rounded-2xl object-cover shadow-2xl ring-1 ring-white/5" />
             ) : (
-              <div className="w-32 h-32 md:w-40 md:h-40 rounded-2xl bg-elevated grid place-items-center">
+              <div className="w-36 h-36 md:w-44 md:h-44 rounded-2xl bg-elevated grid place-items-center">
                 <Music2 className="h-10 w-10 text-muted-foreground/40" />
               </div>
             )}
           </div>
-          <div className="flex-1 min-w-0 space-y-3">
+          <div className="flex-1 min-w-0 space-y-4">
             <div className="flex items-center gap-2 flex-wrap">
               {onBack && (
                 <Button variant="ghost" size="sm" onClick={onBack} className="h-7 -ml-2 text-muted-foreground hover:text-foreground gap-1">
@@ -231,10 +232,10 @@ export function PlaylistCockpit({
                 <health.Icon className="h-3 w-3" /> {health.label}
               </span>
             </div>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight leading-tight">
+            <h1 className="text-3xl md:text-4xl font-bold tracking-tight leading-[1.1]">
               {playlistName}
             </h1>
-            <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+            <div className="flex flex-wrap gap-x-8 gap-y-3 text-sm pt-1">
               <Stat label="Seguidores" value={fmtNum(followers)} accent />
               <Stat label="Faixas" value={fmtNum(tracksCount)} />
               {brainScore != null && <Stat label="Score" value={`${brainScore}`} />}
@@ -242,7 +243,7 @@ export function PlaylistCockpit({
                 <Stat label="Diagnóstico" value={new Date(diag.created_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })} muted />
               )}
             </div>
-            <div className="flex flex-wrap gap-2 pt-1">
+            <div className="flex flex-wrap gap-2 pt-2">
               <Button onClick={runDiagnose} disabled={running} className="gap-1.5">
                 {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                 {diag ? "Rodar nova análise" : "Rodar análise"}
@@ -806,7 +807,7 @@ function BucketRemove({ items, applying, onApplyAll }: {
           title={t.track_name ?? "—"}
           artist={t.artist_name ?? "—"}
           reason={(t.reasons ?? [])[0] ?? "baixa performance"}
-          action={<span className="text-[10px] text-muted-foreground uppercase tracking-wider">remover</span>}
+          action={<span className="text-[10px] text-muted-foreground uppercase tracking-wider">Remover</span>}
         />
       ))}
     </BucketShell>
@@ -836,7 +837,7 @@ function BucketReorder({ kind, items, totalTracks, applying, onApplyAll }: {
           >
             {applying ? <Loader2 className="h-3 w-3 animate-spin" /> :
               kind === "promote" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
-            {kind === "promote" ? "Promover" : "Rebaixar"} todas ({items.length})
+            {kind === "promote" ? "Promover todas" : "Rebaixar todas"} ({items.length})
           </Button>
         )
       }
@@ -851,7 +852,7 @@ function BucketReorder({ kind, items, totalTracks, applying, onApplyAll }: {
           reason={(t.reasons ?? []).join(" · ") || "—"}
           action={
             <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
-              {kind === "promote" ? "subir" : "descer"}
+              {kind === "promote" ? "Promover" : "Rebaixar"}
             </span>
           }
         />
@@ -877,7 +878,7 @@ function BucketAdd({ items, applying, onApplyAll }: {
             className="h-7 text-xs gap-1"
           >
             {applying ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
-            Aplicar todas ({items.length})
+            Adicionar todas ({items.length})
           </Button>
         )
       }
@@ -891,8 +892,8 @@ function BucketAdd({ items, applying, onApplyAll }: {
           artist={t.artista || "—"}
           reason={`${t.count}× nas playlists vencedoras do nicho${t.from_missing_artist ? " · artista faltando" : ""}`}
           action={
-            <span className="text-[10px] text-muted-foreground tabular-nums">
-              {t.count}× nicho
+            <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
+              Adicionar
             </span>
           }
         />

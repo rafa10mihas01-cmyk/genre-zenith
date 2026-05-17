@@ -45,7 +45,7 @@ const sections: NavSection[] = [
   {
     label: "Cockpit",
     items: [
-      { title: "Cockpit", url: "/", icon: Home, end: true },
+      { title: "Início", url: "/", icon: Home, end: true },
     ],
   },
   {
@@ -53,7 +53,7 @@ const sections: NavSection[] = [
     items: [
       { title: "Campanhas", url: "/campanhas", icon: Target },
       {
-        title: "Deals",
+        title: "Playlist Deals",
         url: "/deals",
         icon: Handshake,
         matchPaths: ["/playlist-deals", "/curadores"],
@@ -75,7 +75,7 @@ const sections: NavSection[] = [
     label: "Inteligência",
     items: [
       {
-        title: "Recomendações",
+        title: "Inteligência",
         url: "/inteligencia",
         icon: Sparkles,
         matchPaths: ["/cerebro", "/criacao"],
