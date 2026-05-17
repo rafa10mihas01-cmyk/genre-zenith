@@ -75,9 +75,9 @@ export function CommandPalette({
             <span>Criação</span>
             <CommandShortcut>G R</CommandShortcut>
           </CommandItem>
-          <CommandItem onSelect={() => go("/operacao")}>
+          <CommandItem onSelect={() => go("/catalogo")}>
             <Activity />
-            <span>Operação</span>
+            <span>Catálogo</span>
             <CommandShortcut>G O</CommandShortcut>
           </CommandItem>
           <CommandItem onSelect={() => go("/performance")}>
@@ -102,7 +102,7 @@ export function CommandPalette({
             <ImageIcon />
             <span>Templates sem capa</span>
           </CommandItem>
-          <CommandItem onSelect={() => go("/operacao")}>
+          <CommandItem onSelect={() => go("/catalogo")}>
             <RefreshCw />
             <span>Ver coleta / atividade</span>
           </CommandItem>

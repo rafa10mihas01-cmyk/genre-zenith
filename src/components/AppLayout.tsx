@@ -20,7 +20,6 @@ const ROUTE_TITLES: Record<string, string> = {
   "/cerebro": "Cérebro",
   "/criacao": "Criação",
   "/catalogo": "Catálogo",
-  "/operacao": "Catálogo",
   "/performance": "Performance",
   "/playlist-deals": "Playlist Deals",
   "/sistema": "Sistema",

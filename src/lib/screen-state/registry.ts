@@ -16,7 +16,7 @@ const REGISTRY: Record<string, ScreenConfig> = {
   "/": { kind: "context", ttl: 5 * MIN },
   "/cerebro": { kind: "context", ttl: 5 * MIN },
   "/criacao": { kind: "context", ttl: 2 * MIN },
-  "/operacao": { kind: "context", ttl: 2 * MIN },
+  "/catalogo": { kind: "context", ttl: 2 * MIN },
   "/performance": { kind: "context", ttl: 2 * MIN },
   "/playlist-deals": { kind: "context", ttl: 2 * MIN },
   "/curadores": { kind: "context", ttl: 2 * MIN },
