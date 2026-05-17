@@ -179,7 +179,11 @@ function parseCount(value: unknown): number {
    Parser XLSX/CSV (PlaylistSupply-like)
    ============================================================ */
 
-type Imported = Omit<CuradorRow, "id" | "user_id" | "status" | "favorite" | "notes">;
+type Imported = Omit<CuradorRow,
+  "id" | "user_id" | "status" | "favorite" | "notes" |
+  "pipeline_status" | "commercial_score" | "operational_tags" | "whatsapp" |
+  "last_outreach_at" | "last_response_at" | "followup_count"
+>;
 
 function parseSheet(file: File): Promise<Imported[]> {
   return new Promise((resolve, reject) => {
