@@ -108,8 +108,8 @@ export default function Campanhas() {
         {/* Tabs */}
         <div className="flex items-center gap-1 border-b border-border mb-6 -mt-2">
           {([
-            { id: "lista", label: "Campanhas", icon: ListChecks },
-            { id: "simulador", label: "Simulador", icon: FlaskConical },
+            { id: "lista", label: "Campanhas Ativas", icon: ListChecks },
+            { id: "simulador", label: "Planejamento Estratégico", icon: FlaskConical },
           ] as const).map(t => {
             const Icon = t.icon;
             const active = tab === t.id;

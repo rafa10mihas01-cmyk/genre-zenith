@@ -321,237 +321,287 @@ export function PlanejadorMeta() {
 
 
   return (
-    <section className="space-y-4 animate-tab-in">
-      <div className="nx-card flex items-start gap-3 !py-3">
-        <Info className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-        <p className="text-xs text-muted-foreground leading-relaxed">
-          <strong className="text-foreground">Planejador de meta teórico.</strong> Simulação baseada em comportamento
-          médio de playlists Spotify. Valores teóricos usados como planejamento operacional — não alimentam o cérebro,
-          scores ou automações.
-        </p>
-      </div>
-
-      {/* Form */}
-      <div className="nx-card space-y-4">
-        <div className="flex items-center gap-2">
-          <Target className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-semibold">Definir meta</h3>
-        </div>
-
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Field label="Meta de plays" hint={metaExtenso(meta)}>
-            <Input
-              type="number"
-              value={meta === 0 ? "" : meta}
-              onFocus={(e) => e.target.select()}
-              onChange={(e) => setMeta(Math.max(0, Number(e.target.value) || 0))}
-              className="h-9 bg-elevated border-border tabular-nums"
-            />
-          </Field>
-          <Field label="Duração (dias)">
-            <Input
-              type="number"
-              value={days === 0 ? "" : days}
-              onFocus={(e) => e.target.select()}
-              onChange={(e) => setDays(Math.max(0, Number(e.target.value) || 0))}
-              className="h-9 bg-elevated border-border tabular-nums"
-            />
-          </Field>
-          <Field label="Nicho">
-            <select
-              value={genreId}
-              onChange={(e) => setGenreId(e.target.value)}
-              className="h-9 w-full rounded-md bg-elevated border border-border px-2 text-sm"
-            >
-              <option value="">Todos</option>
-              {genres.map(g => <option key={g.id} value={g.id}>{g.nome}</option>)}
-            </select>
-          </Field>
-          <Field label="Perfil">
-            <select
-              value={profile}
-              onChange={(e) => setProfile(e.target.value as any)}
-              className="h-9 w-full rounded-md bg-elevated border border-border px-2 text-sm"
-            >
-              {PROFILES.map(p => <option key={p.id} value={p.id}>{p.label} ({p.mult}x)</option>)}
-            </select>
-          </Field>
-        </div>
-
-        <div className="text-[11px] text-muted-foreground">
-          Cada playlist entra 1 vez, na sua capacidade natural. Maiores no topo, médias no meio, menores na cauda.
-        </div>
-      </div>
-
-      {/* Aplicar plano — música real via API */}
-      <div className="nx-card space-y-3">
-        <div className="flex items-center gap-2">
-          <Send className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-semibold">Aplicar este plano numa música</h3>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-2">
-          <div className="relative">
-            <Music2 className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <Input
-              value={trackInput}
-              onChange={(e) => setTrackInput(e.target.value)}
-              placeholder="Cole o link do Spotify (https://open.spotify.com/track/...)"
-              className="h-9 pl-8 bg-elevated border-border"
-            />
+    <section className="space-y-8 animate-tab-in">
+      {/* ───────────── ETAPA 1 — OBJETIVO DA CAMPANHA ───────────── */}
+      <Stage
+        number={1}
+        title="Objetivo da campanha"
+        subtitle="Defina o destino: meta, prazo, nicho e perfil de audiência."
+      >
+        <div className="nx-card space-y-3">
+          <div className="flex items-center gap-2">
+            <Target className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-semibold">Fonte da meta</h3>
           </div>
-          <Button
-            onClick={applyPlan}
-            disabled={applying || !trackId || activeSlots.length === 0}
-            className="h-9 gap-2"
-          >
-            {applying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-            {applying ? "Aplicando..." : `Aplicar em ${activeSlots.length} playlist${activeSlots.length === 1 ? "" : "s"}`}
-          </Button>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            <SourcePill active label="Manual" hint="você define o número" />
+            <SourcePill label="Top 200 Spotify" hint="em breve" disabled />
+            <SourcePill label="Artista concorrente" hint="em breve" disabled />
+            <SourcePill label="Orçamento" hint="em breve" disabled />
+          </div>
         </div>
-        <div className="text-[11px] text-muted-foreground flex items-center gap-3 flex-wrap">
-          {trackId ? (
-            <span className="inline-flex items-center gap-1 text-primary">
-              <CheckCircle2 className="h-3 w-3" /> faixa válida ({trackId.slice(0, 8)}…)
-            </span>
-          ) : trackInput ? (
-            <span className="inline-flex items-center gap-1 text-destructive">
-              <XCircle className="h-3 w-3" /> link inválido
-            </span>
+
+        <div className="nx-card space-y-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <Field label="Meta de plays" hint={metaExtenso(meta)}>
+              <Input
+                type="number"
+                value={meta === 0 ? "" : meta}
+                onFocus={(e) => e.target.select()}
+                onChange={(e) => setMeta(Math.max(0, Number(e.target.value) || 0))}
+                className="h-9 bg-elevated border-border tabular-nums"
+              />
+            </Field>
+            <Field label="Duração (dias)">
+              <Input
+                type="number"
+                value={days === 0 ? "" : days}
+                onFocus={(e) => e.target.select()}
+                onChange={(e) => setDays(Math.max(0, Number(e.target.value) || 0))}
+                className="h-9 bg-elevated border-border tabular-nums"
+              />
+            </Field>
+            <Field label="Nicho">
+              <select
+                value={genreId}
+                onChange={(e) => setGenreId(e.target.value)}
+                className="h-9 w-full rounded-md bg-elevated border border-border px-2 text-sm"
+              >
+                <option value="">Todos</option>
+                {genres.map(g => <option key={g.id} value={g.id}>{g.nome}</option>)}
+              </select>
+            </Field>
+            <Field label="Perfil">
+              <select
+                value={profile}
+                onChange={(e) => setProfile(e.target.value as any)}
+                className="h-9 w-full rounded-md bg-elevated border border-border px-2 text-sm"
+              >
+                {PROFILES.map(p => <option key={p.id} value={p.id}>{p.label} ({p.mult}x)</option>)}
+              </select>
+            </Field>
+          </div>
+          <div className="text-[11px] text-muted-foreground">
+            Cada playlist entra 1 vez, na sua capacidade natural. Maiores no topo, médias no meio, menores na cauda.
+          </div>
+        </div>
+      </Stage>
+
+      {/* ───────────── ETAPA 2 — VIABILIDADE DO ECOSSISTEMA ───────────── */}
+      <Stage
+        number={2}
+        title="Viabilidade do ecossistema"
+        subtitle="O mercado suporta essa meta? Saúde, naturalidade e saturação."
+      >
+        <VerdictCard
+          plan={plan}
+          ind={ind}
+          dailyTarget={dailyTarget}
+          meta={meta}
+          days={days}
+          filteredCount={filtered.length}
+        />
+
+        <div className="grid grid-cols-3 gap-3">
+          <SimKpi label="Meta / dia" value={formatNumber(dailyTarget)} hint={`${formatNumber(meta)} em ${days} ${days === 1 ? "dia" : "dias"}`} />
+          <SimKpi
+            label="Entregue / dia"
+            value={formatNumber(plan.delivered)}
+            hint={`${Math.round(ind.coverage * 100)}% da meta`}
+            tone={ind.coverage >= 0.85 ? "ok" : ind.coverage >= 0.6 ? "warn" : "bad"}
+          />
+          {plan.deficit > 0 ? (
+            <SimKpi label="Falta / dia" value={formatNumber(plan.deficit)} hint={`${formatNumber(plan.deficit * days)} no total`} tone="bad" />
           ) : (
-            <span>Sem música, só o planejamento teórico aparece abaixo.</span>
+            <SimKpi label="Saldo ocioso" value={formatNumber(plan.surplus)} hint="capacidade de sobra" tone="ok" />
           )}
-          <span>·</span>
-          <span>Não existe → insere na posição (empurra as outras pra baixo). Já existe → move pra posição planejada.</span>
         </div>
 
-        {results && results.length > 0 && (
-          <div className="border border-border rounded-lg overflow-hidden">
-            <div className="px-3 py-2 bg-elevated/40 text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-semibold">
-              Resultado da última aplicação
-            </div>
-            <div className="max-h-64 overflow-y-auto divide-y divide-border/40">
-              {results.map((r, i) => (
-                <div key={i} className="flex items-center justify-between gap-2 px-3 py-1.5 text-xs">
-                  <span className="truncate">{r.name ?? r.playlist_id}</span>
-                  <span className={cn(
-                    "inline-flex items-center gap-1 px-1.5 h-5 rounded text-[10px] font-semibold shrink-0",
-                    r.status === "added" && "bg-primary/15 text-primary",
-                    r.status === "moved" && "bg-warning/15 text-warning",
-                    r.status === "skip" && "bg-muted text-muted-foreground",
-                    r.status === "error" && "bg-destructive/15 text-destructive",
-                  )} title={r.message}>
-                    {r.status === "added" ? "Adicionada" :
-                     r.status === "moved" ? "Movida" :
-                     r.status === "skip" ? "Pulada" : "Erro"}
-                  </span>
-                </div>
-              ))}
-            </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <HealthCheck
+            label="Concentração"
+            status={ind.concentration <= 0.20 ? "ok" : ind.concentration <= 0.35 ? "warn" : "bad"}
+            headline={
+              ind.concentration <= 0.20 ? "Sem playlist dominante" :
+              ind.concentration <= 0.35 ? "Uma playlist puxando muito" :
+              "Concentrado demais numa playlist"
+            }
+            detail={`A maior playlist responde por ${Math.round(ind.concentration * 100)}% da entrega · saudável até 20%`}
+          />
+          <HealthCheck
+            label="Diversidade"
+            status={ind.diversity >= 0.85 ? "ok" : ind.diversity >= 0.6 ? "warn" : "bad"}
+            headline={
+              ind.diversity >= 0.85 ? "Espalhado em várias playlists" :
+              ind.diversity >= 0.6 ? "Poucas playlists carregando" :
+              "Pouquíssimas playlists ativas"
+            }
+            detail={`${slots.length} de ${filtered.length} playlists do nicho em uso`}
+          />
+          <HealthCheck
+            label="Naturalidade"
+            status={ind.naturalness >= 0.7 ? "ok" : ind.naturalness >= 0.4 ? "warn" : "bad"}
+            headline={
+              ind.naturalness >= 0.7 ? "Mix natural topo · meio · cauda" :
+              ind.naturalness >= 0.4 ? "Distribuição um pouco torta" :
+              "Empilhado nas posições do topo"
+            }
+            detail={`Quanto mais equilibrado entre topo, meio e cauda, mais natural — aqui: ${Math.round(ind.naturalness * 100)}%`}
+          />
+          <HealthCheck
+            label="Saturação do nicho"
+            status={ind.saturation <= 0.6 ? "ok" : ind.saturation <= 0.85 ? "warn" : "bad"}
+            headline={
+              ind.saturation <= 0.6 ? "Sobra capacidade no nicho" :
+              ind.saturation <= 0.85 ? "Quase no limite do nicho" :
+              "Nicho no teto — sem folga"
+            }
+            detail={`${Math.round(ind.saturation * 100)}% das playlists do nicho engajadas · saudável até 60%`}
+          />
+        </div>
+      </Stage>
+
+      {/* ───────────── ETAPA 3 — ESTRATÉGIA OPERACIONAL ───────────── */}
+      <Stage
+        number={3}
+        title="Estratégia operacional"
+        subtitle="Como vamos executar: playlists, posições e distribuição por faixa."
+      >
+        <DistributionTable
+          loading={loading}
+          slots={slots}
+          filteredCount={filtered.length}
+          dailyTarget={dailyTarget}
+          delivered={ind.delivered}
+          coverage={ind.coverage}
+          excluded={excluded}
+          onToggleSlot={toggleSlot}
+          slotKey={slotKey}
+        />
+      </Stage>
+
+      {/* ───────────── ETAPA 4 — APLICAÇÃO ───────────── */}
+      <Stage
+        number={4}
+        title="Aplicação"
+        subtitle="Aprovar o plano e executar nas playlists reais."
+      >
+        <div className="nx-card space-y-3">
+          <div className="flex items-center gap-2">
+            <Send className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-semibold">Aplicar este plano numa música</h3>
           </div>
-        )}
-      </div>
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-2">
+            <div className="relative">
+              <Music2 className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                value={trackInput}
+                onChange={(e) => setTrackInput(e.target.value)}
+                placeholder="Cole o link do Spotify (https://open.spotify.com/track/...)"
+                className="h-9 pl-8 bg-elevated border-border"
+              />
+            </div>
+            <Button
+              onClick={applyPlan}
+              disabled={applying || !trackId || activeSlots.length === 0}
+              className="h-9 gap-2"
+            >
+              {applying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+              {applying ? "Aplicando..." : `Aplicar em ${activeSlots.length} playlist${activeSlots.length === 1 ? "" : "s"}`}
+            </Button>
+          </div>
+          <div className="text-[11px] text-muted-foreground flex items-center gap-3 flex-wrap">
+            {trackId ? (
+              <span className="inline-flex items-center gap-1 text-primary">
+                <CheckCircle2 className="h-3 w-3" /> faixa válida ({trackId.slice(0, 8)}…)
+              </span>
+            ) : trackInput ? (
+              <span className="inline-flex items-center gap-1 text-destructive">
+                <XCircle className="h-3 w-3" /> link inválido
+              </span>
+            ) : (
+              <span>Sem música, só o planejamento teórico aparece acima.</span>
+            )}
+            <span>·</span>
+            <span>Não existe → insere na posição. Já existe → move pra posição planejada.</span>
+          </div>
 
-      {/* VEREDITO — diagnóstico humano da campanha */}
-      <VerdictCard
-        plan={plan}
-        ind={ind}
-        dailyTarget={dailyTarget}
-        meta={meta}
-        days={days}
-        filteredCount={filtered.length}
-      />
+          {results && results.length > 0 && (
+            <div className="border border-border rounded-lg overflow-hidden">
+              <div className="px-3 py-2 bg-elevated/40 text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-semibold">
+                Resultado da última aplicação
+              </div>
+              <div className="max-h-64 overflow-y-auto divide-y divide-border/40">
+                {results.map((r, i) => (
+                  <div key={i} className="flex items-center justify-between gap-2 px-3 py-1.5 text-xs">
+                    <span className="truncate">{r.name ?? r.playlist_id}</span>
+                    <span className={cn(
+                      "inline-flex items-center gap-1 px-1.5 h-5 rounded text-[10px] font-semibold shrink-0",
+                      r.status === "added" && "bg-primary/15 text-primary",
+                      r.status === "moved" && "bg-warning/15 text-warning",
+                      r.status === "skip" && "bg-muted text-muted-foreground",
+                      r.status === "error" && "bg-destructive/15 text-destructive",
+                    )} title={r.message}>
+                      {r.status === "added" ? "Adicionada" :
+                       r.status === "moved" ? "Movida" :
+                       r.status === "skip" ? "Pulada" : "Erro"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
 
-      {/* 3 KPIs essenciais */}
-      <div className="grid grid-cols-3 gap-3">
-        <SimKpi label="Meta / dia" value={formatNumber(dailyTarget)} hint={`${formatNumber(meta)} em ${days} ${days === 1 ? "dia" : "dias"}`} />
-        <SimKpi
-          label="Entregue / dia"
-          value={formatNumber(plan.delivered)}
-          hint={`${Math.round(ind.coverage * 100)}% da meta`}
-          tone={ind.coverage >= 0.85 ? "ok" : ind.coverage >= 0.6 ? "warn" : "bad"}
-        />
-        {plan.deficit > 0 ? (
-          <SimKpi
-            label="Falta / dia"
-            value={formatNumber(plan.deficit)}
-            hint={`${formatNumber(plan.deficit * days)} no total`}
-            tone="bad"
-          />
-        ) : (
-          <SimKpi
-            label="Saldo ocioso"
-            value={formatNumber(plan.surplus)}
-            hint="capacidade de sobra"
-            tone="ok"
-          />
-        )}
-      </div>
-
-      {/* Selos de saúde — linguagem leiga, com ✓/⚠/✕ */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <HealthCheck
-          label="Concentração"
-          status={ind.concentration <= 0.20 ? "ok" : ind.concentration <= 0.35 ? "warn" : "bad"}
-          headline={
-            ind.concentration <= 0.20 ? "Sem playlist dominante" :
-            ind.concentration <= 0.35 ? "Uma playlist puxando muito" :
-            "Concentrado demais numa playlist"
-          }
-          detail={`A maior playlist responde por ${Math.round(ind.concentration * 100)}% da entrega · saudável até 20%`}
-        />
-        <HealthCheck
-          label="Diversidade"
-          status={ind.diversity >= 0.85 ? "ok" : ind.diversity >= 0.6 ? "warn" : "bad"}
-          headline={
-            ind.diversity >= 0.85 ? "Espalhado em várias playlists" :
-            ind.diversity >= 0.6 ? "Poucas playlists carregando" :
-            "Pouquíssimas playlists ativas"
-          }
-          detail={`${slots.length} de ${filtered.length} playlists do nicho em uso`}
-        />
-        <HealthCheck
-          label="Naturalidade"
-          status={ind.naturalness >= 0.7 ? "ok" : ind.naturalness >= 0.4 ? "warn" : "bad"}
-          headline={
-            ind.naturalness >= 0.7 ? "Mix natural topo · meio · cauda" :
-            ind.naturalness >= 0.4 ? "Distribuição um pouco torta" :
-            "Empilhado nas posições do topo"
-          }
-          detail={`Quanto mais equilibrado entre topo, meio e cauda, mais natural — aqui: ${Math.round(ind.naturalness * 100)}%`}
-        />
-        <HealthCheck
-          label="Saturação do nicho"
-          status={ind.saturation <= 0.6 ? "ok" : ind.saturation <= 0.85 ? "warn" : "bad"}
-          headline={
-            ind.saturation <= 0.6 ? "Sobra capacidade no nicho" :
-            ind.saturation <= 0.85 ? "Quase no limite do nicho" :
-            "Nicho no teto — sem folga"
-          }
-          detail={`${Math.round(ind.saturation * 100)}% das playlists do nicho engajadas · saudável até 60%`}
-        />
-      </div>
-
-      {/* Distribuição */}
-      <DistributionTable
-        loading={loading}
-        slots={slots}
-        filteredCount={filtered.length}
-        dailyTarget={dailyTarget}
-        delivered={ind.delivered}
-        coverage={ind.coverage}
-        excluded={excluded}
-        onToggleSlot={toggleSlot}
-        slotKey={slotKey}
-      />
-
-      <div className="nx-card flex items-start gap-3 !py-3">
-        <Info className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-        <p className="text-xs text-muted-foreground leading-relaxed">
-          Simulação baseada em comportamento médio de playlists Spotify. Valores teóricos usados como planejamento
-          operacional. Nada disso altera scores, health, capacity, automações ou cérebro do sistema.
-        </p>
-      </div>
+        <div className="nx-card flex items-start gap-3 !py-3">
+          <Info className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Planejamento baseado em comportamento médio de playlists Spotify. Os números servem como referência
+            operacional — não alimentam scores, health, capacity ou automações do cérebro.
+          </p>
+        </div>
+      </Stage>
     </section>
+  );
+}
+
+function Stage({
+  number, title, subtitle, children,
+}: { number: number; title: string; subtitle: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-4">
+      <div className="flex items-start gap-3 pb-2 border-b border-border">
+        <div className="h-8 w-8 rounded-full bg-primary/15 border border-primary/40 text-primary inline-flex items-center justify-center text-sm font-semibold tabular-nums shrink-0">
+          {number}
+        </div>
+        <div className="space-y-0.5 min-w-0">
+          <h2 className="text-base font-semibold leading-tight">{title}</h2>
+          <p className="text-xs text-muted-foreground leading-snug">{subtitle}</p>
+        </div>
+      </div>
+      <div className="space-y-3 md:pl-11">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function SourcePill({
+  label, hint, active, disabled,
+}: { label: string; hint: string; active?: boolean; disabled?: boolean }) {
+  return (
+    <div className={cn(
+      "rounded-lg border px-3 py-2 space-y-0.5 transition-colors",
+      active && "bg-primary/10 border-primary/40",
+      !active && !disabled && "bg-elevated border-border",
+      disabled && "bg-elevated/40 border-border/60 opacity-60",
+    )}>
+      <div className={cn(
+        "text-xs font-semibold",
+        active ? "text-primary" : "text-foreground",
+      )}>{label}</div>
+      <div className="text-[10px] text-muted-foreground">{hint}</div>
+    </div>
   );
 }
 
