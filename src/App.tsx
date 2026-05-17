@@ -19,6 +19,7 @@ import RootRoute from "./components/RootRoute";
 // Cérebro e Criação foram aposentados — rotas legadas agora redirecionam para /inteligencia
 import Operacao from "./pages/Operacao";
 import Prospecao from "./pages/Prospecao";
+import Clientes from "./pages/Clientes";
 import Performance from "./pages/Performance";
 import PlaylistDeals from "./pages/PlaylistDeals";
 import DealDetail from "./pages/DealDetail";
