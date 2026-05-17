@@ -1,10 +1,10 @@
-// SaudeSistema — visão de saúde geral: Apify, Spotify, cron, falhas recentes.
-// Cards grandes coloridos pra bater o olho e entender se tá tudo OK.
+// SaudeSistema — visão de saúde do pipeline atual: Descoberta (Apify) → Spotify → Execução (jobs).
+// Cards grandes pra bater o olho e entender se tá tudo OK.
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   CheckCircle2, AlertTriangle, Loader2, Music2, Database, Activity,
-  Clock, Brain, Zap, RefreshCw,
+  Handshake, RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -12,12 +12,11 @@ import { Button } from "@/components/ui/button";
 import { timeAgo, formatNumber } from "@/lib/format";
 import { BotSaudeCard } from "./BotSaudeCard";
 
-
 type Health = {
   apify: { ok: boolean; reason?: string };
-  spotify: { ok: boolean; expires_at?: string };
-  cron: { ok: boolean; last_run?: string };
-  hoje: { playlists_criadas: number; capas_geradas: number; runs_autopilot: number };
+  spotify: { ok: boolean; expires_at?: string; expired?: boolean };
+  execucao: { ok: boolean; pending: number; failed: number; lastDone?: string };
+  hoje: { jobs_done: number; deals_ativos: number };
 };
 
 type Failure = {
@@ -37,55 +36,48 @@ export function SaudeSistema() {
     const todayIso = today.toISOString();
 
     const [
-      flagsRes, tokenRes, lastCron, todayPlaylists, todayCapas, todayRuns,
-      failedAdjs, failedRuns,
+      flagsRes, tokenRes,
+      pendingJobs, failedJobs, doneJobsToday, lastDoneJob, recentFailedJobs,
+      activeDeals,
     ] = await Promise.all([
       supabase.from("system_flags").select("apify_blocked, apify_blocked_reason").eq("singleton_key", "app").maybeSingle(),
       supabase.from("spotify_tokens").select("expires_at").eq("singleton_key", "app").maybeSingle(),
-      supabase.from("learning_loop_runs").select("started_at, status").order("started_at", { ascending: false }).limit(1).maybeSingle(),
-      supabase.from("playlist_templates").select("id", { count: "exact", head: true }).gte("created_on_spotify_at", todayIso).not("spotify_playlist_id", "is", null),
-      supabase.from("playlist_templates").select("id", { count: "exact", head: true }).gte("cover_generated_at", todayIso),
-      supabase.from("autopilot_runs").select("id", { count: "exact", head: true }).gte("started_at", todayIso),
-      supabase.from("playlist_adjustments").select("id, action_type, error_message, created_at").eq("status", "error").order("created_at", { ascending: false }).limit(5),
-      supabase.from("autopilot_runs").select("id, error_message, started_at").eq("status", "error").order("started_at", { ascending: false }).limit(5),
+      supabase.from("playlist_execution_jobs").select("id", { count: "exact", head: true }).in("status", ["pending", "claimed"]),
+      supabase.from("playlist_execution_jobs").select("id", { count: "exact", head: true }).eq("status", "failed"),
+      supabase.from("playlist_execution_jobs").select("id", { count: "exact", head: true }).eq("status", "done").gte("completed_at", todayIso),
+      supabase.from("playlist_execution_jobs").select("completed_at").eq("status", "done").order("completed_at", { ascending: false }).limit(1).maybeSingle(),
+      supabase.from("playlist_execution_jobs").select("id, last_error, updated_at, job_type").eq("status", "failed").order("updated_at", { ascending: false }).limit(10),
+      supabase.from("curator_deals").select("id", { count: "exact", head: true }).is("closed_at", null),
     ]);
 
     const apifyBlocked = flagsRes.data?.apify_blocked ?? false;
     const tokenExpiry = tokenRes.data?.expires_at;
-    const tokenOk = tokenExpiry ? new Date(tokenExpiry) > new Date() : false;
-    const lastCronTime = lastCron.data?.started_at;
-    const cronOk = lastCronTime ? Date.now() - new Date(lastCronTime).getTime() < 24 * 60 * 60 * 1000 : false;
+    const tokenExpired = tokenExpiry ? new Date(tokenExpiry) <= new Date() : true;
+    const pendingCount = pendingJobs.count ?? 0;
+    const failedCount = failedJobs.count ?? 0;
 
     setHealth({
       apify: { ok: !apifyBlocked, reason: flagsRes.data?.apify_blocked_reason ?? undefined },
-      spotify: { ok: tokenOk, expires_at: tokenExpiry },
-      cron: { ok: cronOk, last_run: lastCronTime },
+      spotify: { ok: !tokenExpired, expires_at: tokenExpiry, expired: tokenExpired },
+      execucao: {
+        ok: failedCount === 0,
+        pending: pendingCount,
+        failed: failedCount,
+        lastDone: lastDoneJob.data?.completed_at ?? undefined,
+      },
       hoje: {
-        playlists_criadas: todayPlaylists.count ?? 0,
-        capas_geradas: todayCapas.count ?? 0,
-        runs_autopilot: todayRuns.count ?? 0,
+        jobs_done: doneJobsToday.count ?? 0,
+        deals_ativos: activeDeals.count ?? 0,
       },
     });
 
-    const allFailures: Failure[] = [];
-    (failedAdjs.data ?? []).forEach((a: any) => {
-      allFailures.push({
-        id: `adj-${a.id}`,
-        source: `Ajuste: ${a.action_type}`,
-        message: a.error_message ?? "Erro desconhecido",
-        created_at: a.created_at,
-      });
-    });
-    (failedRuns.data ?? []).forEach((r: any) => {
-      allFailures.push({
-        id: `run-${r.id}`,
-        source: "Cérebro (autopilot)",
-        message: r.error_message ?? "Erro desconhecido",
-        created_at: r.started_at,
-      });
-    });
-    allFailures.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    setFailures(allFailures.slice(0, 10));
+    const allFailures: Failure[] = (recentFailedJobs.data ?? []).map((j: any) => ({
+      id: `job-${j.id}`,
+      source: `Execução: ${j.job_type}`,
+      message: j.last_error ?? "Erro desconhecido",
+      created_at: j.updated_at,
+    }));
+    setFailures(allFailures);
     setLoading(false);
   };
 
@@ -103,6 +95,12 @@ export function SaudeSistema() {
     );
   }
 
+  const spotifyDetail = health.spotify.expires_at
+    ? health.spotify.expired
+      ? `expirado ${timeAgo(health.spotify.expires_at)}`
+      : `válido até ${new Date(health.spotify.expires_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`
+    : "sem token configurado";
+
   return (
     <div className="space-y-4">
       {/* Botão refresh */}
@@ -112,7 +110,7 @@ export function SaudeSistema() {
         </Button>
       </div>
 
-      {/* === BLOCO 1: ROBÔ COLETOR (bot dedicado, agrupado no topo) === */}
+      {/* === BLOCO 1: ROBÔ COLETOR === */}
       <div>
         <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-bold mb-2">Robô coletor de prints</h3>
         <div className="space-y-3">
@@ -120,16 +118,15 @@ export function SaudeSistema() {
         </div>
       </div>
 
-      {/* Separador visual entre o robô e os serviços de infra */}
       <div className="h-px bg-border/60" />
 
-      {/* === BLOCO 2: SERVIÇOS DE INFRA === */}
+      {/* === BLOCO 2: SERVIÇOS DO PIPELINE === */}
       <div>
         <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-bold mb-2">Status dos serviços</h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           <HealthCard
             icon={Music2}
-            label="Coletor Apify"
+            label="Descoberta (Apify)"
             ok={health.apify.ok}
             okText="Funcionando"
             errText="Bloqueado"
@@ -141,28 +138,25 @@ export function SaudeSistema() {
             ok={health.spotify.ok}
             okText="Token válido"
             errText="Token expirado"
-            detail={health.spotify.expires_at
-              ? `expira em ${timeAgo(health.spotify.expires_at).replace(" atrás", "")}`
-              : "sem token configurado"}
+            detail={spotifyDetail}
           />
           <HealthCard
-            icon={Zap}
-            label="Automações (cron)"
-            ok={health.cron.ok}
-            okText="Rodando"
-            errText="Sem atividade"
-            detail={health.cron.last_run ? `última execução ${timeAgo(health.cron.last_run)}` : "nunca executou"}
+            icon={Activity}
+            label="Execução (jobs)"
+            ok={health.execucao.ok}
+            okText={health.execucao.pending > 0 ? `${health.execucao.pending} na fila` : "Sem fila"}
+            errText={`${health.execucao.failed} com falha`}
+            detail={health.execucao.lastDone ? `último job ${timeAgo(health.execucao.lastDone)}` : "nenhum job executado"}
           />
         </div>
       </div>
 
-      {/* === BLOCO 3: PRODUÇÃO DE HOJE === */}
+      {/* === BLOCO 3: HOJE === */}
       <div>
         <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-bold mb-2">Hoje</h3>
-        <div className="grid grid-cols-3 gap-3">
-          <DayStat icon={Music2} label="Playlists criadas" value={health.hoje.playlists_criadas} />
-          <DayStat icon={Activity} label="Capas geradas" value={health.hoje.capas_geradas} />
-          <DayStat icon={Brain} label="Execuções do Cérebro" value={health.hoje.runs_autopilot} />
+        <div className="grid grid-cols-2 gap-3">
+          <DayStat icon={Activity} label="Jobs concluídos" value={health.hoje.jobs_done} />
+          <DayStat icon={Handshake} label="Deals ativos" value={health.hoje.deals_ativos} />
         </div>
       </div>
 
