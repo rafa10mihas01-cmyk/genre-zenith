@@ -29,7 +29,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
   const [fonte, setFonte] = useState<Fonte>("manual");
   const [trackUrl, setTrackUrl] = useState("");
   const [meta, setMeta] = useState(1_000_000);
-  const [days, setDays] = useState(60);
+  const [days, setDays] = useState<number>(60);
   const [budget, setBudget] = useState(40_000);
   const [modo, setModo] = useState<Modo>("simultaneo");
   const [perfil, setPerfil] = useState<Perfil>("mercado");
