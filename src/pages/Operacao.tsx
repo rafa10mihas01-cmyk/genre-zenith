@@ -79,7 +79,7 @@ type AccountSummary = {
 };
 
 export default function Operacao() {
-  const [tab, setTab] = useScreenField<TabId>("/catalogo", "tab", "minhas");
+  
   const [filter, setFilter] = useScreenField<"todas" | OpStatus>("/catalogo", "filter", "todas");
   const [search, setSearch] = useScreenField<string>("/catalogo", "search", "");
   const [loading, setLoading] = useState(true);
