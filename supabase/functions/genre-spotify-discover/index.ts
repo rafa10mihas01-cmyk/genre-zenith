@@ -74,6 +74,15 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (!genre) return jr({ ok: false, error: "gênero não encontrado" }, 404);
 
+    const stats = {
+      genre: { id: genre.id, slug: genre.slug, nome: genre.nome },
+      terms_used: 0,
+      playlists_seen: 0,
+      playlists_upserted: 0,
+      tracks_upserted: 0,
+      errors: [] as string[],
+    };
+
     // 1) Termos: do banco ou defaults.
     let { data: termRows } = await supabase
       .from("search_terms")
@@ -95,17 +104,9 @@ Deno.serve(async (req) => {
       }
       termRows = inserted;
     }
+    stats.terms_used = termRows.length;
 
     const token = await getSpotifyToken();
-
-    const stats = {
-      genre: { id: genre.id, slug: genre.slug, nome: genre.nome },
-      terms_used: termRows.length,
-      playlists_seen: 0,
-      playlists_upserted: 0,
-      tracks_upserted: 0,
-      errors: [] as string[],
-    };
 
     // 2) Pra cada termo, busca playlists.
     const seenPlaylistIds = new Set<string>();
