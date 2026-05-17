@@ -57,13 +57,14 @@ Deno.serve(async (req) => {
 
       const state = crypto.randomUUID();
       const supabase = db();
+      const creds = await getAppCredentials();
       const { error: stErr } = await supabase
         .from("spotify_oauth_states")
-        .insert({ state, user_id: null, flow: "public_login" });
+        .insert({ state, user_id: null, flow: "public_login", app_id: creds.app_id });
       if (stErr) return jr({ ok: false, error: `state save: ${stErr.message}` }, 500);
 
       const authUrl = new URL("https://accounts.spotify.com/authorize");
-      authUrl.searchParams.set("client_id", CLIENT_ID);
+      authUrl.searchParams.set("client_id", creds.client_id);
       authUrl.searchParams.set("response_type", "code");
       authUrl.searchParams.set("redirect_uri", redirect);
       authUrl.searchParams.set("scope", SPOTIFY_USER_SCOPES);
