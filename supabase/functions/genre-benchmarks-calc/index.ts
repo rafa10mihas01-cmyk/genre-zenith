@@ -40,6 +40,20 @@ async function calcOne(supabase: any, genreId: string) {
   const growthSamples: number[] = [];
   const cutoff30d = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
 
+  // Map de fallback de tracks via search_results.total_musicas
+  const ids = pls.map((p: any) => p.spotify_playlist_id).filter(Boolean);
+  const { data: srRows } = await supabase
+    .from("search_results")
+    .select("spotify_playlist_id,total_musicas,seguidores")
+    .in("spotify_playlist_id", ids)
+    .eq("genre_id", genreId);
+  const srMap = new Map<string, { total_musicas: number | null; seguidores: number | null }>();
+  for (const r of srRows ?? []) {
+    if (!srMap.has(r.spotify_playlist_id) || (r.total_musicas && !srMap.get(r.spotify_playlist_id)!.total_musicas)) {
+      srMap.set(r.spotify_playlist_id, { total_musicas: r.total_musicas, seguidores: r.seguidores });
+    }
+  }
+
   for (const p of pls) {
     const { data: snaps } = await supabase
       .from("playlist_metrics_snapshots")
@@ -53,13 +67,14 @@ async function calcOne(supabase: any, genreId: string) {
     if (arr.length > 0) {
       f = arr[0].followers ?? null;
       t = arr[0].total_tracks ?? null;
-      // crescimento: snapshot mais antigo dentro/antes da janela 30d
       const old = arr.find((s: any) => s.collected_at <= cutoff30d) ?? arr[arr.length - 1];
       if (old && old.followers && f && old.followers > 0 && arr[0].collected_at !== old.collected_at) {
         growthSamples.push(((f - old.followers) / old.followers) * 100);
       }
     }
-    if (f == null) f = p.followers ?? null;
+    const fallback = srMap.get(p.spotify_playlist_id);
+    if (f == null) f = p.followers ?? fallback?.seguidores ?? null;
+    if (t == null) t = fallback?.total_musicas ?? null;
     if (f != null && f > 0) followersList.push(f);
     if (t != null && t > 0) tracksList.push(t);
   }
