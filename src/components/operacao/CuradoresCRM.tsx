@@ -374,10 +374,11 @@ export function CuradoresCRM({ segment }: { segment?: Segment } = {}) {
   const [statusFilter, setStatusFilter] = useState<"todos" | Status>("todos");
   const [scoreFilter, setScoreFilter] = useState<"todos" | "A+" | "A" | "B" | "C" | "D">("todos");
   const [sizeFilter, setSizeFilter] = useState<SizeBucket>("todos");
+  const [contactFilter, setContactFilter] = useState<"todos" | "nao_contatado" | "enviado" | "aguardando" | "respondeu">("todos");
   const [favOnly, setFavOnly] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(50);
-  type ExpandedFilter = "status" | "score" | "tamanho" | null;
+  type ExpandedFilter = "status" | "score" | "tamanho" | "contato" | null;
   const [expandedFilter, setExpandedFilter] = useState<ExpandedFilter>(null);
   const [emailTarget, setEmailTarget] = useState<{ externalCuratorId: string; recipientEmail: string; curatorName: string; playlistName: string | null; followupNumber?: 1 | 2 } | null>(null);
   const [detailCurator, setDetailCurator] = useState<DetailCurator | null>(null);
@@ -524,8 +525,6 @@ export function CuradoresCRM({ segment }: { segment?: Segment } = {}) {
     const bucket = SIZE_BUCKETS.find((b) => b.id === sizeFilter)!;
     return rows
       .filter((r) => {
-        // Segmento de alto nível: ativos = curadores com quem já trabalho (comprado);
-        // prospeccao = leads ainda não fechados (novo, negociando, blacklist).
         if (segment === "ativos" && r.status !== "comprado") return false;
         if (segment === "prospeccao" && r.status === "comprado") return false;
         if (statusFilter !== "todos" && r.status !== statusFilter) return false;
@@ -533,6 +532,15 @@ export function CuradoresCRM({ segment }: { segment?: Segment } = {}) {
         if (favOnly && !r.favorite) return false;
         const f = r.followers ?? 0;
         if (f < bucket.min || f >= bucket.max) return false;
+        // Filtro de Contato (estágio operacional do outreach)
+        if (contactFilter !== "todos") {
+          const sent = !!r.last_outreach_at;
+          const ps = r.pipeline_status;
+          if (contactFilter === "nao_contatado" && (sent || ps !== "novo")) return false;
+          if (contactFilter === "enviado" && !sent) return false;
+          if (contactFilter === "aguardando" && !(sent && (ps === "contatado" || ps === "sem_resposta"))) return false;
+          if (contactFilter === "respondeu" && !(ps === "respondeu" || ps === "negociando" || ps === "fechado")) return false;
+        }
         if (q && !(r.name.toLowerCase().includes(q) || (r.owner_name ?? "").toLowerCase().includes(q) || (r.email ?? "").toLowerCase().includes(q))) return false;
         return true;
       })
@@ -540,10 +548,10 @@ export function CuradoresCRM({ segment }: { segment?: Segment } = {}) {
         if (a.favorite !== b.favorite) return a.favorite ? -1 : 1;
         return (b.followers ?? 0) - (a.followers ?? 0);
       });
-  }, [rows, search, statusFilter, scoreFilter, sizeFilter, favOnly, segment]);
+  }, [rows, search, statusFilter, scoreFilter, sizeFilter, favOnly, contactFilter, segment]);
 
   // Reseta página quando filtros mudam
-  useEffect(() => { setPage(1); }, [search, statusFilter, scoreFilter, sizeFilter, favOnly, pageSize, segment]);
+  useEffect(() => { setPage(1); }, [search, statusFilter, scoreFilter, sizeFilter, favOnly, contactFilter, pageSize, segment]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const safePage = Math.min(page, totalPages);
