@@ -113,8 +113,9 @@ Deno.serve(async (req) => {
         .update({ consumed_at: new Date().toISOString() })
         .eq("state", state);
 
-      // Troca code por tokens
-      const basic = btoa(`${CLIENT_ID}:${CLIENT_SECRET}`);
+      // Troca code por tokens (usa app gravado no state)
+      const creds = await getAppCredentials(stRow.app_id);
+      const basic = btoa(`${creds.client_id}:${creds.client_secret}`);
       const tokenResp = await fetch("https://accounts.spotify.com/api/token", {
         method: "POST",
         headers: {
