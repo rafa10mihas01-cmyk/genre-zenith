@@ -51,12 +51,13 @@ async function calcOne(supabase: any, genreId: string) {
     .eq("is_valid", true)
     .not("enriched_at", "is", null)
     .is("duplicate_of", null);
-  const srMap = new Map<string, { total_musicas: number | null; seguidores: number | null }>();
+  const srMap = new Map<string, { total_musicas: number | null; seguidores: number | null; winner_score: number | null }>();
   for (const r of srRows ?? []) {
     if (!srMap.has(r.spotify_playlist_id) || (r.total_musicas && !srMap.get(r.spotify_playlist_id)!.total_musicas)) {
-      srMap.set(r.spotify_playlist_id, { total_musicas: r.total_musicas, seguidores: r.seguidores });
+      srMap.set(r.spotify_playlist_id, { total_musicas: r.total_musicas, seguidores: r.seguidores, winner_score: r.winner_score == null ? null : Number(r.winner_score) });
     }
   }
+  const winnerList: number[] = [];
 
   for (const p of pls) {
     const { data: snaps } = await supabase
