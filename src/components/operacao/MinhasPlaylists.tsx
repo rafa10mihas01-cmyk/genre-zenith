@@ -124,10 +124,22 @@ export function MinhasPlaylists() {
       const { data, error } = await supabase.functions.invoke("apply-playlist-suggestions", {
         body: { playlist_id: plId, limit: count },
       });
+      // Quando a função retorna não-2xx, o body fica em error.context (Response)
+      let serverError: string | null = null;
+      let serverStatus: number | null = null;
+      if (error && (error as any).context) {
+        try {
+          const ctx = (error as any).context as Response;
+          serverStatus = ctx.status ?? null;
+          const body = await ctx.clone().json().catch(() => null);
+          serverError = body?.error ?? null;
+        } catch { /* ignore */ }
+      }
       if (error || data?.ok === false) {
+        const desc = serverError ?? data?.error ?? error?.message ?? "erro desconhecido";
         toast({
-          title: "Não foi possível adicionar",
-          description: data?.error ?? error?.message ?? "erro desconhecido",
+          title: serverStatus ? `Erro ${serverStatus} ao adicionar` : "Não foi possível adicionar",
+          description: desc,
           variant: "destructive",
         });
       } else {
