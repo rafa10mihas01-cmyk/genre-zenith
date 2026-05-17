@@ -393,25 +393,9 @@ export default function PlaylistDeals() {
 
       {/* Conteúdo — altura mínima estável evita layout shift entre abas */}
       <div className="min-h-[480px] animate-tab-in">
-        {tab === "clients" ? (
-          <ClientesLibraryTab
-            deals={deals}
-            songs={songs}
-            loading={loading}
-          />
-        ) : tab === "library" ? (
-          <CuradoresLibraryTab
-            curators={curators}
-            balances={balances}
-            deals={deals}
-            loading={loading}
-            onUpdateCurator={updateCurator}
-            onAddPurchase={addCuratorPurchase}
-            onArchiveCurator={archiveCurator}
-            onDeleteCurator={deleteCurator}
-            onPauseCurator={pauseCurator}
-          />
-        ) : tab === "ledger" ? (
+        {tab === "ledger" ? (
+          <FinanceiroTab deals={deals} />
+        ) : loading && deals.length === 0 ? (
           <FinanceiroTab deals={deals} />
         ) : loading && deals.length === 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
