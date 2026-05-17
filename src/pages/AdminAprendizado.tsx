@@ -39,7 +39,7 @@ type AuditResp = {
   total_winners?: number;
 };
 
-export default function AdminAprendizado() {
+export default function AdminAprendizado({ embedded = false }: { embedded?: boolean } = {}) {
   const [searchParams, setSearchParams] = useSearchParams();
   const genreId = searchParams.get("g");
   const [data, setData] = useState<AuditResp | null>(null);
