@@ -1547,6 +1547,62 @@ export type Database = {
           },
         ]
       }
+      curator_outreach_log: {
+        Row: {
+          body_snippet: string | null
+          channel: string
+          created_at: string
+          error_message: string | null
+          external_curator_id: string | null
+          id: string
+          recipient_email: string | null
+          recipient_handle: string | null
+          sent_at: string
+          status: string
+          subject: string | null
+          template_name: string | null
+          user_id: string
+        }
+        Insert: {
+          body_snippet?: string | null
+          channel: string
+          created_at?: string
+          error_message?: string | null
+          external_curator_id?: string | null
+          id?: string
+          recipient_email?: string | null
+          recipient_handle?: string | null
+          sent_at?: string
+          status?: string
+          subject?: string | null
+          template_name?: string | null
+          user_id: string
+        }
+        Update: {
+          body_snippet?: string | null
+          channel?: string
+          created_at?: string
+          error_message?: string | null
+          external_curator_id?: string | null
+          id?: string
+          recipient_email?: string | null
+          recipient_handle?: string | null
+          sent_at?: string
+          status?: string
+          subject?: string | null
+          template_name?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "curator_outreach_log_external_curator_id_fkey"
+            columns: ["external_curator_id"]
+            isOneToOne: false
+            referencedRelation: "external_curators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       curator_paste_imports: {
         Row: {
           baseline_count: number
@@ -2129,6 +2185,8 @@ export type Database = {
           id: string
           instagram: string | null
           last_modified: string | null
+          last_outreach_at: string | null
+          last_outreach_channel: string | null
           links: string | null
           name: string
           notes: string | null
@@ -2154,6 +2212,8 @@ export type Database = {
           id?: string
           instagram?: string | null
           last_modified?: string | null
+          last_outreach_at?: string | null
+          last_outreach_channel?: string | null
           links?: string | null
           name: string
           notes?: string | null
@@ -2179,6 +2239,8 @@ export type Database = {
           id?: string
           instagram?: string | null
           last_modified?: string | null
+          last_outreach_at?: string | null
+          last_outreach_channel?: string | null
           links?: string | null
           name?: string
           notes?: string | null
