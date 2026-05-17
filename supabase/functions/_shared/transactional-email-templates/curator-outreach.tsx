@@ -46,7 +46,13 @@ Caso faça sentido, podemos agendar uma conversa de 15 minutos.`
         <Container style={container}>
           {/* Brand bar */}
           <Section style={brandBar}>
-            <Text style={brandText}>{SITE_NAME}</Text>
+            <Img
+              src={LOGO_URL}
+              alt={SITE_NAME}
+              width="180"
+              height="40"
+              style={logoImg}
+            />
             <Text style={brandSub}>Distribuição & Curadoria</Text>
           </Section>
 
