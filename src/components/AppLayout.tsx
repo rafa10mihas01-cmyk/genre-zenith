@@ -32,6 +32,13 @@ function getRouteTitle(pathname: string): string {
   return match ? ROUTE_TITLES[match] : "NexEngine";
 }
 
+// Rotas que rodam em modo fullscreen — sem max-width do nx-page nem padding lateral.
+// O cockpit de playlist é a "sala de operação" e ocupa toda a área útil.
+const FULLSCREEN_ROUTES = [/^\/playlists\/[^/]+$/];
+function isFullscreenRoute(pathname: string): boolean {
+  return FULLSCREEN_ROUTES.some((rx) => rx.test(pathname));
+}
+
 /**
  * Layout global do sistema. Toda página renderizada DEVE estar dentro dele.
  * - Sidebar fixa à esquerda
@@ -43,6 +50,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const nav = useNavigate();
   const location = useLocation();
   const pageTitle = getRouteTitle(location.pathname);
+  const fullscreen = isFullscreenRoute(location.pathname);
 
   // Atalho global ⌘K / Ctrl+K — abre Command Palette de qualquer lugar
   useEffect(() => {
@@ -174,9 +182,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                   "radial-gradient(ellipse 80% 60% at 50% 0%, hsl(141 76% 48% / 0.10) 0%, hsl(141 76% 48% / 0.04) 30%, transparent 70%)",
               }}
             />
-            <div className="nx-page relative z-10">
+            <div className={fullscreen ? "relative z-10 w-full min-h-full" : "nx-page relative z-10"}>
               {children}
-              <AppFooter />
+              {!fullscreen && <AppFooter />}
             </div>
           </main>
         </div>

@@ -80,9 +80,9 @@ export default function PlaylistDetail() {
   if (!pl) {
     return (
       <PageContainer>
-        <PageHeader title="Playlist não encontrada" subtitle="Voltar para a lista de operação" />
+        <PageHeader title="Playlist não encontrada" subtitle="Voltar para o catálogo" />
         <Button asChild variant="outline">
-          <Link to="/operacao"><ArrowLeft className="h-4 w-4 mr-1" /> Operação</Link>
+          <Link to="/catalogo"><ArrowLeft className="h-4 w-4 mr-1" /> Catálogo</Link>
         </Button>
       </PageContainer>
     );
@@ -112,25 +112,24 @@ export default function PlaylistDetail() {
       <PageContainer>
         <PageHeader title={pl.name ?? "Playlist"} subtitle="Playlist externa — sem gestão direta" />
         <p className="text-sm text-muted-foreground">
-          Esta playlist não está sob gestão (apenas monitorada). Importe-a em Operação para gerar diagnóstico.
+          Esta playlist não está sob gestão (apenas monitorada). Importe-a no Catálogo para gerar diagnóstico.
         </p>
       </PageContainer>
     );
   }
 
+  // Cockpit em modo fullscreen — o AppLayout detecta a rota e remove o nx-page.
   return (
-    <PageContainer>
-      <PlaylistCockpit
-        managedId={mgd.id}
-        spotifyPlaylistId={pl.spotify_playlist_id}
-        spotifyUrl={mgd.spotify_url}
-        playlistName={pl.name ?? "Playlist"}
-        coverUrl={mgd.cover_url ?? pl.cover_url}
-        followers={pl.followers}
-        tracksCount={mgd.tracks_count}
-        genreName={genreName}
-        brainScore={brain?.capacity_total ? Math.round(brain.confidence_score) : null}
-      />
-    </PageContainer>
+    <PlaylistCockpit
+      managedId={mgd.id}
+      spotifyPlaylistId={pl.spotify_playlist_id}
+      spotifyUrl={mgd.spotify_url}
+      playlistName={pl.name ?? "Playlist"}
+      coverUrl={mgd.cover_url ?? pl.cover_url}
+      followers={pl.followers}
+      tracksCount={mgd.tracks_count}
+      genreName={genreName}
+      brainScore={brain?.capacity_total ? Math.round(brain.confidence_score) : null}
+    />
   );
 }
