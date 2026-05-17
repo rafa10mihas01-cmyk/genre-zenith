@@ -85,11 +85,12 @@ Deno.serve(async (req) => {
       const defaults = defaultTerms(genre.slug, genre.nome);
       const inserted: { id: string; termo: string }[] = [];
       for (const termo of defaults.slice(0, maxTerms)) {
-        const { data: ins } = await supabase
+        const { data: ins, error: insErr } = await supabase
           .from("search_terms")
-          .insert({ genre_id: genreId, termo })
+          .insert({ genre_id: genreId, termo, tipo: "auto" })
           .select("id, termo")
           .single();
+        if (insErr) stats.errors.push(`insert term "${termo}": ${insErr.message}`);
         if (ins) inserted.push(ins);
       }
       termRows = inserted;
