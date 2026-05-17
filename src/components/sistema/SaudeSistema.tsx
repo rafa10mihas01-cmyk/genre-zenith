@@ -127,12 +127,6 @@ export function SaudeSistema() {
             <RefreshCw className="h-3 w-3" /> Atualizar
           </Button>
         </div>
-
-      <div className="h-px bg-border/60" />
-
-      {/* === BLOCO 2: SERVIÇOS DO PIPELINE === */}
-      <div>
-        <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-bold mb-2">Status dos serviços</h3>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <HealthCard
             icon={Music2}
