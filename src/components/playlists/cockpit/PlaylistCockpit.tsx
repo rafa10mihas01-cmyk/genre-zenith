@@ -290,6 +290,7 @@ export function PlaylistCockpit({
             />
           </div>
           <CoverCard
+            managedId={managedId}
             currentCover={coverUrl}
             leaders={diag.raw?.market_insights?.leader_playlists ?? []}
             spotifyPlaylistId={spotifyPlaylistId}
