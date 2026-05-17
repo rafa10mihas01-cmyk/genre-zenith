@@ -991,7 +991,7 @@ function DistributionTable({
             </tbody>
             <tfoot>
               <tr className="font-semibold bg-elevated/40">
-                <td colSpan={3} className="py-2.5 px-3 text-muted-foreground text-[11px] uppercase tracking-[0.15em]">
+                <td colSpan={onToggleSlot ? 4 : 3} className="py-2.5 px-3 text-muted-foreground text-[11px] uppercase tracking-[0.15em]">
                   Total simulado
                 </td>
                 <td className="py-2.5 px-3 text-right text-muted-foreground tabular-nums">
