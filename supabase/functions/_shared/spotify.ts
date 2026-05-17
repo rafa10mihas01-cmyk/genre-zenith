@@ -1,12 +1,14 @@
-// _shared/spotify.ts — Spotify auth helpers
-//   - getSpotifyToken(): Client Credentials (app-only) — leitura pública
-//   - getUserAccessToken(): OAuth user token (refresh automático) — necessário para criar playlists
+// _shared/spotify.ts — Spotify auth helpers (multi-app aware)
+//   - getAppCredentials(appId?) → busca client_id/secret em spotify_apps,
+//     com fallback pros env vars (compat retroativo).
+//   - getSpotifyToken(): Client Credentials (app-only) — usa app default.
+//   - getUserAccessToken(): OAuth user token (refresh automático per-app).
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const CLIENT_ID = Deno.env.get("SPOTIFY_CLIENT_ID");
-const CLIENT_SECRET = Deno.env.get("SPOTIFY_CLIENT_SECRET");
+const ENV_CLIENT_ID = Deno.env.get("SPOTIFY_CLIENT_ID");
+const ENV_CLIENT_SECRET = Deno.env.get("SPOTIFY_CLIENT_SECRET");
 
 export const SPOTIFY_USER_SCOPES = [
   "playlist-modify-public",
@@ -19,14 +21,74 @@ function db() {
   return createClient(SUPABASE_URL, SERVICE_KEY);
 }
 
-export async function getSpotifyToken(forceRefresh = false): Promise<string> {
-  if (!CLIENT_ID || !CLIENT_SECRET) {
-    throw new Error("SPOTIFY_CLIENT_ID/SECRET não configurados");
+export type SpotifyAppCreds = {
+  app_id: string | null;
+  client_id: string;
+  client_secret: string;
+  name: string;
+};
+
+/** Busca credenciais do app Spotify.
+ *  - appId informado → carrega esse app (erro se não achar).
+ *  - sem appId → pega is_default, ou primeiro active, ou cai no env (compat).
+ */
+export async function getAppCredentials(appId?: string | null): Promise<SpotifyAppCreds> {
+  const sb = db();
+
+  if (appId) {
+    const { data, error } = await sb
+      .from("spotify_apps")
+      .select("id, name, client_id, client_secret, status")
+      .eq("id", appId)
+      .maybeSingle();
+    if (error) throw new Error(`spotify_apps lookup: ${error.message}`);
+    if (!data) throw new Error(`App Spotify ${appId} não encontrado`);
+    return {
+      app_id: data.id,
+      name: data.name,
+      client_id: data.client_id,
+      client_secret: data.client_secret,
+    };
   }
+
+  // sem appId: tenta default → primeiro active
+  const { data: def } = await sb
+    .from("spotify_apps")
+    .select("id, name, client_id, client_secret, is_default, status")
+    .eq("status", "active")
+    .order("is_default", { ascending: false })
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (def) {
+    return {
+      app_id: def.id,
+      name: def.name,
+      client_id: def.client_id,
+      client_secret: def.client_secret,
+    };
+  }
+
+  // Fallback: env vars (compat retroativo enquanto não há apps cadastrados)
+  if (!ENV_CLIENT_ID || !ENV_CLIENT_SECRET) {
+    throw new Error(
+      "Nenhum app Spotify cadastrado e SPOTIFY_CLIENT_ID/SECRET não configurados. " +
+      "Cadastre um app em Configurações → Conexões → Spotify.",
+    );
+  }
+  return {
+    app_id: null,
+    name: "ENV (legado)",
+    client_id: ENV_CLIENT_ID,
+    client_secret: ENV_CLIENT_SECRET,
+  };
+}
+
+export async function getSpotifyToken(forceRefresh = false): Promise<string> {
   const supabase = db();
 
   if (!forceRefresh) {
-    // 🚨 Audit #9 A.4 — lê singleton row diretamente (usa idx_spotify_tokens_singleton)
     const { data } = await supabase
       .from("spotify_tokens")
       .select("access_token,expires_at")
@@ -37,7 +99,8 @@ export async function getSpotifyToken(forceRefresh = false): Promise<string> {
     }
   }
 
-  const basic = btoa(`${CLIENT_ID}:${CLIENT_SECRET}`);
+  const creds = await getAppCredentials();
+  const basic = btoa(`${creds.client_id}:${creds.client_secret}`);
   const resp = await fetch("https://accounts.spotify.com/api/token", {
     method: "POST",
     headers: {
@@ -54,9 +117,8 @@ export async function getSpotifyToken(forceRefresh = false): Promise<string> {
   const access_token: string = json.access_token;
   const expires_at = new Date(Date.now() + (json.expires_in ?? 3600) * 1000).toISOString();
 
-  // 🚨 Audit #8 B.2 — UPSERT atômico em singleton row (elimina race condition INSERT+DELETE)
   await supabase.from("spotify_tokens").upsert(
-    { singleton_key: "app", access_token, expires_at },
+    { singleton_key: "app", access_token, expires_at, app_id: creds.app_id },
     { onConflict: "singleton_key" },
   );
 
@@ -73,12 +135,13 @@ export type SpotifyUserToken = {
   scope: string | null;
   expires_at: string;
   is_default: boolean;
+  app_id: string | null;
 };
 
-/** Faz refresh do token de usuário e persiste o novo access_token. */
+/** Faz refresh do token de usuário usando o app correto e persiste. */
 async function refreshUserToken(row: SpotifyUserToken): Promise<string> {
-  if (!CLIENT_ID || !CLIENT_SECRET) throw new Error("SPOTIFY_CLIENT_ID/SECRET não configurados");
-  const basic = btoa(`${CLIENT_ID}:${CLIENT_SECRET}`);
+  const creds = await getAppCredentials(row.app_id);
+  const basic = btoa(`${creds.client_id}:${creds.client_secret}`);
   const resp = await fetch("https://accounts.spotify.com/api/token", {
     method: "POST",
     headers: {
@@ -92,14 +155,13 @@ async function refreshUserToken(row: SpotifyUserToken): Promise<string> {
   });
   if (!resp.ok) {
     const t = await resp.text();
-    throw new Error(`Spotify refresh ${resp.status}: ${t.slice(0, 200)}`);
+    throw new Error(`Spotify refresh ${resp.status} (app=${creds.name}): ${t.slice(0, 200)}`);
   }
   const j = await resp.json();
   const access_token: string = j.access_token;
   const expires_at = new Date(Date.now() + (j.expires_in ?? 3600) * 1000).toISOString();
   const newRefresh: string = j.refresh_token ?? row.refresh_token;
 
-  // 🔧 Audit #10 B.2: atualiza updated_at (afeta ordering em getUserAccessToken)
   await db()
     .from("spotify_user_tokens")
     .update({ access_token, refresh_token: newRefresh, expires_at, updated_at: new Date().toISOString() })
@@ -108,8 +170,7 @@ async function refreshUserToken(row: SpotifyUserToken): Promise<string> {
   return access_token;
 }
 
-/** Retorna access_token de usuário válido (faz refresh se necessário).
- *  Se userId não informado, usa o default ou o mais recente. */
+/** Retorna access_token de usuário válido (faz refresh se necessário). */
 export async function getUserAccessToken(userId?: string): Promise<{ token: string; row: SpotifyUserToken }> {
   const supabase = db();
   let q = supabase.from("spotify_user_tokens").select("*");
