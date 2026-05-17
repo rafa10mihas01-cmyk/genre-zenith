@@ -682,6 +682,19 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
     </button>
   );
 }
+function FilterRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-2 flex-wrap">
+      <span className="text-[10.5px] uppercase tracking-[0.12em] text-muted-foreground font-medium w-[64px] shrink-0">
+        {label}
+      </span>
+      <div className="flex items-center gap-1.5 flex-wrap">
+        {children}
+      </div>
+    </div>
+  );
+}
+
 
 function MiniStat({ label, value, tone }: { label: string; value: number; tone?: "primary" | "warning" }) {
   return (
