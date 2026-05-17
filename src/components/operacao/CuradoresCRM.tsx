@@ -670,9 +670,6 @@ export function CuradoresCRM({ segment }: { segment?: Segment } = {}) {
         )}
       </div>
 
-        <MiniStat label="Comprados" value={stats.comprados} tone="primary" />
-      </div>
-
       {/* Lista */}
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
