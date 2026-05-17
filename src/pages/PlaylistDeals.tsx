@@ -22,7 +22,7 @@ import { LogPrintDialog } from "@/components/playlist-deals/LogPrintDialog";
 import { DealHistorySheet } from "@/components/playlist-deals/DealHistorySheet";
 import { CloseDealDialog } from "@/components/playlist-deals/CloseDealDialog";
 import { FinanceiroTab } from "@/components/playlist-deals/FinanceiroTab";
-import { useClients } from "@/hooks/useClients";
+
 
 type DealsTab = "active" | "done" | "ledger" | "all";
 
