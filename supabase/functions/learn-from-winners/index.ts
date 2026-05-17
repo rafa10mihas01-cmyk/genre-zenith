@@ -167,6 +167,20 @@ async function learnGenre(
     return { genre_id: genreId, slug, winners: winnerList.length, keywords_top: [], artists_top: artistsTop, updated: false, reason: "no_signal" };
   }
 
+  // Snapshot ANTES de aplicar (para diff/revert)
+  try {
+    await supabase.from("learning_snapshots").insert({
+      genre_id: genreId,
+      source: "wave4-learn-from-winners",
+      winners_count: winnerList.length,
+      min_winner_score: opts.minWinner,
+      keywords: finalKeywords,
+      artists: finalArtists,
+      tracks: recurrentTracks,
+      insights: { top_artists: artistsTop, prev_keywords: existing?.palavras_chave ?? [], prev_tracks: existing?.musicas_recorrentes ?? [] },
+    });
+  } catch (e) { console.warn("[learn] snapshot skipped:", (e as Error).message); }
+
   const { error } = await supabase.from("genre_models").upsert({
     genre_id: genreId,
     palavras_chave: finalKeywords,

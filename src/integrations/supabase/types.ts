@@ -2553,6 +2553,60 @@ export type Database = {
         }
         Relationships: []
       }
+      learning_snapshots: {
+        Row: {
+          artists: Json
+          genre_id: string | null
+          id: string
+          insights: Json
+          keywords: Json
+          min_winner_score: number | null
+          snapshot_at: string
+          source: string
+          tracks: Json
+          winners_count: number
+        }
+        Insert: {
+          artists?: Json
+          genre_id?: string | null
+          id?: string
+          insights?: Json
+          keywords?: Json
+          min_winner_score?: number | null
+          snapshot_at?: string
+          source?: string
+          tracks?: Json
+          winners_count?: number
+        }
+        Update: {
+          artists?: Json
+          genre_id?: string | null
+          id?: string
+          insights?: Json
+          keywords?: Json
+          min_winner_score?: number | null
+          snapshot_at?: string
+          source?: string
+          tracks?: Json
+          winners_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "learning_snapshots_genre_id_fkey"
+            columns: ["genre_id"]
+            isOneToOne: false
+            referencedRelation: "genres"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "learning_snapshots_genre_id_fkey"
+            columns: ["genre_id"]
+            isOneToOne: false
+            referencedRelation: "genres_with_health"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       managed_playlist_tracks: {
         Row: {
           added_at: string | null

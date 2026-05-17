@@ -1,7 +1,7 @@
 import { NavLink, useLocation } from "react-router-dom";
 import {
   Home, Sparkles, BarChart3, Settings, LogOut, ListMusic, Users, Handshake,
-  Server, Target, ChevronRight, User,
+  Server, Target, ChevronRight, User, Brain,
 } from "lucide-react";
 import { NexEngineLogo } from "@/components/NexEngineLogo";
 import {
@@ -92,6 +92,12 @@ const sections: NavSection[] = [
         icon: Server,
         adminOnly: true,
         matchPaths: ["/infra", "/infraestrutura"],
+      },
+      {
+        title: "Aprendizado",
+        url: "/admin/aprendizado",
+        icon: Brain,
+        adminOnly: true,
       },
     ],
   },
