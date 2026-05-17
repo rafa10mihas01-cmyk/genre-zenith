@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/command";
 import {
   Home, Brain, Sparkles, Activity, BarChart3, Settings,
-  Rocket, Image as ImageIcon, Search as SearchIcon, RefreshCw,
+  Search as SearchIcon, RefreshCw,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
