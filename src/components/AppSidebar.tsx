@@ -93,6 +93,12 @@ const sections: NavSection[] = [
         adminOnly: true,
         matchPaths: ["/infra", "/infraestrutura"],
       },
+      {
+        title: "Aprendizado",
+        url: "/admin/aprendizado",
+        icon: Brain,
+        adminOnly: true,
+      },
     ],
   },
 ];
