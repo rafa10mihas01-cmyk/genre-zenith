@@ -194,7 +194,7 @@ function buildSources(node: FluxoNodeData): DataSource[] {
       return [
         { type: "table", name: "search_terms", detail: "termos por gênero" },
         { type: "function", name: "run-search · enrich-playlists" },
-        { type: "api", name: "Apify Actor + Spotify Web API" },
+        { type: "api", name: "Spotify Web API" },
         { type: "table", name: "search_results", detail: "playlists brutas" },
       ];
     case "filtro":
@@ -226,7 +226,6 @@ function buildActions(node: FluxoNodeData): StepAction[] {
     case "descoberta":
       return [
         { id: "ver-termos", label: "Ver termos", kind: "link", to: "/operacao?tab=termos", variant: "outline" },
-        { id: "test-apify", label: "Testar Apify", kind: "invoke", fn: "test-apify", variant: "outline" },
       ];
     case "filtro":
       return [
