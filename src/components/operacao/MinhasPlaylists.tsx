@@ -10,13 +10,19 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+import {
+  Collapsible, CollapsibleTrigger, CollapsibleContent,
+} from "@/components/ui/collapsible";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { formatNumber, timeAgo } from "@/lib/format";
 import {
   Plus, RefreshCw, ExternalLink, Music2, Sparkles, Archive, ArchiveRestore,
   ListMusic, AlertCircle, Activity, Brain, ArrowUpRight, Target, TrendingUp,
-  History, CheckCircle2, XCircle, Clock, Trash2,
+  History, CheckCircle2, XCircle, Clock, Trash2, ChevronDown, ChevronRight,
 } from "lucide-react";
 import { PlaylistScoreBadge, type PlaylistScoreRow } from "./PlaylistScoreBadge";
 import { PlaylistTracksAnalysisCard } from "@/components/playlists/PlaylistTracksAnalysisCard";
@@ -422,108 +428,129 @@ export function MinhasPlaylists() {
         </div>
       )}
 
-      {/* Top oportunidades — match score */}
+      {/* Top oportunidades — match score (colapsado por padrão) */}
       {opportunities.length > 0 && (
-        <div className="nx-card !p-4 space-y-3">
-          <div className="flex items-center justify-between gap-2">
-            <div>
-              <h3 className="text-[14px] font-semibold flex items-center gap-1.5">
-                <Target className="h-4 w-4 text-primary" />
-                Top oportunidades
-              </h3>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                Onde alimentar primeiro · headroom × confiança × penalidade de sinais
-              </p>
-            </div>
-            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-              {opportunities.length} sugest{opportunities.length === 1 ? "ão" : "ões"}
-            </span>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-            {opportunities.map((o) => {
-              const tone =
-                o.matchScore >= 60
-                  ? "success"
-                  : o.matchScore >= 30
-                  ? "primary"
-                  : "muted";
-              return (
-                <Link
-                  key={o.pl.id}
-                  to={`/playlists/${o.pl.canonical_playlist_id}`}
-                  className={cn(
-                    "group rounded-xl border px-3 py-2.5 transition-all hover:-translate-y-[1px] hover:border-foreground/30",
-                    tone === "success" && "border-success/30 bg-success/5",
-                    tone === "primary" && "border-primary/30 bg-primary/5",
-                    tone === "muted" && "border-border/40 bg-[hsl(var(--elevated))]",
-                  )}
-                >
-                  <div className="flex items-start gap-2.5">
-                    {o.pl.cover_url ? (
-                      <img
-                        src={o.pl.cover_url}
-                        alt=""
-                        className="h-10 w-10 rounded-md object-cover shrink-0"
-                      />
-                    ) : (
-                      <div className="h-10 w-10 rounded-md bg-muted shrink-0 flex items-center justify-center">
-                        <ListMusic className="h-4 w-4 text-muted-foreground" />
-                      </div>
+        <Collapsible className="nx-card !p-0 overflow-hidden">
+          <CollapsibleTrigger asChild>
+            <button
+              type="button"
+              className="group w-full flex items-center justify-between gap-3 px-4 py-3 hover:bg-[hsl(var(--hover))] transition-colors text-left"
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <Target className="h-4 w-4 text-primary shrink-0" />
+                <span className="text-[14px] font-semibold">Top oportunidades</span>
+                <span className="text-[11px] text-muted-foreground truncate">
+                  · onde alimentar primeiro
+                </span>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  {opportunities.length} sugest{opportunities.length === 1 ? "ão" : "ões"}
+                </span>
+                <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-90" />
+              </div>
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="px-4 pb-4 pt-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              {opportunities.map((o) => {
+                const tone =
+                  o.matchScore >= 60
+                    ? "success"
+                    : o.matchScore >= 30
+                    ? "primary"
+                    : "muted";
+                return (
+                  <Link
+                    key={o.pl.id}
+                    to={`/playlists/${o.pl.canonical_playlist_id}`}
+                    className={cn(
+                      "group rounded-xl border px-3 py-2.5 transition-all hover:-translate-y-[1px] hover:border-foreground/30",
+                      tone === "success" && "border-success/30 bg-success/5",
+                      tone === "primary" && "border-primary/30 bg-primary/5",
+                      tone === "muted" && "border-border/40 bg-[hsl(var(--elevated))]",
                     )}
-                    <div className="min-w-0 flex-1">
-                      <div className="text-[13px] font-semibold truncate group-hover:text-primary transition-colors">
-                        {o.pl.name}
+                  >
+                    <div className="flex items-start gap-2.5">
+                      {o.pl.cover_url ? (
+                        <img
+                          src={o.pl.cover_url}
+                          alt=""
+                          className="h-10 w-10 rounded-md object-cover shrink-0"
+                        />
+                      ) : (
+                        <div className="h-10 w-10 rounded-md bg-muted shrink-0 flex items-center justify-center">
+                          <ListMusic className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[13px] font-semibold truncate group-hover:text-primary transition-colors">
+                          {o.pl.name}
+                        </div>
+                        <div className="text-[11px] text-muted-foreground tabular-nums flex items-center gap-1.5 flex-wrap mt-0.5">
+                          <span className="inline-flex items-center gap-0.5">
+                            <TrendingUp className="h-3 w-3" />
+                            {Math.round(Number(o.brain.headroom_pct))}% headroom
+                          </span>
+                          {o.sigCount > 0 && (
+                            <span className="text-warning">· {o.sigCount} sinal{o.sigCount > 1 ? "is" : ""}</span>
+                          )}
+                        </div>
                       </div>
-                      <div className="text-[11px] text-muted-foreground tabular-nums flex items-center gap-1.5 flex-wrap mt-0.5">
-                        <span className="inline-flex items-center gap-0.5">
-                          <TrendingUp className="h-3 w-3" />
-                          {Math.round(Number(o.brain.headroom_pct))}% headroom
-                        </span>
-                        {o.sigCount > 0 && (
-                          <span className="text-warning">· {o.sigCount} sinal{o.sigCount > 1 ? "is" : ""}</span>
-                        )}
+                      <div className="text-right shrink-0">
+                        <div
+                          className={cn(
+                            "text-[18px] font-bold tabular-nums leading-none",
+                            tone === "success" && "text-success",
+                            tone === "primary" && "text-primary",
+                            tone === "muted" && "text-muted-foreground",
+                          )}
+                        >
+                          {o.matchScore}
+                        </div>
+                        <div className="text-[9px] uppercase tracking-wider text-muted-foreground mt-0.5">
+                          match
+                        </div>
                       </div>
                     </div>
-                    <div className="text-right shrink-0">
-                      <div
-                        className={cn(
-                          "text-[18px] font-bold tabular-nums leading-none",
-                          tone === "success" && "text-success",
-                          tone === "primary" && "text-primary",
-                          tone === "muted" && "text-muted-foreground",
-                        )}
-                      >
-                        {o.matchScore}
-                      </div>
-                      <div className="text-[9px] uppercase tracking-wider text-muted-foreground mt-0.5">
-                        match
-                      </div>
-                    </div>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
       )}
 
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2">
-        <Button onClick={() => setImportOpen(true)} className="gap-1.5">
-          <Plus className="h-4 w-4" /> Importar playlist
-        </Button>
-        <Button
-          variant="outline"
-          onClick={handleBulkImport}
-          disabled={bulkImporting}
-          className="gap-1.5"
-        >
-          <RefreshCw className={cn("h-4 w-4", bulkImporting && "animate-spin")} />
-          {bulkImporting ? "Importando da conta…" : "Importar tudo da conta"}
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button className="gap-1.5" disabled={bulkImporting}>
+              <Plus className="h-4 w-4" />
+              {bulkImporting ? "Importando…" : "Importar"}
+              <ChevronDown className="h-3.5 w-3.5 opacity-70 -mr-0.5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-60">
+            <DropdownMenuItem onClick={() => setImportOpen(true)} className="gap-2">
+              <Plus className="h-4 w-4" />
+              <div className="flex flex-col">
+                <span>Importar uma playlist</span>
+                <span className="text-[11px] text-muted-foreground">Por URL ou ID do Spotify</span>
+              </div>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleBulkImport} disabled={bulkImporting} className="gap-2">
+              <RefreshCw className={cn("h-4 w-4", bulkImporting && "animate-spin")} />
+              <div className="flex flex-col">
+                <span>Importar tudo da conta</span>
+                <span className="text-[11px] text-muted-foreground">Varre todas as playlists do Spotify</span>
+              </div>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <Button variant="outline" onClick={handleRecalc} disabled={recalcing} className="gap-1.5">
           <RefreshCw className={cn("h-4 w-4", recalcing && "animate-spin")} />
-          {recalcing ? "Sincronizando…" : "Sincronizar tudo"}
+          {recalcing ? "Sincronizando…" : "Sincronizar com Spotify"}
         </Button>
         <Button variant="outline" onClick={openLogs} className="gap-1.5">
           <History className="h-4 w-4" /> Diário

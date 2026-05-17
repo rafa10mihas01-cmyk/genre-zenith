@@ -257,14 +257,17 @@ export default function Operacao() {
         title="Catálogo"
         subtitle="Gerenciar playlists publicadas"
         actions={
-          <div className="flex gap-2">
-            <Button asChild variant="outline" className="rounded-full h-9 gap-1.5">
-              <a href="/criacao"><Sparkles className="h-4 w-4" /> <span className="hidden sm:inline">Criar playlist</span></a>
-            </Button>
-            <Button variant="outline" className="rounded-full h-9 gap-1.5 max-w-full" onClick={load} disabled={loading} aria-label="Atualizar">
-              <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} /> <span className="truncate hidden sm:inline">Atualizar</span>
-            </Button>
-          </div>
+          <Button
+            variant="outline"
+            size="icon"
+            className="rounded-full h-9 w-9"
+            onClick={load}
+            disabled={loading}
+            aria-label="Recarregar"
+            title="Recarregar"
+          >
+            <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+          </Button>
         }
       />
 
