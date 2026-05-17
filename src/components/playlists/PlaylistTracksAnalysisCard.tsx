@@ -237,16 +237,19 @@ export function PlaylistTracksAnalysisCard({ managedId }: { managedId: string })
                   <th className="text-left font-medium py-2 pr-2">Faixa</th>
                   <th className="text-left font-medium py-2 pr-2">Status</th>
                   <th className="text-left font-medium py-2 pr-2">Motivo</th>
-                  <th className="text-right font-medium py-2 pr-2">Streams 28d</th>
-                  <th className="text-right font-medium py-2 pr-2">Crescimento</th>
-                  <th className="text-right font-medium py-2">No nicho</th>
+                  <th className="text-right font-medium py-2 pr-2">Popularity</th>
+                  <th className="text-right font-medium py-2 pr-2">Saturação</th>
+                  <th className="text-right font-medium py-2 pr-2">No nicho</th>
+                  <th className="text-right font-medium py-2">Idade</th>
                 </tr>
               </thead>
               <tbody>
                 {visible.map((t) => {
                   const meta = STATUS_META[t.status];
                   const Icon = meta.icon;
-                  const growth = t.growth_28d_pct;
+                  const pop = t.popularity;
+                  const sat = t.saturation_pct ?? 0;
+                  const age = t.age_days_in_playlist;
                   return (
                     <tr key={t.spotify_track_id} className="border-b border-border/40 last:border-0 align-top">
                       <td className="py-2 pr-2 text-muted-foreground tabular-nums">{t.position + 1}</td>
@@ -263,29 +266,36 @@ export function PlaylistTracksAnalysisCard({ managedId }: { managedId: string })
                       <td className="py-2 pr-2 text-muted-foreground max-w-[300px]">
                         {(t.reasons ?? []).join(" · ") || "—"}
                       </td>
-                      <td className="py-2 pr-2 text-right tabular-nums">{fmtNum(t.streams_28d)}</td>
                       <td className="py-2 pr-2 text-right tabular-nums">
-                        {growth == null ? (
+                        {pop == null ? (
                           <span className="text-muted-foreground">—</span>
                         ) : (
-                          <span
-                            className={cn(
-                              "inline-flex items-center gap-0.5",
-                              growth > 0 ? "text-primary" : growth < 0 ? "text-destructive" : "text-muted-foreground",
-                            )}
-                          >
-                            {growth > 0 ? <TrendingUp className="h-3 w-3" /> : growth < 0 ? <TrendingDown className="h-3 w-3" /> : null}
-                            {growth > 0 ? "+" : ""}
-                            {growth.toFixed(0)}%
-                          </span>
+                          <span className={cn(
+                            pop >= 60 ? "text-primary" : pop < 30 ? "text-destructive" : "text-foreground",
+                          )}>{pop}</span>
                         )}
                       </td>
-                      <td className="py-2 text-right tabular-nums">
+                      <td className="py-2 pr-2 text-right tabular-nums">
+                        {sat >= 70 ? (
+                          <span className="inline-flex items-center gap-0.5 text-destructive">
+                            <Flame className="h-3 w-3" />
+                            {sat}%
+                          </span>
+                        ) : sat > 0 ? (
+                          <span className="text-foreground">{sat}%</span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </td>
+                      <td className="py-2 pr-2 text-right tabular-nums">
                         {t.recurrence_in_genre > 0 ? (
                           <span className="text-foreground">{t.recurrence_in_genre}×</span>
                         ) : (
                           <span className="text-muted-foreground">0</span>
                         )}
+                      </td>
+                      <td className="py-2 text-right tabular-nums text-muted-foreground">
+                        {age == null ? "—" : `${age}d`}
                       </td>
                     </tr>
                   );
