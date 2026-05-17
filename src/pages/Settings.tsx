@@ -14,6 +14,8 @@ import { PageContainer } from "@/components/PageContainer";
 import { EquipeTab } from "@/components/settings/EquipeTab";
 import { AccountsManager } from "@/components/operacao/AccountsManager";
 import { AppConnectionCard } from "@/components/settings/AppConnectionCard";
+import { SpotifyAppsManager, type SpotifyApp } from "@/components/settings/SpotifyAppsManager";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 
 const STORAGE_KEY = "nx-collect-settings";
 const SETTINGS_ROUTE = "/configuracoes";
