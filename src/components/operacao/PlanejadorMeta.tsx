@@ -754,6 +754,7 @@ function WhyRow({ label, value, weight }: { label: string; value: string; weight
 
 function DistributionTable({
   loading, slots, filteredCount, dailyTarget, delivered, coverage,
+  excluded, onToggleSlot, slotKey,
 }: {
   loading: boolean;
   slots: Slot[];
@@ -761,6 +762,9 @@ function DistributionTable({
   dailyTarget: number;
   delivered: number;
   coverage: number;
+  excluded?: Set<string>;
+  onToggleSlot?: (key: string) => void;
+  slotKey?: (s: Slot, i: number) => string;
 }) {
   const [query, setQuery] = useState("");
   const [grouped, setGrouped] = useState(true);
