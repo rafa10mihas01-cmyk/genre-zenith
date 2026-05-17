@@ -1,0 +1,253 @@
+// apply-playlist-plan — executa o plano de manutenção do último diagnóstico
+// via Spotify Web API. Suporta ação isolada por bucket ou o plano completo.
+//
+// Body: {
+//   playlist_id: string (managed_playlists.id),
+//   action: "remove" | "demote" | "promote" | "add" | "all",
+//   limit_add?: number (default 15, max 50),
+// }
+//
+// Ordem do "all": remove → demote → promote → add (executado em sequência,
+// parando no primeiro erro fatal, mas retornando relatório por etapa).
+import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { requireTeamAccess } from "../_shared/auth.ts";
+import { getUserAccessToken, getSpotifyToken } from "../_shared/spotify.ts";
+
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+type Action = "remove" | "demote" | "promote" | "add" | "all";
+
+function jr(p: unknown, status = 200) {
+  return new Response(JSON.stringify(p), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+async function spotifyFetch(url: string, init: RequestInit, token: string) {
+  const r = await fetch(url, {
+    ...init,
+    headers: {
+      ...(init.headers ?? {}),
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+  const txt = await r.text();
+  if (!r.ok) {
+    throw new Error(`Spotify ${r.status}: ${txt.slice(0, 300)}`);
+  }
+  try { return txt ? JSON.parse(txt) : {}; } catch { return {}; }
+}
+
+async function fetchAllTrackUris(playlistId: string, token: string): Promise<string[]> {
+  const uris: string[] = [];
+  let url: string | null =
+    `https://api.spotify.com/v1/playlists/${playlistId}/tracks?fields=items(track(uri)),next&limit=100`;
+  while (url) {
+    const j = await spotifyFetch(url, { method: "GET" }, token);
+    for (const it of j.items ?? []) {
+      const uri = it?.track?.uri;
+      if (uri) uris.push(uri);
+    }
+    url = j.next ?? null;
+  }
+  return uris;
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const guard = await requireTeamAccess(req);
+  if (!guard.ok) return guard.resp;
+
+  try {
+    const body = await req.json().catch(() => ({}));
+    const playlistId: string = body?.playlist_id;
+    const action: Action = (body?.action ?? "all") as Action;
+    const limitAdd: number = Math.max(1, Math.min(Number(body?.limit_add ?? 15), 50));
+    if (!playlistId) return jr({ ok: false, error: "playlist_id obrigatório" }, 400);
+    if (!["remove", "demote", "promote", "add", "all"].includes(action)) {
+      return jr({ ok: false, error: "action inválida" }, 400);
+    }
+
+    const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+
+    // 1) Managed playlist
+    const { data: pl } = await supabase
+      .from("managed_playlists")
+      .select("id, spotify_playlist_id, name, tracks_count")
+      .eq("id", playlistId)
+      .maybeSingle();
+    if (!pl?.spotify_playlist_id) return jr({ ok: false, error: "playlist sem spotify_playlist_id" }, 404);
+
+    // 2) Último diagnóstico
+    const { data: diag } = await supabase
+      .from("playlist_diagnoses")
+      .select("id, tracks_analysis, tracks_suggestions, created_at")
+      .eq("playlist_id", pl.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (!diag) return jr({ ok: false, error: "sem diagnóstico — rode a análise primeiro" }, 400);
+
+    const analysis: any[] = Array.isArray(diag.tracks_analysis) ? diag.tracks_analysis : [];
+    const suggestions: any[] = Array.isArray(diag.tracks_suggestions) ? diag.tracks_suggestions : [];
+
+    const removeItems = analysis.filter((t) => t.status === "remove" && t.spotify_track_id);
+    const demoteItems = analysis.filter((t) => t.status === "demote" && t.spotify_track_id);
+    const promoteItems = analysis.filter((t) => t.status === "promote" && t.spotify_track_id);
+    const addItems = suggestions.filter((s) => s.spotify_track_id).slice(0, limitAdd);
+
+    // 3) OAuth token do dono
+    let ownerId: string | null = null;
+    try {
+      const appToken = await getSpotifyToken();
+      const or = await fetch(
+        `https://api.spotify.com/v1/playlists/${pl.spotify_playlist_id}?fields=owner(id)`,
+        { headers: { Authorization: `Bearer ${appToken}` } },
+      );
+      if (or.ok) ownerId = (await or.json())?.owner?.id ?? null;
+    } catch { /* */ }
+
+    let token: string;
+    try {
+      const r = await getUserAccessToken(ownerId ?? undefined);
+      token = r.token;
+    } catch (e) {
+      return jr({
+        ok: false,
+        error: ownerId
+          ? `conta do dono "${ownerId}" não está conectada. Conecte em Configurações → Spotify.`
+          : `nenhuma conta Spotify conectada: ${(e as Error).message}`,
+      }, 412);
+    }
+
+    const spId = pl.spotify_playlist_id;
+    const report: Record<string, any> = { ok: true, steps: [] };
+
+    // helpers que mantêm a tracklist em memória sincronizada com a playlist real
+    let currentUris: string[] | null = null;
+    async function ensureCurrent(): Promise<string[]> {
+      if (!currentUris) currentUris = await fetchAllTrackUris(spId, token);
+      return currentUris;
+    }
+
+    async function doRemove() {
+      if (removeItems.length === 0) {
+        report.steps.push({ action: "remove", skipped: true, reason: "nada a remover" });
+        return;
+      }
+      // Spotify aceita até 100 por chamada
+      const uris = removeItems.map((t) => `spotify:track:${t.spotify_track_id}`);
+      const chunks: string[][] = [];
+      for (let i = 0; i < uris.length; i += 100) chunks.push(uris.slice(i, i + 100));
+      let removed = 0;
+      for (const ch of chunks) {
+        const res = await spotifyFetch(
+          `https://api.spotify.com/v1/playlists/${spId}/tracks`,
+          { method: "DELETE", body: JSON.stringify({ tracks: ch.map((uri) => ({ uri })) }) },
+          token,
+        );
+        removed += ch.length;
+        if (currentUris) currentUris = currentUris.filter((u) => !ch.includes(u));
+        report.snapshot_id = res?.snapshot_id ?? report.snapshot_id;
+      }
+      report.steps.push({ action: "remove", removed });
+    }
+
+    async function doReorder(kind: "demote" | "promote") {
+      const items = kind === "promote" ? promoteItems : demoteItems;
+      if (items.length === 0) {
+        report.steps.push({ action: kind, skipped: true, reason: `nada a ${kind === "promote" ? "promover" : "rebaixar"}` });
+        return;
+      }
+      await ensureCurrent();
+      // Ordena: promote do mais "merecedor" primeiro (topo); demote do mais
+      // próximo do topo primeiro (mandar pra zona inferior).
+      const sorted = [...items].sort((a, b) => {
+        if (kind === "promote") return (b.popularity ?? 0) - (a.popularity ?? 0);
+        return (a.position ?? 0) - (b.position ?? 0);
+      });
+      let moved = 0;
+      let skipped = 0;
+      for (const it of sorted) {
+        const uri = `spotify:track:${it.spotify_track_id}`;
+        const idx = currentUris!.indexOf(uri);
+        if (idx < 0) { skipped++; continue; }
+        const total = currentUris!.length;
+        // target: usa target_position se vier do diag, senão fallback
+        const fallback = kind === "promote" ? moved : Math.max(total - 1, 0);
+        let target = Number.isFinite(it.target_position) ? Number(it.target_position) : fallback;
+        // insert_before: Spotify trata como índice ANTES de remover.
+        // Para mover para o final: insert_before = total. Para o topo: 0.
+        let insertBefore = Math.max(0, Math.min(target, total));
+        if (insertBefore === idx || insertBefore === idx + 1) { skipped++; continue; }
+        const res = await spotifyFetch(
+          `https://api.spotify.com/v1/playlists/${spId}/tracks`,
+          {
+            method: "PUT",
+            body: JSON.stringify({
+              range_start: idx,
+              insert_before: insertBefore,
+              range_length: 1,
+            }),
+          },
+          token,
+        );
+        // Atualiza memória local
+        const [item] = currentUris!.splice(idx, 1);
+        const adjusted = insertBefore > idx ? insertBefore - 1 : insertBefore;
+        currentUris!.splice(adjusted, 0, item);
+        moved++;
+        report.snapshot_id = res?.snapshot_id ?? report.snapshot_id;
+      }
+      report.steps.push({ action: kind, moved, skipped });
+    }
+
+    async function doAdd() {
+      if (addItems.length === 0) {
+        report.steps.push({ action: "add", skipped: true, reason: "sem sugestões" });
+        return;
+      }
+      const uris = addItems.map((s) => `spotify:track:${s.spotify_track_id}`);
+      const res = await spotifyFetch(
+        `https://api.spotify.com/v1/playlists/${spId}/tracks`,
+        { method: "POST", body: JSON.stringify({ uris, position: 0 }) },
+        token,
+      );
+      report.steps.push({ action: "add", added: uris.length });
+      report.snapshot_id = res?.snapshot_id ?? report.snapshot_id;
+      if (currentUris) currentUris = [...uris, ...currentUris];
+    }
+
+    try {
+      if (action === "remove" || action === "all") await doRemove();
+      if (action === "demote" || action === "all") await doReorder("demote");
+      if (action === "promote" || action === "all") await doReorder("promote");
+      if (action === "add" || action === "all") await doAdd();
+    } catch (e) {
+      const msg = (e as Error).message;
+      const hint = msg.includes("403")
+        ? ` — verifique se o dono da playlist ("${ownerId ?? "?"}") está conectado em Configurações → Spotify com escopos playlist-modify-public/private.`
+        : "";
+      await supabase.from("collection_logs").insert({
+        acao: "apply-playlist-plan",
+        status: "erro",
+        mensagem: `${spId} (${action}): ${msg}${hint}`,
+      });
+      return jr({ ok: false, action, partial: report, error: `${msg}${hint}` }, 502);
+    }
+
+    await supabase.from("collection_logs").insert({
+      acao: "apply-playlist-plan",
+      status: "sucesso",
+      mensagem: `${spId} (${action}): ${JSON.stringify(report.steps)}`,
+    });
+
+    return jr(report);
+  } catch (e) {
+    return jr({ ok: false, error: (e as Error).message }, 500);
+  }
+});

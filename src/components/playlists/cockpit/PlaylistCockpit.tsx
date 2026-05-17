@@ -101,7 +101,7 @@ export function PlaylistCockpit({
   const [diag, setDiag] = useState<Diagnosis | null>(null);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
-  const [applying, setApplying] = useState(false);
+  const [applying, setApplying] = useState<null | "remove" | "demote" | "promote" | "add" | "all">(null);
 
   const loadLatest = useCallback(async () => {
     setLoading(true);
@@ -134,11 +134,11 @@ export function PlaylistCockpit({
     }
   }
 
-  async function applyAddBucket(count: number) {
-    setApplying(true);
+  async function applyPlan(action: "remove" | "demote" | "promote" | "add" | "all") {
+    setApplying(action);
     try {
-      const { data, error } = await supabase.functions.invoke("apply-playlist-suggestions", {
-        body: { playlist_id: managedId, limit: count },
+      const { data, error } = await supabase.functions.invoke("apply-playlist-plan", {
+        body: { playlist_id: managedId, action },
       });
       let serverError: string | null = null;
       let status: number | null = null;
@@ -146,25 +146,36 @@ export function PlaylistCockpit({
         try {
           const ctx = (error as any).context as Response;
           status = ctx.status ?? null;
-          const body = await ctx.clone().json().catch(() => null);
-          serverError = body?.error ?? null;
+          const b = await ctx.clone().json().catch(() => null);
+          serverError = b?.error ?? null;
         } catch { /* */ }
       }
       if (error || data?.ok === false) {
         toast({
-          title: status ? `Erro ${status} ao adicionar` : "Não foi possível adicionar",
+          title: status ? `Erro ${status}` : "Falha ao aplicar",
           description: serverError ?? data?.error ?? error?.message ?? "erro desconhecido",
           variant: "destructive",
         });
         return;
       }
+      const summary = (data?.steps ?? [])
+        .map((s: any) => {
+          if (s.skipped) return null;
+          if (s.action === "remove") return `removidas ${s.removed}`;
+          if (s.action === "add") return `adicionadas ${s.added}`;
+          if (s.action === "promote" || s.action === "demote")
+            return `${s.action === "promote" ? "promovidas" : "rebaixadas"} ${s.moved}`;
+          return null;
+        })
+        .filter(Boolean)
+        .join(" · ");
       toast({
-        title: `${data?.inserted ?? count} faixas adicionadas no topo`,
-        description: "Re-diagnosticando…",
+        title: action === "all" ? "Plano executado" : "Bucket aplicado",
+        description: summary || "sem alterações necessárias",
       });
       runDiagnose();
     } finally {
-      setApplying(false);
+      setApplying(null);
     }
   }
 
@@ -295,18 +306,47 @@ export function PlaylistCockpit({
             <ActionCard kind="promote" count={buckets.promote.length} hrefId="bucket-promote" />
             <ActionCard kind="add" count={buckets.add.length} hrefId="bucket-add" />
           </div>
+          {(buckets.remove.length + buckets.demote.length + buckets.promote.length + buckets.add.length) > 0 && (
+            <Card className="p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 bg-primary/5 border-primary/30">
+              <div className="space-y-0.5">
+                <div className="text-sm font-semibold">Executar plano completo</div>
+                <div className="text-xs text-muted-foreground">
+                  Ordem: remover → rebaixar → promover → adicionar. Tudo via API, sem abrir o Spotify.
+                </div>
+              </div>
+              <Button onClick={() => applyPlan("all")} disabled={applying !== null} className="gap-1.5 shrink-0">
+                {applying === "all" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                Aprovar e executar tudo
+              </Button>
+            </Card>
+          )}
 
           {/* ============ 4. EXECUÇÃO ============ */}
           <SectionTitle>Execução operacional</SectionTitle>
 
-          <BucketRemove items={buckets.remove} spotifyPlaylistId={spotifyPlaylistId} />
-          <BucketReorder kind="demote" items={buckets.demote} spotifyPlaylistId={spotifyPlaylistId} totalTracks={tracksCount} />
-          <BucketReorder kind="promote" items={buckets.promote} spotifyPlaylistId={spotifyPlaylistId} totalTracks={tracksCount} />
+          <BucketRemove
+            items={buckets.remove}
+            applying={applying === "remove" || applying === "all"}
+            onApplyAll={() => applyPlan("remove")}
+          />
+          <BucketReorder
+            kind="demote"
+            items={buckets.demote}
+            totalTracks={tracksCount}
+            applying={applying === "demote" || applying === "all"}
+            onApplyAll={() => applyPlan("demote")}
+          />
+          <BucketReorder
+            kind="promote"
+            items={buckets.promote}
+            totalTracks={tracksCount}
+            applying={applying === "promote" || applying === "all"}
+            onApplyAll={() => applyPlan("promote")}
+          />
           <BucketAdd
             items={buckets.add}
-            applying={applying}
-            onApplyAll={() => applyAddBucket(buckets.add.length)}
-            onApplyOne={() => applyAddBucket(1)}
+            applying={applying === "add" || applying === "all"}
+            onApplyAll={() => applyPlan("add")}
           />
 
           {/* ============ 5. INTELIGÊNCIA DE MERCADO ============ */}
@@ -506,9 +546,29 @@ function TrackLine({
   );
 }
 
-function BucketRemove({ items, spotifyPlaylistId }: { items: AnalysisTrack[]; spotifyPlaylistId: string }) {
+function BucketRemove({ items, applying, onApplyAll }: {
+  items: AnalysisTrack[]; applying: boolean; onApplyAll: () => void;
+}) {
   return (
-    <BucketShell id="bucket-remove" kind="remove" count={items.length}>
+    <BucketShell
+      id="bucket-remove"
+      kind="remove"
+      count={items.length}
+      headerRight={
+        items.length > 0 && (
+          <Button
+            size="sm"
+            variant="destructive"
+            onClick={onApplyAll}
+            disabled={applying}
+            className="h-7 text-xs gap-1"
+          >
+            {applying ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+            Remover todas ({items.length})
+          </Button>
+        )
+      }
+    >
       {items.map((t) => (
         <TrackLine
           key={t.spotify_track_id}
@@ -517,30 +577,41 @@ function BucketRemove({ items, spotifyPlaylistId }: { items: AnalysisTrack[]; sp
           title={t.track_name ?? "—"}
           artist={t.artist_name ?? "—"}
           reason={(t.reasons ?? [])[0] ?? "baixa performance"}
-          action={
-            <Button asChild size="sm" variant="outline" className="h-7 text-xs gap-1">
-              <a
-                href={`https://open.spotify.com/playlist/${spotifyPlaylistId}`}
-                target="_blank" rel="noreferrer"
-              >
-                <Trash2 className="h-3 w-3" /> Abrir
-              </a>
-            </Button>
-          }
+          action={<span className="text-[10px] text-muted-foreground uppercase tracking-wider">remover</span>}
         />
       ))}
-      <div className="px-4 py-2 text-[11px] text-muted-foreground bg-elevated/30">
-        Remoção em massa pelo cockpit em breve — por enquanto abra a playlist e remova manualmente.
-      </div>
     </BucketShell>
   );
 }
 
-function BucketReorder({ kind, items, spotifyPlaylistId, totalTracks }: {
-  kind: "promote" | "demote"; items: AnalysisTrack[]; spotifyPlaylistId: string; totalTracks: number;
+function BucketReorder({ kind, items, totalTracks, applying, onApplyAll }: {
+  kind: "promote" | "demote";
+  items: AnalysisTrack[];
+  totalTracks: number;
+  applying: boolean;
+  onApplyAll: () => void;
 }) {
   return (
-    <BucketShell id={`bucket-${kind}`} kind={kind} count={items.length}>
+    <BucketShell
+      id={`bucket-${kind}`}
+      kind={kind}
+      count={items.length}
+      headerRight={
+        items.length > 0 && (
+          <Button
+            size="sm"
+            onClick={onApplyAll}
+            disabled={applying}
+            variant={kind === "promote" ? "default" : "outline"}
+            className="h-7 text-xs gap-1"
+          >
+            {applying ? <Loader2 className="h-3 w-3 animate-spin" /> :
+              kind === "promote" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+            {kind === "promote" ? "Promover" : "Rebaixar"} todas ({items.length})
+          </Button>
+        )
+      }
+    >
       {items.map((t) => (
         <TrackLine
           key={t.spotify_track_id}
@@ -550,24 +621,18 @@ function BucketReorder({ kind, items, spotifyPlaylistId, totalTracks }: {
           artist={t.artist_name ?? "—"}
           reason={(t.reasons ?? []).join(" · ") || "—"}
           action={
-            <Button asChild size="sm" variant="outline" className="h-7 text-xs gap-1">
-              <a href={`https://open.spotify.com/playlist/${spotifyPlaylistId}`} target="_blank" rel="noreferrer">
-                {kind === "promote" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
-                Mover
-              </a>
-            </Button>
+            <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
+              {kind === "promote" ? "subir" : "descer"}
+            </span>
           }
         />
       ))}
-      <div className="px-4 py-2 text-[11px] text-muted-foreground bg-elevated/30">
-        Reordenação automática pelo cockpit em breve — por enquanto arraste manualmente no Spotify.
-      </div>
     </BucketShell>
   );
 }
 
-function BucketAdd({ items, applying, onApplyAll, onApplyOne }: {
-  items: Suggestion[]; applying: boolean; onApplyAll: () => void; onApplyOne: () => void;
+function BucketAdd({ items, applying, onApplyAll }: {
+  items: Suggestion[]; applying: boolean; onApplyAll: () => void;
 }) {
   return (
     <BucketShell
