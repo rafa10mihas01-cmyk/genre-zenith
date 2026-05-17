@@ -499,6 +499,15 @@ Deno.serve(async (req) => {
           present_keywords: present,
           sync_ok: syncRes?.ok ?? false,
           sync_error: syncRes?.ok ? null : (syncRes as any)?.body?.error ?? (syncRes as any)?.error ?? null,
+          // Novos campos do cockpit
+          suggested_description: suggestedDescription,
+          description_current: pl.description ?? null,
+          missing_keywords: missing,
+          missing_in_description: missingInDesc,
+          market_insights: marketInsights,
+          health_status: healthStatus,
+          niche_rank: nicheRank,
+          niche_total: nicheTotal,
         },
       })
       .select()
