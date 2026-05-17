@@ -1,11 +1,12 @@
 /// <reference types="npm:@types/react@18.3.1" />
 import * as React from 'npm:react@18.3.1'
 import {
-  Body, Container, Head, Heading, Html, Preview, Section, Text, Hr,
+  Body, Container, Head, Heading, Html, Img, Preview, Section, Text, Hr,
 } from 'npm:@react-email/components@0.0.22'
 import type { TemplateEntry } from './registry.ts'
 
 const SITE_NAME = 'NexEngine'
+const LOGO_URL = 'https://xtxxjmkijeyxkdyxtvsf.supabase.co/storage/v1/object/public/email-assets/nexengine-logo.png'
 
 interface CuratorOutreachProps {
   curator_name?: string
@@ -45,7 +46,13 @@ Caso faça sentido, podemos agendar uma conversa de 15 minutos.`
         <Container style={container}>
           {/* Brand bar */}
           <Section style={brandBar}>
-            <Text style={brandText}>{SITE_NAME}</Text>
+            <Img
+              src={LOGO_URL}
+              alt={SITE_NAME}
+              width="180"
+              height="40"
+              style={logoImg}
+            />
             <Text style={brandSub}>Distribuição & Curadoria</Text>
           </Section>
 
@@ -97,7 +104,14 @@ const container = { maxWidth: '560px', margin: '0 auto' }
 
 const brandBar = {
   textAlign: 'center' as const,
-  padding: '0 0 24px',
+  padding: '8px 0 28px',
+}
+const logoImg = {
+  display: 'block',
+  margin: '0 auto 10px',
+  height: '40px',
+  width: 'auto',
+  maxWidth: '180px',
 }
 const brandText = {
   fontSize: '20px',
