@@ -42,6 +42,7 @@ export default function Campanhas() {
   const [filter, setFilter] = useState<"all" | "active" | "draft" | "completed">("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [recalcing, setRecalcing] = useState(false);
+  const [tab, setTab] = useState<"lista" | "simulador">("lista");
 
   const load = useCallback(async () => {
     setLoading(true);
