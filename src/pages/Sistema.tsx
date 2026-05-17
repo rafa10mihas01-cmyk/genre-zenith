@@ -2,7 +2,7 @@
 // Tabs no padrão visual do app (border-b + ícone + label), igual Operação / Playlist Deals / Comunidade.
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import { Activity, Workflow, Music2, HeartPulse, Bot, Bell, ListPlus, Settings as SettingsIcon, Archive, Gauge, ListMusic, Sparkles, TrendingUp } from "lucide-react";
+import { Activity, Workflow, Music2, HeartPulse, Bot, Bell, ListPlus, Settings as SettingsIcon, Archive, Gauge, ListMusic, Sparkles, TrendingUp, Server } from "lucide-react";
 import { EcosystemScorePanel } from "@/components/sistema/EcosystemScorePanel";
 import { PlaylistScorePanel } from "@/components/sistema/PlaylistScorePanel";
 import { RecomendacoesPanel } from "@/components/sistema/RecomendacoesPanel";
@@ -21,9 +21,10 @@ import { RoboAoVivo } from "@/components/sistema/RoboAoVivo";
 import { AlertasHistorico } from "@/components/sistema/AlertasHistorico";
 import { ExecucaoPanel } from "@/components/sistema/ExecucaoPanel";
 import Settings from "@/pages/Settings";
+import Infraestrutura from "@/pages/Infraestrutura";
 
 type SistemaTab =
-  | "fluxo" | "ao-vivo" | "robo" | "coleta" | "execucao" | "saude" | "alertas" | "ecosystem-score" | "playlist-score" | "recomendacoes" | "impacto" | "aposentadoria" | "configuracoes";
+  | "fluxo" | "ao-vivo" | "robo" | "coleta" | "execucao" | "saude" | "alertas" | "ecosystem-score" | "playlist-score" | "recomendacoes" | "impacto" | "infra" | "aposentadoria" | "configuracoes";
 
 type TabDef = { id: SistemaTab; label: string; icon: typeof Activity; adminOnly?: boolean };
 
@@ -39,6 +40,7 @@ const TABS: TabDef[] = [
   { id: "playlist-score", label: "Playlist Score", icon: ListMusic, adminOnly: true },
   { id: "recomendacoes", label: "Recomendações", icon: Sparkles, adminOnly: true },
   { id: "impacto", label: "Impacto", icon: TrendingUp, adminOnly: true },
+  { id: "infra", label: "Infraestrutura", icon: Server, adminOnly: true },
   { id: "aposentadoria", label: "Aposentadoria", icon: Archive, adminOnly: true },
   { id: "configuracoes", label: "Configurações", icon: SettingsIcon },
 ];
@@ -101,6 +103,7 @@ export default function Sistema() {
         {activeTab === "playlist-score" && <PlaylistScorePanel />}
         {activeTab === "recomendacoes" && <RecomendacoesPanel />}
         {activeTab === "impacto" && <ImpactoPanel />}
+        {activeTab === "infra" && <Infraestrutura embedded />}
         {activeTab === "aposentadoria" && <DeprecationPanel />}
         {activeTab === "configuracoes" && <Settings embedded />}
       </div>
