@@ -13,6 +13,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
 import { EquipeTab } from "@/components/settings/EquipeTab";
 import { AccountsManager } from "@/components/operacao/AccountsManager";
+import { AppConnectionCard } from "@/components/settings/AppConnectionCard";
 
 const STORAGE_KEY = "nx-collect-settings";
 const SETTINGS_ROUTE = "/configuracoes";
