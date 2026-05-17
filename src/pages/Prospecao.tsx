@@ -133,7 +133,10 @@ export default function Prospecao() {
             />
           </>
         ) : (
-          <CuradoresCRM segment="prospeccao" />
+          <>
+            <OutreachDashboard />
+            <CuradoresCRM segment="prospeccao" />
+          </>
         )}
       </section>
     </PageContainer>
