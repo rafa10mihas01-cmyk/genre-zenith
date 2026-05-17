@@ -18,8 +18,11 @@ type BotHealth = {
 export function BotSaudeCard() {
   const [data, setData] = useState<BotHealth | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   const load = async () => {
+    setRefreshing(true);
+    try {
     const [hb, queue, nextSong] = await Promise.all([
       supabase.from("bot_heartbeats").select("created_at, status, spotify_session_valid, message")
         .order("created_at", { ascending: false }).limit(1).maybeSingle(),
@@ -39,7 +42,10 @@ export function BotSaudeCard() {
       queue_size: queue.count ?? 0,
       next_collect_at: nextSong.data?.next_auto_collect_at ?? undefined,
     });
-    setLoading(false);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   };
 
   useEffect(() => {
@@ -71,8 +77,8 @@ export function BotSaudeCard() {
         <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-bold flex items-center gap-1.5">
           <Bot className="h-3 w-3" /> Bot Spotify
         </h3>
-        <Button size="sm" variant="ghost" onClick={load} className="h-6 gap-1 text-[11px]">
-          <RefreshCw className="h-3 w-3" /> Atualizar
+        <Button size="sm" variant="ghost" onClick={load} disabled={refreshing} className="h-6 gap-1 text-[11px]">
+          <RefreshCw className={cn("h-3 w-3", refreshing && "animate-spin")} /> Atualizar
         </Button>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

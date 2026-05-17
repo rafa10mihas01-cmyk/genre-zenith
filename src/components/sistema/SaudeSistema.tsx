@@ -30,8 +30,11 @@ export function SaudeSistema() {
   const [health, setHealth] = useState<Health | null>(null);
   const [failures, setFailures] = useState<Failure[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   const load = async () => {
+    setRefreshing(true);
+    try {
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const todayIso = today.toISOString();
     const dayAgoIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
@@ -89,7 +92,10 @@ export function SaudeSistema() {
       created_at: j.updated_at,
     }));
     setFailures(allFailures);
-    setLoading(false);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   };
 
   useEffect(() => {
@@ -123,8 +129,8 @@ export function SaudeSistema() {
       <div>
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-bold">Status dos serviços</h3>
-          <Button size="sm" variant="ghost" onClick={load} className="h-6 gap-1 text-[11px]">
-            <RefreshCw className="h-3 w-3" /> Atualizar
+          <Button size="sm" variant="ghost" onClick={load} disabled={refreshing} className="h-6 gap-1 text-[11px]">
+            <RefreshCw className={cn("h-3 w-3", refreshing && "animate-spin")} /> Atualizar
           </Button>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

@@ -1,6 +1,6 @@
 import { Fragment, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Calendar, Activity, Flame } from "lucide-react";
+import { Calendar, Activity, Flame, Music, Info } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { AnalyticsTabs } from "@/components/AnalyticsTabs";
@@ -16,7 +16,7 @@ const HOURS = Array.from({ length: 24 }, (_, i) => i);
 type Mode = "count" | "plays";
 
 export default function HeatmapEntregas() {
-  const [mode, setMode] = useState<Mode>("count");
+  const [mode, setMode] = useState<Mode>("plays");
   const [days, setDays] = useState<30 | 60 | 90>(30);
 
   const { data: logs = [], isLoading } = useQuery({
@@ -62,70 +62,97 @@ export default function HeatmapEntregas() {
     return best;
   }, [matrix]);
 
+  // Top 3 janelas
+  const topWindows = useMemo(() => {
+    const all: { day: number; hour: number; value: number }[] = [];
+    matrix.forEach((row, d) => row.forEach((v, h) => { if (v > 0) all.push({ day: d, hour: h, value: v }); }));
+    return all.sort((a, b) => b.value - a.value).slice(0, 3);
+  }, [matrix]);
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <PageHeader
         title="Heatmap de entregas"
-        subtitle="Identifique os dias e horários em que curadores mais reportam plays"
+        subtitle="Veja quando curadores mais reportam plays — use pra cronometrar releases e cobranças"
       />
       <AnalyticsTabs />
 
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-1 p-1 bg-card rounded-lg border border-border">
-          {(["count", "plays"] as Mode[]).map((m) => (
-            <Button
-              key={m}
-              size="sm"
-              variant={mode === m ? "default" : "ghost"}
-              onClick={() => setMode(m)}
-            >
-              {m === "count" ? "Nº de logs" : "Plays entregues"}
-            </Button>
-          ))}
+      {/* === DESTAQUE: PICO === */}
+      <Card className="p-5 border-primary/30 bg-primary/5">
+        <div className="flex items-start gap-4">
+          <div className="h-10 w-10 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
+            <Flame className="h-5 w-5 text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-bold">Janela de pico</div>
+            <div className="text-2xl font-semibold mt-0.5">
+              {peak.value > 0 ? `${DAYS[peak.day]}, ${String(peak.hour).padStart(2, "0")}h` : "Sem dados"}
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              {peak.value > 0
+                ? `${formatNumber(peak.value)} ${mode === "count" ? "logs" : "plays"} nesta janela nos últimos ${days} dias`
+                : `Nenhum log nos últimos ${days} dias`}
+            </div>
+          </div>
+          {topWindows.length > 1 && (
+            <div className="hidden md:flex flex-col gap-1 text-right border-l border-border pl-4">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Top 3</div>
+              {topWindows.map((w, i) => (
+                <div key={i} className="text-xs">
+                  <span className="text-muted-foreground">{i + 1}.</span>{" "}
+                  <span className="font-medium">{DAYS[w.day]} {String(w.hour).padStart(2, "0")}h</span>{" "}
+                  <span className="text-muted-foreground tabular-nums">· {formatNumber(w.value)}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-        <div className="flex items-center gap-1 p-1 bg-card rounded-lg border border-border">
-          {([30, 60, 90] as const).map((d) => (
-            <Button
-              key={d}
-              size="sm"
-              variant={days === d ? "default" : "ghost"}
-              onClick={() => setDays(d)}
-            >
-              {d}d
-            </Button>
-          ))}
+      </Card>
+
+      {/* === CONTROLES === */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+          <div className="flex items-center gap-1.5">
+            <Activity className="h-3.5 w-3.5" />
+            <span className="tabular-nums"><strong className="text-foreground">{formatNumber(totals.count)}</strong> logs</span>
+          </div>
+          <span className="text-muted-foreground/40">·</span>
+          <div className="flex items-center gap-1.5">
+            <Music className="h-3.5 w-3.5" />
+            <span className="tabular-nums"><strong className="text-foreground">{formatNumber(totals.plays)}</strong> plays</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 p-1 bg-card rounded-lg border border-border">
+            {(["plays", "count"] as Mode[]).map((m) => (
+              <Button
+                key={m}
+                size="sm"
+                variant={mode === m ? "default" : "ghost"}
+                onClick={() => setMode(m)}
+                className="h-7 text-xs"
+              >
+                {m === "count" ? "Nº de logs" : "Plays entregues"}
+              </Button>
+            ))}
+          </div>
+          <div className="flex items-center gap-1 p-1 bg-card rounded-lg border border-border">
+            {([30, 60, 90] as const).map((d) => (
+              <Button
+                key={d}
+                size="sm"
+                variant={days === d ? "default" : "ghost"}
+                onClick={() => setDays(d)}
+                className="h-7 text-xs"
+              >
+                {d}d
+              </Button>
+            ))}
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="p-5">
-          <div className="flex items-center justify-between">
-            <div className="text-xs text-muted-foreground">Logs registrados</div>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </div>
-          <div className="mt-2 text-2xl font-semibold">{formatNumber(totals.count)}</div>
-        </Card>
-        <Card className="p-5">
-          <div className="flex items-center justify-between">
-            <div className="text-xs text-muted-foreground">Plays totais</div>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </div>
-          <div className="mt-2 text-2xl font-semibold">{formatNumber(totals.plays)}</div>
-        </Card>
-        <Card className="p-5">
-          <div className="flex items-center justify-between">
-            <div className="text-xs text-muted-foreground">Janela de pico</div>
-            <Flame className="h-4 w-4 text-primary" />
-          </div>
-          <div className="mt-2 text-base font-semibold">
-            {peak.value > 0 ? `${DAYS[peak.day]} ${String(peak.hour).padStart(2, "0")}h` : "—"}
-          </div>
-          <div className="mt-1 text-[11px] text-muted-foreground">
-            {peak.value > 0 ? `${formatNumber(peak.value)} ${mode === "count" ? "logs" : "plays"}` : "Sem dados"}
-          </div>
-        </Card>
-      </div>
-
+      {/* === GRID === */}
       <Card className="p-5 overflow-x-auto">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
@@ -194,6 +221,14 @@ export default function HeatmapEntregas() {
             Nenhum log de entrega nos últimos {days} dias.
           </div>
         )}
+
+        <div className="mt-4 pt-3 border-t border-border flex items-start gap-2 text-[11px] text-muted-foreground">
+          <Info className="h-3 w-3 mt-0.5 shrink-0" />
+          <p>
+            Quadrados mais escuros = mais entregas naquela janela. Use o pico pra programar releases logo antes
+            e cobranças logo depois. Janelas anormais (madrugada) podem indicar automação no lado do curador.
+          </p>
+        </div>
       </Card>
     </div>
   );
