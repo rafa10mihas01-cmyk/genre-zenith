@@ -6,7 +6,7 @@ import {
   AlertCircle, Wrench, ChevronDown, ChevronUp, Server, Sparkles, Heart, Target,
 } from "lucide-react";
 import { MinhasPlaylists } from "@/components/operacao/MinhasPlaylists";
-import { PlanejadorMeta } from "@/components/operacao/PlanejadorMeta";
+
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
