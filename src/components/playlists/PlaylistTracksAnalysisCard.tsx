@@ -6,13 +6,13 @@ import { Button } from "@/components/ui/button";
 import {
   Loader2,
   Music2,
-  TrendingUp,
   TrendingDown,
   ArrowUp,
   ArrowDown,
   CheckCircle2,
   AlertTriangle,
   UserPlus,
+  Flame,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -26,11 +26,14 @@ type TrackRow = {
   status: Status;
   reasons: string[];
   recurrence_in_genre: number;
-  streams_28d: number | null;
-  growth_28d_pct: number | null;
-  saturation_index: number | null;
-  momentum: string | null;
-  confidence: number | null;
+  popularity: number | null;
+  artist_popularity?: number | null;
+  saturation_pct?: number;
+  age_days_in_playlist?: number | null;
+  release_date?: string | null;
+  // legacy
+  streams_28d?: number | null;
+  growth_28d_pct?: number | null;
 };
 
 type Summary = {
