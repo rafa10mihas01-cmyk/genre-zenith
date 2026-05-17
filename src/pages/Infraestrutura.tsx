@@ -50,7 +50,7 @@ const ACCOUNT_TONE: Record<string, "success" | "warning" | "danger" | "neutral">
   inactive: "neutral",
 };
 
-export default function Infraestrutura() {
+export default function Infraestrutura({ embedded = false }: { embedded?: boolean } = {}) {
   const [vps, setVps] = useState<VpsNode[]>([]);
   const [accounts, setAccounts] = useState<SpotifyAccount[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
@@ -86,20 +86,31 @@ export default function Infraestrutura() {
 
   useEffect(() => { load(); }, [load]);
 
+  const Wrapper: any = embedded ? "div" : PageContainer;
+
   return (
-    <PageContainer>
-      <PageHeader
-        kicker="Módulo de Sistema"
-        title="Infraestrutura"
-        subtitle="Orquestrar VPS, sessões e contas Spotify"
-        actions={
-          <Button variant="outline" onClick={load} disabled={loading} className="gap-1.5">
+    <Wrapper>
+      {!embedded && (
+        <PageHeader
+          kicker="Módulo de Sistema"
+          title="Infraestrutura"
+          subtitle="Orquestrar VPS, sessões e contas Spotify"
+          actions={
+            <Button variant="outline" onClick={load} disabled={loading} className="gap-1.5">
+              <RefreshCw className={loading ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+              Atualizar
+            </Button>
+          }
+        />
+      )}
+      {embedded && (
+        <div className="flex justify-end mb-3">
+          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-1.5">
             <RefreshCw className={loading ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
             Atualizar
           </Button>
-        }
-      />
-
+        </div>
+      )}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* VPS Nodes */}
         <section className="nx-card">
