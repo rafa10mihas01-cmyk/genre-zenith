@@ -28,13 +28,13 @@ export function extractCriticalAlerts(nodes: FluxoNodeData[]): CriticalAlert[] {
       }
     }
     // Heurísticas extras: aproveitamento zero / capacidade cheia
-    if (n.id === "playlist" && n.outputCount === 0 && n.status !== "idle") {
+    if (n.id === "execucao" && n.outputCount === 0 && n.status !== "idle") {
       out.push({
         nodeId: n.id,
         nodeLabel: n.label,
         level: "error",
-        message: "0 playlists publicadas nesta janela.",
-        hint: "Verifique contas Spotify, capacidade e geração de templates.",
+        message: "Nenhum job concluído nesta janela.",
+        hint: "Verifique worker, contas Spotify e fila de execução.",
       });
     }
   }
