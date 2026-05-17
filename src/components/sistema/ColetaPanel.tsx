@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  Search, Music2, CheckCircle2, AlertTriangle, Loader2,
+  Search, Music2, CheckCircle2, Loader2,
   Filter, Database,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -51,8 +51,9 @@ export function ColetaPanel() {
         ultima_coleta: g.ultima_coleta,
       });
     }
-    out.sort((a, b) => b.total_playlists - a.total_playlists);
-    setStats(out);
+    const visible = out.filter((g) => g.total_playlists > 0);
+    visible.sort((a, b) => b.total_playlists - a.total_playlists);
+    setStats(visible);
     setLastVerif((verifRes.data as any)?.followers_verified_at ?? null);
     setRecentVerified(recentRes.count ?? 0);
     setLoading(false);
@@ -79,26 +80,12 @@ export function ColetaPanel() {
     <div className="space-y-4">
       {/* Status global */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className={cn(
-          "nx-card border p-3 flex items-center gap-3",
-          apifyBlocked?.blocked ? "border-destructive/40 bg-destructive/5" : "border-success/30 bg-success/5",
-        )}>
-          {apifyBlocked?.blocked ? (
-            <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
-          ) : (
-            <CheckCircle2 className="h-5 w-5 text-success shrink-0" />
-          )}
+        <div className="nx-card border border-success/30 bg-success/5 p-3 flex items-center gap-3">
+          <CheckCircle2 className="h-5 w-5 text-success shrink-0" />
           <div className="min-w-0 flex-1">
-            <p className="text-xs uppercase tracking-wider text-muted-foreground font-bold">Coletor Apify</p>
-            <p className="text-sm font-semibold text-foreground">
-              {apifyBlocked?.blocked ? "Bloqueado" : "Funcionando normalmente"}
-            </p>
-            {apifyBlocked?.blocked && apifyBlocked?.reason && (
-              <p className="text-[11px] text-destructive/90 mt-0.5">{apifyBlocked.reason}</p>
-            )}
-            {apifyBlocked?.blocked && apifyBlocked?.at && (
-              <p className="text-[10px] text-muted-foreground mt-0.5">desde {timeAgo(apifyBlocked.at)}</p>
-            )}
+            <p className="text-xs uppercase tracking-wider text-muted-foreground font-bold">Coleta Spotify</p>
+            <p className="text-sm font-semibold text-foreground">{formatNumber(recentVerified)} playlists recentes</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">verificadas nos últimos 7 dias</p>
           </div>
         </div>
 
@@ -119,7 +106,7 @@ export function ColetaPanel() {
         </h3>
         {stats.length === 0 ? (
           <div className="nx-card p-6 text-center text-sm text-muted-foreground">
-            Nenhum gênero ativo encontrado.
+            Nenhum dado Spotify recente encontrado.
           </div>
         ) : (
           <div className="space-y-1.5">
