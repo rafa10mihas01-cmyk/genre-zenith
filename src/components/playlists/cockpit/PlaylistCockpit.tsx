@@ -18,6 +18,7 @@ import {
 import { PlaylistTracksTab } from "@/components/playlists/PlaylistTracksTab";
 import { ProjecaoFaixa } from "@/components/operacao/SimuladorEntrega";
 import { CuratorialStateBadge, CooldownChip } from "@/components/playlist/CuratorialStateBadge";
+import { AdjustmentTimeline } from "@/components/playlists/cockpit/AdjustmentTimeline";
 
 // -------------------- types --------------------
 type AnalysisTrack = {
@@ -289,6 +290,9 @@ export function PlaylistCockpit({
         <>
           {/* ============ CICLO CURATORIAL — banner editorial ============ */}
           <EditorialBanner diag={diag} onRediagnose={runDiagnose} running={running} />
+
+          {/* ============ MEMÓRIA DE IMPACTO ============ */}
+          <AdjustmentTimeline playlistId={managedId} />
 
           {/* ============ 2. IDENTIDADE ============ */}
           <SectionTitle>Identidade da playlist</SectionTitle>
