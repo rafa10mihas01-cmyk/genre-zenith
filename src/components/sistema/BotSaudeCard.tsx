@@ -18,8 +18,11 @@ type BotHealth = {
 export function BotSaudeCard() {
   const [data, setData] = useState<BotHealth | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   const load = async () => {
+    setRefreshing(true);
+    try {
     const [hb, queue, nextSong] = await Promise.all([
       supabase.from("bot_heartbeats").select("created_at, status, spotify_session_valid, message")
         .order("created_at", { ascending: false }).limit(1).maybeSingle(),
