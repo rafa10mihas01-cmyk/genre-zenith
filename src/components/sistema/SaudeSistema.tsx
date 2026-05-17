@@ -92,7 +92,10 @@ export function SaudeSistema() {
       created_at: j.updated_at,
     }));
     setFailures(allFailures);
-    setLoading(false);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   };
 
   useEffect(() => {
