@@ -3,11 +3,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Activity, Pause, RefreshCw, ArrowDownRight, ArrowUpRight,
   Music2, FlaskConical, History, ListMusic, Search, Users, ExternalLink,
-  AlertCircle, Wrench, ChevronDown, ChevronUp, Server, Sparkles, Heart, Target,
+  AlertCircle, Wrench, ChevronDown, ChevronUp, Server, Sparkles, Heart, Target, UserSearch,
 } from "lucide-react";
 import { MinhasPlaylists } from "@/components/operacao/MinhasPlaylists";
 import { PlanejadorMeta } from "@/components/operacao/PlanejadorMeta";
-// CuradoresCRM removido — agora vive em /deals (aba Curadores)
+import { CuradoresCRM } from "@/components/operacao/CuradoresCRM";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -49,10 +49,11 @@ const ACTION_LABEL: Record<string, string> = {
 const labelAction = (a: string) => ACTION_LABEL[a] ?? a.replace(/_/g, " ");
 
 const TABS = [
-  { id: "minhas",    label: "Minhas Playlists", icon: Sparkles },
-  { id: "playlists", label: "Criadas (auto)", icon: ListMusic },
-  { id: "campanha",  label: "Campanha", icon: Target },
-  { id: "ajustes",   label: "Ajustes",   icon: Wrench },
+  { id: "minhas",      label: "Minhas Playlists", icon: Sparkles },
+  { id: "playlists",   label: "Criadas (auto)",   icon: ListMusic },
+  { id: "campanha",    label: "Campanha",         icon: Target },
+  { id: "prospeccao",  label: "Prospecção",       icon: UserSearch },
+  { id: "ajustes",     label: "Ajustes",          icon: Wrench },
 ] as const;
 
 type TabId = typeof TABS[number]["id"];
@@ -412,7 +413,11 @@ export default function Operacao() {
           </section>
         )}
 
-        {/* Prospecção de curadores foi consolidada dentro de /deals (aba Curadores). */}
+        {tab === "prospeccao" && (
+          <section className="space-y-6">
+            <CuradoresCRM />
+          </section>
+        )}
 
       </div>
     </PageContainer>
