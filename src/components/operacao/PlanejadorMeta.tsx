@@ -271,9 +271,9 @@ export function PlanejadorMeta() {
   );
   const slots = plan.slots;
 
-  const slotKey = (s: Slot, i: number) => `${s.playlistId}-${s.position}-${i}`;
+  const slotKey = (s: Slot) => `${s.playlistId}-${s.position}`;
   const activeSlots = useMemo(
-    () => slots.filter((s, i) => !excluded.has(slotKey(s, i))),
+    () => slots.filter((s) => !excluded.has(slotKey(s))),
     [slots, excluded],
   );
   const toggleSlot = (key: string) => {
