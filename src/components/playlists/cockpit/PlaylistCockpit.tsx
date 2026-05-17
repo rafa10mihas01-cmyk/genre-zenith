@@ -13,9 +13,11 @@ import {
   ArrowLeft, ExternalLink, Sparkles, Loader2, Music2, TrendingUp,
   TrendingDown, ArrowUp, ArrowDown, Trash2, Plus, ChevronDown,
   Flame, Snowflake, Activity, Users, Crown, Target, Check,
+  Heart, Eye, RotateCcw, Timer, Zap, ShieldCheck, AlertTriangle,
 } from "lucide-react";
 import { PlaylistTracksTab } from "@/components/playlists/PlaylistTracksTab";
 import { ProjecaoFaixa } from "@/components/operacao/SimuladorEntrega";
+import { CuratorialStateBadge, CooldownChip } from "@/components/playlist/CuratorialStateBadge";
 
 // -------------------- types --------------------
 type AnalysisTrack = {
