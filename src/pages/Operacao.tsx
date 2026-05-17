@@ -49,9 +49,7 @@ const labelAction = (a: string) => ACTION_LABEL[a] ?? a.replace(/_/g, " ");
 
 const TABS = [
   { id: "minhas",      label: "Minhas Playlists", icon: Sparkles },
-  { id: "playlists",   label: "Criadas (auto)",   icon: ListMusic },
   { id: "campanha",    label: "Campanha",         icon: Target },
-  { id: "ajustes",     label: "Ajustes",          icon: Wrench },
 ] as const;
 
 type TabId = typeof TABS[number]["id"];
@@ -314,64 +312,7 @@ export default function Operacao() {
           </section>
         )}
 
-        {/* PLAYLISTS (criadas pelo sistema, legado) */}
-        {tab === "playlists" && (
-          <section key="tab-playlists" className="space-y-4 animate-tab-in">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-              <div className="relative w-full sm:max-w-xs">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Buscar playlist..."
-                  className="pl-9 h-9 bg-elevated border-border rounded-full text-sm"
-                />
-              </div>
-              {/* Mobile: chips em uma linha com scroll-x; Desktop: wrap normal à direita */}
-              <div
-                className={cn(
-                  "flex items-center gap-1.5 sm:ml-auto sm:flex-wrap",
-                  "-mx-4 px-4 sm:mx-0 sm:px-0 overflow-x-auto sm:overflow-visible",
-                  "[&::-webkit-scrollbar]:hidden [scrollbar-width:none]",
-                  "[&>*]:shrink-0",
-                )}
-              >
-                <FilterChip active={filter === "todas"}       onClick={() => setFilter("todas")}>Todas</FilterChip>
-                <FilterChip active={filter === "ativa"}       onClick={() => setFilter("ativa")}>Ativas</FilterChip>
-                <FilterChip active={filter === "crescimento"} onClick={() => setFilter("crescimento")}>Crescendo</FilterChip>
-                <FilterChip active={filter === "queda"}       onClick={() => setFilter("queda")}>Em queda</FilterChip>
-                <FilterChip active={filter === "teste"}       onClick={() => setFilter("teste")}>Teste</FilterChip>
-                <FilterChip active={filter === "pausada"}     onClick={() => setFilter("pausada")}>Pausadas</FilterChip>
-              </div>
-            </div>
-
-            {/* Lista em CARDS — grid responsivo (1 / 2 / 3 colunas) */}
-            {loading && playlistsAll.length === 0 ? (
-              <PlaylistGridSkeleton />
-            ) : playlists.length === 0 ? (
-              <div className="nx-card">
-                <EmptyRow
-                  title={playlistsAll.length === 0 ? "Nenhuma playlist em operação" : "Nada com esse filtro"}
-                  msg={playlistsAll.length === 0
-                    ? "Quando uma playlist for publicada no Spotify pelo módulo Criação, ela aparece aqui automaticamente."
-                    : "Tente outro filtro ou limpe a busca."}
-                />
-              </div>
-            ) : (
-              <>
-                <div className="text-[11px] text-muted-foreground tabular-nums px-1">
-                  Mostrando <strong className="text-foreground">{playlists.length}</strong> de {playlistsAll.length} playlists
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-6 gap-2.5">
-                  {playlists.map((p) => <PlaylistCard key={p.id} p={p} />)}
-                </div>
-              </>
-            )}
-
-            {/* Histórico colapsável no rodapé */}
-            <HistoryDrawer adjustments={adjustments} playlistsAll={playlistsAll} />
-          </section>
-        )}
+        {/* (abas "Criadas auto" e "Ajustes" removidas — redundantes com Minhas Playlists) */}
 
         {/* CAMPANHA — planejador de meta de plays */}
         {tab === "campanha" && (
@@ -380,36 +321,6 @@ export default function Operacao() {
           </section>
         )}
 
-        {/* AJUSTES — manutenção do dia-a-dia */}
-        {tab === "ajustes" && (
-          <section key="tab-ajustes" className="space-y-4 animate-tab-in">
-            <div className="nx-card">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="h-9 w-9 rounded-full bg-elevated border border-border flex items-center justify-center">
-                  <RefreshCw className="h-4 w-4 text-primary" />
-                </div>
-                <div>
-                  <h3 className="font-semibold">Trocas pendentes</h3>
-                  <p className="text-xs text-muted-foreground">Sugestões de troca baseadas em performance</p>
-                </div>
-              </div>
-              <EmptyInline msg="Nenhuma troca sugerida no momento. Rode uma análise no Cérebro para gerar recomendações." />
-            </div>
-
-            <div className="nx-card">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="h-9 w-9 rounded-full bg-elevated border border-border flex items-center justify-center">
-                  <FlaskConical className="h-4 w-4 text-warning" />
-                </div>
-                <div>
-                  <h3 className="font-semibold">Ajustes em teste</h3>
-                  <p className="text-xs text-muted-foreground">Mudanças em validação antes de promover</p>
-                </div>
-              </div>
-              <EmptyInline msg="Nenhum teste ativo." />
-            </div>
-          </section>
-        )}
       </div>
     </PageContainer>
   );
