@@ -88,7 +88,7 @@ Deno.serve(async (req) => {
       // Valida state (one-shot, expira em 30min, flow correto)
       const { data: stRow, error: stErr } = await supabase
         .from("spotify_oauth_states")
-        .select("state, flow, created_at, consumed_at")
+        .select("state, flow, app_id, created_at, consumed_at")
         .eq("state", state)
         .maybeSingle();
       if (stErr) return jr({ ok: false, error: `state lookup: ${stErr.message}` }, 500);
