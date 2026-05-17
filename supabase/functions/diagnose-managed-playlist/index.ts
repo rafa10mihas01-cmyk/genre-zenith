@@ -330,17 +330,40 @@ Deno.serve(async (req) => {
     };
 
     // 7) Sugestões de faixas a ADICIONAR — do nicho, ainda não presentes na playlist
+    //    Boost: faixas de artistas faltando ganham prioridade
     const currentIds = new Set(trackIds);
-    const tracksSuggestions = Array.from(genreRecurrence.entries())
+    const missingArtistSet = new Set(missingArtists.map((a) => a.artist.toLowerCase()));
+    const N_SUGGEST = 15;
+
+    const ranked = Array.from(genreRecurrence.entries())
       .filter(([id]) => !currentIds.has(id))
-      .map(([id, v]) => ({
-        spotify_track_id: id,
-        nome: v.track_name ?? "—",
-        artista: v.artist_name ?? "—",
-        count: v.count,
-      }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 10);
+      .map(([id, v]) => {
+        const mainArtist = String(v.artist_name ?? "").split(",")[0].trim().toLowerCase();
+        const fromMissing = mainArtist && missingArtistSet.has(mainArtist);
+        // score: recorrência + bônus se preenche artista faltando
+        const score = v.count + (fromMissing ? 5 : 0);
+        return {
+          spotify_track_id: id,
+          nome: v.track_name ?? "—",
+          artista: v.artist_name ?? "—",
+          count: v.count,
+          from_missing_artist: !!fromMissing,
+          score,
+        };
+      })
+      .sort((a, b) => b.score - a.score)
+      .slice(0, N_SUGGEST);
+
+    // Posições sugeridas: insere no topo (1, 2, 3...) — faixas mais quentes vão pra vitrine
+    const tracksSuggestions = ranked.map((t, i) => ({
+      ...t,
+      suggested_position: i + 1,
+    }));
+
+    // Adiciona contagem ao summary pra UI exibir KPI "ADICIONAR"
+    (tracksSummary as any).add = tracksSuggestions.length;
+    (tracksSummary as any).add_from_missing = tracksSuggestions.filter((t) => t.from_missing_artist).length;
+
 
     // 8) Análise de nome (igual ao anterior)
     const nameLower = (pl.name ?? "").toLowerCase();

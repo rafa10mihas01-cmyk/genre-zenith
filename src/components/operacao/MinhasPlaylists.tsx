@@ -798,24 +798,35 @@ export function MinhasPlaylists() {
                         <div className="flex items-center justify-between">
                           <h5 className="font-semibold text-sm">Faixas para adicionar</h5>
                           <span className="text-[11px] text-muted-foreground">
-                            {diagnosis.tracks_suggestions.length} sugestões
+                            {diagnosis.tracks_suggestions.length} sugestões · já com posição
                           </span>
                         </div>
+                        <p className="text-[11px] text-muted-foreground">
+                          Faixas do nicho que você não tem. Marcadas com{" "}
+                          <span className="text-warning font-medium">★</span> são de artistas faltando.
+                        </p>
                         <ul className="space-y-1.5">
-                          {diagnosis.tracks_suggestions.slice(0, 10).map((t: any, i: number) => {
+                          {diagnosis.tracks_suggestions.slice(0, 15).map((t: any, i: number) => {
                             const nome = t?.nome ?? t?.name ?? t?.title ?? t?.track_name ?? "—";
                             const artista = t?.artista ?? t?.artist ?? t?.artists ?? "—";
                             const count = t?.count ?? t?.recorrencia ?? null;
+                            const pos = t?.suggested_position ?? i + 1;
+                            const missing = !!t?.from_missing_artist;
                             return (
                               <li key={i} className="flex items-start gap-2 text-xs">
-                                <Music2 className="h-3 w-3 mt-0.5 text-muted-foreground shrink-0" />
+                                <span className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-primary/10 text-primary text-[10px] font-semibold tabular-nums shrink-0">
+                                  #{pos}
+                                </span>
                                 <div className="min-w-0 flex-1">
-                                  <div className="text-foreground/90 font-medium truncate">{nome}</div>
+                                  <div className="text-foreground/90 font-medium truncate flex items-center gap-1">
+                                    {missing && <span className="text-warning" title="Artista faltando">★</span>}
+                                    {nome}
+                                  </div>
                                   <div className="text-muted-foreground truncate">{artista}</div>
                                 </div>
                                 {count != null && (
                                   <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
-                                    {count}× nos concorrentes
+                                    {count}× no nicho
                                   </span>
                                 )}
                               </li>
@@ -824,7 +835,7 @@ export function MinhasPlaylists() {
                         </ul>
                         <div className="flex items-center gap-2 pt-1">
                           <Button size="sm" disabled className="gap-1.5">Adicionar no Spotify</Button>
-                          <span className="text-[11px] text-muted-foreground">em breve</span>
+                          <span className="text-[11px] text-muted-foreground">em breve — botão vai inserir nas posições sugeridas</span>
                         </div>
                       </div>
                     )}
