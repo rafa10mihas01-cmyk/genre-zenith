@@ -710,7 +710,20 @@ export function CuradoresCRM({ segment }: { segment?: Segment } = {}) {
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-            {pageRows.map((r) => <CuradorRowCard key={r.id} r={r} onUpdate={updateRow} onRemove={removeRow} />)}
+            {pageRows.map((r) => (
+              <CuradorRowCard
+                key={r.id}
+                r={r}
+                onUpdate={updateRow}
+                onRemove={removeRow}
+                onOpenEmail={(row) => setEmailTarget({
+                  externalCuratorId: row.id,
+                  recipientEmail: row.email!,
+                  curatorName: row.owner_name || row.name,
+                  playlistName: row.name,
+                })}
+              />
+            ))}
           </div>
           {totalPages > 1 && (
             <div className="flex items-center justify-center gap-1 pt-2">
