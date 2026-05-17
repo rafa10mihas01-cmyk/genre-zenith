@@ -78,7 +78,7 @@ const sections: NavSection[] = [
         title: "Recomendações",
         url: "/inteligencia",
         icon: Sparkles,
-        matchPaths: ["/cerebro"],
+        matchPaths: ["/cerebro", "/criacao"],
       },
       {
         title: "Analytics",
