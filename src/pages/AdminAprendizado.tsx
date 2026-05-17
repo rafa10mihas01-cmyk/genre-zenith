@@ -326,6 +326,6 @@ export default function AdminAprendizado({ embedded = false }: { embedded?: bool
           )}
         </div>
       </div>
-    </PageContainer>
+    </Wrapper>
   );
 }
