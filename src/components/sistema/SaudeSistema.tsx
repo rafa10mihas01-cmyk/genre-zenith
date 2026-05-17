@@ -30,6 +30,7 @@ export function SaudeSistema() {
   const [health, setHealth] = useState<Health | null>(null);
   const [failures, setFailures] = useState<Failure[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   const load = async () => {
     const today = new Date(); today.setHours(0, 0, 0, 0);
