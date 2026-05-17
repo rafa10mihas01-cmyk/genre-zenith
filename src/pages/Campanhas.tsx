@@ -6,7 +6,7 @@ import { PageContainer } from "@/components/PageContainer";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusDot } from "@/components/ui/status-dot";
-import { Plus, RefreshCw, Target, FlaskConical, ListChecks, Calculator, Workflow } from "lucide-react";
+import { Plus, RefreshCw, Target, ListChecks, Calculator, Workflow } from "lucide-react";
 import { NewCampaignDialog } from "@/components/campanhas/NewCampaignDialog";
 import { toast } from "@/hooks/use-toast";
 import { PlanejadorMeta } from "@/components/operacao/PlanejadorMeta";
