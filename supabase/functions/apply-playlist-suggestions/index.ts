@@ -61,10 +61,10 @@ Deno.serve(async (req) => {
       return jr({ ok: true, dry_run: true, would_insert: selected.length, uris });
     }
 
-    // 3) Token OAuth do usuário (precisa de playlist-modify-public/private)
+    // 3) Token OAuth do usuário (precisa de playlist-modify-public/private) — usa default
     let token: string;
     try {
-      const r = await getUserAccessToken(pl.owner_user_id ?? undefined);
+      const r = await getUserAccessToken();
       token = r.token;
     } catch (e) {
       return jr({
