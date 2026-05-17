@@ -3797,6 +3797,10 @@ export type Database = {
           times_seen: number
           total_musicas: number | null
           validation_reason: string | null
+          winner_breakdown: Json | null
+          winner_score: number | null
+          winner_score_at: string | null
+          winner_score_version: number | null
         }
         Insert: {
           apify_run_id?: string | null
@@ -3837,6 +3841,10 @@ export type Database = {
           times_seen?: number
           total_musicas?: number | null
           validation_reason?: string | null
+          winner_breakdown?: Json | null
+          winner_score?: number | null
+          winner_score_at?: string | null
+          winner_score_version?: number | null
         }
         Update: {
           apify_run_id?: string | null
@@ -3877,6 +3885,10 @@ export type Database = {
           times_seen?: number
           total_musicas?: number | null
           validation_reason?: string | null
+          winner_breakdown?: Json | null
+          winner_score?: number | null
+          winner_score_at?: string | null
+          winner_score_version?: number | null
         }
         Relationships: [
           {
