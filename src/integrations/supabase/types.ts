@@ -590,6 +590,36 @@ export type Database = {
         }
         Relationships: []
       }
+      chart_position_benchmarks: {
+        Row: {
+          captured_at: string
+          created_at: string
+          database: string
+          id: string
+          position: number
+          streams_day: number
+          updated_at: string
+        }
+        Insert: {
+          captured_at?: string
+          created_at?: string
+          database?: string
+          id?: string
+          position: number
+          streams_day: number
+          updated_at?: string
+        }
+        Update: {
+          captured_at?: string
+          created_at?: string
+          database?: string
+          id?: string
+          position?: number
+          streams_day?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       clients: {
         Row: {
           archived_at: string | null
