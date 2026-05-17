@@ -306,18 +306,47 @@ export function PlaylistCockpit({
             <ActionCard kind="promote" count={buckets.promote.length} hrefId="bucket-promote" />
             <ActionCard kind="add" count={buckets.add.length} hrefId="bucket-add" />
           </div>
+          {(buckets.remove.length + buckets.demote.length + buckets.promote.length + buckets.add.length) > 0 && (
+            <Card className="p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 bg-primary/5 border-primary/30">
+              <div className="space-y-0.5">
+                <div className="text-sm font-semibold">Executar plano completo</div>
+                <div className="text-xs text-muted-foreground">
+                  Ordem: remover → rebaixar → promover → adicionar. Tudo via API, sem abrir o Spotify.
+                </div>
+              </div>
+              <Button onClick={() => applyPlan("all")} disabled={applying !== null} className="gap-1.5 shrink-0">
+                {applying === "all" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                Aprovar e executar tudo
+              </Button>
+            </Card>
+          )}
 
           {/* ============ 4. EXECUÇÃO ============ */}
           <SectionTitle>Execução operacional</SectionTitle>
 
-          <BucketRemove items={buckets.remove} spotifyPlaylistId={spotifyPlaylistId} />
-          <BucketReorder kind="demote" items={buckets.demote} spotifyPlaylistId={spotifyPlaylistId} totalTracks={tracksCount} />
-          <BucketReorder kind="promote" items={buckets.promote} spotifyPlaylistId={spotifyPlaylistId} totalTracks={tracksCount} />
+          <BucketRemove
+            items={buckets.remove}
+            applying={applying === "remove" || applying === "all"}
+            onApplyAll={() => applyPlan("remove")}
+          />
+          <BucketReorder
+            kind="demote"
+            items={buckets.demote}
+            totalTracks={tracksCount}
+            applying={applying === "demote" || applying === "all"}
+            onApplyAll={() => applyPlan("demote")}
+          />
+          <BucketReorder
+            kind="promote"
+            items={buckets.promote}
+            totalTracks={tracksCount}
+            applying={applying === "promote" || applying === "all"}
+            onApplyAll={() => applyPlan("promote")}
+          />
           <BucketAdd
             items={buckets.add}
-            applying={applying}
-            onApplyAll={() => applyAddBucket(buckets.add.length)}
-            onApplyOne={() => applyAddBucket(1)}
+            applying={applying === "add" || applying === "all"}
+            onApplyAll={() => applyPlan("add")}
           />
 
           {/* ============ 5. INTELIGÊNCIA DE MERCADO ============ */}
