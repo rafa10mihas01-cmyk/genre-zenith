@@ -8,8 +8,8 @@ export default function Prospecao() {
   return (
     <PageContainer>
       <PageHeader
-        title="Prospecção"
-        subtitle="Encontrar curadores e oportunidades de compra"
+        title="Curadores"
+        subtitle="Gerenciar curadores e oportunidades de playlist"
         actions={
           <Button
             variant="outline"
