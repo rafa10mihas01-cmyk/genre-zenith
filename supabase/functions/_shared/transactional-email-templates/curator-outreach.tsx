@@ -49,11 +49,10 @@ Caso faça sentido, podemos agendar uma conversa de 15 minutos.`
             <Img
               src={LOGO_URL}
               alt={SITE_NAME}
-              width="180"
-              height="40"
+              width="280"
+              height="99"
               style={logoImg}
             />
-            <Text style={brandSub}>Distribuição & Curadoria</Text>
           </Section>
 
           {/* Card */}
@@ -104,14 +103,14 @@ const container = { maxWidth: '560px', margin: '0 auto' }
 
 const brandBar = {
   textAlign: 'center' as const,
-  padding: '8px 0 28px',
+  padding: '12px 0 32px',
 }
 const logoImg = {
   display: 'block',
-  margin: '0 auto 10px',
-  height: '40px',
+  margin: '0 auto',
+  height: '64px',
   width: 'auto',
-  maxWidth: '180px',
+  maxWidth: '280px',
 }
 const brandText = {
   fontSize: '20px',

@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
-import nexengineLogo from "@/assets/nexengine-logo-on-white.png";
+import nexengineLogo from "@/assets/nexengine-logo-email.png";
 
 type Target = {
   externalCuratorId: string;
@@ -286,15 +286,13 @@ function EmailPreviewRender({
   return (
     <div className="bg-white text-[#0f172a] rounded-xl border border-border overflow-hidden">
       {/* Brand */}
-      <div className="text-center pt-8 pb-6 px-6 bg-white">
+      <div className="text-center pt-10 pb-8 px-6 bg-white">
         <img
           src={nexengineLogo}
           alt="NexEngine"
-          className="mx-auto h-10 w-auto object-contain"
+          className="mx-auto block w-auto object-contain"
+          style={{ height: 64, maxWidth: 280 }}
         />
-        <div className="text-[10px] uppercase tracking-[0.16em] text-[#94a3b8] mt-3">
-          Distribuição & Curadoria
-        </div>
       </div>
       {/* Card */}
       <div className="mx-6 mb-6 bg-[#fafafa] border border-[#e8eaed] rounded-2xl p-8">
