@@ -90,55 +90,89 @@ export default function Campanhas() {
         title="Campanhas"
         subtitle="Planejar metas de plays e distribuir entre playlists próprias"
         actions={
-          <>
-            <Button variant="outline" onClick={recalcAll} disabled={recalcing}>
-              <RefreshCw className={`h-4 w-4 mr-2 ${recalcing ? "animate-spin" : ""}`} />
-              Recalcular
-            </Button>
-            <Button onClick={() => setDialogOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" /> Nova campanha
-            </Button>
-          </>
+          tab === "lista" ? (
+            <>
+              <Button variant="outline" onClick={recalcAll} disabled={recalcing}>
+                <RefreshCw className={`h-4 w-4 mr-2 ${recalcing ? "animate-spin" : ""}`} />
+                Recalcular
+              </Button>
+              <Button onClick={() => setDialogOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" /> Nova campanha
+              </Button>
+            </>
+          ) : null
         }
       />
 
       <PageContainer>
-        {/* KPIs */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <Kpi label="Ativas" value={kpis.activeCount.toString()} />
-          <Kpi label="Meta total" value={kpis.goal.toLocaleString()} />
-          <Kpi label="Entregue" value={kpis.delivered.toLocaleString()} />
-          <Kpi label="Cumprimento médio" value={`${kpis.pct}%`} />
+        {/* Tabs */}
+        <div className="flex items-center gap-1 border-b border-border mb-6 -mt-2">
+          {([
+            { id: "lista", label: "Campanhas", icon: ListChecks },
+            { id: "simulador", label: "Simulador", icon: FlaskConical },
+          ] as const).map(t => {
+            const Icon = t.icon;
+            const active = tab === t.id;
+            return (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className={cn(
+                  "px-4 h-10 inline-flex items-center gap-2 text-sm font-medium border-b-2 -mb-px transition-colors",
+                  active
+                    ? "border-primary text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {t.label}
+              </button>
+            );
+          })}
         </div>
 
-        {/* Filtros */}
-        <div className="flex flex-wrap gap-2 mb-4">
-          {(["all", "active", "draft", "completed"] as const).map(f => (
-            <Button
-              key={f}
-              variant={filter === f ? "default" : "outline"}
-              size="sm"
-              onClick={() => setFilter(f)}
-            >
-              {f === "all" ? "Todas" : STATUS_LABEL[f]}
-            </Button>
-          ))}
-        </div>
+        {tab === "lista" && (
+          <>
+            {/* KPIs */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+              <Kpi label="Ativas" value={kpis.activeCount.toString()} />
+              <Kpi label="Meta total" value={kpis.goal.toLocaleString()} />
+              <Kpi label="Entregue" value={kpis.delivered.toLocaleString()} />
+              <Kpi label="Cumprimento médio" value={`${kpis.pct}%`} />
+            </div>
 
-        {/* Lista */}
-        {loading ? (
-          <div className="grid gap-3">
-            {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-24" />)}
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="border border-border rounded-2xl p-12 text-center text-muted-foreground">
-            Nenhuma campanha {filter !== "all" ? STATUS_LABEL[filter].toLowerCase() : ""} ainda. Crie a primeira.
-          </div>
-        ) : (
-          <div className="grid gap-3">
-            {filtered.map(c => <CampaignRow key={c.id} c={c} />)}
-          </div>
+            {/* Filtros */}
+            <div className="flex flex-wrap gap-2 mb-4">
+              {(["all", "active", "draft", "completed"] as const).map(f => (
+                <Button
+                  key={f}
+                  variant={filter === f ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setFilter(f)}
+                >
+                  {f === "all" ? "Todas" : STATUS_LABEL[f]}
+                </Button>
+              ))}
+            </div>
+
+            {/* Lista */}
+            {loading ? (
+              <div className="grid gap-3">
+                {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-24" />)}
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="border border-border rounded-2xl p-12 text-center text-muted-foreground">
+                Nenhuma campanha {filter !== "all" ? STATUS_LABEL[filter].toLowerCase() : ""} ainda. Crie a primeira.
+              </div>
+            ) : (
+              <div className="grid gap-3">
+                {filtered.map(c => <CampaignRow key={c.id} c={c} />)}
+              </div>
+            )}
+          </>
         )}
+
+        {tab === "simulador" && <PlanejadorMeta />}
       </PageContainer>
 
       <NewCampaignDialog
