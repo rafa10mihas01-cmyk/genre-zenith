@@ -114,20 +114,19 @@ export function SaudeSistema() {
 
   return (
     <div className="space-y-4">
-      {/* Botão refresh */}
-      <div className="flex justify-end">
-        <Button size="sm" variant="ghost" onClick={load} className="h-7 gap-1.5 text-xs">
-          <RefreshCw className="h-3.5 w-3.5" /> Atualizar
-        </Button>
-      </div>
+      {/* === BLOCO 1: BOT SPOTIFY (já tem header + refresh próprio) === */}
+      <BotSaudeCard />
 
-      {/* === BLOCO 1: BOT SPOTIFY === */}
+      <div className="h-px bg-border/60" />
+
+      {/* === BLOCO 2: SERVIÇOS DO PIPELINE === */}
       <div>
-        <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-bold mb-2">Bot Spotify</h3>
-        <div className="space-y-3">
-          <BotSaudeCard />
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-bold">Status dos serviços</h3>
+          <Button size="sm" variant="ghost" onClick={load} className="h-6 gap-1 text-[11px]">
+            <RefreshCw className="h-3 w-3" /> Atualizar
+          </Button>
         </div>
-      </div>
 
       <div className="h-px bg-border/60" />
 
