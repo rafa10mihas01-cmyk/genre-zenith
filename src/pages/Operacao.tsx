@@ -3,10 +3,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Activity, Pause, RefreshCw, ArrowDownRight, ArrowUpRight,
   Music2, FlaskConical, History, ListMusic, Search, Users, ExternalLink,
-  AlertCircle, Wrench, ChevronDown, ChevronUp, Server, Sparkles, Heart, Calculator, UserSearch,
+  AlertCircle, Wrench, ChevronDown, ChevronUp, Server, Sparkles, Heart, Target, UserSearch,
 } from "lucide-react";
 import { MinhasPlaylists } from "@/components/operacao/MinhasPlaylists";
-import { SimuladorEntrega } from "@/components/operacao/SimuladorEntrega";
+import { PlanejadorMeta } from "@/components/operacao/PlanejadorMeta";
 import { CuradoresCRM } from "@/components/operacao/CuradoresCRM";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -51,7 +51,7 @@ const labelAction = (a: string) => ACTION_LABEL[a] ?? a.replace(/_/g, " ");
 const TABS = [
   { id: "minhas",    label: "Minhas Playlists", icon: Sparkles },
   { id: "playlists", label: "Criadas (auto)", icon: ListMusic },
-  { id: "simulador", label: "Simulador", icon: Calculator },
+  { id: "campanha",  label: "Campanha", icon: Target },
   { id: "ajustes",   label: "Ajustes",   icon: Wrench },
   { id: "curadores", label: "Prospecção", icon: UserSearch },
 ] as const;
@@ -272,7 +272,7 @@ export default function Operacao() {
       {/* KPIs operacionais — todos referenciam o catálogo importado (managed_playlists) */}
       <section className="grid grid-cols-2 lg:grid-cols-6 gap-4">
         <KpiBig icon={Heart}         label="Salvamentos totais" value={formatNumber(kpi.totalFollowers)} tone="primary" hint={`Somando ${formatNumber(kpi.totalPlaylists)} playlists`} loading={loading} />
-        <KpiBig icon={Calculator}    label="Plays teóricos / mês" value={formatNumber(kpi.totalFollowers * 30)} tone="primary" hint={`${formatNumber(kpi.totalFollowers)} × 30 saves`} loading={loading} />
+        <KpiBig icon={Target}        label="Plays teóricos / mês" value={formatNumber(kpi.totalFollowers * 30)} tone="primary" hint={`${formatNumber(kpi.totalFollowers)} × 30 saves`} loading={loading} />
         <KpiBig icon={Activity}      label="Total ativas"  value={formatNumber(kpi.totalPlaylists)} hint="Catálogo importado" loading={loading} />
         <KpiBig icon={Sparkles}      label="Criadas (auto)" value={formatNumber(kpi.total)} hint="Templates do NexEngine" loading={loading} />
         <KpiBig icon={AlertCircle}   label="Precisa atenção" value={formatNumber(kpi.atencao)} tone={kpi.atencao > 0 ? "destructive" : "default"} hint="Auto em queda" loading={loading} />
@@ -372,10 +372,10 @@ export default function Operacao() {
           </section>
         )}
 
-        {/* SIMULADOR — estimativa teórica de entrega */}
-        {tab === "simulador" && (
-          <section key="tab-simulador" className="animate-tab-in">
-            <SimuladorEntrega />
+        {/* CAMPANHA — planejador de meta de plays */}
+        {tab === "campanha" && (
+          <section key="tab-campanha" className="animate-tab-in">
+            <PlanejadorMeta />
           </section>
         )}
 

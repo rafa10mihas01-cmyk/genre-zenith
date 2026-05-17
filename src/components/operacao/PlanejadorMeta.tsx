@@ -271,9 +271,9 @@ export function PlanejadorMeta() {
   );
   const slots = plan.slots;
 
-  const slotKey = (s: Slot, i: number) => `${s.playlistId}-${s.position}-${i}`;
+  const slotKey = (s: Slot) => `${s.playlistId}-${s.position}`;
   const activeSlots = useMemo(
-    () => slots.filter((s, i) => !excluded.has(slotKey(s, i))),
+    () => slots.filter((s) => !excluded.has(slotKey(s))),
     [slots, excluded],
   );
   const toggleSlot = (key: string) => {
@@ -461,6 +461,74 @@ export function PlanejadorMeta() {
         />
       </div>
 
+      {/* Aplicar plano — música real via API */}
+      <div className="nx-card space-y-3">
+        <div className="flex items-center gap-2">
+          <Send className="h-4 w-4 text-primary" />
+          <h3 className="text-sm font-semibold">Aplicar este plano numa música</h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-2">
+          <div className="relative">
+            <Music2 className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              value={trackInput}
+              onChange={(e) => setTrackInput(e.target.value)}
+              placeholder="Cole o link do Spotify (https://open.spotify.com/track/...)"
+              className="h-9 pl-8 bg-elevated border-border"
+            />
+          </div>
+          <Button
+            onClick={applyPlan}
+            disabled={applying || !trackId || activeSlots.length === 0}
+            className="h-9 gap-2"
+          >
+            {applying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+            {applying ? "Aplicando..." : `Aplicar em ${activeSlots.length} playlist${activeSlots.length === 1 ? "" : "s"}`}
+          </Button>
+        </div>
+        <div className="text-[11px] text-muted-foreground flex items-center gap-3 flex-wrap">
+          {trackId ? (
+            <span className="inline-flex items-center gap-1 text-primary">
+              <CheckCircle2 className="h-3 w-3" /> faixa válida ({trackId.slice(0, 8)}…)
+            </span>
+          ) : trackInput ? (
+            <span className="inline-flex items-center gap-1 text-destructive">
+              <XCircle className="h-3 w-3" /> link inválido
+            </span>
+          ) : (
+            <span>Sem música, só o planejamento teórico aparece abaixo.</span>
+          )}
+          <span>·</span>
+          <span>Não existe → insere na posição (empurra as outras pra baixo). Já existe → move pra posição planejada.</span>
+        </div>
+
+        {results && results.length > 0 && (
+          <div className="border border-border rounded-lg overflow-hidden">
+            <div className="px-3 py-2 bg-elevated/40 text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-semibold">
+              Resultado da última aplicação
+            </div>
+            <div className="max-h-64 overflow-y-auto divide-y divide-border/40">
+              {results.map((r, i) => (
+                <div key={i} className="flex items-center justify-between gap-2 px-3 py-1.5 text-xs">
+                  <span className="truncate">{r.name ?? r.playlist_id}</span>
+                  <span className={cn(
+                    "inline-flex items-center gap-1 px-1.5 h-5 rounded text-[10px] font-semibold shrink-0",
+                    r.status === "added" && "bg-primary/15 text-primary",
+                    r.status === "moved" && "bg-warning/15 text-warning",
+                    r.status === "skip" && "bg-muted text-muted-foreground",
+                    r.status === "error" && "bg-destructive/15 text-destructive",
+                  )} title={r.message}>
+                    {r.status === "added" ? "Adicionada" :
+                     r.status === "moved" ? "Movida" :
+                     r.status === "skip" ? "Pulada" : "Erro"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Distribuição */}
       <DistributionTable
         loading={loading}
@@ -469,6 +537,9 @@ export function PlanejadorMeta() {
         dailyTarget={dailyTarget}
         delivered={ind.delivered}
         coverage={ind.coverage}
+        excluded={excluded}
+        onToggleSlot={toggleSlot}
+        slotKey={slotKey}
       />
 
       <div className="nx-card flex items-start gap-3 !py-3">
@@ -683,6 +754,7 @@ function WhyRow({ label, value, weight }: { label: string; value: string; weight
 
 function DistributionTable({
   loading, slots, filteredCount, dailyTarget, delivered, coverage,
+  excluded, onToggleSlot, slotKey,
 }: {
   loading: boolean;
   slots: Slot[];
@@ -690,6 +762,9 @@ function DistributionTable({
   dailyTarget: number;
   delivered: number;
   coverage: number;
+  excluded?: Set<string>;
+  onToggleSlot?: (key: string) => void;
+  slotKey?: (s: Slot) => string;
 }) {
   const [query, setQuery] = useState("");
   const [grouped, setGrouped] = useState(true);
@@ -788,6 +863,28 @@ function DistributionTable({
           <table className="w-full text-xs border-separate border-spacing-0">
             <thead className="bg-elevated/40">
               <tr className="text-muted-foreground">
+                {onToggleSlot && (
+                  <th className="text-left font-medium py-2.5 px-2 w-8 border-b border-border">
+                    <input
+                      type="checkbox"
+                      checked={excluded?.size === 0}
+                      onChange={() => {
+                        const allOff = excluded && excluded.size === slots.length;
+                        if (excluded && excluded.size > 0 && !allOff) {
+                          // todas marcadas → não faz nada
+                        }
+                        // toggle: se algum excluído, restaura tudo; senão exclui tudo
+                        if ((excluded?.size ?? 0) > 0) {
+                          slots.forEach(s => excluded?.has(slotKey!(s)) && onToggleSlot(slotKey!(s)));
+                        } else {
+                          slots.forEach(s => onToggleSlot(slotKey!(s)));
+                        }
+                      }}
+                      className="h-3.5 w-3.5 accent-primary cursor-pointer"
+                      title="Marcar/desmarcar tudo"
+                    />
+                  </th>
+                )}
                 <th className="text-left font-medium py-2.5 px-3 w-10 border-b border-border">#</th>
                 <th className="text-left font-medium py-2.5 px-3 border-b border-border">Playlist</th>
                 <th className="text-left font-medium py-2.5 px-3 w-16 border-b border-border">Pos.</th>
@@ -810,7 +907,7 @@ function DistributionTable({
                   <React.Fragment key={`${s.playlistId}-${s.position}-${i}`}>
                     {showBandHeader && (
                       <tr key={`hd-${s.band}`} className="bg-elevated/60">
-                        <td colSpan={6} className="py-1.5 px-3 text-[10px] uppercase tracking-[0.15em] font-semibold text-muted-foreground border-b border-border">
+                        <td colSpan={onToggleSlot ? 7 : 6} className="py-1.5 px-3 text-[10px] uppercase tracking-[0.15em] font-semibold text-muted-foreground border-b border-border">
                           <span className="inline-flex items-center gap-1.5">
                             <span className={cn(
                               "w-1.5 h-1.5 rounded-full",
@@ -831,8 +928,19 @@ function DistributionTable({
                       className={cn(
                         "transition-colors hover:bg-elevated/60 group",
                         i % 2 === 1 && "bg-elevated/20",
+                        onToggleSlot && excluded?.has(slotKey!(s)) && "opacity-40",
                       )}
                     >
+                      {onToggleSlot && (
+                        <td className="py-2.5 px-2 border-b border-border/30">
+                          <input
+                            type="checkbox"
+                            checked={!excluded?.has(slotKey!(s))}
+                            onChange={() => onToggleSlot(slotKey!(s))}
+                            className="h-3.5 w-3.5 accent-primary cursor-pointer"
+                          />
+                        </td>
+                      )}
                       <td className="py-2.5 px-3 tabular-nums text-muted-foreground border-b border-border/30">
                         {i + 1}
                       </td>
@@ -883,7 +991,7 @@ function DistributionTable({
             </tbody>
             <tfoot>
               <tr className="font-semibold bg-elevated/40">
-                <td colSpan={3} className="py-2.5 px-3 text-muted-foreground text-[11px] uppercase tracking-[0.15em]">
+                <td colSpan={onToggleSlot ? 4 : 3} className="py-2.5 px-3 text-muted-foreground text-[11px] uppercase tracking-[0.15em]">
                   Total simulado
                 </td>
                 <td className="py-2.5 px-3 text-right text-muted-foreground tabular-nums">

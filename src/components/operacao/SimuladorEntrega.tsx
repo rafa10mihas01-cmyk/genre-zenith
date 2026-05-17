@@ -212,7 +212,14 @@ export function SimuladorEntrega() {
   );
 }
 
-function SimDetail({ playlist, onBack }: { playlist: SimPlaylist; onBack: () => void }) {
+// Exportado pra reuso fora do Simulador (ex.: dentro do PlaylistCockpit como "Projeção de faixa").
+export function ProjecaoFaixa({ playlist }: {
+  playlist: { id: string; name: string; cover_url: string | null; followers: number; tracks_count: number };
+}) {
+  return <SimDetail playlist={playlist} embedded />;
+}
+
+function SimDetail({ playlist, onBack, embedded }: { playlist: SimPlaylist; onBack?: () => void; embedded?: boolean }) {
   const monthly = playlist.followers * PLAYS_PER_SAVE_MONTH;
   const daily = Math.round(monthly / 30);
   const tracks = Math.max(playlist.tracks_count, 20);
@@ -225,14 +232,16 @@ function SimDetail({ playlist, onBack }: { playlist: SimPlaylist; onBack: () => 
   const topShare = daily > 0 ? topDaily / daily : 0;
 
   return (
-    <section className="space-y-4 animate-tab-in">
-      <button
-        onClick={onBack}
-        className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <ArrowLeft className="h-3.5 w-3.5" />
-        Voltar para a lista
-      </button>
+    <section className={cn("space-y-4", !embedded && "animate-tab-in")}>
+      {onBack && (
+        <button
+          onClick={onBack}
+          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Voltar para a lista
+        </button>
+      )}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <SimKpi label="Saves da playlist" value={formatNumber(playlist.followers)} hint="dados reais" />

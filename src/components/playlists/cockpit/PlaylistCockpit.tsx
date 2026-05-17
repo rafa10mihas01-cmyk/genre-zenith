@@ -15,6 +15,7 @@ import {
   Flame, Snowflake, Activity, Users, Crown, Target, Check,
 } from "lucide-react";
 import { PlaylistTracksTab } from "@/components/playlists/PlaylistTracksTab";
+import { ProjecaoFaixa } from "@/components/operacao/SimuladorEntrega";
 
 // -------------------- types --------------------
 type AnalysisTrack = {
@@ -369,7 +370,22 @@ export function PlaylistCockpit({
             </>
           )}
 
-          {/* ============ 6. TODAS AS FAIXAS (colapsado) ============ */}
+          {/* ============ 6. PROJEÇÃO DE FAIXA ============ */}
+          <SectionTitle>Projeção de faixa</SectionTitle>
+          <div className="text-[11px] text-muted-foreground -mt-2">
+            Estimativa teórica de plays por posição, baseada nos saves dessa playlist. Use pra decidir em qual posição colocar uma faixa.
+          </div>
+          <ProjecaoFaixa
+            playlist={{
+              id: managedId,
+              name: playlistName,
+              cover_url: coverUrl,
+              followers: followers ?? 0,
+              tracks_count: tracksCount,
+            }}
+          />
+
+          {/* ============ 7. TODAS AS FAIXAS (colapsado) ============ */}
           <Collapsible>
             <Card className="overflow-hidden">
               <CollapsibleTrigger asChild>
