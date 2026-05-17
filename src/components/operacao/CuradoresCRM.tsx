@@ -996,7 +996,7 @@ function CuradorRowCard({
       </div>
 
       {/* Contact badges */}
-      <div className="px-4 py-3 flex flex-wrap gap-1.5 min-h-[44px]">
+      <div className="px-4 py-3 flex flex-wrap gap-1.5 min-h-[44px]" onClick={(e) => e.stopPropagation()}>
         {r.email && (
           <button
             onClick={openEmail}
@@ -1033,7 +1033,7 @@ function CuradorRowCard({
       </div>
 
       {/* Action bar */}
-      <div className="mt-auto p-2 bg-black/30 flex items-center justify-between gap-1">
+      <div className="mt-auto p-2 bg-black/30 flex items-center justify-between gap-1" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-0.5">
           {r.spotify_url && (
             <a
@@ -1045,49 +1045,25 @@ function CuradorRowCard({
             </a>
           )}
           {r.email && (
-            <button
-              onClick={openEmail}
-              className="p-1.5 hover:bg-primary/20 text-muted-foreground hover:text-primary rounded transition-colors"
-              title="Enviar email"
-            >
+            <button onClick={openEmail} className="p-1.5 hover:bg-primary/20 text-muted-foreground hover:text-primary rounded transition-colors" title="Enviar email">
               <Mail className="w-4 h-4" />
             </button>
           )}
           {r.email && (
-            <button
-              onClick={copyEmail}
-              className="p-1.5 hover:bg-elevated text-muted-foreground hover:text-foreground rounded transition-colors"
-              title="Copiar email"
-            >
+            <button onClick={copyEmail} className="p-1.5 hover:bg-elevated text-muted-foreground hover:text-foreground rounded transition-colors" title="Copiar email">
               <Copy className="w-4 h-4" />
             </button>
           )}
           <button
             onClick={() => onUpdate(r.id, { favorite: !r.favorite })}
-            className={cn(
-              "p-1.5 hover:bg-warning/20 hover:text-warning rounded transition-colors",
-              r.favorite ? "text-warning" : "text-muted-foreground",
-            )}
+            className={cn("p-1.5 hover:bg-warning/20 hover:text-warning rounded transition-colors", r.favorite ? "text-warning" : "text-muted-foreground")}
             title={r.favorite ? "Desfavoritar" : "Favoritar"}
           >
             <Star className={cn("w-4 h-4", r.favorite && "fill-warning")} />
           </button>
           <button
-            onClick={() => onUpdate(r.id, { status: r.status === "negociando" ? "novo" : "negociando" })}
-            className={cn(
-              "p-1.5 rounded transition-colors hover:bg-blue-500/20 hover:text-blue-400",
-              r.status === "negociando" ? "text-blue-400 bg-blue-500/15" : "text-muted-foreground",
-            )}
-            title="Marcar negociando"
-          >
-            <CheckCircle2 className="w-4 h-4" />
-          </button>
-          <button
             onClick={() => onUpdate(r.id, { status: r.status === "comprado" ? "novo" : "comprado" })}
-            className={cn(
-              "p-1.5 rounded transition-colors hover:bg-primary/20 hover:text-primary",
-              r.status === "comprado" ? "text-primary bg-primary/15" : "text-muted-foreground",
-            )}
+            className={cn("p-1.5 rounded transition-colors hover:bg-primary/20 hover:text-primary", r.status === "comprado" ? "text-primary bg-primary/15" : "text-muted-foreground")}
             title="Marcar comprada"
           >
             <CheckCircle2 className={cn("w-4 h-4", r.status === "comprado" && "fill-primary/20")} />
@@ -1095,20 +1071,13 @@ function CuradorRowCard({
         </div>
         <div className="flex items-center gap-0.5">
           <button
-            onClick={() => onUpdate(r.id, { status: r.status === "blacklist" ? "novo" : "blacklist" })}
-            className={cn(
-              "p-1.5 hover:bg-destructive/20 hover:text-destructive rounded transition-colors",
-              r.status === "blacklist" ? "text-destructive bg-destructive/15" : "text-muted-foreground",
-            )}
+            onClick={() => onUpdate(r.id, { pipeline_status: pipeline === "blacklist" ? "novo" : "blacklist" } as Partial<CuradorRow>)}
+            className={cn("p-1.5 hover:bg-destructive/20 hover:text-destructive rounded transition-colors", pipeline === "blacklist" ? "text-destructive bg-destructive/15" : "text-muted-foreground")}
             title="Blacklist"
           >
             <Ban className="w-4 h-4" />
           </button>
-          <button
-            onClick={() => onRemove(r.id)}
-            className="p-1.5 hover:bg-destructive hover:text-white text-muted-foreground rounded transition-colors"
-            title="Excluir"
-          >
+          <button onClick={() => onRemove(r.id)} className="p-1.5 hover:bg-destructive hover:text-white text-muted-foreground rounded transition-colors" title="Excluir">
             <Trash2 className="w-4 h-4" />
           </button>
         </div>
