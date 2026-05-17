@@ -106,9 +106,24 @@ Deno.serve(async (req) => {
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
   try {
+    const MIN_QUALITY = 40;
+
     const [{ data: genre }, { data: results }, { data: tracks }, { data: terms }] = await Promise.all([
       supabase.from("genres").select("id,nome,slug").eq("id", body.genre_id).single(),
-      supabase.from("search_results").select("id,nome_playlist,seguidores,spotify_url,imagem_url,descricao,total_musicas,term_id,followers_source,followers_verified_at").eq("genre_id", body.genre_id).eq("followers_source", "spotify_api").not("followers_verified_at", "is", null).limit(2000),
+      // ONDA 1: somente playlists enriquecidas, válidas, com followers reais, quality_score mínimo,
+      // não duplicadas. Nunca usar followers=NULL no ranking.
+      supabase
+        .from("search_results")
+        .select("id,nome_playlist,seguidores,spotify_url,imagem_url,descricao,total_musicas,term_id,followers_source,followers_verified_at,quality_score,enriched_at,is_valid,duplicate_of,times_seen,owner_id")
+        .eq("genre_id", body.genre_id)
+        .eq("is_valid", true)
+        .eq("followers_source", "spotify_api")
+        .not("followers_verified_at", "is", null)
+        .not("enriched_at", "is", null)
+        .not("seguidores", "is", null)
+        .gte("quality_score", MIN_QUALITY)
+        .is("duplicate_of", null)
+        .limit(2000),
       supabase.from("search_tracks").select("nome_musica,artista,result_id").eq("genre_id", body.genre_id).limit(10000),
       supabase.from("search_terms").select("id,termo").eq("genre_id", body.genre_id),
     ]);
@@ -138,15 +153,24 @@ Deno.serve(async (req) => {
     }
     const padroes_nome = topN(bigrams, 20);
 
-    // Playlists dominantes: rank por seguidores DESC; fallback para total_musicas; dedup por url
+    // Playlists dominantes — RANKING COMPOSTO (Onda 1):
+    //   primary: quality_score (autoridade), tie-break: followers, freshness, recurrence
     const seen = new Set<string>();
     const playlists_dominantes = (results ?? [])
-      .filter(r => r.spotify_url && !seen.has(r.spotify_url) && (seen.add(r.spotify_url), true))
+      .filter(r => r.seguidores != null && r.spotify_url && !seen.has(r.spotify_url) && (seen.add(r.spotify_url), true))
       .sort((a, b) => {
-        const af = a.seguidores ?? -1;
-        const bf = b.seguidores ?? -1;
-        if (af !== bf) return bf - af;
-        return (b.total_musicas ?? 0) - (a.total_musicas ?? 0);
+        const qa = Number(a.quality_score ?? 0);
+        const qb = Number(b.quality_score ?? 0);
+        if (qa !== qb) return qb - qa;
+        const fa = a.seguidores ?? 0;
+        const fb = b.seguidores ?? 0;
+        if (fa !== fb) return fb - fa;
+        const ra = a.times_seen ?? 1;
+        const rb = b.times_seen ?? 1;
+        if (ra !== rb) return rb - ra;
+        const ea = new Date(a.enriched_at ?? 0).getTime();
+        const eb = new Date(b.enriched_at ?? 0).getTime();
+        return eb - ea;
       })
       .slice(0, 25)
       .map(r => ({
@@ -155,6 +179,7 @@ Deno.serve(async (req) => {
         url: r.spotify_url,
         imagem: r.imagem_url,
         total_musicas: r.total_musicas,
+        quality_score: r.quality_score,
       }));
 
     // Músicas recorrentes
