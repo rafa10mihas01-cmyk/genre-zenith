@@ -101,7 +101,7 @@ export function PlaylistCockpit({
   const [diag, setDiag] = useState<Diagnosis | null>(null);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
-  const [applying, setApplying] = useState(false);
+  const [applying, setApplying] = useState<null | "remove" | "demote" | "promote" | "add" | "all">(null);
 
   const loadLatest = useCallback(async () => {
     setLoading(true);
@@ -134,11 +134,11 @@ export function PlaylistCockpit({
     }
   }
 
-  async function applyAddBucket(count: number) {
-    setApplying(true);
+  async function applyPlan(action: "remove" | "demote" | "promote" | "add" | "all") {
+    setApplying(action);
     try {
-      const { data, error } = await supabase.functions.invoke("apply-playlist-suggestions", {
-        body: { playlist_id: managedId, limit: count },
+      const { data, error } = await supabase.functions.invoke("apply-playlist-plan", {
+        body: { playlist_id: managedId, action },
       });
       let serverError: string | null = null;
       let status: number | null = null;
@@ -146,25 +146,36 @@ export function PlaylistCockpit({
         try {
           const ctx = (error as any).context as Response;
           status = ctx.status ?? null;
-          const body = await ctx.clone().json().catch(() => null);
-          serverError = body?.error ?? null;
+          const b = await ctx.clone().json().catch(() => null);
+          serverError = b?.error ?? null;
         } catch { /* */ }
       }
       if (error || data?.ok === false) {
         toast({
-          title: status ? `Erro ${status} ao adicionar` : "Não foi possível adicionar",
+          title: status ? `Erro ${status}` : "Falha ao aplicar",
           description: serverError ?? data?.error ?? error?.message ?? "erro desconhecido",
           variant: "destructive",
         });
         return;
       }
+      const summary = (data?.steps ?? [])
+        .map((s: any) => {
+          if (s.skipped) return null;
+          if (s.action === "remove") return `removidas ${s.removed}`;
+          if (s.action === "add") return `adicionadas ${s.added}`;
+          if (s.action === "promote" || s.action === "demote")
+            return `${s.action === "promote" ? "promovidas" : "rebaixadas"} ${s.moved}`;
+          return null;
+        })
+        .filter(Boolean)
+        .join(" · ");
       toast({
-        title: `${data?.inserted ?? count} faixas adicionadas no topo`,
-        description: "Re-diagnosticando…",
+        title: action === "all" ? "Plano executado" : "Bucket aplicado",
+        description: summary || "sem alterações necessárias",
       });
       runDiagnose();
     } finally {
-      setApplying(false);
+      setApplying(null);
     }
   }
 
