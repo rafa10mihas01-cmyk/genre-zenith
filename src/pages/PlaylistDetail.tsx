@@ -1,35 +1,21 @@
 import { useEffect, useState } from "react";
-import { useParams, Link, useSearchParams } from "react-router-dom";
-import { PlaylistTracksTab } from "@/components/playlists/PlaylistTracksTab";
-import { PlaylistDiagnosisCard } from "@/components/playlists/PlaylistDiagnosisCard";
-import { PlaylistTracksAnalysisCard } from "@/components/playlists/PlaylistTracksAnalysisCard";
+import { useParams, useSearchParams, Link } from "react-router-dom";
+import { Loader2, ArrowLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
-import { Card } from "@/components/ui/card";
+import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
-  ArrowLeft, Sparkles, Loader2, ExternalLink,
-  TrendingUp, TrendingDown, Minus, AlertCircle, CheckCircle2, Activity,
-} from "lucide-react";
-import {
-  usePlaylistBrain,
-  usePlaylistBrainHistory,
-  useRecalcPlaylistBrain,
-  useDiagnoseManagedPlaylist,
-  type BrainSignal,
-  type BrainRecommendation,
-} from "@/hooks/usePlaylistBrain";
-import { cn } from "@/lib/utils";
+import { PlaylistTracksTab } from "@/components/playlists/PlaylistTracksTab";
+import { PlaylistCockpit } from "@/components/playlists/cockpit/PlaylistCockpit";
+import { usePlaylistBrain } from "@/hooks/usePlaylistBrain";
 
 type PlaylistRow = {
   id: string;
   spotify_playlist_id: string;
   name: string | null;
-  ownership: string;
   followers: number | null;
   cover_url: string | null;
+  genre_id: string | null;
 };
 
 type ManagedRow = {
@@ -41,58 +27,24 @@ type ManagedRow = {
   genre_id: string | null;
 };
 
-const TREND_LABEL: Record<string, { label: string; tone: string; Icon: any }> = {
-  crescendo: { label: "Crescendo", tone: "text-primary", Icon: TrendingUp },
-  estavel:   { label: "Estável",   tone: "text-muted-foreground", Icon: Minus },
-  encolhendo:{ label: "Encolhendo",tone: "text-destructive", Icon: TrendingDown },
-  novo:      { label: "Novo",      tone: "text-muted-foreground", Icon: Activity },
-  sem_dados: { label: "Sem dados", tone: "text-muted-foreground", Icon: Activity },
-};
-
-const SEV_BADGE: Record<BrainSignal["severity"], string> = {
-  high:   "bg-destructive/15 text-destructive border-destructive/40",
-  medium: "bg-warning/10 text-warning border-warning/40",
-  low:    "bg-muted text-muted-foreground border-border",
-};
-
-function fmtNum(n: number | null | undefined) {
-  if (n == null) return "—";
-  return new Intl.NumberFormat("pt-BR").format(n);
-}
-
-function relTime(iso: string) {
-  const d = (Date.now() - new Date(iso).getTime()) / 1000;
-  if (d < 60) return "agora";
-  if (d < 3600) return `há ${Math.round(d / 60)}min`;
-  if (d < 86400) return `há ${Math.round(d / 3600)}h`;
-  return `há ${Math.round(d / 86400)}d`;
-}
-
 export default function PlaylistDetail() {
   const { id } = useParams<{ id: string }>();
   const [pl, setPl] = useState<PlaylistRow | null>(null);
   const [mgd, setMgd] = useState<ManagedRow | null>(null);
-  const [loadingPl, setLoadingPl] = useState(true);
+  const [genreName, setGenreName] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [searchParams] = useSearchParams();
+  const tab = searchParams.get("tab") === "faixas" ? "faixas" : "geral";
 
-  const { data: brain, isLoading: brainLoading } = usePlaylistBrain(id);
-  const { data: history } = usePlaylistBrainHistory(id, 30);
-  const recalc = useRecalcPlaylistBrain();
-  const diagnose = useDiagnoseManagedPlaylist();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const tab = (searchParams.get("tab") === "faixas" ? "faixas" : "geral") as "geral" | "faixas";
-  const setTab = (t: "geral" | "faixas") => {
-    const next = new URLSearchParams(searchParams);
-    if (t === "geral") next.delete("tab"); else next.set("tab", t);
-    setSearchParams(next, { replace: true });
-  };
+  const { data: brain } = usePlaylistBrain(id);
 
   useEffect(() => {
     if (!id) return;
     (async () => {
-      setLoadingPl(true);
+      setLoading(true);
       const { data: p } = await supabase
         .from("playlists")
-        .select("id, spotify_playlist_id, name, ownership, followers, cover_url")
+        .select("id, spotify_playlist_id, name, followers, cover_url, genre_id")
         .eq("id", id)
         .maybeSingle();
       setPl(p as PlaylistRow | null);
@@ -104,12 +56,18 @@ export default function PlaylistDetail() {
           .eq("spotify_playlist_id", p.spotify_playlist_id)
           .maybeSingle();
         setMgd(m as ManagedRow | null);
+
+        const genreId = (m as any)?.genre_id ?? p?.genre_id;
+        if (genreId) {
+          const { data: g } = await supabase.from("genres").select("nome").eq("id", genreId).maybeSingle();
+          setGenreName((g as any)?.nome ?? null);
+        }
       }
-      setLoadingPl(false);
+      setLoading(false);
     })();
   }, [id]);
 
-  if (loadingPl) {
+  if (loading) {
     return (
       <PageContainer>
         <div className="h-64 grid place-items-center text-muted-foreground">
@@ -122,306 +80,57 @@ export default function PlaylistDetail() {
   if (!pl) {
     return (
       <PageContainer>
-        <PageHeader title="Playlist não encontrada" subtitle="Voltar para a lista" />
-        <div className="mt-4">
-          <Link to="/operacao" className="text-primary text-sm">← Operação</Link>
-        </div>
+        <PageHeader title="Playlist não encontrada" subtitle="Voltar para a lista de operação" />
+        <Button asChild variant="outline">
+          <Link to="/operacao"><ArrowLeft className="h-4 w-4 mr-1" /> Operação</Link>
+        </Button>
       </PageContainer>
     );
   }
 
-  const cover = mgd?.cover_url ?? pl.cover_url ?? null;
-  const trend = TREND_LABEL[brain?.health_trend ?? "sem_dados"];
+  // Aba "Faixas" (rota auxiliar) — mantida
+  if (tab === "faixas") {
+    return (
+      <PageContainer>
+        <PageHeader
+          title={pl.name ?? "Playlist"}
+          subtitle="Editar faixas individualmente"
+          actions={
+            <Button asChild variant="outline">
+              <Link to={`/playlists/${pl.id}`}><ArrowLeft className="h-4 w-4 mr-1" /> Cockpit</Link>
+            </Button>
+          }
+        />
+        <PlaylistTracksTab playlistId={pl.id} />
+      </PageContainer>
+    );
+  }
+
+  // Sem managed → não há diagnóstico possível
+  if (!mgd) {
+    return (
+      <PageContainer>
+        <PageHeader title={pl.name ?? "Playlist"} subtitle="Playlist externa — sem gestão direta" />
+        <p className="text-sm text-muted-foreground">
+          Esta playlist não está sob gestão (apenas monitorada). Importe-a em Operação para gerar diagnóstico.
+        </p>
+      </PageContainer>
+    );
+  }
 
   return (
     <PageContainer>
-      <PageHeader
-        title={pl.name ?? "Playlist"}
-        subtitle="Perfil vivo, capacidade e ações sugeridas"
-        actions={
-          <div className="flex gap-2">
-            <Button asChild variant="outline" className="nx-pill">
-              <Link to="/operacao"><ArrowLeft className="h-4 w-4 mr-1" />Voltar</Link>
-            </Button>
-            {mgd?.spotify_url && (
-              <Button asChild variant="outline" className="nx-pill">
-                <a href={mgd.spotify_url} target="_blank" rel="noreferrer">
-                  Spotify <ExternalLink className="h-3.5 w-3.5 ml-1" />
-                </a>
-              </Button>
-            )}
-            {mgd?.id && (
-              <Button
-                onClick={() => id && mgd?.id && diagnose.mutate({ managedId: mgd.id, playlistId: id })}
-                disabled={diagnose.isPending}
-                variant="outline"
-                className="nx-pill"
-              >
-                {diagnose.isPending
-                  ? <Loader2 className="h-4 w-4 animate-spin" />
-                  : <Sparkles className="h-4 w-4" />}
-                <span className="ml-1.5">Diagnosticar agora</span>
-              </Button>
-            )}
-            <Button
-              onClick={() => id && recalc.mutate(id)}
-              disabled={recalc.isPending}
-              className="nx-pill"
-            >
-              {recalc.isPending
-                ? <Loader2 className="h-4 w-4 animate-spin" />
-                : <Sparkles className="h-4 w-4" />}
-              <span className="ml-1.5">Recalcular cérebro</span>
-            </Button>
-          </div>
-        }
+      <PlaylistCockpit
+        managedId={mgd.id}
+        spotifyPlaylistId={pl.spotify_playlist_id}
+        spotifyUrl={mgd.spotify_url}
+        playlistName={pl.name ?? "Playlist"}
+        coverUrl={mgd.cover_url ?? pl.cover_url}
+        followers={pl.followers}
+        tracksCount={mgd.tracks_count}
+        genreName={genreName}
+        brainScore={brain?.capacity_total ? Math.round(brain.confidence_score) : null}
       />
-
-      {/* Identificação visual */}
-      <div className="flex gap-4 items-start">
-        <div className="w-24 h-24 rounded-xl bg-muted overflow-hidden shrink-0 border border-border">
-          {cover ? (
-            <img src={cover} alt={pl.name ?? ""} className="w-full h-full object-cover" />
-          ) : (
-            <div className="w-full h-full grid place-items-center text-muted-foreground text-xs">sem capa</div>
-          )}
-        </div>
-        <div className="flex-1 min-w-0 space-y-1.5">
-          <div className="flex flex-wrap gap-2 items-center">
-            <Badge variant="outline" className="text-[10px]">{pl.ownership}</Badge>
-            {brain?.identity?.nicho && (
-              <Badge variant="outline" className="text-[10px]">{brain.identity.nicho}</Badge>
-            )}
-            <span className={cn("inline-flex items-center gap-1 text-xs font-medium", trend.tone)}>
-              <trend.Icon className="h-3.5 w-3.5" />
-              {trend.label}
-            </span>
-            {brain && (
-              <span className="text-[11px] text-muted-foreground">
-                Confiança {brain.confidence_score}/100 · atualizado {relTime(brain.last_calculated_at)}
-              </span>
-            )}
-          </div>
-          {mgd?.description && (
-            <p className="text-sm text-muted-foreground line-clamp-2">{mgd.description}</p>
-          )}
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex gap-1 border-b border-border">
-        {([
-          { k: "geral", label: "Visão geral" },
-          { k: "faixas", label: "Faixas" },
-        ] as const).map((t) => (
-          <button
-            key={t.k}
-            onClick={() => setTab(t.k)}
-            className={cn(
-              "px-3 h-9 text-sm font-medium border-b-2 -mb-px transition-colors",
-              tab === t.k
-                ? "border-primary text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {tab === "faixas" ? (
-        id && <PlaylistTracksTab playlistId={id} />
-      ) : (
-        <>
-      {/* KPI strip */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <KpiCard
-          label="Seguidores"
-          value={fmtNum(pl.followers)}
-        />
-        <KpiCard
-          label="Faixas"
-          value={fmtNum(mgd?.tracks_count ?? brain?.personality?.total_tracks ?? null)}
-        />
-        <KpiCard
-          label="Capacidade/dia"
-          value={fmtNum(brain?.capacity_total ?? null)}
-          hint={brain?.capacity_total != null ? "plays/dia estimados" : undefined}
-        />
-        <KpiCard
-          label="Headroom"
-          value={brain?.headroom_pct != null ? `${brain.headroom_pct.toFixed(0)}%` : "—"}
-          hint="potencial não usado (Fase 2)"
-        />
-      </div>
-
-      {/* Diagnóstico de curadoria */}
-      {mgd?.id && <PlaylistDiagnosisCard managedId={mgd.id} />}
-
-      {/* Análise faixa-a-faixa (5d) */}
-      {mgd?.id && <PlaylistTracksAnalysisCard managedId={mgd.id} />}
-
-      {/* Sinais + Recomendações lado a lado */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card className="p-5 space-y-3">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="h-4 w-4 text-warning" />
-            <h2 className="text-sm font-semibold">Sinais ativos</h2>
-            <span className="text-xs text-muted-foreground">
-              {brain?.signals?.length ?? 0}
-            </span>
-          </div>
-          {brainLoading ? (
-            <div className="h-24 grid place-items-center"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
-          ) : !brain || brain.signals.length === 0 ? (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
-              <CheckCircle2 className="h-4 w-4 text-primary" />
-              Nenhum problema detectado.
-            </div>
-          ) : (
-            <ul className="space-y-2">
-              {brain.signals.map((s, i) => (
-                <li key={i} className="flex gap-2 items-start text-sm">
-                  <span className={cn("inline-flex items-center px-1.5 h-5 rounded text-[10px] font-semibold border shrink-0", SEV_BADGE[s.severity])}>
-                    {s.severity}
-                  </span>
-                  <span className="text-foreground/90">{s.message}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-
-        <Card className="p-5 space-y-3">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-primary" />
-            <h2 className="text-sm font-semibold">Ações sugeridas</h2>
-            <span className="text-xs text-muted-foreground">
-              {brain?.recommendations?.length ?? 0}
-            </span>
-          </div>
-          {brainLoading ? (
-            <div className="h-24 grid place-items-center"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
-          ) : !brain || brain.recommendations.length === 0 ? (
-            <div className="text-sm text-muted-foreground py-4">Sem ações no momento.</div>
-          ) : (
-            <ol className="space-y-2.5">
-              {brain.recommendations.map((r, i) => (
-                <li key={i} className="flex gap-3 items-start text-sm">
-                  <span className="w-6 h-6 rounded-full bg-primary/15 text-primary text-xs font-semibold grid place-items-center shrink-0">
-                    {r.priority}
-                  </span>
-                  <div className="min-w-0">
-                    <div className="text-foreground/90 font-medium">{r.action}</div>
-                    <div className="text-muted-foreground text-xs mt-0.5">{r.reason}</div>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          )}
-        </Card>
-      </div>
-
-      {/* Identidade + Personalidade */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card className="p-5 space-y-3">
-          <h2 className="text-sm font-semibold">Identidade</h2>
-          <dl className="grid grid-cols-2 gap-y-2 text-sm">
-            <DetailItem label="Nicho" value={brain?.identity?.nicho ?? "—"} />
-            <DetailItem
-              label="Match com nicho"
-              value={
-                brain?.identity?.keywords_total
-                  ? `${brain.identity.keywords_matched?.length ?? 0}/${brain.identity.keywords_total} palavras`
-                  : "—"
-              }
-            />
-          </dl>
-          {brain?.identity?.keywords_matched && brain.identity.keywords_matched.length > 0 && (
-            <div className="flex flex-wrap gap-1 pt-2">
-              {brain.identity.keywords_matched.slice(0, 8).map((k) => (
-                <Badge key={k} variant="outline" className="text-[10px]">{k}</Badge>
-              ))}
-            </div>
-          )}
-        </Card>
-
-        <Card className="p-5 space-y-3">
-          <h2 className="text-sm font-semibold">Personalidade</h2>
-          <dl className="grid grid-cols-2 gap-y-2 text-sm">
-            <DetailItem label="Total de faixas" value={fmtNum(brain?.personality?.total_tracks ?? null)} />
-            <DetailItem
-              label="Frequência de update"
-              value={
-                brain?.personality?.freq_update_dias
-                  ? `~${brain.personality.freq_update_dias} dias`
-                  : "—"
-              }
-            />
-            <DetailItem
-              label="Snapshots coletados"
-              value={fmtNum(brain?.personality?.snapshots_count ?? null)}
-            />
-          </dl>
-        </Card>
-      </div>
-
-      {/* Histórico (mini) */}
-      {history && history.length > 1 && (
-        <Card className="p-5 space-y-3">
-          <h2 className="text-sm font-semibold">Histórico de cálculos</h2>
-          <div className="text-xs text-muted-foreground">
-            {history.length} cálculos · do mais recente ao mais antigo
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="text-left text-muted-foreground border-b border-border">
-                  <th className="py-2 pr-3">Quando</th>
-                  <th className="py-2 pr-3">Capacidade</th>
-                  <th className="py-2 pr-3">Health</th>
-                  <th className="py-2 pr-3">Sinais</th>
-                  <th className="py-2">Confiança</th>
-                </tr>
-              </thead>
-              <tbody>
-                {history.slice(0, 10).map((h, i) => (
-                  <tr key={i} className="border-b border-border/40">
-                    <td className="py-2 pr-3 text-muted-foreground">{new Date(h.calculated_at).toLocaleString("pt-BR")}</td>
-                    <td className="py-2 pr-3 tabular-nums">{fmtNum(h.capacity_total)}</td>
-                    <td className="py-2 pr-3 tabular-nums">{h.health_score ?? "—"}</td>
-                    <td className="py-2 pr-3 tabular-nums">{h.signals_count}</td>
-                    <td className="py-2 tabular-nums">{h.confidence_score}/100</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-      )}
-        </>
-      )}
     </PageContainer>
-  );
-}
-
-function KpiCard({ label, value, hint }: { label: string; value: string; hint?: string }) {
-  return (
-    <Card className="p-4 space-y-1.5">
-      <div className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-semibold">
-        {label}
-      </div>
-      <div className="text-2xl font-semibold tabular-nums">{value}</div>
-      {hint && <div className="text-[10px] text-muted-foreground">{hint}</div>}
-    </Card>
-  );
-}
-
-function DetailItem({ label, value }: { label: string; value: string }) {
-  return (
-    <>
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className="text-foreground tabular-nums text-right">{value}</dd>
-    </>
   );
 }

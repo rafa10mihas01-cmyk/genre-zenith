@@ -388,6 +388,95 @@ Deno.serve(async (req) => {
       ? `${pl.name} ${missing.slice(0, 2).map((k) => k.toUpperCase()).join(" ")}`
       : null;
 
+    // 8.b) Sugestão de DESCRIÇÃO — combina template do nicho + palavras faltando
+    const descLower = (pl.description ?? "").toLowerCase();
+    const missingInDesc = topKeywords
+      .filter((k) => !descLower.includes(k.toLowerCase()))
+      .slice(0, 5);
+    const descTemplate: string | null = model?.insights?.descricao_padrao
+      ?? model?.insights?.descricao
+      ?? null;
+    let suggestedDescription: string | null = null;
+    if (descTemplate) {
+      suggestedDescription = String(descTemplate);
+    } else if (missingInDesc.length > 0) {
+      // Template genérico: nome do nicho + palavras quentes + chamada
+      const hot = missingInDesc.slice(0, 4).join(" · ");
+      suggestedDescription = `As ${totalTracks} mais tocadas · ${hot} · atualizada toda semana`;
+    }
+
+    // 8.c) target_position para PROMOTE/DEMOTE
+    //      Promote: empurra pra top 10 (posições baseadas em popularity rank)
+    //      Demote: empurra pra meio/fim (posições 40+)
+    const promoteCandidates = tracksAnalysis
+      .filter((t) => t.status === "promote")
+      .sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0));
+    promoteCandidates.forEach((t, i) => {
+      (t as any).target_position = Math.min(10, 3 + i); // #3, #4, #5...
+    });
+    const demoteCandidates = tracksAnalysis
+      .filter((t) => t.status === "demote")
+      .sort((a, b) => (a.popularity ?? 0) - (b.popularity ?? 0));
+    demoteCandidates.forEach((t, i) => {
+      (t as any).target_position = Math.max(30, totalTracks - 20 + i);
+    });
+
+    // 8.d) market_insights — usa benchmark + genreRecurrence + genreArtistsTop
+    const topRecurringTracks = Array.from(genreRecurrence.entries())
+      .map(([id, v]) => ({
+        spotify_track_id: id,
+        title: v.track_name,
+        artist: v.artist_name,
+        niche_playlists_count: v.count,
+      }))
+      .sort((a, b) => b.niche_playlists_count - a.niche_playlists_count)
+      .slice(0, 8);
+
+    const marketInsights = {
+      ideal_track_count_range: benchmark
+        ? [benchmark.tracks_p50, benchmark.tracks_p90].filter((x: any) => x != null)
+        : null,
+      followers_p50: benchmark?.followers_p50 ?? null,
+      followers_p75: benchmark?.followers_p75 ?? null,
+      followers_p90: benchmark?.followers_p90 ?? null,
+      avg_saturation_pct: tracksAnalysis.length
+        ? Math.round(tracksAnalysis.reduce((a, t) => a + (t.saturation_pct ?? 0), 0) / tracksAnalysis.length)
+        : null,
+      top_artists: genreArtistsTop.slice(0, 8).map((a) => ({
+        name: a.artist,
+        plays_in_niche: a.count,
+      })),
+      top_recurring_tracks: topRecurringTracks,
+      leader_playlists: competitors.slice(0, 6),
+      niche_playlist_count: nichePlaylistCount,
+    };
+
+    // 8.e) health_status — derivado de saturação + tamanho + sinais
+    let healthStatus: "aquecido" | "saudavel" | "frio" = "saudavel";
+    const removeRatio = counts.total > 0 ? counts.remove / counts.total : 0;
+    if (removeRatio >= 0.25 || (saturatedCount / Math.max(1, counts.total)) >= 0.5) {
+      healthStatus = "frio";
+    } else if (counts.promote > 0 && removeRatio < 0.1) {
+      healthStatus = "aquecido";
+    }
+
+    // 8.f) niche_rank — posição entre concorrentes do mesmo gênero por followers
+    let nicheRank: number | null = null;
+    let nicheTotal: number | null = null;
+    if (pl.genre_id) {
+      const { count: ahead } = await supabase
+        .from("playlists")
+        .select("id", { count: "exact", head: true })
+        .eq("genre_id", pl.genre_id)
+        .gt("followers", pl.followers ?? 0);
+      const { count: total } = await supabase
+        .from("playlists")
+        .select("id", { count: "exact", head: true })
+        .eq("genre_id", pl.genre_id);
+      nicheRank = (ahead ?? 0) + 1;
+      nicheTotal = total ?? null;
+    }
+
     // 9) Persiste diagnóstico
     const { data: diag, error: dErr } = await supabase
       .from("playlist_diagnoses")
@@ -410,6 +499,15 @@ Deno.serve(async (req) => {
           present_keywords: present,
           sync_ok: syncRes?.ok ?? false,
           sync_error: syncRes?.ok ? null : (syncRes as any)?.body?.error ?? (syncRes as any)?.error ?? null,
+          // Novos campos do cockpit
+          suggested_description: suggestedDescription,
+          description_current: pl.description ?? null,
+          missing_keywords: missing,
+          missing_in_description: missingInDesc,
+          market_insights: marketInsights,
+          health_status: healthStatus,
+          niche_rank: nicheRank,
+          niche_total: nicheTotal,
         },
       })
       .select()

@@ -1,0 +1,690 @@
+import { useEffect, useState, useCallback, useMemo } from "react";
+import { Link } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Collapsible, CollapsibleContent, CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { toast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
+import {
+  ArrowLeft, ExternalLink, Sparkles, Loader2, Music2, TrendingUp,
+  TrendingDown, ArrowUp, ArrowDown, Trash2, Plus, ChevronDown,
+  Flame, Snowflake, Activity, Users, Crown, Target, Check,
+} from "lucide-react";
+import { PlaylistTracksTab } from "@/components/playlists/PlaylistTracksTab";
+
+// -------------------- types --------------------
+type AnalysisTrack = {
+  spotify_track_id: string;
+  track_name: string | null;
+  artist_name: string | null;
+  position: number;
+  status: "keep" | "remove" | "promote" | "demote";
+  reasons: string[];
+  popularity: number | null;
+  saturation_pct?: number;
+  recurrence_in_genre?: number;
+  age_days_in_playlist?: number | null;
+  target_position?: number | null;
+};
+
+type Suggestion = {
+  spotify_track_id: string;
+  nome: string;
+  artista: string;
+  count: number;
+  suggested_position: number;
+  from_missing_artist?: boolean;
+};
+
+type Diagnosis = {
+  id: string;
+  created_at: string;
+  name_current: string | null;
+  name_suggestion: string | null;
+  name_score: number | null;
+  tracks_analysis: AnalysisTrack[];
+  tracks_suggestions: Suggestion[];
+  tracks_summary: any;
+  raw: {
+    suggested_description?: string | null;
+    description_current?: string | null;
+    missing_keywords?: string[];
+    missing_in_description?: string[];
+    health_status?: "aquecido" | "saudavel" | "frio";
+    niche_rank?: number | null;
+    niche_total?: number | null;
+    market_insights?: {
+      ideal_track_count_range?: [number, number] | null;
+      avg_saturation_pct?: number | null;
+      top_artists?: { name: string; plays_in_niche: number }[];
+      top_recurring_tracks?: { title: string | null; artist: string | null; niche_playlists_count: number }[];
+      leader_playlists?: { spotify_playlist_id: string; name: string; followers: number; cover_url: string | null }[];
+      niche_playlist_count?: number;
+    };
+  };
+};
+
+type Props = {
+  managedId: string;
+  spotifyPlaylistId: string;
+  spotifyUrl: string;
+  playlistName: string;
+  coverUrl: string | null;
+  followers: number | null;
+  tracksCount: number;
+  genreName?: string | null;
+  brainScore?: number | null;
+  onBack?: () => void;
+};
+
+// -------------------- helpers --------------------
+function fmtNum(n: number | null | undefined) {
+  if (n == null) return "—";
+  return new Intl.NumberFormat("pt-BR").format(n);
+}
+
+const HEALTH_META: Record<string, { label: string; tone: string; Icon: any }> = {
+  aquecido: { label: "Aquecido", tone: "text-primary border-primary/40 bg-primary/10", Icon: Flame },
+  saudavel: { label: "Saudável", tone: "text-foreground border-border bg-elevated", Icon: Activity },
+  frio: { label: "Frio", tone: "text-destructive border-destructive/40 bg-destructive/10", Icon: Snowflake },
+};
+
+// -------------------- main --------------------
+export function PlaylistCockpit({
+  managedId, spotifyPlaylistId, spotifyUrl, playlistName, coverUrl,
+  followers, tracksCount, genreName, brainScore, onBack,
+}: Props) {
+  const [diag, setDiag] = useState<Diagnosis | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [running, setRunning] = useState(false);
+  const [applying, setApplying] = useState(false);
+
+  const loadLatest = useCallback(async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from("playlist_diagnoses")
+      .select("id, created_at, name_current, name_suggestion, name_score, tracks_analysis, tracks_suggestions, tracks_summary, raw")
+      .eq("playlist_id", managedId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    setDiag((data as any) ?? null);
+    setLoading(false);
+  }, [managedId]);
+
+  useEffect(() => { loadLatest(); }, [loadLatest]);
+
+  async function runDiagnose() {
+    setRunning(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("diagnose-managed-playlist", {
+        body: { playlist_id: managedId },
+      });
+      if (error || !data?.ok) throw new Error(error?.message ?? data?.error ?? "Falha");
+      setDiag(data.diagnosis);
+      toast({ title: "Diagnóstico atualizado" });
+    } catch (e: any) {
+      toast({ title: "Erro no diagnóstico", description: e.message, variant: "destructive" });
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  async function applyAddBucket(count: number) {
+    setApplying(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("apply-playlist-suggestions", {
+        body: { playlist_id: managedId, limit: count },
+      });
+      let serverError: string | null = null;
+      let status: number | null = null;
+      if (error && (error as any).context) {
+        try {
+          const ctx = (error as any).context as Response;
+          status = ctx.status ?? null;
+          const body = await ctx.clone().json().catch(() => null);
+          serverError = body?.error ?? null;
+        } catch { /* */ }
+      }
+      if (error || data?.ok === false) {
+        toast({
+          title: status ? `Erro ${status} ao adicionar` : "Não foi possível adicionar",
+          description: serverError ?? data?.error ?? error?.message ?? "erro desconhecido",
+          variant: "destructive",
+        });
+        return;
+      }
+      toast({
+        title: `${data?.inserted ?? count} faixas adicionadas no topo`,
+        description: "Re-diagnosticando…",
+      });
+      runDiagnose();
+    } finally {
+      setApplying(false);
+    }
+  }
+
+  // ---- buckets ----
+  const analysis = diag?.tracks_analysis ?? [];
+  const suggestions = diag?.tracks_suggestions ?? [];
+  const buckets = useMemo(() => {
+    const remove = analysis.filter((t) => t.status === "remove")
+      .sort((a, b) => a.position - b.position);
+    const demote = analysis.filter((t) => t.status === "demote")
+      .sort((a, b) => a.position - b.position);
+    const promote = analysis.filter((t) => t.status === "promote")
+      .sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0));
+    return { remove, demote, promote, add: suggestions };
+  }, [analysis, suggestions]);
+
+  const health = HEALTH_META[diag?.raw?.health_status ?? "saudavel"];
+  const market = diag?.raw?.market_insights;
+  const idealRange = market?.ideal_track_count_range;
+
+  return (
+    <div className="space-y-8">
+      {/* ============ 1. HERO ============ */}
+      <Card className="overflow-hidden border-0 bg-gradient-to-br from-primary/[0.06] via-card to-card">
+        <div className="p-6 flex flex-col md:flex-row gap-6 items-start">
+          <div className="relative shrink-0">
+            {coverUrl ? (
+              <img src={coverUrl} alt={playlistName}
+                className="w-32 h-32 md:w-40 md:h-40 rounded-2xl object-cover shadow-2xl ring-1 ring-white/5" />
+            ) : (
+              <div className="w-32 h-32 md:w-40 md:h-40 rounded-2xl bg-elevated grid place-items-center">
+                <Music2 className="h-10 w-10 text-muted-foreground/40" />
+              </div>
+            )}
+          </div>
+          <div className="flex-1 min-w-0 space-y-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              {onBack && (
+                <Button variant="ghost" size="sm" onClick={onBack} className="h-7 -ml-2 text-muted-foreground hover:text-foreground gap-1">
+                  <ArrowLeft className="h-3.5 w-3.5" /> Voltar
+                </Button>
+              )}
+              {genreName && (
+                <Badge variant="outline" className="text-[10px] uppercase tracking-wider">{genreName}</Badge>
+              )}
+              {diag?.raw?.niche_rank && diag.raw.niche_total && (
+                <Badge variant="outline" className="text-[10px] gap-1 border-primary/30 text-primary">
+                  <Crown className="h-3 w-3" /> #{diag.raw.niche_rank} de {diag.raw.niche_total} no nicho
+                </Badge>
+              )}
+              <span className={cn("inline-flex items-center gap-1 px-2 h-6 rounded-full border text-[11px] font-medium", health.tone)}>
+                <health.Icon className="h-3 w-3" /> {health.label}
+              </span>
+            </div>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight leading-tight">
+              {playlistName}
+            </h1>
+            <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+              <Stat label="Seguidores" value={fmtNum(followers)} accent />
+              <Stat label="Faixas" value={fmtNum(tracksCount)} />
+              {brainScore != null && <Stat label="Score" value={`${brainScore}`} />}
+              {diag && (
+                <Stat label="Diagnóstico" value={new Date(diag.created_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })} muted />
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2 pt-1">
+              <Button onClick={runDiagnose} disabled={running} className="gap-1.5">
+                {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                {diag ? "Rodar nova análise" : "Rodar análise"}
+              </Button>
+              <Button variant="outline" asChild>
+                <a href={spotifyUrl} target="_blank" rel="noreferrer" className="gap-1.5">
+                  <ExternalLink className="h-4 w-4" /> Abrir no Spotify
+                </a>
+              </Button>
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      {loading ? (
+        <Card className="p-10 grid place-items-center">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </Card>
+      ) : !diag ? (
+        <Card className="p-10 text-center space-y-3">
+          <Sparkles className="h-8 w-8 text-primary/60 mx-auto" />
+          <h3 className="font-semibold">Sem diagnóstico ainda</h3>
+          <p className="text-sm text-muted-foreground">Clique em <strong>Rodar análise</strong> para gerar o cockpit.</p>
+        </Card>
+      ) : (
+        <>
+          {/* ============ 2. IDENTIDADE ============ */}
+          <SectionTitle>Identidade da playlist</SectionTitle>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <IdentityField
+              label="Nome"
+              current={diag.name_current ?? playlistName}
+              suggestion={diag.name_suggestion}
+              score={diag.name_score}
+            />
+            <IdentityField
+              label="Descrição"
+              current={diag.raw?.description_current || "— sem descrição —"}
+              suggestion={diag.raw?.suggested_description ?? null}
+            />
+          </div>
+          {(diag.raw?.missing_keywords?.length ?? 0) > 0 && (
+            <Card className="p-4">
+              <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">
+                Palavras fortes do nicho que faltam
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {diag.raw!.missing_keywords!.map((k) => (
+                  <Badge key={k} variant="outline" className="text-[11px] border-warning/40 text-warning bg-warning/5">
+                    {k}
+                  </Badge>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {/* ============ 3. PLANO DE AÇÃO ============ */}
+          <SectionTitle>Plano de ação</SectionTitle>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <ActionCard kind="remove" count={buckets.remove.length} hrefId="bucket-remove" />
+            <ActionCard kind="demote" count={buckets.demote.length} hrefId="bucket-demote" />
+            <ActionCard kind="promote" count={buckets.promote.length} hrefId="bucket-promote" />
+            <ActionCard kind="add" count={buckets.add.length} hrefId="bucket-add" />
+          </div>
+
+          {/* ============ 4. EXECUÇÃO ============ */}
+          <SectionTitle>Execução operacional</SectionTitle>
+
+          <BucketRemove items={buckets.remove} spotifyPlaylistId={spotifyPlaylistId} />
+          <BucketReorder kind="demote" items={buckets.demote} spotifyPlaylistId={spotifyPlaylistId} totalTracks={tracksCount} />
+          <BucketReorder kind="promote" items={buckets.promote} spotifyPlaylistId={spotifyPlaylistId} totalTracks={tracksCount} />
+          <BucketAdd
+            items={buckets.add}
+            applying={applying}
+            onApplyAll={() => applyAddBucket(buckets.add.length)}
+            onApplyOne={() => applyAddBucket(1)}
+          />
+
+          {/* ============ 5. INTELIGÊNCIA DE MERCADO ============ */}
+          {market && (
+            <>
+              <SectionTitle>Inteligência de mercado</SectionTitle>
+              <MarketBlock market={market} idealRange={idealRange} />
+            </>
+          )}
+
+          {/* ============ 6. TODAS AS FAIXAS (colapsado) ============ */}
+          <Collapsible>
+            <Card className="overflow-hidden">
+              <CollapsibleTrigger asChild>
+                <button className="group w-full p-4 flex items-center justify-between hover:bg-elevated/40 transition-colors text-left">
+                  <div className="flex items-center gap-2">
+                    <Music2 className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <div className="text-sm font-semibold">Todas as faixas (auditoria)</div>
+                      <div className="text-[11px] text-muted-foreground">
+                        Lista completa de referência · {analysis.length} faixas
+                      </div>
+                    </div>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="p-4 pt-0">
+                  <PlaylistTracksTab playlistId={managedId} />
+                </div>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
+        </>
+      )}
+    </div>
+  );
+}
+
+// -------------------- subcomponents --------------------
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex items-baseline gap-3 pt-2">
+      <h2 className="text-[11px] uppercase tracking-[0.2em] font-semibold text-muted-foreground">
+        {children}
+      </h2>
+      <div className="flex-1 h-px bg-border/60" />
+    </div>
+  );
+}
+
+function Stat({ label, value, accent, muted }: { label: string; value: string; accent?: boolean; muted?: boolean }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</span>
+      <span className={cn(
+        "font-semibold tabular-nums",
+        accent && "text-primary text-lg",
+        muted && "text-xs text-muted-foreground font-normal",
+        !accent && !muted && "text-base",
+      )}>{value}</span>
+    </div>
+  );
+}
+
+function IdentityField({ label, current, suggestion, score }: {
+  label: string; current: string; suggestion: string | null; score?: number | null;
+}) {
+  const hasSugg = !!suggestion && suggestion.trim() !== current.trim();
+  return (
+    <Card className="p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">{label}</span>
+        {score != null && (
+          <span className={cn(
+            "text-xs font-semibold tabular-nums",
+            score >= 60 ? "text-primary" : score >= 30 ? "text-warning" : "text-destructive",
+          )}>{score}/100</span>
+        )}
+      </div>
+      <div className="space-y-2">
+        <div>
+          <div className="text-[10px] text-muted-foreground mb-1">Atual</div>
+          <div className="text-sm bg-elevated/60 rounded-md px-3 py-2 text-foreground/80">{current || "—"}</div>
+        </div>
+        <div>
+          <div className="text-[10px] text-muted-foreground mb-1 flex items-center gap-1">
+            <Sparkles className="h-3 w-3 text-primary" /> Sugestão da IA
+          </div>
+          <div className={cn(
+            "text-sm rounded-md px-3 py-2",
+            hasSugg ? "bg-primary/10 border border-primary/30 text-foreground" : "bg-elevated/40 text-muted-foreground italic",
+          )}>
+            {suggestion || "sem ajuste sugerido"}
+          </div>
+        </div>
+      </div>
+      {hasSugg && (
+        <div className="flex justify-end">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              navigator.clipboard.writeText(suggestion!);
+              toast({ title: "Sugestão copiada", description: "Cole no Spotify para aplicar." });
+            }}
+            className="gap-1.5 h-7"
+          >
+            <Check className="h-3 w-3" /> Copiar e aplicar no Spotify
+          </Button>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+const ACTION_META = {
+  remove: { label: "Remover", Icon: Trash2, tone: "border-destructive/40 bg-destructive/10 text-destructive", hint: "Faixas sem tração ou saturadas" },
+  demote: { label: "Rebaixar", Icon: ArrowDown, tone: "border-warning/40 bg-warning/10 text-warning", hint: "Na vitrine sem performance" },
+  promote: { label: "Promover", Icon: ArrowUp, tone: "border-primary/40 bg-primary/10 text-primary", hint: "Mercado já reconheceu" },
+  add: { label: "Adicionar", Icon: Plus, tone: "border-primary/50 bg-primary/15 text-primary", hint: "Faixas dominando o nicho" },
+} as const;
+
+function ActionCard({ kind, count, hrefId }: { kind: keyof typeof ACTION_META; count: number; hrefId: string }) {
+  const m = ACTION_META[kind];
+  const disabled = count === 0;
+  return (
+    <a
+      href={`#${hrefId}`}
+      onClick={(e) => {
+        if (disabled) { e.preventDefault(); return; }
+        e.preventDefault();
+        document.getElementById(hrefId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }}
+      className={cn(
+        "rounded-2xl border p-4 transition-all",
+        m.tone,
+        disabled ? "opacity-40 cursor-not-allowed" : "hover:scale-[1.02] cursor-pointer",
+      )}
+    >
+      <div className="flex items-center justify-between mb-2">
+        <m.Icon className="h-4 w-4" />
+        <span className="text-[10px] uppercase tracking-wider font-bold">{m.label}</span>
+      </div>
+      <div className="text-3xl font-bold tabular-nums leading-none">{count}</div>
+      <div className="text-[11px] opacity-80 mt-1.5 leading-snug">{m.hint}</div>
+    </a>
+  );
+}
+
+// -------- buckets --------
+function BucketShell({
+  id, kind, count, headerRight, children,
+}: { id: string; kind: keyof typeof ACTION_META; count: number; headerRight?: React.ReactNode; children: React.ReactNode }) {
+  const m = ACTION_META[kind];
+  if (count === 0) return null;
+  return (
+    <Card id={id} className="overflow-hidden scroll-mt-20">
+      <div className={cn("flex items-center justify-between px-4 py-3 border-b", m.tone, "bg-opacity-40")}>
+        <div className="flex items-center gap-2">
+          <m.Icon className="h-4 w-4" />
+          <span className="text-sm font-bold uppercase tracking-wider">{m.label}</span>
+          <span className="text-xs opacity-70">· {count} {count === 1 ? "faixa" : "faixas"}</span>
+        </div>
+        {headerRight}
+      </div>
+      <div className="divide-y divide-border/40">{children}</div>
+    </Card>
+  );
+}
+
+function PositionBadge({ from, to }: { from: number; to: number | null }) {
+  return (
+    <div className="flex items-center gap-1 text-[11px] font-mono tabular-nums shrink-0 w-20">
+      <span className="text-muted-foreground">#{from}</span>
+      <span className="text-muted-foreground/50">→</span>
+      <span className={cn("font-semibold", to == null ? "text-destructive" : "text-primary")}>
+        {to == null ? "—" : `#${to}`}
+      </span>
+    </div>
+  );
+}
+
+function TrackLine({
+  position, target, title, artist, reason, action,
+}: { position: number; target: number | null; title: string; artist: string; reason: string; action: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-3 px-4 py-2.5 hover:bg-elevated/40 transition-colors">
+      <PositionBadge from={position} to={target} />
+      <div className="flex-1 min-w-0">
+        <div className="text-sm font-medium truncate">{title}</div>
+        <div className="text-xs text-muted-foreground truncate">{artist} · {reason}</div>
+      </div>
+      <div className="shrink-0">{action}</div>
+    </div>
+  );
+}
+
+function BucketRemove({ items, spotifyPlaylistId }: { items: AnalysisTrack[]; spotifyPlaylistId: string }) {
+  return (
+    <BucketShell id="bucket-remove" kind="remove" count={items.length}>
+      {items.map((t) => (
+        <TrackLine
+          key={t.spotify_track_id}
+          position={t.position + 1}
+          target={null}
+          title={t.track_name ?? "—"}
+          artist={t.artist_name ?? "—"}
+          reason={(t.reasons ?? [])[0] ?? "baixa performance"}
+          action={
+            <Button asChild size="sm" variant="outline" className="h-7 text-xs gap-1">
+              <a
+                href={`https://open.spotify.com/playlist/${spotifyPlaylistId}`}
+                target="_blank" rel="noreferrer"
+              >
+                <Trash2 className="h-3 w-3" /> Abrir
+              </a>
+            </Button>
+          }
+        />
+      ))}
+      <div className="px-4 py-2 text-[11px] text-muted-foreground bg-elevated/30">
+        Remoção em massa pelo cockpit em breve — por enquanto abra a playlist e remova manualmente.
+      </div>
+    </BucketShell>
+  );
+}
+
+function BucketReorder({ kind, items, spotifyPlaylistId, totalTracks }: {
+  kind: "promote" | "demote"; items: AnalysisTrack[]; spotifyPlaylistId: string; totalTracks: number;
+}) {
+  return (
+    <BucketShell id={`bucket-${kind}`} kind={kind} count={items.length}>
+      {items.map((t) => (
+        <TrackLine
+          key={t.spotify_track_id}
+          position={t.position + 1}
+          target={t.target_position ?? (kind === "promote" ? 5 : Math.max(30, totalTracks - 10))}
+          title={t.track_name ?? "—"}
+          artist={t.artist_name ?? "—"}
+          reason={(t.reasons ?? []).join(" · ") || "—"}
+          action={
+            <Button asChild size="sm" variant="outline" className="h-7 text-xs gap-1">
+              <a href={`https://open.spotify.com/playlist/${spotifyPlaylistId}`} target="_blank" rel="noreferrer">
+                {kind === "promote" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+                Mover
+              </a>
+            </Button>
+          }
+        />
+      ))}
+      <div className="px-4 py-2 text-[11px] text-muted-foreground bg-elevated/30">
+        Reordenação automática pelo cockpit em breve — por enquanto arraste manualmente no Spotify.
+      </div>
+    </BucketShell>
+  );
+}
+
+function BucketAdd({ items, applying, onApplyAll, onApplyOne }: {
+  items: Suggestion[]; applying: boolean; onApplyAll: () => void; onApplyOne: () => void;
+}) {
+  return (
+    <BucketShell
+      id="bucket-add"
+      kind="add"
+      count={items.length}
+      headerRight={
+        items.length > 0 && (
+          <Button
+            size="sm"
+            onClick={onApplyAll}
+            disabled={applying}
+            className="h-7 text-xs gap-1"
+          >
+            {applying ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
+            Aplicar todas ({items.length})
+          </Button>
+        )
+      }
+    >
+      {items.map((t) => (
+        <TrackLine
+          key={t.spotify_track_id}
+          position={0}
+          target={t.suggested_position}
+          title={t.nome || "—"}
+          artist={t.artista || "—"}
+          reason={`${t.count}× nas playlists vencedoras do nicho${t.from_missing_artist ? " · artista faltando" : ""}`}
+          action={
+            <span className="text-[10px] text-muted-foreground tabular-nums">
+              {t.count}× nicho
+            </span>
+          }
+        />
+      ))}
+    </BucketShell>
+  );
+}
+
+// -------- mercado --------
+function MarketBlock({ market, idealRange }: { market: any; idealRange: any }) {
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <Card className="p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <Target className="h-4 w-4 text-primary" />
+          <span className="text-sm font-semibold">Tamanho ideal</span>
+        </div>
+        <div className="text-2xl font-bold tabular-nums">
+          {idealRange?.[0] ?? "—"}<span className="text-muted-foreground mx-1">–</span>{idealRange?.[1] ?? "—"}
+          <span className="text-xs text-muted-foreground ml-1 font-normal">faixas</span>
+        </div>
+        <div className="text-[11px] text-muted-foreground">
+          Saturação média do nicho: <strong className="text-foreground">{market.avg_saturation_pct ?? "—"}%</strong>
+        </div>
+        <div className="text-[11px] text-muted-foreground">
+          Baseado em <strong className="text-foreground">{market.niche_playlist_count ?? "—"}</strong> playlists varridas
+        </div>
+      </Card>
+
+      <Card className="p-4 space-y-2">
+        <div className="flex items-center gap-2">
+          <Users className="h-4 w-4 text-primary" />
+          <span className="text-sm font-semibold">Artistas dominando</span>
+        </div>
+        <ul className="space-y-1">
+          {(market.top_artists ?? []).slice(0, 6).map((a: any, i: number) => (
+            <li key={i} className="flex justify-between text-xs">
+              <span className="truncate">{a.name}</span>
+              <span className="text-muted-foreground tabular-nums shrink-0 ml-2">{a.plays_in_niche}×</span>
+            </li>
+          ))}
+        </ul>
+      </Card>
+
+      <Card className="p-4 space-y-2">
+        <div className="flex items-center gap-2">
+          <Flame className="h-4 w-4 text-primary" />
+          <span className="text-sm font-semibold">Faixas mais recorrentes</span>
+        </div>
+        <ul className="space-y-1.5">
+          {(market.top_recurring_tracks ?? []).slice(0, 5).map((t: any, i: number) => (
+            <li key={i} className="text-xs">
+              <div className="font-medium truncate">{t.title ?? "—"}</div>
+              <div className="text-muted-foreground truncate flex justify-between">
+                <span>{t.artist ?? "—"}</span>
+                <span className="tabular-nums">{t.niche_playlists_count}×</span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </Card>
+
+      {(market.leader_playlists?.length ?? 0) > 0 && (
+        <Card className="p-4 space-y-2 lg:col-span-3">
+          <div className="flex items-center gap-2">
+            <Crown className="h-4 w-4 text-primary" />
+            <span className="text-sm font-semibold">Playlists líderes do nicho</span>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+            {market.leader_playlists.slice(0, 6).map((p: any) => (
+              <a
+                key={p.spotify_playlist_id}
+                href={`https://open.spotify.com/playlist/${p.spotify_playlist_id}`}
+                target="_blank" rel="noreferrer"
+                className="flex items-center gap-2 p-2 rounded-lg border border-border hover:border-primary/40 transition-colors"
+              >
+                {p.cover_url && <img src={p.cover_url} alt="" className="w-8 h-8 rounded object-cover shrink-0" />}
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs font-medium truncate">{p.name}</div>
+                  <div className="text-[10px] text-muted-foreground tabular-nums">{fmtNum(p.followers)} seg.</div>
+                </div>
+              </a>
+            ))}
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+}
