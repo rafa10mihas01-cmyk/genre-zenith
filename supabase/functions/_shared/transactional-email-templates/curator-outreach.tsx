@@ -103,14 +103,14 @@ const container = { maxWidth: '560px', margin: '0 auto' }
 
 const brandBar = {
   textAlign: 'center' as const,
-  padding: '8px 0 28px',
+  padding: '12px 0 32px',
 }
 const logoImg = {
   display: 'block',
-  margin: '0 auto 10px',
-  height: '40px',
+  margin: '0 auto',
+  height: '64px',
   width: 'auto',
-  maxWidth: '180px',
+  maxWidth: '280px',
 }
 const brandText = {
   fontSize: '20px',
