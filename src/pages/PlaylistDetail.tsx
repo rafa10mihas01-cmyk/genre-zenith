@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link, useSearchParams } from "react-router-dom";
 import { PlaylistTracksTab } from "@/components/playlists/PlaylistTracksTab";
+import { PlaylistDiagnosisCard } from "@/components/playlists/PlaylistDiagnosisCard";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
