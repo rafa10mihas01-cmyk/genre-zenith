@@ -138,7 +138,7 @@ Deno.serve(async (req) => {
         .slice(0, 30);
     }
 
-    // 3) Faixas atuais da playlist gerenciada + ecosystem scores
+    // 3) Faixas atuais da playlist gerenciada
     const { data: currentTracks } = await supabase
       .from("managed_playlist_tracks")
       .select("spotify_track_id, track_name, artist_name, position, added_at")
@@ -146,60 +146,134 @@ Deno.serve(async (req) => {
       .order("position", { ascending: true });
 
     const trackIds = (currentTracks ?? []).map((t: any) => t.spotify_track_id).filter(Boolean);
-    let scoreMap = new Map<string, any>();
-    if (trackIds.length > 0) {
-      const { data: scores } = await supabase
-        .from("track_ecosystem_score")
-        .select("spotify_track_id, streams_28d, growth_28d_pct, acceleration, saturation_index, momentum_class, confidence")
-        .in("spotify_track_id", trackIds);
-      for (const s of scores ?? []) scoreMap.set(s.spotify_track_id, s);
+
+    // 3.b) Denominador de saturação = nº de playlists do nicho varridas
+    let nichePlaylistCount = 0;
+    if (pl.genre_id) {
+      const { count } = await supabase
+        .from("search_results")
+        .select("id", { count: "exact", head: true })
+        .eq("genre_id", pl.genre_id);
+      nichePlaylistCount = count ?? 0;
     }
 
-    // 4) Classificação por faixa
-    const TOP_POS = 10;            // posições "vitrine"
-    const SATURATION_HIGH = 0.7;   // satura excessiva
+    // 3.c) Busca sinais públicos do Spotify (popularity, release_date, artistas)
+    type SpotMeta = {
+      popularity: number | null;
+      release_date: string | null;
+      artist_id: string | null;
+    };
+    const spotMeta = new Map<string, SpotMeta>();
+    const artistMeta = new Map<string, { popularity: number | null; followers: number | null }>();
+
+    if (trackIds.length > 0) {
+      try {
+        const token = await getSpotifyToken();
+        // /v1/tracks?ids= (até 50)
+        for (let i = 0; i < trackIds.length; i += 50) {
+          const ids = trackIds.slice(i, i + 50);
+          const r = await fetch(`https://api.spotify.com/v1/tracks?ids=${ids.join(",")}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!r.ok) continue;
+          const j = await r.json();
+          for (const tr of j.tracks ?? []) {
+            if (!tr?.id) continue;
+            spotMeta.set(tr.id, {
+              popularity: typeof tr.popularity === "number" ? tr.popularity : null,
+              release_date: tr.album?.release_date ?? null,
+              artist_id: tr.artists?.[0]?.id ?? null,
+            });
+          }
+        }
+        // /v1/artists?ids= (até 50)
+        const artistIds = uniq(
+          Array.from(spotMeta.values()).map((m) => m.artist_id).filter(Boolean) as string[],
+        );
+        for (let i = 0; i < artistIds.length; i += 50) {
+          const ids = artistIds.slice(i, i + 50);
+          const r = await fetch(`https://api.spotify.com/v1/artists?ids=${ids.join(",")}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!r.ok) continue;
+          const j = await r.json();
+          for (const ar of j.artists ?? []) {
+            if (!ar?.id) continue;
+            artistMeta.set(ar.id, {
+              popularity: typeof ar.popularity === "number" ? ar.popularity : null,
+              followers: ar.followers?.total ?? null,
+            });
+          }
+        }
+      } catch (_e) {
+        // segue sem metadados — classificador degrada gracefully
+      }
+    }
+
+    // 4) Classificação por faixa — sinais 100% públicos
     const totalTracks = (currentTracks ?? []).length;
+    const TOP_POS = 10;
+    const NOW = Date.now();
 
     const tracksAnalysis = (currentTracks ?? []).map((t: any) => {
-      const sc = scoreMap.get(t.spotify_track_id) ?? null;
+      const meta = spotMeta.get(t.spotify_track_id);
       const rec = genreRecurrence.get(t.spotify_track_id);
       const recurrence = rec?.count ?? 0;
-      const growth = sc?.growth_28d_pct != null ? Number(sc.growth_28d_pct) : null;
-      const saturation = sc?.saturation_index != null ? Number(sc.saturation_index) : null;
-      const momentum: string | null = sc?.momentum_class ?? null;
+      const popularity = meta?.popularity ?? null;
+      const releaseDate = meta?.release_date ?? null;
+      const artist = meta?.artist_id ? artistMeta.get(meta.artist_id) : undefined;
+      const artistPop = artist?.popularity ?? null;
+      const artistFollowers = artist?.followers ?? null;
       const pos: number = t.position ?? 0;
 
-      // Default
+      // saturation = % das playlists do nicho que tocam essa faixa
+      const saturationPct = nichePlaylistCount > 0
+        ? Math.min(100, Math.round((recurrence / nichePlaylistCount) * 100))
+        : 0;
+
+      // idade na playlist (dias) — se sem added_at, assume velha
+      const addedAt = t.added_at ? new Date(t.added_at).getTime() : null;
+      const ageDays = addedAt ? Math.floor((NOW - addedAt) / 86400000) : null;
+
+      // idade do release (anos)
+      const releaseAgeYears = releaseDate
+        ? Math.max(0, (NOW - new Date(releaseDate).getTime()) / (365 * 86400000))
+        : null;
+
       let status: "keep" | "remove" | "promote" | "demote" = "keep";
       const reasons: string[] = [];
 
-      // REMOVE: 0 ocorrências no nicho E (caindo OU saturada)
-      const declining = (growth != null && growth < -10) || momentum === "encolhendo" || momentum === "morta";
-      if (recurrence === 0 && (declining || (saturation != null && saturation > SATURATION_HIGH))) {
+      // 1) REMOVER saturada — todo mundo já toca, e ainda assim você enterrou ela
+      if (saturationPct >= 70 && pos >= 20) {
         status = "remove";
-        if (recurrence === 0) reasons.push("não aparece em nenhuma playlist concorrente do nicho");
-        if (declining) reasons.push(`em declínio (${growth != null ? growth.toFixed(0) + "% 28d" : momentum})`);
-        if (saturation != null && saturation > SATURATION_HIGH) reasons.push(`saturada no ecossistema (${(saturation * 100).toFixed(0)}%)`);
+        reasons.push(`saturada no nicho (${saturationPct}% das playlists tocam)`);
+        reasons.push(`em #${pos + 1} — ocupando slot sem gerar diferencial`);
       }
-      // PROMOTE: fora do topo + crescendo forte + recorrente no nicho
-      else if (pos >= TOP_POS && recurrence >= 3 && (momentum === "crescendo" || (growth != null && growth > 20))) {
+      // 2) REMOVER frio — sem tração + sem recorrência + já testou tempo suficiente
+      else if (popularity != null && popularity < 30 && recurrence === 0 && (ageDays == null || ageDays > 30)) {
+        status = "remove";
+        reasons.push(`baixa popularity (${popularity}) e ninguém no nicho toca`);
+        if (ageDays != null) reasons.push(`já está há ${ageDays}d na playlist`);
+      }
+      // 3) PROMOVER — mercado percebeu e você ainda não
+      else if (popularity != null && popularity >= 60 && recurrence >= 3 && pos >= 15) {
         status = "promote";
-        reasons.push(`top performer em posição #${pos + 1}`);
-        if (recurrence >= 3) reasons.push(`recorrente em ${recurrence} concorrentes`);
-        if (growth != null) reasons.push(`+${growth.toFixed(0)}% 28d`);
+        reasons.push(`popularity ${popularity} + ${recurrence}× no nicho`);
+        reasons.push(`enterrada em #${pos + 1} — subir pra vitrine`);
       }
-      // DEMOTE: na vitrine mas com momentum caindo
-      else if (pos < TOP_POS && (momentum === "encolhendo" || (growth != null && growth < -5))) {
+      // 4) REBAIXAR — está na vitrine mas é fraca
+      else if (popularity != null && popularity < 40 && pos < TOP_POS) {
         status = "demote";
-        reasons.push(`na vitrine (#${pos + 1}) mas perdendo força`);
-        if (growth != null) reasons.push(`${growth.toFixed(0)}% 28d`);
+        reasons.push(`na vitrine (#${pos + 1}) com popularity baixa (${popularity})`);
       }
-      // KEEP: tudo o resto
+      // 5) KEEP — explica o porquê
       else {
-        if (recurrence >= 5) reasons.push(`alta recorrência no nicho (${recurrence}×)`);
-        else if (momentum === "crescendo") reasons.push("momentum positivo");
-        else if (!sc) reasons.push("sem dados de performance ainda");
-        else reasons.push("performance estável");
+        if (popularity != null && popularity >= 70) reasons.push(`hit (popularity ${popularity})`);
+        else if (recurrence >= 5) reasons.push(`recorrente no nicho (${recurrence}×)`);
+        else if (releaseAgeYears != null && releaseAgeYears < 0.5 && popularity != null && popularity >= 50)
+          reasons.push("lançamento recente em ascensão");
+        else if (popularity == null) reasons.push("sem metadado do Spotify");
+        else reasons.push(`estável (popularity ${popularity})`);
       }
 
       return {
@@ -210,11 +284,18 @@ Deno.serve(async (req) => {
         status,
         reasons,
         recurrence_in_genre: recurrence,
-        streams_28d: sc?.streams_28d ?? null,
-        growth_28d_pct: growth,
-        saturation_index: saturation,
-        momentum: momentum,
-        confidence: sc?.confidence ?? null,
+        saturation_pct: saturationPct,
+        popularity,
+        artist_popularity: artistPop,
+        artist_followers: artistFollowers,
+        release_date: releaseDate,
+        age_days_in_playlist: ageDays,
+        // legacy fields (mantidos null pra compat)
+        streams_28d: null,
+        growth_28d_pct: null,
+        saturation_index: nichePlaylistCount > 0 ? saturationPct / 100 : null,
+        momentum: null,
+        confidence: popularity != null ? 1 : null,
       };
     });
 
@@ -236,8 +317,8 @@ Deno.serve(async (req) => {
       promote: tracksAnalysis.filter((x) => x.status === "promote").length,
       demote: tracksAnalysis.filter((x) => x.status === "demote").length,
     };
-    const saturatedCount = tracksAnalysis.filter((x) => x.saturation_index != null && x.saturation_index > SATURATION_HIGH).length;
-    const noDataCount = tracksAnalysis.filter((x) => x.confidence == null).length;
+    const saturatedCount = tracksAnalysis.filter((x) => x.saturation_pct >= 70).length;
+    const noDataCount = tracksAnalysis.filter((x) => x.popularity == null).length;
 
     const tracksSummary = {
       ...counts,
@@ -245,6 +326,7 @@ Deno.serve(async (req) => {
       saturated_pct: totalTracks ? Math.round((saturatedCount / totalTracks) * 100) : 0,
       no_data: noDataCount,
       missing_artists: missingArtists,
+      niche_playlist_count: nichePlaylistCount,
     };
 
     // 7) Sugestões de faixas a ADICIONAR — do nicho, ainda não presentes na playlist
