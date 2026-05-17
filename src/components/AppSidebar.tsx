@@ -108,9 +108,24 @@ const sections: NavSection[] = [
   },
 ];
 
-function itemIsActive(item: NavItem, pathname: string): boolean {
-  if (item.end) return pathname === item.url;
-  if (pathname === item.url || pathname.startsWith(item.url + "/")) return true;
+function itemIsActive(item: NavItem, pathname: string, search: string): boolean {
+  const [itemPath, itemQuery] = item.url.split("?");
+  const currentParams = new URLSearchParams(search);
+  const matchQuery = (q?: string) => {
+    if (!q) return true;
+    const expected = new URLSearchParams(q);
+    for (const [k, v] of expected) if (currentParams.get(k) !== v) return false;
+    return true;
+  };
+  if (item.end) return pathname === itemPath && matchQuery(itemQuery);
+  // Se o item tem query string, precisa bater path + query
+  if (itemQuery) {
+    return (pathname === itemPath || pathname.startsWith(itemPath + "/")) && matchQuery(itemQuery);
+  }
+  // Item sem query: só fica ativo quando NÃO há nenhuma query "tab" concorrente que pertença a outro item
+  const tabParam = currentParams.get("tab");
+  const hasSiblingTab = tabParam && ["prospeccao"].includes(tabParam);
+  if ((pathname === itemPath || pathname.startsWith(itemPath + "/")) && !hasSiblingTab) return true;
   return (item.matchPaths ?? []).some(
     (p) => pathname === p || pathname.startsWith(p + "/"),
   );
