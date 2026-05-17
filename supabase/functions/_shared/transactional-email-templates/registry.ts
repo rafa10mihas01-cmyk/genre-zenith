@@ -10,7 +10,9 @@ export interface TemplateEntry {
 }
 
 import { template as spotifySessionExpired } from './spotify-session-expired.tsx'
+import { template as curatorOutreach } from './curator-outreach.tsx'
 
 export const TEMPLATES: Record<string, TemplateEntry> = {
   'spotify-session-expired': spotifySessionExpired,
+  'curator-outreach': curatorOutreach,
 }

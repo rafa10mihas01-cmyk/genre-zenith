@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { downloadCSV } from "@/lib/csv";
+import { EmailPreviewDialog, openInstagramWithMessage } from "./EmailPreviewDialog";
 
 /* ============================================================
    Tipos & helpers
@@ -361,6 +362,7 @@ export function CuradoresCRM({ segment }: { segment?: Segment } = {}) {
   const [pageSize, setPageSize] = useState<number>(50);
   type ExpandedFilter = "status" | "score" | "tamanho" | null;
   const [expandedFilter, setExpandedFilter] = useState<ExpandedFilter>(null);
+  const [emailTarget, setEmailTarget] = useState<{ externalCuratorId: string; recipientEmail: string; curatorName: string; playlistName: string | null } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const load = async () => {
@@ -708,7 +710,20 @@ export function CuradoresCRM({ segment }: { segment?: Segment } = {}) {
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-            {pageRows.map((r) => <CuradorRowCard key={r.id} r={r} onUpdate={updateRow} onRemove={removeRow} />)}
+            {pageRows.map((r) => (
+              <CuradorRowCard
+                key={r.id}
+                r={r}
+                onUpdate={updateRow}
+                onRemove={removeRow}
+                onOpenEmail={(row) => setEmailTarget({
+                  externalCuratorId: row.id,
+                  recipientEmail: row.email!,
+                  curatorName: row.owner_name || row.name,
+                  playlistName: row.name,
+                })}
+              />
+            ))}
           </div>
           {totalPages > 1 && (
             <div className="flex items-center justify-center gap-1 pt-2">
@@ -723,6 +738,13 @@ export function CuradoresCRM({ segment }: { segment?: Segment } = {}) {
           )}
         </>
       )}
+
+      <EmailPreviewDialog
+        open={!!emailTarget}
+        onOpenChange={(v) => { if (!v) setEmailTarget(null); }}
+        target={emailTarget}
+        onSent={() => load()}
+      />
     </div>
   );
 }
@@ -776,11 +798,12 @@ function MiniStat({ label, value, tone }: { label: string; value: number; tone?:
 }
 
 function CuradorRowCard({
-  r, onUpdate, onRemove,
+  r, onUpdate, onRemove, onOpenEmail,
 }: {
   r: CuradorRow;
   onUpdate: (id: string, patch: Partial<CuradorRow>) => void;
   onRemove: (id: string) => void;
+  onOpenEmail: (row: CuradorRow) => void;
 }) {
   const sc = scoreOf(r);
 
@@ -789,15 +812,15 @@ function CuradorRowCard({
     navigator.clipboard.writeText(r.email);
     toast.success("Email copiado");
   };
-  const mailto = () => {
+  const openEmail = () => {
     if (!r.email) return;
-    const subject = encodeURIComponent(`Parceria — ${r.name}`);
-    const body = encodeURIComponent(
-      `Olá! Vi sua playlist "${r.name}" no Spotify e gostaria de conversar sobre uma parceria de divulgação. Tem interesse?\n\n— enviado via NexEngine`,
-    );
-    window.location.href = `mailto:${r.email}?subject=${subject}&body=${body}`;
+    onOpenEmail(r);
   };
-  const igUrl = r.instagram ? `https://instagram.com/${r.instagram.replace(/^@/, "")}` : null;
+  const openIg = () => {
+    if (!r.instagram) return;
+    openInstagramWithMessage(r.instagram, r.owner_name || r.name, r.name);
+  };
+  const igHandle = r.instagram ? r.instagram.replace(/^@/, "") : null;
 
   // Status dot color
   const statusDot =
@@ -872,22 +895,23 @@ function CuradorRowCard({
       <div className="px-4 py-3 flex flex-wrap gap-1.5 min-h-[44px]">
         {r.email && (
           <button
-            onClick={copyEmail}
+            onClick={openEmail}
             className="px-2 py-0.5 bg-elevated border border-border rounded text-[10px] text-foreground/80 font-medium flex items-center gap-1 hover:border-primary/40 transition-colors max-w-full"
-            title={r.email}
+            title={`Enviar apresentação para ${r.email}`}
           >
             <Mail className="w-3 h-3 text-primary shrink-0" />
             <span className="truncate">{r.email}</span>
           </button>
         )}
-        {igUrl && (
-          <a
-            href={igUrl} target="_blank" rel="noreferrer"
+        {igHandle && (
+          <button
+            onClick={openIg}
             className="px-2 py-0.5 bg-elevated border border-border rounded text-[10px] text-foreground/80 font-medium flex items-center gap-1 hover:border-primary/40 transition-colors"
+            title={`Abrir DM de @${igHandle} e copiar mensagem`}
           >
             <Instagram className="w-3 h-3 text-pink-500" />
-            <span className="truncate max-w-[120px]">@{r.instagram?.replace(/^@/, "")}</span>
-          </a>
+            <span className="truncate max-w-[120px]">@{igHandle}</span>
+          </button>
         )}
         {r.links && (
           <a
@@ -899,7 +923,7 @@ function CuradorRowCard({
             Link
           </a>
         )}
-        {!r.email && !igUrl && !r.links && (
+        {!r.email && !igHandle && !r.links && (
           <span className="text-[10px] text-muted-foreground italic self-center">Sem contato direto</span>
         )}
       </div>
@@ -918,7 +942,7 @@ function CuradorRowCard({
           )}
           {r.email && (
             <button
-              onClick={mailto}
+              onClick={openEmail}
               className="p-1.5 hover:bg-primary/20 text-muted-foreground hover:text-primary rounded transition-colors"
               title="Enviar email"
             >
