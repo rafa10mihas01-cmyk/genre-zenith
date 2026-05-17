@@ -15,6 +15,7 @@ import { BotSaudeCard } from "./BotSaudeCard";
 type Health = {
   spotify: { ok: boolean; expires_at?: string; expired?: boolean; last_verified?: string };
   execucao: { ok: boolean; pending: number; failed: number; lastDone?: string };
+  alertas: { ok: boolean; critical: number; warning: number; lastAt?: string };
   hoje: { jobs_done: number; deals_ativos: number };
 };
 
