@@ -145,10 +145,12 @@ Deno.serve(async (req) => {
       .maybeSingle();
     const expSoon = !appRow || new Date(appRow.expires_at).getTime() - Date.now() < 10 * 60 * 1000;
     if (expSoon) {
+      const appCreds = await getAppCredentials();
+      const appBasic = btoa(`${appCreds.client_id}:${appCreds.client_secret}`);
       const ar = await fetch("https://accounts.spotify.com/api/token", {
         method: "POST",
         headers: {
-          Authorization: `Basic ${basic}`,
+          Authorization: `Basic ${appBasic}`,
           "Content-Type": "application/x-www-form-urlencoded",
         },
         body: "grant_type=client_credentials",
@@ -158,7 +160,7 @@ Deno.serve(async (req) => {
         const access_token: string = aj.access_token;
         const expires_at = new Date(Date.now() + (aj.expires_in ?? 3600) * 1000).toISOString();
         await sb.from("spotify_tokens").upsert(
-          { singleton_key: "app", access_token, expires_at },
+          { singleton_key: "app", access_token, expires_at, app_id: appCreds.app_id },
           { onConflict: "singleton_key" },
         );
         appTokenRefreshed = true;
