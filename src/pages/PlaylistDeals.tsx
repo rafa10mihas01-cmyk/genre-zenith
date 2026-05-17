@@ -246,8 +246,6 @@ export default function PlaylistDeals() {
   const tabCount = (id: DealsTab) => {
     if (id === "all") return kpi.total;
     if (id === "done") return kpi.done;
-    if (id === "library") return curators.filter((c) => !c.archived_at).length;
-    if (id === "clients") return clients.filter((c) => !c.archived_at).length;
     return kpi.active;
   };
 
