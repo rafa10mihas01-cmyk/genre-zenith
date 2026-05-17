@@ -907,7 +907,7 @@ function DistributionTable({
                   <React.Fragment key={`${s.playlistId}-${s.position}-${i}`}>
                     {showBandHeader && (
                       <tr key={`hd-${s.band}`} className="bg-elevated/60">
-                        <td colSpan={6} className="py-1.5 px-3 text-[10px] uppercase tracking-[0.15em] font-semibold text-muted-foreground border-b border-border">
+                        <td colSpan={onToggleSlot ? 7 : 6} className="py-1.5 px-3 text-[10px] uppercase tracking-[0.15em] font-semibold text-muted-foreground border-b border-border">
                           <span className="inline-flex items-center gap-1.5">
                             <span className={cn(
                               "w-1.5 h-1.5 rounded-full",
