@@ -562,12 +562,25 @@ export function CuradoresCRM({ segment }: { segment?: Segment } = {}) {
         {/* Chips */}
         <div className="flex items-center gap-1.5 flex-wrap mt-3">
           <Filter className="h-3.5 w-3.5 text-muted-foreground" />
-          {(["todos","novo","negociando","comprado","blacklist"] as const).map((s) => (
-            <Chip key={s} active={statusFilter === s} onClick={() => setStatusFilter(s)}>
-              {s === "todos" ? "Todos" : STATUS_META[s].label}
-            </Chip>
-          ))}
-          <span className="mx-1 text-muted-foreground/50">·</span>
+          {segment === "prospeccao" ? (
+            <>
+              {(["todos","novo","negociando","blacklist"] as const).map((s) => (
+                <Chip key={s} active={statusFilter === s} onClick={() => setStatusFilter(s)}>
+                  {s === "todos" ? "Todos" : STATUS_META[s].label}
+                </Chip>
+              ))}
+              <span className="mx-1 text-muted-foreground/50">·</span>
+            </>
+          ) : segment === "ativos" ? null : (
+            <>
+              {(["todos","novo","negociando","comprado","blacklist"] as const).map((s) => (
+                <Chip key={s} active={statusFilter === s} onClick={() => setStatusFilter(s)}>
+                  {s === "todos" ? "Todos" : STATUS_META[s].label}
+                </Chip>
+              ))}
+              <span className="mx-1 text-muted-foreground/50">·</span>
+            </>
+          )}
           {(["todos","A+","A","B","C","D"] as const).map((s) => (
             <Chip key={s} active={scoreFilter === s} onClick={() => setScoreFilter(s)}>
               {s === "todos" ? "Todos scores" : s}
