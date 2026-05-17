@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import nexengineLogo from "@/assets/nexengine-logo-on-white.png";
 
 type Target = {
   externalCuratorId: string;
