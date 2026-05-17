@@ -286,9 +286,13 @@ function EmailPreviewRender({
   return (
     <div className="bg-white text-[#0f172a] rounded-xl border border-border overflow-hidden">
       {/* Brand */}
-      <div className="text-center py-6 px-6 bg-white">
-        <div className="text-[20px] font-bold tracking-tight text-[#0f172a]">NexEngine</div>
-        <div className="text-[10px] uppercase tracking-[0.16em] text-[#94a3b8] mt-1">
+      <div className="text-center pt-8 pb-6 px-6 bg-white">
+        <img
+          src={nexengineLogo}
+          alt="NexEngine"
+          className="mx-auto h-10 w-auto object-contain"
+        />
+        <div className="text-[10px] uppercase tracking-[0.16em] text-[#94a3b8] mt-3">
           Distribuição & Curadoria
         </div>
       </div>
