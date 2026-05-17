@@ -413,7 +413,11 @@ export default function Operacao() {
           </section>
         )}
 
-        {/* Prospecção de curadores foi consolidada dentro de /deals (aba Curadores). */}
+        {tab === "prospeccao" && (
+          <section className="space-y-6">
+            <CuradoresCRM />
+          </section>
+        )}
 
       </div>
     </PageContainer>
