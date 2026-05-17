@@ -19,24 +19,19 @@ import Settings from "@/pages/Settings";
 import Infraestrutura from "@/pages/Infraestrutura";
 
 type SistemaTab =
-  | "fluxo" | "ao-vivo" | "robo" | "coleta" | "execucao" | "saude" | "alertas" | "ecosystem-score" | "playlist-score" | "recomendacoes" | "impacto" | "infra" | "aposentadoria" | "configuracoes";
+  | "fluxo" | "robo" | "coleta" | "execucao" | "ao-vivo" | "saude" | "alertas" | "infra" | "configuracoes";
 
 type TabDef = { id: SistemaTab; label: string; icon: typeof Activity; adminOnly?: boolean };
 
 const TABS: TabDef[] = [
   { id: "fluxo", label: "Fluxo", icon: Workflow },
-  { id: "ao-vivo", label: "Ao Vivo", icon: Activity },
   { id: "robo", label: "Robô", icon: Bot },
   { id: "coleta", label: "Coleta", icon: Music2 },
   { id: "execucao", label: "Execução", icon: ListPlus },
+  { id: "ao-vivo", label: "Ao Vivo", icon: Activity },
   { id: "saude", label: "Saúde", icon: HeartPulse },
   { id: "alertas", label: "Alertas", icon: Bell },
-  { id: "ecosystem-score", label: "Ecosystem Score", icon: Gauge, adminOnly: true },
-  { id: "playlist-score", label: "Playlist Score", icon: ListMusic, adminOnly: true },
-  { id: "recomendacoes", label: "Recomendações", icon: Sparkles, adminOnly: true },
-  { id: "impacto", label: "Impacto", icon: TrendingUp, adminOnly: true },
   { id: "infra", label: "Infraestrutura", icon: Server, adminOnly: true },
-  { id: "aposentadoria", label: "Aposentadoria", icon: Archive, adminOnly: true },
   { id: "configuracoes", label: "Configurações", icon: SettingsIcon },
 ];
 
