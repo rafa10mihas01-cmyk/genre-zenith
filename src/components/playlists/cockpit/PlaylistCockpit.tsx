@@ -321,7 +321,7 @@ export function PlaylistCockpit({
           <Collapsible>
             <Card className="overflow-hidden">
               <CollapsibleTrigger asChild>
-                <button className="w-full p-4 flex items-center justify-between hover:bg-elevated/40 transition-colors text-left">
+                <button className="group w-full p-4 flex items-center justify-between hover:bg-elevated/40 transition-colors text-left">
                   <div className="flex items-center gap-2">
                     <Music2 className="h-4 w-4 text-muted-foreground" />
                     <div>
@@ -331,7 +331,7 @@ export function PlaylistCockpit({
                       </div>
                     </div>
                   </div>
-                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform data-[state=open]:rotate-180" />
+                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
                 </button>
               </CollapsibleTrigger>
               <CollapsibleContent>
