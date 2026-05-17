@@ -52,6 +52,14 @@ type CuradorRow = {
   status: Status;
   favorite: boolean;
   notes: string | null;
+  // CRM operacional
+  pipeline_status: PipelineStatus;
+  commercial_score: CommercialScore | null;
+  operational_tags: string[];
+  whatsapp: string | null;
+  last_outreach_at: string | null;
+  last_response_at: string | null;
+  followup_count: number;
 };
 
 type ExternalCuratorInsert = TablesInsert<"external_curators">;
