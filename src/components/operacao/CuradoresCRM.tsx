@@ -519,9 +519,18 @@ export function CuradoresCRM({ segment }: { segment?: Segment } = {}) {
   /* -------- render -------- */
   return (
     <div className="space-y-4">
-      {/* Toolbar */}
-      <div className="nx-card !p-3">
+      {/* Toolbar — busca + ações */}
+      <div className="nx-card !p-4 space-y-4">
         <div className="flex items-center gap-2 flex-wrap">
+          <div className="relative flex-1 min-w-[240px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar playlist, owner ou email…"
+              className="pl-9 h-10 rounded-lg bg-elevated border-border"
+            />
+          </div>
           <input
             ref={fileRef}
             type="file"
@@ -532,73 +541,60 @@ export function CuradoresCRM({ segment }: { segment?: Segment } = {}) {
           <Button
             onClick={() => fileRef.current?.click()}
             disabled={importing}
-            className="rounded-full h-9 gap-1.5"
+            variant="outline"
+            size="sm"
+            className="h-10 gap-1.5"
           >
             {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-            Importar XLSX/CSV
+            Importar
           </Button>
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar playlist, owner ou email…"
-              className="pl-9 h-9 rounded-full bg-elevated"
-            />
-          </div>
-          <Button variant="outline" size="sm" className="rounded-full h-9" onClick={exportCSV}>
+          <Button variant="outline" size="sm" className="h-10" onClick={exportCSV}>
             <Download className="h-3.5 w-3.5 mr-1.5" /> Exportar
           </Button>
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
-            className="rounded-full h-9 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
+            className="h-10 text-destructive hover:text-destructive hover:bg-destructive/10"
             onClick={clearAll}
           >
-            <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Limpar tudo
+            <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Limpar
           </Button>
         </div>
 
-        {/* Chips */}
-        <div className="flex items-center gap-1.5 flex-wrap mt-3">
-          <Filter className="h-3.5 w-3.5 text-muted-foreground" />
-          {segment === "prospeccao" ? (
-            <>
-              {(["todos","novo","negociando","blacklist"] as const).map((s) => (
+        {/* Filtros em linhas etiquetadas */}
+        <div className="grid gap-2.5 pt-1 border-t border-border/50">
+          {segment !== "ativos" && (
+            <FilterRow label="Status">
+              {(segment === "prospeccao"
+                ? (["todos","novo","negociando","blacklist"] as const)
+                : (["todos","novo","negociando","comprado","blacklist"] as const)
+              ).map((s) => (
                 <Chip key={s} active={statusFilter === s} onClick={() => setStatusFilter(s)}>
                   {s === "todos" ? "Todos" : STATUS_META[s].label}
                 </Chip>
               ))}
-              <span className="mx-1 text-muted-foreground/50">·</span>
-            </>
-          ) : segment === "ativos" ? null : (
-            <>
-              {(["todos","novo","negociando","comprado","blacklist"] as const).map((s) => (
-                <Chip key={s} active={statusFilter === s} onClick={() => setStatusFilter(s)}>
-                  {s === "todos" ? "Todos" : STATUS_META[s].label}
-                </Chip>
-              ))}
-              <span className="mx-1 text-muted-foreground/50">·</span>
-            </>
+            </FilterRow>
           )}
-          {(["todos","A+","A","B","C","D"] as const).map((s) => (
-            <Chip key={s} active={scoreFilter === s} onClick={() => setScoreFilter(s)}>
-              {s === "todos" ? "Todos scores" : s}
-            </Chip>
-          ))}
-          <Chip active={favOnly} onClick={() => setFavOnly(!favOnly)}>
-            <Star className="h-3 w-3 inline mr-1" /> Favoritos
-          </Chip>
-        </div>
 
-        {/* Faixa de tamanho (seguidores) */}
-        <div className="flex items-center gap-1.5 flex-wrap mt-2">
-          <span className="text-[10.5px] uppercase tracking-[0.12em] text-muted-foreground mr-1">Tamanho</span>
-          {SIZE_BUCKETS.map((b) => (
-            <Chip key={b.id} active={sizeFilter === b.id} onClick={() => setSizeFilter(b.id)}>
-              {b.label}
+          <FilterRow label="Score">
+            {(["todos","A+","A","B","C","D"] as const).map((s) => (
+              <Chip key={s} active={scoreFilter === s} onClick={() => setScoreFilter(s)}>
+                {s === "todos" ? "Todos" : s}
+              </Chip>
+            ))}
+            <span className="mx-1 text-muted-foreground/40">·</span>
+            <Chip active={favOnly} onClick={() => setFavOnly(!favOnly)}>
+              <Star className={cn("h-3 w-3 inline mr-1", favOnly && "fill-current")} /> Favoritos
             </Chip>
-          ))}
+          </FilterRow>
+
+          <FilterRow label="Tamanho">
+            {SIZE_BUCKETS.map((b) => (
+              <Chip key={b.id} active={sizeFilter === b.id} onClick={() => setSizeFilter(b.id)}>
+                {b.label}
+              </Chip>
+            ))}
+          </FilterRow>
         </div>
       </div>
 
@@ -686,6 +682,19 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
     </button>
   );
 }
+function FilterRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-2 flex-wrap">
+      <span className="text-[10.5px] uppercase tracking-[0.12em] text-muted-foreground font-medium w-[64px] shrink-0">
+        {label}
+      </span>
+      <div className="flex items-center gap-1.5 flex-wrap">
+        {children}
+      </div>
+    </div>
+  );
+}
+
 
 function MiniStat({ label, value, tone }: { label: string; value: number; tone?: "primary" | "warning" }) {
   return (
