@@ -102,7 +102,10 @@ Deno.serve(async (req) => {
     });
     const txt = await r.text();
     if (!r.ok) {
-      return jr({ ok: false, error: `Spotify ${r.status}: ${txt.slice(0, 300)}` }, 502);
+      const hint = r.status === 403
+        ? ` — dono da playlist é "${ownerId ?? "?"}"; reconecte essa conta em Configurações com escopos playlist-modify-public/private.`
+        : "";
+      return jr({ ok: false, error: `Spotify ${r.status}: ${txt.slice(0, 300)}${hint}` }, 502);
     }
     let snapshot: string | null = null;
     try { snapshot = JSON.parse(txt)?.snapshot_id ?? null; } catch { /* ignore */ }
