@@ -6,7 +6,7 @@ import {
   AlertCircle, Wrench, ChevronDown, ChevronUp, Server, Sparkles, Heart, Target,
 } from "lucide-react";
 import { MinhasPlaylists } from "@/components/operacao/MinhasPlaylists";
-import { PlanejadorMeta } from "@/components/operacao/PlanejadorMeta";
+
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -47,12 +47,6 @@ const ACTION_LABEL: Record<string, string> = {
 };
 const labelAction = (a: string) => ACTION_LABEL[a] ?? a.replace(/_/g, " ");
 
-const TABS = [
-  { id: "minhas",      label: "Minhas Playlists", icon: Sparkles },
-  { id: "campanha",    label: "Campanha",         icon: Target },
-] as const;
-
-type TabId = typeof TABS[number]["id"];
 
 type OpPlaylist = {
   id: string;
@@ -85,7 +79,7 @@ type AccountSummary = {
 };
 
 export default function Operacao() {
-  const [tab, setTab] = useScreenField<TabId>("/catalogo", "tab", "minhas");
+  
   const [filter, setFilter] = useScreenField<"todas" | OpStatus>("/catalogo", "filter", "todas");
   const [search, setSearch] = useScreenField<string>("/catalogo", "search", "");
   const [loading, setLoading] = useState(true);
@@ -278,50 +272,11 @@ export default function Operacao() {
         <KpiBig icon={Server}        label="Capacidade"    value={kpi.capacidade}              tone={kpi.capacidadePct >= 80 ? "warning" : "default"} hint={`${accountsSummary.active} contas ativas`} loading={loading} />
       </section>
 
-      {/* TABS — 3 abas operacionais */}
-      <div className="sticky top-0 z-30 -mt-px bg-background/95 supports-[backdrop-filter]:bg-background/80 backdrop-blur-md border-b border-border -mx-4 md:-mx-6">
-        <div className="nx-tab-rail items-center gap-1 px-4 md:px-6">
-          {TABS.map(t => {
-          const Icon = t.icon;
-          const active = tab === t.id;
-          return (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={cn(
-                "px-4 h-10 inline-flex items-center gap-2 text-sm font-medium border-b-2 transition-colors -mb-px shrink-0 whitespace-nowrap",
-                active
-                  ? "border-primary text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <Icon className="h-3.5 w-3.5" />
-              {t.label}
-            </button>
-          );
-          })}
-        </div>
-      </div>
-
-      {/* Container das tabs com altura mínima estável (evita layout shift) */}
+      {/* Conteúdo único — Minhas Playlists (Simulador foi movido para /campanhas) */}
       <div className="min-h-[640px]">
-        {/* MINHAS PLAYLISTS — foco principal */}
-        {tab === "minhas" && (
-          <section key="tab-minhas" className="animate-tab-in">
-            <MinhasPlaylists />
-          </section>
-        )}
-
-        {/* (abas "Criadas auto" e "Ajustes" removidas — redundantes com Minhas Playlists) */}
-
-        {/* CAMPANHA — planejador de meta de plays */}
-        {tab === "campanha" && (
-          <section key="tab-campanha" className="animate-tab-in">
-            <PlanejadorMeta />
-          </section>
-        )}
-
+        <MinhasPlaylists />
       </div>
+
     </PageContainer>
   );
 }
