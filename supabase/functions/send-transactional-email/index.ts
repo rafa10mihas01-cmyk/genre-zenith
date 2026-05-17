@@ -5,15 +5,12 @@ import { TEMPLATES } from '../_shared/transactional-email-templates/registry.ts'
 
 // Configuration baked in at scaffold time — do NOT change these manually.
 // To update, re-run the email domain setup flow.
-const SITE_NAME = "genre-zenith"
-// SENDER_DOMAIN is the verified sender subdomain FQDN (e.g., "notify.example.com").
-// It MUST match the subdomain delegated to Lovable's nameservers — never the root domain.
-// The email API looks up this exact domain; a mismatch causes "No email domain record found".
+const SITE_NAME = "NexEngine"
 const SENDER_DOMAIN = "notify.engine.nexcreatorx.com"
-// FROM_DOMAIN is the domain shown in the From: header (e.g., "example.com").
-// When display_from_root is enabled, this can be the root domain for cleaner branding,
-// even though actual sending uses the subdomain above.
 const FROM_DOMAIN = "notify.engine.nexcreatorx.com"
+// Local-part of the From: address. Use "parcerias" for outreach emails;
+// the API still authenticates via the verified SENDER_DOMAIN subdomain.
+const FROM_LOCAL_PART = "parcerias"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
