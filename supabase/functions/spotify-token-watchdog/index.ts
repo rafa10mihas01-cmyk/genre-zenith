@@ -54,7 +54,7 @@ Deno.serve(async (req) => {
 
   const { data: accounts, error } = await sb
     .from("spotify_user_tokens")
-    .select("id, spotify_user_id, refresh_token, expires_at")
+    .select("id, spotify_user_id, refresh_token, expires_at, app_id")
     .lt("expires_at", threshold);
 
   if (error) {
@@ -66,12 +66,24 @@ Deno.serve(async (req) => {
   }
 
   const results: any[] = [];
-  const basic = btoa(`${CLIENT_ID}:${CLIENT_SECRET}`);
   let okCount = 0;
   let failCount = 0;
 
+  // Cache de credenciais por app pra evitar N lookups
+  const credsCache: Record<string, { client_id: string; client_secret: string; name: string }> = {};
+  async function credsFor(appId: string | null) {
+    const key = appId ?? "__env__";
+    if (!credsCache[key]) {
+      const c = await getAppCredentials(appId);
+      credsCache[key] = { client_id: c.client_id, client_secret: c.client_secret, name: c.name };
+    }
+    return credsCache[key];
+  }
+
   for (const acc of accounts ?? []) {
     try {
+      const c = await credsFor(acc.app_id ?? null);
+      const basic = btoa(`${c.client_id}:${c.client_secret}`);
       const r = await fetch("https://accounts.spotify.com/api/token", {
         method: "POST",
         headers: {
