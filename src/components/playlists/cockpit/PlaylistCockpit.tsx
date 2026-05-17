@@ -291,6 +291,9 @@ export function PlaylistCockpit({
           {/* ============ CICLO CURATORIAL — banner editorial ============ */}
           <EditorialBanner diag={diag} onRediagnose={runDiagnose} running={running} />
 
+          {/* ============ MEMÓRIA DE IMPACTO ============ */}
+          <AdjustmentTimeline playlistId={managedId} />
+
           {/* ============ 2. IDENTIDADE ============ */}
           <SectionTitle>Identidade da playlist</SectionTitle>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
