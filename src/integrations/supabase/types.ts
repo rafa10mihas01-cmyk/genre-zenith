@@ -2974,7 +2974,9 @@ export type Database = {
           name_suggestion: string | null
           playlist_id: string
           raw: Json
+          tracks_analysis: Json
           tracks_suggestions: Json
+          tracks_summary: Json
         }
         Insert: {
           applied_at?: string | null
@@ -2991,7 +2993,9 @@ export type Database = {
           name_suggestion?: string | null
           playlist_id: string
           raw?: Json
+          tracks_analysis?: Json
           tracks_suggestions?: Json
+          tracks_summary?: Json
         }
         Update: {
           applied_at?: string | null
@@ -3008,7 +3012,9 @@ export type Database = {
           name_suggestion?: string | null
           playlist_id?: string
           raw?: Json
+          tracks_analysis?: Json
           tracks_suggestions?: Json
+          tracks_summary?: Json
         }
         Relationships: [
           {
