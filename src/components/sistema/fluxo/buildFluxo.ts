@@ -1,6 +1,4 @@
-// buildFluxo — pipeline real do NexEngine hoje:
-// Descoberta → Filtro → Catálogo → Deal → Execução.
-// Sem Cérebro/Templates/Capas (módulo aposentado).
+// buildFluxo — pipeline real do NexEngine hoje: Spotify → Filtro → Catálogo → Deal → Execução.
 import { Search, Filter, Library, Handshake, ListMusic } from "lucide-react";
 import type {
   FluxoNodeData, FluxoRun, NodeStatus, LogPretty,
