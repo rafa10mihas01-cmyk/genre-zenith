@@ -15,6 +15,7 @@ import {
   Flame, Snowflake, Activity, Users, Crown, Target, Check,
 } from "lucide-react";
 import { PlaylistTracksTab } from "@/components/playlists/PlaylistTracksTab";
+import { ProjecaoFaixa } from "@/components/operacao/SimuladorEntrega";
 
 // -------------------- types --------------------
 type AnalysisTrack = {
