@@ -1,14 +1,21 @@
-// genre-spotify-discover — Caminho B: bypass do bot scraper.
-// Busca playlists públicas + tracks no Spotify API direto e popula
-// search_results + search_tracks. Habilita o ciclo de aprendizado.
+// genre-spotify-discover — Esteira UNIFICADA (Spotify API direto).
+// Onda 1: aplica o MESMO gate textual / blacklist / Phase-2 gate / quality_score
+// usado por run-search. Nenhuma playlist entra com is_valid=true sem passar
+// pelos filtros + sem enrich obrigatório.
 //
 // POST { genre_id: string, max_terms?: number, max_playlists_per_term?: number, max_tracks_per_playlist?: number }
-//
-// Idempotente — upsert por spotify_playlist_id / spotify_track_id.
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
 import { getSpotifyToken } from "../_shared/spotify.ts";
+import {
+  loadGateContext,
+  scoreAndGate,
+  computeQualityScore,
+  phase2Fail,
+  QUALITY_SCORE_VERSION,
+} from "../_shared/discovery-scoring.ts";
+import { classifyOwner } from "../_shared/labels.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -22,7 +29,6 @@ function jr(p: unknown, status = 200) {
 
 const YEAR = new Date().getFullYear();
 
-// Termos default quando o gênero não tem search_terms cadastrados ainda.
 function defaultTerms(slug: string, nome: string): string[] {
   const base = nome || slug;
   return [
@@ -79,6 +85,8 @@ Deno.serve(async (req) => {
       terms_used: 0,
       playlists_seen: 0,
       playlists_upserted: 0,
+      playlists_rejected_gate: 0,
+      playlists_phase2_failed: 0,
       tracks_upserted: 0,
       errors: [] as string[],
     };
@@ -107,10 +115,9 @@ Deno.serve(async (req) => {
     stats.terms_used = termRows.length;
 
     const token = await getSpotifyToken();
+    const gateCtx = await loadGateContext(supabase, genreId);
 
-    // 2) Pra cada termo, busca playlists.
     const seenPlaylistIds = new Set<string>();
-    const newPlaylistRows: Array<{ result_id: string; spotify_playlist_id: string }> = [];
 
     for (let ti = 0; ti < termRows.length; ti++) {
       const term = termRows[ti];
@@ -118,6 +125,7 @@ Deno.serve(async (req) => {
         const url = `https://api.spotify.com/v1/search?type=playlist&limit=${maxPlsPerTerm}&q=${encodeURIComponent(term.termo)}`;
         const data = await spotifyFetch(token, url);
         const items = data?.playlists?.items ?? [];
+        const ctxForTerm = { ...gateCtx, termLower: term.termo.toLowerCase() };
 
         for (let i = 0; i < items.length; i++) {
           const p = items[i];
@@ -126,101 +134,129 @@ Deno.serve(async (req) => {
           if (seenPlaylistIds.has(p.id)) continue;
           seenPlaylistIds.add(p.id);
 
+          const nomePl = p.name ?? "(sem nome)";
           const followers = p.followers?.total ?? null;
           const totalTracks = p.tracks?.total ?? null;
           const img = p.images?.[0]?.url ?? null;
+          const descricao = p.description ?? null;
 
-          const payload = {
+          // ====== GATE UNIFICADO (mesmo do run-search) ======
+          const gate = scoreAndGate(ctxForTerm, { nomePl, descricao, followers });
+          if (gate.hardBlock) {
+            stats.playlists_rejected_gate++;
+            continue;
+          }
+
+          // ====== ENRICH OBRIGATÓRIO (Spotify detail) ======
+          let detailFollowers = followers;
+          let detailTracks = totalTracks;
+          let ownerId: string | null = null;
+          let ownerType: string | null = null;
+          let trackItems: any[] = [];
+          try {
+            const detail = await spotifyFetch(
+              token,
+              `https://api.spotify.com/v1/playlists/${p.id}?fields=followers(total),tracks(total,items(track(id,name,artists(name)))),owner(id)&limit=${maxTracksPerPl}`,
+            );
+            if (detail?.followers?.total != null) detailFollowers = detail.followers.total;
+            if (detail?.tracks?.total != null) detailTracks = detail.tracks.total;
+            ownerId = detail?.owner?.id ?? null;
+            ownerType = ownerId ? classifyOwner(ownerId) : null;
+            trackItems = detail?.tracks?.items ?? [];
+          } catch (e) {
+            stats.errors.push(`detail ${p.id}: ${(e as Error).message}`);
+          }
+
+          // Phase-2 gate
+          const failed = phase2Fail(detailFollowers, detailTracks);
+          const qScore = computeQualityScore({
+            followers: detailFollowers,
+            totalTracks: detailTracks,
+            descricao,
+            imagem: img,
+          });
+          if (failed) stats.playlists_phase2_failed++;
+
+          const verifiedAt = new Date().toISOString();
+          const payload: Record<string, unknown> = {
             genre_id: genreId,
             term_id: term.id,
-            nome_playlist: p.name ?? "(sem nome)",
+            nome_playlist: nomePl,
             posicao: i + 1,
             spotify_url: p.external_urls?.spotify ?? `https://open.spotify.com/playlist/${p.id}`,
             spotify_playlist_id: p.id,
-            seguidores: followers,
+            seguidores: detailFollowers,
             imagem_url: img,
-            descricao: p.description ?? null,
-            total_musicas: totalTracks,
+            descricao,
+            total_musicas: detailTracks,
             followers_source: "spotify_api",
-            followers_verified_at: new Date().toISOString(),
-            last_seen_at: new Date().toISOString(),
+            followers_verified_at: verifiedAt,
+            enriched_at: verifiedAt,
+            quality_score: qScore,
+            quality_score_version: QUALITY_SCORE_VERSION,
+            quality_flag: failed || qScore < 40 ? "low_quality" : null,
+            quality_flagged_at: failed || qScore < 40 ? verifiedAt : null,
+            is_valid: !failed,
+            validation_reason: failed ? "low_quality_post_enrich" : null,
+            needs_enrich: false,
+            enrich_failed: false,
+            score: gate.score,
+            owner_id: ownerId,
+            owner_type: ownerType,
+            last_seen_at: verifiedAt,
           };
 
-          // Procura existente por spotify_playlist_id+genre
           const { data: existing } = await supabase
             .from("search_results")
-            .select("id")
+            .select("id, times_seen")
             .eq("spotify_playlist_id", p.id)
             .eq("genre_id", genreId)
             .maybeSingle();
 
+          let resultId: string | null = null;
           if (existing) {
-            await supabase.from("search_results").update({
-              ...payload,
-              times_seen: undefined,
-            }).eq("id", existing.id);
-            newPlaylistRows.push({ result_id: existing.id, spotify_playlist_id: p.id });
+            await supabase
+              .from("search_results")
+              .update({ ...payload, times_seen: (existing.times_seen ?? 1) + 1 })
+              .eq("id", existing.id);
+            resultId = existing.id;
           } else {
             const { data: ins } = await supabase
               .from("search_results")
-              .insert(payload)
+              .insert({ ...payload, times_seen: 1 })
               .select("id")
               .single();
             if (ins) {
               stats.playlists_upserted++;
-              newPlaylistRows.push({ result_id: ins.id, spotify_playlist_id: p.id });
+              resultId = ins.id;
+            }
+          }
+
+          // Tracks
+          if (resultId && trackItems.length > 0) {
+            const trackRows = trackItems
+              .map((it: any, idx: number) => {
+                const t = it?.track;
+                if (!t || !t.id) return null;
+                return {
+                  genre_id: genreId,
+                  result_id: resultId!,
+                  nome_musica: t.name ?? "",
+                  artista: (t.artists ?? []).map((a: any) => a.name).filter(Boolean).join(", "),
+                  spotify_track_id: t.id,
+                  posicao_na_playlist: idx + 1,
+                };
+              })
+              .filter(Boolean) as any[];
+            if (trackRows.length > 0) {
+              await supabase.from("search_tracks").delete().eq("result_id", resultId);
+              const { error: tErr } = await supabase.from("search_tracks").insert(trackRows);
+              if (!tErr) stats.tracks_upserted += trackRows.length;
             }
           }
         }
       } catch (e) {
         stats.errors.push(`term "${term.termo}": ${(e as Error).message}`);
-      }
-    }
-
-    // 3) Pega detalhes (followers + total_tracks) + tracks das playlists top. Limita pra não estourar tempo.
-    const topPlaylists = newPlaylistRows.slice(0, 30);
-
-    for (const pl of topPlaylists) {
-      try {
-        const url = `https://api.spotify.com/v1/playlists/${pl.spotify_playlist_id}?fields=followers(total),tracks(total,items(track(id,name,artists(name))))&limit=${maxTracksPerPl}`;
-        const data = await spotifyFetch(token, url);
-        const followers = data?.followers?.total ?? null;
-        const totalTracks = data?.tracks?.total ?? null;
-        if (followers !== null || totalTracks !== null) {
-          await supabase.from("search_results").update({
-            seguidores: followers,
-            total_musicas: totalTracks,
-            followers_source: "spotify_api",
-            followers_verified_at: new Date().toISOString(),
-          }).eq("id", pl.result_id);
-        }
-        const items = data?.tracks?.items ?? [];
-
-        const trackRows = items
-          .map((it: any, idx: number) => {
-            const t = it?.track;
-            if (!t || !t.id) return null;
-            return {
-              genre_id: genreId,
-              result_id: pl.result_id,
-              nome_musica: t.name ?? "",
-              artista: (t.artists ?? []).map((a: any) => a.name).filter(Boolean).join(", "),
-              spotify_track_id: t.id,
-              posicao_na_playlist: idx + 1,
-            };
-          })
-          .filter(Boolean);
-
-        if (trackRows.length > 0) {
-          // Delete antigos dessa playlist+genre e insere novos
-          await supabase.from("search_tracks")
-            .delete()
-            .eq("result_id", pl.result_id);
-          const { error: tErr } = await supabase.from("search_tracks").insert(trackRows);
-          if (!tErr) stats.tracks_upserted += trackRows.length;
-        }
-      } catch (e) {
-        stats.errors.push(`playlist ${pl.spotify_playlist_id}: ${(e as Error).message}`);
       }
     }
 
