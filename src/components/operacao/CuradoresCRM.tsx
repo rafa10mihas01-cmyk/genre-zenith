@@ -342,7 +342,9 @@ const SIZE_BUCKETS: { id: SizeBucket; label: string; min: number; max: number }[
   { id: "macro",   label: "20k+",           min: 20000,  max: Infinity },
 ];
 
-export function CuradoresCRM() {
+type Segment = "ativos" | "prospeccao";
+
+export function CuradoresCRM({ segment }: { segment?: Segment } = {}) {
   const [rows, setRows] = useState<CuradorRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
@@ -470,6 +472,10 @@ export function CuradoresCRM() {
     const bucket = SIZE_BUCKETS.find((b) => b.id === sizeFilter)!;
     return rows
       .filter((r) => {
+        // Segmento de alto nível: ativos = curadores com quem já trabalho (comprado);
+        // prospeccao = leads ainda não fechados (novo, negociando, blacklist).
+        if (segment === "ativos" && r.status !== "comprado") return false;
+        if (segment === "prospeccao" && r.status === "comprado") return false;
         if (statusFilter !== "todos" && r.status !== statusFilter) return false;
         if (scoreFilter !== "todos" && r.score !== scoreFilter) return false;
         if (favOnly && !r.favorite) return false;
@@ -482,10 +488,10 @@ export function CuradoresCRM() {
         if (a.favorite !== b.favorite) return a.favorite ? -1 : 1;
         return (b.followers ?? 0) - (a.followers ?? 0);
       });
-  }, [rows, search, statusFilter, scoreFilter, sizeFilter, favOnly]);
+  }, [rows, search, statusFilter, scoreFilter, sizeFilter, favOnly, segment]);
 
   // Reseta página quando filtros mudam
-  useEffect(() => { setPage(1); }, [search, statusFilter, scoreFilter, sizeFilter, favOnly, pageSize]);
+  useEffect(() => { setPage(1); }, [search, statusFilter, scoreFilter, sizeFilter, favOnly, pageSize, segment]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const safePage = Math.min(page, totalPages);
@@ -556,12 +562,25 @@ export function CuradoresCRM() {
         {/* Chips */}
         <div className="flex items-center gap-1.5 flex-wrap mt-3">
           <Filter className="h-3.5 w-3.5 text-muted-foreground" />
-          {(["todos","novo","negociando","comprado","blacklist"] as const).map((s) => (
-            <Chip key={s} active={statusFilter === s} onClick={() => setStatusFilter(s)}>
-              {s === "todos" ? "Todos" : STATUS_META[s].label}
-            </Chip>
-          ))}
-          <span className="mx-1 text-muted-foreground/50">·</span>
+          {segment === "prospeccao" ? (
+            <>
+              {(["todos","novo","negociando","blacklist"] as const).map((s) => (
+                <Chip key={s} active={statusFilter === s} onClick={() => setStatusFilter(s)}>
+                  {s === "todos" ? "Todos" : STATUS_META[s].label}
+                </Chip>
+              ))}
+              <span className="mx-1 text-muted-foreground/50">·</span>
+            </>
+          ) : segment === "ativos" ? null : (
+            <>
+              {(["todos","novo","negociando","comprado","blacklist"] as const).map((s) => (
+                <Chip key={s} active={statusFilter === s} onClick={() => setStatusFilter(s)}>
+                  {s === "todos" ? "Todos" : STATUS_META[s].label}
+                </Chip>
+              ))}
+              <span className="mx-1 text-muted-foreground/50">·</span>
+            </>
+          )}
           {(["todos","A+","A","B","C","D"] as const).map((s) => (
             <Chip key={s} active={scoreFilter === s} onClick={() => setScoreFilter(s)}>
               {s === "todos" ? "Todos scores" : s}
