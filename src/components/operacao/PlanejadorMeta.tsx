@@ -219,7 +219,13 @@ export function PlanejadorMeta() {
   const [days, setDays] = useState<number>(30);
   const [genreId, setGenreId] = useState<string>("");
   const [profile, setProfile] = useState<typeof PROFILES[number]["id"]>("mercado");
-  
+
+  // Aplicar música real
+  const [trackInput, setTrackInput] = useState("");
+  const trackId = useMemo(() => extractTrackId(trackInput), [trackInput]);
+  const [excluded, setExcluded] = useState<Set<string>>(new Set());
+  const [applying, setApplying] = useState(false);
+  const [results, setResults] = useState<ApplyResult[] | null>(null);
 
   useEffect(() => {
     (async () => {
