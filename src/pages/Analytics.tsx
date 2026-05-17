@@ -10,6 +10,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend,
 } from "recharts";
 import { toast } from "@/hooks/use-toast";
+import { AnalyticsTabs } from "@/components/AnalyticsTabs";
 
 type Overview = {
   totals: {
@@ -97,6 +98,7 @@ export default function Analytics() {
       />
 
       <PageContainer>
+        <AnalyticsTabs />
         {/* KPIs */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <Kpi label="Campanhas" value={(data?.totals.total_campaigns ?? 0).toString()} sub={`${data?.totals.active_campaigns ?? 0} ativas`} loading={loading} />
