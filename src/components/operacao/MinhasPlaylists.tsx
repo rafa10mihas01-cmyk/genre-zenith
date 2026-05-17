@@ -116,6 +116,32 @@ export function MinhasPlaylists() {
     }
   }
   const [drawerPl, setDrawerPl] = useState<ManagedPlaylist | null>(null);
+  const [applyingSuggestions, setApplyingSuggestions] = useState(false);
+
+  const applySuggestions = useCallback(async (plId: string, count: number) => {
+    setApplyingSuggestions(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("apply-playlist-suggestions", {
+        body: { playlist_id: plId, limit: count },
+      });
+      if (error || data?.ok === false) {
+        toast({
+          title: "Não foi possível adicionar",
+          description: data?.error ?? error?.message ?? "erro desconhecido",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: `${data?.inserted ?? count} faixas adicionadas no topo`,
+          description: "Rodando novo diagnóstico em seguida…",
+        });
+        // dispara re-diagnóstico em background pra atualizar análise
+        supabase.functions.invoke("diagnose-managed-playlist", { body: { playlist_id: plId } }).catch(() => {});
+      }
+    } finally {
+      setApplyingSuggestions(false);
+    }
+  }, []);
   const [diagnosis, setDiagnosis] = useState<Diagnosis | null>(null);
   const [diagLoading, setDiagLoading] = useState(false);
 
