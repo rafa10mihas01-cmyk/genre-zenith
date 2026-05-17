@@ -16,8 +16,7 @@ import Privacy from "./pages/Privacy";
 import Landing from "./pages/Landing";
 import SpotifyCallback from "./pages/SpotifyCallback";
 import RootRoute from "./components/RootRoute";
-import Cerebro from "./pages/Cerebro";
-import Criacao from "./pages/Criacao";
+// Cérebro e Criação foram aposentados — rotas legadas agora redirecionam para /inteligencia
 import Operacao from "./pages/Operacao";
 import Performance from "./pages/Performance";
 import PlaylistDeals from "./pages/PlaylistDeals";
@@ -100,9 +99,10 @@ const App = () => (
               <Route path="/" element={<RootRoute />} />
               {/* Onda 1 de consolidação: rotas duplicadas viram redirect para a canônica. */}
               <Route path="/executivo" element={<Navigate to="/" replace />} />
-              <Route path="/cerebro" element={<Protected><Cerebro /></Protected>} />
-              <Route path="/cerebro/:slug" element={<Protected><Cerebro /></Protected>} />
-              <Route path="/criacao" element={<Protected><Criacao /></Protected>} />
+              {/* Cérebro e Criação aposentados na consolidação Fase 1 — pipeline morto. */}
+              <Route path="/cerebro" element={<Navigate to="/inteligencia" replace />} />
+              <Route path="/cerebro/:slug" element={<Navigate to="/inteligencia" replace />} />
+              <Route path="/criacao" element={<Navigate to="/inteligencia" replace />} />
               {/* Catálogo é a rota canônica. /operacao e /playlists redirecionam. */}
               <Route path="/catalogo" element={<Protected><Operacao /></Protected>} />
               <Route path="/operacao" element={<Navigate to="/catalogo" replace />} />

@@ -65,20 +65,20 @@ export function CommandPalette({
             <span>Hoje</span>
             <CommandShortcut>G H</CommandShortcut>
           </CommandItem>
-          <CommandItem onSelect={() => go("/cerebro")}>
+          <CommandItem onSelect={() => go("/inteligencia")}>
             <Brain />
-            <span>Cérebro</span>
-            <CommandShortcut>G C</CommandShortcut>
-          </CommandItem>
-          <CommandItem onSelect={() => go("/criacao")}>
-            <Sparkles />
-            <span>Criação</span>
-            <CommandShortcut>G R</CommandShortcut>
+            <span>Inteligência</span>
+            <CommandShortcut>G I</CommandShortcut>
           </CommandItem>
           <CommandItem onSelect={() => go("/catalogo")}>
             <Activity />
             <span>Catálogo</span>
             <CommandShortcut>G O</CommandShortcut>
+          </CommandItem>
+          <CommandItem onSelect={() => go("/deals")}>
+            <Sparkles />
+            <span>Deals</span>
+            <CommandShortcut>G D</CommandShortcut>
           </CommandItem>
           <CommandItem onSelect={() => go("/performance")}>
             <BarChart3 />
@@ -94,17 +94,13 @@ export function CommandPalette({
         <CommandSeparator />
 
         <CommandGroup heading="Ações rápidas">
-          <CommandItem onSelect={() => go("/criacao?tier=hot")}>
-            <Rocket />
-            <span>Publicar melhores templates</span>
-          </CommandItem>
-          <CommandItem onSelect={() => go("/criacao?tier=hot&filter=no-cover")}>
-            <ImageIcon />
-            <span>Templates sem capa</span>
-          </CommandItem>
           <CommandItem onSelect={() => go("/catalogo")}>
             <RefreshCw />
             <span>Ver coleta / atividade</span>
+          </CommandItem>
+          <CommandItem onSelect={() => go("/deals?tab=library")}>
+            <SearchIcon />
+            <span>Procurar curadores</span>
           </CommandItem>
         </CommandGroup>
 
@@ -115,9 +111,8 @@ export function CommandPalette({
               {genres.map((g) => (
                 <CommandItem
                   key={g.id}
-                  // value inclui slug + nome para busca match em ambos
                   value={`${g.nome} ${g.slug}`}
-                  onSelect={() => go(`/cerebro/${g.slug}`)}
+                  onSelect={() => go(`/inteligencia?genero=${g.slug}`)}
                 >
                   <SearchIcon />
                   <span>{g.nome}</span>

@@ -17,8 +17,7 @@ import { AppFooter } from "@/components/AppFooter";
 // Mapa de rótulos curtos para o título no header mobile/tablet
 const ROUTE_TITLES: Record<string, string> = {
   "/": "Hoje",
-  "/cerebro": "Cérebro",
-  "/criacao": "Criação",
+  "/inteligencia": "Inteligência",
   "/catalogo": "Catálogo",
   "/performance": "Performance",
   "/playlist-deals": "Playlist Deals",
