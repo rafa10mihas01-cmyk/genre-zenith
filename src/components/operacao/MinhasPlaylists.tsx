@@ -19,6 +19,7 @@ import {
   History, CheckCircle2, XCircle, Clock, Trash2,
 } from "lucide-react";
 import { PlaylistScoreBadge, type PlaylistScoreRow } from "./PlaylistScoreBadge";
+import { PlaylistTracksAnalysisCard } from "@/components/playlists/PlaylistTracksAnalysisCard";
 
 type ManagedPlaylist = {
   id: string;
