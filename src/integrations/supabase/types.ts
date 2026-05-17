@@ -2496,6 +2496,63 @@ export type Database = {
         }
         Relationships: []
       }
+      managed_playlist_tracks: {
+        Row: {
+          added_at: string | null
+          album_cover: string | null
+          artist_name: string | null
+          created_at: string
+          duration_ms: number | null
+          id: string
+          playlist_id: string
+          position: number
+          snapshot_at: string
+          spotify_track_id: string
+          track_name: string | null
+        }
+        Insert: {
+          added_at?: string | null
+          album_cover?: string | null
+          artist_name?: string | null
+          created_at?: string
+          duration_ms?: number | null
+          id?: string
+          playlist_id: string
+          position: number
+          snapshot_at?: string
+          spotify_track_id: string
+          track_name?: string | null
+        }
+        Update: {
+          added_at?: string | null
+          album_cover?: string | null
+          artist_name?: string | null
+          created_at?: string
+          duration_ms?: number | null
+          id?: string
+          playlist_id?: string
+          position?: number
+          snapshot_at?: string
+          spotify_track_id?: string
+          track_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "managed_playlist_tracks_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "managed_playlists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "managed_playlist_tracks_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_playlist_vps_assignment"
+            referencedColumns: ["managed_playlist_id"]
+          },
+        ]
+      }
       managed_playlists: {
         Row: {
           account_id: string | null
