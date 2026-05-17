@@ -66,6 +66,21 @@ type Diagnosis = {
       leader_playlists?: { spotify_playlist_id: string; name: string; followers: number; cover_url: string | null }[];
       niche_playlist_count?: number;
     };
+    // Sprint 2 — camada editorial
+    recommendation_mode?: "hold" | "light" | "moderate" | "structural";
+    editorial_justification?: string;
+    curatorial_state?: "saudavel" | "observacao" | "leve" | "moderada" | "estrutural" | "cooldown";
+    applied_caps?: {
+      max_change_pct: number;
+      max_change_pct_config: number;
+      max_changes: number;
+      recommended_remove: number;
+      recommended_promote: number;
+      recommended_demote: number;
+      capped_suggestions: number;
+      original_suggestions: number;
+    };
+    active_cooldowns?: Array<{ action_type: string; cooldown_until: string; days_remaining: number; reason: string | null }>;
   };
 };
 
