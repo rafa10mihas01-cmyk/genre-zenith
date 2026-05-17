@@ -1974,6 +1974,63 @@ export type Database = {
         }
         Relationships: []
       }
+      discovery_wave1_reports: {
+        Row: {
+          approved: number
+          benchmark_size: number
+          created_at: string
+          discovered: number
+          duplicates: number
+          genre_id: string | null
+          id: string
+          invalid: number
+          removed: number
+          run_id: string
+          top_problems: Json
+        }
+        Insert: {
+          approved?: number
+          benchmark_size?: number
+          created_at?: string
+          discovered?: number
+          duplicates?: number
+          genre_id?: string | null
+          id?: string
+          invalid?: number
+          removed?: number
+          run_id: string
+          top_problems?: Json
+        }
+        Update: {
+          approved?: number
+          benchmark_size?: number
+          created_at?: string
+          discovered?: number
+          duplicates?: number
+          genre_id?: string | null
+          id?: string
+          invalid?: number
+          removed?: number
+          run_id?: string
+          top_problems?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "discovery_wave1_reports_genre_id_fkey"
+            columns: ["genre_id"]
+            isOneToOne: false
+            referencedRelation: "genres"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "discovery_wave1_reports_genre_id_fkey"
+            columns: ["genre_id"]
+            isOneToOne: false
+            referencedRelation: "genres_with_health"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_send_log: {
         Row: {
           created_at: string
@@ -3703,11 +3760,14 @@ export type Database = {
       search_results: {
         Row: {
           apify_run_id: string | null
+          canonical_playlist_id: string | null
           coletado_em: string | null
           descricao: string | null
+          duplicate_of: string | null
           enrich_attempted_at: string | null
           enrich_attempts: number
           enrich_failed: boolean
+          enriched_at: string | null
           first_seen_at: string
           followers_source:
             | Database["public"]["Enums"]["followers_source_type"]
@@ -3719,6 +3779,7 @@ export type Database = {
           is_valid: boolean
           last_seen_at: string
           needs_enrich: boolean
+          nome_normalizado: string | null
           nome_playlist: string
           owner_id: string | null
           owner_type: string | null
@@ -3727,6 +3788,7 @@ export type Database = {
           quality_flag: string | null
           quality_flagged_at: string | null
           quality_score: number | null
+          quality_score_version: number | null
           score: number | null
           seguidores: number | null
           spotify_playlist_id: string | null
@@ -3738,11 +3800,14 @@ export type Database = {
         }
         Insert: {
           apify_run_id?: string | null
+          canonical_playlist_id?: string | null
           coletado_em?: string | null
           descricao?: string | null
+          duplicate_of?: string | null
           enrich_attempted_at?: string | null
           enrich_attempts?: number
           enrich_failed?: boolean
+          enriched_at?: string | null
           first_seen_at?: string
           followers_source?:
             | Database["public"]["Enums"]["followers_source_type"]
@@ -3754,6 +3819,7 @@ export type Database = {
           is_valid?: boolean
           last_seen_at?: string
           needs_enrich?: boolean
+          nome_normalizado?: string | null
           nome_playlist: string
           owner_id?: string | null
           owner_type?: string | null
@@ -3762,6 +3828,7 @@ export type Database = {
           quality_flag?: string | null
           quality_flagged_at?: string | null
           quality_score?: number | null
+          quality_score_version?: number | null
           score?: number | null
           seguidores?: number | null
           spotify_playlist_id?: string | null
@@ -3773,11 +3840,14 @@ export type Database = {
         }
         Update: {
           apify_run_id?: string | null
+          canonical_playlist_id?: string | null
           coletado_em?: string | null
           descricao?: string | null
+          duplicate_of?: string | null
           enrich_attempted_at?: string | null
           enrich_attempts?: number
           enrich_failed?: boolean
+          enriched_at?: string | null
           first_seen_at?: string
           followers_source?:
             | Database["public"]["Enums"]["followers_source_type"]
@@ -3789,6 +3859,7 @@ export type Database = {
           is_valid?: boolean
           last_seen_at?: string
           needs_enrich?: boolean
+          nome_normalizado?: string | null
           nome_playlist?: string
           owner_id?: string | null
           owner_type?: string | null
@@ -3797,6 +3868,7 @@ export type Database = {
           quality_flag?: string | null
           quality_flagged_at?: string | null
           quality_score?: number | null
+          quality_score_version?: number | null
           score?: number | null
           seguidores?: number | null
           spotify_playlist_id?: string | null
@@ -3807,6 +3879,20 @@ export type Database = {
           validation_reason?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "search_results_canonical_playlist_id_fkey"
+            columns: ["canonical_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "search_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "search_results_duplicate_of_fkey"
+            columns: ["duplicate_of"]
+            isOneToOne: false
+            referencedRelation: "search_results"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "search_results_genre_id_fkey"
             columns: ["genre_id"]
@@ -5093,6 +5179,7 @@ export type Database = {
         }
         Returns: number
       }
+      normalize_playlist_name: { Args: { p_name: string }; Returns: string }
       notify_member: {
         Args: {
           p_action_url?: string
