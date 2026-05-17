@@ -3,11 +3,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Activity, Pause, RefreshCw, ArrowDownRight, ArrowUpRight,
   Music2, FlaskConical, History, ListMusic, Search, Users, ExternalLink,
-  AlertCircle, Wrench, ChevronDown, ChevronUp, Server, Sparkles, Heart, Target,
+  AlertCircle, Wrench, ChevronDown, ChevronUp, Server, Sparkles, Heart, Target, UserSearch,
 } from "lucide-react";
 import { MinhasPlaylists } from "@/components/operacao/MinhasPlaylists";
 import { PlanejadorMeta } from "@/components/operacao/PlanejadorMeta";
-// CuradoresCRM removido — agora vive em /deals (aba Curadores)
+import { CuradoresCRM } from "@/components/operacao/CuradoresCRM";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
