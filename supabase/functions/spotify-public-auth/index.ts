@@ -182,6 +182,7 @@ Deno.serve(async (req) => {
             refresh_token,
             scope,
             expires_at,
+            app_id: stRow.app_id,
             is_default: (count ?? 0) === 0,
           },
           { onConflict: "spotify_user_id" },
