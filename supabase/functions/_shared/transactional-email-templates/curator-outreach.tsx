@@ -49,11 +49,10 @@ Caso faça sentido, podemos agendar uma conversa de 15 minutos.`
             <Img
               src={LOGO_URL}
               alt={SITE_NAME}
-              width="180"
-              height="40"
+              width="280"
+              height="99"
               style={logoImg}
             />
-            <Text style={brandSub}>Distribuição & Curadoria</Text>
           </Section>
 
           {/* Card */}
