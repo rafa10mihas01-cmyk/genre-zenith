@@ -2,9 +2,24 @@ import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { toast } from "@/hooks/use-toast";
 import { formatNumber } from "@/lib/format";
-import { Target, Info, Sparkles, ListMusic, AlertTriangle, CheckCircle2, XCircle, ChevronDown } from "lucide-react";
+import { Target, Info, Sparkles, ListMusic, AlertTriangle, CheckCircle2, XCircle, ChevronDown, Music2, Loader2, Send, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+// Extrai spotify_track_id de URL/URI do Spotify
+function extractTrackId(input: string): string | null {
+  const s = input.trim();
+  if (!s) return null;
+  const m = s.match(/track[/:]([A-Za-z0-9]{15,})/);
+  if (m) return m[1];
+  if (/^[A-Za-z0-9]{15,}$/.test(s)) return s;
+  return null;
+}
+
+type ApplyResult = { playlist_id: string; name?: string; status: "added" | "moved" | "skip" | "error"; message?: string };
+
 
 /**
  * PLANEJADOR DE META — Simulador teórico isolado.
