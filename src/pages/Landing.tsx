@@ -89,7 +89,7 @@ export default function Landing() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             {user ? (
               <Button asChild size="lg" className="nx-cta-btn gap-2 min-w-[240px] h-12 text-sm">
-                <Link to="/operacao">
+                <Link to="/catalogo">
                   <LayoutDashboard className="h-4 w-4" />
                   Entrar no painel
                 </Link>
@@ -262,7 +262,7 @@ export default function Landing() {
           </p>
           {user ? (
             <Button asChild size="lg" className="nx-cta-btn gap-2 min-w-[240px] h-12 text-sm">
-              <Link to="/operacao">
+              <Link to="/catalogo">
                 <LayoutDashboard className="h-4 w-4" />
                 Entrar no painel
               </Link>
