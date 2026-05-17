@@ -225,7 +225,7 @@ export default function Infraestrutura({ embedded = false }: { embedded?: boolea
 
       <EditVpsDialog vps={editVps} onClose={() => setEditVps(null)} onSaved={load} />
       <EditAccountDialog account={editAcc} vps={vps} onClose={() => setEditAcc(null)} onSaved={load} />
-    </PageContainer>
+    </Wrapper>
   );
 }
 
