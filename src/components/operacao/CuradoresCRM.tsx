@@ -379,8 +379,35 @@ export function CuradoresCRM({ segment }: { segment?: Segment } = {}) {
   const [pageSize, setPageSize] = useState<number>(50);
   type ExpandedFilter = "status" | "score" | "tamanho" | null;
   const [expandedFilter, setExpandedFilter] = useState<ExpandedFilter>(null);
-  const [emailTarget, setEmailTarget] = useState<{ externalCuratorId: string; recipientEmail: string; curatorName: string; playlistName: string | null } | null>(null);
+  const [emailTarget, setEmailTarget] = useState<{ externalCuratorId: string; recipientEmail: string; curatorName: string; playlistName: string | null; followupNumber?: 1 | 2 } | null>(null);
+  const [detailCurator, setDetailCurator] = useState<DetailCurator | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const toDetail = (r: CuradorRow): DetailCurator => ({
+    id: r.id,
+    name: r.name,
+    owner_name: r.owner_name,
+    email: r.email,
+    instagram: r.instagram,
+    whatsapp: r.whatsapp,
+    spotify_url: r.spotify_url,
+    pipeline_status: r.pipeline_status,
+    commercial_score: r.commercial_score,
+    operational_tags: r.operational_tags ?? [],
+    followup_count: r.followup_count ?? 0,
+  });
+
+  const sendFollowup = (r: CuradorRow) => {
+    if (!r.email) { toast.error("Sem email para follow-up"); return; }
+    const n = (Math.min(2, (r.followup_count ?? 0) + 1)) as 1 | 2;
+    setEmailTarget({
+      externalCuratorId: r.id,
+      recipientEmail: r.email,
+      curatorName: r.owner_name ?? r.name,
+      playlistName: r.name,
+      followupNumber: n,
+    });
+  };
 
   const load = async () => {
     setLoading(true);
