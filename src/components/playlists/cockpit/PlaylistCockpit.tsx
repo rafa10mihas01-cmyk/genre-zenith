@@ -546,9 +546,29 @@ function TrackLine({
   );
 }
 
-function BucketRemove({ items, spotifyPlaylistId }: { items: AnalysisTrack[]; spotifyPlaylistId: string }) {
+function BucketRemove({ items, applying, onApplyAll }: {
+  items: AnalysisTrack[]; applying: boolean; onApplyAll: () => void;
+}) {
   return (
-    <BucketShell id="bucket-remove" kind="remove" count={items.length}>
+    <BucketShell
+      id="bucket-remove"
+      kind="remove"
+      count={items.length}
+      headerRight={
+        items.length > 0 && (
+          <Button
+            size="sm"
+            variant="destructive"
+            onClick={onApplyAll}
+            disabled={applying}
+            className="h-7 text-xs gap-1"
+          >
+            {applying ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+            Remover todas ({items.length})
+          </Button>
+        )
+      }
+    >
       {items.map((t) => (
         <TrackLine
           key={t.spotify_track_id}
@@ -557,30 +577,41 @@ function BucketRemove({ items, spotifyPlaylistId }: { items: AnalysisTrack[]; sp
           title={t.track_name ?? "—"}
           artist={t.artist_name ?? "—"}
           reason={(t.reasons ?? [])[0] ?? "baixa performance"}
-          action={
-            <Button asChild size="sm" variant="outline" className="h-7 text-xs gap-1">
-              <a
-                href={`https://open.spotify.com/playlist/${spotifyPlaylistId}`}
-                target="_blank" rel="noreferrer"
-              >
-                <Trash2 className="h-3 w-3" /> Abrir
-              </a>
-            </Button>
-          }
+          action={<span className="text-[10px] text-muted-foreground uppercase tracking-wider">remover</span>}
         />
       ))}
-      <div className="px-4 py-2 text-[11px] text-muted-foreground bg-elevated/30">
-        Remoção em massa pelo cockpit em breve — por enquanto abra a playlist e remova manualmente.
-      </div>
     </BucketShell>
   );
 }
 
-function BucketReorder({ kind, items, spotifyPlaylistId, totalTracks }: {
-  kind: "promote" | "demote"; items: AnalysisTrack[]; spotifyPlaylistId: string; totalTracks: number;
+function BucketReorder({ kind, items, totalTracks, applying, onApplyAll }: {
+  kind: "promote" | "demote";
+  items: AnalysisTrack[];
+  totalTracks: number;
+  applying: boolean;
+  onApplyAll: () => void;
 }) {
   return (
-    <BucketShell id={`bucket-${kind}`} kind={kind} count={items.length}>
+    <BucketShell
+      id={`bucket-${kind}`}
+      kind={kind}
+      count={items.length}
+      headerRight={
+        items.length > 0 && (
+          <Button
+            size="sm"
+            onClick={onApplyAll}
+            disabled={applying}
+            variant={kind === "promote" ? "default" : "outline"}
+            className="h-7 text-xs gap-1"
+          >
+            {applying ? <Loader2 className="h-3 w-3 animate-spin" /> :
+              kind === "promote" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+            {kind === "promote" ? "Promover" : "Rebaixar"} todas ({items.length})
+          </Button>
+        )
+      }
+    >
       {items.map((t) => (
         <TrackLine
           key={t.spotify_track_id}
@@ -590,24 +621,18 @@ function BucketReorder({ kind, items, spotifyPlaylistId, totalTracks }: {
           artist={t.artist_name ?? "—"}
           reason={(t.reasons ?? []).join(" · ") || "—"}
           action={
-            <Button asChild size="sm" variant="outline" className="h-7 text-xs gap-1">
-              <a href={`https://open.spotify.com/playlist/${spotifyPlaylistId}`} target="_blank" rel="noreferrer">
-                {kind === "promote" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
-                Mover
-              </a>
-            </Button>
+            <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
+              {kind === "promote" ? "subir" : "descer"}
+            </span>
           }
         />
       ))}
-      <div className="px-4 py-2 text-[11px] text-muted-foreground bg-elevated/30">
-        Reordenação automática pelo cockpit em breve — por enquanto arraste manualmente no Spotify.
-      </div>
     </BucketShell>
   );
 }
 
-function BucketAdd({ items, applying, onApplyAll, onApplyOne }: {
-  items: Suggestion[]; applying: boolean; onApplyAll: () => void; onApplyOne: () => void;
+function BucketAdd({ items, applying, onApplyAll }: {
+  items: Suggestion[]; applying: boolean; onApplyAll: () => void;
 }) {
   return (
     <BucketShell
