@@ -47,12 +47,6 @@ const ACTION_LABEL: Record<string, string> = {
 };
 const labelAction = (a: string) => ACTION_LABEL[a] ?? a.replace(/_/g, " ");
 
-const TABS = [
-  { id: "minhas",      label: "Minhas Playlists", icon: Sparkles },
-  { id: "campanha",    label: "Campanha",         icon: Target },
-] as const;
-
-type TabId = typeof TABS[number]["id"];
 
 type OpPlaylist = {
   id: string;
