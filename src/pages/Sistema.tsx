@@ -89,12 +89,7 @@ export default function Sistema() {
         {activeTab === "execucao" && <ExecucaoPanel />}
         {activeTab === "saude" && <SaudeSistema />}
         {activeTab === "alertas" && <AlertasHistorico />}
-        {activeTab === "ecosystem-score" && <EcosystemScorePanel />}
-        {activeTab === "playlist-score" && <PlaylistScorePanel />}
-        {activeTab === "recomendacoes" && <RecomendacoesPanel />}
-        {activeTab === "impacto" && <ImpactoPanel />}
         {activeTab === "infra" && <Infraestrutura embedded />}
-        {activeTab === "aposentadoria" && <DeprecationPanel />}
         {activeTab === "configuracoes" && <Settings embedded />}
       </div>
     </PageContainer>
