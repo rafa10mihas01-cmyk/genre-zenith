@@ -111,7 +111,8 @@ export default function Campanhas() {
         <div className="flex items-center gap-1 border-b border-border mb-6 -mt-2">
           {([
             { id: "lista", label: "Campanhas Ativas", icon: ListChecks },
-            { id: "simulador", label: "Planejamento Estratégico", icon: FlaskConical },
+            { id: "financeiro", label: "Planejamento Financeiro", icon: Calculator },
+            { id: "execucao", label: "Execução Operacional", icon: Workflow },
           ] as const).map(t => {
             const Icon = t.icon;
             const active = tab === t.id;
@@ -174,7 +175,38 @@ export default function Campanhas() {
           </>
         )}
 
-        {tab === "simulador" && <PlanejadorMeta />}
+        {tab === "financeiro" && (
+          <Calculadora
+            onContinue={(h) => {
+              setHandoff(h);
+              setTab("execucao");
+              toast({ title: "Plano financeiro definido", description: `Meta ${h.result.meta.toLocaleString()} · ${h.result.days}d` });
+            }}
+          />
+        )}
+
+        {tab === "execucao" && (
+          <div className="space-y-4">
+            {handoff && (
+              <div className="rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 flex items-center justify-between text-sm">
+                <div>
+                  <span className="text-muted-foreground">Plano herdado: </span>
+                  <span className="font-semibold">{handoff.result.meta.toLocaleString()} streams</span>
+                  <span className="text-muted-foreground"> · {handoff.result.days}d · </span>
+                  <span className="font-semibold">R$ {Math.round(handoff.result.custoTotal).toLocaleString()}</span>
+                  <span className="text-muted-foreground"> · split {handoff.result.splitEcoPct}/{100 - handoff.result.splitEcoPct}</span>
+                </div>
+                <button
+                  onClick={() => setTab("financeiro")}
+                  className="text-xs text-primary hover:underline"
+                >
+                  Voltar ao plano
+                </button>
+              </div>
+            )}
+            <PlanejadorMeta />
+          </div>
+        )}
       </PageContainer>
 
       <NewCampaignDialog
