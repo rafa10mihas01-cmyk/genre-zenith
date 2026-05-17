@@ -59,7 +59,7 @@ const sections: NavSection[] = [
         matchPaths: ["/playlist-deals", "/curadores"],
         children: [
           { title: "Todos os Deals", url: "/deals", end: true },
-          { title: "Curadores", url: "/curadores" },
+          { title: "Curadores", url: "/deals?tab=library" },
           { title: "Comparar", url: "/deals/comparar" },
         ],
       },

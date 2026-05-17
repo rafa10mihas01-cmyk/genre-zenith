@@ -22,7 +22,7 @@ import Operacao from "./pages/Operacao";
 import Performance from "./pages/Performance";
 import PlaylistDeals from "./pages/PlaylistDeals";
 import DealDetail from "./pages/DealDetail";
-import Curadores from "./pages/Curadores";
+// Curadores: rota antiga agora redireciona para /deals?tab=library
 import CuradorDetail from "./pages/CuradorDetail";
 import CompararCuradores from "./pages/CompararCuradores";
 import CuratorPage from "./pages/CuratorPage";
@@ -122,8 +122,9 @@ const App = () => (
               <Route path="/analytics/performance" element={<Navigate to="/performance" replace />} />
               <Route path="/analytics/valuation" element={<Navigate to="/valuation" replace />} />
               <Route path="/valuation" element={<Protected><Valuation /></Protected>} />
-              <Route path="/curadores" element={<Protected><Curadores /></Protected>} />
-              <Route path="/curadores/comparar" element={<Protected><CompararCuradores /></Protected>} />
+              {/* Curadores: hub consolidado em /deals. Detalhe individual mantém rota dedicada. */}
+              <Route path="/curadores" element={<Navigate to="/deals?tab=library" replace />} />
+              <Route path="/curadores/comparar" element={<Navigate to="/deals/comparar" replace />} />
               <Route path="/curadores/:id" element={<Protected><CuradorDetail /></Protected>} />
               <Route path="/curadoria-preview" element={<Protected><CuradoriaPreview /></Protected>} />
               <Route path="/benchmarks" element={<Protected><Benchmarks /></Protected>} />
