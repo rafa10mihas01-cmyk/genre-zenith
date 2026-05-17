@@ -109,6 +109,11 @@ async function calcOne(supabase: any, genreId: string) {
     metadata: {
       growth_sample_size: growthSamples.length,
       tracks_sample_size: tracksList.length,
+      winner_sample_size: winnerList.length,
+      winner_p50: percentile(winnerList, 50),
+      winner_p75: percentile(winnerList, 75),
+      winner_p90: percentile(winnerList, 90),
+      winner_score_version: 2,
     },
   };
 
