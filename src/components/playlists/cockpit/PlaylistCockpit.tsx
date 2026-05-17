@@ -633,26 +633,42 @@ function CoverCard({ managedId, currentCover, leaders, spotifyPlaylistId }: {
             <div className="text-xs text-muted-foreground italic">Sem dados de líderes neste diagnóstico.</div>
           ) : (
             <div className="flex flex-wrap gap-2">
-              {leaders.slice(0, 8).map((l) => (
-                <a
-                  key={l.spotify_playlist_id}
-                  href={`https://open.spotify.com/playlist/${l.spotify_playlist_id}`}
-                  target="_blank" rel="noreferrer"
-                  title={l.name}
-                  className="block group"
-                >
-                  {l.cover_url ? (
-                    <img src={l.cover_url} alt={l.name}
-                      className="w-16 h-16 rounded-md object-cover ring-1 ring-border group-hover:ring-primary/50 transition-all" />
-                  ) : (
-                    <div className="w-16 h-16 rounded-md bg-elevated" />
-                  )}
-                </a>
-              ))}
+              {leaders.slice(0, 8).map((l) => {
+                const busy = applyingLeader === l.spotify_playlist_id;
+                return (
+                  <div key={l.spotify_playlist_id} className="relative group">
+                    {l.cover_url ? (
+                      <img src={l.cover_url} alt={l.name}
+                        className="w-16 h-16 rounded-md object-cover ring-1 ring-border group-hover:ring-primary/50 transition-all" />
+                    ) : (
+                      <div className="w-16 h-16 rounded-md bg-elevated" />
+                    )}
+                    <div className="absolute inset-0 rounded-md bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 p-1">
+                      <button
+                        type="button"
+                        disabled={!l.cover_url || busy || !!applyingLeader}
+                        onClick={() => applyLeaderCover(l)}
+                        title={`Usar capa de "${l.name}"`}
+                        className="text-[9px] font-semibold leading-tight text-primary-foreground bg-primary hover:bg-primary/90 rounded px-1.5 py-0.5 disabled:opacity-50"
+                      >
+                        {busy ? "..." : "Usar essa"}
+                      </button>
+                      <a
+                        href={`https://open.spotify.com/playlist/${l.spotify_playlist_id}`}
+                        target="_blank" rel="noreferrer"
+                        title={l.name}
+                        className="text-[9px] text-white/80 hover:text-white underline"
+                      >
+                        abrir
+                      </a>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
           <div className="text-[11px] text-muted-foreground pt-1">
-            PNG/JPG quadrado, mín. 640×640. Comprimimos pra ≤256KB (limite do Spotify) e enviamos via API.
+            Passe o mouse na capa de um líder e clique "Usar essa" pra aplicar direto, ou use "Trocar capa" pra subir a sua.
           </div>
         </div>
       </div>
