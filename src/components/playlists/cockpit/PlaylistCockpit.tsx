@@ -424,10 +424,50 @@ function Stat({ label, value, accent, muted }: { label: string; value: string; a
   );
 }
 
-function IdentityField({ label, current, suggestion, score }: {
-  label: string; current: string; suggestion: string | null; score?: number | null;
+function IdentityField({ label, field, managedId, current, suggestion, score, onApplied }: {
+  label: string;
+  field: "name" | "description";
+  managedId: string;
+  current: string;
+  suggestion: string | null;
+  score?: number | null;
+  onApplied?: () => void;
 }) {
+  const [applying, setApplying] = useState(false);
   const hasSugg = !!suggestion && suggestion.trim() !== current.trim();
+
+  async function apply() {
+    if (!suggestion) return;
+    setApplying(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("apply-playlist-identity", {
+        body: { playlist_id: managedId, [field]: suggestion },
+      });
+      let serverError: string | null = null;
+      let status: number | null = null;
+      if (error && (error as any).context) {
+        try {
+          const ctx = (error as any).context as Response;
+          status = ctx.status ?? null;
+          const b = await ctx.clone().json().catch(() => null);
+          serverError = b?.error ?? null;
+        } catch { /* */ }
+      }
+      if (error || data?.ok === false) {
+        toast({
+          title: status ? `Erro ${status}` : "Falha ao aplicar",
+          description: serverError ?? data?.error ?? error?.message ?? "erro desconhecido",
+          variant: "destructive",
+        });
+        return;
+      }
+      toast({ title: `${label} atualizado no Spotify` });
+      onApplied?.();
+    } finally {
+      setApplying(false);
+    }
+  }
+
   return (
     <Card className="p-4 space-y-3">
       <div className="flex items-center justify-between">
@@ -442,7 +482,7 @@ function IdentityField({ label, current, suggestion, score }: {
       <div className="space-y-2">
         <div>
           <div className="text-[10px] text-muted-foreground mb-1">Atual</div>
-          <div className="text-sm bg-elevated/60 rounded-md px-3 py-2 text-foreground/80">{current || "—"}</div>
+          <div className="text-sm bg-elevated/60 rounded-md px-3 py-2 text-foreground/80">{current || "— vazio —"}</div>
         </div>
         <div>
           <div className="text-[10px] text-muted-foreground mb-1 flex items-center gap-1">
@@ -457,23 +497,93 @@ function IdentityField({ label, current, suggestion, score }: {
         </div>
       </div>
       {hasSugg && (
-        <div className="flex justify-end">
+        <div className="flex justify-between items-center gap-2">
           <Button
             size="sm"
-            variant="outline"
+            variant="ghost"
             onClick={() => {
               navigator.clipboard.writeText(suggestion!);
-              toast({ title: "Sugestão copiada", description: "Cole no Spotify para aplicar." });
+              toast({ title: "Copiado", description: "Cole onde quiser." });
             }}
+            className="h-7 text-xs text-muted-foreground gap-1"
+          >
+            Copiar
+          </Button>
+          <Button
+            size="sm"
+            onClick={apply}
+            disabled={applying}
             className="gap-1.5 h-7"
           >
-            <Check className="h-3 w-3" /> Copiar e aplicar no Spotify
+            {applying ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+            Aplicar no Spotify
           </Button>
         </div>
       )}
     </Card>
   );
 }
+
+function CoverCard({ currentCover, leaders, spotifyPlaylistId }: {
+  currentCover: string | null;
+  leaders: { spotify_playlist_id: string; name: string; followers: number; cover_url: string | null }[];
+  spotifyPlaylistId: string;
+}) {
+  return (
+    <Card className="p-4 space-y-4">
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">Capa</span>
+        <Button asChild size="sm" variant="ghost" className="h-7 text-xs gap-1 text-muted-foreground">
+          <a href={`https://open.spotify.com/playlist/${spotifyPlaylistId}`} target="_blank" rel="noreferrer">
+            <ExternalLink className="h-3 w-3" /> Trocar no Spotify
+          </a>
+        </Button>
+      </div>
+      <div className="grid grid-cols-[auto_1fr] gap-4 items-start">
+        <div className="space-y-1.5">
+          <div className="text-[10px] text-muted-foreground">Atual</div>
+          {currentCover ? (
+            <img src={currentCover} alt="capa atual"
+              className="w-28 h-28 rounded-lg object-cover ring-1 ring-border" />
+          ) : (
+            <div className="w-28 h-28 rounded-lg bg-elevated grid place-items-center">
+              <Music2 className="h-6 w-6 text-muted-foreground/40" />
+            </div>
+          )}
+        </div>
+        <div className="space-y-1.5 min-w-0">
+          <div className="text-[10px] text-muted-foreground">Capas dos líderes do nicho — referência visual</div>
+          {leaders.length === 0 ? (
+            <div className="text-xs text-muted-foreground italic">Sem dados de líderes neste diagnóstico.</div>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {leaders.slice(0, 8).map((l) => (
+                <a
+                  key={l.spotify_playlist_id}
+                  href={`https://open.spotify.com/playlist/${l.spotify_playlist_id}`}
+                  target="_blank" rel="noreferrer"
+                  title={l.name}
+                  className="block group"
+                >
+                  {l.cover_url ? (
+                    <img src={l.cover_url} alt={l.name}
+                      className="w-16 h-16 rounded-md object-cover ring-1 ring-border group-hover:ring-primary/50 transition-all" />
+                  ) : (
+                    <div className="w-16 h-16 rounded-md bg-elevated" />
+                  )}
+                </a>
+              ))}
+            </div>
+          )}
+          <div className="text-[11px] text-muted-foreground pt-1">
+            Upload de nova capa direto pelo cockpit em breve. Por enquanto, compare com os líderes e troque pelo Spotify.
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 
 const ACTION_META = {
   remove: { label: "Remover", Icon: Trash2, tone: "border-destructive/40 bg-destructive/10 text-destructive", hint: "Faixas sem tração ou saturadas" },
