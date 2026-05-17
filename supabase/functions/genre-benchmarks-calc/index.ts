@@ -82,7 +82,10 @@ async function calcOne(supabase: any, genreId: string) {
     if (t == null) t = fallback?.total_musicas ?? null;
     if (f != null && f > 0) followersList.push(f);
     if (t != null && t > 0) tracksList.push(t);
+    if (fallback?.winner_score != null) winnerList.push(fallback.winner_score);
   }
+
+  winnerList.sort((a, b) => a - b);
 
   followersList.sort((a, b) => a - b);
   tracksList.sort((a, b) => a - b);
