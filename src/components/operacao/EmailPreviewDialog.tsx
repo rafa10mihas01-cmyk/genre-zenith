@@ -15,6 +15,8 @@ type Target = {
   recipientEmail: string;
   curatorName: string;
   playlistName?: string | null;
+  /** Quando definido, envia como follow-up (#1 ou #2) e atualiza followup_count. */
+  followupNumber?: 1 | 2;
 };
 
 const DEFAULT_SIGNATURE_NAME = "Equipe NexEngine";
@@ -29,6 +31,22 @@ Conhecemos seu trabalho${ref} e gostaríamos de entender como você opera curado
 Trabalhamos com lançamentos contínuos em diversos gêneros e selecionamos curadores com perfil editorial sólido para colaborações de médio e longo prazo.
 
 Caso faça sentido, podemos agendar uma conversa de 15 minutos.`;
+}
+
+function buildFollowupMessage(curatorName: string, playlistName?: string | null, n: 1 | 2 = 1) {
+  const ref = playlistName ? ` sobre uma possível parceria envolvendo "${playlistName}"` : "";
+  if (n === 1) {
+    return `Te escrevi há alguns dias${ref} e queria garantir que a mensagem chegou.
+
+Sem pressa — só quero entender se faz sentido conversar sobre curadoria e parcerias estruturadas com a NexEngine.
+
+Se preferir outro canal (Instagram, WhatsApp), me avisa que reorganizo.`;
+  }
+  return `Último toque por aqui${ref}.
+
+Se fizer sentido, sigo à disposição. Caso prefira não receber novas mensagens, é só responder e tiro do nosso fluxo.
+
+Obrigado pelo tempo.`;
 }
 
 export function EmailPreviewDialog({
