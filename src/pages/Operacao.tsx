@@ -51,7 +51,7 @@ const labelAction = (a: string) => ACTION_LABEL[a] ?? a.replace(/_/g, " ");
 const TABS = [
   { id: "minhas",    label: "Minhas Playlists", icon: Sparkles },
   { id: "playlists", label: "Criadas (auto)", icon: ListMusic },
-  { id: "simulador", label: "Simulador", icon: Calculator },
+  { id: "campanha",  label: "Campanha", icon: Target },
   { id: "ajustes",   label: "Ajustes",   icon: Wrench },
   { id: "curadores", label: "Prospecção", icon: UserSearch },
 ] as const;
