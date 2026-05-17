@@ -6,7 +6,7 @@ import {
   AlertCircle, Wrench, ChevronDown, ChevronUp, Server, Sparkles, Heart, Calculator, UserSearch,
 } from "lucide-react";
 import { MinhasPlaylists } from "@/components/operacao/MinhasPlaylists";
-import { SimuladorEntrega } from "@/components/operacao/SimuladorEntrega";
+import { PlanejadorMeta } from "@/components/operacao/PlanejadorMeta";
 import { CuradoresCRM } from "@/components/operacao/CuradoresCRM";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
