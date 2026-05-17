@@ -1,4 +1,4 @@
-// BotSaudeCard — saúde do bot coletor de prints (heartbeat, sessão Spotify, fila).
+// BotSaudeCard — saúde do bot Spotify (heartbeat, sessão Spotify, fila).
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Bot, Loader2, RefreshCw, Clock, ListChecks, ShieldCheck } from "lucide-react";
@@ -69,7 +69,7 @@ export function BotSaudeCard() {
     <div>
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-bold flex items-center gap-1.5">
-          <Bot className="h-3 w-3" /> Bot coletor de prints
+          <Bot className="h-3 w-3" /> Bot Spotify
         </h3>
         <Button size="sm" variant="ghost" onClick={load} className="h-6 gap-1 text-[11px]">
           <RefreshCw className="h-3 w-3" /> Atualizar
@@ -94,7 +94,7 @@ export function BotSaudeCard() {
         />
         <Cell
           icon={ListChecks}
-          label="Fila de músicas"
+          label="Fila de execução"
           ok={data.queue_size < 50}
           okText={`${data.queue_size} na fila`}
           errText={`${data.queue_size} na fila`}
@@ -103,7 +103,7 @@ export function BotSaudeCard() {
         />
         <Cell
           icon={Clock}
-          label="Próxima coleta"
+          label="Próxima execução"
           ok={!!nextDate}
           okText={nextLabel}
           errText="nenhuma"

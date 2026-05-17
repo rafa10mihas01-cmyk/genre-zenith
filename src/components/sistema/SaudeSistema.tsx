@@ -1,4 +1,4 @@
-// SaudeSistema — visão de saúde do pipeline atual: Descoberta (Apify) → Spotify → Execução (jobs).
+// SaudeSistema — visão de saúde do pipeline atual: Spotify → Execução (jobs).
 // Cards grandes pra bater o olho e entender se tá tudo OK.
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,8 +13,7 @@ import { timeAgo, formatNumber } from "@/lib/format";
 import { BotSaudeCard } from "./BotSaudeCard";
 
 type Health = {
-  apify: { ok: boolean; reason?: string };
-  spotify: { ok: boolean; expires_at?: string; expired?: boolean };
+  spotify: { ok: boolean; expires_at?: string; expired?: boolean; last_verified?: string };
   execucao: { ok: boolean; pending: number; failed: number; lastDone?: string };
   hoje: { jobs_done: number; deals_ativos: number };
 };
@@ -36,12 +35,12 @@ export function SaudeSistema() {
     const todayIso = today.toISOString();
 
     const [
-      flagsRes, tokenRes,
+      tokenRes, lastVerified,
       pendingJobs, failedJobs, doneJobsToday, lastDoneJob, recentFailedJobs,
       activeDeals,
     ] = await Promise.all([
-      supabase.from("system_flags").select("apify_blocked, apify_blocked_reason").eq("singleton_key", "app").maybeSingle(),
       supabase.from("spotify_tokens").select("expires_at").eq("singleton_key", "app").maybeSingle(),
+      supabase.from("search_results").select("followers_verified_at").not("followers_verified_at", "is", null).order("followers_verified_at", { ascending: false }).limit(1).maybeSingle(),
       supabase.from("playlist_execution_jobs").select("id", { count: "exact", head: true }).in("status", ["pending", "claimed"]),
       supabase.from("playlist_execution_jobs").select("id", { count: "exact", head: true }).eq("status", "failed"),
       supabase.from("playlist_execution_jobs").select("id", { count: "exact", head: true }).eq("status", "done").gte("completed_at", todayIso),
@@ -50,15 +49,13 @@ export function SaudeSistema() {
       supabase.from("curator_deals").select("id", { count: "exact", head: true }).is("closed_at", null),
     ]);
 
-    const apifyBlocked = flagsRes.data?.apify_blocked ?? false;
     const tokenExpiry = tokenRes.data?.expires_at;
     const tokenExpired = tokenExpiry ? new Date(tokenExpiry) <= new Date() : true;
     const pendingCount = pendingJobs.count ?? 0;
     const failedCount = failedJobs.count ?? 0;
 
     setHealth({
-      apify: { ok: !apifyBlocked, reason: flagsRes.data?.apify_blocked_reason ?? undefined },
-      spotify: { ok: !tokenExpired, expires_at: tokenExpiry, expired: tokenExpired },
+      spotify: { ok: !tokenExpired, expires_at: tokenExpiry, expired: tokenExpired, last_verified: (lastVerified.data as any)?.followers_verified_at ?? undefined },
       execucao: {
         ok: failedCount === 0,
         pending: pendingCount,
@@ -110,9 +107,9 @@ export function SaudeSistema() {
         </Button>
       </div>
 
-      {/* === BLOCO 1: ROBÔ COLETOR === */}
+      {/* === BLOCO 1: BOT SPOTIFY === */}
       <div>
-        <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-bold mb-2">Robô coletor de prints</h3>
+        <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-bold mb-2">Bot Spotify</h3>
         <div className="space-y-3">
           <BotSaudeCard />
         </div>
@@ -126,11 +123,11 @@ export function SaudeSistema() {
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           <HealthCard
             icon={Music2}
-            label="Descoberta (Apify)"
-            ok={health.apify.ok}
-            okText="Funcionando"
-            errText="Bloqueado"
-            detail={health.apify.ok ? "coletando playlists do Spotify" : health.apify.reason ?? "verifique configuração"}
+            label="Verificação Spotify"
+            ok={!!health.spotify.last_verified}
+            okText={health.spotify.last_verified ? timeAgo(health.spotify.last_verified) : "Sem verificação"}
+            errText="Sem verificação"
+            detail="seguidores reais das playlists"
           />
           <HealthCard
             icon={Database}
