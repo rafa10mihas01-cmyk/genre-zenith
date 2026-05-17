@@ -254,6 +254,9 @@ export default function PlaylistDetail() {
         />
       </div>
 
+      {/* Diagnóstico de curadoria */}
+      {mgd?.id && <PlaylistDiagnosisCard managedId={mgd.id} />}
+
       {/* Sinais + Recomendações lado a lado */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card className="p-5 space-y-3">
