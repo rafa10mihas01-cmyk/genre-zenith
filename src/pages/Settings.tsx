@@ -78,6 +78,8 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
   const [spotifyAccounts, setSpotifyAccounts] = useState<any[]>([]);
   const [connectingSpotify, setConnectingSpotify] = useState(false);
   const [isInIframe, setIsInIframe] = useState(false);
+  const [spotifyApps, setSpotifyApps] = useState<SpotifyApp[]>([]);
+  const [pickerOpen, setPickerOpen] = useState<null | { forceLogin: boolean }>(null);
 
   useEffect(() => {
     try {
