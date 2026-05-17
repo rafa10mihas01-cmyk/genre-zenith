@@ -860,8 +860,17 @@ export function MinhasPlaylists() {
                           })}
                         </ul>
                         <div className="flex items-center gap-2 pt-1">
-                          <Button size="sm" disabled className="gap-1.5">Adicionar no Spotify</Button>
-                          <span className="text-[11px] text-muted-foreground">em breve — botão vai inserir nas posições sugeridas</span>
+                          <Button
+                            size="sm"
+                            className="gap-1.5"
+                            disabled={applyingSuggestions}
+                            onClick={() => applySuggestions(drawerPl.id, Math.min(diagnosis.tracks_suggestions.length, 15))}
+                          >
+                            {applyingSuggestions ? "Adicionando…" : `Adicionar ${Math.min(diagnosis.tracks_suggestions.length, 15)} no Spotify`}
+                          </Button>
+                          <span className="text-[11px] text-muted-foreground">
+                            insere no topo, nas posições mostradas
+                          </span>
                         </div>
                       </div>
                     )}
