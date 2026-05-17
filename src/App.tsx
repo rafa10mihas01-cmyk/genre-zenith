@@ -22,7 +22,7 @@ import Operacao from "./pages/Operacao";
 import Performance from "./pages/Performance";
 import PlaylistDeals from "./pages/PlaylistDeals";
 import DealDetail from "./pages/DealDetail";
-import Curadores from "./pages/Curadores";
+// Curadores: rota antiga agora redireciona para /deals?tab=library
 import CuradorDetail from "./pages/CuradorDetail";
 import CompararCuradores from "./pages/CompararCuradores";
 import CuratorPage from "./pages/CuratorPage";
