@@ -611,9 +611,15 @@ export function MinhasPlaylists() {
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
           {visible.map((p) => (
-            <button
+            <Link
               key={p.id}
-              onClick={() => openDiagnosis(p)}
+              to={p.canonical_playlist_id ? `/playlists/${p.canonical_playlist_id}` : "#"}
+              onClick={(e) => {
+                if (!p.canonical_playlist_id) {
+                  e.preventDefault();
+                  openDiagnosis(p);
+                }
+              }}
               className="nx-card !p-0 overflow-hidden text-left group hover:border-foreground/25 transition-colors flex flex-col"
             >
               <div className="relative aspect-square bg-elevated overflow-hidden">
