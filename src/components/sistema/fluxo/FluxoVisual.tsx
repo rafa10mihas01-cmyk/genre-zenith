@@ -136,8 +136,8 @@ export function FluxoVisual({ compact = false }: { compact?: boolean }) {
     const [catTotal, catActive, dealsActive, songsPending, jobsAgg] = await Promise.all([
       supabase.from("managed_playlists").select("id", { count: "exact", head: true }),
       supabase.from("managed_playlists").select("id", { count: "exact", head: true }).is("archived_at", null),
-      supabase.from("curator_deals").select("id", { count: "exact", head: true }).eq("status", "active"),
-      supabase.from("curator_deal_songs").select("id", { count: "exact", head: true }).eq("status", "pending"),
+      supabase.from("curator_deals").select("id", { count: "exact", head: true }).is("closed_at", null),
+      supabase.from("curator_deal_songs").select("id", { count: "exact", head: true }).is("ends_at", null),
       supabase.from("playlist_execution_jobs").select("status, completed_at, created_at").gte("created_at", dayAgoISO).limit(5000),
     ]);
 
