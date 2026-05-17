@@ -33,6 +33,7 @@ export function SaudeSistema() {
   const load = async () => {
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const todayIso = today.toISOString();
+    const dayAgoIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
     const [
       tokenRes, lastVerified,
@@ -42,10 +43,10 @@ export function SaudeSistema() {
       supabase.from("spotify_tokens").select("expires_at").eq("singleton_key", "app").maybeSingle(),
       supabase.from("search_results").select("followers_verified_at").not("followers_verified_at", "is", null).order("followers_verified_at", { ascending: false }).limit(1).maybeSingle(),
       supabase.from("playlist_execution_jobs").select("id", { count: "exact", head: true }).in("status", ["pending", "claimed"]),
-      supabase.from("playlist_execution_jobs").select("id", { count: "exact", head: true }).eq("status", "failed"),
+      supabase.from("playlist_execution_jobs").select("id", { count: "exact", head: true }).eq("status", "failed").gte("updated_at", dayAgoIso),
       supabase.from("playlist_execution_jobs").select("id", { count: "exact", head: true }).eq("status", "done").gte("completed_at", todayIso),
       supabase.from("playlist_execution_jobs").select("completed_at").eq("status", "done").order("completed_at", { ascending: false }).limit(1).maybeSingle(),
-      supabase.from("playlist_execution_jobs").select("id, last_error, updated_at, job_type").eq("status", "failed").order("updated_at", { ascending: false }).limit(10),
+      supabase.from("playlist_execution_jobs").select("id, last_error, updated_at, job_type").eq("status", "failed").gte("updated_at", dayAgoIso).order("updated_at", { ascending: false }).limit(10),
       supabase.from("curator_deals").select("id", { count: "exact", head: true }).is("closed_at", null),
     ]);
 
