@@ -271,7 +271,54 @@ export function PlanejadorMeta() {
   );
   const slots = plan.slots;
 
+  const slotKey = (s: Slot, i: number) => `${s.playlistId}-${s.position}-${i}`;
+  const activeSlots = useMemo(
+    () => slots.filter((s, i) => !excluded.has(slotKey(s, i))),
+    [slots, excluded],
+  );
+  const toggleSlot = (key: string) => {
+    setExcluded(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
+  // reset excluídos quando plano muda
+  useEffect(() => { setExcluded(new Set()); setResults(null); }, [slots.length, genreId, profile, dailyTarget]);
+
+  const applyPlan = async () => {
+    if (!trackId) {
+      toast({ title: "Cole o link da música do Spotify", variant: "destructive" });
+      return;
+    }
+    if (activeSlots.length === 0) {
+      toast({ title: "Nenhuma playlist selecionada", variant: "destructive" });
+      return;
+    }
+    setApplying(true);
+    setResults(null);
+    try {
+      const payload = activeSlots.map(s => ({ playlist_id: s.playlistId, position: s.position }));
+      const { data, error } = await supabase.functions.invoke("apply-meta-plan", {
+        body: { spotify_track_id: trackId, slots: payload },
+      });
+      if (error) throw error;
+      if (!data?.ok) throw new Error(data?.error || "falha ao aplicar");
+      setResults(data.results ?? []);
+      const c = data.counts ?? {};
+      toast({
+        title: "Plano aplicado",
+        description: `Adicionada: ${c.added ?? 0} · Movida: ${c.moved ?? 0} · Pulada: ${c.skip ?? 0} · Erro: ${c.error ?? 0}`,
+      });
+    } catch (e: any) {
+      toast({ title: "Erro ao aplicar plano", description: e?.message ?? String(e), variant: "destructive" });
+    } finally {
+      setApplying(false);
+    }
+  };
+
   const ind = useMemo(() => calcIndicators(slots, dailyTarget, filtered.length), [slots, dailyTarget, filtered.length]);
+
 
   return (
     <section className="space-y-4 animate-tab-in">
