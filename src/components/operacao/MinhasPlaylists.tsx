@@ -26,6 +26,8 @@ import {
 } from "lucide-react";
 import { PlaylistScoreBadge, type PlaylistScoreRow } from "./PlaylistScoreBadge";
 import { PlaylistTracksAnalysisCard } from "@/components/playlists/PlaylistTracksAnalysisCard";
+import { CuratorialStateBadge, CooldownStack, type CuratorialState } from "@/components/playlist/CuratorialStateBadge";
+import { useActiveCooldowns } from "@/hooks/useActiveCooldowns";
 
 type ManagedPlaylist = {
   id: string;
@@ -40,6 +42,10 @@ type ManagedPlaylist = {
   last_diagnosis_at: string | null;
   imported_at: string;
   canonical_playlist_id: string | null;
+  curatorial_state?: CuratorialState | null;
+  last_maintenance_at?: string | null;
+  max_change_pct?: number | null;
+  recommended_change_count?: number | null;
 };
 
 type Diagnosis = {
