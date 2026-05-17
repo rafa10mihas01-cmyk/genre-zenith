@@ -2757,6 +2757,7 @@ export type Database = {
           canonical_playlist_id: string | null
           cover_url: string | null
           created_at: string
+          curatorial_state: Database["public"]["Enums"]["curatorial_state"]
           description: string | null
           followers: number
           genre_id: string | null
@@ -2764,9 +2765,15 @@ export type Database = {
           imported_at: string
           imported_by: string | null
           last_diagnosis_at: string | null
+          last_maintenance_at: string | null
+          last_maintenance_intensity:
+            | Database["public"]["Enums"]["curatorial_action_type"]
+            | null
           last_metrics_at: string | null
+          max_change_pct: number
           metadata: Json
           name: string
+          recommended_change_count: number | null
           spotify_playlist_id: string
           spotify_url: string
           tracks_count: number
@@ -2778,6 +2785,7 @@ export type Database = {
           canonical_playlist_id?: string | null
           cover_url?: string | null
           created_at?: string
+          curatorial_state?: Database["public"]["Enums"]["curatorial_state"]
           description?: string | null
           followers?: number
           genre_id?: string | null
@@ -2785,9 +2793,15 @@ export type Database = {
           imported_at?: string
           imported_by?: string | null
           last_diagnosis_at?: string | null
+          last_maintenance_at?: string | null
+          last_maintenance_intensity?:
+            | Database["public"]["Enums"]["curatorial_action_type"]
+            | null
           last_metrics_at?: string | null
+          max_change_pct?: number
           metadata?: Json
           name: string
+          recommended_change_count?: number | null
           spotify_playlist_id: string
           spotify_url: string
           tracks_count?: number
@@ -2799,6 +2813,7 @@ export type Database = {
           canonical_playlist_id?: string | null
           cover_url?: string | null
           created_at?: string
+          curatorial_state?: Database["public"]["Enums"]["curatorial_state"]
           description?: string | null
           followers?: number
           genre_id?: string | null
@@ -2806,9 +2821,15 @@ export type Database = {
           imported_at?: string
           imported_by?: string | null
           last_diagnosis_at?: string | null
+          last_maintenance_at?: string | null
+          last_maintenance_intensity?:
+            | Database["public"]["Enums"]["curatorial_action_type"]
+            | null
           last_metrics_at?: string | null
+          max_change_pct?: number
           metadata?: Json
           name?: string
+          recommended_change_count?: number | null
           spotify_playlist_id?: string
           spotify_url?: string
           tracks_count?: number
@@ -3154,6 +3175,54 @@ export type Database = {
           version?: number
         }
         Relationships: []
+      }
+      playlist_cooldowns: {
+        Row: {
+          action_type: Database["public"]["Enums"]["curatorial_action_type"]
+          cooldown_until: string
+          created_at: string
+          id: string
+          playlist_id: string
+          reason: string | null
+          started_at: string
+          triggered_by: string | null
+        }
+        Insert: {
+          action_type: Database["public"]["Enums"]["curatorial_action_type"]
+          cooldown_until: string
+          created_at?: string
+          id?: string
+          playlist_id: string
+          reason?: string | null
+          started_at?: string
+          triggered_by?: string | null
+        }
+        Update: {
+          action_type?: Database["public"]["Enums"]["curatorial_action_type"]
+          cooldown_until?: string
+          created_at?: string
+          id?: string
+          playlist_id?: string
+          reason?: string | null
+          started_at?: string
+          triggered_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "playlist_cooldowns_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "managed_playlists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "playlist_cooldowns_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_playlist_vps_assignment"
+            referencedColumns: ["managed_playlist_id"]
+          },
+        ]
       }
       playlist_diagnoses: {
         Row: {
@@ -4958,6 +5027,16 @@ export type Database = {
         Returns: Database["public"]["Enums"]["notification_type"]
       }
       accept_community_invite: { Args: { p_code: string }; Returns: Json }
+      apply_playlist_cooldown: {
+        Args: {
+          _action: Database["public"]["Enums"]["curatorial_action_type"]
+          _days?: number
+          _playlist_id: string
+          _reason?: string
+          _triggered_by?: string
+        }
+        Returns: string
+      }
       bump_ai_quota: {
         Args: { p_month_start: string; p_tokens: number; p_user_id: string }
         Returns: Json
@@ -5085,6 +5164,10 @@ export type Database = {
             }
             Returns: string
           }
+      default_cooldown_days: {
+        Args: { _action: Database["public"]["Enums"]["curatorial_action_type"] }
+        Returns: number
+      }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
@@ -5151,6 +5234,15 @@ export type Database = {
       generate_curator_deal_song_slug: {
         Args: { p_artist: string; p_id: string; p_song: string }
         Returns: string
+      }
+      get_active_cooldowns: {
+        Args: { _playlist_id: string }
+        Returns: {
+          action_type: Database["public"]["Enums"]["curatorial_action_type"]
+          cooldown_until: string
+          days_remaining: number
+          reason: string
+        }[]
       }
       get_active_replication_rules: {
         Args: { p_genre_id: string }
@@ -5281,6 +5373,13 @@ export type Database = {
       }
       is_admin: { Args: never; Returns: boolean }
       is_current_user_admin: { Args: never; Returns: boolean }
+      is_playlist_action_blocked: {
+        Args: {
+          _action: Database["public"]["Enums"]["curatorial_action_type"]
+          _playlist_id: string
+        }
+        Returns: boolean
+      }
       is_playlist_in_deal_baseline:
         | {
             Args: { p_deal_id: string; p_spotify_playlist_id: string }
@@ -5309,6 +5408,10 @@ export type Database = {
           p_user_id: string
         }
         Returns: string
+      }
+      map_adjustment_to_curatorial: {
+        Args: { _action_type: string }
+        Returns: Database["public"]["Enums"]["curatorial_action_type"]
       }
       match_curator_playlist: {
         Args: {
@@ -5453,6 +5556,19 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "curador"
+      curatorial_action_type:
+        | "cover"
+        | "description"
+        | "tracks_light"
+        | "tracks_recycle"
+        | "structural"
+      curatorial_state:
+        | "saudavel"
+        | "observacao"
+        | "leve"
+        | "moderada"
+        | "estrutural"
+        | "cooldown"
       followers_source_type: "spotify_api"
       notification_type: "critical" | "warning" | "info"
     }
@@ -5583,6 +5699,21 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "curador"],
+      curatorial_action_type: [
+        "cover",
+        "description",
+        "tracks_light",
+        "tracks_recycle",
+        "structural",
+      ],
+      curatorial_state: [
+        "saudavel",
+        "observacao",
+        "leve",
+        "moderada",
+        "estrutural",
+        "cooldown",
+      ],
       followers_source_type: ["spotify_api"],
       notification_type: ["critical", "warning", "info"],
     },
