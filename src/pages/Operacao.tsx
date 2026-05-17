@@ -3,11 +3,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Activity, Pause, RefreshCw, ArrowDownRight, ArrowUpRight,
   Music2, FlaskConical, History, ListMusic, Search, Users, ExternalLink,
-  AlertCircle, Wrench, ChevronDown, ChevronUp, Server, Sparkles, Heart, Target, UserSearch,
+  AlertCircle, Wrench, ChevronDown, ChevronUp, Server, Sparkles, Heart, Target,
 } from "lucide-react";
 import { MinhasPlaylists } from "@/components/operacao/MinhasPlaylists";
 import { PlanejadorMeta } from "@/components/operacao/PlanejadorMeta";
-import { CuradoresCRM } from "@/components/operacao/CuradoresCRM";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -52,7 +51,6 @@ const TABS = [
   { id: "minhas",      label: "Minhas Playlists", icon: Sparkles },
   { id: "playlists",   label: "Criadas (auto)",   icon: ListMusic },
   { id: "campanha",    label: "Campanha",         icon: Target },
-  { id: "prospeccao",  label: "Prospecção",       icon: UserSearch },
   { id: "ajustes",     label: "Ajustes",          icon: Wrench },
 ] as const;
 
@@ -90,12 +88,6 @@ type AccountSummary = {
 
 export default function Operacao() {
   const [tab, setTab] = useScreenField<TabId>("/catalogo", "tab", "minhas");
-  // Permite deep-link via ?tab=prospeccao (usado pelo menu lateral)
-  useEffect(() => {
-    const qp = new URLSearchParams(window.location.search).get("tab") as TabId | null;
-    if (qp && TABS.some(t => t.id === qp) && qp !== tab) setTab(qp);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
   const [filter, setFilter] = useScreenField<"todas" | OpStatus>("/catalogo", "filter", "todas");
   const [search, setSearch] = useScreenField<string>("/catalogo", "search", "");
   const [loading, setLoading] = useState(true);
@@ -418,13 +410,6 @@ export default function Operacao() {
             </div>
           </section>
         )}
-
-        {tab === "prospeccao" && (
-          <section className="space-y-6">
-            <CuradoresCRM />
-          </section>
-        )}
-
       </div>
     </PageContainer>
   );
