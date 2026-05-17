@@ -290,6 +290,7 @@ export function PlaylistCockpit({
             />
           </div>
           <CoverCard
+            managedId={managedId}
             currentCover={coverUrl}
             leaders={diag.raw?.market_insights?.leader_playlists ?? []}
             spotifyPlaylistId={spotifyPlaylistId}
@@ -524,26 +525,82 @@ function IdentityField({ label, field, managedId, current, suggestion, score, on
   );
 }
 
-function CoverCard({ currentCover, leaders, spotifyPlaylistId }: {
+function CoverCard({ managedId, currentCover, leaders, spotifyPlaylistId }: {
+  managedId: string;
   currentCover: string | null;
   leaders: { spotify_playlist_id: string; name: string; followers: number; cover_url: string | null }[];
   spotifyPlaylistId: string;
 }) {
+  const [uploading, setUploading] = useState(false);
+  const [localCover, setLocalCover] = useState<string | null>(currentCover);
+
+  const handleFile = async (file: File) => {
+    if (!file) return;
+    if (!/^image\/(png|jpe?g|webp)$/i.test(file.type)) {
+      toast({ title: "Formato inválido", description: "Use PNG, JPG ou WEBP.", variant: "destructive" });
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      toast({ title: "Arquivo grande", description: "Máximo 8MB (será comprimido).", variant: "destructive" });
+      return;
+    }
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "png";
+      const path = `${managedId}/${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("playlist-covers")
+        .upload(path, file, { contentType: file.type, upsert: false });
+      if (upErr) throw upErr;
+      const { data: pub } = supabase.storage.from("playlist-covers").getPublicUrl(path);
+      const imageUrl = pub.publicUrl;
+
+      const { data, error } = await supabase.functions.invoke("apply-managed-cover", {
+        body: { playlist_id: managedId, image_url: imageUrl },
+      });
+      if (error) throw error;
+      if (!data?.ok) throw new Error(data?.error || "falha ao aplicar capa");
+      setLocalCover(imageUrl);
+      toast({ title: "Capa atualizada no Spotify", description: "Pode levar alguns segundos pra atualizar lá." });
+    } catch (e: any) {
+      toast({ title: "Erro ao enviar capa", description: e?.message ?? String(e), variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
+  };
+
   return (
     <Card className="p-4 space-y-4">
       <div className="flex items-center justify-between">
         <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">Capa</span>
-        <Button asChild size="sm" variant="ghost" className="h-7 text-xs gap-1 text-muted-foreground">
-          <a href={`https://open.spotify.com/playlist/${spotifyPlaylistId}`} target="_blank" rel="noreferrer">
-            <ExternalLink className="h-3 w-3" /> Trocar no Spotify
-          </a>
-        </Button>
+        <div className="flex items-center gap-2">
+          <label className={cn(
+            "inline-flex items-center gap-1 h-7 px-2 text-xs rounded-md cursor-pointer",
+            "bg-primary text-primary-foreground hover:bg-primary/90 font-medium",
+            uploading && "opacity-60 pointer-events-none",
+          )}>
+            {uploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
+            {uploading ? "Enviando..." : "Trocar capa"}
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              className="hidden"
+              disabled={uploading}
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.currentTarget.value = ""; }}
+            />
+          </label>
+          <Button asChild size="sm" variant="ghost" className="h-7 text-xs gap-1 text-muted-foreground">
+            <a href={`https://open.spotify.com/playlist/${spotifyPlaylistId}`} target="_blank" rel="noreferrer">
+              <ExternalLink className="h-3 w-3" /> Abrir no Spotify
+            </a>
+          </Button>
+        </div>
       </div>
       <div className="grid grid-cols-[auto_1fr] gap-4 items-start">
         <div className="space-y-1.5">
           <div className="text-[10px] text-muted-foreground">Atual</div>
-          {currentCover ? (
-            <img src={currentCover} alt="capa atual"
+          {localCover ? (
+            <img src={localCover} alt="capa atual"
               className="w-28 h-28 rounded-lg object-cover ring-1 ring-border" />
           ) : (
             <div className="w-28 h-28 rounded-lg bg-elevated grid place-items-center">
@@ -576,7 +633,7 @@ function CoverCard({ currentCover, leaders, spotifyPlaylistId }: {
             </div>
           )}
           <div className="text-[11px] text-muted-foreground pt-1">
-            Upload de nova capa direto pelo cockpit em breve. Por enquanto, compare com os líderes e troque pelo Spotify.
+            PNG/JPG quadrado, mín. 640×640. Comprimimos pra ≤256KB (limite do Spotify) e enviamos via API.
           </div>
         </div>
       </div>
