@@ -186,7 +186,7 @@ export function EmailPreviewDialog({
         <DialogHeader className="px-6 pt-6 pb-3 border-b border-border">
           <DialogTitle className="flex items-center gap-2 text-base">
             <Mail className="h-4 w-4 text-primary" />
-            Apresentação para curador
+            {isFollowup ? `Follow-up #${followupN}` : "Apresentação para curador"}
           </DialogTitle>
           <DialogDescription className="text-xs">
             Enviado por <span className="text-foreground font-medium">parcerias@notify.engine.nexcreatorx.com</span> em nome da NexEngine
