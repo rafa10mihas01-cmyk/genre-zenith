@@ -312,3 +312,12 @@ export function healthBadgeClass(level: HealthLevel): string {
     default:          return "bg-muted text-muted-foreground border-border";
   }
 }
+
+export function healthBarClass(level: HealthLevel): string {
+  switch (level) {
+    case "excelente": return "bg-success";
+    case "atencao":   return "bg-warning";
+    case "problema":  return "bg-destructive";
+    default:          return "bg-muted-foreground/40";
+  }
+}
