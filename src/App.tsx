@@ -18,6 +18,7 @@ import SpotifyCallback from "./pages/SpotifyCallback";
 import RootRoute from "./components/RootRoute";
 // Cérebro e Criação foram aposentados — rotas legadas agora redirecionam para /inteligencia
 import Operacao from "./pages/Operacao";
+import Prospecao from "./pages/Prospecao";
 import Performance from "./pages/Performance";
 import PlaylistDeals from "./pages/PlaylistDeals";
 import DealDetail from "./pages/DealDetail";
@@ -107,6 +108,7 @@ const App = () => (
               <Route path="/inteligencia" element={<Navigate to="/analytics" replace />} />
               {/* Catálogo é a rota canônica. /operacao e /playlists redirecionam. */}
               <Route path="/catalogo" element={<Protected><Operacao /></Protected>} />
+              <Route path="/prospeccao" element={<Protected><Prospecao /></Protected>} />
               <Route path="/operacao" element={<Navigate to="/catalogo" replace />} />
               <Route path="/playlists" element={<Navigate to="/catalogo" replace />} />
               <Route path="/playlists/:id" element={<Protected><PlaylistDetail /></Protected>} />
