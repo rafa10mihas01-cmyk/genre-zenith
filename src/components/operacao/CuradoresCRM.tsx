@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Upload, Search, Mail, Instagram, Link2, ExternalLink, Star, Ban, Copy,
   CheckCircle2, Trash2, Users, Filter, Download, Loader2, MoreHorizontal,
-  SlidersHorizontal,
+  SlidersHorizontal, Send, ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
@@ -18,6 +18,11 @@ import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { downloadCSV } from "@/lib/csv";
 import { EmailPreviewDialog, openInstagramWithMessage } from "./EmailPreviewDialog";
+import {
+  PipelineStatusBadge, PIPELINE_STATUS_META, type PipelineStatus,
+} from "./PipelineStatusBadge";
+import { CommercialScoreDots, type CommercialScore } from "./CommercialScoreEditor";
+import { CuradorDetailSheet, type DetailCurator } from "./CuradorDetailSheet";
 
 /* ============================================================
    Tipos & helpers
