@@ -374,10 +374,11 @@ export function CuradoresCRM({ segment }: { segment?: Segment } = {}) {
   const [statusFilter, setStatusFilter] = useState<"todos" | Status>("todos");
   const [scoreFilter, setScoreFilter] = useState<"todos" | "A+" | "A" | "B" | "C" | "D">("todos");
   const [sizeFilter, setSizeFilter] = useState<SizeBucket>("todos");
+  const [contactFilter, setContactFilter] = useState<"todos" | "nao_contatado" | "enviado" | "aguardando" | "respondeu">("todos");
   const [favOnly, setFavOnly] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(50);
-  type ExpandedFilter = "status" | "score" | "tamanho" | null;
+  type ExpandedFilter = "status" | "score" | "tamanho" | "contato" | null;
   const [expandedFilter, setExpandedFilter] = useState<ExpandedFilter>(null);
   const [emailTarget, setEmailTarget] = useState<{ externalCuratorId: string; recipientEmail: string; curatorName: string; playlistName: string | null; followupNumber?: 1 | 2 } | null>(null);
   const [detailCurator, setDetailCurator] = useState<DetailCurator | null>(null);
@@ -524,8 +525,6 @@ export function CuradoresCRM({ segment }: { segment?: Segment } = {}) {
     const bucket = SIZE_BUCKETS.find((b) => b.id === sizeFilter)!;
     return rows
       .filter((r) => {
-        // Segmento de alto nível: ativos = curadores com quem já trabalho (comprado);
-        // prospeccao = leads ainda não fechados (novo, negociando, blacklist).
         if (segment === "ativos" && r.status !== "comprado") return false;
         if (segment === "prospeccao" && r.status === "comprado") return false;
         if (statusFilter !== "todos" && r.status !== statusFilter) return false;
@@ -533,6 +532,15 @@ export function CuradoresCRM({ segment }: { segment?: Segment } = {}) {
         if (favOnly && !r.favorite) return false;
         const f = r.followers ?? 0;
         if (f < bucket.min || f >= bucket.max) return false;
+        // Filtro de Contato (estágio operacional do outreach)
+        if (contactFilter !== "todos") {
+          const sent = !!r.last_outreach_at;
+          const ps = r.pipeline_status;
+          if (contactFilter === "nao_contatado" && (sent || ps !== "novo")) return false;
+          if (contactFilter === "enviado" && !sent) return false;
+          if (contactFilter === "aguardando" && !(sent && (ps === "contatado" || ps === "sem_resposta"))) return false;
+          if (contactFilter === "respondeu" && !(ps === "respondeu" || ps === "negociando" || ps === "fechado")) return false;
+        }
         if (q && !(r.name.toLowerCase().includes(q) || (r.owner_name ?? "").toLowerCase().includes(q) || (r.email ?? "").toLowerCase().includes(q))) return false;
         return true;
       })
@@ -540,10 +548,10 @@ export function CuradoresCRM({ segment }: { segment?: Segment } = {}) {
         if (a.favorite !== b.favorite) return a.favorite ? -1 : 1;
         return (b.followers ?? 0) - (a.followers ?? 0);
       });
-  }, [rows, search, statusFilter, scoreFilter, sizeFilter, favOnly, segment]);
+  }, [rows, search, statusFilter, scoreFilter, sizeFilter, favOnly, contactFilter, segment]);
 
   // Reseta página quando filtros mudam
-  useEffect(() => { setPage(1); }, [search, statusFilter, scoreFilter, sizeFilter, favOnly, pageSize, segment]);
+  useEffect(() => { setPage(1); }, [search, statusFilter, scoreFilter, sizeFilter, favOnly, contactFilter, pageSize, segment]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const safePage = Math.min(page, totalPages);
@@ -553,10 +561,10 @@ export function CuradoresCRM({ segment }: { segment?: Segment } = {}) {
 
   const stats = useMemo(() => {
     const total = rows.length;
-    const aplus = rows.filter((r) => r.score === "A+" || r.score === "A").length;
-    const negociando = rows.filter((r) => r.status === "negociando").length;
-    const comprados = rows.filter((r) => r.status === "comprado").length;
-    return { total, aplus, negociando, comprados };
+    const naoContatado = rows.filter((r) => !r.last_outreach_at && r.pipeline_status === "novo").length;
+    const enviado = rows.filter((r) => !!r.last_outreach_at).length;
+    const respondeu = rows.filter((r) => ["respondeu","negociando","fechado"].includes(r.pipeline_status)).length;
+    return { total, naoContatado, enviado, respondeu };
   }, [rows]);
 
   const exportCSV = () => {
@@ -572,16 +580,17 @@ export function CuradoresCRM({ segment }: { segment?: Segment } = {}) {
   const statusActive = statusFilter !== "todos";
   const scoreActive = scoreFilter !== "todos" || favOnly;
   const sizeActive = sizeFilter !== "todos";
-  const activeFilterCount = (statusActive ? 1 : 0) + (scoreActive ? 1 : 0) + (sizeActive ? 1 : 0);
+  const contactActive = contactFilter !== "todos";
+  const activeFilterCount = (statusActive ? 1 : 0) + (scoreActive ? 1 : 0) + (sizeActive ? 1 : 0) + (contactActive ? 1 : 0);
 
   return (
     <div className="space-y-4">
       {/* KPIs — sempre primeiro */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-        <MiniStat label="Curadores" value={stats.total} />
-        <MiniStat label="Score A+/A" value={stats.aplus} tone="primary" />
-        <MiniStat label="Negociando" value={stats.negociando} tone="warning" />
-        <MiniStat label="Comprados" value={stats.comprados} tone="primary" />
+        <MiniStat label="Total" value={stats.total} />
+        <MiniStat label="Não contatados" value={stats.naoContatado} tone="warning" />
+        <MiniStat label="Enviados" value={stats.enviado} tone="primary" />
+        <MiniStat label="Responderam" value={stats.respondeu} tone="primary" />
       </div>
 
       {/* Toolbar compacta — busca + Importar + ⋯ */}
@@ -638,6 +647,7 @@ export function CuradoresCRM({ segment }: { segment?: Segment } = {}) {
         <div className="flex items-center gap-1 p-1.5 flex-wrap">
           <SlidersHorizontal className="h-3.5 w-3.5 text-muted-foreground mx-2 shrink-0" />
           {([
+            { id: "contato" as const, label: "Contato", active: contactActive, show: true },
             { id: "status" as const, label: "Status", active: statusActive, show: segment !== "ativos" },
             { id: "score" as const, label: "Score", active: scoreActive, show: true },
             { id: "tamanho" as const, label: "Tamanho", active: sizeActive, show: true },
@@ -667,6 +677,7 @@ export function CuradoresCRM({ segment }: { segment?: Segment } = {}) {
                 setStatusFilter("todos");
                 setScoreFilter("todos");
                 setSizeFilter("todos");
+                setContactFilter("todos");
                 setFavOnly(false);
               }}
               className="ml-auto h-8 px-3 text-[11px] font-medium text-muted-foreground hover:text-destructive transition-colors"
@@ -678,6 +689,21 @@ export function CuradoresCRM({ segment }: { segment?: Segment } = {}) {
 
         {expandedFilter && (
           <div className="px-3 pb-3 pt-1 border-t border-border/40 animate-tab-in">
+            {expandedFilter === "contato" && (
+              <div className="flex items-center gap-1.5 flex-wrap pt-2">
+                {([
+                  { id: "todos", label: "Todos" },
+                  { id: "nao_contatado", label: "Não contatados" },
+                  { id: "enviado", label: "Enviados" },
+                  { id: "aguardando", label: "Aguardando resposta" },
+                  { id: "respondeu", label: "Responderam" },
+                ] as const).map((s) => (
+                  <Chip key={s.id} active={contactFilter === s.id} onClick={() => setContactFilter(s.id)}>
+                    {s.label}
+                  </Chip>
+                ))}
+              </div>
+            )}
             {expandedFilter === "status" && segment !== "ativos" && (
               <div className="flex items-center gap-1.5 flex-wrap pt-2">
                 {(segment === "prospeccao"
