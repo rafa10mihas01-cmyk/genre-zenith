@@ -279,6 +279,9 @@ export function MinhasPlaylists() {
       return vb - va;
     });
 
+  const visibleIds = useMemo(() => visible.map((p) => p.id), [visible]);
+  const { byPlaylist: cooldownsByPlaylist } = useActiveCooldowns(visibleIds);
+
   async function handleImport() {
     if (!importUrl.trim()) return;
     setImporting(true);
