@@ -26,11 +26,9 @@ import { CloseDealDialog } from "@/components/playlist-deals/CloseDealDialog";
 import { FinanceiroTab } from "@/components/playlist-deals/FinanceiroTab";
 import { useClients } from "@/hooks/useClients";
 
-type DealsTab = "clients" | "library" | "active" | "done" | "ledger" | "all";
+type DealsTab = "active" | "done" | "ledger" | "all";
 
 const TABS = [
-  { id: "clients"  as const, label: "Clientes",    icon: User },
-  { id: "library"  as const, label: "Curadores",   icon: Users },
   { id: "active"   as const, label: "Ativos",      icon: Activity },
   { id: "done"     as const, label: "Concluídos",  icon: CheckCircle2 },
   { id: "ledger"   as const, label: "Financeiro",  icon: Receipt },
