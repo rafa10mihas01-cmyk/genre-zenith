@@ -76,16 +76,10 @@ const sections: NavSection[] = [
     label: "Inteligência",
     items: [
       {
-        title: "Inteligência",
-        url: "/inteligencia",
-        icon: Sparkles,
-        matchPaths: ["/cerebro", "/criacao"],
-      },
-      {
         title: "Analytics",
         url: "/analytics",
         icon: BarChart3,
-        matchPaths: ["/performance", "/valuation", "/benchmarks", "/matriz", "/heatmap"],
+        matchPaths: ["/inteligencia", "/cerebro", "/criacao", "/performance", "/valuation", "/benchmarks", "/matriz", "/heatmap"],
       },
     ],
   },

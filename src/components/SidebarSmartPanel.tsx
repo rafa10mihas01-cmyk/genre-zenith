@@ -34,11 +34,6 @@ const QUICK_ACTIONS_BY_ROUTE: Record<string, QuickAction[]> = {
     { label: "Playlists", icon: ListMusic, to: "/catalogo" },
     { label: "Analytics", icon: BarChart3, to: "/analytics" },
   ],
-  "/inteligencia": [
-    { label: "Analytics", icon: BarChart3, to: "/analytics" },
-    { label: "Deals", icon: Handshake, to: "/deals" },
-    { label: "Playlists", icon: ListMusic, to: "/catalogo" },
-  ],
   "/cerebro": [
     { label: "Analytics", icon: BarChart3, to: "/analytics" },
     { label: "Deals", icon: Handshake, to: "/deals" },
