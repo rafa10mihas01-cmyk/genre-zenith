@@ -404,6 +404,9 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
               </div>
             )}
 
+            {/* Apps Spotify (guarda-chuva multi-app) */}
+            <SpotifyAppsManager onChange={setSpotifyApps} />
+
             {/* Contas conectadas */}
             <div>
               <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
@@ -420,7 +423,7 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
                 <div className="flex items-center gap-2">
                   <Button
                     size="sm"
-                    onClick={() => (isInIframe ? openInNewTab(false) : connectSpotify(false))}
+                    onClick={() => handleAddAccountClick(false)}
                     disabled={connectingSpotify}
                     className="h-8 text-xs gap-1.5"
                   >
@@ -433,7 +436,7 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => (isInIframe ? openInNewTab(true) : connectSpotify(true))}
+                      onClick={() => handleAddAccountClick(true)}
                       disabled={connectingSpotify}
                       className="h-8 text-xs gap-1.5"
                     >
