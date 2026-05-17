@@ -764,7 +764,7 @@ function DistributionTable({
   coverage: number;
   excluded?: Set<string>;
   onToggleSlot?: (key: string) => void;
-  slotKey?: (s: Slot, i: number) => string;
+  slotKey?: (s: Slot) => string;
 }) {
   const [query, setQuery] = useState("");
   const [grouped, setGrouped] = useState(true);
