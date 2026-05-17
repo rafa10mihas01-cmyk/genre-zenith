@@ -2,9 +2,24 @@ import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { toast } from "@/hooks/use-toast";
 import { formatNumber } from "@/lib/format";
-import { Target, Info, Sparkles, ListMusic, AlertTriangle, CheckCircle2, XCircle, ChevronDown } from "lucide-react";
+import { Target, Info, Sparkles, ListMusic, AlertTriangle, CheckCircle2, XCircle, ChevronDown, Music2, Loader2, Send, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+// Extrai spotify_track_id de URL/URI do Spotify
+function extractTrackId(input: string): string | null {
+  const s = input.trim();
+  if (!s) return null;
+  const m = s.match(/track[/:]([A-Za-z0-9]{15,})/);
+  if (m) return m[1];
+  if (/^[A-Za-z0-9]{15,}$/.test(s)) return s;
+  return null;
+}
+
+type ApplyResult = { playlist_id: string; name?: string; status: "added" | "moved" | "skip" | "error"; message?: string };
+
 
 /**
  * PLANEJADOR DE META — Simulador teórico isolado.
@@ -204,7 +219,13 @@ export function PlanejadorMeta() {
   const [days, setDays] = useState<number>(30);
   const [genreId, setGenreId] = useState<string>("");
   const [profile, setProfile] = useState<typeof PROFILES[number]["id"]>("mercado");
-  
+
+  // Aplicar música real
+  const [trackInput, setTrackInput] = useState("");
+  const trackId = useMemo(() => extractTrackId(trackInput), [trackInput]);
+  const [excluded, setExcluded] = useState<Set<string>>(new Set());
+  const [applying, setApplying] = useState(false);
+  const [results, setResults] = useState<ApplyResult[] | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -250,7 +271,54 @@ export function PlanejadorMeta() {
   );
   const slots = plan.slots;
 
+  const slotKey = (s: Slot, i: number) => `${s.playlistId}-${s.position}-${i}`;
+  const activeSlots = useMemo(
+    () => slots.filter((s, i) => !excluded.has(slotKey(s, i))),
+    [slots, excluded],
+  );
+  const toggleSlot = (key: string) => {
+    setExcluded(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
+  // reset excluídos quando plano muda
+  useEffect(() => { setExcluded(new Set()); setResults(null); }, [slots.length, genreId, profile, dailyTarget]);
+
+  const applyPlan = async () => {
+    if (!trackId) {
+      toast({ title: "Cole o link da música do Spotify", variant: "destructive" });
+      return;
+    }
+    if (activeSlots.length === 0) {
+      toast({ title: "Nenhuma playlist selecionada", variant: "destructive" });
+      return;
+    }
+    setApplying(true);
+    setResults(null);
+    try {
+      const payload = activeSlots.map(s => ({ playlist_id: s.playlistId, position: s.position }));
+      const { data, error } = await supabase.functions.invoke("apply-meta-plan", {
+        body: { spotify_track_id: trackId, slots: payload },
+      });
+      if (error) throw error;
+      if (!data?.ok) throw new Error(data?.error || "falha ao aplicar");
+      setResults(data.results ?? []);
+      const c = data.counts ?? {};
+      toast({
+        title: "Plano aplicado",
+        description: `Adicionada: ${c.added ?? 0} · Movida: ${c.moved ?? 0} · Pulada: ${c.skip ?? 0} · Erro: ${c.error ?? 0}`,
+      });
+    } catch (e: any) {
+      toast({ title: "Erro ao aplicar plano", description: e?.message ?? String(e), variant: "destructive" });
+    } finally {
+      setApplying(false);
+    }
+  };
+
   const ind = useMemo(() => calcIndicators(slots, dailyTarget, filtered.length), [slots, dailyTarget, filtered.length]);
+
 
   return (
     <section className="space-y-4 animate-tab-in">
