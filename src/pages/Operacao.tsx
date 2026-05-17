@@ -321,36 +321,6 @@ export default function Operacao() {
           </section>
         )}
 
-        {/* AJUSTES — manutenção do dia-a-dia */}
-        {tab === "ajustes" && (
-          <section key="tab-ajustes" className="space-y-4 animate-tab-in">
-            <div className="nx-card">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="h-9 w-9 rounded-full bg-elevated border border-border flex items-center justify-center">
-                  <RefreshCw className="h-4 w-4 text-primary" />
-                </div>
-                <div>
-                  <h3 className="font-semibold">Trocas pendentes</h3>
-                  <p className="text-xs text-muted-foreground">Sugestões de troca baseadas em performance</p>
-                </div>
-              </div>
-              <EmptyInline msg="Nenhuma troca sugerida no momento. Rode uma análise no Cérebro para gerar recomendações." />
-            </div>
-
-            <div className="nx-card">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="h-9 w-9 rounded-full bg-elevated border border-border flex items-center justify-center">
-                  <FlaskConical className="h-4 w-4 text-warning" />
-                </div>
-                <div>
-                  <h3 className="font-semibold">Ajustes em teste</h3>
-                  <p className="text-xs text-muted-foreground">Mudanças em validação antes de promover</p>
-                </div>
-              </div>
-              <EmptyInline msg="Nenhum teste ativo." />
-            </div>
-          </section>
-        )}
       </div>
     </PageContainer>
   );
