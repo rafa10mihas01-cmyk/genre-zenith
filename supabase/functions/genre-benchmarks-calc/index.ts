@@ -45,18 +45,19 @@ async function calcOne(supabase: any, genreId: string) {
   const ids = pls.map((p: any) => p.spotify_playlist_id).filter(Boolean);
   const { data: srRows } = await supabase
     .from("search_results")
-    .select("spotify_playlist_id,total_musicas,seguidores,quality_score,enriched_at,is_valid,duplicate_of")
+    .select("spotify_playlist_id,total_musicas,seguidores,quality_score,winner_score,enriched_at,is_valid,duplicate_of")
     .in("spotify_playlist_id", ids)
     .eq("genre_id", genreId)
     .eq("is_valid", true)
     .not("enriched_at", "is", null)
     .is("duplicate_of", null);
-  const srMap = new Map<string, { total_musicas: number | null; seguidores: number | null }>();
+  const srMap = new Map<string, { total_musicas: number | null; seguidores: number | null; winner_score: number | null }>();
   for (const r of srRows ?? []) {
     if (!srMap.has(r.spotify_playlist_id) || (r.total_musicas && !srMap.get(r.spotify_playlist_id)!.total_musicas)) {
-      srMap.set(r.spotify_playlist_id, { total_musicas: r.total_musicas, seguidores: r.seguidores });
+      srMap.set(r.spotify_playlist_id, { total_musicas: r.total_musicas, seguidores: r.seguidores, winner_score: r.winner_score == null ? null : Number(r.winner_score) });
     }
   }
+  const winnerList: number[] = [];
 
   for (const p of pls) {
     const { data: snaps } = await supabase
@@ -81,7 +82,10 @@ async function calcOne(supabase: any, genreId: string) {
     if (t == null) t = fallback?.total_musicas ?? null;
     if (f != null && f > 0) followersList.push(f);
     if (t != null && t > 0) tracksList.push(t);
+    if (fallback?.winner_score != null) winnerList.push(fallback.winner_score);
   }
+
+  winnerList.sort((a, b) => a - b);
 
   followersList.sort((a, b) => a - b);
   tracksList.sort((a, b) => a - b);
@@ -105,6 +109,11 @@ async function calcOne(supabase: any, genreId: string) {
     metadata: {
       growth_sample_size: growthSamples.length,
       tracks_sample_size: tracksList.length,
+      winner_sample_size: winnerList.length,
+      winner_p50: percentile(winnerList, 50),
+      winner_p75: percentile(winnerList, 75),
+      winner_p90: percentile(winnerList, 90),
+      winner_score_version: 2,
     },
   };
 

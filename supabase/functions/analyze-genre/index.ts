@@ -114,7 +114,7 @@ Deno.serve(async (req) => {
       // não duplicadas. Nunca usar followers=NULL no ranking.
       supabase
         .from("search_results")
-        .select("id,nome_playlist,seguidores,spotify_url,imagem_url,descricao,total_musicas,term_id,followers_source,followers_verified_at,quality_score,enriched_at,is_valid,duplicate_of,times_seen,owner_id")
+        .select("id,nome_playlist,seguidores,spotify_url,imagem_url,descricao,total_musicas,term_id,followers_source,followers_verified_at,quality_score,winner_score,winner_breakdown,enriched_at,is_valid,duplicate_of,times_seen,owner_id")
         .eq("genre_id", body.genre_id)
         .eq("is_valid", true)
         .eq("followers_source", "spotify_api")
@@ -153,12 +153,15 @@ Deno.serve(async (req) => {
     }
     const padroes_nome = topN(bigrams, 20);
 
-    // Playlists dominantes — RANKING COMPOSTO (Onda 1):
-    //   primary: quality_score (autoridade), tie-break: followers, freshness, recurrence
+    // Playlists dominantes — RANKING WINNER SCORE v2 (Onda 2):
+    //   primary: winner_score (composto), fallback quality_score, depois followers/freshness
     const seen = new Set<string>();
     const playlists_dominantes = (results ?? [])
       .filter(r => r.seguidores != null && r.spotify_url && !seen.has(r.spotify_url) && (seen.add(r.spotify_url), true))
       .sort((a, b) => {
+        const wa = a.winner_score == null ? -1 : Number(a.winner_score);
+        const wb = b.winner_score == null ? -1 : Number(b.winner_score);
+        if (wa !== wb) return wb - wa;
         const qa = Number(a.quality_score ?? 0);
         const qb = Number(b.quality_score ?? 0);
         if (qa !== qb) return qb - qa;
@@ -180,6 +183,8 @@ Deno.serve(async (req) => {
         imagem: r.imagem_url,
         total_musicas: r.total_musicas,
         quality_score: r.quality_score,
+        winner_score: r.winner_score,
+        winner_breakdown: r.winner_breakdown,
       }));
 
     // Músicas recorrentes
