@@ -826,27 +826,30 @@ function CuradorRowCard({
       "bg-card rounded-2xl border border-border/40 overflow-hidden flex flex-col transition-colors group",
       r.status === "blacklist" ? "opacity-60 hover:border-destructive/40" : "hover:border-primary/40",
     )}>
-      {/* Header: nome + score */}
-      <div className="p-4 flex justify-between items-start gap-3 border-b border-border/40">
+      {/* Header: status + nome + owner + score badge */}
+      <div className="p-3.5 flex justify-between items-start gap-3 border-b border-border/40">
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <span className={cn("w-2 h-2 rounded-full shrink-0", statusDot)} />
-            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", statusDot)} />
+            <span className="text-[9.5px] uppercase tracking-[0.1em] text-muted-foreground font-semibold">
               {STATUS_META[r.status].label}
             </span>
-            {r.favorite && <Star className="h-3 w-3 fill-warning text-warning shrink-0 ml-auto" />}
+            {r.favorite && <Star className="h-3 w-3 fill-warning text-warning shrink-0" />}
           </div>
-          <h3 className="text-foreground font-bold text-sm leading-tight line-clamp-2" title={r.name}>
+          <h3 className="text-foreground font-semibold text-[13.5px] leading-tight line-clamp-2" title={r.name}>
             {r.name}
           </h3>
-          <p className="text-muted-foreground text-xs truncate mt-0.5">{r.owner_name || "—"}</p>
+          <p className="text-muted-foreground text-[11.5px] truncate mt-0.5">{r.owner_name || "—"}</p>
         </div>
-        <div className="flex flex-col items-center shrink-0">
-          <span className={cn("text-2xl font-black leading-none tabular-nums", scoreColor)}>
-            {sc.label}
-          </span>
-          <span className="text-[9px] uppercase font-bold text-muted-foreground mt-0.5">Score</span>
-        </div>
+        <span
+          className={cn(
+            "shrink-0 inline-flex items-center justify-center min-w-[28px] h-6 px-1.5 rounded-md border text-[11px] font-bold tabular-nums",
+            sc.tone,
+          )}
+          title={`Score ${sc.label}`}
+        >
+          {sc.label}
+        </span>
       </div>
 
       {/* Stats */}
