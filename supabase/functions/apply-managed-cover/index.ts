@@ -53,7 +53,11 @@ function isAllowedImageUrl(url: string): boolean {
   try {
     const u = new URL(url);
     if (u.protocol !== "https:") return false;
-    return u.hostname === new URL(SUPABASE_URL).hostname;
+    if (u.hostname === new URL(SUPABASE_URL).hostname) return true;
+    // CDN do Spotify (capas de playlists/artistas) — fonte segura e pública
+    if (/(^|\.)scdn\.co$/i.test(u.hostname)) return true;
+    if (/spotifycdn\.com$/i.test(u.hostname)) return true;
+    return false;
   } catch { return false; }
 }
 
