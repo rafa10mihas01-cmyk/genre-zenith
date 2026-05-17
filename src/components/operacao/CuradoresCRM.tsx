@@ -798,11 +798,12 @@ function MiniStat({ label, value, tone }: { label: string; value: number; tone?:
 }
 
 function CuradorRowCard({
-  r, onUpdate, onRemove,
+  r, onUpdate, onRemove, onOpenEmail,
 }: {
   r: CuradorRow;
   onUpdate: (id: string, patch: Partial<CuradorRow>) => void;
   onRemove: (id: string) => void;
+  onOpenEmail: (row: CuradorRow) => void;
 }) {
   const sc = scoreOf(r);
 
@@ -811,15 +812,15 @@ function CuradorRowCard({
     navigator.clipboard.writeText(r.email);
     toast.success("Email copiado");
   };
-  const mailto = () => {
+  const openEmail = () => {
     if (!r.email) return;
-    const subject = encodeURIComponent(`Parceria — ${r.name}`);
-    const body = encodeURIComponent(
-      `Olá! Vi sua playlist "${r.name}" no Spotify e gostaria de conversar sobre uma parceria de divulgação. Tem interesse?\n\n— enviado via NexEngine`,
-    );
-    window.location.href = `mailto:${r.email}?subject=${subject}&body=${body}`;
+    onOpenEmail(r);
   };
-  const igUrl = r.instagram ? `https://instagram.com/${r.instagram.replace(/^@/, "")}` : null;
+  const openIg = () => {
+    if (!r.instagram) return;
+    openInstagramWithMessage(r.instagram, r.owner_name || r.name, r.name);
+  };
+  const igHandle = r.instagram ? r.instagram.replace(/^@/, "") : null;
 
   // Status dot color
   const statusDot =
