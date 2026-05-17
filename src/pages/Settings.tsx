@@ -130,11 +130,12 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
     return popup;
   }
 
-  async function openInNewTab(forceLogin = false) {
+  async function openInNewTab(forceLogin = false, appId?: string) {
     try {
       const redirect = getSpotifyRedirectUri();
       const qs = new URLSearchParams({ mode: "login", redirect });
       if (forceLogin) qs.set("force_login", "1");
+      if (appId) qs.set("app_id", appId);
       const j = await callSpotifyAuth(qs.toString());
       if (!j?.ok) throw new Error(j?.error ?? "Falha ao gerar URL do Spotify");
 
@@ -143,7 +144,7 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
         if (window.top) window.top.location.href = j.url;
         else window.location.href = j.url;
       }
-      toast.info(forceLogin ? "Trocando conta no Spotify" : "Aba do Spotify aberta", {
+      toast.info(forceLogin ? "Trocando conta no Spotify" : `Autorização aberta (app: ${j.app ?? "default"})`, {
         description: forceLogin
           ? "A sessão atual será encerrada e a próxima conta poderá ser autorizada."
           : "Aprove o acesso. Depois volte aqui e atualize que a conta aparece.",
