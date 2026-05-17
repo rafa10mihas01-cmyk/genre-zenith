@@ -372,10 +372,10 @@ export default function Operacao() {
           </section>
         )}
 
-        {/* SIMULADOR — estimativa teórica de entrega */}
-        {tab === "simulador" && (
-          <section key="tab-simulador" className="animate-tab-in">
-            <SimuladorEntrega />
+        {/* CAMPANHA — planejador de meta de plays */}
+        {tab === "campanha" && (
+          <section key="tab-campanha" className="animate-tab-in">
+            <PlanejadorMeta />
           </section>
         )}
 
