@@ -689,12 +689,21 @@ export function MinhasPlaylists() {
               <div className="p-2.5 flex-1 flex flex-col gap-1.5">
                 <div className="flex items-start gap-1.5">
                   <h4 className="flex-1 text-[13px] font-semibold leading-tight line-clamp-1" title={p.name}>{p.name}</h4>
+              <div className="p-2.5 flex-1 flex flex-col gap-1.5">
+                <div className="flex items-start gap-1.5">
+                  <h4 className="flex-1 text-[13px] font-semibold leading-tight line-clamp-1" title={p.name}>{p.name}</h4>
                   <PlaylistScoreBadge scores={p.canonical_playlist_id ? scores[p.canonical_playlist_id] ?? null : null} />
                 </div>
                 <div className="flex items-center justify-between text-[11px] tabular-nums text-muted-foreground">
                   <span><span className="font-semibold text-foreground">{formatNumber(p.followers)}</span> seg.</span>
                   <span><span className="font-semibold text-foreground">{p.tracks_count || "—"}</span> fx</span>
                 </div>
+                {(p.curatorial_state || (cooldownsByPlaylist[p.id]?.length ?? 0) > 0) && (
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {p.curatorial_state && <CuratorialStateBadge state={p.curatorial_state} compact />}
+                    <CooldownStack cooldowns={cooldownsByPlaylist[p.id] ?? []} max={2} />
+                  </div>
+                )}
                 {(() => {
                   const b = p.canonical_playlist_id ? brains[p.canonical_playlist_id] : null;
                   if (!b) return null;
