@@ -10,6 +10,7 @@ import { Plus, RefreshCw, Target, FlaskConical, ListChecks } from "lucide-react"
 import { NewCampaignDialog } from "@/components/campanhas/NewCampaignDialog";
 import { toast } from "@/hooks/use-toast";
 import { PlanejadorMeta } from "@/components/operacao/PlanejadorMeta";
+import { Calculadora, type CalculadoraHandoff } from "@/components/operacao/calculadora/Calculadora";
 import { cn } from "@/lib/utils";
 
 type Campaign = {
@@ -42,7 +43,8 @@ export default function Campanhas() {
   const [filter, setFilter] = useState<"all" | "active" | "draft" | "completed">("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [recalcing, setRecalcing] = useState(false);
-  const [tab, setTab] = useState<"lista" | "simulador">("lista");
+  const [tab, setTab] = useState<"lista" | "financeiro" | "execucao">("lista");
+  const [handoff, setHandoff] = useState<CalculadoraHandoff | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
