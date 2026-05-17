@@ -49,7 +49,7 @@ export default function PlaylistDeals() {
   const [sourceFitId, setSourceFitId] = useState<string | null>(null);
 
   const { deals, logs, playlists, songs, alerts, curators, balances, progressByDeal, loading, deleteDeal, addLog, addBaseline, insertSnapshots, closeDeal, reopenDeal, forceCollectNow, updateCurator, addCuratorPurchase, archiveCurator, deleteCurator, pauseCurator, reload } = useCuratorDeals();
-  const { clients } = useClients();
+  
   const [searchParams, setSearchParams] = useSearchParams();
   const useLegacyCards = searchParams.get("legacy") === "1";
   const navigate = useNavigate();
