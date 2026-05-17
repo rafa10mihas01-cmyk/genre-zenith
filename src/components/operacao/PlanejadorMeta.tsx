@@ -342,7 +342,8 @@ export function PlanejadorMeta() {
           <Field label="Meta de plays" hint={metaExtenso(meta)}>
             <Input
               type="number"
-              value={meta}
+              value={meta === 0 ? "" : meta}
+              onFocus={(e) => e.target.select()}
               onChange={(e) => setMeta(Math.max(0, Number(e.target.value) || 0))}
               className="h-9 bg-elevated border-border tabular-nums"
             />
@@ -350,8 +351,9 @@ export function PlanejadorMeta() {
           <Field label="Duração (dias)">
             <Input
               type="number"
-              value={days}
-              onChange={(e) => setDays(Math.max(1, Number(e.target.value) || 1))}
+              value={days === 0 ? "" : days}
+              onFocus={(e) => e.target.select()}
+              onChange={(e) => setDays(Math.max(0, Number(e.target.value) || 0))}
               className="h-9 bg-elevated border-border tabular-nums"
             />
           </Field>
