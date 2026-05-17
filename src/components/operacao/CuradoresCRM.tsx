@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { downloadCSV } from "@/lib/csv";
+import { EmailPreviewDialog, openInstagramWithMessage } from "./EmailPreviewDialog";
 
 /* ============================================================
    Tipos & helpers
