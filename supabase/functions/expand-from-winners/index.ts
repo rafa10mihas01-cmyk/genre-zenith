@@ -145,6 +145,7 @@ async function expandGenre(
       const now = new Date().toISOString();
       const { error } = await supabase.from("search_results").insert({
         genre_id: genreId,
+        posicao: 0,
         nome_playlist: nome,
         descricao: desc,
         spotify_playlist_id: pl.id,
