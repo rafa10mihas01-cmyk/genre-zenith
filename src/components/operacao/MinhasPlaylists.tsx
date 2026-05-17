@@ -116,6 +116,32 @@ export function MinhasPlaylists() {
     }
   }
   const [drawerPl, setDrawerPl] = useState<ManagedPlaylist | null>(null);
+  const [applyingSuggestions, setApplyingSuggestions] = useState(false);
+
+  const applySuggestions = useCallback(async (plId: string, count: number) => {
+    setApplyingSuggestions(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("apply-playlist-suggestions", {
+        body: { playlist_id: plId, limit: count },
+      });
+      if (error || data?.ok === false) {
+        toast({
+          title: "Não foi possível adicionar",
+          description: data?.error ?? error?.message ?? "erro desconhecido",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: `${data?.inserted ?? count} faixas adicionadas no topo`,
+          description: "Rodando novo diagnóstico em seguida…",
+        });
+        // dispara re-diagnóstico em background pra atualizar análise
+        supabase.functions.invoke("diagnose-managed-playlist", { body: { playlist_id: plId } }).catch(() => {});
+      }
+    } finally {
+      setApplyingSuggestions(false);
+    }
+  }, []);
   const [diagnosis, setDiagnosis] = useState<Diagnosis | null>(null);
   const [diagLoading, setDiagLoading] = useState(false);
 
@@ -834,8 +860,17 @@ export function MinhasPlaylists() {
                           })}
                         </ul>
                         <div className="flex items-center gap-2 pt-1">
-                          <Button size="sm" disabled className="gap-1.5">Adicionar no Spotify</Button>
-                          <span className="text-[11px] text-muted-foreground">em breve — botão vai inserir nas posições sugeridas</span>
+                          <Button
+                            size="sm"
+                            className="gap-1.5"
+                            disabled={applyingSuggestions}
+                            onClick={() => applySuggestions(drawerPl.id, Math.min(diagnosis.tracks_suggestions.length, 15))}
+                          >
+                            {applyingSuggestions ? "Adicionando…" : `Adicionar ${Math.min(diagnosis.tracks_suggestions.length, 15)} no Spotify`}
+                          </Button>
+                          <span className="text-[11px] text-muted-foreground">
+                            insere no topo, nas posições mostradas
+                          </span>
                         </div>
                       </div>
                     )}

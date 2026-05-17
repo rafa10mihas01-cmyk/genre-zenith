@@ -1,0 +1,115 @@
+// apply-playlist-suggestions — insere as faixas sugeridas pelo último diagnóstico
+// na playlist gerenciada do Spotify, nas posições recomendadas.
+//
+// Body: { playlist_id: string (managed_playlists.id), limit?: number, dry_run?: boolean }
+// Estratégia: insere todas as sugestões em bloco na posição 0 (topo),
+// preservando a ordem do ranking → faixas viram #1, #2, #3... como mostrado no card.
+import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { requireTeamAccess } from "../_shared/auth.ts";
+import { getUserAccessToken } from "../_shared/spotify.ts";
+
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+function jr(p: unknown, status = 200) {
+  return new Response(JSON.stringify(p), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const guard = await requireTeamAccess(req);
+  if (!guard.ok) return guard.resp;
+
+  try {
+    const body = await req.json().catch(() => ({}));
+    const playlistId: string = body?.playlist_id;
+    const limit: number = Math.max(1, Math.min(Number(body?.limit ?? 15), 50));
+    const dryRun: boolean = !!body?.dry_run;
+    if (!playlistId) return jr({ ok: false, error: "playlist_id obrigatório" }, 400);
+
+    const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+
+    // 1) Playlist gerenciada (precisa do spotify_playlist_id)
+    const { data: pl } = await supabase
+      .from("managed_playlists")
+      .select("id, spotify_playlist_id, name")
+      .eq("id", playlistId)
+      .maybeSingle();
+    if (!pl?.spotify_playlist_id) return jr({ ok: false, error: "playlist sem spotify_playlist_id" }, 404);
+
+    // 2) Último diagnóstico → tracks_suggestions
+    const { data: diag } = await supabase
+      .from("playlist_diagnoses")
+      .select("id, tracks_suggestions, created_at")
+      .eq("playlist_id", pl.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const suggestions = Array.isArray(diag?.tracks_suggestions) ? (diag!.tracks_suggestions as any[]) : [];
+    const selected = suggestions
+      .filter((s) => s?.spotify_track_id)
+      .slice(0, limit);
+    if (selected.length === 0) return jr({ ok: false, error: "sem sugestões para aplicar" }, 400);
+
+    const uris = selected.map((s) => `spotify:track:${s.spotify_track_id}`);
+
+    if (dryRun) {
+      return jr({ ok: true, dry_run: true, would_insert: selected.length, uris });
+    }
+
+    // 3) Token OAuth do usuário (precisa de playlist-modify-public/private) — usa default
+    let token: string;
+    try {
+      const r = await getUserAccessToken();
+      token = r.token;
+    } catch (e) {
+      return jr({
+        ok: false,
+        error: `conta Spotify não conectada: ${(e as Error).message}`,
+      }, 412);
+    }
+
+    // 4) POST /playlists/{id}/tracks — insere todas em bloco na posição 0 (topo)
+    //    Spotify aceita até 100 URIs por chamada; nosso limit é 50.
+    const r = await fetch(`https://api.spotify.com/v1/playlists/${pl.spotify_playlist_id}/tracks`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ uris, position: 0 }),
+    });
+    const txt = await r.text();
+    if (!r.ok) {
+      return jr({ ok: false, error: `Spotify ${r.status}: ${txt.slice(0, 300)}` }, 502);
+    }
+    let snapshot: string | null = null;
+    try { snapshot = JSON.parse(txt)?.snapshot_id ?? null; } catch { /* ignore */ }
+
+    // 5) Log
+    await supabase.from("collection_logs").insert({
+      acao: "apply-playlist-suggestions",
+      status: "sucesso",
+      mensagem: `playlist ${pl.spotify_playlist_id}: +${selected.length} faixas no topo (snapshot ${snapshot ?? "?"})`,
+    });
+
+    return jr({
+      ok: true,
+      inserted: selected.length,
+      snapshot_id: snapshot,
+      tracks: selected.map((s, i) => ({
+        position: i + 1,
+        spotify_track_id: s.spotify_track_id,
+        nome: s.nome,
+        artista: s.artista,
+        from_missing_artist: !!s.from_missing_artist,
+      })),
+    });
+  } catch (e) {
+    return jr({ ok: false, error: (e as Error).message }, 500);
+  }
+});
