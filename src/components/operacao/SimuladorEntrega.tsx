@@ -232,14 +232,16 @@ function SimDetail({ playlist, onBack, embedded }: { playlist: SimPlaylist; onBa
   const topShare = daily > 0 ? topDaily / daily : 0;
 
   return (
-    <section className="space-y-4 animate-tab-in">
-      <button
-        onClick={onBack}
-        className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <ArrowLeft className="h-3.5 w-3.5" />
-        Voltar para a lista
-      </button>
+    <section className={cn("space-y-4", !embedded && "animate-tab-in")}>
+      {onBack && (
+        <button
+          onClick={onBack}
+          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Voltar para a lista
+        </button>
+      )}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <SimKpi label="Saves da playlist" value={formatNumber(playlist.followers)} hint="dados reais" />
