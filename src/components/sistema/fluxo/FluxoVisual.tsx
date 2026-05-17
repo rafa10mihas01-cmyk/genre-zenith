@@ -112,7 +112,7 @@ export function FluxoVisual({ compact = false }: { compact?: boolean }) {
       since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     }
 
-    // Uma única chamada agrega todas as 11 queries antes feitas no client.
+    // Uma única chamada agrega logs/searchStats/genreFilter etc.
     const { data: stats, error: statsErr } = await supabase.functions.invoke("get-sistema-stats", {
       body: {
         genre_id: fluxoRun?.genreId ?? null,
@@ -127,32 +127,46 @@ export function FluxoVisual({ compact = false }: { compact?: boolean }) {
       return;
     }
 
-    const accountStat = stats?.accounts ?? { total: 0, active: 0, capacityUsed: 0, capacityMax: 0 };
-    const tpl = stats?.templateStats ?? { total: 0, hot: 0, medium: 0, weak: 0, published: 0 };
-    const sr  = stats?.searchStats ?? { total: 0, valid: 0, invalid: 0, avgFollowersValid: null };
+    const sr = stats?.searchStats ?? { total: 0, valid: 0, invalid: 0, avgFollowersValid: null };
+
+    // Stats novos do pipeline atual (catálogo / deal / execução)
+    const todayISO = new Date(); todayISO.setHours(0, 0, 0, 0);
+    const dayAgoISO = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+    const [catTotal, catActive, dealsActive, songsPending, jobsAgg] = await Promise.all([
+      supabase.from("managed_playlists").select("id", { count: "exact", head: true }),
+      supabase.from("managed_playlists").select("id", { count: "exact", head: true }).is("archived_at", null),
+      supabase.from("curator_deals").select("id", { count: "exact", head: true }).eq("status", "active"),
+      supabase.from("curator_deal_songs").select("id", { count: "exact", head: true }).eq("status", "pending"),
+      supabase.from("playlist_execution_jobs").select("status, completed_at, created_at").gte("created_at", dayAgoISO).limit(5000),
+    ]);
+
+    const jobsRows = (jobsAgg.data ?? []) as Array<{ status: string; completed_at: string | null }>;
+    const execStat = {
+      pending:   jobsRows.filter((j) => j.status === "pending").length,
+      claimed:   jobsRows.filter((j) => j.status === "claimed").length,
+      doneToday: jobsRows.filter((j) => j.status === "done" && j.completed_at && new Date(j.completed_at) >= todayISO).length,
+      failed24h: jobsRows.filter((j) => j.status === "failed").length,
+    };
 
     const built = buildFluxoNodes({
       run: fluxoRun,
       logs: stats?.logs ?? [],
-      adjusts: stats?.adjustments ?? [],
       searchStats: {
         termsCount:        stats?.termsCount ?? 0,
         rawPlaylists:      sr.total,
         validPlaylists:    sr.valid,
         invalidPlaylists:  sr.invalid,
-        publishedPlaylists: tpl.published,
         avgFollowersValid: sr.avgFollowersValid,
-        templatesTotal:    tpl.total,
-        templatesHot:      tpl.hot,
-        templatesMedium:   tpl.medium,
-        templatesWeak:     tpl.weak,
       },
       apifyBlocked: {
         blocked: stats?.systemFlags?.apify_blocked ?? false,
         reason:  stats?.systemFlags?.apify_blocked_reason ?? undefined,
       },
       genreFilter: stats?.genreFilter ?? null,
-      accountStat,
+      catalogStat: { total: catTotal.count ?? 0, active: catActive.count ?? 0 },
+      dealStat: { activeDeals: dealsActive.count ?? 0, pendingSongs: songsPending.count ?? 0, dueToday: 0 },
+      execStat,
     });
     setNodes(built);
     setLoading(false);
