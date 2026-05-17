@@ -532,7 +532,26 @@ function CoverCard({ managedId, currentCover, leaders, spotifyPlaylistId }: {
   spotifyPlaylistId: string;
 }) {
   const [uploading, setUploading] = useState(false);
+  const [applyingLeader, setApplyingLeader] = useState<string | null>(null);
   const [localCover, setLocalCover] = useState<string | null>(currentCover);
+
+  const applyLeaderCover = async (leader: { spotify_playlist_id: string; cover_url: string | null; name: string }) => {
+    if (!leader.cover_url) return;
+    setApplyingLeader(leader.spotify_playlist_id);
+    try {
+      const { data, error } = await supabase.functions.invoke("apply-managed-cover", {
+        body: { playlist_id: managedId, image_url: leader.cover_url },
+      });
+      if (error) throw error;
+      if (!data?.ok) throw new Error(data?.error || "falha ao aplicar capa");
+      setLocalCover(leader.cover_url);
+      toast({ title: "Capa aplicada", description: `Usando a capa de "${leader.name}". Pode demorar alguns segundos pra aparecer no Spotify.` });
+    } catch (e: any) {
+      toast({ title: "Erro ao aplicar capa", description: e?.message ?? String(e), variant: "destructive" });
+    } finally {
+      setApplyingLeader(null);
+    }
+  };
 
   const handleFile = async (file: File) => {
     if (!file) return;
