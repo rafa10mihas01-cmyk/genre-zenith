@@ -37,7 +37,7 @@ const ACTION_LABELS: Record<string, string> = {
 function jobLabel(jobType: string) {
   if (jobType.includes("remove")) return "Remover faixa da playlist";
   if (jobType.includes("add")) return "Adicionar faixa na playlist";
-  return jobType.replaceAll(".", " ");
+  return jobType.split(".").join(" ");
 }
 
 export function AoVivoFeed() {
