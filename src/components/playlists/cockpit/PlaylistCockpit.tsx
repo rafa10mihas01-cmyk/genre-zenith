@@ -18,6 +18,7 @@ import {
 import { PlaylistTracksTab } from "@/components/playlists/PlaylistTracksTab";
 import { ProjecaoFaixa } from "@/components/operacao/SimuladorEntrega";
 import { CuratorialStateBadge, CooldownChip } from "@/components/playlist/CuratorialStateBadge";
+import { AdjustmentTimeline } from "@/components/playlists/cockpit/AdjustmentTimeline";
 
 // -------------------- types --------------------
 type AnalysisTrack = {
