@@ -258,6 +258,9 @@ export default function PlaylistDetail() {
       {/* Diagnóstico de curadoria */}
       {mgd?.id && <PlaylistDiagnosisCard managedId={mgd.id} />}
 
+      {/* Análise faixa-a-faixa (5d) */}
+      {mgd?.id && <PlaylistTracksAnalysisCard managedId={mgd.id} />}
+
       {/* Sinais + Recomendações lado a lado */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card className="p-5 space-y-3">
