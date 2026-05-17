@@ -273,16 +273,27 @@ export function PlaylistCockpit({
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <IdentityField
               label="Nome"
+              field="name"
+              managedId={managedId}
               current={diag.name_current ?? playlistName}
               suggestion={diag.name_suggestion}
               score={diag.name_score}
+              onApplied={runDiagnose}
             />
             <IdentityField
               label="Descrição"
-              current={diag.raw?.description_current || "— sem descrição —"}
+              field="description"
+              managedId={managedId}
+              current={diag.raw?.description_current || ""}
               suggestion={diag.raw?.suggested_description ?? null}
+              onApplied={runDiagnose}
             />
           </div>
+          <CoverCard
+            currentCover={coverUrl}
+            leaders={diag.raw?.market_insights?.leader_playlists ?? []}
+            spotifyPlaylistId={spotifyPlaylistId}
+          />
           {(diag.raw?.missing_keywords?.length ?? 0) > 0 && (
             <Card className="p-4">
               <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">
