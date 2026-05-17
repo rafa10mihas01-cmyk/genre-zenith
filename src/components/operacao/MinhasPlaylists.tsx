@@ -829,6 +829,9 @@ export function MinhasPlaylists() {
                       </div>
                     )}
 
+                    {/* Análise faixa-a-faixa (keep/remove/promote/demote) */}
+                    <PlaylistTracksAnalysisCard managedId={drawerPl.id} />
+
                     <div className="nx-card text-xs text-muted-foreground flex items-start gap-2">
                       <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
                       <span>Sugestões geradas pelo cérebro do gênero. Aplicação no Spotify ainda é manual: copie e cole no app.</span>
