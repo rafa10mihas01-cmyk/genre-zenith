@@ -2920,6 +2920,82 @@ export type Database = {
         }
         Relationships: []
       }
+      playlist_adjustment_impacts: {
+        Row: {
+          action_type: string
+          adjustment_id: string
+          created_at: string
+          delta: Json | null
+          editorial_note: string | null
+          evaluated_at: string | null
+          id: string
+          observation_ends_at: string
+          observation_window_days: number
+          playlist_id: string | null
+          snapshot_after: Json | null
+          snapshot_before: Json
+          spotify_playlist_id: string
+          updated_at: string
+          verdict: Database["public"]["Enums"]["impact_verdict"]
+        }
+        Insert: {
+          action_type: string
+          adjustment_id: string
+          created_at?: string
+          delta?: Json | null
+          editorial_note?: string | null
+          evaluated_at?: string | null
+          id?: string
+          observation_ends_at: string
+          observation_window_days?: number
+          playlist_id?: string | null
+          snapshot_after?: Json | null
+          snapshot_before?: Json
+          spotify_playlist_id: string
+          updated_at?: string
+          verdict?: Database["public"]["Enums"]["impact_verdict"]
+        }
+        Update: {
+          action_type?: string
+          adjustment_id?: string
+          created_at?: string
+          delta?: Json | null
+          editorial_note?: string | null
+          evaluated_at?: string | null
+          id?: string
+          observation_ends_at?: string
+          observation_window_days?: number
+          playlist_id?: string | null
+          snapshot_after?: Json | null
+          snapshot_before?: Json
+          spotify_playlist_id?: string
+          updated_at?: string
+          verdict?: Database["public"]["Enums"]["impact_verdict"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "playlist_adjustment_impacts_adjustment_id_fkey"
+            columns: ["adjustment_id"]
+            isOneToOne: false
+            referencedRelation: "playlist_adjustments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "playlist_adjustment_impacts_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "managed_playlists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "playlist_adjustment_impacts_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_playlist_vps_assignment"
+            referencedColumns: ["managed_playlist_id"]
+          },
+        ]
+      }
       playlist_adjustments: {
         Row: {
           action_type: string
@@ -5203,6 +5279,7 @@ export type Database = {
         Args: { payload: Json; queue_name: string }
         Returns: number
       }
+      evaluate_pending_impacts: { Args: never; Returns: number }
       evaluate_playlist: { Args: { p_spotify_id: string }; Returns: Json }
       evaluate_playlist_by_url: { Args: { p_url: string }; Returns: Json }
       evaluate_playlists_batch: {
@@ -5570,6 +5647,12 @@ export type Database = {
         | "estrutural"
         | "cooldown"
       followers_source_type: "spotify_api"
+      impact_verdict:
+        | "pending"
+        | "positive"
+        | "neutral"
+        | "negative"
+        | "inconclusive"
       notification_type: "critical" | "warning" | "info"
     }
     CompositeTypes: {
@@ -5715,6 +5798,13 @@ export const Constants = {
         "cooldown",
       ],
       followers_source_type: ["spotify_api"],
+      impact_verdict: [
+        "pending",
+        "positive",
+        "neutral",
+        "negative",
+        "inconclusive",
+      ],
       notification_type: ["critical", "warning", "info"],
     },
   },
