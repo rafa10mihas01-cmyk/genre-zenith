@@ -472,6 +472,10 @@ export function CuradoresCRM({ segment }: { segment?: Segment } = {}) {
     const bucket = SIZE_BUCKETS.find((b) => b.id === sizeFilter)!;
     return rows
       .filter((r) => {
+        // Segmento de alto nível: ativos = curadores com quem já trabalho (comprado);
+        // prospeccao = leads ainda não fechados (novo, negociando, blacklist).
+        if (segment === "ativos" && r.status !== "comprado") return false;
+        if (segment === "prospeccao" && r.status === "comprado") return false;
         if (statusFilter !== "todos" && r.status !== statusFilter) return false;
         if (scoreFilter !== "todos" && r.score !== scoreFilter) return false;
         if (favOnly && !r.favorite) return false;
@@ -484,10 +488,10 @@ export function CuradoresCRM({ segment }: { segment?: Segment } = {}) {
         if (a.favorite !== b.favorite) return a.favorite ? -1 : 1;
         return (b.followers ?? 0) - (a.followers ?? 0);
       });
-  }, [rows, search, statusFilter, scoreFilter, sizeFilter, favOnly]);
+  }, [rows, search, statusFilter, scoreFilter, sizeFilter, favOnly, segment]);
 
   // Reseta página quando filtros mudam
-  useEffect(() => { setPage(1); }, [search, statusFilter, scoreFilter, sizeFilter, favOnly, pageSize]);
+  useEffect(() => { setPage(1); }, [search, statusFilter, scoreFilter, sizeFilter, favOnly, pageSize, segment]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const safePage = Math.min(page, totalPages);
