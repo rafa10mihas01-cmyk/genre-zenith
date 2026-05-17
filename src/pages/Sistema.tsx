@@ -2,7 +2,7 @@
 // Tabs no padrão visual do app (border-b + ícone + label), igual Operação / Playlist Deals / Comunidade.
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import { Activity, Workflow, Music2, HeartPulse, Bot, Bell, ListPlus, Settings as SettingsIcon, Server } from "lucide-react";
+import { Activity, Workflow, Music2, HeartPulse, Bot, Bell, ListPlus, Settings as SettingsIcon, Server, Brain } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
 import { useScreenField } from "@/lib/screen-state";
@@ -17,9 +17,10 @@ import { AlertasHistorico } from "@/components/sistema/AlertasHistorico";
 import { ExecucaoPanel } from "@/components/sistema/ExecucaoPanel";
 import Settings from "@/pages/Settings";
 import Infraestrutura from "@/pages/Infraestrutura";
+import AdminAprendizado from "@/pages/AdminAprendizado";
 
 type SistemaTab =
-  | "fluxo" | "robo" | "coleta" | "execucao" | "ao-vivo" | "saude" | "alertas" | "infra" | "configuracoes";
+  | "fluxo" | "robo" | "coleta" | "execucao" | "ao-vivo" | "saude" | "aprendizado" | "alertas" | "infra" | "configuracoes";
 
 type TabDef = { id: SistemaTab; label: string; icon: typeof Activity; adminOnly?: boolean };
 
@@ -30,6 +31,7 @@ const TABS: TabDef[] = [
   { id: "execucao", label: "Execução", icon: ListPlus },
   { id: "ao-vivo", label: "Ao Vivo", icon: Activity },
   { id: "saude", label: "Saúde", icon: HeartPulse },
+  { id: "aprendizado", label: "Aprendizado", icon: Brain, adminOnly: true },
   { id: "alertas", label: "Alertas", icon: Bell },
   { id: "infra", label: "Infraestrutura", icon: Server, adminOnly: true },
   { id: "configuracoes", label: "Configurações", icon: SettingsIcon },
@@ -88,6 +90,7 @@ export default function Sistema() {
         {activeTab === "coleta" && <ColetaPanel />}
         {activeTab === "execucao" && <ExecucaoPanel />}
         {activeTab === "saude" && <SaudeSistema />}
+        {activeTab === "aprendizado" && <AdminAprendizado embedded />}
         {activeTab === "alertas" && <AlertasHistorico />}
         {activeTab === "infra" && <Infraestrutura embedded />}
         {activeTab === "configuracoes" && <Settings embedded />}

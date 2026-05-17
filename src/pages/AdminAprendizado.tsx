@@ -39,7 +39,7 @@ type AuditResp = {
   total_winners?: number;
 };
 
-export default function AdminAprendizado() {
+export default function AdminAprendizado({ embedded = false }: { embedded?: boolean } = {}) {
   const [searchParams, setSearchParams] = useSearchParams();
   const genreId = searchParams.get("g");
   const [data, setData] = useState<AuditResp | null>(null);
@@ -110,11 +110,15 @@ export default function AdminAprendizado() {
   const genres = data?.genres ?? [];
   const selected = data?.genre;
 
-  return (
-    <PageContainer>
-      <PageHeader title="Governança do Aprendizado" subtitle="Auditar, travar e reverter o que a IA aprende com playlists vencedoras" icon={<Brain className="h-5 w-5" />} />
+  const Wrapper: any = embedded ? "div" : PageContainer;
 
-      <div className="grid grid-cols-12 gap-6 mt-6">
+  return (
+    <Wrapper {...(embedded ? {} : {})}>
+      {!embedded && (
+        <PageHeader title="Governança do Aprendizado" subtitle="Auditar, travar e reverter o que a IA aprende com playlists vencedoras" icon={<Brain className="h-5 w-5" />} />
+      )}
+
+      <div className={cn("grid grid-cols-12 gap-6", !embedded && "mt-6")}>
         {/* SIDEBAR GÊNEROS */}
         <aside className="col-span-12 lg:col-span-3">
           <div className="nx-card p-3 sticky top-4 max-h-[80vh] overflow-y-auto">
@@ -322,6 +326,6 @@ export default function AdminAprendizado() {
           )}
         </div>
       </div>
-    </PageContainer>
+    </Wrapper>
   );
 }
