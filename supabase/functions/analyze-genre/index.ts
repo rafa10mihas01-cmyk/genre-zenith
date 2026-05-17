@@ -114,7 +114,7 @@ Deno.serve(async (req) => {
       // não duplicadas. Nunca usar followers=NULL no ranking.
       supabase
         .from("search_results")
-        .select("id,nome_playlist,seguidores,spotify_url,imagem_url,descricao,total_musicas,term_id,followers_source,followers_verified_at,quality_score,enriched_at,is_valid,duplicate_of,times_seen,owner_id")
+        .select("id,nome_playlist,seguidores,spotify_url,imagem_url,descricao,total_musicas,term_id,followers_source,followers_verified_at,quality_score,winner_score,winner_breakdown,enriched_at,is_valid,duplicate_of,times_seen,owner_id")
         .eq("genre_id", body.genre_id)
         .eq("is_valid", true)
         .eq("followers_source", "spotify_api")
