@@ -20,8 +20,6 @@ import { NewDealDialog } from "@/components/playlist-deals/NewDealDialog";
 import { DuplicateDealDialog } from "@/components/playlist-deals/DuplicateDealDialog";
 import { LogPrintDialog } from "@/components/playlist-deals/LogPrintDialog";
 import { DealHistorySheet } from "@/components/playlist-deals/DealHistorySheet";
-import { CuradoresLibraryTab } from "@/components/playlist-deals/CuradoresLibraryTab";
-import { ClientesLibraryTab } from "@/components/playlist-deals/ClientesLibraryTab";
 import { CloseDealDialog } from "@/components/playlist-deals/CloseDealDialog";
 import { FinanceiroTab } from "@/components/playlist-deals/FinanceiroTab";
 import { useClients } from "@/hooks/useClients";
