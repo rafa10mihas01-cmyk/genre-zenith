@@ -45,7 +45,7 @@ async function calcOne(supabase: any, genreId: string) {
   const ids = pls.map((p: any) => p.spotify_playlist_id).filter(Boolean);
   const { data: srRows } = await supabase
     .from("search_results")
-    .select("spotify_playlist_id,total_musicas,seguidores,quality_score,enriched_at,is_valid,duplicate_of")
+    .select("spotify_playlist_id,total_musicas,seguidores,quality_score,winner_score,enriched_at,is_valid,duplicate_of")
     .in("spotify_playlist_id", ids)
     .eq("genre_id", genreId)
     .eq("is_valid", true)
