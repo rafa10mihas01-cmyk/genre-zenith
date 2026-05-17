@@ -1,11 +1,10 @@
-// ColetaPanel — visão da coleta de dados (Apify + Spotify).
-// Mostra termos pedidos, playlists encontradas, taxa de validação,
-// status do Apify e última verificação de seguidores.
+// ColetaPanel — visão da coleta de dados Spotify.
+// Mostra apenas dados verificados pelo Spotify e ignora histórico antigo sem verificação.
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  Search, Music2, CheckCircle2, AlertTriangle, Loader2,
-  Filter, TrendingUp, Database,
+  Search, Music2, CheckCircle2, Loader2,
+  Filter, Database,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -23,42 +22,40 @@ type GenreStats = {
 
 export function ColetaPanel() {
   const [stats, setStats] = useState<GenreStats[]>([]);
-  const [apifyBlocked, setApifyBlocked] = useState<{ blocked: boolean; reason?: string; at?: string } | null>(null);
   const [lastVerif, setLastVerif] = useState<string | null>(null);
+  const [recentVerified, setRecentVerified] = useState(0);
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
-    const [genresRes, flagsRes, verifRes] = await Promise.all([
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const [genresRes, verifRes, recentRes] = await Promise.all([
       supabase.from("genres").select("id, nome, total_termos, total_playlists, ultima_coleta").eq("ativo", true),
-      supabase.from("system_flags").select("apify_blocked, apify_blocked_reason, apify_blocked_at").eq("singleton_key", "app").maybeSingle(),
       supabase.from("search_results").select("followers_verified_at").not("followers_verified_at", "is", null).order("followers_verified_at", { ascending: false }).limit(1).maybeSingle(),
+      supabase.from("search_results").select("id", { count: "exact", head: true }).not("followers_verified_at", "is", null).gte("followers_verified_at", sevenDaysAgo),
     ]);
 
     // Para cada gênero, contar válidas/inválidas
     const out: GenreStats[] = [];
     for (const g of genresRes.data ?? []) {
       const [validas, invalidas] = await Promise.all([
-        supabase.from("search_results").select("id", { count: "exact", head: true }).eq("genre_id", g.id).eq("is_valid", true),
-        supabase.from("search_results").select("id", { count: "exact", head: true }).eq("genre_id", g.id).eq("is_valid", false),
+        supabase.from("search_results").select("id", { count: "exact", head: true }).eq("genre_id", g.id).eq("is_valid", true).not("followers_verified_at", "is", null).gte("followers_verified_at", sevenDaysAgo),
+        supabase.from("search_results").select("id", { count: "exact", head: true }).eq("genre_id", g.id).eq("is_valid", false).not("followers_verified_at", "is", null).gte("followers_verified_at", sevenDaysAgo),
       ]);
       out.push({
         genre_id: g.id,
         nome: g.nome,
         total_termos: g.total_termos ?? 0,
-        total_playlists: g.total_playlists ?? 0,
+        total_playlists: (validas.count ?? 0) + (invalidas.count ?? 0),
         validas: validas.count ?? 0,
         invalidas: invalidas.count ?? 0,
         ultima_coleta: g.ultima_coleta,
       });
     }
-    out.sort((a, b) => b.total_playlists - a.total_playlists);
-    setStats(out);
-    setApifyBlocked({
-      blocked: flagsRes.data?.apify_blocked ?? false,
-      reason: flagsRes.data?.apify_blocked_reason ?? undefined,
-      at: flagsRes.data?.apify_blocked_at ?? undefined,
-    });
+    const visible = out.filter((g) => g.total_playlists > 0);
+    visible.sort((a, b) => b.total_playlists - a.total_playlists);
+    setStats(visible);
     setLastVerif((verifRes.data as any)?.followers_verified_at ?? null);
+    setRecentVerified(recentRes.count ?? 0);
     setLoading(false);
   };
 
@@ -67,7 +64,6 @@ export function ColetaPanel() {
     const ch = supabase
       .channel(`sistema-coleta:${Math.random().toString(36).slice(2)}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "search_results" }, () => load())
-      .on("postgres_changes", { event: "*", schema: "public", table: "system_flags" }, () => load())
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, []);
@@ -84,26 +80,12 @@ export function ColetaPanel() {
     <div className="space-y-4">
       {/* Status global */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className={cn(
-          "nx-card border p-3 flex items-center gap-3",
-          apifyBlocked?.blocked ? "border-destructive/40 bg-destructive/5" : "border-success/30 bg-success/5",
-        )}>
-          {apifyBlocked?.blocked ? (
-            <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
-          ) : (
-            <CheckCircle2 className="h-5 w-5 text-success shrink-0" />
-          )}
+        <div className="nx-card border border-success/30 bg-success/5 p-3 flex items-center gap-3">
+          <CheckCircle2 className="h-5 w-5 text-success shrink-0" />
           <div className="min-w-0 flex-1">
-            <p className="text-xs uppercase tracking-wider text-muted-foreground font-bold">Coletor Apify</p>
-            <p className="text-sm font-semibold text-foreground">
-              {apifyBlocked?.blocked ? "Bloqueado" : "Funcionando normalmente"}
-            </p>
-            {apifyBlocked?.blocked && apifyBlocked?.reason && (
-              <p className="text-[11px] text-destructive/90 mt-0.5">{apifyBlocked.reason}</p>
-            )}
-            {apifyBlocked?.blocked && apifyBlocked?.at && (
-              <p className="text-[10px] text-muted-foreground mt-0.5">desde {timeAgo(apifyBlocked.at)}</p>
-            )}
+            <p className="text-xs uppercase tracking-wider text-muted-foreground font-bold">Coleta Spotify</p>
+            <p className="text-sm font-semibold text-foreground">{formatNumber(recentVerified)} playlists recentes</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">verificadas nos últimos 7 dias</p>
           </div>
         </div>
 
@@ -124,7 +106,7 @@ export function ColetaPanel() {
         </h3>
         {stats.length === 0 ? (
           <div className="nx-card p-6 text-center text-sm text-muted-foreground">
-            Nenhum gênero ativo encontrado.
+            Nenhum dado Spotify recente encontrado.
           </div>
         ) : (
           <div className="space-y-1.5">

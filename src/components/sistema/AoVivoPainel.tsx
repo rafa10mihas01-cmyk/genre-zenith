@@ -1,95 +1,90 @@
-// AoVivoPainel — centro de controle premium (estilo Stripe / Linear / Vercel).
-// Substitui completamente a UI antiga da aba Ao Vivo.
-// Composto por: StatusBar global + Pipeline animado (FluxoVisual) + MetricsGrid + Feed.
+// AoVivoPainel — visão ao vivo do sistema atual: Spotify + fila de execução.
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Activity, Zap, RefreshCw, Eye, FlaskConical, Loader2, CheckCircle2, AlertCircle, Sparkles, FileText, Image as ImageIcon, ListMusic, TrendingUp } from "lucide-react";
+import {
+  Activity,
+  RefreshCw,
+  Eye,
+  Loader2,
+  CheckCircle2,
+  AlertCircle,
+  Clock,
+  ListChecks,
+  Music2,
+  Database,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { timeAgo } from "@/lib/format";
-import { toast } from "sonner";
+import { timeAgo, formatNumber } from "@/lib/format";
 import { FluxoVisual } from "@/components/sistema/fluxo/FluxoVisual";
 import { AoVivoFeed } from "@/components/sistema/AoVivoFeed";
-import { RegrasVsExecucao } from "@/components/sistema/RegrasVsExecucao";
 
-type LiveRun = {
-  id: string;
-  genreId: string;
-  genreName: string;
-  status: "running" | "success" | "error" | "partial";
-  currentStep: string | null;
-  progressPct: number;
-  startedAt: string;
-  finishedAt: string | null;
-  templatesGenerated: number;
-  templatesApproved: number;
-  coversGenerated: number;
-};
-
-const STEP_LABEL: Record<string, string> = {
-  analyze: "Cérebro · análise",
-  briefing: "Cérebro · briefing",
-  blueprints: "Cérebro · blueprints",
-  templates: "Templates",
-  covers: "Capas",
-  publish: "Publicação",
-  collect: "Coleta",
+type LiveState = {
+  botOnline: boolean;
+  botStatus: string | null;
+  botMessage: string | null;
+  lastHeartbeat: string | null;
+  spotifySessionValid: boolean;
+  pending: number;
+  claimed: number;
+  doneToday: number;
+  failed24h: number;
+  lastJobAt: string | null;
+  lastVerifiedAt: string | null;
 };
 
 export function AoVivoPainel() {
-  const [run, setRun] = useState<LiveRun | null>(null);
+  const [state, setState] = useState<LiveState | null>(null);
   const [loading, setLoading] = useState(true);
-  const [rerunning, setRerunning] = useState(false);
-  const [aggMetrics, setAggMetrics] = useState({
-    templates: 0,
-    aprovados: 0,
-    capas: 0,
-    eficiencia: 0,
-  });
 
   const load = async () => {
-    const { data: rRow } = await supabase
-      .from("autopilot_runs")
-      .select("*")
-      .order("started_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayIso = today.toISOString();
+    const dayAgoIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
-    if (rRow) {
-      const { data: g } = await supabase.from("genres").select("nome").eq("id", rRow.genre_id).maybeSingle();
-      setRun({
-        id: rRow.id,
-        genreId: rRow.genre_id,
-        genreName: g?.nome ?? "—",
-        status: rRow.status as LiveRun["status"],
-        currentStep: rRow.current_step,
-        progressPct: rRow.progress_pct ?? 0,
-        startedAt: rRow.started_at,
-        finishedAt: rRow.finished_at,
-        templatesGenerated: rRow.templates_generated ?? 0,
-        templatesApproved: rRow.templates_approved ?? 0,
-        coversGenerated: rRow.covers_generated ?? 0,
-      });
-    } else {
-      setRun(null);
-    }
+    const [heartbeat, pendingJobs, claimedJobs, doneJobs, failedJobs, lastJob, lastVerified] = await Promise.all([
+      supabase
+        .from("bot_heartbeats")
+        .select("created_at, status, spotify_session_valid, message")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      supabase.from("playlist_execution_jobs").select("id", { count: "exact", head: true }).eq("status", "pending"),
+      supabase.from("playlist_execution_jobs").select("id", { count: "exact", head: true }).eq("status", "claimed"),
+      supabase.from("playlist_execution_jobs").select("id", { count: "exact", head: true }).eq("status", "done").gte("completed_at", todayIso),
+      supabase.from("playlist_execution_jobs").select("id", { count: "exact", head: true }).eq("status", "failed").gte("updated_at", dayAgoIso),
+      supabase
+        .from("playlist_execution_jobs")
+        .select("created_at, updated_at, completed_at")
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from("search_results")
+        .select("followers_verified_at")
+        .not("followers_verified_at", "is", null)
+        .order("followers_verified_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]);
 
-    // Métricas agregadas das últimas 24h (todas as runs)
-    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const { data: runs24 } = await supabase
-      .from("autopilot_runs")
-      .select("templates_generated, templates_approved, covers_generated")
-      .gte("started_at", since);
-    const list = runs24 ?? [];
-    const t = list.reduce((s, r: any) => s + (r.templates_generated ?? 0), 0);
-    const a = list.reduce((s, r: any) => s + (r.templates_approved ?? 0), 0);
-    const c = list.reduce((s, r: any) => s + (r.covers_generated ?? 0), 0);
-    setAggMetrics({
-      templates: t,
-      aprovados: a,
-      capas: c,
-      eficiencia: t > 0 ? Math.round((a / t) * 100) : 0,
+    const hbAt = heartbeat.data?.created_at ?? null;
+    const hbFresh = hbAt ? Date.now() - new Date(hbAt).getTime() < 5 * 60_000 : false;
+    const job = lastJob.data as any;
+
+    setState({
+      botOnline: hbFresh,
+      botStatus: heartbeat.data?.status ?? null,
+      botMessage: heartbeat.data?.message ?? null,
+      lastHeartbeat: hbAt,
+      spotifySessionValid: heartbeat.data?.spotify_session_valid ?? false,
+      pending: pendingJobs.count ?? 0,
+      claimed: claimedJobs.count ?? 0,
+      doneToday: doneJobs.count ?? 0,
+      failed24h: failedJobs.count ?? 0,
+      lastJobAt: job?.updated_at ?? job?.completed_at ?? job?.created_at ?? null,
+      lastVerifiedAt: (lastVerified.data as any)?.followers_verified_at ?? null,
     });
     setLoading(false);
   };
@@ -97,35 +92,16 @@ export function AoVivoPainel() {
   useEffect(() => {
     load();
     const ch = supabase
-      .channel(`aovivo:${Math.random().toString(36).slice(2)}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "autopilot_runs" }, () => load())
+      .channel(`aovivo-atual:${Math.random().toString(36).slice(2)}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "playlist_execution_jobs" }, () => load())
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "bot_heartbeats" }, () => load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "search_results" }, () => load())
       .subscribe();
     const t = setInterval(load, 15_000);
     return () => { supabase.removeChannel(ch); clearInterval(t); };
   }, []);
 
-  const isRunning = run?.status === "running";
-  const isError = run?.status === "error";
-  const stepLabel = run?.currentStep ? (STEP_LABEL[run.currentStep] ?? run.currentStep) : null;
-
-  const onRerun = async (forceNoCache = false) => {
-    if (!run) return;
-    setRerunning(true);
-    try {
-      const { error } = await supabase.functions.invoke("autopilot-run", {
-        body: { genre_id: run.genreId, force_no_cache: forceNoCache },
-      });
-      if (error) throw error;
-      toast.success(forceNoCache ? "Re-execução sem cache iniciada" : "Re-execução iniciada");
-      setTimeout(load, 1500);
-    } catch (e: any) {
-      toast.error("Falha ao iniciar", { description: e?.message ?? "Verifique os logs" });
-    } finally {
-      setRerunning(false);
-    }
-  };
-
-  if (loading) {
+  if (loading || !state) {
     return (
       <div className="nx-card p-12 flex items-center justify-center text-sm text-muted-foreground gap-2">
         <Loader2 className="h-4 w-4 animate-spin" /> Carregando painel ao vivo…
@@ -133,46 +109,39 @@ export function AoVivoPainel() {
     );
   }
 
+  const hasFailure = state.failed24h > 0;
+  const isRunning = state.claimed > 0;
+  const healthy = state.botOnline && state.spotifySessionValid && !hasFailure;
+
   return (
     <div className="space-y-4">
-      {/* ============ STATUS BAR GLOBAL ============ */}
       <div
         className={cn(
           "relative overflow-hidden rounded-2xl border-2 p-4 sm:p-5",
           "bg-gradient-to-br from-card via-card to-elevated/40",
-          isRunning && "border-warning/50 fluxo-active-glow",
-          isError && "border-destructive/60 fluxo-error-glow",
-          !isRunning && !isError && "border-success/30 fluxo-success-glow",
+          hasFailure && "border-destructive/60 fluxo-error-glow",
+          isRunning && !hasFailure && "border-warning/50 fluxo-active-glow",
+          healthy && "border-success/30 fluxo-success-glow",
+          !healthy && !hasFailure && !isRunning && "border-border",
         )}
       >
-        {/* Halo decorativo */}
-        <div
-          aria-hidden
-          className={cn(
-            "pointer-events-none absolute -top-20 -right-20 h-64 w-64 rounded-full blur-3xl opacity-30",
-            isRunning && "bg-warning",
-            isError && "bg-destructive",
-            !isRunning && !isError && "bg-success",
-          )}
-        />
-
         <div className="relative flex flex-col lg:flex-row lg:items-center gap-4 lg:gap-6">
-          {/* Status indicator + título */}
           <div className="flex items-center gap-3 min-w-0 flex-1">
             <div
               className={cn(
                 "h-12 w-12 rounded-xl flex items-center justify-center shrink-0",
-                isRunning && "bg-warning/15",
-                isError && "bg-destructive/15",
-                !isRunning && !isError && "bg-success/15",
+                hasFailure && "bg-destructive/15",
+                isRunning && !hasFailure && "bg-warning/15",
+                healthy && "bg-success/15",
+                !healthy && !hasFailure && !isRunning && "bg-elevated",
               )}
             >
-              {isRunning ? (
-                <Zap className="h-6 w-6 text-warning animate-pulse" />
-              ) : isError ? (
+              {hasFailure ? (
                 <AlertCircle className="h-6 w-6 text-destructive" />
-              ) : (
+              ) : healthy ? (
                 <CheckCircle2 className="h-6 w-6 text-success" />
+              ) : (
+                <Activity className="h-6 w-6 text-muted-foreground" />
               )}
             </div>
             <div className="min-w-0">
@@ -180,129 +149,53 @@ export function AoVivoPainel() {
                 <span
                   className={cn(
                     "h-2 w-2 rounded-full",
-                    isRunning && "bg-warning animate-pulse",
-                    isError && "bg-destructive",
-                    !isRunning && !isError && "bg-success",
+                    hasFailure && "bg-destructive",
+                    isRunning && !hasFailure && "bg-warning animate-pulse",
+                    healthy && "bg-success",
+                    !healthy && !hasFailure && !isRunning && "bg-muted-foreground/50",
                   )}
                 />
                 <span className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">
-                  {isRunning ? "Sistema ativo · executando" : isError ? "Sistema com erro" : "Sistema ativo · ocioso"}
+                  {isRunning ? "Sistema ativo · executando" : healthy ? "Sistema ativo · ocioso" : "Sistema sem execução agora"}
                 </span>
               </div>
               <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 mt-0.5">
-                <h2 className="text-lg sm:text-xl font-bold text-foreground leading-tight">
-                  {run ? run.genreName : "Nenhuma execução"}
-                </h2>
-                {stepLabel && (
-                  <>
-                    <span className="text-muted-foreground/60 text-sm">→</span>
-                    <span className={cn(
-                      "text-sm font-semibold",
-                      isRunning ? "text-warning" : "text-foreground/80",
-                    )}>
-                      {stepLabel}
-                    </span>
-                  </>
-                )}
-                {run && (
-                  <span className="text-xs text-muted-foreground tabular-nums">
-                    · {timeAgo(run.startedAt)}
-                  </span>
-                )}
+                <h2 className="text-lg sm:text-xl font-bold text-foreground leading-tight">Spotify + Execução</h2>
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  · {state.lastHeartbeat ? `bot ${timeAgo(state.lastHeartbeat)}` : "sem heartbeat"}
+                </span>
               </div>
+              {state.botMessage && <p className="text-xs text-muted-foreground mt-1">{state.botMessage}</p>}
             </div>
           </div>
 
-          {/* Controles */}
           <div className="flex items-center gap-2 shrink-0">
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-9 gap-1.5"
-              onClick={() => onRerun(false)}
-              disabled={rerunning || !run || isRunning}
-            >
-              {rerunning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-              <span className="hidden sm:inline">Rodar de novo</span>
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-9 gap-1.5"
-              onClick={() => onRerun(true)}
-              disabled={rerunning || !run || isRunning}
-            >
-              <FlaskConical className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Sem cache</span>
+            <Button size="sm" variant="outline" className="h-9 gap-1.5" onClick={load}>
+              <RefreshCw className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Atualizar</span>
             </Button>
             <Button
               size="sm"
               variant="ghost"
               className="h-9 gap-1.5"
-              onClick={() => {
-                document.querySelector("#feed-ao-vivo")?.scrollIntoView({ behavior: "smooth", block: "start" });
-              }}
+              onClick={() => document.querySelector("#feed-ao-vivo")?.scrollIntoView({ behavior: "smooth", block: "start" })}
             >
               <Eye className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Logs completos</span>
             </Button>
           </div>
         </div>
-
-        {/* Progresso */}
-        {isRunning && run && (
-          <div className="relative mt-4">
-            <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1.5 tabular-nums">
-              <span className="flex items-center gap-1.5">
-                <Activity className="h-3 w-3 text-warning animate-pulse" />
-                Progresso geral
-              </span>
-              <span className="font-bold text-warning">{run.progressPct}%</span>
-            </div>
-            <Progress value={run.progressPct} className="h-2" />
-          </div>
-        )}
       </div>
 
-      {/* ============ PIPELINE VISUAL ============ */}
       <FluxoVisual />
 
-      {/* ============ MÉTRICAS KPI (últimas 24h) ============ */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <KpiCard
-          icon={FileText}
-          label="Templates gerados"
-          value={aggMetrics.templates}
-          hint="últimas 24h"
-          color="primary"
-        />
-        <KpiCard
-          icon={Sparkles}
-          label="Aprovados"
-          value={aggMetrics.aprovados}
-          hint={`${aggMetrics.templates > 0 ? Math.round((aggMetrics.aprovados / aggMetrics.templates) * 100) : 0}% do total`}
-          color="success"
-        />
-        <KpiCard
-          icon={ImageIcon}
-          label="Capas"
-          value={aggMetrics.capas}
-          hint="geradas pela IA"
-          color="warning"
-        />
-        <KpiCard
-          icon={TrendingUp}
-          label="Eficiência"
-          value={`${aggMetrics.eficiencia}%`}
-          hint="aprovação média"
-          color={aggMetrics.eficiencia >= 60 ? "success" : aggMetrics.eficiencia >= 30 ? "warning" : "destructive"}
-        />
+        <KpiCard icon={ListChecks} label="Pendentes" value={state.pending} hint="fila atual" color={state.pending > 0 ? "warning" : "primary"} />
+        <KpiCard icon={Activity} label="Executando" value={state.claimed} hint="agora" color={state.claimed > 0 ? "success" : "primary"} />
+        <KpiCard icon={CheckCircle2} label="Concluídos hoje" value={state.doneToday} hint={state.lastJobAt ? `último job ${timeAgo(state.lastJobAt)}` : "sem job recente"} color="success" />
+        <KpiCard icon={Music2} label="Spotify verificado" value={state.lastVerifiedAt ? timeAgo(state.lastVerifiedAt) : "—"} hint="seguidores reais" color={state.spotifySessionValid ? "success" : "destructive"} />
       </div>
 
-      {/* ============ REGRAS VS EXECUÇÃO (validação por gênero) ============ */}
-      <RegrasVsExecucao />
-
-      {/* ============ FEED AO VIVO ============ */}
       <div id="feed-ao-vivo" className="scroll-mt-4">
         <AoVivoFeed />
       </div>
@@ -330,6 +223,7 @@ function KpiCard({
     destructive: { bg: "bg-destructive/10", border: "border-destructive/20", icon: "text-destructive", value: "text-foreground" },
   };
   const c = colorMap[color];
+  const displayValue = typeof value === "number" ? formatNumber(value) : value;
   return (
     <div className={cn(
       "fluxo-node-hover relative overflow-hidden rounded-xl border p-4",
@@ -341,7 +235,7 @@ function KpiCard({
           <Icon className={cn("h-4 w-4", c.icon)} />
         </div>
       </div>
-      <p className={cn("text-2xl font-bold tabular-nums leading-none", c.value)}>{value}</p>
+      <p className={cn("text-2xl font-bold tabular-nums leading-none", c.value)}>{displayValue}</p>
       <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold mt-2">{label}</p>
       {hint && <p className="text-[10px] text-muted-foreground/70 mt-0.5">{hint}</p>}
     </div>

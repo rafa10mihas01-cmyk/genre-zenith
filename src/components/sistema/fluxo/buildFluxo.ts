@@ -1,6 +1,4 @@
-// buildFluxo — pipeline real do NexEngine hoje:
-// Descoberta → Filtro → Catálogo → Deal → Execução.
-// Sem Cérebro/Templates/Capas (módulo aposentado).
+// buildFluxo — pipeline real do NexEngine hoje: Spotify → Filtro → Catálogo → Deal → Execução.
 import { Search, Filter, Library, Handshake, ListMusic } from "lucide-react";
 import type {
   FluxoNodeData, FluxoRun, NodeStatus, LogPretty,
@@ -45,9 +43,9 @@ function prettyLog(action: string, message: string, status: string): string {
       : "Token do Spotify renovado.";
   }
   if (a.includes("run-search")) {
-    if (status === "error") return "Apify falhou ao buscar playlists.";
-    if (status === "running") return "Apify rodando: buscando playlists no Spotify.";
-    return `Apify trouxe playlists novas. ${m}`.trim();
+    if (status === "error") return "Busca Spotify falhou ao buscar playlists.";
+    if (status === "running") return "Busca Spotify rodando.";
+    return `Busca Spotify encontrou playlists novas. ${m}`.trim();
   }
   if (a.includes("enrich-playlists")) {
     return status === "error"
@@ -55,7 +53,7 @@ function prettyLog(action: string, message: string, status: string): string {
       : "Playlists enriquecidas com seguidores reais.";
   }
   if (a.includes("fetch-tracks")) return "Faixas das playlists baixadas para análise.";
-  if (a.includes("test-apify")) return status === "error" ? "Teste do Apify falhou." : "Apify saudável.";
+  if (a.includes("test-apify")) return status === "error" ? "Teste da coleta Spotify falhou." : "Coleta Spotify saudável.";
   return m || `Evento: ${action}`;
 }
 
@@ -78,25 +76,25 @@ export function buildFluxoNodes(opts: {
   run: FluxoRun | null;
   logs: RawLog[];
   searchStats: RawSearchStats;
-  apifyBlocked: { blocked: boolean; reason?: string };
+  discoveryBlocked: { blocked: boolean; reason?: string };
   genreFilter?: GenreFilter | null;
   catalogStat?: CatalogStat | null;
   dealStat?: DealStat | null;
   execStat?: ExecStat | null;
 }): FluxoNodeData[] {
-  const { logs, searchStats, apifyBlocked, genreFilter, catalogStat, dealStat, execStat } = opts;
+  const { logs, searchStats, discoveryBlocked, genreFilter, catalogStat, dealStat, execStat } = opts;
 
   const logsByAction = (actions: string[]) =>
     logs.filter((l) => actions.some((a) => (l.acao ?? "").includes(a)));
 
-  // ============ NÓ 1: DESCOBERTA (Apify + Spotify) ============
+  // ============ NÓ 1: DESCOBERTA SPOTIFY ============
   const discLogs = logsByAction(["run-search", "enrich-playlists", "fetch-tracks", "test-apify", "spotify_token", "spotify-auth"]);
   const discErrors = discLogs.filter((l) => l.status === "error");
   const discRunning = discLogs.find((l) => l.status === "running");
   const tokenError = discLogs.find((l) => (l.acao ?? "").includes("spotify") && l.status === "error");
 
   let discStatus: NodeStatus = "success";
-  if (apifyBlocked.blocked || tokenError) discStatus = "error";
+  if (discoveryBlocked.blocked || tokenError) discStatus = "error";
   else if (discRunning) discStatus = "running";
   else if (discErrors.length > 0 && discLogs.length < 3) discStatus = "warning";
 
@@ -106,30 +104,29 @@ export function buildFluxoNodes(opts: {
   const node1: FluxoNodeData = {
     id: "descoberta",
     label: "Descoberta",
-    shortLabel: "Apify + Spotify",
+    shortLabel: "Spotify",
     icon: Search,
     status: discStatus,
     inputCount: searchStats.termsCount,
     outputCount: searchStats.rawPlaylists,
-    description: apifyBlocked.blocked ? "Coleta bloqueada" : `${searchStats.rawPlaylists} playlists brutas`,
+    description: discoveryBlocked.blocked ? "Coleta bloqueada" : `${searchStats.rawPlaylists} playlists brutas`,
     details: {
-      summary: "Varre o Spotify usando os termos cadastrados por gênero (via Apify) e enriquece cada playlist com seguidores reais. Ponto de entrada do pipeline.",
+      summary: "Varre o Spotify usando os termos cadastrados por gênero e enriquece cada playlist com seguidores reais. Ponto de entrada do pipeline.",
       variables: [
         { label: "Termos cadastrados", value: searchStats.termsCount },
-        { label: "Raspador", value: "Apify Actor (Spotify Scraper)" },
         { label: "Enriquecimento", value: "Spotify Web API (followers reais)" },
         { label: "Token Spotify", value: tokenError ? "expirado/erro" : "válido" },
       ],
       process: [
         "Verifica token do Spotify (renovação automática se faltam <10min).",
-        "Para cada termo cadastrado, dispara um run no Apify.",
+        "Para cada termo cadastrado, busca playlists no Spotify.",
         "Salva playlists encontradas em search_results.",
         "Chama /playlists/{id} no Spotify para obter seguidores REAIS.",
       ],
       decisions: [
         { kind: "aceito", label: "Playlists coletadas", count: searchStats.rawPlaylists, reason: "Matéria-prima para o filtro." },
-        ...(apifyBlocked.blocked
-          ? [{ kind: "descartado" as const, label: "Coletas bloqueadas", reason: apifyBlocked.reason ?? "Flag apify_blocked ativa." }]
+        ...(discoveryBlocked.blocked
+          ? [{ kind: "descartado" as const, label: "Coletas bloqueadas", reason: discoveryBlocked.reason ?? "Coleta pausada." }]
           : []),
       ],
       output: [
@@ -143,7 +140,7 @@ export function buildFluxoNodes(opts: {
       ],
       alerts: [
         ...(tokenError ? [{ level: "error" as const, message: "Token Spotify com erro — descoberta travada.", hint: "Reconectar conta admin." }] : []),
-        ...(apifyBlocked.blocked ? [{ level: "error" as const, message: apifyBlocked.reason ?? "Apify bloqueado.", hint: "Liberar nas configurações." }] : []),
+        ...(discoveryBlocked.blocked ? [{ level: "error" as const, message: discoveryBlocked.reason ?? "Coleta Spotify bloqueada.", hint: "Verificar configuração da coleta." }] : []),
       ],
       logs: toPrettyLogs(discLogs, 15),
     },

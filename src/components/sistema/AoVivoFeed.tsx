@@ -1,15 +1,7 @@
-// AoVivoFeed — feed cronológico em tempo real de TUDO que está acontecendo
-// no sistema. Junta autopilot_runs, collection_logs e playlist_adjustments
-// em um só stream PT-BR, com ícones e linguagem para leigo.
-// - Agrupa eventos repetidos consecutivos (ex: "create-spotify-playlist-lock ×5")
-// - Filtros rápidos: tudo / erros / cérebro / coleta / ajustes
-// - Mostra 20 por vez; "carregar mais" até 200; container com scroll interno
-import { useEffect, useState, useMemo } from "react";
+// AoVivoFeed — feed cronológico do sistema atual: Spotify, bot e execução.
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  Brain, Music2, Wrench, CheckCircle2, AlertTriangle, Loader2,
-  Activity, Clock, RefreshCw, Filter,
-} from "lucide-react";
+import { Music2, ListChecks, Bot, CheckCircle2, AlertTriangle, Loader2, Activity, Clock, RefreshCw, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -17,192 +9,126 @@ import { timeAgo } from "@/lib/format";
 
 type FeedItem = {
   id: string;
-  source: "autopilot" | "coleta" | "ajuste";
+  source: "spotify" | "execucao" | "bot";
   status: "running" | "success" | "error" | "warning" | "info";
   icon: any;
   title: string;
   detail: string;
   meta?: string;
   timestamp: string;
-  genre_nome?: string;
-  groupKey?: string; // para agrupar repetições consecutivas
-  count?: number;    // quantos eventos esse item agrupa (default 1)
+  groupKey?: string;
+  count?: number;
 };
 
-type FilterKey = "all" | "errors" | "cerebro" | "coleta" | "ajustes";
+type FilterKey = "all" | "errors" | "spotify" | "execucao" | "bot";
 const PAGE_SIZE = 20;
 
-const STEP_LABELS_PT: Record<string, string> = {
-  analyze: "analisando o gênero",
-  briefing: "criando o briefing",
-  blueprints: "extraindo os moldes",
-  templates: "gerando os templates",
-  covers: "desenhando as capas",
-  approve: "aprovando os melhores",
-  replicate: "preparando a replicação",
-  done: "finalizou",
+const ACTION_LABELS: Record<string, string> = {
+  spotify_token_watchdog: "Token Spotify verificado",
+  fetch_tracks_spotify: "Faixas Spotify verificadas",
+  "fetch-tracks-spotify": "Faixas Spotify verificadas",
+  track_playlist_metrics: "Métricas de playlist atualizadas",
+  track_external_metrics: "Métricas externas atualizadas",
+  recover_print_batches: "Lotes de evidência processados",
+  bot_ingest_dom: "Bot leu dados do Spotify",
+  bot_collect: "Bot coletou dados do Spotify",
 };
 
-const ACAO_LABELS_PT: Record<string, string> = {
-  search: "Buscando playlists",
-  enrich: "Enriquecendo dados",
-  validate: "Validando playlist",
-  collect: "Coletando faixas",
-  expire_stale: "Arquivando template antigo",
-  approve_template: "Aprovando template",
-  reject_template: "Rejeitando template",
-  publish: "Publicando no Spotify",
-};
+function jobLabel(jobType: string) {
+  if (jobType.includes("remove")) return "Remover faixa da playlist";
+  if (jobType.includes("add")) return "Adicionar faixa na playlist";
+  return jobType.split(".").join(" ");
+}
 
 export function AoVivoFeed() {
   const [items, setItems] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [genres, setGenres] = useState<Record<string, string>>({});
-
-  const loadGenres = async () => {
-    const { data } = await supabase.from("genres").select("id, nome");
-    const map: Record<string, string> = {};
-    (data ?? []).forEach((g: any) => { map[g.id] = g.nome; });
-    setGenres(map);
-  };
+  const [filter, setFilter] = useState<FilterKey>("all");
+  const [visible, setVisible] = useState(PAGE_SIZE);
 
   const load = async () => {
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const [runs, logs, adjs] = await Promise.all([
-      supabase.from("autopilot_runs").select("*").gte("started_at", since).order("started_at", { ascending: false }).limit(30),
-      supabase.from("collection_logs").select("*").gte("created_at", since).order("created_at", { ascending: false }).limit(50),
-      supabase.from("playlist_adjustments").select("*").gte("created_at", since).order("created_at", { ascending: false }).limit(30),
+    const [logs, jobs, heartbeats] = await Promise.all([
+      supabase.from("collection_logs").select("*").gte("created_at", since).order("created_at", { ascending: false }).limit(80),
+      supabase.from("playlist_execution_jobs").select("id, job_type, status, attempts, max_attempts, last_error, created_at, updated_at, completed_at").gte("updated_at", since).order("updated_at", { ascending: false }).limit(80),
+      supabase.from("bot_heartbeats").select("id, status, spotify_session_valid, message, created_at").gte("created_at", since).order("created_at", { ascending: false }).limit(20),
     ]);
 
     const all: FeedItem[] = [];
 
-    (runs.data ?? []).forEach((r: any) => {
-      const genreNome = genres[r.genre_id] ?? "—";
-      if (r.status === "running") {
-        all.push({
-          id: `run-${r.id}`,
-          source: "autopilot",
-          status: "running",
-          icon: Brain,
-          title: `Cérebro do ${genreNome} ${STEP_LABELS_PT[r.current_step ?? ""] ?? "rodando"}…`,
-          detail: `Etapa atual: ${r.current_step ?? "iniciando"} · ${r.progress_pct ?? 0}% concluído`,
-          meta: `${r.templates_generated} templates · ${r.covers_generated} capas`,
-          timestamp: r.started_at,
-          genre_nome: genreNome,
-        });
-      } else if (r.status === "success") {
-        all.push({
-          id: `run-${r.id}`,
-          source: "autopilot",
-          status: "success",
-          icon: CheckCircle2,
-          title: `Cérebro do ${genreNome} concluiu`,
-          detail: r.summary ?? "Inteligência atualizada com sucesso",
-          meta: `${r.templates_generated} templates · ${r.covers_generated} capas · ${r.templates_approved} aprovados`,
-          timestamp: r.finished_at ?? r.started_at,
-          genre_nome: genreNome,
-        });
-      } else if (r.status === "error") {
-        all.push({
-          id: `run-${r.id}`,
-          source: "autopilot",
-          status: "error",
-          icon: AlertTriangle,
-          title: `Cérebro do ${genreNome} falhou`,
-          detail: r.error_message ?? "Erro desconhecido",
-          timestamp: r.finished_at ?? r.started_at,
-          genre_nome: genreNome,
-        });
-      }
-    });
-
     (logs.data ?? []).forEach((l: any) => {
-      const genreNome = l.genre_id ? genres[l.genre_id] ?? "—" : "Global";
-      const acaoLabel = ACAO_LABELS_PT[l.acao] ?? l.acao;
-      const isError = l.status === "error" || l.status === "failed";
+      const isError = ["error", "failed", "erro"].includes(l.status);
       all.push({
         id: `log-${l.id}`,
-        source: "coleta",
-        status: isError ? "error" : l.status === "warning" ? "warning" : "info",
+        source: "spotify",
+        status: isError ? "error" : l.status === "warning" || l.status === "parcial" ? "warning" : "info",
         icon: isError ? AlertTriangle : Music2,
-        title: `${acaoLabel} (${genreNome})`,
-        detail: l.mensagem ?? `Ação: ${l.acao}`,
+        title: ACTION_LABELS[l.acao] ?? l.acao,
+        detail: l.mensagem ?? `Status: ${l.status}`,
         meta: l.duracao_ms ? `${(l.duracao_ms / 1000).toFixed(1)}s` : undefined,
         timestamp: l.created_at,
-        genre_nome: genreNome,
-        groupKey: `coleta:${l.acao}:${l.genre_id ?? "g"}:${l.status}`,
+        groupKey: `spotify:${l.acao}:${l.status}`,
       });
     });
 
-    (adjs.data ?? []).forEach((a: any) => {
-      const genreNome = a.genre_id ? genres[a.genre_id] ?? "—" : "—";
-      const acaoLabel = ACAO_LABELS_PT[a.action_type] ?? a.action_type;
-      const isError = a.status === "error" || a.status === "failed";
+    (jobs.data ?? []).forEach((j: any) => {
+      const isError = j.status === "failed";
       all.push({
-        id: `adj-${a.id}`,
-        source: "ajuste",
-        status: isError ? "error" : "success",
-        icon: isError ? AlertTriangle : Wrench,
-        title: `${acaoLabel} (${genreNome})`,
-        detail: a.error_message ?? `Disparado por ${a.triggered_by}`,
-        timestamp: a.created_at,
-        genre_nome: genreNome,
-        groupKey: `ajuste:${a.action_type}:${a.genre_id ?? "g"}:${a.status}`,
+        id: `job-${j.id}`,
+        source: "execucao",
+        status: isError ? "error" : j.status === "claimed" ? "running" : j.status === "done" ? "success" : "info",
+        icon: isError ? AlertTriangle : j.status === "done" ? CheckCircle2 : ListChecks,
+        title: jobLabel(j.job_type),
+        detail: j.last_error ?? `Status: ${j.status}`,
+        meta: `${j.attempts ?? 0}/${j.max_attempts ?? 0} tentativas`,
+        timestamp: j.updated_at ?? j.completed_at ?? j.created_at,
+        groupKey: `job:${j.job_type}:${j.status}`,
+      });
+    });
+
+    (heartbeats.data ?? []).forEach((h: any) => {
+      all.push({
+        id: `hb-${h.id}`,
+        source: "bot",
+        status: h.spotify_session_valid ? "success" : "warning",
+        icon: Bot,
+        title: "Bot Spotify online",
+        detail: h.message ?? h.status ?? "Heartbeat recebido",
+        meta: h.spotify_session_valid ? "sessão válida" : "sessão inválida",
+        timestamp: h.created_at,
+        groupKey: `bot:${h.status}:${h.spotify_session_valid}`,
       });
     });
 
     all.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-
-    // Agrupar repetições consecutivas (mesmo groupKey seguidos)
     const grouped: FeedItem[] = [];
     for (const item of all) {
       const last = grouped[grouped.length - 1];
-      if (last && item.groupKey && last.groupKey === item.groupKey) {
-        last.count = (last.count ?? 1) + 1;
-      } else {
-        grouped.push({ ...item, count: 1 });
-      }
+      if (last && item.groupKey && last.groupKey === item.groupKey) last.count = (last.count ?? 1) + 1;
+      else grouped.push({ ...item, count: 1 });
     }
-
     setItems(grouped.slice(0, 200));
     setLoading(false);
   };
 
   useEffect(() => {
-    loadGenres();
-  }, []);
-
-  useEffect(() => {
-    if (Object.keys(genres).length === 0) return;
     load();
-
-    // Realtime subscriptions nas 3 tabelas
     const ch = supabase
-      .channel(`sistema-feed:${Math.random().toString(36).slice(2)}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "autopilot_runs" }, () => load())
+      .channel(`sistema-feed-atual:${Math.random().toString(36).slice(2)}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "collection_logs" }, () => load())
-      .on("postgres_changes", { event: "*", schema: "public", table: "playlist_adjustments" }, () => load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "playlist_execution_jobs" }, () => load())
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "bot_heartbeats" }, () => load())
       .subscribe();
-
-    // Refresh defensivo a cada 30s (pra atualizar timeAgo + fallback)
     const t = setInterval(load, 30_000);
     return () => { supabase.removeChannel(ch); clearInterval(t); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [genres]);
+  }, []);
 
-  const [filter, setFilter] = useState<FilterKey>("all");
-  const [visible, setVisible] = useState<number>(PAGE_SIZE);
-
-  // Reset paginação ao trocar filtro
   useEffect(() => { setVisible(PAGE_SIZE); }, [filter]);
 
   const filtered = useMemo(() => {
     if (filter === "all") return items;
     if (filter === "errors") return items.filter((i) => i.status === "error");
-    if (filter === "cerebro") return items.filter((i) => i.source === "autopilot");
-    if (filter === "coleta") return items.filter((i) => i.source === "coleta");
-    if (filter === "ajustes") return items.filter((i) => i.source === "ajuste");
-    return items;
+    return items.filter((i) => i.source === filter);
   }, [items, filter]);
 
   const stats = useMemo(() => ({
@@ -213,97 +139,45 @@ export function AoVivoFeed() {
 
   const visibleItems = filtered.slice(0, visible);
   const hasMore = visible < filtered.length;
-
-  const FILTERS: { key: FilterKey; label: string; count: number }[] = [
+  const filters: { key: FilterKey; label: string; count: number }[] = [
     { key: "all", label: "Tudo", count: items.length },
     { key: "errors", label: "Erros", count: stats.errors },
-    { key: "cerebro", label: "Cérebro", count: items.filter((i) => i.source === "autopilot").length },
-    { key: "coleta", label: "Coleta", count: items.filter((i) => i.source === "coleta").length },
-    { key: "ajustes", label: "Ajustes", count: items.filter((i) => i.source === "ajuste").length },
+    { key: "spotify", label: "Spotify", count: items.filter((i) => i.source === "spotify").length },
+    { key: "execucao", label: "Execução", count: items.filter((i) => i.source === "execucao").length },
+    { key: "bot", label: "Bot", count: items.filter((i) => i.source === "bot").length },
   ];
 
   return (
     <div className="space-y-3">
-      {/* Header com stats */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-3 text-xs">
           <span className="flex items-center gap-1.5 text-muted-foreground">
             <Activity className="h-3.5 w-3.5 text-primary" />
             <strong className="text-foreground">{stats.total}</strong> eventos nas últimas 24h
           </span>
-          {stats.running > 0 && (
-            <Badge variant="outline" className="border-primary/40 bg-primary/5 text-primary gap-1">
-              <Loader2 className="h-3 w-3 animate-spin" />
-              {stats.running} rodando agora
-            </Badge>
-          )}
-          {stats.errors > 0 && (
-            <Badge variant="outline" className="border-destructive/40 bg-destructive/5 text-destructive gap-1">
-              <AlertTriangle className="h-3 w-3" />
-              {stats.errors} com erro
-            </Badge>
-          )}
+          {stats.running > 0 && <Badge variant="outline" className="border-primary/40 bg-primary/5 text-primary gap-1"><Loader2 className="h-3 w-3 animate-spin" />{stats.running} rodando</Badge>}
+          {stats.errors > 0 && <Badge variant="outline" className="border-destructive/40 bg-destructive/5 text-destructive gap-1"><AlertTriangle className="h-3 w-3" />{stats.errors} com erro</Badge>}
         </div>
-        <Button size="sm" variant="ghost" onClick={load} className="h-7 gap-1.5 text-xs">
-          <RefreshCw className="h-3.5 w-3.5" /> Atualizar
-        </Button>
+        <Button size="sm" variant="ghost" onClick={load} className="h-7 gap-1.5 text-xs"><RefreshCw className="h-3.5 w-3.5" /> Atualizar</Button>
       </div>
 
-      {/* Filtros rápidos */}
       <div className="flex items-center gap-1.5 flex-wrap">
         <Filter className="h-3 w-3 text-muted-foreground shrink-0" />
-        {FILTERS.map((f) => (
-          <button
-            key={f.key}
-            type="button"
-            onClick={() => setFilter(f.key)}
-            className={cn(
-              "px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wider border transition-all",
-              filter === f.key
-                ? "border-primary bg-primary/10 text-primary"
-                : "border-border bg-card text-muted-foreground hover:text-foreground hover:border-foreground/20",
-            )}
-          >
-            {f.label}
-            <span className="ml-1.5 tabular-nums opacity-70">{f.count}</span>
+        {filters.map((f) => (
+          <button key={f.key} type="button" onClick={() => setFilter(f.key)} className={cn("px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wider border transition-all", filter === f.key ? "border-primary bg-primary/10 text-primary" : "border-border bg-card text-muted-foreground hover:text-foreground hover:border-foreground/20")}>
+            {f.label}<span className="ml-1.5 tabular-nums opacity-70">{f.count}</span>
           </button>
         ))}
       </div>
 
-      {/* Feed com altura limitada + scroll interno */}
       {loading ? (
-        <div className="nx-card p-6 flex items-center justify-center text-sm text-muted-foreground gap-2">
-          <Loader2 className="h-4 w-4 animate-spin" /> Carregando atividade…
-        </div>
+        <div className="nx-card p-6 flex items-center justify-center text-sm text-muted-foreground gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Carregando atividade…</div>
       ) : filtered.length === 0 ? (
-        <div className="nx-card p-8 text-center">
-          <Clock className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
-          <p className="text-sm text-muted-foreground">
-            {filter === "all" ? "Nenhuma atividade nas últimas 24 horas." : "Nenhum evento nesse filtro."}
-          </p>
-        </div>
+        <div className="nx-card p-8 text-center"><Clock className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" /><p className="text-sm text-muted-foreground">{filter === "all" ? "Nenhuma atividade nas últimas 24 horas." : "Nenhum evento nesse filtro."}</p></div>
       ) : (
         <div className="nx-card p-2 sm:p-3">
-          <ol className="space-y-1.5 max-h-[560px] overflow-y-auto nx-scroll pr-1">
-            {visibleItems.map((item) => (
-              <FeedRow key={item.id} item={item} />
-            ))}
-          </ol>
-          {hasMore && (
-            <div className="pt-2 mt-2 border-t border-border/40 flex items-center justify-between gap-2">
-              <span className="text-[11px] text-muted-foreground tabular-nums">
-                Mostrando {visibleItems.length} de {filtered.length}
-              </span>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => setVisible((v) => Math.min(v + PAGE_SIZE, filtered.length))}
-                className="h-7 text-xs"
-              >
-                Carregar mais {Math.min(PAGE_SIZE, filtered.length - visible)}
-              </Button>
-            </div>
-          )}
+          <ol className="space-y-1.5 max-h-[560px] overflow-y-auto nx-scroll pr-1">{visibleItems.map((item) => <FeedRow key={item.id} item={item} />)}</ol>
+          {hasMore && <div className="pt-2 mt-2 border-t border-border/40 flex items-center justify-between gap-2"><span className="text-[11px] text-muted-foreground tabular-nums">Mostrando {visibleItems.length} de {filtered.length}</span><Button size="sm" variant="ghost" onClick={() => setVisible((v) => Math.min(v + PAGE_SIZE, filtered.length))} className="h-7 text-xs">Carregar mais</Button></div>}
         </div>
       )}
     </div>
@@ -322,31 +196,14 @@ function FeedRow({ item }: { item: FeedItem }) {
   const count = item.count ?? 1;
   return (
     <li className={cn("nx-card border p-3 flex items-start gap-3", colorMap[item.status])}>
-      <div className="shrink-0 mt-0.5">
-        {item.status === "running" ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : (
-          <Icon className="h-4 w-4" />
-        )}
-      </div>
+      <div className="shrink-0 mt-0.5">{item.status === "running" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Icon className="h-4 w-4" />}</div>
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-2 flex-wrap">
-          <p className="text-sm font-semibold text-foreground leading-tight flex items-center gap-1.5">
-            {item.title}
-            {count > 1 && (
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-elevated border border-border text-[10px] font-bold tabular-nums text-muted-foreground">
-                ×{count}
-              </span>
-            )}
-          </p>
-          <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">
-            {timeAgo(item.timestamp)}
-          </span>
+          <p className="text-sm font-semibold text-foreground leading-tight flex items-center gap-1.5">{item.title}{count > 1 && <span className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-elevated border border-border text-[10px] font-bold tabular-nums text-muted-foreground">×{count}</span>}</p>
+          <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">{timeAgo(item.timestamp)}</span>
         </div>
         <p className="text-xs text-muted-foreground mt-0.5 break-words">{item.detail}</p>
-        {item.meta && (
-          <p className="text-[11px] text-muted-foreground/80 mt-1 tabular-nums">{item.meta}</p>
-        )}
+        {item.meta && <p className="text-[11px] text-muted-foreground/80 mt-1 tabular-nums">{item.meta}</p>}
       </div>
     </li>
   );
