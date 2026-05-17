@@ -863,6 +863,28 @@ function DistributionTable({
           <table className="w-full text-xs border-separate border-spacing-0">
             <thead className="bg-elevated/40">
               <tr className="text-muted-foreground">
+                {onToggleSlot && (
+                  <th className="text-left font-medium py-2.5 px-2 w-8 border-b border-border">
+                    <input
+                      type="checkbox"
+                      checked={excluded?.size === 0}
+                      onChange={() => {
+                        const allOff = excluded && excluded.size === slots.length;
+                        if (excluded && excluded.size > 0 && !allOff) {
+                          // todas marcadas → não faz nada
+                        }
+                        // toggle: se algum excluído, restaura tudo; senão exclui tudo
+                        if ((excluded?.size ?? 0) > 0) {
+                          slots.forEach(s => excluded?.has(slotKey!(s)) && onToggleSlot(slotKey!(s)));
+                        } else {
+                          slots.forEach(s => onToggleSlot(slotKey!(s)));
+                        }
+                      }}
+                      className="h-3.5 w-3.5 accent-primary cursor-pointer"
+                      title="Marcar/desmarcar tudo"
+                    />
+                  </th>
+                )}
                 <th className="text-left font-medium py-2.5 px-3 w-10 border-b border-border">#</th>
                 <th className="text-left font-medium py-2.5 px-3 border-b border-border">Playlist</th>
                 <th className="text-left font-medium py-2.5 px-3 w-16 border-b border-border">Pos.</th>
