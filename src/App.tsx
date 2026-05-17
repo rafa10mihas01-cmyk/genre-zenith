@@ -98,12 +98,15 @@ const App = () => (
               <Route path="/comunidade/conta" element={<ProtectedRoute><ComunidadeConta /></ProtectedRoute>} />
               {/* "/" decide entre landing pública (visitantes) e Cockpit/Home (logados). */}
               <Route path="/" element={<RootRoute />} />
-              <Route path="/executivo" element={<Protected><Executivo /></Protected>} />
+              {/* Onda 1 de consolidação: rotas duplicadas viram redirect para a canônica. */}
+              <Route path="/executivo" element={<Navigate to="/" replace />} />
               <Route path="/cerebro" element={<Protected><Cerebro /></Protected>} />
               <Route path="/cerebro/:slug" element={<Protected><Cerebro /></Protected>} />
               <Route path="/criacao" element={<Protected><Criacao /></Protected>} />
-              <Route path="/operacao" element={<Protected><Operacao /></Protected>} />
+              {/* Catálogo é a rota canônica. /operacao e /playlists redirecionam. */}
               <Route path="/catalogo" element={<Protected><Operacao /></Protected>} />
+              <Route path="/operacao" element={<Navigate to="/catalogo" replace />} />
+              <Route path="/playlists" element={<Navigate to="/catalogo" replace />} />
               <Route path="/playlists/:id" element={<Protected><PlaylistDetail /></Protected>} />
               <Route path="/performance" element={<Protected><Performance /></Protected>} />
               <Route path="/playlist-deals" element={<Protected><PlaylistDeals /></Protected>} />
@@ -112,12 +115,12 @@ const App = () => (
               <Route path="/deals" element={<Protected><PlaylistDeals /></Protected>} />
               <Route path="/deals/comparar" element={<Protected><CompararCuradores /></Protected>} />
               <Route path="/deals/:dealId" element={<Protected><DealDetail /></Protected>} />
-              <Route path="/playlists" element={<Protected><Operacao /></Protected>} />
               <Route path="/campanhas" element={<Protected><Campanhas /></Protected>} />
               <Route path="/campanhas/:id" element={<Protected><CampanhaDetalhe /></Protected>} />
               <Route path="/analytics" element={<Protected><Analytics /></Protected>} />
-              <Route path="/analytics/performance" element={<Protected><Performance /></Protected>} />
-              <Route path="/analytics/valuation" element={<Protected><Valuation /></Protected>} />
+              {/* /analytics/* viraram redirect para as canônicas /performance e /valuation. */}
+              <Route path="/analytics/performance" element={<Navigate to="/performance" replace />} />
+              <Route path="/analytics/valuation" element={<Navigate to="/valuation" replace />} />
               <Route path="/valuation" element={<Protected><Valuation /></Protected>} />
               <Route path="/curadores" element={<Protected><Curadores /></Protected>} />
               <Route path="/curadores/comparar" element={<Protected><CompararCuradores /></Protected>} />
