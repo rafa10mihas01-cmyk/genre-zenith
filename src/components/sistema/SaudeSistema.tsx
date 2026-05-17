@@ -162,9 +162,9 @@ export function SaudeSistema() {
           <HealthCard
             icon={Bell}
             label="Alertas"
-            ok={health.alertas.ok}
+            ok={health.alertas.critical === 0}
             okText={health.alertas.warning > 0 ? `${health.alertas.warning} aviso(s)` : "Sem alertas"}
-            errText={health.alertas.critical > 0 ? `${health.alertas.critical} crítico(s)` : `${health.alertas.warning} aviso(s)`}
+            errText={`${health.alertas.critical} crítico(s)`}
             detail={health.alertas.lastAt ? `último ${timeAgo(health.alertas.lastAt)}` : "nenhum não lido"}
           />
         </div>
