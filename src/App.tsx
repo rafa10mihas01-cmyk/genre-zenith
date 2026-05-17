@@ -46,7 +46,7 @@ import PlaylistDetail from "./pages/PlaylistDetail";
 import Benchmarks from "./pages/Benchmarks";
 import MatrizPlaylists from "./pages/MatrizPlaylists";
 import HeatmapEntregas from "./pages/HeatmapEntregas";
-import Inteligencia from "./pages/Inteligencia";
+
 import NotFound from "./pages/NotFound";
 
 // Defaults globais de cache: navegação "instantânea" sem reload visual.
@@ -99,10 +99,11 @@ const App = () => (
               <Route path="/" element={<RootRoute />} />
               {/* Onda 1 de consolidação: rotas duplicadas viram redirect para a canônica. */}
               <Route path="/executivo" element={<Navigate to="/" replace />} />
-              {/* Cérebro e Criação aposentados na consolidação Fase 1 — pipeline morto. */}
-              <Route path="/cerebro" element={<Navigate to="/inteligencia" replace />} />
-              <Route path="/cerebro/:slug" element={<Navigate to="/inteligencia" replace />} />
-              <Route path="/criacao" element={<Navigate to="/inteligencia" replace />} />
+              {/* Cérebro, Criação e o hub Inteligência foram aposentados — tudo cai em /analytics. */}
+              <Route path="/cerebro" element={<Navigate to="/analytics" replace />} />
+              <Route path="/cerebro/:slug" element={<Navigate to="/analytics" replace />} />
+              <Route path="/criacao" element={<Navigate to="/analytics" replace />} />
+              <Route path="/inteligencia" element={<Navigate to="/analytics" replace />} />
               {/* Catálogo é a rota canônica. /operacao e /playlists redirecionam. */}
               <Route path="/catalogo" element={<Protected><Operacao /></Protected>} />
               <Route path="/operacao" element={<Navigate to="/catalogo" replace />} />
@@ -130,7 +131,7 @@ const App = () => (
               <Route path="/benchmarks" element={<Protected><Benchmarks /></Protected>} />
               <Route path="/matriz" element={<Protected><MatrizPlaylists /></Protected>} />
               <Route path="/heatmap" element={<Protected><HeatmapEntregas /></Protected>} />
-              <Route path="/inteligencia" element={<Protected><Inteligencia /></Protected>} />
+              
               <Route path="/sistema" element={<Protected><Sistema /></Protected>} />
               <Route path="/infra" element={<Protected><AdminRoute><Sistema /></AdminRoute></Protected>} />
               <Route path="/comunidade-admin" element={<Protected><AdminRoute><ComunidadeAdmin /></AdminRoute></Protected>} />

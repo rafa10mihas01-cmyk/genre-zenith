@@ -94,11 +94,6 @@ export function CommandPalette({
         <CommandSeparator />
 
         <CommandGroup heading="Inteligência">
-          <CommandItem onSelect={() => go("/inteligencia")}>
-            <Sparkles />
-            <span>Inteligência</span>
-            <CommandShortcut>G I</CommandShortcut>
-          </CommandItem>
           <CommandItem onSelect={() => go("/analytics")}>
             <BarChart3 />
             <span>Analytics</span>
@@ -139,7 +134,7 @@ export function CommandPalette({
                 <CommandItem
                   key={g.id}
                   value={`${g.nome} ${g.slug}`}
-                  onSelect={() => go(`/inteligencia?genero=${g.slug}`)}
+                  onSelect={() => go(`/analytics?genero=${g.slug}`)}
                 >
                   <SearchIcon />
                   <span>{g.nome}</span>
