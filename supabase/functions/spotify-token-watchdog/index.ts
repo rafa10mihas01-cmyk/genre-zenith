@@ -3,11 +3,10 @@
 // 📊 Audit #10 A.1: heartbeat sempre logado (mesmo quando 0 contas a refrescar).
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { getAppCredentials } from "../_shared/spotify.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const CLIENT_ID = Deno.env.get("SPOTIFY_CLIENT_ID")!;
-const CLIENT_SECRET = Deno.env.get("SPOTIFY_CLIENT_SECRET")!;
 const CRON_SECRET = Deno.env.get("CRON_SECRET") ?? "";
 
 function jr(p: unknown, status = 200) {
@@ -55,7 +54,7 @@ Deno.serve(async (req) => {
 
   const { data: accounts, error } = await sb
     .from("spotify_user_tokens")
-    .select("id, spotify_user_id, refresh_token, expires_at")
+    .select("id, spotify_user_id, refresh_token, expires_at, app_id")
     .lt("expires_at", threshold);
 
   if (error) {
@@ -67,12 +66,24 @@ Deno.serve(async (req) => {
   }
 
   const results: any[] = [];
-  const basic = btoa(`${CLIENT_ID}:${CLIENT_SECRET}`);
   let okCount = 0;
   let failCount = 0;
 
+  // Cache de credenciais por app pra evitar N lookups
+  const credsCache: Record<string, { client_id: string; client_secret: string; name: string }> = {};
+  async function credsFor(appId: string | null) {
+    const key = appId ?? "__env__";
+    if (!credsCache[key]) {
+      const c = await getAppCredentials(appId);
+      credsCache[key] = { client_id: c.client_id, client_secret: c.client_secret, name: c.name };
+    }
+    return credsCache[key];
+  }
+
   for (const acc of accounts ?? []) {
     try {
+      const c = await credsFor(acc.app_id ?? null);
+      const basic = btoa(`${c.client_id}:${c.client_secret}`);
       const r = await fetch("https://accounts.spotify.com/api/token", {
         method: "POST",
         headers: {
@@ -134,10 +145,12 @@ Deno.serve(async (req) => {
       .maybeSingle();
     const expSoon = !appRow || new Date(appRow.expires_at).getTime() - Date.now() < 10 * 60 * 1000;
     if (expSoon) {
+      const appCreds = await getAppCredentials();
+      const appBasic = btoa(`${appCreds.client_id}:${appCreds.client_secret}`);
       const ar = await fetch("https://accounts.spotify.com/api/token", {
         method: "POST",
         headers: {
-          Authorization: `Basic ${basic}`,
+          Authorization: `Basic ${appBasic}`,
           "Content-Type": "application/x-www-form-urlencoded",
         },
         body: "grant_type=client_credentials",
@@ -147,7 +160,7 @@ Deno.serve(async (req) => {
         const access_token: string = aj.access_token;
         const expires_at = new Date(Date.now() + (aj.expires_in ?? 3600) * 1000).toISOString();
         await sb.from("spotify_tokens").upsert(
-          { singleton_key: "app", access_token, expires_at },
+          { singleton_key: "app", access_token, expires_at, app_id: appCreds.app_id },
           { onConflict: "singleton_key" },
         );
         appTokenRefreshed = true;

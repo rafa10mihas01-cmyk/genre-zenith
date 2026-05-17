@@ -1,17 +1,18 @@
-// spotify-auth — múltiplos modos:
-//   GET  ?mode=ping            → testa client_credentials
-//   GET  ?mode=login&redirect=<url> → retorna URL para iniciar OAuth de usuário
-//   GET  ?mode=callback&code=…&state=…&redirect=<url> → troca code por tokens e salva
-//   GET  ?mode=accounts        → lista contas conectadas (requer auth de membro da equipe)
+// spotify-auth — múltiplos modos (multi-app aware):
+//   GET  ?mode=ping                              → testa client_credentials do app default
+//   GET  ?mode=login&redirect=<url>[&app_id=…]   → URL OAuth pro app escolhido
+//   GET  ?mode=callback&code=…&state=…&redirect= → troca code (usa app gravado no state)
+//   GET  ?mode=accounts                          → lista contas conectadas (com app)
+//   GET  ?mode=apps                              → lista apps Spotify (com contagem)
+//   POST ?mode=app_save     body {id?,name,client_id,client_secret,max_accounts?,is_default?,notes?}
+//   POST ?mode=app_delete   body {id}
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { getSpotifyToken, SPOTIFY_USER_SCOPES } from "../_shared/spotify.ts";
+import { getSpotifyToken, SPOTIFY_USER_SCOPES, getAppCredentials } from "../_shared/spotify.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
-const CLIENT_ID = Deno.env.get("SPOTIFY_CLIENT_ID")!;
-const CLIENT_SECRET = Deno.env.get("SPOTIFY_CLIENT_SECRET")!;
 
 function jr(p: unknown, status = 200) {
   return new Response(JSON.stringify(p), {
@@ -20,8 +21,7 @@ function jr(p: unknown, status = 200) {
   });
 }
 
-/** Valida JWT do usuário e confirma que é membro da equipe (admin/curador). */
-async function requireTeamMember(req: Request): Promise<{ ok: true; userId: string } | { ok: false; resp: Response }> {
+async function requireTeamMember(req: Request): Promise<{ ok: true; userId: string; isAdmin: boolean } | { ok: false; resp: Response }> {
   const authHeader = req.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) {
     return { ok: false, resp: jr({ ok: false, error: "Não autenticado" }, 401) };
@@ -36,21 +36,57 @@ async function requireTeamMember(req: Request): Promise<{ ok: true; userId: stri
   }
   const userId = data.claims.sub as string;
 
-  // Verifica se é membro da equipe via service role
   const admin = createClient(SUPABASE_URL, SERVICE_KEY);
   const { data: hasAccess, error: rpcErr } = await admin.rpc("has_role", {
-    _user_id: userId,
-    _role: "admin",
+    _user_id: userId, _role: "admin",
   });
   const { data: isCurador } = await admin.rpc("has_role", {
-    _user_id: userId,
-    _role: "curador",
+    _user_id: userId, _role: "curador",
   });
   if (rpcErr) return { ok: false, resp: jr({ ok: false, error: "Falha ao validar permissão" }, 500) };
   if (!hasAccess && !isCurador) {
     return { ok: false, resp: jr({ ok: false, error: "Acesso restrito à equipe" }, 403) };
   }
-  return { ok: true, userId };
+  return { ok: true, userId, isAdmin: !!hasAccess };
+}
+
+/** Escolhe app com vaga: usa app_id se informado, senão default com slots > 0. */
+async function resolveAppForNewAccount(sb: any, requestedAppId?: string | null) {
+  if (requestedAppId) {
+    const { data: app } = await sb
+      .from("spotify_apps")
+      .select("id, name, max_accounts, status")
+      .eq("id", requestedAppId)
+      .maybeSingle();
+    if (!app) throw new Error("App informado não existe");
+    if (app.status !== "active") throw new Error(`App "${app.name}" está ${app.status}`);
+    const { count } = await sb
+      .from("spotify_user_tokens")
+      .select("*", { count: "exact", head: true })
+      .eq("app_id", app.id);
+    if ((count ?? 0) >= app.max_accounts) {
+      throw new Error(`App "${app.name}" lotado (${count}/${app.max_accounts}). Escolha outro.`);
+    }
+    return app.id as string;
+  }
+
+  // Auto-pick: primeiro app active com vaga (default primeiro)
+  const { data: apps } = await sb
+    .from("spotify_apps")
+    .select("id, name, max_accounts, is_default")
+    .eq("status", "active")
+    .order("is_default", { ascending: false })
+    .order("created_at", { ascending: true });
+
+  for (const a of apps ?? []) {
+    const { count } = await sb
+      .from("spotify_user_tokens")
+      .select("*", { count: "exact", head: true })
+      .eq("app_id", a.id);
+    if ((count ?? 0) < a.max_accounts) return a.id as string;
+  }
+  // Sem apps ou todos lotados → null = usa fallback env
+  return null;
 }
 
 Deno.serve(async (req) => {
@@ -80,25 +116,37 @@ Deno.serve(async (req) => {
 
       const redirect = url.searchParams.get("redirect");
       const forceLogin = url.searchParams.get("force_login") === "1";
+      const requestedAppId = url.searchParams.get("app_id");
       if (!redirect) return jr({ ok: false, error: "redirect obrigatório" }, 400);
-      const state = crypto.randomUUID();
 
-      // Persiste o state vinculado ao usuário para validar no callback (CSRF)
       const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+
+      // Resolve app (verifica vaga)
+      let appId: string | null = null;
+      try {
+        appId = await resolveAppForNewAccount(supabase, requestedAppId);
+      } catch (e) {
+        return jr({ ok: false, error: (e as Error).message }, 400);
+      }
+
+      // Pega credenciais (com fallback env se appId=null)
+      const creds = await getAppCredentials(appId);
+
+      const state = crypto.randomUUID();
       const { error: stErr } = await supabase
         .from("spotify_oauth_states")
-        .insert({ state, user_id: auth.userId });
+        .insert({ state, user_id: auth.userId, app_id: appId });
       if (stErr) return jr({ ok: false, error: `state save: ${stErr.message}` }, 500);
 
       const authUrl = new URL("https://accounts.spotify.com/authorize");
-      authUrl.searchParams.set("client_id", CLIENT_ID);
+      authUrl.searchParams.set("client_id", creds.client_id);
       authUrl.searchParams.set("response_type", "code");
       authUrl.searchParams.set("redirect_uri", redirect);
       authUrl.searchParams.set("scope", SPOTIFY_USER_SCOPES);
       authUrl.searchParams.set("state", state);
       authUrl.searchParams.set("show_dialog", "true");
 
-      return jr({ ok: true, url: authUrl.toString(), state, force_login: forceLogin });
+      return jr({ ok: true, url: authUrl.toString(), state, app: creds.name, app_id: appId, force_login: forceLogin });
     }
 
     if (mode === "callback") {
@@ -114,35 +162,30 @@ Deno.serve(async (req) => {
 
       const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
-      // Valida o state: deve existir, pertencer ao mesmo usuário, não estar consumido nem expirado
       const { data: stRow, error: stErr } = await supabase
         .from("spotify_oauth_states")
-        .select("state, user_id, created_at, consumed_at")
+        .select("state, user_id, app_id, created_at, consumed_at")
         .eq("state", state)
         .maybeSingle();
       if (stErr) return jr({ ok: false, error: `state lookup: ${stErr.message}` }, 500);
       if (!stRow) return jr({ ok: false, error: "state inválido" }, 400);
       if (stRow.user_id !== auth.userId) return jr({ ok: false, error: "state não pertence ao usuário" }, 403);
 
-      // IDEMPOTÊNCIA: se o state já foi consumido há ≤ 2min pelo mesmo user,
-      // é o React StrictMode/duplo-disparo. Retorna sucesso buscando a conta mais recente
-      // ao invés de erro 400 que confunde o usuário.
       if (stRow.consumed_at) {
         const consumedAgeMs = Date.now() - new Date(stRow.consumed_at).getTime();
         if (consumedAgeMs <= 2 * 60 * 1000) {
           const { data: latest } = await supabase
             .from("spotify_user_tokens")
-            .select("spotify_user_id, display_name, email, scope")
+            .select("spotify_user_id, display_name, email, scope, app_id")
             .order("updated_at", { ascending: false })
             .limit(1)
             .maybeSingle();
           return jr({
-            ok: true,
-            idempotent: true,
+            ok: true, idempotent: true,
             spotify_user_id: latest?.spotify_user_id,
             display_name: latest?.display_name,
-            email: latest?.email,
-            scope: latest?.scope,
+            email: latest?.email, scope: latest?.scope,
+            app_id: latest?.app_id,
           });
         }
         return jr({ ok: false, error: "state já utilizado" }, 400);
@@ -150,13 +193,14 @@ Deno.serve(async (req) => {
       const ageMs = Date.now() - new Date(stRow.created_at).getTime();
       if (ageMs > 30 * 60 * 1000) return jr({ ok: false, error: "state expirado" }, 400);
 
-      // Marca como consumido imediatamente (one-shot)
       await supabase
         .from("spotify_oauth_states")
         .update({ consumed_at: new Date().toISOString() })
         .eq("state", state);
 
-      const basic = btoa(`${CLIENT_ID}:${CLIENT_SECRET}`);
+      // Usa credenciais do app gravado no state (essencial p/ token exchange)
+      const creds = await getAppCredentials(stRow.app_id);
+      const basic = btoa(`${creds.client_id}:${creds.client_secret}`);
       const tokenResp = await fetch("https://accounts.spotify.com/api/token", {
         method: "POST",
         headers: { Authorization: `Basic ${basic}`, "Content-Type": "application/x-www-form-urlencoded" },
@@ -167,7 +211,7 @@ Deno.serve(async (req) => {
       });
       if (!tokenResp.ok) {
         const t = await tokenResp.text();
-        return jr({ ok: false, error: `token exchange ${tokenResp.status}: ${t.slice(0, 200)}` }, 400);
+        return jr({ ok: false, error: `token exchange ${tokenResp.status} (app=${creds.name}): ${t.slice(0, 200)}` }, 400);
       }
       const tj = await tokenResp.json();
       const access_token: string = tj.access_token;
@@ -175,7 +219,6 @@ Deno.serve(async (req) => {
       const scope: string = tj.scope ?? "";
       const expires_at = new Date(Date.now() + (tj.expires_in ?? 3600) * 1000).toISOString();
 
-      // Buscar perfil
       const meResp = await fetch("https://api.spotify.com/v1/me", {
         headers: { Authorization: `Bearer ${access_token}` },
       });
@@ -185,7 +228,6 @@ Deno.serve(async (req) => {
       }
       const me = await meResp.json();
 
-      // Garante 1 default: se não houver default ainda, marca este
       const { count } = await supabase
         .from("spotify_user_tokens")
         .select("*", { count: "exact", head: true })
@@ -198,6 +240,7 @@ Deno.serve(async (req) => {
           display_name: me.display_name ?? null,
           email: me.email ?? null,
           access_token, refresh_token, scope, expires_at,
+          app_id: stRow.app_id,
           is_default: (count ?? 0) === 0,
         }, { onConflict: "spotify_user_id" });
       if (upErr) return jr({ ok: false, error: upErr.message }, 500);
@@ -206,8 +249,8 @@ Deno.serve(async (req) => {
         ok: true,
         spotify_user_id: me.id,
         display_name: me.display_name,
-        email: me.email,
-        scope,
+        email: me.email, scope,
+        app: creds.name, app_id: stRow.app_id,
       });
     }
 
@@ -218,11 +261,112 @@ Deno.serve(async (req) => {
       const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
       const { data, error } = await supabase
         .from("spotify_user_tokens")
-        .select("id,spotify_user_id,display_name,email,is_default,scope,expires_at,updated_at")
+        .select("id,spotify_user_id,display_name,email,is_default,scope,expires_at,updated_at,app_id,spotify_apps(name)")
         .order("is_default", { ascending: false })
         .order("updated_at", { ascending: false });
       if (error) return jr({ ok: false, error: error.message }, 500);
       return jr({ ok: true, accounts: data ?? [] });
+    }
+
+    if (mode === "apps") {
+      const auth = await requireTeamMember(req);
+      if (!auth.ok) return auth.resp;
+      if (!auth.isAdmin) return jr({ ok: false, error: "Somente admin" }, 403);
+
+      const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+      const { data: apps, error } = await supabase
+        .from("spotify_apps")
+        .select("id, name, client_id, max_accounts, is_default, status, notes, created_at")
+        .order("is_default", { ascending: false })
+        .order("created_at", { ascending: true });
+      if (error) return jr({ ok: false, error: error.message }, 500);
+
+      // Conta accounts por app (uma query)
+      const { data: counts } = await supabase
+        .from("spotify_user_tokens")
+        .select("app_id");
+      const used: Record<string, number> = {};
+      for (const r of (counts ?? []) as { app_id: string | null }[]) {
+        if (r.app_id) used[r.app_id] = (used[r.app_id] ?? 0) + 1;
+      }
+
+      return jr({
+        ok: true,
+        apps: (apps ?? []).map((a: any) => ({
+          ...a,
+          client_id_preview: a.client_id ? a.client_id.slice(0, 6) + "…" + a.client_id.slice(-4) : "",
+          accounts_used: used[a.id] ?? 0,
+          slots_remaining: Math.max(0, (a.max_accounts ?? 5) - (used[a.id] ?? 0)),
+        })),
+      });
+    }
+
+    if (mode === "app_save" && req.method === "POST") {
+      const auth = await requireTeamMember(req);
+      if (!auth.ok) return auth.resp;
+      if (!auth.isAdmin) return jr({ ok: false, error: "Somente admin" }, 403);
+
+      const body = await req.json().catch(() => ({}));
+      const id: string | undefined = body.id;
+      const name: string = (body.name ?? "").trim();
+      const client_id: string = (body.client_id ?? "").trim();
+      const client_secret: string = (body.client_secret ?? "").trim();
+      const max_accounts: number = Number(body.max_accounts ?? 5);
+      const is_default: boolean = !!body.is_default;
+      const notes: string | null = body.notes ?? null;
+      const status: string = body.status ?? "active";
+
+      if (!name) return jr({ ok: false, error: "name obrigatório" }, 400);
+      if (!id && (!client_id || !client_secret)) {
+        return jr({ ok: false, error: "client_id e client_secret obrigatórios" }, 400);
+      }
+
+      const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+
+      // Se marcou is_default, desmarca os outros antes
+      if (is_default) {
+        await supabase.from("spotify_apps").update({ is_default: false }).neq("id", id ?? "00000000-0000-0000-0000-000000000000");
+      }
+
+      if (id) {
+        const patch: any = { name, max_accounts, is_default, notes, status };
+        if (client_id) patch.client_id = client_id;
+        if (client_secret) patch.client_secret = client_secret;
+        const { error } = await supabase.from("spotify_apps").update(patch).eq("id", id);
+        if (error) return jr({ ok: false, error: error.message }, 500);
+        return jr({ ok: true, id });
+      } else {
+        const { data, error } = await supabase
+          .from("spotify_apps")
+          .insert({ name, client_id, client_secret, max_accounts, is_default, notes, status })
+          .select("id")
+          .single();
+        if (error) return jr({ ok: false, error: error.message }, 500);
+        return jr({ ok: true, id: data.id });
+      }
+    }
+
+    if (mode === "app_delete" && req.method === "POST") {
+      const auth = await requireTeamMember(req);
+      if (!auth.ok) return auth.resp;
+      if (!auth.isAdmin) return jr({ ok: false, error: "Somente admin" }, 403);
+
+      const body = await req.json().catch(() => ({}));
+      const id: string = body.id;
+      if (!id) return jr({ ok: false, error: "id obrigatório" }, 400);
+
+      const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+      // Bloqueia se houver contas vinculadas
+      const { count } = await supabase
+        .from("spotify_user_tokens")
+        .select("*", { count: "exact", head: true })
+        .eq("app_id", id);
+      if ((count ?? 0) > 0) {
+        return jr({ ok: false, error: `App tem ${count} conta(s) vinculada(s). Remova-as antes.` }, 400);
+      }
+      const { error } = await supabase.from("spotify_apps").delete().eq("id", id);
+      if (error) return jr({ ok: false, error: error.message }, 500);
+      return jr({ ok: true });
     }
 
     return jr({ ok: false, error: `mode desconhecido: ${mode}` }, 400);

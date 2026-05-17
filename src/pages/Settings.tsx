@@ -14,6 +14,8 @@ import { PageContainer } from "@/components/PageContainer";
 import { EquipeTab } from "@/components/settings/EquipeTab";
 import { AccountsManager } from "@/components/operacao/AccountsManager";
 import { AppConnectionCard } from "@/components/settings/AppConnectionCard";
+import { SpotifyAppsManager, type SpotifyApp } from "@/components/settings/SpotifyAppsManager";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 
 const STORAGE_KEY = "nx-collect-settings";
 const SETTINGS_ROUTE = "/configuracoes";
@@ -76,6 +78,8 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
   const [spotifyAccounts, setSpotifyAccounts] = useState<any[]>([]);
   const [connectingSpotify, setConnectingSpotify] = useState(false);
   const [isInIframe, setIsInIframe] = useState(false);
+  const [spotifyApps, setSpotifyApps] = useState<SpotifyApp[]>([]);
+  const [pickerOpen, setPickerOpen] = useState<null | { forceLogin: boolean }>(null);
 
   useEffect(() => {
     try {
@@ -126,11 +130,12 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
     return popup;
   }
 
-  async function openInNewTab(forceLogin = false) {
+  async function openInNewTab(forceLogin = false, appId?: string) {
     try {
       const redirect = getSpotifyRedirectUri();
       const qs = new URLSearchParams({ mode: "login", redirect });
       if (forceLogin) qs.set("force_login", "1");
+      if (appId) qs.set("app_id", appId);
       const j = await callSpotifyAuth(qs.toString());
       if (!j?.ok) throw new Error(j?.error ?? "Falha ao gerar URL do Spotify");
 
@@ -139,7 +144,7 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
         if (window.top) window.top.location.href = j.url;
         else window.location.href = j.url;
       }
-      toast.info(forceLogin ? "Trocando conta no Spotify" : "Aba do Spotify aberta", {
+      toast.info(forceLogin ? "Trocando conta no Spotify" : `Autorização aberta (app: ${j.app ?? "default"})`, {
         description: forceLogin
           ? "A sessão atual será encerrada e a próxima conta poderá ser autorizada."
           : "Aprove o acesso. Depois volte aqui e atualize que a conta aparece.",
@@ -199,9 +204,9 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
     if (j?.ok) setSpotifyAccounts(j.accounts ?? []);
   }
 
-  async function connectSpotify(forceLogin = false) {
+  async function connectSpotify(forceLogin = false, appId?: string) {
     if (isInIframe) {
-      await openInNewTab(forceLogin);
+      await openInNewTab(forceLogin, appId);
       return;
     }
     setConnectingSpotify(true);
@@ -216,6 +221,7 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
       const redirect = getSpotifyRedirectUri();
       const qs = new URLSearchParams({ mode: "login", redirect });
       if (forceLogin) qs.set("force_login", "1");
+      if (appId) qs.set("app_id", appId);
       const j = await callSpotifyAuth(qs.toString());
       if (!j?.ok) throw new Error(j?.error ?? "Falha");
 
@@ -223,11 +229,11 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
         popup.close();
         openSpotifyPopup(j.url, true);
         toast.info("Escolha a outra conta", {
-          description: "Vamos encerrar a sessão atual e abrir a autorização da próxima conta.",
+          description: `App: ${j.app ?? "default"}. Vamos encerrar a sessão atual e abrir a autorização da próxima conta.`,
         });
       } else {
         popup.location.href = j.url;
-        toast.info("Autorização aberta em nova aba", {
+        toast.info(`Autorização aberta (app: ${j.app ?? "default"})`, {
           description: "Depois de aprovar no Spotify, volte para esta tela que a conta será registrada automaticamente.",
         });
       }
@@ -236,6 +242,17 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
       toast.error("Erro ao iniciar conexão", { description: e?.message });
     } finally {
       setConnectingSpotify(false);
+    }
+  }
+
+  function handleAddAccountClick(forceLogin: boolean) {
+    const eligible = spotifyApps.filter((a) => a.status === "active" && a.slots_remaining > 0);
+    if (eligible.length <= 1) {
+      // 0 (usa fallback) ou 1 (auto) → sem picker
+      const appId = eligible[0]?.id;
+      void (isInIframe ? openInNewTab(forceLogin, appId) : connectSpotify(forceLogin, appId));
+    } else {
+      setPickerOpen({ forceLogin });
     }
   }
 
@@ -387,6 +404,9 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
               </div>
             )}
 
+            {/* Apps Spotify (guarda-chuva multi-app) */}
+            <SpotifyAppsManager onChange={setSpotifyApps} />
+
             {/* Contas conectadas */}
             <div>
               <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
@@ -403,7 +423,7 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
                 <div className="flex items-center gap-2">
                   <Button
                     size="sm"
-                    onClick={() => (isInIframe ? openInNewTab(false) : connectSpotify(false))}
+                    onClick={() => handleAddAccountClick(false)}
                     disabled={connectingSpotify}
                     className="h-8 text-xs gap-1.5"
                   >
@@ -416,7 +436,7 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => (isInIframe ? openInNewTab(true) : connectSpotify(true))}
+                      onClick={() => handleAddAccountClick(true)}
                       disabled={connectingSpotify}
                       className="h-8 text-xs gap-1.5"
                     >
@@ -467,9 +487,41 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
               )}
             </div>
           </AppConnectionCard>
-
-          {/* Espaço pra novos apps no futuro — basta repetir <AppConnectionCard> aqui */}
         </TabsContent>
+
+        {/* Picker: qual app usar pra próxima conta? */}
+        <Dialog open={!!pickerOpen} onOpenChange={(o) => !o && setPickerOpen(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Em qual app cadastrar essa conta?</DialogTitle>
+              <DialogDescription className="text-xs">
+                Cada app Spotify tem limite próprio de contas. Escolha onde tem vaga.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-1.5">
+              {spotifyApps.filter((a) => a.status === "active" && a.slots_remaining > 0).map((a) => (
+                <button
+                  key={a.id}
+                  onClick={() => {
+                    const f = pickerOpen?.forceLogin ?? false;
+                    setPickerOpen(null);
+                    void (isInIframe ? openInNewTab(f, a.id) : connectSpotify(f, a.id));
+                  }}
+                  className="w-full text-left p-3 rounded-lg border border-border hover:bg-accent transition-colors"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="font-medium text-sm">{a.name}{a.is_default && <span className="ml-2 text-[10px] text-primary">padrão</span>}</div>
+                    <span className="text-[11px] text-success">{a.slots_remaining} vaga{a.slots_remaining > 1 ? "s" : ""}</span>
+                  </div>
+                  <div className="text-[11px] text-muted-foreground font-mono mt-0.5">{a.client_id_preview}</div>
+                </button>
+              ))}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" size="sm" onClick={() => setPickerOpen(null)}>Cancelar</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* ───────────────────────── COLETA ───────────────────────── */}
         <TabsContent value="coleta" className="space-y-4 mt-4">

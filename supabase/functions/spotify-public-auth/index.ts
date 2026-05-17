@@ -18,11 +18,10 @@
 //          email } quando o email não está na allowlist — front mostra "acesso pendente".
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { getAppCredentials } from "../_shared/spotify.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const CLIENT_ID = Deno.env.get("SPOTIFY_CLIENT_ID")!;
-const CLIENT_SECRET = Deno.env.get("SPOTIFY_CLIENT_SECRET")!;
 
 const SPOTIFY_USER_SCOPES = [
   "playlist-modify-public",
@@ -58,13 +57,14 @@ Deno.serve(async (req) => {
 
       const state = crypto.randomUUID();
       const supabase = db();
+      const creds = await getAppCredentials();
       const { error: stErr } = await supabase
         .from("spotify_oauth_states")
-        .insert({ state, user_id: null, flow: "public_login" });
+        .insert({ state, user_id: null, flow: "public_login", app_id: creds.app_id });
       if (stErr) return jr({ ok: false, error: `state save: ${stErr.message}` }, 500);
 
       const authUrl = new URL("https://accounts.spotify.com/authorize");
-      authUrl.searchParams.set("client_id", CLIENT_ID);
+      authUrl.searchParams.set("client_id", creds.client_id);
       authUrl.searchParams.set("response_type", "code");
       authUrl.searchParams.set("redirect_uri", redirect);
       authUrl.searchParams.set("scope", SPOTIFY_USER_SCOPES);
@@ -88,7 +88,7 @@ Deno.serve(async (req) => {
       // Valida state (one-shot, expira em 30min, flow correto)
       const { data: stRow, error: stErr } = await supabase
         .from("spotify_oauth_states")
-        .select("state, flow, created_at, consumed_at")
+        .select("state, flow, app_id, created_at, consumed_at")
         .eq("state", state)
         .maybeSingle();
       if (stErr) return jr({ ok: false, error: `state lookup: ${stErr.message}` }, 500);
@@ -113,8 +113,9 @@ Deno.serve(async (req) => {
         .update({ consumed_at: new Date().toISOString() })
         .eq("state", state);
 
-      // Troca code por tokens
-      const basic = btoa(`${CLIENT_ID}:${CLIENT_SECRET}`);
+      // Troca code por tokens (usa app gravado no state)
+      const creds = await getAppCredentials(stRow.app_id);
+      const basic = btoa(`${creds.client_id}:${creds.client_secret}`);
       const tokenResp = await fetch("https://accounts.spotify.com/api/token", {
         method: "POST",
         headers: {
@@ -181,6 +182,7 @@ Deno.serve(async (req) => {
             refresh_token,
             scope,
             expires_at,
+            app_id: stRow.app_id,
             is_default: (count ?? 0) === 0,
           },
           { onConflict: "spotify_user_id" },
