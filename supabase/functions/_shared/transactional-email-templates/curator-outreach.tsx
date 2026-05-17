@@ -169,6 +169,17 @@ const signatureRole = {
   color: '#9ca3af',
   margin: 0,
 }
+const whatsappBtn = {
+  display: 'inline-block',
+  backgroundColor: '#25D366',
+  color: '#0a0a0a',
+  fontSize: '14px',
+  fontWeight: 600,
+  textDecoration: 'none',
+  padding: '12px 22px',
+  borderRadius: '10px',
+  letterSpacing: '-0.005em',
+}
 const footer = {
   fontSize: '11px',
   color: '#6b7280',
