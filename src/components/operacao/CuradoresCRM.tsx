@@ -1,10 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Upload, Search, Mail, Instagram, Link2, ExternalLink, Star, Ban, Copy,
-  CheckCircle2, Trash2, Users, Filter, Download, Loader2,
+  CheckCircle2, Trash2, Users, Filter, Download, Loader2, MoreHorizontal,
+  SlidersHorizontal,
 } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 
 import { supabase } from "@/integrations/supabase/client";
 import type { TablesInsert } from "@/integrations/supabase/types";
@@ -355,6 +359,8 @@ export function CuradoresCRM({ segment }: { segment?: Segment } = {}) {
   const [favOnly, setFavOnly] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(50);
+  type ExpandedFilter = "status" | "score" | "tamanho" | null;
+  const [expandedFilter, setExpandedFilter] = useState<ExpandedFilter>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const load = async () => {
@@ -517,93 +523,151 @@ export function CuradoresCRM({ segment }: { segment?: Segment } = {}) {
   };
 
   /* -------- render -------- */
+  const statusActive = statusFilter !== "todos";
+  const scoreActive = scoreFilter !== "todos" || favOnly;
+  const sizeActive = sizeFilter !== "todos";
+  const activeFilterCount = (statusActive ? 1 : 0) + (scoreActive ? 1 : 0) + (sizeActive ? 1 : 0);
+
   return (
     <div className="space-y-4">
-      {/* Toolbar — busca + ações */}
-      <div className="nx-card !p-4 space-y-4">
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="relative flex-1 min-w-[240px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar playlist, owner ou email…"
-              className="pl-9 h-10 rounded-lg bg-elevated border-border"
-            />
-          </div>
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".xlsx,.xls,.csv"
-            className="hidden"
-            onChange={(e) => onFile(e.target.files?.[0])}
-          />
-          <Button
-            onClick={() => fileRef.current?.click()}
-            disabled={importing}
-            variant="outline"
-            size="sm"
-            className="h-10 gap-1.5"
-          >
-            {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-            Importar
-          </Button>
-          <Button variant="outline" size="sm" className="h-10" onClick={exportCSV}>
-            <Download className="h-3.5 w-3.5 mr-1.5" /> Exportar
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-10 text-destructive hover:text-destructive hover:bg-destructive/10"
-            onClick={clearAll}
-          >
-            <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Limpar
-          </Button>
-        </div>
-
-        {/* Filtros em linhas etiquetadas */}
-        <div className="grid gap-2.5 pt-1 border-t border-border/50">
-          {segment !== "ativos" && (
-            <FilterRow label="Status">
-              {(segment === "prospeccao"
-                ? (["todos","novo","negociando","blacklist"] as const)
-                : (["todos","novo","negociando","comprado","blacklist"] as const)
-              ).map((s) => (
-                <Chip key={s} active={statusFilter === s} onClick={() => setStatusFilter(s)}>
-                  {s === "todos" ? "Todos" : STATUS_META[s].label}
-                </Chip>
-              ))}
-            </FilterRow>
-          )}
-
-          <FilterRow label="Score">
-            {(["todos","A+","A","B","C","D"] as const).map((s) => (
-              <Chip key={s} active={scoreFilter === s} onClick={() => setScoreFilter(s)}>
-                {s === "todos" ? "Todos" : s}
-              </Chip>
-            ))}
-            <span className="mx-1 text-muted-foreground/40">·</span>
-            <Chip active={favOnly} onClick={() => setFavOnly(!favOnly)}>
-              <Star className={cn("h-3 w-3 inline mr-1", favOnly && "fill-current")} /> Favoritos
-            </Chip>
-          </FilterRow>
-
-          <FilterRow label="Tamanho">
-            {SIZE_BUCKETS.map((b) => (
-              <Chip key={b.id} active={sizeFilter === b.id} onClick={() => setSizeFilter(b.id)}>
-                {b.label}
-              </Chip>
-            ))}
-          </FilterRow>
-        </div>
-      </div>
-
-      {/* Stats */}
+      {/* KPIs — sempre primeiro */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
         <MiniStat label="Curadores" value={stats.total} />
         <MiniStat label="Score A+/A" value={stats.aplus} tone="primary" />
         <MiniStat label="Negociando" value={stats.negociando} tone="warning" />
         <MiniStat label="Comprados" value={stats.comprados} tone="primary" />
+      </div>
+
+      {/* Toolbar compacta — busca + Importar + ⋯ */}
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar playlist, owner ou email…"
+            className="pl-9 h-10 rounded-lg bg-elevated border-border"
+          />
+        </div>
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".xlsx,.xls,.csv"
+          className="hidden"
+          onChange={(e) => onFile(e.target.files?.[0])}
+        />
+        <Button
+          onClick={() => fileRef.current?.click()}
+          disabled={importing}
+          variant="outline"
+          size="sm"
+          className="h-10 gap-1.5 shrink-0"
+        >
+          {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+          Importar
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label="Mais ações">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48 rounded-xl p-1.5">
+            <DropdownMenuItem className="gap-2 rounded-lg" onClick={exportCSV}>
+              <Download className="h-4 w-4" /> Exportar CSV
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="gap-2 rounded-lg text-destructive focus:text-destructive"
+              onClick={clearAll}
+            >
+              <Trash2 className="h-4 w-4" /> Limpar CRM
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      {/* Filtros — categorias colapsáveis */}
+      <div className="rounded-xl border border-border/40 bg-card/40">
+        <div className="flex items-center gap-1 p-1.5 flex-wrap">
+          <SlidersHorizontal className="h-3.5 w-3.5 text-muted-foreground mx-2 shrink-0" />
+          {([
+            { id: "status" as const, label: "Status", active: statusActive, show: segment !== "ativos" },
+            { id: "score" as const, label: "Score", active: scoreActive, show: true },
+            { id: "tamanho" as const, label: "Tamanho", active: sizeActive, show: true },
+          ]).filter((f) => f.show).map((f) => {
+            const open = expandedFilter === f.id;
+            return (
+              <button
+                key={f.id}
+                onClick={() => setExpandedFilter(open ? null : f.id)}
+                className={cn(
+                  "h-8 px-3 rounded-lg text-[12px] font-medium transition-colors inline-flex items-center gap-1.5",
+                  open
+                    ? "bg-elevated text-foreground"
+                    : f.active
+                    ? "bg-primary/10 text-primary hover:bg-primary/15"
+                    : "text-muted-foreground hover:text-foreground hover:bg-elevated/60",
+                )}
+              >
+                {f.label}
+                {f.active && !open && <span className="w-1.5 h-1.5 rounded-full bg-primary" />}
+              </button>
+            );
+          })}
+          {activeFilterCount > 0 && (
+            <button
+              onClick={() => {
+                setStatusFilter("todos");
+                setScoreFilter("todos");
+                setSizeFilter("todos");
+                setFavOnly(false);
+              }}
+              className="ml-auto h-8 px-3 text-[11px] font-medium text-muted-foreground hover:text-destructive transition-colors"
+            >
+              Limpar filtros
+            </button>
+          )}
+        </div>
+
+        {expandedFilter && (
+          <div className="px-3 pb-3 pt-1 border-t border-border/40 animate-tab-in">
+            {expandedFilter === "status" && segment !== "ativos" && (
+              <div className="flex items-center gap-1.5 flex-wrap pt-2">
+                {(segment === "prospeccao"
+                  ? (["todos","novo","negociando","blacklist"] as const)
+                  : (["todos","novo","negociando","comprado","blacklist"] as const)
+                ).map((s) => (
+                  <Chip key={s} active={statusFilter === s} onClick={() => setStatusFilter(s)}>
+                    {s === "todos" ? "Todos" : STATUS_META[s].label}
+                  </Chip>
+                ))}
+              </div>
+            )}
+            {expandedFilter === "score" && (
+              <div className="flex items-center gap-1.5 flex-wrap pt-2">
+                {(["todos","A+","A","B","C","D"] as const).map((s) => (
+                  <Chip key={s} active={scoreFilter === s} onClick={() => setScoreFilter(s)}>
+                    {s === "todos" ? "Todos" : s}
+                  </Chip>
+                ))}
+                <span className="mx-1 text-muted-foreground/40">·</span>
+                <Chip active={favOnly} onClick={() => setFavOnly(!favOnly)}>
+                  <Star className={cn("h-3 w-3 inline mr-1", favOnly && "fill-current")} /> Favoritos
+                </Chip>
+              </div>
+            )}
+            {expandedFilter === "tamanho" && (
+              <div className="flex items-center gap-1.5 flex-wrap pt-2">
+                {SIZE_BUCKETS.map((b) => (
+                  <Chip key={b.id} active={sizeFilter === b.id} onClick={() => setSizeFilter(b.id)}>
+                    {b.label}
+                  </Chip>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Lista */}
@@ -762,27 +826,30 @@ function CuradorRowCard({
       "bg-card rounded-2xl border border-border/40 overflow-hidden flex flex-col transition-colors group",
       r.status === "blacklist" ? "opacity-60 hover:border-destructive/40" : "hover:border-primary/40",
     )}>
-      {/* Header: nome + score */}
-      <div className="p-4 flex justify-between items-start gap-3 border-b border-border/40">
+      {/* Header: status + nome + owner + score badge */}
+      <div className="p-3.5 flex justify-between items-start gap-3 border-b border-border/40">
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <span className={cn("w-2 h-2 rounded-full shrink-0", statusDot)} />
-            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", statusDot)} />
+            <span className="text-[9.5px] uppercase tracking-[0.1em] text-muted-foreground font-semibold">
               {STATUS_META[r.status].label}
             </span>
-            {r.favorite && <Star className="h-3 w-3 fill-warning text-warning shrink-0 ml-auto" />}
+            {r.favorite && <Star className="h-3 w-3 fill-warning text-warning shrink-0" />}
           </div>
-          <h3 className="text-foreground font-bold text-sm leading-tight line-clamp-2" title={r.name}>
+          <h3 className="text-foreground font-semibold text-[13.5px] leading-tight line-clamp-2" title={r.name}>
             {r.name}
           </h3>
-          <p className="text-muted-foreground text-xs truncate mt-0.5">{r.owner_name || "—"}</p>
+          <p className="text-muted-foreground text-[11.5px] truncate mt-0.5">{r.owner_name || "—"}</p>
         </div>
-        <div className="flex flex-col items-center shrink-0">
-          <span className={cn("text-2xl font-black leading-none tabular-nums", scoreColor)}>
-            {sc.label}
-          </span>
-          <span className="text-[9px] uppercase font-bold text-muted-foreground mt-0.5">Score</span>
-        </div>
+        <span
+          className={cn(
+            "shrink-0 inline-flex items-center justify-center min-w-[28px] h-6 px-1.5 rounded-md border text-[11px] font-bold tabular-nums",
+            sc.tone,
+          )}
+          title={`Score ${sc.label}`}
+        >
+          {sc.label}
+        </span>
       </div>
 
       {/* Stats */}

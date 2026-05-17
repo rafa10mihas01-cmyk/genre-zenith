@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { RefreshCw, Handshake, UserSearch } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageContainer } from "@/components/PageContainer";
@@ -10,6 +10,25 @@ import { cn } from "@/lib/utils";
 
 type Segment = "ativos" | "prospeccao";
 
+function formatBRL(v: number) {
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(v);
+}
+
+function MiniStat({ label, value, tone }: { label: string; value: string | number; tone?: "primary" | "warning" }) {
+  return (
+    <div className="nx-card !p-3">
+      <div className="text-[10.5px] uppercase tracking-[0.12em] text-muted-foreground">{label}</div>
+      <div className={cn(
+        "text-xl font-bold tabular-nums mt-0.5",
+        tone === "primary" && "text-primary",
+        tone === "warning" && "text-warning",
+      )}>
+        {typeof value === "number" ? value.toLocaleString("pt-BR") : value}
+      </div>
+    </div>
+  );
+}
+
 export default function Prospecao() {
   const [segment, setSegment] = useState<Segment>("ativos");
   const {
@@ -19,6 +38,20 @@ export default function Prospecao() {
   } = useCuratorDeals();
 
   const ativosCount = curators.filter((c) => !c.archived_at).length;
+
+  const ativosKpis = useMemo(() => {
+    const activeCurators = curators.filter((c) => !c.archived_at);
+    const dealsAtivos = deals.filter((d) => !d.closed_at).length;
+    const receita = balances.reduce((acc, b) => acc + (Number(b.total_cost) || 0), 0);
+    const totalDeals = deals.length;
+    const ticket = totalDeals > 0 ? receita / totalDeals : 0;
+    return {
+      curadores: activeCurators.length,
+      dealsAtivos,
+      receita,
+      ticket,
+    };
+  }, [curators, balances, deals]);
 
   return (
     <PageContainer>
@@ -76,19 +109,28 @@ export default function Prospecao() {
         </div>
       </div>
 
-      <section className="space-y-6 animate-tab-in" key={segment}>
+      <section className="space-y-4 animate-tab-in" key={segment}>
         {segment === "ativos" ? (
-          <CuradoresLibraryTab
-            curators={curators}
-            balances={balances}
-            deals={deals}
-            loading={loading}
-            onUpdateCurator={updateCurator}
-            onAddPurchase={addCuratorPurchase}
-            onArchiveCurator={archiveCurator}
-            onDeleteCurator={deleteCurator}
-            onPauseCurator={pauseCurator}
-          />
+          <>
+            {/* KPIs Ativos */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              <MiniStat label="Curadores" value={ativosKpis.curadores} />
+              <MiniStat label="Deals ativos" value={ativosKpis.dealsAtivos} tone="primary" />
+              <MiniStat label="Receita" value={formatBRL(ativosKpis.receita)} />
+              <MiniStat label="Ticket médio" value={formatBRL(ativosKpis.ticket)} tone="primary" />
+            </div>
+            <CuradoresLibraryTab
+              curators={curators}
+              balances={balances}
+              deals={deals}
+              loading={loading}
+              onUpdateCurator={updateCurator}
+              onAddPurchase={addCuratorPurchase}
+              onArchiveCurator={archiveCurator}
+              onDeleteCurator={deleteCurator}
+              onPauseCurator={pauseCurator}
+            />
+          </>
         ) : (
           <CuradoresCRM segment="prospeccao" />
         )}
@@ -96,3 +138,4 @@ export default function Prospecao() {
     </PageContainer>
   );
 }
+
