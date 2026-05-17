@@ -359,6 +359,8 @@ export function CuradoresCRM({ segment }: { segment?: Segment } = {}) {
   const [favOnly, setFavOnly] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(50);
+  type ExpandedFilter = "status" | "score" | "tamanho" | null;
+  const [expandedFilter, setExpandedFilter] = useState<ExpandedFilter>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const load = async () => {
