@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, Link, useSearchParams } from "react-router-dom";
 import { PlaylistTracksTab } from "@/components/playlists/PlaylistTracksTab";
 import { PlaylistDiagnosisCard } from "@/components/playlists/PlaylistDiagnosisCard";
+import { PlaylistTracksAnalysisCard } from "@/components/playlists/PlaylistTracksAnalysisCard";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
@@ -256,6 +257,9 @@ export default function PlaylistDetail() {
 
       {/* Diagnóstico de curadoria */}
       {mgd?.id && <PlaylistDiagnosisCard managedId={mgd.id} />}
+
+      {/* Análise faixa-a-faixa (5d) */}
+      {mgd?.id && <PlaylistTracksAnalysisCard managedId={mgd.id} />}
 
       {/* Sinais + Recomendações lado a lado */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
