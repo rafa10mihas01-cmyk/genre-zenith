@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { MinhasPlaylists } from "@/components/operacao/MinhasPlaylists";
 import { PlanejadorMeta } from "@/components/operacao/PlanejadorMeta";
-import { CuradoresCRM } from "@/components/operacao/CuradoresCRM";
+// CuradoresCRM removido — agora vive em /deals (aba Curadores)
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -53,7 +53,6 @@ const TABS = [
   { id: "playlists", label: "Criadas (auto)", icon: ListMusic },
   { id: "campanha",  label: "Campanha", icon: Target },
   { id: "ajustes",   label: "Ajustes",   icon: Wrench },
-  { id: "curadores", label: "Prospecção", icon: UserSearch },
 ] as const;
 
 type TabId = typeof TABS[number]["id"];
@@ -410,12 +409,7 @@ export default function Operacao() {
           </section>
         )}
 
-        {/* CURADORES — CRM de playlists independentes (importadas de XLSX/CSV) */}
-        {tab === "curadores" && (
-          <section key="tab-curadores" className="animate-tab-in">
-            <CuradoresCRM />
-          </section>
-        )}
+        {/* Prospecção de curadores foi consolidada dentro de /deals (aba Curadores). */}
 
       </div>
     </PageContainer>

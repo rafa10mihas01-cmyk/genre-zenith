@@ -122,8 +122,9 @@ const App = () => (
               <Route path="/analytics/performance" element={<Navigate to="/performance" replace />} />
               <Route path="/analytics/valuation" element={<Navigate to="/valuation" replace />} />
               <Route path="/valuation" element={<Protected><Valuation /></Protected>} />
-              <Route path="/curadores" element={<Protected><Curadores /></Protected>} />
-              <Route path="/curadores/comparar" element={<Protected><CompararCuradores /></Protected>} />
+              {/* Curadores: hub consolidado em /deals. Detalhe individual mantém rota dedicada. */}
+              <Route path="/curadores" element={<Navigate to="/deals?tab=library" replace />} />
+              <Route path="/curadores/comparar" element={<Navigate to="/deals/comparar" replace />} />
               <Route path="/curadores/:id" element={<Protected><CuradorDetail /></Protected>} />
               <Route path="/curadoria-preview" element={<Protected><CuradoriaPreview /></Protected>} />
               <Route path="/benchmarks" element={<Protected><Benchmarks /></Protected>} />
