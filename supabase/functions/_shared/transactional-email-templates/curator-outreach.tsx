@@ -95,7 +95,7 @@ export const template = {
 
 /* ---------- styles ---------- */
 const main = {
-  backgroundColor: '#ffffff',
+  backgroundColor: '#0a0a0a',
   fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif',
   padding: '40px 16px',
 }
@@ -115,55 +115,55 @@ const logoImg = {
 const brandText = {
   fontSize: '20px',
   fontWeight: 700,
-  color: '#0f172a',
+  color: '#ffffff',
   letterSpacing: '-0.01em',
   margin: 0,
 }
 const brandSub = {
   fontSize: '11px',
-  color: '#94a3b8',
+  color: '#9ca3af',
   textTransform: 'uppercase' as const,
   letterSpacing: '0.16em',
   margin: '4px 0 0',
 }
 
 const card = {
-  backgroundColor: '#fafafa',
-  border: '1px solid #e8eaed',
+  backgroundColor: '#141414',
+  border: '1px solid #262626',
   borderRadius: '16px',
   padding: '36px 32px',
 }
 const h1 = {
   fontSize: '20px',
   fontWeight: 600,
-  color: '#0f172a',
+  color: '#ffffff',
   margin: '0 0 20px',
   letterSpacing: '-0.01em',
 }
 const text = {
   fontSize: '14.5px',
-  color: '#374151',
+  color: '#d4d4d8',
   lineHeight: '1.65',
   margin: '0 0 16px',
 }
 const divider = {
-  borderTop: '1px solid #e2e8f0',
+  borderTop: '1px solid #262626',
   margin: '28px 0 20px',
 }
 const signature = {
   fontSize: '14px',
-  color: '#0f172a',
+  color: '#ffffff',
   fontWeight: 600,
   margin: '0 0 2px',
 }
 const signatureRole = {
   fontSize: '12px',
-  color: '#64748b',
+  color: '#9ca3af',
   margin: 0,
 }
 const footer = {
   fontSize: '11px',
-  color: '#94a3b8',
+  color: '#6b7280',
   margin: '24px 0 0',
   textAlign: 'center' as const,
   letterSpacing: '0.04em',

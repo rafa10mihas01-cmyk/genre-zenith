@@ -284,9 +284,9 @@ function EmailPreviewRender({
   const greeting = `Olá, ${curatorName}.`;
   const paragraphs = message.split("\n\n");
   return (
-    <div className="bg-white text-[#0f172a] rounded-xl border border-border overflow-hidden">
+    <div className="bg-[#0a0a0a] text-white rounded-xl border border-[#1f1f1f] overflow-hidden">
       {/* Brand */}
-      <div className="text-center pt-10 pb-8 px-6 bg-white">
+      <div className="text-center pt-10 pb-8 px-6 bg-[#0a0a0a]">
         <img
           src={nexengineLogo}
           alt="NexEngine"
@@ -295,18 +295,18 @@ function EmailPreviewRender({
         />
       </div>
       {/* Card */}
-      <div className="mx-6 mb-6 bg-[#fafafa] border border-[#e8eaed] rounded-2xl p-8">
-        <h3 className="text-[18px] font-semibold text-[#0f172a] mb-5">{greeting}</h3>
+      <div className="mx-6 mb-6 bg-[#141414] border border-[#262626] rounded-2xl p-8">
+        <h3 className="text-[18px] font-semibold text-white mb-5">{greeting}</h3>
         {paragraphs.map((p, i) => (
-          <p key={i} className="text-[14px] text-[#374151] leading-[1.65] mb-4 whitespace-pre-wrap">
+          <p key={i} className="text-[14px] text-[#d4d4d8] leading-[1.65] mb-4 whitespace-pre-wrap">
             {p}
           </p>
         ))}
-        <hr className="border-t border-[#e2e8f0] my-6" />
-        <div className="text-[14px] font-semibold text-[#0f172a]">{signatureName}</div>
-        <div className="text-[12px] text-[#64748b]">Parcerias & Curadoria · NexEngine</div>
+        <hr className="border-t border-[#262626] my-6" />
+        <div className="text-[14px] font-semibold text-white">{signatureName}</div>
+        <div className="text-[12px] text-[#9ca3af]">Parcerias & Curadoria · NexEngine</div>
       </div>
-      <div className="text-center text-[10px] text-[#94a3b8] tracking-wider pb-4">
+      <div className="text-center text-[10px] text-[#6b7280] tracking-wider pb-4 bg-[#0a0a0a]">
         NexEngine · engine.nexcreatorx.com
       </div>
     </div>
