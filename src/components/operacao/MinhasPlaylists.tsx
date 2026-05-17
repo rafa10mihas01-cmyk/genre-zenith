@@ -794,17 +794,37 @@ export function MinhasPlaylists() {
 
                     {Array.isArray(diagnosis.tracks_suggestions) && diagnosis.tracks_suggestions.length > 0 && (
                       <div className="nx-card space-y-2">
-                        <h5 className="font-semibold text-sm">Faixas sugeridas</h5>
-                        <ul className="space-y-1 text-sm">
-                          {diagnosis.tracks_suggestions.slice(0, 8).map((t: any, i: number) => (
-                            <li key={i} className="flex items-center gap-2 text-xs">
-                              <Music2 className="h-3 w-3 text-muted-foreground" />
-                              <span className="truncate">{t?.name ?? t?.title ?? t?.track_name ?? JSON.stringify(t).slice(0, 60)}</span>
-                            </li>
-                          ))}
+                        <div className="flex items-center justify-between">
+                          <h5 className="font-semibold text-sm">Faixas para adicionar</h5>
+                          <span className="text-[11px] text-muted-foreground">
+                            {diagnosis.tracks_suggestions.length} sugestões
+                          </span>
+                        </div>
+                        <ul className="space-y-1.5">
+                          {diagnosis.tracks_suggestions.slice(0, 10).map((t: any, i: number) => {
+                            const nome = t?.nome ?? t?.name ?? t?.title ?? t?.track_name ?? "—";
+                            const artista = t?.artista ?? t?.artist ?? t?.artists ?? "—";
+                            const count = t?.count ?? t?.recorrencia ?? null;
+                            return (
+                              <li key={i} className="flex items-start gap-2 text-xs">
+                                <Music2 className="h-3 w-3 mt-0.5 text-muted-foreground shrink-0" />
+                                <div className="min-w-0 flex-1">
+                                  <div className="text-foreground/90 font-medium truncate">{nome}</div>
+                                  <div className="text-muted-foreground truncate">{artista}</div>
+                                </div>
+                                {count != null && (
+                                  <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
+                                    {count}× nos concorrentes
+                                  </span>
+                                )}
+                              </li>
+                            );
+                          })}
                         </ul>
-                        <Button size="sm" disabled className="gap-1.5">Adicionar no Spotify</Button>
-                        <span className="text-[11px] text-muted-foreground ml-2">em breve</span>
+                        <div className="flex items-center gap-2 pt-1">
+                          <Button size="sm" disabled className="gap-1.5">Adicionar no Spotify</Button>
+                          <span className="text-[11px] text-muted-foreground">em breve</span>
+                        </div>
                       </div>
                     )}
 
