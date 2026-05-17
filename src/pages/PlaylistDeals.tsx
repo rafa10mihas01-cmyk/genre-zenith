@@ -20,17 +20,13 @@ import { NewDealDialog } from "@/components/playlist-deals/NewDealDialog";
 import { DuplicateDealDialog } from "@/components/playlist-deals/DuplicateDealDialog";
 import { LogPrintDialog } from "@/components/playlist-deals/LogPrintDialog";
 import { DealHistorySheet } from "@/components/playlist-deals/DealHistorySheet";
-import { CuradoresLibraryTab } from "@/components/playlist-deals/CuradoresLibraryTab";
-import { ClientesLibraryTab } from "@/components/playlist-deals/ClientesLibraryTab";
 import { CloseDealDialog } from "@/components/playlist-deals/CloseDealDialog";
 import { FinanceiroTab } from "@/components/playlist-deals/FinanceiroTab";
-import { useClients } from "@/hooks/useClients";
 
-type DealsTab = "clients" | "library" | "active" | "done" | "ledger" | "all";
+
+type DealsTab = "active" | "done" | "ledger" | "all";
 
 const TABS = [
-  { id: "clients"  as const, label: "Clientes",    icon: User },
-  { id: "library"  as const, label: "Curadores",   icon: Users },
   { id: "active"   as const, label: "Ativos",      icon: Activity },
   { id: "done"     as const, label: "Concluídos",  icon: CheckCircle2 },
   { id: "ledger"   as const, label: "Financeiro",  icon: Receipt },
@@ -53,7 +49,7 @@ export default function PlaylistDeals() {
   const [sourceFitId, setSourceFitId] = useState<string | null>(null);
 
   const { deals, logs, playlists, songs, alerts, curators, balances, progressByDeal, loading, deleteDeal, addLog, addBaseline, insertSnapshots, closeDeal, reopenDeal, forceCollectNow, updateCurator, addCuratorPurchase, archiveCurator, deleteCurator, pauseCurator, reload } = useCuratorDeals();
-  const { clients } = useClients();
+  
   const [searchParams, setSearchParams] = useSearchParams();
   const useLegacyCards = searchParams.get("legacy") === "1";
   const navigate = useNavigate();
@@ -248,8 +244,6 @@ export default function PlaylistDeals() {
   const tabCount = (id: DealsTab) => {
     if (id === "all") return kpi.total;
     if (id === "done") return kpi.done;
-    if (id === "library") return curators.filter((c) => !c.archived_at).length;
-    if (id === "clients") return clients.filter((c) => !c.archived_at).length;
     return kpi.active;
   };
 
@@ -279,10 +273,7 @@ export default function PlaylistDeals() {
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="gap-2 rounded-lg items-start py-2"
-                onClick={() => {
-                  setTab("clients");
-                  setTimeout(() => window.dispatchEvent(new CustomEvent("playlistdeals:new-client")), 50);
-                }}
+                onClick={() => navigate("/clientes")}
               >
                 <User className="h-4 w-4 mt-0.5 shrink-0" />
                 <div className="flex flex-col">
@@ -400,25 +391,9 @@ export default function PlaylistDeals() {
 
       {/* Conteúdo — altura mínima estável evita layout shift entre abas */}
       <div className="min-h-[480px] animate-tab-in">
-        {tab === "clients" ? (
-          <ClientesLibraryTab
-            deals={deals}
-            songs={songs}
-            loading={loading}
-          />
-        ) : tab === "library" ? (
-          <CuradoresLibraryTab
-            curators={curators}
-            balances={balances}
-            deals={deals}
-            loading={loading}
-            onUpdateCurator={updateCurator}
-            onAddPurchase={addCuratorPurchase}
-            onArchiveCurator={archiveCurator}
-            onDeleteCurator={deleteCurator}
-            onPauseCurator={pauseCurator}
-          />
-        ) : tab === "ledger" ? (
+        {tab === "ledger" ? (
+          <FinanceiroTab deals={deals} />
+        ) : loading && deals.length === 0 ? (
           <FinanceiroTab deals={deals} />
         ) : loading && deals.length === 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

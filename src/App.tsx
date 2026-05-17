@@ -19,6 +19,7 @@ import RootRoute from "./components/RootRoute";
 // Cérebro e Criação foram aposentados — rotas legadas agora redirecionam para /inteligencia
 import Operacao from "./pages/Operacao";
 import Prospecao from "./pages/Prospecao";
+import Clientes from "./pages/Clientes";
 import Performance from "./pages/Performance";
 import PlaylistDeals from "./pages/PlaylistDeals";
 import DealDetail from "./pages/DealDetail";
@@ -126,8 +127,9 @@ const App = () => (
               <Route path="/analytics/performance" element={<Navigate to="/performance" replace />} />
               <Route path="/analytics/valuation" element={<Navigate to="/valuation" replace />} />
               <Route path="/valuation" element={<Protected><Valuation /></Protected>} />
-              {/* Curadores: hub consolidado em /deals. Detalhe individual mantém rota dedicada. */}
-              <Route path="/curadores" element={<Navigate to="/deals?tab=library" replace />} />
+              {/* Curadores: hub canônico é /curadores (mesma página de Prospecção, CRM único). */}
+              <Route path="/curadores" element={<Protected><Prospecao /></Protected>} />
+              <Route path="/clientes" element={<Protected><Clientes /></Protected>} />
               <Route path="/curadores/comparar" element={<Navigate to="/deals/comparar" replace />} />
               <Route path="/curadores/:id" element={<Protected><CuradorDetail /></Protected>} />
               <Route path="/curadoria-preview" element={<Protected><CuradoriaPreview /></Protected>} />

@@ -53,16 +53,10 @@ const sections: NavSection[] = [
     items: [
       { title: "Campanhas", url: "/campanhas", icon: Target },
       {
-        title: "Playlist Deals",
+        title: "Deals",
         url: "/deals",
         icon: Handshake,
-        matchPaths: ["/playlist-deals", "/curadores", "/deals/comparar"],
-      },
-      {
-        title: "Comunidade",
-        url: "/comunidade-admin",
-        icon: Users,
-        adminOnly: true,
+        matchPaths: ["/playlist-deals", "/deals/comparar"],
       },
       {
         title: "Playlists",
@@ -71,9 +65,21 @@ const sections: NavSection[] = [
         matchPaths: ["/playlists", "/operacao"],
       },
       {
-        title: "Prospecção",
-        url: "/prospeccao",
+        title: "Curadores",
+        url: "/curadores",
         icon: UserSearch,
+        matchPaths: ["/prospeccao"],
+      },
+      {
+        title: "Clientes",
+        url: "/clientes",
+        icon: User,
+      },
+      {
+        title: "Comunidade",
+        url: "/comunidade-admin",
+        icon: Users,
+        adminOnly: true,
       },
     ],
   },
