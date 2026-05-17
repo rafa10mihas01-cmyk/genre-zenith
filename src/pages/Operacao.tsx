@@ -90,6 +90,12 @@ type AccountSummary = {
 
 export default function Operacao() {
   const [tab, setTab] = useScreenField<TabId>("/catalogo", "tab", "minhas");
+  // Permite deep-link via ?tab=prospeccao (usado pelo menu lateral)
+  useEffect(() => {
+    const qp = new URLSearchParams(window.location.search).get("tab") as TabId | null;
+    if (qp && TABS.some(t => t.id === qp) && qp !== tab) setTab(qp);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [filter, setFilter] = useScreenField<"todas" | OpStatus>("/catalogo", "filter", "todas");
   const [search, setSearch] = useScreenField<string>("/catalogo", "search", "");
   const [loading, setLoading] = useState(true);

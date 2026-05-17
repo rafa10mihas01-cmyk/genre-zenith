@@ -1,7 +1,7 @@
 import { NavLink, useLocation } from "react-router-dom";
 import {
   Home, Sparkles, BarChart3, Settings, LogOut, ListMusic, Users, Handshake,
-  Server, Target, ChevronRight, User, Brain,
+  Server, Target, ChevronRight, User,
 } from "lucide-react";
 import { NexEngineLogo } from "@/components/NexEngineLogo";
 import {
@@ -69,6 +69,10 @@ const sections: NavSection[] = [
         url: "/catalogo",
         icon: ListMusic,
         matchPaths: ["/playlists", "/operacao"],
+        children: [
+          { title: "Catálogo", url: "/catalogo" },
+          { title: "Prospecção", url: "/catalogo?tab=prospeccao" },
+        ],
       },
     ],
   },
@@ -91,13 +95,11 @@ const sections: NavSection[] = [
         url: "/sistema",
         icon: Server,
         adminOnly: true,
-        matchPaths: ["/infra", "/infraestrutura"],
-      },
-      {
-        title: "Aprendizado",
-        url: "/admin/aprendizado",
-        icon: Brain,
-        adminOnly: true,
+        matchPaths: ["/infra", "/infraestrutura", "/admin/aprendizado"],
+        children: [
+          { title: "Infraestrutura", url: "/sistema" },
+          { title: "Aprendizado", url: "/admin/aprendizado" },
+        ],
       },
     ],
   },
