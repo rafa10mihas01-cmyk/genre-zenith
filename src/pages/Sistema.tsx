@@ -90,6 +90,7 @@ export default function Sistema() {
         {activeTab === "coleta" && <ColetaPanel />}
         {activeTab === "execucao" && <ExecucaoPanel />}
         {activeTab === "saude" && <SaudeSistema />}
+        {activeTab === "aprendizado" && <AdminAprendizado embedded />}
         {activeTab === "alertas" && <AlertasHistorico />}
         {activeTab === "infra" && <Infraestrutura embedded />}
         {activeTab === "configuracoes" && <Settings embedded />}
