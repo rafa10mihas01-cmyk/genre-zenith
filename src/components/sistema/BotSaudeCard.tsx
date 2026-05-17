@@ -42,7 +42,10 @@ export function BotSaudeCard() {
       queue_size: queue.count ?? 0,
       next_collect_at: nextSong.data?.next_auto_collect_at ?? undefined,
     });
-    setLoading(false);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   };
 
   useEffect(() => {
