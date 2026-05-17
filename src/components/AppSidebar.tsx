@@ -72,7 +72,7 @@ const sections: NavSection[] = [
       },
       {
         title: "Prospecção",
-        url: "/catalogo?tab=prospeccao",
+        url: "/prospeccao",
         icon: UserSearch,
       },
     ],
@@ -122,10 +122,7 @@ function itemIsActive(item: NavItem, pathname: string, search: string): boolean 
   if (itemQuery) {
     return (pathname === itemPath || pathname.startsWith(itemPath + "/")) && matchQuery(itemQuery);
   }
-  // Item sem query: só fica ativo quando NÃO há nenhuma query "tab" concorrente que pertença a outro item
-  const tabParam = currentParams.get("tab");
-  const hasSiblingTab = tabParam && ["prospeccao"].includes(tabParam);
-  if ((pathname === itemPath || pathname.startsWith(itemPath + "/")) && !hasSiblingTab) return true;
+  if (pathname === itemPath || pathname.startsWith(itemPath + "/")) return true;
   return (item.matchPaths ?? []).some(
     (p) => pathname === p || pathname.startsWith(p + "/"),
   );
