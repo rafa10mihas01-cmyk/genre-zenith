@@ -31,18 +31,18 @@ type QuickAction = {
 const QUICK_ACTIONS_BY_ROUTE: Record<string, QuickAction[]> = {
   "/": [
     { label: "Deals", icon: Handshake, to: "/deals" },
-    { label: "Playlists", icon: ListMusic, to: "/playlists" },
+    { label: "Playlists", icon: ListMusic, to: "/catalogo" },
     { label: "Analytics", icon: BarChart3, to: "/analytics" },
   ],
   "/inteligencia": [
     { label: "Analytics", icon: BarChart3, to: "/analytics" },
     { label: "Deals", icon: Handshake, to: "/deals" },
-    { label: "Playlists", icon: ListMusic, to: "/playlists" },
+    { label: "Playlists", icon: ListMusic, to: "/catalogo" },
   ],
   "/cerebro": [
     { label: "Analytics", icon: BarChart3, to: "/analytics" },
     { label: "Deals", icon: Handshake, to: "/deals" },
-    { label: "Playlists", icon: ListMusic, to: "/playlists" },
+    { label: "Playlists", icon: ListMusic, to: "/catalogo" },
   ],
   "/deals": [
     { label: "Curadores", icon: Sparkles, to: "/curadores" },
@@ -54,45 +54,35 @@ const QUICK_ACTIONS_BY_ROUTE: Record<string, QuickAction[]> = {
     { label: "Comparar", icon: TrendingUp, to: "/deals/comparar" },
     { label: "Analytics", icon: BarChart3, to: "/analytics" },
   ],
-  "/playlists": [
-    { label: "Performance", icon: TrendingUp, to: "/analytics/performance" },
-    { label: "Deals", icon: Handshake, to: "/deals" },
-    { label: "Campanhas", icon: Target, to: "/campanhas" },
-  ],
-  "/operacao": [
-    { label: "Performance", icon: TrendingUp, to: "/analytics/performance" },
-    { label: "Deals", icon: Handshake, to: "/deals" },
-    { label: "Campanhas", icon: Target, to: "/campanhas" },
-  ],
   "/catalogo": [
-    { label: "Performance", icon: TrendingUp, to: "/analytics/performance" },
+    { label: "Performance", icon: TrendingUp, to: "/performance" },
     { label: "Deals", icon: Handshake, to: "/deals" },
     { label: "Campanhas", icon: Target, to: "/campanhas" },
   ],
   "/analytics": [
-    { label: "Performance", icon: TrendingUp, to: "/analytics/performance" },
-    { label: "Valuation", icon: Gauge, to: "/analytics/valuation" },
-    { label: "Playlists", icon: ListMusic, to: "/playlists" },
+    { label: "Performance", icon: TrendingUp, to: "/performance" },
+    { label: "Valuation", icon: Gauge, to: "/valuation" },
+    { label: "Playlists", icon: ListMusic, to: "/catalogo" },
   ],
   "/performance": [
-    { label: "Valuation", icon: Gauge, to: "/analytics/valuation" },
-    { label: "Playlists", icon: ListMusic, to: "/playlists" },
+    { label: "Valuation", icon: Gauge, to: "/valuation" },
+    { label: "Playlists", icon: ListMusic, to: "/catalogo" },
     { label: "Deals", icon: Handshake, to: "/deals" },
   ],
   "/valuation": [
-    { label: "Performance", icon: TrendingUp, to: "/analytics/performance" },
-    { label: "Playlists", icon: ListMusic, to: "/playlists" },
+    { label: "Performance", icon: TrendingUp, to: "/performance" },
+    { label: "Playlists", icon: ListMusic, to: "/catalogo" },
     { label: "Deals", icon: Handshake, to: "/deals" },
   ],
   "/campanhas": [
-    { label: "Playlists", icon: ListMusic, to: "/playlists" },
+    { label: "Playlists", icon: ListMusic, to: "/catalogo" },
     { label: "Deals", icon: Handshake, to: "/deals" },
     { label: "Analytics", icon: BarChart3, to: "/analytics" },
   ],
   "/configuracoes": [
     { label: "Analytics", icon: BarChart3, to: "/analytics" },
     { label: "Deals", icon: Handshake, to: "/deals" },
-    { label: "Playlists", icon: ListMusic, to: "/playlists" },
+    { label: "Playlists", icon: ListMusic, to: "/catalogo" },
   ],
 };
 

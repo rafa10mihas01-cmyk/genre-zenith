@@ -45,7 +45,7 @@ const sections: NavSection[] = [
   {
     label: "Cockpit",
     items: [
-      { title: "Cockpit", url: "/", icon: Home, end: true, matchPaths: ["/executivo"] },
+      { title: "Cockpit", url: "/", icon: Home, end: true },
     ],
   },
   {
@@ -65,9 +65,9 @@ const sections: NavSection[] = [
       },
       {
         title: "Playlists",
-        url: "/playlists",
+        url: "/catalogo",
         icon: ListMusic,
-        matchPaths: ["/catalogo", "/operacao"],
+        matchPaths: ["/playlists", "/operacao"],
       },
     ],
   },
@@ -86,8 +86,8 @@ const sections: NavSection[] = [
         icon: BarChart3,
         matchPaths: ["/performance", "/valuation", "/benchmarks", "/matriz", "/heatmap"],
         children: [
-          { title: "Performance", url: "/analytics/performance" },
-          { title: "Valuation", url: "/analytics/valuation" },
+          { title: "Performance", url: "/performance" },
+          { title: "Valuation", url: "/valuation" },
           { title: "Benchmarks", url: "/benchmarks" },
           { title: "Matriz", url: "/matriz" },
           { title: "Heatmap", url: "/heatmap" },
