@@ -345,179 +345,129 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
         </div>
 
         {/* ───────────────────────── CONEXÕES ───────────────────────── */}
-        <TabsContent value="conexoes" className="space-y-4 mt-4">
+        <TabsContent value="conexoes" className="space-y-3 mt-4">
 
-      {/* Apify */}
-      <section className="nx-card p-4">
-        <div className="flex items-center gap-2">
-          <Zap className="h-4 w-4 text-accent shrink-0" />
-          <h2 className="text-sm font-bold">Apify</h2>
-        </div>
-        <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
-          Sua APIFY_API_KEY está armazenada no backend (Lovable Cloud) — nunca no navegador.
-        </p>
-
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-3">
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-success/15 text-success border border-success/30 text-[11px] font-medium w-fit">
-            <KeyRound className="h-3 w-3" /> APIFY_API_KEY configurada
-          </div>
-          <Button size="sm" variant="outline" onClick={testConnection} disabled={testing} className="h-8 text-xs w-full sm:w-auto">
-            {testing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-            Testar conexão
-          </Button>
-        </div>
-
-        {testResult && (
-          <div className={`mt-3 p-3 rounded-lg border text-sm ${
-            testResult.ok
-              ? "bg-success/10 border-success/30 text-success-foreground"
-              : "bg-destructive/10 border-destructive/30 text-destructive"
-          }`}>
-            <div className="flex items-center gap-2 font-medium">
-              {testResult.ok ? <CheckCircle2 className="h-4 w-4 text-success" /> : <XCircle className="h-4 w-4 text-destructive" />}
-              {testResult.msg}
-            </div>
-            {testResult.meta && (
-              <div className="mt-2 text-xs text-muted-foreground space-y-0.5">
-                {testResult.meta.username && <div>Usuário: <span className="font-mono text-foreground">{testResult.meta.username}</span></div>}
-                {testResult.meta.email && <div>Email: <span className="font-mono text-foreground">{testResult.meta.email}</span></div>}
-                {testResult.meta.plan && (
-                  <div>Plano: <span className="font-mono text-foreground">{
-                    typeof testResult.meta.plan === "string"
-                      ? testResult.meta.plan
-                      : (testResult.meta.plan?.id ?? testResult.meta.plan?.tier ?? "—")
-                  }</span></div>
+          {/* ============ APP: SPOTIFY ============ */}
+          <AppConnectionCard
+            icon={Music2}
+            name="Spotify"
+            description="Busca de seguidores reais e criação de playlists a partir de templates aprovados."
+            status="ok"
+            statusLabel="API conectada"
+            actions={
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={testSpotify}
+                disabled={spotifyTesting}
+                className="h-8 text-xs gap-1.5"
+              >
+                {spotifyTesting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                Testar conexão
+              </Button>
+            }
+          >
+            {/* Resultado de teste (quando aparece) */}
+            {spotifyResult && (
+              <div className={`mb-4 p-3 rounded-lg border text-sm ${
+                spotifyResult.ok
+                  ? "bg-success/10 border-success/30 text-success-foreground"
+                  : "bg-destructive/10 border-destructive/30 text-destructive"
+              }`}>
+                <div className="flex items-center gap-2 font-medium">
+                  {spotifyResult.ok ? <CheckCircle2 className="h-4 w-4 text-success" /> : <XCircle className="h-4 w-4 text-destructive" />}
+                  {spotifyResult.msg}
+                </div>
+                {spotifyResult.meta?.token && (
+                  <div className="mt-2 text-xs text-muted-foreground">
+                    Token: <span className="font-mono text-foreground">{spotifyResult.meta.token}</span>
+                  </div>
                 )}
               </div>
             )}
-          </div>
-        )}
-      </section>
 
-      {/* Spotify Web API */}
-      <section className="nx-card p-4 mt-3">
-        <div className="flex items-center gap-2">
-          <Music2 className="h-4 w-4 text-accent shrink-0" />
-          <h2 className="text-sm font-bold">Spotify Web API</h2>
-        </div>
-        <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
-          Usado para buscar contagem real de seguidores das playlists. Crie um app gratuito em{" "}
-          <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noreferrer"
-             className="text-accent underline-offset-2 hover:underline">
-            developer.spotify.com → Dashboard → Create app
-          </a>
-          . Copie o Client ID e Client Secret e configure como secrets do projeto.
-        </p>
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-3">
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-success/15 text-success border border-success/30 text-[11px] font-medium w-fit">
-            <KeyRound className="h-3 w-3" /> SPOTIFY_CLIENT_ID + SECRET configurados
-          </div>
-          <Button size="sm" variant="outline" onClick={testSpotify} disabled={spotifyTesting} className="h-8 text-xs w-full sm:w-auto">
-            {spotifyTesting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-            Testar conexão
-          </Button>
-        </div>
-        {spotifyResult && (
-          <div className={`mt-3 p-3 rounded-lg border text-sm ${
-            spotifyResult.ok
-              ? "bg-success/10 border-success/30 text-success-foreground"
-              : "bg-destructive/10 border-destructive/30 text-destructive"
-          }`}>
-            <div className="flex items-center gap-2 font-medium">
-              {spotifyResult.ok ? <CheckCircle2 className="h-4 w-4 text-success" /> : <XCircle className="h-4 w-4 text-destructive" />}
-              {spotifyResult.msg}
-            </div>
-            {spotifyResult.meta?.token && (
-              <div className="mt-2 text-xs text-muted-foreground">
-                Token: <span className="font-mono text-foreground">{spotifyResult.meta.token}</span>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Contas conectadas (OAuth) */}
-        <div className="mt-4 pt-4 border-t border-border">
-          <div className="flex flex-col gap-2.5">
+            {/* Contas conectadas */}
             <div>
-              <h3 className="text-sm font-bold flex items-center gap-1.5">
-                <UserCheck className="h-4 w-4 text-primary shrink-0" /> Contas Spotify conectadas
-              </h3>
-              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                Necessário para criar playlists no Spotify a partir de templates aprovados.
-                Adicione <span className="font-mono text-foreground break-all text-[10px]">{getSpotifyRedirectUri()}</span> como Redirect URI no app do Spotify.
-              </p>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <Button size="sm" onClick={() => connectSpotify(false)} disabled={connectingSpotify || isInIframe} className="h-8 text-xs w-full sm:w-auto justify-center">
-                {connectingSpotify ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Music2 className="h-3.5 w-3.5" />}
-                {spotifyAccounts.length > 0 ? "Conectar mesma conta" : "Conectar conta"}
-              </Button>
-              {spotifyAccounts.length > 0 && (
-                <Button size="sm" variant="outline" onClick={() => connectSpotify(true)} disabled={connectingSpotify || isInIframe} className="h-8 text-xs w-full sm:w-auto justify-center">
-                  {connectingSpotify ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-                  Conectar outra conta
-                </Button>
-              )}
-            </div>
-          </div>
-
-          {isInIframe && (
-            <div className="mt-3 p-3 rounded-lg border border-warning/40 bg-warning/10 flex items-start gap-3">
-              <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-foreground">
-                  ⚠️ Conecte direto no Spotify (nova aba)
+              <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
+                <div>
+                  <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-bold">
+                    Contas conectadas
+                  </h3>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    {spotifyAccounts.length === 0
+                      ? "Nenhuma conta vinculada ainda."
+                      : `${spotifyAccounts.length} conta${spotifyAccounts.length > 1 ? "s" : ""} ativa${spotifyAccounts.length > 1 ? "s" : ""}.`}
+                  </p>
                 </div>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  O Spotify bloqueia o login dentro do preview. O botão abaixo já leva direto pra tela de autorização do Spotify — depois de aprovar, volte aqui e atualize a página.
-                </p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <Button size="sm" variant="outline" onClick={() => openInNewTab(false)}>
-                    <ExternalLink className="h-3.5 w-3.5" /> Conectar conta
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => (isInIframe ? openInNewTab(false) : connectSpotify(false))}
+                    disabled={connectingSpotify}
+                    className="h-8 text-xs gap-1.5"
+                  >
+                    {connectingSpotify
+                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      : isInIframe ? <ExternalLink className="h-3.5 w-3.5" /> : <Music2 className="h-3.5 w-3.5" />}
+                    {spotifyAccounts.length > 0 ? "Adicionar conta" : "Conectar conta"}
                   </Button>
                   {spotifyAccounts.length > 0 && (
-                    <Button size="sm" variant="outline" onClick={() => openInNewTab(true)}>
-                      <RefreshCw className="h-3.5 w-3.5" /> Conectar outra conta
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => (isInIframe ? openInNewTab(true) : connectSpotify(true))}
+                      disabled={connectingSpotify}
+                      className="h-8 text-xs gap-1.5"
+                    >
+                      <RefreshCw className="h-3.5 w-3.5" />
+                      Trocar conta
                     </Button>
                   )}
                 </div>
               </div>
-            </div>
-          )}
 
-          {spotifyAccounts.length === 0 ? (
-            <p className="text-xs text-muted-foreground mt-3 italic">Nenhuma conta conectada ainda.</p>
-          ) : (
-            <div className="mt-3 space-y-2">
-              {spotifyAccounts.map((acc) => (
-                <div key={acc.id} className="flex items-center justify-between gap-2 p-2.5 rounded-lg border border-border bg-muted/20">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-sm truncate">{acc.display_name ?? acc.spotify_user_id}</span>
-                      {acc.is_default && (
-                        <span className="text-[10px] inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/15 text-primary">
-                          <Star className="h-2.5 w-2.5" /> padrão
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-xs text-muted-foreground font-mono truncate">{acc.email ?? acc.spotify_user_id}</div>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    {!acc.is_default && (
-                      <Button size="sm" variant="ghost" onClick={() => setDefaultAccount(acc.id)} className="h-7 px-2 text-xs">
-                        <Star className="h-3 w-3" /> Padrão
-                      </Button>
-                    )}
-                    <Button size="sm" variant="ghost" onClick={() => removeAccount(acc.id)} className="h-7 w-7 p-0 text-destructive hover:text-destructive">
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
+              {isInIframe && (
+                <div className="mb-3 p-2.5 rounded-lg border border-warning/30 bg-warning/5 flex items-start gap-2">
+                  <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0 mt-0.5" />
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    O Spotify bloqueia login dentro do preview. Os botões acima abrem em nova aba.
+                  </p>
                 </div>
-              ))}
+              )}
+
+              {spotifyAccounts.length > 0 && (
+                <div className="space-y-1.5">
+                  {spotifyAccounts.map((acc) => (
+                    <div key={acc.id} className="flex items-center justify-between gap-2 p-2.5 rounded-lg border border-border bg-muted/20">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-sm truncate">{acc.display_name ?? acc.spotify_user_id}</span>
+                          {acc.is_default && (
+                            <span className="text-[10px] inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/15 text-primary">
+                              <Star className="h-2.5 w-2.5" /> padrão
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-muted-foreground font-mono truncate">{acc.email ?? acc.spotify_user_id}</div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {!acc.is_default && (
+                          <Button size="sm" variant="ghost" onClick={() => setDefaultAccount(acc.id)} className="h-8 px-2 text-xs gap-1">
+                            <Star className="h-3 w-3" /> Padrão
+                          </Button>
+                        )}
+                        <Button size="sm" variant="ghost" onClick={() => removeAccount(acc.id)} className="h-8 w-8 p-0 text-destructive hover:text-destructive">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
-        </div>
-      </section>
+          </AppConnectionCard>
+
+          {/* Espaço pra novos apps no futuro — basta repetir <AppConnectionCard> aqui */}
         </TabsContent>
 
         {/* ───────────────────────── COLETA ───────────────────────── */}
