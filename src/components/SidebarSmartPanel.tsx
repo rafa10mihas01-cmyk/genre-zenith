@@ -45,12 +45,12 @@ const QUICK_ACTIONS_BY_ROUTE: Record<string, QuickAction[]> = {
     { label: "Playlists", icon: ListMusic, to: "/catalogo" },
   ],
   "/deals": [
-    { label: "Curadores", icon: Sparkles, to: "/curadores" },
+    { label: "Curadores", icon: Sparkles, to: "/deals?tab=library" },
     { label: "Comparar", icon: TrendingUp, to: "/deals/comparar" },
     { label: "Analytics", icon: BarChart3, to: "/analytics" },
   ],
   "/playlist-deals": [
-    { label: "Curadores", icon: Sparkles, to: "/curadores" },
+    { label: "Curadores", icon: Sparkles, to: "/deals?tab=library" },
     { label: "Comparar", icon: TrendingUp, to: "/deals/comparar" },
     { label: "Analytics", icon: BarChart3, to: "/analytics" },
   ],
