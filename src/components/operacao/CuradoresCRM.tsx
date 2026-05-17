@@ -895,22 +895,23 @@ function CuradorRowCard({
       <div className="px-4 py-3 flex flex-wrap gap-1.5 min-h-[44px]">
         {r.email && (
           <button
-            onClick={copyEmail}
+            onClick={openEmail}
             className="px-2 py-0.5 bg-elevated border border-border rounded text-[10px] text-foreground/80 font-medium flex items-center gap-1 hover:border-primary/40 transition-colors max-w-full"
-            title={r.email}
+            title={`Enviar apresentação para ${r.email}`}
           >
             <Mail className="w-3 h-3 text-primary shrink-0" />
             <span className="truncate">{r.email}</span>
           </button>
         )}
-        {igUrl && (
-          <a
-            href={igUrl} target="_blank" rel="noreferrer"
+        {igHandle && (
+          <button
+            onClick={openIg}
             className="px-2 py-0.5 bg-elevated border border-border rounded text-[10px] text-foreground/80 font-medium flex items-center gap-1 hover:border-primary/40 transition-colors"
+            title={`Abrir DM de @${igHandle} e copiar mensagem`}
           >
             <Instagram className="w-3 h-3 text-pink-500" />
-            <span className="truncate max-w-[120px]">@{r.instagram?.replace(/^@/, "")}</span>
-          </a>
+            <span className="truncate max-w-[120px]">@{igHandle}</span>
+          </button>
         )}
         {r.links && (
           <a
@@ -922,7 +923,7 @@ function CuradorRowCard({
             Link
           </a>
         )}
-        {!r.email && !igUrl && !r.links && (
+        {!r.email && !igHandle && !r.links && (
           <span className="text-[10px] text-muted-foreground italic self-center">Sem contato direto</span>
         )}
       </div>
