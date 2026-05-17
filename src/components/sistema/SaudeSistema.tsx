@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   CheckCircle2, AlertTriangle, Loader2, Music2, Database, Activity,
-  Handshake, RefreshCw,
+  Handshake, RefreshCw, Bell,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +15,7 @@ import { BotSaudeCard } from "./BotSaudeCard";
 type Health = {
   spotify: { ok: boolean; expires_at?: string; expired?: boolean; last_verified?: string };
   execucao: { ok: boolean; pending: number; failed: number; lastDone?: string };
+  alertas: { ok: boolean; critical: number; warning: number; lastAt?: string };
   hoje: { jobs_done: number; deals_ativos: number };
 };
 
@@ -39,6 +40,7 @@ export function SaudeSistema() {
       tokenRes, lastVerified,
       pendingJobs, failedJobs, doneJobsToday, lastDoneJob, recentFailedJobs,
       activeDeals,
+      criticalUnread, warningUnread, lastNotif,
     ] = await Promise.all([
       supabase.from("spotify_tokens").select("expires_at").eq("singleton_key", "app").maybeSingle(),
       supabase.from("search_results").select("followers_verified_at").not("followers_verified_at", "is", null).order("followers_verified_at", { ascending: false }).limit(1).maybeSingle(),
@@ -48,12 +50,17 @@ export function SaudeSistema() {
       supabase.from("playlist_execution_jobs").select("completed_at").eq("status", "done").order("completed_at", { ascending: false }).limit(1).maybeSingle(),
       supabase.from("playlist_execution_jobs").select("id, last_error, updated_at, job_type").eq("status", "failed").gte("updated_at", dayAgoIso).order("updated_at", { ascending: false }).limit(10),
       supabase.from("curator_deals").select("id", { count: "exact", head: true }).is("closed_at", null),
+      supabase.from("notifications").select("id", { count: "exact", head: true }).eq("read", false).eq("type", "critical"),
+      supabase.from("notifications").select("id", { count: "exact", head: true }).eq("read", false).eq("type", "warning"),
+      supabase.from("notifications").select("created_at").eq("read", false).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     ]);
 
     const tokenExpiry = tokenRes.data?.expires_at;
     const tokenExpired = tokenExpiry ? new Date(tokenExpiry) <= new Date() : true;
     const pendingCount = pendingJobs.count ?? 0;
     const failedCount = failedJobs.count ?? 0;
+    const critCount = criticalUnread.count ?? 0;
+    const warnCount = warningUnread.count ?? 0;
 
     setHealth({
       spotify: { ok: !tokenExpired, expires_at: tokenExpiry, expired: tokenExpired, last_verified: (lastVerified.data as any)?.followers_verified_at ?? undefined },
@@ -62,6 +69,12 @@ export function SaudeSistema() {
         pending: pendingCount,
         failed: failedCount,
         lastDone: lastDoneJob.data?.completed_at ?? undefined,
+      },
+      alertas: {
+        ok: critCount === 0 && warnCount === 0,
+        critical: critCount,
+        warning: warnCount,
+        lastAt: lastNotif.data?.created_at ?? undefined,
       },
       hoje: {
         jobs_done: doneJobsToday.count ?? 0,
@@ -121,7 +134,7 @@ export function SaudeSistema() {
       {/* === BLOCO 2: SERVIÇOS DO PIPELINE === */}
       <div>
         <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-bold mb-2">Status dos serviços</h3>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <HealthCard
             icon={Music2}
             label="Verificação Spotify"
@@ -145,6 +158,14 @@ export function SaudeSistema() {
             okText={health.execucao.pending > 0 ? `${health.execucao.pending} na fila` : "Sem fila"}
             errText={`${health.execucao.failed} com falha`}
             detail={health.execucao.lastDone ? `último job ${timeAgo(health.execucao.lastDone)}` : "nenhum job executado"}
+          />
+          <HealthCard
+            icon={Bell}
+            label="Alertas"
+            ok={health.alertas.critical === 0}
+            okText={health.alertas.warning > 0 ? `${health.alertas.warning} aviso(s)` : "Sem alertas"}
+            errText={`${health.alertas.critical} crítico(s)`}
+            detail={health.alertas.lastAt ? `último ${timeAgo(health.alertas.lastAt)}` : "nenhum não lido"}
           />
         </div>
       </div>
