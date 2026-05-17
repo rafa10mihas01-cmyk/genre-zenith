@@ -177,14 +177,24 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 3) Pega tracks das playlists top (já dedupadas). Limita pra não estourar tempo.
+    // 3) Pega detalhes (followers + total_tracks) + tracks das playlists top. Limita pra não estourar tempo.
     const topPlaylists = newPlaylistRows.slice(0, 30);
 
     for (const pl of topPlaylists) {
       try {
-        const url = `https://api.spotify.com/v1/playlists/${pl.spotify_playlist_id}/tracks?fields=items(track(id,name,artists(name)))&limit=${maxTracksPerPl}`;
+        const url = `https://api.spotify.com/v1/playlists/${pl.spotify_playlist_id}?fields=followers(total),tracks(total,items(track(id,name,artists(name))))&limit=${maxTracksPerPl}`;
         const data = await spotifyFetch(token, url);
-        const items = data?.items ?? [];
+        const followers = data?.followers?.total ?? null;
+        const totalTracks = data?.tracks?.total ?? null;
+        if (followers !== null || totalTracks !== null) {
+          await supabase.from("search_results").update({
+            seguidores: followers,
+            total_musicas: totalTracks,
+            followers_source: "spotify_api",
+            followers_verified_at: new Date().toISOString(),
+          }).eq("id", pl.result_id);
+        }
+        const items = data?.tracks?.items ?? [];
 
         const trackRows = items
           .map((it: any, idx: number) => {
