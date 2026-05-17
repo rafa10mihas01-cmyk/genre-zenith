@@ -61,15 +61,32 @@ Deno.serve(async (req) => {
       return jr({ ok: true, dry_run: true, would_insert: selected.length, uris });
     }
 
-    // 3) Token OAuth do usuário (precisa de playlist-modify-public/private) — usa default
+    // 3) Token OAuth — precisa ser o DONO da playlist no Spotify.
+    //    Descobre o owner via API pública, depois acha o token correspondente.
+    let ownerId: string | null = null;
+    try {
+      const { getSpotifyToken } = await import("../_shared/spotify.ts");
+      const appToken = await getSpotifyToken();
+      const or = await fetch(
+        `https://api.spotify.com/v1/playlists/${pl.spotify_playlist_id}?fields=owner(id,display_name)`,
+        { headers: { Authorization: `Bearer ${appToken}` } },
+      );
+      if (or.ok) {
+        const oj = await or.json();
+        ownerId = oj?.owner?.id ?? null;
+      }
+    } catch { /* segue sem ownerId, cai no default */ }
+
     let token: string;
     try {
-      const r = await getUserAccessToken();
+      const r = await getUserAccessToken(ownerId ?? undefined);
       token = r.token;
     } catch (e) {
       return jr({
         ok: false,
-        error: `conta Spotify não conectada: ${(e as Error).message}`,
+        error: ownerId
+          ? `conta do dono "${ownerId}" não está conectada. Conecte em Configurações → Spotify.`
+          : `nenhuma conta Spotify conectada: ${(e as Error).message}`,
       }, 412);
     }
 
