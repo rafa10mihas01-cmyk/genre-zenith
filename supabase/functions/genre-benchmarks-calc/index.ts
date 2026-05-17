@@ -41,12 +41,16 @@ async function calcOne(supabase: any, genreId: string) {
   const cutoff30d = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
 
   // Map de fallback de tracks via search_results.total_musicas
+  // ONDA 1: só usa search_results enriquecidos + válidos + não-duplicados
   const ids = pls.map((p: any) => p.spotify_playlist_id).filter(Boolean);
   const { data: srRows } = await supabase
     .from("search_results")
-    .select("spotify_playlist_id,total_musicas,seguidores")
+    .select("spotify_playlist_id,total_musicas,seguidores,quality_score,enriched_at,is_valid,duplicate_of")
     .in("spotify_playlist_id", ids)
-    .eq("genre_id", genreId);
+    .eq("genre_id", genreId)
+    .eq("is_valid", true)
+    .not("enriched_at", "is", null)
+    .is("duplicate_of", null);
   const srMap = new Map<string, { total_musicas: number | null; seguidores: number | null }>();
   for (const r of srRows ?? []) {
     if (!srMap.has(r.spotify_playlist_id) || (r.total_musicas && !srMap.get(r.spotify_playlist_id)!.total_musicas)) {

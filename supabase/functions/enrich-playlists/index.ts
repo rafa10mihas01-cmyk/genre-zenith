@@ -335,6 +335,8 @@ Deno.serve(async (req) => {
           seguidores: info.followers,
           followers_source: "spotify_api",
           followers_verified_at: verifiedAt,
+          enriched_at: verifiedAt,
+          quality_score_version: 1,
         };
         if (info.total !== null) update.total_musicas = info.total;
         // owner_* só sobrescreve se a API retornou — nunca apaga dado existente
