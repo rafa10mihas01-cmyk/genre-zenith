@@ -19,6 +19,7 @@ import {
   History, CheckCircle2, XCircle, Clock, Trash2,
 } from "lucide-react";
 import { PlaylistScoreBadge, type PlaylistScoreRow } from "./PlaylistScoreBadge";
+import { PlaylistTracksAnalysisCard } from "@/components/playlists/PlaylistTracksAnalysisCard";
 
 type ManagedPlaylist = {
   id: string;
@@ -827,6 +828,9 @@ export function MinhasPlaylists() {
                         </div>
                       </div>
                     )}
+
+                    {/* Análise faixa-a-faixa (keep/remove/promote/demote) */}
+                    <PlaylistTracksAnalysisCard managedId={drawerPl.id} />
 
                     <div className="nx-card text-xs text-muted-foreground flex items-start gap-2">
                       <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
