@@ -77,8 +77,8 @@ export function BotSaudeCard() {
         <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-bold flex items-center gap-1.5">
           <Bot className="h-3 w-3" /> Bot Spotify
         </h3>
-        <Button size="sm" variant="ghost" onClick={load} className="h-6 gap-1 text-[11px]">
-          <RefreshCw className="h-3 w-3" /> Atualizar
+        <Button size="sm" variant="ghost" onClick={load} disabled={refreshing} className="h-6 gap-1 text-[11px]">
+          <RefreshCw className={cn("h-3 w-3", refreshing && "animate-spin")} /> Atualizar
         </Button>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
