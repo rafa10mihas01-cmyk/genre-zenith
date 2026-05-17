@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, useSearchParams, Link } from "react-router-dom";
+import { useParams, useSearchParams, Link, useNavigate } from "react-router-dom";
 import { Loader2, ArrowLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageContainer } from "@/components/PageContainer";
@@ -29,12 +29,18 @@ type ManagedRow = {
 
 export default function PlaylistDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [pl, setPl] = useState<PlaylistRow | null>(null);
   const [mgd, setMgd] = useState<ManagedRow | null>(null);
   const [genreName, setGenreName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchParams] = useSearchParams();
   const tab = searchParams.get("tab") === "faixas" ? "faixas" : "geral";
+
+  const handleBack = () => {
+    if (window.history.length > 1) navigate(-1);
+    else navigate("/catalogo");
+  };
 
   const { data: brain } = usePlaylistBrain(id);
 
@@ -130,6 +136,7 @@ export default function PlaylistDetail() {
       tracksCount={mgd.tracks_count}
       genreName={genreName}
       brainScore={brain?.capacity_total ? Math.round(brain.confidence_score) : null}
+      onBack={handleBack}
     />
   );
 }
