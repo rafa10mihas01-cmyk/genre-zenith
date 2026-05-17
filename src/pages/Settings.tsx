@@ -487,9 +487,41 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
               )}
             </div>
           </AppConnectionCard>
-
-          {/* Espaço pra novos apps no futuro — basta repetir <AppConnectionCard> aqui */}
         </TabsContent>
+
+        {/* Picker: qual app usar pra próxima conta? */}
+        <Dialog open={!!pickerOpen} onOpenChange={(o) => !o && setPickerOpen(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Em qual app cadastrar essa conta?</DialogTitle>
+              <DialogDescription className="text-xs">
+                Cada app Spotify tem limite próprio de contas. Escolha onde tem vaga.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-1.5">
+              {spotifyApps.filter((a) => a.status === "active" && a.slots_remaining > 0).map((a) => (
+                <button
+                  key={a.id}
+                  onClick={() => {
+                    const f = pickerOpen?.forceLogin ?? false;
+                    setPickerOpen(null);
+                    void (isInIframe ? openInNewTab(f, a.id) : connectSpotify(f, a.id));
+                  }}
+                  className="w-full text-left p-3 rounded-lg border border-border hover:bg-accent transition-colors"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="font-medium text-sm">{a.name}{a.is_default && <span className="ml-2 text-[10px] text-primary">padrão</span>}</div>
+                    <span className="text-[11px] text-success">{a.slots_remaining} vaga{a.slots_remaining > 1 ? "s" : ""}</span>
+                  </div>
+                  <div className="text-[11px] text-muted-foreground font-mono mt-0.5">{a.client_id_preview}</div>
+                </button>
+              ))}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" size="sm" onClick={() => setPickerOpen(null)}>Cancelar</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* ───────────────────────── COLETA ───────────────────────── */}
         <TabsContent value="coleta" className="space-y-4 mt-4">
