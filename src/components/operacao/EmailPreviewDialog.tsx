@@ -60,15 +60,31 @@ export function EmailPreviewDialog({
   const [mode, setMode] = useState<"preview" | "editar">("preview");
   const [sending, setSending] = useState(false);
 
+  const isFollowup = !!target?.followupNumber;
+  const followupN = (target?.followupNumber ?? 1) as 1 | 2;
+
   const defaultMsg = useMemo(
-    () => target ? buildDefaultMessage(target.curatorName, target.playlistName) : "",
-    [target],
+    () => {
+      if (!target) return "";
+      return isFollowup
+        ? buildFollowupMessage(target.curatorName, target.playlistName, followupN)
+        : buildDefaultMessage(target.curatorName, target.playlistName);
+    },
+    [target, isFollowup, followupN],
   );
   const defaultSubject = useMemo(
-    () => target?.playlistName
-      ? `Parceria de curadoria — ${target.playlistName}`
-      : "Parceria de curadoria — NexEngine",
-    [target],
+    () => {
+      if (!target) return "";
+      if (isFollowup) {
+        return target.playlistName
+          ? `Re: parceria NexEngine — ${target.playlistName}`
+          : `Re: parceria NexEngine — follow-up`;
+      }
+      return target.playlistName
+        ? `Parceria de curadoria — ${target.playlistName}`
+        : "Parceria de curadoria — NexEngine";
+    },
+    [target, isFollowup],
   );
 
   const [subject, setSubject] = useState(defaultSubject);
@@ -88,7 +104,8 @@ export function EmailPreviewDialog({
   const handleSend = async () => {
     setSending(true);
     try {
-      const idempotencyKey = `curator-outreach-${target.externalCuratorId}-${Date.now()}`;
+      const tag = isFollowup ? `followup-${followupN}` : "outreach";
+      const idempotencyKey = `curator-${tag}-${target.externalCuratorId}-${Date.now()}`;
       const { data, error } = await supabase.functions.invoke("send-transactional-email", {
         body: {
           templateName: "curator-outreach",
@@ -108,28 +125,49 @@ export function EmailPreviewDialog({
       if (payload?.success === false) {
         toast.warning(`Não enviado: ${payload?.reason ?? "bloqueado"}`);
       } else {
-        toast.success(`Apresentação enviada para ${target.recipientEmail}`);
+        toast.success(
+          isFollowup
+            ? `Follow-up #${followupN} enviado para ${target.recipientEmail}`
+            : `Apresentação enviada para ${target.recipientEmail}`,
+        );
       }
 
       // Log local
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
+        const eventType = isFollowup ? (followupN === 1 ? "followup_1" : "followup_2") : "sent";
         await supabase.from("curator_outreach_log").insert({
           user_id: user.id,
           external_curator_id: target.externalCuratorId,
           channel: "email",
+          event_type: eventType,
           template_name: "curator-outreach",
           recipient_email: target.recipientEmail,
           subject,
           body_snippet: message.slice(0, 280),
           status: payload?.success === false ? "blocked" : "sent",
         });
+        const update: Record<string, unknown> = {
+          last_outreach_at: new Date().toISOString(),
+          last_outreach_channel: "email",
+        };
+        if (isFollowup) {
+          update.followup_count = followupN;
+        }
+        // pipeline_status -> contatado se ainda for "novo"
+        if (!isFollowup) {
+          const { data: cur } = await supabase
+            .from("external_curators")
+            .select("pipeline_status")
+            .eq("id", target.externalCuratorId)
+            .maybeSingle();
+          if (cur?.pipeline_status === "novo") {
+            update.pipeline_status = "contatado";
+          }
+        }
         await supabase
           .from("external_curators")
-          .update({
-            last_outreach_at: new Date().toISOString(),
-            last_outreach_channel: "email",
-          })
+          .update(update as never)
           .eq("id", target.externalCuratorId);
       }
       onSent?.();
