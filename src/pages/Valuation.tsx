@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
+import { AnalyticsTabs } from "@/components/AnalyticsTabs";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -85,6 +86,7 @@ export default function Valuation() {
         subtitle="Avaliar valor estimado de uma playlist antes de comprar ou investir"
       />
       <main className="px-6 py-6 space-y-6 max-w-5xl">
+        <AnalyticsTabs />
         {/* Input */}
         <div className="nx-card space-y-3">
           <label className="text-sm font-medium">Link da playlist no Spotify</label>

@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { BarChart3, RefreshCw, TrendingUp, TrendingDown, Minus, Users, ListMusic } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
+import { AnalyticsTabs } from "@/components/AnalyticsTabs";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -151,6 +152,7 @@ export default function Benchmarks() {
           </Button>
         }
       />
+      <AnalyticsTabs />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="p-5">

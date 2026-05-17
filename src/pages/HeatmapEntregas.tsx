@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Calendar, Activity, Flame } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
+import { AnalyticsTabs } from "@/components/AnalyticsTabs";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -67,6 +68,7 @@ export default function HeatmapEntregas() {
         title="Heatmap de entregas"
         subtitle="Identifique os dias e horários em que curadores mais reportam plays"
       />
+      <AnalyticsTabs />
 
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-1 p-1 bg-card rounded-lg border border-border">

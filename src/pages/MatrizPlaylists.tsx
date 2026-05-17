@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Grid3x3, AlertTriangle, Sparkles, HelpCircle, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
+import { AnalyticsTabs } from "@/components/AnalyticsTabs";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -79,6 +80,7 @@ export default function MatrizPlaylists() {
         title="Matriz de prioridade"
         subtitle="Cruze headroom e confiança para decidir onde alimentar primeiro"
       />
+      <AnalyticsTabs />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {(Object.keys(QUADRANT_META) as Quadrant[]).map((q) => {

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { BarChart3, RefreshCw, Brain, Activity } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
+import { AnalyticsTabs } from "@/components/AnalyticsTabs";
 import { PageContainer } from "@/components/PageContainer";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -128,6 +129,7 @@ export default function Performance() {
           </>
         }
       />
+      <AnalyticsTabs />
 
       {/* Hero status — estado do sistema (mobile-first) */}
       <HeroStatus status={heroStatus} totalPubs={totalPubs} />
