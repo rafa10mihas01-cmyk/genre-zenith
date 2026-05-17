@@ -26,6 +26,8 @@ import {
 } from "lucide-react";
 import { PlaylistScoreBadge, type PlaylistScoreRow } from "./PlaylistScoreBadge";
 import { PlaylistTracksAnalysisCard } from "@/components/playlists/PlaylistTracksAnalysisCard";
+import { CuratorialStateBadge, CooldownStack, type CuratorialState } from "@/components/playlist/CuratorialStateBadge";
+import { useActiveCooldowns } from "@/hooks/useActiveCooldowns";
 
 type ManagedPlaylist = {
   id: string;
@@ -40,6 +42,10 @@ type ManagedPlaylist = {
   last_diagnosis_at: string | null;
   imported_at: string;
   canonical_playlist_id: string | null;
+  curatorial_state?: CuratorialState | null;
+  last_maintenance_at?: string | null;
+  max_change_pct?: number | null;
+  recommended_change_count?: number | null;
 };
 
 type Diagnosis = {
@@ -272,6 +278,9 @@ export function MinhasPlaylists() {
       const vb = valuations[b.spotify_playlist_id]?.valuation_score ?? -1;
       return vb - va;
     });
+
+  const visibleIds = useMemo(() => visible.map((p) => p.id), [visible]);
+  const { byPlaylist: cooldownsByPlaylist } = useActiveCooldowns(visibleIds);
 
   async function handleImport() {
     if (!importUrl.trim()) return;
@@ -686,6 +695,12 @@ export function MinhasPlaylists() {
                   <span><span className="font-semibold text-foreground">{formatNumber(p.followers)}</span> seg.</span>
                   <span><span className="font-semibold text-foreground">{p.tracks_count || "—"}</span> fx</span>
                 </div>
+                {(p.curatorial_state || (cooldownsByPlaylist[p.id]?.length ?? 0) > 0) && (
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {p.curatorial_state && <CuratorialStateBadge state={p.curatorial_state} compact />}
+                    <CooldownStack cooldowns={cooldownsByPlaylist[p.id] ?? []} max={2} />
+                  </div>
+                )}
                 {(() => {
                   const b = p.canonical_playlist_id ? brains[p.canonical_playlist_id] : null;
                   if (!b) return null;
