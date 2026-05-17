@@ -13,9 +13,11 @@ import {
   ArrowLeft, ExternalLink, Sparkles, Loader2, Music2, TrendingUp,
   TrendingDown, ArrowUp, ArrowDown, Trash2, Plus, ChevronDown,
   Flame, Snowflake, Activity, Users, Crown, Target, Check,
+  Heart, Eye, RotateCcw, Timer, Zap, ShieldCheck, AlertTriangle,
 } from "lucide-react";
 import { PlaylistTracksTab } from "@/components/playlists/PlaylistTracksTab";
 import { ProjecaoFaixa } from "@/components/operacao/SimuladorEntrega";
+import { CuratorialStateBadge, CooldownChip } from "@/components/playlist/CuratorialStateBadge";
 
 // -------------------- types --------------------
 type AnalysisTrack = {
@@ -66,6 +68,21 @@ type Diagnosis = {
       leader_playlists?: { spotify_playlist_id: string; name: string; followers: number; cover_url: string | null }[];
       niche_playlist_count?: number;
     };
+    // Sprint 2 — camada editorial
+    recommendation_mode?: "hold" | "light" | "moderate" | "structural";
+    editorial_justification?: string;
+    curatorial_state?: "saudavel" | "observacao" | "leve" | "moderada" | "estrutural" | "cooldown";
+    applied_caps?: {
+      max_change_pct: number;
+      max_change_pct_config: number;
+      max_changes: number;
+      recommended_remove: number;
+      recommended_promote: number;
+      recommended_demote: number;
+      capped_suggestions: number;
+      original_suggestions: number;
+    };
+    active_cooldowns?: Array<{ action_type: string; cooldown_until: string; days_remaining: number; reason: string | null }>;
   };
 };
 
@@ -270,6 +287,9 @@ export function PlaylistCockpit({
         </Card>
       ) : (
         <>
+          {/* ============ CICLO CURATORIAL — banner editorial ============ */}
+          <EditorialBanner diag={diag} onRediagnose={runDiagnose} running={running} />
+
           {/* ============ 2. IDENTIDADE ============ */}
           <SectionTitle>Identidade da playlist</SectionTitle>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -983,3 +1003,91 @@ function MarketBlock({ market, idealRange }: { market: any; idealRange: any }) {
     </div>
   );
 }
+
+// -------------------- EditorialBanner --------------------
+const MODE_META: Record<string, { label: string; tone: string; Icon: any }> = {
+  hold:       { label: "Não mexer",            tone: "border-primary/40 bg-primary/5 text-primary",                Icon: ShieldCheck },
+  light:      { label: "Intervenção leve",     tone: "border-warning/40 bg-warning/5 text-warning",                Icon: Activity },
+  moderate:   { label: "Intervenção moderada", tone: "border-warning/60 bg-warning/10 text-warning",               Icon: Zap },
+  structural: { label: "Reciclagem estrutural", tone: "border-destructive/40 bg-destructive/5 text-destructive",   Icon: RotateCcw },
+};
+
+function EditorialBanner({
+  diag,
+  onRediagnose,
+  running,
+}: {
+  diag: Diagnosis;
+  onRediagnose: () => void;
+  running: boolean;
+}) {
+  const mode = diag.raw?.recommendation_mode ?? "light";
+  const state = diag.raw?.curatorial_state;
+  const justification = diag.raw?.editorial_justification ?? "";
+  const caps = diag.raw?.applied_caps;
+  const cooldowns = diag.raw?.active_cooldowns ?? [];
+  const meta = MODE_META[mode] ?? MODE_META.light;
+  const Icon = meta.Icon;
+
+  return (
+    <Card className={cn("p-5 md:p-6 border", meta.tone)}>
+      <div className="flex flex-col md:flex-row md:items-start gap-4 md:gap-6">
+        <div className="flex items-start gap-3 flex-1 min-w-0">
+          <div className={cn("h-10 w-10 rounded-xl border grid place-items-center shrink-0", meta.tone)}>
+            <Icon className="h-5 w-5" />
+          </div>
+          <div className="min-w-0 space-y-1.5 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Modo curatorial</span>
+              <span className="text-lg font-bold leading-none">{meta.label}</span>
+              {state && <CuratorialStateBadge state={state} compact />}
+            </div>
+            {mode === "hold" ? (
+              <p className="text-sm font-medium text-foreground">
+                Nenhuma alteração recomendada agora. {justification}
+              </p>
+            ) : (
+              <p className="text-sm text-foreground/90 leading-snug">{justification}</p>
+            )}
+            {caps && mode !== "hold" && (
+              <p className="text-[12px] text-muted-foreground tabular-nums">
+                Limite deste ciclo: <span className="text-foreground font-semibold">{caps.max_changes}</span> faixas ({caps.max_change_pct}%)
+                {caps.original_suggestions > caps.capped_suggestions && (
+                  <> · {caps.original_suggestions - caps.capped_suggestions} sugestões suprimidas para preservar estabilidade</>
+                )}
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2 md:items-end shrink-0">
+          {cooldowns.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 md:justify-end">
+              {cooldowns.map((c) => (
+                <CooldownChip key={c.action_type} action={c.action_type} daysRemaining={c.days_remaining} />
+              ))}
+            </div>
+          )}
+          <Button
+            size="sm"
+            variant={mode === "hold" ? "outline" : "default"}
+            onClick={onRediagnose}
+            disabled={running}
+            className="gap-1.5"
+          >
+            {running ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+            Reavaliar
+          </Button>
+        </div>
+      </div>
+
+      {mode === "hold" && cooldowns.length === 0 && (
+        <div className="mt-4 pt-4 border-t border-current/10 flex items-start gap-2 text-[12px] text-muted-foreground">
+          <Heart className="h-3.5 w-3.5 mt-0.5 text-primary shrink-0" />
+          <span>Playlist madura. O melhor movimento agora é <span className="text-foreground font-medium">observar resultados</span> e deixar o algoritmo do Spotify maturar.</span>
+        </div>
+      )}
+    </Card>
+  );
+}
+

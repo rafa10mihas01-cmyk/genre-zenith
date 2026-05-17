@@ -477,6 +477,94 @@ Deno.serve(async (req) => {
       nicheTotal = total ?? null;
     }
 
+    // 8.g) CAMADA EDITORIAL — cooldowns ativos + estado curatorial
+    const { data: cdRows } = await supabase.rpc("get_active_cooldowns", { _playlist_id: pl.id });
+    const activeCooldowns = ((cdRows ?? []) as any[]).map((c) => ({
+      action_type: c.action_type,
+      cooldown_until: c.cooldown_until,
+      days_remaining: Number(c.days_remaining ?? 0),
+      reason: c.reason ?? null,
+    }));
+    const hasCooldown = (a: string) => activeCooldowns.some((c) => c.action_type === a);
+    const maxChangePctConfig: number = Number(pl.max_change_pct ?? 5);
+    const removeRatio = counts.total > 0 ? counts.remove / counts.total : 0;
+    const saturatedRatio = counts.total > 0 ? saturatedCount / counts.total : 0;
+
+    // 8.h) Decisão de modo — primeiro pergunta se vale a pena mexer
+    let mode: "hold" | "light" | "moderate" | "structural" = "hold";
+    const justifications: string[] = [];
+    const tracksFullCooled = hasCooldown("structural") || hasCooldown("tracks_recycle");
+    const tracksLightCooled = hasCooldown("tracks_light");
+    const allCooled = tracksFullCooled && tracksLightCooled && hasCooldown("cover") && hasCooldown("description");
+
+    if (allCooled) {
+      mode = "hold";
+      justifications.push("Todas as frentes estão em janela de observação. Aguardando maturação das últimas mudanças antes de qualquer nova intervenção.");
+    } else if (removeRatio >= 0.25 || saturatedRatio >= 0.5) {
+      mode = tracksFullCooled ? "light" : "structural";
+      if (tracksFullCooled) {
+        justifications.push(`Sinais críticos detectados (${Math.round(removeRatio * 100)}% das faixas pedem saída, ${Math.round(saturatedRatio * 100)}% saturadas), mas reciclagem está em cooldown. Recomendando apenas ajustes pontuais até a janela liberar.`);
+      } else {
+        justifications.push(`Sinais críticos: ${Math.round(removeRatio * 100)}% das faixas pedem saída e ${Math.round(saturatedRatio * 100)}% estão saturadas no nicho. Reciclagem estrutural justificada.`);
+      }
+    } else if (removeRatio >= 0.12 || saturatedRatio >= 0.3 || counts.promote >= 3) {
+      mode = tracksFullCooled ? "light" : "moderate";
+      justifications.push(`Sinais moderados: ${counts.remove} faixa(s) para remover, ${counts.promote} para promover. Intervenção controlada para preservar o algoritmo.`);
+    } else if ((counts.remove + counts.promote + counts.demote) > 0) {
+      mode = "light";
+      justifications.push(`Apenas ${counts.remove + counts.promote + counts.demote} faixa(s) com sinal claro. Ajustes leves e pontuais, sem mexer na estrutura.`);
+    } else {
+      mode = "hold";
+      justifications.push("Playlist madura e estável. Nenhuma alteração recomendada — manter como está e observar impacto.");
+    }
+
+    // 8.i) Aplica caps por modo + max_change_pct configurado
+    const modeCapPct: Record<typeof mode, number> = { hold: 0, light: 5, moderate: 10, structural: 15 };
+    const effectivePct = Math.min(maxChangePctConfig, modeCapPct[mode]);
+    const maxChanges = Math.max(0, Math.floor(totalTracks * effectivePct / 100));
+
+    let cappedSuggestions = tracksSuggestions;
+    if (mode === "hold" || tracksFullCooled) {
+      cappedSuggestions = [];
+      if (tracksFullCooled && mode !== "hold") {
+        const cd = activeCooldowns.find((c) => c.action_type === "tracks_recycle" || c.action_type === "structural");
+        justifications.push(`Cooldown de reciclagem ativo (${Math.ceil(cd?.days_remaining ?? 0)}d restantes). Adições suprimidas.`);
+      }
+    } else if (maxChanges < tracksSuggestions.length) {
+      cappedSuggestions = tracksSuggestions.slice(0, maxChanges);
+      justifications.push(`Limitando a ${maxChanges} adições (${effectivePct}% das ${totalTracks} faixas) para preservar estabilidade do algoritmo.`);
+    }
+
+    const recommendedRemove = (tracksFullCooled || mode === "hold") ? 0 : Math.min(counts.remove, maxChanges);
+    const recommendedPromote = (tracksLightCooled || mode === "hold") ? 0 : Math.min(counts.promote, maxChanges);
+    const recommendedDemote = (tracksLightCooled || mode === "hold") ? 0 : Math.min(counts.demote, maxChanges);
+
+    // Cooldowns de capa / descrição / nome (estrutural cobre nome)
+    const coverSuggestion = hasCooldown("cover")
+      ? {}
+      : (model?.insights?.cover ?? model?.insights?.dna_visual ?? {});
+    const finalNameSuggestion = hasCooldown("structural") ? null : nameSuggestion;
+    const finalDescriptionSuggestion = hasCooldown("description") ? null : suggestedDescription;
+    if (hasCooldown("cover")) justifications.push("Capa em cooldown — sugestão visual suspensa.");
+    if (hasCooldown("description")) justifications.push("Descrição em cooldown — texto atual mantido.");
+
+    const editorialJustification = justifications.join(" ");
+
+    // 8.j) Atualiza estado curatorial da playlist
+    const nextState =
+      mode === "hold" && tracksFullCooled ? "cooldown" :
+      mode === "hold" ? "saudavel" :
+      mode === "light" ? "leve" :
+      mode === "moderate" ? "moderada" :
+      "estrutural";
+
+    await supabase.from("managed_playlists")
+      .update({
+        curatorial_state: nextState,
+        recommended_change_count: maxChanges,
+      })
+      .eq("id", pl.id);
+
     // 9) Persiste diagnóstico
     const { data: diag, error: dErr } = await supabase
       .from("playlist_diagnoses")
@@ -485,12 +573,12 @@ Deno.serve(async (req) => {
         created_by: guard.via === "user" ? guard.userId : null,
         name_score: nameScore,
         name_current: pl.name,
-        name_suggestion: nameSuggestion,
+        name_suggestion: finalNameSuggestion,
         name_reasons: nameReasons,
-        tracks_suggestions: tracksSuggestions,
+        tracks_suggestions: cappedSuggestions,
         tracks_analysis: tracksAnalysis,
         tracks_summary: tracksSummary,
-        cover_suggestion: model?.insights?.cover ?? model?.insights?.dna_visual ?? {},
+        cover_suggestion: coverSuggestion,
         competitors,
         raw: {
           model_present: !!model,
@@ -499,8 +587,7 @@ Deno.serve(async (req) => {
           present_keywords: present,
           sync_ok: syncRes?.ok ?? false,
           sync_error: syncRes?.ok ? null : (syncRes as any)?.body?.error ?? (syncRes as any)?.error ?? null,
-          // Novos campos do cockpit
-          suggested_description: suggestedDescription,
+          suggested_description: finalDescriptionSuggestion,
           description_current: pl.description ?? null,
           missing_keywords: missing,
           missing_in_description: missingInDesc,
@@ -508,6 +595,21 @@ Deno.serve(async (req) => {
           health_status: healthStatus,
           niche_rank: nicheRank,
           niche_total: nicheTotal,
+          // === Sprint 2 — camada editorial ===
+          recommendation_mode: mode,
+          editorial_justification: editorialJustification,
+          curatorial_state: nextState,
+          applied_caps: {
+            max_change_pct: effectivePct,
+            max_change_pct_config: maxChangePctConfig,
+            max_changes: maxChanges,
+            recommended_remove: recommendedRemove,
+            recommended_promote: recommendedPromote,
+            recommended_demote: recommendedDemote,
+            capped_suggestions: cappedSuggestions.length,
+            original_suggestions: tracksSuggestions.length,
+          },
+          active_cooldowns: activeCooldowns,
         },
       })
       .select()
