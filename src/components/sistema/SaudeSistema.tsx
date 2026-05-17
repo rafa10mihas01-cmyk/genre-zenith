@@ -33,6 +33,8 @@ export function SaudeSistema() {
   const [refreshing, setRefreshing] = useState(false);
 
   const load = async () => {
+    setRefreshing(true);
+    try {
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const todayIso = today.toISOString();
     const dayAgoIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
