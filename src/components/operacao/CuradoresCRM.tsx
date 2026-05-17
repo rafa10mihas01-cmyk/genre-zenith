@@ -738,6 +738,13 @@ export function CuradoresCRM({ segment }: { segment?: Segment } = {}) {
           )}
         </>
       )}
+
+      <EmailPreviewDialog
+        open={!!emailTarget}
+        onOpenChange={(v) => { if (!v) setEmailTarget(null); }}
+        target={emailTarget}
+        onSent={() => load()}
+      />
     </div>
   );
 }
