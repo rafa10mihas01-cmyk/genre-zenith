@@ -15,6 +15,8 @@ type Target = {
   recipientEmail: string;
   curatorName: string;
   playlistName?: string | null;
+  /** Quando definido, envia como follow-up (#1 ou #2) e atualiza followup_count. */
+  followupNumber?: 1 | 2;
 };
 
 const DEFAULT_SIGNATURE_NAME = "Equipe NexEngine";
@@ -31,6 +33,22 @@ Trabalhamos com lançamentos contínuos em diversos gêneros e selecionamos cura
 Caso faça sentido, podemos agendar uma conversa de 15 minutos.`;
 }
 
+function buildFollowupMessage(curatorName: string, playlistName?: string | null, n: 1 | 2 = 1) {
+  const ref = playlistName ? ` sobre uma possível parceria envolvendo "${playlistName}"` : "";
+  if (n === 1) {
+    return `Te escrevi há alguns dias${ref} e queria garantir que a mensagem chegou.
+
+Sem pressa — só quero entender se faz sentido conversar sobre curadoria e parcerias estruturadas com a NexEngine.
+
+Se preferir outro canal (Instagram, WhatsApp), me avisa que reorganizo.`;
+  }
+  return `Último toque por aqui${ref}.
+
+Se fizer sentido, sigo à disposição. Caso prefira não receber novas mensagens, é só responder e tiro do nosso fluxo.
+
+Obrigado pelo tempo.`;
+}
+
 export function EmailPreviewDialog({
   open, onOpenChange, target, onSent,
 }: {
@@ -42,15 +60,31 @@ export function EmailPreviewDialog({
   const [mode, setMode] = useState<"preview" | "editar">("preview");
   const [sending, setSending] = useState(false);
 
+  const isFollowup = !!target?.followupNumber;
+  const followupN = (target?.followupNumber ?? 1) as 1 | 2;
+
   const defaultMsg = useMemo(
-    () => target ? buildDefaultMessage(target.curatorName, target.playlistName) : "",
-    [target],
+    () => {
+      if (!target) return "";
+      return isFollowup
+        ? buildFollowupMessage(target.curatorName, target.playlistName, followupN)
+        : buildDefaultMessage(target.curatorName, target.playlistName);
+    },
+    [target, isFollowup, followupN],
   );
   const defaultSubject = useMemo(
-    () => target?.playlistName
-      ? `Parceria de curadoria — ${target.playlistName}`
-      : "Parceria de curadoria — NexEngine",
-    [target],
+    () => {
+      if (!target) return "";
+      if (isFollowup) {
+        return target.playlistName
+          ? `Re: parceria NexEngine — ${target.playlistName}`
+          : `Re: parceria NexEngine — follow-up`;
+      }
+      return target.playlistName
+        ? `Parceria de curadoria — ${target.playlistName}`
+        : "Parceria de curadoria — NexEngine";
+    },
+    [target, isFollowup],
   );
 
   const [subject, setSubject] = useState(defaultSubject);
@@ -70,7 +104,8 @@ export function EmailPreviewDialog({
   const handleSend = async () => {
     setSending(true);
     try {
-      const idempotencyKey = `curator-outreach-${target.externalCuratorId}-${Date.now()}`;
+      const tag = isFollowup ? `followup-${followupN}` : "outreach";
+      const idempotencyKey = `curator-${tag}-${target.externalCuratorId}-${Date.now()}`;
       const { data, error } = await supabase.functions.invoke("send-transactional-email", {
         body: {
           templateName: "curator-outreach",
@@ -90,28 +125,49 @@ export function EmailPreviewDialog({
       if (payload?.success === false) {
         toast.warning(`Não enviado: ${payload?.reason ?? "bloqueado"}`);
       } else {
-        toast.success(`Apresentação enviada para ${target.recipientEmail}`);
+        toast.success(
+          isFollowup
+            ? `Follow-up #${followupN} enviado para ${target.recipientEmail}`
+            : `Apresentação enviada para ${target.recipientEmail}`,
+        );
       }
 
       // Log local
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
+        const eventType = isFollowup ? (followupN === 1 ? "followup_1" : "followup_2") : "sent";
         await supabase.from("curator_outreach_log").insert({
           user_id: user.id,
           external_curator_id: target.externalCuratorId,
           channel: "email",
+          event_type: eventType,
           template_name: "curator-outreach",
           recipient_email: target.recipientEmail,
           subject,
           body_snippet: message.slice(0, 280),
           status: payload?.success === false ? "blocked" : "sent",
         });
+        const update: Record<string, unknown> = {
+          last_outreach_at: new Date().toISOString(),
+          last_outreach_channel: "email",
+        };
+        if (isFollowup) {
+          update.followup_count = followupN;
+        }
+        // pipeline_status -> contatado se ainda for "novo"
+        if (!isFollowup) {
+          const { data: cur } = await supabase
+            .from("external_curators")
+            .select("pipeline_status")
+            .eq("id", target.externalCuratorId)
+            .maybeSingle();
+          if (cur?.pipeline_status === "novo") {
+            update.pipeline_status = "contatado";
+          }
+        }
         await supabase
           .from("external_curators")
-          .update({
-            last_outreach_at: new Date().toISOString(),
-            last_outreach_channel: "email",
-          })
+          .update(update as never)
           .eq("id", target.externalCuratorId);
       }
       onSent?.();
@@ -130,7 +186,7 @@ export function EmailPreviewDialog({
         <DialogHeader className="px-6 pt-6 pb-3 border-b border-border">
           <DialogTitle className="flex items-center gap-2 text-base">
             <Mail className="h-4 w-4 text-primary" />
-            Apresentação para curador
+            {isFollowup ? `Follow-up #${followupN}` : "Apresentação para curador"}
           </DialogTitle>
           <DialogDescription className="text-xs">
             Enviado por <span className="text-foreground font-medium">parcerias@notify.engine.nexcreatorx.com</span> em nome da NexEngine

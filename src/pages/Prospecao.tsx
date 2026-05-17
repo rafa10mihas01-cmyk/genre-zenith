@@ -5,6 +5,7 @@ import { PageContainer } from "@/components/PageContainer";
 import { PageHeader } from "@/components/PageHeader";
 import { CuradoresCRM } from "@/components/operacao/CuradoresCRM";
 import { CuradoresLibraryTab } from "@/components/playlist-deals/CuradoresLibraryTab";
+import { OutreachDashboard } from "@/components/operacao/OutreachDashboard";
 import { useCuratorDeals } from "@/hooks/useCuratorDeals";
 import { cn } from "@/lib/utils";
 
@@ -132,7 +133,10 @@ export default function Prospecao() {
             />
           </>
         ) : (
-          <CuradoresCRM segment="prospeccao" />
+          <>
+            <OutreachDashboard />
+            <CuradoresCRM segment="prospeccao" />
+          </>
         )}
       </section>
     </PageContainer>

@@ -1553,8 +1553,10 @@ export type Database = {
           channel: string
           created_at: string
           error_message: string | null
+          event_type: string
           external_curator_id: string | null
           id: string
+          note: string | null
           recipient_email: string | null
           recipient_handle: string | null
           sent_at: string
@@ -1568,8 +1570,10 @@ export type Database = {
           channel: string
           created_at?: string
           error_message?: string | null
+          event_type?: string
           external_curator_id?: string | null
           id?: string
+          note?: string | null
           recipient_email?: string | null
           recipient_handle?: string | null
           sent_at?: string
@@ -1583,8 +1587,10 @@ export type Database = {
           channel?: string
           created_at?: string
           error_message?: string | null
+          event_type?: string
           external_curator_id?: string | null
           id?: string
+          note?: string | null
           recipient_email?: string | null
           recipient_handle?: string | null
           sent_at?: string
@@ -2177,20 +2183,25 @@ export type Database = {
       external_curators: {
         Row: {
           activity: string | null
+          commercial_score: Json
           created_at: string
           description: string | null
           email: string | null
           favorite: boolean
           followers: number | null
+          followup_count: number
           id: string
           instagram: string | null
           last_modified: string | null
           last_outreach_at: string | null
           last_outreach_channel: string | null
+          last_response_at: string | null
           links: string | null
           name: string
           notes: string | null
+          operational_tags: string[]
           owner_name: string | null
+          pipeline_status: string
           score: string | null
           score_raw: number | null
           social: string | null
@@ -2201,23 +2212,29 @@ export type Database = {
           tracks: number | null
           updated_at: string
           user_id: string
+          whatsapp: string | null
         }
         Insert: {
           activity?: string | null
+          commercial_score?: Json
           created_at?: string
           description?: string | null
           email?: string | null
           favorite?: boolean
           followers?: number | null
+          followup_count?: number
           id?: string
           instagram?: string | null
           last_modified?: string | null
           last_outreach_at?: string | null
           last_outreach_channel?: string | null
+          last_response_at?: string | null
           links?: string | null
           name: string
           notes?: string | null
+          operational_tags?: string[]
           owner_name?: string | null
+          pipeline_status?: string
           score?: string | null
           score_raw?: number | null
           social?: string | null
@@ -2228,23 +2245,29 @@ export type Database = {
           tracks?: number | null
           updated_at?: string
           user_id: string
+          whatsapp?: string | null
         }
         Update: {
           activity?: string | null
+          commercial_score?: Json
           created_at?: string
           description?: string | null
           email?: string | null
           favorite?: boolean
           followers?: number | null
+          followup_count?: number
           id?: string
           instagram?: string | null
           last_modified?: string | null
           last_outreach_at?: string | null
           last_outreach_channel?: string | null
+          last_response_at?: string | null
           links?: string | null
           name?: string
           notes?: string | null
+          operational_tags?: string[]
           owner_name?: string | null
+          pipeline_status?: string
           score?: string | null
           score_raw?: number | null
           social?: string | null
@@ -2255,6 +2278,7 @@ export type Database = {
           tracks?: number | null
           updated_at?: string
           user_id?: string
+          whatsapp?: string | null
         }
         Relationships: []
       }

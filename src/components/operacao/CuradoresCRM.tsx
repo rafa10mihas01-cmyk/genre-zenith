@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Upload, Search, Mail, Instagram, Link2, ExternalLink, Star, Ban, Copy,
   CheckCircle2, Trash2, Users, Filter, Download, Loader2, MoreHorizontal,
-  SlidersHorizontal,
+  SlidersHorizontal, Send, ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
@@ -18,6 +18,11 @@ import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { downloadCSV } from "@/lib/csv";
 import { EmailPreviewDialog, openInstagramWithMessage } from "./EmailPreviewDialog";
+import {
+  PipelineStatusBadge, PIPELINE_STATUS_META, type PipelineStatus,
+} from "./PipelineStatusBadge";
+import { CommercialScoreDots, type CommercialScore } from "./CommercialScoreEditor";
+import { CuradorDetailSheet, type DetailCurator } from "./CuradorDetailSheet";
 
 /* ============================================================
    Tipos & helpers
@@ -47,6 +52,14 @@ type CuradorRow = {
   status: Status;
   favorite: boolean;
   notes: string | null;
+  // CRM operacional
+  pipeline_status: PipelineStatus;
+  commercial_score: CommercialScore | null;
+  operational_tags: string[];
+  whatsapp: string | null;
+  last_outreach_at: string | null;
+  last_response_at: string | null;
+  followup_count: number;
 };
 
 type ExternalCuratorInsert = TablesInsert<"external_curators">;
@@ -166,7 +179,11 @@ function parseCount(value: unknown): number {
    Parser XLSX/CSV (PlaylistSupply-like)
    ============================================================ */
 
-type Imported = Omit<CuradorRow, "id" | "user_id" | "status" | "favorite" | "notes">;
+type Imported = Omit<CuradorRow,
+  "id" | "user_id" | "status" | "favorite" | "notes" |
+  "pipeline_status" | "commercial_score" | "operational_tags" | "whatsapp" |
+  "last_outreach_at" | "last_response_at" | "followup_count"
+>;
 
 function parseSheet(file: File): Promise<Imported[]> {
   return new Promise((resolve, reject) => {
@@ -362,8 +379,35 @@ export function CuradoresCRM({ segment }: { segment?: Segment } = {}) {
   const [pageSize, setPageSize] = useState<number>(50);
   type ExpandedFilter = "status" | "score" | "tamanho" | null;
   const [expandedFilter, setExpandedFilter] = useState<ExpandedFilter>(null);
-  const [emailTarget, setEmailTarget] = useState<{ externalCuratorId: string; recipientEmail: string; curatorName: string; playlistName: string | null } | null>(null);
+  const [emailTarget, setEmailTarget] = useState<{ externalCuratorId: string; recipientEmail: string; curatorName: string; playlistName: string | null; followupNumber?: 1 | 2 } | null>(null);
+  const [detailCurator, setDetailCurator] = useState<DetailCurator | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const toDetail = (r: CuradorRow): DetailCurator => ({
+    id: r.id,
+    name: r.name,
+    owner_name: r.owner_name,
+    email: r.email,
+    instagram: r.instagram,
+    whatsapp: r.whatsapp,
+    spotify_url: r.spotify_url,
+    pipeline_status: r.pipeline_status,
+    commercial_score: r.commercial_score,
+    operational_tags: r.operational_tags ?? [],
+    followup_count: r.followup_count ?? 0,
+  });
+
+  const sendFollowup = (r: CuradorRow) => {
+    if (!r.email) { toast.error("Sem email para follow-up"); return; }
+    const n = (Math.min(2, (r.followup_count ?? 0) + 1)) as 1 | 2;
+    setEmailTarget({
+      externalCuratorId: r.id,
+      recipientEmail: r.email,
+      curatorName: r.owner_name ?? r.name,
+      playlistName: r.name,
+      followupNumber: n,
+    });
+  };
 
   const load = async () => {
     setLoading(true);
@@ -722,6 +766,8 @@ export function CuradoresCRM({ segment }: { segment?: Segment } = {}) {
                   curatorName: row.owner_name || row.name,
                   playlistName: row.name,
                 })}
+                onSendFollowup={sendFollowup}
+                onOpenDetail={(row) => setDetailCurator(toDetail(row))}
               />
             ))}
           </div>
@@ -744,6 +790,33 @@ export function CuradoresCRM({ segment }: { segment?: Segment } = {}) {
         onOpenChange={(v) => { if (!v) setEmailTarget(null); }}
         target={emailTarget}
         onSent={() => load()}
+      />
+
+      <CuradorDetailSheet
+        open={!!detailCurator}
+        onOpenChange={(v) => { if (!v) setDetailCurator(null); }}
+        curator={detailCurator}
+        onChanged={() => { load(); }}
+        onSendEmail={(c) => {
+          if (!c.email) return;
+          setEmailTarget({
+            externalCuratorId: c.id,
+            recipientEmail: c.email,
+            curatorName: c.owner_name ?? c.name,
+            playlistName: c.name,
+          });
+        }}
+        onSendFollowup={(c) => {
+          if (!c.email) return;
+          const n = (Math.min(2, (c.followup_count ?? 0) + 1)) as 1 | 2;
+          setEmailTarget({
+            externalCuratorId: c.id,
+            recipientEmail: c.email,
+            curatorName: c.owner_name ?? c.name,
+            playlistName: c.name,
+            followupNumber: n,
+          });
+        }}
       />
     </div>
   );
@@ -798,14 +871,18 @@ function MiniStat({ label, value, tone }: { label: string; value: number; tone?:
 }
 
 function CuradorRowCard({
-  r, onUpdate, onRemove, onOpenEmail,
+  r, onUpdate, onRemove, onOpenEmail, onSendFollowup, onOpenDetail,
 }: {
   r: CuradorRow;
   onUpdate: (id: string, patch: Partial<CuradorRow>) => void;
   onRemove: (id: string) => void;
   onOpenEmail: (row: CuradorRow) => void;
+  onSendFollowup: (row: CuradorRow) => void;
+  onOpenDetail: (row: CuradorRow) => void;
 }) {
   const sc = scoreOf(r);
+  const pipeline = (r.pipeline_status ?? "novo") as PipelineStatus;
+  const pipelineMeta = PIPELINE_STATUS_META[pipeline] ?? PIPELINE_STATUS_META.novo;
 
   const copyEmail = () => {
     if (!r.email) return;
@@ -822,20 +899,6 @@ function CuradorRowCard({
   };
   const igHandle = r.instagram ? r.instagram.replace(/^@/, "") : null;
 
-  // Status dot color
-  const statusDot =
-    r.status === "comprado"   ? "bg-primary shadow-[0_0_8px_rgba(29,185,84,0.5)]" :
-    r.status === "negociando" ? "bg-blue-500" :
-    r.status === "blacklist"  ? "bg-destructive" :
-                                "bg-primary shadow-[0_0_8px_rgba(29,185,84,0.5)]";
-
-  // Score color (A+/A = primary, B = foreground, C = warning, D = destructive)
-  const scoreColor =
-    sc.label === "A+" || sc.label === "A" ? "text-primary" :
-    sc.label === "B"                       ? "text-foreground" :
-    sc.label === "C"                       ? "text-warning" :
-                                             "text-destructive";
-
   // Activity color
   const actLower = (r.activity ?? "").toLowerCase();
   const actColor =
@@ -844,25 +907,52 @@ function CuradorRowCard({
     actLower === "low"    ? "text-muted-foreground" : "text-foreground/70";
   const actLabel = actLower ? actLower.charAt(0).toUpperCase() + actLower.slice(1) : "—";
 
+  // Follow-up CTA: precisa de email, sem resposta, último contato > 5 dias, < 2 follow-ups
+  const lastSent = r.last_outreach_at ? new Date(r.last_outreach_at).getTime() : 0;
+  const daysSince = lastSent ? Math.floor((Date.now() - lastSent) / (1000 * 60 * 60 * 24)) : 0;
+  const showFollowup =
+    !!r.email &&
+    lastSent > 0 &&
+    daysSince >= 5 &&
+    (r.followup_count ?? 0) < 2 &&
+    !["respondeu","negociando","fechado","blacklist"].includes(pipeline);
+
   return (
     <div className={cn(
-      "bg-card rounded-2xl border border-border/40 overflow-hidden flex flex-col transition-colors group",
-      r.status === "blacklist" ? "opacity-60 hover:border-destructive/40" : "hover:border-primary/40",
-    )}>
-      {/* Header: status + nome + owner + score badge */}
+      "bg-card rounded-2xl border border-border/40 border-l-4 overflow-hidden flex flex-col transition-colors group cursor-pointer",
+      pipelineMeta.border,
+      pipeline === "blacklist" ? "opacity-60 hover:border-destructive/40" : "hover:border-primary/40",
+    )}
+    onClick={() => onOpenDetail(r)}
+    >
+      {/* Header: pipeline status + nome + owner + score badge */}
       <div className="p-3.5 flex justify-between items-start gap-3 border-b border-border/40">
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 mb-1.5">
-            <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", statusDot)} />
-            <span className="text-[9.5px] uppercase tracking-[0.1em] text-muted-foreground font-semibold">
-              {STATUS_META[r.status].label}
-            </span>
+          <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
+            <PipelineStatusBadge
+              status={pipeline}
+              size="xs"
+              onChange={(next) => onUpdate(r.id, { pipeline_status: next } as Partial<CuradorRow>)}
+            />
             {r.favorite && <Star className="h-3 w-3 fill-warning text-warning shrink-0" />}
+            <CommercialScoreDots score={r.commercial_score} className="ml-auto" />
           </div>
           <h3 className="text-foreground font-semibold text-[13.5px] leading-tight line-clamp-2" title={r.name}>
             {r.name}
           </h3>
           <p className="text-muted-foreground text-[11.5px] truncate mt-0.5">{r.owner_name || "—"}</p>
+          {(r.operational_tags?.length ?? 0) > 0 && (
+            <div className="flex items-center gap-1 flex-wrap mt-2">
+              {r.operational_tags!.slice(0, 4).map((t) => (
+                <span key={t} className="px-1.5 py-0.5 rounded-md bg-elevated border border-border text-[9.5px] text-muted-foreground">
+                  {t.replace(/_/g, " ")}
+                </span>
+              ))}
+              {r.operational_tags!.length > 4 && (
+                <span className="text-[9.5px] text-muted-foreground">+{r.operational_tags!.length - 4}</span>
+              )}
+            </div>
+          )}
         </div>
         <span
           className={cn(
@@ -874,6 +964,20 @@ function CuradorRowCard({
           {sc.label}
         </span>
       </div>
+
+      {/* Follow-up CTA */}
+      {showFollowup && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onSendFollowup(r); }}
+          className="px-3.5 py-2 text-[11px] font-medium text-warning bg-warning/10 border-b border-warning/20 hover:bg-warning/15 transition-colors inline-flex items-center justify-between w-full"
+        >
+          <span className="inline-flex items-center gap-1.5">
+            <Send className="h-3 w-3" />
+            Sem resposta há {daysSince}d · enviar follow-up #{(r.followup_count ?? 0) + 1}
+          </span>
+          <ChevronRight className="h-3 w-3" />
+        </button>
+      )}
 
       {/* Stats */}
       <div className="p-4 grid grid-cols-3 gap-2 border-b border-border/40">
@@ -892,7 +996,7 @@ function CuradorRowCard({
       </div>
 
       {/* Contact badges */}
-      <div className="px-4 py-3 flex flex-wrap gap-1.5 min-h-[44px]">
+      <div className="px-4 py-3 flex flex-wrap gap-1.5 min-h-[44px]" onClick={(e) => e.stopPropagation()}>
         {r.email && (
           <button
             onClick={openEmail}
@@ -929,7 +1033,7 @@ function CuradorRowCard({
       </div>
 
       {/* Action bar */}
-      <div className="mt-auto p-2 bg-black/30 flex items-center justify-between gap-1">
+      <div className="mt-auto p-2 bg-black/30 flex items-center justify-between gap-1" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-0.5">
           {r.spotify_url && (
             <a
@@ -941,49 +1045,25 @@ function CuradorRowCard({
             </a>
           )}
           {r.email && (
-            <button
-              onClick={openEmail}
-              className="p-1.5 hover:bg-primary/20 text-muted-foreground hover:text-primary rounded transition-colors"
-              title="Enviar email"
-            >
+            <button onClick={openEmail} className="p-1.5 hover:bg-primary/20 text-muted-foreground hover:text-primary rounded transition-colors" title="Enviar email">
               <Mail className="w-4 h-4" />
             </button>
           )}
           {r.email && (
-            <button
-              onClick={copyEmail}
-              className="p-1.5 hover:bg-elevated text-muted-foreground hover:text-foreground rounded transition-colors"
-              title="Copiar email"
-            >
+            <button onClick={copyEmail} className="p-1.5 hover:bg-elevated text-muted-foreground hover:text-foreground rounded transition-colors" title="Copiar email">
               <Copy className="w-4 h-4" />
             </button>
           )}
           <button
             onClick={() => onUpdate(r.id, { favorite: !r.favorite })}
-            className={cn(
-              "p-1.5 hover:bg-warning/20 hover:text-warning rounded transition-colors",
-              r.favorite ? "text-warning" : "text-muted-foreground",
-            )}
+            className={cn("p-1.5 hover:bg-warning/20 hover:text-warning rounded transition-colors", r.favorite ? "text-warning" : "text-muted-foreground")}
             title={r.favorite ? "Desfavoritar" : "Favoritar"}
           >
             <Star className={cn("w-4 h-4", r.favorite && "fill-warning")} />
           </button>
           <button
-            onClick={() => onUpdate(r.id, { status: r.status === "negociando" ? "novo" : "negociando" })}
-            className={cn(
-              "p-1.5 rounded transition-colors hover:bg-blue-500/20 hover:text-blue-400",
-              r.status === "negociando" ? "text-blue-400 bg-blue-500/15" : "text-muted-foreground",
-            )}
-            title="Marcar negociando"
-          >
-            <CheckCircle2 className="w-4 h-4" />
-          </button>
-          <button
             onClick={() => onUpdate(r.id, { status: r.status === "comprado" ? "novo" : "comprado" })}
-            className={cn(
-              "p-1.5 rounded transition-colors hover:bg-primary/20 hover:text-primary",
-              r.status === "comprado" ? "text-primary bg-primary/15" : "text-muted-foreground",
-            )}
+            className={cn("p-1.5 rounded transition-colors hover:bg-primary/20 hover:text-primary", r.status === "comprado" ? "text-primary bg-primary/15" : "text-muted-foreground")}
             title="Marcar comprada"
           >
             <CheckCircle2 className={cn("w-4 h-4", r.status === "comprado" && "fill-primary/20")} />
@@ -991,20 +1071,13 @@ function CuradorRowCard({
         </div>
         <div className="flex items-center gap-0.5">
           <button
-            onClick={() => onUpdate(r.id, { status: r.status === "blacklist" ? "novo" : "blacklist" })}
-            className={cn(
-              "p-1.5 hover:bg-destructive/20 hover:text-destructive rounded transition-colors",
-              r.status === "blacklist" ? "text-destructive bg-destructive/15" : "text-muted-foreground",
-            )}
+            onClick={() => onUpdate(r.id, { pipeline_status: pipeline === "blacklist" ? "novo" : "blacklist" } as Partial<CuradorRow>)}
+            className={cn("p-1.5 hover:bg-destructive/20 hover:text-destructive rounded transition-colors", pipeline === "blacklist" ? "text-destructive bg-destructive/15" : "text-muted-foreground")}
             title="Blacklist"
           >
             <Ban className="w-4 h-4" />
           </button>
-          <button
-            onClick={() => onRemove(r.id)}
-            className="p-1.5 hover:bg-destructive hover:text-white text-muted-foreground rounded transition-colors"
-            title="Excluir"
-          >
+          <button onClick={() => onRemove(r.id)} className="p-1.5 hover:bg-destructive hover:text-white text-muted-foreground rounded transition-colors" title="Excluir">
             <Trash2 className="w-4 h-4" />
           </button>
         </div>
