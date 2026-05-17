@@ -59,6 +59,12 @@ const sections: NavSection[] = [
         matchPaths: ["/playlist-deals", "/curadores", "/deals/comparar"],
       },
       {
+        title: "Comunidade",
+        url: "/comunidade-admin",
+        icon: Users,
+        adminOnly: true,
+      },
+      {
         title: "Playlists",
         url: "/catalogo",
         icon: ListMusic,
@@ -93,7 +99,6 @@ const sections: NavSection[] = [
         adminOnly: true,
         matchPaths: ["/infra", "/infraestrutura"],
       },
-      { title: "Comunidade", url: "/comunidade-admin", icon: Users, adminOnly: true },
     ],
   },
 ];
