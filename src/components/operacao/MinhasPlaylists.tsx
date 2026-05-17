@@ -682,7 +682,7 @@ export function MinhasPlaylists() {
                   );
                 })()}
               </div>
-            </button>
+            </Link>
           ))}
         </div>
       )}
