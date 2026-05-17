@@ -928,8 +928,19 @@ function DistributionTable({
                       className={cn(
                         "transition-colors hover:bg-elevated/60 group",
                         i % 2 === 1 && "bg-elevated/20",
+                        onToggleSlot && excluded?.has(slotKey!(s)) && "opacity-40",
                       )}
                     >
+                      {onToggleSlot && (
+                        <td className="py-2.5 px-2 border-b border-border/30">
+                          <input
+                            type="checkbox"
+                            checked={!excluded?.has(slotKey!(s))}
+                            onChange={() => onToggleSlot(slotKey!(s))}
+                            className="h-3.5 w-3.5 accent-primary cursor-pointer"
+                          />
+                        </td>
+                      )}
                       <td className="py-2.5 px-3 tabular-nums text-muted-foreground border-b border-border/30">
                         {i + 1}
                       </td>
