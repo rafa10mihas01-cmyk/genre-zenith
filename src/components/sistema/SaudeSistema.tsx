@@ -134,7 +134,7 @@ export function SaudeSistema() {
       {/* === BLOCO 2: SERVIÇOS DO PIPELINE === */}
       <div>
         <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-bold mb-2">Status dos serviços</h3>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <HealthCard
             icon={Music2}
             label="Verificação Spotify"
@@ -158,6 +158,14 @@ export function SaudeSistema() {
             okText={health.execucao.pending > 0 ? `${health.execucao.pending} na fila` : "Sem fila"}
             errText={`${health.execucao.failed} com falha`}
             detail={health.execucao.lastDone ? `último job ${timeAgo(health.execucao.lastDone)}` : "nenhum job executado"}
+          />
+          <HealthCard
+            icon={Bell}
+            label="Alertas"
+            ok={health.alertas.ok}
+            okText={health.alertas.warning > 0 ? `${health.alertas.warning} aviso(s)` : "Sem alertas"}
+            errText={health.alertas.critical > 0 ? `${health.alertas.critical} crítico(s)` : `${health.alertas.warning} aviso(s)`}
+            detail={health.alertas.lastAt ? `último ${timeAgo(health.alertas.lastAt)}` : "nenhum não lido"}
           />
         </div>
       </div>
