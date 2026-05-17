@@ -1,12 +1,14 @@
 /// <reference types="npm:@types/react@18.3.1" />
 import * as React from 'npm:react@18.3.1'
 import {
-  Body, Container, Head, Heading, Html, Img, Preview, Section, Text, Hr,
+  Body, Button, Container, Head, Heading, Html, Img, Preview, Section, Text, Hr,
 } from 'npm:@react-email/components@0.0.22'
 import type { TemplateEntry } from './registry.ts'
 
 const SITE_NAME = 'NexEngine'
 const LOGO_URL = 'https://xtxxjmkijeyxkdyxtvsf.supabase.co/storage/v1/object/public/email-assets/nexengine-logo.png'
+const WHATSAPP_NUMBER = '5511930910013'
+const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent('Olá! Vim pelo email da NexEngine.')}`
 
 interface CuratorOutreachProps {
   curator_name?: string
@@ -62,6 +64,12 @@ Caso faça sentido, podemos agendar uma conversa de 15 minutos.`
             {body.split('\n\n').map((para, i) => (
               <Text key={i} style={text}>{para}</Text>
             ))}
+
+            <Section style={{ textAlign: 'center', margin: '8px 0 4px' }}>
+              <Button href={WHATSAPP_URL} style={whatsappBtn}>
+                Falar no WhatsApp
+              </Button>
+            </Section>
 
             <Hr style={divider} />
 
