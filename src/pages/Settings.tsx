@@ -204,9 +204,9 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
     if (j?.ok) setSpotifyAccounts(j.accounts ?? []);
   }
 
-  async function connectSpotify(forceLogin = false) {
+  async function connectSpotify(forceLogin = false, appId?: string) {
     if (isInIframe) {
-      await openInNewTab(forceLogin);
+      await openInNewTab(forceLogin, appId);
       return;
     }
     setConnectingSpotify(true);
@@ -221,6 +221,7 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
       const redirect = getSpotifyRedirectUri();
       const qs = new URLSearchParams({ mode: "login", redirect });
       if (forceLogin) qs.set("force_login", "1");
+      if (appId) qs.set("app_id", appId);
       const j = await callSpotifyAuth(qs.toString());
       if (!j?.ok) throw new Error(j?.error ?? "Falha");
 
@@ -228,11 +229,11 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
         popup.close();
         openSpotifyPopup(j.url, true);
         toast.info("Escolha a outra conta", {
-          description: "Vamos encerrar a sessão atual e abrir a autorização da próxima conta.",
+          description: `App: ${j.app ?? "default"}. Vamos encerrar a sessão atual e abrir a autorização da próxima conta.`,
         });
       } else {
         popup.location.href = j.url;
-        toast.info("Autorização aberta em nova aba", {
+        toast.info(`Autorização aberta (app: ${j.app ?? "default"})`, {
           description: "Depois de aprovar no Spotify, volte para esta tela que a conta será registrada automaticamente.",
         });
       }
@@ -241,6 +242,17 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
       toast.error("Erro ao iniciar conexão", { description: e?.message });
     } finally {
       setConnectingSpotify(false);
+    }
+  }
+
+  function handleAddAccountClick(forceLogin: boolean) {
+    const eligible = spotifyApps.filter((a) => a.status === "active" && a.slots_remaining > 0);
+    if (eligible.length <= 1) {
+      // 0 (usa fallback) ou 1 (auto) → sem picker
+      const appId = eligible[0]?.id;
+      void (isInIframe ? openInNewTab(forceLogin, appId) : connectSpotify(forceLogin, appId));
+    } else {
+      setPickerOpen({ forceLogin });
     }
   }
 
