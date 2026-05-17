@@ -188,7 +188,7 @@ export function AppSidebar() {
             <SidebarGroupContent>
               <SidebarMenu className="gap-0.5">
                 {section.items.map((item) => {
-                  const active = itemIsActive(item, location.pathname);
+                  const active = itemIsActive(item, location.pathname, location.search);
                   const hasChildren = !!item.children?.length;
 
                   // Item simples (sem filhos) — comportamento idêntico ao antigo.
