@@ -275,10 +275,7 @@ export default function PlaylistDeals() {
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="gap-2 rounded-lg items-start py-2"
-                onClick={() => {
-                  setTab("clients");
-                  setTimeout(() => window.dispatchEvent(new CustomEvent("playlistdeals:new-client")), 50);
-                }}
+                onClick={() => navigate("/clientes")}
               >
                 <User className="h-4 w-4 mt-0.5 shrink-0" />
                 <div className="flex flex-col">
