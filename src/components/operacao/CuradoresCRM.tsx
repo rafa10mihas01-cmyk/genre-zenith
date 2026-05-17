@@ -342,7 +342,9 @@ const SIZE_BUCKETS: { id: SizeBucket; label: string; min: number; max: number }[
   { id: "macro",   label: "20k+",           min: 20000,  max: Infinity },
 ];
 
-export function CuradoresCRM() {
+type Segment = "ativos" | "prospeccao";
+
+export function CuradoresCRM({ segment }: { segment?: Segment } = {}) {
   const [rows, setRows] = useState<CuradorRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
