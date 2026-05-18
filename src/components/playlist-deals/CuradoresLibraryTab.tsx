@@ -45,6 +45,7 @@ import {
 import { CuratorLibrarySheet } from "@/components/curators/CuratorLibrarySheet";
 import { CuratorEditDialog } from "@/components/curators/CuratorEditDialog";
 import { cn } from "@/lib/utils";
+import { ViewModeToggle, type ViewMode } from "@/components/ui/view-mode-toggle";
 import type { Curator, CuratorBalance, NewCuratorInput } from "@/hooks/useCuratorDeals";
 import type { CuratorDeal } from "@/lib/curatorDealsUtils";
 
