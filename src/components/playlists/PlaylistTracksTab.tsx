@@ -96,6 +96,8 @@ export function PlaylistTracksTab({ playlistId }: { playlistId: string }) {
       }
       const msg = error?.message ?? "";
       const isNotFound =
+        data?.code === "playlist_not_found" ||
+        data?.error === "playlist não encontrada" ||
         status === 404 ||
         serverError === "playlist não encontrada" ||
         /404/.test(msg) ||
