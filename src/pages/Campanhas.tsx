@@ -204,7 +204,15 @@ export default function Campanhas() {
                 </button>
               </div>
             )}
-            <PlanejadorMeta />
+            <PlanejadorMeta
+              initial={handoff ? {
+                meta: handoff.result.meta,
+                days: handoff.result.days,
+                profile: (handoff.result as any).perfil ?? undefined,
+                trackUrl: handoff.trackUrl || undefined,
+                fonteLabel: `Herdado do plano (${handoff.fonte === "manual" ? "Manual" : handoff.fonte === "top200" ? "Top 200" : handoff.fonte === "orcamento" ? "Orçamento" : "Concorrente"})`,
+              } : undefined}
+            />
           </div>
         )}
       </PageContainer>
