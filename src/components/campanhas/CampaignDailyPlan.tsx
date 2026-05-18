@@ -119,15 +119,28 @@ export function CampaignDailyPlan({ campaignId, snapshot, startedAt, ecoAllocati
         </Button>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
           <Metric label="Dia selecionado" value={`D${day?.day ?? 1}`} hint={day?.dateLabel} />
           <Metric
             label="Música diário"
             value={formatInt(baselineStreams)}
-            hint={baselineStreams > 0 ? "informado na calculadora" : "não informado"}
+            hint={baselineStreams > 0 ? "orgânico (baseline)" : "não informado"}
           />
-          <Metric label={`Meta do dia · ${sourceLabel}`} value={formatInt(dayTotalForSource)} hint={dayHint} />
-          <Metric label={`Acumulado · ${sourceLabel}`} value={formatInt(cumulativeForSource)} hint={`${formatInt(sourceTotal)} no filtro`} />
+          <Metric
+            label={`Meta do dia · ${sourceLabel}`}
+            value={formatInt(dayTotalForSource)}
+            hint={dayHint}
+          />
+          <Metric
+            label="Esperado no Spotify"
+            value={formatInt(baselineStreams + dayTotalForSource)}
+            hint={baselineStreams > 0 ? `${formatInt(baselineStreams)} + ${formatInt(dayTotalForSource)}` : "música + meta"}
+          />
+          <Metric
+            label={`Acumulado · ${sourceLabel}`}
+            value={formatInt(cumulativeForSource)}
+            hint={`${formatInt(sourceTotal)} no filtro`}
+          />
           <Metric label="Ativos no dia" value={activeValue} hint={activeHint} />
         </div>
 
