@@ -446,6 +446,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                 </div>
               </CardContent>
             </Card>
+            )}
           </div>
 
           {/* Coluna direita: resultado */}
