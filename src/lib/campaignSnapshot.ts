@@ -30,7 +30,7 @@ export interface CampaignSnapshot {
   picoPorDia: number;
   mediaPorDia: number;
   inercia: number;
-  curva: { day: number; streamsDay: number; cumulative: number }[];
+  curva: { day: number; streamsDay: number; cumulative: number; streamsEcoDay?: number; streamsExtDay?: number }[];
 }
 
 export function buildSnapshot(
