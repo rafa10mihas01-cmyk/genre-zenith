@@ -134,8 +134,8 @@ export function AdjustmentTimeline({ playlistId }: { playlistId: string }) {
         })}
       </div>
 
-      <p className="text-[11px] text-muted-foreground/70 leading-relaxed">
-        O NexEngine observa cada mudança por uma janela definida pelo tipo de ação e registra o resultado antes de recomendar a próxima. Esse histórico alimenta o aprendizado sem alterar thresholds automaticamente.
+      <p className="text-[10px] text-muted-foreground/70 leading-snug">
+        O NexEngine observa cada mudança por uma janela definida e registra o resultado antes de recomendar a próxima.
       </p>
     </Card>
   );
