@@ -50,7 +50,7 @@ type ManagedPlaylist = {
   recommended_change_count?: number | null;
 };
 
-type SpotifyAccountLite = { id: string; display_name: string | null; email: string | null; status: string | null };
+type SpotifyAccountLite = { id: string; spotify_user_id: string | null; display_name: string | null; email: string | null; is_default: boolean | null };
 
 
 type Diagnosis = {
@@ -104,11 +104,13 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
 
   async function loadAccounts() {
     const { data } = await supabase
-      .from("spotify_accounts")
-      .select("id, display_name, email, status")
+      .from("spotify_user_tokens")
+      .select("id, spotify_user_id, display_name, email, is_default")
+      .order("is_default", { ascending: false })
       .order("display_name", { ascending: true, nullsFirst: false });
     setAccounts((data ?? []) as SpotifyAccountLite[]);
   }
+
 
   async function assignAccount(playlistId: string, accountId: string | null) {
     setAssigningId(playlistId);
@@ -777,12 +779,12 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
                                   <div className="text-[10px] text-muted-foreground truncate">{acc.email}</div>
                                 )}
                               </div>
-                              {acc.status && (
-                                <span className={cn(
-                                  "text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded",
-                                  acc.status === "active" ? "text-primary bg-primary/10" : "text-muted-foreground bg-muted/30",
-                                )}>{acc.status}</span>
+                              {acc.is_default && (
+                                <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded text-primary bg-primary/10">
+                                  padrão
+                                </span>
                               )}
+
                             </button>
                           ))}
                         </div>
