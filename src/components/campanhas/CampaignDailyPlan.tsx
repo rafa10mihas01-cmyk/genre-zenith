@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import {
   type EcoPlanInput,
   type ExternalPlanInput,
 } from "@/lib/campaignOperationalPlan";
+import { ensureExternalPackageDraft } from "@/lib/externalPackage";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -36,6 +37,7 @@ export function CampaignDailyPlan({ campaignId, snapshot, startedAt, ecoAllocati
     let cancelled = false;
     (async () => {
       setLoading(true);
+      await ensureExternalPackageDraft(campaignId, snapshot);
       const { data } = await supabase
         .from("campaign_external_package_items")
         .select("id, assigned_streams, assigned_cost, cost_per_stream, curators(name, contact), campaign_external_packages!inner(campaign_id)")
@@ -117,7 +119,7 @@ export function CampaignDailyPlan({ campaignId, snapshot, startedAt, ecoAllocati
             </div>
           </div>
 
-          <div className="grid grid-cols-7 sm:grid-cols-10 md:grid-cols-15 gap-1.5">
+          <div className="grid grid-cols-7 sm:grid-cols-10 md:grid-cols-[repeat(15,minmax(0,1fr))] gap-1.5">
             {plan.daily.map(d => {
               const active = selectedDay === d.day;
               const intensity = Math.min(1, d.total / Math.max(1, snapshot.picoPorDia));
@@ -196,7 +198,7 @@ function PlanTable({
   empty,
 }: {
   title: string;
-  icon: React.ReactNode;
+  icon: ReactNode;
   empty: string;
   rows: { id: string; name: string; detail: string; today: number; total: number; badge: string }[];
 }) {
