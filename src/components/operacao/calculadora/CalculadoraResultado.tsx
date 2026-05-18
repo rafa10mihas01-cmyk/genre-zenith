@@ -1,15 +1,16 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatBRL, formatInt, type CampaignResult } from "@/lib/campaignEngine";
 import { TrendingUp, Wallet, Zap, Layers } from "lucide-react";
+import { KpiBig } from "@/components/KpiBig";
 
 export function CalculadoraResultado({ r }: { r: CampaignResult }) {
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Kpi icon={TrendingUp} label="Meta" value={formatInt(r.meta)} hint="streams totais" />
-        <Kpi icon={Wallet} label="Custo total" value={formatBRL(r.custoTotal)} hint={`R$ ${r.custoPorStream.toFixed(3)}/stream`} />
-        <Kpi icon={Zap} label="Pico/dia" value={formatInt(r.picoPorDia)} hint={`média ${formatInt(r.mediaPorDia)}`} />
-        <Kpi icon={Layers} label="Duração" value={`${r.days}d`} hint={r.modo === "simultaneo" ? "simultâneo" : "sequencial"} />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiBig icon={TrendingUp} label="Meta" value={formatInt(r.meta)} hint="Streams totais" />
+        <KpiBig icon={Wallet} label="Custo total" value={formatBRL(r.custoTotal)} tone="primary" hint={`R$ ${r.custoPorStream.toFixed(3)}/stream`} />
+        <KpiBig icon={Zap} label="Pico/dia" value={formatInt(r.picoPorDia)} hint={`Média ${formatInt(r.mediaPorDia)}/dia`} />
+        <KpiBig icon={Layers} label="Duração" value={`${r.days}d`} hint={r.modo === "simultaneo" ? "Simultâneo" : "Sequencial"} />
       </div>
 
       <Card>
