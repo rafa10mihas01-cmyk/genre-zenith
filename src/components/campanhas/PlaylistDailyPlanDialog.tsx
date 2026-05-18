@@ -41,7 +41,7 @@ export function PlaylistDailyPlanDialog({
 }: Props) {
   const plan = useMemo(() => {
     if (!allocation) return null;
-    const all = buildEcoPlaylistPlan(snapshot, allAllocations as any);
+    const all = buildEcoPlaylistPlan(snapshot, allAllocations as any, { startedAt });
     return all.find(p => p.allocationId === allocation.id) ?? null;
   }, [allocation, allAllocations, snapshot]);
 
