@@ -178,25 +178,27 @@ function CurvaChart({ curva, inercia }: { curva: CampaignResult["curva"]; inerci
         ))}
       </div>
 
-      {/* Cards de fase */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-        {phases.map(ph => {
-          const dur = ph.end - ph.start + 1;
-          const Icon = ph.icon;
-          return (
-            <div key={ph.key} className={cn("rounded-xl border p-2.5", ph.tint)}>
-              <div className={cn("flex items-center gap-1.5 text-[10px] uppercase tracking-wider font-semibold", ph.color)}>
-                <Icon className="h-3 w-3" />
-                {ph.label}
+      {/* Cards de fase — só na visão Todos */}
+      {view === "todos" && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+          {phases.map(ph => {
+            const dur = ph.end - ph.start + 1;
+            const Icon = ph.icon;
+            return (
+              <div key={ph.key} className={cn("rounded-xl border p-2.5", ph.tint)}>
+                <div className={cn("flex items-center gap-1.5 text-[10px] uppercase tracking-wider font-semibold", ph.color)}>
+                  <Icon className="h-3 w-3" />
+                  {ph.label}
+                </div>
+                <div className="text-base font-semibold mt-1 tabular-nums">{dur}d</div>
+                <div className="text-[10px] text-muted-foreground tabular-nums">
+                  D{ph.start}—D{ph.end}
+                </div>
               </div>
-              <div className="text-base font-semibold mt-1 tabular-nums">{dur}d</div>
-              <div className="text-[10px] text-muted-foreground tabular-nums">
-                D{ph.start}—D{ph.end}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Gráfico de barras com tooltip */}
       <div className="relative">
