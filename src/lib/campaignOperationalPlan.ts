@@ -62,6 +62,53 @@ export const ECO_CAPACITY_FACTOR = 0.12;
 /** Ramp de entrada de playlist eco nos primeiros dias. */
 export const ECO_RAMP = [0.2, 0.4, 0.6, 0.8, 1.0];
 
+/**
+ * Sazonalidade semanal de streaming (BR/global). Multiplicadores relativos
+ * à média (1.0) por dia da semana — calibrados a partir do padrão observado
+ * no Spotify: pico quinta/sexta (playlist refresh + fim de semana social),
+ * queda no sábado e fundo no domingo/segunda.
+ * Index: 0=Dom, 1=Seg, 2=Ter, 3=Qua, 4=Qui, 5=Sex, 6=Sáb.
+ * Soma ≈ 7.0 (preserva total semanal).
+ */
+export const WEEKDAY_FACTOR: number[] = [0.85, 0.90, 1.02, 1.06, 1.10, 1.12, 0.95];
+
+/**
+ * Aplica sazonalidade semanal à curva-base: multiplica cada `streamsDay`
+ * pelo fator do dia da semana correspondente e renormaliza para preservar
+ * o total exato da curva original. Não muta a curva de entrada.
+ */
+export function applyWeekdaySeasonality(
+  curva: CampaignSnapshot["curva"],
+  startedAt: string,
+): CampaignSnapshot["curva"] {
+  if (!curva.length) return curva;
+  const base = new Date(startedAt);
+  if (isNaN(base.getTime())) return curva;
+
+  const weighted = curva.map((p, i) => {
+    const d = new Date(base);
+    d.setDate(d.getDate() + i);
+    const f = WEEKDAY_FACTOR[d.getDay()] ?? 1;
+    return Math.max(0, p.streamsDay * f);
+  });
+  const originalSum = curva.reduce((s, p) => s + p.streamsDay, 0);
+  const weightedSum = weighted.reduce((s, v) => s + v, 0);
+  if (weightedSum <= 0 || originalSum <= 0) return curva;
+
+  const scale = originalSum / weightedSum;
+  let cum = 0;
+  let allocated = 0;
+  return weighted.map((v, i) => {
+    const isLast = i === weighted.length - 1;
+    const streamsDay = isLast
+      ? Math.max(0, Math.round(originalSum - allocated))
+      : Math.max(0, Math.round(v * scale));
+    allocated += streamsDay;
+    cum += streamsDay;
+    return { day: i + 1, streamsDay, cumulative: cum };
+  });
+}
+
 function campaignDateLabel(startedAt: string, day: number) {
   const base = new Date(startedAt);
   base.setDate(base.getDate() + day - 1);
