@@ -1,6 +1,7 @@
 import { useNavigate, useParams } from "react-router-dom";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Receipt } from "lucide-react";
 import { PageContainer } from "@/components/PageContainer";
+import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { useCuratorDeals } from "@/hooks/useCuratorDeals";
 import { DealHistorySheet } from "@/components/playlist-deals/DealHistorySheet";
