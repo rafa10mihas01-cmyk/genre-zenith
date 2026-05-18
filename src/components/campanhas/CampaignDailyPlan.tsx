@@ -34,6 +34,10 @@ export function CampaignDailyPlan({ campaignId, snapshot, startedAt, ecoAllocati
   const [loading, setLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState(1);
   const [source, setSource] = useState<"todos" | "eco" | "externo">("todos");
+  // Multiplicador plays/save/mês — ajusta o teto de capacidade das playlists eco.
+  // 18 = conservador · 30 = mercado · 50 = altamente engajado.
+  const [engagementMultiplier, setEngagementMultiplier] = useState<number>(30);
+  const [customMultOpen, setCustomMultOpen] = useState(false);
 
   // Diário base vem do snapshot da calculadora (informado no momento de criar a campanha).
   const baselineStreams = Number(snapshot.music?.baselineStreamsDay ?? 0);
@@ -57,11 +61,11 @@ export function CampaignDailyPlan({ campaignId, snapshot, startedAt, ecoAllocati
   }, [campaignId, refreshKey]);
 
   const plan = useMemo(() => {
-    const ecoPlans = buildEcoPlaylistPlan(snapshot, ecoAllocations);
+    const ecoPlans = buildEcoPlaylistPlan(snapshot, ecoAllocations, { engagementMultiplier });
     const externalPlans = buildExternalPlan(snapshot, externalItems);
     const daily = buildDailyCampaignPlan({ snapshot, startedAt, ecoPlans, externalPlans });
     return { ecoPlans, externalPlans, daily };
-  }, [snapshot, startedAt, ecoAllocations, externalItems]);
+  }, [snapshot, startedAt, ecoAllocations, externalItems, engagementMultiplier]);
 
   const day = plan.daily[selectedDay - 1] ?? plan.daily[0];
   const ecoForDay = plan.ecoPlans
