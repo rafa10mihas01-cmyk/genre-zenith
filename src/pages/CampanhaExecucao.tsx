@@ -13,7 +13,7 @@ import { ExternalPackageEditor } from "@/components/campanhas/ExternalPackageEdi
 import { CampaignMonitoring } from "@/components/campanhas/CampaignMonitoring";
 import { CampaignDailyPlan } from "@/components/campanhas/CampaignDailyPlan";
 import { PlaylistDailyPlanDialog } from "@/components/campanhas/PlaylistDailyPlanDialog";
-import { buildEcoPlaylistPlan, recommendEcoPosition } from "@/lib/campaignOperationalPlan";
+import { buildEcoPlaylistPlan, distributeEcoPositions } from "@/lib/campaignOperationalPlan";
 import { CampaignFullPlanCard } from "@/components/campanhas/CampaignFullPlanCard";
 import { toast } from "@/hooks/use-toast";
 import { ArrowLeft, Lock, Music, ListMusic, Loader2, CalendarDays, Users, Activity } from "lucide-react";
