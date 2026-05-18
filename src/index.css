@@ -54,7 +54,7 @@
     --secondary-foreground: 0 0% 100%;
 
     /* Borders sutis mas perceptíveis em qualquer brilho */
-    --border: 0 0% 18%;
+    --border: 0 0% 24%;
     --input: 0 0% 18%;
     /* Foco em branco translúcido — não compete com o verde de marca */
     --ring: 0 0% 100% / 0.35;
