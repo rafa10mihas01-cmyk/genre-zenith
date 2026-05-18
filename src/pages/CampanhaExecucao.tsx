@@ -12,6 +12,7 @@ import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
 import { ExternalPackageEditor } from "@/components/campanhas/ExternalPackageEditor";
 import { CampaignMonitoring } from "@/components/campanhas/CampaignMonitoring";
 import { CampaignDailyPlan } from "@/components/campanhas/CampaignDailyPlan";
+import { PlaylistDailyPlanDialog } from "@/components/campanhas/PlaylistDailyPlanDialog";
 import { buildEcoPlaylistPlan } from "@/lib/campaignOperationalPlan";
 import { toast } from "@/hooks/use-toast";
 import { ArrowLeft, Lock, Music, ListMusic, Loader2, CalendarDays, Users, Activity } from "lucide-react";
@@ -66,6 +67,7 @@ export default function CampanhaExecucao() {
   const [dispatchingEco, setDispatchingEco] = useState(false);
   const [planRefreshKey, setPlanRefreshKey] = useState(0);
   const [tab, setTab] = useState<"diario" | "eco" | "externo" | "monitor">("diario");
+  const [selectedAlloc, setSelectedAlloc] = useState<EcoAllocRow | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -254,6 +256,7 @@ export default function CampanhaExecucao() {
                   <strong className="text-foreground tabular-nums">{formatInt(ecoTotals.planned)}</strong> streams
                   em <strong className="text-foreground">{ecoTotals.count}</strong> playlists
                   {ecoTotals.dispatched > 0 && <> · {ecoTotals.dispatched} já enviadas ao bot</>}
+                  <span className="ml-1 text-[10px] text-primary">· clique numa playlist para ver o plano diário</span>
                 </p>
               </div>
               <Button variant="default" size="sm" onClick={handleDispatchEco} disabled={!hasPendingEco || dispatchingEco}>
@@ -280,7 +283,7 @@ export default function CampanhaExecucao() {
                       </thead>
                       <tbody>
                         {allocs.map((a, i) => (
-                          <tr key={a.id} className={cn("hover:bg-elevated/60", i % 2 === 1 && "bg-elevated/30")}>
+                          <tr key={a.id} onClick={() => setSelectedAlloc(a)} className={cn("hover:bg-primary/5 cursor-pointer transition-colors", i % 2 === 1 && "bg-elevated/30")}>
                             <td className="py-2 px-3 border-b border-border/30">
                               <div className="flex items-center gap-2">
                                 {a.managed_playlists?.cover_url ? (
@@ -331,6 +334,16 @@ export default function CampanhaExecucao() {
           />
         </TabsContent>
       </Tabs>
+
+      <PlaylistDailyPlanDialog
+        open={!!selectedAlloc}
+        onOpenChange={(o) => !o && setSelectedAlloc(null)}
+        allocation={selectedAlloc}
+        allAllocations={allocs}
+        snapshot={snapshot}
+        startedAt={camp.started_at}
+        campaignTitle={camp.track_name}
+      />
     </PageContainer>
   );
 }
