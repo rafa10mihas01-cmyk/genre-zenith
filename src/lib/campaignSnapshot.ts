@@ -123,8 +123,11 @@ export async function closeCampaignFromCalculator(args: {
   snapshot: CampaignSnapshot;
   deadlineISO: string;
   allocations: EcoAllocationPlan[];
+  clientId?: string | null;
+  curatorId?: string | null;
+  status?: "draft" | "active";
 }): Promise<{ campaignId: string }> {
-  const { snapshot, deadlineISO, allocations } = args;
+  const { snapshot, deadlineISO, allocations, clientId = null, curatorId = null, status = "active" } = args;
 
   const { data: campaign, error } = await supabase
     .from("campaigns")
@@ -136,11 +139,13 @@ export async function closeCampaignFromCalculator(args: {
       cover_url: snapshot.music.coverUrl,
       goal_plays: snapshot.meta,
       deadline: deadlineISO,
-      status: "active",
+      status,
       total_allocated: allocations.reduce((s, a) => s + a.planned_streams, 0),
       simulation_snapshot: snapshot as any,
       snapshot_locked_at: snapshot.lockedAt,
-    })
+      client_id: clientId,
+      curator_id: curatorId,
+    } as any)
     .select("id")
     .single();
 
