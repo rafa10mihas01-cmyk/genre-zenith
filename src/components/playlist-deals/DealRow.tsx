@@ -143,7 +143,7 @@ export function DealRow(props: DealRowProps) {
   return (
     <div
       className={cn(
-        "group relative rounded-2xl border border-border/50 bg-card transition-colors",
+        "group relative rounded-2xl border border-border/50 bg-card transition-colors flex flex-col h-full",
         "hover:border-foreground/20 hover:bg-[hsl(var(--elevated))]",
       )}
     >
@@ -194,24 +194,33 @@ export function DealRow(props: DealRowProps) {
       {/* Divisor sutil */}
       <div className="mx-4 border-t border-border/40" />
 
-      {/* Linha 2 — métricas + progress + ações */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-3 px-4 py-3 min-w-0">
+      {/* Linha 2 — métricas + progress + ações (stack vertical pra grid 4-col) */}
+      <div className="flex flex-col gap-3 px-4 py-3 min-w-0 mt-auto">
         {hasBaseline ? (
           <>
-            <MetricCell
-              label="Velocidade"
-              value={vel !== null ? formatPlays(vel) : "—"}
-              suffix={vel !== null ? "/dia" : undefined}
-              size="sm"
-              className="w-[88px] shrink-0"
-            />
-            <MetricCell
-              label="Hoje"
-              value={`${todayPct}%`}
-              size="sm"
-              className="w-[64px] shrink-0"
-            />
-            <div className="flex-1 min-w-[140px] flex flex-col gap-1 max-w-[280px]">
+            <div className="grid grid-cols-3 gap-3">
+              <MetricCell
+                label="Velocidade"
+                value={vel !== null ? formatPlays(vel) : "—"}
+                suffix={vel !== null ? "/dia" : undefined}
+                size="sm"
+              />
+              <MetricCell
+                label="Hoje"
+                value={`${todayPct}%`}
+                size="sm"
+              />
+              {eta !== null && eta > 0 ? (
+                <MetricCell
+                  label="ETA"
+                  value={`${eta}d`}
+                  size="sm"
+                />
+              ) : (
+                <div />
+              )}
+            </div>
+            <div className="flex flex-col gap-1 min-w-0">
               <div className="flex items-center justify-between text-[10.5px] text-muted-foreground">
                 <span className="uppercase tracking-[0.12em] font-medium">Progresso</span>
                 <span className="tabular-nums font-semibold text-foreground">{pct}%</span>
@@ -221,18 +230,9 @@ export function DealRow(props: DealRowProps) {
                 {formatPlays(earned)} / {formatPlays(target)}
               </div>
             </div>
-            {eta !== null && eta > 0 && (
-              <MetricCell
-                label="ETA"
-                value={`${eta}d`}
-                size="sm"
-                align="right"
-                className="w-[56px] shrink-0"
-              />
-            )}
           </>
         ) : (
-          <div className="flex items-center gap-2 flex-1 min-w-0 text-[12px] text-warning">
+          <div className="flex items-center gap-2 min-w-0 text-[12px] text-warning">
             <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
             <span className="truncate">Print inicial pendente para liberar baseline</span>
           </div>
