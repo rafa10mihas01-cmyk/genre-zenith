@@ -262,11 +262,11 @@ function CurvaChart({ curva }: { curva: CampaignResult["curva"] }) {
               </div>
               <div className="mt-1 grid grid-cols-2 gap-x-2 gap-y-0.5 tabular-nums text-foreground">
                 <span className="text-muted-foreground">No dia</span>
-                <span className="text-right font-semibold">{formatInt(hover.streamsDay)}</span>
+                <span className="text-right font-semibold">{formatInt(hoverValue)}</span>
                 <span className="text-muted-foreground">Acumulado</span>
                 <span className="text-right">{formatInt(hover.cumulative)}</span>
-                <span className="text-muted-foreground">% da meta</span>
-                <span className="text-right">{total > 0 ? Math.round((hover.cumulative / total) * 100) : 0}%</span>
+                <span className="text-muted-foreground">% do total</span>
+                <span className="text-right">{total > 0 ? Math.round((hoverValue / total) * 100) : 0}%</span>
               </div>
             </div>
           );
