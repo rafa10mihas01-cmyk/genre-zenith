@@ -160,7 +160,7 @@ export function CampaignDailyPlan({
           return (
             <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-elevated/30 p-2.5">
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mr-1">
-                Plays por save / mês
+                Estratégia · plays por save / mês
               </div>
               {PRESETS.map(p => (
                 <button
@@ -196,6 +196,9 @@ export function CampaignDailyPlan({
                   onChange={(e) => setEngagementMultiplier(Math.max(1, Math.min(200, Number(e.target.value) || 1)))}
                   className="h-7 w-20 text-xs tabular-nums"
                 />
+              )}
+              {savingMult && (
+                <span className="text-[10px] text-muted-foreground">salvando…</span>
               )}
               <div className="ml-auto text-[10px] text-muted-foreground">
                 cap por playlist = followers × {factorPct}% / dia
