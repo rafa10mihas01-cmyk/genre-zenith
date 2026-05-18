@@ -294,146 +294,163 @@ export function PlaylistCockpit({
           {/* ============ MEMÓRIA DE IMPACTO ============ */}
           <AdjustmentTimeline playlistId={managedId} />
 
-          {/* ============ 2. IDENTIDADE ============ */}
-          <SectionTitle>Identidade da playlist</SectionTitle>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <IdentityField
-              label="Nome"
-              field="name"
-              managedId={managedId}
-              current={diag.name_current ?? playlistName}
-              suggestion={diag.name_suggestion}
-              score={diag.name_score}
-              onApplied={runDiagnose}
-            />
-            <IdentityField
-              label="Descrição"
-              field="description"
-              managedId={managedId}
-              current={diag.raw?.description_current || ""}
-              suggestion={diag.raw?.suggested_description ?? null}
-              onApplied={runDiagnose}
-            />
-          </div>
-          <CoverCard
-            managedId={managedId}
-            currentCover={coverUrl}
-            leaders={diag.raw?.market_insights?.leader_playlists ?? []}
-            spotifyPlaylistId={spotifyPlaylistId}
-          />
-          {(diag.raw?.missing_keywords?.length ?? 0) > 0 && (
-            <Card className="p-4">
-              <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">
-                Palavras fortes do nicho que faltam
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {diag.raw!.missing_keywords!.map((k) => (
-                  <Badge key={k} variant="outline" className="text-[11px] border-warning/40 text-warning bg-warning/5">
-                    {k}
+          <Tabs defaultValue="plano" className="space-y-4">
+            <TabsList className="bg-elevated/60 flex-wrap h-auto">
+              <TabsTrigger value="plano" className="gap-1.5">
+                <Sparkles className="h-3.5 w-3.5" /> Plano de ação
+                {(buckets.remove.length + buckets.demote.length + buckets.promote.length + buckets.add.length) > 0 && (
+                  <Badge variant="outline" className="ml-1 h-4 px-1 text-[10px] tabular-nums">
+                    {buckets.remove.length + buckets.demote.length + buckets.promote.length + buckets.add.length}
                   </Badge>
-                ))}
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="execucao" className="gap-1.5">
+                <Target className="h-3.5 w-3.5" /> Execução
+              </TabsTrigger>
+              <TabsTrigger value="identidade" className="gap-1.5">
+                <Eye className="h-3.5 w-3.5" /> Identidade
+              </TabsTrigger>
+              {market && (
+                <TabsTrigger value="mercado" className="gap-1.5">
+                  <TrendingUp className="h-3.5 w-3.5" /> Mercado
+                </TabsTrigger>
+              )}
+              <TabsTrigger value="projecao" className="gap-1.5">
+                <Activity className="h-3.5 w-3.5" /> Projeção
+              </TabsTrigger>
+              <TabsTrigger value="faixas" className="gap-1.5">
+                <Music2 className="h-3.5 w-3.5" /> Faixas
+                <Badge variant="outline" className="ml-1 h-4 px-1 text-[10px] tabular-nums">
+                  {analysis.length}
+                </Badge>
+              </TabsTrigger>
+            </TabsList>
+
+            {/* ============ PLANO DE AÇÃO ============ */}
+            <TabsContent value="plano" className="space-y-4 mt-0">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                <ActionCard kind="remove" count={buckets.remove.length} hrefId="bucket-remove" />
+                <ActionCard kind="demote" count={buckets.demote.length} hrefId="bucket-demote" />
+                <ActionCard kind="promote" count={buckets.promote.length} hrefId="bucket-promote" />
+                <ActionCard kind="add" count={buckets.add.length} hrefId="bucket-add" />
               </div>
-            </Card>
-          )}
-
-          {/* ============ 3. PLANO DE AÇÃO ============ */}
-          <SectionTitle>Plano de ação</SectionTitle>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <ActionCard kind="remove" count={buckets.remove.length} hrefId="bucket-remove" />
-            <ActionCard kind="demote" count={buckets.demote.length} hrefId="bucket-demote" />
-            <ActionCard kind="promote" count={buckets.promote.length} hrefId="bucket-promote" />
-            <ActionCard kind="add" count={buckets.add.length} hrefId="bucket-add" />
-          </div>
-          {(buckets.remove.length + buckets.demote.length + buckets.promote.length + buckets.add.length) > 0 && (
-            <Card className="p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 bg-primary/5 border-primary/30">
-              <div className="space-y-0.5">
-                <div className="text-sm font-semibold">Executar plano completo</div>
-                <div className="text-xs text-muted-foreground">
-                  Ordem: remover → rebaixar → promover → adicionar. Tudo via API, sem abrir o Spotify.
-                </div>
-              </div>
-              <Button onClick={() => applyPlan("all")} disabled={applying !== null} className="gap-1.5 shrink-0">
-                {applying === "all" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                Aprovar e executar tudo
-              </Button>
-            </Card>
-          )}
-
-          {/* ============ 4. EXECUÇÃO ============ */}
-          <SectionTitle>Execução operacional</SectionTitle>
-
-          <BucketRemove
-            items={buckets.remove}
-            applying={applying === "remove" || applying === "all"}
-            onApplyAll={() => applyPlan("remove")}
-          />
-          <BucketReorder
-            kind="demote"
-            items={buckets.demote}
-            totalTracks={tracksCount}
-            applying={applying === "demote" || applying === "all"}
-            onApplyAll={() => applyPlan("demote")}
-          />
-          <BucketReorder
-            kind="promote"
-            items={buckets.promote}
-            totalTracks={tracksCount}
-            applying={applying === "promote" || applying === "all"}
-            onApplyAll={() => applyPlan("promote")}
-          />
-          <BucketAdd
-            items={buckets.add}
-            applying={applying === "add" || applying === "all"}
-            onApplyAll={() => applyPlan("add")}
-          />
-
-          {/* ============ 5. INTELIGÊNCIA DE MERCADO ============ */}
-          {market && (
-            <>
-              <SectionTitle>Inteligência de mercado</SectionTitle>
-              <MarketBlock market={market} idealRange={idealRange} />
-            </>
-          )}
-
-          {/* ============ 6. PROJEÇÃO DE FAIXA ============ */}
-          <SectionTitle>Projeção de faixa</SectionTitle>
-          <div className="text-[11px] text-muted-foreground -mt-2">
-            Estimativa teórica de plays por posição, baseada nos saves dessa playlist. Use pra decidir em qual posição colocar uma faixa.
-          </div>
-          <ProjecaoFaixa
-            playlist={{
-              id: managedId,
-              name: playlistName,
-              cover_url: coverUrl,
-              followers: followers ?? 0,
-              tracks_count: tracksCount,
-            }}
-          />
-
-          {/* ============ 7. TODAS AS FAIXAS (colapsado) ============ */}
-          <Collapsible>
-            <Card className="overflow-hidden">
-              <CollapsibleTrigger asChild>
-                <button className="group w-full p-4 flex items-center justify-between hover:bg-elevated/40 transition-colors text-left">
-                  <div className="flex items-center gap-2">
-                    <Music2 className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                      <div className="text-sm font-semibold">Todas as faixas (auditoria)</div>
-                      <div className="text-[11px] text-muted-foreground">
-                        Lista completa de referência · {analysis.length} faixas
-                      </div>
+              {(buckets.remove.length + buckets.demote.length + buckets.promote.length + buckets.add.length) > 0 && (
+                <Card className="p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 bg-primary/5 border-primary/30">
+                  <div className="space-y-0.5">
+                    <div className="text-sm font-semibold">Executar plano completo</div>
+                    <div className="text-xs text-muted-foreground">
+                      Ordem: remover → rebaixar → promover → adicionar. Tudo via API, sem abrir o Spotify.
                     </div>
                   </div>
-                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
-                </button>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <div className="p-4 pt-0">
-                  <PlaylistTracksTab playlistId={managedId} />
-                </div>
-              </CollapsibleContent>
-            </Card>
-          </Collapsible>
+                  <Button onClick={() => applyPlan("all")} disabled={applying !== null} className="gap-1.5 shrink-0">
+                    {applying === "all" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                    Aprovar e executar tudo
+                  </Button>
+                </Card>
+              )}
+            </TabsContent>
+
+            {/* ============ EXECUÇÃO ============ */}
+            <TabsContent value="execucao" className="space-y-4 mt-0">
+              <BucketRemove
+                items={buckets.remove}
+                applying={applying === "remove" || applying === "all"}
+                onApplyAll={() => applyPlan("remove")}
+              />
+              <BucketReorder
+                kind="demote"
+                items={buckets.demote}
+                totalTracks={tracksCount}
+                applying={applying === "demote" || applying === "all"}
+                onApplyAll={() => applyPlan("demote")}
+              />
+              <BucketReorder
+                kind="promote"
+                items={buckets.promote}
+                totalTracks={tracksCount}
+                applying={applying === "promote" || applying === "all"}
+                onApplyAll={() => applyPlan("promote")}
+              />
+              <BucketAdd
+                items={buckets.add}
+                applying={applying === "add" || applying === "all"}
+                onApplyAll={() => applyPlan("add")}
+              />
+            </TabsContent>
+
+            {/* ============ IDENTIDADE ============ */}
+            <TabsContent value="identidade" className="space-y-4 mt-0">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <IdentityField
+                  label="Nome"
+                  field="name"
+                  managedId={managedId}
+                  current={diag.name_current ?? playlistName}
+                  suggestion={diag.name_suggestion}
+                  score={diag.name_score}
+                  onApplied={runDiagnose}
+                />
+                <IdentityField
+                  label="Descrição"
+                  field="description"
+                  managedId={managedId}
+                  current={diag.raw?.description_current || ""}
+                  suggestion={diag.raw?.suggested_description ?? null}
+                  onApplied={runDiagnose}
+                />
+              </div>
+              <CoverCard
+                managedId={managedId}
+                currentCover={coverUrl}
+                leaders={diag.raw?.market_insights?.leader_playlists ?? []}
+                spotifyPlaylistId={spotifyPlaylistId}
+              />
+              {(diag.raw?.missing_keywords?.length ?? 0) > 0 && (
+                <Card className="p-4">
+                  <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">
+                    Palavras fortes do nicho que faltam
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {diag.raw!.missing_keywords!.map((k) => (
+                      <Badge key={k} variant="outline" className="text-[11px] border-warning/40 text-warning bg-warning/5">
+                        {k}
+                      </Badge>
+                    ))}
+                  </div>
+                </Card>
+              )}
+            </TabsContent>
+
+            {/* ============ MERCADO ============ */}
+            {market && (
+              <TabsContent value="mercado" className="space-y-4 mt-0">
+                <MarketBlock market={market} idealRange={idealRange} />
+              </TabsContent>
+            )}
+
+            {/* ============ PROJEÇÃO ============ */}
+            <TabsContent value="projecao" className="space-y-3 mt-0">
+              <div className="text-[11px] text-muted-foreground">
+                Estimativa teórica de plays por posição, baseada nos saves dessa playlist. Use pra decidir em qual posição colocar uma faixa.
+              </div>
+              <ProjecaoFaixa
+                playlist={{
+                  id: managedId,
+                  name: playlistName,
+                  cover_url: coverUrl,
+                  followers: followers ?? 0,
+                  tracks_count: tracksCount,
+                }}
+              />
+            </TabsContent>
+
+            {/* ============ TODAS AS FAIXAS ============ */}
+            <TabsContent value="faixas" className="mt-0">
+              <Card className="p-4">
+                <PlaylistTracksTab playlistId={managedId} />
+              </Card>
+            </TabsContent>
+          </Tabs>
         </>
       )}
     </div>
