@@ -196,6 +196,7 @@ export function CuradoresLibraryTab({
             {showArchived ? "Ver ativos" : `Arquivados (${archivedCount})`}
           </Button>
         )}
+        <ViewModeToggle value={viewMode} onChange={setViewMode} className="ml-auto" />
       </div>
 
       {loading && curators.length === 0 ? (
