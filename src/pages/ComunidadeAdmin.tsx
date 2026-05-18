@@ -139,27 +139,28 @@ export default function ComunidadeAdmin() {
           label="Membros"
           value={formatNumber(counts.membros)}
           hint="Total ativo na comunidade"
+          domain="community"
         />
         <KpiBig
           icon={Mail}
           label="Convites pendentes"
           value={formatNumber(counts.convitesPendentes)}
-          tone="primary"
           hint={`${counts.convites} no total`}
+          domain="community"
         />
         <KpiBig
           icon={Megaphone}
           label="Campanhas abertas"
           value={formatNumber(counts.campanhasAbertas)}
-          tone="success"
           hint={`${counts.campanhas} no total`}
+          domain="campaigns"
         />
         <KpiBig
           icon={ClipboardCheck}
           label="Aguardando revisão"
           value={formatNumber(counts.aprovacoes)}
-          tone={counts.aprovacoes > 0 ? "primary" : "default"}
           hint="Provas para validar"
+          domain="curators"
         />
       </section>
 
