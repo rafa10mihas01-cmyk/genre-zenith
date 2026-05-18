@@ -63,6 +63,7 @@ import { Label } from "@/components/ui/label";
 import { useClients, type Client } from "@/hooks/useClients";
 import { clientCampaignUrl } from "@/lib/curatorPublicUrl";
 import { cn } from "@/lib/utils";
+import { ViewModeToggle, type ViewMode } from "@/components/ui/view-mode-toggle";
 import type { CuratorDeal, CuratorDealSong } from "@/lib/curatorDealsUtils";
 
 type ClientSongRow = CuratorDealSong & {
