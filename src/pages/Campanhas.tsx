@@ -47,6 +47,7 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export default function Campanhas() {
+  const navigate = useNavigate();
   const [items, setItems] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "active" | "draft" | "completed">("all");
