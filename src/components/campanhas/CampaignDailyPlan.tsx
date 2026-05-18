@@ -34,19 +34,8 @@ export function CampaignDailyPlan({ campaignId, snapshot, startedAt, ecoAllocati
   const [selectedDay, setSelectedDay] = useState(1);
   const [source, setSource] = useState<"todos" | "eco" | "externo">("todos");
 
-  // Referência visual da música (não afeta a lógica da campanha — só exibido).
-  const baselineKey = `campaign-baseline:${campaignId}`;
-  const dailyKey = `campaign-daily-base:${campaignId}`;
-  const [baselineStreams, setBaselineStreams] = useState<number>(() => {
-    if (typeof window === "undefined") return 0;
-    return Number(window.localStorage.getItem(baselineKey) ?? 0);
-  });
-  const [dailyBase, setDailyBase] = useState<number>(() => {
-    if (typeof window === "undefined") return 0;
-    return Number(window.localStorage.getItem(dailyKey) ?? 0);
-  });
-  useEffect(() => { window.localStorage.setItem(baselineKey, String(baselineStreams || 0)); }, [baselineKey, baselineStreams]);
-  useEffect(() => { window.localStorage.setItem(dailyKey, String(dailyBase || 0)); }, [dailyKey, dailyBase]);
+  // Diário base vem do snapshot da calculadora (informado no momento de criar a campanha).
+  const baselineStreams = Number(snapshot.music?.baselineStreamsDay ?? 0);
 
   useEffect(() => {
     let cancelled = false;
@@ -132,13 +121,10 @@ export function CampaignDailyPlan({ campaignId, snapshot, startedAt, ecoAllocati
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
           <Metric label="Dia selecionado" value={`D${day?.day ?? 1}`} hint={day?.dateLabel} />
-          <MetricEditable
-            label="Música ao iniciar"
-            icon={<Music className="h-3 w-3" />}
-            value={baselineStreams}
-            onChange={setBaselineStreams}
-            placeholder="0"
-            hint="streams no D1"
+          <Metric
+            label="Música diário"
+            value={formatInt(baselineStreams)}
+            hint={baselineStreams > 0 ? "informado na calculadora" : "não informado"}
           />
           <Metric label={`Meta do dia · ${sourceLabel}`} value={formatInt(dayTotalForSource)} hint={dayHint} />
           <Metric label={`Acumulado · ${sourceLabel}`} value={formatInt(cumulativeForSource)} hint={`${formatInt(sourceTotal)} no filtro`} />
