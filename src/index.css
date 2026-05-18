@@ -19,10 +19,27 @@
     --popover-foreground: 0 0% 100%;
     --card-foreground: 0 0% 100%;
 
-    /* Text */
-    --foreground: 0 0% 100%;          /* #FFFFFF */
-    --muted-foreground: 218 11% 65%;  /* #9CA3AF */
+    /* Text — hierarquia em 4 níveis */
+    --foreground: 0 0% 100%;          /* #FFFFFF — título/valor principal */
+    --foreground-strong: 0 0% 100%;   /* alias semântico */
+    --foreground-body: 0 0% 88%;      /* corpo de texto normal */
+    --muted-foreground: 218 11% 65%;  /* #9CA3AF — label/auxiliar */
+    --subtle-foreground: 0 0% 45%;    /* metadados, "há 40min", timestamps */
     --muted: 0 0% 9%;
+
+    /* === CORES DE DOMÍNIO ===
+       Acentos sutis pra diferenciar áreas da operação.
+       USO: ícones (16px), bolinhas/dots, badges de categoria, borda esquerda 2px.
+       NUNCA: fundo grande de card, texto longo, CTA.
+       O verde --primary segue exclusivo pra ação. */
+    --domain-clients:    217 91% 60%; /* #3B82F6 azul calmo — humano/confiança */
+    --domain-curators:   258 90% 76%; /* #A78BFA roxo suave — parceiro/criativo */
+    --domain-campaigns:  38 92% 50%;  /* #F59E0B âmbar — energia/momentum */
+    --domain-deals:      141 76% 48%; /* #1DB954 verde-marca — transação */
+    --domain-community:  330 81% 60%; /* #EC4899 rosa/coral — social */
+    --domain-playlists:  215 16% 47%; /* #64748B cinza-azulado — inventário */
+    --domain-system:     240 4% 46%;  /* #71717A cinza puro — neutro */
+
 
     /* Spotify green — reservado pra CTA principal e ação primária. NÃO usar pra status/foco. */
     --primary: 141 76% 48%;           /* #1DB954 */
@@ -85,8 +102,19 @@
     --popover-foreground: 0 0% 10%;
     --card-foreground: 0 0% 10%;
     --foreground: 0 0% 10%;
+    --foreground-strong: 0 0% 5%;
+    --foreground-body: 0 0% 20%;
     --muted-foreground: 0 0% 40%;
+    --subtle-foreground: 0 0% 55%;
     --muted: 0 0% 95%;
+    /* Domínios — variantes mais escuras pro modo claro */
+    --domain-clients:    217 91% 45%;
+    --domain-curators:   258 70% 55%;
+    --domain-campaigns:  38 92% 42%;
+    --domain-deals:      141 76% 38%;
+    --domain-community:  330 75% 48%;
+    --domain-playlists:  215 25% 35%;
+    --domain-system:     240 4% 40%;
     --primary: 141 76% 38%;
     --primary-foreground: 0 0% 100%;
     --primary-glow: 141 76% 38% / 0.15;
