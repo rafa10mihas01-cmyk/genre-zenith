@@ -140,12 +140,13 @@ function CurvaChart({ curva, inercia }: { curva: CampaignResult["curva"]; inerci
   const max = Math.max(1, ...curva.map(c => c.streamsDay));
   const total = curva.reduce((s, c) => s + valueOf(c), 0);
 
-  // SVG dimensions
-  const W = 800, H = 180, P = 8;
+  // SVG dimensions — mais baixo e arejado pra leitura elegante
+  const W = 800, H = 110, P = 6;
   const innerW = W - P * 2;
   const innerH = H - P * 2;
   const barW = innerW / curva.length;
-  const gap = Math.min(1.5, barW * 0.18);
+  const gap = Math.min(2, barW * 0.32);
+  const radius = Math.min(1.5, (barW - gap) / 2);
 
   const hover = hoverDay != null ? curva[hoverDay - 1] : null;
   const hoverPhase = hover ? phaseOfDay(hover.day, phases) : null;
@@ -224,9 +225,12 @@ function CurvaChart({ curva, inercia }: { curva: CampaignResult["curva"]; inerci
                   y={y}
                   width={Math.max(0.5, barW - gap)}
                   height={Math.max(0.5, h)}
-                  fill={view === "todos" ? ph.bar : view === "eco" ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))"}
-                  opacity={hoverDay && !isHover ? 0.45 : 1}
+                  rx={radius}
+                  ry={radius}
+                  fill={view === "todos" ? ph.bar : view === "eco" ? "hsl(var(--primary) / 0.55)" : "hsl(var(--muted-foreground) / 0.45)"}
+                  opacity={hoverDay && !isHover ? 0.35 : 0.85}
                 />
+
                 {/* hover hitbox covering full column height */}
                 <rect
                   x={x}
