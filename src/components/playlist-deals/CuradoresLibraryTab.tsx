@@ -294,7 +294,7 @@ export function CuradoresLibraryTab({
                           className="gap-2 rounded-lg"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setSelected(curator);
+                            navigate(`/curadores/${curator.id}`);
                           }}
                         >
                           <ListMusic className="h-4 w-4" /> Ver biblioteca
