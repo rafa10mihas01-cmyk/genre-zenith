@@ -113,6 +113,7 @@ export default function CampanhaPlano() {
         startedAt={camp.started_at}
         allocations={allocs as any}
         engagementMultiplier={camp.engagement_multiplier ?? 30}
+        showShare={false}
       />
     </PageContainer>
   );
