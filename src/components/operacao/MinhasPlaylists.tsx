@@ -50,7 +50,7 @@ type ManagedPlaylist = {
   recommended_change_count?: number | null;
 };
 
-type SpotifyAccountLite = { id: string; display_name: string | null; email: string | null; status: string | null };
+type SpotifyAccountLite = { id: string; spotify_user_id: string | null; display_name: string | null; email: string | null; is_default: boolean | null };
 
 
 type Diagnosis = {
