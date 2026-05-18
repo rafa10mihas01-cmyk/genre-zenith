@@ -135,15 +135,26 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
   const [modo, setModo] = useState<Modo>(persisted.modo ?? "simultaneo");
   const [perfil, setPerfil] = useState<Perfil>(persisted.perfil ?? "mercado");
   const [splitEco, setSplitEco] = useState<number>(persisted.splitEco ?? DEFAULT_SPLIT.eco);
+  const [startDate, setStartDate] = useState<Date>(() => {
+    const raw = (persisted as any).startDateISO as string | undefined;
+    if (raw) {
+      const d = new Date(raw);
+      if (!isNaN(d.getTime())) return startOfDay(d);
+    }
+    return startOfDay(new Date());
+  });
+
+  const endDate = useMemo(() => addDays(startDate, days), [startDate, days]);
 
   // Persiste tudo a cada mudança
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         fonte, trackUrl, track, baselineStreamsDay, meta, days, budget, modo, perfil, splitEco,
+        startDateISO: startDate.toISOString().slice(0, 10),
       }));
     } catch { /* quota cheia, ignora */ }
-  }, [fonte, trackUrl, track, baselineStreamsDay, meta, days, budget, modo, perfil, splitEco]);
+  }, [fonte, trackUrl, track, baselineStreamsDay, meta, days, budget, modo, perfil, splitEco, startDate]);
 
   async function buscarMusica() {
     const url = trackUrl.trim();
