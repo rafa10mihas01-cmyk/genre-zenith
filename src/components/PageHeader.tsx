@@ -45,7 +45,7 @@ export function PageHeader({
 }: PageHeaderProps) {
   const domainColor = domain ? `hsl(var(--domain-${domain}))` : undefined;
   return (
-    <div className="h-[76px] shrink-0 lg:h-[104px] -mt-4 md:-mt-6 lg:-mt-8 -mb-6 md:-mb-8 lg:-mb-8">
+    <div className="h-[76px] shrink-0 lg:h-[104px] -mt-4 md:-mt-6 lg:-mt-8 -mb-4 md:-mb-5 lg:-mb-6">
       <header
         className={cn(
           "flex",
