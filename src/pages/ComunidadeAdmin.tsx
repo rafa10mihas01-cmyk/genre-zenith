@@ -570,46 +570,49 @@ function ConvitesTab({ adminId, onChange }: { adminId: string; onChange?: () => 
   }
 
   return (
-    <Card>
-      <CardContent className="p-5 space-y-4">
-        {loading ? (
-          <div className="text-sm text-muted-foreground">Carregando…</div>
-        ) : list.length === 0 ? (
-          <div className="text-sm text-muted-foreground py-8 text-center">Nenhum convite ainda.</div>
-        ) : (
-          <ul className="divide-y divide-border">
-            {list.map((i) => {
-              const expired = i.status === "pending" && new Date(i.expires_at) < new Date();
-              const realStatus = expired ? "expired" : i.status;
-              return (
-                <li key={i.id} className="flex items-center gap-3 py-3">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <code className="text-xs bg-elevated px-1.5 py-0.5 rounded">{i.slug || i.code}</code>
-                      <StatusBadge status={realStatus} />
-                    </div>
-                    <div className="mt-1 text-xs text-muted-foreground truncate">
-                      {i.email ?? "sem email"}
-                      {realStatus === "pending" && (
-                        <> · {countdown(i.expires_at)}</>
-                      )}
-                      {i.note ? ` · ${i.note}` : ""}
-                    </div>
-                  </div>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => copyLink(i)} title="Copiar link">
-                    <Copy className="h-4 w-4" />
+    <>
+      {loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {[0,1,2,3,4,5,6,7].map((i) => (
+            <div key={i} className="nx-card h-36 animate-pulse" />
+          ))}
+        </div>
+      ) : list.length === 0 ? (
+        <div className="nx-card py-12 text-center text-sm text-muted-foreground">Nenhum convite ainda.</div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {list.map((i) => {
+            const expired = i.status === "pending" && new Date(i.expires_at) < new Date();
+            const realStatus = expired ? "expired" : i.status;
+            return (
+              <div
+                key={i.id}
+                className="rounded-2xl border border-border/50 bg-card p-4 flex flex-col gap-3 h-full hover:border-foreground/20 hover:bg-[hsl(var(--elevated))] transition-colors"
+              >
+                <div className="flex items-start justify-between gap-2 min-w-0">
+                  <code className="text-[11px] bg-elevated px-1.5 py-0.5 rounded truncate min-w-0">{i.slug || i.code}</code>
+                  <StatusBadge status={realStatus} />
+                </div>
+                <div className="text-[11.5px] text-muted-foreground space-y-0.5 min-w-0">
+                  <div className="truncate text-foreground/80">{i.email ?? "sem email"}</div>
+                  {realStatus === "pending" && <div>{countdown(i.expires_at)}</div>}
+                  {i.note && <div className="truncate" title={i.note}>{i.note}</div>}
+                </div>
+                <div className="mt-auto flex items-center gap-2">
+                  <Button variant="outline" size="sm" className="flex-1 gap-1.5" onClick={() => copyLink(i)}>
+                    <Copy className="h-3.5 w-3.5" /> Copiar
                   </Button>
                   {i.status === "pending" && (
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => revoke(i.id)} title="Revogar">
                       <X className="h-4 w-4" />
                     </Button>
                   )}
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </CardContent>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
