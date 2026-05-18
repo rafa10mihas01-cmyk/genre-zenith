@@ -17,7 +17,7 @@ import {
   type EcoPlanInput,
   type ExternalPlanInput,
 } from "@/lib/campaignOperationalPlan";
-import { REPORTING_DELAY_DAYS, ECO_CAPACITY_FACTOR } from "@/lib/campaignOperationalPlan";
+import { REPORTING_DELAY_DAYS } from "@/lib/campaignOperationalPlan";
 import { ensureExternalPackageDraft } from "@/lib/externalPackage";
 import { cn } from "@/lib/utils";
 
@@ -156,7 +156,7 @@ export function CampaignDailyPlan({
         {(() => {
           const PRESETS = [18, 30, 50] as const;
           const isCustom = customMultOpen || !PRESETS.includes(engagementMultiplier as any);
-          const factorPct = ((ECO_CAPACITY_FACTOR * engagementMultiplier) / 30 * 100).toFixed(1);
+          const factorPct = (engagementMultiplier / 30 * 100).toFixed(0);
           return (
             <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-elevated/30 p-2.5">
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mr-1">
@@ -201,7 +201,7 @@ export function CampaignDailyPlan({
                 <span className="text-[10px] text-muted-foreground">salvando…</span>
               )}
               <div className="ml-auto text-[10px] text-muted-foreground">
-                cap por playlist = followers × {factorPct}% / dia
+                cap por playlist = saves × {factorPct}% × % da posição
               </div>
             </div>
           );

@@ -100,11 +100,6 @@ export default function CampanhaExecucao() {
     return { planned, count: allocs.length, dispatched };
   }, [allocs]);
 
-  const ecoPlanByAllocation = useMemo(() => {
-    if (!snapshot) return new Map<string, number>();
-    return new Map(buildEcoPlaylistPlan(snapshot, allocs, { startedAt: camp?.started_at }).map(plan => [plan.allocationId, plan.startDay]));
-  }, [snapshot, allocs, camp?.started_at]);
-
   const ecoPositionByAllocation = useMemo(() => {
     if (!snapshot) return new Map<string, number>();
     return distributeEcoPositions(
@@ -117,6 +112,18 @@ export default function CampanhaExecucao() {
       (camp as any)?.engagement_multiplier ?? 30,
     );
   }, [snapshot, allocs, (camp as any)?.engagement_multiplier]);
+
+  const ecoPlanByAllocation = useMemo(() => {
+    if (!snapshot) return new Map<string, number>();
+    const mult = (camp as any)?.engagement_multiplier ?? 30;
+    return new Map(
+      buildEcoPlaylistPlan(snapshot, allocs, {
+        startedAt: camp?.started_at,
+        engagementMultiplier: mult,
+        positions: ecoPositionByAllocation,
+      }).map(plan => [plan.allocationId, plan.startDay]),
+    );
+  }, [snapshot, allocs, camp?.started_at, (camp as any)?.engagement_multiplier, ecoPositionByAllocation]);
 
   const hasPendingEco = allocs.some(a => a.status === "pending");
 
@@ -375,6 +382,7 @@ export default function CampanhaExecucao() {
         snapshot={snapshot}
         startedAt={camp.started_at}
         campaignTitle={camp.track_name}
+        engagementMultiplier={(camp as any).engagement_multiplier ?? 30}
       />
     </PageContainer>
   );

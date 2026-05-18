@@ -51,20 +51,14 @@ export type DailyCampaignPlan = {
 
 /** Atraso médio de contabilização do Spotify (em dias). */
 export const REPORTING_DELAY_DAYS = 2;
-/**
- * Fator de capacidade diária por playlist eco.
- * Uma música ocupa UMA posição na playlist — no melhor caso (posição #1) ela
- * capta ~12% do tráfego diário total (followers × 1 play/dia ≈ followers).
- * Logo, teto realista por playlist/dia = followers × 0.12.
- * (Curva de posição vem do SimuladorEntrega: #1=12%, #2=10%, #3=8%, etc.)
- */
-export const ECO_CAPACITY_FACTOR = 0.12;
 /** Ramp de entrada de playlist eco nos primeiros dias. */
 export const ECO_RAMP = [0.2, 0.4, 0.6, 0.8, 1.0];
 
 /**
- * Curva de tráfego por posição na playlist (mesma do SimuladorEntrega).
- * Index 0 = posição 1. % do tráfego diário total da playlist.
+ * VERDADE ÚNICA do sistema — curva de tráfego por posição na playlist.
+ * Index 0 = posição 1. % do tráfego diário total da playlist (saves × mult/30).
+ * Mesma curva do SimuladorEntrega → simulador, campanha, cards e relatórios
+ * usam esta tabela. Não criar fatores alternativos (ex.: ECO_CAPACITY_FACTOR).
  */
 export const POSITION_PCT: number[] = [
   0.12, 0.10, 0.08, 0.07, 0.06,
@@ -74,11 +68,70 @@ export const POSITION_PCT: number[] = [
 ];
 const POSITION_RESIDUAL = 0.003;
 
+/** % de tráfego para a posição `pos` (1-indexed). Cauda além de 20 = residual. */
+export function getPositionPct(pos: number): number {
+  if (pos < 1) return 0;
+  const idx = pos - 1;
+  return POSITION_PCT[idx] ?? POSITION_RESIDUAL;
+}
+
+/**
+ * Capacidade diária TOTAL da playlist = saves × (mult/30).
+ * É o teto absoluto somando orgânicas + campanhas + fixas naquele dia.
+ */
+export function calculatePlaylistCapacity(saves: number, multiplier = 30): number {
+  return Math.max(0, saves) * (Math.max(1, multiplier) / 30);
+}
+
+/**
+ * Plays/dia REAIS de uma faixa numa posição = saves × (mult/30) × POSITION_PCT[pos].
+ * Verdade matemática que alimenta simulador, campanha, UI e relatórios.
+ */
+export function calculateTrackDailyStreams(
+  saves: number,
+  multiplier: number,
+  assignedPosition: number,
+): number {
+  return calculatePlaylistCapacity(saves, multiplier) * getPositionPct(assignedPosition);
+}
+
+/**
+ * Capacidade restante num slot considerando ocupação atual (lista de faixas
+ * concorrentes naquela posição). Cada faixa "consome" o pct daquela posição
+ * uma vez; mais de uma faixa no mesmo slot divide o pct entre elas.
+ */
+export function getRemainingSlotCapacity(
+  saves: number,
+  multiplier: number,
+  position: number,
+  occupiedTracks = 0,
+): number {
+  const slotTotal = calculateTrackDailyStreams(saves, multiplier, position);
+  return Math.max(0, slotTotal - slotTotal * Math.min(1, occupiedTracks));
+}
+
+/** Valida se uma faixa cabe na posição pedida (capacidade do slot ≥ demanda). */
+export function canAllocateTrackToPosition(
+  saves: number,
+  multiplier: number,
+  position: number,
+  requestedDailyStreams: number,
+  occupiedTracks = 0,
+): boolean {
+  return getRemainingSlotCapacity(saves, multiplier, position, occupiedTracks) >= requestedDailyStreams;
+}
+
 /**
  * Posições 1 e 2 são reservadas pras faixas orgânicas que trazem engajamento
  * pra própria playlist — campanha nunca entra nelas (anti-spam Spotify).
  */
 export const MIN_CAMPAIGN_POSITION = 3;
+
+/**
+ * @deprecated Removido — agora a capacidade é derivada de POSITION_PCT.
+ * Mantido apenas para compatibilidade de import; não usar em novas chamadas.
+ */
+export const ECO_CAPACITY_FACTOR = 0;
 
 /** PRNG determinístico (mulberry32) a partir de uma seed string. */
 function seededRng(seed: string) {
@@ -439,15 +492,29 @@ function applyDailyJitter(daily: number[], capPerDay: number, seed: string) {
 export function buildEcoPlaylistPlan(
   snapshot: CampaignSnapshot,
   allocs: EcoPlanInput[],
-  opts: { engagementMultiplier?: number; startedAt?: string } = {},
+  opts: {
+    engagementMultiplier?: number;
+    startedAt?: string;
+    /** Mapa allocId → posição final (1-indexed). Se ausente, deriva via distributeEcoPositions. */
+    positions?: Map<string, number>;
+  } = {},
 ): EcoPlanResult {
-  // Multiplicador plays/save/mês (default = 30, mercado). Reescala o cap por playlist:
-  // cap diário = followers × ECO_CAPACITY_FACTOR × (multiplier / 30).
+  // Multiplicador plays/save/mês — propagado da campanha. Fórmula oficial:
+  //   trackDailyStreams = saves × (mult/30) × POSITION_PCT[pos]
   const multiplier = Math.max(1, opts.engagementMultiplier ?? 30);
-  const capScale = multiplier / 30;
   const curva = opts.startedAt
     ? applyWeekdaySeasonality(snapshot.curva, opts.startedAt)
     : snapshot.curva;
+
+  const positions = opts.positions ?? distributeEcoPositions(
+    allocs.map(a => ({
+      id: a.id,
+      planned_streams: a.planned_streams,
+      followers: Number(a.managed_playlists?.followers ?? 0),
+    })),
+    snapshot.days,
+    multiplier,
+  );
 
   const ordered = [...allocs].sort((a, b) => b.planned_streams - a.planned_streams);
   const storedStarts = ordered.map(a => Number(a.start_day || 1));
@@ -469,7 +536,9 @@ export function buildEcoPlaylistPlan(
       : effectiveEcoStartDay(index, ordered.length, snapshot.days, a.start_day, snapshot.modo);
     const startDay = Math.min(snapshot.days, Math.max(baseStart, ecoFloorDay));
     const followers = Number(a.managed_playlists?.followers ?? 0);
-    const baseCap = Math.max(1, Math.round(followers * ECO_CAPACITY_FACTOR * capScale));
+    const pos = positions.get(a.id) ?? MIN_CAMPAIGN_POSITION;
+    // VERDADE: capDia da faixa = saves × (mult/30) × POSITION_PCT[pos].
+    const baseCap = Math.max(1, Math.round(calculateTrackDailyStreams(followers, multiplier, pos)));
 
     const caps = Array.from({ length: snapshot.days }, () => baseCap);
     ECO_RAMP.forEach((mult, k) => {
@@ -477,12 +546,17 @@ export function buildEcoPlaylistPlan(
       if (idx < snapshot.days) caps[idx] = Math.max(1, Math.round(baseCap * mult));
     });
 
+    // Total entregável real = cap × dias úteis. Se planned_streams pedir mais
+    // do que a posição comporta, sobra vai para `overflow` e o sistema redistribui.
+    const requested = Number(a.planned_streams ?? 0);
     const { daily, overflow } = distributeByCurve(
-      Number(a.planned_streams ?? 0),
+      requested,
       curva,
       startDay,
       { capDia: caps, delay: REPORTING_DELAY_DAYS },
     );
+
+    const realTotal = daily.reduce((s, v) => s + v, 0);
 
     return {
       allocationId: a.id,
@@ -490,7 +564,7 @@ export function buildEcoPlaylistPlan(
       coverUrl: a.managed_playlists?.cover_url ?? null,
       followers,
       startDay,
-      totalStreams: Number(a.planned_streams ?? 0),
+      totalStreams: realTotal,
       daily,
       capDia: baseCap,
       overflow,
@@ -511,6 +585,7 @@ export function buildEcoPlaylistPlan(
           target.daily[i] += give;
           remaining -= give;
           absorbed += give;
+          target.totalStreams += give;
         }
       }
       if (absorbed <= 0) break;
