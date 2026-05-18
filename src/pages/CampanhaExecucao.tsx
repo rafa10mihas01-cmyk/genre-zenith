@@ -282,7 +282,7 @@ export default function CampanhaExecucao() {
                       </thead>
                       <tbody>
                         {allocs.map((a, i) => (
-                          <tr key={a.id} className={cn("hover:bg-elevated/60", i % 2 === 1 && "bg-elevated/30")}>
+                          <tr key={a.id} onClick={() => setSelectedAlloc(a)} className={cn("hover:bg-primary/5 cursor-pointer transition-colors", i % 2 === 1 && "bg-elevated/30")}>
                             <td className="py-2 px-3 border-b border-border/30">
                               <div className="flex items-center gap-2">
                                 {a.managed_playlists?.cover_url ? (
