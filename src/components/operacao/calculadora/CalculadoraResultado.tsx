@@ -109,10 +109,10 @@ function buildPhases(days: number): Phase[] {
   const c2 = Math.max(c1 + 1, Math.round(days * 0.46));
   const c3 = Math.max(c2 + 1, Math.round(days * 0.72));
   return [
-    { key: "aq", label: "Aquecimento", icon: Flame,    start: 1,      end: c1,   color: "text-warning",        bar: "hsl(var(--warning))",       tint: "bg-warning/5 border-warning/30" },
-    { key: "ac", label: "Aceleração",  icon: Rocket,   start: c1 + 1, end: c2,   color: "text-warning",        bar: "hsl(var(--warning))",       tint: "bg-warning/5 border-warning/30" },
-    { key: "pm", label: "Permanência", icon: Activity, start: c2 + 1, end: c3,   color: "text-primary",        bar: "hsl(var(--primary))",       tint: "bg-primary/5 border-primary/30" },
-    { key: "su", label: "Sustentação", icon: Anchor,   start: c3 + 1, end: days, color: "text-muted-foreground", bar: "hsl(var(--muted-foreground))", tint: "bg-muted/20 border-border" },
+    { key: "aq", label: "Aquecimento", icon: Flame,    start: 1,      end: c1,   color: "text-warning",        bar: "hsl(var(--warning) / 0.55)",          tint: "bg-warning/5 border-warning/30" },
+    { key: "ac", label: "Aceleração",  icon: Rocket,   start: c1 + 1, end: c2,   color: "text-warning",        bar: "hsl(var(--warning) / 0.55)",          tint: "bg-warning/5 border-warning/30" },
+    { key: "pm", label: "Permanência", icon: Activity, start: c2 + 1, end: c3,   color: "text-primary",        bar: "hsl(var(--primary) / 0.55)",          tint: "bg-primary/5 border-primary/30" },
+    { key: "su", label: "Sustentação", icon: Anchor,   start: c3 + 1, end: days, color: "text-muted-foreground", bar: "hsl(var(--muted-foreground) / 0.45)", tint: "bg-muted/20 border-border" },
   ];
 }
 

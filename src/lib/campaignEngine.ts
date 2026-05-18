@@ -100,9 +100,10 @@ function playlistFactor(dayInPeriod: number, periodDays: number): number {
     const t = (p - e3) / (e4 - e3);
     return 0.80 + 0.20 * Math.sin((t * Math.PI) / 2);
   }
+  // Sustentação: decay real (desmama de ~100% pra ~25% no último dia).
   const t = (p - e4) / (1 - e4);
-  const wave = 0.85 + 0.15 * Math.cos(t * Math.PI);
-  return Math.max(0.70, Math.min(1.0, wave));
+  const eased = 1 - Math.pow(1 - t, 2);
+  return 1.0 - (1.0 - 0.25) * eased;
 }
 
 function buildCurve(
