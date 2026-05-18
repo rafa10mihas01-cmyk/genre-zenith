@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { Top200Tab } from "./Top200Tab";
 import { CalculadoraResultado } from "./CalculadoraResultado";
@@ -16,7 +18,9 @@ import {
   DEFAULT_SPLIT, COST_PER_STREAM,
   type Modo, type Perfil, type CampaignResult,
 } from "@/lib/campaignEngine";
-import { Calculator, Table2, ArrowRight, Target as TargetIcon, Users, Wallet, Music, Search, CheckCircle2, X, Loader2, Settings2, LayoutGrid } from "lucide-react";
+import { Calculator, Table2, ArrowRight, Target as TargetIcon, Users, Wallet, Music, Search, CheckCircle2, X, Loader2, Settings2, LayoutGrid, CalendarIcon } from "lucide-react";
+import { format, addDays, differenceInCalendarDays, startOfDay } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 type Secao = "todos" | "musica" | "meta" | "estrategia";
 
@@ -98,9 +102,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
         result.modo,
       );
 
-      const deadline = new Date();
-      deadline.setDate(deadline.getDate() + result.days);
-      const deadlineISO = deadline.toISOString().slice(0, 10);
+      const deadlineISO = addDays(startDate, result.days).toISOString().slice(0, 10);
 
       const { campaignId } = await closeCampaignFromCalculator({
         snapshot,
@@ -131,15 +133,26 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
   const [modo, setModo] = useState<Modo>(persisted.modo ?? "simultaneo");
   const [perfil, setPerfil] = useState<Perfil>(persisted.perfil ?? "mercado");
   const [splitEco, setSplitEco] = useState<number>(persisted.splitEco ?? DEFAULT_SPLIT.eco);
+  const [startDate, setStartDate] = useState<Date>(() => {
+    const raw = (persisted as any).startDateISO as string | undefined;
+    if (raw) {
+      const d = new Date(raw);
+      if (!isNaN(d.getTime())) return startOfDay(d);
+    }
+    return startOfDay(new Date());
+  });
+
+  const endDate = useMemo(() => addDays(startDate, days), [startDate, days]);
 
   // Persiste tudo a cada mudança
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         fonte, trackUrl, track, baselineStreamsDay, meta, days, budget, modo, perfil, splitEco,
+        startDateISO: startDate.toISOString().slice(0, 10),
       }));
     } catch { /* quota cheia, ignora */ }
-  }, [fonte, trackUrl, track, baselineStreamsDay, meta, days, budget, modo, perfil, splitEco]);
+  }, [fonte, trackUrl, track, baselineStreamsDay, meta, days, budget, modo, perfil, splitEco, startDate]);
 
   async function buscarMusica() {
     const url = trackUrl.trim();
@@ -414,6 +427,63 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                 <CardTitle className="text-sm">Estratégia</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                <div>
+                  <Label className="text-xs">Janela da campanha</Label>
+                  <div className="grid grid-cols-2 gap-2 mt-1.5">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className="justify-start text-left font-normal h-10">
+                          <CalendarIcon className="h-3.5 w-3.5 mr-2 opacity-70" />
+                          <div className="flex flex-col items-start leading-tight">
+                            <span className="text-[10px] uppercase text-muted-foreground">Início</span>
+                            <span className="text-xs">{format(startDate, "dd MMM yyyy", { locale: ptBR })}</span>
+                          </div>
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={startDate}
+                          onSelect={(d) => d && setStartDate(startOfDay(d))}
+                          initialFocus
+                          locale={ptBR}
+                          className={cn("p-3 pointer-events-auto")}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className="justify-start text-left font-normal h-10">
+                          <CalendarIcon className="h-3.5 w-3.5 mr-2 opacity-70" />
+                          <div className="flex flex-col items-start leading-tight">
+                            <span className="text-[10px] uppercase text-muted-foreground">Fim</span>
+                            <span className="text-xs">{format(endDate, "dd MMM yyyy", { locale: ptBR })}</span>
+                          </div>
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={endDate}
+                          onSelect={(d) => {
+                            if (!d) return;
+                            const diff = differenceInCalendarDays(startOfDay(d), startDate);
+                            const clamped = Math.min(180, Math.max(15, diff));
+                            setDays(clamped);
+                          }}
+                          disabled={(d) => differenceInCalendarDays(d, startDate) < 15}
+                          initialFocus
+                          locale={ptBR}
+                          className={cn("p-3 pointer-events-auto")}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1.5">
+                    {days} dias · começa {format(startDate, "dd/MM", { locale: ptBR })} · termina {format(endDate, "dd/MM", { locale: ptBR })}
+                  </p>
+                </div>
+
                 <div>
                   <Label className="text-xs">Duração: {days} dias</Label>
                   <Slider value={[days]} onValueChange={([v]) => setDays(v)} min={15} max={180} step={5} className="mt-2" />
