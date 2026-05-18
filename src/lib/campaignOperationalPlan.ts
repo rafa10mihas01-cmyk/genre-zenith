@@ -80,27 +80,132 @@ const POSITION_RESIDUAL = 0.003;
  */
 export const MIN_CAMPAIGN_POSITION = 3;
 
+/** PRNG determinístico (mulberry32) a partir de uma seed string. */
+function seededRng(seed: string) {
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < seed.length; i++) {
+    h ^= seed.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  let a = h >>> 0;
+  return () => {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+export type PlaylistSizeTier = "large" | "medium" | "small";
+export function classifyPlaylistSize(followers: number): PlaylistSizeTier {
+  if (followers >= 50000) return "large";
+  if (followers >= 10000) return "medium";
+  return "small";
+}
+
 /**
- * Posição mínima recomendada pra entregar `plannedStreams` no prazo `days`,
- * respeitando o piso anti-spam (#3+) e usando a curva real de tráfego por slot.
+ * Buckets probabilísticos por tier: [slotMin, slotMax, prob].
+ * Grandes preferem slots fortes (#3-5), pequenas preferem cauda.
+ */
+const POSITION_BUCKETS: Record<PlaylistSizeTier, Array<[number, number, number]>> = {
+  large:  [[3, 5, 0.70], [6, 8, 0.20], [9, 12, 0.10]],
+  medium: [[3, 5, 0.20], [6, 10, 0.60], [11, 15, 0.20]],
+  small:  [[3, 5, 0.10], [6, 10, 0.30], [11, 20, 0.60]],
+};
+
+function pickBucket(rng: () => number, tier: PlaylistSizeTier): [number, number] {
+  const r = rng();
+  let acc = 0;
+  for (const [lo, hi, p] of POSITION_BUCKETS[tier]) {
+    acc += p;
+    if (r <= acc) return [lo, hi];
+  }
+  const last = POSITION_BUCKETS[tier][POSITION_BUCKETS[tier].length - 1];
+  return [last[0], last[1]];
+}
+
+/** Posição mais alta (menor número) que comporta a demanda diária. Piso #3. */
+function minViablePosition(
+  plannedStreams: number,
+  days: number,
+  followers: number,
+  engagementMultiplier: number,
+): number {
+  if (plannedStreams <= 0 || days <= 0 || followers <= 0) return MIN_CAMPAIGN_POSITION;
+  const dailyTraffic = followers * (engagementMultiplier / 30);
+  const dailyNeed = plannedStreams / days;
+  if (dailyTraffic <= 0) return MIN_CAMPAIGN_POSITION;
+  for (let i = MIN_CAMPAIGN_POSITION - 1; i < POSITION_PCT.length; i++) {
+    if (POSITION_PCT[i] * dailyTraffic >= dailyNeed) return i + 1;
+  }
+  return POSITION_PCT.length;
+}
+
+/**
+ * Posição recomendada para UMA playlist via distribuição probabilística por tier.
+ * Para evitar padrão repetitivo entre playlists, prefira `distributeEcoPositions`,
+ * que aplica anti-saturação no lote inteiro.
  */
 export function recommendEcoPosition(
   plannedStreams: number,
   days: number,
   followers: number,
   engagementMultiplier = 30,
+  seed = "default",
 ): number {
-  if (plannedStreams <= 0 || days <= 0 || followers <= 0) return MIN_CAMPAIGN_POSITION;
-  const dailyTraffic = followers * (engagementMultiplier / 30);
-  const dailyNeed = plannedStreams / days;
-  if (dailyTraffic <= 0) return MIN_CAMPAIGN_POSITION;
-  // Procura o menor slot ≥ MIN_CAMPAIGN_POSITION que cobre o ritmo necessário.
-  for (let i = MIN_CAMPAIGN_POSITION - 1; i < POSITION_PCT.length; i++) {
-    if (POSITION_PCT[i] * dailyTraffic >= dailyNeed) return i + 1;
+  const tier = classifyPlaylistSize(followers);
+  const rng = seededRng(`${seed}:${followers}:${plannedStreams}`);
+  const [lo, hi] = pickBucket(rng, tier);
+  const candidate = lo + Math.floor(rng() * (hi - lo + 1));
+  const viable = minViablePosition(plannedStreams, days, followers, engagementMultiplier);
+  return Math.max(MIN_CAMPAIGN_POSITION, Math.min(candidate, viable));
+}
+
+export type EcoPositionInput = { id: string; planned_streams: number; followers: number };
+
+/**
+ * Distribui posições para um lote, com anti-saturação: limita a fração de
+ * faixas em slots fortes (#3-5). Se passar do teto, empurra próximas pra
+ * slots médios/cauda. Determinístico (seed por id da alocação).
+ */
+export function distributeEcoPositions(
+  allocs: EcoPositionInput[],
+  days: number,
+  engagementMultiplier = 30,
+  opts: { strongSlotShareCap?: number } = {},
+): Map<string, number> {
+  const cap = opts.strongSlotShareCap ?? 0.4;
+  const total = allocs.length;
+  const maxStrong = Math.max(1, Math.floor(total * cap));
+  const ordered = [...allocs].sort((a, b) => b.followers - a.followers);
+  const result = new Map<string, number>();
+  let strongUsed = 0;
+
+  for (const a of ordered) {
+    const tier = classifyPlaylistSize(a.followers);
+    const rng = seededRng(`pos:${a.id}`);
+    let [lo, hi] = pickBucket(rng, tier);
+    if (lo <= 5 && strongUsed >= maxStrong) {
+      const rest = POSITION_BUCKETS[tier].filter(b => b[0] > 5);
+      if (rest.length) {
+        const sum = rest.reduce((s, b) => s + b[2], 0);
+        const r = rng();
+        let acc = 0;
+        for (const [blo, bhi, p] of rest) {
+          acc += p / sum;
+          if (r <= acc) { lo = blo; hi = bhi; break; }
+        }
+      } else {
+        lo = 6; hi = 10;
+      }
+    }
+    const candidate = lo + Math.floor(rng() * (hi - lo + 1));
+    const viable = minViablePosition(a.planned_streams, days, a.followers, engagementMultiplier);
+    const pos = Math.max(MIN_CAMPAIGN_POSITION, Math.min(candidate, viable));
+    if (pos <= 5) strongUsed++;
+    result.set(a.id, pos);
   }
-  const residualMax = POSITION_RESIDUAL * dailyTraffic;
-  if (residualMax >= dailyNeed) return 21;
-  return MIN_CAMPAIGN_POSITION; // demanda > capacidade — força piso, mas nunca #1/#2
+  return result;
 }
 
 /**
