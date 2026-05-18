@@ -1,11 +1,13 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Grid3x3, Download } from "lucide-react";
+import { Grid3x3, Download, ExternalLink, Link2, Check } from "lucide-react";
 import { formatInt } from "@/lib/campaignEngine";
 import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
 import { buildEcoPlaylistPlan, type DailyPlaylistPlan } from "@/lib/campaignOperationalPlan";
 import { cn } from "@/lib/utils";
+import { toast } from "@/hooks/use-toast";
 
 type EcoAlloc = {
   id: string;
@@ -19,6 +21,8 @@ type Props = {
   startedAt: string;
   allocations: EcoAlloc[];
   engagementMultiplier?: number;
+  campaignId?: string;
+  showShare?: boolean;
 };
 
 function dateLabel(startedAt: string, day: number) {
@@ -27,8 +31,18 @@ function dateLabel(startedAt: string, day: number) {
   return base.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
 }
 
-export function CampaignFullPlanCard({ snapshot, startedAt, allocations, engagementMultiplier = 30 }: Props) {
+export function CampaignFullPlanCard({ snapshot, startedAt, allocations, engagementMultiplier = 30, campaignId, showShare = true }: Props) {
   const [showZeros, setShowZeros] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  function copyShareLink() {
+    if (!campaignId) return;
+    const url = `${window.location.origin}/campanhas/${campaignId}/plano`;
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    toast({ title: "Link copiado", description: "Cole onde quiser enviar este plano." });
+    setTimeout(() => setCopied(false), 2000);
+  }
 
   const plans = useMemo<DailyPlaylistPlan[]>(
     () => buildEcoPlaylistPlan(snapshot, allocations as any, { engagementMultiplier, startedAt }),
@@ -77,10 +91,23 @@ export function CampaignFullPlanCard({ snapshot, startedAt, allocations, engagem
             Variação natural ±22% (playlist real nunca entrega o mesmo todo dia).
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button size="sm" variant="ghost" onClick={() => setShowZeros(s => !s)}>
             {showZeros ? "Esconder zeros" : "Mostrar zeros"}
           </Button>
+          {showShare && campaignId && (
+            <>
+              <Button size="sm" variant="outline" onClick={copyShareLink}>
+                {copied ? <Check className="h-4 w-4 mr-1.5" /> : <Link2 className="h-4 w-4 mr-1.5" />}
+                {copied ? "Copiado" : "Copiar link"}
+              </Button>
+              <Button size="sm" variant="outline" asChild>
+                <Link to={`/campanhas/${campaignId}/plano`} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="h-4 w-4 mr-1.5" /> Abrir página
+                </Link>
+              </Button>
+            </>
+          )}
           <Button size="sm" variant="outline" onClick={handleExport}>
             <Download className="h-4 w-4 mr-1.5" /> CSV
           </Button>
