@@ -13,7 +13,7 @@ import { ExternalPackageEditor } from "@/components/campanhas/ExternalPackageEdi
 import { CampaignMonitoring } from "@/components/campanhas/CampaignMonitoring";
 import { CampaignDailyPlan } from "@/components/campanhas/CampaignDailyPlan";
 import { PlaylistDailyPlanDialog } from "@/components/campanhas/PlaylistDailyPlanDialog";
-import { buildEcoPlaylistPlan } from "@/lib/campaignOperationalPlan";
+import { buildEcoPlaylistPlan, recommendEcoPosition } from "@/lib/campaignOperationalPlan";
 import { CampaignFullPlanCard } from "@/components/campanhas/CampaignFullPlanCard";
 import { toast } from "@/hooks/use-toast";
 import { ArrowLeft, Lock, Music, ListMusic, Loader2, CalendarDays, Users, Activity } from "lucide-react";
@@ -280,6 +280,7 @@ export default function CampanhaExecucao() {
                         <tr>
                           <th className="text-left font-medium py-2 px-3 border-b border-border">Playlist</th>
                           <th className="text-right font-medium py-2 px-3 border-b border-border w-32">Planejado</th>
+                          <th className="text-right font-medium py-2 px-3 border-b border-border w-20">Posição</th>
                           <th className="text-right font-medium py-2 px-3 border-b border-border w-20">Início</th>
                           <th className="text-right font-medium py-2 px-3 border-b border-border w-32">Status</th>
                         </tr>
@@ -304,6 +305,18 @@ export default function CampanhaExecucao() {
                             </td>
                             <td className="py-2 px-3 text-right tabular-nums font-semibold border-b border-border/30">
                               {formatInt(a.planned_streams)}
+                            </td>
+                            <td className="py-2 px-3 text-right tabular-nums border-b border-border/30">
+                              {(() => {
+                                const pos = recommendEcoPosition(
+                                  a.planned_streams,
+                                  snapshot.days,
+                                  a.managed_playlists?.followers ?? 0,
+                                  (camp as any).engagement_multiplier ?? 30,
+                                );
+                                const tone = pos <= 3 ? "text-primary" : pos <= 10 ? "text-foreground" : "text-muted-foreground";
+                                return <span className={cn("font-semibold", tone)}>#{pos}</span>;
+                              })()}
                             </td>
                             <td className="py-2 px-3 text-right tabular-nums text-muted-foreground border-b border-border/30">
                               D{ecoPlanByAllocation.get(a.id) ?? a.start_day}
