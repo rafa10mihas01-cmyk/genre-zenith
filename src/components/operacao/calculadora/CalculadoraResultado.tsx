@@ -123,7 +123,7 @@ function phaseOfDay(day: number, phases: Phase[]): Phase {
 
 type CurvaView = "todos" | "eco" | "ext";
 
-function CurvaChart({ curva }: { curva: CampaignResult["curva"] }) {
+function CurvaChart({ curva, inercia }: { curva: CampaignResult["curva"]; inercia: number }) {
   const [hoverDay, setHoverDay] = useState<number | null>(null);
   const [view, setView] = useState<CurvaView>("todos");
   const phases = useMemo(() => buildPhases(curva.length), [curva.length]);
@@ -136,7 +136,8 @@ function CurvaChart({ curva }: { curva: CampaignResult["curva"] }) {
     : view === "ext" ? (c.streamsExtDay ?? c.streamsDay)
     : c.streamsDay;
 
-  const max = Math.max(1, ...curva.map(valueOf));
+  // Escala TRAVADA no total — eco/ext aparecem proporcionalmente menores.
+  const max = Math.max(1, ...curva.map(c => c.streamsDay));
   const total = curva.reduce((s, c) => s + valueOf(c), 0);
 
   // SVG dimensions
