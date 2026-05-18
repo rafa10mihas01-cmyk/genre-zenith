@@ -192,8 +192,15 @@ export function ClientesLibraryTab({ deals, songs, loading }: Props) {
           )}
         </Card>
       ) : (
-        <div className="flex flex-col gap-2">
-          {rows.map((row) => {
+        (() => {
+          const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+          const currentPage = Math.min(page, totalPages);
+          const start = (currentPage - 1) * PAGE_SIZE;
+          const pageRows = rows.slice(start, start + PAGE_SIZE);
+          return (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                {pageRows.map((row) => {
             const { client, totalSongs, activeDeals, closedDeals, totalDeals, lastTs } = row;
             const initials = client.name
               .split(/\s+/)
@@ -214,13 +221,13 @@ export function ClientesLibraryTab({ deals, songs, loading }: Props) {
                 key={client.id}
                 onClick={() => navigate(`/clientes/${client.id}`)}
                 className={cn(
-                  "group relative rounded-2xl border border-border/50 bg-card transition-colors cursor-pointer",
+                  "group relative rounded-2xl border border-border/50 bg-card transition-colors cursor-pointer flex flex-col",
                   "hover:border-foreground/20 hover:bg-[hsl(var(--elevated))]",
                 )}
               >
-                {/* Linha 1 — identidade */}
-                <div className="flex items-center gap-3 px-4 pt-3.5 pb-2.5 min-w-0">
-                  <div className="h-10 w-10 rounded-md bg-primary/15 border border-primary/25 flex items-center justify-center text-[13px] font-bold text-primary shrink-0">
+                {/* Identidade */}
+                <div className="flex items-start gap-3 px-4 pt-4 pb-3 min-w-0">
+                  <div className="h-11 w-11 rounded-md bg-primary/15 border border-primary/25 flex items-center justify-center text-[13px] font-bold text-primary shrink-0">
                     {initials || <User className="h-4 w-4" />}
                   </div>
                   <div className="min-w-0 flex-1">
@@ -236,14 +243,16 @@ export function ClientesLibraryTab({ deals, songs, loading }: Props) {
                         </>
                       )}
                     </div>
+                    <div className="mt-2">
+                      <StatusDot variant={status.variant} label={status.label} />
+                    </div>
                   </div>
-                  <StatusDot variant={status.variant} label={status.label} className="shrink-0" />
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-foreground shrink-0"
+                        className="h-8 w-8 text-muted-foreground hover:text-foreground shrink-0 -mr-1.5"
                         onClick={(e) => e.stopPropagation()}
                         aria-label="Mais ações"
                       >
@@ -321,50 +330,61 @@ export function ClientesLibraryTab({ deals, songs, loading }: Props) {
 
                 <div className="mx-4 border-t border-border/40" />
 
-                {/* Linha 2 — métricas */}
-                <div className="flex items-center gap-4 px-4 py-3 min-w-0">
-                  <MetricCell
-                    label="Músicas"
-                    value={totalSongs}
-                    size="sm"
-                    className="w-[72px] shrink-0"
-                  />
-                  <MetricCell
-                    label="Deals"
-                    value={totalDeals}
-                    size="sm"
-                    className="w-[64px] shrink-0"
-                  />
+                {/* Métricas */}
+                <div className="flex items-center gap-4 px-4 py-3 min-w-0 mt-auto">
+                  <MetricCell label="Músicas" value={totalSongs} size="sm" />
+                  <MetricCell label="Deals" value={totalDeals} size="sm" />
                   {closedDeals > 0 && (
-                    <MetricCell
-                      label="Concluídos"
-                      value={closedDeals}
-                      size="sm"
-                      className="w-[88px] shrink-0"
-                    />
+                    <MetricCell label="Concluídos" value={closedDeals} size="sm" />
                   )}
-                  <div className="flex items-center gap-3 ml-auto text-[11px] text-muted-foreground shrink-0">
-                    {totalSongs === 0 && (
-                      <span className="inline-flex items-center gap-1">
-                        <Music2 className="h-3 w-3" />
-                        Sem músicas
-                      </span>
-                    )}
-                    {lastTs > 0 && (
-                      <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                        <Clock className="h-3 w-3" />
-                        {formatDistanceToNow(new Date(lastTs), {
-                          addSuffix: true,
-                          locale: ptBR,
-                        })}
-                      </span>
-                    )}
-                  </div>
+                  {lastTs > 0 && (
+                    <span className="ml-auto inline-flex items-center gap-1 whitespace-nowrap text-[11px] text-muted-foreground shrink-0">
+                      <Clock className="h-3 w-3" />
+                      {formatDistanceToNow(new Date(lastTs), {
+                        addSuffix: true,
+                        locale: ptBR,
+                      })}
+                    </span>
+                  )}
                 </div>
               </div>
             );
-          })}
-        </div>
+                })}
+              </div>
+
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between pt-2">
+                  <span className="text-[12px] text-muted-foreground">
+                    {start + 1}–{Math.min(start + PAGE_SIZE, rows.length)} de {rows.length}
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8"
+                      disabled={currentPage <= 1}
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    >
+                      Anterior
+                    </Button>
+                    <span className="text-[12px] text-muted-foreground px-2 tabular-nums">
+                      {currentPage} / {totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8"
+                      disabled={currentPage >= totalPages}
+                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    >
+                      Próxima
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
+          );
+        })()
       )}
 
       {/* Detalhe do cliente vive em /clientes/:id — sem drawer aqui. */}
