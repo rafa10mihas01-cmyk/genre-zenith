@@ -41,6 +41,7 @@ type PersistedState = {
   fonte: Fonte;
   trackUrl: string;
   track: TrackMeta | null;
+  baselineStreamsDay: number;
   meta: number;
   days: number;
   budget: number;
@@ -65,6 +66,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
   const [trackUrl, setTrackUrl] = useState(persisted.trackUrl ?? "");
   const [track, setTrack] = useState<TrackMeta | null>(persisted.track ?? null);
   const [trackLoading, setTrackLoading] = useState(false);
+  const [baselineStreamsDay, setBaselineStreamsDay] = useState<number>(persisted.baselineStreamsDay ?? 0);
   const [meta, setMeta] = useState<number>(persisted.meta ?? 1_000_000);
   const [days, setDays] = useState<number>(persisted.days ?? 60);
   const [budget, setBudget] = useState<number>(persisted.budget ?? 40_000);
@@ -76,10 +78,10 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        fonte, trackUrl, track, meta, days, budget, modo, perfil, splitEco,
+        fonte, trackUrl, track, baselineStreamsDay, meta, days, budget, modo, perfil, splitEco,
       }));
     } catch { /* quota cheia, ignora */ }
-  }, [fonte, trackUrl, track, meta, days, budget, modo, perfil, splitEco]);
+  }, [fonte, trackUrl, track, baselineStreamsDay, meta, days, budget, modo, perfil, splitEco]);
 
   async function buscarMusica() {
     const url = trackUrl.trim();
@@ -120,6 +122,10 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
         }
       } catch { /* sem chart, segue */ }
       setTrack({ id: data.id, title: data.title, artist: data.artist, thumbnail_url: data.thumbnail_url, streamsDay, position, chartDate });
+      // Pré-preenche baseline com o que o Top 200 mostra, MAS só se o usuário ainda não digitou nada
+      if (streamsDay != null && baselineStreamsDay === 0) {
+        setBaselineStreamsDay(streamsDay);
+      }
     } catch (e: any) {
       toast({ title: "Erro ao buscar música", description: e?.message ?? String(e), variant: "destructive" });
     } finally {
@@ -233,6 +239,26 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                     </button>
                   </div>
                 )}
+
+                {/* Baseline manual — sempre visível, é a única verdade que a calculadora usa */}
+                <div className="space-y-1.5 pt-1">
+                  <Label className="text-xs flex items-center justify-between">
+                    <span>Streams/dia atuais da música <span className="text-destructive">*</span></span>
+                    {track?.streamsDay != null && baselineStreamsDay !== track.streamsDay && (
+                      <button
+                        type="button"
+                        onClick={() => setBaselineStreamsDay(track.streamsDay!)}
+                        className="text-[10px] text-primary hover:underline"
+                      >
+                        usar Top 200 ({formatInt(track.streamsDay)})
+                      </button>
+                    )}
+                  </Label>
+                  <NumberInput value={baselineStreamsDay} onChange={setBaselineStreamsDay} placeholder="ex: 20.000" />
+                  <p className="text-[11px] text-muted-foreground">
+                    Quanto a faixa tá rodando hoje. É a baseline que vai ser descontada do alvo pra saber o gap real.
+                  </p>
+                </div>
               </CardContent>
             </Card>
 
@@ -257,15 +283,14 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                 {fonte === "top200" && (
                   <Top200Picker
                     days={days}
-                    currentStreamsDay={track?.streamsDay ?? 0}
+                    currentStreamsDay={baselineStreamsDay}
                     onPick={(streamsDay, pos) => {
-                      const base = track?.streamsDay ?? 0;
-                      const gapDay = Math.max(0, streamsDay - base);
+                      const gapDay = Math.max(0, streamsDay - baselineStreamsDay);
                       setMeta(gapDay * days);
                       toast({
                         title: `Posição #${pos}`,
-                        description: base > 0
-                          ? `Alvo ${formatInt(streamsDay)}/d − hoje ${formatInt(base)}/d = ${formatInt(gapDay)}/d × ${days}d = ${formatInt(gapDay * days)}`
+                        description: baselineStreamsDay > 0
+                          ? `Alvo ${formatInt(streamsDay)}/d − hoje ${formatInt(baselineStreamsDay)}/d = ${formatInt(gapDay)}/d × ${days}d = ${formatInt(gapDay * days)}`
                           : `${formatInt(streamsDay)} streams/dia × ${days}d = ${formatInt(streamsDay * days)}`,
                       });
                     }}
