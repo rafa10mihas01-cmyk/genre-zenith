@@ -779,12 +779,12 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
                                   <div className="text-[10px] text-muted-foreground truncate">{acc.email}</div>
                                 )}
                               </div>
-                              {acc.status && (
-                                <span className={cn(
-                                  "text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded",
-                                  acc.status === "active" ? "text-primary bg-primary/10" : "text-muted-foreground bg-muted/30",
-                                )}>{acc.status}</span>
+                              {acc.is_default && (
+                                <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded text-primary bg-primary/10">
+                                  padrão
+                                </span>
                               )}
+
                             </button>
                           ))}
                         </div>
