@@ -196,7 +196,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
               <CardContent className="space-y-3">
                 <div className="grid grid-cols-2 gap-2">
                   <FonteBtn active={fonte === "manual"} onClick={() => setFonte("manual")} icon={TargetIcon} label="Manual" />
-                  <FonteBtn active={fonte === "top200"} onClick={() => { setFonte("top200"); setSubtab("top200"); }} icon={Table2} label="Top 200" />
+                  <FonteBtn active={fonte === "top200"} onClick={() => setFonte("top200")} icon={Table2} label="Top 200" />
                   <FonteBtn active={fonte === "concorrente"} onClick={() => setFonte("concorrente")} icon={Users} label="Concorrente" />
                   <FonteBtn active={fonte === "orcamento"} onClick={() => setFonte("orcamento")} icon={Wallet} label="Orçamento" />
                 </div>
