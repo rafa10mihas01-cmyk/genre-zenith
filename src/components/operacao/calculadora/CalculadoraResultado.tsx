@@ -125,14 +125,23 @@ function phaseOfDay(day: number, phases: Phase[]): Phase {
   return phases[phases.length - 1];
 }
 
+type CurvaView = "todos" | "eco" | "ext";
+
 function CurvaChart({ curva }: { curva: CampaignResult["curva"] }) {
   const [hoverDay, setHoverDay] = useState<number | null>(null);
+  const [view, setView] = useState<CurvaView>("todos");
   const phases = useMemo(() => buildPhases(curva.length), [curva.length]);
 
   if (!curva.length) return null;
 
-  const max = Math.max(...curva.map(c => c.streamsDay));
-  const total = curva[curva.length - 1]?.cumulative ?? 0;
+  // Suporte a snapshots antigos sem split por dia: fallback p/ streamsDay.
+  const valueOf = (c: CampaignResult["curva"][number]) =>
+    view === "eco" ? (c.streamsEcoDay ?? 0)
+    : view === "ext" ? (c.streamsExtDay ?? c.streamsDay)
+    : c.streamsDay;
+
+  const max = Math.max(1, ...curva.map(valueOf));
+  const total = curva.reduce((s, c) => s + valueOf(c), 0);
 
   // SVG dimensions
   const W = 800, H = 180, P = 8;
@@ -143,6 +152,7 @@ function CurvaChart({ curva }: { curva: CampaignResult["curva"] }) {
 
   const hover = hoverDay != null ? curva[hoverDay - 1] : null;
   const hoverPhase = hover ? phaseOfDay(hover.day, phases) : null;
+  const hoverValue = hover ? valueOf(hover) : 0;
 
   return (
     <div className="space-y-3">
