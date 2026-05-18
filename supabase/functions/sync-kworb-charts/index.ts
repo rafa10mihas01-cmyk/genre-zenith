@@ -20,9 +20,14 @@ interface Row {
 }
 
 function parseHtml(html: string): { date: string | null; rows: Row[] } {
-  // Data do chart no <title> tipo "Brazil - 2026/03/04"
-  const titleMatch = html.match(/<title>[^<]*?(\d{4})[\/\-](\d{2})[\/\-](\d{2})[^<]*<\/title>/i);
-  const date = titleMatch ? `${titleMatch[1]}-${titleMatch[2]}-${titleMatch[3]}` : null;
+  // Data do chart: tenta <title>, depois <h1>/<h2>, depois fallback hoje (UTC)
+  const dateRegex = /(\d{4})[\/\-](\d{2})[\/\-](\d{2})/;
+  const titleMatch = (html.match(/<title>([^<]*)<\/title>/i)?.[1] ?? "").match(dateRegex);
+  const headingMatch = (html.match(/<h[12][^>]*>([\s\S]*?)<\/h[12]>/i)?.[1] ?? "").match(dateRegex);
+  const found = titleMatch ?? headingMatch;
+  const date = found
+    ? `${found[1]}-${found[2]}-${found[3]}`
+    : new Date().toISOString().slice(0, 10);
 
   const rows: Row[] = [];
   // Cada linha do chart: <tr>...<td>pos</td><td>artista - track</td><td>streams_day</td>...<td>total</td></tr>
