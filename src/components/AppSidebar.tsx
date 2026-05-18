@@ -47,7 +47,7 @@ const sections: NavSection[] = [
   {
     label: "Cockpit",
     items: [
-      { title: "Início", url: "/", icon: Home, end: true },
+      { title: "Início", url: "/", icon: Home, end: true, accent: "domain-system" },
     ],
   },
   {
@@ -57,19 +57,22 @@ const sections: NavSection[] = [
         title: "Clientes",
         url: "/clientes",
         icon: User,
+        accent: "domain-clients",
       },
       {
         title: "Curadores",
         url: "/curadores",
         icon: UserSearch,
         matchPaths: ["/prospeccao", "/comunidade-admin"],
+        accent: "domain-curators",
       },
-      { title: "Campanhas", url: "/campanhas", icon: Target, matchPaths: ["/deals", "/playlist-deals", "/deals/comparar"] },
+      { title: "Campanhas", url: "/campanhas", icon: Target, matchPaths: ["/deals", "/playlist-deals", "/deals/comparar"], accent: "domain-campaigns" },
       {
         title: "Playlists",
         url: "/catalogo",
         icon: ListMusic,
         matchPaths: ["/playlists", "/operacao"],
+        accent: "domain-playlists",
       },
     ],
   },
@@ -81,6 +84,7 @@ const sections: NavSection[] = [
         url: "/analytics",
         icon: BarChart3,
         matchPaths: ["/inteligencia", "/cerebro", "/criacao", "/performance", "/valuation", "/benchmarks", "/matriz", "/heatmap"],
+        accent: "domain-system",
       },
     ],
   },
@@ -93,6 +97,7 @@ const sections: NavSection[] = [
         icon: Server,
         adminOnly: true,
         matchPaths: ["/infra", "/infraestrutura", "/admin/aprendizado"],
+        accent: "domain-system",
       },
     ],
   },
