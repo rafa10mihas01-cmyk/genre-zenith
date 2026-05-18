@@ -31,6 +31,8 @@ type Campaign = {
   total_delivered: number;
   created_at: string;
   snapshot_locked_at: string | null;
+  curator_id: string | null;
+  deal_id: string | null;
 };
 
 const STATUS_TONE: Record<string, "success" | "warning" | "neutral" | "danger"> = {
@@ -57,7 +59,7 @@ export default function Campanhas() {
     setLoading(true);
     const { data, error } = await supabase
       .from("campaigns")
-      .select("id, track_name, artist, goal_plays, deadline, status, total_allocated, total_delivered, created_at, snapshot_locked_at")
+      .select("id, track_name, artist, goal_plays, deadline, status, total_allocated, total_delivered, created_at, snapshot_locked_at, curator_id, deal_id")
       .order("created_at", { ascending: false });
     setLoading(false);
     if (error) {
@@ -235,6 +237,23 @@ function CampaignRow({ c, onChanged }: { c: Campaign; onChanged: () => void }) {
     else { toast({ title: label }); onChanged(); }
   }
 
+  async function approveCampaign() {
+    if (!c.curator_id) {
+      toast({ title: "Sem curador", description: "Edite a campanha e selecione o curador dono das playlists.", variant: "destructive" });
+      return;
+    }
+    setBusy(true);
+    const { data, error } = await (supabase.rpc as any)("approve_campaign", { p_campaign_id: c.id });
+    setBusy(false);
+    if (error) {
+      toast({ title: "Erro ao aprovar", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Campanha aprovada", description: "Deal real criado e enviado para a fila de coleta." });
+    onChanged();
+    return data;
+  }
+
   async function doDelete() {
     setBusy(true);
     const { error } = await supabase.from("campaigns").delete().eq("id", c.id);
@@ -243,6 +262,8 @@ function CampaignRow({ c, onChanged }: { c: Campaign; onChanged: () => void }) {
     if (error) toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
     else { toast({ title: "Campanha excluída" }); onChanged(); }
   }
+
+  const isDraftReady = c.status === "draft" && !!c.curator_id;
 
   const stop = (e: React.MouseEvent) => { e.preventDefault(); e.stopPropagation(); };
 
@@ -299,13 +320,21 @@ function CampaignRow({ c, onChanged }: { c: Campaign; onChanged: () => void }) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" onClick={stop}>
+            {isDraftReady && (
+              <>
+                <DropdownMenuItem onSelect={() => approveCampaign()}>
+                  <CheckCircle2 className="h-4 w-4 mr-2 text-primary" /> Aprovar e disparar
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+              </>
+            )}
             {c.status === "paused" ? (
               <DropdownMenuItem onSelect={() => updateStatus("active", "Campanha retomada")}>
                 <Play className="h-4 w-4 mr-2" /> Retomar
               </DropdownMenuItem>
             ) : (
               <DropdownMenuItem
-                disabled={c.status === "completed" || c.status === "cancelled"}
+                disabled={c.status === "completed" || c.status === "cancelled" || c.status === "draft"}
                 onSelect={() => updateStatus("paused", "Campanha pausada")}
               >
                 <Pause className="h-4 w-4 mr-2" /> Pausar

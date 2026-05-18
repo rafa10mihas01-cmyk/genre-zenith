@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { Loader2, ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { useFormDraft } from "@/hooks/useFormDraft";
@@ -66,6 +67,12 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
   const [startDate, setStartDate] = useState<string>(new Date().toISOString().slice(0, 10));
   const [deadline, setDeadline] = useState<string>("");
   const [notes, setNotes] = useState("");
+  const [clientId, setClientId] = useState<string>("");
+  const [curatorId, setCuratorId] = useState<string>("");
+
+  // listas (carregadas ao abrir)
+  const [clientsList, setClientsList] = useState<{ id: string; name: string }[]>([]);
+  const [curatorsList, setCuratorsList] = useState<{ id: string; name: string }[]>([]);
 
   const [fetchingMeta, setFetchingMeta] = useState(false);
 
@@ -73,26 +80,42 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
   const [loadingSugg, setLoadingSugg] = useState(false);
   const [items, setItems] = useState<Selection[]>([]);
 
-  // step 3
-  const [activate, setActivate] = useState(true);
+  // step 3 — default rascunho (não ativa direto; usuário aprova na lista)
+  const [activate, setActivate] = useState(false);
 
   const reset = () => {
     setStep(1); setBusy(false);
     setTrackName(""); setArtist(""); setTrackUrl(""); setGoal(50000); setNotes("");
     setStartDate(new Date().toISOString().slice(0, 10));
     setDeadline("");
-    setItems([]); setActivate(true);
+    setClientId(""); setCuratorId("");
+    setItems([]); setActivate(false);
   };
+
+  // Carrega clientes + curadores quando abre
+  useEffect(() => {
+    if (!open) return;
+    void (async () => {
+      const [{ data: cls }, { data: crs }] = await Promise.all([
+        supabase.from("clients").select("id, name").is("archived_at", null).order("name"),
+        supabase.from("curators").select("id, name").order("name"),
+      ]);
+      setClientsList((cls ?? []) as { id: string; name: string }[]);
+      setCuratorsList((crs ?? []) as { id: string; name: string }[]);
+    })();
+  }, [open]);
+
 
   // ─── Rascunho persistente ─────────────────────────────────────────────────
   // Mantém os campos preenchidos mesmo se o usuário fechar o dialog ou recarregar a página.
   const draftSnapshot = useMemo(() => ({
     step, trackName, artist, trackUrl, goal, startDate, deadline, notes,
+    clientId, curatorId,
     items: items.map(i => ({
       playlist_id: i.playlist_id, selected: i.selected, target_override: i.target_override,
     })),
     activate,
-  }), [step, trackName, artist, trackUrl, goal, startDate, deadline, notes, items, activate]);
+  }), [step, trackName, artist, trackUrl, goal, startDate, deadline, notes, clientId, curatorId, items, activate]);
 
   const isDraftEmpty = !trackName.trim() && !artist.trim() && !trackUrl.trim() && !notes.trim()
     && step === 1 && goal === 50000 && !deadline;
@@ -117,7 +140,9 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
     setStartDate(d.startDate ?? new Date().toISOString().slice(0, 10));
     setDeadline(d.deadline ?? "");
     setNotes(d.notes ?? "");
-    setActivate(d.activate ?? true);
+    setClientId((d as any).clientId ?? "");
+    setCuratorId((d as any).curatorId ?? "");
+    setActivate(d.activate ?? false);
     setDraftDismissed(true);
     // Se o draft estava no passo 2, refaz a sugestão e reaplica seleções
     if ((d.step ?? 1) >= 2) {
@@ -223,7 +248,9 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
         notes: notes.trim() || null,
         status: activate ? "active" : "draft",
         created_by: user?.id ?? null,
-      })
+        client_id: clientId || null,
+        curator_id: curatorId || null,
+      } as any)
       .select("id")
       .single();
 
@@ -277,6 +304,33 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
         {step === 1 && (
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Cliente <span className="text-muted-foreground font-normal">(dono da campanha)</span></Label>
+                <Select value={clientId || "__none__"} onValueChange={v => setClientId(v === "__none__" ? "" : v)}>
+                  <SelectTrigger><SelectValue placeholder="Selecione um cliente" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">— Sem cliente —</SelectItem>
+                    {clientsList.map(c => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Curador <span className="text-muted-foreground font-normal">(dono das playlists)</span></Label>
+                <Select value={curatorId || "__none__"} onValueChange={v => setCuratorId(v === "__none__" ? "" : v)}>
+                  <SelectTrigger><SelectValue placeholder="Selecione um curador" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">— Sem curador (modo legado) —</SelectItem>
+                    {curatorsList.map(c => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Com curador definido, ao aprovar a campanha vira um deal real ligado a ele.
+                </p>
+              </div>
               <div className="space-y-2">
                 <Label>Nome da música *</Label>
                 <Input value={trackName} onChange={e => setTrackName(e.target.value)} maxLength={200} />
@@ -431,18 +485,28 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
               <div className="text-lg font-semibold">{trackName} {artist && <span className="text-muted-foreground font-normal">— {artist}</span>}</div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2 text-sm">
                 <div>
+                  <div className="text-muted-foreground text-xs">Cliente</div>
+                  <div className="font-medium truncate">{clientsList.find(c => c.id === clientId)?.name ?? "—"}</div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground text-xs">Curador</div>
+                  <div className="font-medium truncate">{curatorsList.find(c => c.id === curatorId)?.name ?? "—"}</div>
+                </div>
+                <div>
                   <div className="text-muted-foreground text-xs">Meta</div>
                   <div className="font-medium tabular-nums">{goal.toLocaleString("pt-BR")}</div>
-                  <div className="text-xs text-muted-foreground">{formatPlaysShort(goal)}</div>
                 </div>
+                <div><div className="text-muted-foreground text-xs">Playlists</div><div className="font-medium">{items.filter(i => i.selected).length}</div></div>
                 <div><div className="text-muted-foreground text-xs">Início</div><div className="font-medium">{startDate}</div></div>
                 <div><div className="text-muted-foreground text-xs">Término</div><div className="font-medium">{deadline || "—"}</div></div>
-                <div><div className="text-muted-foreground text-xs">Playlists</div><div className="font-medium">{items.filter(i => i.selected).length}</div></div>
               </div>
             </div>
             <div className="flex items-center gap-2">
               <Checkbox id="act" checked={activate} onCheckedChange={v => setActivate(!!v)} />
-              <Label htmlFor="act" className="cursor-pointer">Ativar campanha imediatamente</Label>
+              <Label htmlFor="act" className="cursor-pointer">
+                Ativar campanha imediatamente
+                <span className="text-muted-foreground font-normal"> — caso contrário fica como rascunho para você revisar e aprovar depois.</span>
+              </Label>
             </div>
           </div>
         )}
@@ -457,7 +521,8 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
             </Button>
           ) : (
             <Button onClick={submit} disabled={busy}>
-              {busy && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Criar campanha
+              {busy && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {activate ? "Criar e ativar" : "Salvar rascunho"}
             </Button>
           )}
         </DialogFooter>
