@@ -85,8 +85,22 @@ export default function PlanoCampanhaPublico() {
           {camp.cover_url && (
             <img src={camp.cover_url} alt="" className="w-16 h-16 rounded object-cover" />
           )}
-          <div>
-            <h1 className="text-2xl font-semibold">{camp.track_name}</h1>
+          <div className="min-w-0">
+            <h1 className="text-2xl font-semibold flex items-center gap-2">
+              {camp.spotify_track_url ? (
+                <a
+                  href={camp.spotify_track_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-primary inline-flex items-center gap-1.5"
+                >
+                  {camp.track_name}
+                  <ExternalLink className="h-4 w-4 opacity-60" />
+                </a>
+              ) : (
+                camp.track_name
+              )}
+            </h1>
             {camp.artist && <p className="text-muted-foreground">{camp.artist}</p>}
             <p className="text-xs text-muted-foreground mt-1">
               Início {new Date(camp.started_at).toLocaleDateString("pt-BR")}
