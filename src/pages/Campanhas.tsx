@@ -11,6 +11,7 @@ import { NewCampaignDialog } from "@/components/campanhas/NewCampaignDialog";
 import { toast } from "@/hooks/use-toast";
 import { Calculadora } from "@/components/operacao/calculadora/Calculadora";
 import { KpiBig } from "@/components/KpiBig";
+import { ViewModeToggle, type ViewMode } from "@/components/ui/view-mode-toggle";
 import { cn } from "@/lib/utils";
 
 type Campaign = {
