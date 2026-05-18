@@ -239,6 +239,34 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] gap-6">
           {/* Coluna esquerda: inputs */}
           <div className="space-y-4">
+            {/* Filtro de seção — igual ao plano diário da execução */}
+            <div className="flex items-center gap-1 rounded-xl border border-border bg-card p-1">
+              {([
+                { id: "todos", label: "Tudo", icon: LayoutGrid },
+                { id: "musica", label: "Música", icon: Music },
+                { id: "meta", label: "Meta", icon: TargetIcon },
+                { id: "estrategia", label: "Estratégia", icon: Settings2 },
+              ] as const).map(s => {
+                const Icon = s.icon;
+                const active = secao === s.id;
+                return (
+                  <button
+                    key={s.id}
+                    onClick={() => setSecao(s.id)}
+                    className={cn(
+                      "flex-1 h-9 inline-flex items-center justify-center gap-1.5 rounded-lg text-xs font-medium transition-colors",
+                      active ? "bg-primary/15 text-primary"
+                             : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    {s.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {(secao === "todos" || secao === "musica") && (
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm">Música</CardTitle>
