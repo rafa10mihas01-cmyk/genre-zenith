@@ -263,13 +263,14 @@ export default function Home() {
   );
 
   return (
-    <PageContainer>
+    <>
       <PageHeader
         title="Hoje"
         subtitle="O que precisa de ação agora"
       />
 
-      {/* KPIs DAS MINHAS PLAYLISTS */}
+      <PageContainer>
+        {/* KPIs DAS MINHAS PLAYLISTS */}
       <ManagedPlaylistsKpis />
 
       {/* AÇÃO AGORA — playlists em queda + deals abertos */}
@@ -436,7 +437,8 @@ export default function Home() {
           </section>
         </div>
       </details>
-    </PageContainer>
+      </PageContainer>
+    </>
   );
 }
 
