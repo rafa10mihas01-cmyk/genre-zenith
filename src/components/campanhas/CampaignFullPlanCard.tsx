@@ -91,10 +91,23 @@ export function CampaignFullPlanCard({ snapshot, startedAt, allocations, engagem
             Variação natural ±22% (playlist real nunca entrega o mesmo todo dia).
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button size="sm" variant="ghost" onClick={() => setShowZeros(s => !s)}>
             {showZeros ? "Esconder zeros" : "Mostrar zeros"}
           </Button>
+          {showShare && campaignId && (
+            <>
+              <Button size="sm" variant="outline" onClick={copyShareLink}>
+                {copied ? <Check className="h-4 w-4 mr-1.5" /> : <Link2 className="h-4 w-4 mr-1.5" />}
+                {copied ? "Copiado" : "Copiar link"}
+              </Button>
+              <Button size="sm" variant="outline" asChild>
+                <Link to={`/campanhas/${campaignId}/plano`} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="h-4 w-4 mr-1.5" /> Abrir página
+                </Link>
+              </Button>
+            </>
+          )}
           <Button size="sm" variant="outline" onClick={handleExport}>
             <Download className="h-4 w-4 mr-1.5" /> CSV
           </Button>
