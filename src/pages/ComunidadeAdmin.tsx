@@ -271,7 +271,7 @@ function AuditoriaTab() {
           {report.checks.map((c) => (
             <div
               key={c.check}
-              className="rounded-2xl border border-border/50 bg-card p-4 flex flex-col gap-3 h-full hover:border-foreground/20 hover:bg-[hsl(var(--elevated))] transition-colors"
+              className="rounded-2xl border border-border/50 border-l-2 border-l-domain-system/60 bg-card p-4 flex flex-col gap-3 h-full hover:border-foreground/20 hover:bg-[hsl(var(--elevated))] transition-colors"
             >
               <div className="text-[13px] font-medium text-foreground leading-snug">
                 {LABELS[c.check] ?? c.check}
