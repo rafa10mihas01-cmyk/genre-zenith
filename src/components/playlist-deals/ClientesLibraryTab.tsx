@@ -253,7 +253,7 @@ export function ClientesLibraryTab({ deals, songs, loading }: Props) {
                         className="gap-2 rounded-lg"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setSelected(client);
+                          navigate(`/clientes/${client.id}`);
                         }}
                       >
                         <Music2 className="h-4 w-4" /> Ver músicas
