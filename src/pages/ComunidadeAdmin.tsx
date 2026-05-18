@@ -588,7 +588,7 @@ function ConvitesTab({ adminId, onChange }: { adminId: string; onChange?: () => 
             return (
               <div
                 key={i.id}
-                className="rounded-2xl border border-border/50 bg-card p-4 flex flex-col gap-3 h-full hover:border-foreground/20 hover:bg-[hsl(var(--elevated))] transition-colors"
+                className="rounded-2xl border border-border/50 border-l-2 border-l-domain-community/60 bg-card p-4 flex flex-col gap-3 h-full hover:border-foreground/20 hover:bg-[hsl(var(--elevated))] transition-colors"
               >
                 <div className="flex items-start justify-between gap-2 min-w-0">
                   <code className="text-[11px] bg-elevated px-1.5 py-0.5 rounded truncate min-w-0">{i.slug || i.code}</code>
