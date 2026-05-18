@@ -316,12 +316,7 @@ export function PlaylistCockpit({
               <TabsTrigger value="projecao" className="gap-1.5">
                 <Activity className="h-3.5 w-3.5" /> Projeção
               </TabsTrigger>
-              <TabsTrigger value="faixas" className="gap-1.5">
-                <Music2 className="h-3.5 w-3.5" /> Faixas
-                <Badge variant="outline" className="ml-1 h-4 px-1 text-[10px] tabular-nums">
-                  {analysis.length}
-                </Badge>
-              </TabsTrigger>
+              {/* Aba "Faixas" ocultada — endpoint instável. Manter código pra reativar depois. */}
             </TabsList>
 
             {/* ============ PLANO DE AÇÃO ============ */}
