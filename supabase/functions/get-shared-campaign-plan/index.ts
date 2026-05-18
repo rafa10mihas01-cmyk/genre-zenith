@@ -30,7 +30,7 @@ Deno.serve(async (req) => {
 
   const { data: camp, error: cErr } = await supabase
     .from("campaigns")
-    .select("id, track_name, artist, cover_url, started_at, deadline, simulation_snapshot, engagement_multiplier")
+    .select("id, track_name, artist, cover_url, spotify_track_url, spotify_track_id, started_at, deadline, simulation_snapshot, engagement_multiplier")
     .eq("public_plan_token", token)
     .maybeSingle();
 
@@ -39,7 +39,7 @@ Deno.serve(async (req) => {
 
   const { data: allocs, error: aErr } = await supabase
     .from("campaign_eco_allocations")
-    .select("id, planned_streams, start_day, managed_playlists(name, cover_url, followers)")
+    .select("id, planned_streams, start_day, managed_playlists(name, cover_url, followers, spotify_url)")
     .eq("campaign_id", camp.id)
     .order("planned_streams", { ascending: false });
 
