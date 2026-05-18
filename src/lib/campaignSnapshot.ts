@@ -73,6 +73,12 @@ export interface EcoAllocationPlan {
 
 const PLAYS_PER_SAVE_MONTH = 30;
 
+function ecoWarmupStartDay(index: number, total: number, days: number) {
+  if (total <= 1) return 1;
+  const rampDays = Math.max(3, Math.min(days, Math.ceil(days * 0.4)));
+  return Math.min(days, 1 + Math.floor((index / Math.max(1, total - 1)) * (rampDays - 1)));
+}
+
 export function planEcoAllocations(
   streamsEco: number,
   days: number,
@@ -88,13 +94,12 @@ export function planEcoAllocations(
   const totalCapacity = capacities.reduce((s, c) => s + c.capacity, 0);
   if (totalCapacity <= 0) return [];
 
-  // Distribuição proporcional. Start_day = 1 pra todas nesta primeira versão
-  // (a curva já define o ritmo de plays — o que muda é o volume entregue por dia).
   return capacities
-    .map(c => ({
+    .sort((a, b) => b.capacity - a.capacity)
+    .map((c, index) => ({
       managed_playlist_id: c.id,
       planned_streams: Math.round((c.capacity / totalCapacity) * streamsEco),
-      start_day: 1,
+      start_day: ecoWarmupStartDay(index, capacities.length, days),
     }))
     .filter(a => a.planned_streams > 0);
 }
