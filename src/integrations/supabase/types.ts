@@ -732,6 +732,7 @@ export type Database = {
           created_by: string | null
           deadline: string | null
           eco_dispatched_at: string | null
+          engagement_multiplier: number
           goal_plays: number
           id: string
           notes: string | null
@@ -753,6 +754,7 @@ export type Database = {
           created_by?: string | null
           deadline?: string | null
           eco_dispatched_at?: string | null
+          engagement_multiplier?: number
           goal_plays: number
           id?: string
           notes?: string | null
@@ -774,6 +776,7 @@ export type Database = {
           created_by?: string | null
           deadline?: string | null
           eco_dispatched_at?: string | null
+          engagement_multiplier?: number
           goal_plays?: number
           id?: string
           notes?: string | null

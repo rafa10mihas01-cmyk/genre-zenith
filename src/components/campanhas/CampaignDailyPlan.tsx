@@ -27,17 +27,45 @@ type Props = {
   startedAt: string;
   ecoAllocations: EcoPlanInput[];
   refreshKey?: number;
+  /** Estratégia salva na campanha (plays/save/mês). Default 30 (mercado). */
+  engagementMultiplier?: number;
+  /** Callback opcional pro pai sincronizar estado local após persistir. */
+  onEngagementChange?: (v: number) => void;
 };
 
-export function CampaignDailyPlan({ campaignId, snapshot, startedAt, ecoAllocations, refreshKey = 0 }: Props) {
+export function CampaignDailyPlan({
+  campaignId, snapshot, startedAt, ecoAllocations, refreshKey = 0,
+  engagementMultiplier: initialMultiplier = 30,
+  onEngagementChange,
+}: Props) {
   const [externalItems, setExternalItems] = useState<ExternalPlanInput[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState(1);
   const [source, setSource] = useState<"todos" | "eco" | "externo">("todos");
-  // Multiplicador plays/save/mês — ajusta o teto de capacidade das playlists eco.
+  // Multiplicador plays/save/mês — agora é estratégia salva da campanha.
   // 18 = conservador · 30 = mercado · 50 = altamente engajado.
-  const [engagementMultiplier, setEngagementMultiplier] = useState<number>(30);
+  const [engagementMultiplier, setEngagementMultiplier] = useState<number>(initialMultiplier);
+  const [savingMult, setSavingMult] = useState(false);
   const [customMultOpen, setCustomMultOpen] = useState(false);
+
+  // Sincroniza com prop se mudar (ex.: refetch da campanha).
+  useEffect(() => { setEngagementMultiplier(initialMultiplier); }, [initialMultiplier]);
+
+  // Persiste com debounce no banco quando o usuário muda o valor.
+  useEffect(() => {
+    if (engagementMultiplier === initialMultiplier) return;
+    const v = Math.max(1, Math.min(200, Math.round(engagementMultiplier)));
+    const t = setTimeout(async () => {
+      setSavingMult(true);
+      const { error } = await supabase
+        .from("campaigns")
+        .update({ engagement_multiplier: v })
+        .eq("id", campaignId);
+      setSavingMult(false);
+      if (!error) onEngagementChange?.(v);
+    }, 400);
+    return () => clearTimeout(t);
+  }, [engagementMultiplier, initialMultiplier, campaignId, onEngagementChange]);
 
   // Diário base vem do snapshot da calculadora (informado no momento de criar a campanha).
   const baselineStreams = Number(snapshot.music?.baselineStreamsDay ?? 0);
@@ -132,7 +160,7 @@ export function CampaignDailyPlan({ campaignId, snapshot, startedAt, ecoAllocati
           return (
             <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-elevated/30 p-2.5">
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mr-1">
-                Plays por save / mês
+                Estratégia · plays por save / mês
               </div>
               {PRESETS.map(p => (
                 <button
@@ -168,6 +196,9 @@ export function CampaignDailyPlan({ campaignId, snapshot, startedAt, ecoAllocati
                   onChange={(e) => setEngagementMultiplier(Math.max(1, Math.min(200, Number(e.target.value) || 1)))}
                   className="h-7 w-20 text-xs tabular-nums"
                 />
+              )}
+              {savingMult && (
+                <span className="text-[10px] text-muted-foreground">salvando…</span>
               )}
               <div className="ml-auto text-[10px] text-muted-foreground">
                 cap por playlist = followers × {factorPct}% / dia
