@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,14 +27,51 @@ export interface CalculadoraHandoff {
   fonte: Fonte;
 }
 
+const STORAGE_KEY = "nx:calculadora:state:v1";
+
+type PersistedState = {
+  fonte: Fonte;
+  trackUrl: string;
+  track: TrackMeta | null;
+  meta: number;
+  days: number;
+  budget: number;
+  modo: Modo;
+  perfil: Perfil;
+  splitEco: number;
+};
+
+function loadPersisted(): Partial<PersistedState> {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch { return {}; }
+}
+
 export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandoff) => void }) {
+  const persisted = useMemo(loadPersisted, []);
   const [subtab, setSubtab] = useState<"calc" | "top200">("calc");
 
-  // Inputs
-  const [fonte, setFonte] = useState<Fonte>("manual");
-  const [trackUrl, setTrackUrl] = useState("");
-  const [track, setTrack] = useState<TrackMeta | null>(null);
+  // Inputs (hidratados do localStorage)
+  const [fonte, setFonte] = useState<Fonte>(persisted.fonte ?? "manual");
+  const [trackUrl, setTrackUrl] = useState(persisted.trackUrl ?? "");
+  const [track, setTrack] = useState<TrackMeta | null>(persisted.track ?? null);
   const [trackLoading, setTrackLoading] = useState(false);
+  const [meta, setMeta] = useState<number>(persisted.meta ?? 1_000_000);
+  const [days, setDays] = useState<number>(persisted.days ?? 60);
+  const [budget, setBudget] = useState<number>(persisted.budget ?? 40_000);
+  const [modo, setModo] = useState<Modo>(persisted.modo ?? "simultaneo");
+  const [perfil, setPerfil] = useState<Perfil>(persisted.perfil ?? "mercado");
+  const [splitEco, setSplitEco] = useState<number>(persisted.splitEco ?? DEFAULT_SPLIT.eco);
+
+  // Persiste tudo a cada mudança
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        fonte, trackUrl, track, meta, days, budget, modo, perfil, splitEco,
+      }));
+    } catch { /* quota cheia, ignora */ }
+  }, [fonte, trackUrl, track, meta, days, budget, modo, perfil, splitEco]);
 
   async function buscarMusica() {
     const url = trackUrl.trim();
@@ -52,12 +89,6 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
       setTrackLoading(false);
     }
   }
-  const [meta, setMeta] = useState(1_000_000);
-  const [days, setDays] = useState<number>(60);
-  const [budget, setBudget] = useState(40_000);
-  const [modo, setModo] = useState<Modo>("simultaneo");
-  const [perfil, setPerfil] = useState<Perfil>("mercado");
-  const [splitEco, setSplitEco] = useState<number>(DEFAULT_SPLIT.eco);
 
   // Quando fonte = orçamento, meta vira derivada
   const effectiveMeta = useMemo(() => {
@@ -165,7 +196,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
               <CardContent className="space-y-3">
                 <div className="grid grid-cols-2 gap-2">
                   <FonteBtn active={fonte === "manual"} onClick={() => setFonte("manual")} icon={TargetIcon} label="Manual" />
-                  <FonteBtn active={fonte === "top200"} onClick={() => { setFonte("top200"); setSubtab("top200"); }} icon={Table2} label="Top 200" />
+                  <FonteBtn active={fonte === "top200"} onClick={() => setFonte("top200")} icon={Table2} label="Top 200" />
                   <FonteBtn active={fonte === "concorrente"} onClick={() => setFonte("concorrente")} icon={Users} label="Concorrente" />
                   <FonteBtn active={fonte === "orcamento"} onClick={() => setFonte("orcamento")} icon={Wallet} label="Orçamento" />
                 </div>
