@@ -50,7 +50,7 @@ export default function Campanhas() {
   const [items, setItems] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "active" | "draft" | "completed">("all");
-  const [dialogOpen, setDialogOpen] = useState(false);
+  
   const [recalcing, setRecalcing] = useState(false);
   const [tab, setTab] = useState<"lista" | "financeiro">("financeiro");
 
