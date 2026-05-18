@@ -103,6 +103,7 @@ export async function ensureExternalPackageDraft(
   campaignId: string,
   snapshot: CampaignSnapshot,
 ): Promise<{ packageId: string; created: boolean }> {
+  // 1) Tenta reutilizar draft existente
   const { data: existing } = await supabase
     .from("campaign_external_packages")
     .select("id")
@@ -111,6 +112,7 @@ export async function ensureExternalPackageDraft(
     .maybeSingle();
   if (existing?.id) return { packageId: existing.id, created: false };
 
+  // 2) Tenta criar — se constraint disparar, busca de novo (race / RLS de leitura)
   const { data: pkg, error } = await supabase
     .from("campaign_external_packages")
     .insert({
@@ -120,8 +122,23 @@ export async function ensureExternalPackageDraft(
       status: "draft",
     })
     .select("id")
-    .single();
-  if (error || !pkg) throw error ?? new Error("Falha ao criar pacote externo");
+    .maybeSingle();
+
+  if (error) {
+    // 23505 = unique_violation. Draft já existe — busca direto.
+    if ((error as any).code === "23505" || /uniq_cep_campaign_draft|duplicate key/i.test(error.message)) {
+      const { data: again, error: againErr } = await supabase
+        .from("campaign_external_packages")
+        .select("id")
+        .eq("campaign_id", campaignId)
+        .eq("status", "draft")
+        .maybeSingle();
+      if (againErr) throw againErr;
+      if (again?.id) return { packageId: again.id, created: false };
+    }
+    throw error;
+  }
+  if (!pkg) throw new Error("Falha ao criar pacote externo");
 
   const candidates = await fetchCuratorCandidates();
   const suggestions = suggestExternalAllocations(snapshot.streamsExt, candidates);
