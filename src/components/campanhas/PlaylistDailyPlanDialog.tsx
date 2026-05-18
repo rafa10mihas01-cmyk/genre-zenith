@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { formatInt } from "@/lib/campaignEngine";
-import { buildEcoPlaylistPlan } from "@/lib/campaignOperationalPlan";
+import { buildEcoPlaylistPlan, distributeEcoPositions } from "@/lib/campaignOperationalPlan";
 import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
 import { Download, Printer, Music } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -22,6 +22,7 @@ type Props = {
   snapshot: CampaignSnapshot;
   startedAt: string;
   campaignTitle: string;
+  engagementMultiplier?: number;
 };
 
 function dateLabel(startedAt: string, day: number) {
@@ -38,12 +39,26 @@ export function PlaylistDailyPlanDialog({
   snapshot,
   startedAt,
   campaignTitle,
+  engagementMultiplier = 30,
 }: Props) {
   const plan = useMemo(() => {
     if (!allocation) return null;
-    const all = buildEcoPlaylistPlan(snapshot, allAllocations as any, { startedAt });
+    const positions = distributeEcoPositions(
+      allAllocations.map(a => ({
+        id: a.id,
+        planned_streams: a.planned_streams,
+        followers: a.managed_playlists?.followers ?? 0,
+      })),
+      snapshot.days,
+      engagementMultiplier,
+    );
+    const all = buildEcoPlaylistPlan(snapshot, allAllocations as any, {
+      startedAt,
+      engagementMultiplier,
+      positions,
+    });
     return all.find(p => p.allocationId === allocation.id) ?? null;
-  }, [allocation, allAllocations, snapshot]);
+  }, [allocation, allAllocations, snapshot, startedAt, engagementMultiplier]);
 
   if (!allocation || !plan) return null;
 
