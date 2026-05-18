@@ -279,6 +279,12 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
       setGenres((data ?? []) as any);
     });
     loadAccounts();
+    // Auto-vincula conta Spotify pelo dono da playlist
+    supabase.functions.invoke("link-managed-playlist-accounts").then(({ data }) => {
+      if (data?.linked > 0) {
+        load();
+      }
+    }).catch(() => {});
   }, []);
 
   async function setPlaylistGenre(pl: ManagedPlaylist, genreId: string | null) {
