@@ -20,6 +20,7 @@ import RootRoute from "./components/RootRoute";
 import Operacao from "./pages/Operacao";
 import Prospecao from "./pages/Prospecao";
 import Clientes from "./pages/Clientes";
+import ClienteDetalhe from "./pages/ClienteDetalhe";
 import Performance from "./pages/Performance";
 import PlaylistDeals from "./pages/PlaylistDeals";
 import DealDetail from "./pages/DealDetail";
