@@ -466,7 +466,41 @@ export function CuradoresLibraryTab({
             );
           })}
         </div>
-      )}
+
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between pt-2">
+            <span className="text-[12px] text-muted-foreground">
+              {start + 1}–{Math.min(start + PAGE_SIZE, rows.length)} de {rows.length}
+            </span>
+            <div className="flex items-center gap-1.5">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8"
+                disabled={currentPage <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                Anterior
+              </Button>
+              <span className="text-[12px] text-muted-foreground px-2 tabular-nums">
+                {currentPage} / {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8"
+                disabled={currentPage >= totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              >
+                Próxima
+              </Button>
+            </div>
+          </div>
+        )}
+        </>
+        );
+      })()}
+
 
       {/* Detalhe do curador vive em /curadores/:id — sem drawer aqui. */}
 
