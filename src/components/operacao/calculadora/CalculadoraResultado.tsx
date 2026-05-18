@@ -46,11 +46,7 @@ export function CalculadoraResultado({ r }: { r: CampaignResult }) {
           <CardTitle className="text-sm">Curva de entrega</CardTitle>
         </CardHeader>
         <CardContent>
-          <CurvaChart curva={r.curva} />
-          <div className="mt-3 text-xs text-muted-foreground flex justify-between">
-            <span>Inércia: ×{r.inercia.toFixed(2)}</span>
-            <span>{r.curva.length} dias</span>
-          </div>
+          <CurvaChart curva={r.curva} inercia={r.inercia} />
         </CardContent>
       </Card>
     </div>
