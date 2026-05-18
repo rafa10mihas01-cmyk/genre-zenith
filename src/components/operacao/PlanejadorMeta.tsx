@@ -210,22 +210,31 @@ function calcIndicators(slots: Slot[], dailyTarget: number, totalPlaylists: numb
   return { delivered, coverage, concentration, diversity, naturalness, saturation, risk };
 }
 
-export function PlanejadorMeta() {
+export type PlanejadorInitial = {
+  meta?: number;
+  days?: number;
+  profile?: "mercado" | "engajado" | "frio";
+  trackUrl?: string;
+  fonteLabel?: string; // ex: "Herdado do plano financeiro"
+};
+
+export function PlanejadorMeta({ initial }: { initial?: PlanejadorInitial } = {}) {
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [genres, setGenres] = useState<Genre[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [meta, setMeta] = useState<number>(10_000_000);
-  const [days, setDays] = useState<number>(30);
+  const [meta, setMeta] = useState<number>(initial?.meta ?? 10_000_000);
+  const [days, setDays] = useState<number>(initial?.days ?? 30);
   const [genreId, setGenreId] = useState<string>("");
-  const [profile, setProfile] = useState<typeof PROFILES[number]["id"]>("mercado");
+  const [profile, setProfile] = useState<typeof PROFILES[number]["id"]>(initial?.profile ?? "mercado");
 
   // Aplicar música real
-  const [trackInput, setTrackInput] = useState("");
+  const [trackInput, setTrackInput] = useState(initial?.trackUrl ?? "");
   const trackId = useMemo(() => extractTrackId(trackInput), [trackInput]);
   const [excluded, setExcluded] = useState<Set<string>>(new Set());
   const [applying, setApplying] = useState(false);
   const [results, setResults] = useState<ApplyResult[] | null>(null);
+  const herdado = !!initial;
 
   useEffect(() => {
     (async () => {
