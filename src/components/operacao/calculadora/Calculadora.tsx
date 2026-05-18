@@ -92,6 +92,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
         result.streamsEco,
         result.days,
         (playlists ?? []).map(p => ({ id: p.id, followers: p.followers ?? 0 })),
+        result.modo,
       );
 
       const deadline = new Date();
