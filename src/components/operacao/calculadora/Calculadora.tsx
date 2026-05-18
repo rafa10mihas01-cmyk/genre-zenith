@@ -102,9 +102,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
         result.modo,
       );
 
-      const deadline = new Date();
-      deadline.setDate(deadline.getDate() + result.days);
-      const deadlineISO = deadline.toISOString().slice(0, 10);
+      const deadlineISO = addDays(startDate, result.days).toISOString().slice(0, 10);
 
       const { campaignId } = await closeCampaignFromCalculator({
         snapshot,
