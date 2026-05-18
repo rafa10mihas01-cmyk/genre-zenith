@@ -347,7 +347,9 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                 </div>
               </CardContent>
             </Card>
+            )}
 
+            {(secao === "todos" || secao === "meta") && (
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm">Fonte da meta</CardTitle>
