@@ -124,21 +124,27 @@ function pickBucket(rng: () => number, tier: PlaylistSizeTier): [number, number]
   return [last[0], last[1]];
 }
 
-/** Posição mais alta (menor número) que comporta a demanda diária. Piso #3. */
-function minViablePosition(
+/**
+ * Posição MAIS FRACA (maior número) que ainda comporta a demanda diária.
+ * Lower number = slot mais forte = MAIS capacidade. Então qualquer pos ≤ este
+ * número também entrega. Usado como teto para o sorteio probabilístico:
+ * se o candidato sorteado for mais fraco que isso, sobe pra cá.
+ */
+function maxViablePosition(
   plannedStreams: number,
   days: number,
   followers: number,
   engagementMultiplier: number,
 ): number {
-  if (plannedStreams <= 0 || days <= 0 || followers <= 0) return MIN_CAMPAIGN_POSITION;
+  if (plannedStreams <= 0 || days <= 0 || followers <= 0) return POSITION_PCT.length;
   const dailyTraffic = followers * (engagementMultiplier / 30);
   const dailyNeed = plannedStreams / days;
   if (dailyTraffic <= 0) return MIN_CAMPAIGN_POSITION;
+  let best = MIN_CAMPAIGN_POSITION;
   for (let i = MIN_CAMPAIGN_POSITION - 1; i < POSITION_PCT.length; i++) {
-    if (POSITION_PCT[i] * dailyTraffic >= dailyNeed) return i + 1;
+    if (POSITION_PCT[i] * dailyTraffic >= dailyNeed) best = i + 1;
   }
-  return POSITION_PCT.length;
+  return best;
 }
 
 /**
@@ -157,7 +163,7 @@ export function recommendEcoPosition(
   const rng = seededRng(`${seed}:${followers}:${plannedStreams}`);
   const [lo, hi] = pickBucket(rng, tier);
   const candidate = lo + Math.floor(rng() * (hi - lo + 1));
-  const viable = minViablePosition(plannedStreams, days, followers, engagementMultiplier);
+  const viable = maxViablePosition(plannedStreams, days, followers, engagementMultiplier);
   return Math.max(MIN_CAMPAIGN_POSITION, Math.min(candidate, viable));
 }
 
@@ -200,7 +206,8 @@ export function distributeEcoPositions(
       }
     }
     const candidate = lo + Math.floor(rng() * (hi - lo + 1));
-    const viable = minViablePosition(a.planned_streams, days, a.followers, engagementMultiplier);
+    const viable = maxViablePosition(a.planned_streams, days, a.followers, engagementMultiplier);
+    // Slot mais fraco aceitável = `viable`. Se o sorteio caiu mais fraco que isso, sobe.
     const pos = Math.max(MIN_CAMPAIGN_POSITION, Math.min(candidate, viable));
     if (pos <= 5) strongUsed++;
     result.set(a.id, pos);
