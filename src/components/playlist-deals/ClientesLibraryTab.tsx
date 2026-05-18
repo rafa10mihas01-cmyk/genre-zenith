@@ -361,21 +361,7 @@ export function ClientesLibraryTab({ deals, songs, loading }: Props) {
         </div>
       )}
 
-      {/* Sheet — músicas e links do cliente selecionado */}
-      <Sheet open={!!selected} onOpenChange={(v) => !v && setSelected(null)}>
-        <SheetContent side="right" className="w-full sm:max-w-xl overflow-y-auto">
-          {selected && (
-            <ClientDetailContent
-              client={selected}
-              songs={songs.filter((s) => s.client_id === selected.id)}
-              deals={deals}
-              onEdit={() => {
-                setEditing(selected);
-              }}
-            />
-          )}
-        </SheetContent>
-      </Sheet>
+      {/* Detalhe do cliente vive em /clientes/:id — sem drawer aqui. */}
 
       {/* Dialog — criar / editar */}
       <ClientFormDialog
