@@ -177,6 +177,7 @@ export function useCuratorDeals() {
         supabase
           .from("curator_deals")
           .select("*")
+          .or("source.is.null,source.neq.campaign_internal")
           .order("created_at", { ascending: false }),
         supabase
           .from("curators")
