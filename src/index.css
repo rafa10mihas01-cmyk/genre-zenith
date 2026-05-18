@@ -89,15 +89,17 @@
     --muted: 0 0% 95%;
     --primary: 141 76% 38%;
     --primary-foreground: 0 0% 100%;
-    --primary-glow: 141 76% 38% / 0.18;
-    --accent: 141 60% 94%;
-    --accent-foreground: 141 60% 18%;
+    --primary-glow: 141 76% 38% / 0.15;
+    --accent: 0 0% 93%;
+    --accent-foreground: 0 0% 10%;
     --secondary: 0 0% 95%;
     --secondary-foreground: 0 0% 10%;
     --border: 0 0% 88%;
     --input: 0 0% 88%;
-    --ring: 141 76% 38%;
-    --success: 141 76% 38%;
+    --ring: 0 0% 10% / 0.25;
+    --success: 141 50% 32%;
+    --success-foreground: 0 0% 100%;
+
     --warning: 38 92% 45%;
     --destructive: 0 75% 52%;
     --destructive-foreground: 0 0% 100%;
