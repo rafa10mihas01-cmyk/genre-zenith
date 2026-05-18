@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatBRL, formatInt } from "@/lib/campaignEngine";
 import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
 import { ExternalPackageEditor } from "@/components/campanhas/ExternalPackageEditor";
@@ -13,7 +14,7 @@ import { CampaignMonitoring } from "@/components/campanhas/CampaignMonitoring";
 import { CampaignDailyPlan } from "@/components/campanhas/CampaignDailyPlan";
 import { buildEcoPlaylistPlan } from "@/lib/campaignOperationalPlan";
 import { toast } from "@/hooks/use-toast";
-import { ArrowLeft, Lock, Music, ListMusic, TrendingUp, Loader2 } from "lucide-react";
+import { ArrowLeft, Lock, Music, ListMusic, Loader2, CalendarDays, Users, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type EcoAllocRow = {
@@ -64,6 +65,7 @@ export default function CampanhaExecucao() {
   const [loading, setLoading] = useState(true);
   const [dispatchingEco, setDispatchingEco] = useState(false);
   const [planRefreshKey, setPlanRefreshKey] = useState(0);
+  const [tab, setTab] = useState<"diario" | "eco" | "externo" | "monitor">("diario");
 
   useEffect(() => {
     if (!id) return;
@@ -91,7 +93,8 @@ export default function CampanhaExecucao() {
 
   const ecoTotals = useMemo(() => {
     const planned = allocs.reduce((s, a) => s + a.planned_streams, 0);
-    return { planned, count: allocs.length };
+    const dispatched = allocs.filter(a => a.status !== "pending").length;
+    return { planned, count: allocs.length, dispatched };
   }, [allocs]);
 
   const ecoPlanByAllocation = useMemo(() => {
@@ -125,11 +128,8 @@ export default function CampanhaExecucao() {
     return (
       <PageContainer>
         <Skeleton className="h-10 w-64" />
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-6">
-          <Skeleton className="h-40" />
-          <Skeleton className="h-40" />
-          <Skeleton className="h-40" />
-        </div>
+        <Skeleton className="h-32 mt-6" />
+        <Skeleton className="h-96 mt-4" />
       </PageContainer>
     );
   }
@@ -145,6 +145,9 @@ export default function CampanhaExecucao() {
     );
   }
 
+  const pctEco = snapshot.splitEcoPct;
+  const pctExt = 100 - pctEco;
+
   return (
     <PageContainer>
       <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -156,175 +159,195 @@ export default function CampanhaExecucao() {
         </Link>
       </div>
 
-      {/* Cabeçalho do snapshot */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-6">
-        <Card>
-          <CardHeader className="flex-row items-center gap-2 space-y-0">
-            <Music className="h-4 w-4 text-muted-foreground" />
-            <CardTitle className="text-sm">Música</CardTitle>
-          </CardHeader>
-          <CardContent>
+      {/* Hero unificado: música + meta + snapshot + curva em uma única faixa */}
+      <Card className="mt-6 overflow-hidden">
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] divide-y lg:divide-y-0 lg:divide-x divide-border">
+          {/* Esquerda: música + snapshot */}
+          <div className="p-5 flex flex-col gap-4 bg-elevated/20">
             <div className="flex items-center gap-3">
               {camp.cover_url ? (
-                <img src={camp.cover_url} alt="" className="w-14 h-14 rounded-md object-cover" />
+                <img src={camp.cover_url} alt="" className="w-16 h-16 rounded-lg object-cover shadow-sm" />
               ) : (
-                <div className="w-14 h-14 rounded-md bg-muted grid place-items-center">
-                  <Music className="h-5 w-5 text-muted-foreground" />
+                <div className="w-16 h-16 rounded-lg bg-muted grid place-items-center">
+                  <Music className="h-6 w-6 text-muted-foreground" />
                 </div>
               )}
-              <div className="min-w-0">
-                <div className="font-semibold truncate">{camp.track_name}</div>
+              <div className="min-w-0 flex-1">
+                <div className="text-base font-semibold truncate leading-tight">{camp.track_name}</div>
                 <div className="text-xs text-muted-foreground truncate">{camp.artist ?? "—"}</div>
+                <div className="mt-1.5 inline-flex items-center gap-1.5 text-[10px] text-primary">
+                  <Lock className="h-3 w-3" />
+                  Congelada {camp.snapshot_locked_at ? new Date(camp.snapshot_locked_at).toLocaleDateString("pt-BR") : "—"}
+                </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
 
-        <Card>
-          <CardHeader className="flex-row items-center gap-2 space-y-0">
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            <CardTitle className="text-sm">Meta congelada</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-1">
-            <div className="text-2xl font-semibold tabular-nums">{formatInt(snapshot.meta)} streams</div>
-            <div className="text-xs text-muted-foreground">
-              {snapshot.days}d · pico {formatInt(snapshot.picoPorDia)}/dia · {formatBRL(snapshot.custoTotal)}
+            <div className="grid grid-cols-3 gap-3">
+              <HeroStat label="Meta" value={formatInt(snapshot.meta)} hint="streams" />
+              <HeroStat label="Duração" value={`${snapshot.days}d`} hint={`pico ${formatInt(snapshot.picoPorDia)}/dia`} />
+              <HeroStat label="Investimento" value={formatBRL(snapshot.custoTotal)} hint={`${formatBRL(snapshot.custoPorStream)}/play`} />
             </div>
-            <div className="text-xs text-muted-foreground">
-              {snapshot.splitEcoPct}% próprio · {100 - snapshot.splitEcoPct}% externo
-            </div>
-          </CardContent>
-        </Card>
 
-        <Card>
-          <CardHeader className="flex-row items-center gap-2 space-y-0">
-            <Lock className="h-4 w-4 text-primary" />
-            <CardTitle className="text-sm">Snapshot</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-1">
-            <div className="text-xs text-muted-foreground">Congelado em</div>
-            <div className="text-sm font-medium tabular-nums">
-              {camp.snapshot_locked_at ? new Date(camp.snapshot_locked_at).toLocaleString("pt-BR") : "—"}
+            {/* Split bar */}
+            <div>
+              <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1.5">
+                <span>Distribuição da meta</span>
+                <span className="tabular-nums">{pctEco}% próprio · {pctExt}% externo</span>
+              </div>
+              <div className="flex h-2 rounded-full overflow-hidden bg-muted">
+                <div className="bg-primary" style={{ width: `${pctEco}%` }} />
+                <div className="bg-warning" style={{ width: `${pctExt}%` }} />
+              </div>
+              <div className="flex justify-between text-[10px] tabular-nums mt-1">
+                <span className="text-primary">Eco {formatInt(snapshot.streamsEco)}</span>
+                <span className="text-warning">Externo {formatInt(snapshot.streamsExt)}</span>
+              </div>
             </div>
-            <div className="text-[11px] text-muted-foreground">
-              Imutável. Reabrir calculadora cria nova versão.
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Mapa diário */}
-      <Card className="mt-4">
-        <CardHeader>
-          <CardTitle className="text-sm">Mapa de entrega (curva planejada)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <MiniCurva curva={snapshot.curva} />
-        </CardContent>
-      </Card>
-
-      {/* Bloco Eco */}
-      <Card className="mt-4">
-        <CardHeader className="flex-row items-start justify-between gap-3 space-y-0">
-          <div>
-            <CardTitle className="text-sm flex items-center gap-2">
-              <ListMusic className="h-4 w-4 text-primary" /> Ecossistema próprio
-            </CardTitle>
-            <p className="text-xs text-muted-foreground mt-1">
-              Distribuição automática nas playlists próprias. Total planejado: <strong className="text-foreground tabular-nums">{formatInt(ecoTotals.planned)}</strong> streams em {ecoTotals.count} playlists.
-            </p>
           </div>
-          <Button variant="default" size="sm" onClick={handleDispatchEco} disabled={!hasPendingEco || dispatchingEco}>
-            {dispatchingEco && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
-            {hasPendingEco ? "Disparar Eco" : "Eco disparado"}
-          </Button>
-        </CardHeader>
-        <CardContent>
-          {allocs.length === 0 ? (
-            <div className="text-sm text-muted-foreground py-6 text-center">
-              Nenhuma alocação Eco gerada.
+
+          {/* Direita: curva */}
+          <div className="p-5">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <div className="text-sm font-semibold">Mapa de entrega</div>
+                <div className="text-[10px] text-muted-foreground">Curva planejada · barras = streams/dia · linha = acumulado</div>
+              </div>
+              <div className="text-right text-[10px] text-muted-foreground tabular-nums">
+                média {formatInt(snapshot.mediaPorDia)}/dia
+              </div>
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs border-separate border-spacing-0">
-                <thead className="text-muted-foreground">
-                  <tr>
-                    <th className="text-left font-medium py-2 px-3 border-b border-border">Playlist</th>
-                    <th className="text-right font-medium py-2 px-3 border-b border-border w-32">Planejado</th>
-                    <th className="text-right font-medium py-2 px-3 border-b border-border w-24">Início</th>
-                    <th className="text-right font-medium py-2 px-3 border-b border-border w-36">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {allocs.map((a, i) => (
-                    <tr key={a.id} className={cn("hover:bg-elevated/60", i % 2 === 1 && "bg-elevated/30")}>
-                      <td className="py-2.5 px-3 border-b border-border/30">
-                        <div className="flex items-center gap-2">
-                          {a.managed_playlists?.cover_url ? (
-                            <img src={a.managed_playlists.cover_url} alt="" className="w-8 h-8 rounded object-cover" />
-                          ) : (
-                            <div className="w-8 h-8 rounded bg-muted" />
-                          )}
-                          <div className="min-w-0">
-                            <div className="font-medium truncate">{a.managed_playlists?.name ?? "—"}</div>
-                            <div className="text-[10px] text-muted-foreground tabular-nums">
-                              {formatInt(a.managed_playlists?.followers ?? 0)} saves
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-2.5 px-3 text-right tabular-nums font-semibold border-b border-border/30">
-                        {formatInt(a.planned_streams)}
-                      </td>
-                      <td className="py-2.5 px-3 text-right tabular-nums text-muted-foreground border-b border-border/30">
-                        D{ecoPlanByAllocation.get(a.id) ?? a.start_day}
-                      </td>
-                      <td className="py-2.5 px-3 text-right border-b border-border/30">
-                        <span className={cn("inline-flex items-center px-2 h-5 rounded text-[10px] font-medium border", STATUS_TONE[a.status] ?? STATUS_TONE.pending)}>
-                          {STATUS_LABEL[a.status] ?? a.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
+            <MiniCurva curva={snapshot.curva} />
+          </div>
+        </div>
       </Card>
 
-      {/* Bloco Externo */}
-      <div className="mt-4">
-        <ExternalPackageEditor campaignId={camp.id} snapshot={snapshot} onChanged={() => setPlanRefreshKey(k => k + 1)} />
-      </div>
+      {/* Tabs operacionais */}
+      <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)} className="mt-5">
+        <TabsList className="bg-elevated/60">
+          <TabsTrigger value="diario" className="gap-1.5"><CalendarDays className="h-3.5 w-3.5" /> Plano diário</TabsTrigger>
+          <TabsTrigger value="eco" className="gap-1.5">
+            <ListMusic className="h-3.5 w-3.5" /> Próprio
+            <span className="ml-1 text-[10px] tabular-nums text-muted-foreground">{ecoTotals.count}</span>
+          </TabsTrigger>
+          <TabsTrigger value="externo" className="gap-1.5"><Users className="h-3.5 w-3.5" /> Externo</TabsTrigger>
+          <TabsTrigger value="monitor" className="gap-1.5"><Activity className="h-3.5 w-3.5" /> Monitor</TabsTrigger>
+        </TabsList>
 
-      {/* Plano operacional diário */}
-      <div className="mt-4">
-        <CampaignDailyPlan
-          campaignId={camp.id}
-          snapshot={snapshot}
-          startedAt={camp.started_at}
-          ecoAllocations={allocs}
-          refreshKey={planRefreshKey}
-        />
-      </div>
+        <TabsContent value="diario" className="mt-4">
+          <CampaignDailyPlan
+            campaignId={camp.id}
+            snapshot={snapshot}
+            startedAt={camp.started_at}
+            ecoAllocations={allocs}
+            refreshKey={planRefreshKey}
+          />
+        </TabsContent>
 
-      {/* Bloco Monitoramento */}
-      <div className="mt-4">
-        <CampaignMonitoring
-          campaignId={camp.id}
-          snapshot={snapshot}
-          campaignStartedAt={camp.started_at}
-          campaignStatus={camp.status}
-        />
-      </div>
+        <TabsContent value="eco" className="mt-4">
+          <Card>
+            <CardHeader className="flex-row items-start justify-between gap-3 space-y-0">
+              <div>
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <ListMusic className="h-4 w-4 text-primary" /> Ecossistema próprio
+                </CardTitle>
+                <p className="text-xs text-muted-foreground mt-1">
+                  <strong className="text-foreground tabular-nums">{formatInt(ecoTotals.planned)}</strong> streams
+                  em <strong className="text-foreground">{ecoTotals.count}</strong> playlists
+                  {ecoTotals.dispatched > 0 && <> · {ecoTotals.dispatched} já enviadas ao bot</>}
+                </p>
+              </div>
+              <Button variant="default" size="sm" onClick={handleDispatchEco} disabled={!hasPendingEco || dispatchingEco}>
+                {dispatchingEco && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
+                {hasPendingEco ? "Disparar Eco" : "Eco disparado"}
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {allocs.length === 0 ? (
+                <div className="text-sm text-muted-foreground py-6 text-center">
+                  Nenhuma alocação Eco gerada.
+                </div>
+              ) : (
+                <div className="rounded-lg border border-border overflow-hidden">
+                  <div className="max-h-[560px] overflow-auto">
+                    <table className="w-full text-xs border-separate border-spacing-0">
+                      <thead className="text-muted-foreground sticky top-0 bg-card z-10">
+                        <tr>
+                          <th className="text-left font-medium py-2 px-3 border-b border-border">Playlist</th>
+                          <th className="text-right font-medium py-2 px-3 border-b border-border w-32">Planejado</th>
+                          <th className="text-right font-medium py-2 px-3 border-b border-border w-20">Início</th>
+                          <th className="text-right font-medium py-2 px-3 border-b border-border w-32">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {allocs.map((a, i) => (
+                          <tr key={a.id} className={cn("hover:bg-elevated/60", i % 2 === 1 && "bg-elevated/30")}>
+                            <td className="py-2 px-3 border-b border-border/30">
+                              <div className="flex items-center gap-2">
+                                {a.managed_playlists?.cover_url ? (
+                                  <img src={a.managed_playlists.cover_url} alt="" className="w-7 h-7 rounded object-cover" />
+                                ) : (
+                                  <div className="w-7 h-7 rounded bg-muted" />
+                                )}
+                                <div className="min-w-0">
+                                  <div className="font-medium truncate">{a.managed_playlists?.name ?? "—"}</div>
+                                  <div className="text-[10px] text-muted-foreground tabular-nums">
+                                    {formatInt(a.managed_playlists?.followers ?? 0)} saves
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-2 px-3 text-right tabular-nums font-semibold border-b border-border/30">
+                              {formatInt(a.planned_streams)}
+                            </td>
+                            <td className="py-2 px-3 text-right tabular-nums text-muted-foreground border-b border-border/30">
+                              D{ecoPlanByAllocation.get(a.id) ?? a.start_day}
+                            </td>
+                            <td className="py-2 px-3 text-right border-b border-border/30">
+                              <span className={cn("inline-flex items-center px-2 h-5 rounded text-[10px] font-medium border", STATUS_TONE[a.status] ?? STATUS_TONE.pending)}>
+                                {STATUS_LABEL[a.status] ?? a.status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="externo" className="mt-4">
+          <ExternalPackageEditor campaignId={camp.id} snapshot={snapshot} onChanged={() => setPlanRefreshKey(k => k + 1)} />
+        </TabsContent>
+
+        <TabsContent value="monitor" className="mt-4">
+          <CampaignMonitoring
+            campaignId={camp.id}
+            snapshot={snapshot}
+            campaignStartedAt={camp.started_at}
+            campaignStatus={camp.status}
+          />
+        </TabsContent>
+      </Tabs>
     </PageContainer>
+  );
+}
+
+function HeroStat({ label, value, hint }: { label: string; value: string; hint?: string }) {
+  return (
+    <div>
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">{label}</div>
+      <div className="text-lg font-semibold tabular-nums leading-tight mt-0.5">{value}</div>
+      {hint && <div className="text-[10px] text-muted-foreground tabular-nums mt-0.5">{hint}</div>}
+    </div>
   );
 }
 
 function MiniCurva({ curva }: { curva: CampaignSnapshot["curva"] }) {
   if (curva.length === 0) return null;
-  const w = 720, h = 140, pad = 12;
+  const w = 720, h = 160, pad = 12;
   const maxS = Math.max(...curva.map(p => p.streamsDay), 1);
   const maxC = curva[curva.length - 1].cumulative;
   const xs = (i: number) => pad + (i / Math.max(curva.length - 1, 1)) * (w - pad * 2);
@@ -336,8 +359,8 @@ function MiniCurva({ curva }: { curva: CampaignSnapshot["curva"] }) {
   const barW = Math.max(1, (w - pad * 2) / curva.length - 1);
 
   return (
-    <div className="w-full overflow-x-auto">
-      <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-32" preserveAspectRatio="none">
+    <div className="w-full">
+      <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-36" preserveAspectRatio="none">
         {curva.map((p, i) => (
           <rect
             key={p.day}
@@ -346,7 +369,7 @@ function MiniCurva({ curva }: { curva: CampaignSnapshot["curva"] }) {
             width={barW}
             height={h - pad - ysBar(p.streamsDay)}
             fill="hsl(var(--primary))"
-            opacity={0.35}
+            opacity={0.3}
           />
         ))}
         <path d={lineCum} fill="none" stroke="hsl(var(--primary))" strokeWidth={1.5} />
