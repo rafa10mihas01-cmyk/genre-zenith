@@ -72,7 +72,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
   const persisted = useMemo(loadPersisted, []);
   const navigate = useNavigate();
   const [subtab, setSubtab] = useState<"calc" | "top200">("calc");
-  const [secao, setSecao] = useState<Secao>("todos");
+  const [secao, setSecao] = useState<Secao>("musica");
   const [closing, setClosing] = useState(false);
 
   // Cliente e Curador (vinculação obrigatória pro fluxo de aprovação → deal real)
