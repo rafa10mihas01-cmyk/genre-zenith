@@ -248,7 +248,9 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
         notes: notes.trim() || null,
         status: activate ? "active" : "draft",
         created_by: user?.id ?? null,
-      })
+        client_id: clientId || null,
+        curator_id: curatorId || null,
+      } as any)
       .select("id")
       .single();
 
