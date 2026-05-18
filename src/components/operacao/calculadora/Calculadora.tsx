@@ -213,6 +213,16 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                         {track.title ?? "Faixa"}
                       </div>
                       {track.artist && <div className="text-xs text-muted-foreground truncate">{track.artist}</div>}
+                      <div className="text-[11px] mt-1">
+                        {track.streamsDay != null ? (
+                          <span className="text-foreground">
+                            <strong>{formatInt(track.streamsDay)}</strong> streams/dia hoje
+                            {track.position != null && <span className="text-muted-foreground"> · #{track.position} Top 200</span>}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">Fora do Top 200 BR (base: 0 streams/dia)</span>
+                        )}
+                      </div>
                     </div>
                     <button
                       onClick={() => { setTrack(null); setTrackUrl(""); }}
