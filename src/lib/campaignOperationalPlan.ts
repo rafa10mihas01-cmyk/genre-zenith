@@ -23,6 +23,8 @@ export type DailyPlaylistPlan = {
   startDay: number;
   totalStreams: number;
   daily: number[];
+  capDia: number;
+  overflow: number;
 };
 
 export type DailyExternalPlan = {
@@ -47,16 +49,36 @@ export type DailyCampaignPlan = {
   activeCurators: number;
 };
 
+/** Atraso médio de contabilização do Spotify (em dias). */
+export const REPORTING_DELAY_DAYS = 2;
+/** Fator de capacidade diária por playlist eco — proxy realista. */
+export const ECO_CAPACITY_FACTOR = 0.6;
+/** Ramp de entrada de playlist eco nos primeiros dias. */
+export const ECO_RAMP = [0.2, 0.4, 0.6, 0.8, 1.0];
+
 function campaignDateLabel(startedAt: string, day: number) {
   const base = new Date(startedAt);
   base.setDate(base.getDate() + day - 1);
   return base.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
 }
 
-function distributeByCurve(total: number, curva: CampaignSnapshot["curva"], startDay = 1) {
+/**
+ * Distribui `total` streams ao longo da curva, começando em `startDay`.
+ * Suporta:
+ *  - `capDia`: teto por dia (número fixo OU array por índice de dia). Excesso cascateia.
+ *  - `delay`: shift de contabilização (D1 vira D1+delay). Streams além do último dia acumulam no último.
+ *
+ * Retorna o vetor `daily` (length = curva.length) e `overflow` que não coube nem com cascata.
+ */
+function distributeByCurve(
+  total: number,
+  curva: CampaignSnapshot["curva"],
+  startDay = 1,
+  opts: { capDia?: number | number[]; delay?: number } = {},
+): { daily: number[]; overflow: number } {
   const days = curva.length;
   const daily = Array.from({ length: days }, () => 0);
-  if (total <= 0 || days === 0) return daily;
+  if (total <= 0 || days === 0) return { daily, overflow: 0 };
 
   const startIndex = Math.max(0, Math.min(days - 1, startDay - 1));
   const weights = curva.slice(startIndex).map(p => Math.max(1, p.streamsDay));
@@ -70,7 +92,45 @@ function distributeByCurve(total: number, curva: CampaignSnapshot["curva"], star
     allocated += value;
   });
 
-  return daily;
+  // Delay de contabilização: shift right; quem cair além do último dia acumula no último.
+  const delay = Math.max(0, opts.delay ?? 0);
+  if (delay > 0) {
+    const shifted = Array.from({ length: days }, () => 0);
+    for (let i = 0; i < days; i++) {
+      if (daily[i] <= 0) continue;
+      const t = Math.min(days - 1, i + delay);
+      shifted[t] += daily[i];
+    }
+    for (let i = 0; i < days; i++) daily[i] = shifted[i];
+  }
+
+  // Cap por dia: clampar e cascatear excesso para frente.
+  let overflow = 0;
+  if (opts.capDia !== undefined) {
+    const capArr = Array.isArray(opts.capDia)
+      ? opts.capDia
+      : Array.from({ length: days }, () => opts.capDia as number);
+    for (let pass = 0; pass < 5; pass++) {
+      let dirty = false;
+      for (let i = 0; i < days; i++) {
+        const c = capArr[i];
+        if (c === undefined || !isFinite(c)) continue;
+        if (daily[i] > c) {
+          const excess = daily[i] - c;
+          daily[i] = c;
+          if (i + 1 < days) {
+            daily[i + 1] += excess;
+            dirty = true;
+          } else {
+            overflow += excess;
+          }
+        }
+      }
+      if (!dirty) break;
+    }
+  }
+
+  return { daily, overflow };
 }
 
 export function effectiveEcoStartDay(
