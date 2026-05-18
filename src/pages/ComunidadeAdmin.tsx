@@ -804,51 +804,58 @@ function AprovacoesTab({ onChange }: { onChange?: () => void }) {
   const pending = list.filter((p) => p.status === "submitted");
 
   return (
-    <Card>
-      <CardContent className="p-5 space-y-4">
-        {loading ? (
-          <div className="text-sm text-muted-foreground">Carregando…</div>
-        ) : list.length === 0 ? (
-          <div className="text-sm text-muted-foreground py-8 text-center">Sem aprovações pendentes.</div>
-        ) : (
-          <ul className="divide-y divide-border">
-            {list.map((p) => (
-              <li key={p.id} className="flex items-center gap-3 py-3">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-sm truncate">
-                      {p.community_members?.display_name ?? "—"}
-                    </span>
-                    <StatusBadge status={p.status} />
-                  </div>
-                  <div className="mt-1 text-xs text-muted-foreground truncate">
-                    {p.curator_deals?.song_name ?? "—"} ·{" "}
-                    {p.proof_url ? (
-                      <a href={p.proof_url} target="_blank" rel="noreferrer" className="underline hover:text-foreground">
-                        ver prova
-                      </a>
-                    ) : (
-                      "sem prova ainda"
-                    )}{" "}
-                    · {p.points_offered} pts
-                  </div>
+    <>
+      {loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {[0,1,2,3,4,5,6,7].map((i) => (
+            <div key={i} className="nx-card h-40 animate-pulse" />
+          ))}
+        </div>
+      ) : list.length === 0 ? (
+        <div className="nx-card py-12 text-center text-sm text-muted-foreground">Sem aprovações pendentes.</div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {list.map((p) => (
+            <div
+              key={p.id}
+              className="rounded-2xl border border-border/50 bg-card p-4 flex flex-col gap-3 h-full hover:border-foreground/20 hover:bg-[hsl(var(--elevated))] transition-colors"
+            >
+              <div className="flex items-start justify-between gap-2 min-w-0">
+                <span className="font-medium text-sm truncate min-w-0">
+                  {p.community_members?.display_name ?? "—"}
+                </span>
+                <StatusBadge status={p.status} />
+              </div>
+              <div className="text-[11.5px] text-muted-foreground space-y-1 min-w-0">
+                <div className="truncate text-foreground/80" title={p.curator_deals?.song_name ?? ""}>
+                  {p.curator_deals?.song_name ?? "—"}
                 </div>
-                {p.status === "submitted" && (
-                  <>
-                    <Button variant="outline" size="sm" disabled={busyId === p.id} onClick={() => review(p, "reject")}>
-                      <X className="h-4 w-4" />
-                    </Button>
-                    <Button size="sm" disabled={busyId === p.id} onClick={() => review(p, "approve")}>
-                      {busyId === p.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                    </Button>
-                  </>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </CardContent>
-    </Card>
+                <div>
+                  {p.proof_url ? (
+                    <a href={p.proof_url} target="_blank" rel="noreferrer" className="text-primary underline hover:text-foreground">
+                      ver prova
+                    </a>
+                  ) : (
+                    <span>sem prova ainda</span>
+                  )}
+                  <span> · {p.points_offered} pts</span>
+                </div>
+              </div>
+              {p.status === "submitted" && (
+                <div className="mt-auto flex items-center gap-2">
+                  <Button variant="outline" size="sm" className="flex-1" disabled={busyId === p.id} onClick={() => review(p, "reject")}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                  <Button size="sm" className="flex-1" disabled={busyId === p.id} onClick={() => review(p, "approve")}>
+                    {busyId === p.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                  </Button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </>
   );
 }
 
