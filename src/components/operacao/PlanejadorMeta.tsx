@@ -360,6 +360,16 @@ export function PlanejadorMeta({ initial }: { initial?: PlanejadorInitial } = {}
             </div>
           </div>
         )}
+
+        <div className="nx-card space-y-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <Field label="Meta de plays" hint={metaExtenso(meta)}>
+              <Input
+                type="number"
+                value={meta === 0 ? "" : meta}
+                onFocus={(e) => e.target.select()}
+                onChange={(e) => setMeta(Math.max(0, Number(e.target.value) || 0))}
+                className="h-9 bg-elevated border-border tabular-nums"
               />
             </Field>
             <Field label="Duração (dias)">
