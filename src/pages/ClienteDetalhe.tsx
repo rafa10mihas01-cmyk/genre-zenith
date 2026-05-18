@@ -1,0 +1,521 @@
+// ClienteDetalhe — página dedicada do cliente. Substitui o antigo drawer lateral.
+// Mostra ficha completa + extrato (músicas, deals, financeiro, observações).
+import { useMemo, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import {
+  ArrowLeft,
+  Pencil,
+  Archive,
+  ArchiveRestore,
+  Trash2,
+  Mail,
+  Phone,
+  Instagram,
+  Music2,
+  ExternalLink,
+  Copy,
+  Link2,
+  MapPin,
+  Building2,
+  FileText,
+  CreditCard,
+  Users2,
+  Calendar,
+  CheckCircle2,
+  XCircle,
+} from "lucide-react";
+import { toast } from "sonner";
+import { formatDistanceToNow, format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+
+import { PageContainer } from "@/components/PageContainer";
+import { PageHeader } from "@/components/PageHeader";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
+import { useClients } from "@/hooks/useClients";
+import { useCuratorDeals } from "@/hooks/useCuratorDeals";
+import { ClientFormDialog } from "@/components/playlist-deals/ClientesLibraryTab";
+import { clientCampaignUrl } from "@/lib/curatorPublicUrl";
+import { cn } from "@/lib/utils";
+
+const CLIENT_TYPE_LABEL: Record<string, string> = {
+  artist: "Artista",
+  label: "Label / Selo",
+  manager: "Empresário",
+  producer: "Produtor",
+  other: "Outro",
+};
+
+const formatBRL = (v: number) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
+
+function Stat({ label, value, tone }: { label: string; value: string | number; tone?: "primary" | "success" | "warning" | "muted" }) {
+  return (
+    <div className="nx-card !p-4">
+      <div className="text-[10.5px] uppercase tracking-[0.12em] text-muted-foreground">{label}</div>
+      <div
+        className={cn(
+          "text-2xl font-bold tabular-nums mt-1",
+          tone === "primary" && "text-primary",
+          tone === "success" && "text-emerald-400",
+          tone === "warning" && "text-warning",
+          tone === "muted" && "text-muted-foreground",
+        )}
+      >
+        {typeof value === "number" ? value.toLocaleString("pt-BR") : value}
+      </div>
+    </div>
+  );
+}
+
+function InfoRow({ icon: Icon, label, value, href }: { icon: any; label: string; value?: string | null; href?: string }) {
+  if (!value) return null;
+  const content = (
+    <div className="flex items-start gap-2.5 py-2">
+      <Icon className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+      <div className="min-w-0 flex-1">
+        <div className="text-[10.5px] uppercase tracking-[0.12em] text-muted-foreground">{label}</div>
+        <div className="text-sm text-foreground break-words">{value}</div>
+      </div>
+    </div>
+  );
+  if (href) {
+    return (
+      <a href={href} target="_blank" rel="noreferrer" className="block hover:bg-elevated/40 -mx-2 px-2 rounded-md transition-colors">
+        {content}
+      </a>
+    );
+  }
+  return content;
+}
+
+export default function ClienteDetalhe() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { clients, loading: loadingClients, updateClient, archiveClient, deleteClient, reload } = useClients();
+  const { deals, songs, loading: loadingDeals } = useCuratorDeals();
+  const [editing, setEditing] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const client = useMemo(() => clients.find((c) => c.id === id), [clients, id]);
+
+  const clientSongs = useMemo(
+    () => songs.filter((s: any) => s.client_id === id),
+    [songs, id],
+  );
+  const dealById = useMemo(() => {
+    const m = new Map<string, (typeof deals)[number]>();
+    for (const d of deals) m.set(d.id, d);
+    return m;
+  }, [deals]);
+
+  const clientDealIds = useMemo(() => {
+    const set = new Set<string>();
+    for (const s of clientSongs) set.add(s.deal_id);
+    return set;
+  }, [clientSongs]);
+  const clientDeals = useMemo(
+    () => deals.filter((d) => clientDealIds.has(d.id)),
+    [deals, clientDealIds],
+  );
+
+  const kpis = useMemo(() => {
+    const ativos = clientDeals.filter((d) => !d.closed_at).length;
+    const concluidos = clientDeals.filter((d) => d.closed_status === "completed").length;
+    const cancelados = clientDeals.filter((d) => d.closed_status === "cancelled").length;
+    const investido = clientDeals.reduce((acc, d) => acc + (d.cost ?? 0), 0);
+    return {
+      musicas: clientSongs.length,
+      deals: clientDeals.length,
+      ativos,
+      concluidos,
+      cancelados,
+      investido,
+    };
+  }, [clientDeals, clientSongs]);
+
+  if (loadingClients && !client) {
+    return (
+      <PageContainer>
+        <div className="text-sm text-muted-foreground">Carregando cliente…</div>
+      </PageContainer>
+    );
+  }
+
+  if (!client) {
+    return (
+      <PageContainer>
+        <PageHeader title="Cliente não encontrado" subtitle="O cliente solicitado não existe ou foi removido" />
+        <Button variant="outline" asChild className="gap-2">
+          <Link to="/clientes"><ArrowLeft className="h-4 w-4" /> Voltar para clientes</Link>
+        </Button>
+      </PageContainer>
+    );
+  }
+
+  const initials = client.name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase() ?? "")
+    .join("");
+
+  const igHref = client.instagram
+    ? `https://instagram.com/${client.instagram.replace(/^@/, "")}`
+    : undefined;
+  const mailHref = client.email ? `mailto:${client.email}` : undefined;
+  const phoneHref = client.phone ? `https://wa.me/${client.phone.replace(/\D/g, "")}` : undefined;
+
+  const copy = async (txt: string) => {
+    try {
+      await navigator.clipboard.writeText(txt);
+      toast.success("Copiado");
+    } catch {
+      toast.error("Não foi possível copiar");
+    }
+  };
+
+  return (
+    <PageContainer>
+      <div className="mb-3">
+        <Button variant="ghost" size="sm" asChild className="gap-1.5 h-8 -ml-2 text-muted-foreground">
+          <Link to="/clientes"><ArrowLeft className="h-4 w-4" /> Clientes</Link>
+        </Button>
+      </div>
+
+      <PageHeader
+        title={client.name}
+        subtitle={`${CLIENT_TYPE_LABEL[client.client_type] ?? "Cliente"}${client.company ? ` · ${client.company}` : ""}`}
+        actions={
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" className="gap-1.5 h-9 rounded-full" onClick={() => setEditing(true)}>
+              <Pencil className="h-4 w-4" /> Editar dados
+            </Button>
+            {client.archived_at ? (
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5 h-9 rounded-full"
+                onClick={async () => {
+                  try {
+                    await archiveClient(client.id, false);
+                    toast.success("Cliente restaurado");
+                    await reload();
+                  } catch {
+                    toast.error("Erro ao restaurar");
+                  }
+                }}
+              >
+                <ArchiveRestore className="h-4 w-4" /> Restaurar
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5 h-9 rounded-full"
+                onClick={async () => {
+                  if (!confirm(`Arquivar ${client.name}? Ele sai da biblioteca mas o histórico fica.`)) return;
+                  try {
+                    await archiveClient(client.id, true);
+                    toast.success("Cliente arquivado");
+                    await reload();
+                  } catch {
+                    toast.error("Erro ao arquivar");
+                  }
+                }}
+              >
+                <Archive className="h-4 w-4" /> Arquivar
+              </Button>
+            )}
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1.5 h-9 rounded-full text-destructive hover:text-destructive"
+              onClick={() => setConfirmDelete(true)}
+            >
+              <Trash2 className="h-4 w-4" /> Excluir
+            </Button>
+          </div>
+        }
+      />
+
+      {/* Header card — identidade visual */}
+      <Card className="mb-6">
+        <CardContent className="p-5 flex items-start gap-4">
+          <div className="h-16 w-16 rounded-xl bg-primary/15 border border-primary/25 flex items-center justify-center text-lg font-bold text-primary shrink-0">
+            {initials || <Users2 className="h-6 w-6" />}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-lg font-semibold text-foreground truncate">{client.name}</h2>
+              <Badge variant="secondary" className="text-[10.5px]">{CLIENT_TYPE_LABEL[client.client_type] ?? "Cliente"}</Badge>
+              {client.archived_at && <Badge variant="outline" className="text-[10.5px]">Arquivado</Badge>}
+            </div>
+            <div className="text-xs text-muted-foreground mt-1 flex items-center gap-3 flex-wrap">
+              {client.company && <span className="inline-flex items-center gap-1"><Building2 className="h-3 w-3" />{client.company}</span>}
+              {(client.city || client.country) && (
+                <span className="inline-flex items-center gap-1">
+                  <MapPin className="h-3 w-3" />{[client.city, client.country].filter(Boolean).join(", ")}
+                </span>
+              )}
+              {client.primary_genre && <span className="inline-flex items-center gap-1"><Music2 className="h-3 w-3" />{client.primary_genre}</span>}
+              <span className="inline-flex items-center gap-1">
+                <Calendar className="h-3 w-3" />
+                Desde {format(new Date(client.created_at), "dd MMM yyyy", { locale: ptBR })}
+              </span>
+            </div>
+            {client.tags?.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {client.tags.map((t) => (
+                  <Badge key={t} variant="outline" className="text-[10.5px] rounded-full">{t}</Badge>
+                ))}
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* KPIs */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-6">
+        <Stat label="Músicas" value={kpis.musicas} />
+        <Stat label="Deals" value={kpis.deals} />
+        <Stat label="Ativos" value={kpis.ativos} tone="primary" />
+        <Stat label="Concluídos" value={kpis.concluidos} tone="success" />
+        <Stat label="Investido" value={formatBRL(kpis.investido)} tone="muted" />
+      </div>
+
+      <Tabs defaultValue="visao" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="visao">Visão geral</TabsTrigger>
+          <TabsTrigger value="musicas">Músicas <span className="ml-1.5 text-muted-foreground">{kpis.musicas}</span></TabsTrigger>
+          <TabsTrigger value="deals">Deals <span className="ml-1.5 text-muted-foreground">{kpis.deals}</span></TabsTrigger>
+          <TabsTrigger value="notas">Notas</TabsTrigger>
+        </TabsList>
+
+        {/* ----- Visão geral ----- */}
+        <TabsContent value="visao" className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <Card>
+              <CardContent className="p-5">
+                <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-2">Contato</div>
+                <div className="divide-y divide-border/40">
+                  <InfoRow icon={Mail} label="E-mail" value={client.email} href={mailHref} />
+                  <InfoRow icon={Phone} label="WhatsApp / Telefone" value={client.phone || client.contact} href={phoneHref} />
+                  <InfoRow icon={Instagram} label="Instagram" value={client.instagram ? `@${client.instagram.replace(/^@/, "")}` : null} href={igHref} />
+                  <InfoRow icon={ExternalLink} label="Spotify do artista" value={client.spotify_artist_url} href={client.spotify_artist_url ?? undefined} />
+                  {!client.email && !client.phone && !client.contact && !client.instagram && !client.spotify_artist_url && (
+                    <p className="text-sm text-muted-foreground py-2">Nenhum contato cadastrado ainda.</p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-5">
+                <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-2">Perfil & Comercial</div>
+                <div className="divide-y divide-border/40">
+                  <InfoRow icon={Music2} label="Gênero principal" value={client.primary_genre} />
+                  <InfoRow
+                    icon={Users2}
+                    label="Ouvintes mensais"
+                    value={client.monthly_listeners != null ? client.monthly_listeners.toLocaleString("pt-BR") : null}
+                  />
+                  <InfoRow icon={FileText} label="Documento" value={client.document} />
+                  <InfoRow icon={CreditCard} label="Condição de pagamento" value={client.payment_terms} />
+                  {!client.primary_genre && client.monthly_listeners == null && !client.document && !client.payment_terms && (
+                    <p className="text-sm text-muted-foreground py-2">Sem dados de perfil ou comercial cadastrados.</p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {client.notes && (
+            <Card>
+              <CardContent className="p-5">
+                <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-2">Observações</div>
+                <p className="text-sm text-foreground whitespace-pre-wrap">{client.notes}</p>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* ----- Músicas ----- */}
+        <TabsContent value="musicas">
+          {clientSongs.length === 0 ? (
+            <Card>
+              <CardContent className="p-10 text-center">
+                <Music2 className="mx-auto size-8 text-muted-foreground/40 mb-2" />
+                <p className="text-sm text-muted-foreground">
+                  Nenhuma música vinculada ainda. Selecione este cliente ao criar/editar uma música em um deal.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-2.5">
+              {clientSongs.map((s: any) => {
+                const deal = dealById.get(s.deal_id);
+                const url = (s.slug || s.client_token)
+                  ? clientCampaignUrl({ slug: s.slug ?? null, client_token: s.client_token ?? null })
+                  : null;
+                return (
+                  <Card key={s.id}>
+                    <CardContent className="p-4 flex items-center gap-3 min-w-0">
+                      <div className="h-12 w-12 rounded-lg overflow-hidden bg-elevated border border-border shrink-0">
+                        {s.song_cover_url ? (
+                          <img src={s.song_cover_url} alt={s.song_name} className="h-full w-full object-cover" loading="lazy" />
+                        ) : (
+                          <div className="h-full w-full flex items-center justify-center"><Music2 className="h-5 w-5 text-muted-foreground" /></div>
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-semibold truncate">{s.song_name}</div>
+                        <div className="text-[11px] text-muted-foreground truncate">
+                          {s.song_artist || "—"}{deal && <> · {deal.curator_name}</>}
+                        </div>
+                        {s.smartlink_url && (
+                          <a href={s.smartlink_url} target="_blank" rel="noreferrer" className="text-[11px] text-primary inline-flex items-center gap-1 mt-1 hover:underline">
+                            <Link2 className="h-3 w-3" /> smartlink <ExternalLink className="h-2.5 w-2.5" />
+                          </a>
+                        )}
+                      </div>
+                      {url && (
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Button size="sm" variant="outline" className="h-8 w-8 p-0" title="Copiar link do cliente" onClick={() => copy(url)}>
+                            <Copy className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button size="sm" variant="outline" className="h-8 w-8 p-0" title="Abrir painel do cliente" asChild>
+                            <a href={url} target="_blank" rel="noreferrer"><ExternalLink className="h-3.5 w-3.5" /></a>
+                          </Button>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* ----- Deals ----- */}
+        <TabsContent value="deals">
+          {clientDeals.length === 0 ? (
+            <Card>
+              <CardContent className="p-10 text-center">
+                <p className="text-sm text-muted-foreground">Nenhum deal vinculado a este cliente.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-2.5">
+              {clientDeals.map((d) => {
+                const isClosed = !!d.closed_at;
+                const status = !isClosed
+                  ? { label: "Ativo", icon: CheckCircle2, cls: "text-primary" }
+                  : d.closed_status === "completed"
+                  ? { label: "Concluído", icon: CheckCircle2, cls: "text-emerald-400" }
+                  : { label: "Cancelado", icon: XCircle, cls: "text-muted-foreground" };
+                const Icon = status.icon;
+                return (
+                  <Link key={d.id} to={`/deals/${d.id}`}>
+                    <Card className="hover:border-foreground/20 transition-colors">
+                      <CardContent className="p-4 flex items-center gap-3 min-w-0">
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-semibold truncate">{d.curator_name}</div>
+                          <div className="text-[11px] text-muted-foreground truncate">
+                            {d.song_name}{d.song_artist && <> · {d.song_artist}</>}
+                          </div>
+                          <div className="text-[11px] text-muted-foreground mt-0.5">
+                            Iniciado {formatDistanceToNow(new Date(d.started_at), { addSuffix: true, locale: ptBR })}
+                            {d.cost != null && <> · {formatBRL(d.cost)}</>}
+                          </div>
+                        </div>
+                        <div className={cn("inline-flex items-center gap-1.5 text-[11px] font-medium shrink-0", status.cls)}>
+                          <Icon className="h-3.5 w-3.5" /> {status.label}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* ----- Notas ----- */}
+        <TabsContent value="notas">
+          <Card>
+            <CardContent className="p-5">
+              {client.notes ? (
+                <p className="text-sm text-foreground whitespace-pre-wrap">{client.notes}</p>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Nenhuma observação cadastrada. Clique em <strong>Editar dados</strong> para adicionar.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Edit dialog */}
+      <ClientFormDialog
+        open={editing}
+        client={client}
+        onClose={() => setEditing(false)}
+        onSubmit={async (input) => {
+          try {
+            await updateClient(client.id, input);
+            toast.success("Cliente atualizado");
+            await reload();
+          } catch (e) {
+            toast.error(e instanceof Error ? e.message : "Erro ao salvar cliente");
+          }
+        }}
+      />
+
+      {/* Delete confirm */}
+      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir cliente?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {kpis.musicas > 0 || kpis.deals > 0
+                ? `${client.name} possui músicas/deals vinculados. A exclusão desvincula o cliente, mas o histórico permanece. Esta ação não pode ser desfeita.`
+                : `${client.name} será removido permanentemente. Esta ação não pode ser desfeita.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                try {
+                  await deleteClient(client.id);
+                  toast.success("Cliente excluído");
+                  navigate("/clientes");
+                } catch (e) {
+                  toast.error(e instanceof Error ? e.message : "Erro ao excluir");
+                }
+              }}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </PageContainer>
+  );
+}
