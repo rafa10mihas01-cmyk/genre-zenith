@@ -36,31 +36,25 @@ function parseHtml(html: string): { date: string | null; rows: Row[] } {
   while ((m = trRegex.exec(html))) {
     const tr = m[1];
     const tds = [...tr.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)].map(x => x[1]);
-    if (tds.length < 3) continue;
+    // Colunas kworb: Pos | P+ | Title | Days | Pk | (x?) | Streams | Streams+ | 7Day | 7Day+ | Total
+    if (tds.length < 11) continue;
 
-    const posRaw = stripTags(tds[0]).trim();
-    const pos = parseInt(posRaw, 10);
+    const pos = parseInt(stripTags(tds[0]).trim(), 10);
     if (!Number.isFinite(pos) || pos < 1 || pos > 200) continue;
 
-    const songCell = tds[1];
-    const songText = stripTags(songCell).trim();
-    // "Artista - Título"
+    const songCell = tds[2];
+    const songText = stripTags(songCell).replace(/\s+/g, " ").trim();
     const dashIdx = songText.indexOf(" - ");
     const artist = dashIdx > 0 ? songText.slice(0, dashIdx).trim() : null;
-    const track = dashIdx > 0 ? songText.slice(dashIdx + 3).trim() : songText;
+    let track = dashIdx > 0 ? songText.slice(dashIdx + 3).trim() : songText;
+    // remove "(w/ ...)" do título
+    track = track.replace(/\s*\(w\/[^)]*\)\s*$/i, "").trim();
 
-    // Extrai IDs de spotify dos hrefs
     const artistIdMatch = songCell.match(/\/artist\/([A-Za-z0-9]{10,})\.html/);
     const trackIdMatch = songCell.match(/\/track\/([A-Za-z0-9]{10,})\.html/);
 
-    // Streams do dia geralmente é o terceiro td
-    const streamsDay = parseNumber(tds[2]);
-    // Total acumulado: último td costuma ser grande
-    let streamsTotal: number | null = null;
-    for (let i = tds.length - 1; i >= 3; i--) {
-      const n = parseNumber(tds[i]);
-      if (n && n > streamsDay) { streamsTotal = n; break; }
-    }
+    const streamsDay = parseNumber(tds[6]);
+    const streamsTotal = parseNumber(tds[10]) || null;
 
     rows.push({
       position: pos,
