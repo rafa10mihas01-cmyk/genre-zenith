@@ -99,11 +99,12 @@ export function CuradoresLibraryTab({
   onDeleteCurator,
   onPauseCurator,
 }: Props) {
+  const navigate = useNavigate();
   const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState<Curator | null>(null);
   const [editing, setEditing] = useState<Curator | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<{ curator: Curator; hasDeals: boolean } | null>(null);
+
 
   const archivedCount = curators.filter((c) => !!c.archived_at).length;
 
