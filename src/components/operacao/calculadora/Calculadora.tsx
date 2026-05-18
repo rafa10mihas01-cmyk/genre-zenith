@@ -7,18 +7,23 @@ import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 import { Top200Tab } from "./Top200Tab";
 import { CalculadoraResultado } from "./CalculadoraResultado";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 import {
   calcCampaign, reverseFromBudget, formatBRL, formatInt,
   DEFAULT_SPLIT, COST_PER_STREAM,
   type Modo, type Perfil, type CampaignResult,
 } from "@/lib/campaignEngine";
-import { Calculator, Table2, ArrowRight, Target as TargetIcon, Users, Wallet, Music } from "lucide-react";
+import { Calculator, Table2, ArrowRight, Target as TargetIcon, Users, Wallet, Music, Search, CheckCircle2, X, Loader2 } from "lucide-react";
 
 type Fonte = "manual" | "top200" | "concorrente" | "orcamento";
+
+type TrackMeta = { title: string | null; artist: string | null; thumbnail_url: string | null; id: string };
 
 export interface CalculadoraHandoff {
   result: CampaignResult;
   trackUrl: string;
+  track: TrackMeta | null;
   fonte: Fonte;
 }
 
