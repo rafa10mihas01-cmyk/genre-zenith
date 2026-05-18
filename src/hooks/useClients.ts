@@ -100,14 +100,14 @@ export function useClients() {
   const addClient = useCallback(
     async (input: NewClientInput) => {
       if (!user) throw new Error("Usuário não autenticado");
+      const payload = {
+        user_id: user.id,
+        name: input.name,
+        ...buildUpdatePayload({ ...input, name: undefined }),
+      };
       const { data, error: err } = await supabase
         .from("clients")
-        .insert({
-          user_id: user.id,
-          name: input.name,
-          contact: input.contact ?? null,
-          notes: input.notes ?? null,
-        })
+        .insert(payload as any)
         .select()
         .single();
       if (err) throw err;
@@ -121,11 +121,7 @@ export function useClients() {
     async (id: string, input: Partial<NewClientInput>) => {
       const { error: err } = await supabase
         .from("clients")
-        .update({
-          ...(input.name !== undefined && { name: input.name }),
-          ...(input.contact !== undefined && { contact: input.contact ?? null }),
-          ...(input.notes !== undefined && { notes: input.notes ?? null }),
-        })
+        .update(buildUpdatePayload(input) as any)
         .eq("id", id);
       if (err) throw err;
       await load();
