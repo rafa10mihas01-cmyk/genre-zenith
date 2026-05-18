@@ -3861,6 +3861,51 @@ export type Database = {
         }
         Relationships: []
       }
+      raw_chart_daily: {
+        Row: {
+          artist: string | null
+          captured_at: string
+          chart_date: string
+          chart_name: string
+          id: string
+          position: number
+          source: string
+          spotify_artist_id: string | null
+          spotify_track_id: string | null
+          streams_day: number
+          streams_total: number | null
+          track: string | null
+        }
+        Insert: {
+          artist?: string | null
+          captured_at?: string
+          chart_date: string
+          chart_name?: string
+          id?: string
+          position: number
+          source?: string
+          spotify_artist_id?: string | null
+          spotify_track_id?: string | null
+          streams_day?: number
+          streams_total?: number | null
+          track?: string | null
+        }
+        Update: {
+          artist?: string | null
+          captured_at?: string
+          chart_date?: string
+          chart_name?: string
+          id?: string
+          position?: number
+          source?: string
+          spotify_artist_id?: string | null
+          spotify_track_id?: string | null
+          streams_day?: number
+          streams_total?: number | null
+          track?: string | null
+        }
+        Relationships: []
+      }
       recommendation_feedback: {
         Row: {
           action: string
