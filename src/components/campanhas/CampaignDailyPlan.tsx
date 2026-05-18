@@ -259,6 +259,40 @@ function Metric({ label, value, hint }: { label: string; value: string; hint?: s
   );
 }
 
+function MetricEditable({
+  label,
+  icon,
+  value,
+  onChange,
+  placeholder,
+  hint,
+}: {
+  label: string;
+  icon?: ReactNode;
+  value: number;
+  onChange: (v: number) => void;
+  placeholder?: string;
+  hint?: string;
+}) {
+  return (
+    <div className="rounded-lg border border-border bg-elevated/30 p-3">
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+        {icon} {label}
+      </div>
+      <Input
+        type="number"
+        inputMode="numeric"
+        min={0}
+        value={value || ""}
+        placeholder={placeholder}
+        onChange={(e) => onChange(Number(e.target.value) || 0)}
+        className="h-7 mt-1 px-1 text-lg font-semibold tabular-nums border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-primary/40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+      />
+      {hint && <div className="text-[10px] text-muted-foreground mt-0.5">{hint}</div>}
+    </div>
+  );
+}
+
 function PlanTable({
   title,
   icon,
