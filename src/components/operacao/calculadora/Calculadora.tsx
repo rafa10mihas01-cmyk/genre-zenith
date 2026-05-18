@@ -122,6 +122,10 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
         }
       } catch { /* sem chart, segue */ }
       setTrack({ id: data.id, title: data.title, artist: data.artist, thumbnail_url: data.thumbnail_url, streamsDay, position, chartDate });
+      // Pré-preenche baseline com o que o Top 200 mostra, MAS só se o usuário ainda não digitou nada
+      if (streamsDay != null && baselineStreamsDay === 0) {
+        setBaselineStreamsDay(streamsDay);
+      }
     } catch (e: any) {
       toast({ title: "Erro ao buscar música", description: e?.message ?? String(e), variant: "destructive" });
     } finally {
