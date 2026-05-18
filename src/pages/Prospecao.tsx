@@ -22,6 +22,7 @@ function formatNumber(n: number) {
 }
 
 export default function Prospecao() {
+  const navigate = useNavigate();
   const [segment, setSegment] = useState<Segment>("ativos");
   const {
     curators, balances, deals, loading,
