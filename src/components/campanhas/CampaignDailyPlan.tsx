@@ -89,8 +89,8 @@ export function CampaignDailyPlan({
   }, [campaignId, refreshKey]);
 
   const plan = useMemo(() => {
-    const ecoPlans = buildEcoPlaylistPlan(snapshot, ecoAllocations, { engagementMultiplier });
-    const externalPlans = buildExternalPlan(snapshot, externalItems);
+    const ecoPlans = buildEcoPlaylistPlan(snapshot, ecoAllocations, { engagementMultiplier, startedAt });
+    const externalPlans = buildExternalPlan(snapshot, externalItems, { startedAt });
     const daily = buildDailyCampaignPlan({ snapshot, startedAt, ecoPlans, externalPlans });
     return { ecoPlans, externalPlans, daily };
   }, [snapshot, startedAt, ecoAllocations, externalItems, engagementMultiplier]);
