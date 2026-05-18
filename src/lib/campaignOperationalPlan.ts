@@ -206,7 +206,8 @@ export function distributeEcoPositions(
       }
     }
     const candidate = lo + Math.floor(rng() * (hi - lo + 1));
-    const viable = minViablePosition(a.planned_streams, days, a.followers, engagementMultiplier);
+    const viable = maxViablePosition(a.planned_streams, days, a.followers, engagementMultiplier);
+    // Slot mais fraco aceitável = `viable`. Se o sorteio caiu mais fraco que isso, sobe.
     const pos = Math.max(MIN_CAMPAIGN_POSITION, Math.min(candidate, viable));
     if (pos <= 5) strongUsed++;
     result.set(a.id, pos);
