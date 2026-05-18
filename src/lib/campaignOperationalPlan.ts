@@ -163,7 +163,7 @@ export function recommendEcoPosition(
   const rng = seededRng(`${seed}:${followers}:${plannedStreams}`);
   const [lo, hi] = pickBucket(rng, tier);
   const candidate = lo + Math.floor(rng() * (hi - lo + 1));
-  const viable = minViablePosition(plannedStreams, days, followers, engagementMultiplier);
+  const viable = maxViablePosition(plannedStreams, days, followers, engagementMultiplier);
   return Math.max(MIN_CAMPAIGN_POSITION, Math.min(candidate, viable));
 }
 
