@@ -76,6 +76,17 @@ export function CampaignDailyPlan({ campaignId, snapshot, startedAt, ecoAllocati
     .reduce((sum, d) => sum + (source === "eco" ? d.eco : source === "externo" ? d.external : d.total), 0);
   const sourceTotal = source === "eco" ? snapshot.streamsEco : source === "externo" ? snapshot.streamsExt : snapshot.meta;
   const sourceLabel = source === "eco" ? "Eco" : source === "externo" ? "Externo" : "Total";
+  const dayHint = source === "eco"
+    ? "Somente ecossistema próprio"
+    : source === "externo"
+      ? "Somente curadores externos"
+      : `Eco ${formatInt(day?.eco ?? 0)} · Ext ${formatInt(day?.external ?? 0)}`;
+  const activeValue = source === "eco"
+    ? String(day?.activePlaylists ?? 0)
+    : source === "externo"
+      ? String(day?.activeCurators ?? 0)
+      : `${day?.activePlaylists ?? 0} / ${day?.activeCurators ?? 0}`;
+  const activeHint = source === "eco" ? "playlists próprias" : source === "externo" ? "curadores externos" : "playlists / curadores";
 
   function handleExport() {
     exportCampaignPlanCsv({
@@ -106,9 +117,9 @@ export function CampaignDailyPlan({ campaignId, snapshot, startedAt, ecoAllocati
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
           <Metric label="Dia selecionado" value={`D${day?.day ?? 1}`} hint={day?.dateLabel} />
-          <Metric label={`Meta do dia · ${sourceLabel}`} value={formatInt(dayTotalForSource)} hint={`Eco ${formatInt(day?.eco ?? 0)} · Ext ${formatInt(day?.external ?? 0)}`} />
+          <Metric label={`Meta do dia · ${sourceLabel}`} value={formatInt(dayTotalForSource)} hint={dayHint} />
           <Metric label={`Acumulado · ${sourceLabel}`} value={formatInt(cumulativeForSource)} hint={`${formatInt(sourceTotal)} no filtro`} />
-          <Metric label="Ativos no dia" value={`${visibleEco ? (day?.activePlaylists ?? 0) : 0} / ${visibleExternal ? (day?.activeCurators ?? 0) : 0}`} hint="playlists / curadores" />
+          <Metric label="Ativos no dia" value={activeValue} hint={activeHint} />
         </div>
 
         <div className="rounded-lg border border-border bg-elevated/20 p-3">
