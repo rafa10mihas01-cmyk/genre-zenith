@@ -533,6 +533,74 @@ export type Database = {
           },
         ]
       }
+      campaign_eco_allocations: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          dispatched_at: string | null
+          id: string
+          job_id: string | null
+          managed_playlist_id: string
+          planned_streams: number
+          start_day: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          dispatched_at?: string | null
+          id?: string
+          job_id?: string | null
+          managed_playlist_id: string
+          planned_streams?: number
+          start_day?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          dispatched_at?: string | null
+          id?: string
+          job_id?: string | null
+          managed_playlist_id?: string
+          planned_streams?: number
+          start_day?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_eco_allocations_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_eco_allocations_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "v_campaign_velocity"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "campaign_eco_allocations_managed_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "managed_playlists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_eco_allocations_managed_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_playlist_vps_assignment"
+            referencedColumns: ["managed_playlist_id"]
+          },
+        ]
+      }
       campaigns: {
         Row: {
           artist: string | null
@@ -540,9 +608,12 @@ export type Database = {
           created_at: string
           created_by: string | null
           deadline: string | null
+          eco_dispatched_at: string | null
           goal_plays: number
           id: string
           notes: string | null
+          simulation_snapshot: Json | null
+          snapshot_locked_at: string | null
           spotify_track_id: string | null
           spotify_track_url: string | null
           started_at: string
@@ -558,9 +629,12 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           deadline?: string | null
+          eco_dispatched_at?: string | null
           goal_plays: number
           id?: string
           notes?: string | null
+          simulation_snapshot?: Json | null
+          snapshot_locked_at?: string | null
           spotify_track_id?: string | null
           spotify_track_url?: string | null
           started_at?: string
@@ -576,9 +650,12 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           deadline?: string | null
+          eco_dispatched_at?: string | null
           goal_plays?: number
           id?: string
           notes?: string | null
+          simulation_snapshot?: Json | null
+          snapshot_locked_at?: string | null
           spotify_track_id?: string | null
           spotify_track_url?: string | null
           started_at?: string

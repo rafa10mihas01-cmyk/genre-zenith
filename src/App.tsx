@@ -43,6 +43,7 @@ import AdminAprendizado from "./pages/AdminAprendizado";
 // Infraestrutura agora vive como aba dentro de /sistema
 import Campanhas from "./pages/Campanhas";
 import CampanhaDetalhe from "./pages/CampanhaDetalhe";
+import CampanhaExecucao from "./pages/CampanhaExecucao";
 import Analytics from "./pages/Analytics";
 import Valuation from "./pages/Valuation";
 import PlaylistDetail from "./pages/PlaylistDetail";
@@ -121,6 +122,7 @@ const App = () => (
               <Route path="/deals/comparar" element={<Protected><CompararCuradores /></Protected>} />
               <Route path="/deals/:dealId" element={<Protected><DealDetail /></Protected>} />
               <Route path="/campanhas" element={<Protected><Campanhas /></Protected>} />
+              <Route path="/campanhas/:id/execucao" element={<Protected><CampanhaExecucao /></Protected>} />
               <Route path="/campanhas/:id" element={<Protected><CampanhaDetalhe /></Protected>} />
               <Route path="/analytics" element={<Protected><Analytics /></Protected>} />
               {/* /analytics/* viraram redirect para as canônicas /performance e /valuation. */}

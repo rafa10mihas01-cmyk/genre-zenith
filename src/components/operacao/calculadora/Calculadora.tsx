@@ -1,4 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { buildSnapshot, planEcoAllocations, closeCampaignFromCalculator } from "@/lib/campaignSnapshot";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -59,7 +61,59 @@ function loadPersisted(): Partial<PersistedState> {
 
 export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandoff) => void }) {
   const persisted = useMemo(loadPersisted, []);
+  const navigate = useNavigate();
   const [subtab, setSubtab] = useState<"calc" | "top200">("calc");
+  const [closing, setClosing] = useState(false);
+
+  async function fecharCampanha() {
+    if (!result) return;
+    if (!track?.id) {
+      toast({ title: "Carregue o link da música antes de fechar", variant: "destructive" });
+      return;
+    }
+    setClosing(true);
+    try {
+      const { data: playlists, error } = await supabase
+        .from("managed_playlists")
+        .select("id, followers")
+        .is("archived_at", null);
+      if (error) throw error;
+
+      const snapshot = buildSnapshot(result, {
+        spotifyTrackId: track.id,
+        trackUrl: trackUrl || null,
+        title: track.title,
+        artist: track.artist,
+        coverUrl: track.thumbnail_url,
+        baselineStreamsDay,
+      });
+
+      const allocations = planEcoAllocations(
+        result.streamsEco,
+        result.days,
+        (playlists ?? []).map(p => ({ id: p.id, followers: p.followers ?? 0 })),
+      );
+
+      const deadline = new Date();
+      deadline.setDate(deadline.getDate() + result.days);
+      const deadlineISO = deadline.toISOString().slice(0, 10);
+
+      const { campaignId } = await closeCampaignFromCalculator({
+        snapshot,
+        deadlineISO,
+        allocations,
+      });
+
+      try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
+      toast({ title: "Campanha congelada", description: `${allocations.length} playlists alocadas no Eco.` });
+      navigate(`/campanhas/${campaignId}/execucao`);
+    } catch (e: any) {
+      toast({ title: "Erro ao fechar campanha", description: e.message ?? String(e), variant: "destructive" });
+    } finally {
+      setClosing(false);
+    }
+  }
+
 
   // Inputs (hidratados do localStorage)
   const [fonte, setFonte] = useState<Fonte>(persisted.fonte ?? "manual");
@@ -362,7 +416,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
           <div className="space-y-4">
             <CalculadoraResultado r={result} />
 
-            {onContinue && (
+            {onContinue ? (
               <Button
                 size="lg"
                 className="w-full"
@@ -372,10 +426,24 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                 Continuar para execução
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
+            ) : (
+              <Button
+                size="lg"
+                className="w-full"
+                variant="solid"
+                onClick={fecharCampanha}
+                disabled={closing}
+              >
+                {closing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                Fechar campanha e ir para execução
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
             )}
             <p className="text-[11px] text-muted-foreground text-center">
               A execução vai herdar meta de <strong>{formatInt(result.meta)}</strong> streams em <strong>{result.days}d</strong>,
               orçamento <strong>{formatBRL(result.custoTotal)}</strong>, split {result.splitEcoPct}/{100 - result.splitEcoPct}.
+              <br />
+              Ao fechar, o snapshot vira <strong>imutável</strong>: ninguém recalcula mais nada.
             </p>
           </div>
         </div>
