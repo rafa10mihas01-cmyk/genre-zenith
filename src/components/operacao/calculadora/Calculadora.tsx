@@ -173,8 +173,18 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                 {fonte === "manual" && (
                   <div>
                     <Label className="text-xs">Meta de streams</Label>
-                    <Input type="number" value={meta} onChange={e => setMeta(Number(e.target.value) || 0)} />
+                    <NumberInput value={meta} onChange={setMeta} placeholder="1.000.000" />
                   </div>
+                )}
+                {fonte === "top200" && (
+                  <Top200Picker
+                    days={days}
+                    onPick={(streamsDay, pos) => {
+                      setMeta(streamsDay * days);
+                      toast({ title: `Posição #${pos}`, description: `${formatInt(streamsDay)} streams/dia × ${days}d = ${formatInt(streamsDay * days)}` });
+                    }}
+                    onOpenList={() => setSubtab("top200")}
+                  />
                 )}
                 {fonte === "concorrente" && (
                   <div className="space-y-2">
@@ -183,13 +193,13 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                     <p className="text-xs text-muted-foreground">
                       Em breve: leitura automática de streams médios. Por enquanto, defina manualmente abaixo.
                     </p>
-                    <Input type="number" value={meta} onChange={e => setMeta(Number(e.target.value) || 0)} />
+                    <NumberInput value={meta} onChange={setMeta} />
                   </div>
                 )}
                 {fonte === "orcamento" && (
                   <div className="space-y-2">
                     <Label className="text-xs">Orçamento disponível (R$)</Label>
-                    <Input type="number" value={budget} onChange={e => setBudget(Number(e.target.value) || 0)} />
+                    <NumberInput value={budget} onChange={setBudget} placeholder="40.000" />
                     <p className="text-xs text-muted-foreground">
                       Meta calculada: <span className="font-semibold text-foreground">{formatInt(effectiveMeta)} streams</span>
                     </p>
