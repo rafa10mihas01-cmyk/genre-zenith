@@ -257,9 +257,17 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                 {fonte === "top200" && (
                   <Top200Picker
                     days={days}
+                    currentStreamsDay={track?.streamsDay ?? 0}
                     onPick={(streamsDay, pos) => {
-                      setMeta(streamsDay * days);
-                      toast({ title: `Posição #${pos}`, description: `${formatInt(streamsDay)} streams/dia × ${days}d = ${formatInt(streamsDay * days)}` });
+                      const base = track?.streamsDay ?? 0;
+                      const gapDay = Math.max(0, streamsDay - base);
+                      setMeta(gapDay * days);
+                      toast({
+                        title: `Posição #${pos}`,
+                        description: base > 0
+                          ? `Alvo ${formatInt(streamsDay)}/d − hoje ${formatInt(base)}/d = ${formatInt(gapDay)}/d × ${days}d = ${formatInt(gapDay * days)}`
+                          : `${formatInt(streamsDay)} streams/dia × ${days}d = ${formatInt(streamsDay * days)}`,
+                      });
                     }}
                     onOpenList={() => setSubtab("top200")}
                   />
