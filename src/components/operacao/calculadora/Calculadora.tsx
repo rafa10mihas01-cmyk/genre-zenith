@@ -66,6 +66,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
   const [trackUrl, setTrackUrl] = useState(persisted.trackUrl ?? "");
   const [track, setTrack] = useState<TrackMeta | null>(persisted.track ?? null);
   const [trackLoading, setTrackLoading] = useState(false);
+  const [baselineStreamsDay, setBaselineStreamsDay] = useState<number>(persisted.baselineStreamsDay ?? 0);
   const [meta, setMeta] = useState<number>(persisted.meta ?? 1_000_000);
   const [days, setDays] = useState<number>(persisted.days ?? 60);
   const [budget, setBudget] = useState<number>(persisted.budget ?? 40_000);
@@ -77,10 +78,10 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        fonte, trackUrl, track, meta, days, budget, modo, perfil, splitEco,
+        fonte, trackUrl, track, baselineStreamsDay, meta, days, budget, modo, perfil, splitEco,
       }));
     } catch { /* quota cheia, ignora */ }
-  }, [fonte, trackUrl, track, meta, days, budget, modo, perfil, splitEco]);
+  }, [fonte, trackUrl, track, baselineStreamsDay, meta, days, budget, modo, perfil, splitEco]);
 
   async function buscarMusica() {
     const url = trackUrl.trim();
