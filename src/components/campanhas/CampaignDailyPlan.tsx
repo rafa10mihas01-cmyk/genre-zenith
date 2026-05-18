@@ -70,6 +70,12 @@ export function CampaignDailyPlan({ campaignId, snapshot, startedAt, ecoAllocati
 
   const visibleEco = source !== "externo";
   const visibleExternal = source !== "eco";
+  const dayTotalForSource = source === "eco" ? (day?.eco ?? 0) : source === "externo" ? (day?.external ?? 0) : (day?.total ?? 0);
+  const cumulativeForSource = plan.daily
+    .slice(0, Math.max(0, selectedDay))
+    .reduce((sum, d) => sum + (source === "eco" ? d.eco : source === "externo" ? d.external : d.total), 0);
+  const sourceTotal = source === "eco" ? snapshot.streamsEco : source === "externo" ? snapshot.streamsExt : snapshot.meta;
+  const sourceLabel = source === "eco" ? "Eco" : source === "externo" ? "Externo" : "Total";
 
   function handleExport() {
     exportCampaignPlanCsv({
@@ -100,9 +106,9 @@ export function CampaignDailyPlan({ campaignId, snapshot, startedAt, ecoAllocati
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
           <Metric label="Dia selecionado" value={`D${day?.day ?? 1}`} hint={day?.dateLabel} />
-          <Metric label="Meta do dia" value={formatInt(day?.total ?? 0)} hint={`Eco ${formatInt(day?.eco ?? 0)} · Ext ${formatInt(day?.external ?? 0)}`} />
-          <Metric label="Acumulado" value={formatInt(day?.cumulative ?? 0)} hint={`${formatInt(snapshot.meta)} no total`} />
-          <Metric label="Ativos no dia" value={`${day?.activePlaylists ?? 0} / ${day?.activeCurators ?? 0}`} hint="playlists / curadores" />
+          <Metric label={`Meta do dia · ${sourceLabel}`} value={formatInt(dayTotalForSource)} hint={`Eco ${formatInt(day?.eco ?? 0)} · Ext ${formatInt(day?.external ?? 0)}`} />
+          <Metric label={`Acumulado · ${sourceLabel}`} value={formatInt(cumulativeForSource)} hint={`${formatInt(sourceTotal)} no filtro`} />
+          <Metric label="Ativos no dia" value={`${visibleEco ? (day?.activePlaylists ?? 0) : 0} / ${visibleExternal ? (day?.activeCurators ?? 0) : 0}`} hint="playlists / curadores" />
         </div>
 
         <div className="rounded-lg border border-border bg-elevated/20 p-3">
@@ -122,7 +128,9 @@ export function CampaignDailyPlan({ campaignId, snapshot, startedAt, ecoAllocati
           <div className="grid grid-cols-7 sm:grid-cols-10 md:grid-cols-[repeat(15,minmax(0,1fr))] gap-1.5">
             {plan.daily.map(d => {
               const active = selectedDay === d.day;
-              const intensity = Math.min(1, d.total / Math.max(1, snapshot.picoPorDia));
+              const filteredTotal = source === "eco" ? d.eco : source === "externo" ? d.external : d.total;
+              const peak = Math.max(1, ...plan.daily.map(p => source === "eco" ? p.eco : source === "externo" ? p.external : p.total));
+              const intensity = Math.min(1, filteredTotal / peak);
               return (
                 <button
                   key={d.day}
@@ -131,11 +139,11 @@ export function CampaignDailyPlan({ campaignId, snapshot, startedAt, ecoAllocati
                     "h-12 rounded-md border text-[10px] transition-colors text-left px-2 overflow-hidden",
                     active ? "border-primary bg-primary/10 text-foreground" : "border-border bg-background hover:bg-elevated/70 text-muted-foreground",
                   )}
-                  title={`D${d.day}: ${formatInt(d.total)} streams`}
+                  title={`D${d.day}: ${formatInt(filteredTotal)} streams`}
                 >
                   <div className="font-medium tabular-nums">D{d.day}</div>
                   <div className="mt-1 h-1 rounded-full bg-muted overflow-hidden">
-                    <div className="h-full bg-primary" style={{ width: `${Math.max(8, intensity * 100)}%` }} />
+                    <div className={cn("h-full", source === "externo" ? "bg-warning" : "bg-primary")} style={{ width: `${filteredTotal > 0 ? Math.max(8, intensity * 100) : 0}%` }} />
                   </div>
                 </button>
               );
@@ -168,7 +176,7 @@ export function CampaignDailyPlan({ campaignId, snapshot, startedAt, ecoAllocati
               rows={externalForDay.map(p => ({
                 id: p.itemId,
                 name: p.curatorName,
-                detail: `${p.contact ?? "sem contato"} · ${formatBRL(p.streamsToday * p.costPerStream)}`,
+                detail: `${p.contact ?? "sem contato"} · entrada D${p.startDay} · ${formatBRL(p.streamsToday * p.costPerStream)}`,
                 today: p.streamsToday,
                 total: p.totalStreams,
                 badge: "Meta diária",
