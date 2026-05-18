@@ -373,13 +373,20 @@ export function buildEcoPlaylistPlan(
   return result;
 }
 
-export function buildExternalPlan(snapshot: CampaignSnapshot, items: ExternalPlanInput[]): DailyExternalPlan[] {
+export function buildExternalPlan(
+  snapshot: CampaignSnapshot,
+  items: ExternalPlanInput[],
+  opts: { startedAt?: string } = {},
+): DailyExternalPlan[] {
+  const curva = opts.startedAt
+    ? applyWeekdaySeasonality(snapshot.curva, opts.startedAt)
+    : snapshot.curva;
   const ordered = [...items].sort((a, b) => b.assigned_streams - a.assigned_streams);
   return ordered.map((item, index) => {
     const startDay = generatedStartDay(index, ordered.length, snapshot.days, snapshot.modo);
     const { daily } = distributeByCurve(
       Number(item.assigned_streams ?? 0),
-      snapshot.curva,
+      curva,
       startDay,
       { delay: REPORTING_DELAY_DAYS },
     );
