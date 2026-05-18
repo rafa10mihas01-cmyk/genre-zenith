@@ -798,10 +798,13 @@ export type Database = {
       campaigns: {
         Row: {
           artist: string | null
+          client_id: string | null
           cover_url: string | null
           created_at: string
           created_by: string | null
+          curator_id: string | null
           deadline: string | null
+          deal_id: string | null
           eco_dispatched_at: string | null
           engagement_multiplier: number
           goal_plays: number
@@ -821,10 +824,13 @@ export type Database = {
         }
         Insert: {
           artist?: string | null
+          client_id?: string | null
           cover_url?: string | null
           created_at?: string
           created_by?: string | null
+          curator_id?: string | null
           deadline?: string | null
+          deal_id?: string | null
           eco_dispatched_at?: string | null
           engagement_multiplier?: number
           goal_plays: number
@@ -844,10 +850,13 @@ export type Database = {
         }
         Update: {
           artist?: string | null
+          client_id?: string | null
           cover_url?: string | null
           created_at?: string
           created_by?: string | null
+          curator_id?: string | null
           deadline?: string | null
+          deal_id?: string | null
           eco_dispatched_at?: string | null
           engagement_multiplier?: number
           goal_plays?: number
@@ -865,7 +874,43 @@ export type Database = {
           track_name?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "campaigns_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaigns_curator_id_fkey"
+            columns: ["curator_id"]
+            isOneToOne: false
+            referencedRelation: "curators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaigns_curator_id_fkey"
+            columns: ["curator_id"]
+            isOneToOne: false
+            referencedRelation: "v_curator_balance"
+            referencedColumns: ["curator_id"]
+          },
+          {
+            foreignKeyName: "campaigns_curator_id_fkey"
+            columns: ["curator_id"]
+            isOneToOne: false
+            referencedRelation: "v_curator_finance"
+            referencedColumns: ["curator_id"]
+          },
+          {
+            foreignKeyName: "campaigns_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "curator_deals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       chart_position_benchmarks: {
         Row: {
@@ -5521,6 +5566,7 @@ export type Database = {
         }
         Returns: string
       }
+      approve_campaign: { Args: { p_campaign_id: string }; Returns: string }
       bump_ai_quota: {
         Args: { p_month_start: string; p_tokens: number; p_user_id: string }
         Returns: Json
