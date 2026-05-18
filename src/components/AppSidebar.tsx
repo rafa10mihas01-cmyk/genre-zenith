@@ -185,6 +185,9 @@ export function AppSidebar() {
 
                   // Item simples (sem filhos) — comportamento idêntico ao antigo.
                   if (!hasChildren) {
+                    const accentStyle = item.accent
+                      ? ({ color: `hsl(var(--${item.accent}))` } as React.CSSProperties)
+                      : undefined;
                     return (
                       <SidebarMenuItem key={item.title}>
                         <SidebarMenuButton
@@ -198,9 +201,15 @@ export function AppSidebar() {
                         >
                           <NavLink to={item.url} end={item.end} onClick={handleNav} className="flex items-center gap-3 px-3">
                             {active && !collapsed && (
-                              <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r bg-primary" />
+                              <span
+                                className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r"
+                                style={item.accent ? { backgroundColor: `hsl(var(--${item.accent}))` } : undefined}
+                              />
                             )}
-                            <item.icon className={cn("h-[18px] w-[18px] shrink-0", active ? "text-primary" : "text-sidebar-foreground/60")} />
+                            <item.icon
+                              className={cn("h-[18px] w-[18px] shrink-0", !active && "text-sidebar-foreground/60")}
+                              style={active ? accentStyle : undefined}
+                            />
                             {!collapsed && <span className="text-[14px]">{item.title}</span>}
                           </NavLink>
                         </SidebarMenuButton>
