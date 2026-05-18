@@ -305,6 +305,33 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
+                <Label>Cliente <span className="text-muted-foreground font-normal">(dono da campanha)</span></Label>
+                <Select value={clientId || "__none__"} onValueChange={v => setClientId(v === "__none__" ? "" : v)}>
+                  <SelectTrigger><SelectValue placeholder="Selecione um cliente" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">— Sem cliente —</SelectItem>
+                    {clientsList.map(c => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Curador <span className="text-muted-foreground font-normal">(dono das playlists)</span></Label>
+                <Select value={curatorId || "__none__"} onValueChange={v => setCuratorId(v === "__none__" ? "" : v)}>
+                  <SelectTrigger><SelectValue placeholder="Selecione um curador" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">— Sem curador (modo legado) —</SelectItem>
+                    {curatorsList.map(c => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Com curador definido, ao aprovar a campanha vira um deal real ligado a ele.
+                </p>
+              </div>
+              <div className="space-y-2">
                 <Label>Nome da música *</Label>
                 <Input value={trackName} onChange={e => setTrackName(e.target.value)} maxLength={200} />
               </div>
