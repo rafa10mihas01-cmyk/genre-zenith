@@ -106,7 +106,7 @@ export default function Campanhas() {
                 <RefreshCw className={`h-4 w-4 mr-2 ${recalcing ? "animate-spin" : ""}`} />
                 Recalcular
               </Button>
-              <Button onClick={() => setDialogOpen(true)}>
+              <Button onClick={() => setTab("financeiro")}>
                 <Plus className="h-4 w-4 mr-2" /> Nova campanha
               </Button>
             </>
