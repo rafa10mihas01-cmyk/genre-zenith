@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
-import { RefreshCw, Handshake, UserSearch } from "lucide-react";
+import { RefreshCw, Handshake, UserSearch, Users, Activity, DollarSign, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageContainer } from "@/components/PageContainer";
 import { PageHeader } from "@/components/PageHeader";
+import { KpiBig } from "@/components/KpiBig";
 import { CuradoresCRM } from "@/components/operacao/CuradoresCRM";
 import { CuradoresLibraryTab } from "@/components/playlist-deals/CuradoresLibraryTab";
 import { OutreachDashboard } from "@/components/operacao/OutreachDashboard";
@@ -15,19 +16,8 @@ function formatBRL(v: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(v);
 }
 
-function MiniStat({ label, value, tone }: { label: string; value: string | number; tone?: "primary" | "warning" }) {
-  return (
-    <div className="nx-card !p-3">
-      <div className="text-[10.5px] uppercase tracking-[0.12em] text-muted-foreground">{label}</div>
-      <div className={cn(
-        "text-xl font-bold tabular-nums mt-0.5",
-        tone === "primary" && "text-primary",
-        tone === "warning" && "text-warning",
-      )}>
-        {typeof value === "number" ? value.toLocaleString("pt-BR") : value}
-      </div>
-    </div>
-  );
+function formatNumber(n: number) {
+  return n.toLocaleString("pt-BR");
 }
 
 export default function Prospecao() {
@@ -40,7 +30,7 @@ export default function Prospecao() {
 
   const ativosCount = curators.filter((c) => !c.archived_at).length;
 
-  const ativosKpis = useMemo(() => {
+  const kpis = useMemo(() => {
     const activeCurators = curators.filter((c) => !c.archived_at);
     const dealsAtivos = deals.filter((d) => !d.closed_at).length;
     const receita = balances.reduce((acc, b) => acc + (Number(b.total_cost) || 0), 0);
@@ -72,6 +62,40 @@ export default function Prospecao() {
           </Button>
         }
       />
+
+      {/* KPIs — padrão Comunidade/Operação (sempre acima das tabs) */}
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiBig
+          icon={Users}
+          label="Curadores"
+          value={formatNumber(kpis.curadores)}
+          hint="Ativos na biblioteca"
+          loading={loading}
+        />
+        <KpiBig
+          icon={Activity}
+          label="Deals ativos"
+          value={formatNumber(kpis.dealsAtivos)}
+          tone="primary"
+          hint="Negociações em andamento"
+          loading={loading}
+        />
+        <KpiBig
+          icon={DollarSign}
+          label="Receita"
+          value={formatBRL(kpis.receita)}
+          hint="Total investido em curadoria"
+          loading={loading}
+        />
+        <KpiBig
+          icon={TrendingUp}
+          label="Ticket médio"
+          value={formatBRL(kpis.ticket)}
+          tone="primary"
+          hint={`Base ${formatNumber(deals.length)} deals`}
+          loading={loading}
+        />
+      </section>
 
       {/* Segmento de alto nível */}
       <div className="sticky top-0 z-30 -mt-px bg-background/95 supports-[backdrop-filter]:bg-background/80 backdrop-blur-md border-b border-border -mx-4 md:-mx-6">
@@ -112,26 +136,17 @@ export default function Prospecao() {
 
       <section className="space-y-4 animate-tab-in" key={segment}>
         {segment === "ativos" ? (
-          <>
-            {/* KPIs Ativos */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-              <MiniStat label="Curadores" value={ativosKpis.curadores} />
-              <MiniStat label="Deals ativos" value={ativosKpis.dealsAtivos} tone="primary" />
-              <MiniStat label="Receita" value={formatBRL(ativosKpis.receita)} />
-              <MiniStat label="Ticket médio" value={formatBRL(ativosKpis.ticket)} tone="primary" />
-            </div>
-            <CuradoresLibraryTab
-              curators={curators}
-              balances={balances}
-              deals={deals}
-              loading={loading}
-              onUpdateCurator={updateCurator}
-              onAddPurchase={addCuratorPurchase}
-              onArchiveCurator={archiveCurator}
-              onDeleteCurator={deleteCurator}
-              onPauseCurator={pauseCurator}
-            />
-          </>
+          <CuradoresLibraryTab
+            curators={curators}
+            balances={balances}
+            deals={deals}
+            loading={loading}
+            onUpdateCurator={updateCurator}
+            onAddPurchase={addCuratorPurchase}
+            onArchiveCurator={archiveCurator}
+            onDeleteCurator={deleteCurator}
+            onPauseCurator={pauseCurator}
+          />
         ) : (
           <>
             <OutreachDashboard />
@@ -142,4 +157,3 @@ export default function Prospecao() {
     </PageContainer>
   );
 }
-
