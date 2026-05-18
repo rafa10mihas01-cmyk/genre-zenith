@@ -406,7 +406,9 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                 )}
               </CardContent>
             </Card>
+            )}
 
+            {(secao === "todos" || secao === "estrategia") && (
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm">Estratégia</CardTitle>
