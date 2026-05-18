@@ -24,13 +24,13 @@
     --muted-foreground: 218 11% 65%;  /* #9CA3AF */
     --muted: 0 0% 9%;
 
-    /* Spotify green */
+    /* Spotify green — reservado pra CTA principal e ação primária. NÃO usar pra status/foco. */
     --primary: 141 76% 48%;           /* #1DB954 */
     --primary-foreground: 0 0% 0%;
-    --primary-glow: 141 76% 48% / 0.22;
+    --primary-glow: 141 76% 48% / 0.18;
 
-    /* Hover sutil — verde bem clarinho sobre fundo escuro */
-    --accent: 141 30% 13%;
+    /* Hover sutil — neutro escuro, sem tingir de verde */
+    --accent: 0 0% 13%;               /* #212121 — mesmo do --elevated */
     --accent-foreground: 0 0% 100%;
 
     --secondary: 0 0% 9%;
@@ -39,14 +39,17 @@
     /* Borders sutis mas perceptíveis em qualquer brilho */
     --border: 0 0% 18%;
     --input: 0 0% 18%;
-    --ring: 141 76% 48%;
+    /* Foco em branco translúcido — não compete com o verde de marca */
+    --ring: 0 0% 100% / 0.35;
 
-    /* Status */
-    --success: 141 76% 48%;
+    /* Status — verde de sucesso mais apagado pra não competir com o primary */
+    --success: 141 50% 38%;           /* verde escuro, status calmo */
+    --success-foreground: 0 0% 100%;
     --warning: 38 92% 55%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
     --neutral: 0 0% 45%;
+
 
     /* Spacing scale (px reais) — mobile first */
     --space-page-x: 16px;             /* padding horizontal mobile */
