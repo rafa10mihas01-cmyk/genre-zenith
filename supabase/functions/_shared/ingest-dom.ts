@@ -195,6 +195,27 @@ export async function processDomItem(
       correlation_id: item.correlation_id ?? null,
     });
     if (insErr) skipped++; else inserted++;
+
+    // Espelha em campaign_eco_snapshots quando: shadow de campanha + playlist é própria (managed)
+    if (isCampaignShadow && sId) {
+      const { data: mp } = await supabase
+        .from("managed_playlists")
+        .select("id")
+        .eq("spotify_playlist_id", sId)
+        .maybeSingle();
+      if ((mp as any)?.id) {
+        await supabase.from("campaign_eco_snapshots").insert({
+          campaign_id: campaignId,
+          managed_playlist_id: (mp as any).id,
+          spotify_playlist_id: sId,
+          plays_24h: plays24h,
+          plays_7d: plays7d,
+          plays_28d: plays28d,
+          source: p.source ?? "spotify_for_artists_dom",
+          correlation_id: item.correlation_id ?? null,
+        });
+      }
+    }
   }
 
   if (isBaseline) {
