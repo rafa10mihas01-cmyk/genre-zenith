@@ -1,6 +1,6 @@
 // useCuratorDeals — camada de dados do módulo redesenhado de Curator Deals.
 // Mesmo padrão dos demais hooks: SDK Supabase direto em useEffect/useCallback.
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQueries, useQueryClient } from "@tanstack/react-query";
@@ -156,9 +156,11 @@ export function useCuratorDeals() {
   const [balances, setBalances] = useState<CuratorBalance[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const hasLoadedRef = useRef(false);
 
   const load = useCallback(async () => {
     if (!user) {
+      hasLoadedRef.current = false;
       setDeals([]);
       setLogs([]);
       setPlaylists([]);
@@ -170,7 +172,7 @@ export function useCuratorDeals() {
       return;
     }
     // Só mostra skeleton no primeiro carregamento — reloads silenciosos evitam flicker.
-    setLoading((prev) => (deals.length === 0 ? true : prev));
+    if (!hasLoadedRef.current) setLoading(true);
     setError(null);
     try {
       // Curadores + saldos em paralelo com deals
@@ -244,6 +246,7 @@ export function useCuratorDeals() {
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
+      hasLoadedRef.current = true;
       setLoading(false);
     }
   }, [user]);
@@ -349,11 +352,14 @@ export function useCuratorDeals() {
   useEffect(() => {
     if (!user) return;
     const refresh = () => load();
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") load();
+    };
     window.addEventListener("focus", refresh);
-    document.addEventListener("visibilitychange", refresh);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
     return () => {
       window.removeEventListener("focus", refresh);
-      document.removeEventListener("visibilitychange", refresh);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
     };
   }, [user, load]);
 
