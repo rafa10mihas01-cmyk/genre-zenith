@@ -280,6 +280,7 @@ export default function CampanhaExecucao() {
                         <tr>
                           <th className="text-left font-medium py-2 px-3 border-b border-border">Playlist</th>
                           <th className="text-right font-medium py-2 px-3 border-b border-border w-32">Planejado</th>
+                          <th className="text-right font-medium py-2 px-3 border-b border-border w-20">Posição</th>
                           <th className="text-right font-medium py-2 px-3 border-b border-border w-20">Início</th>
                           <th className="text-right font-medium py-2 px-3 border-b border-border w-32">Status</th>
                         </tr>
