@@ -64,12 +64,6 @@ const sections: NavSection[] = [
       },
       { title: "Campanhas", url: "/campanhas", icon: Target },
       {
-        title: "Playlists",
-        url: "/catalogo",
-        icon: ListMusic,
-        matchPaths: ["/playlists", "/operacao"],
-      },
-      {
         title: "Deals",
         url: "/deals",
         icon: Handshake,
@@ -80,6 +74,12 @@ const sections: NavSection[] = [
         url: "/comunidade-admin",
         icon: Users,
         adminOnly: true,
+      },
+      {
+        title: "Playlists",
+        url: "/catalogo",
+        icon: ListMusic,
+        matchPaths: ["/playlists", "/operacao"],
       },
     ],
   },
