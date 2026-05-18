@@ -446,7 +446,8 @@ function Top200Picker({
         return;
       }
       setChartDate(data.chart_date);
-      onPick(data.streams_day, p);
+      setPosStreamsDay(Number(data.streams_day));
+      onPick(Number(data.streams_day), p);
     } finally {
       setLoading(false);
     }
