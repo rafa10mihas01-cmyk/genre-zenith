@@ -87,6 +87,7 @@ export default function Operacao() {
   const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
   const [accountsSummary, setAccountsSummary] = useState<AccountSummary>({ total: 0, active: 0, capacity_used: 0, capacity_max: 0 });
   const [managedFollowers, setManagedFollowers] = useState<{ sum: number; count: number }>({ sum: 0, count: 0 });
+  const [playlistStats, setPlaylistStats] = useState<{ avgHealth: number; topPerf: number; atRisk: number; inactive: number }>({ avgHealth: 0, topPerf: 0, atRisk: 0, inactive: 0 });
 
   const load = async () => {
     setLoading(true);
