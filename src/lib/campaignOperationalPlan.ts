@@ -590,10 +590,8 @@ export function buildEcoPlaylistPlan(
   const result = plans as EcoPlanResult;
   result.unmetEco = Math.max(0, Math.round(remaining));
 
-  // Variação natural por dia (depois da redistribuição de overflow).
-  for (const p of result) {
-    applyDailyJitter(p.daily, p.capDia, p.allocationId);
-  }
+  // Sem jitter: a faixa fica fixa na posição e entrega ~capDia todo dia
+  // (só varia pelo fator de dia-da-semana já aplicado acima).
 
   return result;
 }
