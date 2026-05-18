@@ -102,6 +102,24 @@ function matchesSequence(values: number[], expected: number[]) {
   return values.length === expected.length && values.every((v, i) => v === expected[i]);
 }
 
+/**
+ * No modo sequencial, o ecossistema próprio só entra depois que o externo
+ * aquece a faixa. Calcula o dia em que a curva acumulada atinge `pct` do total —
+ * funciona como proxy do momento em que o externo cumpre ~25% da meta.
+ */
+export function curveThresholdDay(curva: CampaignSnapshot["curva"], pct: number) {
+  if (!curva.length) return 1;
+  const weights = curva.map(p => Math.max(1, p.streamsDay));
+  const totalWeight = weights.reduce((s, w) => s + w, 0);
+  const target = totalWeight * pct;
+  let acc = 0;
+  for (let i = 0; i < weights.length; i++) {
+    acc += weights[i];
+    if (acc >= target) return i + 1;
+  }
+  return curva.length;
+}
+
 export function buildEcoPlaylistPlan(snapshot: CampaignSnapshot, allocs: EcoPlanInput[]): DailyPlaylistPlan[] {
   const ordered = [...allocs].sort((a, b) => b.planned_streams - a.planned_streams);
   const storedStarts = ordered.map(a => Number(a.start_day || 1));
@@ -113,10 +131,16 @@ export function buildEcoPlaylistPlan(snapshot: CampaignSnapshot, allocs: EcoPlan
     || matchesSequence(storedStarts, legacyStarts)
   );
 
+  // No sequencial, eco só entra após externo bater ~25% da meta.
+  const ecoFloorDay = snapshot.modo === "sequencial"
+    ? curveThresholdDay(snapshot.curva, 0.25)
+    : 1;
+
   return ordered.map((a, index) => {
-    const startDay = startsLookSystemGenerated
+    const baseStart = startsLookSystemGenerated
       ? generatedStarts[index]
       : effectiveEcoStartDay(index, ordered.length, snapshot.days, a.start_day, snapshot.modo);
+    const startDay = Math.min(snapshot.days, Math.max(baseStart, ecoFloorDay));
 
     return {
       allocationId: a.id,
