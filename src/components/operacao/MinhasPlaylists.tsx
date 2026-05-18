@@ -726,34 +726,38 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
                 )}
               </div>
 
-              <div className="p-2.5 flex-1 flex flex-col gap-1.5">
+              <div className="p-2 flex-1 flex flex-col gap-1">
                 <div className="flex items-start gap-1.5">
-                  <h4 className="flex-1 text-[13px] font-semibold leading-tight line-clamp-1" title={p.name}>{p.name}</h4>
+                  <h4 className="flex-1 text-[12.5px] font-semibold leading-tight line-clamp-1" title={p.name}>{p.name}</h4>
                   <PlaylistScoreBadge scores={p.canonical_playlist_id ? scores[p.canonical_playlist_id] ?? null : null} />
                 </div>
                 <div className="flex items-center justify-between text-[11px] tabular-nums text-muted-foreground">
                   <span><span className="font-semibold text-foreground">{formatNumber(p.followers)}</span> seg.</span>
                   <span><span className="font-semibold text-foreground">{p.tracks_count || "—"}</span> fx</span>
                 </div>
-                {/* Linha de status — V, diag e vínculo de conta (substitui overlays na capa) */}
-                {(valuations[p.spotify_playlist_id] || p.last_diagnosis_at || !p.account_id) && (
-                  <div className="flex items-center gap-1 flex-wrap">
+                {/* Linha única de status — todos os badges juntos, ocupando a largura disponível */}
+                {(valuations[p.spotify_playlist_id] || p.last_diagnosis_at || !p.account_id || p.curatorial_state || (cooldownsByPlaylist[p.id]?.length ?? 0) > 0) && (
+                  <div className="flex items-center gap-1 flex-wrap mt-0.5">
+                    {p.curatorial_state && <CuratorialStateBadge state={p.curatorial_state} compact />}
                     {valuations[p.spotify_playlist_id] && (
                       <span
                         title={`Valuation ${valuations[p.spotify_playlist_id].valuation_score}/100`}
                         className={cn(
-                          "inline-flex items-center px-1.5 h-5 rounded-full border text-[10px] font-bold tabular-nums",
+                          "inline-flex items-center px-1.5 h-[18px] rounded-full border text-[10px] font-bold tabular-nums",
                           valuations[p.spotify_playlist_id].recommendation === "buy" && "bg-primary/15 border-primary/40 text-primary",
                           valuations[p.spotify_playlist_id].recommendation === "maybe" && "bg-warning/15 border-warning/40 text-warning",
                           valuations[p.spotify_playlist_id].recommendation === "skip" && "bg-muted/30 border-border text-muted-foreground",
                         )}
                       >
-                        V {Math.round(valuations[p.spotify_playlist_id].valuation_score)}
+                        V{Math.round(valuations[p.spotify_playlist_id].valuation_score)}
                       </span>
                     )}
                     {p.last_diagnosis_at && (
-                      <span className="inline-flex items-center gap-1 px-1.5 h-5 rounded-full bg-primary/10 border border-primary/30 text-primary text-[10px] font-medium">
-                        <Sparkles className="h-2.5 w-2.5" /> diag {timeAgo(p.last_diagnosis_at)}
+                      <span
+                        title={`Último diagnóstico: ${timeAgo(p.last_diagnosis_at)}`}
+                        className="inline-flex items-center gap-0.5 px-1.5 h-[18px] rounded-full bg-primary/10 border border-primary/30 text-primary text-[10px] font-medium"
+                      >
+                        <Sparkles className="h-2.5 w-2.5" /> {timeAgo(p.last_diagnosis_at)}
                       </span>
                     )}
                     {!p.account_id && (
@@ -763,7 +767,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
                             type="button"
                             onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
                             title="Conta Spotify não vinculada — clique para vincular"
-                            className="inline-flex items-center gap-1 px-1.5 h-5 rounded-full bg-warning/15 border border-warning/50 text-warning text-[10px] font-semibold hover:bg-warning/25 transition-colors"
+                            className="inline-flex items-center gap-0.5 px-1.5 h-[18px] rounded-full bg-warning/15 border border-warning/50 text-warning text-[10px] font-semibold hover:bg-warning/25 transition-colors"
                           >
                             <Link2Off className="h-2.5 w-2.5" /> sem conta
                           </button>
@@ -811,11 +815,6 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
                         </PopoverContent>
                       </Popover>
                     )}
-                  </div>
-                )}
-                {(p.curatorial_state || (cooldownsByPlaylist[p.id]?.length ?? 0) > 0) && (
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    {p.curatorial_state && <CuratorialStateBadge state={p.curatorial_state} compact />}
                     <CooldownStack cooldowns={cooldownsByPlaylist[p.id] ?? []} max={2} />
                   </div>
                 )}
