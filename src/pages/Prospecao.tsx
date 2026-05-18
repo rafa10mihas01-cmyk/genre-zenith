@@ -47,7 +47,7 @@ export default function Prospecao() {
   }, [curators, balances, deals]);
 
   return (
-    <PageContainer>
+    <>
       <PageHeader
         title="Curadores"
         subtitle="Curadores ativos em deals e prospecção de novos contatos"
@@ -65,6 +65,8 @@ export default function Prospecao() {
           </Button>
         }
       />
+
+      <PageContainer>
 
       {/* KPIs — padrão Comunidade/Operação (sempre acima das tabs) */}
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -162,7 +164,8 @@ export default function Prospecao() {
             <CuradoresCRM segment="prospeccao" />
           </>
         )}
-      </section>
-    </PageContainer>
+        </section>
+      </PageContainer>
+    </>
   );
 }
