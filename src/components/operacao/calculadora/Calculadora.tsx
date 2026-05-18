@@ -250,6 +250,9 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
         }} />
       ) : (
         <div className="grid grid-cols-1 gap-6">
+          {/* KPIs do resultado — topo da página */}
+          <CalculadoraKpis r={result} />
+
           {/* Coluna esquerda: inputs */}
           <div className="space-y-4">
             {/* Filtro de seção — igual ao plano diário da execução */}
