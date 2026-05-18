@@ -321,12 +321,7 @@ export default function CampanhaExecucao() {
                             </td>
                             <td className="py-2 px-3 text-right tabular-nums border-b border-border/30">
                               {(() => {
-                                const pos = recommendEcoPosition(
-                                  a.planned_streams,
-                                  snapshot.days,
-                                  a.managed_playlists?.followers ?? 0,
-                                  (camp as any).engagement_multiplier ?? 30,
-                                );
+                                const pos = ecoPositionByAllocation.get(a.id) ?? 3;
                                 const tone = pos <= 5 ? "text-primary" : pos <= 12 ? "text-foreground" : "text-muted-foreground";
                                 return <span className={cn("font-semibold", tone)}>#{pos}</span>;
                               })()}
