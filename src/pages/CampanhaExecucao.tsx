@@ -320,6 +320,12 @@ export default function CampanhaExecucao() {
               )}
             </CardContent>
           </Card>
+
+          <CampaignFullPlanCard
+            snapshot={snapshot}
+            startedAt={camp.started_at}
+            allocations={allocs as any}
+          />
         </TabsContent>
 
         <TabsContent value="externo" className="mt-4">
