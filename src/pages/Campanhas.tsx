@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusDot } from "@/components/ui/status-dot";
-import { Plus, RefreshCw, Target, ListChecks, Calculator, Megaphone, CheckCircle2, Percent, MoreHorizontal, Pause, Play, Archive, Trash2 } from "lucide-react";
+import { Plus, RefreshCw, Target, ListChecks, Calculator, Megaphone, CheckCircle2, Percent, MoreHorizontal, Pause, Play, Archive, Trash2, Handshake } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { Calculadora } from "@/components/operacao/calculadora/Calculadora";
 import { KpiBig } from "@/components/KpiBig";
@@ -47,6 +47,7 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export default function Campanhas() {
+  const navigate = useNavigate();
   const [items, setItems] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "active" | "draft" | "completed">("all");
@@ -153,14 +154,18 @@ export default function Campanhas() {
         <div className="flex items-center gap-1 border-b border-border mb-6">
           {([
             { id: "financeiro", label: "Planejamento Financeiro", icon: Calculator },
-            { id: "lista", label: "Campanhas Ativas", icon: ListChecks },
+            { id: "lista", label: "Rascunhos & Aprovação", icon: ListChecks },
+            { id: "deals", label: "Deals", icon: Handshake },
           ] as const).map(t => {
             const Icon = t.icon;
             const active = tab === t.id;
             return (
               <button
                 key={t.id}
-                onClick={() => setTab(t.id)}
+                onClick={() => {
+                  if (t.id === "deals") navigate("/playlist-deals");
+                  else setTab(t.id as "lista" | "financeiro");
+                }}
                 className={cn(
                   "px-4 h-10 inline-flex items-center gap-2 text-sm font-medium border-b-2 -mb-px transition-colors",
                   active
