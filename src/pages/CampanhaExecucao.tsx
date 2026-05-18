@@ -327,6 +327,7 @@ export default function CampanhaExecucao() {
             snapshot={snapshot}
             startedAt={camp.started_at}
             allocations={allocs as any}
+            engagementMultiplier={(camp as any).engagement_multiplier ?? 30}
           />
         </TabsContent>
 
