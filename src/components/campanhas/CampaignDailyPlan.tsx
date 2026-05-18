@@ -17,6 +17,7 @@ import {
   type EcoPlanInput,
   type ExternalPlanInput,
 } from "@/lib/campaignOperationalPlan";
+import { REPORTING_DELAY_DAYS, ECO_CAPACITY_FACTOR } from "@/lib/campaignOperationalPlan";
 import { ensureExternalPackageDraft } from "@/lib/externalPackage";
 import { cn } from "@/lib/utils";
 
