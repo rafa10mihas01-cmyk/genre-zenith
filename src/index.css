@@ -222,8 +222,12 @@
   }
   /* Padrão global no tema CLARO: TODO card ganha um banho verde sutil
      ao passar o mouse. Não levanta, não muda cursor — só "respira".
-     Cards clic\u00e1veis (.nx-card-hover) continuam ganhando lift por cima. */
-  .light .nx-card:hover {
+     Cards clicáveis (.nx-card-hover) continuam ganhando lift por cima.
+     A segunda regra cobre wrappers "manuais" (div .rounded-2xl.bg-card)
+     que não usam <Card>/.nx-card mas seguem o mesmo formato visual. */
+  .light .nx-card:hover,
+  .light .rounded-2xl.bg-card:hover,
+  .light .rounded-xl.bg-card:hover {
     background:
       linear-gradient(180deg, hsl(var(--primary) / 0.10) 0%, hsl(var(--primary) / 0.04) 60%, transparent 100%),
       hsl(var(--card));
