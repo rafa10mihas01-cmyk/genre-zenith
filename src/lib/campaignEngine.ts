@@ -36,8 +36,10 @@ export interface CampaignInput {
 
 export interface CurvaPonto {
   day: number;
-  streamsDay: number;        // streams entregues no dia
-  cumulative: number;        // acumulado
+  streamsDay: number;        // streams entregues no dia (total)
+  streamsEcoDay: number;     // parte vinda do ecossistema próprio
+  streamsExtDay: number;     // parte vinda do externo
+  cumulative: number;        // acumulado total
 }
 
 export interface CampaignResult {
@@ -67,76 +69,85 @@ export interface CampaignResult {
 }
 
 /**
- * Gera curva-S para a campanha.
- * - Simultâneo: distribuição mais uniforme com leve pico no meio.
- * - Sequencial: pico mais marcado (ramp-up + platô + decay).
+ * Forma realista de ciclo de vida de playlist (substitui gaussiana simétrica).
+ * Curva assimétrica: ramp lento → aceleração → pico tardio (~80% do período) → sustentação ondulada.
+ * Portado da calculadora antiga (campaignCurve.ts → playlistFactor).
  */
-/** Limite de pico/média — campanhas reais raramente passam de 1,8× a média. */
-const MAX_PEAK_TO_MEAN = 1.8;
+function playlistFactor(dayInPeriod: number, periodDays: number): number {
+  const useful = Math.max(1, periodDays);
+  const day = Math.max(1, Math.min(useful, dayInPeriod));
+  const p = day / useful; // 0..1
 
-/** Achata picos acima de `ratio × média`, redistribuindo o excedente para dias com folga. */
-function flattenPeak(values: number[], ratio = MAX_PEAK_TO_MEAN): number[] {
-  if (values.length === 0) return values;
-  const total = values.reduce((a, b) => a + b, 0);
-  const mean = total / values.length;
-  const cap = mean * ratio;
-  const arr = values.slice();
-  for (let iter = 0; iter < 30; iter++) {
-    let overflow = 0;
-    for (let i = 0; i < arr.length; i++) {
-      if (arr[i] > cap) {
-        overflow += arr[i] - cap;
-        arr[i] = cap;
-      }
-    }
-    if (overflow < 1) break;
-    const room = arr.map(v => Math.max(0, cap - v));
-    const roomSum = room.reduce((a, b) => a + b, 0);
-    if (roomSum <= 0) break;
-    for (let i = 0; i < arr.length; i++) {
-      arr[i] += overflow * (room[i] / roomSum);
-    }
+  const e1 = 3 / 30;   // 10% — delay
+  const e2 = 7 / 30;   // 23% — indexação
+  const e3 = 14 / 30;  // 47% — aceleração
+  const e4 = 24 / 30;  // 80% — pico/platô
+
+  if (p <= e1) {
+    const t = p / e1;
+    return 0.0 + 0.05 * (t * t);
   }
-  return arr;
+  if (p <= e2) {
+    const t = (p - e1) / (e2 - e1);
+    return 0.10 + 0.20 * t;
+  }
+  if (p <= e3) {
+    const t = (p - e2) / (e3 - e2);
+    const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    return 0.30 + 0.50 * eased;
+  }
+  if (p <= e4) {
+    const t = (p - e3) / (e4 - e3);
+    return 0.80 + 0.20 * Math.sin((t * Math.PI) / 2);
+  }
+  const t = (p - e4) / (1 - e4);
+  const wave = 0.85 + 0.15 * Math.cos(t * Math.PI);
+  return Math.max(0.70, Math.min(1.0, wave));
 }
 
-function buildCurve(meta: number, days: number, modo: Modo, inercia: number): CurvaPonto[] {
+function buildCurve(
+  meta: number,
+  days: number,
+  modo: Modo,
+  inercia: number,
+  splitEcoPct: number,
+): CurvaPonto[] {
   if (days <= 0 || meta <= 0) return [];
 
-  // Forma da curva: gaussian-like centrada. Sigma maior = curva mais achatada.
-  const center = days / 2;
-  // Largura: simultâneo bem largo, sequencial só um pouco mais estreito.
-  const sigma = modo === "simultaneo" ? days / 1.8 : days / 2.2;
+  const ecoFrac = Math.min(1, Math.max(0, splitEcoPct / 100));
+  const extFrac = 1 - ecoFrac;
 
+  // 1) Gera fatores brutos (forma assimétrica de playlist) com inércia estendendo a cauda.
   const raw: number[] = [];
   for (let d = 1; d <= days; d++) {
-    const x = d - center;
-    // Gaussiana ajustada pela inércia (estende a cauda)
-    const weight = Math.exp(-(x * x) / (2 * sigma * sigma));
-    const tail = inercia > 1 ? 1 + (inercia - 1) * (d / days) : inercia;
-    raw.push(weight * tail);
+    const base = playlistFactor(d, days);
+    // Inércia >1 dá um leve lift na segunda metade (perfil engajado segura mais).
+    const tail = inercia > 1 ? 1 + (inercia - 1) * Math.max(0, (d / days) - 0.5) * 0.6 : inercia;
+    raw.push(base * tail);
   }
 
-  const sum = raw.reduce((a, b) => a + b, 0);
-  const factor = meta / sum;
-  const scaled = raw.map(w => w * factor);
-  // Achata picos para garantir pico ≤ 1.8 × média (realismo operacional).
-  const flat = flattenPeak(scaled, MAX_PEAK_TO_MEAN);
+  // 2) Modo: sequencial concentra um pouco mais no pico, simultâneo achata.
+  const concentrate = modo === "sequencial" ? 1.15 : 0.95;
+  const shaped = raw.map(v => Math.pow(v, concentrate));
 
-  // Reajusta soma para bater exatamente em `meta` (compensa arredondamentos).
-  const flatSum = flat.reduce((a, b) => a + b, 0);
-  const adj = flatSum > 0 ? meta / flatSum : 1;
+  // 3) Normaliza pra bater exatamente em meta.
+  const sum = shaped.reduce((a, b) => a + b, 0);
+  const factor = sum > 0 ? meta / sum : 0;
+  const scaled = shaped.map(w => w * factor);
 
   let cum = 0;
   let allocated = 0;
-  return flat.map((v, i) => {
-    const isLast = i === flat.length - 1;
-    const streamsDay = isLast ? Math.max(0, meta - allocated) : Math.round(v * adj);
+  return scaled.map((v, i) => {
+    const isLast = i === scaled.length - 1;
+    const streamsDay = isLast ? Math.max(0, meta - allocated) : Math.round(v);
     allocated += streamsDay;
     cum += streamsDay;
-    return { day: i + 1, streamsDay, cumulative: cum };
+    const streamsEcoDay = Math.round(streamsDay * ecoFrac);
+    const streamsExtDay = Math.max(0, streamsDay - streamsEcoDay);
+    return { day: i + 1, streamsDay, streamsEcoDay, streamsExtDay, cumulative: cum };
   });
 }
+
 
 export function calcCampaign(input: CampaignInput): CampaignResult {
   const meta = Math.max(0, Math.round(input.meta));
@@ -153,7 +164,7 @@ export function calcCampaign(input: CampaignInput): CampaignResult {
   const custoTotal = custoEco + custoExt;
   const custoPorStream = meta > 0 ? custoTotal / meta : 0;
 
-  const curva = buildCurve(meta, days, input.modo, inercia);
+  const curva = buildCurve(meta, days, input.modo, inercia, splitEcoPct);
   const picoPorDia = curva.reduce((m, p) => Math.max(m, p.streamsDay), 0);
   const mediaPorDia = meta / days;
 

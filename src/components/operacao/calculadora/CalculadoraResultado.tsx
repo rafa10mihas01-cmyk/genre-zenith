@@ -125,14 +125,23 @@ function phaseOfDay(day: number, phases: Phase[]): Phase {
   return phases[phases.length - 1];
 }
 
+type CurvaView = "todos" | "eco" | "ext";
+
 function CurvaChart({ curva }: { curva: CampaignResult["curva"] }) {
   const [hoverDay, setHoverDay] = useState<number | null>(null);
+  const [view, setView] = useState<CurvaView>("todos");
   const phases = useMemo(() => buildPhases(curva.length), [curva.length]);
 
   if (!curva.length) return null;
 
-  const max = Math.max(...curva.map(c => c.streamsDay));
-  const total = curva[curva.length - 1]?.cumulative ?? 0;
+  // Suporte a snapshots antigos sem split por dia: fallback p/ streamsDay.
+  const valueOf = (c: CampaignResult["curva"][number]) =>
+    view === "eco" ? (c.streamsEcoDay ?? 0)
+    : view === "ext" ? (c.streamsExtDay ?? c.streamsDay)
+    : c.streamsDay;
+
+  const max = Math.max(1, ...curva.map(valueOf));
+  const total = curva.reduce((s, c) => s + valueOf(c), 0);
 
   // SVG dimensions
   const W = 800, H = 180, P = 8;
@@ -143,9 +152,35 @@ function CurvaChart({ curva }: { curva: CampaignResult["curva"] }) {
 
   const hover = hoverDay != null ? curva[hoverDay - 1] : null;
   const hoverPhase = hover ? phaseOfDay(hover.day, phases) : null;
+  const hoverValue = hover ? valueOf(hover) : 0;
+
+  const viewOptions: { key: CurvaView; label: string }[] = [
+    { key: "todos", label: "Todos" },
+    { key: "eco", label: "Ecossistema" },
+    { key: "ext", label: "Externo" },
+  ];
 
   return (
     <div className="space-y-3">
+      {/* Toggle de visualização */}
+      <div className="flex items-center justify-end gap-1">
+        {viewOptions.map(opt => (
+          <button
+            key={opt.key}
+            type="button"
+            onClick={() => setView(opt.key)}
+            className={cn(
+              "px-2.5 py-1 rounded-md text-[11px] font-medium border transition-colors",
+              view === opt.key
+                ? "bg-primary text-primary-foreground border-primary"
+                : "bg-transparent text-muted-foreground border-border hover:text-foreground hover:bg-muted/30",
+            )}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
       {/* Cards de fase */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
         {phases.map(ph => {
@@ -179,7 +214,7 @@ function CurvaChart({ curva }: { curva: CampaignResult["curva"] }) {
 
           {curva.map((c, i) => {
             const ph = phaseOfDay(c.day, phases);
-            const h = max > 0 ? (c.streamsDay / max) * innerH : 0;
+            const h = max > 0 ? (valueOf(c) / max) * innerH : 0;
             const x = P + i * barW;
             const y = H - P - h;
             const isHover = hoverDay === c.day;
@@ -227,11 +262,11 @@ function CurvaChart({ curva }: { curva: CampaignResult["curva"] }) {
               </div>
               <div className="mt-1 grid grid-cols-2 gap-x-2 gap-y-0.5 tabular-nums text-foreground">
                 <span className="text-muted-foreground">No dia</span>
-                <span className="text-right font-semibold">{formatInt(hover.streamsDay)}</span>
+                <span className="text-right font-semibold">{formatInt(hoverValue)}</span>
                 <span className="text-muted-foreground">Acumulado</span>
                 <span className="text-right">{formatInt(hover.cumulative)}</span>
-                <span className="text-muted-foreground">% da meta</span>
-                <span className="text-right">{total > 0 ? Math.round((hover.cumulative / total) * 100) : 0}%</span>
+                <span className="text-muted-foreground">% do total</span>
+                <span className="text-right">{total > 0 ? Math.round((hoverValue / total) * 100) : 0}%</span>
               </div>
             </div>
           );
