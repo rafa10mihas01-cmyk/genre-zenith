@@ -394,11 +394,9 @@ export default function PlaylistDeals() {
         {tab === "ledger" ? (
           <FinanceiroTab deals={deals} />
         ) : loading && deals.length === 0 ? (
-          <FinanceiroTab deals={deals} />
-        ) : loading && deals.length === 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[0, 1, 2].map((i) => (
-              <div key={i} className="nx-card h-48 animate-pulse" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
+              <div key={i} className="nx-card h-56 animate-pulse" />
             ))}
           </div>
         ) : filtered.length === 0 ? (
@@ -425,7 +423,7 @@ export default function PlaylistDeals() {
             </div>
           </div>
         ) : useLegacyCards ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {filtered.map((d) => (
               <CuratorDealCard
                 key={d.id}
@@ -446,40 +444,25 @@ export default function PlaylistDeals() {
             ))}
           </div>
         ) : (
-          <div className="flex flex-col gap-2">
-            {filtered.map((d, i) => {
-              const prev = i > 0 ? filtered[i - 1] : null;
-              const campaign = (d.song_name ?? "").trim();
-              const prevCampaign = (prev?.song_name ?? "").trim();
-              const showHeader = !prev || campaign.toLowerCase() !== prevCampaign.toLowerCase();
-              return (
-                <div key={d.id} className="flex flex-col gap-2">
-                  {showHeader && (
-                    <div className="flex items-center gap-3 pt-3 first:pt-0">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                        {campaign || "Sem campanha"}
-                      </div>
-                      <div className="flex-1 h-px bg-border/50" />
-                    </div>
-                  )}
-                  <DealRow
-                    deal={d}
-                    logs={logs}
-                    playlists={playlists}
-                    progress={progressByDeal[d.id]}
-                    songs={songs.filter((s) => s.deal_id === d.id)}
-                    onLog={(deal) => setLogDeal(deal)}
-                    onDetail={openDetail}
-                    onDelete={(deal) => handleDelete(deal.id)}
-                    onEdit={(deal) => setEditDeal(deal)}
-                    onDuplicate={(deal) => setDuplicateDeal(deal)}
-                    onClose={(deal) => setCloseDealOpen(deal)}
-                    onReopen={handleReopen}
-                    onForceCollect={(deal) => forceCollectNow(deal.id)}
-                  />
-                </div>
-              );
-            })}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {filtered.map((d) => (
+              <DealRow
+                key={d.id}
+                deal={d}
+                logs={logs}
+                playlists={playlists}
+                progress={progressByDeal[d.id]}
+                songs={songs.filter((s) => s.deal_id === d.id)}
+                onLog={(deal) => setLogDeal(deal)}
+                onDetail={openDetail}
+                onDelete={(deal) => handleDelete(deal.id)}
+                onEdit={(deal) => setEditDeal(deal)}
+                onDuplicate={(deal) => setDuplicateDeal(deal)}
+                onClose={(deal) => setCloseDealOpen(deal)}
+                onReopen={handleReopen}
+                onForceCollect={(deal) => forceCollectNow(deal.id)}
+              />
+            ))}
           </div>
         )}
       </div>
