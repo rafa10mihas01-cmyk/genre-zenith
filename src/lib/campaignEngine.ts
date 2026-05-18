@@ -164,7 +164,7 @@ export function calcCampaign(input: CampaignInput): CampaignResult {
   const custoTotal = custoEco + custoExt;
   const custoPorStream = meta > 0 ? custoTotal / meta : 0;
 
-  const curva = buildCurve(meta, days, input.modo, inercia);
+  const curva = buildCurve(meta, days, input.modo, inercia, splitEcoPct);
   const picoPorDia = curva.reduce((m, p) => Math.max(m, p.streamsDay), 0);
   const mediaPorDia = meta / days;
 
