@@ -786,7 +786,7 @@ function BucketShell({
         </div>
         {headerRight}
       </div>
-      <div className="divide-y divide-border/40">{children}</div>
+      <div className="divide-y divide-border/40 max-h-[440px] overflow-y-auto">{children}</div>
     </Card>
   );
 }
