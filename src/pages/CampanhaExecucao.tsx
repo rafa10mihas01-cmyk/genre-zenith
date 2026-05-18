@@ -169,10 +169,10 @@ export default function CampanhaExecucao() {
           <div className="p-3 flex flex-col gap-2 bg-elevated/20">
             <div className="flex items-center gap-3">
               {camp.cover_url ? (
-                <img src={camp.cover_url} alt="" className="w-16 h-16 rounded-lg object-cover shadow-sm" />
+                <img src={camp.cover_url} alt="" className="w-12 h-12 rounded-md object-cover shadow-sm" />
               ) : (
-                <div className="w-16 h-16 rounded-lg bg-muted grid place-items-center">
-                  <Music className="h-6 w-6 text-muted-foreground" />
+                <div className="w-12 h-12 rounded-md bg-muted grid place-items-center">
+                  <Music className="h-5 w-5 text-muted-foreground" />
                 </div>
               )}
               <div className="min-w-0 flex-1">
