@@ -284,12 +284,15 @@ function applyDailyJitter(daily: number[], capPerDay: number, seed: string) {
 export function buildEcoPlaylistPlan(
   snapshot: CampaignSnapshot,
   allocs: EcoPlanInput[],
-  opts: { engagementMultiplier?: number } = {},
+  opts: { engagementMultiplier?: number; startedAt?: string } = {},
 ): EcoPlanResult {
   // Multiplicador plays/save/mês (default = 30, mercado). Reescala o cap por playlist:
   // cap diário = followers × ECO_CAPACITY_FACTOR × (multiplier / 30).
   const multiplier = Math.max(1, opts.engagementMultiplier ?? 30);
   const capScale = multiplier / 30;
+  const curva = opts.startedAt
+    ? applyWeekdaySeasonality(snapshot.curva, opts.startedAt)
+    : snapshot.curva;
 
   const ordered = [...allocs].sort((a, b) => b.planned_streams - a.planned_streams);
   const storedStarts = ordered.map(a => Number(a.start_day || 1));
