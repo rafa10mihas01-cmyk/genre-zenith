@@ -258,10 +258,10 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
             {/* Filtro de seção — igual ao plano diário da execução */}
             <div className="flex items-center gap-1 rounded-xl border border-border bg-card p-1">
               {([
-                { id: "todos", label: "Tudo", icon: LayoutGrid },
                 { id: "musica", label: "Música", icon: Music },
                 { id: "meta", label: "Meta", icon: TargetIcon },
                 { id: "estrategia", label: "Estratégia", icon: Settings2 },
+                { id: "todos", label: "Tudo", icon: LayoutGrid },
               ] as const).map(s => {
                 const Icon = s.icon;
                 const active = secao === s.id;
@@ -526,35 +526,39 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
           <div className="space-y-4">
             <CalculadoraResultado r={result} />
 
-            {onContinue ? (
-              <Button
-                size="lg"
-                className="w-full"
-                variant="solid"
-                onClick={() => onContinue({ result, trackUrl, track, fonte })}
-              >
-                Continuar para execução
-                <ArrowRight className="h-4 w-4 ml-2" />
-              </Button>
-            ) : (
-              <Button
-                size="lg"
-                className="w-full"
-                variant="solid"
-                onClick={fecharCampanha}
-                disabled={closing}
-              >
-                {closing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-                Fechar campanha e ir para execução
-                <ArrowRight className="h-4 w-4 ml-2" />
-              </Button>
+            {secao === "todos" && (
+              <>
+                {onContinue ? (
+                  <Button
+                    size="lg"
+                    className="w-full"
+                    variant="solid"
+                    onClick={() => onContinue({ result, trackUrl, track, fonte })}
+                  >
+                    Continuar para execução
+                    <ArrowRight className="h-4 w-4 ml-2" />
+                  </Button>
+                ) : (
+                  <Button
+                    size="lg"
+                    className="w-full"
+                    variant="solid"
+                    onClick={fecharCampanha}
+                    disabled={closing}
+                  >
+                    {closing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                    Fechar campanha e ir para execução
+                    <ArrowRight className="h-4 w-4 ml-2" />
+                  </Button>
+                )}
+                <p className="text-[11px] text-muted-foreground text-center">
+                  A execução vai herdar meta de <strong>{formatInt(result.meta)}</strong> streams em <strong>{result.days}d</strong>,
+                  orçamento <strong>{formatBRL(result.custoTotal)}</strong>, split {result.splitEcoPct}/{100 - result.splitEcoPct}.
+                  <br />
+                  Ao fechar, o snapshot vira <strong>imutável</strong>: ninguém recalcula mais nada.
+                </p>
+              </>
             )}
-            <p className="text-[11px] text-muted-foreground text-center">
-              A execução vai herdar meta de <strong>{formatInt(result.meta)}</strong> streams em <strong>{result.days}d</strong>,
-              orçamento <strong>{formatBRL(result.custoTotal)}</strong>, split {result.splitEcoPct}/{100 - result.splitEcoPct}.
-              <br />
-              Ao fechar, o snapshot vira <strong>imutável</strong>: ninguém recalcula mais nada.
-            </p>
           </div>
         </div>
       )}
