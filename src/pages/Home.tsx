@@ -256,8 +256,6 @@ export default function Home() {
       ? [
           { label: "Crescendo", value: c.growingCount, intent: "success" },
           { label: "Em queda", value: c.decliningCount, intent: c.decliningCount > 0 ? "warning" : "default" },
-          { label: "Publicadas", value: c.totalPublished, intent: "primary" },
-          { label: "Sugestões IA", value: c.pendingSuggestions, intent: c.pendingSuggestions > 0 ? "primary" : "default" },
         ]
       : [],
   );
