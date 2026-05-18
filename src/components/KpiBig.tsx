@@ -11,12 +11,18 @@ import { Skeleton } from "@/components/ui/skeleton";
  * Layout: card largo, label uppercase pequeno + ícone discreto à direita,
  * valor enorme (text-2xl bold), hint opcional embaixo.
  */
+export type KpiDomain =
+  | "clients" | "curators" | "campaigns" | "deals"
+  | "community" | "playlists" | "system";
+
 export interface KpiBigProps {
   label: string;
   value: string | number;
   icon?: any;
   hint?: string;
   tone?: "default" | "primary" | "destructive" | "warning" | "success";
+  /** Cor de domínio aplicada no ícone do header. Não afeta o valor. */
+  domain?: KpiDomain;
   className?: string;
   action?: ReactNode;
   loading?: boolean;
@@ -49,10 +55,12 @@ export function KpiBig({
   icon: Icon,
   hint,
   tone = "default",
+  domain,
   className,
   action,
   loading = false,
 }: KpiBigProps) {
+  const iconStyle = domain ? ({ color: `hsl(var(--domain-${domain}))` } as React.CSSProperties) : undefined;
   return (
     <div
       className={cn(
@@ -68,7 +76,12 @@ export function KpiBig({
           {label}
         </span>
         <div className="h-4 w-4 flex items-center justify-center shrink-0 mt-0.5">
-          {action ?? (Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground" />)}
+          {action ?? (Icon && (
+            <Icon
+              className={cn("h-3.5 w-3.5", !domain && "text-muted-foreground")}
+              style={iconStyle}
+            />
+          ))}
         </div>
       </div>
 

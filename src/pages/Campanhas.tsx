@@ -122,8 +122,8 @@ export default function Campanhas() {
             icon={Megaphone}
             label="Ativas"
             value={kpis.activeCount.toLocaleString("pt-BR")}
-            tone="success"
             hint="Em execução agora"
+            domain="campaigns"
             loading={loading}
           />
           <KpiBig
@@ -131,14 +131,15 @@ export default function Campanhas() {
             label="Meta total"
             value={kpis.goal.toLocaleString("pt-BR")}
             hint="Plays planejados"
+            domain="campaigns"
             loading={loading}
           />
           <KpiBig
             icon={CheckCircle2}
             label="Entregue"
             value={kpis.delivered.toLocaleString("pt-BR")}
-            tone="primary"
             hint="Plays já contabilizados"
+            domain="deals"
             loading={loading}
           />
           <KpiBig
@@ -146,6 +147,7 @@ export default function Campanhas() {
             label="Cumprimento médio"
             value={`${kpis.pct}%`}
             hint="Entregue ÷ meta"
+            domain="playlists"
             loading={loading}
           />
         </section>

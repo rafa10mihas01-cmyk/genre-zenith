@@ -70,14 +70,15 @@ export default function Clientes() {
           label="Clientes"
           value={formatNumber(kpis.total)}
           hint="Total ativo na biblioteca"
+          domain="clients"
           loading={loading}
         />
         <KpiBig
           icon={Activity}
           label="Deals ativos"
           value={formatNumber(kpis.dealsAtivos)}
-          tone="primary"
           hint="Campanhas em andamento"
+          domain="campaigns"
           loading={loading}
         />
         <KpiBig
@@ -85,6 +86,7 @@ export default function Clientes() {
           label="Músicas"
           value={formatNumber(kpis.musicas)}
           hint="Faixas vinculadas a clientes"
+          domain="playlists"
           loading={loading}
         />
         <KpiBig
@@ -92,6 +94,7 @@ export default function Clientes() {
           label="Deals totais"
           value={formatNumber(kpis.deals)}
           hint="Histórico completo"
+          domain="deals"
           loading={loading}
         />
       </section>

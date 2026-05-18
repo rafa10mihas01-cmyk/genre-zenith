@@ -72,14 +72,15 @@ export default function Prospecao() {
           label="Curadores"
           value={formatNumber(kpis.curadores)}
           hint="Ativos na biblioteca"
+          domain="curators"
           loading={loading}
         />
         <KpiBig
           icon={Activity}
           label="Deals ativos"
           value={formatNumber(kpis.dealsAtivos)}
-          tone="primary"
           hint="Negociações em andamento"
+          domain="campaigns"
           loading={loading}
         />
         <KpiBig
@@ -87,14 +88,15 @@ export default function Prospecao() {
           label="Receita"
           value={formatBRL(kpis.receita)}
           hint="Total investido em curadoria"
+          domain="deals"
           loading={loading}
         />
         <KpiBig
           icon={TrendingUp}
           label="Ticket médio"
           value={formatBRL(kpis.ticket)}
-          tone="primary"
           hint={`Base ${formatNumber(deals.length)} deals`}
+          domain="deals"
           loading={loading}
         />
       </section>

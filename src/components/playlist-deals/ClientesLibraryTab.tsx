@@ -222,7 +222,8 @@ export function ClientesLibraryTab({ deals, songs, loading }: Props) {
                 onClick={() => navigate(`/clientes/${client.id}`)}
                 className={cn(
                   "group relative rounded-2xl border border-border/50 bg-card transition-colors cursor-pointer flex flex-col",
-                  "hover:border-foreground/20 hover:bg-[hsl(var(--elevated))]",
+                  "border-l-2 border-l-domain-clients/60",
+                  "hover:border-foreground/20 hover:border-l-domain-clients hover:bg-[hsl(var(--elevated))]",
                 )}
               >
                 {/* Identidade */}

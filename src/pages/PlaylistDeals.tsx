@@ -293,30 +293,31 @@ export default function PlaylistDeals() {
           label="Total de deals"
           value={formatNumber(kpi.total)}
           hint="Deals cadastrados"
+          domain="deals"
           loading={loading && deals.length === 0}
         />
         <KpiBig
           icon={Activity}
           label="Ativos"
           value={formatNumber(kpi.active)}
-          tone="primary"
           hint="Em andamento"
+          domain="campaigns"
           loading={loading && deals.length === 0}
         />
         <KpiBig
           icon={CheckCircle2}
           label="Concluídos"
           value={formatNumber(kpi.done)}
-          tone="success"
           hint="Meta batida"
+          domain="deals"
           loading={loading && deals.length === 0}
         />
         <KpiBig
           icon={Target}
           label="Plays entregues"
           value={formatNumber(kpi.earned)}
-          tone={kpi.pct >= 80 ? "success" : kpi.pct >= 40 ? "primary" : "default"}
           hint={kpi.total > 0 ? `${kpi.pct}% das metas` : "Sem metas ainda"}
+          domain="playlists"
           loading={loading && deals.length === 0}
         />
       </section>
