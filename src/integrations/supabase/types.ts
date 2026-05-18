@@ -736,7 +736,6 @@ export type Database = {
           goal_plays: number
           id: string
           notes: string | null
-          public_plan_token: string
           simulation_snapshot: Json | null
           snapshot_locked_at: string | null
           spotify_track_id: string | null
@@ -759,7 +758,6 @@ export type Database = {
           goal_plays: number
           id?: string
           notes?: string | null
-          public_plan_token?: string
           simulation_snapshot?: Json | null
           snapshot_locked_at?: string | null
           spotify_track_id?: string | null
@@ -782,7 +780,6 @@ export type Database = {
           goal_plays?: number
           id?: string
           notes?: string | null
-          public_plan_token?: string
           simulation_snapshot?: Json | null
           snapshot_locked_at?: string | null
           spotify_track_id?: string | null

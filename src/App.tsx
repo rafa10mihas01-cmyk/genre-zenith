@@ -29,7 +29,6 @@ import CuradorDetail from "./pages/CuradorDetail";
 import CompararCuradores from "./pages/CompararCuradores";
 import CuratorPage from "./pages/CuratorPage";
 import ClientCampaignPage from "./pages/ClientCampaignPage";
-import CampanhaPlanoPublico from "./pages/CampanhaPlanoPublico";
 import CuradoriaPreview from "./pages/CuradoriaPreview";
 import Sistema from "./pages/Sistema";
 import Executivo from "./pages/Executivo";
@@ -94,7 +93,6 @@ const App = () => (
               <Route path="/spotify/callback" element={<SpotifyCallback />} />
               <Route path="/curador/:token" element={<CuratorPage />} />
               <Route path="/campanha/:token" element={<ClientCampaignPage />} />
-              <Route path="/plano/:token" element={<CampanhaPlanoPublico />} />
               {/* Comunidade — beta fechado por convite. Membro não usa AppLayout. */}
               <Route path="/comunidade/join/:code" element={<JoinInvite />} />
               <Route path="/comunidade/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />

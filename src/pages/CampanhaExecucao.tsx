@@ -16,7 +16,7 @@ import { PlaylistDailyPlanDialog } from "@/components/campanhas/PlaylistDailyPla
 import { buildEcoPlaylistPlan, distributeEcoPositions } from "@/lib/campaignOperationalPlan";
 import { CampaignFullPlanCard } from "@/components/campanhas/CampaignFullPlanCard";
 import { toast } from "@/hooks/use-toast";
-import { ArrowLeft, Lock, Music, ListMusic, Loader2, CalendarDays, Users, Activity, Link2, Check } from "lucide-react";
+import { ArrowLeft, Lock, Music, ListMusic, Loader2, CalendarDays, Users, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type EcoAllocRow = {
@@ -40,7 +40,6 @@ type CampaignRow = {
   simulation_snapshot: CampaignSnapshot | null;
   snapshot_locked_at: string | null;
   eco_dispatched_at: string | null;
-  public_plan_token: string | null;
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -78,7 +77,7 @@ export default function CampanhaExecucao() {
       const [{ data: c }, { data: a }] = await Promise.all([
         supabase
           .from("campaigns")
-          .select("id, track_name, artist, cover_url, status, deadline, started_at, simulation_snapshot, snapshot_locked_at, eco_dispatched_at, engagement_multiplier, public_plan_token")
+          .select("id, track_name, artist, cover_url, status, deadline, started_at, simulation_snapshot, snapshot_locked_at, eco_dispatched_at, engagement_multiplier")
           .eq("id", id)
           .maybeSingle(),
         supabase
@@ -169,16 +168,11 @@ export default function CampanhaExecucao() {
     <PageContainer>
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <PageHeader title={camp.track_name} subtitle="Executar campanha conforme o mapa congelado" />
-        <div className="flex items-center gap-2">
-          {camp.public_plan_token && (
-            <CopyPublicPlanLink token={camp.public_plan_token} />
-          )}
-          <Link to="/campanhas">
-            <Button variant="outline" size="sm">
-              <ArrowLeft className="h-4 w-4 mr-1.5" /> Campanhas
-            </Button>
-          </Link>
-        </div>
+        <Link to="/campanhas">
+          <Button variant="outline" size="sm">
+            <ArrowLeft className="h-4 w-4 mr-1.5" /> Campanhas
+          </Button>
+        </Link>
       </div>
 
       {/* Hero unificado: música + meta + snapshot + curva em uma única faixa */}
@@ -430,30 +424,5 @@ function MiniCurva({ curva }: { curva: CampaignSnapshot["curva"] }) {
         <span>D{curva.length}</span>
       </div>
     </div>
-  );
-}
-
-function CopyPublicPlanLink({ token }: { token: string }) {
-  const [copied, setCopied] = useState(false);
-  const url = `${window.location.origin}/plano/${token}`;
-  return (
-    <Button
-      variant="outline"
-      size="sm"
-      onClick={async () => {
-        try {
-          await navigator.clipboard.writeText(url);
-          setCopied(true);
-          toast({ title: "Link copiado", description: "Cole para o responsável do marketing." });
-          setTimeout(() => setCopied(false), 2000);
-        } catch {
-          toast({ title: "Não foi possível copiar", description: url, variant: "destructive" });
-        }
-      }}
-      title={url}
-    >
-      {copied ? <Check className="h-4 w-4 mr-1.5" /> : <Link2 className="h-4 w-4 mr-1.5" />}
-      {copied ? "Copiado" : "Copiar link público"}
-    </Button>
   );
 }
