@@ -120,6 +120,23 @@ export function CampaignDailyPlan({ campaignId, snapshot, startedAt, ecoAllocati
         </Button>
       </CardHeader>
       <CardContent className="space-y-4">
+        {(plan.ecoPlans as any).unmetEco > 0 && (
+          <div className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-xs">
+            <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+            <div className="space-y-0.5">
+              <div className="font-medium text-destructive">Inventário eco insuficiente</div>
+              <div className="text-muted-foreground">
+                Faltam <span className="tabular-nums font-medium text-foreground">{formatInt((plan.ecoPlans as any).unmetEco)}</span> streams de capacidade nas playlists próprias para fechar a curva. Adicione mais playlists eco ou aumente o pacote externo. Capacidade por playlist = followers × {ECO_CAPACITY_FACTOR}.
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+          <Clock className="h-3 w-3" />
+          Contabilização do Spotify com defasagem de {REPORTING_DELAY_DAYS} dias aplicada · cap eco = followers × {ECO_CAPACITY_FACTOR} · pico da curva ≤ 1,8× média.
+        </div>
+
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
           <Metric label="Dia selecionado" value={`D${day?.day ?? 1}`} hint={day?.dateLabel} />
           <Metric
