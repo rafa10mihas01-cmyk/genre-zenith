@@ -29,6 +29,20 @@ export default {
         success: { DEFAULT: "hsl(var(--success))", foreground: "hsl(0 0% 100%)" },
         warning: { DEFAULT: "hsl(var(--warning))", foreground: "hsl(0 0% 100%)" },
         neutral: { DEFAULT: "hsl(var(--neutral))", foreground: "hsl(0 0% 100%)" },
+        // Hierarquia de texto (4 níveis)
+        "foreground-strong": "hsl(var(--foreground-strong))",
+        "foreground-body":   "hsl(var(--foreground-body))",
+        "subtle-foreground": "hsl(var(--subtle-foreground))",
+        // Cores de domínio — usar como text-domain-clients, bg-domain-clients/10, border-domain-clients, etc.
+        domain: {
+          clients:    "hsl(var(--domain-clients))",
+          curators:   "hsl(var(--domain-curators))",
+          campaigns:  "hsl(var(--domain-campaigns))",
+          deals:      "hsl(var(--domain-deals))",
+          community:  "hsl(var(--domain-community))",
+          playlists:  "hsl(var(--domain-playlists))",
+          system:     "hsl(var(--domain-system))",
+        },
         muted: {
           DEFAULT: "hsl(var(--muted))",
           foreground: "hsl(var(--muted-foreground))",
