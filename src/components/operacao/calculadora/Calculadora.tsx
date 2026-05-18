@@ -65,6 +65,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
   const persisted = useMemo(loadPersisted, []);
   const navigate = useNavigate();
   const [subtab, setSubtab] = useState<"calc" | "top200">("calc");
+  const [secao, setSecao] = useState<Secao>("todos");
   const [closing, setClosing] = useState(false);
 
   async function fecharCampanha() {
