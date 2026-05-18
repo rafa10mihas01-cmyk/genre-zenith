@@ -94,18 +94,11 @@ export function CampaignFullPlanCard({ snapshot, startedAt, allocations, engagem
           <Button size="sm" variant="ghost" onClick={() => setShowZeros(s => !s)}>
             {showZeros ? "Esconder zeros" : "Mostrar zeros"}
           </Button>
-          {showShare && campaignId && (
-            <>
-              <Button size="sm" variant="outline" onClick={copyShareLink}>
-                {copied ? <Check className="h-4 w-4 mr-1.5" /> : <Link2 className="h-4 w-4 mr-1.5" />}
-                {copied ? "Copiado" : "Copiar link"}
-              </Button>
-              <Button size="sm" variant="outline" asChild>
-                <Link to={`/campanhas/${campaignId}/plano`} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="h-4 w-4 mr-1.5" /> Abrir página
-                </Link>
-              </Button>
-            </>
+          {showShare && (
+            <Button size="sm" variant="outline" onClick={copyShareLink}>
+              {copied ? <Check className="h-4 w-4 mr-1.5" /> : <Link2 className="h-4 w-4 mr-1.5" />}
+              {copied ? "Copiado" : "Copiar link público"}
+            </Button>
           )}
           <Button size="sm" variant="outline" onClick={handleExport}>
             <Download className="h-4 w-4 mr-1.5" /> CSV
