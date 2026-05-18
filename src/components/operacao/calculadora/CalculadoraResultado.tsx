@@ -242,7 +242,8 @@ function CurvaChart({ curva }: { curva: CampaignResult["curva"] }) {
       <div className="relative h-4 text-[10px] text-muted-foreground tabular-nums">
         {(() => {
           const marks = new Set<number>([1, curva.length]);
-          phases.forEach(p => { marks.add(p.start); marks.add(p.end); });
+          // Apenas o início de cada fase (evita sobreposição D17/D18, D28/D29...)
+          phases.forEach(p => { if (p.start > 1) marks.add(p.start); });
           return Array.from(marks).sort((a, b) => a - b).map(d => {
             const leftPct = ((d - 0.5) / curva.length) * 100;
             const align = d === 1 ? "left-0 translate-x-0" : d === curva.length ? "right-0 -translate-x-0 left-auto" : "-translate-x-1/2";
