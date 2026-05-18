@@ -314,7 +314,7 @@ export default function CampanhaExecucao() {
                                   a.managed_playlists?.followers ?? 0,
                                   (camp as any).engagement_multiplier ?? 30,
                                 );
-                                const tone = pos <= 3 ? "text-primary" : pos <= 10 ? "text-foreground" : "text-muted-foreground";
+                                const tone = pos <= 5 ? "text-primary" : pos <= 12 ? "text-foreground" : "text-muted-foreground";
                                 return <span className={cn("font-semibold", tone)}>#{pos}</span>;
                               })()}
                             </td>
