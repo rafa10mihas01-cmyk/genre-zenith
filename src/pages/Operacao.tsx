@@ -269,13 +269,16 @@ export default function Operacao() {
         <KpiBig icon={Heart}         label="Salvamentos totais" value={formatNumber(kpi.totalFollowers)} tone="primary" hint={`Somando ${formatNumber(kpi.totalPlaylists)} playlists`} loading={loading} />
         <KpiBig icon={Target}        label="Plays teóricos / mês" value={formatNumber(kpi.totalFollowers * 30)} tone="primary" hint={`${formatNumber(kpi.totalFollowers)} × 30 saves`} loading={loading} />
         <KpiBig icon={Activity}      label="Total ativas"  value={formatNumber(kpi.totalPlaylists)} hint="Catálogo importado" loading={loading} />
+        <KpiBig icon={Gauge}         label="Health médio"  value={String(playlistStats.avgHealth)} hint={`${playlistStats.topPerf} top performer${playlistStats.topPerf === 1 ? "" : "s"}`} loading={loading} />
+        <KpiBig icon={ShieldAlert}   label="Em risco / inativas" value={`${playlistStats.atRisk} / ${playlistStats.inactive}`} tone={(playlistStats.atRisk + playlistStats.inactive) > 0 ? "destructive" : "default"} hint="Risco ≥ 60 · Atividade < 30" loading={loading} />
         <KpiBig icon={AlertCircle}   label="Precisa atenção" value={formatNumber(kpi.atencao)} tone={kpi.atencao > 0 ? "destructive" : "default"} hint="Auto em queda" loading={loading} />
       </section>
 
       {/* Conteúdo único — Minhas Playlists (Simulador foi movido para /campanhas) */}
       <div className="min-h-[640px]">
-        <MinhasPlaylists />
+        <MinhasPlaylists onStats={setPlaylistStats} />
       </div>
+
 
     </PageContainer>
   );
