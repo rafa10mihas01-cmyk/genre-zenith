@@ -75,14 +75,14 @@ export function AdjustmentTimeline({ playlistId }: { playlistId: string }) {
   }
 
   return (
-    <Card className="p-5 space-y-4">
+    <Card className="p-3 md:p-4 space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <History className="h-4 w-4 text-muted-foreground" />
-          <h3 className="text-sm font-semibold">Histórico de impacto editorial</h3>
+          <History className="h-3.5 w-3.5 text-muted-foreground" />
+          <h3 className="text-xs font-semibold">Histórico de impacto editorial</h3>
         </div>
-        <span className="text-xs text-muted-foreground">
-          {items.length} {items.length === 1 ? "mudança" : "mudanças"} registradas
+        <span className="text-[11px] text-muted-foreground">
+          {items.length} {items.length === 1 ? "mudança" : "mudanças"}
         </span>
       </div>
 
