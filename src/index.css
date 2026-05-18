@@ -107,14 +107,17 @@
     --muted-foreground: 0 0% 40%;
     --subtle-foreground: 0 0% 55%;
     --muted: 0 0% 95%;
-    /* Domínios — variantes mais escuras pro modo claro */
-    --domain-clients:    217 91% 45%;
-    --domain-curators:   258 70% 55%;
-    --domain-campaigns:  38 92% 42%;
-    --domain-deals:      141 76% 38%;
-    --domain-community:  330 75% 48%;
-    --domain-playlists:  215 25% 35%;
-    --domain-system:     240 4% 40%;
+    /* Domínios no tema CLARO — paleta PASTEL uniforme.
+       Mesmo registro de contraste do verde primary (≈55-70% lightness,
+       saturação moderada), pra que barras, ícones e borders fiquem leves
+       e harmônicos entre si. */
+    --domain-clients:    217 75% 68%;
+    --domain-curators:   258 70% 75%;
+    --domain-campaigns:  38 85% 62%;
+    --domain-deals:      141 60% 58%;
+    --domain-community:  330 72% 70%;
+    --domain-playlists:  215 30% 60%;
+    --domain-system:     240 6% 60%;
     --primary: 141 76% 38%;
     --primary-foreground: 0 0% 100%;
     --primary-glow: 141 76% 38% / 0.15;
