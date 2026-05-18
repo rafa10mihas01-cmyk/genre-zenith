@@ -67,6 +67,7 @@ export default function CampanhaExecucao() {
   const [dispatchingEco, setDispatchingEco] = useState(false);
   const [planRefreshKey, setPlanRefreshKey] = useState(0);
   const [tab, setTab] = useState<"diario" | "eco" | "externo" | "monitor">("diario");
+  const [selectedAlloc, setSelectedAlloc] = useState<EcoAllocRow | null>(null);
 
   useEffect(() => {
     if (!id) return;
