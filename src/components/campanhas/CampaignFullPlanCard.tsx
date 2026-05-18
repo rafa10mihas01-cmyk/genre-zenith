@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Grid3x3, Download, Link2, Check } from "lucide-react";
+import { Grid3x3, Link2, Check } from "lucide-react";
 import { formatInt } from "@/lib/campaignEngine";
 import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
 import { buildEcoPlaylistPlan, type DailyPlaylistPlan } from "@/lib/campaignOperationalPlan";
@@ -60,26 +60,6 @@ export function CampaignFullPlanCard({ snapshot, startedAt, allocations, engagem
     return arr;
   }, [plans, days]);
 
-  function handleExport() {
-    const head = ["playlist", "saves", "total", ...Array.from({ length: days }, (_, i) => `D${i + 1}`)];
-    const rows = [head.join(";")];
-    for (const p of plans) {
-      rows.push([
-        `"${p.playlistName.replace(/"/g, '""')}"`,
-        p.followers,
-        p.totalStreams,
-        ...p.daily,
-      ].join(";"));
-    }
-    rows.push(["TOTAL/DIA", "", dailyTotals.reduce((s, v) => s + v, 0), ...dailyTotals].join(";"));
-    const blob = new Blob([`\uFEFF${rows.join("\n")}`], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `plano-campanha.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
 
   if (plans.length === 0) return null;
 
@@ -105,9 +85,6 @@ export function CampaignFullPlanCard({ snapshot, startedAt, allocations, engagem
               {copied ? "Copiado" : "Copiar link público"}
             </Button>
           )}
-          <Button size="sm" variant="outline" onClick={handleExport}>
-            <Download className="h-4 w-4 mr-1.5" /> CSV
-          </Button>
         </div>
       </CardHeader>
       <CardContent>
