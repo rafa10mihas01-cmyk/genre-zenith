@@ -595,7 +595,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
 
           {/* Coluna direita: resultado */}
           <div className="space-y-4">
-            <CalculadoraResultado r={result} />
+            {secao === "todos" && <CalculadoraResultado r={result} />}
 
             {secao === "todos" && (
               <>
