@@ -346,10 +346,7 @@ export function PlaylistCockpit({
                   </Button>
                 </Card>
               )}
-            </TabsContent>
 
-            {/* ============ EXECUÇÃO ============ */}
-            <TabsContent value="execucao" className="space-y-4 mt-0">
               <BucketRemove
                 items={buckets.remove}
                 applying={applying === "remove" || applying === "all"}
