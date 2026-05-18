@@ -734,7 +734,64 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
                     V {Math.round(valuations[p.spotify_playlist_id].valuation_score)}
                   </span>
                 )}
+                {!p.account_id && (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                        title="Conta Spotify não vinculada — clique para vincular"
+                        className="absolute bottom-1.5 left-1.5 inline-flex items-center gap-1 px-2 h-6 rounded-full bg-warning/15 border border-warning/50 text-warning text-[10px] font-semibold hover:bg-warning/25 transition-colors"
+                      >
+                        <Link2Off className="h-3 w-3" /> Sem conta
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      align="start"
+                      className="w-64 p-2"
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                    >
+                      <div className="px-2 py-1.5 text-[11px] text-muted-foreground">
+                        Vincular esta playlist a uma conta Spotify:
+                      </div>
+                      {accounts.length === 0 ? (
+                        <div className="px-2 py-3 text-[12px] text-muted-foreground">
+                          Nenhuma conta cadastrada. Cadastre em Ajustes → Contas.
+                        </div>
+                      ) : (
+                        <div className="max-h-64 overflow-y-auto flex flex-col">
+                          {accounts.map((acc) => (
+                            <button
+                              key={acc.id}
+                              type="button"
+                              disabled={assigningId === p.id}
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); assignAccount(p.id, acc.id); }}
+                              className="text-left px-2 py-2 rounded-md hover:bg-[hsl(var(--hover))] flex items-center gap-2 disabled:opacity-50"
+                            >
+                              <Link2 className="h-3.5 w-3.5 text-primary shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <div className="text-[12px] font-medium truncate">
+                                  {acc.display_name || acc.email || "Conta sem nome"}
+                                </div>
+                                {acc.email && acc.display_name && (
+                                  <div className="text-[10px] text-muted-foreground truncate">{acc.email}</div>
+                                )}
+                              </div>
+                              {acc.status && (
+                                <span className={cn(
+                                  "text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded",
+                                  acc.status === "active" ? "text-primary bg-primary/10" : "text-muted-foreground bg-muted/30",
+                                )}>{acc.status}</span>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </PopoverContent>
+                  </Popover>
+                )}
               </div>
+
               <div className="p-2.5 flex-1 flex flex-col gap-1.5">
                 <div className="flex items-start gap-1.5">
                   <h4 className="flex-1 text-[13px] font-semibold leading-tight line-clamp-1" title={p.name}>{p.name}</h4>
