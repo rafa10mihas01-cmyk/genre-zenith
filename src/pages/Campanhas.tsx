@@ -320,13 +320,21 @@ function CampaignRow({ c, onChanged }: { c: Campaign; onChanged: () => void }) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" onClick={stop}>
+            {isDraftReady && (
+              <>
+                <DropdownMenuItem onSelect={() => approveCampaign()}>
+                  <CheckCircle2 className="h-4 w-4 mr-2 text-primary" /> Aprovar e disparar
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+              </>
+            )}
             {c.status === "paused" ? (
               <DropdownMenuItem onSelect={() => updateStatus("active", "Campanha retomada")}>
                 <Play className="h-4 w-4 mr-2" /> Retomar
               </DropdownMenuItem>
             ) : (
               <DropdownMenuItem
-                disabled={c.status === "completed" || c.status === "cancelled"}
+                disabled={c.status === "completed" || c.status === "cancelled" || c.status === "draft"}
                 onSelect={() => updateStatus("paused", "Campanha pausada")}
               >
                 <Pause className="h-4 w-4 mr-2" /> Pausar
