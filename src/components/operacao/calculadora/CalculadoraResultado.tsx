@@ -214,7 +214,7 @@ function CurvaChart({ curva }: { curva: CampaignResult["curva"] }) {
 
           {curva.map((c, i) => {
             const ph = phaseOfDay(c.day, phases);
-            const h = max > 0 ? (c.streamsDay / max) * innerH : 0;
+            const h = max > 0 ? (valueOf(c) / max) * innerH : 0;
             const x = P + i * barW;
             const y = H - P - h;
             const isHover = hoverDay === c.day;
