@@ -169,8 +169,8 @@ export default function Campanhas() {
 
         {tab === "lista" && (
           <>
-            {/* Filtros */}
-            <div className="flex flex-wrap gap-2 mb-4">
+            {/* Filtros + toggle */}
+            <div className="flex flex-wrap items-center gap-2 mb-4">
               {(["all", "active", "draft", "completed"] as const).map(f => (
                 <Button
                   key={f}
@@ -181,9 +181,10 @@ export default function Campanhas() {
                   {f === "all" ? "Todas" : STATUS_LABEL[f]}
                 </Button>
               ))}
+              <ViewModeToggle value={viewMode} onChange={setViewMode} className="ml-auto" />
             </div>
 
-            {/* Lista */}
+            {/* Lista / Cards com paginação */}
             {loading ? (
               <div className="grid gap-3">
                 {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-24" />)}
@@ -192,11 +193,37 @@ export default function Campanhas() {
               <div className="border border-border rounded-2xl p-12 text-center text-muted-foreground">
                 Nenhuma campanha {filter !== "all" ? STATUS_LABEL[filter].toLowerCase() : ""} ainda. Crie a primeira.
               </div>
-            ) : (
-              <div className="grid gap-3">
-                {filtered.map(c => <CampaignRow key={c.id} c={c} />)}
-              </div>
-            )}
+            ) : (() => {
+              const PAGE_SIZE = viewMode === "card" ? 4 : 8;
+              const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+              const currentPage = Math.min(page, totalPages);
+              const start = (currentPage - 1) * PAGE_SIZE;
+              const pageItems = filtered.slice(start, start + PAGE_SIZE);
+              return (
+                <>
+                  <div className={cn(
+                    viewMode === "card"
+                      ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"
+                      : "grid gap-3",
+                  )}>
+                    {pageItems.map(c => <CampaignRow key={c.id} c={c} viewMode={viewMode} />)}
+                  </div>
+
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-between pt-3">
+                      <span className="text-[12px] text-muted-foreground">
+                        {start + 1}–{Math.min(start + PAGE_SIZE, filtered.length)} de {filtered.length}
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <Button variant="outline" size="sm" className="h-8" disabled={currentPage <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>Anterior</Button>
+                        <span className="text-[12px] text-muted-foreground px-2 tabular-nums">{currentPage} / {totalPages}</span>
+                        <Button variant="outline" size="sm" className="h-8" disabled={currentPage >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>Próxima</Button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </>
         )}
 
