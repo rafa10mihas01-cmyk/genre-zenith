@@ -23,6 +23,8 @@ export type DailyPlaylistPlan = {
   startDay: number;
   totalStreams: number;
   daily: number[];
+  capDia: number;
+  overflow: number;
 };
 
 export type DailyExternalPlan = {
@@ -47,16 +49,36 @@ export type DailyCampaignPlan = {
   activeCurators: number;
 };
 
+/** Atraso médio de contabilização do Spotify (em dias). */
+export const REPORTING_DELAY_DAYS = 2;
+/** Fator de capacidade diária por playlist eco — proxy realista. */
+export const ECO_CAPACITY_FACTOR = 0.6;
+/** Ramp de entrada de playlist eco nos primeiros dias. */
+export const ECO_RAMP = [0.2, 0.4, 0.6, 0.8, 1.0];
+
 function campaignDateLabel(startedAt: string, day: number) {
   const base = new Date(startedAt);
   base.setDate(base.getDate() + day - 1);
   return base.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
 }
 
-function distributeByCurve(total: number, curva: CampaignSnapshot["curva"], startDay = 1) {
+/**
+ * Distribui `total` streams ao longo da curva, começando em `startDay`.
+ * Suporta:
+ *  - `capDia`: teto por dia (número fixo OU array por índice de dia). Excesso cascateia.
+ *  - `delay`: shift de contabilização (D1 vira D1+delay). Streams além do último dia acumulam no último.
+ *
+ * Retorna o vetor `daily` (length = curva.length) e `overflow` que não coube nem com cascata.
+ */
+function distributeByCurve(
+  total: number,
+  curva: CampaignSnapshot["curva"],
+  startDay = 1,
+  opts: { capDia?: number | number[]; delay?: number } = {},
+): { daily: number[]; overflow: number } {
   const days = curva.length;
   const daily = Array.from({ length: days }, () => 0);
-  if (total <= 0 || days === 0) return daily;
+  if (total <= 0 || days === 0) return { daily, overflow: 0 };
 
   const startIndex = Math.max(0, Math.min(days - 1, startDay - 1));
   const weights = curva.slice(startIndex).map(p => Math.max(1, p.streamsDay));
@@ -70,7 +92,45 @@ function distributeByCurve(total: number, curva: CampaignSnapshot["curva"], star
     allocated += value;
   });
 
-  return daily;
+  // Delay de contabilização: shift right; quem cair além do último dia acumula no último.
+  const delay = Math.max(0, opts.delay ?? 0);
+  if (delay > 0) {
+    const shifted = Array.from({ length: days }, () => 0);
+    for (let i = 0; i < days; i++) {
+      if (daily[i] <= 0) continue;
+      const t = Math.min(days - 1, i + delay);
+      shifted[t] += daily[i];
+    }
+    for (let i = 0; i < days; i++) daily[i] = shifted[i];
+  }
+
+  // Cap por dia: clampar e cascatear excesso para frente.
+  let overflow = 0;
+  if (opts.capDia !== undefined) {
+    const capArr = Array.isArray(opts.capDia)
+      ? opts.capDia
+      : Array.from({ length: days }, () => opts.capDia as number);
+    for (let pass = 0; pass < 5; pass++) {
+      let dirty = false;
+      for (let i = 0; i < days; i++) {
+        const c = capArr[i];
+        if (c === undefined || !isFinite(c)) continue;
+        if (daily[i] > c) {
+          const excess = daily[i] - c;
+          daily[i] = c;
+          if (i + 1 < days) {
+            daily[i + 1] += excess;
+            dirty = true;
+          } else {
+            overflow += excess;
+          }
+        }
+      }
+      if (!dirty) break;
+    }
+  }
+
+  return { daily, overflow };
 }
 
 export function effectiveEcoStartDay(
@@ -120,7 +180,10 @@ export function curveThresholdDay(curva: CampaignSnapshot["curva"], pct: number)
   return curva.length;
 }
 
-export function buildEcoPlaylistPlan(snapshot: CampaignSnapshot, allocs: EcoPlanInput[]): DailyPlaylistPlan[] {
+/** Exposto para o componente: total não absorvido pelo inventário eco (último build). */
+export type EcoPlanResult = DailyPlaylistPlan[] & { unmetEco?: number };
+
+export function buildEcoPlaylistPlan(snapshot: CampaignSnapshot, allocs: EcoPlanInput[]): EcoPlanResult {
   const ordered = [...allocs].sort((a, b) => b.planned_streams - a.planned_streams);
   const storedStarts = ordered.map(a => Number(a.start_day || 1));
   const generatedStarts = ordered.map((_, index) => generatedStartDay(index, ordered.length, snapshot.days, snapshot.modo));
@@ -136,28 +199,77 @@ export function buildEcoPlaylistPlan(snapshot: CampaignSnapshot, allocs: EcoPlan
     ? curveThresholdDay(snapshot.curva, 0.25)
     : 1;
 
-  return ordered.map((a, index) => {
+  const plans: DailyPlaylistPlan[] = ordered.map((a, index) => {
     const baseStart = startsLookSystemGenerated
       ? generatedStarts[index]
       : effectiveEcoStartDay(index, ordered.length, snapshot.days, a.start_day, snapshot.modo);
     const startDay = Math.min(snapshot.days, Math.max(baseStart, ecoFloorDay));
+    const followers = Number(a.managed_playlists?.followers ?? 0);
+    const baseCap = Math.max(1, Math.round(followers * ECO_CAPACITY_FACTOR));
+
+    // Cap por dia: ramp suave de 5 dias na entrada, cap pleno depois.
+    const caps = Array.from({ length: snapshot.days }, () => baseCap);
+    ECO_RAMP.forEach((mult, k) => {
+      const idx = (startDay - 1) + k;
+      if (idx < snapshot.days) caps[idx] = Math.max(1, Math.round(baseCap * mult));
+    });
+
+    const { daily, overflow } = distributeByCurve(
+      Number(a.planned_streams ?? 0),
+      snapshot.curva,
+      startDay,
+      { capDia: caps, delay: REPORTING_DELAY_DAYS },
+    );
 
     return {
       allocationId: a.id,
       playlistName: a.managed_playlists?.name ?? "Playlist",
       coverUrl: a.managed_playlists?.cover_url ?? null,
-      followers: Number(a.managed_playlists?.followers ?? 0),
+      followers,
       startDay,
       totalStreams: Number(a.planned_streams ?? 0),
-      daily: distributeByCurve(Number(a.planned_streams ?? 0), snapshot.curva, startDay),
+      daily,
+      capDia: baseCap,
+      overflow,
     };
   });
+
+  // Redistribui overflow entre playlists com folga (passes greedy).
+  let remaining = plans.reduce((s, p) => s + p.overflow, 0);
+  if (remaining > 0 && plans.length > 1) {
+    for (let pass = 0; pass < 10 && remaining > 0; pass++) {
+      let absorbed = 0;
+      for (const target of plans) {
+        if (remaining <= 0) break;
+        for (let i = target.startDay - 1; i < snapshot.days; i++) {
+          if (remaining <= 0) break;
+          const room = Math.max(0, target.capDia - target.daily[i]);
+          if (room <= 0) continue;
+          const give = Math.min(room, remaining);
+          target.daily[i] += give;
+          remaining -= give;
+          absorbed += give;
+        }
+      }
+      if (absorbed <= 0) break;
+    }
+  }
+
+  const result = plans as EcoPlanResult;
+  result.unmetEco = Math.max(0, Math.round(remaining));
+  return result;
 }
 
 export function buildExternalPlan(snapshot: CampaignSnapshot, items: ExternalPlanInput[]): DailyExternalPlan[] {
   const ordered = [...items].sort((a, b) => b.assigned_streams - a.assigned_streams);
   return ordered.map((item, index) => {
     const startDay = generatedStartDay(index, ordered.length, snapshot.days, snapshot.modo);
+    const { daily } = distributeByCurve(
+      Number(item.assigned_streams ?? 0),
+      snapshot.curva,
+      startDay,
+      { delay: REPORTING_DELAY_DAYS },
+    );
     return {
       itemId: item.id,
       curatorName: item.curators?.name ?? "Curador",
@@ -166,7 +278,7 @@ export function buildExternalPlan(snapshot: CampaignSnapshot, items: ExternalPla
       totalStreams: Number(item.assigned_streams ?? 0),
       totalCost: Number(item.assigned_cost ?? 0),
       costPerStream: Number(item.cost_per_stream ?? 0),
-      daily: distributeByCurve(Number(item.assigned_streams ?? 0), snapshot.curva, startDay),
+      daily,
     };
   });
 }

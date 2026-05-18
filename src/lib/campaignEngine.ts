@@ -71,13 +71,42 @@ export interface CampaignResult {
  * - Simultâneo: distribuição mais uniforme com leve pico no meio.
  * - Sequencial: pico mais marcado (ramp-up + platô + decay).
  */
+/** Limite de pico/média — campanhas reais raramente passam de 1,8× a média. */
+const MAX_PEAK_TO_MEAN = 1.8;
+
+/** Achata picos acima de `ratio × média`, redistribuindo o excedente para dias com folga. */
+function flattenPeak(values: number[], ratio = MAX_PEAK_TO_MEAN): number[] {
+  if (values.length === 0) return values;
+  const total = values.reduce((a, b) => a + b, 0);
+  const mean = total / values.length;
+  const cap = mean * ratio;
+  const arr = values.slice();
+  for (let iter = 0; iter < 30; iter++) {
+    let overflow = 0;
+    for (let i = 0; i < arr.length; i++) {
+      if (arr[i] > cap) {
+        overflow += arr[i] - cap;
+        arr[i] = cap;
+      }
+    }
+    if (overflow < 1) break;
+    const room = arr.map(v => Math.max(0, cap - v));
+    const roomSum = room.reduce((a, b) => a + b, 0);
+    if (roomSum <= 0) break;
+    for (let i = 0; i < arr.length; i++) {
+      arr[i] += overflow * (room[i] / roomSum);
+    }
+  }
+  return arr;
+}
+
 function buildCurve(meta: number, days: number, modo: Modo, inercia: number): CurvaPonto[] {
   if (days <= 0 || meta <= 0) return [];
 
-  // Forma da curva: gaussian-like centrada
+  // Forma da curva: gaussian-like centrada. Sigma maior = curva mais achatada.
   const center = days / 2;
-  // Largura: simultâneo é mais largo (sigma maior), sequencial mais estreito
-  const sigma = modo === "simultaneo" ? days / 2.4 : days / 3.2;
+  // Largura: simultâneo bem largo, sequencial só um pouco mais estreito.
+  const sigma = modo === "simultaneo" ? days / 1.8 : days / 2.2;
 
   const raw: number[] = [];
   for (let d = 1; d <= days; d++) {
@@ -90,9 +119,20 @@ function buildCurve(meta: number, days: number, modo: Modo, inercia: number): Cu
 
   const sum = raw.reduce((a, b) => a + b, 0);
   const factor = meta / sum;
+  const scaled = raw.map(w => w * factor);
+  // Achata picos para garantir pico ≤ 1.8 × média (realismo operacional).
+  const flat = flattenPeak(scaled, MAX_PEAK_TO_MEAN);
+
+  // Reajusta soma para bater exatamente em `meta` (compensa arredondamentos).
+  const flatSum = flat.reduce((a, b) => a + b, 0);
+  const adj = flatSum > 0 ? meta / flatSum : 1;
+
   let cum = 0;
-  return raw.map((w, i) => {
-    const streamsDay = Math.round(w * factor);
+  let allocated = 0;
+  return flat.map((v, i) => {
+    const isLast = i === flat.length - 1;
+    const streamsDay = isLast ? Math.max(0, meta - allocated) : Math.round(v * adj);
+    allocated += streamsDay;
     cum += streamsDay;
     return { day: i + 1, streamsDay, cumulative: cum };
   });
