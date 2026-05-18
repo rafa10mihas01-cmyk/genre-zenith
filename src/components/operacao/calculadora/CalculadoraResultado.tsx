@@ -291,6 +291,14 @@ function CurvaChart({ curva, inercia }: { curva: CampaignResult["curva"]; inerci
           });
         })()}
       </div>
+
+      {/* Rodapé só na visão Todos (final consolidado da campanha). */}
+      {view === "todos" && (
+        <div className="mt-2 text-xs text-muted-foreground flex justify-between">
+          <span>Inércia: ×{inercia.toFixed(2)}</span>
+          <span>{curva.length} dias</span>
+        </div>
+      )}
     </div>
   );
 }
