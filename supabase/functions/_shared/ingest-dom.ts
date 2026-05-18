@@ -56,7 +56,7 @@ export async function processDomItem(
   // Gate de ciclo de vida do deal
   const { data: dealRow } = await supabase
     .from("curator_deals")
-    .select("id, state, closed_at, token_revoked_at, token_expires_at")
+    .select("id, state, closed_at, token_revoked_at, token_expires_at, campaign_id, source")
     .eq("id", deal_id)
     .maybeSingle();
   const gate = assertDealOperable(dealRow as any);
@@ -72,6 +72,10 @@ export async function processDomItem(
       .eq("id", song_id);
     return { song_id, ok: false, error: gate.error };
   }
+
+  // Se este deal é um shadow de campanha, vamos também alimentar campaign_eco_snapshots
+  const campaignId: string | null = (dealRow as any)?.campaign_id ?? null;
+  const isCampaignShadow = (dealRow as any)?.source === "campaign_internal" && !!campaignId;
 
   // Dedupe: se já existe log dessa song nos últimos 90s, ignora
   {
