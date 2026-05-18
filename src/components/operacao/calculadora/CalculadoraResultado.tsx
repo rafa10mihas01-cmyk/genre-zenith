@@ -154,8 +154,33 @@ function CurvaChart({ curva }: { curva: CampaignResult["curva"] }) {
   const hoverPhase = hover ? phaseOfDay(hover.day, phases) : null;
   const hoverValue = hover ? valueOf(hover) : 0;
 
+  const viewOptions: { key: CurvaView; label: string }[] = [
+    { key: "todos", label: "Todos" },
+    { key: "eco", label: "Ecossistema" },
+    { key: "ext", label: "Externo" },
+  ];
+
   return (
     <div className="space-y-3">
+      {/* Toggle de visualização */}
+      <div className="flex items-center justify-end gap-1">
+        {viewOptions.map(opt => (
+          <button
+            key={opt.key}
+            type="button"
+            onClick={() => setView(opt.key)}
+            className={cn(
+              "px-2.5 py-1 rounded-md text-[11px] font-medium border transition-colors",
+              view === opt.key
+                ? "bg-primary text-primary-foreground border-primary"
+                : "bg-transparent text-muted-foreground border-border hover:text-foreground hover:bg-muted/30",
+            )}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
       {/* Cards de fase */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
         {phases.map(ph => {
