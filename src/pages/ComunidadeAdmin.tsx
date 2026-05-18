@@ -690,72 +690,79 @@ function MembrosTab({ onChange }: { onChange?: () => void }) {
   }
 
   return (
-    <Card>
-      <CardContent className="p-5 space-y-4">
-        {loading ? (
-          <div className="text-sm text-muted-foreground">Carregando…</div>
-        ) : list.length === 0 ? (
-          <div className="text-sm text-muted-foreground py-8 text-center">Nenhum membro ainda.</div>
-        ) : (
-          <ul className="divide-y divide-border">
-            {list.map((m) => (
-              <li key={m.id} className="flex items-center gap-3 py-3">
+    <>
+      {loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {[0,1,2,3,4,5,6,7].map((i) => (
+            <div key={i} className="nx-card h-44 animate-pulse" />
+          ))}
+        </div>
+      ) : list.length === 0 ? (
+        <div className="nx-card py-12 text-center text-sm text-muted-foreground">Nenhum membro ainda.</div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {list.map((m) => (
+            <div
+              key={m.id}
+              className="rounded-2xl border border-border/50 bg-card p-4 flex flex-col gap-3 h-full hover:border-foreground/20 hover:bg-[hsl(var(--elevated))] transition-colors"
+            >
+              <div className="flex items-start justify-between gap-2 min-w-0">
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-sm truncate">{m.display_name}</span>
+                  <div className="font-medium text-sm truncate">{m.display_name}</div>
+                  <div className="flex items-center gap-1.5 mt-1">
                     <Badge variant="outline" className="capitalize text-[10px]">{m.tier}</Badge>
                     <StatusBadge status={m.status} />
                   </div>
-                  <div className="mt-1 text-xs text-muted-foreground truncate flex items-center gap-1.5 flex-wrap">
-                    {m.playlist_url ? (
-                      <a
-                        href={m.playlist_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        onClick={() => onExternal()}
-                        className="text-primary hover:underline truncate max-w-[260px]"
-                        title={m.playlist_url}
-                      >
-                        {m.playlist_name ?? "abrir playlist"}
-                      </a>
-                    ) : (
-                      <span>{m.playlist_name ?? "sem playlist"}</span>
-                    )}
-                    {m.instagram_handle && (
-                      <>
-                        <span>·</span>
-                        <a
-                          href={`https://instagram.com/${m.instagram_handle.replace(/^@/, "")}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          onClick={() => onExternal()}
-                          className="text-primary hover:underline"
-                        >
-                          @{m.instagram_handle.replace(/^@/, "")}
-                        </a>
-                      </>
-                    )}
-                    <span>·</span>
-                    <span>{m.points} pts</span>
-                    <span>·</span>
-                    <span>entrou {format(new Date(m.joined_at), "dd MMM", { locale: ptBR })}</span>
-                  </div>
                 </div>
+              </div>
+              <div className="text-[11.5px] text-muted-foreground space-y-1 min-w-0">
+                {m.playlist_url ? (
+                  <a
+                    href={m.playlist_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={() => onExternal()}
+                    className="text-primary hover:underline truncate block"
+                    title={m.playlist_url}
+                  >
+                    {m.playlist_name ?? "abrir playlist"}
+                  </a>
+                ) : (
+                  <div className="truncate">{m.playlist_name ?? "sem playlist"}</div>
+                )}
+                {m.instagram_handle && (
+                  <a
+                    href={`https://instagram.com/${m.instagram_handle.replace(/^@/, "")}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={() => onExternal()}
+                    className="text-primary hover:underline block truncate"
+                  >
+                    @{m.instagram_handle.replace(/^@/, "")}
+                  </a>
+                )}
+                <div className="flex items-center gap-1.5 text-muted-foreground">
+                  <span className="tabular-nums">{m.points} pts</span>
+                  <span>·</span>
+                  <span>entrou {format(new Date(m.joined_at), "dd MMM", { locale: ptBR })}</span>
+                </div>
+              </div>
+              <div className="mt-auto">
                 {m.status === "active" ? (
-                  <Button variant="outline" size="sm" onClick={() => setStatus(m.id, "suspended")}>
+                  <Button variant="outline" size="sm" className="w-full" onClick={() => setStatus(m.id, "suspended")}>
                     Suspender
                   </Button>
                 ) : (
-                  <Button variant="outline" size="sm" onClick={() => setStatus(m.id, "active")}>
+                  <Button variant="outline" size="sm" className="w-full" onClick={() => setStatus(m.id, "active")}>
                     Reativar
                   </Button>
                 )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </CardContent>
-    </Card>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
   );
 }
 
