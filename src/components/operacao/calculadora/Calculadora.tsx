@@ -186,10 +186,11 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         fonte, trackUrl, track, baselineStreamsDay, meta, days, budget, modo, perfil, splitEco,
+        clientId, curatorId,
         startDateISO: startDate.toISOString().slice(0, 10),
       }));
     } catch { /* quota cheia, ignora */ }
-  }, [fonte, trackUrl, track, baselineStreamsDay, meta, days, budget, modo, perfil, splitEco, startDate]);
+  }, [fonte, trackUrl, track, baselineStreamsDay, meta, days, budget, modo, perfil, splitEco, startDate, clientId, curatorId]);
 
   async function buscarMusica() {
     const url = trackUrl.trim();
