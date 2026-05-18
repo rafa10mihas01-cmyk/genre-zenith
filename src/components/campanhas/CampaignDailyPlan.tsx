@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Download, CalendarDays, ListChecks, Users, Music2, Music, AlertTriangle, Clock } from "lucide-react";
+import { Download, CalendarDays, ListChecks, Users, Music2, Music, AlertTriangle, Clock, Heart, Gauge, ListMusic, TrendingUp } from "lucide-react";
 import { formatBRL, formatInt } from "@/lib/campaignEngine";
 import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
 import {
@@ -120,6 +120,49 @@ export function CampaignDailyPlan({ campaignId, snapshot, startedAt, ecoAllocati
         </Button>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Capacidade do ecossistema próprio — sempre visível */}
+        {(() => {
+          const totalPlaylists = ecoAllocations.length;
+          const totalFollowers = ecoAllocations.reduce((s, a) => s + Number(a.managed_playlists?.followers ?? 0), 0);
+          const capDiaTotal = Math.round(totalFollowers * ECO_CAPACITY_FACTOR);
+          const capPeriodo = capDiaTotal * snapshot.days;
+          const comprometido = snapshot.streamsEco;
+          const folga = capPeriodo - comprometido;
+          const usoPct = capPeriodo > 0 ? Math.min(100, Math.round((comprometido / capPeriodo) * 100)) : 0;
+          return (
+            <div className="rounded-lg border border-border bg-elevated/30 p-3 space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  <Gauge className="h-3.5 w-3.5 text-primary" /> Capacidade do ecossistema
+                </div>
+                <div className="text-[10px] text-muted-foreground tabular-nums">
+                  uso {usoPct}% · {snapshot.days}d
+                </div>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                <Metric label="Playlists próprias" value={formatInt(totalPlaylists)} hint="na campanha" />
+                <Metric label="Salvamentos totais" value={formatInt(totalFollowers)} hint="soma de followers" />
+                <Metric label="Capacidade / dia" value={formatInt(capDiaTotal)} hint={`followers × ${ECO_CAPACITY_FACTOR}`} />
+                <Metric
+                  label={`Capacidade · ${snapshot.days}d`}
+                  value={formatInt(capPeriodo)}
+                  hint={folga >= 0 ? `folga ${formatInt(folga)}` : `falta ${formatInt(-folga)}`}
+                />
+              </div>
+              <div className="h-1.5 rounded-full bg-muted/40 overflow-hidden">
+                <div
+                  className={cn("h-full transition-all", usoPct >= 100 ? "bg-destructive" : usoPct >= 85 ? "bg-warning" : "bg-primary")}
+                  style={{ width: `${usoPct}%` }}
+                />
+              </div>
+              <div className="text-[10px] text-muted-foreground">
+                Comprometido nessa campanha: <span className="tabular-nums text-foreground">{formatInt(comprometido)}</span> de{" "}
+                <span className="tabular-nums text-foreground">{formatInt(capPeriodo)}</span> streams disponíveis no eco.
+              </div>
+            </div>
+          );
+        })()}
+
         {(plan.ecoPlans as any).unmetEco > 0 && (
           <div className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-xs">
             <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
