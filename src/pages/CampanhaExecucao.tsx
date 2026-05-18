@@ -256,6 +256,7 @@ export default function CampanhaExecucao() {
                   <strong className="text-foreground tabular-nums">{formatInt(ecoTotals.planned)}</strong> streams
                   em <strong className="text-foreground">{ecoTotals.count}</strong> playlists
                   {ecoTotals.dispatched > 0 && <> · {ecoTotals.dispatched} já enviadas ao bot</>}
+                  <span className="ml-1 text-[10px] text-primary">· clique numa playlist para ver o plano diário</span>
                 </p>
               </div>
               <Button variant="default" size="sm" onClick={handleDispatchEco} disabled={!hasPendingEco || dispatchingEco}>
