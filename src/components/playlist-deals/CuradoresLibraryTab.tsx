@@ -448,13 +448,7 @@ export function CuradoresLibraryTab({
         </div>
       )}
 
-      <CuratorLibrarySheet
-        curator={selected}
-        deals={deals.filter((d) => d.curator_id === selected?.id)}
-        balance={balances.find((b) => b.curator_id === selected?.id) ?? null}
-        onAddPurchase={onAddPurchase}
-        onClose={() => setSelected(null)}
-      />
+      {/* Detalhe do curador vive em /curadores/:id — sem drawer aqui. */}
 
       {onUpdateCurator && (
         <CuratorEditDialog
