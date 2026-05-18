@@ -92,6 +92,7 @@ export default function Infraestrutura({ embedded = false }: { embedded?: boolea
     <Wrapper>
       {!embedded && (
         <PageHeader
+        domain="system"
           kicker="Módulo de Sistema"
           title="Infraestrutura"
           subtitle="Orquestrar VPS, sessões e contas Spotify"

@@ -114,6 +114,7 @@ export default function Performance() {
   return (
     <PageContainer>
       <PageHeader
+        domain="system"
         title="Performance"
         subtitle="Monitorar crescimento e resultados"
         actions={

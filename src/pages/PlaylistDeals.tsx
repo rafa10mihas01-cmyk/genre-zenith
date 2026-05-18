@@ -252,6 +252,7 @@ export default function PlaylistDeals() {
       <PageHeader
         title="Playlist Deals"
         subtitle="Acompanhar deals com curadores"
+        domain="deals"
         actions={
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

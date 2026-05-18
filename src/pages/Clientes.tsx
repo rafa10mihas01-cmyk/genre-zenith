@@ -39,6 +39,7 @@ export default function Clientes() {
       <PageHeader
         title="Clientes"
         subtitle="Gerenciar artistas e labels contratantes"
+        domain="clients"
         actions={
           <div className="flex items-center gap-2">
             <Button

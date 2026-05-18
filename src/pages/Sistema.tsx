@@ -57,6 +57,7 @@ export default function Sistema() {
   return (
     <PageContainer>
       <PageHeader
+        domain="system"
         title="Sistema"
         subtitle="Acompanhar o pipeline em tempo real"
       />

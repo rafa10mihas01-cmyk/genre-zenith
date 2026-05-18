@@ -86,7 +86,8 @@ export default function PlaylistDetail() {
   if (!pl) {
     return (
       <PageContainer>
-        <PageHeader title="Playlist não encontrada" subtitle="Voltar para o catálogo" />
+        <PageHeader
+        domain="playlists" title="Playlist não encontrada" subtitle="Voltar para o catálogo" />
         <Button asChild variant="outline">
           <Link to="/catalogo"><ArrowLeft className="h-4 w-4 mr-1" /> Catálogo</Link>
         </Button>

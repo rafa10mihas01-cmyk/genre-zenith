@@ -160,7 +160,8 @@ export default function CampanhaExecucao() {
   if (!camp || !snapshot) {
     return (
       <PageContainer>
-        <PageHeader title="Execução" subtitle="Campanha não encontrada ou sem snapshot" />
+        <PageHeader
+        domain="campaigns" title="Execução" subtitle="Campanha não encontrada ou sem snapshot" />
         <Link to="/campanhas" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mt-4">
           <ArrowLeft className="h-4 w-4" /> Voltar para campanhas
         </Link>

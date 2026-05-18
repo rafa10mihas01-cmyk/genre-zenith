@@ -133,7 +133,8 @@ export default function CuradorDetail() {
             <Link to="/curadores"><ArrowLeft className="h-4 w-4" /> Curadores</Link>
           </Button>
         </div>
-        <PageHeader title="Carregando curador…" subtitle="Buscando dados do curador" />
+        <PageHeader
+        domain="curators" title="Carregando curador…" subtitle="Buscando dados do curador" />
       </PageContainer>
     );
   }
