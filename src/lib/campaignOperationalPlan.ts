@@ -189,7 +189,16 @@ export function curveThresholdDay(curva: CampaignSnapshot["curva"], pct: number)
 /** Exposto para o componente: total não absorvido pelo inventário eco (último build). */
 export type EcoPlanResult = DailyPlaylistPlan[] & { unmetEco?: number };
 
-export function buildEcoPlaylistPlan(snapshot: CampaignSnapshot, allocs: EcoPlanInput[]): EcoPlanResult {
+export function buildEcoPlaylistPlan(
+  snapshot: CampaignSnapshot,
+  allocs: EcoPlanInput[],
+  opts: { engagementMultiplier?: number } = {},
+): EcoPlanResult {
+  // Multiplicador plays/save/mês (default = 30, mercado). Reescala o cap por playlist:
+  // cap diário = followers × ECO_CAPACITY_FACTOR × (multiplier / 30).
+  const multiplier = Math.max(1, opts.engagementMultiplier ?? 30);
+  const capScale = multiplier / 30;
+
   const ordered = [...allocs].sort((a, b) => b.planned_streams - a.planned_streams);
   const storedStarts = ordered.map(a => Number(a.start_day || 1));
   const generatedStarts = ordered.map((_, index) => generatedStartDay(index, ordered.length, snapshot.days, snapshot.modo));
@@ -211,7 +220,7 @@ export function buildEcoPlaylistPlan(snapshot: CampaignSnapshot, allocs: EcoPlan
       : effectiveEcoStartDay(index, ordered.length, snapshot.days, a.start_day, snapshot.modo);
     const startDay = Math.min(snapshot.days, Math.max(baseStart, ecoFloorDay));
     const followers = Number(a.managed_playlists?.followers ?? 0);
-    const baseCap = Math.max(1, Math.round(followers * ECO_CAPACITY_FACTOR));
+    const baseCap = Math.max(1, Math.round(followers * ECO_CAPACITY_FACTOR * capScale));
 
     // Cap por dia: ramp suave de 5 dias na entrada, cap pleno depois.
     const caps = Array.from({ length: snapshot.days }, () => baseCap);
