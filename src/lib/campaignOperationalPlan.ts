@@ -189,6 +189,51 @@ export function curveThresholdDay(curva: CampaignSnapshot["curva"], pct: number)
 /** Exposto para o componente: total não absorvido pelo inventário eco (último build). */
 export type EcoPlanResult = DailyPlaylistPlan[] & { unmetEco?: number };
 
+/** Hash determinístico (FNV-1a 32 bits) sobre string → número estável entre renders. */
+function hashStr(s: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return h >>> 0;
+}
+
+/**
+ * Aplica variação natural (±15%) por dia, mantendo o total exato e respeitando o cap.
+ * Determinístico via seed (allocationId) → não muda entre renders.
+ * Playlist real nunca entrega o mesmo número todo dia: tem dia melhor, dia pior.
+ */
+function applyDailyJitter(daily: number[], capPerDay: number, seed: string) {
+  const activeIdx: number[] = [];
+  for (let i = 0; i < daily.length; i++) if (daily[i] > 0) activeIdx.push(i);
+  if (activeIdx.length < 2) return;
+
+  const originalSum = daily.reduce((s, v) => s + v, 0);
+
+  // 1) Reescala cada dia ativo por fator 0.78..1.22 (variação natural ~±22%).
+  for (const i of activeIdx) {
+    const r = (hashStr(`${seed}:${i}`) % 10000) / 10000; // 0..1
+    const factor = 0.78 + r * 0.44; // 0.78..1.22
+    const nv = Math.max(1, Math.min(capPerDay, Math.round(daily[i] * factor)));
+    daily[i] = nv;
+  }
+
+  // 2) Reequilibra para preservar a soma original, respeitando cap e mínimo 1.
+  let delta = originalSum - daily.reduce((s, v) => s + v, 0);
+  let guard = activeIdx.length * 40;
+  let cursor = 0;
+  while (delta !== 0 && guard-- > 0) {
+    const idx = activeIdx[cursor % activeIdx.length];
+    cursor++;
+    if (delta > 0) {
+      if (daily[idx] < capPerDay) { daily[idx]++; delta--; }
+    } else {
+      if (daily[idx] > 1) { daily[idx]--; delta++; }
+    }
+  }
+}
+
 export function buildEcoPlaylistPlan(
   snapshot: CampaignSnapshot,
   allocs: EcoPlanInput[],
@@ -209,7 +254,6 @@ export function buildEcoPlaylistPlan(
     || matchesSequence(storedStarts, legacyStarts)
   );
 
-  // No sequencial, eco só entra após externo bater ~25% da meta.
   const ecoFloorDay = snapshot.modo === "sequencial"
     ? curveThresholdDay(snapshot.curva, 0.25)
     : 1;
@@ -222,7 +266,6 @@ export function buildEcoPlaylistPlan(
     const followers = Number(a.managed_playlists?.followers ?? 0);
     const baseCap = Math.max(1, Math.round(followers * ECO_CAPACITY_FACTOR * capScale));
 
-    // Cap por dia: ramp suave de 5 dias na entrada, cap pleno depois.
     const caps = Array.from({ length: snapshot.days }, () => baseCap);
     ECO_RAMP.forEach((mult, k) => {
       const idx = (startDay - 1) + k;
@@ -249,7 +292,6 @@ export function buildEcoPlaylistPlan(
     };
   });
 
-  // Redistribui overflow entre playlists com folga (passes greedy).
   let remaining = plans.reduce((s, p) => s + p.overflow, 0);
   if (remaining > 0 && plans.length > 1) {
     for (let pass = 0; pass < 10 && remaining > 0; pass++) {
@@ -272,6 +314,12 @@ export function buildEcoPlaylistPlan(
 
   const result = plans as EcoPlanResult;
   result.unmetEco = Math.max(0, Math.round(remaining));
+
+  // Variação natural por dia (depois da redistribuição de overflow).
+  for (const p of result) {
+    applyDailyJitter(p.daily, p.capDia, p.allocationId);
+  }
+
   return result;
 }
 

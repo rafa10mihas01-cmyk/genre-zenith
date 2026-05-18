@@ -14,6 +14,7 @@ import { CampaignMonitoring } from "@/components/campanhas/CampaignMonitoring";
 import { CampaignDailyPlan } from "@/components/campanhas/CampaignDailyPlan";
 import { PlaylistDailyPlanDialog } from "@/components/campanhas/PlaylistDailyPlanDialog";
 import { buildEcoPlaylistPlan } from "@/lib/campaignOperationalPlan";
+import { CampaignFullPlanCard } from "@/components/campanhas/CampaignFullPlanCard";
 import { toast } from "@/hooks/use-toast";
 import { ArrowLeft, Lock, Music, ListMusic, Loader2, CalendarDays, Users, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -319,6 +320,12 @@ export default function CampanhaExecucao() {
               )}
             </CardContent>
           </Card>
+
+          <CampaignFullPlanCard
+            snapshot={snapshot}
+            startedAt={camp.started_at}
+            allocations={allocs as any}
+          />
         </TabsContent>
 
         <TabsContent value="externo" className="mt-4">
