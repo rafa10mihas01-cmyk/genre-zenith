@@ -212,9 +212,19 @@ export function CuradoresLibraryTab({
             {query ? "Nenhum curador encontrado." : "Nenhum curador cadastrado ainda."}
           </p>
         </Card>
-      ) : (
-        <div className="flex flex-col gap-2">
-          {rows.map((row) => {
+      ) : (() => {
+        const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+        const currentPage = Math.min(page, totalPages);
+        const start = (currentPage - 1) * PAGE_SIZE;
+        const pageRows = rows.slice(start, start + PAGE_SIZE);
+        return (
+        <>
+        <div className={cn(
+          viewMode === "card"
+            ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"
+            : "flex flex-col gap-2",
+        )}>
+          {pageRows.map((row) => {
             const {
               curator,
               activeDeals,
