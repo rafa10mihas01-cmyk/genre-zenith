@@ -130,58 +130,18 @@ export function CampaignDailyPlan({ campaignId, snapshot, startedAt, ecoAllocati
         </Button>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="rounded-lg border border-dashed border-border bg-elevated/10 p-3">
-          <div className="flex items-center gap-2 mb-2">
-            <Music className="h-3.5 w-3.5 text-muted-foreground" />
-            <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Referência da música (apenas visual)</div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <label className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span className="min-w-[110px]">Streams ao cadastrar</span>
-              <Input
-                type="number"
-                inputMode="numeric"
-                min={0}
-                value={baselineStreams || ""}
-                onChange={(e) => setBaselineStreams(Number(e.target.value) || 0)}
-                placeholder="ex: 240.000"
-                className="h-8 text-sm tabular-nums"
-              />
-            </label>
-            <label className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span className="min-w-[110px]">Diário atual</span>
-              <Input
-                type="number"
-                inputMode="numeric"
-                min={0}
-                value={dailyBase || ""}
-                onChange={(e) => setDailyBase(Number(e.target.value) || 0)}
-                placeholder="ex: 4.200"
-                className="h-8 text-sm tabular-nums"
-              />
-            </label>
-          </div>
-          {(baselineStreams > 0 || dailyBase > 0) && (
-            <div className="mt-2 text-[10px] text-muted-foreground tabular-nums">
-              Esses números são só referência. Não alteram o cálculo da campanha — entram só na soma "esperado real" abaixo.
-            </div>
-          )}
-        </div>
-
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
           <Metric label="Dia selecionado" value={`D${day?.day ?? 1}`} hint={day?.dateLabel} />
-          <Metric
-            label={`Meta do dia · ${sourceLabel}`}
-            value={formatInt(dayTotalForSource)}
-            hint={dailyBase > 0 ? `Música ${formatInt(dailyBase)} + campanha ${formatInt(dayTotalForSource)} = ${formatInt(dailyBase + dayTotalForSource)} esperado` : dayHint}
+          <MetricEditable
+            label="Música ao iniciar"
+            icon={<Music className="h-3 w-3" />}
+            value={baselineStreams}
+            onChange={setBaselineStreams}
+            placeholder="0"
+            hint="streams no D1"
           />
-          <Metric
-            label={`Acumulado · ${sourceLabel}`}
-            value={formatInt(cumulativeForSource)}
-            hint={baselineStreams > 0 || dailyBase > 0
-              ? `Música ${formatInt(baselineStreams + dailyBase * selectedDay)} + campanha ${formatInt(cumulativeForSource)} = ${formatInt(baselineStreams + dailyBase * selectedDay + cumulativeForSource)} esperado`
-              : `${formatInt(sourceTotal)} no filtro`}
-          />
+          <Metric label={`Meta do dia · ${sourceLabel}`} value={formatInt(dayTotalForSource)} hint={dayHint} />
+          <Metric label={`Acumulado · ${sourceLabel}`} value={formatInt(cumulativeForSource)} hint={`${formatInt(sourceTotal)} no filtro`} />
           <Metric label="Ativos no dia" value={activeValue} hint={activeHint} />
         </div>
 
@@ -294,6 +254,40 @@ function Metric({ label, value, hint }: { label: string; value: string; hint?: s
     <div className="rounded-lg border border-border bg-elevated/30 p-3">
       <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
       <div className="text-lg font-semibold tabular-nums mt-1">{value}</div>
+      {hint && <div className="text-[10px] text-muted-foreground mt-0.5">{hint}</div>}
+    </div>
+  );
+}
+
+function MetricEditable({
+  label,
+  icon,
+  value,
+  onChange,
+  placeholder,
+  hint,
+}: {
+  label: string;
+  icon?: ReactNode;
+  value: number;
+  onChange: (v: number) => void;
+  placeholder?: string;
+  hint?: string;
+}) {
+  return (
+    <div className="rounded-lg border border-border bg-elevated/30 p-3">
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+        {icon} {label}
+      </div>
+      <Input
+        type="number"
+        inputMode="numeric"
+        min={0}
+        value={value || ""}
+        placeholder={placeholder}
+        onChange={(e) => onChange(Number(e.target.value) || 0)}
+        className="h-7 mt-1 px-1 text-lg font-semibold tabular-nums border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-primary/40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+      />
       {hint && <div className="text-[10px] text-muted-foreground mt-0.5">{hint}</div>}
     </div>
   );
