@@ -305,9 +305,6 @@ export function PlaylistCockpit({
                   </Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="execucao" className="gap-1.5">
-                <Target className="h-3.5 w-3.5" /> Execução
-              </TabsTrigger>
               <TabsTrigger value="identidade" className="gap-1.5">
                 <Eye className="h-3.5 w-3.5" /> Identidade
               </TabsTrigger>
