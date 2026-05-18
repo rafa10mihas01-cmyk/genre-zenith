@@ -270,22 +270,16 @@ export default function CampanhaExecucao() {
 
         <TabsContent value="eco" className="mt-4">
           <Card>
-            <CardHeader className="flex-row items-start justify-between gap-3 space-y-0">
-              <div>
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <ListMusic className="h-4 w-4 text-primary" /> Ecossistema próprio
-                </CardTitle>
-                <p className="text-xs text-muted-foreground mt-1">
-                  <strong className="text-foreground tabular-nums">{formatInt(ecoTotals.planned)}</strong> streams
-                  em <strong className="text-foreground">{ecoTotals.count}</strong> playlists
-                  {ecoTotals.dispatched > 0 && <> · {ecoTotals.dispatched} já enviadas ao bot</>}
-                  <span className="ml-1 text-[10px] text-primary">· clique numa playlist para ver o plano diário</span>
-                </p>
-              </div>
-              <Button variant="default" size="sm" onClick={handleDispatchEco} disabled={!hasPendingEco || dispatchingEco}>
-                {dispatchingEco && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
-                {hasPendingEco ? "Disparar Eco" : "Eco disparado"}
-              </Button>
+            <CardHeader>
+              <CardTitle className="text-sm flex items-center gap-2">
+                <ListMusic className="h-4 w-4 text-primary" /> Ecossistema próprio
+              </CardTitle>
+              <p className="text-xs text-muted-foreground mt-1">
+                <strong className="text-foreground tabular-nums">{formatInt(ecoTotals.planned)}</strong> streams
+                em <strong className="text-foreground">{ecoTotals.count}</strong> playlists
+                {ecoTotals.dispatched > 0 && <> · {ecoTotals.dispatched} já enviadas ao bot</>}
+                <span className="ml-1 text-[10px] text-primary">· clique numa playlist para ver o plano diário</span>
+              </p>
             </CardHeader>
             <CardContent>
               {allocs.length === 0 ? (
