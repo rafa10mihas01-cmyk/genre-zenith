@@ -239,6 +239,26 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                     </button>
                   </div>
                 )}
+
+                {/* Baseline manual — sempre visível, é a única verdade que a calculadora usa */}
+                <div className="space-y-1.5 pt-1">
+                  <Label className="text-xs flex items-center justify-between">
+                    <span>Streams/dia atuais da música <span className="text-destructive">*</span></span>
+                    {track?.streamsDay != null && baselineStreamsDay !== track.streamsDay && (
+                      <button
+                        type="button"
+                        onClick={() => setBaselineStreamsDay(track.streamsDay!)}
+                        className="text-[10px] text-primary hover:underline"
+                      >
+                        usar Top 200 ({formatInt(track.streamsDay)})
+                      </button>
+                    )}
+                  </Label>
+                  <NumberInput value={baselineStreamsDay} onChange={setBaselineStreamsDay} placeholder="ex: 20.000" />
+                  <p className="text-[11px] text-muted-foreground">
+                    Quanto a faixa tá rodando hoje. É a baseline que vai ser descontada do alvo pra saber o gap real.
+                  </p>
+                </div>
               </CardContent>
             </Card>
 
