@@ -169,7 +169,8 @@ export function useCuratorDeals() {
       setLoading(false);
       return;
     }
-    setLoading(true);
+    // Só mostra skeleton no primeiro carregamento — reloads silenciosos evitam flicker.
+    setLoading((prev) => (deals.length === 0 ? true : prev));
     setError(null);
     try {
       // Curadores + saldos em paralelo com deals
