@@ -256,6 +256,7 @@ export default function Executivo() {
   return (
     <PageContainer>
       <PageHeader
+        domain="system"
         title="Painel executivo"
         subtitle="Resumir saúde da operação em 1 tela"
         actions={

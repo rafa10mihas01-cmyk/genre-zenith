@@ -158,7 +158,8 @@ export default function ClienteDetalhe() {
   if (!client) {
     return (
       <PageContainer>
-        <PageHeader title="Cliente não encontrado" subtitle="O cliente solicitado não existe ou foi removido" />
+        <PageHeader
+        domain="clients" title="Cliente não encontrado" subtitle="O cliente solicitado não existe ou foi removido" />
         <Button variant="outline" asChild className="gap-2">
           <Link to="/clientes"><ArrowLeft className="h-4 w-4" /> Voltar para clientes</Link>
         </Button>

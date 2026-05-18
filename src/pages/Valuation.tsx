@@ -80,6 +80,7 @@ export default function Valuation() {
   return (
     <>
       <PageHeader
+        domain="system"
         kicker="Inteligência"
         icon={Gauge}
         title="Valuation"

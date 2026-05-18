@@ -82,7 +82,8 @@ export default function CampanhaDetalhe() {
   if (loading) {
     return (
       <>
-        <PageHeader kicker="Operação" title="Carregando…" subtitle="Detalhe da campanha" icon={Target} />
+        <PageHeader
+        domain="campaigns" kicker="Operação" title="Carregando…" subtitle="Detalhe da campanha" icon={Target} />
         <PageContainer><Skeleton className="h-64" /></PageContainer>
       </>
     );

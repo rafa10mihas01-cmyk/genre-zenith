@@ -77,6 +77,7 @@ export default function MatrizPlaylists() {
   return (
     <div className="space-y-8">
       <PageHeader
+        domain="playlists"
         title="Matriz de prioridade"
         subtitle="Cruze headroom e confiança para decidir onde alimentar primeiro"
       />

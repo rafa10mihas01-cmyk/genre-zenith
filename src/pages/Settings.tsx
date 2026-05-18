@@ -320,6 +320,7 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
     <Wrapper>
       {!embedded && (
         <PageHeader
+        domain="system"
           title="Configurações"
           subtitle="Ajustes do sistema"
         />

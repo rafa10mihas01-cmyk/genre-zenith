@@ -222,6 +222,7 @@ export default function CompararCuradores() {
   return (
     <div className="space-y-8">
       <PageHeader
+        domain="curators"
         title="Comparar curadores"
         subtitle="Confronte cérebros lado a lado para escolher quem alimentar primeiro"
       />

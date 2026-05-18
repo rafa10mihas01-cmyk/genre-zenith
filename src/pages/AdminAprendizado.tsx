@@ -115,7 +115,8 @@ export default function AdminAprendizado({ embedded = false }: { embedded?: bool
   return (
     <Wrapper {...(embedded ? {} : {})}>
       {!embedded && (
-        <PageHeader title="Governança do Aprendizado" subtitle="Auditar, travar e reverter o que a IA aprende com playlists vencedoras" icon={<Brain className="h-5 w-5" />} />
+        <PageHeader
+        domain="system" title="Governança do Aprendizado" subtitle="Auditar, travar e reverter o que a IA aprende com playlists vencedoras" icon={<Brain className="h-5 w-5" />} />
       )}
 
       <div className={cn("grid grid-cols-12 gap-6", !embedded && "mt-6")}>

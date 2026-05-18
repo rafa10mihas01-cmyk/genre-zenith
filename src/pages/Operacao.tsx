@@ -245,6 +245,7 @@ export default function Operacao() {
   return (
     <PageContainer>
       <PageHeader
+        domain="system"
         title="Catálogo"
         subtitle="Gerenciar playlists publicadas"
         actions={
