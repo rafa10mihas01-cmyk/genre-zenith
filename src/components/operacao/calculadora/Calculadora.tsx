@@ -258,10 +258,10 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
             {/* Filtro de seção — igual ao plano diário da execução */}
             <div className="flex items-center gap-1 rounded-xl border border-border bg-card p-1">
               {([
-                { id: "todos", label: "Tudo", icon: LayoutGrid },
                 { id: "musica", label: "Música", icon: Music },
                 { id: "meta", label: "Meta", icon: TargetIcon },
                 { id: "estrategia", label: "Estratégia", icon: Settings2 },
+                { id: "todos", label: "Tudo", icon: LayoutGrid },
               ] as const).map(s => {
                 const Icon = s.icon;
                 const active = secao === s.id;
