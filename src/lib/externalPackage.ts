@@ -1,0 +1,228 @@
+import { supabase } from "@/integrations/supabase/client";
+import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
+
+const DEFAULT_COST_PER_STREAM = 0.04;
+
+export interface CuratorCandidate {
+  id: string;
+  name: string;
+  contact: string | null;
+  /** Total já entregue historicamente (proxy de capacidade). */
+  purchased_plays: number;
+  /** Custo por stream histórico ou padrão. */
+  cost_per_stream: number;
+  archived_at: string | null;
+  paused_at: string | null;
+}
+
+export interface SuggestedAllocation {
+  curator_id: string;
+  curator_name: string;
+  assigned_streams: number;
+  assigned_cost: number;
+  cost_per_stream: number;
+  /** Capacidade histórica do curador (usada no ranking). */
+  capacity: number;
+}
+
+/**
+ * Sugere distribuição dos streamsExt entre curadores ativos.
+ *
+ * Estratégia:
+ *  - Filtra curadores sem archived_at e sem paused_at.
+ *  - Capacidade = max(purchased_plays, default_plays) — proxy de entrega histórica.
+ *  - Distribui proporcional à capacidade até cobrir o alvo.
+ *  - Preço usa cost_per_stream do curador (default_amount/default_plays) ou R$ 0,040.
+ */
+export function suggestExternalAllocations(
+  targetStreams: number,
+  curators: CuratorCandidate[],
+): SuggestedAllocation[] {
+  if (targetStreams <= 0 || curators.length === 0) return [];
+
+  const ranked = curators
+    .filter(c => !c.archived_at && !c.paused_at)
+    .map(c => ({
+      ...c,
+      capacity: Math.max(c.purchased_plays, 1),
+    }))
+    .sort((a, b) => b.capacity - a.capacity);
+
+  const totalCapacity = ranked.reduce((s, c) => s + c.capacity, 0);
+  if (totalCapacity <= 0) return [];
+
+  let allocated = 0;
+  const items: SuggestedAllocation[] = ranked.map((c, i) => {
+    const share = c.capacity / totalCapacity;
+    let assigned = i === ranked.length - 1
+      ? Math.max(0, targetStreams - allocated) // último absorve o resto
+      : Math.round(share * targetStreams);
+    allocated += assigned;
+    const cps = c.cost_per_stream > 0 ? c.cost_per_stream : DEFAULT_COST_PER_STREAM;
+    return {
+      curator_id: c.id,
+      curator_name: c.name,
+      assigned_streams: assigned,
+      assigned_cost: +(assigned * cps).toFixed(2),
+      cost_per_stream: cps,
+      capacity: c.capacity,
+    };
+  });
+
+  return items.filter(it => it.assigned_streams > 0);
+}
+
+export async function fetchCuratorCandidates(): Promise<CuratorCandidate[]> {
+  const { data, error } = await supabase
+    .from("curators")
+    .select("id, name, contact, purchased_plays, default_plays, default_amount, archived_at, paused_at")
+    .is("archived_at", null)
+    .is("paused_at", null);
+  if (error) throw error;
+  return (data ?? []).map((c: any) => {
+    const defAmount = Number(c.default_amount ?? 0);
+    const defPlays = Number(c.default_plays ?? 0);
+    const cps = defPlays > 0 ? defAmount / defPlays : DEFAULT_COST_PER_STREAM;
+    return {
+      id: c.id,
+      name: c.name,
+      contact: c.contact,
+      purchased_plays: Number(c.purchased_plays ?? 0),
+      cost_per_stream: cps,
+      archived_at: c.archived_at,
+      paused_at: c.paused_at,
+    };
+  });
+}
+
+/**
+ * Cria (ou retorna) o draft do pacote externo da campanha + itens sugeridos.
+ * Idempotente: se já existe draft, retorna sem sobrescrever.
+ */
+export async function ensureExternalPackageDraft(
+  campaignId: string,
+  snapshot: CampaignSnapshot,
+): Promise<{ packageId: string; created: boolean }> {
+  const { data: existing } = await supabase
+    .from("campaign_external_packages")
+    .select("id")
+    .eq("campaign_id", campaignId)
+    .eq("status", "draft")
+    .maybeSingle();
+  if (existing?.id) return { packageId: existing.id, created: false };
+
+  const { data: pkg, error } = await supabase
+    .from("campaign_external_packages")
+    .insert({
+      campaign_id: campaignId,
+      target_streams: snapshot.streamsExt,
+      target_cost: snapshot.custoExt,
+      status: "draft",
+    })
+    .select("id")
+    .single();
+  if (error || !pkg) throw error ?? new Error("Falha ao criar pacote externo");
+
+  const candidates = await fetchCuratorCandidates();
+  const suggestions = suggestExternalAllocations(snapshot.streamsExt, candidates);
+
+  if (suggestions.length > 0) {
+    const rows = suggestions.map(s => ({
+      package_id: pkg.id,
+      curator_id: s.curator_id,
+      assigned_streams: s.assigned_streams,
+      assigned_cost: s.assigned_cost,
+      cost_per_stream: s.cost_per_stream,
+    }));
+    const { error: itemErr } = await supabase
+      .from("campaign_external_package_items")
+      .insert(rows);
+    if (itemErr) throw itemErr;
+  }
+
+  return { packageId: pkg.id, created: true };
+}
+
+/**
+ * Confirma o pacote: gera curator_deals para cada item e marca como dispatched.
+ */
+export async function confirmExternalPackage(args: {
+  packageId: string;
+  campaignId: string;
+  snapshot: CampaignSnapshot;
+}): Promise<{ dealsCreated: number }> {
+  const { packageId, snapshot } = args;
+
+  const { data: items, error: itemsErr } = await supabase
+    .from("campaign_external_package_items")
+    .select("id, curator_id, assigned_streams, assigned_cost, cost_per_stream, curator_deal_id, curators(name)")
+    .eq("package_id", packageId);
+  if (itemsErr) throw itemsErr;
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Sessão expirada");
+
+  const endsAt = new Date();
+  endsAt.setDate(endsAt.getDate() + snapshot.days);
+
+  let created = 0;
+  for (const it of items ?? []) {
+    if (it.curator_deal_id) continue;
+    if (!it.assigned_streams || it.assigned_streams <= 0) continue;
+
+    const { data: deal, error: dealErr } = await supabase
+      .from("curator_deals")
+      .insert({
+        user_id: user.id,
+        curator_id: it.curator_id,
+        curator_name: (it as any).curators?.name ?? "Curador",
+        song_spotify_url: snapshot.music.trackUrl ?? "",
+        song_name: snapshot.music.title ?? "Sem título",
+        song_artist: snapshot.music.artist,
+        song_cover_url: snapshot.music.coverUrl,
+        target_plays: it.assigned_streams,
+        cost: it.assigned_cost,
+        daily_goal: Math.ceil(it.assigned_streams / snapshot.days),
+        ends_at: endsAt.toISOString(),
+        ramp_up_days: 5,
+      })
+      .select("id")
+      .single();
+
+    if (dealErr || !deal) throw dealErr ?? new Error("Falha ao criar deal");
+
+    await supabase
+      .from("campaign_external_package_items")
+      .update({ curator_deal_id: deal.id })
+      .eq("id", it.id);
+
+    created++;
+  }
+
+  await supabase
+    .from("campaign_external_packages")
+    .update({ status: "dispatched", confirmed_at: new Date().toISOString() })
+    .eq("id", packageId);
+
+  return { dealsCreated: created };
+}
+
+export async function updatePackageItem(
+  itemId: string,
+  patch: { assigned_streams?: number; cost_per_stream?: number },
+) {
+  const updates: Record<string, any> = { ...patch };
+  if (patch.assigned_streams != null && patch.cost_per_stream != null) {
+    updates.assigned_cost = +(patch.assigned_streams * patch.cost_per_stream).toFixed(2);
+  }
+  const { error } = await supabase
+    .from("campaign_external_package_items")
+    .update(updates)
+    .eq("id", itemId);
+  if (error) throw error;
+}
+
+export async function removePackageItem(itemId: string) {
+  const { error } = await supabase.from("campaign_external_package_items").delete().eq("id", itemId);
+  if (error) throw error;
+}
