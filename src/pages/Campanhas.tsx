@@ -107,8 +107,42 @@ export default function Campanhas() {
       />
 
       <PageContainer>
+        {/* KPIs — padrão Comunidade/Operação (sempre acima das tabs) */}
+        <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <KpiBig
+            icon={Megaphone}
+            label="Ativas"
+            value={kpis.activeCount.toLocaleString("pt-BR")}
+            tone="success"
+            hint="Em execução agora"
+            loading={loading}
+          />
+          <KpiBig
+            icon={Target}
+            label="Meta total"
+            value={kpis.goal.toLocaleString("pt-BR")}
+            hint="Plays planejados"
+            loading={loading}
+          />
+          <KpiBig
+            icon={CheckCircle2}
+            label="Entregue"
+            value={kpis.delivered.toLocaleString("pt-BR")}
+            tone="primary"
+            hint="Plays já contabilizados"
+            loading={loading}
+          />
+          <KpiBig
+            icon={Percent}
+            label="Cumprimento médio"
+            value={`${kpis.pct}%`}
+            hint="Entregue ÷ meta"
+            loading={loading}
+          />
+        </section>
+
         {/* Tabs */}
-        <div className="flex items-center gap-1 border-b border-border mb-6 -mt-2">
+        <div className="flex items-center gap-1 border-b border-border mb-6">
           {([
             { id: "financeiro", label: "Planejamento Financeiro", icon: Calculator },
             { id: "lista", label: "Campanhas Ativas", icon: ListChecks },
@@ -135,14 +169,6 @@ export default function Campanhas() {
 
         {tab === "lista" && (
           <>
-            {/* KPIs */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-              <Kpi label="Ativas" value={kpis.activeCount.toString()} />
-              <Kpi label="Meta total" value={kpis.goal.toLocaleString()} />
-              <Kpi label="Entregue" value={kpis.delivered.toLocaleString()} />
-              <Kpi label="Cumprimento médio" value={`${kpis.pct}%`} />
-            </div>
-
             {/* Filtros */}
             <div className="flex flex-wrap gap-2 mb-4">
               {(["all", "active", "draft", "completed"] as const).map(f => (
