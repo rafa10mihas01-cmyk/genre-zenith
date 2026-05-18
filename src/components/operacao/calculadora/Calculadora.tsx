@@ -57,6 +57,8 @@ type PersistedState = {
   modo: Modo;
   perfil: Perfil;
   splitEco: number;
+  clientId: string;
+  curatorId: string;
 };
 
 function loadPersisted(): Partial<PersistedState> {
