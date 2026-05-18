@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Search,
   Users,
@@ -98,11 +99,12 @@ export function CuradoresLibraryTab({
   onDeleteCurator,
   onPauseCurator,
 }: Props) {
+  const navigate = useNavigate();
   const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState<Curator | null>(null);
   const [editing, setEditing] = useState<Curator | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<{ curator: Curator; hasDeals: boolean } | null>(null);
+
 
   const archivedCount = curators.filter((c) => !!c.archived_at).length;
 
@@ -238,7 +240,7 @@ export function CuradoresLibraryTab({
             return (
               <div
                 key={curator.id}
-                onClick={() => setSelected(curator)}
+                onClick={() => navigate(`/curadores/${curator.id}`)}
                 className={cn(
                   "group relative rounded-2xl border border-border/50 bg-card transition-colors cursor-pointer",
                   "hover:border-foreground/20 hover:bg-[hsl(var(--elevated))]",
@@ -292,7 +294,7 @@ export function CuradoresLibraryTab({
                           className="gap-2 rounded-lg"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setSelected(curator);
+                            navigate(`/curadores/${curator.id}`);
                           }}
                         >
                           <ListMusic className="h-4 w-4" /> Ver biblioteca
@@ -446,13 +448,7 @@ export function CuradoresLibraryTab({
         </div>
       )}
 
-      <CuratorLibrarySheet
-        curator={selected}
-        deals={deals.filter((d) => d.curator_id === selected?.id)}
-        balance={balances.find((b) => b.curator_id === selected?.id) ?? null}
-        onAddPurchase={onAddPurchase}
-        onClose={() => setSelected(null)}
-      />
+      {/* Detalhe do curador vive em /curadores/:id — sem drawer aqui. */}
 
       {onUpdateCurator && (
         <CuratorEditDialog
