@@ -23,7 +23,6 @@ import { format, addDays, differenceInCalendarDays, startOfDay } from "date-fns"
 import { ptBR } from "date-fns/locale";
 
 type Secao = "todos" | "musica" | "meta" | "estrategia";
-type Fonte = "manual" | "top200" | "concorrente" | "orcamento";
 
 type Fonte = "manual" | "top200" | "concorrente" | "orcamento";
 
