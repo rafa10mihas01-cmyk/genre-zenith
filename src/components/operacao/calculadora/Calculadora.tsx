@@ -41,6 +41,7 @@ type PersistedState = {
   fonte: Fonte;
   trackUrl: string;
   track: TrackMeta | null;
+  baselineStreamsDay: number;
   meta: number;
   days: number;
   budget: number;
