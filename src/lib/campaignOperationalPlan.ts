@@ -29,6 +29,7 @@ export type DailyExternalPlan = {
   itemId: string;
   curatorName: string;
   contact: string | null;
+  startDay: number;
   totalStreams: number;
   totalCost: number;
   costPerStream: number;
@@ -87,13 +88,34 @@ export function effectiveEcoStartDay(
   return Math.min(days, 1 + Math.floor((index / Math.max(1, total - 1)) * (rampDays - 1)));
 }
 
+function generatedStartDay(index: number, total: number, days: number, modo: CampaignSnapshot["modo"]) {
+  return effectiveEcoStartDay(index, total, days, undefined, modo);
+}
+
+function legacyStartDay(index: number, total: number, days: number) {
+  if (total <= 1) return 1;
+  const rampDays = Math.max(3, Math.min(days, Math.ceil(days * 0.4)));
+  return Math.min(days, 1 + Math.floor((index / Math.max(1, total - 1)) * (rampDays - 1)));
+}
+
+function matchesSequence(values: number[], expected: number[]) {
+  return values.length === expected.length && values.every((v, i) => v === expected[i]);
+}
+
 export function buildEcoPlaylistPlan(snapshot: CampaignSnapshot, allocs: EcoPlanInput[]): DailyPlaylistPlan[] {
   const ordered = [...allocs].sort((a, b) => b.planned_streams - a.planned_streams);
-  const allStoredAtDayOne = ordered.length > 1 && ordered.every(a => !a.start_day || a.start_day === 1);
+  const storedStarts = ordered.map(a => Number(a.start_day || 1));
+  const generatedStarts = ordered.map((_, index) => generatedStartDay(index, ordered.length, snapshot.days, snapshot.modo));
+  const legacyStarts = ordered.map((_, index) => legacyStartDay(index, ordered.length, snapshot.days));
+  const startsLookSystemGenerated = ordered.length > 1 && (
+    storedStarts.every(s => s === 1)
+    || matchesSequence(storedStarts, generatedStarts)
+    || matchesSequence(storedStarts, legacyStarts)
+  );
 
   return ordered.map((a, index) => {
-    const startDay = allStoredAtDayOne
-      ? effectiveEcoStartDay(index, ordered.length, snapshot.days, undefined, snapshot.modo)
+    const startDay = startsLookSystemGenerated
+      ? generatedStarts[index]
       : effectiveEcoStartDay(index, ordered.length, snapshot.days, a.start_day, snapshot.modo);
 
     return {
@@ -109,15 +131,20 @@ export function buildEcoPlaylistPlan(snapshot: CampaignSnapshot, allocs: EcoPlan
 }
 
 export function buildExternalPlan(snapshot: CampaignSnapshot, items: ExternalPlanInput[]): DailyExternalPlan[] {
-  return items.map(item => ({
-    itemId: item.id,
-    curatorName: item.curators?.name ?? "Curador",
-    contact: item.curators?.contact ?? null,
-    totalStreams: Number(item.assigned_streams ?? 0),
-    totalCost: Number(item.assigned_cost ?? 0),
-    costPerStream: Number(item.cost_per_stream ?? 0),
-    daily: distributeByCurve(Number(item.assigned_streams ?? 0), snapshot.curva, 1),
-  }));
+  const ordered = [...items].sort((a, b) => b.assigned_streams - a.assigned_streams);
+  return ordered.map((item, index) => {
+    const startDay = generatedStartDay(index, ordered.length, snapshot.days, snapshot.modo);
+    return {
+      itemId: item.id,
+      curatorName: item.curators?.name ?? "Curador",
+      contact: item.curators?.contact ?? null,
+      startDay,
+      totalStreams: Number(item.assigned_streams ?? 0),
+      totalCost: Number(item.assigned_cost ?? 0),
+      costPerStream: Number(item.cost_per_stream ?? 0),
+      daily: distributeByCurve(Number(item.assigned_streams ?? 0), snapshot.curva, startDay),
+    };
+  });
 }
 
 export function buildDailyCampaignPlan(args: {
@@ -173,7 +200,7 @@ export function exportCampaignPlanCsv(args: {
 
   args.externalPlans.forEach(plan => {
     plan.daily.forEach((streams, index) => {
-      if (streams > 0) rows.push(["externo_curador", index + 1, args.daily[index]?.dateLabel ?? "", plan.curatorName, streams, +(streams * plan.costPerStream).toFixed(2), plan.contact ?? ""]);
+      if (streams > 0) rows.push(["externo_curador", index + 1, args.daily[index]?.dateLabel ?? "", plan.curatorName, streams, +(streams * plan.costPerStream).toFixed(2), `${plan.contact ?? ""} entrada D${plan.startDay}`.trim()]);
     });
   });
 
