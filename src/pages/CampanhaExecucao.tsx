@@ -243,6 +243,8 @@ export default function CampanhaExecucao() {
             startedAt={camp.started_at}
             ecoAllocations={allocs}
             refreshKey={planRefreshKey}
+            engagementMultiplier={(camp as any).engagement_multiplier ?? 30}
+            onEngagementChange={(v) => setCamp((c) => c ? ({ ...c, engagement_multiplier: v } as any) : c)}
           />
         </TabsContent>
 
