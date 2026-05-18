@@ -383,7 +383,7 @@ function MiniCurva({ curva }: { curva: CampaignSnapshot["curva"] }) {
 
   return (
     <div className="w-full">
-      <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-36" preserveAspectRatio="none">
+      <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-24" preserveAspectRatio="none">
         {curva.map((p, i) => (
           <rect
             key={p.day}
