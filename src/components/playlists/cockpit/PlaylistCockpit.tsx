@@ -305,9 +305,6 @@ export function PlaylistCockpit({
                   </Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="execucao" className="gap-1.5">
-                <Target className="h-3.5 w-3.5" /> Execução
-              </TabsTrigger>
               <TabsTrigger value="identidade" className="gap-1.5">
                 <Eye className="h-3.5 w-3.5" /> Identidade
               </TabsTrigger>
@@ -349,10 +346,7 @@ export function PlaylistCockpit({
                   </Button>
                 </Card>
               )}
-            </TabsContent>
 
-            {/* ============ EXECUÇÃO ============ */}
-            <TabsContent value="execucao" className="space-y-4 mt-0">
               <BucketRemove
                 items={buckets.remove}
                 applying={applying === "remove" || applying === "all"}
@@ -786,7 +780,7 @@ function BucketShell({
         </div>
         {headerRight}
       </div>
-      <div className="divide-y divide-border/40">{children}</div>
+      <div className="divide-y divide-border/40 max-h-[440px] overflow-y-auto">{children}</div>
     </Card>
   );
 }
