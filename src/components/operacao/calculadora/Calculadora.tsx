@@ -10,7 +10,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { Top200Tab } from "./Top200Tab";
-import { CalculadoraResultado } from "./CalculadoraResultado";
+import { CalculadoraResultado, CalculadoraKpis } from "./CalculadoraResultado";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import {
@@ -250,6 +250,9 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
         }} />
       ) : (
         <div className="grid grid-cols-1 gap-6">
+          {/* KPIs do resultado — topo da página */}
+          <CalculadoraKpis r={result} />
+
           {/* Coluna esquerda: inputs */}
           <div className="space-y-4">
             {/* Filtro de seção — igual ao plano diário da execução */}
