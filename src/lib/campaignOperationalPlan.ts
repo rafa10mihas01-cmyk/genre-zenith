@@ -492,15 +492,29 @@ function applyDailyJitter(daily: number[], capPerDay: number, seed: string) {
 export function buildEcoPlaylistPlan(
   snapshot: CampaignSnapshot,
   allocs: EcoPlanInput[],
-  opts: { engagementMultiplier?: number; startedAt?: string } = {},
+  opts: {
+    engagementMultiplier?: number;
+    startedAt?: string;
+    /** Mapa allocId → posição final (1-indexed). Se ausente, deriva via distributeEcoPositions. */
+    positions?: Map<string, number>;
+  } = {},
 ): EcoPlanResult {
-  // Multiplicador plays/save/mês (default = 30, mercado). Reescala o cap por playlist:
-  // cap diário = followers × ECO_CAPACITY_FACTOR × (multiplier / 30).
+  // Multiplicador plays/save/mês — propagado da campanha. Fórmula oficial:
+  //   trackDailyStreams = saves × (mult/30) × POSITION_PCT[pos]
   const multiplier = Math.max(1, opts.engagementMultiplier ?? 30);
-  const capScale = multiplier / 30;
   const curva = opts.startedAt
     ? applyWeekdaySeasonality(snapshot.curva, opts.startedAt)
     : snapshot.curva;
+
+  const positions = opts.positions ?? distributeEcoPositions(
+    allocs.map(a => ({
+      id: a.id,
+      planned_streams: a.planned_streams,
+      followers: Number(a.managed_playlists?.followers ?? 0),
+    })),
+    snapshot.days,
+    multiplier,
+  );
 
   const ordered = [...allocs].sort((a, b) => b.planned_streams - a.planned_streams);
   const storedStarts = ordered.map(a => Number(a.start_day || 1));
@@ -522,7 +536,9 @@ export function buildEcoPlaylistPlan(
       : effectiveEcoStartDay(index, ordered.length, snapshot.days, a.start_day, snapshot.modo);
     const startDay = Math.min(snapshot.days, Math.max(baseStart, ecoFloorDay));
     const followers = Number(a.managed_playlists?.followers ?? 0);
-    const baseCap = Math.max(1, Math.round(followers * ECO_CAPACITY_FACTOR * capScale));
+    const pos = positions.get(a.id) ?? MIN_CAMPAIGN_POSITION;
+    // VERDADE: capDia da faixa = saves × (mult/30) × POSITION_PCT[pos].
+    const baseCap = Math.max(1, Math.round(calculateTrackDailyStreams(followers, multiplier, pos)));
 
     const caps = Array.from({ length: snapshot.days }, () => baseCap);
     ECO_RAMP.forEach((mult, k) => {
@@ -530,12 +546,17 @@ export function buildEcoPlaylistPlan(
       if (idx < snapshot.days) caps[idx] = Math.max(1, Math.round(baseCap * mult));
     });
 
+    // Total entregável real = cap × dias úteis. Se planned_streams pedir mais
+    // do que a posição comporta, sobra vai para `overflow` e o sistema redistribui.
+    const requested = Number(a.planned_streams ?? 0);
     const { daily, overflow } = distributeByCurve(
-      Number(a.planned_streams ?? 0),
+      requested,
       curva,
       startDay,
       { capDia: caps, delay: REPORTING_DELAY_DAYS },
     );
+
+    const realTotal = daily.reduce((s, v) => s + v, 0);
 
     return {
       allocationId: a.id,
@@ -543,7 +564,7 @@ export function buildEcoPlaylistPlan(
       coverUrl: a.managed_playlists?.cover_url ?? null,
       followers,
       startDay,
-      totalStreams: Number(a.planned_streams ?? 0),
+      totalStreams: realTotal,
       daily,
       capDia: baseCap,
       overflow,
@@ -564,6 +585,7 @@ export function buildEcoPlaylistPlan(
           target.daily[i] += give;
           remaining -= give;
           absorbed += give;
+          target.totalStreams += give;
         }
       }
       if (absorbed <= 0) break;
