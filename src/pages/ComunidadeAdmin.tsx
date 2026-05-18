@@ -242,31 +242,41 @@ function AuditoriaTab() {
   };
 
   return (
-    <Card>
-      <CardContent className="p-5 space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-muted-foreground">
-            {report ? `Última auditoria: ${format(new Date(report.generated_at), "dd MMM HH:mm", { locale: ptBR })}` : "—"}
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={async () => {
-              const { data, error } = await supabase.rpc("community_expire_stale" as never);
-              if (error) return toast.error("Falha", { description: error.message });
-              toast.success(`${data ?? 0} participações expiradas`);
-              run();
-            }}>Expirar vencidas</Button>
-            <Button size="sm" onClick={run} disabled={loading}>
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Reexecutar"}
-            </Button>
-          </div>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="text-sm text-muted-foreground">
+          {report ? `Última auditoria: ${format(new Date(report.generated_at), "dd MMM HH:mm", { locale: ptBR })}` : "—"}
         </div>
-        {!report ? (
-          <div className="text-sm text-muted-foreground">Carregando…</div>
-        ) : (
-          <ul className="divide-y divide-border">
-            {report.checks.map((c) => (
-              <li key={c.check} className="flex items-center justify-between py-2.5">
-                <div className="text-sm">{LABELS[c.check] ?? c.check}</div>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={async () => {
+            const { data, error } = await supabase.rpc("community_expire_stale" as never);
+            if (error) return toast.error("Falha", { description: error.message });
+            toast.success(`${data ?? 0} participações expiradas`);
+            run();
+          }}>Expirar vencidas</Button>
+          <Button size="sm" onClick={run} disabled={loading}>
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Reexecutar"}
+          </Button>
+        </div>
+      </div>
+      {!report ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {[0,1,2,3,4,5,6,7].map((i) => (
+            <div key={i} className="nx-card h-32 animate-pulse" />
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {report.checks.map((c) => (
+            <div
+              key={c.check}
+              className="rounded-2xl border border-border/50 bg-card p-4 flex flex-col gap-3 h-full hover:border-foreground/20 hover:bg-[hsl(var(--elevated))] transition-colors"
+            >
+              <div className="text-[13px] font-medium text-foreground leading-snug">
+                {LABELS[c.check] ?? c.check}
+              </div>
+              <div className="mt-auto flex items-center justify-between gap-2">
+                <span className="text-[22px] font-semibold tabular-nums text-foreground">{c.count}</span>
                 <Badge
                   variant="outline"
                   className={`text-[10px] ${
@@ -275,14 +285,14 @@ function AuditoriaTab() {
                     : "border-primary/30 text-primary"
                   }`}
                 >
-                  {c.level.toUpperCase()} · {c.count}
+                  {c.level.toUpperCase()}
                 </Badge>
-              </li>
-            ))}
-          </ul>
-        )}
-      </CardContent>
-    </Card>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -365,39 +375,50 @@ function CampanhasTab({ adminId, onChange }: { adminId: string; onChange?: () =>
   }
 
   return (
-    <Card>
-      <CardContent className="p-5 space-y-4">
-        {loading ? (
-          <div className="text-sm text-muted-foreground">Carregando…</div>
-        ) : list.length === 0 ? (
-          <div className="text-sm text-muted-foreground py-8 text-center">Nenhuma campanha ainda.</div>
-        ) : (
-          <ul className="divide-y divide-border">
-            {list.map((c) => (
-              <li key={c.id} className="flex items-center gap-3 py-3">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-sm truncate">{c.title}</span>
-                    <StatusBadge status={c.status} />
-                  </div>
-                  <div className="mt-1 text-xs text-muted-foreground truncate">
-                    {c.used_slots}/{c.max_slots} vagas · {c.points_per_member} pts · prazo {c.proof_window_hours}h
-                  </div>
+    <>
+      {loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {[0,1,2,3,4,5,6,7].map((i) => (
+            <div key={i} className="nx-card h-40 animate-pulse" />
+          ))}
+        </div>
+      ) : list.length === 0 ? (
+        <div className="nx-card py-12 text-center text-sm text-muted-foreground">Nenhuma campanha ainda.</div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {list.map((c) => {
+            const pct = c.max_slots > 0 ? Math.min(100, Math.round((c.used_slots / c.max_slots) * 100)) : 0;
+            return (
+              <div
+                key={c.id}
+                className="rounded-2xl border border-border/50 bg-card p-4 flex flex-col gap-3 h-full hover:border-foreground/20 hover:bg-[hsl(var(--elevated))] transition-colors"
+              >
+                <div className="flex items-start justify-between gap-2 min-w-0">
+                  <span className="font-medium text-sm leading-snug line-clamp-2 min-w-0">{c.title}</span>
+                  <StatusBadge status={c.status} />
                 </div>
-                {c.status === "open" && (
-                  <Button variant="outline" size="sm" onClick={() => setStatus(c.id, "closed")}>Fechar</Button>
-                )}
-                {c.status === "closed" && (
-                  <Button variant="outline" size="sm" onClick={() => setStatus(c.id, "archived")}>Arquivar</Button>
-                )}
-                {c.status === "draft" && (
-                  <Button size="sm" onClick={() => setStatus(c.id, "open")}>Abrir</Button>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </CardContent>
+                <div className="text-[11.5px] text-muted-foreground">
+                  {c.used_slots}/{c.max_slots} vagas · {c.points_per_member} pts · prazo {c.proof_window_hours}h
+                </div>
+                <div className="h-1 rounded-full bg-muted overflow-hidden">
+                  <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
+                </div>
+                <div className="mt-auto flex gap-2">
+                  {c.status === "open" && (
+                    <Button variant="outline" size="sm" className="flex-1" onClick={() => setStatus(c.id, "closed")}>Fechar</Button>
+                  )}
+                  {c.status === "closed" && (
+                    <Button variant="outline" size="sm" className="flex-1" onClick={() => setStatus(c.id, "archived")}>Arquivar</Button>
+                  )}
+                  {c.status === "draft" && (
+                    <Button size="sm" className="flex-1" onClick={() => setStatus(c.id, "open")}>Abrir</Button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
@@ -452,7 +473,7 @@ function CampanhasTab({ adminId, onChange }: { adminId: string; onChange?: () =>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Card>
+    </>
   );
 }
 
@@ -549,46 +570,49 @@ function ConvitesTab({ adminId, onChange }: { adminId: string; onChange?: () => 
   }
 
   return (
-    <Card>
-      <CardContent className="p-5 space-y-4">
-        {loading ? (
-          <div className="text-sm text-muted-foreground">Carregando…</div>
-        ) : list.length === 0 ? (
-          <div className="text-sm text-muted-foreground py-8 text-center">Nenhum convite ainda.</div>
-        ) : (
-          <ul className="divide-y divide-border">
-            {list.map((i) => {
-              const expired = i.status === "pending" && new Date(i.expires_at) < new Date();
-              const realStatus = expired ? "expired" : i.status;
-              return (
-                <li key={i.id} className="flex items-center gap-3 py-3">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <code className="text-xs bg-elevated px-1.5 py-0.5 rounded">{i.slug || i.code}</code>
-                      <StatusBadge status={realStatus} />
-                    </div>
-                    <div className="mt-1 text-xs text-muted-foreground truncate">
-                      {i.email ?? "sem email"}
-                      {realStatus === "pending" && (
-                        <> · {countdown(i.expires_at)}</>
-                      )}
-                      {i.note ? ` · ${i.note}` : ""}
-                    </div>
-                  </div>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => copyLink(i)} title="Copiar link">
-                    <Copy className="h-4 w-4" />
+    <>
+      {loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {[0,1,2,3,4,5,6,7].map((i) => (
+            <div key={i} className="nx-card h-36 animate-pulse" />
+          ))}
+        </div>
+      ) : list.length === 0 ? (
+        <div className="nx-card py-12 text-center text-sm text-muted-foreground">Nenhum convite ainda.</div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {list.map((i) => {
+            const expired = i.status === "pending" && new Date(i.expires_at) < new Date();
+            const realStatus = expired ? "expired" : i.status;
+            return (
+              <div
+                key={i.id}
+                className="rounded-2xl border border-border/50 bg-card p-4 flex flex-col gap-3 h-full hover:border-foreground/20 hover:bg-[hsl(var(--elevated))] transition-colors"
+              >
+                <div className="flex items-start justify-between gap-2 min-w-0">
+                  <code className="text-[11px] bg-elevated px-1.5 py-0.5 rounded truncate min-w-0">{i.slug || i.code}</code>
+                  <StatusBadge status={realStatus} />
+                </div>
+                <div className="text-[11.5px] text-muted-foreground space-y-0.5 min-w-0">
+                  <div className="truncate text-foreground/80">{i.email ?? "sem email"}</div>
+                  {realStatus === "pending" && <div>{countdown(i.expires_at)}</div>}
+                  {i.note && <div className="truncate" title={i.note}>{i.note}</div>}
+                </div>
+                <div className="mt-auto flex items-center gap-2">
+                  <Button variant="outline" size="sm" className="flex-1 gap-1.5" onClick={() => copyLink(i)}>
+                    <Copy className="h-3.5 w-3.5" /> Copiar
                   </Button>
                   {i.status === "pending" && (
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => revoke(i.id)} title="Revogar">
                       <X className="h-4 w-4" />
                     </Button>
                   )}
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </CardContent>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
@@ -633,7 +657,7 @@ function ConvitesTab({ adminId, onChange }: { adminId: string; onChange?: () => 
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Card>
+    </>
   );
 }
 
@@ -666,72 +690,79 @@ function MembrosTab({ onChange }: { onChange?: () => void }) {
   }
 
   return (
-    <Card>
-      <CardContent className="p-5 space-y-4">
-        {loading ? (
-          <div className="text-sm text-muted-foreground">Carregando…</div>
-        ) : list.length === 0 ? (
-          <div className="text-sm text-muted-foreground py-8 text-center">Nenhum membro ainda.</div>
-        ) : (
-          <ul className="divide-y divide-border">
-            {list.map((m) => (
-              <li key={m.id} className="flex items-center gap-3 py-3">
+    <>
+      {loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {[0,1,2,3,4,5,6,7].map((i) => (
+            <div key={i} className="nx-card h-44 animate-pulse" />
+          ))}
+        </div>
+      ) : list.length === 0 ? (
+        <div className="nx-card py-12 text-center text-sm text-muted-foreground">Nenhum membro ainda.</div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {list.map((m) => (
+            <div
+              key={m.id}
+              className="rounded-2xl border border-border/50 bg-card p-4 flex flex-col gap-3 h-full hover:border-foreground/20 hover:bg-[hsl(var(--elevated))] transition-colors"
+            >
+              <div className="flex items-start justify-between gap-2 min-w-0">
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-sm truncate">{m.display_name}</span>
+                  <div className="font-medium text-sm truncate">{m.display_name}</div>
+                  <div className="flex items-center gap-1.5 mt-1">
                     <Badge variant="outline" className="capitalize text-[10px]">{m.tier}</Badge>
                     <StatusBadge status={m.status} />
                   </div>
-                  <div className="mt-1 text-xs text-muted-foreground truncate flex items-center gap-1.5 flex-wrap">
-                    {m.playlist_url ? (
-                      <a
-                        href={m.playlist_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        onClick={() => onExternal()}
-                        className="text-primary hover:underline truncate max-w-[260px]"
-                        title={m.playlist_url}
-                      >
-                        {m.playlist_name ?? "abrir playlist"}
-                      </a>
-                    ) : (
-                      <span>{m.playlist_name ?? "sem playlist"}</span>
-                    )}
-                    {m.instagram_handle && (
-                      <>
-                        <span>·</span>
-                        <a
-                          href={`https://instagram.com/${m.instagram_handle.replace(/^@/, "")}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          onClick={() => onExternal()}
-                          className="text-primary hover:underline"
-                        >
-                          @{m.instagram_handle.replace(/^@/, "")}
-                        </a>
-                      </>
-                    )}
-                    <span>·</span>
-                    <span>{m.points} pts</span>
-                    <span>·</span>
-                    <span>entrou {format(new Date(m.joined_at), "dd MMM", { locale: ptBR })}</span>
-                  </div>
                 </div>
+              </div>
+              <div className="text-[11.5px] text-muted-foreground space-y-1 min-w-0">
+                {m.playlist_url ? (
+                  <a
+                    href={m.playlist_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={() => onExternal()}
+                    className="text-primary hover:underline truncate block"
+                    title={m.playlist_url}
+                  >
+                    {m.playlist_name ?? "abrir playlist"}
+                  </a>
+                ) : (
+                  <div className="truncate">{m.playlist_name ?? "sem playlist"}</div>
+                )}
+                {m.instagram_handle && (
+                  <a
+                    href={`https://instagram.com/${m.instagram_handle.replace(/^@/, "")}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={() => onExternal()}
+                    className="text-primary hover:underline block truncate"
+                  >
+                    @{m.instagram_handle.replace(/^@/, "")}
+                  </a>
+                )}
+                <div className="flex items-center gap-1.5 text-muted-foreground">
+                  <span className="tabular-nums">{m.points} pts</span>
+                  <span>·</span>
+                  <span>entrou {format(new Date(m.joined_at), "dd MMM", { locale: ptBR })}</span>
+                </div>
+              </div>
+              <div className="mt-auto">
                 {m.status === "active" ? (
-                  <Button variant="outline" size="sm" onClick={() => setStatus(m.id, "suspended")}>
+                  <Button variant="outline" size="sm" className="w-full" onClick={() => setStatus(m.id, "suspended")}>
                     Suspender
                   </Button>
                 ) : (
-                  <Button variant="outline" size="sm" onClick={() => setStatus(m.id, "active")}>
+                  <Button variant="outline" size="sm" className="w-full" onClick={() => setStatus(m.id, "active")}>
                     Reativar
                   </Button>
                 )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </CardContent>
-    </Card>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
   );
 }
 
@@ -773,51 +804,58 @@ function AprovacoesTab({ onChange }: { onChange?: () => void }) {
   const pending = list.filter((p) => p.status === "submitted");
 
   return (
-    <Card>
-      <CardContent className="p-5 space-y-4">
-        {loading ? (
-          <div className="text-sm text-muted-foreground">Carregando…</div>
-        ) : list.length === 0 ? (
-          <div className="text-sm text-muted-foreground py-8 text-center">Sem aprovações pendentes.</div>
-        ) : (
-          <ul className="divide-y divide-border">
-            {list.map((p) => (
-              <li key={p.id} className="flex items-center gap-3 py-3">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-sm truncate">
-                      {p.community_members?.display_name ?? "—"}
-                    </span>
-                    <StatusBadge status={p.status} />
-                  </div>
-                  <div className="mt-1 text-xs text-muted-foreground truncate">
-                    {p.curator_deals?.song_name ?? "—"} ·{" "}
-                    {p.proof_url ? (
-                      <a href={p.proof_url} target="_blank" rel="noreferrer" className="underline hover:text-foreground">
-                        ver prova
-                      </a>
-                    ) : (
-                      "sem prova ainda"
-                    )}{" "}
-                    · {p.points_offered} pts
-                  </div>
+    <>
+      {loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {[0,1,2,3,4,5,6,7].map((i) => (
+            <div key={i} className="nx-card h-40 animate-pulse" />
+          ))}
+        </div>
+      ) : list.length === 0 ? (
+        <div className="nx-card py-12 text-center text-sm text-muted-foreground">Sem aprovações pendentes.</div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {list.map((p) => (
+            <div
+              key={p.id}
+              className="rounded-2xl border border-border/50 bg-card p-4 flex flex-col gap-3 h-full hover:border-foreground/20 hover:bg-[hsl(var(--elevated))] transition-colors"
+            >
+              <div className="flex items-start justify-between gap-2 min-w-0">
+                <span className="font-medium text-sm truncate min-w-0">
+                  {p.community_members?.display_name ?? "—"}
+                </span>
+                <StatusBadge status={p.status} />
+              </div>
+              <div className="text-[11.5px] text-muted-foreground space-y-1 min-w-0">
+                <div className="truncate text-foreground/80" title={p.curator_deals?.song_name ?? ""}>
+                  {p.curator_deals?.song_name ?? "—"}
                 </div>
-                {p.status === "submitted" && (
-                  <>
-                    <Button variant="outline" size="sm" disabled={busyId === p.id} onClick={() => review(p, "reject")}>
-                      <X className="h-4 w-4" />
-                    </Button>
-                    <Button size="sm" disabled={busyId === p.id} onClick={() => review(p, "approve")}>
-                      {busyId === p.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                    </Button>
-                  </>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </CardContent>
-    </Card>
+                <div>
+                  {p.proof_url ? (
+                    <a href={p.proof_url} target="_blank" rel="noreferrer" className="text-primary underline hover:text-foreground">
+                      ver prova
+                    </a>
+                  ) : (
+                    <span>sem prova ainda</span>
+                  )}
+                  <span> · {p.points_offered} pts</span>
+                </div>
+              </div>
+              {p.status === "submitted" && (
+                <div className="mt-auto flex items-center gap-2">
+                  <Button variant="outline" size="sm" className="flex-1" disabled={busyId === p.id} onClick={() => review(p, "reject")}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                  <Button size="sm" className="flex-1" disabled={busyId === p.id} onClick={() => review(p, "approve")}>
+                    {busyId === p.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                  </Button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </>
   );
 }
 
