@@ -13,6 +13,8 @@ type Camp = {
   track_name: string;
   artist: string | null;
   cover_url: string | null;
+  spotify_track_url: string | null;
+  spotify_track_id: string | null;
   started_at: string;
   deadline: string | null;
   simulation_snapshot: CampaignSnapshot | null;
