@@ -1046,13 +1046,13 @@ function EditorialBanner({
   const Icon = meta.Icon;
 
   return (
-    <Card className={cn("p-5 md:p-6 border", meta.tone)}>
-      <div className="flex flex-col md:flex-row md:items-start gap-4 md:gap-6">
-        <div className="flex items-start gap-3 flex-1 min-w-0">
-          <div className={cn("h-10 w-10 rounded-xl border grid place-items-center shrink-0", meta.tone)}>
-            <Icon className="h-5 w-5" />
+    <Card className={cn("p-3 md:p-4 border", meta.tone)}>
+      <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-5">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <div className={cn("h-8 w-8 rounded-lg border grid place-items-center shrink-0", meta.tone)}>
+            <Icon className="h-4 w-4" />
           </div>
-          <div className="min-w-0 space-y-1.5 flex-1">
+          <div className="min-w-0 space-y-0.5 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Modo curatorial</span>
               <span className="text-lg font-bold leading-none">{meta.label}</span>
