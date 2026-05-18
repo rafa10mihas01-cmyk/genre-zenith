@@ -412,9 +412,10 @@ function NumberInput({
 
 /** Seletor de posição do Top 200: dropdown 1-200 + atalho pra lista completa. */
 function Top200Picker({
-  days, onPick, onOpenList,
-}: { days: number; onPick: (streamsDay: number, position: number) => void; onOpenList: () => void }) {
+  days, currentStreamsDay = 0, onPick, onOpenList,
+}: { days: number; currentStreamsDay?: number; onPick: (streamsDay: number, position: number) => void; onOpenList: () => void }) {
   const [pos, setPos] = useState<number | null>(null);
+  const [posStreamsDay, setPosStreamsDay] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [chartDate, setChartDate] = useState<string | null>(null);
 
