@@ -18,7 +18,15 @@ import { Calculator, Table2, ArrowRight, Target as TargetIcon, Users, Wallet, Mu
 
 type Fonte = "manual" | "top200" | "concorrente" | "orcamento";
 
-type TrackMeta = { title: string | null; artist: string | null; thumbnail_url: string | null; id: string };
+type TrackMeta = {
+  title: string | null;
+  artist: string | null;
+  thumbnail_url: string | null;
+  id: string;
+  streamsDay?: number | null;   // streams/dia hoje (se estiver no Top 200)
+  position?: number | null;     // posição atual no Top 200 (se estiver)
+  chartDate?: string | null;
+};
 
 export interface CalculadoraHandoff {
   result: CampaignResult;
@@ -82,7 +90,36 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
       if (error) throw error;
       if (!data?.ok) throw new Error(data?.error ?? "Não consegui ler esse link");
       if (data.type !== "track") throw new Error("O link precisa ser de uma faixa (track)");
-      setTrack({ id: data.id, title: data.title, artist: data.artist, thumbnail_url: data.thumbnail_url });
+      // Busca streams/dia atual da faixa no Top 200 (se estiver)
+      let streamsDay: number | null = null;
+      let position: number | null = null;
+      let chartDate: string | null = null;
+      try {
+        const { data: latest } = await supabase
+          .from("raw_chart_daily")
+          .select("chart_date")
+          .eq("chart_name", "top200_br")
+          .order("chart_date", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (latest?.chart_date) {
+          const { data: row } = await supabase
+            .from("raw_chart_daily")
+            .select("streams_day, position, chart_date")
+            .eq("chart_name", "top200_br")
+            .eq("chart_date", latest.chart_date)
+            .eq("spotify_track_id", data.id)
+            .maybeSingle();
+          if (row) {
+            streamsDay = Number(row.streams_day);
+            position = row.position;
+            chartDate = row.chart_date;
+          } else {
+            chartDate = latest.chart_date;
+          }
+        }
+      } catch { /* sem chart, segue */ }
+      setTrack({ id: data.id, title: data.title, artist: data.artist, thumbnail_url: data.thumbnail_url, streamsDay, position, chartDate });
     } catch (e: any) {
       toast({ title: "Erro ao buscar música", description: e?.message ?? String(e), variant: "destructive" });
     } finally {
@@ -176,6 +213,16 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                         {track.title ?? "Faixa"}
                       </div>
                       {track.artist && <div className="text-xs text-muted-foreground truncate">{track.artist}</div>}
+                      <div className="text-[11px] mt-1">
+                        {track.streamsDay != null ? (
+                          <span className="text-foreground">
+                            <strong>{formatInt(track.streamsDay)}</strong> streams/dia hoje
+                            {track.position != null && <span className="text-muted-foreground"> · #{track.position} Top 200</span>}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">Fora do Top 200 BR (base: 0 streams/dia)</span>
+                        )}
+                      </div>
                     </div>
                     <button
                       onClick={() => { setTrack(null); setTrackUrl(""); }}
@@ -210,9 +257,17 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                 {fonte === "top200" && (
                   <Top200Picker
                     days={days}
+                    currentStreamsDay={track?.streamsDay ?? 0}
                     onPick={(streamsDay, pos) => {
-                      setMeta(streamsDay * days);
-                      toast({ title: `Posição #${pos}`, description: `${formatInt(streamsDay)} streams/dia × ${days}d = ${formatInt(streamsDay * days)}` });
+                      const base = track?.streamsDay ?? 0;
+                      const gapDay = Math.max(0, streamsDay - base);
+                      setMeta(gapDay * days);
+                      toast({
+                        title: `Posição #${pos}`,
+                        description: base > 0
+                          ? `Alvo ${formatInt(streamsDay)}/d − hoje ${formatInt(base)}/d = ${formatInt(gapDay)}/d × ${days}d = ${formatInt(gapDay * days)}`
+                          : `${formatInt(streamsDay)} streams/dia × ${days}d = ${formatInt(streamsDay * days)}`,
+                      });
                     }}
                     onOpenList={() => setSubtab("top200")}
                   />
@@ -357,9 +412,10 @@ function NumberInput({
 
 /** Seletor de posição do Top 200: dropdown 1-200 + atalho pra lista completa. */
 function Top200Picker({
-  days, onPick, onOpenList,
-}: { days: number; onPick: (streamsDay: number, position: number) => void; onOpenList: () => void }) {
+  days, currentStreamsDay = 0, onPick, onOpenList,
+}: { days: number; currentStreamsDay?: number; onPick: (streamsDay: number, position: number) => void; onOpenList: () => void }) {
   const [pos, setPos] = useState<number | null>(null);
+  const [posStreamsDay, setPosStreamsDay] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [chartDate, setChartDate] = useState<string | null>(null);
 
@@ -390,7 +446,8 @@ function Top200Picker({
         return;
       }
       setChartDate(data.chart_date);
-      onPick(data.streams_day, p);
+      setPosStreamsDay(Number(data.streams_day));
+      onPick(Number(data.streams_day), p);
     } finally {
       setLoading(false);
     }
@@ -416,11 +473,21 @@ function Top200Picker({
           Lista completa
         </Button>
       </div>
-      {pos && chartDate && (
-        <p className="text-[11px] text-muted-foreground">
-          Meta = streams/dia da posição #{pos} × {days} dias · snapshot {chartDate}
-        </p>
-      )}
+      {pos && posStreamsDay != null && chartDate && (() => {
+        const gapDay = Math.max(0, posStreamsDay - currentStreamsDay);
+        return (
+          <div className="text-[11px] text-muted-foreground space-y-0.5 rounded-md border border-border bg-muted/30 p-2">
+            <div>Posição #{pos}: <span className="text-foreground font-semibold">{posStreamsDay.toLocaleString("pt-BR")}</span> streams/dia</div>
+            {currentStreamsDay > 0 && (
+              <div>Sua música hoje: <span className="text-foreground">{currentStreamsDay.toLocaleString("pt-BR")}</span> streams/dia</div>
+            )}
+            <div className="pt-1 border-t border-border/50">
+              Gap: <span className="text-foreground font-semibold">{gapDay.toLocaleString("pt-BR")}</span>/dia × {days}d = <span className="text-primary font-semibold">{(gapDay * days).toLocaleString("pt-BR")}</span> streams
+            </div>
+            <div className="opacity-70">snapshot {chartDate}</div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
