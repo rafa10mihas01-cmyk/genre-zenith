@@ -268,9 +268,7 @@ export default function Operacao() {
         <KpiBig icon={Heart}         label="Salvamentos totais" value={formatNumber(kpi.totalFollowers)} tone="primary" hint={`Somando ${formatNumber(kpi.totalPlaylists)} playlists`} loading={loading} />
         <KpiBig icon={Target}        label="Plays teóricos / mês" value={formatNumber(kpi.totalFollowers * 30)} tone="primary" hint={`${formatNumber(kpi.totalFollowers)} × 30 saves`} loading={loading} />
         <KpiBig icon={Activity}      label="Total ativas"  value={formatNumber(kpi.totalPlaylists)} hint="Catálogo importado" loading={loading} />
-        <KpiBig icon={Sparkles}      label="Criadas (auto)" value={formatNumber(kpi.total)} hint="Templates do NexEngine" loading={loading} />
         <KpiBig icon={AlertCircle}   label="Precisa atenção" value={formatNumber(kpi.atencao)} tone={kpi.atencao > 0 ? "destructive" : "default"} hint="Auto em queda" loading={loading} />
-        <KpiBig icon={Server}        label="Capacidade"    value={kpi.capacidade}              tone={kpi.capacidadePct >= 80 ? "warning" : "default"} hint={`${accountsSummary.active} contas ativas`} loading={loading} />
       </section>
 
       {/* Conteúdo único — Minhas Playlists (Simulador foi movido para /campanhas) */}
