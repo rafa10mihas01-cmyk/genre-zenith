@@ -73,7 +73,86 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
   const [secao, setSecao] = useState<Secao>("todos");
   const [closing, setClosing] = useState(false);
 
-  async function fecharCampanha() {
+  // Cliente e Curador (vinculação obrigatória pro fluxo de aprovação → deal real)
+  const [clientId, setClientId] = useState<string>(persisted.clientId ?? "");
+  const [curatorId, setCuratorId] = useState<string>(persisted.curatorId ?? "");
+  const [clientsList, setClientsList] = useState<{ id: string; name: string }[]>([]);
+  const [curatorsList, setCuratorsList] = useState<{ id: string; name: string }[]>([]);
+
+  useEffect(() => {
+    void (async () => {
+      const [{ data: cls }, { data: crs }] = await Promise.all([
+        supabase.from("clients").select("id, name").is("archived_at", null).order("name"),
+        supabase.from("curators").select("id, name").order("name"),
+      ]);
+      setClientsList((cls ?? []) as { id: string; name: string }[]);
+      const crList = (crs ?? []) as { id: string; name: string }[];
+      setCuratorsList(crList);
+      // Default Lá do Sul se existir e nada estiver selecionado
+      if (!curatorId) {
+        const ladoSul = crList.find(c => /l[áa]\s*do\s*sul/i.test(c.name));
+        if (ladoSul) setCuratorId(ladoSul.id);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function salvarRascunho() {
+    if (!result) return;
+    if (!track?.id) {
+      toast({ title: "Carregue o link da música antes de salvar", variant: "destructive" });
+      return;
+    }
+    setClosing(true);
+    try {
+      const { data: playlists, error } = await supabase
+        .from("managed_playlists")
+        .select("id, followers")
+        .is("archived_at", null);
+      if (error) throw error;
+
+      const snapshot = buildSnapshot(result, {
+        spotifyTrackId: track.id,
+        trackUrl: trackUrl || null,
+        title: track.title,
+        artist: track.artist,
+        coverUrl: track.thumbnail_url,
+        baselineStreamsDay,
+      });
+
+      const allocations = planEcoAllocations(
+        result.streamsEco,
+        result.days,
+        (playlists ?? []).map(p => ({ id: p.id, followers: p.followers ?? 0 })),
+        result.modo,
+      );
+
+      const deadlineISO = addDays(startDate, result.days).toISOString().slice(0, 10);
+
+      const { campaignId } = await closeCampaignFromCalculator({
+        snapshot,
+        deadlineISO,
+        allocations,
+        clientId: clientId || null,
+        curatorId: curatorId || null,
+        status: "draft",
+      });
+
+      try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
+      toast({
+        title: "Rascunho salvo",
+        description: curatorId
+          ? "Revise na aba Campanhas Ativas e clique em Aprovar e disparar pra criar o deal real."
+          : "Sem curador definido — você ainda pode editar antes de aprovar.",
+      });
+      navigate(`/campanhas`);
+    } catch (e: any) {
+      toast({ title: "Erro ao salvar rascunho", description: e.message ?? String(e), variant: "destructive" });
+    } finally {
+      setClosing(false);
+    }
+  }
+
     if (!result) return;
     if (!track?.id) {
       toast({ title: "Carregue o link da música antes de fechar", variant: "destructive" });
