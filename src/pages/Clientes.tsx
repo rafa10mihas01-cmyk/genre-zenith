@@ -102,7 +102,8 @@ export default function Clientes() {
         />
       </section>
 
-      <ClientesLibraryTab deals={deals} songs={songs} loading={loading} />
-    </PageContainer>
+        <ClientesLibraryTab deals={deals} songs={songs} loading={loading} />
+      </PageContainer>
+    </>
   );
 }
