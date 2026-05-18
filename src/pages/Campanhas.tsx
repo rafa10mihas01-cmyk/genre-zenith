@@ -6,12 +6,19 @@ import { PageContainer } from "@/components/PageContainer";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusDot } from "@/components/ui/status-dot";
-import { Plus, RefreshCw, Target, ListChecks, Calculator, Megaphone, CheckCircle2, Percent } from "lucide-react";
+import { Plus, RefreshCw, Target, ListChecks, Calculator, Megaphone, CheckCircle2, Percent, MoreHorizontal, Pause, Play, Archive, Trash2 } from "lucide-react";
 import { NewCampaignDialog } from "@/components/campanhas/NewCampaignDialog";
 import { toast } from "@/hooks/use-toast";
 import { Calculadora } from "@/components/operacao/calculadora/Calculadora";
 import { KpiBig } from "@/components/KpiBig";
 import { cn } from "@/lib/utils";
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type Campaign = {
   id: string;
@@ -194,7 +201,7 @@ export default function Campanhas() {
               </div>
             ) : (
               <div className="grid gap-3">
-                {filtered.map(c => <CampaignRow key={c.id} c={c} />)}
+                {filtered.map(c => <CampaignRow key={c.id} c={c} onChanged={load} />)}
               </div>
             )}
           </>
@@ -213,46 +220,134 @@ export default function Campanhas() {
 }
 
 
-function CampaignRow({ c }: { c: Campaign }) {
+function CampaignRow({ c, onChanged }: { c: Campaign; onChanged: () => void }) {
   const pct = c.goal_plays > 0 ? Math.min(100, Math.round((c.total_delivered / c.goal_plays) * 100)) : 0;
   const daysLeft = Math.ceil((new Date(c.deadline).getTime() - Date.now()) / 86400_000);
   const href = c.snapshot_locked_at ? `/campanhas/${c.id}/execucao` : `/campanhas/${c.id}`;
+  const [busy, setBusy] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  async function updateStatus(status: Campaign["status"], label: string) {
+    setBusy(true);
+    const { error } = await supabase.from("campaigns").update({ status }).eq("id", c.id);
+    setBusy(false);
+    if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
+    else { toast({ title: label }); onChanged(); }
+  }
+
+  async function doDelete() {
+    setBusy(true);
+    const { error } = await supabase.from("campaigns").delete().eq("id", c.id);
+    setBusy(false);
+    setConfirmDelete(false);
+    if (error) toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
+    else { toast({ title: "Campanha excluída" }); onChanged(); }
+  }
+
+  const stop = (e: React.MouseEvent) => { e.preventDefault(); e.stopPropagation(); };
+
   return (
-    <Link
-      to={href}
-      className="rounded-2xl border border-border bg-card hover:bg-accent/30 transition-colors p-5 flex flex-col md:flex-row md:items-center gap-4"
-    >
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1">
-          <StatusDot variant={STATUS_TONE[c.status]} />
-          <span className="text-xs uppercase tracking-wider text-muted-foreground">{STATUS_LABEL[c.status]}</span>
-          <span className="text-xs text-muted-foreground">·</span>
-          <span className="text-xs text-muted-foreground">
-            {daysLeft > 0 ? `${daysLeft}d restantes` : daysLeft === 0 ? "Vence hoje" : `${Math.abs(daysLeft)}d em atraso`}
-          </span>
-        </div>
-        <div className="font-semibold truncate">{c.track_name}</div>
-        {c.artist && <div className="text-sm text-muted-foreground truncate">{c.artist}</div>}
-      </div>
-      <div className="flex items-center gap-6 md:gap-8 shrink-0">
-        <div className="text-right">
-          <div className="text-xs text-muted-foreground">Meta</div>
-          <div className="font-semibold tabular-nums">{c.goal_plays.toLocaleString()}</div>
-        </div>
-        <div className="text-right">
-          <div className="text-xs text-muted-foreground">Entregue</div>
-          <div className="font-semibold tabular-nums">{c.total_delivered.toLocaleString()}</div>
-        </div>
-        <div className="w-32">
-          <div className="flex items-center justify-between text-xs mb-1">
-            <span className="text-muted-foreground">Progresso</span>
-            <span className="tabular-nums font-medium">{pct}%</span>
+    <div className="relative">
+      <Link
+        to={href}
+        className="rounded-2xl border border-border bg-card hover:bg-accent/30 transition-colors p-5 flex flex-col md:flex-row md:items-center gap-4"
+      >
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <StatusDot variant={STATUS_TONE[c.status]} />
+            <span className="text-xs uppercase tracking-wider text-muted-foreground">{STATUS_LABEL[c.status]}</span>
+            <span className="text-xs text-muted-foreground">·</span>
+            <span className="text-xs text-muted-foreground">
+              {daysLeft > 0 ? `${daysLeft}d restantes` : daysLeft === 0 ? "Vence hoje" : `${Math.abs(daysLeft)}d em atraso`}
+            </span>
           </div>
-          <div className="h-2 rounded-full bg-muted overflow-hidden">
-            <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
+          <div className="font-semibold truncate">{c.track_name}</div>
+          {c.artist && <div className="text-sm text-muted-foreground truncate">{c.artist}</div>}
+        </div>
+        <div className="flex items-center gap-6 md:gap-8 shrink-0 pr-10">
+          <div className="text-right">
+            <div className="text-xs text-muted-foreground">Meta</div>
+            <div className="font-semibold tabular-nums">{c.goal_plays.toLocaleString()}</div>
+          </div>
+          <div className="text-right">
+            <div className="text-xs text-muted-foreground">Entregue</div>
+            <div className="font-semibold tabular-nums">{c.total_delivered.toLocaleString()}</div>
+          </div>
+          <div className="w-32">
+            <div className="flex items-center justify-between text-xs mb-1">
+              <span className="text-muted-foreground">Progresso</span>
+              <span className="tabular-nums font-medium">{pct}%</span>
+            </div>
+            <div className="h-2 rounded-full bg-muted overflow-hidden">
+              <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
+            </div>
           </div>
         </div>
+      </Link>
+
+      <div className="absolute top-3 right-3" onClick={stop}>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+              disabled={busy}
+              onClick={stop}
+            >
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" onClick={stop}>
+            {c.status === "paused" ? (
+              <DropdownMenuItem onSelect={() => updateStatus("active", "Campanha retomada")}>
+                <Play className="h-4 w-4 mr-2" /> Retomar
+              </DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem
+                disabled={c.status === "completed" || c.status === "cancelled"}
+                onSelect={() => updateStatus("paused", "Campanha pausada")}
+              >
+                <Pause className="h-4 w-4 mr-2" /> Pausar
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem
+              disabled={c.status === "cancelled"}
+              onSelect={() => updateStatus("cancelled", "Campanha arquivada")}
+            >
+              <Archive className="h-4 w-4 mr-2" /> Arquivar
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive"
+              onSelect={() => setConfirmDelete(true)}
+            >
+              <Trash2 className="h-4 w-4 mr-2" /> Excluir
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
-    </Link>
+
+      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir campanha?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. A campanha "{c.track_name}" e suas alocações serão removidas permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busy}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={doDelete}
+              disabled={busy}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
   );
 }
