@@ -334,6 +334,16 @@ export default function CampanhaExecucao() {
           />
         </TabsContent>
       </Tabs>
+
+      <PlaylistDailyPlanDialog
+        open={!!selectedAlloc}
+        onOpenChange={(o) => !o && setSelectedAlloc(null)}
+        allocation={selectedAlloc}
+        allAllocations={allocs}
+        snapshot={snapshot}
+        startedAt={camp.started_at}
+        campaignTitle={camp.track_name}
+      />
     </PageContainer>
   );
 }
