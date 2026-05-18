@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Search,
@@ -45,7 +45,6 @@ import {
 import { CuratorLibrarySheet } from "@/components/curators/CuratorLibrarySheet";
 import { CuratorEditDialog } from "@/components/curators/CuratorEditDialog";
 import { cn } from "@/lib/utils";
-import { ViewModeToggle, type ViewMode } from "@/components/ui/view-mode-toggle";
 import type { Curator, CuratorBalance, NewCuratorInput } from "@/hooks/useCuratorDeals";
 import type { CuratorDeal } from "@/lib/curatorDealsUtils";
 
@@ -105,17 +104,9 @@ export function CuradoresLibraryTab({
   const [editing, setEditing] = useState<Curator | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<{ curator: Curator; hasDeals: boolean } | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>("card");
-  const [page, setPage] = useState(1);
-  const PAGE_SIZE = viewMode === "card" ? 4 : 8;
 
 
   const archivedCount = curators.filter((c) => !!c.archived_at).length;
-
-  useEffect(() => {
-    setPage(1);
-  }, [query, showArchived, viewMode]);
-
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -196,7 +187,6 @@ export function CuradoresLibraryTab({
             {showArchived ? "Ver ativos" : `Arquivados (${archivedCount})`}
           </Button>
         )}
-        <ViewModeToggle value={viewMode} onChange={setViewMode} className="ml-auto" />
       </div>
 
       {loading && curators.length === 0 ? (
@@ -212,19 +202,9 @@ export function CuradoresLibraryTab({
             {query ? "Nenhum curador encontrado." : "Nenhum curador cadastrado ainda."}
           </p>
         </Card>
-      ) : (() => {
-        const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
-        const currentPage = Math.min(page, totalPages);
-        const start = (currentPage - 1) * PAGE_SIZE;
-        const pageRows = rows.slice(start, start + PAGE_SIZE);
-        return (
-        <>
-        <div className={cn(
-          viewMode === "card"
-            ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"
-            : "flex flex-col gap-2",
-        )}>
-          {pageRows.map((row) => {
+      ) : (
+        <div className="flex flex-col gap-2">
+          {rows.map((row) => {
             const {
               curator,
               activeDeals,
@@ -466,41 +446,7 @@ export function CuradoresLibraryTab({
             );
           })}
         </div>
-
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between pt-2">
-            <span className="text-[12px] text-muted-foreground">
-              {start + 1}–{Math.min(start + PAGE_SIZE, rows.length)} de {rows.length}
-            </span>
-            <div className="flex items-center gap-1.5">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8"
-                disabled={currentPage <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-              >
-                Anterior
-              </Button>
-              <span className="text-[12px] text-muted-foreground px-2 tabular-nums">
-                {currentPage} / {totalPages}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8"
-                disabled={currentPage >= totalPages}
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              >
-                Próxima
-              </Button>
-            </div>
-          </div>
-        )}
-        </>
-        );
-      })()}
-
+      )}
 
       {/* Detalhe do curador vive em /curadores/:id — sem drawer aqui. */}
 

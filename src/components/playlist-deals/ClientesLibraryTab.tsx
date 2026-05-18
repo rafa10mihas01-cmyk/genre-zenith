@@ -63,7 +63,6 @@ import { Label } from "@/components/ui/label";
 import { useClients, type Client } from "@/hooks/useClients";
 import { clientCampaignUrl } from "@/lib/curatorPublicUrl";
 import { cn } from "@/lib/utils";
-import { ViewModeToggle, type ViewMode } from "@/components/ui/view-mode-toggle";
 import type { CuratorDeal, CuratorDealSong } from "@/lib/curatorDealsUtils";
 
 type ClientSongRow = CuratorDealSong & {
@@ -86,14 +85,13 @@ export function ClientesLibraryTab({ deals, songs, loading }: Props) {
   const [creating, setCreating] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<{ client: Client; hasLinks: boolean } | null>(null);
   const [showArchived, setShowArchived] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>("card");
   const [page, setPage] = useState(1);
-  const PAGE_SIZE = viewMode === "card" ? 4 : 8;
+  const PAGE_SIZE = 4;
   const archivedCount = clients.filter((c) => !!c.archived_at).length;
 
   useEffect(() => {
     setPage(1);
-  }, [query, showArchived, viewMode]);
+  }, [query, showArchived]);
 
   // Permite abrir o modal "Novo cliente" via evento global (botão + Novo do header)
   useEffect(() => {
@@ -169,7 +167,6 @@ export function ClientesLibraryTab({ deals, songs, loading }: Props) {
             {showArchived ? "Ver ativos" : `Arquivados (${archivedCount})`}
           </Button>
         )}
-        <ViewModeToggle value={viewMode} onChange={setViewMode} className="ml-auto" />
       </div>
 
       {(loading || loadingClients) && rows.length === 0 ? (
@@ -202,12 +199,7 @@ export function ClientesLibraryTab({ deals, songs, loading }: Props) {
           const pageRows = rows.slice(start, start + PAGE_SIZE);
           return (
             <>
-              <div className={cn(
-                viewMode === "card"
-                  ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"
-                  : "flex flex-col gap-2",
-              )}>
-
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 {pageRows.map((row) => {
             const { client, totalSongs, activeDeals, closedDeals, totalDeals, lastTs } = row;
             const initials = client.name
