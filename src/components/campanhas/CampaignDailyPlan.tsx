@@ -124,7 +124,57 @@ export function CampaignDailyPlan({ campaignId, snapshot, startedAt, ecoAllocati
         </Button>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Capacidade do ecossistema já é visível na página da playlist (Simulador de Entrega) */}
+        {/* Seletor de engajamento: plays/save/mês — reescala o teto das playlists eco */}
+        {(() => {
+          const PRESETS = [18, 30, 50] as const;
+          const isCustom = customMultOpen || !PRESETS.includes(engagementMultiplier as any);
+          const factorPct = ((ECO_CAPACITY_FACTOR * engagementMultiplier) / 30 * 100).toFixed(1);
+          return (
+            <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-elevated/30 p-2.5">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mr-1">
+                Plays por save / mês
+              </div>
+              {PRESETS.map(p => (
+                <button
+                  key={p}
+                  onClick={() => { setEngagementMultiplier(p); setCustomMultOpen(false); }}
+                  className={cn(
+                    "h-7 px-2.5 rounded-md text-xs font-medium tabular-nums border transition-colors",
+                    engagementMultiplier === p && !customMultOpen
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "border-border text-muted-foreground hover:text-foreground hover:bg-elevated/60",
+                  )}
+                >
+                  ×{p}
+                </button>
+              ))}
+              <button
+                onClick={() => setCustomMultOpen(o => !o)}
+                className={cn(
+                  "h-7 px-2.5 rounded-md text-xs font-medium border transition-colors",
+                  isCustom
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "border-border text-muted-foreground hover:text-foreground hover:bg-elevated/60",
+                )}
+              >
+                Custom
+              </button>
+              {customMultOpen && (
+                <Input
+                  type="number"
+                  min={1}
+                  max={200}
+                  value={engagementMultiplier}
+                  onChange={(e) => setEngagementMultiplier(Math.max(1, Math.min(200, Number(e.target.value) || 1)))}
+                  className="h-7 w-20 text-xs tabular-nums"
+                />
+              )}
+              <div className="ml-auto text-[10px] text-muted-foreground">
+                cap por playlist = followers × {factorPct}% / dia
+              </div>
+            </div>
+          );
+        })()}
 
         {(plan.ecoPlans as any).unmetEco > 0 && (
           <div className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-xs">
@@ -132,7 +182,7 @@ export function CampaignDailyPlan({ campaignId, snapshot, startedAt, ecoAllocati
             <div className="space-y-0.5">
               <div className="font-medium text-destructive">Inventário eco insuficiente</div>
               <div className="text-muted-foreground">
-                Faltam <span className="tabular-nums font-medium text-foreground">{formatInt((plan.ecoPlans as any).unmetEco)}</span> streams de capacidade nas playlists próprias para fechar a curva. Adicione mais playlists eco ou aumente o pacote externo. Capacidade por playlist = followers × {ECO_CAPACITY_FACTOR}.
+                Faltam <span className="tabular-nums font-medium text-foreground">{formatInt((plan.ecoPlans as any).unmetEco)}</span> streams de capacidade nas playlists próprias para fechar a curva. Aumente o multiplicador acima, adicione mais playlists eco ou reforce o pacote externo.
               </div>
             </div>
           </div>
@@ -140,8 +190,9 @@ export function CampaignDailyPlan({ campaignId, snapshot, startedAt, ecoAllocati
 
         <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
           <Clock className="h-3 w-3" />
-          Contabilização do Spotify com defasagem de {REPORTING_DELAY_DAYS} dias aplicada · cap eco = followers × {ECO_CAPACITY_FACTOR} · pico da curva ≤ 1,8× média.
+          Contabilização do Spotify com defasagem de {REPORTING_DELAY_DAYS} dias aplicada · pico da curva ≤ 1,8× média.
         </div>
+
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
           <Metric label="Dia selecionado" value={`D${day?.day ?? 1}`} hint={day?.dateLabel} />
