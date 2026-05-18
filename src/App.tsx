@@ -45,7 +45,7 @@ import AdminAprendizado from "./pages/AdminAprendizado";
 import Campanhas from "./pages/Campanhas";
 import CampanhaDetalhe from "./pages/CampanhaDetalhe";
 import CampanhaExecucao from "./pages/CampanhaExecucao";
-import CampanhaPlano from "./pages/CampanhaPlano";
+import PlanoCampanhaPublico from "./pages/PlanoCampanhaPublico";
 import Analytics from "./pages/Analytics";
 import Valuation from "./pages/Valuation";
 import PlaylistDetail from "./pages/PlaylistDetail";
