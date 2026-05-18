@@ -190,9 +190,9 @@ export function CuradoresLibraryTab({
       </div>
 
       {loading && curators.length === 0 ? (
-        <div className="flex flex-col gap-2">
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="h-[88px] rounded-2xl border border-border/50 bg-card animate-pulse" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
+            <div key={i} className="h-[220px] rounded-2xl border border-border/50 bg-card animate-pulse" />
           ))}
         </div>
       ) : rows.length === 0 ? (
