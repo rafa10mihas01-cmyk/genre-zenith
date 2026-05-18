@@ -18,18 +18,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let mounted = true;
+    const authFallback = window.setTimeout(() => {
+      if (mounted) setLoading(false);
+    }, 2500);
+
     // Listener FIRST
     const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
-      setSession(s);
-      setUser(s?.user ?? null);
-    });
-    // Then fetch existing session
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
+      if (!mounted) return;
       setSession(s);
       setUser(s?.user ?? null);
       setLoading(false);
     });
-    return () => sub.subscription.unsubscribe();
+
+    // Then fetch existing session, but never keep the app blank if auth stalls.
+    supabase.auth.getSession()
+      .then(({ data: { session: s } }) => {
+        if (!mounted) return;
+        setSession(s);
+        setUser(s?.user ?? null);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setSession(null);
+        setUser(null);
+      })
+      .finally(() => {
+        if (!mounted) return;
+        window.clearTimeout(authFallback);
+        setLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+      window.clearTimeout(authFallback);
+      sub.subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
