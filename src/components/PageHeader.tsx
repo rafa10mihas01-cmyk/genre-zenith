@@ -58,11 +58,12 @@ export function PageHeader({
           className,
         )}
       >
-        {/* Barra colorida de domínio (3px, full height do header) */}
+        {/* Barra colorida de domínio (3px, full height do header).
+            Opacidade baixa pra acentuar sem roubar a cena. */}
         {domainColor && (
           <span
             aria-hidden
-            className="absolute left-0 top-0 bottom-0 w-[3px]"
+            className="absolute left-0 top-0 bottom-0 w-[3px] opacity-40"
             style={{ backgroundColor: domainColor }}
           />
         )}
