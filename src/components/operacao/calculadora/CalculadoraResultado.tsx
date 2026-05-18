@@ -215,13 +215,14 @@ function CurvaChart({ curva }: { curva: CampaignResult["curva"] }) {
           const idx = hover.day - 1;
           const leftPct = ((idx + 0.5) / curva.length) * 100;
           const flip = leftPct > 65;
+          const PhIcon = hoverPhase.icon;
           return (
             <div
               className="pointer-events-none absolute top-1 z-10 rounded-lg border border-border bg-popover text-popover-foreground shadow-lg px-3 py-2 text-[11px] min-w-[160px]"
               style={{ left: `${leftPct}%`, transform: `translateX(${flip ? "-100%" : "0"})` }}
             >
               <div className={cn("font-semibold tabular-nums flex items-center gap-1", hoverPhase.color)}>
-                <hoverPhase.icon className="h-3 w-3" />
+                <PhIcon className="h-3 w-3" />
                 D{hover.day} · {hoverPhase.label}
               </div>
               <div className="mt-1 grid grid-cols-2 gap-x-2 gap-y-0.5 tabular-nums text-foreground">
