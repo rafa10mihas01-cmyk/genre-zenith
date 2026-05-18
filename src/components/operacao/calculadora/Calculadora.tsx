@@ -18,7 +18,8 @@ import {
   DEFAULT_SPLIT, COST_PER_STREAM,
   type Modo, type Perfil, type CampaignResult,
 } from "@/lib/campaignEngine";
-import { Calculator, Table2, ArrowRight, Target as TargetIcon, Users, Wallet, Music, Search, CheckCircle2, X, Loader2, Settings2, LayoutGrid, CalendarIcon } from "lucide-react";
+import { Calculator, Table2, ArrowRight, Target as TargetIcon, Users, Wallet, Music, Search, CheckCircle2, X, Loader2, Settings2, LayoutGrid, CalendarIcon, FileText } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format, addDays, differenceInCalendarDays, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -56,6 +57,8 @@ type PersistedState = {
   modo: Modo;
   perfil: Perfil;
   splitEco: number;
+  clientId: string;
+  curatorId: string;
 };
 
 function loadPersisted(): Partial<PersistedState> {
@@ -72,10 +75,34 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
   const [secao, setSecao] = useState<Secao>("todos");
   const [closing, setClosing] = useState(false);
 
-  async function fecharCampanha() {
+  // Cliente e Curador (vinculação obrigatória pro fluxo de aprovação → deal real)
+  const [clientId, setClientId] = useState<string>(persisted.clientId ?? "");
+  const [curatorId, setCuratorId] = useState<string>(persisted.curatorId ?? "");
+  const [clientsList, setClientsList] = useState<{ id: string; name: string }[]>([]);
+  const [curatorsList, setCuratorsList] = useState<{ id: string; name: string }[]>([]);
+
+  useEffect(() => {
+    void (async () => {
+      const [{ data: cls }, { data: crs }] = await Promise.all([
+        supabase.from("clients").select("id, name").is("archived_at", null).order("name"),
+        supabase.from("curators").select("id, name").order("name"),
+      ]);
+      setClientsList((cls ?? []) as { id: string; name: string }[]);
+      const crList = (crs ?? []) as { id: string; name: string }[];
+      setCuratorsList(crList);
+      // Default Lá do Sul se existir e nada estiver selecionado
+      if (!curatorId) {
+        const ladoSul = crList.find(c => /l[áa]\s*do\s*sul/i.test(c.name));
+        if (ladoSul) setCuratorId(ladoSul.id);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function salvarRascunho() {
     if (!result) return;
     if (!track?.id) {
-      toast({ title: "Carregue o link da música antes de fechar", variant: "destructive" });
+      toast({ title: "Carregue o link da música antes de salvar", variant: "destructive" });
       return;
     }
     setClosing(true);
@@ -108,17 +135,27 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
         snapshot,
         deadlineISO,
         allocations,
+        clientId: clientId || null,
+        curatorId: curatorId || null,
+        status: "draft",
       });
 
       try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
-      toast({ title: "Campanha congelada", description: `${allocations.length} playlists alocadas no Eco.` });
-      navigate(`/campanhas/${campaignId}/execucao`);
+      toast({
+        title: "Rascunho salvo",
+        description: curatorId
+          ? "Revise na aba Campanhas Ativas e clique em Aprovar e disparar pra criar o deal real."
+          : "Sem curador definido — você ainda pode editar antes de aprovar.",
+      });
+      navigate(`/campanhas`);
     } catch (e: any) {
-      toast({ title: "Erro ao fechar campanha", description: e.message ?? String(e), variant: "destructive" });
+      toast({ title: "Erro ao salvar rascunho", description: e.message ?? String(e), variant: "destructive" });
     } finally {
       setClosing(false);
     }
   }
+
+
 
 
   // Inputs (hidratados do localStorage)
@@ -149,10 +186,11 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         fonte, trackUrl, track, baselineStreamsDay, meta, days, budget, modo, perfil, splitEco,
+        clientId, curatorId,
         startDateISO: startDate.toISOString().slice(0, 10),
       }));
     } catch { /* quota cheia, ignora */ }
-  }, [fonte, trackUrl, track, baselineStreamsDay, meta, days, budget, modo, perfil, splitEco, startDate]);
+  }, [fonte, trackUrl, track, baselineStreamsDay, meta, days, budget, modo, perfil, splitEco, startDate, clientId, curatorId]);
 
   async function buscarMusica() {
     const url = trackUrl.trim();
@@ -281,6 +319,39 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                 );
               })}
             </div>
+
+            {/* Cliente + Curador — define dono da campanha e dono das playlists antes de aprovar */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">Identificação</CardTitle>
+                <CardDescription>
+                  Selecione o cliente (dono da campanha) e o curador (dono das playlists). Ao aprovar, vira um deal real ligado ao curador.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Cliente</Label>
+                  <Select value={clientId || "__none__"} onValueChange={v => setClientId(v === "__none__" ? "" : v)}>
+                    <SelectTrigger><SelectValue placeholder="Sem cliente" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">— Sem cliente —</SelectItem>
+                      {clientsList.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Curador (dono das playlists)</Label>
+                  <Select value={curatorId || "__none__"} onValueChange={v => setCuratorId(v === "__none__" ? "" : v)}>
+                    <SelectTrigger><SelectValue placeholder="Sem curador" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">— Sem curador (modo legado) —</SelectItem>
+                      {curatorsList.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+            </Card>
+
 
             {(secao === "todos" || secao === "musica") && (
             <Card>
@@ -543,19 +614,17 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                     size="lg"
                     className="w-full"
                     variant="solid"
-                    onClick={fecharCampanha}
+                    onClick={salvarRascunho}
                     disabled={closing}
                   >
-                    {closing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-                    Fechar campanha e ir para execução
+                    {closing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
+                    Salvar como rascunho
                     <ArrowRight className="h-4 w-4 ml-2" />
                   </Button>
                 )}
                 <p className="text-[11px] text-muted-foreground text-center">
-                  A execução vai herdar meta de <strong>{formatInt(result.meta)}</strong> streams em <strong>{result.days}d</strong>,
-                  orçamento <strong>{formatBRL(result.custoTotal)}</strong>, split {result.splitEcoPct}/{100 - result.splitEcoPct}.
-                  <br />
-                  Ao fechar, o snapshot vira <strong>imutável</strong>: ninguém recalcula mais nada.
+                  Vai pra <strong>Campanhas Ativas</strong> como rascunho. Lá você revisa e clica em
+                  <strong> Aprovar e disparar</strong> pra criar o deal real {curatorId ? "ligado ao curador selecionado" : "(selecione o curador antes pra ligar ao deal real)"}.
                 </p>
               </>
             )}

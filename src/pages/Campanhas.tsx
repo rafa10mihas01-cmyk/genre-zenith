@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusDot } from "@/components/ui/status-dot";
 import { Plus, RefreshCw, Target, ListChecks, Calculator, Megaphone, CheckCircle2, Percent, MoreHorizontal, Pause, Play, Archive, Trash2 } from "lucide-react";
-import { NewCampaignDialog } from "@/components/campanhas/NewCampaignDialog";
 import { toast } from "@/hooks/use-toast";
 import { Calculadora } from "@/components/operacao/calculadora/Calculadora";
 import { KpiBig } from "@/components/KpiBig";
@@ -51,7 +50,7 @@ export default function Campanhas() {
   const [items, setItems] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "active" | "draft" | "completed">("all");
-  const [dialogOpen, setDialogOpen] = useState(false);
+  
   const [recalcing, setRecalcing] = useState(false);
   const [tab, setTab] = useState<"lista" | "financeiro">("financeiro");
 
@@ -107,7 +106,7 @@ export default function Campanhas() {
                 <RefreshCw className={`h-4 w-4 mr-2 ${recalcing ? "animate-spin" : ""}`} />
                 Recalcular
               </Button>
-              <Button onClick={() => setDialogOpen(true)}>
+              <Button onClick={() => setTab("financeiro")}>
                 <Plus className="h-4 w-4 mr-2" /> Nova campanha
               </Button>
             </>
@@ -211,12 +210,6 @@ export default function Campanhas() {
 
         {tab === "financeiro" && <Calculadora />}
       </PageContainer>
-
-      <NewCampaignDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        onCreated={() => load()}
-      />
     </>
   );
 }
