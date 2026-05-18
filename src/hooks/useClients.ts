@@ -3,22 +3,67 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
+export type ClientType = "artist" | "label" | "manager" | "producer" | "other";
+
 export type Client = {
   id: string;
   user_id: string;
   name: string;
-  contact: string | null;
+  contact: string | null; // legado, mantido por compatibilidade
   notes: string | null;
   archived_at: string | null;
   created_at: string;
   updated_at: string;
+  client_type: ClientType;
+  company: string | null;
+  email: string | null;
+  phone: string | null;
+  instagram: string | null;
+  spotify_artist_url: string | null;
+  city: string | null;
+  country: string | null;
+  primary_genre: string | null;
+  monthly_listeners: number | null;
+  document: string | null;
+  payment_terms: string | null;
+  tags: string[];
 };
 
 export type NewClientInput = {
   name: string;
   contact?: string | null;
   notes?: string | null;
+  client_type?: ClientType;
+  company?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  instagram?: string | null;
+  spotify_artist_url?: string | null;
+  city?: string | null;
+  country?: string | null;
+  primary_genre?: string | null;
+  monthly_listeners?: number | null;
+  document?: string | null;
+  payment_terms?: string | null;
+  tags?: string[];
 };
+
+// Helper: monta o payload de update apenas com chaves presentes em `input`.
+function buildUpdatePayload(input: Partial<NewClientInput>) {
+  const keys: (keyof NewClientInput)[] = [
+    "name","contact","notes","client_type","company","email","phone","instagram",
+    "spotify_artist_url","city","country","primary_genre","monthly_listeners",
+    "document","payment_terms","tags",
+  ];
+  const out: Record<string, unknown> = {};
+  for (const k of keys) {
+    if (input[k] !== undefined) {
+      const v = input[k];
+      out[k] = typeof v === "string" ? (v as string) || null : v ?? null;
+    }
+  }
+  return out;
+}
 
 export function useClients() {
   const { user } = useAuth();
@@ -55,14 +100,14 @@ export function useClients() {
   const addClient = useCallback(
     async (input: NewClientInput) => {
       if (!user) throw new Error("Usuário não autenticado");
+      const payload = {
+        user_id: user.id,
+        name: input.name,
+        ...buildUpdatePayload({ ...input, name: undefined }),
+      };
       const { data, error: err } = await supabase
         .from("clients")
-        .insert({
-          user_id: user.id,
-          name: input.name,
-          contact: input.contact ?? null,
-          notes: input.notes ?? null,
-        })
+        .insert(payload as any)
         .select()
         .single();
       if (err) throw err;
@@ -76,11 +121,7 @@ export function useClients() {
     async (id: string, input: Partial<NewClientInput>) => {
       const { error: err } = await supabase
         .from("clients")
-        .update({
-          ...(input.name !== undefined && { name: input.name }),
-          ...(input.contact !== undefined && { contact: input.contact ?? null }),
-          ...(input.notes !== undefined && { notes: input.notes ?? null }),
-        })
+        .update(buildUpdatePayload(input) as any)
         .eq("id", id);
       if (err) throw err;
       await load();

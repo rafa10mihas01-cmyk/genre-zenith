@@ -826,31 +826,70 @@ export type Database = {
       clients: {
         Row: {
           archived_at: string | null
+          city: string | null
+          client_type: string
+          company: string | null
           contact: string | null
+          country: string | null
           created_at: string
+          document: string | null
+          email: string | null
           id: string
+          instagram: string | null
+          monthly_listeners: number | null
           name: string
           notes: string | null
+          payment_terms: string | null
+          phone: string | null
+          primary_genre: string | null
+          spotify_artist_url: string | null
+          tags: string[]
           updated_at: string
           user_id: string
         }
         Insert: {
           archived_at?: string | null
+          city?: string | null
+          client_type?: string
+          company?: string | null
           contact?: string | null
+          country?: string | null
           created_at?: string
+          document?: string | null
+          email?: string | null
           id?: string
+          instagram?: string | null
+          monthly_listeners?: number | null
           name: string
           notes?: string | null
+          payment_terms?: string | null
+          phone?: string | null
+          primary_genre?: string | null
+          spotify_artist_url?: string | null
+          tags?: string[]
           updated_at?: string
           user_id: string
         }
         Update: {
           archived_at?: string | null
+          city?: string | null
+          client_type?: string
+          company?: string | null
           contact?: string | null
+          country?: string | null
           created_at?: string
+          document?: string | null
+          email?: string | null
           id?: string
+          instagram?: string | null
+          monthly_listeners?: number | null
           name?: string
           notes?: string | null
+          payment_terms?: string | null
+          phone?: string | null
+          primary_genre?: string | null
+          spotify_artist_url?: string | null
+          tags?: string[]
           updated_at?: string
           user_id?: string
         }
