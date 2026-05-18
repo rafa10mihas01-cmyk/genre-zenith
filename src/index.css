@@ -111,13 +111,13 @@
        Mesmo registro de contraste do verde primary (≈55-70% lightness,
        saturação moderada), pra que barras, ícones e borders fiquem leves
        e harmônicos entre si. */
-    --domain-clients:    217 75% 68%;
-    --domain-curators:   258 70% 75%;
-    --domain-campaigns:  38 85% 62%;
-    --domain-deals:      141 60% 58%;
-    --domain-community:  330 72% 70%;
-    --domain-playlists:  215 30% 60%;
-    --domain-system:     240 6% 60%;
+    --domain-clients:    217 55% 82%;
+    --domain-curators:   258 55% 85%;
+    --domain-campaigns:  38 70% 80%;
+    --domain-deals:      141 45% 78%;
+    --domain-community:  330 60% 84%;
+    --domain-playlists:  215 25% 78%;
+    --domain-system:     240 8% 80%;
     --primary: 141 76% 38%;
     --primary-foreground: 0 0% 100%;
     --primary-glow: 141 76% 38% / 0.15;
