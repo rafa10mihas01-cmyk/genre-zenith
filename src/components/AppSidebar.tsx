@@ -51,7 +51,6 @@ const sections: NavSection[] = [
   {
     label: "Operação",
     items: [
-      { title: "Campanhas", url: "/campanhas", icon: Target },
       {
         title: "Clientes",
         url: "/clientes",
@@ -63,6 +62,7 @@ const sections: NavSection[] = [
         icon: UserSearch,
         matchPaths: ["/prospeccao"],
       },
+      { title: "Campanhas", url: "/campanhas", icon: Target },
       {
         title: "Playlists",
         url: "/catalogo",
