@@ -73,9 +73,10 @@ export interface EcoAllocationPlan {
 
 const PLAYS_PER_SAVE_MONTH = 30;
 
-function ecoWarmupStartDay(index: number, total: number, days: number) {
+function ecoWarmupStartDay(index: number, total: number, days: number, modo: CampaignSnapshot["modo"]) {
   if (total <= 1) return 1;
-  const rampDays = Math.max(3, Math.min(days, Math.ceil(days * 0.4)));
+  const rampPct = modo === "sequencial" ? 0.7 : 0.25;
+  const rampDays = Math.max(3, Math.min(days, Math.ceil(days * rampPct)));
   return Math.min(days, 1 + Math.floor((index / Math.max(1, total - 1)) * (rampDays - 1)));
 }
 
@@ -83,6 +84,7 @@ export function planEcoAllocations(
   streamsEco: number,
   days: number,
   playlists: { id: string; followers: number }[],
+  modo: CampaignSnapshot["modo"] = "simultaneo",
 ): EcoAllocationPlan[] {
   if (streamsEco <= 0 || playlists.length === 0) return [];
 
@@ -105,7 +107,7 @@ export function planEcoAllocations(
       return {
         managed_playlist_id: c.id,
         planned_streams: planned,
-        start_day: ecoWarmupStartDay(index, capacities.length, days),
+        start_day: ecoWarmupStartDay(index, capacities.length, days, modo),
       };
     })
     .filter(a => a.planned_streams > 0);
