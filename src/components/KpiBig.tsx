@@ -11,12 +11,18 @@ import { Skeleton } from "@/components/ui/skeleton";
  * Layout: card largo, label uppercase pequeno + ícone discreto à direita,
  * valor enorme (text-2xl bold), hint opcional embaixo.
  */
+export type KpiDomain =
+  | "clients" | "curators" | "campaigns" | "deals"
+  | "community" | "playlists" | "system";
+
 export interface KpiBigProps {
   label: string;
   value: string | number;
   icon?: any;
   hint?: string;
   tone?: "default" | "primary" | "destructive" | "warning" | "success";
+  /** Cor de domínio aplicada no ícone do header. Não afeta o valor. */
+  domain?: KpiDomain;
   className?: string;
   action?: ReactNode;
   loading?: boolean;
