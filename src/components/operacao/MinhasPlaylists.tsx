@@ -76,7 +76,9 @@ type BrainRow = {
   signals: any;
 };
 
-export function MinhasPlaylists() {
+type PlaylistStats = { avgHealth: number; topPerf: number; atRisk: number; inactive: number };
+
+export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => void } = {}) {
   const [items, setItems] = useState<ManagedPlaylist[]>([]);
   const [scores, setScores] = useState<Record<string, PlaylistScoreRow>>({});
   const [valuations, setValuations] = useState<Record<string, Valuation>>({});
