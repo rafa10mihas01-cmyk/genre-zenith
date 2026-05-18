@@ -21,6 +21,8 @@ type Props = {
   startedAt: string;
   allocations: EcoAlloc[];
   engagementMultiplier?: number;
+  campaignId?: string;
+  showShare?: boolean;
 };
 
 function dateLabel(startedAt: string, day: number) {
