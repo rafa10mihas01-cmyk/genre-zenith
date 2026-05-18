@@ -222,7 +222,7 @@ function CurvaChart({ curva, inercia }: { curva: CampaignResult["curva"]; inerci
                   y={y}
                   width={Math.max(0.5, barW - gap)}
                   height={Math.max(0.5, h)}
-                  fill={ph.bar}
+                  fill={view === "todos" ? ph.bar : view === "eco" ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))"}
                   opacity={hoverDay && !isHover ? 0.45 : 1}
                 />
                 {/* hover hitbox covering full column height */}
