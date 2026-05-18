@@ -100,6 +100,7 @@ export default function Campanhas() {
         icon={Target}
         title="Campanhas"
         subtitle="Planejar metas de plays e distribuir entre playlists próprias"
+        domain="campaigns"
         actions={
           tab === "lista" ? (
             <>
