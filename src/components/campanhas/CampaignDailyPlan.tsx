@@ -34,19 +34,8 @@ export function CampaignDailyPlan({ campaignId, snapshot, startedAt, ecoAllocati
   const [selectedDay, setSelectedDay] = useState(1);
   const [source, setSource] = useState<"todos" | "eco" | "externo">("todos");
 
-  // Referência visual da música (não afeta a lógica da campanha — só exibido).
-  const baselineKey = `campaign-baseline:${campaignId}`;
-  const dailyKey = `campaign-daily-base:${campaignId}`;
-  const [baselineStreams, setBaselineStreams] = useState<number>(() => {
-    if (typeof window === "undefined") return 0;
-    return Number(window.localStorage.getItem(baselineKey) ?? 0);
-  });
-  const [dailyBase, setDailyBase] = useState<number>(() => {
-    if (typeof window === "undefined") return 0;
-    return Number(window.localStorage.getItem(dailyKey) ?? 0);
-  });
-  useEffect(() => { window.localStorage.setItem(baselineKey, String(baselineStreams || 0)); }, [baselineKey, baselineStreams]);
-  useEffect(() => { window.localStorage.setItem(dailyKey, String(dailyBase || 0)); }, [dailyKey, dailyBase]);
+  // Diário base vem do snapshot da calculadora (informado no momento de criar a campanha).
+  const baselineStreams = Number(snapshot.music?.baselineStreamsDay ?? 0);
 
   useEffect(() => {
     let cancelled = false;
