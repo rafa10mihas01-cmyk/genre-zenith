@@ -140,7 +140,9 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
     setStartDate(d.startDate ?? new Date().toISOString().slice(0, 10));
     setDeadline(d.deadline ?? "");
     setNotes(d.notes ?? "");
-    setActivate(d.activate ?? true);
+    setClientId((d as any).clientId ?? "");
+    setCuratorId((d as any).curatorId ?? "");
+    setActivate(d.activate ?? false);
     setDraftDismissed(true);
     // Se o draft estava no passo 2, refaz a sugestão e reaplica seleções
     if ((d.step ?? 1) >= 2) {
