@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { RefreshCw, Handshake, UserSearch, Users, Activity, DollarSign, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageContainer } from "@/components/PageContainer";
