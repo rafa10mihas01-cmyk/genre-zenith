@@ -51,8 +51,14 @@ export type DailyCampaignPlan = {
 
 /** Atraso médio de contabilização do Spotify (em dias). */
 export const REPORTING_DELAY_DAYS = 2;
-/** Fator de capacidade diária por playlist eco — proxy realista. */
-export const ECO_CAPACITY_FACTOR = 0.6;
+/**
+ * Fator de capacidade diária por playlist eco.
+ * Uma música ocupa UMA posição na playlist — no melhor caso (posição #1) ela
+ * capta ~12% do tráfego diário total (followers × 1 play/dia ≈ followers).
+ * Logo, teto realista por playlist/dia = followers × 0.12.
+ * (Curva de posição vem do SimuladorEntrega: #1=12%, #2=10%, #3=8%, etc.)
+ */
+export const ECO_CAPACITY_FACTOR = 0.12;
 /** Ramp de entrada de playlist eco nos primeiros dias. */
 export const ECO_RAMP = [0.2, 0.4, 0.6, 0.8, 1.0];
 
