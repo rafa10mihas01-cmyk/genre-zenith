@@ -1055,21 +1055,21 @@ function EditorialBanner({
           <div className="min-w-0 space-y-0.5 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Modo curatorial</span>
-              <span className="text-lg font-bold leading-none">{meta.label}</span>
+              <span className="text-sm font-bold leading-none">{meta.label}</span>
               {state && <CuratorialStateBadge state={state} compact />}
             </div>
             {mode === "hold" ? (
-              <p className="text-sm font-medium text-foreground">
+              <p className="text-xs font-medium text-foreground">
                 Nenhuma alteração recomendada agora. {justification}
               </p>
             ) : (
-              <p className="text-sm text-foreground/90 leading-snug">{justification}</p>
+              <p className="text-xs text-foreground/90 leading-snug line-clamp-2">{justification}</p>
             )}
             {caps && mode !== "hold" && (
-              <p className="text-[12px] text-muted-foreground tabular-nums">
+              <p className="text-[11px] text-muted-foreground tabular-nums">
                 Limite deste ciclo: <span className="text-foreground font-semibold">{caps.max_changes}</span> faixas ({caps.max_change_pct}%)
                 {caps.original_suggestions > caps.capped_suggestions && (
-                  <> · {caps.original_suggestions - caps.capped_suggestions} sugestões suprimidas para preservar estabilidade</>
+                  <> · {caps.original_suggestions - caps.capped_suggestions} suprimidas</>
                 )}
               </p>
             )}
