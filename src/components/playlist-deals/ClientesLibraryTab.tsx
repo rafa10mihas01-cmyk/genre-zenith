@@ -579,7 +579,7 @@ const CLIENT_TYPE_OPTIONS: { value: ClientType; label: string }[] = [
   { value: "other",    label: "Outro" },
 ];
 
-function ClientFormDialog({
+export function ClientFormDialog({
   open,
   client,
   onClose,
