@@ -27,17 +27,45 @@ type Props = {
   startedAt: string;
   ecoAllocations: EcoPlanInput[];
   refreshKey?: number;
+  /** Estratégia salva na campanha (plays/save/mês). Default 30 (mercado). */
+  engagementMultiplier?: number;
+  /** Callback opcional pro pai sincronizar estado local após persistir. */
+  onEngagementChange?: (v: number) => void;
 };
 
-export function CampaignDailyPlan({ campaignId, snapshot, startedAt, ecoAllocations, refreshKey = 0 }: Props) {
+export function CampaignDailyPlan({
+  campaignId, snapshot, startedAt, ecoAllocations, refreshKey = 0,
+  engagementMultiplier: initialMultiplier = 30,
+  onEngagementChange,
+}: Props) {
   const [externalItems, setExternalItems] = useState<ExternalPlanInput[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState(1);
   const [source, setSource] = useState<"todos" | "eco" | "externo">("todos");
-  // Multiplicador plays/save/mês — ajusta o teto de capacidade das playlists eco.
+  // Multiplicador plays/save/mês — agora é estratégia salva da campanha.
   // 18 = conservador · 30 = mercado · 50 = altamente engajado.
-  const [engagementMultiplier, setEngagementMultiplier] = useState<number>(30);
+  const [engagementMultiplier, setEngagementMultiplier] = useState<number>(initialMultiplier);
+  const [savingMult, setSavingMult] = useState(false);
   const [customMultOpen, setCustomMultOpen] = useState(false);
+
+  // Sincroniza com prop se mudar (ex.: refetch da campanha).
+  useEffect(() => { setEngagementMultiplier(initialMultiplier); }, [initialMultiplier]);
+
+  // Persiste com debounce no banco quando o usuário muda o valor.
+  useEffect(() => {
+    if (engagementMultiplier === initialMultiplier) return;
+    const v = Math.max(1, Math.min(200, Math.round(engagementMultiplier)));
+    const t = setTimeout(async () => {
+      setSavingMult(true);
+      const { error } = await supabase
+        .from("campaigns")
+        .update({ engagement_multiplier: v })
+        .eq("id", campaignId);
+      setSavingMult(false);
+      if (!error) onEngagementChange?.(v);
+    }, 400);
+    return () => clearTimeout(t);
+  }, [engagementMultiplier, initialMultiplier, campaignId, onEngagementChange]);
 
   // Diário base vem do snapshot da calculadora (informado no momento de criar a campanha).
   const baselineStreams = Number(snapshot.music?.baselineStreamsDay ?? 0);
