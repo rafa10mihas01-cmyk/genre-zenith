@@ -202,7 +202,12 @@ export function ClientesLibraryTab({ deals, songs, loading }: Props) {
           const pageRows = rows.slice(start, start + PAGE_SIZE);
           return (
             <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div className={cn(
+                viewMode === "card"
+                  ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"
+                  : "flex flex-col gap-2",
+              )}>
+
                 {pageRows.map((row) => {
             const { client, totalSongs, activeDeals, closedDeals, totalDeals, lastTs } = row;
             const initials = client.name
