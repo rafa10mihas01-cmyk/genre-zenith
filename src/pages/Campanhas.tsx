@@ -253,7 +253,12 @@ function CampaignRow({ c, viewMode = "list" }: { c: Campaign; viewMode?: ViewMod
   return (
     <Link
       to={href}
-      className="rounded-2xl border border-border bg-card hover:bg-accent/30 transition-colors p-5 flex flex-col md:flex-row md:items-center gap-4"
+      className={cn(
+        "rounded-2xl border border-border bg-card hover:bg-accent/30 transition-colors p-5 flex gap-4",
+        viewMode === "card"
+          ? "flex-col"
+          : "flex-col md:flex-row md:items-center",
+      )}
     >
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
