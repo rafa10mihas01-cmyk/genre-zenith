@@ -276,6 +276,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
     supabase.from("genres").select("id, nome").order("nome").then(({ data }) => {
       setGenres((data ?? []) as any);
     });
+    loadAccounts();
   }, []);
 
   async function setPlaylistGenre(pl: ManagedPlaylist, genreId: string | null) {
