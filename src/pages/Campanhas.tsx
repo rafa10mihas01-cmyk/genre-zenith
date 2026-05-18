@@ -11,6 +11,7 @@ import { NewCampaignDialog } from "@/components/campanhas/NewCampaignDialog";
 import { toast } from "@/hooks/use-toast";
 import { Calculadora } from "@/components/operacao/calculadora/Calculadora";
 import { KpiBig } from "@/components/KpiBig";
+import { ViewModeToggle, type ViewMode } from "@/components/ui/view-mode-toggle";
 import { cn } from "@/lib/utils";
 
 type Campaign = {
@@ -45,6 +46,11 @@ export default function Campanhas() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [recalcing, setRecalcing] = useState(false);
   const [tab, setTab] = useState<"lista" | "financeiro">("financeiro");
+  const [viewMode, setViewMode] = useState<ViewMode>("card");
+  const [page, setPage] = useState(1);
+
+  useEffect(() => { setPage(1); }, [filter, viewMode, tab]);
+
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -169,8 +175,8 @@ export default function Campanhas() {
 
         {tab === "lista" && (
           <>
-            {/* Filtros */}
-            <div className="flex flex-wrap gap-2 mb-4">
+            {/* Filtros + toggle */}
+            <div className="flex flex-wrap items-center gap-2 mb-4">
               {(["all", "active", "draft", "completed"] as const).map(f => (
                 <Button
                   key={f}
@@ -181,9 +187,10 @@ export default function Campanhas() {
                   {f === "all" ? "Todas" : STATUS_LABEL[f]}
                 </Button>
               ))}
+              <ViewModeToggle value={viewMode} onChange={setViewMode} className="ml-auto" />
             </div>
 
-            {/* Lista */}
+            {/* Lista / Cards com paginação */}
             {loading ? (
               <div className="grid gap-3">
                 {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-24" />)}
@@ -192,11 +199,37 @@ export default function Campanhas() {
               <div className="border border-border rounded-2xl p-12 text-center text-muted-foreground">
                 Nenhuma campanha {filter !== "all" ? STATUS_LABEL[filter].toLowerCase() : ""} ainda. Crie a primeira.
               </div>
-            ) : (
-              <div className="grid gap-3">
-                {filtered.map(c => <CampaignRow key={c.id} c={c} />)}
-              </div>
-            )}
+            ) : (() => {
+              const PAGE_SIZE = viewMode === "card" ? 4 : 8;
+              const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+              const currentPage = Math.min(page, totalPages);
+              const start = (currentPage - 1) * PAGE_SIZE;
+              const pageItems = filtered.slice(start, start + PAGE_SIZE);
+              return (
+                <>
+                  <div className={cn(
+                    viewMode === "card"
+                      ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"
+                      : "grid gap-3",
+                  )}>
+                    {pageItems.map(c => <CampaignRow key={c.id} c={c} viewMode={viewMode} />)}
+                  </div>
+
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-between pt-3">
+                      <span className="text-[12px] text-muted-foreground">
+                        {start + 1}–{Math.min(start + PAGE_SIZE, filtered.length)} de {filtered.length}
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <Button variant="outline" size="sm" className="h-8" disabled={currentPage <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>Anterior</Button>
+                        <span className="text-[12px] text-muted-foreground px-2 tabular-nums">{currentPage} / {totalPages}</span>
+                        <Button variant="outline" size="sm" className="h-8" disabled={currentPage >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>Próxima</Button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </>
         )}
 
@@ -213,14 +246,19 @@ export default function Campanhas() {
 }
 
 
-function CampaignRow({ c }: { c: Campaign }) {
+function CampaignRow({ c, viewMode = "list" }: { c: Campaign; viewMode?: ViewMode }) {
   const pct = c.goal_plays > 0 ? Math.min(100, Math.round((c.total_delivered / c.goal_plays) * 100)) : 0;
   const daysLeft = Math.ceil((new Date(c.deadline).getTime() - Date.now()) / 86400_000);
   const href = c.snapshot_locked_at ? `/campanhas/${c.id}/execucao` : `/campanhas/${c.id}`;
   return (
     <Link
       to={href}
-      className="rounded-2xl border border-border bg-card hover:bg-accent/30 transition-colors p-5 flex flex-col md:flex-row md:items-center gap-4"
+      className={cn(
+        "rounded-2xl border border-border bg-card hover:bg-accent/30 transition-colors p-5 flex gap-4",
+        viewMode === "card"
+          ? "flex-col"
+          : "flex-col md:flex-row md:items-center",
+      )}
     >
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
