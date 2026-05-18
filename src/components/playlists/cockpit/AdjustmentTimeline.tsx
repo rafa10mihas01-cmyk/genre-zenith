@@ -62,27 +62,27 @@ export function AdjustmentTimeline({ playlistId }: { playlistId: string }) {
   if (items === null) return null;
   if (items.length === 0) {
     return (
-      <Card className="p-5 space-y-2">
+      <Card className="p-3 space-y-1">
         <div className="flex items-center gap-2">
-          <History className="h-4 w-4 text-muted-foreground" />
-          <h3 className="text-sm font-semibold">Histórico de impacto editorial</h3>
+          <History className="h-3.5 w-3.5 text-muted-foreground" />
+          <h3 className="text-xs font-semibold">Histórico de impacto editorial</h3>
         </div>
-        <p className="text-xs text-muted-foreground">
-          Ainda não há mudanças aplicadas com janela de observação. Quando você aprovar um ajuste, o NexEngine vai esperar e medir o impacto antes de sugerir o próximo.
+        <p className="text-[11px] text-muted-foreground leading-snug">
+          Sem mudanças aplicadas ainda. Quando você aprovar um ajuste, o NexEngine mede o impacto antes de sugerir o próximo.
         </p>
       </Card>
     );
   }
 
   return (
-    <Card className="p-5 space-y-4">
+    <Card className="p-3 md:p-4 space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <History className="h-4 w-4 text-muted-foreground" />
-          <h3 className="text-sm font-semibold">Histórico de impacto editorial</h3>
+          <History className="h-3.5 w-3.5 text-muted-foreground" />
+          <h3 className="text-xs font-semibold">Histórico de impacto editorial</h3>
         </div>
-        <span className="text-xs text-muted-foreground">
-          {items.length} {items.length === 1 ? "mudança" : "mudanças"} registradas
+        <span className="text-[11px] text-muted-foreground">
+          {items.length} {items.length === 1 ? "mudança" : "mudanças"}
         </span>
       </div>
 
@@ -134,8 +134,8 @@ export function AdjustmentTimeline({ playlistId }: { playlistId: string }) {
         })}
       </div>
 
-      <p className="text-[11px] text-muted-foreground/70 leading-relaxed">
-        O NexEngine observa cada mudança por uma janela definida pelo tipo de ação e registra o resultado antes de recomendar a próxima. Esse histórico alimenta o aprendizado sem alterar thresholds automaticamente.
+      <p className="text-[10px] text-muted-foreground/70 leading-snug">
+        O NexEngine observa cada mudança por uma janela definida e registra o resultado antes de recomendar a próxima.
       </p>
     </Card>
   );
