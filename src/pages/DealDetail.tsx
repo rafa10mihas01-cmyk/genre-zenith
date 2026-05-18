@@ -31,22 +31,21 @@ export default function DealDetail() {
 
   return (
     <PageContainer>
-      <div className="flex items-center gap-2 text-[12.5px] text-muted-foreground">
-        <button
-          type="button"
-          onClick={back}
-          className="inline-flex items-center gap-1 hover:text-foreground transition-colors rounded-md px-1.5 -mx-1.5 py-1"
-        >
-          <ChevronLeft className="h-3.5 w-3.5" />
-          Campanhas
-        </button>
-        {deal && (
-          <>
-            <span className="opacity-50">/</span>
-            <span className="text-foreground font-medium truncate">{deal.song_name}</span>
-          </>
-        )}
-      </div>
+      <PageHeader
+        kicker="Módulo de Operação"
+        icon={Receipt}
+        domain="deals"
+        title={deal?.song_name ?? "Detalhe do deal"}
+        subtitle="Acompanhar curadores, entregas e histórico desta transação"
+        actions={
+          <Button onClick={back} variant="ghost" size="sm" className="rounded-full gap-1">
+            <ChevronLeft className="h-4 w-4" />
+            Campanhas
+          </Button>
+        }
+      />
+
+
 
       {loading && !deal ? (
         <div className="rounded-2xl border border-border/50 bg-card h-[480px] animate-pulse" />
