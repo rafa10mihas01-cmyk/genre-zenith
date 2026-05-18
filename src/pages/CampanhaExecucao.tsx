@@ -432,3 +432,28 @@ function MiniCurva({ curva }: { curva: CampaignSnapshot["curva"] }) {
     </div>
   );
 }
+
+function CopyPublicPlanLink({ token }: { token: string }) {
+  const [copied, setCopied] = useState(false);
+  const url = `${window.location.origin}/plano/${token}`;
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(url);
+          setCopied(true);
+          toast({ title: "Link copiado", description: "Cole para o responsável do marketing." });
+          setTimeout(() => setCopied(false), 2000);
+        } catch {
+          toast({ title: "Não foi possível copiar", description: url, variant: "destructive" });
+        }
+      }}
+      title={url}
+    >
+      {copied ? <Check className="h-4 w-4 mr-1.5" /> : <Link2 className="h-4 w-4 mr-1.5" />}
+      {copied ? "Copiado" : "Copiar link público"}
+    </Button>
+  );
+}
