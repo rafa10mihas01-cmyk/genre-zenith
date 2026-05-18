@@ -601,6 +601,77 @@ export type Database = {
           },
         ]
       }
+      campaign_eco_snapshots: {
+        Row: {
+          campaign_id: string
+          captured_at: string
+          correlation_id: string | null
+          created_at: string
+          id: string
+          managed_playlist_id: string
+          plays_24h: number | null
+          plays_28d: number | null
+          plays_7d: number | null
+          source: string
+          spotify_playlist_id: string
+        }
+        Insert: {
+          campaign_id: string
+          captured_at?: string
+          correlation_id?: string | null
+          created_at?: string
+          id?: string
+          managed_playlist_id: string
+          plays_24h?: number | null
+          plays_28d?: number | null
+          plays_7d?: number | null
+          source?: string
+          spotify_playlist_id: string
+        }
+        Update: {
+          campaign_id?: string
+          captured_at?: string
+          correlation_id?: string | null
+          created_at?: string
+          id?: string
+          managed_playlist_id?: string
+          plays_24h?: number | null
+          plays_28d?: number | null
+          plays_7d?: number | null
+          source?: string
+          spotify_playlist_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_eco_snapshots_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_eco_snapshots_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "v_campaign_velocity"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "campaign_eco_snapshots_managed_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "managed_playlists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_eco_snapshots_managed_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_playlist_vps_assignment"
+            referencedColumns: ["managed_playlist_id"]
+          },
+        ]
+      }
       campaign_external_package_items: {
         Row: {
           assigned_cost: number
@@ -1615,6 +1686,7 @@ export type Database = {
         Row: {
           baseline_plays: number
           billing_model: string
+          campaign_id: string | null
           client_token: string
           closed_at: string | null
           closed_reason: string | null
@@ -1656,6 +1728,7 @@ export type Database = {
         Insert: {
           baseline_plays?: number
           billing_model?: string
+          campaign_id?: string | null
           client_token?: string
           closed_at?: string | null
           closed_reason?: string | null
@@ -1697,6 +1770,7 @@ export type Database = {
         Update: {
           baseline_plays?: number
           billing_model?: string
+          campaign_id?: string | null
           client_token?: string
           closed_at?: string | null
           closed_reason?: string | null
@@ -1736,6 +1810,20 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "curator_deals_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curator_deals_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "v_campaign_velocity"
+            referencedColumns: ["campaign_id"]
+          },
           {
             foreignKeyName: "curator_deals_curator_id_fkey"
             columns: ["curator_id"]
