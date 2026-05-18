@@ -198,15 +198,15 @@ export default function Campanhas() {
 
             {/* Lista */}
             {loading ? (
-              <div className="grid gap-3">
-                {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-24" />)}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-56 rounded-2xl" />)}
               </div>
             ) : filtered.length === 0 ? (
               <div className="border border-border rounded-2xl p-12 text-center text-muted-foreground">
                 Nenhuma campanha {filter !== "all" ? STATUS_LABEL[filter].toLowerCase() : ""} ainda. Crie a primeira.
               </div>
             ) : (
-              <div className="grid gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 {filtered.map(c => <CampaignRow key={c.id} c={c} onChanged={load} />)}
               </div>
             )}
