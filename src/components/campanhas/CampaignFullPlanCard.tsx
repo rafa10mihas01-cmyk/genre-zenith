@@ -105,9 +105,6 @@ export function CampaignFullPlanCard({ snapshot, startedAt, allocations, engagem
               {copied ? "Copiado" : "Copiar link público"}
             </Button>
           )}
-          <Button size="sm" variant="outline" onClick={handleExport}>
-            <Download className="h-4 w-4 mr-1.5" /> CSV
-          </Button>
         </div>
       </CardHeader>
       <CardContent>
