@@ -63,6 +63,42 @@ export const ECO_CAPACITY_FACTOR = 0.12;
 export const ECO_RAMP = [0.2, 0.4, 0.6, 0.8, 1.0];
 
 /**
+ * Curva de tráfego por posição na playlist (mesma do SimuladorEntrega).
+ * Index 0 = posição 1. % do tráfego diário total da playlist.
+ */
+export const POSITION_PCT: number[] = [
+  0.12, 0.10, 0.08, 0.07, 0.06,
+  0.05, 0.045, 0.04, 0.035, 0.03,
+  0.02, 0.018, 0.016, 0.014, 0.013,
+  0.012, 0.011, 0.010, 0.009, 0.008,
+];
+const POSITION_RESIDUAL = 0.003;
+
+/**
+ * Posição mínima recomendada pra entregar `plannedStreams` no prazo `days`,
+ * dada a playlist (`followers`) e o engajamento (`plays/save/mês`, default 30).
+ * Retorna o menor número de posição cuja fatia diária cobre o ritmo necessário.
+ */
+export function recommendEcoPosition(
+  plannedStreams: number,
+  days: number,
+  followers: number,
+  engagementMultiplier = 30,
+): number {
+  if (plannedStreams <= 0 || days <= 0 || followers <= 0) return 1;
+  const dailyTraffic = followers * (engagementMultiplier / 30); // plays/dia disponíveis no inventário
+  const dailyNeed = plannedStreams / days;
+  if (dailyTraffic <= 0) return 1;
+  for (let i = 0; i < POSITION_PCT.length; i++) {
+    if (POSITION_PCT[i] * dailyTraffic >= dailyNeed) return i + 1;
+  }
+  // Fora do top 20: usa residual pra estimar até onde rola — senão devolve top 1.
+  const residualMax = POSITION_RESIDUAL * dailyTraffic;
+  if (residualMax >= dailyNeed) return 21;
+  return 1; // demanda > capacidade — força top 1 mesmo assim
+}
+
+/**
  * Sazonalidade semanal de streaming (BR/global). Multiplicadores relativos
  * à média (1.0) por dia da semana — calibrados a partir do padrão observado
  * no Spotify: pico quinta/sexta (playlist refresh + fim de semana social),
