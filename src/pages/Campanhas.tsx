@@ -46,6 +46,11 @@ export default function Campanhas() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [recalcing, setRecalcing] = useState(false);
   const [tab, setTab] = useState<"lista" | "financeiro">("financeiro");
+  const [viewMode, setViewMode] = useState<ViewMode>("card");
+  const [page, setPage] = useState(1);
+
+  useEffect(() => { setPage(1); }, [filter, viewMode, tab]);
+
 
   const load = useCallback(async () => {
     setLoading(true);
