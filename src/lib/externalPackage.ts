@@ -209,15 +209,15 @@ export async function confirmExternalPackage(args: {
 
 export async function updatePackageItem(
   itemId: string,
-  patch: { assigned_streams?: number; cost_per_stream?: number },
+  patch: { assigned_streams: number; cost_per_stream: number },
 ) {
-  const updates: Record<string, any> = { ...patch };
-  if (patch.assigned_streams != null && patch.cost_per_stream != null) {
-    updates.assigned_cost = +(patch.assigned_streams * patch.cost_per_stream).toFixed(2);
-  }
   const { error } = await supabase
     .from("campaign_external_package_items")
-    .update(updates)
+    .update({
+      assigned_streams: patch.assigned_streams,
+      cost_per_stream: patch.cost_per_stream,
+      assigned_cost: +(patch.assigned_streams * patch.cost_per_stream).toFixed(2),
+    })
     .eq("id", itemId);
   if (error) throw error;
 }
