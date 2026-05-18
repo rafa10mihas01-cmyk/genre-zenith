@@ -153,52 +153,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
     }
   }
 
-    if (!result) return;
-    if (!track?.id) {
-      toast({ title: "Carregue o link da música antes de fechar", variant: "destructive" });
-      return;
-    }
-    setClosing(true);
-    try {
-      const { data: playlists, error } = await supabase
-        .from("managed_playlists")
-        .select("id, followers")
-        .is("archived_at", null);
-      if (error) throw error;
 
-      const snapshot = buildSnapshot(result, {
-        spotifyTrackId: track.id,
-        trackUrl: trackUrl || null,
-        title: track.title,
-        artist: track.artist,
-        coverUrl: track.thumbnail_url,
-        baselineStreamsDay,
-      });
-
-      const allocations = planEcoAllocations(
-        result.streamsEco,
-        result.days,
-        (playlists ?? []).map(p => ({ id: p.id, followers: p.followers ?? 0 })),
-        result.modo,
-      );
-
-      const deadlineISO = addDays(startDate, result.days).toISOString().slice(0, 10);
-
-      const { campaignId } = await closeCampaignFromCalculator({
-        snapshot,
-        deadlineISO,
-        allocations,
-      });
-
-      try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
-      toast({ title: "Campanha congelada", description: `${allocations.length} playlists alocadas no Eco.` });
-      navigate(`/campanhas/${campaignId}/execucao`);
-    } catch (e: any) {
-      toast({ title: "Erro ao fechar campanha", description: e.message ?? String(e), variant: "destructive" });
-    } finally {
-      setClosing(false);
-    }
-  }
 
 
   // Inputs (hidratados do localStorage)
