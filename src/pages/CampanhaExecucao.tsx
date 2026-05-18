@@ -77,7 +77,7 @@ export default function CampanhaExecucao() {
       const [{ data: c }, { data: a }] = await Promise.all([
         supabase
           .from("campaigns")
-          .select("id, track_name, artist, cover_url, status, deadline, started_at, simulation_snapshot, snapshot_locked_at, eco_dispatched_at")
+          .select("id, track_name, artist, cover_url, status, deadline, started_at, simulation_snapshot, snapshot_locked_at, eco_dispatched_at, engagement_multiplier")
           .eq("id", id)
           .maybeSingle(),
         supabase
