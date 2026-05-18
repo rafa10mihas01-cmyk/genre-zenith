@@ -151,7 +151,7 @@ export function CampaignMonitoring({ campaignId, snapshot, campaignStartedAt, ca
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
           <KPI label="Dia" value={`${metrics.elapsedDays}/${metrics.totalDays}`} hint={`${metrics.daysLeft}d restantes`} />
           <KPI label="Planejado até hoje" value={formatInt(metrics.plannedToDate)} />
-          <KPI label="Entregue real" value={formatInt(metrics.delivered)} hint={`Eco ${formatInt(metrics.ecoDelivered)} · Ext ${formatInt(metrics.extDelivered)}`} />
+          <KPI label={metrics.hasRealData ? "Entregue real" : "Entregue (estim.)"} value={formatInt(metrics.delivered)} hint={`Eco ${formatInt(metrics.ecoDelivered)} · Ext ${formatInt(metrics.extDelivered)}${metrics.hasRealData ? " · bot" : ""}`} />
           <KPI
             label="Aderência"
             value={`${metrics.adherence.toFixed(0)}%`}
