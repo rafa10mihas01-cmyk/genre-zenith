@@ -389,22 +389,23 @@ export function CuradoresLibraryTab({
 
                 <div className="mx-4 border-t border-border/40" />
 
-                {/* Linha 2 — métricas + barra + meta */}
-                <div className="flex items-center gap-4 px-4 py-3 min-w-0">
-                  <MetricCell
-                    label="Comprados"
-                    value={formatPlays(purchased)}
-                    size="sm"
-                    className="w-[88px] shrink-0"
-                  />
-                  <MetricCell
-                    label="Restante"
-                    value={overbooked ? "Estourado" : formatPlays(remaining)}
-                    size="sm"
-                    className={cn("w-[96px] shrink-0", overbooked && "[&_*]:text-destructive")}
-                  />
+                {/* Linha 2 — métricas (empilhadas para o grid 4-col) */}
+                <div className="px-4 py-3 space-y-2.5 min-w-0">
+                  <div className="grid grid-cols-2 gap-3">
+                    <MetricCell
+                      label="Comprados"
+                      value={formatPlays(purchased)}
+                      size="sm"
+                    />
+                    <MetricCell
+                      label="Restante"
+                      value={overbooked ? "Estourado" : formatPlays(remaining)}
+                      size="sm"
+                      className={cn(overbooked && "[&_*]:text-destructive")}
+                    />
+                  </div>
                   {purchased > 0 && (
-                    <div className="flex-1 min-w-0 flex flex-col gap-1 max-w-[280px]">
+                    <div className="flex flex-col gap-1 min-w-0">
                       <div className="flex items-center justify-between text-[10.5px] text-muted-foreground">
                         <span className="uppercase tracking-[0.12em] font-medium">Consumido</span>
                         <span className="tabular-nums font-semibold text-foreground">{consumedPct}%</span>
@@ -415,7 +416,7 @@ export function CuradoresLibraryTab({
                       </div>
                     </div>
                   )}
-                  <div className="flex items-center gap-3 ml-auto text-[11px] text-muted-foreground shrink-0">
+                  <div className="flex items-center gap-3 flex-wrap text-[11px] text-muted-foreground pt-1 border-t border-border/30">
                     {cpp !== null && (
                       <span className="inline-flex items-center gap-1 tabular-nums">
                         <DollarSign className="h-3 w-3" />
@@ -423,7 +424,7 @@ export function CuradoresLibraryTab({
                       </span>
                     )}
                     {totalCost > 0 && (
-                      <span className="hidden md:inline tabular-nums">{formatBRL(totalCost)}</span>
+                      <span className="tabular-nums">{formatBRL(totalCost)}</span>
                     )}
                     {lastTs > 0 && (
                       <span className="inline-flex items-center gap-1 whitespace-nowrap">
@@ -435,7 +436,7 @@ export function CuradoresLibraryTab({
                       </span>
                     )}
                     {closedDeals > 0 && (
-                      <span className="hidden lg:inline-flex items-center gap-1">
+                      <span className="inline-flex items-center gap-1">
                         <CheckCircle2 className="h-3 w-3" />
                         {closedDeals}
                       </span>
