@@ -90,7 +90,36 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
       if (error) throw error;
       if (!data?.ok) throw new Error(data?.error ?? "Não consegui ler esse link");
       if (data.type !== "track") throw new Error("O link precisa ser de uma faixa (track)");
-      setTrack({ id: data.id, title: data.title, artist: data.artist, thumbnail_url: data.thumbnail_url });
+      // Busca streams/dia atual da faixa no Top 200 (se estiver)
+      let streamsDay: number | null = null;
+      let position: number | null = null;
+      let chartDate: string | null = null;
+      try {
+        const { data: latest } = await supabase
+          .from("raw_chart_daily")
+          .select("chart_date")
+          .eq("chart_name", "top200_br")
+          .order("chart_date", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (latest?.chart_date) {
+          const { data: row } = await supabase
+            .from("raw_chart_daily")
+            .select("streams_day, position, chart_date")
+            .eq("chart_name", "top200_br")
+            .eq("chart_date", latest.chart_date)
+            .eq("spotify_track_id", data.id)
+            .maybeSingle();
+          if (row) {
+            streamsDay = Number(row.streams_day);
+            position = row.position;
+            chartDate = row.chart_date;
+          } else {
+            chartDate = latest.chart_date;
+          }
+        }
+      } catch { /* sem chart, segue */ }
+      setTrack({ id: data.id, title: data.title, artist: data.artist, thumbnail_url: data.thumbnail_url, streamsDay, position, chartDate });
     } catch (e: any) {
       toast({ title: "Erro ao buscar música", description: e?.message ?? String(e), variant: "destructive" });
     } finally {
