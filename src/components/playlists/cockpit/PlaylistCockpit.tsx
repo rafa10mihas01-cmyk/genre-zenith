@@ -217,26 +217,26 @@ export function PlaylistCockpit({
   const idealRange = market?.ideal_track_count_range;
 
   return (
-    <div className="mx-auto w-full max-w-[1600px] px-4 md:px-8 py-6 md:py-8 space-y-6">
-      {/* ============ 1. HERO ============ */}
+    <div className="mx-auto w-full max-w-[1600px] px-4 md:px-8 py-4 md:py-5 space-y-4">
+      {/* ============ 1. HERO (compacto) ============ */}
       <Card className="overflow-hidden border-0 bg-gradient-to-br from-primary/[0.08] via-card to-card relative">
         <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.12),transparent_55%)]" />
-        <div className="relative p-6 md:p-8 flex flex-col md:flex-row gap-6 md:gap-8 items-start">
+        <div className="relative p-4 md:p-5 flex flex-col md:flex-row gap-4 md:gap-5 items-start">
           <div className="relative shrink-0">
             {coverUrl ? (
               <img src={coverUrl} alt={playlistName}
-                className="w-36 h-36 md:w-44 md:h-44 rounded-2xl object-cover shadow-2xl ring-1 ring-white/5" />
+                className="w-20 h-20 md:w-24 md:h-24 rounded-xl object-cover shadow-lg ring-1 ring-white/5" />
             ) : (
-              <div className="w-36 h-36 md:w-44 md:h-44 rounded-2xl bg-elevated grid place-items-center">
-                <Music2 className="h-10 w-10 text-muted-foreground/40" />
+              <div className="w-20 h-20 md:w-24 md:h-24 rounded-xl bg-elevated grid place-items-center">
+                <Music2 className="h-7 w-7 text-muted-foreground/40" />
               </div>
             )}
           </div>
-          <div className="flex-1 min-w-0 space-y-4">
+          <div className="flex-1 min-w-0 space-y-2">
             <div className="flex items-center gap-2 flex-wrap">
               {onBack && (
-                <Button variant="ghost" size="sm" onClick={onBack} className="h-7 -ml-2 text-muted-foreground hover:text-foreground gap-1">
-                  <ArrowLeft className="h-3.5 w-3.5" /> Voltar
+                <Button variant="ghost" size="sm" onClick={onBack} className="h-6 -ml-2 text-muted-foreground hover:text-foreground gap-1 text-xs">
+                  <ArrowLeft className="h-3 w-3" /> Voltar
                 </Button>
               )}
               {genreName && (
@@ -244,17 +244,17 @@ export function PlaylistCockpit({
               )}
               {diag?.raw?.niche_rank && diag.raw.niche_total && (
                 <Badge variant="outline" className="text-[10px] gap-1 border-primary/30 text-primary">
-                  <Crown className="h-3 w-3" /> #{diag.raw.niche_rank} de {diag.raw.niche_total} no nicho
+                  <Crown className="h-3 w-3" /> #{diag.raw.niche_rank} de {diag.raw.niche_total}
                 </Badge>
               )}
-              <span className={cn("inline-flex items-center gap-1 px-2 h-6 rounded-full border text-[11px] font-medium", health.tone)}>
+              <span className={cn("inline-flex items-center gap-1 px-2 h-5 rounded-full border text-[10px] font-medium", health.tone)}>
                 <health.Icon className="h-3 w-3" /> {health.label}
               </span>
             </div>
-            <h1 className="text-3xl md:text-4xl font-bold tracking-tight leading-[1.1]">
+            <h1 className="text-xl md:text-2xl font-bold tracking-tight leading-tight truncate">
               {playlistName}
             </h1>
-            <div className="flex flex-wrap gap-x-8 gap-y-3 text-sm pt-1">
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs">
               <Stat label="Seguidores" value={fmtNum(followers)} accent />
               <Stat label="Faixas" value={fmtNum(tracksCount)} />
               {brainScore != null && <Stat label="Score" value={`${brainScore}`} />}
@@ -262,17 +262,17 @@ export function PlaylistCockpit({
                 <Stat label="Diagnóstico" value={new Date(diag.created_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })} muted />
               )}
             </div>
-            <div className="flex flex-wrap gap-2 pt-2">
-              <Button onClick={runDiagnose} disabled={running} className="gap-1.5">
-                {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                {diag ? "Rodar nova análise" : "Rodar análise"}
-              </Button>
-              <Button variant="outline" asChild>
-                <a href={spotifyUrl} target="_blank" rel="noreferrer" className="gap-1.5">
-                  <ExternalLink className="h-4 w-4" /> Abrir no Spotify
-                </a>
-              </Button>
-            </div>
+          </div>
+          <div className="flex flex-wrap gap-2 md:flex-col md:items-end shrink-0">
+            <Button onClick={runDiagnose} disabled={running} size="sm" className="gap-1.5 h-8">
+              {running ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+              {diag ? "Rodar nova análise" : "Rodar análise"}
+            </Button>
+            <Button variant="outline" size="sm" asChild className="h-8">
+              <a href={spotifyUrl} target="_blank" rel="noreferrer" className="gap-1.5">
+                <ExternalLink className="h-3.5 w-3.5" /> Abrir no Spotify
+              </a>
+            </Button>
           </div>
         </div>
       </Card>
