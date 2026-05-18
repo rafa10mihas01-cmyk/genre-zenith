@@ -581,19 +581,17 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                     size="lg"
                     className="w-full"
                     variant="solid"
-                    onClick={fecharCampanha}
+                    onClick={salvarRascunho}
                     disabled={closing}
                   >
-                    {closing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-                    Fechar campanha e ir para execução
+                    {closing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
+                    Salvar como rascunho
                     <ArrowRight className="h-4 w-4 ml-2" />
                   </Button>
                 )}
                 <p className="text-[11px] text-muted-foreground text-center">
-                  A execução vai herdar meta de <strong>{formatInt(result.meta)}</strong> streams em <strong>{result.days}d</strong>,
-                  orçamento <strong>{formatBRL(result.custoTotal)}</strong>, split {result.splitEcoPct}/{100 - result.splitEcoPct}.
-                  <br />
-                  Ao fechar, o snapshot vira <strong>imutável</strong>: ninguém recalcula mais nada.
+                  Vai pra <strong>Campanhas Ativas</strong> como rascunho. Lá você revisa e clica em
+                  <strong> Aprovar e disparar</strong> pra criar o deal real {curatorId ? "ligado ao curador selecionado" : "(selecione o curador antes pra ligar ao deal real)"}.
                 </p>
               </>
             )}
