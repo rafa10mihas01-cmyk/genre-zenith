@@ -246,7 +246,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                 size="lg"
                 className="w-full"
                 variant="solid"
-                onClick={() => onContinue({ result, trackUrl, fonte })}
+                onClick={() => onContinue({ result, trackUrl, track, fonte })}
               >
                 Continuar para execução
                 <ArrowRight className="h-4 w-4 ml-2" />
