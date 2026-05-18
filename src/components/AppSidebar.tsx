@@ -60,15 +60,9 @@ const sections: NavSection[] = [
         title: "Curadores",
         url: "/curadores",
         icon: UserSearch,
-        matchPaths: ["/prospeccao"],
+        matchPaths: ["/prospeccao", "/comunidade-admin"],
       },
       { title: "Campanhas", url: "/campanhas", icon: Target, matchPaths: ["/deals", "/playlist-deals", "/deals/comparar"] },
-      {
-        title: "Comunidade",
-        url: "/comunidade-admin",
-        icon: Users,
-        adminOnly: true,
-      },
       {
         title: "Playlists",
         url: "/catalogo",

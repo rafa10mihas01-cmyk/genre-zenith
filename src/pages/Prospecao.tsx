@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { RefreshCw, Handshake, UserSearch, Users, Activity, DollarSign, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageContainer } from "@/components/PageContainer";
@@ -21,6 +22,7 @@ function formatNumber(n: number) {
 }
 
 export default function Prospecao() {
+  const navigate = useNavigate();
   const [segment, setSegment] = useState<Segment>("ativos");
   const {
     curators, balances, deals, loading,
@@ -101,15 +103,19 @@ export default function Prospecao() {
       <div className="sticky top-0 z-30 -mt-px bg-background/95 supports-[backdrop-filter]:bg-background/80 backdrop-blur-md border-b border-border -mx-4 md:-mx-6">
         <div className="nx-tab-rail items-center gap-1 px-4 md:px-6">
           {([
-            { id: "ativos" as const,     label: "Ativos",     icon: Handshake,  count: ativosCount,        hint: "Curadores com quem você já fechou deal" },
-            { id: "prospeccao" as const, label: "Prospecção", icon: UserSearch, count: null,                hint: "Contatos para abordar e negociar" },
+            { id: "ativos" as const,      label: "Ativos",     icon: Handshake,  count: ativosCount, hint: "Curadores com quem você já fechou deal" },
+            { id: "comunidade" as const,  label: "Comunidade", icon: Users,      count: null,        hint: "Curadores da comunidade NexEngine" },
+            { id: "prospeccao" as const,  label: "Prospecção", icon: UserSearch, count: null,        hint: "Contatos para abordar e negociar" },
           ]).map((t) => {
             const Icon = t.icon;
             const active = segment === t.id;
             return (
               <button
                 key={t.id}
-                onClick={() => setSegment(t.id)}
+                onClick={() => {
+                  if (t.id === "comunidade") navigate("/comunidade-admin");
+                  else setSegment(t.id as Segment);
+                }}
                 title={t.hint}
                 className={cn(
                   "px-4 h-10 inline-flex items-center gap-2 text-sm font-medium border-b-2 transition-colors -mb-px shrink-0 whitespace-nowrap",
