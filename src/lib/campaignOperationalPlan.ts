@@ -281,6 +281,14 @@ export function distributeEcoPositions(
 export const WEEKDAY_FACTOR: number[] = [1.167, 0.833, 1.000, 1.167, 1.333, 1.500, 1.600];
 
 /**
+ * Sazonalidade semanal "plana" — média ≈ 1.0, usada quando o cap diário da
+ * faixa já está definido pela POSITION_PCT e a única variação esperada é o
+ * dip de fim-de-semana / segunda. [Dom, Seg, Ter, Qua, Qui, Sex, Sáb].
+ * Mantém a faixa estável em ~capDia e só desce um pouco Dom/Seg.
+ */
+export const WEEKDAY_FLAT_FACTOR: number[] = [0.92, 0.85, 1.00, 1.04, 1.06, 1.08, 1.05];
+
+/**
  * Aplica sazonalidade semanal à curva-base: multiplica cada `streamsDay`
  * pelo fator do dia da semana correspondente e renormaliza para preservar
  * o total exato da curva original. Não muta a curva de entrada.
@@ -530,6 +538,10 @@ export function buildEcoPlaylistPlan(
     ? curveThresholdDay(snapshot.curva, 0.25)
     : 1;
 
+  // Base para fator de dia-da-semana (Dom/Seg dão dip suave).
+  const startBase = opts.startedAt ? new Date(opts.startedAt) : null;
+  const startValid = startBase && !isNaN(startBase.getTime());
+
   const plans: DailyPlaylistPlan[] = ordered.map((a, index) => {
     const baseStart = startsLookSystemGenerated
       ? generatedStarts[index]
@@ -538,23 +550,24 @@ export function buildEcoPlaylistPlan(
     const followers = Number(a.managed_playlists?.followers ?? 0);
     const pos = positions.get(a.id) ?? MIN_CAMPAIGN_POSITION;
     // VERDADE: capDia da faixa = saves × (mult/30) × POSITION_PCT[pos].
+    // A música fica FIXA na posição → entrega ~capDia TODO DIA, com leve
+    // dip de fim-de-semana/segunda. Sem curva gaussiana, sem delay, sem jitter.
     const baseCap = Math.max(1, Math.round(calculateTrackDailyStreams(followers, multiplier, pos)));
 
-    const caps = Array.from({ length: snapshot.days }, () => baseCap);
-    ECO_RAMP.forEach((mult, k) => {
-      const idx = (startDay - 1) + k;
-      if (idx < snapshot.days) caps[idx] = Math.max(1, Math.round(baseCap * mult));
-    });
-
-    // Total entregável real = cap × dias úteis. Se planned_streams pedir mais
-    // do que a posição comporta, sobra vai para `overflow` e o sistema redistribui.
-    const requested = Number(a.planned_streams ?? 0);
-    const { daily, overflow } = distributeByCurve(
-      requested,
-      curva,
-      startDay,
-      { capDia: caps, delay: REPORTING_DELAY_DAYS },
-    );
+    const daily = Array.from({ length: snapshot.days }, () => 0);
+    for (let i = startDay - 1; i < snapshot.days; i++) {
+      // Ramp suave nos primeiros dias de entrada na playlist.
+      const rampIdx = i - (startDay - 1);
+      const ramp = rampIdx < ECO_RAMP.length ? ECO_RAMP[rampIdx] : 1;
+      // Dia da semana (se conhecido).
+      let weekday = 1;
+      if (startValid) {
+        const d = new Date(startBase!);
+        d.setDate(d.getDate() + i);
+        weekday = WEEKDAY_FLAT_FACTOR[d.getDay()] ?? 1;
+      }
+      daily[i] = Math.max(1, Math.round(baseCap * ramp * weekday));
+    }
 
     const realTotal = daily.reduce((s, v) => s + v, 0);
 
@@ -567,38 +580,18 @@ export function buildEcoPlaylistPlan(
       totalStreams: realTotal,
       daily,
       capDia: baseCap,
-      overflow,
+      overflow: 0,
     };
   });
 
-  let remaining = plans.reduce((s, p) => s + p.overflow, 0);
-  if (remaining > 0 && plans.length > 1) {
-    for (let pass = 0; pass < 10 && remaining > 0; pass++) {
-      let absorbed = 0;
-      for (const target of plans) {
-        if (remaining <= 0) break;
-        for (let i = target.startDay - 1; i < snapshot.days; i++) {
-          if (remaining <= 0) break;
-          const room = Math.max(0, target.capDia - target.daily[i]);
-          if (room <= 0) continue;
-          const give = Math.min(room, remaining);
-          target.daily[i] += give;
-          remaining -= give;
-          absorbed += give;
-          target.totalStreams += give;
-        }
-      }
-      if (absorbed <= 0) break;
-    }
-  }
+  // Sem overflow no novo modelo: a posição já define o teto diário.
+  let remaining = 0;
 
   const result = plans as EcoPlanResult;
   result.unmetEco = Math.max(0, Math.round(remaining));
 
-  // Variação natural por dia (depois da redistribuição de overflow).
-  for (const p of result) {
-    applyDailyJitter(p.daily, p.capDia, p.allocationId);
-  }
+  // Sem jitter: a faixa fica fixa na posição e entrega ~capDia todo dia
+  // (só varia pelo fator de dia-da-semana já aplicado acima).
 
   return result;
 }
