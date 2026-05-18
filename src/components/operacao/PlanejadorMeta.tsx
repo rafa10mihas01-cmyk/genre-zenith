@@ -210,22 +210,31 @@ function calcIndicators(slots: Slot[], dailyTarget: number, totalPlaylists: numb
   return { delivered, coverage, concentration, diversity, naturalness, saturation, risk };
 }
 
-export function PlanejadorMeta() {
+export type PlanejadorInitial = {
+  meta?: number;
+  days?: number;
+  profile?: "mercado" | "engajado" | "frio";
+  trackUrl?: string;
+  fonteLabel?: string; // ex: "Herdado do plano financeiro"
+};
+
+export function PlanejadorMeta({ initial }: { initial?: PlanejadorInitial } = {}) {
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [genres, setGenres] = useState<Genre[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [meta, setMeta] = useState<number>(10_000_000);
-  const [days, setDays] = useState<number>(30);
+  const [meta, setMeta] = useState<number>(initial?.meta ?? 10_000_000);
+  const [days, setDays] = useState<number>(initial?.days ?? 30);
   const [genreId, setGenreId] = useState<string>("");
-  const [profile, setProfile] = useState<typeof PROFILES[number]["id"]>("mercado");
+  const [profile, setProfile] = useState<typeof PROFILES[number]["id"]>(initial?.profile ?? "mercado");
 
   // Aplicar música real
-  const [trackInput, setTrackInput] = useState("");
+  const [trackInput, setTrackInput] = useState(initial?.trackUrl ?? "");
   const trackId = useMemo(() => extractTrackId(trackInput), [trackInput]);
   const [excluded, setExcluded] = useState<Set<string>>(new Set());
   const [applying, setApplying] = useState(false);
   const [results, setResults] = useState<ApplyResult[] | null>(null);
+  const herdado = !!initial;
 
   useEffect(() => {
     (async () => {
@@ -328,18 +337,29 @@ export function PlanejadorMeta() {
         title="Objetivo da campanha"
         subtitle="Defina o destino: meta, prazo, nicho e perfil de audiência."
       >
-        <div className="nx-card space-y-3">
-          <div className="flex items-center gap-2">
-            <Target className="h-4 w-4 text-primary" />
-            <h3 className="text-sm font-semibold">Fonte da meta</h3>
+        {herdado ? (
+          <div className="nx-card flex items-center justify-between gap-3 border-primary/30 bg-primary/5">
+            <div className="flex items-center gap-2 text-sm">
+              <Target className="h-4 w-4 text-primary" />
+              <span className="text-muted-foreground">Fonte da meta:</span>
+              <span className="font-semibold text-foreground">{initial?.fonteLabel ?? "Herdado do plano financeiro"}</span>
+            </div>
+            <span className="text-[11px] text-muted-foreground">Edite abaixo se precisar ajustar</span>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            <SourcePill active label="Manual" hint="você define o número" />
-            <SourcePill label="Top 200 Spotify" hint="em breve" disabled />
-            <SourcePill label="Artista concorrente" hint="em breve" disabled />
-            <SourcePill label="Orçamento" hint="em breve" disabled />
+        ) : (
+          <div className="nx-card space-y-3">
+            <div className="flex items-center gap-2">
+              <Target className="h-4 w-4 text-primary" />
+              <h3 className="text-sm font-semibold">Fonte da meta</h3>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              <SourcePill active label="Manual" hint="você define o número" />
+              <SourcePill label="Top 200 Spotify" hint="em breve" disabled />
+              <SourcePill label="Artista concorrente" hint="em breve" disabled />
+              <SourcePill label="Orçamento" hint="em breve" disabled />
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="nx-card space-y-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
