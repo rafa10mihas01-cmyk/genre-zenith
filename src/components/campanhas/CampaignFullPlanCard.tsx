@@ -20,7 +20,7 @@ type Props = {
   startedAt: string;
   allocations: EcoAlloc[];
   engagementMultiplier?: number;
-  campaignId?: string;
+  shareToken?: string | null;
   showShare?: boolean;
 };
 
@@ -30,16 +30,21 @@ function dateLabel(startedAt: string, day: number) {
   return base.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
 }
 
-export function CampaignFullPlanCard({ snapshot, startedAt, allocations, engagementMultiplier = 30, campaignId, showShare = true }: Props) {
+export function CampaignFullPlanCard({ snapshot, startedAt, allocations, engagementMultiplier = 30, shareToken, showShare = true }: Props) {
   const [showZeros, setShowZeros] = useState(false);
   const [copied, setCopied] = useState(false);
 
+  const canShare = !!shareToken;
+
   function copyShareLink() {
-    if (!campaignId) return;
-    const url = `${window.location.origin}/campanhas/${campaignId}/plano`;
+    if (!shareToken) return;
+    const url = `${window.location.origin}/p/plano/${shareToken}`;
     navigator.clipboard.writeText(url);
     setCopied(true);
-    toast({ title: "Link copiado", description: "Cole onde quiser enviar este plano." });
+    toast({
+      title: "Link público copiado",
+      description: "Qualquer pessoa com o link verá só este plano, sem entrar no sistema.",
+    });
     setTimeout(() => setCopied(false), 2000);
   }
 
