@@ -110,9 +110,9 @@ export default function Campanhas() {
         {/* Tabs */}
         <div className="flex items-center gap-1 border-b border-border mb-6 -mt-2">
           {([
-            { id: "lista", label: "Campanhas Ativas", icon: ListChecks },
             { id: "financeiro", label: "Planejamento Financeiro", icon: Calculator },
             { id: "execucao", label: "Execução Operacional", icon: Workflow },
+            { id: "lista", label: "Campanhas Ativas", icon: ListChecks },
           ] as const).map(t => {
             const Icon = t.icon;
             const active = tab === t.id;
