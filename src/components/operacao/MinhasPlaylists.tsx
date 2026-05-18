@@ -99,6 +99,32 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   const [logOpen, setLogOpen] = useState(false);
   const [logs, setLogs] = useState<Array<{ id: string; source: string; synced: number; failed: number; recalculated: number; errors: any; duration_ms: number | null; created_at: string }>>([]);
   const [logsLoading, setLogsLoading] = useState(false);
+  const [accounts, setAccounts] = useState<SpotifyAccountLite[]>([]);
+  const [assigningId, setAssigningId] = useState<string | null>(null);
+
+  async function loadAccounts() {
+    const { data } = await supabase
+      .from("spotify_accounts")
+      .select("id, display_name, email, status")
+      .order("display_name", { ascending: true, nullsFirst: false });
+    setAccounts((data ?? []) as SpotifyAccountLite[]);
+  }
+
+  async function assignAccount(playlistId: string, accountId: string | null) {
+    setAssigningId(playlistId);
+    const { error } = await supabase
+      .from("managed_playlists")
+      .update({ account_id: accountId })
+      .eq("id", playlistId);
+    setAssigningId(null);
+    if (error) {
+      toast({ title: "Erro ao vincular conta", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: accountId ? "Conta vinculada" : "Vínculo removido" });
+    setItems(prev => prev.map(p => p.id === playlistId ? { ...p, account_id: accountId } : p));
+  }
+
 
   async function loadLogs() {
     setLogsLoading(true);
