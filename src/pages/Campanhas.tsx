@@ -31,6 +31,8 @@ type Campaign = {
   total_delivered: number;
   created_at: string;
   snapshot_locked_at: string | null;
+  curator_id: string | null;
+  deal_id: string | null;
 };
 
 const STATUS_TONE: Record<string, "success" | "warning" | "neutral" | "danger"> = {
