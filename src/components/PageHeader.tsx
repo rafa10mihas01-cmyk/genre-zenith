@@ -45,13 +45,13 @@ export function PageHeader({
 }: PageHeaderProps) {
   const domainColor = domain ? `hsl(var(--domain-${domain}))` : undefined;
   return (
-    <div className="h-[76px] shrink-0 lg:h-[104px] -mt-4 md:-mt-6 lg:-mt-8 -mb-4 md:-mb-5 lg:-mb-6">
+    <div className="h-[88px] shrink-0 lg:h-[120px] -mt-4 md:-mt-6 lg:-mt-8 -mb-4 md:-mb-5 lg:-mb-6">
       <header
         className={cn(
           "flex",
-          "max-lg:fixed max-lg:top-14 max-lg:left-0 max-lg:right-0 max-lg:z-40 max-lg:h-[76px] max-lg:px-4 max-lg:py-2",
+          "max-lg:fixed max-lg:top-14 max-lg:left-0 max-lg:right-0 max-lg:z-40 max-lg:h-[88px] max-lg:px-4 max-lg:pt-4 max-lg:pb-2",
           "max-lg:bg-background/90 max-lg:backdrop-blur-md max-lg:supports-[backdrop-filter]:bg-background/75",
-          "lg:fixed lg:top-14 lg:left-[var(--sidebar-width)] lg:right-0 lg:z-40 lg:h-[104px] lg:px-6 lg:py-4 lg:bg-background",
+          "lg:fixed lg:top-14 lg:left-[var(--sidebar-width)] lg:right-0 lg:z-40 lg:h-[120px] lg:px-6 lg:pt-7 lg:pb-4 lg:bg-background",
           "peer-data-[state=collapsed]:lg:left-[var(--sidebar-width-icon)]",
           "border-b border-border/60",
           "flex-row items-center justify-between gap-3 md:gap-4 w-auto min-w-0 overflow-hidden",
