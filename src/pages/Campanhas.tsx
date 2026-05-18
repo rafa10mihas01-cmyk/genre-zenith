@@ -6,10 +6,11 @@ import { PageContainer } from "@/components/PageContainer";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusDot } from "@/components/ui/status-dot";
-import { Plus, RefreshCw, Target, ListChecks, Calculator } from "lucide-react";
+import { Plus, RefreshCw, Target, ListChecks, Calculator, Megaphone, CheckCircle2, Percent } from "lucide-react";
 import { NewCampaignDialog } from "@/components/campanhas/NewCampaignDialog";
 import { toast } from "@/hooks/use-toast";
 import { Calculadora } from "@/components/operacao/calculadora/Calculadora";
+import { KpiBig } from "@/components/KpiBig";
 import { cn } from "@/lib/utils";
 
 type Campaign = {
@@ -106,8 +107,42 @@ export default function Campanhas() {
       />
 
       <PageContainer>
+        {/* KPIs — padrão Comunidade/Operação (sempre acima das tabs) */}
+        <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <KpiBig
+            icon={Megaphone}
+            label="Ativas"
+            value={kpis.activeCount.toLocaleString("pt-BR")}
+            tone="success"
+            hint="Em execução agora"
+            loading={loading}
+          />
+          <KpiBig
+            icon={Target}
+            label="Meta total"
+            value={kpis.goal.toLocaleString("pt-BR")}
+            hint="Plays planejados"
+            loading={loading}
+          />
+          <KpiBig
+            icon={CheckCircle2}
+            label="Entregue"
+            value={kpis.delivered.toLocaleString("pt-BR")}
+            tone="primary"
+            hint="Plays já contabilizados"
+            loading={loading}
+          />
+          <KpiBig
+            icon={Percent}
+            label="Cumprimento médio"
+            value={`${kpis.pct}%`}
+            hint="Entregue ÷ meta"
+            loading={loading}
+          />
+        </section>
+
         {/* Tabs */}
-        <div className="flex items-center gap-1 border-b border-border mb-6 -mt-2">
+        <div className="flex items-center gap-1 border-b border-border mb-6">
           {([
             { id: "financeiro", label: "Planejamento Financeiro", icon: Calculator },
             { id: "lista", label: "Campanhas Ativas", icon: ListChecks },
@@ -134,14 +169,6 @@ export default function Campanhas() {
 
         {tab === "lista" && (
           <>
-            {/* KPIs */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-              <Kpi label="Ativas" value={kpis.activeCount.toString()} />
-              <Kpi label="Meta total" value={kpis.goal.toLocaleString()} />
-              <Kpi label="Entregue" value={kpis.delivered.toLocaleString()} />
-              <Kpi label="Cumprimento médio" value={`${kpis.pct}%`} />
-            </div>
-
             {/* Filtros */}
             <div className="flex flex-wrap gap-2 mb-4">
               {(["all", "active", "draft", "completed"] as const).map(f => (
@@ -185,14 +212,6 @@ export default function Campanhas() {
   );
 }
 
-function Kpi({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl border border-border bg-card p-5">
-      <div className="text-xs uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className="text-2xl font-semibold mt-1 tabular-nums">{value}</div>
-    </div>
-  );
-}
 
 function CampaignRow({ c }: { c: Campaign }) {
   const pct = c.goal_plays > 0 ? Math.min(100, Math.round((c.total_delivered / c.goal_plays) * 100)) : 0;
