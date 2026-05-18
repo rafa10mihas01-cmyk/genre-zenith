@@ -236,7 +236,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
           setSubtab("calc");
         }} />
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] gap-6">
+        <div className="grid grid-cols-1 gap-6">
           {/* Coluna esquerda: inputs */}
           <div className="space-y-4">
             {/* Filtro de seção — igual ao plano diário da execução */}
