@@ -38,6 +38,8 @@ type NavItem = {
   children?: SubItem[];
   /** Outras rotas que devem marcar este item como ativo (aliases legados). */
   matchPaths?: string[];
+  /** Token de cor de domínio (ex: "domain-clients"). Aplica em ícone + barra ativa. */
+  accent?: string;
 };
 type NavSection = { label: string; items: NavItem[] };
 
@@ -45,7 +47,7 @@ const sections: NavSection[] = [
   {
     label: "Cockpit",
     items: [
-      { title: "Início", url: "/", icon: Home, end: true },
+      { title: "Início", url: "/", icon: Home, end: true, accent: "domain-system" },
     ],
   },
   {
@@ -55,19 +57,22 @@ const sections: NavSection[] = [
         title: "Clientes",
         url: "/clientes",
         icon: User,
+        accent: "domain-clients",
       },
       {
         title: "Curadores",
         url: "/curadores",
         icon: UserSearch,
         matchPaths: ["/prospeccao", "/comunidade-admin"],
+        accent: "domain-curators",
       },
-      { title: "Campanhas", url: "/campanhas", icon: Target, matchPaths: ["/deals", "/playlist-deals", "/deals/comparar"] },
+      { title: "Campanhas", url: "/campanhas", icon: Target, matchPaths: ["/deals", "/playlist-deals", "/deals/comparar"], accent: "domain-campaigns" },
       {
         title: "Playlists",
         url: "/catalogo",
         icon: ListMusic,
         matchPaths: ["/playlists", "/operacao"],
+        accent: "domain-playlists",
       },
     ],
   },
@@ -79,6 +84,7 @@ const sections: NavSection[] = [
         url: "/analytics",
         icon: BarChart3,
         matchPaths: ["/inteligencia", "/cerebro", "/criacao", "/performance", "/valuation", "/benchmarks", "/matriz", "/heatmap"],
+        accent: "domain-system",
       },
     ],
   },
@@ -91,6 +97,7 @@ const sections: NavSection[] = [
         icon: Server,
         adminOnly: true,
         matchPaths: ["/infra", "/infraestrutura", "/admin/aprendizado"],
+        accent: "domain-system",
       },
     ],
   },
@@ -178,6 +185,9 @@ export function AppSidebar() {
 
                   // Item simples (sem filhos) — comportamento idêntico ao antigo.
                   if (!hasChildren) {
+                    const accentStyle = item.accent
+                      ? ({ color: `hsl(var(--${item.accent}))` } as React.CSSProperties)
+                      : undefined;
                     return (
                       <SidebarMenuItem key={item.title}>
                         <SidebarMenuButton
@@ -191,9 +201,15 @@ export function AppSidebar() {
                         >
                           <NavLink to={item.url} end={item.end} onClick={handleNav} className="flex items-center gap-3 px-3">
                             {active && !collapsed && (
-                              <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r bg-primary" />
+                              <span
+                                className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r"
+                                style={item.accent ? { backgroundColor: `hsl(var(--${item.accent}))` } : undefined}
+                              />
                             )}
-                            <item.icon className={cn("h-[18px] w-[18px] shrink-0", active ? "text-primary" : "text-sidebar-foreground/60")} />
+                            <item.icon
+                              className={cn("h-[18px] w-[18px] shrink-0", !active && "text-sidebar-foreground/60")}
+                              style={active ? accentStyle : undefined}
+                            />
                             {!collapsed && <span className="text-[14px]">{item.title}</span>}
                           </NavLink>
                         </SidebarMenuButton>

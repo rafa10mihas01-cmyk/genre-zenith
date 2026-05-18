@@ -227,7 +227,7 @@ export function ClientesLibraryTab({ deals, songs, loading }: Props) {
               >
                 {/* Identidade */}
                 <div className="flex items-start gap-3 px-4 pt-4 pb-3 min-w-0">
-                  <div className="h-11 w-11 rounded-md bg-primary/15 border border-primary/25 flex items-center justify-center text-[13px] font-bold text-primary shrink-0">
+                  <div className="h-11 w-11 rounded-md bg-domain-clients/15 border border-domain-clients/25 flex items-center justify-center text-[13px] font-bold text-domain-clients shrink-0">
                     {initials || <User className="h-4 w-4" />}
                   </div>
                   <div className="min-w-0 flex-1">

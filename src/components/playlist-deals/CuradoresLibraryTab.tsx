@@ -248,7 +248,7 @@ export function CuradoresLibraryTab({
               >
                 {/* Linha 1 — identidade */}
                 <div className="flex items-center gap-3 px-4 pt-3.5 pb-2.5 min-w-0">
-                  <div className="h-10 w-10 rounded-md bg-primary/15 border border-primary/25 flex items-center justify-center text-[13px] font-bold text-primary shrink-0">
+                  <div className="h-10 w-10 rounded-md bg-domain-curators/15 border border-domain-curators/25 flex items-center justify-center text-[13px] font-bold text-domain-curators shrink-0">
                     {initials || <Users className="h-4 w-4" />}
                   </div>
                   <div className="min-w-0 flex-1">
