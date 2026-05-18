@@ -105,6 +105,19 @@ export default function CampanhaExecucao() {
     return new Map(buildEcoPlaylistPlan(snapshot, allocs, { startedAt: camp?.started_at }).map(plan => [plan.allocationId, plan.startDay]));
   }, [snapshot, allocs, camp?.started_at]);
 
+  const ecoPositionByAllocation = useMemo(() => {
+    if (!snapshot) return new Map<string, number>();
+    return distributeEcoPositions(
+      allocs.map(a => ({
+        id: a.id,
+        planned_streams: a.planned_streams,
+        followers: a.managed_playlists?.followers ?? 0,
+      })),
+      snapshot.days,
+      (camp as any)?.engagement_multiplier ?? 30,
+    );
+  }, [snapshot, allocs, (camp as any)?.engagement_multiplier]);
+
   const hasPendingEco = allocs.some(a => a.status === "pending");
 
   async function handleDispatchEco() {
