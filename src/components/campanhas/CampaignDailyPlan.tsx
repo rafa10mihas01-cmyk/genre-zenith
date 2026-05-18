@@ -121,13 +121,10 @@ export function CampaignDailyPlan({ campaignId, snapshot, startedAt, ecoAllocati
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
           <Metric label="Dia selecionado" value={`D${day?.day ?? 1}`} hint={day?.dateLabel} />
-          <MetricEditable
-            label="Música ao iniciar"
-            icon={<Music className="h-3 w-3" />}
-            value={baselineStreams}
-            onChange={setBaselineStreams}
-            placeholder="0"
-            hint="streams no D1"
+          <Metric
+            label="Música diário"
+            value={formatInt(baselineStreams)}
+            hint={baselineStreams > 0 ? "informado na calculadora" : "não informado"}
           />
           <Metric label={`Meta do dia · ${sourceLabel}`} value={formatInt(dayTotalForSource)} hint={dayHint} />
           <Metric label={`Acumulado · ${sourceLabel}`} value={formatInt(cumulativeForSource)} hint={`${formatInt(sourceTotal)} no filtro`} />
