@@ -94,7 +94,13 @@ export function PlaylistTracksTab({ playlistId }: { playlistId: string }) {
           serverError = b?.error ?? null;
         } catch { /* */ }
       }
-      if (status === 404 || serverError === "playlist não encontrada") {
+      const msg = error?.message ?? "";
+      const isNotFound =
+        status === 404 ||
+        serverError === "playlist não encontrada" ||
+        /404/.test(msg) ||
+        /playlist n[aã]o encontrada/i.test(msg);
+      if (isNotFound) {
         setTracks([]);
         setErr("Playlist não encontrada no banco (pode ter sido removida).");
         return;
