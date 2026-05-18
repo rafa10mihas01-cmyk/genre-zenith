@@ -173,8 +173,18 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                 {fonte === "manual" && (
                   <div>
                     <Label className="text-xs">Meta de streams</Label>
-                    <Input type="number" value={meta} onChange={e => setMeta(Number(e.target.value) || 0)} />
+                    <NumberInput value={meta} onChange={setMeta} placeholder="1.000.000" />
                   </div>
+                )}
+                {fonte === "top200" && (
+                  <Top200Picker
+                    days={days}
+                    onPick={(streamsDay, pos) => {
+                      setMeta(streamsDay * days);
+                      toast({ title: `Posição #${pos}`, description: `${formatInt(streamsDay)} streams/dia × ${days}d = ${formatInt(streamsDay * days)}` });
+                    }}
+                    onOpenList={() => setSubtab("top200")}
+                  />
                 )}
                 {fonte === "concorrente" && (
                   <div className="space-y-2">
@@ -183,13 +193,13 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                     <p className="text-xs text-muted-foreground">
                       Em breve: leitura automática de streams médios. Por enquanto, defina manualmente abaixo.
                     </p>
-                    <Input type="number" value={meta} onChange={e => setMeta(Number(e.target.value) || 0)} />
+                    <NumberInput value={meta} onChange={setMeta} />
                   </div>
                 )}
                 {fonte === "orcamento" && (
                   <div className="space-y-2">
                     <Label className="text-xs">Orçamento disponível (R$)</Label>
-                    <Input type="number" value={budget} onChange={e => setBudget(Number(e.target.value) || 0)} />
+                    <NumberInput value={budget} onChange={setBudget} placeholder="40.000" />
                     <p className="text-xs text-muted-foreground">
                       Meta calculada: <span className="font-semibold text-foreground">{formatInt(effectiveMeta)} streams</span>
                     </p>
@@ -292,6 +302,95 @@ function ModeBtn({ active, onClick, label, hint }: { active: boolean; onClick: (
       <div>{label}</div>
       {hint && <div className="text-[10px] opacity-70">{hint}</div>}
     </button>
+  );
+}
+
+/** Input numérico com separador de milhar BR. Zero nunca trava: campo aceita vazio. */
+function NumberInput({
+  value, onChange, placeholder,
+}: { value: number; onChange: (v: number) => void; placeholder?: string }) {
+  const display = value > 0 ? value.toLocaleString("pt-BR") : "";
+  return (
+    <Input
+      inputMode="numeric"
+      value={display}
+      placeholder={placeholder}
+      onChange={(e) => {
+        const digits = e.target.value.replace(/\D/g, "");
+        onChange(digits ? parseInt(digits, 10) : 0);
+      }}
+      onFocus={(e) => e.target.select()}
+    />
+  );
+}
+
+/** Seletor de posição do Top 200: dropdown 1-200 + atalho pra lista completa. */
+function Top200Picker({
+  days, onPick, onOpenList,
+}: { days: number; onPick: (streamsDay: number, position: number) => void; onOpenList: () => void }) {
+  const [pos, setPos] = useState<number | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [chartDate, setChartDate] = useState<string | null>(null);
+
+  async function handlePick(p: number) {
+    setPos(p);
+    setLoading(true);
+    try {
+      const { data: latest } = await supabase
+        .from("raw_chart_daily")
+        .select("chart_date")
+        .eq("chart_name", "top200_br")
+        .order("chart_date", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!latest?.chart_date) {
+        toast({ title: "Sincronize o Top 200 primeiro", variant: "destructive" });
+        return;
+      }
+      const { data } = await supabase
+        .from("raw_chart_daily")
+        .select("streams_day, chart_date")
+        .eq("chart_name", "top200_br")
+        .eq("chart_date", latest.chart_date)
+        .eq("position", p)
+        .maybeSingle();
+      if (!data) {
+        toast({ title: `Posição ${p} sem dados`, variant: "destructive" });
+        return;
+      }
+      setChartDate(data.chart_date);
+      onPick(data.streams_day, p);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      <Label className="text-xs">Posição alvo no Top 200 BR</Label>
+      <div className="flex gap-2">
+        <select
+          value={pos ?? ""}
+          onChange={(e) => handlePick(Number(e.target.value))}
+          className="flex-1 h-10 rounded-md border border-input bg-background px-3 text-sm"
+          disabled={loading}
+        >
+          <option value="" disabled>Escolha a posição...</option>
+          {Array.from({ length: 200 }, (_, i) => i + 1).map((n) => (
+            <option key={n} value={n}>#{n}</option>
+          ))}
+        </select>
+        <Button variant="outline" size="sm" onClick={onOpenList} type="button">
+          <Table2 className="h-3.5 w-3.5 mr-1" />
+          Lista completa
+        </Button>
+      </div>
+      {pos && chartDate && (
+        <p className="text-[11px] text-muted-foreground">
+          Meta = streams/dia da posição #{pos} × {days} dias · snapshot {chartDate}
+        </p>
+      )}
+    </div>
   );
 }
 
