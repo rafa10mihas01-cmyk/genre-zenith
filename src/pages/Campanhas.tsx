@@ -198,15 +198,15 @@ export default function Campanhas() {
 
             {/* Lista */}
             {loading ? (
-              <div className="grid gap-3">
-                {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-24" />)}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-56 rounded-2xl" />)}
               </div>
             ) : filtered.length === 0 ? (
               <div className="border border-border rounded-2xl p-12 text-center text-muted-foreground">
                 Nenhuma campanha {filter !== "all" ? STATUS_LABEL[filter].toLowerCase() : ""} ainda. Crie a primeira.
               </div>
             ) : (
-              <div className="grid gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 {filtered.map(c => <CampaignRow key={c.id} c={c} onChanged={load} />)}
               </div>
             )}
@@ -269,30 +269,31 @@ function CampaignRow({ c, onChanged }: { c: Campaign; onChanged: () => void }) {
     <div className="relative">
       <Link
         to={href}
-        className="rounded-2xl border border-border bg-card hover:bg-accent/30 transition-colors p-5 flex flex-col md:flex-row md:items-center gap-4"
+        className="rounded-2xl border border-border bg-card hover:bg-accent/30 transition-colors p-5 flex flex-col gap-4 h-full"
       >
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
+        <div className="min-w-0 pr-8">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
             <StatusDot variant={STATUS_TONE[c.status]} />
             <span className="text-xs uppercase tracking-wider text-muted-foreground">{STATUS_LABEL[c.status]}</span>
-            <span className="text-xs text-muted-foreground">·</span>
-            <span className="text-xs text-muted-foreground">
-              {daysLeft > 0 ? `${daysLeft}d restantes` : daysLeft === 0 ? "Vence hoje" : `${Math.abs(daysLeft)}d em atraso`}
-            </span>
           </div>
           <div className="font-semibold truncate">{c.track_name}</div>
           {c.artist && <div className="text-sm text-muted-foreground truncate">{c.artist}</div>}
+          <div className="text-xs text-muted-foreground mt-1">
+            {daysLeft > 0 ? `${daysLeft}d restantes` : daysLeft === 0 ? "Vence hoje" : `${Math.abs(daysLeft)}d em atraso`}
+          </div>
         </div>
-        <div className="flex items-center gap-6 md:gap-8 shrink-0 pr-10">
-          <div className="text-right">
-            <div className="text-xs text-muted-foreground">Meta</div>
-            <div className="font-semibold tabular-nums">{c.goal_plays.toLocaleString()}</div>
+        <div className="mt-auto space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <div className="text-xs text-muted-foreground">Meta</div>
+              <div className="font-semibold tabular-nums">{c.goal_plays.toLocaleString()}</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Entregue</div>
+              <div className="font-semibold tabular-nums">{c.total_delivered.toLocaleString()}</div>
+            </div>
           </div>
-          <div className="text-right">
-            <div className="text-xs text-muted-foreground">Entregue</div>
-            <div className="font-semibold tabular-nums">{c.total_delivered.toLocaleString()}</div>
-          </div>
-          <div className="w-32">
+          <div>
             <div className="flex items-center justify-between text-xs mb-1">
               <span className="text-muted-foreground">Progresso</span>
               <span className="tabular-nums font-medium">{pct}%</span>
