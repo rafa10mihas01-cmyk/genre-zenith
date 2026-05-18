@@ -736,8 +736,21 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
                   <span><span className="font-semibold text-foreground">{p.tracks_count || "—"}</span> fx</span>
                 </div>
                 {/* Linha única de status — todos os badges juntos, ocupando a largura disponível */}
-                {(valuations[p.spotify_playlist_id] || p.last_diagnosis_at || !p.account_id || p.curatorial_state || (cooldownsByPlaylist[p.id]?.length ?? 0) > 0) && (
+                {(valuations[p.spotify_playlist_id] || p.last_diagnosis_at || p.account_id || !p.account_id || p.curatorial_state || (cooldownsByPlaylist[p.id]?.length ?? 0) > 0) && (
                   <div className="flex items-center gap-1 flex-wrap mt-0.5">
+                    {p.account_id && (() => {
+                      const acc = accounts.find(a => a.id === p.account_id);
+                      const label = acc?.display_name || acc?.email || "conta";
+                      return (
+                        <span
+                          title={`Conta vinculada: ${label}${acc?.email ? ` (${acc.email})` : ""}`}
+                          className="inline-flex items-center gap-0.5 px-1.5 h-[18px] rounded-full bg-primary/15 border border-primary/40 text-primary text-[10px] font-semibold max-w-[120px]"
+                        >
+                          <Link2 className="h-2.5 w-2.5 shrink-0" />
+                          <span className="truncate">{label}</span>
+                        </span>
+                      );
+                    })()}
                     {p.curatorial_state && <CuratorialStateBadge state={p.curatorial_state} compact />}
                     {valuations[p.spotify_playlist_id] && (
                       <span
