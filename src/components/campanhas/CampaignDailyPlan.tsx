@@ -201,7 +201,7 @@ export function CampaignDailyPlan({
                 <span className="text-[10px] text-muted-foreground">salvando…</span>
               )}
               <div className="ml-auto text-[10px] text-muted-foreground">
-                cap por playlist = followers × {factorPct}% / dia
+                cap por playlist = saves × {factorPct}% × % da posição
               </div>
             </div>
           );
