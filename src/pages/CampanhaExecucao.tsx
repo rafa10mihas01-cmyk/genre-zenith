@@ -10,7 +10,10 @@ import { formatBRL, formatInt } from "@/lib/campaignEngine";
 import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
 import { ExternalPackageEditor } from "@/components/campanhas/ExternalPackageEditor";
 import { CampaignMonitoring } from "@/components/campanhas/CampaignMonitoring";
-import { ArrowLeft, Lock, Music, ListMusic, TrendingUp } from "lucide-react";
+import { CampaignDailyPlan } from "@/components/campanhas/CampaignDailyPlan";
+import { buildEcoPlaylistPlan } from "@/lib/campaignOperationalPlan";
+import { toast } from "@/hooks/use-toast";
+import { ArrowLeft, Lock, Music, ListMusic, TrendingUp, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type EcoAllocRow = {
@@ -59,6 +62,8 @@ export default function CampanhaExecucao() {
   const [camp, setCamp] = useState<CampaignRow | null>(null);
   const [allocs, setAllocs] = useState<EcoAllocRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dispatchingEco, setDispatchingEco] = useState(false);
+  const [planRefreshKey, setPlanRefreshKey] = useState(0);
 
   useEffect(() => {
     if (!id) return;
@@ -88,6 +93,33 @@ export default function CampanhaExecucao() {
     const planned = allocs.reduce((s, a) => s + a.planned_streams, 0);
     return { planned, count: allocs.length };
   }, [allocs]);
+
+  const ecoPlanByAllocation = useMemo(() => {
+    if (!snapshot) return new Map<string, number>();
+    return new Map(buildEcoPlaylistPlan(snapshot, allocs).map(plan => [plan.allocationId, plan.startDay]));
+  }, [snapshot, allocs]);
+
+  const hasPendingEco = allocs.some(a => a.status === "pending");
+
+  async function handleDispatchEco() {
+    if (!id || !hasPendingEco) return;
+    setDispatchingEco(true);
+    try {
+      const now = new Date().toISOString();
+      const { error } = await supabase
+        .from("campaign_eco_allocations")
+        .update({ status: "dispatched", dispatched_at: now })
+        .eq("campaign_id", id)
+        .eq("status", "pending");
+      if (error) throw error;
+      setAllocs(prev => prev.map(a => a.status === "pending" ? { ...a, status: "dispatched", dispatched_at: now } : a));
+      toast({ title: "Eco disparado", description: "Playlists próprias marcadas como enviadas ao bot." });
+    } catch (e: any) {
+      toast({ title: "Erro ao disparar Eco", description: e.message ?? String(e), variant: "destructive" });
+    } finally {
+      setDispatchingEco(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -202,8 +234,9 @@ export default function CampanhaExecucao() {
               Distribuição automática nas playlists próprias. Total planejado: <strong className="text-foreground tabular-nums">{formatInt(ecoTotals.planned)}</strong> streams em {ecoTotals.count} playlists.
             </p>
           </div>
-          <Button variant="default" size="sm" disabled title="Disponível na próxima entrega">
-            Disparar Eco
+          <Button variant="default" size="sm" onClick={handleDispatchEco} disabled={!hasPendingEco || dispatchingEco}>
+            {dispatchingEco && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
+            {hasPendingEco ? "Disparar Eco" : "Eco disparado"}
           </Button>
         </CardHeader>
         <CardContent>
@@ -244,7 +277,7 @@ export default function CampanhaExecucao() {
                         {formatInt(a.planned_streams)}
                       </td>
                       <td className="py-2.5 px-3 text-right tabular-nums text-muted-foreground border-b border-border/30">
-                        D{a.start_day}
+                        D{ecoPlanByAllocation.get(a.id) ?? a.start_day}
                       </td>
                       <td className="py-2.5 px-3 text-right border-b border-border/30">
                         <span className={cn("inline-flex items-center px-2 h-5 rounded text-[10px] font-medium border", STATUS_TONE[a.status] ?? STATUS_TONE.pending)}>
@@ -262,7 +295,18 @@ export default function CampanhaExecucao() {
 
       {/* Bloco Externo */}
       <div className="mt-4">
-        <ExternalPackageEditor campaignId={camp.id} snapshot={snapshot} />
+        <ExternalPackageEditor campaignId={camp.id} snapshot={snapshot} onChanged={() => setPlanRefreshKey(k => k + 1)} />
+      </div>
+
+      {/* Plano operacional diário */}
+      <div className="mt-4">
+        <CampaignDailyPlan
+          campaignId={camp.id}
+          snapshot={snapshot}
+          startedAt={camp.started_at}
+          ecoAllocations={allocs}
+          refreshKey={planRefreshKey}
+        />
       </div>
 
       {/* Bloco Monitoramento */}
