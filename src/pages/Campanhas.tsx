@@ -154,14 +154,18 @@ export default function Campanhas() {
         <div className="flex items-center gap-1 border-b border-border mb-6">
           {([
             { id: "financeiro", label: "Planejamento Financeiro", icon: Calculator },
-            { id: "lista", label: "Campanhas Ativas", icon: ListChecks },
+            { id: "lista", label: "Rascunhos & Aprovação", icon: ListChecks },
+            { id: "deals", label: "Deals", icon: Handshake },
           ] as const).map(t => {
             const Icon = t.icon;
             const active = tab === t.id;
             return (
               <button
                 key={t.id}
-                onClick={() => setTab(t.id)}
+                onClick={() => {
+                  if (t.id === "deals") navigate("/playlist-deals");
+                  else setTab(t.id as "lista" | "financeiro");
+                }}
                 className={cn(
                   "px-4 h-10 inline-flex items-center gap-2 text-sm font-medium border-b-2 -mb-px transition-colors",
                   active
