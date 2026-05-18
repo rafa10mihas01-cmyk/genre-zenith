@@ -166,13 +166,13 @@ export default function CampanhaExecucao() {
       <Card className="mt-6 overflow-hidden">
         <div className="flex flex-col divide-y divide-border">
           {/* Topo: música + snapshot */}
-          <div className="p-4 flex flex-col gap-3 bg-elevated/20">
+          <div className="p-3 flex flex-col gap-2 bg-elevated/20">
             <div className="flex items-center gap-3">
               {camp.cover_url ? (
-                <img src={camp.cover_url} alt="" className="w-16 h-16 rounded-lg object-cover shadow-sm" />
+                <img src={camp.cover_url} alt="" className="w-12 h-12 rounded-md object-cover shadow-sm" />
               ) : (
-                <div className="w-16 h-16 rounded-lg bg-muted grid place-items-center">
-                  <Music className="h-6 w-6 text-muted-foreground" />
+                <div className="w-12 h-12 rounded-md bg-muted grid place-items-center">
+                  <Music className="h-5 w-5 text-muted-foreground" />
                 </div>
               )}
               <div className="min-w-0 flex-1">
@@ -209,7 +209,7 @@ export default function CampanhaExecucao() {
           </div>
 
           {/* Embaixo: curva */}
-          <div className="p-4">
+          <div className="p-3">
             <div className="flex items-center justify-between mb-2">
               <div>
                 <div className="text-sm font-semibold">Mapa de entrega</div>
@@ -383,7 +383,7 @@ function MiniCurva({ curva }: { curva: CampaignSnapshot["curva"] }) {
 
   return (
     <div className="w-full">
-      <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-24" preserveAspectRatio="none">
+      <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-16" preserveAspectRatio="none">
         {curva.map((p, i) => (
           <rect
             key={p.day}
