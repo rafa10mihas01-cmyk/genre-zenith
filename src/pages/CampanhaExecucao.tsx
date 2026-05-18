@@ -186,7 +186,7 @@ export default function CampanhaExecucao() {
 
             <div className="grid grid-cols-3 gap-3">
               <HeroStat label="Meta" value={formatInt(snapshot.meta)} hint="streams" />
-              <HeroStat label="Duração" value={`${snapshot.days}d`} hint={`pico ${formatInt(snapshot.picoPorDia)}/dia`} />
+              <HeroStat label="Duração" value={`${snapshot.days}d`} hint={`${snapshot.modo === "simultaneo" ? "simultâneo" : "sequencial"} · pico ${formatInt(snapshot.picoPorDia)}/dia`} />
               <HeroStat label="Investimento" value={formatBRL(snapshot.custoTotal)} hint={`${formatBRL(snapshot.custoPorStream)}/play`} />
             </div>
 

@@ -72,10 +72,18 @@ function distributeByCurve(total: number, curva: CampaignSnapshot["curva"], star
   return daily;
 }
 
-export function effectiveEcoStartDay(index: number, total: number, days: number, storedStartDay?: number) {
+export function effectiveEcoStartDay(
+  index: number,
+  total: number,
+  days: number,
+  storedStartDay?: number,
+  modo: "simultaneo" | "sequencial" = "simultaneo",
+) {
   if (storedStartDay && storedStartDay > 1) return Math.min(days, storedStartDay);
   if (total <= 1) return 1;
-  const rampDays = Math.max(3, Math.min(days, Math.ceil(days * 0.4)));
+  // Simultâneo: aquece rápido (~25% dos dias). Sequencial: entra em fila (~70%).
+  const rampPct = modo === "sequencial" ? 0.7 : 0.25;
+  const rampDays = Math.max(3, Math.min(days, Math.ceil(days * rampPct)));
   return Math.min(days, 1 + Math.floor((index / Math.max(1, total - 1)) * (rampDays - 1)));
 }
 
@@ -85,8 +93,8 @@ export function buildEcoPlaylistPlan(snapshot: CampaignSnapshot, allocs: EcoPlan
 
   return ordered.map((a, index) => {
     const startDay = allStoredAtDayOne
-      ? effectiveEcoStartDay(index, ordered.length, snapshot.days)
-      : effectiveEcoStartDay(index, ordered.length, snapshot.days, a.start_day);
+      ? effectiveEcoStartDay(index, ordered.length, snapshot.days, undefined, snapshot.modo)
+      : effectiveEcoStartDay(index, ordered.length, snapshot.days, a.start_day, snapshot.modo);
 
     return {
       allocationId: a.id,
