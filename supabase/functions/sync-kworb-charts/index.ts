@@ -149,8 +149,8 @@ Deno.serve(async (req) => {
     const html = await res.text();
 
     const { date, rows } = parseHtml(html);
-    if (!date || rows.length < 50) {
-      throw new Error(`Parse falhou: date=${date}, rows=${rows.length}`);
+    if (rows.length < 50) {
+      throw new Error(`Parse falhou: rows=${rows.length}`);
     }
 
     const payload = rows.map(r => ({
