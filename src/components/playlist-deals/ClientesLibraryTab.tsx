@@ -85,7 +85,13 @@ export function ClientesLibraryTab({ deals, songs, loading }: Props) {
   const [creating, setCreating] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<{ client: Client; hasLinks: boolean } | null>(null);
   const [showArchived, setShowArchived] = useState(false);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 4;
   const archivedCount = clients.filter((c) => !!c.archived_at).length;
+
+  useEffect(() => {
+    setPage(1);
+  }, [query, showArchived]);
 
   // Permite abrir o modal "Novo cliente" via evento global (botão + Novo do header)
   useEffect(() => {
