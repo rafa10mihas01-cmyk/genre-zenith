@@ -137,28 +137,54 @@ export function CampaignDailyPlan({ campaignId, snapshot, startedAt, ecoAllocati
           </div>
 
           <div className="grid grid-cols-7 sm:grid-cols-10 md:grid-cols-[repeat(15,minmax(0,1fr))] gap-1.5">
-            {plan.daily.map(d => {
-              const active = selectedDay === d.day;
-              const filteredTotal = source === "eco" ? d.eco : source === "externo" ? d.external : d.total;
+            {(() => {
+              const firstEcoDay = plan.daily.find(d => d.eco > 0)?.day;
+              const firstExtDay = plan.daily.find(d => d.external > 0)?.day;
               const peak = Math.max(1, ...plan.daily.map(p => source === "eco" ? p.eco : source === "externo" ? p.external : p.total));
-              const intensity = Math.min(1, filteredTotal / peak);
-              return (
-                <button
-                  key={d.day}
-                  onClick={() => setSelectedDay(d.day)}
-                  className={cn(
-                    "h-12 rounded-md border text-[10px] transition-colors text-left px-2 overflow-hidden",
-                    active ? "border-primary bg-primary/10 text-foreground" : "border-border bg-background hover:bg-elevated/70 text-muted-foreground",
-                  )}
-                  title={`D${d.day}: ${formatInt(filteredTotal)} streams`}
-                >
-                  <div className="font-medium tabular-nums">D{d.day}</div>
-                  <div className="mt-1 h-1 rounded-full bg-muted overflow-hidden">
-                    <div className={cn("h-full", source === "externo" ? "bg-warning" : "bg-primary")} style={{ width: `${filteredTotal > 0 ? Math.max(8, intensity * 100) : 0}%` }} />
-                  </div>
-                </button>
-              );
-            })}
+              return plan.daily.map(d => {
+                const active = selectedDay === d.day;
+                const filteredTotal = source === "eco" ? d.eco : source === "externo" ? d.external : d.total;
+                const intensity = Math.min(1, filteredTotal / peak);
+                const showStack = source === "todos";
+                const ecoPct = showStack ? (d.eco / peak) * 100 : 0;
+                const extPct = showStack ? (d.external / peak) * 100 : 0;
+                const isEcoStart = source !== "externo" && d.day === firstEcoDay;
+                const isExtStart = source !== "eco" && d.day === firstExtDay;
+                const marker = isEcoStart && isExtStart ? "★" : isEcoStart ? "♪" : isExtStart ? "◆" : null;
+                const markerTitle = isEcoStart && isExtStart ? "Início Eco + Externo" : isEcoStart ? "Início Eco" : isExtStart ? "Início Externo" : "";
+                return (
+                  <button
+                    key={d.day}
+                    onClick={() => setSelectedDay(d.day)}
+                    className={cn(
+                      "h-12 rounded-md border text-[10px] transition-colors text-left px-2 overflow-hidden relative",
+                      active ? "border-primary bg-primary/10 text-foreground" : "border-border bg-background hover:bg-elevated/70 text-muted-foreground",
+                      marker && !active && "border-dashed",
+                    )}
+                    title={`D${d.day}: ${formatInt(filteredTotal)} streams${markerTitle ? ` · ${markerTitle}` : ""}`}
+                  >
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="font-medium tabular-nums">D{d.day}</span>
+                      {marker && (
+                        <span className={cn("text-[10px] leading-none", isEcoStart && isExtStart ? "text-foreground" : isEcoStart ? "text-primary" : "text-warning")}>
+                          {marker}
+                        </span>
+                      )}
+                    </div>
+                    {showStack ? (
+                      <div className="mt-1 h-1 rounded-full bg-muted overflow-hidden flex">
+                        <div className="h-full bg-primary" style={{ width: `${ecoPct}%` }} />
+                        <div className="h-full bg-warning" style={{ width: `${extPct}%` }} />
+                      </div>
+                    ) : (
+                      <div className="mt-1 h-1 rounded-full bg-muted overflow-hidden">
+                        <div className={cn("h-full", source === "externo" ? "bg-warning" : "bg-primary")} style={{ width: `${filteredTotal > 0 ? Math.max(8, intensity * 100) : 0}%` }} />
+                      </div>
+                    )}
+                  </button>
+                );
+              });
+            })()}
           </div>
         </div>
 
