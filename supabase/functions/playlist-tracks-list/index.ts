@@ -33,8 +33,16 @@ Deno.serve(async (req) => {
     .select("id, spotify_playlist_id")
     .eq("id", playlist_id)
     .maybeSingle();
-  if (plErr) return jr({ error: plErr.message }, 500);
-  if (!pl?.spotify_playlist_id) return jr({ error: "playlist não encontrada" }, 404);
+  if (plErr) return jr({ ok: false, error: plErr.message }, 500);
+  if (!pl?.spotify_playlist_id) {
+    return jr({
+      ok: false,
+      code: "playlist_not_found",
+      error: "playlist não encontrada",
+      tracks: [],
+      total: 0,
+    });
+  }
 
   try {
     const token = await getSpotifyToken();
