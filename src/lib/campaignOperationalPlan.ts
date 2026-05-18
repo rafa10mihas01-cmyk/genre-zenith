@@ -281,6 +281,14 @@ export function distributeEcoPositions(
 export const WEEKDAY_FACTOR: number[] = [1.167, 0.833, 1.000, 1.167, 1.333, 1.500, 1.600];
 
 /**
+ * Sazonalidade semanal "plana" — média ≈ 1.0, usada quando o cap diário da
+ * faixa já está definido pela POSITION_PCT e a única variação esperada é o
+ * dip de fim-de-semana / segunda. [Dom, Seg, Ter, Qua, Qui, Sex, Sáb].
+ * Mantém a faixa estável em ~capDia e só desce um pouco Dom/Seg.
+ */
+export const WEEKDAY_FLAT_FACTOR: number[] = [0.92, 0.85, 1.00, 1.04, 1.06, 1.08, 1.05];
+
+/**
  * Aplica sazonalidade semanal à curva-base: multiplica cada `streamsDay`
  * pelo fator do dia da semana correspondente e renormaliza para preservar
  * o total exato da curva original. Não muta a curva de entrada.
