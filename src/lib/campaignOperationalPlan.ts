@@ -239,7 +239,79 @@ export function buildEcoPlaylistPlan(
   allocs: EcoPlanInput[],
   opts: { engagementMultiplier?: number } = {},
 ): EcoPlanResult {
-...
+  // Multiplicador plays/save/mês (default = 30, mercado). Reescala o cap por playlist:
+  // cap diário = followers × ECO_CAPACITY_FACTOR × (multiplier / 30).
+  const multiplier = Math.max(1, opts.engagementMultiplier ?? 30);
+  const capScale = multiplier / 30;
+
+  const ordered = [...allocs].sort((a, b) => b.planned_streams - a.planned_streams);
+  const storedStarts = ordered.map(a => Number(a.start_day || 1));
+  const generatedStarts = ordered.map((_, index) => generatedStartDay(index, ordered.length, snapshot.days, snapshot.modo));
+  const legacyStarts = ordered.map((_, index) => legacyStartDay(index, ordered.length, snapshot.days));
+  const startsLookSystemGenerated = ordered.length > 1 && (
+    storedStarts.every(s => s === 1)
+    || matchesSequence(storedStarts, generatedStarts)
+    || matchesSequence(storedStarts, legacyStarts)
+  );
+
+  const ecoFloorDay = snapshot.modo === "sequencial"
+    ? curveThresholdDay(snapshot.curva, 0.25)
+    : 1;
+
+  const plans: DailyPlaylistPlan[] = ordered.map((a, index) => {
+    const baseStart = startsLookSystemGenerated
+      ? generatedStarts[index]
+      : effectiveEcoStartDay(index, ordered.length, snapshot.days, a.start_day, snapshot.modo);
+    const startDay = Math.min(snapshot.days, Math.max(baseStart, ecoFloorDay));
+    const followers = Number(a.managed_playlists?.followers ?? 0);
+    const baseCap = Math.max(1, Math.round(followers * ECO_CAPACITY_FACTOR * capScale));
+
+    const caps = Array.from({ length: snapshot.days }, () => baseCap);
+    ECO_RAMP.forEach((mult, k) => {
+      const idx = (startDay - 1) + k;
+      if (idx < snapshot.days) caps[idx] = Math.max(1, Math.round(baseCap * mult));
+    });
+
+    const { daily, overflow } = distributeByCurve(
+      Number(a.planned_streams ?? 0),
+      snapshot.curva,
+      startDay,
+      { capDia: caps, delay: REPORTING_DELAY_DAYS },
+    );
+
+    return {
+      allocationId: a.id,
+      playlistName: a.managed_playlists?.name ?? "Playlist",
+      coverUrl: a.managed_playlists?.cover_url ?? null,
+      followers,
+      startDay,
+      totalStreams: Number(a.planned_streams ?? 0),
+      daily,
+      capDia: baseCap,
+      overflow,
+    };
+  });
+
+  let remaining = plans.reduce((s, p) => s + p.overflow, 0);
+  if (remaining > 0 && plans.length > 1) {
+    for (let pass = 0; pass < 10 && remaining > 0; pass++) {
+      let absorbed = 0;
+      for (const target of plans) {
+        if (remaining <= 0) break;
+        for (let i = target.startDay - 1; i < snapshot.days; i++) {
+          if (remaining <= 0) break;
+          const room = Math.max(0, target.capDia - target.daily[i]);
+          if (room <= 0) continue;
+          const give = Math.min(room, remaining);
+          target.daily[i] += give;
+          remaining -= give;
+          absorbed += give;
+        }
+      }
+      if (absorbed <= 0) break;
+    }
+  }
+
   const result = plans as EcoPlanResult;
   result.unmetEco = Math.max(0, Math.round(remaining));
 
