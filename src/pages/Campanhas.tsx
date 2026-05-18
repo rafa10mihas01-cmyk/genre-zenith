@@ -59,7 +59,7 @@ export default function Campanhas() {
     setLoading(true);
     const { data, error } = await supabase
       .from("campaigns")
-      .select("id, track_name, artist, goal_plays, deadline, status, total_allocated, total_delivered, created_at, snapshot_locked_at")
+      .select("id, track_name, artist, goal_plays, deadline, status, total_allocated, total_delivered, created_at, snapshot_locked_at, curator_id, deal_id")
       .order("created_at", { ascending: false });
     setLoading(false);
     if (error) {
