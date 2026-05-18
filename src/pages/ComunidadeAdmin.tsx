@@ -98,6 +98,7 @@ export default function ComunidadeAdmin() {
       <PageHeader
         title="Comunidade"
         subtitle="Gerencie convites, membros e aprovações da comunidade beta"
+        domain="community"
         actions={
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
