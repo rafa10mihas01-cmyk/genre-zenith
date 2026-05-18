@@ -38,6 +38,8 @@ type NavItem = {
   children?: SubItem[];
   /** Outras rotas que devem marcar este item como ativo (aliases legados). */
   matchPaths?: string[];
+  /** Token de cor de domínio (ex: "domain-clients"). Aplica em ícone + barra ativa. */
+  accent?: string;
 };
 type NavSection = { label: string; items: NavItem[] };
 
