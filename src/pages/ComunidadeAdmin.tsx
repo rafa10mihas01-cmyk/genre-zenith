@@ -242,31 +242,41 @@ function AuditoriaTab() {
   };
 
   return (
-    <Card>
-      <CardContent className="p-5 space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-muted-foreground">
-            {report ? `Última auditoria: ${format(new Date(report.generated_at), "dd MMM HH:mm", { locale: ptBR })}` : "—"}
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={async () => {
-              const { data, error } = await supabase.rpc("community_expire_stale" as never);
-              if (error) return toast.error("Falha", { description: error.message });
-              toast.success(`${data ?? 0} participações expiradas`);
-              run();
-            }}>Expirar vencidas</Button>
-            <Button size="sm" onClick={run} disabled={loading}>
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Reexecutar"}
-            </Button>
-          </div>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="text-sm text-muted-foreground">
+          {report ? `Última auditoria: ${format(new Date(report.generated_at), "dd MMM HH:mm", { locale: ptBR })}` : "—"}
         </div>
-        {!report ? (
-          <div className="text-sm text-muted-foreground">Carregando…</div>
-        ) : (
-          <ul className="divide-y divide-border">
-            {report.checks.map((c) => (
-              <li key={c.check} className="flex items-center justify-between py-2.5">
-                <div className="text-sm">{LABELS[c.check] ?? c.check}</div>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={async () => {
+            const { data, error } = await supabase.rpc("community_expire_stale" as never);
+            if (error) return toast.error("Falha", { description: error.message });
+            toast.success(`${data ?? 0} participações expiradas`);
+            run();
+          }}>Expirar vencidas</Button>
+          <Button size="sm" onClick={run} disabled={loading}>
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Reexecutar"}
+          </Button>
+        </div>
+      </div>
+      {!report ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {[0,1,2,3,4,5,6,7].map((i) => (
+            <div key={i} className="nx-card h-32 animate-pulse" />
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {report.checks.map((c) => (
+            <div
+              key={c.check}
+              className="rounded-2xl border border-border/50 bg-card p-4 flex flex-col gap-3 h-full hover:border-foreground/20 hover:bg-[hsl(var(--elevated))] transition-colors"
+            >
+              <div className="text-[13px] font-medium text-foreground leading-snug">
+                {LABELS[c.check] ?? c.check}
+              </div>
+              <div className="mt-auto flex items-center justify-between gap-2">
+                <span className="text-[22px] font-semibold tabular-nums text-foreground">{c.count}</span>
                 <Badge
                   variant="outline"
                   className={`text-[10px] ${
@@ -275,14 +285,14 @@ function AuditoriaTab() {
                     : "border-primary/30 text-primary"
                   }`}
                 >
-                  {c.level.toUpperCase()} · {c.count}
+                  {c.level.toUpperCase()}
                 </Badge>
-              </li>
-            ))}
-          </ul>
-        )}
-      </CardContent>
-    </Card>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
