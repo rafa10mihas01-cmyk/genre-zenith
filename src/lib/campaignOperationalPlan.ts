@@ -75,9 +75,14 @@ export const POSITION_PCT: number[] = [
 const POSITION_RESIDUAL = 0.003;
 
 /**
+ * Posições 1 e 2 são reservadas pras faixas orgânicas que trazem engajamento
+ * pra própria playlist — campanha nunca entra nelas (anti-spam Spotify).
+ */
+export const MIN_CAMPAIGN_POSITION = 3;
+
+/**
  * Posição mínima recomendada pra entregar `plannedStreams` no prazo `days`,
- * dada a playlist (`followers`) e o engajamento (`plays/save/mês`, default 30).
- * Retorna o menor número de posição cuja fatia diária cobre o ritmo necessário.
+ * respeitando o piso anti-spam (#3+) e usando a curva real de tráfego por slot.
  */
 export function recommendEcoPosition(
   plannedStreams: number,
@@ -85,17 +90,17 @@ export function recommendEcoPosition(
   followers: number,
   engagementMultiplier = 30,
 ): number {
-  if (plannedStreams <= 0 || days <= 0 || followers <= 0) return 1;
-  const dailyTraffic = followers * (engagementMultiplier / 30); // plays/dia disponíveis no inventário
+  if (plannedStreams <= 0 || days <= 0 || followers <= 0) return MIN_CAMPAIGN_POSITION;
+  const dailyTraffic = followers * (engagementMultiplier / 30);
   const dailyNeed = plannedStreams / days;
-  if (dailyTraffic <= 0) return 1;
-  for (let i = 0; i < POSITION_PCT.length; i++) {
+  if (dailyTraffic <= 0) return MIN_CAMPAIGN_POSITION;
+  // Procura o menor slot ≥ MIN_CAMPAIGN_POSITION que cobre o ritmo necessário.
+  for (let i = MIN_CAMPAIGN_POSITION - 1; i < POSITION_PCT.length; i++) {
     if (POSITION_PCT[i] * dailyTraffic >= dailyNeed) return i + 1;
   }
-  // Fora do top 20: usa residual pra estimar até onde rola — senão devolve top 1.
   const residualMax = POSITION_RESIDUAL * dailyTraffic;
   if (residualMax >= dailyNeed) return 21;
-  return 1; // demanda > capacidade — força top 1 mesmo assim
+  return MIN_CAMPAIGN_POSITION; // demanda > capacidade — força piso, mas nunca #1/#2
 }
 
 /**
