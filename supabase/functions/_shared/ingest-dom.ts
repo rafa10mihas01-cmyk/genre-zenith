@@ -56,7 +56,7 @@ export async function processDomItem(
   // Gate de ciclo de vida do deal
   const { data: dealRow } = await supabase
     .from("curator_deals")
-    .select("id, state, closed_at, token_revoked_at, token_expires_at")
+    .select("id, state, closed_at, token_revoked_at, token_expires_at, campaign_id, source")
     .eq("id", deal_id)
     .maybeSingle();
   const gate = assertDealOperable(dealRow as any);
@@ -72,6 +72,10 @@ export async function processDomItem(
       .eq("id", song_id);
     return { song_id, ok: false, error: gate.error };
   }
+
+  // Se este deal é um shadow de campanha, vamos também alimentar campaign_eco_snapshots
+  const campaignId: string | null = (dealRow as any)?.campaign_id ?? null;
+  const isCampaignShadow = (dealRow as any)?.source === "campaign_internal" && !!campaignId;
 
   // Dedupe: se já existe log dessa song nos últimos 90s, ignora
   {
@@ -191,6 +195,27 @@ export async function processDomItem(
       correlation_id: item.correlation_id ?? null,
     });
     if (insErr) skipped++; else inserted++;
+
+    // Espelha em campaign_eco_snapshots quando: shadow de campanha + playlist é própria (managed)
+    if (isCampaignShadow && sId) {
+      const { data: mp } = await supabase
+        .from("managed_playlists")
+        .select("id")
+        .eq("spotify_playlist_id", sId)
+        .maybeSingle();
+      if ((mp as any)?.id) {
+        await supabase.from("campaign_eco_snapshots").insert({
+          campaign_id: campaignId,
+          managed_playlist_id: (mp as any).id,
+          spotify_playlist_id: sId,
+          plays_24h: plays24h,
+          plays_7d: plays7d,
+          plays_28d: plays28d,
+          source: p.source ?? "spotify_for_artists_dom",
+          correlation_id: item.correlation_id ?? null,
+        });
+      }
+    }
   }
 
   if (isBaseline) {

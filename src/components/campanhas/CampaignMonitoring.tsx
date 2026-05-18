@@ -17,29 +17,37 @@ type Props = {
   onClosed?: () => void;
 };
 
-type EcoRow = { planned_streams: number; status: string };
+type EcoRow = { managed_playlist_id: string; planned_streams: number; status: string };
 type DealRow = { reconciled_total_plays: number; closed_at: string | null };
+type EcoSnap = { managed_playlist_id: string; plays_28d: number | null; plays_7d: number | null; plays_24h: number | null; captured_at: string };
 
 export function CampaignMonitoring({ campaignId, snapshot, campaignStartedAt, campaignStatus, onClosed }: Props) {
   const [loading, setLoading] = useState(true);
   const [eco, setEco] = useState<EcoRow[]>([]);
+  const [ecoSnaps, setEcoSnaps] = useState<EcoSnap[]>([]);
   const [deals, setDeals] = useState<DealRow[]>([]);
   const [closing, setClosing] = useState(false);
 
   async function load() {
     setLoading(true);
-    const [{ data: ecoData }, { data: pkgData }] = await Promise.all([
+    const [{ data: ecoData }, { data: pkgData }, { data: snapsData }] = await Promise.all([
       supabase
         .from("campaign_eco_allocations")
-        .select("planned_streams, status")
+        .select("managed_playlist_id, planned_streams, status")
         .eq("campaign_id", campaignId),
       supabase
         .from("campaign_external_package_items")
         .select("curator_deal_id, campaign_external_packages!inner(campaign_id)")
         .eq("campaign_external_packages.campaign_id", campaignId)
         .not("curator_deal_id", "is", null),
+      supabase
+        .from("campaign_eco_snapshots")
+        .select("managed_playlist_id, plays_28d, plays_7d, plays_24h, captured_at")
+        .eq("campaign_id", campaignId)
+        .order("captured_at", { ascending: false }),
     ]);
     setEco((ecoData ?? []) as any);
+    setEcoSnaps((snapsData ?? []) as any);
 
     const dealIds = (pkgData ?? []).map((p: any) => p.curator_deal_id).filter(Boolean);
     if (dealIds.length > 0) {
@@ -66,8 +74,20 @@ export function CampaignMonitoring({ campaignId, snapshot, campaignStartedAt, ca
       .slice(0, elapsedDays)
       .reduce((s, p) => s + p.streamsDay, 0);
 
-    // Entregue Eco: alocações com status done = planejado total; active = proporcional ao tempo
+    // Entregue Eco REAL: pega o snapshot mais recente por playlist (plays_28d como proxy do acumulado da campanha).
+    // Se ainda não tem snapshot pra uma playlist alocada, cai pro estimado proporcional como fallback.
+    const latestByPlaylist = new Map<string, EcoSnap>();
+    for (const s of ecoSnaps) {
+      if (!latestByPlaylist.has(s.managed_playlist_id)) latestByPlaylist.set(s.managed_playlist_id, s);
+    }
+    const hasRealData = latestByPlaylist.size > 0;
     const ecoDelivered = eco.reduce((s, a) => {
+      const snap = latestByPlaylist.get(a.managed_playlist_id);
+      if (snap) {
+        const v = snap.plays_28d ?? snap.plays_7d ?? snap.plays_24h ?? 0;
+        return s + Number(v);
+      }
+      // Fallback estimado se ainda não houver coleta
       if (a.status === "done") return s + a.planned_streams;
       if (a.status === "active" || a.status === "dispatched") {
         return s + Math.round(a.planned_streams * (elapsedDays / totalDays));
@@ -83,8 +103,8 @@ export function CampaignMonitoring({ campaignId, snapshot, campaignStartedAt, ca
     const daysLeft = Math.max(0, totalDays - elapsedDays);
     const deviating = elapsedDays >= 2 && adherence < 85;
 
-    return { totalDays, elapsedDays, plannedToDate, ecoDelivered, extDelivered, delivered, adherence, daysLeft, deviating };
-  }, [snapshot, campaignStartedAt, eco, deals]);
+    return { totalDays, elapsedDays, plannedToDate, ecoDelivered, extDelivered, delivered, adherence, daysLeft, deviating, hasRealData };
+  }, [snapshot, campaignStartedAt, eco, ecoSnaps, deals]);
 
   async function handleClose() {
     if (!confirm("Encerrar a campanha? Essa ação fixa o resultado final.")) return;
@@ -131,7 +151,7 @@ export function CampaignMonitoring({ campaignId, snapshot, campaignStartedAt, ca
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
           <KPI label="Dia" value={`${metrics.elapsedDays}/${metrics.totalDays}`} hint={`${metrics.daysLeft}d restantes`} />
           <KPI label="Planejado até hoje" value={formatInt(metrics.plannedToDate)} />
-          <KPI label="Entregue real" value={formatInt(metrics.delivered)} hint={`Eco ${formatInt(metrics.ecoDelivered)} · Ext ${formatInt(metrics.extDelivered)}`} />
+          <KPI label={metrics.hasRealData ? "Entregue real" : "Entregue (estim.)"} value={formatInt(metrics.delivered)} hint={`Eco ${formatInt(metrics.ecoDelivered)} · Ext ${formatInt(metrics.extDelivered)}${metrics.hasRealData ? " · bot" : ""}`} />
           <KPI
             label="Aderência"
             value={`${metrics.adherence.toFixed(0)}%`}
