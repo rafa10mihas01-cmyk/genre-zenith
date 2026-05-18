@@ -1,8 +1,7 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Grid3x3, Download, ExternalLink, Link2, Check } from "lucide-react";
+import { Grid3x3, Download, Link2, Check } from "lucide-react";
 import { formatInt } from "@/lib/campaignEngine";
 import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
 import { buildEcoPlaylistPlan, type DailyPlaylistPlan } from "@/lib/campaignOperationalPlan";
@@ -21,7 +20,7 @@ type Props = {
   startedAt: string;
   allocations: EcoAlloc[];
   engagementMultiplier?: number;
-  campaignId?: string;
+  shareToken?: string | null;
   showShare?: boolean;
 };
 
@@ -31,16 +30,21 @@ function dateLabel(startedAt: string, day: number) {
   return base.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
 }
 
-export function CampaignFullPlanCard({ snapshot, startedAt, allocations, engagementMultiplier = 30, campaignId, showShare = true }: Props) {
+export function CampaignFullPlanCard({ snapshot, startedAt, allocations, engagementMultiplier = 30, shareToken, showShare = true }: Props) {
   const [showZeros, setShowZeros] = useState(false);
   const [copied, setCopied] = useState(false);
 
+  const canShare = !!shareToken;
+
   function copyShareLink() {
-    if (!campaignId) return;
-    const url = `${window.location.origin}/campanhas/${campaignId}/plano`;
+    if (!shareToken) return;
+    const url = `${window.location.origin}/p/plano/${shareToken}`;
     navigator.clipboard.writeText(url);
     setCopied(true);
-    toast({ title: "Link copiado", description: "Cole onde quiser enviar este plano." });
+    toast({
+      title: "Link público copiado",
+      description: "Qualquer pessoa com o link verá só este plano, sem entrar no sistema.",
+    });
     setTimeout(() => setCopied(false), 2000);
   }
 
@@ -95,18 +99,11 @@ export function CampaignFullPlanCard({ snapshot, startedAt, allocations, engagem
           <Button size="sm" variant="ghost" onClick={() => setShowZeros(s => !s)}>
             {showZeros ? "Esconder zeros" : "Mostrar zeros"}
           </Button>
-          {showShare && campaignId && (
-            <>
-              <Button size="sm" variant="outline" onClick={copyShareLink}>
-                {copied ? <Check className="h-4 w-4 mr-1.5" /> : <Link2 className="h-4 w-4 mr-1.5" />}
-                {copied ? "Copiado" : "Copiar link"}
-              </Button>
-              <Button size="sm" variant="outline" asChild>
-                <Link to={`/campanhas/${campaignId}/plano`} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="h-4 w-4 mr-1.5" /> Abrir página
-                </Link>
-              </Button>
-            </>
+          {showShare && (
+            <Button size="sm" variant="outline" onClick={copyShareLink}>
+              {copied ? <Check className="h-4 w-4 mr-1.5" /> : <Link2 className="h-4 w-4 mr-1.5" />}
+              {copied ? "Copiado" : "Copiar link público"}
+            </Button>
           )}
           <Button size="sm" variant="outline" onClick={handleExport}>
             <Download className="h-4 w-4 mr-1.5" /> CSV

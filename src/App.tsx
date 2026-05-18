@@ -45,7 +45,7 @@ import AdminAprendizado from "./pages/AdminAprendizado";
 import Campanhas from "./pages/Campanhas";
 import CampanhaDetalhe from "./pages/CampanhaDetalhe";
 import CampanhaExecucao from "./pages/CampanhaExecucao";
-import CampanhaPlano from "./pages/CampanhaPlano";
+import PlanoCampanhaPublico from "./pages/PlanoCampanhaPublico";
 import Analytics from "./pages/Analytics";
 import Valuation from "./pages/Valuation";
 import PlaylistDetail from "./pages/PlaylistDetail";
@@ -94,6 +94,7 @@ const App = () => (
               <Route path="/spotify/callback" element={<SpotifyCallback />} />
               <Route path="/curador/:token" element={<CuratorPage />} />
               <Route path="/campanha/:token" element={<ClientCampaignPage />} />
+              <Route path="/p/plano/:token" element={<PlanoCampanhaPublico />} />
               {/* Comunidade — beta fechado por convite. Membro não usa AppLayout. */}
               <Route path="/comunidade/join/:code" element={<JoinInvite />} />
               <Route path="/comunidade/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
@@ -125,7 +126,7 @@ const App = () => (
               <Route path="/deals/:dealId" element={<Protected><DealDetail /></Protected>} />
               <Route path="/campanhas" element={<Protected><Campanhas /></Protected>} />
               <Route path="/campanhas/:id/execucao" element={<Protected><CampanhaExecucao /></Protected>} />
-              <Route path="/campanhas/:id/plano" element={<Protected><CampanhaPlano /></Protected>} />
+              
               <Route path="/campanhas/:id" element={<Protected><CampanhaDetalhe /></Protected>} />
               <Route path="/analytics" element={<Protected><Analytics /></Protected>} />
               {/* /analytics/* viraram redirect para as canônicas /performance e /valuation. */}
