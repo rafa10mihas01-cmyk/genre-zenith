@@ -31,8 +31,18 @@ function dateLabel(startedAt: string, day: number) {
   return base.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
 }
 
-export function CampaignFullPlanCard({ snapshot, startedAt, allocations, engagementMultiplier = 30 }: Props) {
+export function CampaignFullPlanCard({ snapshot, startedAt, allocations, engagementMultiplier = 30, campaignId, showShare = true }: Props) {
   const [showZeros, setShowZeros] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  function copyShareLink() {
+    if (!campaignId) return;
+    const url = `${window.location.origin}/campanhas/${campaignId}/plano`;
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    toast({ title: "Link copiado", description: "Cole onde quiser enviar este plano." });
+    setTimeout(() => setCopied(false), 2000);
+  }
 
   const plans = useMemo<DailyPlaylistPlan[]>(
     () => buildEcoPlaylistPlan(snapshot, allocations as any, { engagementMultiplier, startedAt }),
