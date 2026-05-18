@@ -105,9 +105,17 @@ export function CuradoresLibraryTab({
   const [editing, setEditing] = useState<Curator | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<{ curator: Curator; hasDeals: boolean } | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>("card");
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = viewMode === "card" ? 4 : 8;
 
 
   const archivedCount = curators.filter((c) => !!c.archived_at).length;
+
+  useEffect(() => {
+    setPage(1);
+  }, [query, showArchived, viewMode]);
+
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
