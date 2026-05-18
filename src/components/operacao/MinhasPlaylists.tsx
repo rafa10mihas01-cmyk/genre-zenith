@@ -422,27 +422,8 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
 
   return (
     <section className="space-y-4">
-      {/* KPI bar */}
-      {activeItems.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          <div className="nx-card !p-3 flex flex-col gap-0.5">
-            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Health médio</span>
-            <span className="text-lg font-semibold tabular-nums">{avgHealth}</span>
-          </div>
-          <div className="nx-card !p-3 flex flex-col gap-0.5">
-            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Top performers</span>
-            <span className="text-lg font-semibold tabular-nums text-primary">{topPerf}</span>
-          </div>
-          <div className="nx-card !p-3 flex flex-col gap-0.5">
-            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Em risco</span>
-            <span className={cn("text-lg font-semibold tabular-nums", atRisk > 0 && "text-destructive")}>{atRisk}</span>
-          </div>
-          <div className="nx-card !p-3 flex flex-col gap-0.5">
-            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Inativas</span>
-            <span className={cn("text-lg font-semibold tabular-nums", inactive > 0 && "text-warning")}>{inactive}</span>
-          </div>
-        </div>
-      )}
+
+
 
       {/* Top oportunidades — match score (colapsado por padrão) */}
       {opportunities.length > 0 && (
