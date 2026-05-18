@@ -51,6 +51,7 @@ export default function Prospecao() {
       <PageHeader
         title="Curadores"
         subtitle="Curadores ativos em deals e prospecção de novos contatos"
+        domain="curators"
         actions={
           <Button
             variant="outline"
