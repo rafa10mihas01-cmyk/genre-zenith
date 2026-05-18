@@ -324,7 +324,7 @@ export function buildEcoPlaylistPlan(
 
     const { daily, overflow } = distributeByCurve(
       Number(a.planned_streams ?? 0),
-      snapshot.curva,
+      curva,
       startDay,
       { capDia: caps, delay: REPORTING_DELAY_DAYS },
     );
