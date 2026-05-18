@@ -35,7 +35,7 @@ export default function Clientes() {
   };
 
   return (
-    <PageContainer>
+    <>
       <PageHeader
         title="Clientes"
         subtitle="Gerenciar artistas e labels contratantes"
@@ -63,6 +63,8 @@ export default function Clientes() {
           </div>
         }
       />
+
+      <PageContainer>
 
       {/* KPIs — padrão Comunidade/Operação */}
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
