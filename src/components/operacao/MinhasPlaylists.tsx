@@ -597,29 +597,22 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
           <button
             onClick={() => setShowArchived(false)}
             className={cn(
-              "h-9 px-2.5 sm:px-3 rounded-full text-[11px] sm:text-xs font-medium border transition-colors tabular-nums shrink-0",
+              "h-9 px-3 rounded-full text-[11px] sm:text-xs font-medium border transition-colors tabular-nums shrink-0",
               !showArchived
                 ? "bg-primary/15 border-primary/40 text-primary"
                 : "bg-elevated border-border text-muted-foreground hover:text-foreground",
             )}
-          >
-            <span className="hidden sm:inline">Ativas </span>
-            <span className="sm:hidden">A </span>
-            ({items.filter(i => !i.archived_at).length})
-          </button>
+          >Ativas ({items.filter(i => !i.archived_at).length})</button>
           <button
             onClick={() => setShowArchived(true)}
             className={cn(
-              "h-9 px-2.5 sm:px-3 rounded-full text-[11px] sm:text-xs font-medium border transition-colors tabular-nums shrink-0",
+              "h-9 px-3 rounded-full text-[11px] sm:text-xs font-medium border transition-colors tabular-nums shrink-0",
               showArchived
                 ? "bg-primary/15 border-primary/40 text-primary"
                 : "bg-elevated border-border text-muted-foreground hover:text-foreground",
             )}
-          >
-            <span className="hidden sm:inline">Lixeira </span>
-            <span className="sm:hidden">L </span>
-            ({items.filter(i => i.archived_at).length})
-          </button>
+          >Lixeira ({items.filter(i => i.archived_at).length})</button>
+
 
 
 
