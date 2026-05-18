@@ -29,8 +29,11 @@ const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElemen
   <div
     ref={ref}
     className={cn(
-      "rounded-2xl bg-card text-card-foreground shadow-sm",
-      "border border-border dark:border-white/[0.04]",
+      // Alinhado ao .nx-card global (mesmo gradiente, sombra e borda).
+      // Assim todo <Card/> shadcn fica indistinguível de um .nx-card.
+      "nx-card",
+      // text-card-foreground preservado pra compatibilidade com slots internos
+      "text-card-foreground",
       className,
     )}
     {...props}
