@@ -59,11 +59,6 @@ export function CampaignFullPlanCard({
     setTimeout(() => setCopied(false), 2000);
   }
 
-  const plans = useMemo<DailyPlaylistPlan[]>(
-    () => buildEcoPlaylistPlan(snapshot, allocations as any, { engagementMultiplier, startedAt }),
-    [snapshot, allocations, engagementMultiplier, startedAt],
-  );
-
   const days = snapshot.days;
 
   const positionByAllocation = useMemo(
@@ -78,6 +73,15 @@ export function CampaignFullPlanCard({
         engagementMultiplier,
       ),
     [allocations, days, engagementMultiplier],
+  );
+
+  const plans = useMemo<DailyPlaylistPlan[]>(
+    () => buildEcoPlaylistPlan(snapshot, allocations as any, {
+      engagementMultiplier,
+      startedAt,
+      positions: positionByAllocation,
+    }),
+    [snapshot, allocations, engagementMultiplier, startedAt, positionByAllocation],
   );
 
   const spotifyByAllocation = useMemo(() => {
