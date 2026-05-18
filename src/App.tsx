@@ -94,6 +94,7 @@ const App = () => (
               <Route path="/spotify/callback" element={<SpotifyCallback />} />
               <Route path="/curador/:token" element={<CuratorPage />} />
               <Route path="/campanha/:token" element={<ClientCampaignPage />} />
+              <Route path="/p/plano/:token" element={<PlanoCampanhaPublico />} />
               {/* Comunidade — beta fechado por convite. Membro não usa AppLayout. */}
               <Route path="/comunidade/join/:code" element={<JoinInvite />} />
               <Route path="/comunidade/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
