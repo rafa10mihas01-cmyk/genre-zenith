@@ -388,6 +388,11 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   const inactive = scoreRows.filter(s => s.activity_score < 30).length;
   const topPerf = scoreRows.filter(s => s.health_score >= 70).length;
 
+  useEffect(() => {
+    onStats?.({ avgHealth, topPerf, atRisk, inactive });
+  }, [avgHealth, topPerf, atRisk, inactive, onStats]);
+
+
   // ====== Match score: top oportunidades ======
   // Score = headroom_pct * (confidence/100), penaliza sinais e capacidade desconhecida.
   const opportunities = useMemo(() => {
