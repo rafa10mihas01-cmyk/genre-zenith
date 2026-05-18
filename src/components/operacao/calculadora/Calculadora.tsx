@@ -7,18 +7,23 @@ import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 import { Top200Tab } from "./Top200Tab";
 import { CalculadoraResultado } from "./CalculadoraResultado";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 import {
   calcCampaign, reverseFromBudget, formatBRL, formatInt,
   DEFAULT_SPLIT, COST_PER_STREAM,
   type Modo, type Perfil, type CampaignResult,
 } from "@/lib/campaignEngine";
-import { Calculator, Table2, ArrowRight, Target as TargetIcon, Users, Wallet, Music } from "lucide-react";
+import { Calculator, Table2, ArrowRight, Target as TargetIcon, Users, Wallet, Music, Search, CheckCircle2, X, Loader2 } from "lucide-react";
 
 type Fonte = "manual" | "top200" | "concorrente" | "orcamento";
+
+type TrackMeta = { title: string | null; artist: string | null; thumbnail_url: string | null; id: string };
 
 export interface CalculadoraHandoff {
   result: CampaignResult;
   trackUrl: string;
+  track: TrackMeta | null;
   fonte: Fonte;
 }
 
@@ -28,6 +33,25 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
   // Inputs
   const [fonte, setFonte] = useState<Fonte>("manual");
   const [trackUrl, setTrackUrl] = useState("");
+  const [track, setTrack] = useState<TrackMeta | null>(null);
+  const [trackLoading, setTrackLoading] = useState(false);
+
+  async function buscarMusica() {
+    const url = trackUrl.trim();
+    if (!url) { toast({ title: "Cole o link do Spotify primeiro" }); return; }
+    setTrackLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("fetch-spotify-meta", { body: { url } });
+      if (error) throw error;
+      if (!data?.ok) throw new Error(data?.error ?? "Não consegui ler esse link");
+      if (data.type !== "track") throw new Error("O link precisa ser de uma faixa (track)");
+      setTrack({ id: data.id, title: data.title, artist: data.artist, thumbnail_url: data.thumbnail_url });
+    } catch (e: any) {
+      toast({ title: "Erro ao buscar música", description: e?.message ?? String(e), variant: "destructive" });
+    } finally {
+      setTrackLoading(false);
+    }
+  }
   const [meta, setMeta] = useState(1_000_000);
   const [days, setDays] = useState<number>(60);
   const [budget, setBudget] = useState(40_000);
@@ -86,18 +110,51 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm">Música</CardTitle>
-                <CardDescription>Link do Spotify (opcional nesta etapa)</CardDescription>
+                <CardDescription>Cole o link do Spotify e clique em Buscar pra confirmar a faixa</CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="relative">
-                  <Music className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="https://open.spotify.com/track/..."
-                    value={trackUrl}
-                    onChange={e => setTrackUrl(e.target.value)}
-                    className="pl-9"
-                  />
+              <CardContent className="space-y-3">
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Music className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="https://open.spotify.com/track/..."
+                      value={trackUrl}
+                      onChange={e => { setTrackUrl(e.target.value); setTrack(null); }}
+                      onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); buscarMusica(); } }}
+                      className="pl-9"
+                    />
+                  </div>
+                  <Button onClick={buscarMusica} disabled={trackLoading || !trackUrl.trim()} variant="outline">
+                    {trackLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                    <span className="ml-1.5 hidden sm:inline">Buscar</span>
+                  </Button>
                 </div>
+
+                {track && (
+                  <div className="flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/5 p-3">
+                    {track.thumbnail_url ? (
+                      <img src={track.thumbnail_url} alt={track.title ?? ""} className="h-14 w-14 rounded-md object-cover shrink-0" />
+                    ) : (
+                      <div className="h-14 w-14 rounded-md bg-muted shrink-0 grid place-items-center">
+                        <Music className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold truncate text-sm flex items-center gap-1.5">
+                        <CheckCircle2 className="h-3.5 w-3.5 text-primary shrink-0" />
+                        {track.title ?? "Faixa"}
+                      </div>
+                      {track.artist && <div className="text-xs text-muted-foreground truncate">{track.artist}</div>}
+                    </div>
+                    <button
+                      onClick={() => { setTrack(null); setTrackUrl(""); }}
+                      className="text-muted-foreground hover:text-foreground shrink-0"
+                      aria-label="Limpar"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -189,7 +246,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                 size="lg"
                 className="w-full"
                 variant="solid"
-                onClick={() => onContinue({ result, trackUrl, fonte })}
+                onClick={() => onContinue({ result, trackUrl, track, fonte })}
               >
                 Continuar para execução
                 <ArrowRight className="h-4 w-4 ml-2" />
