@@ -29,8 +29,11 @@ const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElemen
   <div
     ref={ref}
     className={cn(
-      "rounded-2xl bg-card text-card-foreground shadow-sm",
-      "border border-border dark:border-white/[0.04]",
+      // Alinhado ao .nx-card global (mesmo gradiente, sombra e borda).
+      // Assim todo <Card/> shadcn fica indistinguível de um .nx-card.
+      "nx-card",
+      // text-card-foreground preservado pra compatibilidade com slots internos
+      "text-card-foreground",
       className,
     )}
     {...props}
@@ -43,8 +46,8 @@ const CardHeader = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDiv
     <div
       ref={ref}
       className={cn(
-        "flex flex-col gap-1.5",
-        "p-4 md:p-5",
+        // Padding vem do .nx-card pai; aqui só cuidamos do layout vertical.
+        "flex flex-col gap-1.5 mb-4 last:mb-0",
         className,
       )}
       {...props}
@@ -78,7 +81,8 @@ const CardContent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDi
   ({ className, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn("p-4 md:p-5 pt-0 md:pt-0", className)}
+      // Padding vem do .nx-card pai. Slot é puramente estrutural.
+      className={cn(className)}
       {...props}
     />
   ),
@@ -89,7 +93,7 @@ const CardFooter = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDiv
   ({ className, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn("flex items-center p-4 md:p-5 pt-0 md:pt-0", className)}
+      className={cn("flex items-center mt-4 first:mt-0", className)}
       {...props}
     />
   ),
