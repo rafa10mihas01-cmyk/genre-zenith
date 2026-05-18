@@ -6,11 +6,10 @@ import { PageContainer } from "@/components/PageContainer";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusDot } from "@/components/ui/status-dot";
-import { Plus, RefreshCw, Target, ListChecks, Calculator, Workflow } from "lucide-react";
+import { Plus, RefreshCw, Target, ListChecks, Calculator } from "lucide-react";
 import { NewCampaignDialog } from "@/components/campanhas/NewCampaignDialog";
 import { toast } from "@/hooks/use-toast";
-import { PlanejadorMeta } from "@/components/operacao/PlanejadorMeta";
-import { Calculadora, type CalculadoraHandoff } from "@/components/operacao/calculadora/Calculadora";
+import { Calculadora } from "@/components/operacao/calculadora/Calculadora";
 import { cn } from "@/lib/utils";
 
 type Campaign = {
@@ -43,8 +42,7 @@ export default function Campanhas() {
   const [filter, setFilter] = useState<"all" | "active" | "draft" | "completed">("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [recalcing, setRecalcing] = useState(false);
-  const [tab, setTab] = useState<"lista" | "financeiro" | "execucao">("financeiro");
-  const [handoff, setHandoff] = useState<CalculadoraHandoff | null>(null);
+  const [tab, setTab] = useState<"lista" | "financeiro">("financeiro");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -111,7 +109,6 @@ export default function Campanhas() {
         <div className="flex items-center gap-1 border-b border-border mb-6 -mt-2">
           {([
             { id: "financeiro", label: "Planejamento Financeiro", icon: Calculator },
-            { id: "execucao", label: "Execução Operacional", icon: Workflow },
             { id: "lista", label: "Campanhas Ativas", icon: ListChecks },
           ] as const).map(t => {
             const Icon = t.icon;
