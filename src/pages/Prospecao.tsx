@@ -164,7 +164,8 @@ export default function Prospecao() {
             <CuradoresCRM segment="prospeccao" />
           </>
         )}
-      </section>
-    </PageContainer>
+        </section>
+      </PageContainer>
+    </>
   );
 }
