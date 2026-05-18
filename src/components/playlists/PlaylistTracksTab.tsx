@@ -83,7 +83,23 @@ export function PlaylistTracksTab({ playlistId }: { playlistId: string }) {
       const { data, error } = await supabase.functions.invoke("playlist-tracks-list", {
         body: { playlist_id: playlistId },
       });
-      if (error || !data?.ok) throw new Error(error?.message ?? data?.error ?? "Falhou");
+      // Lê o corpo do erro pra distinguir 404 (playlist removida) de falha real
+      let serverError: string | null = null;
+      let status: number | null = null;
+      if (error && (error as any).context) {
+        try {
+          const ctx = (error as any).context as Response;
+          status = ctx.status ?? null;
+          const b = await ctx.clone().json().catch(() => null);
+          serverError = b?.error ?? null;
+        } catch { /* */ }
+      }
+      if (status === 404 || serverError === "playlist não encontrada") {
+        setTracks([]);
+        setErr("Playlist não encontrada no banco (pode ter sido removida).");
+        return;
+      }
+      if (error || !data?.ok) throw new Error(serverError ?? error?.message ?? data?.error ?? "Falhou");
       setTracks(data.tracks ?? []);
     } catch (e: any) {
       setErr(e.message);
