@@ -130,58 +130,18 @@ export function CampaignDailyPlan({ campaignId, snapshot, startedAt, ecoAllocati
         </Button>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="rounded-lg border border-dashed border-border bg-elevated/10 p-3">
-          <div className="flex items-center gap-2 mb-2">
-            <Music className="h-3.5 w-3.5 text-muted-foreground" />
-            <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Referência da música (apenas visual)</div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <label className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span className="min-w-[110px]">Streams ao cadastrar</span>
-              <Input
-                type="number"
-                inputMode="numeric"
-                min={0}
-                value={baselineStreams || ""}
-                onChange={(e) => setBaselineStreams(Number(e.target.value) || 0)}
-                placeholder="ex: 240.000"
-                className="h-8 text-sm tabular-nums"
-              />
-            </label>
-            <label className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span className="min-w-[110px]">Diário atual</span>
-              <Input
-                type="number"
-                inputMode="numeric"
-                min={0}
-                value={dailyBase || ""}
-                onChange={(e) => setDailyBase(Number(e.target.value) || 0)}
-                placeholder="ex: 4.200"
-                className="h-8 text-sm tabular-nums"
-              />
-            </label>
-          </div>
-          {(baselineStreams > 0 || dailyBase > 0) && (
-            <div className="mt-2 text-[10px] text-muted-foreground tabular-nums">
-              Esses números são só referência. Não alteram o cálculo da campanha — entram só na soma "esperado real" abaixo.
-            </div>
-          )}
-        </div>
-
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
           <Metric label="Dia selecionado" value={`D${day?.day ?? 1}`} hint={day?.dateLabel} />
-          <Metric
-            label={`Meta do dia · ${sourceLabel}`}
-            value={formatInt(dayTotalForSource)}
-            hint={dailyBase > 0 ? `Música ${formatInt(dailyBase)} + campanha ${formatInt(dayTotalForSource)} = ${formatInt(dailyBase + dayTotalForSource)} esperado` : dayHint}
+          <MetricEditable
+            label="Música ao iniciar"
+            icon={<Music className="h-3 w-3" />}
+            value={baselineStreams}
+            onChange={setBaselineStreams}
+            placeholder="0"
+            hint="streams no D1"
           />
-          <Metric
-            label={`Acumulado · ${sourceLabel}`}
-            value={formatInt(cumulativeForSource)}
-            hint={baselineStreams > 0 || dailyBase > 0
-              ? `Música ${formatInt(baselineStreams + dailyBase * selectedDay)} + campanha ${formatInt(cumulativeForSource)} = ${formatInt(baselineStreams + dailyBase * selectedDay + cumulativeForSource)} esperado`
-              : `${formatInt(sourceTotal)} no filtro`}
-          />
+          <Metric label={`Meta do dia · ${sourceLabel}`} value={formatInt(dayTotalForSource)} hint={dayHint} />
+          <Metric label={`Acumulado · ${sourceLabel}`} value={formatInt(cumulativeForSource)} hint={`${formatInt(sourceTotal)} no filtro`} />
           <Metric label="Ativos no dia" value={activeValue} hint={activeHint} />
         </div>
 
