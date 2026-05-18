@@ -67,6 +67,12 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
   const [startDate, setStartDate] = useState<string>(new Date().toISOString().slice(0, 10));
   const [deadline, setDeadline] = useState<string>("");
   const [notes, setNotes] = useState("");
+  const [clientId, setClientId] = useState<string>("");
+  const [curatorId, setCuratorId] = useState<string>("");
+
+  // listas (carregadas ao abrir)
+  const [clientsList, setClientsList] = useState<{ id: string; name: string }[]>([]);
+  const [curatorsList, setCuratorsList] = useState<{ id: string; name: string }[]>([]);
 
   const [fetchingMeta, setFetchingMeta] = useState(false);
 
@@ -74,16 +80,31 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
   const [loadingSugg, setLoadingSugg] = useState(false);
   const [items, setItems] = useState<Selection[]>([]);
 
-  // step 3
-  const [activate, setActivate] = useState(true);
+  // step 3 — default rascunho (não ativa direto; usuário aprova na lista)
+  const [activate, setActivate] = useState(false);
 
   const reset = () => {
     setStep(1); setBusy(false);
     setTrackName(""); setArtist(""); setTrackUrl(""); setGoal(50000); setNotes("");
     setStartDate(new Date().toISOString().slice(0, 10));
     setDeadline("");
-    setItems([]); setActivate(true);
+    setClientId(""); setCuratorId("");
+    setItems([]); setActivate(false);
   };
+
+  // Carrega clientes + curadores quando abre
+  useEffect(() => {
+    if (!open) return;
+    void (async () => {
+      const [{ data: cls }, { data: crs }] = await Promise.all([
+        supabase.from("clients").select("id, name").is("archived_at", null).order("name"),
+        supabase.from("curators").select("id, name").order("name"),
+      ]);
+      setClientsList((cls ?? []) as { id: string; name: string }[]);
+      setCuratorsList((crs ?? []) as { id: string; name: string }[]);
+    })();
+  }, [open]);
+
 
   // ─── Rascunho persistente ─────────────────────────────────────────────────
   // Mantém os campos preenchidos mesmo se o usuário fechar o dialog ou recarregar a página.
