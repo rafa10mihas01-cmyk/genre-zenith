@@ -20,6 +20,7 @@ import RootRoute from "./components/RootRoute";
 import Operacao from "./pages/Operacao";
 import Prospecao from "./pages/Prospecao";
 import Clientes from "./pages/Clientes";
+import ClienteDetalhe from "./pages/ClienteDetalhe";
 import Performance from "./pages/Performance";
 import PlaylistDeals from "./pages/PlaylistDeals";
 import DealDetail from "./pages/DealDetail";
@@ -132,6 +133,7 @@ const App = () => (
               {/* Curadores: hub canônico é /curadores (mesma página de Prospecção, CRM único). */}
               <Route path="/curadores" element={<Protected><Prospecao /></Protected>} />
               <Route path="/clientes" element={<Protected><Clientes /></Protected>} />
+              <Route path="/clientes/:id" element={<Protected><ClienteDetalhe /></Protected>} />
               <Route path="/curadores/comparar" element={<Navigate to="/deals/comparar" replace />} />
               <Route path="/curadores/:id" element={<Protected><CuradorDetail /></Protected>} />
               <Route path="/curadoria-preview" element={<Protected><CuradoriaPreview /></Protected>} />

@@ -1,6 +1,7 @@
 // ClientesLibraryTab — biblioteca de clientes (artistas/labels contratantes).
 // Espelha o visual da CuradoresLibraryTab para manter o padrão da página.
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Search,
   User,
@@ -77,9 +78,9 @@ interface Props {
 }
 
 export function ClientesLibraryTab({ deals, songs, loading }: Props) {
+  const navigate = useNavigate();
   const { clients, loading: loadingClients, addClient, updateClient, archiveClient, deleteClient, reload } = useClients();
   const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState<Client | null>(null);
   const [editing, setEditing] = useState<Client | null>(null);
   const [creating, setCreating] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<{ client: Client; hasLinks: boolean } | null>(null);
@@ -205,7 +206,7 @@ export function ClientesLibraryTab({ deals, songs, loading }: Props) {
             return (
               <div
                 key={client.id}
-                onClick={() => setSelected(client)}
+                onClick={() => navigate(`/clientes/${client.id}`)}
                 className={cn(
                   "group relative rounded-2xl border border-border/50 bg-card transition-colors cursor-pointer",
                   "hover:border-foreground/20 hover:bg-[hsl(var(--elevated))]",
@@ -252,7 +253,7 @@ export function ClientesLibraryTab({ deals, songs, loading }: Props) {
                         className="gap-2 rounded-lg"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setSelected(client);
+                          navigate(`/clientes/${client.id}`);
                         }}
                       >
                         <Music2 className="h-4 w-4" /> Ver músicas
@@ -360,21 +361,7 @@ export function ClientesLibraryTab({ deals, songs, loading }: Props) {
         </div>
       )}
 
-      {/* Sheet — músicas e links do cliente selecionado */}
-      <Sheet open={!!selected} onOpenChange={(v) => !v && setSelected(null)}>
-        <SheetContent side="right" className="w-full sm:max-w-xl overflow-y-auto">
-          {selected && (
-            <ClientDetailContent
-              client={selected}
-              songs={songs.filter((s) => s.client_id === selected.id)}
-              deals={deals}
-              onEdit={() => {
-                setEditing(selected);
-              }}
-            />
-          )}
-        </SheetContent>
-      </Sheet>
+      {/* Detalhe do cliente vive em /clientes/:id — sem drawer aqui. */}
 
       {/* Dialog — criar / editar */}
       <ClientFormDialog
@@ -592,7 +579,7 @@ const CLIENT_TYPE_OPTIONS: { value: ClientType; label: string }[] = [
   { value: "other",    label: "Outro" },
 ];
 
-function ClientFormDialog({
+export function ClientFormDialog({
   open,
   client,
   onClose,
