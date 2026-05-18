@@ -6,11 +6,10 @@ import { PageContainer } from "@/components/PageContainer";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusDot } from "@/components/ui/status-dot";
-import { Plus, RefreshCw, Target, ListChecks, Calculator, Workflow } from "lucide-react";
+import { Plus, RefreshCw, Target, ListChecks, Calculator } from "lucide-react";
 import { NewCampaignDialog } from "@/components/campanhas/NewCampaignDialog";
 import { toast } from "@/hooks/use-toast";
-import { PlanejadorMeta } from "@/components/operacao/PlanejadorMeta";
-import { Calculadora, type CalculadoraHandoff } from "@/components/operacao/calculadora/Calculadora";
+import { Calculadora } from "@/components/operacao/calculadora/Calculadora";
 import { cn } from "@/lib/utils";
 
 type Campaign = {
@@ -43,8 +42,7 @@ export default function Campanhas() {
   const [filter, setFilter] = useState<"all" | "active" | "draft" | "completed">("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [recalcing, setRecalcing] = useState(false);
-  const [tab, setTab] = useState<"lista" | "financeiro" | "execucao">("financeiro");
-  const [handoff, setHandoff] = useState<CalculadoraHandoff | null>(null);
+  const [tab, setTab] = useState<"lista" | "financeiro">("financeiro");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -111,7 +109,6 @@ export default function Campanhas() {
         <div className="flex items-center gap-1 border-b border-border mb-6 -mt-2">
           {([
             { id: "financeiro", label: "Planejamento Financeiro", icon: Calculator },
-            { id: "execucao", label: "Execução Operacional", icon: Workflow },
             { id: "lista", label: "Campanhas Ativas", icon: ListChecks },
           ] as const).map(t => {
             const Icon = t.icon;
@@ -175,46 +172,7 @@ export default function Campanhas() {
           </>
         )}
 
-        {tab === "financeiro" && (
-          <Calculadora
-            onContinue={(h) => {
-              setHandoff(h);
-              setTab("execucao");
-              toast({ title: "Plano financeiro definido", description: `Meta ${h.result.meta.toLocaleString()} · ${h.result.days}d` });
-            }}
-          />
-        )}
-
-        {tab === "execucao" && (
-          <div className="space-y-4">
-            {handoff && (
-              <div className="rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 flex items-center justify-between text-sm">
-                <div>
-                  <span className="text-muted-foreground">Plano herdado: </span>
-                  <span className="font-semibold">{handoff.result.meta.toLocaleString()} streams</span>
-                  <span className="text-muted-foreground"> · {handoff.result.days}d · </span>
-                  <span className="font-semibold">R$ {Math.round(handoff.result.custoTotal).toLocaleString()}</span>
-                  <span className="text-muted-foreground"> · split {handoff.result.splitEcoPct}/{100 - handoff.result.splitEcoPct}</span>
-                </div>
-                <button
-                  onClick={() => setTab("financeiro")}
-                  className="text-xs text-primary hover:underline"
-                >
-                  Voltar ao plano
-                </button>
-              </div>
-            )}
-            <PlanejadorMeta
-              initial={handoff ? {
-                meta: handoff.result.meta,
-                days: handoff.result.days,
-                profile: (handoff.result as any).perfil ?? undefined,
-                trackUrl: handoff.trackUrl || undefined,
-                fonteLabel: `Herdado do plano (${handoff.fonte === "manual" ? "Manual" : handoff.fonte === "top200" ? "Top 200" : handoff.fonte === "orcamento" ? "Orçamento" : "Concorrente"})`,
-              } : undefined}
-            />
-          </div>
-        )}
+        {tab === "financeiro" && <Calculadora />}
       </PageContainer>
 
       <NewCampaignDialog
