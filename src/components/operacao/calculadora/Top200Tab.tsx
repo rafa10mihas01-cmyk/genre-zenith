@@ -1,89 +1,153 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { formatInt } from "@/lib/campaignEngine";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { TrendingDown } from "lucide-react";
+import { TrendingDown, RefreshCw, Calendar } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 
-type Row = { position: number; streams_day: number; captured_at: string };
+type Row = {
+  position: number;
+  artist: string | null;
+  track: string | null;
+  streams_day: number;
+  chart_date: string;
+};
 
 export function Top200Tab({ onPick }: { onPick?: (streamsDay: number, position: number) => void }) {
   const [rows, setRows] = useState<Row[]>([]);
+  const [chartDate, setChartDate] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      const { data } = await supabase
-        .from("chart_position_benchmarks")
-        .select("position, streams_day, captured_at")
-        .eq("database", "br")
-        .order("captured_at", { ascending: false })
-        .order("position", { ascending: true })
-        .limit(200);
-      // Deduplica por posição mantendo o mais recente
-      const seen = new Set<number>();
-      const dedup: Row[] = [];
-      for (const r of (data ?? []) as Row[]) {
-        if (!seen.has(r.position)) {
-          seen.add(r.position);
-          dedup.push(r);
-        }
-      }
-      dedup.sort((a, b) => a.position - b.position);
-      setRows(dedup);
+  const load = useCallback(async () => {
+    setLoading(true);
+    // pega o snapshot mais recente
+    const { data: latest } = await supabase
+      .from("raw_chart_daily")
+      .select("chart_date")
+      .eq("chart_name", "top200_br")
+      .order("chart_date", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!latest?.chart_date) {
+      setRows([]);
+      setChartDate(null);
       setLoading(false);
-    })();
+      return;
+    }
+
+    const { data } = await supabase
+      .from("raw_chart_daily")
+      .select("position, artist, track, streams_day, chart_date")
+      .eq("chart_name", "top200_br")
+      .eq("chart_date", latest.chart_date)
+      .order("position", { ascending: true });
+
+    setRows((data ?? []) as Row[]);
+    setChartDate(latest.chart_date);
+    setLoading(false);
   }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleSync = async () => {
+    setSyncing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("sync-kworb-charts");
+      if (error) throw error;
+      if (!data?.ok) throw new Error(data?.error ?? "Falha no sync");
+      toast({ title: "Top 200 atualizado", description: `${data.rows} faixas · ${data.date}` });
+      await load();
+    } catch (e: any) {
+      toast({ title: "Erro ao sincronizar", description: e?.message ?? String(e), variant: "destructive" });
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const headerActions = (
+    <div className="flex items-center gap-3">
+      {chartDate && (
+        <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+          <Calendar className="h-3 w-3" /> {chartDate}
+        </span>
+      )}
+      <Button size="sm" variant="outline" onClick={handleSync} disabled={syncing}>
+        <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${syncing ? "animate-spin" : ""}`} />
+        {syncing ? "Sincronizando..." : "Sincronizar agora"}
+      </Button>
+    </div>
+  );
 
   if (loading) return <Skeleton className="h-64" />;
 
   if (!rows.length) {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle className="text-sm flex items-center gap-2">
-            <TrendingDown className="h-4 w-4" /> Sem dados do Top 200 ainda
-          </CardTitle>
-          <CardDescription>
-            Importe um snapshot do Top 200 BR (posição → streams/dia) para alimentar a calculadora.
-          </CardDescription>
+        <CardHeader className="flex flex-row items-start justify-between gap-4">
+          <div>
+            <CardTitle className="text-sm flex items-center gap-2">
+              <TrendingDown className="h-4 w-4" /> Sem dados do Top 200 ainda
+            </CardTitle>
+            <CardDescription>
+              Sincronize com o kworb pra puxar o snapshot mais recente do Top 200 BR.
+            </CardDescription>
+          </div>
+          {headerActions}
         </CardHeader>
-        <CardContent className="text-xs text-muted-foreground">
-          A importação fica disponível para administradores em uma próxima fase.
-        </CardContent>
       </Card>
     );
   }
 
   return (
-    <div className="rounded-2xl border border-border overflow-hidden">
-      <table className="w-full text-sm">
-        <thead className="bg-muted/40 text-xs uppercase tracking-wider text-muted-foreground">
-          <tr>
-            <th className="px-3 py-2 text-left">#</th>
-            <th className="px-3 py-2 text-right">Streams/dia</th>
-            <th className="px-3 py-2"></th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map(r => (
-            <tr key={r.position} className="border-t border-border hover:bg-accent/20">
-              <td className="px-3 py-2 font-medium">{r.position}</td>
-              <td className="px-3 py-2 text-right tabular-nums">{formatInt(r.streams_day)}</td>
-              <td className="px-3 py-2 text-right">
-                {onPick && (
-                  <button
-                    onClick={() => onPick(r.streams_day, r.position)}
-                    className="text-xs text-primary hover:underline"
-                  >
-                    Usar como meta →
-                  </button>
-                )}
-              </td>
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-semibold">Top 200 Brasil</h3>
+          <p className="text-xs text-muted-foreground">Fonte: kworb · Clique em "Usar como meta" pra herdar streams/dia da posição.</p>
+        </div>
+        {headerActions}
+      </div>
+
+      <div className="rounded-2xl border border-border overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/40 text-xs uppercase tracking-wider text-muted-foreground">
+            <tr>
+              <th className="px-3 py-2 text-left w-12">#</th>
+              <th className="px-3 py-2 text-left">Artista · Faixa</th>
+              <th className="px-3 py-2 text-right">Streams/dia</th>
+              <th className="px-3 py-2"></th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map(r => (
+              <tr key={r.position} className="border-t border-border hover:bg-accent/20">
+                <td className="px-3 py-2 font-medium tabular-nums">{r.position}</td>
+                <td className="px-3 py-2 min-w-0">
+                  <div className="truncate">
+                    <span className="font-medium">{r.artist ?? "—"}</span>
+                    <span className="text-muted-foreground"> · {r.track ?? "—"}</span>
+                  </div>
+                </td>
+                <td className="px-3 py-2 text-right tabular-nums">{formatInt(r.streams_day)}</td>
+                <td className="px-3 py-2 text-right">
+                  {onPick && (
+                    <button
+                      onClick={() => onPick(r.streams_day, r.position)}
+                      className="text-xs text-primary hover:underline"
+                    >
+                      Usar como meta →
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
