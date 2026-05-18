@@ -18,7 +18,15 @@ import { Calculator, Table2, ArrowRight, Target as TargetIcon, Users, Wallet, Mu
 
 type Fonte = "manual" | "top200" | "concorrente" | "orcamento";
 
-type TrackMeta = { title: string | null; artist: string | null; thumbnail_url: string | null; id: string };
+type TrackMeta = {
+  title: string | null;
+  artist: string | null;
+  thumbnail_url: string | null;
+  id: string;
+  streamsDay?: number | null;   // streams/dia hoje (se estiver no Top 200)
+  position?: number | null;     // posição atual no Top 200 (se estiver)
+  chartDate?: string | null;
+};
 
 export interface CalculadoraHandoff {
   result: CampaignResult;
