@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatBRL, formatInt } from "@/lib/campaignEngine";
 import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
 import { ExternalPackageEditor } from "@/components/campanhas/ExternalPackageEditor";
+import { CampaignMonitoring } from "@/components/campanhas/CampaignMonitoring";
 import { ArrowLeft, Lock, Music, ListMusic, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -23,6 +24,7 @@ type EcoAllocRow = {
 };
 
 type CampaignRow = {
+  started_at: string;
   id: string;
   track_name: string;
   artist: string | null;
@@ -65,7 +67,7 @@ export default function CampanhaExecucao() {
       const [{ data: c }, { data: a }] = await Promise.all([
         supabase
           .from("campaigns")
-          .select("id, track_name, artist, cover_url, status, deadline, simulation_snapshot, snapshot_locked_at, eco_dispatched_at")
+          .select("id, track_name, artist, cover_url, status, deadline, started_at, simulation_snapshot, snapshot_locked_at, eco_dispatched_at")
           .eq("id", id)
           .maybeSingle(),
         supabase
@@ -261,6 +263,16 @@ export default function CampanhaExecucao() {
       {/* Bloco Externo */}
       <div className="mt-4">
         <ExternalPackageEditor campaignId={camp.id} snapshot={snapshot} />
+      </div>
+
+      {/* Bloco Monitoramento */}
+      <div className="mt-4">
+        <CampaignMonitoring
+          campaignId={camp.id}
+          snapshot={snapshot}
+          campaignStartedAt={camp.started_at}
+          campaignStatus={camp.status}
+        />
       </div>
     </PageContainer>
   );
