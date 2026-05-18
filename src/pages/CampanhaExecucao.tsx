@@ -209,7 +209,7 @@ export default function CampanhaExecucao() {
           </div>
 
           {/* Embaixo: curva */}
-          <div className="p-4">
+          <div className="p-3">
             <div className="flex items-center justify-between mb-2">
               <div>
                 <div className="text-sm font-semibold">Mapa de entrega</div>
