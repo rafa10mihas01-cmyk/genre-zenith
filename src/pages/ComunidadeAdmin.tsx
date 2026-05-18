@@ -473,7 +473,7 @@ function CampanhasTab({ adminId, onChange }: { adminId: string; onChange?: () =>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Card>
+    </>
   );
 }
 
