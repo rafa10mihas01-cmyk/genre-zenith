@@ -264,6 +264,16 @@ export default function CampanhaExecucao() {
       <div className="mt-4">
         <ExternalPackageEditor campaignId={camp.id} snapshot={snapshot} />
       </div>
+
+      {/* Bloco Monitoramento */}
+      <div className="mt-4">
+        <CampaignMonitoring
+          campaignId={camp.id}
+          snapshot={snapshot}
+          campaignStartedAt={camp.started_at}
+          campaignStatus={camp.status}
+        />
+      </div>
     </PageContainer>
   );
 }
