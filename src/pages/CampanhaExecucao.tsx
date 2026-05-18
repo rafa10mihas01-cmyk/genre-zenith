@@ -349,7 +349,7 @@ export default function CampanhaExecucao() {
             startedAt={camp.started_at}
             allocations={allocs as any}
             engagementMultiplier={(camp as any).engagement_multiplier ?? 30}
-            campaignId={camp.id}
+            shareToken={(camp as any).public_plan_token ?? null}
           />
         </TabsContent>
 
