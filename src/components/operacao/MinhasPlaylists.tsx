@@ -43,11 +43,15 @@ type ManagedPlaylist = {
   last_diagnosis_at: string | null;
   imported_at: string;
   canonical_playlist_id: string | null;
+  account_id: string | null;
   curatorial_state?: CuratorialState | null;
   last_maintenance_at?: string | null;
   max_change_pct?: number | null;
   recommended_change_count?: number | null;
 };
+
+type SpotifyAccountLite = { id: string; display_name: string | null; email: string | null; status: string | null };
+
 
 type Diagnosis = {
   id: string;
