@@ -33,6 +33,25 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
   // Inputs
   const [fonte, setFonte] = useState<Fonte>("manual");
   const [trackUrl, setTrackUrl] = useState("");
+  const [track, setTrack] = useState<TrackMeta | null>(null);
+  const [trackLoading, setTrackLoading] = useState(false);
+
+  async function buscarMusica() {
+    const url = trackUrl.trim();
+    if (!url) { toast({ title: "Cole o link do Spotify primeiro" }); return; }
+    setTrackLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("fetch-spotify-meta", { body: { url } });
+      if (error) throw error;
+      if (!data?.ok) throw new Error(data?.error ?? "Não consegui ler esse link");
+      if (data.type !== "track") throw new Error("O link precisa ser de uma faixa (track)");
+      setTrack({ id: data.id, title: data.title, artist: data.artist, thumbnail_url: data.thumbnail_url });
+    } catch (e: any) {
+      toast({ title: "Erro ao buscar música", description: e?.message ?? String(e), variant: "destructive" });
+    } finally {
+      setTrackLoading(false);
+    }
+  }
   const [meta, setMeta] = useState(1_000_000);
   const [days, setDays] = useState<number>(60);
   const [budget, setBudget] = useState(40_000);
