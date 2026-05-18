@@ -70,7 +70,9 @@ export const ECO_RAMP = [0.2, 0.4, 0.6, 0.8, 1.0];
  * Index: 0=Dom, 1=Seg, 2=Ter, 3=Qua, 4=Qui, 5=Sex, 6=Sáb.
  * Soma ≈ 7.0 (preserva total semanal).
  */
-export const WEEKDAY_FACTOR: number[] = [0.85, 0.90, 1.02, 1.06, 1.10, 1.12, 0.95];
+// Curva semanal calibrada: base = engagement × 30 (Ter). Sex 45, Sáb 48 (pico), Seg 25 (fundo).
+// [Dom, Seg, Ter, Qua, Qui, Sex, Sáb] → fator multiplicado pelo streamsDay da curva.
+export const WEEKDAY_FACTOR: number[] = [1.167, 0.833, 1.000, 1.167, 1.333, 1.500, 1.600];
 
 /**
  * Aplica sazonalidade semanal à curva-base: multiplica cada `streamsDay`
