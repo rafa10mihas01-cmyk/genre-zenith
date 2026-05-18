@@ -601,6 +601,129 @@ export type Database = {
           },
         ]
       }
+      campaign_external_package_items: {
+        Row: {
+          assigned_cost: number
+          assigned_streams: number
+          cost_per_stream: number
+          created_at: string
+          curator_deal_id: string | null
+          curator_id: string
+          id: string
+          package_id: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_cost?: number
+          assigned_streams?: number
+          cost_per_stream?: number
+          created_at?: string
+          curator_deal_id?: string | null
+          curator_id: string
+          id?: string
+          package_id: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_cost?: number
+          assigned_streams?: number
+          cost_per_stream?: number
+          created_at?: string
+          curator_deal_id?: string | null
+          curator_id?: string
+          id?: string
+          package_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_external_package_items_curator_deal_id_fkey"
+            columns: ["curator_deal_id"]
+            isOneToOne: false
+            referencedRelation: "curator_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_external_package_items_curator_id_fkey"
+            columns: ["curator_id"]
+            isOneToOne: false
+            referencedRelation: "curators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_external_package_items_curator_id_fkey"
+            columns: ["curator_id"]
+            isOneToOne: false
+            referencedRelation: "v_curator_balance"
+            referencedColumns: ["curator_id"]
+          },
+          {
+            foreignKeyName: "campaign_external_package_items_curator_id_fkey"
+            columns: ["curator_id"]
+            isOneToOne: false
+            referencedRelation: "v_curator_finance"
+            referencedColumns: ["curator_id"]
+          },
+          {
+            foreignKeyName: "campaign_external_package_items_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_external_packages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaign_external_packages: {
+        Row: {
+          campaign_id: string
+          confirmed_at: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          status: string
+          target_cost: number
+          target_streams: number
+          updated_at: string
+        }
+        Insert: {
+          campaign_id: string
+          confirmed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          status?: string
+          target_cost?: number
+          target_streams?: number
+          updated_at?: string
+        }
+        Update: {
+          campaign_id?: string
+          confirmed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          status?: string
+          target_cost?: number
+          target_streams?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_external_packages_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_external_packages_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "v_campaign_velocity"
+            referencedColumns: ["campaign_id"]
+          },
+        ]
+      }
       campaigns: {
         Row: {
           artist: string | null
