@@ -94,14 +94,23 @@ export function planEcoAllocations(
   const totalCapacity = capacities.reduce((s, c) => s + c.capacity, 0);
   if (totalCapacity <= 0) return [];
 
-  return capacities
+  let allocated = 0;
+  const ordered = capacities
     .sort((a, b) => b.capacity - a.capacity)
-    .map((c, index) => ({
-      managed_playlist_id: c.id,
-      planned_streams: Math.round((c.capacity / totalCapacity) * streamsEco),
-      start_day: ecoWarmupStartDay(index, capacities.length, days),
-    }))
+    .map((c, index) => {
+      const planned = index === capacities.length - 1
+        ? Math.max(0, streamsEco - allocated)
+        : Math.round((c.capacity / totalCapacity) * streamsEco);
+      allocated += planned;
+      return {
+        managed_playlist_id: c.id,
+        planned_streams: planned,
+        start_day: ecoWarmupStartDay(index, capacities.length, days),
+      };
+    })
     .filter(a => a.planned_streams > 0);
+
+  return ordered;
 }
 
 /**
