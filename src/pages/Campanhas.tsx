@@ -43,7 +43,7 @@ export default function Campanhas() {
   const [filter, setFilter] = useState<"all" | "active" | "draft" | "completed">("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [recalcing, setRecalcing] = useState(false);
-  const [tab, setTab] = useState<"lista" | "financeiro" | "execucao">("lista");
+  const [tab, setTab] = useState<"lista" | "financeiro" | "execucao">("financeiro");
   const [handoff, setHandoff] = useState<CalculadoraHandoff | null>(null);
 
   const load = useCallback(async () => {
