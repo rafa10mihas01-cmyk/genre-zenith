@@ -320,6 +320,39 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
               })}
             </div>
 
+            {/* Cliente + Curador — define dono da campanha e dono das playlists antes de aprovar */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">Identificação</CardTitle>
+                <CardDescription>
+                  Selecione o cliente (dono da campanha) e o curador (dono das playlists). Ao aprovar, vira um deal real ligado ao curador.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Cliente</Label>
+                  <Select value={clientId || "__none__"} onValueChange={v => setClientId(v === "__none__" ? "" : v)}>
+                    <SelectTrigger><SelectValue placeholder="Sem cliente" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">— Sem cliente —</SelectItem>
+                      {clientsList.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Curador (dono das playlists)</Label>
+                  <Select value={curatorId || "__none__"} onValueChange={v => setCuratorId(v === "__none__" ? "" : v)}>
+                    <SelectTrigger><SelectValue placeholder="Sem curador" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">— Sem curador (modo legado) —</SelectItem>
+                      {curatorsList.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+            </Card>
+
+
             {(secao === "todos" || secao === "musica") && (
             <Card>
               <CardHeader>
