@@ -201,7 +201,7 @@ export default function Campanhas() {
               </div>
             ) : (
               <div className="grid gap-3">
-                {filtered.map(c => <CampaignRow key={c.id} c={c} />)}
+                {filtered.map(c => <CampaignRow key={c.id} c={c} onChanged={load} />)}
               </div>
             )}
           </>
