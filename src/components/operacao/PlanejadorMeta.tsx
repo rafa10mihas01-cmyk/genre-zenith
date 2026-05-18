@@ -337,28 +337,29 @@ export function PlanejadorMeta({ initial }: { initial?: PlanejadorInitial } = {}
         title="Objetivo da campanha"
         subtitle="Defina o destino: meta, prazo, nicho e perfil de audiência."
       >
-        <div className="nx-card space-y-3">
-          <div className="flex items-center gap-2">
-            <Target className="h-4 w-4 text-primary" />
-            <h3 className="text-sm font-semibold">Fonte da meta</h3>
+        {herdado ? (
+          <div className="nx-card flex items-center justify-between gap-3 border-primary/30 bg-primary/5">
+            <div className="flex items-center gap-2 text-sm">
+              <Target className="h-4 w-4 text-primary" />
+              <span className="text-muted-foreground">Fonte da meta:</span>
+              <span className="font-semibold text-foreground">{initial?.fonteLabel ?? "Herdado do plano financeiro"}</span>
+            </div>
+            <span className="text-[11px] text-muted-foreground">Edite abaixo se precisar ajustar</span>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            <SourcePill active label="Manual" hint="você define o número" />
-            <SourcePill label="Top 200 Spotify" hint="em breve" disabled />
-            <SourcePill label="Artista concorrente" hint="em breve" disabled />
-            <SourcePill label="Orçamento" hint="em breve" disabled />
+        ) : (
+          <div className="nx-card space-y-3">
+            <div className="flex items-center gap-2">
+              <Target className="h-4 w-4 text-primary" />
+              <h3 className="text-sm font-semibold">Fonte da meta</h3>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              <SourcePill active label="Manual" hint="você define o número" />
+              <SourcePill label="Top 200 Spotify" hint="em breve" disabled />
+              <SourcePill label="Artista concorrente" hint="em breve" disabled />
+              <SourcePill label="Orçamento" hint="em breve" disabled />
+            </div>
           </div>
-        </div>
-
-        <div className="nx-card space-y-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Field label="Meta de plays" hint={metaExtenso(meta)}>
-              <Input
-                type="number"
-                value={meta === 0 ? "" : meta}
-                onFocus={(e) => e.target.select()}
-                onChange={(e) => setMeta(Math.max(0, Number(e.target.value) || 0))}
-                className="h-9 bg-elevated border-border tabular-nums"
+        )}
               />
             </Field>
             <Field label="Duração (dias)">
