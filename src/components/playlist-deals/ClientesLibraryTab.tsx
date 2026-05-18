@@ -579,6 +579,19 @@ function ClientDetailContent({
   );
 }
 
+// Tabs (Identidade / Contato / Perfil artístico / Comercial)
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import type { ClientType, NewClientInput } from "@/hooks/useClients";
+
+const CLIENT_TYPE_OPTIONS: { value: ClientType; label: string }[] = [
+  { value: "artist",   label: "Artista" },
+  { value: "label",    label: "Label / Selo" },
+  { value: "manager",  label: "Empresário / Manager" },
+  { value: "producer", label: "Produtor" },
+  { value: "other",    label: "Outro" },
+];
+
 function ClientFormDialog({
   open,
   client,
@@ -588,20 +601,45 @@ function ClientFormDialog({
   open: boolean;
   client: Client | null;
   onClose: () => void;
-  onSubmit: (input: { name: string; contact?: string | null; notes?: string | null }) => Promise<void>;
+  onSubmit: (input: NewClientInput) => Promise<void>;
 }) {
+  // Form state — cobre todos os campos enriquecidos do cliente.
   const [name, setName] = useState("");
-  const [contact, setContact] = useState("");
+  const [clientType, setClientType] = useState<ClientType>("artist");
+  const [company, setCompany] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [instagram, setInstagram] = useState("");
+  const [spotifyUrl, setSpotifyUrl] = useState("");
+  const [city, setCity] = useState("");
+  const [country, setCountry] = useState("");
+  const [primaryGenre, setPrimaryGenre] = useState("");
+  const [monthlyListeners, setMonthlyListeners] = useState<string>("");
+  const [document, setDocument] = useState("");
+  const [paymentTerms, setPaymentTerms] = useState("");
+  const [tagsText, setTagsText] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
   // sincroniza ao abrir
   useEffect(() => {
-    if (open) {
-      setName(client?.name ?? "");
-      setContact(client?.contact ?? "");
-      setNotes(client?.notes ?? "");
-    }
+    if (!open) return;
+    const c = client as any;
+    setName(c?.name ?? "");
+    setClientType((c?.client_type as ClientType) ?? "artist");
+    setCompany(c?.company ?? "");
+    setEmail(c?.email ?? "");
+    setPhone(c?.phone ?? c?.contact ?? "");
+    setInstagram(c?.instagram ?? "");
+    setSpotifyUrl(c?.spotify_artist_url ?? "");
+    setCity(c?.city ?? "");
+    setCountry(c?.country ?? "");
+    setPrimaryGenre(c?.primary_genre ?? "");
+    setMonthlyListeners(c?.monthly_listeners != null ? String(c.monthly_listeners) : "");
+    setDocument(c?.document ?? "");
+    setPaymentTerms(c?.payment_terms ?? "");
+    setTagsText((c?.tags ?? []).join(", "));
+    setNotes(c?.notes ?? "");
   }, [open, client]);
 
   const submit = async () => {
@@ -610,11 +648,32 @@ function ClientFormDialog({
       toast.error("Informe o nome do cliente");
       return;
     }
+    const listenersNum = monthlyListeners.trim()
+      ? Math.max(0, parseInt(monthlyListeners.replace(/\D/g, ""), 10) || 0)
+      : null;
+    const tagsList = tagsText
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
+
     setSaving(true);
     try {
       await onSubmit({
         name: trimmed,
-        contact: contact.trim() || null,
+        client_type: clientType,
+        company: company.trim() || null,
+        email: email.trim() || null,
+        phone: phone.trim() || null,
+        contact: phone.trim() || null, // mantém campo legado sincronizado
+        instagram: instagram.trim().replace(/^@/, "") || null,
+        spotify_artist_url: spotifyUrl.trim() || null,
+        city: city.trim() || null,
+        country: country.trim() || null,
+        primary_genre: primaryGenre.trim() || null,
+        monthly_listeners: listenersNum,
+        document: document.trim() || null,
+        payment_terms: paymentTerms.trim() || null,
+        tags: tagsList,
         notes: notes.trim() || null,
       });
       onClose();
@@ -625,45 +684,211 @@ function ClientFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{client ? "Editar cliente" : "Novo cliente"}</DialogTitle>
           <DialogDescription>
-            Cliente é o contratante da campanha (artista, label, empresário). Ele pode ter várias músicas em deals diferentes.
+            Ficha completa do contratante. Quanto mais preenchida, melhor o time monta a campanha e o financeiro.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-3 py-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="client-name">Nome</Label>
-            <Input
-              id="client-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Ex: João Silva, Label XYZ"
-              autoFocus
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="client-contact">Contato (opcional)</Label>
-            <Input
-              id="client-contact"
-              value={contact}
-              onChange={(e) => setContact(e.target.value)}
-              placeholder="WhatsApp, email…"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="client-notes">Observações (opcional)</Label>
-            <Textarea
-              id="client-notes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Notas internas sobre o cliente…"
-              rows={3}
-            />
-          </div>
-        </div>
-        <DialogFooter>
+
+        <Tabs defaultValue="identidade" className="mt-2">
+          <TabsList className="w-full justify-start">
+            <TabsTrigger value="identidade">Identidade</TabsTrigger>
+            <TabsTrigger value="contato">Contato</TabsTrigger>
+            <TabsTrigger value="perfil">Perfil artístico</TabsTrigger>
+            <TabsTrigger value="comercial">Comercial</TabsTrigger>
+            <TabsTrigger value="notas">Notas</TabsTrigger>
+          </TabsList>
+
+          {/* ----- Identidade ----- */}
+          <TabsContent value="identidade" className="space-y-3 pt-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="space-y-1.5 md:col-span-2">
+                <Label htmlFor="client-name">Nome *</Label>
+                <Input
+                  id="client-name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Ex: Miguel Universal, Label XYZ"
+                  autoFocus
+                  maxLength={120}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="client-type">Tipo</Label>
+                <Select value={clientType} onValueChange={(v) => setClientType(v as ClientType)}>
+                  <SelectTrigger id="client-type"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {CLIENT_TYPE_OPTIONS.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="client-company">Empresa / Label</Label>
+                <Input
+                  id="client-company"
+                  value={company}
+                  onChange={(e) => setCompany(e.target.value)}
+                  placeholder="Ex: Sony Music"
+                  maxLength={120}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="client-tags">Tags (separadas por vírgula)</Label>
+                <Input
+                  id="client-tags"
+                  value={tagsText}
+                  onChange={(e) => setTagsText(e.target.value)}
+                  placeholder="vip, recorrente, em alta"
+                  maxLength={300}
+                />
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* ----- Contato ----- */}
+          <TabsContent value="contato" className="space-y-3 pt-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="client-email">E-mail</Label>
+                <Input
+                  id="client-email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="contato@artista.com"
+                  maxLength={255}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="client-phone">WhatsApp / Telefone</Label>
+                <Input
+                  id="client-phone"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="+55 11 99999-9999"
+                  maxLength={40}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="client-instagram">Instagram</Label>
+                <Input
+                  id="client-instagram"
+                  value={instagram}
+                  onChange={(e) => setInstagram(e.target.value)}
+                  placeholder="@usuario"
+                  maxLength={60}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="client-spotify">Spotify do artista (URL)</Label>
+                <Input
+                  id="client-spotify"
+                  value={spotifyUrl}
+                  onChange={(e) => setSpotifyUrl(e.target.value)}
+                  placeholder="https://open.spotify.com/artist/…"
+                  maxLength={300}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="client-city">Cidade</Label>
+                <Input
+                  id="client-city"
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  placeholder="São Paulo"
+                  maxLength={80}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="client-country">País</Label>
+                <Input
+                  id="client-country"
+                  value={country}
+                  onChange={(e) => setCountry(e.target.value)}
+                  placeholder="Brasil"
+                  maxLength={60}
+                />
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* ----- Perfil artístico ----- */}
+          <TabsContent value="perfil" className="space-y-3 pt-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="client-genre">Gênero principal</Label>
+                <Input
+                  id="client-genre"
+                  value={primaryGenre}
+                  onChange={(e) => setPrimaryGenre(e.target.value)}
+                  placeholder="Funk, Sertanejo, Pop…"
+                  maxLength={60}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="client-listeners">Ouvintes mensais (Spotify)</Label>
+                <Input
+                  id="client-listeners"
+                  type="number"
+                  min={0}
+                  value={monthlyListeners}
+                  onChange={(e) => setMonthlyListeners(e.target.value)}
+                  placeholder="125000"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Snapshot do momento — usado pra dimensionar campanhas.
+                </p>
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* ----- Comercial ----- */}
+          <TabsContent value="comercial" className="space-y-3 pt-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="client-doc">Documento (CNPJ / CPF)</Label>
+                <Input
+                  id="client-doc"
+                  value={document}
+                  onChange={(e) => setDocument(e.target.value)}
+                  placeholder="00.000.000/0000-00"
+                  maxLength={30}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="client-payment">Condição de pagamento</Label>
+                <Input
+                  id="client-payment"
+                  value={paymentTerms}
+                  onChange={(e) => setPaymentTerms(e.target.value)}
+                  placeholder="50% início + 50% entrega · PIX"
+                  maxLength={120}
+                />
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* ----- Notas ----- */}
+          <TabsContent value="notas" className="space-y-3 pt-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="client-notes">Observações internas</Label>
+              <Textarea
+                id="client-notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Preferências, histórico, alertas, pessoas-chave do time…"
+                rows={8}
+                maxLength={2000}
+              />
+            </div>
+          </TabsContent>
+        </Tabs>
+
+        <DialogFooter className="mt-4">
           <Button variant="outline" onClick={onClose} disabled={saving}>
             Cancelar
           </Button>
