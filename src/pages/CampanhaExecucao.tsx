@@ -382,6 +382,7 @@ export default function CampanhaExecucao() {
         snapshot={snapshot}
         startedAt={camp.started_at}
         campaignTitle={camp.track_name}
+        engagementMultiplier={(camp as any).engagement_multiplier ?? 30}
       />
     </PageContainer>
   );
