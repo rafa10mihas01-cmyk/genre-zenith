@@ -271,7 +271,7 @@ function CampaignRow({ c, onChanged }: { c: Campaign; onChanged: () => void }) {
     <div className="relative">
       <Link
         to={href}
-        className="rounded-2xl border border-border bg-card hover:bg-accent/30 transition-colors p-5 flex flex-col gap-4 h-full"
+        className="rounded-2xl border border-border border-l-2 border-l-domain-campaigns/60 bg-card hover:bg-accent/30 hover:border-l-domain-campaigns transition-colors p-5 flex flex-col gap-4 h-full"
       >
         <div className="min-w-0 pr-8">
           <div className="flex items-center gap-2 mb-1 flex-wrap">
