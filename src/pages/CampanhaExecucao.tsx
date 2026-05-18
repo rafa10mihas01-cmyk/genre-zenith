@@ -16,7 +16,7 @@ import { PlaylistDailyPlanDialog } from "@/components/campanhas/PlaylistDailyPla
 import { buildEcoPlaylistPlan, distributeEcoPositions } from "@/lib/campaignOperationalPlan";
 import { CampaignFullPlanCard } from "@/components/campanhas/CampaignFullPlanCard";
 import { toast } from "@/hooks/use-toast";
-import { ArrowLeft, Lock, Music, ListMusic, Loader2, CalendarDays, Users, Activity } from "lucide-react";
+import { ArrowLeft, Lock, Music, ListMusic, Loader2, CalendarDays, Users, Activity, Link2, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type EcoAllocRow = {
