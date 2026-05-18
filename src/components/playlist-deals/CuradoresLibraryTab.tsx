@@ -203,7 +203,7 @@ export function CuradoresLibraryTab({
           </p>
         </Card>
       ) : (
-        <div className="flex flex-col gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {rows.map((row) => {
             const {
               curator,
