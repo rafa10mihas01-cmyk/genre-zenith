@@ -321,7 +321,11 @@ export function applyWeekdaySeasonality(
       : Math.max(0, Math.round(v * scale));
     allocated += streamsDay;
     cum += streamsDay;
-    return { day: i + 1, streamsDay, cumulative: cum };
+    const orig = curva[i];
+    const ratio = orig.streamsDay > 0 ? streamsDay / orig.streamsDay : 0;
+    const streamsEcoDay = Math.round((orig.streamsEcoDay ?? 0) * ratio);
+    const streamsExtDay = Math.max(0, streamsDay - streamsEcoDay);
+    return { day: i + 1, streamsDay, streamsEcoDay, streamsExtDay, cumulative: cum };
   });
 }
 
