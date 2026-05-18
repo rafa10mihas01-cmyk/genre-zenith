@@ -164,9 +164,9 @@ export default function CampanhaExecucao() {
 
       {/* Hero unificado: música + meta + snapshot + curva em uma única faixa */}
       <Card className="mt-6 overflow-hidden">
-        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] divide-y lg:divide-y-0 lg:divide-x divide-border">
-          {/* Esquerda: música + snapshot */}
-          <div className="p-5 flex flex-col gap-4 bg-elevated/20">
+        <div className="flex flex-col divide-y divide-border">
+          {/* Topo: música + snapshot */}
+          <div className="p-4 flex flex-col gap-3 bg-elevated/20">
             <div className="flex items-center gap-3">
               {camp.cover_url ? (
                 <img src={camp.cover_url} alt="" className="w-16 h-16 rounded-lg object-cover shadow-sm" />
