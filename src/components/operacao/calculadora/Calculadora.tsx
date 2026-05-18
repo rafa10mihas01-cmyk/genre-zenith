@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { Top200Tab } from "./Top200Tab";
 import { CalculadoraResultado } from "./CalculadoraResultado";
@@ -16,9 +18,12 @@ import {
   DEFAULT_SPLIT, COST_PER_STREAM,
   type Modo, type Perfil, type CampaignResult,
 } from "@/lib/campaignEngine";
-import { Calculator, Table2, ArrowRight, Target as TargetIcon, Users, Wallet, Music, Search, CheckCircle2, X, Loader2, Settings2, LayoutGrid } from "lucide-react";
+import { Calculator, Table2, ArrowRight, Target as TargetIcon, Users, Wallet, Music, Search, CheckCircle2, X, Loader2, Settings2, LayoutGrid, CalendarIcon } from "lucide-react";
+import { format, addDays, differenceInCalendarDays, startOfDay } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 type Secao = "todos" | "musica" | "meta" | "estrategia";
+type Fonte = "manual" | "top200" | "concorrente" | "orcamento";
 
 type Fonte = "manual" | "top200" | "concorrente" | "orcamento";
 
