@@ -375,39 +375,50 @@ function CampanhasTab({ adminId, onChange }: { adminId: string; onChange?: () =>
   }
 
   return (
-    <Card>
-      <CardContent className="p-5 space-y-4">
-        {loading ? (
-          <div className="text-sm text-muted-foreground">Carregando…</div>
-        ) : list.length === 0 ? (
-          <div className="text-sm text-muted-foreground py-8 text-center">Nenhuma campanha ainda.</div>
-        ) : (
-          <ul className="divide-y divide-border">
-            {list.map((c) => (
-              <li key={c.id} className="flex items-center gap-3 py-3">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-sm truncate">{c.title}</span>
-                    <StatusBadge status={c.status} />
-                  </div>
-                  <div className="mt-1 text-xs text-muted-foreground truncate">
-                    {c.used_slots}/{c.max_slots} vagas · {c.points_per_member} pts · prazo {c.proof_window_hours}h
-                  </div>
+    <>
+      {loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {[0,1,2,3,4,5,6,7].map((i) => (
+            <div key={i} className="nx-card h-40 animate-pulse" />
+          ))}
+        </div>
+      ) : list.length === 0 ? (
+        <div className="nx-card py-12 text-center text-sm text-muted-foreground">Nenhuma campanha ainda.</div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {list.map((c) => {
+            const pct = c.max_slots > 0 ? Math.min(100, Math.round((c.used_slots / c.max_slots) * 100)) : 0;
+            return (
+              <div
+                key={c.id}
+                className="rounded-2xl border border-border/50 bg-card p-4 flex flex-col gap-3 h-full hover:border-foreground/20 hover:bg-[hsl(var(--elevated))] transition-colors"
+              >
+                <div className="flex items-start justify-between gap-2 min-w-0">
+                  <span className="font-medium text-sm leading-snug line-clamp-2 min-w-0">{c.title}</span>
+                  <StatusBadge status={c.status} />
                 </div>
-                {c.status === "open" && (
-                  <Button variant="outline" size="sm" onClick={() => setStatus(c.id, "closed")}>Fechar</Button>
-                )}
-                {c.status === "closed" && (
-                  <Button variant="outline" size="sm" onClick={() => setStatus(c.id, "archived")}>Arquivar</Button>
-                )}
-                {c.status === "draft" && (
-                  <Button size="sm" onClick={() => setStatus(c.id, "open")}>Abrir</Button>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </CardContent>
+                <div className="text-[11.5px] text-muted-foreground">
+                  {c.used_slots}/{c.max_slots} vagas · {c.points_per_member} pts · prazo {c.proof_window_hours}h
+                </div>
+                <div className="h-1 rounded-full bg-muted overflow-hidden">
+                  <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
+                </div>
+                <div className="mt-auto flex gap-2">
+                  {c.status === "open" && (
+                    <Button variant="outline" size="sm" className="flex-1" onClick={() => setStatus(c.id, "closed")}>Fechar</Button>
+                  )}
+                  {c.status === "closed" && (
+                    <Button variant="outline" size="sm" className="flex-1" onClick={() => setStatus(c.id, "archived")}>Arquivar</Button>
+                  )}
+                  {c.status === "draft" && (
+                    <Button size="sm" className="flex-1" onClick={() => setStatus(c.id, "open")}>Abrir</Button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
