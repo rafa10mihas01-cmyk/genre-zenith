@@ -518,13 +518,13 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
         </Collapsible>
       )}
 
-      {/* Toolbar */}
+      {/* Toolbar — mobile: 2 linhas (ações + filtros). Desktop: 1 linha. */}
       <div className="flex flex-wrap items-center gap-2">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button className="gap-1.5" disabled={bulkImporting}>
+            <Button size="sm" className="gap-1.5 h-9" disabled={bulkImporting}>
               <Plus className="h-4 w-4" />
-              {bulkImporting ? "Importando…" : "Importar"}
+              <span>{bulkImporting ? "Importando…" : "Importar"}</span>
               <ChevronDown className="h-3.5 w-3.5 opacity-70 -mr-0.5" />
             </Button>
           </DropdownMenuTrigger>
@@ -545,34 +545,59 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        <Button variant="outline" onClick={handleRecalc} disabled={recalcing} className="gap-1.5">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleRecalc}
+          disabled={recalcing}
+          className="gap-1.5 h-9 px-2.5 sm:px-3"
+          title="Sincronizar com Spotify"
+          aria-label="Sincronizar com Spotify"
+        >
           <RefreshCw className={cn("h-4 w-4", recalcing && "animate-spin")} />
-          {recalcing ? "Sincronizando…" : "Sincronizar com Spotify"}
-        </Button>
-        <Button variant="outline" onClick={openLogs} className="gap-1.5">
-          <History className="h-4 w-4" /> Diário
+          <span className="hidden sm:inline">{recalcing ? "Sincronizando…" : "Sincronizar"}</span>
         </Button>
         <Button
           variant="outline"
-          onClick={() => setSortBy(sortBy === "valuation" ? "recent" : "valuation")}
-          className="gap-1.5"
+          size="sm"
+          onClick={openLogs}
+          className="gap-1.5 h-9 px-2.5 sm:px-3"
+          title="Diário"
+          aria-label="Diário"
         >
-          {sortBy === "valuation" ? "Ordem: valuation" : "Ordem: recente"}
+          <History className="h-4 w-4" />
+          <span className="hidden sm:inline">Diário</span>
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setSortBy(sortBy === "valuation" ? "recent" : "valuation")}
+          className="gap-1.5 h-9 px-2.5 sm:px-3"
+          title={sortBy === "valuation" ? "Ordem: valuation" : "Ordem: recente"}
+          aria-label="Ordenação"
+        >
+          <ArrowUpDown className="h-4 w-4" />
+          <span className="hidden sm:inline">{sortBy === "valuation" ? "Valuation" : "Recente"}</span>
         </Button>
         {missingGenreCount > 0 && (
           <Button
             variant={filterMissingGenre ? "default" : "outline"}
+            size="sm"
             onClick={() => setFilterMissingGenre(v => !v)}
-            className="gap-1.5"
+            className="gap-1.5 h-9 px-2.5 sm:px-3"
+            title={`Sem gênero (${missingGenreCount})`}
+            aria-label="Filtrar sem gênero"
           >
-            <AlertCircle className="h-4 w-4" /> Sem gênero ({missingGenreCount})
+            <AlertCircle className="h-4 w-4" />
+            <span className="hidden sm:inline">Sem gênero ({missingGenreCount})</span>
+            <span className="sm:hidden tabular-nums">{missingGenreCount}</span>
           </Button>
         )}
         <div className="ml-auto flex items-center gap-1.5">
           <button
             onClick={() => setShowArchived(false)}
             className={cn(
-              "h-8 px-3 rounded-full text-xs font-medium border transition-colors",
+              "h-9 px-3 rounded-full text-xs font-medium border transition-colors",
               !showArchived
                 ? "bg-primary/15 border-primary/40 text-primary"
                 : "bg-elevated border-border text-muted-foreground hover:text-foreground",
@@ -581,12 +606,13 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
           <button
             onClick={() => setShowArchived(true)}
             className={cn(
-              "h-8 px-3 rounded-full text-xs font-medium border transition-colors",
+              "h-9 px-3 rounded-full text-xs font-medium border transition-colors",
               showArchived
                 ? "bg-primary/15 border-primary/40 text-primary"
                 : "bg-elevated border-border text-muted-foreground hover:text-foreground",
             )}
           >Lixeira ({items.filter(i => i.archived_at).length})</button>
+
           {showArchived && items.filter(i => i.archived_at).length > 0 && (
             <Button
               onClick={emptyTrash}
