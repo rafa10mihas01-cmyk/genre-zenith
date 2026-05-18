@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatBRL, formatInt } from "@/lib/campaignEngine";
 import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
+import { ExternalPackageEditor } from "@/components/campanhas/ExternalPackageEditor";
 import { ArrowLeft, Lock, Music, ListMusic, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -257,18 +258,10 @@ export default function CampanhaExecucao() {
         </CardContent>
       </Card>
 
-      {/* Bloco Externo - placeholder pra Fase B */}
-      <Card className="mt-4 border-dashed">
-        <CardHeader>
-          <CardTitle className="text-sm">Ecossistema externo</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Pacote de <strong className="text-foreground">{formatInt(snapshot.streamsExt)} streams</strong> ({formatBRL(snapshot.custoExt)}) será montado na Fase B —
-            sugestão de curadores baseada em nicho, score e capacidade, com aprovação humana.
-          </p>
-        </CardContent>
-      </Card>
+      {/* Bloco Externo */}
+      <div className="mt-4">
+        <ExternalPackageEditor campaignId={camp.id} snapshot={snapshot} />
+      </div>
     </PageContainer>
   );
 }
