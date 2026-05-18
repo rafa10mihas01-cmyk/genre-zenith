@@ -237,6 +237,23 @@ function CampaignRow({ c, onChanged }: { c: Campaign; onChanged: () => void }) {
     else { toast({ title: label }); onChanged(); }
   }
 
+  async function approveCampaign() {
+    if (!c.curator_id) {
+      toast({ title: "Sem curador", description: "Edite a campanha e selecione o curador dono das playlists.", variant: "destructive" });
+      return;
+    }
+    setBusy(true);
+    const { data, error } = await (supabase.rpc as any)("approve_campaign", { p_campaign_id: c.id });
+    setBusy(false);
+    if (error) {
+      toast({ title: "Erro ao aprovar", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Campanha aprovada", description: "Deal real criado e enviado para a fila de coleta." });
+    onChanged();
+    return data;
+  }
+
   async function doDelete() {
     setBusy(true);
     const { error } = await supabase.from("campaigns").delete().eq("id", c.id);
@@ -245,6 +262,8 @@ function CampaignRow({ c, onChanged }: { c: Campaign; onChanged: () => void }) {
     if (error) toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
     else { toast({ title: "Campanha excluída" }); onChanged(); }
   }
+
+  const isDraftReady = c.status === "draft" && !!c.curator_id;
 
   const stop = (e: React.MouseEvent) => { e.preventDefault(); e.stopPropagation(); };
 
