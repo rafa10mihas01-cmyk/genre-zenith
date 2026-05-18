@@ -19,12 +19,18 @@ import { ReactNode } from "react";
  *
  * Toda página NOVA e EXISTENTE deve usar este componente.
  */
+export type PageDomain =
+  | "clients" | "curators" | "campaigns" | "deals"
+  | "community" | "playlists" | "system";
+
 export interface PageHeaderProps {
   title: string;
   subtitle: string;
   kicker?: string;
   icon?: any;
   actions?: ReactNode;
+  /** Cor de domínio: barra à esquerda do título + ícone do kicker tingido. */
+  domain?: PageDomain;
   className?: string;
 }
 
@@ -34,8 +40,10 @@ export function PageHeader({
   kicker,
   icon: Icon,
   actions,
+  domain,
   className,
 }: PageHeaderProps) {
+  const domainColor = domain ? `hsl(var(--domain-${domain}))` : undefined;
   return (
     <div className="h-[76px] shrink-0 lg:h-[104px]">
       <header
@@ -50,10 +58,23 @@ export function PageHeader({
           className,
         )}
       >
+        {/* Barra colorida de domínio (3px, full height do header) */}
+        {domainColor && (
+          <span
+            aria-hidden
+            className="absolute left-0 top-0 bottom-0 w-[3px]"
+            style={{ backgroundColor: domainColor }}
+          />
+        )}
         <div className="space-y-1 min-w-0 flex-1 overflow-hidden">
           {kicker && (
             <div className="hidden lg:inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-bold">
-              {Icon && <Icon className="h-3 w-3 text-primary" />}
+              {Icon && (
+                <Icon
+                  className={cn("h-3 w-3", !domainColor && "text-primary")}
+                  style={domainColor ? { color: domainColor } : undefined}
+                />
+              )}
               {kicker}
             </div>
           )}
