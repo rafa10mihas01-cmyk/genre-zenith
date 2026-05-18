@@ -22,6 +22,7 @@ type Campaign = {
   total_allocated: number;
   total_delivered: number;
   created_at: string;
+  snapshot_locked_at: string | null;
 };
 
 const STATUS_TONE: Record<string, "success" | "warning" | "neutral" | "danger"> = {
@@ -48,7 +49,7 @@ export default function Campanhas() {
     setLoading(true);
     const { data, error } = await supabase
       .from("campaigns")
-      .select("id, track_name, artist, goal_plays, deadline, status, total_allocated, total_delivered, created_at")
+      .select("id, track_name, artist, goal_plays, deadline, status, total_allocated, total_delivered, created_at, snapshot_locked_at")
       .order("created_at", { ascending: false });
     setLoading(false);
     if (error) {
@@ -196,9 +197,10 @@ function Kpi({ label, value }: { label: string; value: string }) {
 function CampaignRow({ c }: { c: Campaign }) {
   const pct = c.goal_plays > 0 ? Math.min(100, Math.round((c.total_delivered / c.goal_plays) * 100)) : 0;
   const daysLeft = Math.ceil((new Date(c.deadline).getTime() - Date.now()) / 86400_000);
+  const href = c.snapshot_locked_at ? `/campanhas/${c.id}/execucao` : `/campanhas/${c.id}`;
   return (
     <Link
-      to={`/campanhas/${c.id}`}
+      to={href}
       className="rounded-2xl border border-border bg-card hover:bg-accent/30 transition-colors p-5 flex flex-col md:flex-row md:items-center gap-4"
     >
       <div className="flex-1 min-w-0">

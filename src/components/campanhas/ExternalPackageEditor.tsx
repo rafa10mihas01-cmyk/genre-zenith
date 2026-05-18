@@ -38,9 +38,11 @@ type ItemRow = {
 export function ExternalPackageEditor({
   campaignId,
   snapshot,
+  onChanged,
 }: {
   campaignId: string;
   snapshot: CampaignSnapshot;
+  onChanged?: () => void;
 }) {
   const [pkg, setPkg] = useState<PackageRow | null>(null);
   const [items, setItems] = useState<ItemRow[]>([]);
@@ -65,6 +67,7 @@ export function ExternalPackageEditor({
       ]);
       setPkg(p as any);
       setItems((its ?? []) as any);
+      onChanged?.();
     } catch (e: any) {
       toast({ title: "Erro ao carregar pacote", description: e.message ?? String(e), variant: "destructive" });
     } finally {
@@ -80,6 +83,7 @@ export function ExternalPackageEditor({
       : i));
     try {
       await updatePackageItem(item.id, { assigned_streams: value, cost_per_stream: item.cost_per_stream });
+      onChanged?.();
     } catch (e: any) {
       toast({ title: "Erro ao atualizar", description: e.message, variant: "destructive" });
     }
@@ -87,7 +91,7 @@ export function ExternalPackageEditor({
 
   async function handleRemove(item: ItemRow) {
     setItems(prev => prev.filter(i => i.id !== item.id));
-    try { await removePackageItem(item.id); }
+    try { await removePackageItem(item.id); onChanged?.(); }
     catch (e: any) { toast({ title: "Erro ao remover", description: e.message, variant: "destructive" }); load(); }
   }
 
@@ -98,6 +102,7 @@ export function ExternalPackageEditor({
       const { dealsCreated } = await confirmExternalPackage({ packageId: pkg.id, campaignId, snapshot });
       toast({ title: "Pacote confirmado", description: `${dealsCreated} deals criados em status proposto.` });
       load();
+      onChanged?.();
     } catch (e: any) {
       toast({ title: "Erro ao confirmar", description: e.message ?? String(e), variant: "destructive" });
     } finally {

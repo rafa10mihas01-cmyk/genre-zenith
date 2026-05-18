@@ -1,0 +1,235 @@
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Download, CalendarDays, ListChecks, Users, Music2 } from "lucide-react";
+import { formatBRL, formatInt } from "@/lib/campaignEngine";
+import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
+import {
+  buildDailyCampaignPlan,
+  buildEcoPlaylistPlan,
+  buildExternalPlan,
+  exportCampaignPlanCsv,
+  type EcoPlanInput,
+  type ExternalPlanInput,
+} from "@/lib/campaignOperationalPlan";
+import { ensureExternalPackageDraft } from "@/lib/externalPackage";
+import { cn } from "@/lib/utils";
+
+type Props = {
+  campaignId: string;
+  snapshot: CampaignSnapshot;
+  startedAt: string;
+  ecoAllocations: EcoPlanInput[];
+  refreshKey?: number;
+};
+
+export function CampaignDailyPlan({ campaignId, snapshot, startedAt, ecoAllocations, refreshKey = 0 }: Props) {
+  const [externalItems, setExternalItems] = useState<ExternalPlanInput[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedDay, setSelectedDay] = useState(1);
+  const [source, setSource] = useState<"todos" | "eco" | "externo">("todos");
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      await ensureExternalPackageDraft(campaignId, snapshot);
+      const { data } = await supabase
+        .from("campaign_external_package_items")
+        .select("id, assigned_streams, assigned_cost, cost_per_stream, curators(name, contact), campaign_external_packages!inner(campaign_id)")
+        .eq("campaign_external_packages.campaign_id", campaignId)
+        .order("assigned_streams", { ascending: false });
+      if (!cancelled) {
+        setExternalItems((data ?? []) as any);
+        setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [campaignId, refreshKey]);
+
+  const plan = useMemo(() => {
+    const ecoPlans = buildEcoPlaylistPlan(snapshot, ecoAllocations);
+    const externalPlans = buildExternalPlan(snapshot, externalItems);
+    const daily = buildDailyCampaignPlan({ snapshot, startedAt, ecoPlans, externalPlans });
+    return { ecoPlans, externalPlans, daily };
+  }, [snapshot, startedAt, ecoAllocations, externalItems]);
+
+  const day = plan.daily[selectedDay - 1] ?? plan.daily[0];
+  const ecoForDay = plan.ecoPlans
+    .map(p => ({ ...p, streamsToday: p.daily[selectedDay - 1] ?? 0 }))
+    .filter(p => p.streamsToday > 0)
+    .sort((a, b) => b.streamsToday - a.streamsToday);
+  const externalForDay = plan.externalPlans
+    .map(p => ({ ...p, streamsToday: p.daily[selectedDay - 1] ?? 0 }))
+    .filter(p => p.streamsToday > 0)
+    .sort((a, b) => b.streamsToday - a.streamsToday);
+
+  const visibleEco = source !== "externo";
+  const visibleExternal = source !== "eco";
+
+  function handleExport() {
+    exportCampaignPlanCsv({
+      fileName: `plano-marketing-${campaignId.slice(0, 8)}.csv`,
+      daily: plan.daily,
+      ecoPlans: plan.ecoPlans,
+      externalPlans: plan.externalPlans,
+    });
+  }
+
+  if (loading) return <Skeleton className="h-80" />;
+
+  return (
+    <Card>
+      <CardHeader className="flex-row items-start justify-between gap-3 space-y-0">
+        <div>
+          <CardTitle className="text-sm flex items-center gap-2">
+            <CalendarDays className="h-4 w-4 text-primary" /> Plano operacional diário
+          </CardTitle>
+          <p className="text-xs text-muted-foreground mt-1">
+            Aquecimento por dia, entrada de playlists e metas para Ads/marketing.
+          </p>
+        </div>
+        <Button size="sm" variant="outline" onClick={handleExport}>
+          <Download className="h-4 w-4 mr-1.5" /> Exportar CSV
+        </Button>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+          <Metric label="Dia selecionado" value={`D${day?.day ?? 1}`} hint={day?.dateLabel} />
+          <Metric label="Meta do dia" value={formatInt(day?.total ?? 0)} hint={`Eco ${formatInt(day?.eco ?? 0)} · Ext ${formatInt(day?.external ?? 0)}`} />
+          <Metric label="Acumulado" value={formatInt(day?.cumulative ?? 0)} hint={`${formatInt(snapshot.meta)} no total`} />
+          <Metric label="Ativos no dia" value={`${day?.activePlaylists ?? 0} / ${day?.activeCurators ?? 0}`} hint="playlists / curadores" />
+        </div>
+
+        <div className="rounded-lg border border-border bg-elevated/20 p-3">
+          <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
+            <Tabs value={source} onValueChange={(v) => setSource(v as typeof source)}>
+              <TabsList className="bg-elevated/60">
+                <TabsTrigger value="todos">Todos</TabsTrigger>
+                <TabsTrigger value="eco">Eco</TabsTrigger>
+                <TabsTrigger value="externo">Externo</TabsTrigger>
+              </TabsList>
+            </Tabs>
+            <div className="text-[10px] text-muted-foreground tabular-nums">
+              {snapshot.days} dias · {formatInt(snapshot.streamsEco)} Eco · {formatInt(snapshot.streamsExt)} externo
+            </div>
+          </div>
+
+          <div className="grid grid-cols-7 sm:grid-cols-10 md:grid-cols-[repeat(15,minmax(0,1fr))] gap-1.5">
+            {plan.daily.map(d => {
+              const active = selectedDay === d.day;
+              const intensity = Math.min(1, d.total / Math.max(1, snapshot.picoPorDia));
+              return (
+                <button
+                  key={d.day}
+                  onClick={() => setSelectedDay(d.day)}
+                  className={cn(
+                    "h-12 rounded-md border text-[10px] transition-colors text-left px-2 overflow-hidden",
+                    active ? "border-primary bg-primary/10 text-foreground" : "border-border bg-background hover:bg-elevated/70 text-muted-foreground",
+                  )}
+                  title={`D${d.day}: ${formatInt(d.total)} streams`}
+                >
+                  <div className="font-medium tabular-nums">D{d.day}</div>
+                  <div className="mt-1 h-1 rounded-full bg-muted overflow-hidden">
+                    <div className="h-full bg-primary" style={{ width: `${Math.max(8, intensity * 100)}%` }} />
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+          {visibleEco && (
+            <PlanTable
+              title="Playlists próprias no dia"
+              icon={<Music2 className="h-4 w-4 text-primary" />}
+              empty="Nenhuma playlist Eco programada para este dia."
+              rows={ecoForDay.map(p => ({
+                id: p.allocationId,
+                name: p.playlistName,
+                detail: `${formatInt(p.followers)} saves · entrada D${p.startDay}`,
+                today: p.streamsToday,
+                total: p.totalStreams,
+                badge: p.startDay === selectedDay ? "Entrada" : "Ativa",
+              }))}
+            />
+          )}
+
+          {visibleExternal && (
+            <PlanTable
+              title="Curadores externos no dia"
+              icon={<Users className="h-4 w-4 text-primary" />}
+              empty="Nenhum curador externo carregado para este dia."
+              rows={externalForDay.map(p => ({
+                id: p.itemId,
+                name: p.curatorName,
+                detail: `${p.contact ?? "sem contato"} · ${formatBRL(p.streamsToday * p.costPerStream)}`,
+                today: p.streamsToday,
+                total: p.totalStreams,
+                badge: "Meta diária",
+              }))}
+            />
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function Metric({ label, value, hint }: { label: string; value: string; hint?: string }) {
+  return (
+    <div className="rounded-lg border border-border bg-elevated/30 p-3">
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="text-lg font-semibold tabular-nums mt-1">{value}</div>
+      {hint && <div className="text-[10px] text-muted-foreground mt-0.5">{hint}</div>}
+    </div>
+  );
+}
+
+function PlanTable({
+  title,
+  icon,
+  rows,
+  empty,
+}: {
+  title: string;
+  icon: ReactNode;
+  empty: string;
+  rows: { id: string; name: string; detail: string; today: number; total: number; badge: string }[];
+}) {
+  return (
+    <div className="rounded-lg border border-border overflow-hidden">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-elevated/30">
+        {icon}
+        <div className="font-medium text-sm">{title}</div>
+      </div>
+      {rows.length === 0 ? (
+        <div className="p-6 text-sm text-muted-foreground text-center">{empty}</div>
+      ) : (
+        <div className="divide-y divide-border/50 max-h-96 overflow-auto">
+          {rows.map(row => (
+            <div key={row.id} className="grid grid-cols-[minmax(0,1fr)_120px] gap-3 px-3 py-2.5 hover:bg-elevated/40">
+              <div className="min-w-0">
+                <div className="font-medium text-sm truncate">{row.name}</div>
+                <div className="text-[10px] text-muted-foreground truncate">{row.detail}</div>
+              </div>
+              <div className="text-right">
+                <div className="font-semibold tabular-nums">{formatInt(row.today)}</div>
+                <div className="flex justify-end mt-1">
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-normal text-muted-foreground">
+                    <ListChecks className="h-3 w-3 mr-1" /> {row.badge}
+                  </Badge>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
