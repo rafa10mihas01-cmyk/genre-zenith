@@ -102,8 +102,8 @@ export default function CampanhaExecucao() {
 
   const ecoPlanByAllocation = useMemo(() => {
     if (!snapshot) return new Map<string, number>();
-    return new Map(buildEcoPlaylistPlan(snapshot, allocs).map(plan => [plan.allocationId, plan.startDay]));
-  }, [snapshot, allocs]);
+    return new Map(buildEcoPlaylistPlan(snapshot, allocs, { startedAt: camp?.started_at }).map(plan => [plan.allocationId, plan.startDay]));
+  }, [snapshot, allocs, camp?.started_at]);
 
   const hasPendingEco = allocs.some(a => a.status === "pending");
 
