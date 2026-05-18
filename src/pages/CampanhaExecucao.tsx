@@ -40,6 +40,7 @@ type CampaignRow = {
   simulation_snapshot: CampaignSnapshot | null;
   snapshot_locked_at: string | null;
   eco_dispatched_at: string | null;
+  public_plan_token: string | null;
 };
 
 const STATUS_LABEL: Record<string, string> = {
