@@ -5,7 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { CampaignFullPlanCard } from "@/components/campanhas/CampaignFullPlanCard";
 import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
-import { Printer } from "lucide-react";
+import { Printer, ExternalLink } from "lucide-react";
 import { NexEngineLogo } from "@/components/NexEngineLogo";
 
 type Camp = {
