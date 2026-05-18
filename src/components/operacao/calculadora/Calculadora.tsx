@@ -473,11 +473,21 @@ function Top200Picker({
           Lista completa
         </Button>
       </div>
-      {pos && chartDate && (
-        <p className="text-[11px] text-muted-foreground">
-          Meta = streams/dia da posição #{pos} × {days} dias · snapshot {chartDate}
-        </p>
-      )}
+      {pos && posStreamsDay != null && chartDate && (() => {
+        const gapDay = Math.max(0, posStreamsDay - currentStreamsDay);
+        return (
+          <div className="text-[11px] text-muted-foreground space-y-0.5 rounded-md border border-border bg-muted/30 p-2">
+            <div>Posição #{pos}: <span className="text-foreground font-semibold">{posStreamsDay.toLocaleString("pt-BR")}</span> streams/dia</div>
+            {currentStreamsDay > 0 && (
+              <div>Sua música hoje: <span className="text-foreground">{currentStreamsDay.toLocaleString("pt-BR")}</span> streams/dia</div>
+            )}
+            <div className="pt-1 border-t border-border/50">
+              Gap: <span className="text-foreground font-semibold">{gapDay.toLocaleString("pt-BR")}</span>/dia × {days}d = <span className="text-primary font-semibold">{(gapDay * days).toLocaleString("pt-BR")}</span> streams
+            </div>
+            <div className="opacity-70">snapshot {chartDate}</div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
