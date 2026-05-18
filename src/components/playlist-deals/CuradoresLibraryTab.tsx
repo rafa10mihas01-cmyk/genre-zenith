@@ -240,7 +240,7 @@ export function CuradoresLibraryTab({
             return (
               <div
                 key={curator.id}
-                onClick={() => setSelected(curator)}
+                onClick={() => navigate(`/curadores/${curator.id}`)}
                 className={cn(
                   "group relative rounded-2xl border border-border/50 bg-card transition-colors cursor-pointer",
                   "hover:border-foreground/20 hover:bg-[hsl(var(--elevated))]",
