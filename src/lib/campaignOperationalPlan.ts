@@ -93,8 +93,8 @@ export function buildEcoPlaylistPlan(snapshot: CampaignSnapshot, allocs: EcoPlan
 
   return ordered.map((a, index) => {
     const startDay = allStoredAtDayOne
-      ? effectiveEcoStartDay(index, ordered.length, snapshot.days)
-      : effectiveEcoStartDay(index, ordered.length, snapshot.days, a.start_day);
+      ? effectiveEcoStartDay(index, ordered.length, snapshot.days, undefined, snapshot.modo)
+      : effectiveEcoStartDay(index, ordered.length, snapshot.days, a.start_day, snapshot.modo);
 
     return {
       allocationId: a.id,
