@@ -246,7 +246,7 @@ export default function Campanhas() {
 }
 
 
-function CampaignRow({ c }: { c: Campaign }) {
+function CampaignRow({ c, viewMode = "list" }: { c: Campaign; viewMode?: ViewMode }) {
   const pct = c.goal_plays > 0 ? Math.min(100, Math.round((c.total_delivered / c.goal_plays) * 100)) : 0;
   const daysLeft = Math.ceil((new Date(c.deadline).getTime() - Date.now()) / 86400_000);
   const href = c.snapshot_locked_at ? `/campanhas/${c.id}/execucao` : `/campanhas/${c.id}`;
