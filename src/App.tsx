@@ -29,6 +29,7 @@ import CuradorDetail from "./pages/CuradorDetail";
 import CompararCuradores from "./pages/CompararCuradores";
 import CuratorPage from "./pages/CuratorPage";
 import ClientCampaignPage from "./pages/ClientCampaignPage";
+import CampanhaPlanoPublico from "./pages/CampanhaPlanoPublico";
 import CuradoriaPreview from "./pages/CuradoriaPreview";
 import Sistema from "./pages/Sistema";
 import Executivo from "./pages/Executivo";
