@@ -169,6 +169,7 @@ export function ClientesLibraryTab({ deals, songs, loading }: Props) {
             {showArchived ? "Ver ativos" : `Arquivados (${archivedCount})`}
           </Button>
         )}
+        <ViewModeToggle value={viewMode} onChange={setViewMode} className="ml-auto" />
       </div>
 
       {(loading || loadingClients) && rows.length === 0 ? (
