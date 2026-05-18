@@ -437,7 +437,8 @@ export default function Home() {
           </section>
         </div>
       </details>
-    </PageContainer>
+      </PageContainer>
+    </>
   );
 }
 
