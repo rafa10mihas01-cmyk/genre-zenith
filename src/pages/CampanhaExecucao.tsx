@@ -169,11 +169,16 @@ export default function CampanhaExecucao() {
     <PageContainer>
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <PageHeader title={camp.track_name} subtitle="Executar campanha conforme o mapa congelado" />
-        <Link to="/campanhas">
-          <Button variant="outline" size="sm">
-            <ArrowLeft className="h-4 w-4 mr-1.5" /> Campanhas
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          {camp.public_plan_token && (
+            <CopyPublicPlanLink token={camp.public_plan_token} />
+          )}
+          <Link to="/campanhas">
+            <Button variant="outline" size="sm">
+              <ArrowLeft className="h-4 w-4 mr-1.5" /> Campanhas
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Hero unificado: música + meta + snapshot + curva em uma única faixa */}
