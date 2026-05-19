@@ -590,29 +590,6 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
         <Button
           variant="outline"
           size="sm"
-          onClick={handleRecalc}
-          disabled={recalcing}
-          className="gap-1.5 h-9 w-9 sm:w-auto px-0 sm:px-3 shrink-0"
-          title="Sincronizar com Spotify"
-          aria-label="Sincronizar com Spotify"
-        >
-          <RefreshCw className={cn("h-4 w-4", recalcing && "animate-spin")} />
-          <span className="hidden sm:inline">{recalcing ? "Sincronizando…" : "Sincronizar"}</span>
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={openLogs}
-          className="gap-1.5 h-9 w-9 sm:w-auto px-0 sm:px-3 shrink-0"
-          title="Diário"
-          aria-label="Diário"
-        >
-          <History className="h-4 w-4" />
-          <span className="hidden sm:inline">Diário</span>
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
           onClick={() => setSortBy(sortBy === "valuation" ? "recent" : "valuation")}
           className="gap-1.5 h-9 w-9 sm:w-auto px-0 sm:px-3 shrink-0"
           title={sortBy === "valuation" ? "Ordem: valuation" : "Ordem: recente"}
