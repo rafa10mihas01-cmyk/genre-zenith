@@ -151,7 +151,7 @@ export default function Home() {
             icon={Handshake}
             label="Curadoria ativa"
             value={loading ? "—" : `R$ ${formatNumber(s?.dealsValor)}`}
-            hint={loading ? " " : `${s?.dealsActive ?? 0} deals abertos`}
+            hint={loading ? " " : `${s?.dealsActive ?? 0} ${(s?.dealsActive ?? 0) === 1 ? "negociação aberta" : "negociações abertas"}`}
           />
           <PulseCard
             to="/playlists"
@@ -436,7 +436,7 @@ function ConcentrationCard({ s, loading }: { s: Snapshot | null; loading: boolea
       {loading ? (
         <div className="h-20 rounded-md bg-muted/40 animate-pulse" />
       ) : !top ? (
-        <div className="text-xs text-muted-foreground py-4">Sem deals abertos.</div>
+        <div className="text-xs text-muted-foreground py-4">Sem negociações abertas.</div>
       ) : (
         <>
           <div className="flex-1 flex flex-col items-center justify-center text-center rounded-xl border border-border/60 bg-muted/10 py-6 px-4 gap-2">

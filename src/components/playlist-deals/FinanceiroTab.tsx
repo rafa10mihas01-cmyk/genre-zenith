@@ -74,7 +74,7 @@ export function FinanceiroTab({ deals }: Props) {
           icon={Target}
           label="Comprometido"
           value={fmtBRL(committed)}
-          hint={`${deals.filter(d => !d.closed_at).length} deals abertos`}
+          hint={`${deals.filter(d => !d.closed_at).length} negociações abertas`}
           domain="campaigns"
           loading={loading}
         />

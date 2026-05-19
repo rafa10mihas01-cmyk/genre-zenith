@@ -289,7 +289,7 @@ export default function Operacao() {
               </>
             );
           })()}
-          <KpiBig icon={Gauge}         label="Health médio"  value={String(playlistStats.avgHealth)} hint={`${playlistStats.topPerf} top performer${playlistStats.topPerf === 1 ? "" : "s"}`} loading={loading} />
+          <KpiBig icon={Gauge}         label="Saúde média"  value={String(playlistStats.avgHealth)} hint={`${playlistStats.topPerf} ${playlistStats.topPerf === 1 ? "destaque" : "destaques"}`} loading={loading} />
           <KpiBig icon={ShieldAlert}   label="Em risco / inativas" value={`${playlistStats.atRisk} / ${playlistStats.inactive}`} tone={(playlistStats.atRisk + playlistStats.inactive) > 0 ? "destructive" : "default"} hint="Risco ≥ 60 · Atividade < 30" loading={loading} />
           <KpiBig tier="quiet" icon={AlertCircle} label="Precisa atenção" value={formatNumber(kpi.atencao)} tone={kpi.atencao > 0 ? "destructive" : "default"} hint="Auto em queda" loading={loading} />
 

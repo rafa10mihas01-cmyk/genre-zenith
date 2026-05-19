@@ -30,13 +30,13 @@ type QuickAction = {
  */
 const QUICK_ACTIONS_BY_ROUTE: Record<string, QuickAction[]> = {
   "/": [
-    { label: "Deals", icon: Handshake, to: "/deals" },
+    { label: "Negociações", icon: Handshake, to: "/deals" },
     { label: "Playlists", icon: ListMusic, to: "/catalogo" },
     { label: "Analytics", icon: BarChart3, to: "/analytics" },
   ],
   "/cerebro": [
     { label: "Analytics", icon: BarChart3, to: "/analytics" },
-    { label: "Deals", icon: Handshake, to: "/deals" },
+    { label: "Negociações", icon: Handshake, to: "/deals" },
     { label: "Playlists", icon: ListMusic, to: "/catalogo" },
   ],
   "/deals": [
@@ -51,7 +51,7 @@ const QUICK_ACTIONS_BY_ROUTE: Record<string, QuickAction[]> = {
   ],
   "/catalogo": [
     { label: "Performance", icon: TrendingUp, to: "/performance" },
-    { label: "Deals", icon: Handshake, to: "/deals" },
+    { label: "Negociações", icon: Handshake, to: "/deals" },
     { label: "Campanhas", icon: Target, to: "/campanhas" },
   ],
   "/analytics": [
@@ -62,21 +62,21 @@ const QUICK_ACTIONS_BY_ROUTE: Record<string, QuickAction[]> = {
   "/performance": [
     { label: "Valuation", icon: Gauge, to: "/valuation" },
     { label: "Playlists", icon: ListMusic, to: "/catalogo" },
-    { label: "Deals", icon: Handshake, to: "/deals" },
+    { label: "Negociações", icon: Handshake, to: "/deals" },
   ],
   "/valuation": [
     { label: "Performance", icon: TrendingUp, to: "/performance" },
     { label: "Playlists", icon: ListMusic, to: "/catalogo" },
-    { label: "Deals", icon: Handshake, to: "/deals" },
+    { label: "Negociações", icon: Handshake, to: "/deals" },
   ],
   "/campanhas": [
     { label: "Playlists", icon: ListMusic, to: "/catalogo" },
-    { label: "Deals", icon: Handshake, to: "/deals" },
+    { label: "Negociações", icon: Handshake, to: "/deals" },
     { label: "Analytics", icon: BarChart3, to: "/analytics" },
   ],
   "/configuracoes": [
     { label: "Analytics", icon: BarChart3, to: "/analytics" },
-    { label: "Deals", icon: Handshake, to: "/deals" },
+    { label: "Negociações", icon: Handshake, to: "/deals" },
     { label: "Playlists", icon: ListMusic, to: "/catalogo" },
   ],
 };

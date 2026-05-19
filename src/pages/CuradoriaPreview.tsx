@@ -40,13 +40,13 @@ export default function CuradoriaPreview() {
         <div className="max-w-md text-center space-y-3">
           <h1 className="text-xl font-semibold text-foreground">Nenhum deal encontrado</h1>
           <p className="text-sm text-muted-foreground">
-            Crie um deal em Playlist Deals para visualizar a página do curador.
+            Crie uma negociação na página Negociações para visualizar a página do curador.
           </p>
           <Link
             to="/playlist-deals"
             className="inline-block mt-2 text-sm text-primary hover:underline"
           >
-            Ir para Playlist Deals
+            Ir para Negociações
           </Link>
         </div>
       </div>

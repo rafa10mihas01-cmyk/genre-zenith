@@ -334,7 +334,7 @@ export function ClientesLibraryTab({ deals, songs, loading }: Props) {
                 {/* Métricas */}
                 <div className="flex items-center gap-4 px-4 py-3 min-w-0 mt-auto">
                   <MetricCell label="Músicas" value={totalSongs} size="sm" />
-                  <MetricCell label="Deals" value={totalDeals} size="sm" />
+                  <MetricCell label="Negociações" value={totalDeals} size="sm" />
                   {closedDeals > 0 && (
                     <MetricCell label="Concluídos" value={closedDeals} size="sm" />
                   )}
