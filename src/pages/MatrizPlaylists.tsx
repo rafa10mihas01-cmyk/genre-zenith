@@ -131,7 +131,7 @@ export default function MatrizPlaylists() {
 
           {/* Axis labels */}
           <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[11px] text-muted-foreground">
-            headroom →
+            folga →
           </div>
           <div className="absolute top-1/2 -left-2 -translate-y-1/2 -rotate-90 text-[11px] text-muted-foreground">
             ← confiança
