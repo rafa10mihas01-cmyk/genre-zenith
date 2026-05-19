@@ -775,136 +775,143 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
               <div className="p-2 flex-1 flex flex-col gap-1">
                 <div className="flex items-start gap-1.5">
                   <h4 className="flex-1 text-[12.5px] font-semibold leading-tight line-clamp-1" title={p.name}>{p.name}</h4>
-                  <PlaylistScoreBadge scores={p.canonical_playlist_id ? scores[p.canonical_playlist_id] ?? null : null} />
                 </div>
                 <div className="flex items-center justify-between text-[11px] tabular-nums text-muted-foreground">
                   <span><span className="font-semibold text-foreground">{formatNumber(p.followers)}</span> seg.</span>
                   <span><span className="font-semibold text-foreground">{p.tracks_count || "—"}</span> fx</span>
                 </div>
-                {/* Linha única de status — todos os badges juntos, ocupando a largura disponível */}
-                {(valuations[p.spotify_playlist_id] || p.last_diagnosis_at || p.account_id || !p.account_id || p.curatorial_state || p.lifecycle_stage === "onboarding" || (cooldownsByPlaylist[p.id]?.length ?? 0) > 0) && (
-                  <div className="flex items-center gap-1 flex-wrap mt-0.5">
-                    {p.lifecycle_stage === "onboarding" && (
-                      <IconBadge
-                        title="Em onboarding"
-                        description="Playlist ainda passando pela padronização inicial. Precisa concluir o onboarding antes de receber deals de clientes."
-                        icon={GraduationCap}
-                        tone="primary"
-                      />
-                    )}
-                    {p.account_id && (() => {
-                      const acc = accounts.find(a => a.id === p.account_id);
-                      const label = acc?.display_name || acc?.email || "conta";
-                      return (
+                {/* Régua única — ícones à esquerda, números à direita, distribuídos */}
+                {(valuations[p.spotify_playlist_id] || p.last_diagnosis_at || p.account_id || !p.account_id || p.curatorial_state || p.lifecycle_stage === "onboarding" || (cooldownsByPlaylist[p.id]?.length ?? 0) > 0 || (p.canonical_playlist_id && scores[p.canonical_playlist_id])) && (
+                  <div className="flex items-center justify-between flex-wrap gap-y-1 mt-0.5">
+                    {/* === ÍCONES (esquerda) === */}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {p.lifecycle_stage === "onboarding" && (
                         <IconBadge
-                          title="Conta Spotify vinculada"
-                          description={
-                            <>
-                              Esta playlist está conectada à conta <span className="text-foreground font-medium">{label}</span>
-                              {acc?.email && acc?.display_name ? <> ({acc.email})</> : null}.
-                              As ações de manutenção e diagnóstico usam essa conta.
-                            </>
-                          }
-                          icon={Link2}
+                          title="Em onboarding"
+                          description="Playlist ainda passando pela padronização inicial. Precisa concluir o onboarding antes de receber deals de clientes."
+                          icon={GraduationCap}
                           tone="primary"
                         />
-                      );
-                    })()}
-                    {p.curatorial_state && <CuratorialStateBadge state={p.curatorial_state} compact />}
-                    {valuations[p.spotify_playlist_id] && (() => {
-                      const v = valuations[p.spotify_playlist_id];
-                      const score = Math.round(v.valuation_score);
-                      const recLabel =
-                        v.recommendation === "buy" ? "Recomendado comprar" :
-                        v.recommendation === "maybe" ? "Avaliar com cautela" :
-                        "Não recomendado";
-                      const tone =
-                        v.recommendation === "buy" ? "primary" :
-                        v.recommendation === "maybe" ? "warning" : "muted";
-                      return (
+                      )}
+                      {p.account_id && (() => {
+                        const acc = accounts.find(a => a.id === p.account_id);
+                        const label = acc?.display_name || acc?.email || "conta";
+                        return (
+                          <IconBadge
+                            title="Conta Spotify vinculada"
+                            description={
+                              <>
+                                Esta playlist está conectada à conta <span className="text-foreground font-medium">{label}</span>
+                                {acc?.email && acc?.display_name ? <> ({acc.email})</> : null}.
+                                As ações de manutenção e diagnóstico usam essa conta.
+                              </>
+                            }
+                            icon={Link2}
+                            tone="primary"
+                          />
+                        );
+                      })()}
+                      {p.curatorial_state && <CuratorialStateBadge state={p.curatorial_state} compact />}
+                      {p.last_diagnosis_at && (
                         <IconBadge
-                          title={`Valuation ${score}/100`}
+                          title="Último diagnóstico"
                           description={
                             <>
-                              Pontuação de valor de aquisição da playlist baseada em performance, audiência e contexto.
-                              <span className="block mt-1 text-foreground font-medium">{recLabel}.</span>
+                              Análise mais recente realizada <span className="text-foreground font-medium">{timeAgo(p.last_diagnosis_at)}</span>.
+                              Quanto mais antiga, mais vale rodar um novo diagnóstico para atualizar as recomendações.
                             </>
                           }
-                          label={`V${score}`}
-                          tone={tone as any}
+                          icon={Sparkles}
+                          tone="primary"
                         />
-                      );
-                    })()}
-                    {p.last_diagnosis_at && (
-                      <IconBadge
-                        title="Último diagnóstico"
-                        description={
-                          <>
-                            Análise mais recente realizada <span className="text-foreground font-medium">{timeAgo(p.last_diagnosis_at)}</span>.
-                            Quanto mais antiga, mais vale rodar um novo diagnóstico para atualizar as recomendações.
-                          </>
-                        }
-                        icon={Sparkles}
-                        tone="primary"
-                      />
-                    )}
-                    {!p.account_id && (
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <button
-                            type="button"
+                      )}
+                      {!p.account_id && (
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <button
+                              type="button"
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                              title="Sem conta Spotify vinculada — clique para vincular"
+                              aria-label="Sem conta vinculada"
+                              className="inline-flex items-center justify-center w-[18px] h-[18px] rounded-full bg-warning/20 border border-warning/50 text-warning hover:bg-warning/30 transition-colors shrink-0"
+                            >
+                              <Link2Off className="h-2.5 w-2.5" />
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent
+                            align="start"
+                            className="w-64 p-2"
                             onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                            title="Sem conta Spotify vinculada — clique para vincular"
-                            aria-label="Sem conta vinculada"
-                            className="inline-flex items-center justify-center w-[18px] h-[18px] rounded-full bg-warning/20 border border-warning/50 text-warning hover:bg-warning/30 transition-colors shrink-0"
                           >
-                            <Link2Off className="h-2.5 w-2.5" />
-                          </button>
-                        </PopoverTrigger>
-                        <PopoverContent
-                          align="start"
-                          className="w-64 p-2"
-                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                        >
-                          <div className="px-2 py-1.5 text-[11px] text-muted-foreground">
-                            Vincular esta playlist a uma conta Spotify:
-                          </div>
-                          {accounts.length === 0 ? (
-                            <div className="px-2 py-3 text-[12px] text-muted-foreground">
-                              Nenhuma conta cadastrada. Cadastre em Ajustes → Contas.
+                            <div className="px-2 py-1.5 text-[11px] text-muted-foreground">
+                              Vincular esta playlist a uma conta Spotify:
                             </div>
-                          ) : (
-                            <div className="max-h-64 overflow-y-auto flex flex-col">
-                              {accounts.map((acc) => (
-                                <button
-                                  key={acc.id}
-                                  type="button"
-                                  disabled={assigningId === p.id}
-                                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); assignAccount(p.id, acc.id); }}
-                                  className="text-left px-2 py-2 rounded-md hover:bg-[hsl(var(--hover))] flex items-center gap-2 disabled:opacity-50"
-                                >
-                                  <Link2 className="h-3.5 w-3.5 text-primary shrink-0" />
-                                  <div className="flex-1 min-w-0">
-                                    <div className="text-[12px] font-medium truncate">
-                                      {acc.display_name || acc.email || "Conta sem nome"}
+                            {accounts.length === 0 ? (
+                              <div className="px-2 py-3 text-[12px] text-muted-foreground">
+                                Nenhuma conta cadastrada. Cadastre em Ajustes → Contas.
+                              </div>
+                            ) : (
+                              <div className="max-h-64 overflow-y-auto flex flex-col">
+                                {accounts.map((acc) => (
+                                  <button
+                                    key={acc.id}
+                                    type="button"
+                                    disabled={assigningId === p.id}
+                                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); assignAccount(p.id, acc.id); }}
+                                    className="text-left px-2 py-2 rounded-md hover:bg-[hsl(var(--hover))] flex items-center gap-2 disabled:opacity-50"
+                                  >
+                                    <Link2 className="h-3.5 w-3.5 text-primary shrink-0" />
+                                    <div className="flex-1 min-w-0">
+                                      <div className="text-[12px] font-medium truncate">
+                                        {acc.display_name || acc.email || "Conta sem nome"}
+                                      </div>
+                                      {acc.email && acc.display_name && (
+                                        <div className="text-[10px] text-muted-foreground truncate">{acc.email}</div>
+                                      )}
                                     </div>
-                                    {acc.email && acc.display_name && (
-                                      <div className="text-[10px] text-muted-foreground truncate">{acc.email}</div>
+                                    {acc.is_default && (
+                                      <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded text-primary bg-primary/10">
+                                        padrão
+                                      </span>
                                     )}
-                                  </div>
-                                  {acc.is_default && (
-                                    <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded text-primary bg-primary/10">
-                                      padrão
-                                    </span>
-                                  )}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </PopoverContent>
-                      </Popover>
-                    )}
-                    <CooldownStack cooldowns={cooldownsByPlaylist[p.id] ?? []} max={2} />
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </PopoverContent>
+                        </Popover>
+                      )}
+                      <CooldownStack cooldowns={cooldownsByPlaylist[p.id] ?? []} max={2} />
+                    </div>
+
+                    {/* === NÚMEROS (direita): health score + valuation === */}
+                    <div className="flex items-center gap-1.5">
+                      <PlaylistScoreBadge scores={p.canonical_playlist_id ? scores[p.canonical_playlist_id] ?? null : null} />
+                      {valuations[p.spotify_playlist_id] && (() => {
+                        const v = valuations[p.spotify_playlist_id];
+                        const score = Math.round(v.valuation_score);
+                        const recLabel =
+                          v.recommendation === "buy" ? "Recomendado comprar" :
+                          v.recommendation === "maybe" ? "Avaliar com cautela" :
+                          "Não recomendado";
+                        const tone =
+                          v.recommendation === "buy" ? "primary" :
+                          v.recommendation === "maybe" ? "warning" : "muted";
+                        return (
+                          <IconBadge
+                            title={`Valuation ${score}/100`}
+                            description={
+                              <>
+                                Pontuação de valor de aquisição da playlist baseada em performance, audiência e contexto.
+                                <span className="block mt-1 text-foreground font-medium">{recLabel}.</span>
+                              </>
+                            }
+                            label={`V${score}`}
+                            tone={tone as any}
+                          />
+                        );
+                      })()}
+                    </div>
                   </div>
                 )}
                 {(() => {
