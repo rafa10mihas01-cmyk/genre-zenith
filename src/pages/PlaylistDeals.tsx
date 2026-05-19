@@ -135,12 +135,16 @@ export default function PlaylistDeals() {
       else active++;
     }
     const pct = totalTarget > 0 ? Math.round((totalEarned / totalTarget) * 100) : 0;
+    const fromCampaign = deals.filter((d) => d.origin === "campaign").length;
+    const campaignPct = deals.length > 0 ? Math.round((fromCampaign / deals.length) * 100) : 0;
     return {
       total: deals.length,
       active,
       done,
       earned: totalEarned,
       pct,
+      fromCampaign,
+      campaignPct,
     };
   }, [deals, logs, playlists, progressByDeal]);
 
