@@ -36,6 +36,7 @@ const TABS = [
 export default function PlaylistDeals() {
   const [tab, setTab] = useScreenField<DealsTab>("/playlist-deals", "tab", "active");
   const [activeSubFilter, setActiveSubFilter] = useScreenField<"all" | "running" | "waiting">("/playlist-deals", "activeSub", "all");
+  const [artistFilter, setArtistFilter] = useScreenField<string>("/playlist-deals", "artist", "");
   const [newOpen, setNewOpen] = useState(false);
   const [logDeal, setLogDeal] = useState<CuratorDeal | null>(null);
   const [detailDeal, setDetailDeal] = useState<CuratorDeal | null>(null);
