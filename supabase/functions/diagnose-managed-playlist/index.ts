@@ -511,40 +511,282 @@ Deno.serve(async (req) => {
       anchor_misuse: anchorMisuse,
     };
 
-    // 7) Sugestões de faixas a ADICIONAR — do nicho, ainda não presentes na playlist
-    //    Boost: faixas de artistas faltando ganham prioridade
+    // 7) Sugestões de faixas a ADICIONAR — CAMADA 3: por FUNÇÃO EDITORIAL, não popularidade pura.
+    //    A lógica passa de "o que tá quente no nicho" para "o que cumpre a função de cada zona".
+    //    Cada sugestão carrega:
+    //      - target_zone: em qual zona ela deveria entrar
+    //      - function_role: qual papel ela cumpre (fachada, impulsionamento, sustentação, descoberta)
+    //      - replaces_track_id/name: se é substituição direta de uma faixa que está saindo
+    //      - suggested_position: posição calculada pela zona-alvo
     const currentIds = new Set(trackIds);
     const missingArtistSet = new Set(missingArtists.map((a) => a.artist.toLowerCase()));
     const N_SUGGEST = 15;
 
-    const ranked = Array.from(genreRecurrence.entries())
+    // 7.a) Top candidatas brutas (por recorrência) — limitamos antes de gastar API Spotify
+    const rawCandidates = Array.from(genreRecurrence.entries())
       .filter(([id]) => !currentIds.has(id))
-      .map(([id, v]) => {
-        const mainArtist = String(v.artist_name ?? "").split(",")[0].trim().toLowerCase();
-        const fromMissing = mainArtist && missingArtistSet.has(mainArtist);
-        // score: recorrência + bônus se preenche artista faltando
-        const score = v.count + (fromMissing ? 5 : 0);
-        return {
-          spotify_track_id: id,
-          nome: v.track_name ?? "—",
-          artista: v.artist_name ?? "—",
-          count: v.count,
-          from_missing_artist: !!fromMissing,
-          score,
-        };
-      })
-      .sort((a, b) => b.score - a.score)
-      .slice(0, N_SUGGEST);
+      .map(([id, v]) => ({ id, ...v }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 80);
 
-    // Posições sugeridas: insere no topo (1, 2, 3...) — faixas mais quentes vão pra vitrine
-    const tracksSuggestions = ranked.map((t, i) => ({
-      ...t,
-      suggested_position: i + 1,
-    }));
+    // 7.b) Busca meta Spotify dos candidatos (popularity + artista) pra calcular zone scores
+    const candMeta = new Map<string, { popularity: number | null; artistPop: number | null }>();
+    if (rawCandidates.length > 0) {
+      try {
+        const token = await getSpotifyToken();
+        const candArtistIds = new Map<string, string>(); // trackId → artistId
+        for (let i = 0; i < rawCandidates.length; i += 50) {
+          const ids = rawCandidates.slice(i, i + 50).map((c) => c.id);
+          const r = await fetch(`https://api.spotify.com/v1/tracks?ids=${ids.join(",")}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!r.ok) continue;
+          const j = await r.json();
+          for (const tr of j.tracks ?? []) {
+            if (!tr?.id) continue;
+            candMeta.set(tr.id, {
+              popularity: typeof tr.popularity === "number" ? tr.popularity : null,
+              artistPop: null,
+            });
+            if (tr.artists?.[0]?.id) candArtistIds.set(tr.id, tr.artists[0].id);
+          }
+        }
+        const uniqueArtistIds = uniq(Array.from(candArtistIds.values()));
+        const artistPopMap = new Map<string, number | null>();
+        for (let i = 0; i < uniqueArtistIds.length; i += 50) {
+          const ids = uniqueArtistIds.slice(i, i + 50);
+          const r = await fetch(`https://api.spotify.com/v1/artists?ids=${ids.join(",")}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!r.ok) continue;
+          const j = await r.json();
+          for (const ar of j.artists ?? []) {
+            if (!ar?.id) continue;
+            artistPopMap.set(ar.id, typeof ar.popularity === "number" ? ar.popularity : null);
+          }
+        }
+        for (const [tid, aid] of candArtistIds.entries()) {
+          const cur = candMeta.get(tid);
+          if (cur) cur.artistPop = artistPopMap.get(aid) ?? null;
+        }
+      } catch (_e) { /* degrade gracefully */ }
+    }
+
+    // 7.c) Calcula scores por zona pra cada candidato (mesma fórmula da camada 2)
+    type Candidate = {
+      spotify_track_id: string;
+      nome: string;
+      artista: string;
+      count: number;
+      from_missing_artist: boolean;
+      popularity: number | null;
+      artist_popularity: number | null;
+      zone_scores: { anchor: number; premium: number; support: number; tail: number };
+      anchor_eligible: boolean;
+      target_zone: Zone;
+      function_role: string;
+      score: number;
+    };
+    const ROLE_LABEL: Record<Zone, string> = {
+      anchor: "fachada · hit dominante",
+      premium: "impulsionamento · zona principal",
+      support: "sustentação · retenção",
+      tail: "descoberta · catálogo",
+    };
+    const candidates: Candidate[] = rawCandidates.map((c) => {
+      const m = candMeta.get(c.id);
+      const popularity = m?.popularity ?? null;
+      const artistPop = m?.artistPop ?? null;
+      const pop = popularity ?? 0;
+      const aPop = artistPop ?? 0;
+      const recNorm = Math.min(100, c.count * 12);
+      // Sem release_date para candidatos — assumimos freshness neutra
+      const freshness = 50;
+      const stability = 50;
+      const anchorScore  = Math.round(pop * 0.5  + aPop * 0.3  + recNorm * 0.2);
+      const premiumScore = Math.round(pop * 0.4  + recNorm * 0.35 + freshness * 0.25);
+      const supportScore = Math.round(recNorm * 0.5 + pop * 0.3 + stability * 0.2);
+      const tailScore    = Math.round(freshness * 0.5 + Math.max(0, 60 - pop) * 0.3 + recNorm * 0.2);
+      const anchorEligible = popularity != null && popularity >= 70 && (aPop >= 70 || c.count >= 5);
+
+      const zonePool: { z: Zone; v: number }[] = [
+        { z: "premium", v: premiumScore },
+        { z: "support", v: supportScore },
+        { z: "tail",    v: tailScore },
+      ];
+      if (anchorEligible) zonePool.push({ z: "anchor", v: anchorScore + 5 });
+      zonePool.sort((a, b) => b.v - a.v);
+      const targetZone = zonePool[0].z;
+
+      const mainArtist = String(c.artist_name ?? "").split(",")[0].trim().toLowerCase();
+      const fromMissing = !!(mainArtist && missingArtistSet.has(mainArtist));
+      // Score global combinando função + recorrência + boost de artista faltando
+      const composite = Math.round(zonePool[0].v * 0.7 + recNorm * 0.3) + (fromMissing ? 8 : 0);
+
+      return {
+        spotify_track_id: c.id,
+        nome: c.track_name ?? "—",
+        artista: c.artist_name ?? "—",
+        count: c.count,
+        from_missing_artist: fromMissing,
+        popularity,
+        artist_popularity: artistPop,
+        zone_scores: { anchor: anchorScore, premium: premiumScore, support: supportScore, tail: tailScore },
+        anchor_eligible: anchorEligible,
+        target_zone: targetZone,
+        function_role: ROLE_LABEL[targetZone],
+        score: composite,
+      };
+    });
+
+    // 7.d) Pareia substituições — cada faixa que SAI (remove/demote) ganha a melhor candidata
+    //      que cumpre a MESMA função na zona-alvo da saída.
+    const exitSlots = tracksAnalysis
+      .filter((t) => t.status === "remove" || t.status === "demote")
+      .map((t) => ({
+        track_id: t.spotify_track_id,
+        track_name: t.track_name,
+        artist_name: t.artist_name,
+        position: t.position,
+        // Para remove: vaga na zona atual. Para demote: a vaga liberada também é na zona atual.
+        slot_zone: t.current_zone as Zone,
+      }));
+
+    const usedCandidateIds = new Set<string>();
+    const substitutions = exitSlots.map((slot) => {
+      // Candidatas que se encaixam na MESMA zona que ficou vaga, ordenadas pelo score daquela zona
+      const fit = candidates
+        .filter((c) => !usedCandidateIds.has(c.spotify_track_id) && c.target_zone === slot.slot_zone)
+        .sort((a, b) => b.zone_scores[slot.slot_zone] - a.zone_scores[slot.slot_zone]);
+      const pick = fit[0] ?? null;
+      if (pick) usedCandidateIds.add(pick.spotify_track_id);
+      return {
+        replaces_track_id: slot.track_id,
+        replaces_track_name: slot.track_name,
+        replaces_artist_name: slot.artist_name,
+        replaces_position: slot.position,
+        slot_zone: slot.slot_zone,
+        slot_zone_label: ZONE_LABELS[slot.slot_zone],
+        candidate: pick ? {
+          spotify_track_id: pick.spotify_track_id,
+          nome: pick.nome,
+          artista: pick.artista,
+          popularity: pick.popularity,
+          recurrence_in_genre: pick.count,
+          zone_fit_score: pick.zone_scores[slot.slot_zone],
+          function_role: pick.function_role,
+          from_missing_artist: pick.from_missing_artist,
+          suggested_position: slot.position, // assume a vaga liberada
+        } : null,
+      };
+    });
+
+    // 7.e) Sugestões restantes — distribui pelo DEFICIT de cada zona
+    //      ideal: anchor=2, premium=4, support=6, tail = max(0, total-12)
+    const zoneIdeal: Record<Zone, number> = {
+      anchor: 2,
+      premium: 4,
+      support: 6,
+      tail: Math.max(0, totalTracks - 12),
+    };
+    const deficits: Record<Zone, number> = {
+      anchor: Math.max(0, zoneIdeal.anchor - (zoneCurrent.anchor ?? 0)),
+      premium: Math.max(0, zoneIdeal.premium - (zoneCurrent.premium ?? 0)),
+      support: Math.max(0, zoneIdeal.support - (zoneCurrent.support ?? 0)),
+      tail: Math.max(0, zoneIdeal.tail - (zoneCurrent.tail ?? 0)),
+    };
+
+    const remainingCandidates = candidates
+      .filter((c) => !usedCandidateIds.has(c.spotify_track_id))
+      .sort((a, b) => b.score - a.score);
+
+    const extraSuggestions: any[] = [];
+    const remainingByZone: Record<Zone, Candidate[]> = { anchor: [], premium: [], support: [], tail: [] };
+    for (const c of remainingCandidates) remainingByZone[c.target_zone].push(c);
+
+    for (const zone of ZONE_ORDER) {
+      const need = deficits[zone];
+      if (!need) continue;
+      const picks = remainingByZone[zone].slice(0, need);
+      for (const p of picks) {
+        usedCandidateIds.add(p.spotify_track_id);
+        extraSuggestions.push({
+          spotify_track_id: p.spotify_track_id,
+          nome: p.nome,
+          artista: p.artista,
+          count: p.count,
+          popularity: p.popularity,
+          from_missing_artist: p.from_missing_artist,
+          target_zone: zone,
+          target_zone_label: ZONE_LABELS[zone],
+          function_role: p.function_role,
+          zone_fit_score: p.zone_scores[zone],
+          suggested_position: zoneMiddle(zone),
+          fills_deficit: true,
+          score: p.score,
+        });
+      }
+    }
+
+    // 7.f) Completa até N_SUGGEST com top score livre, mantendo função
+    if (extraSuggestions.length + substitutions.filter((s) => s.candidate).length < N_SUGGEST) {
+      const stillNeed = N_SUGGEST - extraSuggestions.length - substitutions.filter((s) => s.candidate).length;
+      const fillers = candidates
+        .filter((c) => !usedCandidateIds.has(c.spotify_track_id))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, stillNeed);
+      for (const p of fillers) {
+        usedCandidateIds.add(p.spotify_track_id);
+        extraSuggestions.push({
+          spotify_track_id: p.spotify_track_id,
+          nome: p.nome,
+          artista: p.artista,
+          count: p.count,
+          popularity: p.popularity,
+          from_missing_artist: p.from_missing_artist,
+          target_zone: p.target_zone,
+          target_zone_label: ZONE_LABELS[p.target_zone],
+          function_role: p.function_role,
+          zone_fit_score: p.zone_scores[p.target_zone],
+          suggested_position: zoneMiddle(p.target_zone),
+          fills_deficit: false,
+          score: p.score,
+        });
+      }
+    }
+
+    // Lista final consolidada (substituições + adições por deficit/score)
+    const tracksSuggestions = [
+      ...substitutions
+        .filter((s) => s.candidate)
+        .map((s) => ({
+          spotify_track_id: s.candidate!.spotify_track_id,
+          nome: s.candidate!.nome,
+          artista: s.candidate!.artista,
+          count: s.candidate!.recurrence_in_genre,
+          popularity: s.candidate!.popularity,
+          from_missing_artist: s.candidate!.from_missing_artist,
+          target_zone: s.slot_zone,
+          target_zone_label: s.slot_zone_label,
+          function_role: s.candidate!.function_role,
+          zone_fit_score: s.candidate!.zone_fit_score,
+          suggested_position: s.candidate!.suggested_position,
+          replaces_track_id: s.replaces_track_id,
+          replaces_track_name: s.replaces_track_name,
+          replaces_artist_name: s.replaces_artist_name,
+          fills_deficit: false,
+          is_substitution: true,
+          score: s.candidate!.zone_fit_score,
+        })),
+      ...extraSuggestions,
+    ];
 
     // Adiciona contagem ao summary pra UI exibir KPI "ADICIONAR"
     (tracksSummary as any).add = tracksSuggestions.length;
-    (tracksSummary as any).add_from_missing = tracksSuggestions.filter((t) => t.from_missing_artist).length;
+    (tracksSummary as any).add_from_missing = tracksSuggestions.filter((t: any) => t.from_missing_artist).length;
+    (tracksSummary as any).substitutions = substitutions.filter((s) => s.candidate).length;
+    (tracksSummary as any).zone_deficits = deficits;
+    (tracksSummary as any).zone_ideal = zoneIdeal;
 
 
     // 8) Análise de nome (igual ao anterior)
