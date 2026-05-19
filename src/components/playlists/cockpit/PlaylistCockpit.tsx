@@ -417,7 +417,15 @@ export function PlaylistCockpit({
               <CoverCard
                 managedId={managedId}
                 currentCover={coverUrl}
-                leaders={diag.raw?.market_insights?.leader_playlists ?? []}
+                references={(diag.raw?.market_insights?.top_recurring_tracks ?? [])
+                  .filter((t: any) => t?.cover_url)
+                  .map((t: any) => ({
+                    id: t.spotify_track_id,
+                    name: t.title ?? "—",
+                    subtitle: t.artist ?? "",
+                    cover_url: t.cover_url,
+                    external_url: t.spotify_track_id ? `https://open.spotify.com/track/${t.spotify_track_id}` : null,
+                  }))}
                 spotifyPlaylistId={spotifyPlaylistId}
               />
               {(diag.raw?.missing_keywords?.length ?? 0) > 0 && (
@@ -598,10 +606,18 @@ function IdentityField({ label, field, managedId, current, suggestion, score, on
   );
 }
 
-function CoverCard({ managedId, currentCover, leaders, spotifyPlaylistId }: {
+type CoverReference = {
+  id: string;
+  name: string;
+  subtitle?: string;
+  cover_url: string | null;
+  external_url?: string | null;
+};
+
+function CoverCard({ managedId, currentCover, references, spotifyPlaylistId }: {
   managedId: string;
   currentCover: string | null;
-  leaders: { spotify_playlist_id: string; name: string; followers: number; cover_url: string | null }[];
+  references: CoverReference[];
   spotifyPlaylistId: string;
 }) {
   const [uploading, setUploading] = useState(false);
@@ -609,24 +625,24 @@ function CoverCard({ managedId, currentCover, leaders, spotifyPlaylistId }: {
   const [localCover, setLocalCover] = useState<string | null>(currentCover);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [pendingPreview, setPendingPreview] = useState<string | null>(null);
-  const [selectedLeader, setSelectedLeader] = useState<typeof leaders[number] | null>(null);
+  const [selectedLeader, setSelectedLeader] = useState<CoverReference | null>(null);
 
   useEffect(() => { setLocalCover(currentCover); }, [currentCover]);
 
-  const applyLeaderCover = async (leader: { spotify_playlist_id: string; cover_url: string | null; name: string }) => {
-    if (!leader.cover_url) return;
-    setApplyingLeader(leader.spotify_playlist_id);
+  const applyLeaderCover = async (ref: CoverReference) => {
+    if (!ref.cover_url) return;
+    setApplyingLeader(ref.id);
     try {
       const { data, error } = await supabase.functions.invoke("apply-managed-cover", {
-        body: { playlist_id: managedId, image_url: leader.cover_url },
+        body: { playlist_id: managedId, image_url: ref.cover_url },
       });
       if (error) throw error;
       if (!data?.ok) throw new Error(data?.error || "falha ao aplicar capa");
-      setLocalCover(data.cover_url ?? leader.cover_url);
+      setLocalCover(data.cover_url ?? ref.cover_url);
       setSelectedLeader(null);
       toast({
         title: data.confirmed ? "Capa aplicada no Spotify" : "Capa enviada ao Spotify",
-        description: data.confirmed ? `Usando a capa de "${leader.name}".` : "O Spotify aceitou a capa, mas a CDN ainda pode levar alguns segundos para exibir.",
+        description: data.confirmed ? `Usando a capa de "${ref.name}".` : "O Spotify aceitou a capa, mas a CDN ainda pode levar alguns segundos para exibir.",
       });
     } catch (e: any) {
       toast({ title: "Erro ao aplicar capa", description: e?.message ?? String(e), variant: "destructive" });
@@ -658,12 +674,12 @@ function CoverCard({ managedId, currentCover, leaders, spotifyPlaylistId }: {
     setSelectedLeader(null);
   };
 
-  const selectLeaderCover = (leader: typeof leaders[number]) => {
-    if (!leader.cover_url) return;
+  const selectLeaderCover = (ref: CoverReference) => {
+    if (!ref.cover_url) return;
     if (pendingPreview) URL.revokeObjectURL(pendingPreview);
     setPendingFile(null);
     setPendingPreview(null);
-    setSelectedLeader(leader);
+    setSelectedLeader(ref);
   };
 
   const applyPending = async () => {
@@ -700,7 +716,7 @@ function CoverCard({ managedId, currentCover, leaders, spotifyPlaylistId }: {
   const isCoverApplying = uploading || applyingLeader !== null;
   const selectedCoverPreview = pendingPreview ?? selectedLeader?.cover_url ?? null;
   const selectedCoverName = pendingFile?.name ?? selectedLeader?.name ?? "";
-  const selectedCoverHint = pendingFile ? "Imagem escolhida do seu computador." : "Capa selecionada dos líderes do nicho.";
+  const selectedCoverHint = pendingFile ? "Imagem escolhida do seu computador." : "Capa selecionada das faixas do nicho.";
 
   return (
     <Card className="p-4 space-y-4">
@@ -763,15 +779,15 @@ function CoverCard({ managedId, currentCover, leaders, spotifyPlaylistId }: {
           )}
         </div>
         <div className="space-y-1.5 min-w-0">
-          <div className="text-[10px] text-muted-foreground">Capas dos líderes do nicho — referência visual</div>
-          {leaders.length === 0 ? (
-            <div className="text-xs text-muted-foreground italic">Sem dados de líderes neste diagnóstico.</div>
+          <div className="text-[10px] text-muted-foreground">Capas das faixas dominantes do nicho — referência visual</div>
+          {references.length === 0 ? (
+            <div className="text-xs text-muted-foreground italic">Sem faixas com capa neste diagnóstico.</div>
           ) : (
             <div className="flex flex-wrap gap-2">
-              {leaders.slice(0, 8).map((l) => {
-                const busy = applyingLeader === l.spotify_playlist_id;
+              {references.slice(0, 8).map((l) => {
+                const busy = applyingLeader === l.id;
                 return (
-                  <div key={l.spotify_playlist_id} className="relative group">
+                  <div key={l.id} className="relative group">
                     {l.cover_url ? (
                       <img src={l.cover_url} alt={l.name}
                         className="w-16 h-16 rounded-md object-cover ring-1 ring-border group-hover:ring-primary/50 transition-all" />
@@ -788,14 +804,16 @@ function CoverCard({ managedId, currentCover, leaders, spotifyPlaylistId }: {
                       >
                         {busy ? "..." : "Escolher"}
                       </button>
-                      <a
-                        href={`https://open.spotify.com/playlist/${l.spotify_playlist_id}`}
-                        target="_blank" rel="noreferrer"
-                        title={l.name}
-                        className="text-[9px] text-white/80 hover:text-white underline"
-                      >
-                        abrir
-                      </a>
+                      {l.external_url && (
+                        <a
+                          href={l.external_url}
+                          target="_blank" rel="noreferrer"
+                          title={l.name}
+                          className="text-[9px] text-white/80 hover:text-white underline"
+                        >
+                          abrir
+                        </a>
+                      )}
                     </div>
                   </div>
                 );
