@@ -134,7 +134,7 @@ export function ProactiveAlertsCard() {
             id: `sat-${p.id}`,
             kind: "saturated",
             title: p.name,
-            detail: `Headroom ${Math.round(Number(b?.headroom_pct ?? 0))}% — sem espaço pra novas plays`,
+            detail: `Folga ${Math.round(Number(b?.headroom_pct ?? 0))}% — sem espaço pra novas plays`,
             to: `/playlists/${p.canonical_playlist_id}`,
             severity: "medium",
           });
