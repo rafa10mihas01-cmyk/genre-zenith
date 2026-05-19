@@ -29,7 +29,6 @@ type DealsTab = "active" | "done" | "ledger" | "all";
 const TABS = [
   { id: "active"   as const, label: "Ativos",      icon: Activity },
   { id: "done"     as const, label: "Concluídos",  icon: CheckCircle2 },
-  { id: "ledger"   as const, label: "Financeiro",  icon: Receipt },
   { id: "all"      as const, label: "Todos",       icon: Layers },
 ];
 
