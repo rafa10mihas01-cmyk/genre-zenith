@@ -249,6 +249,8 @@ export default function Operacao() {
         domain="system"
         title="Catálogo"
         subtitle="Catálogo publicado"
+        manualKey="playlists"
+
         actions={
           <Button
             variant="outline"

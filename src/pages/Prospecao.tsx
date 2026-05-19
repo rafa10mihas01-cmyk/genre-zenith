@@ -52,6 +52,8 @@ export default function Prospecao() {
         title="Curadores"
         subtitle="Ativos e prospecção"
         domain="curators"
+        manualKey="curadores"
+
         actions={
           <Button
             variant="outline"

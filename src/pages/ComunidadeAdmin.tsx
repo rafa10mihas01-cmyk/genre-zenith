@@ -99,6 +99,8 @@ export default function ComunidadeAdmin() {
         title="Comunidade"
         subtitle="Convites e membros"
         domain="community"
+        manualKey="comunidade"
+
         actions={
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

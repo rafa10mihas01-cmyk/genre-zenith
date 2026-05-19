@@ -90,6 +90,8 @@ export default function Analytics() {
         icon={LineIcon}
         title="Analytics"
         subtitle="Promessa vs entrega"
+        manualKey="analytics"
+
         actions={
           <Button variant="outline" onClick={load} disabled={loading}>
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} /> Atualizar

@@ -40,6 +40,8 @@ export default function Clientes() {
         title="Clientes"
         subtitle="Artistas e labels"
         domain="clients"
+        manualKey="clientes"
+
         actions={
           <div className="flex items-center gap-2">
             <Button

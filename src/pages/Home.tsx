@@ -141,7 +141,7 @@ export default function Home() {
 
   return (
     <>
-      <PageHeader title="Hoje" subtitle="Cockpit" />
+      <PageHeader title="Hoje" subtitle="Cockpit" manualKey="cockpit" />
 
       <PageContainer>
         {/* PULSO DO SISTEMA — hierarquia cockpit: hero (Curadoria) + secundários + quiet */}
