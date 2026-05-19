@@ -674,12 +674,12 @@ function CoverCard({ managedId, currentCover, references, spotifyPlaylistId }: {
     setSelectedLeader(null);
   };
 
-  const selectLeaderCover = (leader: typeof leaders[number]) => {
-    if (!leader.cover_url) return;
+  const selectLeaderCover = (ref: CoverReference) => {
+    if (!ref.cover_url) return;
     if (pendingPreview) URL.revokeObjectURL(pendingPreview);
     setPendingFile(null);
     setPendingPreview(null);
-    setSelectedLeader(leader);
+    setSelectedLeader(ref);
   };
 
   const applyPending = async () => {
