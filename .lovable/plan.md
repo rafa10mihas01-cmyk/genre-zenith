@@ -1,193 +1,121 @@
+# Fase 1 — Onboarding Inteligente de Playlists
 
-# Refino editorial via IA — diagnose-managed-playlist
+**Princípio**: 100% aditivo. Nada do que já existe muda de comportamento. Tudo que for novo entra como camada extra, com fallback seguro (se a coluna/campo não existir, sistema continua igual).
 
-## Objetivo
+---
 
-Trocar a geração **mecânica** de `name_suggestion` e `suggested_description` por uma camada **editorial inteligente** (Lovable AI / Gemini Flash), mantendo todo o resto (score, keywords, benchmark, cooldowns, justificativas, caps) intacto. O algoritmo atual vira **baseline + fallback automático**.
+## O que muda (resumo de uma linha)
 
-## Escopo
+Toda playlist nova nasce em `lifecycle_stage = 'onboarding'`, roda diagnóstico automático, mostra checklist de padronização no cockpit e **avisa** (não bloqueia, só avisa) quando alguém tenta vincular ela a um deal/campanha antes de estar "pronta".
 
-**Único arquivo alterado:** `supabase/functions/diagnose-managed-playlist/index.ts`
+---
 
-**Nada muda em:**
-- Frontend (`PlaylistCockpit`, painéis de diagnóstico) — continua lendo `name_suggestion` e `raw.suggested_description` como hoje
-- Schema do banco — nada de migration
-- Cooldowns, score, keywords, modos, justificativas
-- Lógica de faixas, substituições, capa
+## Mudanças por camada
 
-## Como funciona
+### 1. Banco (1 migration, só ADD — zero DROP, zero ALTER destrutivo)
 
-```text
-┌────────────────────────────────────────────────────────┐
-│ Algoritmo atual (linhas 844-885)                       │
-│  → calcula keywords presentes/faltando                 │
-│  → gera nameSuggestion (concat MAIÚSCULO)              │
-│  → gera suggestedDescription (template do nicho)       │
-│  Esses viram BASELINE / FALLBACK                       │
-└────────────────────┬───────────────────────────────────┘
-                     │
-                     ▼
-┌────────────────────────────────────────────────────────┐
-│ NOVA camada: generateEditorialCopy()                   │
-│  → monta contexto rico (nome atual, nicho, keywords,   │
-│    artistas, top recorrentes, benchmark, descrição)    │
-│  → chama Lovable AI Gateway (gemini-3-flash-preview)   │
-│  → structured output: { titles[3], descriptions[2],    │
-│    reasoning }                                         │
-│  → timeout 12s, try/catch silencioso                   │
-└────────────────────┬───────────────────────────────────┘
-                     │
-            ┌────────┴────────┐
-            ▼                 ▼
-        SUCESSO            FALHA (timeout, 402, 429, parse)
-            │                 │
-            ▼                 ▼
-   name_suggestion =     name_suggestion =
-   ai.titles[0]          nameSuggestion (algoritmo)
-   raw.ai_titles =       raw.ai_used = false
-   ai.titles             raw.ai_error = motivo
-   raw.ai_reasoning
-   raw.ai_used = true
+```sql
+-- managed_playlists ganha o ciclo de vida
+ALTER TABLE managed_playlists
+  ADD COLUMN IF NOT EXISTS lifecycle_stage text 
+    NOT NULL DEFAULT 'onboarding'
+    CHECK (lifecycle_stage IN ('onboarding','testing','mature')),
+  ADD COLUMN IF NOT EXISTS onboarding_completed_at timestamptz,
+  ADD COLUMN IF NOT EXISTS onboarding_checklist jsonb DEFAULT '{}'::jsonb;
+
+-- Playlists antigas (já existentes) entram direto como 'mature'
+-- para NÃO disparar onboarding retroativo e poluir alertas.
+UPDATE managed_playlists 
+SET lifecycle_stage = 'mature', onboarding_completed_at = now()
+WHERE created_at < now() - interval '7 days';
+
+-- Trigger: toda inserção nova dispara diagnose-managed-playlist
+CREATE OR REPLACE FUNCTION trg_managed_playlist_onboarding()
+RETURNS trigger AS $$
+BEGIN
+  PERFORM net.http_post(
+    url := '<SUPABASE_URL>/functions/v1/diagnose-managed-playlist',
+    headers := jsonb_build_object('Content-Type','application/json','Authorization','Bearer <SERVICE_KEY>'),
+    body := jsonb_build_object('playlist_id', NEW.id, 'source', 'onboarding_trigger')
+  );
+  RETURN NEW;
+END $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER managed_playlist_onboarding
+AFTER INSERT ON managed_playlists
+FOR EACH ROW EXECUTE FUNCTION trg_managed_playlist_onboarding();
 ```
 
-## Detalhe técnico
+**Segurança**: o trigger só dispara em INSERT novo. Nada do que já está em produção é afetado.
 
-### 1. Novo helper (topo do arquivo, após `uniq`)
+### 2. Edge function nova: `playlist-onboarding-check`
 
-```ts
-const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+Calcula o checklist comparando a playlist com **benchmark do nicho** (média de `tracks_count`, padrão de nome, presença de descrição, capa). Roda:
+- automático após `diagnose-managed-playlist` terminar
+- manual via botão "Reavaliar onboarding"
 
-async function generateEditorialCopy(ctx: {
-  currentName: string;
-  currentDescription: string | null;
-  genreName: string | null;
-  topKeywords: string[];
-  missingKeywords: string[];
-  topArtists: string[];
-  topRecurringTracks: { title: string; artist: string }[];
-  benchmarkSize: number | null;
-  currentSize: number;
-  competitors: { name: string }[];
-}): Promise<{
-  titles: string[];
-  descriptions: string[];
-  reasoning: string;
-} | null> {
-  if (!LOVABLE_API_KEY) return null;
-  // monta system + user prompt
-  // POST https://ai.gateway.lovable.dev/v1/chat/completions
-  // model: google/gemini-3-flash-preview
-  // response_format: { type: "json_object" }
-  // AbortController com timeout 12s
-  // retorna null em qualquer erro
+Output: grava `onboarding_checklist` em `managed_playlists`:
+```json
+{
+  "name_pattern_ok": true,
+  "description_ok": false,
+  "min_tracks_ok": true,
+  "cover_format_ok": true,
+  "niche_alignment_score": 0.72,
+  "blocking_issues": ["description_empty"],
+  "ready_for_deals": false
 }
 ```
 
-**Prompt (resumo):**
-- **System:** "Você é um editor musical sênior do Spotify especializado no nicho {genreName}. Escreva como um curador humano: natural, contextual, com identidade. NÃO faça SEO agressivo, NÃO use MAIÚSCULAS artificiais, NÃO use emojis, NÃO use linguagem motivacional. Distribua keywords naturalmente. Soe como playlist editorial real do Spotify."
-- **User:** contexto estruturado (nome, nicho, keywords prioritárias, artistas dominantes, top faixas recorrentes, benchmark de tamanho, concorrentes top, descrição atual)
-- **Output esperado (JSON):**
-  ```json
-  {
-    "titles": ["...", "...", "..."],
-    "descriptions": ["...", "..."],
-    "reasoning": "curto, 1-2 frases: como cobre as keywords + aproxima do padrão do nicho"
-  }
-  ```
+Quando `ready_for_deals = true` por 3 checagens seguidas → marca `lifecycle_stage = 'testing'` automaticamente.
 
-### 2. Chamada (entre linhas 885 e 1067)
+### 3. Frontend (aditivo — telas existentes não mudam)
 
-Após o cálculo do algoritmo (`nameSuggestion`, `suggestedDescription`), antes dos cooldowns:
+**`PlaylistCockpit.tsx`** — adicionar card `<OnboardingChecklist />` no topo, **só renderiza** se `lifecycle_stage === 'onboarding'`. Em `mature` o card simplesmente não aparece — cockpit fica idêntico ao de hoje.
 
-```ts
-let aiCopy: Awaited<ReturnType<typeof generateEditorialCopy>> = null;
-let aiError: string | null = null;
-try {
-  aiCopy = await generateEditorialCopy({
-    currentName: pl.name,
-    currentDescription: pl.description ?? null,
-    genreName: model?.insights?.nicho_nome ?? null,
-    topKeywords,
-    missingKeywords: missing,
-    topArtists: genreArtistsTop.slice(0, 8).map(a => a.artist),
-    topRecurringTracks: topRecurringRaw.slice(0, 8).map(t => ({
-      title: t.title ?? "",
-      artist: t.artist ?? "",
-    })),
-    benchmarkSize: benchmark?.tracks_p50 ?? null,
-    currentSize: totalTracks,
-    competitors: competitors.slice(0, 6).map(c => ({ name: c.name })),
-  });
-} catch (e) {
-  aiError = String((e as Error).message);
-}
-```
+**`NewDealDialog.tsx` / `ImportFromLibraryDialog.tsx`** — quando o usuário seleciona uma playlist com `ready_for_deals = false`, mostrar banner amarelo:
+> "Esta playlist ainda está em onboarding (descrição vazia). Você pode prosseguir, mas o desempenho pode ser comprometido."
 
-### 3. Aplicação respeitando cooldowns
+Botão **não fica desabilitado** — só avisa. Zero risco de quebrar fluxo existente.
 
-```ts
-const algoName = nameSuggestion;            // baseline existente
-const algoDesc = suggestedDescription;      // baseline existente
+**`Operacao.tsx` (aba Playlists)** — adicionar badge `Onboarding` ao lado do nome. Filtro opcional "Em onboarding" no topo.
 
-const editorialName = aiCopy?.titles?.[0] ?? algoName;
-const editorialDesc = aiCopy?.descriptions?.[0] ?? algoDesc;
+### 4. Cockpit Home — novo card discreto
 
-const finalNameSuggestion = hasCooldown("structural") ? null : editorialName;
-const finalDescriptionSuggestion = hasCooldown("description") ? null : editorialDesc;
-```
+`<PlaylistsInOnboardingCard />` na home: "3 playlists em onboarding · 2 prontas para deals". Aditivo, não substitui nada.
 
-### 4. Persistência no `raw`
+---
 
-Adicionar ao bloco `raw: { ... }` (linha 1104):
+## O que NÃO vai mudar (garantia de não-quebra)
 
-```ts
-ai_used: !!aiCopy,
-ai_error: aiError,
-ai_titles: aiCopy?.titles ?? null,           // 3 opções alternativas
-ai_descriptions: aiCopy?.descriptions ?? null, // 2 opções alternativas
-ai_reasoning: aiCopy?.reasoning ?? null,
-algo_name_baseline: algoName,                // pra debug/comparação
-algo_description_baseline: algoDesc,
-```
+- `playlist_brain` continua calculando igual
+- `diagnose-managed-playlist` mantém assinatura atual (só passa a ser chamado também pelo trigger)
+- Nenhuma playlist atual entra em onboarding (todas viram `mature` no backfill)
+- Nenhum bloqueio duro: o sistema **avisa**, nunca trava o operador
+- Nenhuma tabela existente perde coluna ou muda tipo
+- Nenhum cron existente é alterado
 
-## Regras de qualidade do prompt
+---
 
-1. **Manter keywords** — mas distribuídas naturalmente, sem MAIÚSCULO, sem concatenação
-2. **Soar editorial** — referência mental: "RapCaviar", "Esquenta Sertanejo", "Fluxo das Quebradas"
-3. **Sem template** — proibir "as N mais tocadas", "atualizada toda semana", "playlist com as melhores"
-4. **Sem IAzice** — proibir emoji, "🎵", "Descubra o melhor de", "Embarque numa jornada"
-5. **Descrição curta** — máx ~180 chars (limite real do Spotify é 300, mas curador bom escreve enxuto)
-6. **PT-BR** sempre
+## Sequência de implementação (1 sessão)
 
-## Erros tratados (fallback automático)
+1. Migration: adicionar colunas + backfill `mature` para tudo que já existe
+2. Trigger `AFTER INSERT` apontando para `diagnose-managed-playlist`
+3. Edge function `playlist-onboarding-check` (compara com benchmark do nicho)
+4. Hook `usePlaylistOnboarding(managedId)`
+5. Componente `<OnboardingChecklist />` no cockpit (só renderiza em stage `onboarding`)
+6. Banner de aviso em `NewDealDialog`
+7. Badge "Onboarding" na lista de playlists
 
-| Erro | Comportamento |
-|---|---|
-| `LOVABLE_API_KEY` ausente | Usa algoritmo |
-| Timeout (12s) | Usa algoritmo |
-| 429 (rate limit) | Usa algoritmo, log no `raw.ai_error` |
-| 402 (créditos) | Usa algoritmo, log no `raw.ai_error` |
-| JSON inválido | Usa algoritmo |
-| `titles[]` vazio | Usa algoritmo só pra título |
+**Fora do escopo (Fase 2/3)**: experimentos SEO, tabela `playlist_seo_experiments`, ciclos de maturidade. Só depois que Fase 1 estiver rodando há ≥2 semanas com dados reais.
 
-Diagnóstico **nunca falha** por causa da IA.
+---
 
-## Custo
+## Critério de "pronto"
 
-~1 chamada Gemini Flash por diagnóstico (~500-800 tokens input, ~200 output). Diagnóstico não é frequente (sob demanda + cron). Custo desprezível.
+- Cadastrar playlist nova → em <30s aparece checklist no cockpit
+- Playlist antiga abrir cockpit → idêntico a hoje (sem checklist)
+- Tentar criar deal com playlist em onboarding → aparece aviso, mas deal pode ser criado
+- Após 3 checagens com `ready_for_deals=true` → vira `mature` sozinha
 
-## Verificação
-
-1. Após deploy, abrir uma playlist em `/playlists/:id`
-2. Clicar "Diagnóstico"
-3. Verificar:
-   - `name_suggestion` não tem MAIÚSCULAS no meio
-   - Descrição não começa com "As N mais tocadas"
-   - `raw.ai_used = true` no console (debug)
-4. Testar fallback: temporariamente desligar key → diagnóstico continua funcionando com texto antigo
-
-## Fora de escopo
-
-- Mudar UI pra mostrar 3 opções de título (`ai_titles[]` fica disponível em `raw` pra próximo passo, se quiser depois)
-- Mudar tabela `playlist_diagnoses` (alternativas vivem em `raw` JSONB)
-- Aplicar IA em capa, faixas, ou outros campos
+Quer que eu execute essa Fase 1 agora?
