@@ -31,7 +31,7 @@ import CuratorPage from "./pages/CuratorPage";
 import ClientCampaignPage from "./pages/ClientCampaignPage";
 import CuradoriaPreview from "./pages/CuradoriaPreview";
 import Sistema from "./pages/Sistema";
-import Executivo from "./pages/Executivo";
+
 import Settings from "./pages/Settings";
 import JoinInvite from "./pages/comunidade/JoinInvite";
 import Onboarding from "./pages/comunidade/Onboarding";
