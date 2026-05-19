@@ -192,7 +192,7 @@ export default function CuradorDetail() {
       />
 
       {/* Identidade */}
-      <Card className="mb-6">
+      <Card className="mt-4 mb-6">
         <CardContent className="p-5 flex items-start gap-4">
           <div className="h-16 w-16 rounded-xl bg-primary/15 border border-primary/25 flex items-center justify-center text-lg font-bold text-primary shrink-0">
             {initials || <Users2 className="h-6 w-6" />}
