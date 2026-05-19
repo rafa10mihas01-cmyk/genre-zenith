@@ -439,7 +439,7 @@ export default function PlaylistDeals() {
               <DropdownMenuContent align="start" className="w-60 max-h-80 overflow-y-auto">
                 <DropdownMenuItem onClick={() => setArtistFilter("")} className="gap-2">
                   {!artistFilter ? <Check className="h-4 w-4 text-primary" /> : <span className="w-4" />}
-                  <span>Todos os músicos</span>
+                  <span>Todas as músicas</span>
                 </DropdownMenuItem>
                 {artistsAvailable.map((a) => (
                   <DropdownMenuItem
