@@ -773,6 +773,7 @@ Deno.serve(async (req) => {
           spotify_track_id: s.candidate!.spotify_track_id,
           nome: s.candidate!.nome,
           artista: s.candidate!.artista,
+          cover_url: s.candidate!.cover_url,
           count: s.candidate!.recurrence_in_genre,
           popularity: s.candidate!.popularity,
           from_missing_artist: s.candidate!.from_missing_artist,
