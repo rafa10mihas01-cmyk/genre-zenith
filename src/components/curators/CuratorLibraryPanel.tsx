@@ -411,9 +411,11 @@ export function CuratorLibraryPanel({ curator, deals, balance, onAddPurchase, fl
                 </div>
               );
             })}
-          </div>
-        )}
+            </div>
+          )}
+        </div>
       </div>
+
 
       {/* Dialogs */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
