@@ -108,8 +108,19 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           >
             <SidebarTrigger className="shrink-0 text-muted-foreground hover:text-foreground" />
 
-            {/* Tablet/Mobile: logo + título dinâmico (estilo app nativo) */}
+            {/* Tablet/Mobile: voltar + logo + título dinâmico (estilo app nativo) */}
             <div className="lg:hidden flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
+              {location.pathname !== "/" && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 -ml-1 shrink-0 text-muted-foreground hover:text-foreground"
+                  onClick={() => nav(-1)}
+                  aria-label="Voltar"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </Button>
+              )}
               <NexEngineLogo size={24} variant="mark" className="shrink-0" />
               <span className="text-[15px] font-semibold text-foreground truncate min-w-0">
                 {pageTitle}
