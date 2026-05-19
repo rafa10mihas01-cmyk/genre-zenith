@@ -60,33 +60,23 @@ export function AdjustmentTimeline({ playlistId }: { playlistId: string }) {
   }, [playlistId]);
 
   if (items === null) return null;
-  if (items.length === 0) {
-    return (
-      <Card className="p-3 space-y-1">
-        <div className="flex items-center gap-2">
-          <History className="h-3.5 w-3.5 text-muted-foreground" />
-          <h3 className="text-xs font-semibold">Histórico de impacto editorial</h3>
-        </div>
-        <p className="text-[11px] text-muted-foreground leading-snug">
-          Sem mudanças aplicadas ainda. Quando você aprovar um ajuste, o NexEngine mede o impacto antes de sugerir o próximo.
-        </p>
-      </Card>
-    );
-  }
+  if (items.length === 0) return null;
 
   return (
-    <Card className="p-3 md:p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <History className="h-3.5 w-3.5 text-muted-foreground" />
-          <h3 className="text-xs font-semibold">Histórico de impacto editorial</h3>
+    <details className="rounded-xl border border-border bg-card/40 group">
+      <summary className="flex items-center justify-between gap-2 px-3 py-2 cursor-pointer list-none hover:bg-elevated/40 rounded-xl">
+        <div className="flex items-center gap-2 min-w-0">
+          <History className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          <h3 className="text-xs font-semibold truncate">Histórico de impacto editorial</h3>
+          <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">
+            · {items.length} {items.length === 1 ? "mudança" : "mudanças"}
+          </span>
         </div>
-        <span className="text-[11px] text-muted-foreground">
-          {items.length} {items.length === 1 ? "mudança" : "mudanças"}
-        </span>
-      </div>
+        <span className="text-[10px] text-muted-foreground group-open:hidden">expandir</span>
+        <span className="text-[10px] text-muted-foreground hidden group-open:inline">recolher</span>
+      </summary>
 
-      <div className="space-y-2">
+      <div className="px-3 pb-3 space-y-2">
         {items.map((it) => {
           const meta = verdictMeta[it.verdict];
           const Icon = meta.icon;
