@@ -124,9 +124,9 @@ export function AdjustmentTimeline({ playlistId }: { playlistId: string }) {
         })}
       </div>
 
-      <p className="text-[10px] text-muted-foreground/70 leading-snug">
+      <p className="px-3 pb-3 text-[10px] text-muted-foreground/70 leading-snug">
         O NexEngine observa cada mudança por uma janela definida e registra o resultado antes de recomendar a próxima.
       </p>
-    </Card>
+    </details>
   );
 }
