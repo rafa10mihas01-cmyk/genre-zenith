@@ -688,7 +688,8 @@ export function DealHistorySheet({
               </div>
 
               {/* BODY */}
-              <div className="flex-1 overflow-y-auto">
+              <div className={cn(asPage ? "space-y-4" : "flex-1 overflow-y-auto")}>
+
                 {/* === RESUMO === */}
                 <TabsContent value="resumo" className={cn("m-0 space-y-5", asPage ? "rounded-2xl border border-border bg-card p-5" : "px-6 py-5")}>
                   {/* aviso whitelist vazia */}
