@@ -836,7 +836,6 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                   </div>
                 </CardContent>
               </Card>
-            </div>
           </div>
 
           <div className="flex items-center justify-between pt-1">
