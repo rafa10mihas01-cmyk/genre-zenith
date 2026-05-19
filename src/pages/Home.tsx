@@ -339,16 +339,16 @@ function DeliveryCard({ s, loading }: { s: Snapshot | null; loading: boolean }) 
         <div className="h-20 rounded-md bg-muted/40 animate-pulse" />
       ) : (
         <>
-          <div className="grid grid-cols-3 gap-3">
-            <div>
+          <div className="grid grid-cols-3 rounded-xl border border-border/60 bg-muted/10 overflow-hidden divide-x divide-border/60">
+            <div className="flex flex-col items-center justify-center text-center py-4 px-2">
               <div className="text-xl font-bold tabular-nums leading-none">{formatNumber(s?.dealsTarget)}</div>
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-2">Contratado</div>
             </div>
-            <div>
+            <div className="flex flex-col items-center justify-center text-center py-4 px-2">
               <div className="text-xl font-bold tabular-nums leading-none text-primary">{formatNumber(s?.dealsEntregue)}</div>
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-2">Entregue</div>
             </div>
-            <div>
+            <div className="flex flex-col items-center justify-center text-center py-4 px-2">
               <div className={cn("text-xl font-bold tabular-nums leading-none", pct < 5 ? "text-destructive" : pct < 30 ? "text-warning" : "text-primary")}>
                 {pct.toFixed(1)}%
               </div>
@@ -362,7 +362,7 @@ function DeliveryCard({ s, loading }: { s: Snapshot | null; loading: boolean }) 
             />
           </div>
           {(s?.underdeliverDeals ?? 0) > 0 && (
-            <div className="text-xs text-warning flex items-center gap-1.5">
+            <div className="text-xs text-warning flex items-center justify-center gap-1.5 text-center">
               <AlertTriangle className="h-3.5 w-3.5" />
               <span><b>{s?.underdeliverDeals}</b> deals com entrega abaixo de 1%</span>
             </div>
@@ -394,18 +394,18 @@ function ConcentrationCard({ s, loading }: { s: Snapshot | null; loading: boolea
         <div className="text-xs text-muted-foreground py-4">Nenhum deal aberto.</div>
       ) : (
         <>
-          <div>
+          <div className="flex-1 flex flex-col items-center justify-center text-center rounded-xl border border-border/60 bg-muted/10 py-6 px-4 gap-2">
             <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Maior curador</div>
-            <div className="text-lg font-bold leading-tight mt-1 truncate">{top.name}</div>
-            <div className={cn("text-2xl font-bold tabular-nums mt-2", risk ? "text-destructive" : "text-foreground")}>
+            <div className="text-lg font-bold leading-tight truncate max-w-full">{top.name}</div>
+            <div className={cn("text-4xl font-bold tabular-nums mt-1", risk ? "text-destructive" : "text-foreground")}>
               {share.toFixed(0)}%
             </div>
-            <div className="text-[11px] text-muted-foreground mt-0.5">
+            <div className="text-[11px] text-muted-foreground">
               R$ {formatNumber(top.valor)} de R$ {formatNumber(s?.dealsValor)}
             </div>
           </div>
           {risk && (
-            <div className="text-xs text-destructive flex items-center gap-1.5">
+            <div className="text-xs text-destructive flex items-center justify-center gap-1.5 text-center">
               <AlertTriangle className="h-3.5 w-3.5" />
               <span>Risco alto — diversifique a base de curadores</span>
             </div>
