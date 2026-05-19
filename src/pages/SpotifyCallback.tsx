@@ -12,6 +12,7 @@ import { consumeStoredState, getSpotifyRedirectUri } from "@/lib/spotifyPublicAu
 import { supabase } from "@/integrations/supabase/client";
 
 type Status = "loading" | "signing_in" | "success" | "pending" | "unauthorized" | "error";
+const SETTINGS_RETURN_KEY = "nx:spotify_settings_return";
 
 interface Result {
   display_name?: string | null;
@@ -37,6 +38,7 @@ export default function SpotifyCallback() {
     const code = params.get("code");
     const state = params.get("state");
     const errParam = params.get("error");
+    const settingsReturn = localStorage.getItem(SETTINGS_RETURN_KEY);
 
     if (errParam) {
       setStatus("error");
@@ -55,21 +57,26 @@ export default function SpotifyCallback() {
     }
 
     const stored = consumeStoredState();
-    if (!stored || stored !== state) {
+    const isSettingsConnection = !!settingsReturn;
+    if (!isSettingsConnection && (!stored || stored !== state)) {
       setStatus("error");
       setError("Sessão de autorização expirou. Tente conectar novamente.");
       return;
     }
 
     const redirect = getSpotifyRedirectUri();
-    const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/spotify-public-auth?mode=callback&code=${encodeURIComponent(
+    const functionName = isSettingsConnection ? "spotify-auth" : "spotify-public-auth";
+    const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${functionName}?mode=callback&code=${encodeURIComponent(
       code,
     )}&state=${encodeURIComponent(state)}&redirect=${encodeURIComponent(redirect)}`;
 
     (async () => {
       try {
+        const { data: { session } } = await supabase.auth.getSession();
         const resp = await fetch(url, {
-          headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
+          headers: isSettingsConnection
+            ? { Authorization: `Bearer ${session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` }
+            : { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
         });
         const json = await resp.json();
         if (!json.ok) {
@@ -89,6 +96,13 @@ export default function SpotifyCallback() {
           email: json.email,
           spotify_user_id: json.spotify_user_id,
         });
+
+        if (isSettingsConnection) {
+          localStorage.removeItem(SETTINGS_RETURN_KEY);
+          setStatus("success");
+          setTimeout(() => navigate(settingsReturn || "/sistema?tab=configuracoes", { replace: true }), 900);
+          return;
+        }
 
         // Email não está na allowlist → tela "acesso pendente"
         if (json.allowed === false) {
@@ -152,7 +166,9 @@ export default function SpotifyCallback() {
                 Tudo pronto, {result.display_name ?? "bem-vindo"}!
               </h1>
               <p className="text-muted-foreground mb-2">
-                Sua conta Spotify foi conectada e você já está autenticado.
+                {localStorage.getItem(SETTINGS_RETURN_KEY)
+                  ? "Sua conta Spotify foi conectada ao sistema."
+                  : "Sua conta Spotify foi conectada e você já está autenticado."}
               </p>
               <p className="text-xs text-muted-foreground/70">
                 Redirecionando para o painel…

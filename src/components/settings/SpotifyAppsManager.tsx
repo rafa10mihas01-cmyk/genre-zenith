@@ -191,7 +191,7 @@ export function SpotifyAppsManager({ onChange, onConnectAccount }: { onChange?: 
                   Redirect URI do app
                 </span>
                 <span className="font-mono text-[11px] text-foreground break-all">
-                  {window.location.origin}/configuracoes?spotify_callback=1
+                  {window.location.origin}/spotify/callback
                 </span>
               </span>
             </DialogDescription>
