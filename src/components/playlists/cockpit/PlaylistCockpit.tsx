@@ -666,16 +666,16 @@ function CoverCard({ managedId, currentCover, leaders, spotifyPlaylistId }: {
           <label className={cn(
             "inline-flex items-center gap-1 h-7 px-2 text-xs rounded-md cursor-pointer",
             "bg-primary text-primary-foreground hover:bg-primary/90 font-medium",
-            uploading && "opacity-60 pointer-events-none",
+            (uploading || !!pendingFile) && "opacity-60 pointer-events-none",
           )}>
-            {uploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
-            {uploading ? "Enviando..." : "Trocar capa"}
+            <Plus className="h-3 w-3" />
+            {pendingFile ? "Capa selecionada" : "Escolher capa"}
             <input
               type="file"
               accept="image/png,image/jpeg,image/webp"
               className="hidden"
-              disabled={uploading}
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.currentTarget.value = ""; }}
+              disabled={uploading || !!pendingFile}
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) selectFile(f); e.currentTarget.value = ""; }}
             />
           </label>
           <Button asChild size="sm" variant="ghost" className="h-7 text-xs gap-1 text-muted-foreground">
@@ -685,6 +685,22 @@ function CoverCard({ managedId, currentCover, leaders, spotifyPlaylistId }: {
           </Button>
         </div>
       </div>
+      {pendingFile && pendingPreview && (
+        <div className="flex items-center gap-3 rounded-lg border border-primary/40 bg-primary/5 p-3">
+          <img src={pendingPreview} alt="prévia" className="w-16 h-16 rounded-md object-cover ring-1 ring-border" />
+          <div className="flex-1 min-w-0">
+            <div className="text-xs font-medium truncate">{pendingFile.name}</div>
+            <div className="text-[10px] text-muted-foreground">Pronta pra aplicar no Spotify.</div>
+          </div>
+          <Button size="sm" variant="ghost" onClick={clearPending} disabled={uploading} className="h-7 text-xs">
+            Cancelar
+          </Button>
+          <Button size="sm" onClick={applyPending} disabled={uploading} className="h-7 text-xs gap-1.5">
+            {uploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+            {uploading ? "Aplicando..." : "Aplicar capa"}
+          </Button>
+        </div>
+      )}
       <div className="grid grid-cols-[auto_1fr] gap-4 items-start">
         <div className="space-y-1.5">
           <div className="text-[10px] text-muted-foreground">Atual</div>
