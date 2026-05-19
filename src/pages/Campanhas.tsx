@@ -153,12 +153,11 @@ export default function Campanhas() {
           />
         </section>
 
-        {/* Tabs */}
-        <div className="flex items-center gap-1 border-b border-border mb-6">
+        <div className="flex items-center gap-1 border-b border-border mb-6 overflow-x-auto scrollbar-none -mx-4 px-4 lg:mx-0 lg:px-0">
           {([
-            { id: "financeiro", label: "Planejamento Financeiro", icon: Calculator },
-            { id: "lista", label: "Rascunhos & Aprovação", icon: ListChecks },
-            { id: "deals", label: "Deals", icon: Handshake },
+            { id: "financeiro", label: "Planejamento", labelLong: "Planejamento Financeiro", icon: Calculator },
+            { id: "lista", label: "Rascunhos", labelLong: "Rascunhos & Aprovação", icon: ListChecks },
+            { id: "deals", label: "Deals", labelLong: "Deals", icon: Handshake },
           ] as const).map(t => {
             const Icon = t.icon;
             const active = tab === t.id;
@@ -170,14 +169,15 @@ export default function Campanhas() {
                   else setTab(t.id as "lista" | "financeiro");
                 }}
                 className={cn(
-                  "px-4 h-10 inline-flex items-center gap-2 text-sm font-medium border-b-2 -mb-px transition-colors",
+                  "px-3 lg:px-4 h-10 inline-flex items-center gap-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap shrink-0",
                   active
                     ? "border-primary text-foreground"
                     : "border-transparent text-muted-foreground hover:text-foreground",
                 )}
               >
                 <Icon className="h-3.5 w-3.5" />
-                {t.label}
+                <span className="lg:hidden">{t.label}</span>
+                <span className="hidden lg:inline">{t.labelLong}</span>
               </button>
             );
           })}
