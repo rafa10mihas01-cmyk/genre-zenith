@@ -116,7 +116,7 @@ export default function Performance() {
       <PageHeader
         domain="system"
         title="Performance"
-        subtitle="Monitorar crescimento e resultados"
+        subtitle="Crescimento e resultados"
         actions={
           <>
             <Button variant="outline" size="sm" onClick={runTrack} disabled={tracking}>

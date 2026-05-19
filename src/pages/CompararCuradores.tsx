@@ -224,7 +224,7 @@ export default function CompararCuradores() {
       <PageHeader
         domain="curators"
         title="Comparar curadores"
-        subtitle="Confronte cérebros lado a lado para escolher quem alimentar primeiro"
+        subtitle="Comparativo"
       />
 
       <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] items-center gap-4">

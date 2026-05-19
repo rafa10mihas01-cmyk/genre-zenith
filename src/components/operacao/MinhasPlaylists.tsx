@@ -369,7 +369,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
       });
       if (error || !data?.ok) throw new Error(error?.message ?? data?.error ?? "Falhou");
       setDiagnosis(data.diagnosis);
-      toast({ title: "Diagnóstico atualizado" });
+      toast({ title: "Diagnóstico pronto" });
       load();
     } catch (e: any) {
       toast({ title: "Erro no diagnóstico", description: e.message, variant: "destructive" });
@@ -400,7 +400,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
       toast({ title: "Erro", description: error?.message || (data as any)?.error || "Falha ao excluir", variant: "destructive" });
       return;
     }
-    toast({ title: "Excluída permanentemente" });
+    toast({ title: "Excluída" });
     setDrawerPl(null);
     load();
   }

@@ -62,7 +62,7 @@ export default function CampanhaDetalhe() {
     const { error } = await (supabase.rpc as any)("recalc_campaign_progress", { p_campaign_id: id });
     setBusy(false);
     if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
-    else { toast({ title: "Progresso atualizado" }); load(); }
+    else { toast({ title: "Atualizado" }); load(); }
   }
 
   async function updateStatus(newStatus: string) {
@@ -109,7 +109,7 @@ export default function CampanhaDetalhe() {
         kicker="Operação"
         icon={Target}
         title={camp.track_name}
-        subtitle={camp.artist ? `Acompanhar entrega de ${camp.artist}` : "Acompanhar entrega da campanha"}
+        subtitle={camp.artist ? `Ver entrega de ${camp.artist}` : "Ver entrega da campanha"}
         actions={
           <>
             <Button variant="outline" onClick={recalc} disabled={busy}>

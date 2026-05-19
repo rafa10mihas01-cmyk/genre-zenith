@@ -352,7 +352,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
     }
     removeSong(activeIdx);
     setClosing(false);
-    toast({ title: "Música salva como rascunho", description: `Restam ${songs.length - 1} música(s) em planejamento.` });
+    toast({ title: "Rascunho salvo" });
   }
 
   async function fecharTodas() {

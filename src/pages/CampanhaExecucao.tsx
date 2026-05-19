@@ -175,7 +175,7 @@ export default function CampanhaExecucao() {
   return (
     <PageContainer>
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <PageHeader title={camp.track_name} subtitle="Executar campanha conforme o mapa congelado" />
+        <PageHeader title={camp.track_name} subtitle="Mapa congelado" />
         <Link to="/campanhas">
           <Button variant="outline" size="sm">
             <ArrowLeft className="h-4 w-4 mr-1.5" /> Campanhas

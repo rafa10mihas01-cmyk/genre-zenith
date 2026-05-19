@@ -79,7 +79,7 @@ export default function MatrizPlaylists() {
       <PageHeader
         domain="playlists"
         title="Matriz de prioridade"
-        subtitle="Cruze headroom e confiança para decidir onde alimentar primeiro"
+        subtitle="Capacidade × confiança"
       />
       <AnalyticsTabs />
 

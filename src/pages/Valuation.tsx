@@ -85,7 +85,7 @@ export default function Valuation() {
         kicker="Inteligência"
         icon={Gauge}
         title="Valuation"
-        subtitle="Avaliar valor estimado de uma playlist antes de comprar ou investir"
+        subtitle="Valor estimado"
       />
       <PageContainer>
         <AnalyticsTabs />

@@ -73,7 +73,7 @@ export default function HeatmapEntregas() {
     <div className="space-y-6">
       <PageHeader
         title="Heatmap de entregas"
-        subtitle="Veja quando curadores mais reportam plays — use pra cronometrar releases e cobranças"
+        subtitle="Janelas de entrega"
       />
       <AnalyticsTabs />
 

@@ -36,7 +36,7 @@ export default function DealDetail() {
         icon={Receipt}
         domain="deals"
         title={deal?.song_name ?? "Detalhe do deal"}
-        subtitle="Acompanhar curadores, entregas e histórico desta transação"
+        subtitle="Curadores, entregas e histórico"
         actions={
           <Button onClick={back} variant="ghost" size="sm" className="rounded-full gap-1">
             <ChevronLeft className="h-4 w-4" />

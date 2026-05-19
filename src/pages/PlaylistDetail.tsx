@@ -101,7 +101,7 @@ export default function PlaylistDetail() {
       <PageContainer>
         <PageHeader
           title={pl.name ?? "Playlist"}
-          subtitle="Editar faixas individualmente"
+          subtitle="Faixas"
           actions={
             <Button asChild variant="outline">
               <Link to={`/playlists/${pl.id}`}><ArrowLeft className="h-4 w-4 mr-1" /> Cockpit</Link>

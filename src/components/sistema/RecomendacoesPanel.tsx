@@ -134,7 +134,7 @@ export function RecomendacoesPanel() {
         totalWritten += data?.written ?? 0;
         grandTotal = data?.total ?? grandTotal;
         toast({
-          title: `Lote ${offset}–${data?.processed_to ?? offset}`,
+          title: `Massa ${offset}–${data?.processed_to ?? offset}`,
           description: `${totalOk}/${grandTotal} faixas · ${totalWritten} sugestões`,
         });
         if (!data?.has_more) break;

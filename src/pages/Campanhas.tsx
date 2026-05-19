@@ -91,7 +91,7 @@ export default function Campanhas() {
     const { error } = await (supabase.rpc as any)("recalc_campaign_progress", { p_campaign_id: null });
     setRecalcing(false);
     if (error) toast({ title: "Erro no recálculo", description: error.message, variant: "destructive" });
-    else { toast({ title: "Progresso recalculado" }); load(); }
+    else { toast({ title: "Recalculado" }); load(); }
   }
 
   return (
@@ -100,7 +100,7 @@ export default function Campanhas() {
         kicker="Operação"
         icon={Target}
         title="Campanhas"
-        subtitle="Planejar metas de plays e distribuir entre playlists próprias"
+        subtitle="Metas e distribuição"
         domain="campaigns"
         actions={
           tab === "lista" ? (

@@ -115,7 +115,7 @@ export function PlaylistScorePanel() {
         totalFailed += data?.failed ?? 0;
         grandTotal = data?.total ?? grandTotal;
         toast({
-          title: `Lote ${offset}–${data?.processed_to ?? offset}`,
+          title: `Massa ${offset}–${data?.processed_to ?? offset}`,
           description: `${totalOk}/${grandTotal} ok · ${totalFailed} falhas`,
         });
         if (!data?.has_more) break;
@@ -137,7 +137,7 @@ export function PlaylistScorePanel() {
         body: { mode: "single", spotify_playlist_id: r.spotify_playlist_id, playlist_kind: r.playlist_kind },
       });
       if (error) throw error;
-      toast({ title: "Playlist recalculada" });
+      toast({ title: "Recalculado" });
       await load();
     } catch (e: unknown) {
       toast({ title: "Erro", description: errorMessage(e), variant: "destructive" });

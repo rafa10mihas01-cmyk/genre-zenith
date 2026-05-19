@@ -96,7 +96,7 @@ export default function AdminAprendizado({ embedded = false }: { embedded?: bool
     try {
       const { error } = await supabase.functions.invoke("learn-from-winners", { body: { genre_id: genreId, min_winner: 60 } });
       if (error) throw error;
-      toast({ title: "Aprendizado executado" });
+      toast({ title: "Executado" });
       // reload
       const base = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.functions.supabase.co/learning-audit`;
       const { data: { session } } = await supabase.auth.getSession();
@@ -116,7 +116,7 @@ export default function AdminAprendizado({ embedded = false }: { embedded?: bool
     <Wrapper {...(embedded ? {} : {})}>
       {!embedded && (
         <PageHeader
-        domain="system" title="Governança do Aprendizado" subtitle="Auditar, travar e reverter o que a IA aprende com playlists vencedoras" icon={<Brain className="h-5 w-5" />} />
+        domain="system" title="Governança do Aprendizado" subtitle="Governança da IA" icon={<Brain className="h-5 w-5" />} />
       )}
 
       <div className={cn("grid grid-cols-12 gap-6", !embedded && "mt-6")}>

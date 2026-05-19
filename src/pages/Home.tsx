@@ -141,7 +141,7 @@ export default function Home() {
 
   return (
     <>
-      <PageHeader title="Hoje" subtitle="O comando do dia inteiro" />
+      <PageHeader title="Hoje" subtitle="Cockpit" />
 
       <PageContainer>
         {/* PULSO DO SISTEMA — 4 KPIs principais */}

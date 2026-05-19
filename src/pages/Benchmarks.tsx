@@ -139,7 +139,7 @@ export default function Benchmarks() {
     <div className="space-y-8">
       <PageHeader
         title="Benchmarks de gênero"
-        subtitle="Compare percentis de seguidores, faixas e crescimento por nicho"
+        subtitle="Percentis por nicho"
         actions={
           <Button
             variant="outline"
