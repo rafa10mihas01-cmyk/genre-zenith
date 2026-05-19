@@ -1,7 +1,7 @@
 // CuradorDetail — página dedicada do curador. Substitui o antigo drawer lateral.
 // Mostra identidade, KPIs, biblioteca/saldo, cérebro (trust score, sinais, recomendações)
 // e deals — tudo organizado em abas.
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
