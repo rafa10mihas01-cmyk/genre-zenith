@@ -634,6 +634,8 @@ Deno.serve(async (req) => {
         popularity,
         artist_popularity: artistPop,
         artist_followers: artistFollowers,
+        artist_genres: artistGenres,
+        niche_fit: nicheFit,
         release_date: releaseDate,
         age_days_in_playlist: ageDays,
         // proteção
