@@ -235,92 +235,118 @@ export default function CuradorDetail() {
 
         {/* ----- Biblioteca + Saúde (sinais/recomendações) + Saldo ----- */}
         <TabsContent value="biblioteca" className="space-y-4">
-          {/* Saúde do curador — antes era aba "Cérebro" separada */}
+          {/* Saúde do curador — antes era aba "Cérebro" separada. Colapsável. */}
           {brain && ((brain.signals?.length ?? 0) > 0 || (brain.recommendations?.length ?? 0) > 0) && (
             <Card>
-              <CardContent className="p-5 space-y-4">
-                <div className="flex items-center justify-between gap-2">
-                  <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                    <Brain className="h-3.5 w-3.5" /> Saúde do curador
-                  </h3>
-                  <span className="text-[11px] text-muted-foreground">
-                    Atualizado {brain.last_calculated_at ? new Date(brain.last_calculated_at).toLocaleString("pt-BR") : "—"}
-                  </span>
-                </div>
-
-                {brain.signals && brain.signals.length > 0 && (
-                  <div className="space-y-2">
-                    <div className="text-[11px] uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                      <AlertCircle className="h-3.5 w-3.5" /> Sinais ({brain.signals.length})
+              <CardContent className="p-0">
+                <button
+                  type="button"
+                  onClick={() => setHealthOpen((v) => !v)}
+                  className="w-full flex items-center justify-between gap-2 px-5 py-4 text-left hover:bg-muted/20 transition-colors rounded-2xl"
+                  aria-expanded={healthOpen}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Brain className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Saúde do curador</h3>
+                    <div className="flex items-center gap-1.5 ml-1">
+                      {(brain.signals?.length ?? 0) > 0 && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-warning/20 text-warning">
+                          <AlertCircle className="h-3 w-3" /> {brain.signals!.length} sinais
+                        </span>
+                      )}
+                      {(brain.recommendations?.length ?? 0) > 0 && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/20 text-primary">
+                          <Lightbulb className="h-3 w-3" /> {brain.recommendations!.length} ações
+                        </span>
+                      )}
                     </div>
-                    <ul className="space-y-1.5">
-                      {brain.signals.map((s, i) => {
-                        const tone = sevTone(s.severity);
-                        return (
-                          <li
-                            key={i}
-                            className={cn(
-                              "flex items-start gap-3 rounded-lg border px-3 py-2 text-[12.5px]",
-                              tone === "destructive" && "border-destructive/30 bg-destructive/10",
-                              tone === "warning" && "border-warning/30 bg-warning/10",
-                              tone === "muted" && "border-border/40 bg-muted/30",
-                            )}
-                          >
-                            <AlertCircle
-                              className={cn(
-                                "h-3.5 w-3.5 shrink-0 mt-0.5",
-                                tone === "destructive" && "text-destructive",
-                                tone === "warning" && "text-warning",
-                                tone === "muted" && "text-muted-foreground",
-                              )}
-                            />
-                            <div className="min-w-0 flex-1">
-                              <div className="font-semibold">{s.code}</div>
-                              <div className="text-muted-foreground">{s.message}</div>
-                            </div>
-                            <span
-                              className={cn(
-                                "text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0",
-                                tone === "destructive" && "bg-destructive/20 text-destructive",
-                                tone === "warning" && "bg-warning/20 text-warning",
-                                tone === "muted" && "bg-muted text-muted-foreground",
-                              )}
-                            >
-                              {s.severity}
-                            </span>
-                          </li>
-                        );
-                      })}
-                    </ul>
                   </div>
-                )}
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className="text-[11px] text-muted-foreground hidden sm:inline">
+                      Atualizado {brain.last_calculated_at ? new Date(brain.last_calculated_at).toLocaleString("pt-BR") : "—"}
+                    </span>
+                    <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", healthOpen && "rotate-180")} />
+                  </div>
+                </button>
 
-                {brain.recommendations && brain.recommendations.length > 0 && (
-                  <div className="space-y-2">
-                    <div className="text-[11px] uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                      <Lightbulb className="h-3.5 w-3.5" /> Recomendações ({brain.recommendations.length})
-                    </div>
-                    <ol className="space-y-1.5">
-                      {brain.recommendations
-                        .slice()
-                        .sort((a, b) => a.priority - b.priority)
-                        .map((r, i) => (
-                          <li key={i} className="flex items-start gap-3 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-[12.5px]">
-                            <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-primary/20 text-primary text-[10px] font-bold shrink-0">
-                              {r.priority}
-                            </span>
-                            <div className="min-w-0">
-                              <div className="font-semibold">{r.action}</div>
-                              <div className="text-muted-foreground">{r.reason}</div>
-                            </div>
-                          </li>
-                        ))}
-                    </ol>
+                {healthOpen && (
+                  <div className="px-5 pb-5 space-y-4 border-t border-border/40 pt-4">
+                    {brain.signals && brain.signals.length > 0 && (
+                      <div className="space-y-2">
+                        <div className="text-[11px] uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                          <AlertCircle className="h-3.5 w-3.5" /> Sinais ({brain.signals.length})
+                        </div>
+                        <ul className="space-y-1.5">
+                          {brain.signals.map((s, i) => {
+                            const tone = sevTone(s.severity);
+                            return (
+                              <li
+                                key={i}
+                                className={cn(
+                                  "flex items-start gap-3 rounded-lg border px-3 py-2 text-[12.5px]",
+                                  tone === "destructive" && "border-destructive/30 bg-destructive/10",
+                                  tone === "warning" && "border-warning/30 bg-warning/10",
+                                  tone === "muted" && "border-border/40 bg-muted/30",
+                                )}
+                              >
+                                <AlertCircle
+                                  className={cn(
+                                    "h-3.5 w-3.5 shrink-0 mt-0.5",
+                                    tone === "destructive" && "text-destructive",
+                                    tone === "warning" && "text-warning",
+                                    tone === "muted" && "text-muted-foreground",
+                                  )}
+                                />
+                                <div className="min-w-0 flex-1">
+                                  <div className="font-semibold">{s.code}</div>
+                                  <div className="text-muted-foreground">{s.message}</div>
+                                </div>
+                                <span
+                                  className={cn(
+                                    "text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0",
+                                    tone === "destructive" && "bg-destructive/20 text-destructive",
+                                    tone === "warning" && "bg-warning/20 text-warning",
+                                    tone === "muted" && "bg-muted text-muted-foreground",
+                                  )}
+                                >
+                                  {s.severity}
+                                </span>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    )}
+
+                    {brain.recommendations && brain.recommendations.length > 0 && (
+                      <div className="space-y-2">
+                        <div className="text-[11px] uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                          <Lightbulb className="h-3.5 w-3.5" /> Recomendações ({brain.recommendations.length})
+                        </div>
+                        <ol className="space-y-1.5">
+                          {brain.recommendations
+                            .slice()
+                            .sort((a, b) => a.priority - b.priority)
+                            .map((r, i) => (
+                              <li key={i} className="flex items-start gap-3 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-[12.5px]">
+                                <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-primary/20 text-primary text-[10px] font-bold shrink-0">
+                                  {r.priority}
+                                </span>
+                                <div className="min-w-0">
+                                  <div className="font-semibold">{r.action}</div>
+                                  <div className="text-muted-foreground">{r.reason}</div>
+                                </div>
+                              </li>
+                            ))}
+                        </ol>
+                      </div>
+                    )}
                   </div>
                 )}
               </CardContent>
             </Card>
           )}
+
 
           <Card>
             <CardContent className="p-5">
