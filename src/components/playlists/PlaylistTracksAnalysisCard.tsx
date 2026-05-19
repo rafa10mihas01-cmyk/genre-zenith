@@ -13,10 +13,11 @@ import {
   AlertTriangle,
   UserPlus,
   Flame,
+  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type Status = "keep" | "remove" | "promote" | "demote";
+type Status = "keep" | "remove" | "promote" | "demote" | "protected";
 
 type TrackRow = {
   spotify_track_id: string;
@@ -31,6 +32,11 @@ type TrackRow = {
   saturation_pct?: number;
   age_days_in_playlist?: number | null;
   release_date?: string | null;
+  // proteção de campanha
+  is_protected?: boolean;
+  protected_campaign_id?: string | null;
+  protected_campaign_status?: string | null;
+  protected_planned_streams?: number | null;
   // legacy
   streams_28d?: number | null;
   growth_28d_pct?: number | null;
@@ -42,6 +48,7 @@ type Summary = {
   remove?: number;
   promote?: number;
   demote?: number;
+  protected?: number;
   saturated?: number;
   saturated_pct?: number;
   no_data?: number;
@@ -56,6 +63,7 @@ function fmtNum(n: number | null | undefined) {
 }
 
 const STATUS_META: Record<Status, { label: string; cls: string; icon: any }> = {
+  protected: { label: "Protegida", cls: "border-domain-campaigns/40 text-domain-campaigns bg-domain-campaigns/5", icon: ShieldCheck },
   keep: { label: "Manter", cls: "border-primary/30 text-primary bg-primary/5", icon: CheckCircle2 },
   remove: { label: "Remover", cls: "border-destructive/40 text-destructive bg-destructive/5", icon: TrendingDown },
   promote: { label: "Promover", cls: "border-warning/40 text-warning bg-warning/5", icon: ArrowUp },
