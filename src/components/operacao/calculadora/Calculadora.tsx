@@ -609,7 +609,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
               <Card>
                 <CardHeader>
                   <CardTitle className="text-sm">Música</CardTitle>
-                  <CardDescription>Cole o link do Spotify e clique em Buscar pra confirmar a faixa</CardDescription>
+                  <CardDescription>Cole o link do Spotify da faixa.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="flex gap-2">
