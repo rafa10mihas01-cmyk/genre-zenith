@@ -530,7 +530,8 @@ Deno.serve(async (req) => {
       .slice(0, 80);
 
     // 7.b) Busca meta Spotify dos candidatos (popularity + artista) pra calcular zone scores
-    const candMeta = new Map<string, { popularity: number | null; artistPop: number | null }>();
+    const candMeta = new Map<string, { popularity: number | null; artistPop: number | null; cover: string | null }>();
+    const coverMap = new Map<string, string>();
     if (rawCandidates.length > 0) {
       try {
         const token = await getSpotifyToken();
@@ -544,9 +545,13 @@ Deno.serve(async (req) => {
           const j = await r.json();
           for (const tr of j.tracks ?? []) {
             if (!tr?.id) continue;
+            const imgs = tr.album?.images ?? [];
+            const cover = imgs[0]?.url ?? imgs[imgs.length - 1]?.url ?? null;
+            if (cover) coverMap.set(tr.id, cover);
             candMeta.set(tr.id, {
               popularity: typeof tr.popularity === "number" ? tr.popularity : null,
               artistPop: null,
+              cover,
             });
             if (tr.artists?.[0]?.id) candArtistIds.set(tr.id, tr.artists[0].id);
           }
@@ -581,6 +586,7 @@ Deno.serve(async (req) => {
       from_missing_artist: boolean;
       popularity: number | null;
       artist_popularity: number | null;
+      cover_url: string | null;
       zone_scores: { anchor: number; premium: number; support: number; tail: number };
       anchor_eligible: boolean;
       target_zone: Zone;
@@ -631,6 +637,7 @@ Deno.serve(async (req) => {
         from_missing_artist: fromMissing,
         popularity,
         artist_popularity: artistPop,
+        cover_url: m?.cover ?? null,
         zone_scores: { anchor: anchorScore, premium: premiumScore, support: supportScore, tail: tailScore },
         anchor_eligible: anchorEligible,
         target_zone: targetZone,
@@ -671,6 +678,7 @@ Deno.serve(async (req) => {
           spotify_track_id: pick.spotify_track_id,
           nome: pick.nome,
           artista: pick.artista,
+          cover_url: pick.cover_url,
           popularity: pick.popularity,
           recurrence_in_genre: pick.count,
           zone_fit_score: pick.zone_scores[slot.slot_zone],
@@ -714,6 +722,7 @@ Deno.serve(async (req) => {
           spotify_track_id: p.spotify_track_id,
           nome: p.nome,
           artista: p.artista,
+          cover_url: p.cover_url,
           count: p.count,
           popularity: p.popularity,
           from_missing_artist: p.from_missing_artist,
@@ -741,6 +750,7 @@ Deno.serve(async (req) => {
           spotify_track_id: p.spotify_track_id,
           nome: p.nome,
           artista: p.artista,
+          cover_url: p.cover_url,
           count: p.count,
           popularity: p.popularity,
           from_missing_artist: p.from_missing_artist,
@@ -763,6 +773,7 @@ Deno.serve(async (req) => {
           spotify_track_id: s.candidate!.spotify_track_id,
           nome: s.candidate!.nome,
           artista: s.candidate!.artista,
+          cover_url: s.candidate!.cover_url,
           count: s.candidate!.recurrence_in_genre,
           popularity: s.candidate!.popularity,
           from_missing_artist: s.candidate!.from_missing_artist,
@@ -833,7 +844,7 @@ Deno.serve(async (req) => {
     //      então não há mais override por popularity rank.
 
     // 8.d) market_insights — usa benchmark + genreRecurrence + genreArtistsTop
-    const topRecurringTracks = Array.from(genreRecurrence.entries())
+    const topRecurringRaw = Array.from(genreRecurrence.entries())
       .map(([id, v]) => ({
         spotify_track_id: id,
         title: v.track_name,
@@ -842,6 +853,35 @@ Deno.serve(async (req) => {
       }))
       .sort((a, b) => b.niche_playlists_count - a.niche_playlists_count)
       .slice(0, 8);
+
+    // Enriquece com capas — usa coverMap (já preenchido pelos candidatos);
+    // pra IDs faltantes, faz UMA call extra ao /v1/tracks.
+    const missingCoverIds = topRecurringRaw
+      .map((t) => t.spotify_track_id)
+      .filter((id) => id && !coverMap.has(id)) as string[];
+    if (missingCoverIds.length > 0) {
+      try {
+        const token = await getSpotifyToken();
+        for (let i = 0; i < missingCoverIds.length; i += 50) {
+          const ids = missingCoverIds.slice(i, i + 50);
+          const r = await fetch(`https://api.spotify.com/v1/tracks?ids=${ids.join(",")}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!r.ok) continue;
+          const j = await r.json();
+          for (const tr of j.tracks ?? []) {
+            if (!tr?.id) continue;
+            const imgs = tr.album?.images ?? [];
+            const cover = imgs[0]?.url ?? imgs[imgs.length - 1]?.url ?? null;
+            if (cover) coverMap.set(tr.id, cover);
+          }
+        }
+      } catch { /* segue sem capas extras */ }
+    }
+    const topRecurringTracks = topRecurringRaw.map((t) => ({
+      ...t,
+      cover_url: t.spotify_track_id ? coverMap.get(t.spotify_track_id) ?? null : null,
+    }));
 
     const marketInsights = {
       ideal_track_count_range: benchmark
