@@ -60,11 +60,42 @@ export function FinanceiroTab({ deals }: Props) {
 
   return (
     <div className="space-y-6">
-      <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Stat icon={Wallet} label="Total comprado" value={fmtBRL(totals.totalSpent)} mobileValue={fmtBRLShort(totals.totalSpent)} hint={`${formatNumber(totals.totalPlays)} plays`} />
-        <Stat icon={Target} label="Comprometido" value={fmtBRL(committed)} mobileValue={fmtBRLShort(committed)} hint={`${deals.filter(d => !d.closed_at).length} deals abertos`} tone="primary" />
-        <Stat icon={TrendingUp} label="Saldo derivado" value={fmtBRL(saldoVirtual)} mobileValue={fmtBRLShort(saldoVirtual)} hint="Comprado − comprometido" tone={saldoVirtual >= 0 ? "success" : "warning"} />
-        <Stat icon={Receipt} label="CPP médio" value={fmtCpp(totals.globalCpp)} hint="Custo por play global" />
+      <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <KpiBig
+          tier="hero"
+          icon={Wallet}
+          label="Total comprado"
+          value={fmtBRL(totals.totalSpent)}
+          hint={`${formatNumber(totals.totalPlays)} plays`}
+          domain="deals"
+          loading={loading}
+        />
+        <KpiBig
+          icon={Target}
+          label="Comprometido"
+          value={fmtBRL(committed)}
+          hint={`${deals.filter(d => !d.closed_at).length} deals abertos`}
+          domain="campaigns"
+          loading={loading}
+        />
+        <KpiBig
+          icon={TrendingUp}
+          label="Saldo derivado"
+          value={fmtBRL(saldoVirtual)}
+          hint="Comprado − comprometido"
+          tone={saldoVirtual >= 0 ? "success" : "warning"}
+          domain="deals"
+          loading={loading}
+        />
+        <KpiBig
+          tier="quiet"
+          icon={Receipt}
+          label="CPP médio"
+          value={fmtCpp(totals.globalCpp)}
+          hint="Custo por play global"
+          domain="playlists"
+          loading={loading}
+        />
       </section>
 
       <section className="rounded-2xl bg-card border border-border overflow-hidden">
