@@ -897,9 +897,9 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
                       <span className="inline-flex items-center gap-1">
                         <Brain className="h-3 w-3 text-primary/70" />
                         {headroom !== null
-                          ? <>headroom <span className="font-semibold text-foreground tabular-nums">{headroom}%</span></>
+                          ? <>folga <span className="font-semibold text-foreground tabular-nums">{headroom}%</span></>
                           : <>perfil vivo</>}
-                        {sigCount > 0 && <span className="ml-1">· {sigCount} sinais</span>}
+                        {sigCount > 0 && <span className="ml-1">· {sigCount} {sigCount === 1 ? "sinal" : "sinais"}</span>}
                       </span>
                       <ArrowUpRight className="h-3 w-3" />
                     </Link>
