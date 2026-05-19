@@ -1145,7 +1145,8 @@ export function DealHistorySheet({
                       </div>
                     </div>
                   ) : (
-                    reversedLogs.map((log, idx) => {
+                    <div className="space-y-3 max-h-[680px] overflow-y-auto pr-1">
+                    {reversedLogs.map((log, idx) => {
                       const prev = reversedLogs[idx + 1];
                       const isFirst = !prev;
                       const delta = prev
@@ -1330,7 +1331,8 @@ export function DealHistorySheet({
                           )}
                         </div>
                       );
-                    })
+                    })}
+                    </div>
                   )}
                 </TabsContent>
               </div>
