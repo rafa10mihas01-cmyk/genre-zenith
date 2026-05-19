@@ -142,6 +142,8 @@ const STATUS_META: Record<Status, { label: string; cls: string; icon: any }> = {
 export function PlaylistTracksAnalysisCard({ managedId }: { managedId: string }) {
   const [analysis, setAnalysis] = useState<TrackRow[]>([]);
   const [summary, setSummary] = useState<Summary>({});
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [substitutions, setSubstitutions] = useState<Substitution[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | Status>("all");
 
@@ -152,7 +154,7 @@ export function PlaylistTracksAnalysisCard({ managedId }: { managedId: string })
       setLoading(true);
       const { data } = await supabase
         .from("playlist_diagnoses")
-        .select("tracks_analysis, tracks_summary")
+        .select("tracks_analysis, tracks_summary, tracks_suggestions, raw")
         .eq("playlist_id", managedId)
         .order("created_at", { ascending: false })
         .limit(1)
@@ -160,6 +162,9 @@ export function PlaylistTracksAnalysisCard({ managedId }: { managedId: string })
       if (active) {
         setAnalysis(Array.isArray(data?.tracks_analysis) ? (data!.tracks_analysis as any) : []);
         setSummary((data?.tracks_summary as any) ?? {});
+        setSuggestions(Array.isArray(data?.tracks_suggestions) ? (data!.tracks_suggestions as any) : []);
+        const raw = (data?.raw as any) ?? {};
+        setSubstitutions(Array.isArray(raw?.substitutions) ? raw.substitutions : []);
         setLoading(false);
       }
     })();
