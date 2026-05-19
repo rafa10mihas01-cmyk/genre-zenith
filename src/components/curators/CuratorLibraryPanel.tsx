@@ -91,7 +91,16 @@ interface Props {
 }
 
 export function CuratorLibraryPanel({ curator, deals, balance, onAddPurchase, flush = false }: Props) {
-  const { items, stats, performance, loading, addManual, remove } = useCuratorLibrary(curator.id);
+  const { items, stats, performance, genresByLibrary, loading, addManual, remove } = useCuratorLibrary(curator.id);
+  const [genreFilter, setGenreFilter] = useState<string | null>(null);
+
+  // Universo de gêneros já trabalhados nesse curador (deriva de clients.primary_genre).
+  const availableGenres = (() => {
+    const set = new Set<string>();
+    for (const s of genresByLibrary.values()) for (const g of s) set.add(g);
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  })();
+
 
   const [addOpen, setAddOpen] = useState(false);
   const [name, setName] = useState("");
@@ -269,6 +278,39 @@ export function CuratorLibraryPanel({ curator, deals, balance, onAddPurchase, fl
         </Button>
       </div>
 
+      {availableGenres.length > 0 && (
+        <div className="mt-3 flex items-center gap-2 flex-wrap">
+          <span className="text-[10.5px] uppercase tracking-[0.12em] text-muted-foreground">Gênero</span>
+          <button
+            type="button"
+            onClick={() => setGenreFilter(null)}
+            className={cn(
+              "text-[11px] h-6 px-2.5 rounded-full border transition-colors",
+              genreFilter === null
+                ? "bg-foreground text-background border-foreground"
+                : "border-border/40 text-muted-foreground hover:border-border hover:text-foreground",
+            )}
+          >
+            Todos
+          </button>
+          {availableGenres.map((g) => (
+            <button
+              type="button"
+              key={g}
+              onClick={() => setGenreFilter((cur) => (cur === g ? null : g))}
+              className={cn(
+                "text-[11px] h-6 px-2.5 rounded-full border transition-colors",
+                genreFilter === g
+                  ? "bg-foreground text-background border-foreground"
+                  : "border-border/40 text-muted-foreground hover:border-border hover:text-foreground",
+              )}
+            >
+              {g}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="mt-3">
         {loading ? (
           <div className="flex items-center justify-center py-12 text-sm text-muted-foreground gap-2">
@@ -276,6 +318,7 @@ export function CuratorLibraryPanel({ curator, deals, balance, onAddPurchase, fl
           </div>
         ) : items.length === 0 ? (
           <div className="text-center py-12 rounded-xl border border-dashed border-border/40">
+
             <Music className="mx-auto size-10 text-muted-foreground/40 mb-3" />
             <p className="text-sm text-muted-foreground mb-1">Catálogo vazio.</p>
             <p className="text-xs text-muted-foreground/70">
@@ -284,12 +327,15 @@ export function CuratorLibraryPanel({ curator, deals, balance, onAddPurchase, fl
           </div>
         ) : (
           <div className="space-y-2">
-            {items.map((p) => {
+            {items
+              .filter((p) => !genreFilter || genresByLibrary.get(p.id)?.has(genreFilter))
+              .map((p) => {
               const stat = stats.find((s) => s.library_id === p.id);
               const perf = performance.find((s) => s.library_id === p.id);
               const perfClass = perf?.performance_class ?? "sem_historico";
               const isSuspicious = perfClass === "suspeita";
               const isExcellent = perfClass === "excelente";
+              const itemGenres = Array.from(genresByLibrary.get(p.id) ?? []);
               return (
                 <div
                   key={p.id}
@@ -332,14 +378,27 @@ export function CuratorLibraryPanel({ curator, deals, balance, onAddPurchase, fl
                         <Badge variant="secondary" className="text-[10px] h-4 px-1.5">inativa</Badge>
                       )}
                     </div>
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
                       {p.followers ? <span>{formatPlays(p.followers)} seguidores</span> : null}
                       <span>{stat?.deals_count ?? perf?.deals_count ?? 0} deals</span>
                       {stat && stat.avg_streams_per_deal > 0 && (
                         <span>~{formatPlays(stat.avg_streams_per_deal)}/deal</span>
                       )}
+                      {itemGenres.length > 0 && (
+                        <span className="inline-flex items-center gap-1">
+                          {itemGenres.map((g) => (
+                            <span
+                              key={g}
+                              className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-muted/40 text-muted-foreground border border-border/40"
+                            >
+                              {g}
+                            </span>
+                          ))}
+                        </span>
+                      )}
                     </div>
                   </div>
+
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     {p.spotify_url && (
                       <Button
