@@ -40,7 +40,7 @@ import ComunidadeCampanhas from "./pages/comunidade/Campanhas";
 import ComunidadePontos from "./pages/comunidade/Pontos";
 import ComunidadeConta from "./pages/comunidade/Conta";
 import ComunidadeAdmin from "./pages/ComunidadeAdmin";
-import AdminAprendizado from "./pages/AdminAprendizado";
+
 // Infraestrutura agora vive como aba dentro de /sistema
 import Campanhas from "./pages/Campanhas";
 import CampanhaDetalhe from "./pages/CampanhaDetalhe";
