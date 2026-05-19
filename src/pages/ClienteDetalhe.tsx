@@ -259,7 +259,7 @@ export default function ClienteDetalhe() {
 
 
       {/* KPIs — hierarquia cockpit (mesmo padrão de Início / Campanhas / Catálogo) */}
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-2 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-2 mt-6 mb-6">
         <KpiBig
           label="Investido"
           value={formatBRL(kpis.investido)}
