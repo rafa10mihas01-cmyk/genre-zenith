@@ -179,7 +179,7 @@ export default function PlaylistDeals() {
       : deals;
     const set = new Map<string, number>();
     for (const d of base) {
-      const a = (d.song_artist ?? "").trim();
+      const a = (d.song_name ?? "").trim();
       if (!a) continue;
       set.set(a, (set.get(a) ?? 0) + 1);
     }
