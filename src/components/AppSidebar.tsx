@@ -67,6 +67,7 @@ const sections: NavSection[] = [
         accent: "domain-curators",
       },
       { title: "Campanhas", url: "/campanhas", icon: Target, accent: "domain-campaigns" },
+      { title: "Financeiro", url: "/financeiro", icon: Wallet, accent: "domain-deals" },
       // Deals e Comunidade ocultos do sidebar a pedido do usuário —
       // já acessíveis via Curadores (prospecção/comunidade) e Campanhas (aprovação/deals).
       // Rotas continuam ativas; manter aqui apenas como referência.
