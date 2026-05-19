@@ -1,121 +1,167 @@
-# Fase 1 — Onboarding Inteligente de Playlists
+# Fase 2 — Aprendizado SEO (experimentos editoriais com memória)
 
-**Princípio**: 100% aditivo. Nada do que já existe muda de comportamento. Tudo que for novo entra como camada extra, com fallback seguro (se a coluna/campo não existir, sistema continua igual).
-
----
-
-## O que muda (resumo de uma linha)
-
-Toda playlist nova nasce em `lifecycle_stage = 'onboarding'`, roda diagnóstico automático, mostra checklist de padronização no cockpit e **avisa** (não bloqueia, só avisa) quando alguém tenta vincular ela a um deal/campanha antes de estar "pronta".
+**Princípio**: continua aditivo. Nenhuma playlist é alterada sem aprovação humana explícita. O sistema só **sugere**, **mede** e **aprende**. Quem aplica é o operador (ou auto-apply opt-in por playlist no futuro).
 
 ---
 
-## Mudanças por camada
+## Conceito
 
-### 1. Banco (1 migration, só ADD — zero DROP, zero ALTER destrutivo)
+Para cada playlist em `lifecycle_stage IN ('testing','mature')`, a NexEngine propõe **1 micro-mudança por ciclo** (título OU descrição, nunca ambos). Aplica, mede crescimento real por N dias, calcula delta vs baseline, e grava como "experimento". O cérebro do nicho agrega resultados de todos os experimentos da família e aprende padrões reais — não opinião.
+
+```
+playlist madura → sugestão → aprovação humana → aplica via Spotify →
+mede 14d → delta vs baseline → grava resultado → cérebro do nicho aprende
+```
+
+---
+
+## Banco (1 migration, só ADD)
 
 ```sql
--- managed_playlists ganha o ciclo de vida
-ALTER TABLE managed_playlists
-  ADD COLUMN IF NOT EXISTS lifecycle_stage text 
-    NOT NULL DEFAULT 'onboarding'
-    CHECK (lifecycle_stage IN ('onboarding','testing','mature')),
-  ADD COLUMN IF NOT EXISTS onboarding_completed_at timestamptz,
-  ADD COLUMN IF NOT EXISTS onboarding_checklist jsonb DEFAULT '{}'::jsonb;
+-- 1) Experimentos individuais por playlist
+CREATE TABLE public.playlist_seo_experiments (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  playlist_id uuid NOT NULL REFERENCES managed_playlists(id) ON DELETE CASCADE,
+  genre_id uuid REFERENCES genres(id),
+  field text NOT NULL CHECK (field IN ('name','description')),
+  version_before text NOT NULL,
+  version_after text NOT NULL,
+  reasoning text,
+  suggestion_source text NOT NULL DEFAULT 'ai',
+  status text NOT NULL DEFAULT 'proposed'
+    CHECK (status IN ('proposed','active','completed','rolled_back','rejected')),
+  baseline_followers bigint,
+  baseline_at timestamptz,
+  applied_at timestamptz,
+  measure_due_at timestamptz,        -- applied_at + 14d
+  measured_followers bigint,
+  measured_at timestamptz,
+  delta_followers bigint,
+  delta_pct numeric,
+  outcome text CHECK (outcome IN ('positive','neutral','negative')),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
 
--- Playlists antigas (já existentes) entram direto como 'mature'
--- para NÃO disparar onboarding retroativo e poluir alertas.
-UPDATE managed_playlists 
-SET lifecycle_stage = 'mature', onboarding_completed_at = now()
-WHERE created_at < now() - interval '7 days';
+CREATE INDEX idx_seo_exp_playlist ON playlist_seo_experiments(playlist_id);
+CREATE INDEX idx_seo_exp_status ON playlist_seo_experiments(status) WHERE status IN ('proposed','active');
+CREATE INDEX idx_seo_exp_genre_outcome ON playlist_seo_experiments(genre_id, outcome) WHERE outcome IS NOT NULL;
 
--- Trigger: toda inserção nova dispara diagnose-managed-playlist
-CREATE OR REPLACE FUNCTION trg_managed_playlist_onboarding()
-RETURNS trigger AS $$
-BEGIN
-  PERFORM net.http_post(
-    url := '<SUPABASE_URL>/functions/v1/diagnose-managed-playlist',
-    headers := jsonb_build_object('Content-Type','application/json','Authorization','Bearer <SERVICE_KEY>'),
-    body := jsonb_build_object('playlist_id', NEW.id, 'source', 'onboarding_trigger')
-  );
-  RETURN NEW;
-END $$ LANGUAGE plpgsql SECURITY DEFINER;
+-- RLS team-only
+ALTER TABLE playlist_seo_experiments ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "team_all" ON playlist_seo_experiments TO authenticated
+  USING (has_team_access()) WITH CHECK (has_team_access());
 
-CREATE TRIGGER managed_playlist_onboarding
-AFTER INSERT ON managed_playlists
-FOR EACH ROW EXECUTE FUNCTION trg_managed_playlist_onboarding();
+-- 2) Lições agregadas por nicho (cérebro aprendido)
+CREATE TABLE public.seo_genre_lessons (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  genre_id uuid NOT NULL REFERENCES genres(id),
+  pattern_key text NOT NULL,           -- ex: "emoji_in_title", "keyword_TOP_in_funk"
+  pattern_label text NOT NULL,         -- legível
+  field text NOT NULL CHECK (field IN ('name','description')),
+  samples_count integer NOT NULL DEFAULT 0,
+  positive_count integer NOT NULL DEFAULT 0,
+  neutral_count integer NOT NULL DEFAULT 0,
+  negative_count integer NOT NULL DEFAULT 0,
+  avg_delta_pct numeric,
+  confidence numeric,                  -- 0..1 baseado em samples
+  last_updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (genre_id, pattern_key)
+);
+
+ALTER TABLE seo_genre_lessons ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "team_read" ON seo_genre_lessons FOR SELECT TO authenticated USING (has_team_access());
 ```
 
-**Segurança**: o trigger só dispara em INSERT novo. Nada do que já está em produção é afetado.
+**Frequência de experimento por playlist**: 1 a cada 14 dias mínimo (evita ruído). Controlado em runtime — sem cron novo por enquanto.
 
-### 2. Edge function nova: `playlist-onboarding-check`
+---
 
-Calcula o checklist comparando a playlist com **benchmark do nicho** (média de `tracks_count`, padrão de nome, presença de descrição, capa). Roda:
-- automático após `diagnose-managed-playlist` terminar
-- manual via botão "Reavaliar onboarding"
+## Edge functions (3 novas)
 
-Output: grava `onboarding_checklist` em `managed_playlists`:
-```json
-{
-  "name_pattern_ok": true,
-  "description_ok": false,
-  "min_tracks_ok": true,
-  "cover_format_ok": true,
-  "niche_alignment_score": 0.72,
-  "blocking_issues": ["description_empty"],
-  "ready_for_deals": false
-}
+### `seo-experiment-suggest`
+- Input: `{ playlist_id }`
+- Verifica `lifecycle_stage != 'onboarding'` e que não há experimento `active` em andamento
+- Verifica último experimento completed >= 14d atrás
+- Consulta `seo_genre_lessons` do nicho pra escolher padrão com maior `avg_delta_pct` ainda não testado nessa playlist
+- Chama Lovable AI Gateway pra gerar `version_after` aplicando o padrão
+- Cria registro com `status='proposed'`
+- Output: experiment row
+
+### `seo-experiment-apply`
+- Input: `{ experiment_id }`
+- Captura `baseline_followers` no momento (do `managed_playlists` ou via Spotify)
+- Chama Spotify Web API `PUT /v1/playlists/{id}` mudando só o field do experimento
+- Marca `status='active'`, `applied_at=now()`, `measure_due_at=now()+14d`
+- Output: ok
+
+### `seo-experiment-measure`
+- Sem input (varre todos `status='active' AND measure_due_at <= now()`)
+- Pra cada um: lê followers atuais (via `sync-managed-playlists` que já roda), calcula `delta_followers`, `delta_pct`
+- `outcome`: positive se `delta_pct >= +2%`, negative se `<= -2%`, neutral entre
+- Marca `status='completed'`
+- Atualiza `seo_genre_lessons` (recalcula contagens e `avg_delta_pct` do `pattern_key` correspondente)
+- Cron 1×/dia às 04:30
+
+---
+
+## Frontend (3 adições)
+
+### `<SeoExperimentCard />` — nova aba "SEO" no PlaylistCockpit
+Mostra:
+- Experimento ativo (se houver): título antes/depois + dias restantes pra medir
+- Próxima sugestão (botão "Gerar sugestão" → `seo-experiment-suggest`)
+- Histórico dos últimos 5 experimentos com badges de outcome
+- Botão "Aplicar agora" (chama `seo-experiment-apply`, com confirmação)
+
+Só renderiza se `lifecycle_stage !== 'onboarding'`.
+
+### Aba "Aprendizado SEO" em `/sistema`
+- Tabela de `seo_genre_lessons` agrupada por nicho
+- Mostra: padrão, samples, % positivo, avg delta, confidence
+- Filtro por gênero
+
+### Hook `useSeoExperiments(managedId)` + `useSeoLessons(genreId)`
+
+---
+
+## Cron
+
+```sql
+SELECT cron.schedule(
+  'seo-experiment-measure-daily',
+  '30 4 * * *',
+  $$ SELECT net.http_post(
+    url:='<URL>/functions/v1/seo-experiment-measure',
+    headers:='{"x-cron-secret":"<SECRET>","Content-Type":"application/json"}'::jsonb,
+    body:='{}'::jsonb
+  ); $$
+);
 ```
 
-Quando `ready_for_deals = true` por 3 checagens seguidas → marca `lifecycle_stage = 'testing'` automaticamente.
+---
 
-### 3. Frontend (aditivo — telas existentes não mudam)
+## Garantias de não-quebra
 
-**`PlaylistCockpit.tsx`** — adicionar card `<OnboardingChecklist />` no topo, **só renderiza** se `lifecycle_stage === 'onboarding'`. Em `mature` o card simplesmente não aparece — cockpit fica idêntico ao de hoje.
-
-**`NewDealDialog.tsx` / `ImportFromLibraryDialog.tsx`** — quando o usuário seleciona uma playlist com `ready_for_deals = false`, mostrar banner amarelo:
-> "Esta playlist ainda está em onboarding (descrição vazia). Você pode prosseguir, mas o desempenho pode ser comprometido."
-
-Botão **não fica desabilitado** — só avisa. Zero risco de quebrar fluxo existente.
-
-**`Operacao.tsx` (aba Playlists)** — adicionar badge `Onboarding` ao lado do nome. Filtro opcional "Em onboarding" no topo.
-
-### 4. Cockpit Home — novo card discreto
-
-`<PlaylistsInOnboardingCard />` na home: "3 playlists em onboarding · 2 prontas para deals". Aditivo, não substitui nada.
+- Playlists em `onboarding` ficam fora — usam Fase 1
+- Nenhuma mudança automática no Spotify sem operador clicar em "Aplicar"
+- Spotify API só é chamada via `seo-experiment-apply` com `experiment_id` válido
+- Se Spotify falhar, o experimento volta pra `status='rejected'` com motivo
+- `sync-managed-playlists` continua igual — só ganha leitura adicional
+- Nenhuma tabela existente muda
 
 ---
 
-## O que NÃO vai mudar (garantia de não-quebra)
+## Sequência de implementação
 
-- `playlist_brain` continua calculando igual
-- `diagnose-managed-playlist` mantém assinatura atual (só passa a ser chamado também pelo trigger)
-- Nenhuma playlist atual entra em onboarding (todas viram `mature` no backfill)
-- Nenhum bloqueio duro: o sistema **avisa**, nunca trava o operador
-- Nenhuma tabela existente perde coluna ou muda tipo
-- Nenhum cron existente é alterado
+1. Migration: 2 tabelas + indexes + RLS
+2. Edge function `seo-experiment-suggest` (com Lovable AI)
+3. Edge function `seo-experiment-apply` (Spotify API)
+4. Edge function `seo-experiment-measure` + cron diário
+5. Hook `useSeoExperiments`
+6. Aba "SEO" no `PlaylistCockpit`
+7. Aba "Aprendizado SEO" em `/sistema`
 
----
+**Fora do escopo**: auto-apply sem aprovação, A/B test simultâneo no mesmo nicho, rollback automático (operador faz manual por enquanto).
 
-## Sequência de implementação (1 sessão)
-
-1. Migration: adicionar colunas + backfill `mature` para tudo que já existe
-2. Trigger `AFTER INSERT` apontando para `diagnose-managed-playlist`
-3. Edge function `playlist-onboarding-check` (compara com benchmark do nicho)
-4. Hook `usePlaylistOnboarding(managedId)`
-5. Componente `<OnboardingChecklist />` no cockpit (só renderiza em stage `onboarding`)
-6. Banner de aviso em `NewDealDialog`
-7. Badge "Onboarding" na lista de playlists
-
-**Fora do escopo (Fase 2/3)**: experimentos SEO, tabela `playlist_seo_experiments`, ciclos de maturidade. Só depois que Fase 1 estiver rodando há ≥2 semanas com dados reais.
-
----
-
-## Critério de "pronto"
-
-- Cadastrar playlist nova → em <30s aparece checklist no cockpit
-- Playlist antiga abrir cockpit → idêntico a hoje (sem checklist)
-- Tentar criar deal com playlist em onboarding → aparece aviso, mas deal pode ser criado
-- Após 3 checagens com `ready_for_deals=true` → vira `mature` sozinha
-
-Quer que eu execute essa Fase 1 agora?
+Posso executar?
