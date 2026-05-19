@@ -242,12 +242,52 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 4) Classificação por faixa — sinais 100% públicos
+    // 4) Classificação por faixa — ZONAS EDITORIAIS
+    //
+    // A playlist é tratada como uma vitrine com 4 zonas, cada uma com função própria:
+    //   - anchor    (pos 1-2)  : fachada. Só hits dominantes.
+    //   - premium   (pos 3-6)  : zona principal de impulsionamento (campanhas e crescimento).
+    //   - support   (pos 7-12) : sustentação, retenção, equilíbrio.
+    //   - tail      (pos 13+)  : profundidade, descoberta, rotatividade leve.
+    //
+    // Cada faixa recebe scores por zona; o "melhor zone fit" determina onde ela DEVIA estar.
+    // Status passa a ser "essa música faz sentido AQUI?", não "essa música é forte/fraca?".
+    type Zone = "anchor" | "premium" | "support" | "tail";
+    const ZONE_RANGES: Record<Zone, [number, number]> = {
+      anchor:  [0, 1],   // posições 1-2
+      premium: [2, 5],   // posições 3-6
+      support: [6, 11],  // posições 7-12
+      tail:    [12, 9999],
+    };
+    const ZONE_ORDER: Zone[] = ["anchor", "premium", "support", "tail"];
+    const ZONE_LABELS: Record<Zone, string> = {
+      anchor: "Fachada",
+      premium: "Premium",
+      support: "Sustentação",
+      tail: "Cauda",
+    };
     const totalTracks = (currentTracks ?? []).length;
-    const TOP_POS = 10;
     const NOW = Date.now();
 
-    const tracksAnalysis = (currentTracks ?? []).map((t: any) => {
+    function zoneFromPos(pos: number): Zone {
+      if (pos <= ZONE_RANGES.anchor[1]) return "anchor";
+      if (pos <= ZONE_RANGES.premium[1]) return "premium";
+      if (pos <= ZONE_RANGES.support[1]) return "support";
+      return "tail";
+    }
+    function zoneMiddle(zone: Zone): number {
+      const [a, b] = ZONE_RANGES[zone];
+      const end = zone === "tail" ? Math.max(a, totalTracks - 1) : b;
+      return Math.floor((a + end) / 2);
+    }
+
+    type TrackScores = {
+      anchor: number; premium: number; support: number; tail: number;
+      anchorEligible: boolean;
+    };
+
+    // Pré-calcula sinais e scores de zona
+    const rawTracks = (currentTracks ?? []).map((t: any) => {
       const meta = spotMeta.get(t.spotify_track_id);
       const rec = genreRecurrence.get(t.spotify_track_id);
       const recurrence = rec?.count ?? 0;
@@ -257,27 +297,80 @@ Deno.serve(async (req) => {
       const artistPop = artist?.popularity ?? null;
       const artistFollowers = artist?.followers ?? null;
       const pos: number = t.position ?? 0;
-
-      // saturation = % das playlists do nicho que tocam essa faixa
       const saturationPct = nichePlaylistCount > 0
         ? Math.min(100, Math.round((recurrence / nichePlaylistCount) * 100))
         : 0;
-
-      // idade na playlist (dias) — se sem added_at, assume velha
       const addedAt = t.added_at ? new Date(t.added_at).getTime() : null;
       const ageDays = addedAt ? Math.floor((NOW - addedAt) / 86400000) : null;
-
-      // idade do release (anos)
       const releaseAgeYears = releaseDate
         ? Math.max(0, (NOW - new Date(releaseDate).getTime()) / (365 * 86400000))
         : null;
 
+      // Normalizações 0-100
+      const pop = popularity ?? 0;
+      const aPop = artistPop ?? 0;
+      const recNorm = Math.min(100, recurrence * 12); // 8× no nicho ≈ 96
+      const freshness = releaseAgeYears == null ? 40
+        : releaseAgeYears < 0.25 ? 100
+        : releaseAgeYears < 1 ? 75
+        : releaseAgeYears < 3 ? 50
+        : 20;
+      const stability = ageDays == null ? 50
+        : ageDays > 90 ? 90
+        : ageDays > 30 ? 70
+        : 40;
+
+      // Score por zona — pesos refletem a função
+      const anchorScore  = Math.round(pop * 0.5  + aPop * 0.3  + recNorm * 0.2);
+      const premiumScore = Math.round(pop * 0.4  + recNorm * 0.35 + freshness * 0.25);
+      const supportScore = Math.round(recNorm * 0.5 + pop * 0.3 + stability * 0.2);
+      const tailScore    = Math.round(freshness * 0.5 + Math.max(0, 60 - pop) * 0.3 + recNorm * 0.2);
+
+      // Floor da fachada: só hit dominante (pop alto E (artista forte OU muito recorrente))
+      const anchorEligible = popularity != null && popularity >= 70 && (aPop >= 70 || recurrence >= 5);
+
+      return {
+        t, recurrence, popularity, releaseDate, artistPop, artistFollowers,
+        pos, saturationPct, ageDays, releaseAgeYears,
+        scores: { anchor: anchorScore, premium: premiumScore, support: supportScore, tail: tailScore, anchorEligible } as TrackScores,
+      };
+    });
+
+    // Até 2 candidatas reais à fachada: top anchorScore que passam no floor
+    const anchorSet = new Set(
+      rawTracks
+        .filter(x => x.scores.anchorEligible && !protectedTracks.has(x.t.spotify_track_id))
+        .sort((a, b) => b.scores.anchor - a.scores.anchor)
+        .slice(0, 2)
+        .map(x => x.t.spotify_track_id),
+    );
+
+    function pickBestZone(x: typeof rawTracks[number]): Zone {
+      const s = x.scores;
+      const candidates: { z: Zone; v: number }[] = [
+        { z: "premium", v: s.premium },
+        { z: "support", v: s.support },
+        { z: "tail",    v: s.tail },
+      ];
+      if (anchorSet.has(x.t.spotify_track_id)) {
+        candidates.push({ z: "anchor", v: s.anchor + 5 }); // pequeno bias
+      }
+      candidates.sort((a, b) => b.v - a.v);
+      return candidates[0].z;
+    }
+
+    const tracksAnalysis = rawTracks.map((x) => {
+      const { t, recurrence, popularity, releaseDate, artistPop, artistFollowers, pos, saturationPct, ageDays, scores } = x;
+      const currentZone = zoneFromPos(pos);
+      const bestZone = pickBestZone(x);
+      const bestZoneScore = scores[bestZone];
+
       let status: "keep" | "remove" | "promote" | "demote" | "protected" = "keep";
       const reasons: string[] = [];
+      let targetPosition: number | null = null;
       const protectedInfo = protectedTracks.get(t.spotify_track_id);
 
-      // 0) PROTEGIDA — faixa com campanha ativa. Tem meta + obrigação operacional.
-      //    Não pode ser removida nem rebaixada automaticamente.
+      // 0) PROTEGIDA — campanha ativa. Não pode ser tocada automaticamente.
       if (protectedInfo) {
         status = "protected";
         const statusLabel = protectedInfo.campaign_status === "active" ? "ativa"
@@ -287,39 +380,51 @@ Deno.serve(async (req) => {
         if (protectedInfo.planned_streams > 0) {
           reasons.push(`${protectedInfo.planned_streams.toLocaleString("pt-BR")} streams planejados nesta playlist`);
         }
-        reasons.push("não pode ser removida ou rebaixada enquanto a campanha rodar");
+        reasons.push("zona reservada · só ajustes suaves dentro do bloco da campanha");
       }
-      // 1) REMOVER saturada — todo mundo já toca, e ainda assim você enterrou ela
-      else if (saturationPct >= 70 && pos >= 20) {
+      // 1) REMOVER saturada — enterrada e sem função em zona nenhuma
+      else if (saturationPct >= 70 && pos >= 20 && bestZoneScore < 45) {
         status = "remove";
-        reasons.push(`saturada no nicho (${saturationPct}% das playlists tocam)`);
-        reasons.push(`em #${pos + 1} — ocupando slot sem gerar diferencial`);
+        reasons.push(`saturada no nicho (${saturationPct}%) e enterrada em #${pos + 1}`);
+        reasons.push("não cumpre função em nenhuma zona");
       }
-      // 2) REMOVER frio — sem tração + sem recorrência + já testou tempo suficiente
-      else if (popularity != null && popularity < 30 && recurrence === 0 && (ageDays == null || ageDays > 30)) {
+      // 2) REMOVER frio — sem força em zona nenhuma + sem recorrência + tempo de teste
+      else if (popularity != null && popularity < 30 && recurrence === 0 && (ageDays == null || ageDays > 30) && bestZoneScore < 25) {
         status = "remove";
-        reasons.push(`baixa popularity (${popularity}) e ninguém no nicho toca`);
-        if (ageDays != null) reasons.push(`já está há ${ageDays}d na playlist`);
+        reasons.push(`popularity ${popularity} e zero presença no nicho`);
+        if (ageDays != null) reasons.push(`${ageDays}d sem cumprir função editorial`);
       }
-      // 3) PROMOVER — mercado percebeu e você ainda não
-      else if (popularity != null && popularity >= 60 && recurrence >= 3 && pos >= 15) {
-        status = "promote";
-        reasons.push(`popularity ${popularity} + ${recurrence}× no nicho`);
-        reasons.push(`enterrada em #${pos + 1} — subir pra vitrine`);
+      // 3) MOVER PRA ZONA CERTA — análise por função, não por número absoluto
+      else if (bestZone !== currentZone) {
+        const goingUp = ZONE_ORDER.indexOf(bestZone) < ZONE_ORDER.indexOf(currentZone);
+        status = goingUp ? "promote" : "demote";
+        targetPosition = zoneMiddle(bestZone);
+
+        // Regra dura: posições 1-2 só pra quem passou no floor de fachada
+        if (currentZone === "anchor" && !scores.anchorEligible) {
+          status = "demote";
+          targetPosition = zoneMiddle("premium");
+          reasons.push(`na fachada (#${pos + 1}) sem força pra sustentar`);
+          reasons.push(`popularity ${popularity ?? "—"}${artistPop != null ? ` · artista ${artistPop}` : ""} — fachada exige hit dominante`);
+        } else if (goingUp) {
+          reasons.push(`função melhor em ${ZONE_LABELS[bestZone]} (score ${bestZoneScore})`);
+          reasons.push(`hoje em ${ZONE_LABELS[currentZone]} (#${pos + 1}) — subir pra zona ${ZONE_LABELS[bestZone]}`);
+        } else {
+          reasons.push(`hoje em ${ZONE_LABELS[currentZone]} (#${pos + 1}) — não cumpre função desta zona`);
+          reasons.push(`mover pra ${ZONE_LABELS[bestZone]} (score ${bestZoneScore})`);
+        }
       }
-      // 4) REBAIXAR — está na vitrine mas é fraca
-      else if (popularity != null && popularity < 40 && pos < TOP_POS) {
-        status = "demote";
-        reasons.push(`na vitrine (#${pos + 1}) com popularity baixa (${popularity})`);
-      }
-      // 5) KEEP — explica o porquê
+      // 4) KEEP — faixa cumpre função da zona em que está
       else {
-        if (popularity != null && popularity >= 70) reasons.push(`hit (popularity ${popularity})`);
-        else if (recurrence >= 5) reasons.push(`recorrente no nicho (${recurrence}×)`);
-        else if (releaseAgeYears != null && releaseAgeYears < 0.5 && popularity != null && popularity >= 50)
-          reasons.push("lançamento recente em ascensão");
-        else if (popularity == null) reasons.push("sem metadado do Spotify");
-        else reasons.push(`estável (popularity ${popularity})`);
+        if (currentZone === "anchor") {
+          reasons.push(`âncora forte · popularity ${popularity ?? "—"}${artistPop != null ? ` · artista ${artistPop}` : ""}`);
+        } else if (currentZone === "premium") {
+          reasons.push(`encaixa em Premium (score ${scores.premium})`);
+        } else if (currentZone === "support") {
+          reasons.push(`sustenta o fluxo · ${recurrence}× no nicho`);
+        } else {
+          reasons.push(`profundidade da playlist · cauda saudável`);
+        }
       }
 
       return {
@@ -329,6 +434,13 @@ Deno.serve(async (req) => {
         position: pos,
         status,
         reasons,
+        // zona editorial
+        current_zone: currentZone,
+        best_zone: bestZone,
+        zone_scores: scores,
+        anchor_eligible: scores.anchorEligible,
+        target_position: targetPosition,
+        // sinais
         recurrence_in_genre: recurrence,
         saturation_pct: saturationPct,
         popularity,
@@ -336,7 +448,7 @@ Deno.serve(async (req) => {
         artist_followers: artistFollowers,
         release_date: releaseDate,
         age_days_in_playlist: ageDays,
-        // campaign protection
+        // proteção
         is_protected: !!protectedInfo,
         protected_campaign_id: protectedInfo?.campaign_id ?? null,
         protected_campaign_status: protectedInfo?.campaign_status ?? null,
