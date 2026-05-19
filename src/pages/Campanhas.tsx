@@ -103,17 +103,12 @@ export default function Campanhas() {
         subtitle="Planejar metas de plays e distribuir entre playlists próprias"
         domain="campaigns"
         actions={
-          <>
-            {tab === "lista" && (
-              <Button variant="outline" onClick={recalcAll} disabled={recalcing}>
-                <RefreshCw className={`h-4 w-4 mr-2 ${recalcing ? "animate-spin" : ""}`} />
-                Recalcular
-              </Button>
-            )}
-            <Button onClick={() => setTab("financeiro")}>
-              <Plus className="h-4 w-4 mr-2" /> Nova campanha
+          tab === "lista" ? (
+            <Button variant="outline" onClick={recalcAll} disabled={recalcing}>
+              <RefreshCw className={`h-4 w-4 mr-2 ${recalcing ? "animate-spin" : ""}`} />
+              Recalcular
             </Button>
-          </>
+          ) : undefined
         }
       />
 
