@@ -175,7 +175,12 @@ export default function CuradorDetail() {
 
       <PageHeader
         title={resolvedCurator.name}
-        subtitle={`Curador${resolvedCurator.deal_type === "mensal" ? " · plano mensal" : ""}`}
+        subtitle={[
+          "Curador",
+          resolvedCurator.deal_type === "mensal" ? "plano mensal" : null,
+          resolvedCurator.contact || null,
+          `Desde ${format(new Date(resolvedCurator.created_at), "dd MMM yyyy", { locale: ptBR })}`,
+        ].filter(Boolean).join(" · ")}
         actions={
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" asChild className="gap-1.5 h-9 rounded-full">
@@ -195,57 +200,29 @@ export default function CuradorDetail() {
         }
       />
 
-      {/* Identidade */}
-      <Card className="mt-4 mb-6">
-        <CardContent className="p-5 flex items-start gap-4">
-          <div className="h-16 w-16 rounded-xl bg-primary/15 border border-primary/25 flex items-center justify-center text-lg font-bold text-primary shrink-0">
-            {initials || <Users2 className="h-6 w-6" />}
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-lg font-semibold text-foreground truncate">{resolvedCurator.name}</h2>
-              <Badge variant="secondary" className="text-[10.5px]">Curador</Badge>
-              {resolvedCurator.deal_type === "mensal" && (
-                <Badge variant="outline" className="text-[10.5px]">Plano mensal</Badge>
-              )}
-              {resolvedCurator.paused_at && <Badge variant="outline" className="text-[10.5px]">Pausado</Badge>}
-              {resolvedCurator.archived_at && <Badge variant="outline" className="text-[10.5px]">Arquivado</Badge>}
-            </div>
-            <div className="text-xs text-muted-foreground mt-1 flex items-center gap-3 flex-wrap">
-              {resolvedCurator.contact && (
-                <span className="inline-flex items-center gap-1"><Mail className="h-3 w-3" />{resolvedCurator.contact}</span>
-              )}
-              {resolvedCurator.spotify_owner_url && (
-                <a
-                  href={resolvedCurator.spotify_owner_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1 hover:text-foreground"
-                >
-                  <ExternalLink className="h-3 w-3" />Perfil Spotify
-                </a>
-              )}
-              <span className="inline-flex items-center gap-1">
-                <Calendar className="h-3 w-3" />
-                Desde {format(new Date(resolvedCurator.created_at), "dd MMM yyyy", { locale: ptBR })}
-              </span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-6">
-        <Stat label="Deals" value={curatorDeals.length} />
-        <Stat label="Ativos" value={ativos} tone="primary" />
-        <Stat label="Concluídos" value={concluidos} tone="success" />
-        <Stat
+      {/* KPIs — hierarquia cockpit (mesmo padrão do Cliente) */}
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-2 pt-4 mb-6">
+        <KpiBig
+          label="Investido"
+          value={formatBRL(investido)}
+          icon={CreditCard}
+          hint={curatorDeals.length > 0 ? `Em ${curatorDeals.length} deal${curatorDeals.length === 1 ? "" : "s"}` : "Sem deals"}
+          tier="hero"
+          domain="curators"
+        />
+        <KpiBig label="Deals" value={curatorDeals.length} icon={FileText} hint="Total fechados" domain="deals" />
+        <KpiBig label="Ativos" value={ativos} icon={CheckCircle2} hint="Em andamento" tone="primary" domain="deals" />
+        <KpiBig
           label="Trust score"
           value={brain ? `${brain.trust_score}/100` : "—"}
-          tone={trustTone === "success" ? "success" : trustTone === "primary" ? "primary" : trustTone === "destructive" ? "warning" : "muted"}
+          icon={ShieldCheck}
+          hint={brain ? `Confiança ${brain.confidence_score}%` : "Sem cálculo"}
+          tone={trustTone === "success" ? "success" : trustTone === "primary" ? "primary" : trustTone === "destructive" ? "warning" : "default"}
+          domain="curators"
         />
-        <Stat label="Investido" value={formatBRL(investido)} tone="muted" />
+        <KpiBig label="Concluídos" value={concluidos} icon={CheckCircle2} hint="Entregues" tier="quiet" />
       </div>
+
 
       <Tabs defaultValue="biblioteca" className="space-y-4">
         <TabsList>
