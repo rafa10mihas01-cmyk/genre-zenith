@@ -1035,7 +1035,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
                             diagnosis.name_score >= 70
                               ? "bg-primary/15 border-primary/40 text-primary"
                               : "bg-warning/10 border-warning/30 text-warning",
-                          )}>Score {diagnosis.name_score}</span>
+                          )}>Nota {diagnosis.name_score}</span>
                         )}
                       </div>
                       <div className="text-xs text-muted-foreground">Atual</div>
