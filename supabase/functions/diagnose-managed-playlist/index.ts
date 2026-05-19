@@ -286,6 +286,13 @@ Deno.serve(async (req) => {
       anchorEligible: boolean;
     };
 
+    // Top-3 artistas dominantes do nicho — recebem boost de elegibilidade pra fachada.
+    // Regra: se o artista domina o nicho (top 3 por recorrência), ele entra na fachada
+    // mesmo com popularity 55-69, porque a leitura editorial vem do nicho, não do número absoluto.
+    const dominantArtists = new Set(
+      genreArtistsTop.slice(0, 3).map((a) => a.artist.toLowerCase()),
+    );
+
     // Pré-calcula sinais e scores de zona
     const rawTracks = (currentTracks ?? []).map((t: any) => {
       const meta = spotMeta.get(t.spotify_track_id);
@@ -320,27 +327,42 @@ Deno.serve(async (req) => {
         : ageDays > 30 ? 70
         : 40;
 
-      // Score por zona — pesos refletem a função
-      const anchorScore  = Math.round(pop * 0.5  + aPop * 0.3  + recNorm * 0.2);
+      // Artista dominante no nicho (top 3 por recorrência)?
+      const artistNameLower = String(t.artist_name ?? "").split(",")[0].trim().toLowerCase();
+      const isDominantArtist = artistNameLower.length > 0 && dominantArtists.has(artistNameLower);
+      const dominantBoost = isDominantArtist ? 20 : 0;
+
+      // Score por zona — pesos refletem a função.
+      // Artistas dominantes do nicho ganham +20 no anchorScore (leitura editorial > pop absoluto).
+      const anchorScore  = Math.round(pop * 0.5  + aPop * 0.3  + recNorm * 0.2) + dominantBoost;
       const premiumScore = Math.round(pop * 0.4  + recNorm * 0.35 + freshness * 0.25);
       const supportScore = Math.round(recNorm * 0.5 + pop * 0.3 + stability * 0.2);
       const tailScore    = Math.round(freshness * 0.5 + Math.max(0, 60 - pop) * 0.3 + recNorm * 0.2);
 
-      // Floor da fachada: só hit dominante (pop alto E (artista forte OU muito recorrente))
-      const anchorEligible = popularity != null && popularity >= 70 && (aPop >= 70 || recurrence >= 5);
+      // Floor da fachada:
+      //  - regra padrão: pop ≥ 70 E (artista forte OU muito recorrente), OU
+      //  - regra dominante: artista top-3 do nicho com pop ≥ 55 (cultura do nicho > pop absoluto)
+      const anchorEligible =
+        (popularity != null && popularity >= 70 && (aPop >= 70 || recurrence >= 5)) ||
+        (isDominantArtist && popularity != null && popularity >= 55);
 
       return {
         t, recurrence, popularity, releaseDate, artistPop, artistFollowers,
-        pos, saturationPct, ageDays, releaseAgeYears,
+        pos, saturationPct, ageDays, releaseAgeYears, isDominantArtist,
         scores: { anchor: anchorScore, premium: premiumScore, support: supportScore, tail: tailScore, anchorEligible } as TrackScores,
       };
     });
 
-    // Até 2 candidatas reais à fachada: top anchorScore que passam no floor
+    // Até 2 candidatas reais à fachada: top anchorScore que passam no floor.
+    // Artistas dominantes do nicho vão na frente (mesmo critério, mas o boost +20 já os empurra).
     const anchorSet = new Set(
       rawTracks
         .filter(x => x.scores.anchorEligible && !protectedTracks.has(x.t.spotify_track_id))
-        .sort((a, b) => b.scores.anchor - a.scores.anchor)
+        .sort((a, b) => {
+          // Dominante > não-dominante; depois por anchorScore
+          if (a.isDominantArtist !== b.isDominantArtist) return a.isDominantArtist ? -1 : 1;
+          return b.scores.anchor - a.scores.anchor;
+        })
         .slice(0, 2)
         .map(x => x.t.spotify_track_id),
     );
