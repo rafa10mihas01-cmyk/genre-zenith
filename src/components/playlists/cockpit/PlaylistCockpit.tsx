@@ -779,15 +779,15 @@ function CoverCard({ managedId, currentCover, references, spotifyPlaylistId }: {
           )}
         </div>
         <div className="space-y-1.5 min-w-0">
-          <div className="text-[10px] text-muted-foreground">Capas dos líderes do nicho — referência visual</div>
-          {leaders.length === 0 ? (
-            <div className="text-xs text-muted-foreground italic">Sem dados de líderes neste diagnóstico.</div>
+          <div className="text-[10px] text-muted-foreground">Capas das faixas dominantes do nicho — referência visual</div>
+          {references.length === 0 ? (
+            <div className="text-xs text-muted-foreground italic">Sem faixas com capa neste diagnóstico.</div>
           ) : (
             <div className="flex flex-wrap gap-2">
-              {leaders.slice(0, 8).map((l) => {
-                const busy = applyingLeader === l.spotify_playlist_id;
+              {references.slice(0, 8).map((l) => {
+                const busy = applyingLeader === l.id;
                 return (
-                  <div key={l.spotify_playlist_id} className="relative group">
+                  <div key={l.id} className="relative group">
                     {l.cover_url ? (
                       <img src={l.cover_url} alt={l.name}
                         className="w-16 h-16 rounded-md object-cover ring-1 ring-border group-hover:ring-primary/50 transition-all" />
@@ -804,14 +804,16 @@ function CoverCard({ managedId, currentCover, references, spotifyPlaylistId }: {
                       >
                         {busy ? "..." : "Escolher"}
                       </button>
-                      <a
-                        href={`https://open.spotify.com/playlist/${l.spotify_playlist_id}`}
-                        target="_blank" rel="noreferrer"
-                        title={l.name}
-                        className="text-[9px] text-white/80 hover:text-white underline"
-                      >
-                        abrir
-                      </a>
+                      {l.external_url && (
+                        <a
+                          href={l.external_url}
+                          target="_blank" rel="noreferrer"
+                          title={l.name}
+                          className="text-[9px] text-white/80 hover:text-white underline"
+                        >
+                          abrir
+                        </a>
+                      )}
                     </div>
                   </div>
                 );
