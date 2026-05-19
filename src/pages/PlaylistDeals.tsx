@@ -246,7 +246,7 @@ export default function PlaylistDeals() {
       // mesma campanha: ativos primeiro
       return rank(a) - rank(b);
     });
-  }, [deals, dealsWithBaseline, tab, activeSubFilter]);
+  }, [deals, dealsWithBaseline, tab, activeSubFilter, artistFilter]);
 
   const handleNew = () => setNewOpen(true);
 
