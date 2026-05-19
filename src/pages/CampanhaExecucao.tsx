@@ -285,7 +285,7 @@ export default function CampanhaExecucao() {
             <CardContent>
               {allocs.length === 0 ? (
                 <div className="text-sm text-muted-foreground py-6 text-center">
-                  Nenhuma alocação Eco gerada.
+                  Sem alocação Eco.
                 </div>
               ) : (
                 <div className="rounded-lg border border-border overflow-hidden">

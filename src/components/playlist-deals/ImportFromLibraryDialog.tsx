@@ -236,7 +236,7 @@ export function ImportFromLibraryDialog({
           ) : visible.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center py-10 text-center gap-2">
               <Library className="h-8 w-8 text-muted-foreground/40" />
-              <div className="text-sm text-foreground">Nenhuma playlist no catálogo</div>
+              <div className="text-sm text-foreground">Catálogo vazio</div>
               <div className="text-xs text-muted-foreground max-w-xs">
                 {items.length === 0
                   ? "Este curador ainda não tem playlists registradas. Use Colar dados em qualquer deal para começar a popular o catálogo."

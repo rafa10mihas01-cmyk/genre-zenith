@@ -232,7 +232,7 @@ export function CuratorLibraryPanel({ curator, deals, balance, onAddPurchase, fl
             </div>
             {purchased === 0 && totalCost === 0 ? (
               <div className="text-xs text-muted-foreground">
-                Nenhuma compra registrada. Adicione plays comprados para começar a controlar o saldo deste curador.
+                Sem compras. Registre plays para acompanhar o saldo.
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -277,7 +277,7 @@ export function CuratorLibraryPanel({ curator, deals, balance, onAddPurchase, fl
         ) : items.length === 0 ? (
           <div className="text-center py-12 rounded-xl border border-dashed border-border/40">
             <Music className="mx-auto size-10 text-muted-foreground/40 mb-3" />
-            <p className="text-sm text-muted-foreground mb-1">Nenhuma playlist no catálogo.</p>
+            <p className="text-sm text-muted-foreground mb-1">Catálogo vazio.</p>
             <p className="text-xs text-muted-foreground/70">
               As playlists aparecem aqui automaticamente quando usadas em deals, ou cadastre manualmente.
             </p>

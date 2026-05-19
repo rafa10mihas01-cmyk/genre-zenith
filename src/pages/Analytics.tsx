@@ -114,7 +114,7 @@ export default function Analytics() {
         <Section title="Campanhas ao longo do tempo">
           <div className="h-64 rounded-2xl border border-border bg-card p-5">
             {loading ? <Skeleton className="h-full" /> : chartData.length === 0 ? (
-              <p className="h-full flex items-center justify-center text-sm text-muted-foreground">Sem dados nos últimos 12 meses.</p>
+              <p className="h-full flex items-center justify-center text-sm text-muted-foreground">Sem dados.</p>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData}>
@@ -183,7 +183,7 @@ export default function Analytics() {
         {/* Velocidade campanhas ativas */}
         <Section title="Velocidade — campanhas em execução">
           {loading ? <Skeleton className="h-32" /> : velocity.length === 0 ? (
-            <div className="border border-border rounded-2xl p-8 text-center text-muted-foreground">Nenhuma campanha ativa.</div>
+            <div className="border border-border rounded-2xl p-8 text-center text-muted-foreground">Sem campanhas ativas.</div>
           ) : (
             <div className="grid gap-2">
               {velocity.map(v => {

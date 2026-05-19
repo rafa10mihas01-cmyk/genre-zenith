@@ -218,7 +218,7 @@ export default function HeatmapEntregas() {
 
         {!isLoading && totals.count === 0 && (
           <div className="text-center py-8 text-sm text-muted-foreground">
-            Nenhum log de entrega nos últimos {days} dias.
+            Sem entregas nos últimos {days} dias.
           </div>
         )}
 

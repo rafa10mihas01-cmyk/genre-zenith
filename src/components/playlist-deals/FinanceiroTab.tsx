@@ -76,7 +76,7 @@ export function FinanceiroTab({ deals }: Props) {
         </header>
         {ranking.length === 0 ? (
           <div className="px-5 py-10 text-center text-sm text-muted-foreground">
-            Nenhuma compra registrada ainda
+            Sem compras
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -122,7 +122,7 @@ export function FinanceiroTab({ deals }: Props) {
         </header>
         {purchases.length === 0 ? (
           <div className="px-5 py-10 text-center text-sm text-muted-foreground">
-            Nenhuma compra registrada
+            Sem compras
           </div>
         ) : (
           <ul className="divide-y divide-border">

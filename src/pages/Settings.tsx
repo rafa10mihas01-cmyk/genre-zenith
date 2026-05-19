@@ -417,7 +417,7 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
                   </h3>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
                     {spotifyAccounts.length === 0
-                      ? "Nenhuma conta vinculada ainda."
+                      ? "Sem contas vinculadas."
                       : `${spotifyAccounts.length} conta${spotifyAccounts.length > 1 ? "s" : ""} ativa${spotifyAccounts.length > 1 ? "s" : ""}.`}
                   </p>
                 </div>

@@ -50,7 +50,7 @@ export default function Pontos() {
         ) : rows.length === 0 ? (
           <Card>
             <CardContent className="p-6 text-center text-sm text-muted-foreground">
-              Nenhuma atividade ainda.
+              Sem atividade.
             </CardContent>
           </Card>
         ) : (

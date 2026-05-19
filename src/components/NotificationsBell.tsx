@@ -234,7 +234,7 @@ export function NotificationsBell() {
             <div className="px-4 py-10 text-center">
               <Bell className="h-6 w-6 mx-auto text-muted-foreground/40 mb-2" />
               <p className="text-sm text-muted-foreground">
-                {tab === "all" ? "Nenhuma notificação ainda" : "Nada nesta aba"}
+                {tab === "all" ? "Sem notificações" : "Nada nesta aba"}
               </p>
             </div>
           ) : (

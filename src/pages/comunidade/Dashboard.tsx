@@ -83,7 +83,7 @@ export default function Dashboard() {
           <CardContent className="p-6 flex flex-col items-center text-center gap-2">
             <Music2 className="h-6 w-6 text-muted-foreground" />
             <p className="text-sm text-muted-foreground">
-              Nenhuma campanha disponível ainda. Você será avisado quando chegar.
+              Sem campanhas no momento.
             </p>
           </CardContent>
         </Card>

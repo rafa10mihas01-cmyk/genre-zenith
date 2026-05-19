@@ -102,7 +102,7 @@ export default function Performance() {
       return { label: "Analisando com Claude…", tone: "primary" as const, pulse: true };
     }
     if (totalPubs === 0) {
-      return { label: "Sem dados ainda", tone: "muted" as const, pulse: false };
+      return { label: "Sem dados", tone: "muted" as const, pulse: false };
     }
     const withData = dataset.filter((d) => (d.followers_now ?? 0) > 0).length;
     if (withData === 0) {
@@ -138,7 +138,7 @@ export default function Performance() {
       {totalPubs === 0 && !loading ? (
         <Card className="p-6 md:p-8 text-center">
           <BarChart3 className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
-          <h3 className="font-bold text-base md:text-lg">Nenhuma playlist publicada ainda</h3>
+          <h3 className="font-bold text-base md:text-lg">Sem playlists publicadas</h3>
           <p className="text-xs md:text-sm text-muted-foreground mt-1.5 max-w-md mx-auto">
             Quando o módulo Operação publicar playlists no Spotify, elas aparecerão aqui com métricas e análise do Claude.
           </p>

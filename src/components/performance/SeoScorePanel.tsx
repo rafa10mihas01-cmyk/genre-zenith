@@ -142,7 +142,7 @@ export function SeoScorePanel() {
         <div className="h-40 rounded-md bg-muted/40 animate-pulse" />
       ) : rows.length === 0 ? (
         <div className="text-xs text-muted-foreground py-8 text-center">
-          Nenhuma playlist publicada ainda.
+          Sem playlists publicadas.
         </div>
       ) : (
         <>
