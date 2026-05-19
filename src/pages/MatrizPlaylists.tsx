@@ -113,9 +113,9 @@ export default function MatrizPlaylists() {
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Grid3x3 className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">Headroom (X) × Confiança (Y)</span>
+            <span className="text-sm font-medium">Folga (X) × Confiança (Y)</span>
           </div>
-          <span className="text-[11px] text-muted-foreground">{rows.length} playlists com brain</span>
+          <span className="text-[11px] text-muted-foreground">{rows.length} playlists com perfil vivo</span>
         </div>
 
         <div className="relative aspect-[4/3] w-full bg-background rounded-xl border border-border overflow-hidden">
