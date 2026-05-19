@@ -147,6 +147,38 @@ Deno.serve(async (req) => {
 
     const trackIds = (currentTracks ?? []).map((t: any) => t.spotify_track_id).filter(Boolean);
 
+    // 3.a) CAMPANHAS ATIVAS NA PLAYLIST — faixas com deal em andamento entram em estado PROTEGIDO.
+    // O analisador NÃO pode recomendar remover, rebaixar ou promover uma faixa em campanha ativa:
+    // ela tem meta + obrigação operacional. Só ajustes suaves dentro da própria zona.
+    type ProtectedTrack = {
+      campaign_id: string;
+      campaign_status: string;
+      planned_streams: number;
+      allocation_status: string;
+    };
+    const protectedTracks = new Map<string, ProtectedTrack>();
+    {
+      const { data: protRows } = await supabase
+        .from("campaign_eco_allocations")
+        .select("campaign_id, planned_streams, status, campaigns!inner(id, spotify_track_id, status)")
+        .eq("managed_playlist_id", pl.id)
+        .in("status", ["pending", "dispatched", "active"])
+        .in("campaigns.status", ["draft", "active", "paused"]);
+      for (const row of (protRows ?? []) as any[]) {
+        const tid = row.campaigns?.spotify_track_id;
+        if (!tid) continue;
+        // Se a mesma faixa tiver várias allocations, mantém a mais "forte"
+        const prev = protectedTracks.get(tid);
+        const cur: ProtectedTrack = {
+          campaign_id: row.campaign_id,
+          campaign_status: row.campaigns.status,
+          planned_streams: Number(row.planned_streams ?? 0),
+          allocation_status: row.status,
+        };
+        if (!prev || cur.planned_streams > prev.planned_streams) protectedTracks.set(tid, cur);
+      }
+    }
+
     // 3.b) Denominador de saturação = nº de playlists do nicho varridas
     let nichePlaylistCount = 0;
     if (pl.genre_id) {
@@ -240,11 +272,25 @@ Deno.serve(async (req) => {
         ? Math.max(0, (NOW - new Date(releaseDate).getTime()) / (365 * 86400000))
         : null;
 
-      let status: "keep" | "remove" | "promote" | "demote" = "keep";
+      let status: "keep" | "remove" | "promote" | "demote" | "protected" = "keep";
       const reasons: string[] = [];
+      const protectedInfo = protectedTracks.get(t.spotify_track_id);
 
+      // 0) PROTEGIDA — faixa com campanha ativa. Tem meta + obrigação operacional.
+      //    Não pode ser removida nem rebaixada automaticamente.
+      if (protectedInfo) {
+        status = "protected";
+        const statusLabel = protectedInfo.campaign_status === "active" ? "ativa"
+          : protectedInfo.campaign_status === "draft" ? "em rascunho"
+          : "pausada";
+        reasons.push(`campanha ${statusLabel} entregando meta nesta faixa`);
+        if (protectedInfo.planned_streams > 0) {
+          reasons.push(`${protectedInfo.planned_streams.toLocaleString("pt-BR")} streams planejados nesta playlist`);
+        }
+        reasons.push("não pode ser removida ou rebaixada enquanto a campanha rodar");
+      }
       // 1) REMOVER saturada — todo mundo já toca, e ainda assim você enterrou ela
-      if (saturationPct >= 70 && pos >= 20) {
+      else if (saturationPct >= 70 && pos >= 20) {
         status = "remove";
         reasons.push(`saturada no nicho (${saturationPct}% das playlists tocam)`);
         reasons.push(`em #${pos + 1} — ocupando slot sem gerar diferencial`);
@@ -290,6 +336,11 @@ Deno.serve(async (req) => {
         artist_followers: artistFollowers,
         release_date: releaseDate,
         age_days_in_playlist: ageDays,
+        // campaign protection
+        is_protected: !!protectedInfo,
+        protected_campaign_id: protectedInfo?.campaign_id ?? null,
+        protected_campaign_status: protectedInfo?.campaign_status ?? null,
+        protected_planned_streams: protectedInfo?.planned_streams ?? null,
         // legacy fields (mantidos null pra compat)
         streams_28d: null,
         growth_28d_pct: null,
@@ -316,6 +367,7 @@ Deno.serve(async (req) => {
       remove: tracksAnalysis.filter((x) => x.status === "remove").length,
       promote: tracksAnalysis.filter((x) => x.status === "promote").length,
       demote: tracksAnalysis.filter((x) => x.status === "demote").length,
+      protected: tracksAnalysis.filter((x) => x.status === "protected").length,
     };
     const saturatedCount = tracksAnalysis.filter((x) => x.saturation_pct >= 70).length;
     const noDataCount = tracksAnalysis.filter((x) => x.popularity == null).length;
