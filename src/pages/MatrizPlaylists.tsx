@@ -218,7 +218,7 @@ export default function MatrizPlaylists() {
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium truncate">{r.name}</div>
                       <div className="text-[11px] text-muted-foreground">
-                        Headroom {(r.headroom_pct ?? 0).toFixed(0)}% · Confiança {r.confidence_score} · {r.signals_count} sinal(is)
+                        Folga {(r.headroom_pct ?? 0).toFixed(0)}% · Confiança {r.confidence_score} · {r.signals_count} {r.signals_count === 1 ? "sinal" : "sinais"}
                       </div>
                     </div>
                     <span className={cn("text-[11px] font-medium", meta.color)}>{meta.label}</span>
