@@ -431,7 +431,7 @@ export default function PlaylistDeals() {
                 >
                   <Filter className="h-3.5 w-3.5" />
                   <span className="max-w-[140px] truncate">
-                    {artistFilter || "Músico"}
+                    {artistFilter || "Música"}
                   </span>
                   <ChevronDown className="h-3 w-3 opacity-70" />
                 </button>
