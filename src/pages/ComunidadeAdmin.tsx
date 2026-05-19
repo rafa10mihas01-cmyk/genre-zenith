@@ -133,20 +133,14 @@ export default function ComunidadeAdmin() {
         }
       />
 
-      {/* KPIs — padrão igual a PlaylistDeals/Operação */}
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* KPIs — hierarquia cockpit: hero (Membros) + ação + ação + quiet */}
+      <section className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <KpiBig
+          tier="hero"
           icon={UsersIcon}
           label="Membros"
           value={formatNumber(counts.membros)}
           hint="Total ativo na comunidade"
-          domain="community"
-        />
-        <KpiBig
-          icon={Mail}
-          label="Convites pendentes"
-          value={formatNumber(counts.convitesPendentes)}
-          hint={`${counts.convites} no total`}
           domain="community"
         />
         <KpiBig
@@ -163,7 +157,16 @@ export default function ComunidadeAdmin() {
           hint="Provas para validar"
           domain="curators"
         />
+        <KpiBig
+          tier="quiet"
+          icon={Mail}
+          label="Convites pendentes"
+          value={formatNumber(counts.convitesPendentes)}
+          hint={`${counts.convites} no total`}
+          domain="community"
+        />
       </section>
+
 
       {/* TABS — mesmo padrão visual de Operação */}
       <div className="sticky top-0 z-30 -mt-px bg-background/95 supports-[backdrop-filter]:bg-background/80 backdrop-blur-md border-b border-border -mx-4 md:-mx-6">
