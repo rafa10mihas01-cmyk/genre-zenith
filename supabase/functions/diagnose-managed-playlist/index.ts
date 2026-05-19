@@ -1024,6 +1024,7 @@ Deno.serve(async (req) => {
           substitutions: substitutions,
           zone_deficits: deficits,
           zone_ideal: zoneIdeal,
+        },
       })
       .select()
       .single();
