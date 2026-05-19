@@ -985,20 +985,25 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
 /** Chip de contexto da sessão — fica no topo dos passos 2 e 3 com botão pra editar. */
 function SessionChip({ clientName, curatorName, onEdit }: { clientName: string; curatorName: string; onEdit: () => void }) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-2.5">
+    <div className="flex items-center justify-between gap-3 rounded-xl border border-border border-l-2 border-l-primary/60 bg-card/60 px-4 py-2.5">
       <div className="flex items-center gap-4 min-w-0 text-xs">
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" aria-hidden />
+          <span className="text-[10px] uppercase tracking-[0.14em] font-semibold text-primary">Sessão ativa</span>
+        </div>
+        <div className="h-8 w-px bg-border shrink-0" />
         <div className="min-w-0">
           <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Cliente</div>
-          <div className="text-sm font-medium truncate">{clientName}</div>
+          <div className="text-sm font-medium truncate text-foreground">{clientName}</div>
         </div>
         <div className="h-8 w-px bg-border shrink-0" />
         <div className="min-w-0">
           <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Curador</div>
-          <div className="text-sm font-medium truncate">{curatorName}</div>
+          <div className="text-sm font-medium truncate text-foreground">{curatorName}</div>
         </div>
       </div>
-      <Button variant="ghost" size="sm" onClick={onEdit} className="shrink-0">
-        <Pencil className="h-3.5 w-3.5 mr-1.5" /> Editar
+      <Button variant="ghost" size="sm" onClick={onEdit} className="shrink-0 text-muted-foreground hover:text-foreground">
+        <Pencil className="h-3.5 w-3.5" />
       </Button>
     </div>
   );
