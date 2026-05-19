@@ -17,6 +17,7 @@ import {
   Heart, Eye, RotateCcw, Timer, Zap, ShieldCheck, AlertTriangle,
 } from "lucide-react";
 import { PlaylistTracksTab } from "@/components/playlists/PlaylistTracksTab";
+import { KpiBig } from "@/components/KpiBig";
 import { ProjecaoFaixa } from "@/components/operacao/SimuladorEntrega";
 import { CuratorialStateBadge, CooldownChip } from "@/components/playlist/CuratorialStateBadge";
 import { AdjustmentTimeline } from "@/components/playlists/cockpit/AdjustmentTimeline";
