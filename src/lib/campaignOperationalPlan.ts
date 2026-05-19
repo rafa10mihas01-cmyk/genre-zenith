@@ -606,18 +606,18 @@ export function buildExternalPlan(
   items: ExternalPlanInput[],
   opts: { startedAt?: string } = {},
 ): DailyExternalPlan[] {
-  const curva = opts.startedAt
-    ? applyWeekdaySeasonality(snapshot.curva, opts.startedAt)
-    : snapshot.curva;
   const ordered = [...items].sort((a, b) => b.assigned_streams - a.assigned_streams);
   return ordered.map((item, index) => {
     const startDay = generatedStartDay(index, ordered.length, snapshot.days, snapshot.modo);
-    const { daily } = distributeByCurve(
-      Number(item.assigned_streams ?? 0),
-      curva,
+    // Motor único: platô natural com ramp 5d + reporting delay 2d.
+    // Cada curador vira fonte contínua de entrega, não pico explosivo.
+    const daily = buildDailyPlateau({
+      totalStreams: Number(item.assigned_streams ?? 0),
+      days: snapshot.days,
+      source: "external",
       startDay,
-      { delay: REPORTING_DELAY_DAYS },
-    );
+      startedAt: opts.startedAt,
+    });
     return {
       itemId: item.id,
       curatorName: item.curators?.name ?? "Curador",
