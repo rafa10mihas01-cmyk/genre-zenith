@@ -64,28 +64,28 @@ export function OperationalHealthCard() {
       </div>
 
       {h.loading ? (
-        <div className="h-20 rounded-md bg-muted/40 animate-pulse" />
+        <div className="h-24 rounded-md bg-muted/40 animate-pulse" />
       ) : (
-        <ul className="space-y-2.5">
-          <SignalRow
-            label="Spotify conectado"
+        <div className="grid grid-cols-1 sm:grid-cols-3 rounded-xl border border-border/60 bg-muted/10 overflow-hidden divide-y sm:divide-y-0 sm:divide-x divide-border/60">
+          <SignalCell
+            label="Spotify"
             ok={h.spotifyOk}
             okText="Conta ativa"
-            badText="Nenhuma conta ativa"
+            badText="Sem conta"
           />
-          <SignalRow
-            label="Coleta de métricas"
+          <SignalCell
+            label="Coleta"
             ok={!collectStale}
             okText={h.lastCollectAt ? `há ${timeAgo(h.lastCollectAt)}` : "—"}
-            badText={h.lastCollectAt ? `Sem rodar há ${timeAgo(h.lastCollectAt)}` : "Nunca rodou"}
+            badText={h.lastCollectAt ? `parada há ${timeAgo(h.lastCollectAt)}` : "Nunca rodou"}
           />
-          <SignalRow
+          <SignalCell
             label="Erros 24h"
             ok={h.errors24h === 0}
             okText="Nenhum"
             badText={`${h.errors24h} erro${h.errors24h > 1 ? "s" : ""}`}
           />
-        </ul>
+        </div>
       )}
 
       {!h.loading && (h.errors24h > 0 || !h.spotifyOk) && (
@@ -100,17 +100,20 @@ export function OperationalHealthCard() {
   );
 }
 
-function SignalRow({
+function SignalCell({
   label, ok, okText, badText,
 }: { label: string; ok: boolean; okText: string; badText: string }) {
   const Icon = ok ? CheckCircle2 : AlertTriangle;
   return (
-    <li className="flex items-center gap-2.5">
-      <Icon className={cn("h-3.5 w-3.5 shrink-0", ok ? "text-success" : "text-warning")} />
-      <span className="text-xs flex-1 min-w-0 truncate">{label}</span>
-      <span className={cn("text-[11px] tabular-nums shrink-0", ok ? "text-muted-foreground" : "text-warning font-semibold")}>
+    <div className="flex flex-col items-center justify-center text-center py-4 px-3 gap-1.5">
+      <Icon className={cn("h-4 w-4", ok ? "text-success" : "text-warning")} />
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className={cn(
+        "text-xs font-semibold tabular-nums",
+        ok ? "text-foreground" : "text-warning",
+      )}>
         {ok ? okText : badText}
-      </span>
-    </li>
+      </div>
+    </div>
   );
 }
