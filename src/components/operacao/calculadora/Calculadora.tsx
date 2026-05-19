@@ -469,10 +469,8 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
         <div className="space-y-5">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Quem é a operação?</CardTitle>
-              <CardDescription>
-                Cliente e curador valem pra TODAS as músicas desta sessão. Cada música vira uma campanha + um deal independente.
-              </CardDescription>
+              <CardTitle className="text-base">Sessão</CardTitle>
+              <CardDescription>Cliente e curador valem pra todas as músicas desta sessão.</CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5">
@@ -484,10 +482,9 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                     {clientsList.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
-                <p className="text-[11px] text-muted-foreground">Opcional. Identifica o dono comercial das campanhas.</p>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">Curador (dono das playlists) <span className="text-destructive">*</span></Label>
+                <Label className="text-xs">Curador <span className="text-destructive">*</span></Label>
                 <Select value={curatorId || "__none__"} onValueChange={v => setCuratorId(v === "__none__" ? "" : v)}>
                   <SelectTrigger><SelectValue placeholder="Sem curador" /></SelectTrigger>
                   <SelectContent>
@@ -495,7 +492,6 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                     {curatorsList.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
-                <p className="text-[11px] text-muted-foreground">Sem curador a campanha não gera deal real.</p>
               </div>
             </CardContent>
           </Card>
@@ -532,7 +528,8 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
             <div className="flex gap-2 overflow-x-auto nx-scroll pb-1 -mx-1 px-1">
               {songResults.map((x, idx) => {
                 const isActive = idx === activeIdx;
-                const label = x.song.track?.title ?? "Sem faixa";
+                const hasTrack = !!x.song.track?.title;
+                const label = x.song.track?.title ?? "Em preparação";
                 const artist = x.song.track?.artist;
                 return (
                   <div
@@ -540,7 +537,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                     className={cn(
                       "group relative shrink-0 w-[240px] rounded-xl border bg-card transition-all",
                       isActive
-                        ? "border-primary/60 ring-1 ring-primary/30"
+                        ? "border-primary/60 ring-1 ring-primary/30 shadow-[0_0_0_1px_hsl(var(--primary)/0.15)]"
                         : "border-border hover:border-border/80 hover:bg-muted/20",
                     )}
                   >
@@ -551,8 +548,11 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                       {x.song.track?.thumbnail_url ? (
                         <img src={x.song.track.thumbnail_url} alt="" className="h-10 w-10 rounded-md object-cover shrink-0" />
                       ) : (
-                        <div className="h-10 w-10 rounded-md bg-muted grid place-items-center shrink-0">
-                          <Music className="h-4 w-4 text-muted-foreground" />
+                        <div className={cn(
+                          "h-10 w-10 rounded-md grid place-items-center shrink-0 border border-dashed",
+                          isActive ? "bg-primary/5 border-primary/30" : "bg-muted/40 border-border/60",
+                        )}>
+                          <Music className={cn("h-4 w-4", isActive ? "text-primary/70" : "text-muted-foreground/60")} />
                         </div>
                       )}
                       <div className="min-w-0 flex-1">
@@ -560,13 +560,16 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                           <span className="text-[10px] font-semibold text-muted-foreground tabular-nums">#{idx + 1}</span>
                           <span className={cn(
                             "h-1.5 w-1.5 rounded-full shrink-0",
-                            x.ready ? "bg-primary" : "bg-muted-foreground/40",
+                            x.ready ? "bg-primary" : "bg-muted-foreground/30",
                           )} />
                           <span className="text-[10px] uppercase tracking-wider text-muted-foreground truncate">
-                            {x.ready ? `${formatInt(x.r.meta)} · ${x.r.days}d` : "incompleta"}
+                            {x.ready ? `${formatInt(x.r.meta)} · ${x.r.days}d` : "aguardando"}
                           </span>
                         </div>
-                        <div className={cn("text-sm font-medium truncate", isActive ? "text-foreground" : "text-muted-foreground")}>
+                        <div className={cn(
+                          "text-sm font-medium truncate",
+                          isActive ? "text-foreground" : hasTrack ? "text-muted-foreground" : "text-muted-foreground/70 italic",
+                        )}>
                           {label}
                         </div>
                         {artist && (
@@ -606,7 +609,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
               <Card>
                 <CardHeader>
                   <CardTitle className="text-sm">Música</CardTitle>
-                  <CardDescription>Cole o link do Spotify e clique em Buscar pra confirmar a faixa</CardDescription>
+                  <CardDescription>Cole o link do Spotify da faixa.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="flex gap-2">
@@ -664,7 +667,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
 
                   <div className="space-y-1.5 pt-1">
                     <Label className="text-xs flex items-center justify-between">
-                      <span>Streams/dia atuais da música <span className="text-destructive">*</span></span>
+                      <span>Streams/dia atuais <span className="text-destructive">*</span></span>
                       {active.track?.streamsDay != null && active.baselineStreamsDay !== active.track.streamsDay && (
                         <button
                           type="button"
@@ -676,9 +679,6 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                       )}
                     </Label>
                     <NumberInput value={active.baselineStreamsDay} onChange={setBaselineStreamsDay} placeholder="ex: 20.000" />
-                    <p className="text-[11px] text-muted-foreground">
-                      Quanto a faixa tá rodando hoje. É a baseline que vai ser descontada do alvo pra saber o gap real.
-                    </p>
                   </div>
                 </CardContent>
               </Card>
@@ -985,20 +985,25 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
 /** Chip de contexto da sessão — fica no topo dos passos 2 e 3 com botão pra editar. */
 function SessionChip({ clientName, curatorName, onEdit }: { clientName: string; curatorName: string; onEdit: () => void }) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-2.5">
+    <div className="flex items-center justify-between gap-3 rounded-xl border border-border border-l-2 border-l-primary/60 bg-card/60 px-4 py-2.5">
       <div className="flex items-center gap-4 min-w-0 text-xs">
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" aria-hidden />
+          <span className="text-[10px] uppercase tracking-[0.14em] font-semibold text-primary">Sessão ativa</span>
+        </div>
+        <div className="h-8 w-px bg-border shrink-0" />
         <div className="min-w-0">
           <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Cliente</div>
-          <div className="text-sm font-medium truncate">{clientName}</div>
+          <div className="text-sm font-medium truncate text-foreground">{clientName}</div>
         </div>
         <div className="h-8 w-px bg-border shrink-0" />
         <div className="min-w-0">
           <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Curador</div>
-          <div className="text-sm font-medium truncate">{curatorName}</div>
+          <div className="text-sm font-medium truncate text-foreground">{curatorName}</div>
         </div>
       </div>
-      <Button variant="ghost" size="sm" onClick={onEdit} className="shrink-0">
-        <Pencil className="h-3.5 w-3.5 mr-1.5" /> Editar
+      <Button variant="ghost" size="sm" onClick={onEdit} className="shrink-0 text-muted-foreground hover:text-foreground">
+        <Pencil className="h-3.5 w-3.5" />
       </Button>
     </div>
   );

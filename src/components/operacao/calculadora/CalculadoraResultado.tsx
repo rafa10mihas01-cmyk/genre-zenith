@@ -4,14 +4,39 @@ import { TrendingUp, Wallet, Zap, Layers, Flame, Rocket, Activity, Anchor } from
 import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 
-/** KPIs do resultado — renderizar separadamente no topo da página. */
+/** KPIs do resultado — hierarquia operacional:
+ *   META é o headline (peso visual dominante)
+ *   Pico/dia e Duração são secundários (leitura tática)
+ *   Custo é terciário (referência financeira)
+ */
 export function CalculadoraKpis({ r }: { r: CampaignResult }) {
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-      <Kpi icon={TrendingUp} label="Meta" value={formatInt(r.meta)} hint="streams totais" />
-      <Kpi icon={Wallet} label="Custo total" value={formatBRL(r.custoTotal)} hint={`R$ ${r.custoPorStream.toFixed(3)}/stream`} />
-      <Kpi icon={Zap} label="Pico/dia" value={formatInt(r.picoPorDia)} hint={`média ${formatInt(r.mediaPorDia)}`} />
-      <Kpi icon={Layers} label="Duração" value={`${r.days}d`} hint={r.modo === "simultaneo" ? "simultâneo" : "sequencial"} />
+      {/* Headline — ocupa 2 colunas no desktop, tipografia maior, acento primary */}
+      <KpiHero
+        icon={TrendingUp}
+        label="Meta"
+        value={formatInt(r.meta)}
+        hint="streams totais planejados"
+      />
+      <Kpi
+        icon={Zap}
+        label="Pico/dia"
+        value={formatInt(r.picoPorDia)}
+        hint={`média ${formatInt(r.mediaPorDia)}`}
+      />
+      <Kpi
+        icon={Layers}
+        label="Duração"
+        value={`${r.days}d`}
+        hint={r.modo === "simultaneo" ? "simultâneo" : "sequencial"}
+      />
+      <KpiQuiet
+        icon={Wallet}
+        label="Custo"
+        value={formatBRL(r.custoTotal)}
+        hint={`R$ ${r.custoPorStream.toFixed(3)}/stream`}
+      />
     </div>
   );
 }
@@ -53,15 +78,48 @@ export function CalculadoraResultado({ r }: { r: CampaignResult }) {
   );
 }
 
-function Kpi({ icon: Icon, label, value, hint }: { icon: any; label: string; value: string; hint?: string }) {
+/** KPI headline — destaque máximo, ocupa 2 colunas no desktop */
+function KpiHero({ icon: Icon, label, value, hint }: { icon: any; label: string; value: string; hint?: string }) {
   return (
-    <div className="rounded-2xl border border-border bg-card p-4">
-      <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground">
+    <div className="md:col-span-2 rounded-2xl border border-border border-l-2 border-l-primary bg-card p-4 relative overflow-hidden">
+      {/* glow sutil verde no canto — cockpit feel */}
+      <div className="absolute -top-12 -right-12 h-32 w-32 rounded-full bg-primary/10 blur-2xl pointer-events-none" aria-hidden />
+      <div className="relative flex items-center gap-2 text-[11px] uppercase tracking-[0.12em] font-semibold text-primary">
         <Icon className="h-3.5 w-3.5" />
         {label}
       </div>
-      <div className="text-xl font-semibold mt-1 tabular-nums">{value}</div>
+      <div className="relative text-3xl md:text-4xl font-semibold mt-1.5 tabular-nums tracking-tight text-foreground">
+        {value}
+      </div>
+      {hint && <div className="relative text-xs text-muted-foreground mt-1">{hint}</div>}
+    </div>
+  );
+}
+
+/** KPI secundário — leitura tática */
+function Kpi({ icon: Icon, label, value, hint }: { icon: any; label: string; value: string; hint?: string }) {
+  return (
+    <div className="rounded-2xl border border-border bg-card p-4">
+      <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted-foreground">
+        <Icon className="h-3.5 w-3.5" />
+        {label}
+      </div>
+      <div className="text-xl font-semibold mt-1 tabular-nums text-foreground">{value}</div>
       {hint && <div className="text-xs text-muted-foreground mt-0.5">{hint}</div>}
+    </div>
+  );
+}
+
+/** KPI terciário — referência financeira, peso reduzido */
+function KpiQuiet({ icon: Icon, label, value, hint }: { icon: any; label: string; value: string; hint?: string }) {
+  return (
+    <div className="rounded-2xl border border-border/60 bg-card/60 p-4">
+      <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted-foreground/80">
+        <Icon className="h-3.5 w-3.5" />
+        {label}
+      </div>
+      <div className="text-lg font-medium mt-1 tabular-nums text-muted-foreground">{value}</div>
+      {hint && <div className="text-xs text-muted-foreground/70 mt-0.5">{hint}</div>}
     </div>
   );
 }
