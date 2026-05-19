@@ -691,15 +691,15 @@ function CoverCard({ managedId, currentCover, leaders, spotifyPlaylistId }: {
           <label className={cn(
             "inline-flex items-center gap-1 h-7 px-2 text-xs rounded-md cursor-pointer",
             "bg-primary text-primary-foreground hover:bg-primary/90 font-medium",
-            (uploading || !!pendingFile) && "opacity-60 pointer-events-none",
+            isCoverApplying && "opacity-60 pointer-events-none",
           )}>
             <Plus className="h-3 w-3" />
-            {pendingFile ? "Capa selecionada" : "Escolher capa"}
+            Escolher capa
             <input
               type="file"
               accept="image/png,image/jpeg,image/webp"
               className="hidden"
-              disabled={uploading || !!pendingFile}
+              disabled={isCoverApplying}
               onChange={(e) => { const f = e.target.files?.[0]; if (f) selectFile(f); e.currentTarget.value = ""; }}
             />
           </label>
@@ -710,19 +710,24 @@ function CoverCard({ managedId, currentCover, leaders, spotifyPlaylistId }: {
           </Button>
         </div>
       </div>
-      {pendingFile && pendingPreview && (
+      {selectedCoverPreview && (pendingFile || selectedLeader) && (
         <div className="flex items-center gap-3 rounded-lg border border-primary/40 bg-primary/5 p-3">
-          <img src={pendingPreview} alt="prévia" className="w-16 h-16 rounded-md object-cover ring-1 ring-border" />
+          <img src={selectedCoverPreview} alt="capa selecionada" className="w-16 h-16 rounded-md object-cover ring-1 ring-border" />
           <div className="flex-1 min-w-0">
-            <div className="text-xs font-medium truncate">{pendingFile.name}</div>
-            <div className="text-[10px] text-muted-foreground">Pronta pra aplicar no Spotify.</div>
+            <div className="text-xs font-medium truncate">{selectedCoverName}</div>
+            <div className="text-[10px] text-muted-foreground">{selectedCoverHint}</div>
           </div>
-          <Button size="sm" variant="ghost" onClick={clearPending} disabled={uploading} className="h-7 text-xs">
+          <Button size="sm" variant="ghost" onClick={clearPending} disabled={isCoverApplying} className="h-7 text-xs">
             Cancelar
           </Button>
-          <Button size="sm" onClick={applyPending} disabled={uploading} className="h-7 text-xs gap-1.5">
-            {uploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
-            {uploading ? "Aplicando..." : "Aplicar capa"}
+          <Button
+            size="sm"
+            onClick={() => pendingFile ? applyPending() : selectedLeader && applyLeaderCover(selectedLeader)}
+            disabled={isCoverApplying}
+            className="h-7 text-xs gap-1.5"
+          >
+            {isCoverApplying ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+            {isCoverApplying ? "Aplicando..." : "Aplicar no Spotify"}
           </Button>
         </div>
       )}
