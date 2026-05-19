@@ -31,7 +31,7 @@ import CuratorPage from "./pages/CuratorPage";
 import ClientCampaignPage from "./pages/ClientCampaignPage";
 import CuradoriaPreview from "./pages/CuradoriaPreview";
 import Sistema from "./pages/Sistema";
-import Executivo from "./pages/Executivo";
+
 import Settings from "./pages/Settings";
 import JoinInvite from "./pages/comunidade/JoinInvite";
 import Onboarding from "./pages/comunidade/Onboarding";
@@ -40,7 +40,7 @@ import ComunidadeCampanhas from "./pages/comunidade/Campanhas";
 import ComunidadePontos from "./pages/comunidade/Pontos";
 import ComunidadeConta from "./pages/comunidade/Conta";
 import ComunidadeAdmin from "./pages/ComunidadeAdmin";
-import AdminAprendizado from "./pages/AdminAprendizado";
+
 // Infraestrutura agora vive como aba dentro de /sistema
 import Campanhas from "./pages/Campanhas";
 import CampanhaDetalhe from "./pages/CampanhaDetalhe";
