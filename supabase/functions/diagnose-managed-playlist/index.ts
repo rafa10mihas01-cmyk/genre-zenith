@@ -569,21 +569,8 @@ Deno.serve(async (req) => {
       suggestedDescription = `As ${totalTracks} mais tocadas · ${hot} · atualizada toda semana`;
     }
 
-    // 8.c) target_position para PROMOTE/DEMOTE
-    //      Promote: empurra pra top 10 (posições baseadas em popularity rank)
-    //      Demote: empurra pra meio/fim (posições 40+)
-    const promoteCandidates = tracksAnalysis
-      .filter((t) => t.status === "promote")
-      .sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0));
-    promoteCandidates.forEach((t, i) => {
-      (t as any).target_position = Math.min(10, 3 + i); // #3, #4, #5...
-    });
-    const demoteCandidates = tracksAnalysis
-      .filter((t) => t.status === "demote")
-      .sort((a, b) => (a.popularity ?? 0) - (b.popularity ?? 0));
-    demoteCandidates.forEach((t, i) => {
-      (t as any).target_position = Math.max(30, totalTracks - 20 + i);
-    });
+    // 8.c) target_position — agora vem direto da zona-alvo (calculada no passo 4),
+    //      então não há mais override por popularity rank.
 
     // 8.d) market_insights — usa benchmark + genreRecurrence + genreArtistsTop
     const topRecurringTracks = Array.from(genreRecurrence.entries())
