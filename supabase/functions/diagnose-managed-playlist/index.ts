@@ -713,14 +713,15 @@ Deno.serve(async (req) => {
     // Pool de sugestões — escala quando a playlist está subdimensionada vs benchmark do nicho
     const benchP50Pool = Number(benchmark?.tracks_p50 ?? 0);
     const undersizeGapPool = benchP50Pool > 0 ? Math.max(0, benchP50Pool - totalTracks) : 0;
-    const N_SUGGEST = Math.max(15, Math.min(undersizeGapPool + 5, 40));
+    // Quando a playlist está sub-dimensionada vs benchmark, sugerimos até o gap inteiro (cap 80)
+    const N_SUGGEST = Math.max(15, Math.min(undersizeGapPool + 5, 80));
 
     // 7.a) Top candidatas brutas (por recorrência) — limitamos antes de gastar API Spotify
     const rawCandidates = Array.from(genreRecurrence.entries())
       .filter(([id]) => !currentIds.has(id))
       .map(([id, v]) => ({ id, ...v }))
       .sort((a, b) => b.count - a.count)
-      .slice(0, 80);
+      .slice(0, Math.max(120, N_SUGGEST * 2));
 
     // 7.b) Busca meta Spotify dos candidatos (popularity + artista) pra calcular zone scores
     const candMeta = new Map<string, { popularity: number | null; artistPop: number | null; cover: string | null }>();
