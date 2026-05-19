@@ -268,7 +268,7 @@ export default function ClienteDetalhe() {
           tier="hero"
           domain="clients"
         />
-        <KpiBig label="Deals" value={kpis.deals} icon={FileText} hint="Total fechados" domain="deals" />
+        <KpiBig label="Negociações" value={kpis.deals} icon={FileText} hint="Total fechados" domain="deals" />
         <KpiBig label="Ativos" value={kpis.ativos} icon={CheckCircle2} hint="Em andamento" tone="primary" domain="deals" />
         <KpiBig label="Músicas" value={kpis.musicas} icon={Music2} hint="No catálogo do cliente" domain="clients" />
         <KpiBig label="Concluídos" value={kpis.concluidos} icon={CheckCircle2} hint="Entregues" tier="quiet" />

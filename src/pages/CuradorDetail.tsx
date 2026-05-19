@@ -204,7 +204,7 @@ export default function CuradorDetail() {
           tier="hero"
           domain="curators"
         />
-        <KpiBig label="Deals" value={curatorDeals.length} icon={FileText} hint="Total fechados" domain="deals" />
+        <KpiBig label="Negociações" value={curatorDeals.length} icon={FileText} hint="Total fechados" domain="deals" />
         <KpiBig label="Ativos" value={ativos} icon={CheckCircle2} hint="Em andamento" tone="primary" domain="deals" />
         <KpiBig
           label="Trust score"

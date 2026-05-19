@@ -158,7 +158,7 @@ export default function Campanhas() {
           {([
             { id: "financeiro", label: "Planejamento", labelLong: "Planejamento", icon: Calculator },
             { id: "lista", label: "Aprovação", labelLong: "Aprovação", icon: ListChecks },
-            { id: "deals", label: "Deals", labelLong: "Deals", icon: Handshake },
+            { id: "deals", label: "Negociações", labelLong: "Negociações", icon: Handshake },
           ] as const).map(t => {
             const Icon = t.icon;
             const active = tab === t.id;
