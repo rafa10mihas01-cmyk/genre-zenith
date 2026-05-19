@@ -623,7 +623,7 @@ export function DealHistorySheet({
             <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)} className={cn("flex-1 flex flex-col min-h-0", asPage && "space-y-4")}>
               <div className={cn(
                 asPage
-                  ? "-mx-1 px-1 overflow-x-auto scrollbar-none"
+                  ? "-mx-1 px-1 overflow-x-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]"
                   : "px-3 sm:px-6 pt-3 border-b border-border shrink-0"
               )}>
                 <TabsList
