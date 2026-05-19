@@ -183,9 +183,10 @@ Deno.serve(async (req) => {
     let competitors: any[] = [];
     let genreRecurrence: Map<string, { count: number; track_name: string | null; artist_name: string | null }> = new Map();
     let genreArtistsTop: { artist: string; count: number }[] = [];
+    let genreName: string | null = null;
 
     if (pl.genre_id) {
-      const [{ data: m }, { data: b }, { data: comps }, { data: srTracks }] = await Promise.all([
+      const [{ data: m }, { data: b }, { data: comps }, { data: srTracks }, { data: gRow }] = await Promise.all([
         supabase.from("genre_models")
           .select("palavras_chave, padroes_nome, musicas_recorrentes, insights")
           .eq("genre_id", pl.genre_id).maybeSingle(),
@@ -205,9 +206,11 @@ Deno.serve(async (req) => {
           .eq("genre_id", pl.genre_id)
           .not("spotify_track_id", "is", null)
           .limit(5000),
+        supabase.from("genres").select("nome").eq("id", pl.genre_id).maybeSingle(),
       ]);
       model = m;
       benchmark = b;
+      genreName = (gRow as any)?.nome ?? null;
       competitors = (comps ?? []).map((c: any) => ({
         spotify_playlist_id: c.spotify_playlist_id,
         name: c.name,
@@ -240,6 +243,24 @@ Deno.serve(async (req) => {
         .sort((a, b) => b.count - a.count)
         .slice(0, 30);
     }
+
+    // Adjacência de gêneros — pra checar aderência da faixa ao nicho via Spotify artist.genres
+    const NICHE_ADJACENCY: Record<string, string[]> = {
+      pagode: ["pagode", "samba"],
+      samba: ["samba", "pagode"],
+      sertanejo: ["sertanejo", "forro", "forró", "piseiro"],
+      forro: ["forro", "forró", "sertanejo", "piseiro"],
+      "forró": ["forró", "forro", "sertanejo", "piseiro"],
+      funk: ["funk", "baile", "carioca", "paulista", "mandelão", "automotivo", "tuim"],
+      gospel: ["gospel", "worship", "louvor", "cristã", "cristao"],
+      rap: ["rap", "trap", "hip hop", "hiphop"],
+      trap: ["trap", "rap", "hip hop"],
+      rock: ["rock", "metal", "punk", "indie"],
+      eletronica: ["eletronica", "eletrônica", "electro", "house", "techno", "edm"],
+      "eletrônica": ["eletrônica", "eletronica", "electro", "house", "techno", "edm"],
+    };
+    const baseNiche = (genreName ?? "").toLowerCase().trim();
+    const nicheTerms: string[] = baseNiche ? (NICHE_ADJACENCY[baseNiche] ?? [baseNiche]) : [];
 
     // 3) Faixas atuais da playlist gerenciada
     const { data: currentTracks } = await supabase
@@ -299,7 +320,7 @@ Deno.serve(async (req) => {
       artist_id: string | null;
     };
     const spotMeta = new Map<string, SpotMeta>();
-    const artistMeta = new Map<string, { popularity: number | null; followers: number | null }>();
+    const artistMeta = new Map<string, { popularity: number | null; followers: number | null; genres: string[] }>();
 
     if (trackIds.length > 0) {
       try {
@@ -337,6 +358,7 @@ Deno.serve(async (req) => {
             artistMeta.set(ar.id, {
               popularity: typeof ar.popularity === "number" ? ar.popularity : null,
               followers: ar.followers?.total ?? null,
+              genres: Array.isArray(ar.genres) ? ar.genres.map((g: string) => String(g).toLowerCase()) : [],
             });
           }
         }
@@ -344,6 +366,24 @@ Deno.serve(async (req) => {
         // segue sem metadados — classificador degrada gracefully
       }
     }
+
+    // Helper: avalia se um artista (pelos seus spotify.genres) pertence ao nicho da playlist.
+    // Retorna:
+    //   "match"     → tem ao menos 1 gênero compatível com o nicho
+    //   "off_niche" → tem gêneros mas nenhum bate com o nicho
+    //   "unknown"   → artista sem gêneros mapeados (não dá pra decidir)
+    function classifyArtistVsNiche(artistId: string | null): "match" | "off_niche" | "unknown" {
+      if (!artistId || nicheTerms.length === 0) return "unknown";
+      const meta = artistMeta.get(artistId);
+      if (!meta || !meta.genres || meta.genres.length === 0) return "unknown";
+      for (const g of meta.genres) {
+        for (const term of nicheTerms) {
+          if (g.includes(term) || term.includes(g)) return "match";
+        }
+      }
+      return "off_niche";
+    }
+
 
     // 4) Classificação por faixa — ZONAS EDITORIAIS
     //
@@ -406,6 +446,8 @@ Deno.serve(async (req) => {
       const artist = meta?.artist_id ? artistMeta.get(meta.artist_id) : undefined;
       const artistPop = artist?.popularity ?? null;
       const artistFollowers = artist?.followers ?? null;
+      const artistGenres = artist?.genres ?? [];
+      const nicheFit = classifyArtistVsNiche(meta?.artist_id ?? null);
       const pos: number = t.position ?? 0;
       const saturationPct = nichePlaylistCount > 0
         ? Math.min(100, Math.round((recurrence / nichePlaylistCount) * 100))
@@ -451,6 +493,7 @@ Deno.serve(async (req) => {
 
       return {
         t, recurrence, popularity, releaseDate, artistPop, artistFollowers,
+        artistGenres, nicheFit,
         pos, saturationPct, ageDays, releaseAgeYears, isDominantArtist,
         scores: { anchor: anchorScore, premium: premiumScore, support: supportScore, tail: tailScore, anchorEligible } as TrackScores,
       };
@@ -485,7 +528,7 @@ Deno.serve(async (req) => {
     }
 
     const tracksAnalysis = rawTracks.map((x) => {
-      const { t, recurrence, popularity, releaseDate, artistPop, artistFollowers, pos, saturationPct, ageDays, scores } = x;
+      const { t, recurrence, popularity, releaseDate, artistPop, artistFollowers, artistGenres, nicheFit, pos, saturationPct, ageDays, scores, isDominantArtist } = x;
       const currentZone = zoneFromPos(pos);
       const bestZone = pickBestZone(x);
       const bestZoneScore = scores[bestZone];
@@ -507,13 +550,21 @@ Deno.serve(async (req) => {
         }
         reasons.push("zona reservada · só ajustes suaves dentro do bloco da campanha");
       }
-      // 1) REMOVER saturada — enterrada e sem função em zona nenhuma
+      // 1) REMOVER fora-do-nicho — artista tem gêneros mapeados no Spotify e nenhum bate com o nicho,
+      //    não é dominante e não tem recorrência. Pagode com funk no meio sai daqui.
+      else if (nicheFit === "off_niche" && recurrence === 0 && !isDominantArtist) {
+        status = "remove";
+        const gShown = artistGenres.slice(0, 2).join(", ");
+        reasons.push(`fora do nicho · artista é ${gShown || "outro gênero"}, playlist é ${genreName ?? "—"}`);
+        reasons.push("nenhum gênero do artista bate com o nicho da playlist");
+      }
+      // 2) REMOVER saturada — enterrada e sem função em zona nenhuma
       else if (saturationPct >= 70 && pos >= 20 && bestZoneScore < 45) {
         status = "remove";
         reasons.push(`saturada no nicho (${saturationPct}%) e enterrada em #${pos + 1}`);
         reasons.push("não cumpre função em nenhuma zona");
       }
-      // 2) REMOVER frio — sem força em zona nenhuma + sem recorrência + tempo de teste
+      // 3) REMOVER frio — sem força em zona nenhuma + sem recorrência + tempo de teste
       else if (popularity != null && popularity < 30 && recurrence === 0 && (ageDays == null || ageDays > 30) && bestZoneScore < 25) {
         status = "remove";
         reasons.push(`popularity ${popularity} e zero presença no nicho`);
@@ -583,6 +634,8 @@ Deno.serve(async (req) => {
         popularity,
         artist_popularity: artistPop,
         artist_followers: artistFollowers,
+        artist_genres: artistGenres,
+        niche_fit: nicheFit,
         release_date: releaseDate,
         age_days_in_playlist: ageDays,
         // proteção
@@ -660,14 +713,15 @@ Deno.serve(async (req) => {
     // Pool de sugestões — escala quando a playlist está subdimensionada vs benchmark do nicho
     const benchP50Pool = Number(benchmark?.tracks_p50 ?? 0);
     const undersizeGapPool = benchP50Pool > 0 ? Math.max(0, benchP50Pool - totalTracks) : 0;
-    const N_SUGGEST = Math.max(15, Math.min(undersizeGapPool + 5, 40));
+    // Quando a playlist está sub-dimensionada vs benchmark, sugerimos até o gap inteiro (cap 80)
+    const N_SUGGEST = Math.max(15, Math.min(undersizeGapPool + 5, 80));
 
     // 7.a) Top candidatas brutas (por recorrência) — limitamos antes de gastar API Spotify
     const rawCandidates = Array.from(genreRecurrence.entries())
       .filter(([id]) => !currentIds.has(id))
       .map(([id, v]) => ({ id, ...v }))
       .sort((a, b) => b.count - a.count)
-      .slice(0, 80);
+      .slice(0, Math.max(120, N_SUGGEST * 2));
 
     // 7.b) Busca meta Spotify dos candidatos (popularity + artista) pra calcular zone scores
     const candMeta = new Map<string, { popularity: number | null; artistPop: number | null; cover: string | null }>();
@@ -836,13 +890,15 @@ Deno.serve(async (req) => {
       };
     });
 
-    // 7.e) Sugestões restantes — distribui pelo DEFICIT de cada zona
-    //      ideal: anchor=2, premium=4, support=6, tail = max(0, total-12)
+    // 7.e) Sugestões restantes — distribui pelo DEFICIT de cada zona.
+    //      Meta de tamanho da playlist = benchmark.tracks_p50 do nicho (e não o tamanho atual).
+    //      Sub-dimensionada → cauda vira a zona com mais deficit.
+    const targetSize = benchP50Pool > 0 ? benchP50Pool : Math.max(totalTracks, 12);
     const zoneIdeal: Record<Zone, number> = {
       anchor: 2,
       premium: 4,
       support: 6,
-      tail: Math.max(0, totalTracks - 12),
+      tail: Math.max(0, targetSize - 12),
     };
     const deficits: Record<Zone, number> = {
       anchor: Math.max(0, zoneIdeal.anchor - (zoneCurrent.anchor ?? 0)),
