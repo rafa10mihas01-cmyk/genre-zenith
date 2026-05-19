@@ -17,9 +17,9 @@ export function AppFooter() {
           <NexEngineLogo variant="auto" size={14} />
           <span>Powered by <span className="text-foreground/70 font-medium">NexEngine</span></span>
         </div>
-        <span className="hidden sm:inline opacity-40">·</span>
+        <span className="opacity-40">·</span>
         <span className="tabular-nums">{APP_VERSION}</span>
-        <span className="hidden sm:inline opacity-40">·</span>
+        <span className="opacity-40">·</span>
         <a
           href={`mailto:${SUPPORT_EMAIL}`}
           className="hover:text-foreground transition-colors"
