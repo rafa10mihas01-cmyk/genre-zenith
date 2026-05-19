@@ -303,11 +303,10 @@
   }
   /* === WRAPPER DE PÁGINA === aplica padding + gap entre seções automaticamente.
      Container premium: max-width 1200px centralizado (Stripe / Linear / Notion).
-     Padding: 16px mobile → 24px desktop. Conteúdo nunca encosta na borda.
-     No mobile, reserva espaço para o bottom nav (64px + safe-area). */
+     Padding: 16px mobile → 24px desktop. Conteúdo nunca encosta na borda. */
   .nx-page {
     padding: var(--space-page-y) 8px;
-    padding-bottom: calc(64px + env(safe-area-inset-bottom) + 16px);
+    padding-bottom: calc(env(safe-area-inset-bottom) + 2px);
     display: flex;
     flex-direction: column;
     gap: var(--space-section);
