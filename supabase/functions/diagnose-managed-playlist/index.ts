@@ -272,11 +272,25 @@ Deno.serve(async (req) => {
         ? Math.max(0, (NOW - new Date(releaseDate).getTime()) / (365 * 86400000))
         : null;
 
-      let status: "keep" | "remove" | "promote" | "demote" = "keep";
+      let status: "keep" | "remove" | "promote" | "demote" | "protected" = "keep";
       const reasons: string[] = [];
+      const protectedInfo = protectedTracks.get(t.spotify_track_id);
 
+      // 0) PROTEGIDA — faixa com campanha ativa. Tem meta + obrigação operacional.
+      //    Não pode ser removida nem rebaixada automaticamente.
+      if (protectedInfo) {
+        status = "protected";
+        const statusLabel = protectedInfo.campaign_status === "active" ? "ativa"
+          : protectedInfo.campaign_status === "draft" ? "em rascunho"
+          : "pausada";
+        reasons.push(`campanha ${statusLabel} entregando meta nesta faixa`);
+        if (protectedInfo.planned_streams > 0) {
+          reasons.push(`${protectedInfo.planned_streams.toLocaleString("pt-BR")} streams planejados nesta playlist`);
+        }
+        reasons.push("não pode ser removida ou rebaixada enquanto a campanha rodar");
+      }
       // 1) REMOVER saturada — todo mundo já toca, e ainda assim você enterrou ela
-      if (saturationPct >= 70 && pos >= 20) {
+      else if (saturationPct >= 70 && pos >= 20) {
         status = "remove";
         reasons.push(`saturada no nicho (${saturationPct}% das playlists tocam)`);
         reasons.push(`em #${pos + 1} — ocupando slot sem gerar diferencial`);
@@ -322,6 +336,11 @@ Deno.serve(async (req) => {
         artist_followers: artistFollowers,
         release_date: releaseDate,
         age_days_in_playlist: ageDays,
+        // campaign protection
+        is_protected: !!protectedInfo,
+        protected_campaign_id: protectedInfo?.campaign_id ?? null,
+        protected_campaign_status: protectedInfo?.campaign_status ?? null,
+        protected_planned_streams: protectedInfo?.planned_streams ?? null,
         // legacy fields (mantidos null pra compat)
         streams_28d: null,
         growth_28d_pct: null,
