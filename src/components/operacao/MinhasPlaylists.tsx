@@ -314,6 +314,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   const visible = items
     .filter((p) => (showArchived ? !!p.archived_at : !p.archived_at))
     .filter((p) => (filterMissingGenre ? !p.genre_id : true))
+    .filter((p) => (filterGenreId ? p.genre_id === filterGenreId : true))
     .slice()
     .sort((a, b) => {
       if (sortBy !== "valuation") return 0;
