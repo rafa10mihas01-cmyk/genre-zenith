@@ -428,6 +428,15 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
           ]).map((s, i, arr) => {
             const isActive = step === s.n;
             const done = step > s.n;
+            const nextStep = arr[i + 1];
+            // Linha só fica verde cheia se o PRÓXIMO passo também estiver concluído.
+            // Se o próximo é o ativo, fica suave (não dá sensação de "preenchido até lá").
+            const nextDone = nextStep ? step > nextStep.n : false;
+            const connectorClass = done && nextDone
+              ? "bg-primary/40"
+              : done
+                ? "bg-primary/15"
+                : "bg-border";
             const clickable = s.n === 1 || (s.n === 2 && canGoStep2) || (s.n === 3 && canGoStep3);
             return (
               <div key={s.n} className="flex items-center flex-1 gap-2 sm:gap-3 min-w-0">
@@ -443,7 +452,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                 >
                   <span className={cn(
                     "shrink-0 h-7 w-7 rounded-full grid place-items-center text-xs font-semibold border-2 transition-colors",
-                    isActive ? "bg-primary text-primary-foreground border-primary"
+                    isActive ? "bg-transparent text-primary border-primary"
                     : done ? "bg-primary/15 text-primary border-primary/40"
                     : "bg-muted text-muted-foreground border-border",
                   )}>{done ? <CheckCircle2 className="h-3.5 w-3.5" /> : s.n}</span>
@@ -456,7 +465,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                   </span>
                 </button>
                 {i < arr.length - 1 && (
-                  <span className={cn("flex-1 h-px", done ? "bg-primary/40" : "bg-border")} />
+                  <span className={cn("flex-1 h-px", connectorClass)} />
                 )}
               </div>
             );
