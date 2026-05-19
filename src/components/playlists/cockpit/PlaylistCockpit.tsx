@@ -304,7 +304,7 @@ export function PlaylistCockpit({
         </div>
 
         {/* KPI row — mesma régua do DealDetail/Cliente/Curador */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
           <KpiBig
             label="Seguidores"
             value={fmtNum(followers)}
