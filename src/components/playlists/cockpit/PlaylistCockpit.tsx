@@ -588,6 +588,8 @@ function CoverCard({ managedId, currentCover, leaders, spotifyPlaylistId }: {
   const [uploading, setUploading] = useState(false);
   const [applyingLeader, setApplyingLeader] = useState<string | null>(null);
   const [localCover, setLocalCover] = useState<string | null>(currentCover);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [pendingPreview, setPendingPreview] = useState<string | null>(null);
 
   const applyLeaderCover = async (leader: { spotify_playlist_id: string; cover_url: string | null; name: string }) => {
     if (!leader.cover_url) return;
@@ -607,7 +609,7 @@ function CoverCard({ managedId, currentCover, leaders, spotifyPlaylistId }: {
     }
   };
 
-  const handleFile = async (file: File) => {
+  const selectFile = (file: File) => {
     if (!file) return;
     if (!/^image\/(png|jpe?g|webp)$/i.test(file.type)) {
       toast({ title: "Formato inválido", description: "Use PNG, JPG ou WEBP.", variant: "destructive" });
@@ -617,13 +619,26 @@ function CoverCard({ managedId, currentCover, leaders, spotifyPlaylistId }: {
       toast({ title: "Arquivo grande", description: "Máximo 8MB (será comprimido).", variant: "destructive" });
       return;
     }
+    if (pendingPreview) URL.revokeObjectURL(pendingPreview);
+    setPendingFile(file);
+    setPendingPreview(URL.createObjectURL(file));
+  };
+
+  const clearPending = () => {
+    if (pendingPreview) URL.revokeObjectURL(pendingPreview);
+    setPendingFile(null);
+    setPendingPreview(null);
+  };
+
+  const applyPending = async () => {
+    if (!pendingFile) return;
     setUploading(true);
     try {
-      const ext = file.name.split(".").pop()?.toLowerCase() || "png";
+      const ext = pendingFile.name.split(".").pop()?.toLowerCase() || "png";
       const path = `${managedId}/${Date.now()}.${ext}`;
       const { error: upErr } = await supabase.storage
         .from("playlist-covers")
-        .upload(path, file, { contentType: file.type, upsert: false });
+        .upload(path, pendingFile, { contentType: pendingFile.type, upsert: false });
       if (upErr) throw upErr;
       const { data: pub } = supabase.storage.from("playlist-covers").getPublicUrl(path);
       const imageUrl = pub.publicUrl;
@@ -634,7 +649,8 @@ function CoverCard({ managedId, currentCover, leaders, spotifyPlaylistId }: {
       if (error) throw error;
       if (!data?.ok) throw new Error(data?.error || "falha ao aplicar capa");
       setLocalCover(imageUrl);
-      toast({ title: "Capa atualizada" });
+      clearPending();
+      toast({ title: "Capa atualizada", description: "Pode demorar alguns segundos pra aparecer no Spotify." });
     } catch (e: any) {
       toast({ title: "Erro ao enviar capa", description: e?.message ?? String(e), variant: "destructive" });
     } finally {
@@ -650,16 +666,16 @@ function CoverCard({ managedId, currentCover, leaders, spotifyPlaylistId }: {
           <label className={cn(
             "inline-flex items-center gap-1 h-7 px-2 text-xs rounded-md cursor-pointer",
             "bg-primary text-primary-foreground hover:bg-primary/90 font-medium",
-            uploading && "opacity-60 pointer-events-none",
+            (uploading || !!pendingFile) && "opacity-60 pointer-events-none",
           )}>
-            {uploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
-            {uploading ? "Enviando..." : "Trocar capa"}
+            <Plus className="h-3 w-3" />
+            {pendingFile ? "Capa selecionada" : "Escolher capa"}
             <input
               type="file"
               accept="image/png,image/jpeg,image/webp"
               className="hidden"
-              disabled={uploading}
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.currentTarget.value = ""; }}
+              disabled={uploading || !!pendingFile}
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) selectFile(f); e.currentTarget.value = ""; }}
             />
           </label>
           <Button asChild size="sm" variant="ghost" className="h-7 text-xs gap-1 text-muted-foreground">
@@ -669,6 +685,22 @@ function CoverCard({ managedId, currentCover, leaders, spotifyPlaylistId }: {
           </Button>
         </div>
       </div>
+      {pendingFile && pendingPreview && (
+        <div className="flex items-center gap-3 rounded-lg border border-primary/40 bg-primary/5 p-3">
+          <img src={pendingPreview} alt="prévia" className="w-16 h-16 rounded-md object-cover ring-1 ring-border" />
+          <div className="flex-1 min-w-0">
+            <div className="text-xs font-medium truncate">{pendingFile.name}</div>
+            <div className="text-[10px] text-muted-foreground">Pronta pra aplicar no Spotify.</div>
+          </div>
+          <Button size="sm" variant="ghost" onClick={clearPending} disabled={uploading} className="h-7 text-xs">
+            Cancelar
+          </Button>
+          <Button size="sm" onClick={applyPending} disabled={uploading} className="h-7 text-xs gap-1.5">
+            {uploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+            {uploading ? "Aplicando..." : "Aplicar capa"}
+          </Button>
+        </div>
+      )}
       <div className="grid grid-cols-[auto_1fr] gap-4 items-start">
         <div className="space-y-1.5">
           <div className="text-[10px] text-muted-foreground">Atual</div>
