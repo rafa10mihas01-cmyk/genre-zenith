@@ -484,6 +484,20 @@ Deno.serve(async (req) => {
     const saturatedCount = tracksAnalysis.filter((x) => x.saturation_pct >= 70).length;
     const noDataCount = tracksAnalysis.filter((x) => x.popularity == null).length;
 
+    // Distribuição editorial por zona (atual vs. ideal)
+    const zoneCurrent = { anchor: 0, premium: 0, support: 0, tail: 0 } as Record<Zone, number>;
+    const zoneBest    = { anchor: 0, premium: 0, support: 0, tail: 0 } as Record<Zone, number>;
+    for (const tr of tracksAnalysis) {
+      zoneCurrent[tr.current_zone as Zone]++;
+      zoneBest[tr.best_zone as Zone]++;
+    }
+    const anchorHasEligible = tracksAnalysis.some(
+      (tr) => tr.current_zone === "anchor" && tr.anchor_eligible,
+    );
+    const anchorMisuse = tracksAnalysis.filter(
+      (tr) => tr.current_zone === "anchor" && !tr.anchor_eligible && tr.status !== "protected",
+    ).length;
+
     const tracksSummary = {
       ...counts,
       saturated: saturatedCount,
@@ -491,6 +505,10 @@ Deno.serve(async (req) => {
       no_data: noDataCount,
       missing_artists: missingArtists,
       niche_playlist_count: nichePlaylistCount,
+      zone_current: zoneCurrent,
+      zone_best: zoneBest,
+      anchor_has_eligible: anchorHasEligible,
+      anchor_misuse: anchorMisuse,
     };
 
     // 7) Sugestões de faixas a ADICIONAR — do nicho, ainda não presentes na playlist
