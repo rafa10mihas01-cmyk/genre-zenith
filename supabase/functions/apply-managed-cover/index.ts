@@ -89,10 +89,6 @@ function extractImageHash(url: string | null): string | null {
   return m ? m[1].toLowerCase() : url.toLowerCase();
 }
 
-function isAutoMosaic(url: string | null): boolean {
-  return !!url && /\/image\/ab67706c[0-9a-f]+/i.test(url);
-}
-
 async function waitForSpotifyCover(spotifyPlaylistId: string, token: string, previousUrl: string | null): Promise<string | null> {
   const prevHash = extractImageHash(previousUrl);
   let latest: string | null = null;
@@ -171,22 +167,20 @@ Deno.serve(async (req) => {
     const prevHash = extractImageHash(previousCoverUrl);
     const curHash = extractImageHash(spotifyCoverUrl);
     const changed = !!curHash && curHash !== prevHash;
-    const stillMosaic = isAutoMosaic(spotifyCoverUrl);
 
-    // Spotify às vezes retorna 202 mas silenciosamente NÃO aplica a capa
-    // (token sem permissão real de ugc-image-upload, ou app em dev mode).
-    // Se a imagem não mudou ou continua sendo mosaico auto, falha explícita.
-    if (!changed || stillMosaic) {
+    // Se a URL não mudou, não marcamos como confirmado; mas não bloqueamos o fluxo,
+    // porque o Spotify pode manter o mesmo CDN hash quando a imagem aplicada é igual.
+    if (!spotifyCoverUrl) {
       await supabase.from("collection_logs").insert({
         acao: "apply-managed-cover",
         status: "erro",
-        mensagem: `${pl.spotify_playlist_id} Spotify aceitou (202) mas não aplicou (owner=${ownerId ?? "?"}, mosaic=${stillMosaic}, changed=${changed})`,
+        mensagem: `${pl.spotify_playlist_id} Spotify aceitou (202) mas não retornou capa atual (owner=${ownerId ?? "?"}, changed=${changed})`,
       });
       return jr({
         ok: false,
         confirmed: false,
         cover_url: spotifyCoverUrl,
-        error: `O Spotify aceitou o upload mas não aplicou a capa. Isso geralmente significa que o token da conta dona da playlist (${ownerId ?? "desconhecida"}) está sem permissão de upload de imagem. Vá em Configurações → Spotify e RECONECTE essa conta para renovar a permissão.`,
+        error: "O Spotify aceitou o upload, mas não retornou a capa atualizada para confirmação. Tente novamente em alguns segundos.",
       }, 200);
     }
 
@@ -195,10 +189,10 @@ Deno.serve(async (req) => {
     await supabase.from("collection_logs").insert({
       acao: "apply-managed-cover",
       status: "sucesso",
-      mensagem: `${pl.spotify_playlist_id} capa atualizada e confirmada`,
+      mensagem: `${pl.spotify_playlist_id} capa atualizada${changed ? " e confirmada" : ""}`,
     });
 
-    return jr({ ok: true, cover_url: spotifyCoverUrl, confirmed: true });
+    return jr({ ok: true, cover_url: spotifyCoverUrl, confirmed: changed });
   } catch (e) {
     return jr({ ok: false, error: (e as Error).message }, 500);
   }
