@@ -548,7 +548,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
                         <div className="text-[11px] text-muted-foreground tabular-nums flex items-center gap-1.5 flex-wrap mt-0.5">
                           <span className="inline-flex items-center gap-0.5">
                             <TrendingUp className="h-3 w-3" />
-                            {Math.round(Number(o.brain.headroom_pct))}% headroom
+                            {Math.round(Number(o.brain.headroom_pct))}% de folga
                           </span>
                           {o.sigCount > 0 && (
                             <span className="text-warning">· {o.sigCount} sinal{o.sigCount > 1 ? "is" : ""}</span>
