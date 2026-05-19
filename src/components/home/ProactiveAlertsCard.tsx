@@ -142,7 +142,7 @@ export function ProactiveAlertsCard() {
 
         // ordenar high primeiro, limitar
         out.sort((a, b) => (a.severity === "high" ? -1 : 1) - (b.severity === "high" ? -1 : 1));
-        setAlerts(out.slice(0, 6));
+        setAlerts(out.slice(0, 50));
       } finally {
         setLoading(false);
       }
