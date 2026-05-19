@@ -832,9 +832,10 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
                             type="button"
                             onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
                             title="Conta Spotify não vinculada — clique para vincular"
-                            className="inline-flex items-center gap-0.5 px-1.5 h-[18px] rounded-full bg-warning/15 border border-warning/50 text-warning text-[10px] font-semibold hover:bg-warning/25 transition-colors"
+                            aria-label="Sem conta vinculada"
+                            className="inline-flex items-center justify-center w-[18px] h-[18px] rounded-full bg-warning/15 border border-warning/50 text-warning hover:bg-warning/25 transition-colors"
                           >
-                            <Link2Off className="h-2.5 w-2.5" /> sem conta
+                            <Link2Off className="h-2.5 w-2.5" />
                           </button>
                         </PopoverTrigger>
                         <PopoverContent
