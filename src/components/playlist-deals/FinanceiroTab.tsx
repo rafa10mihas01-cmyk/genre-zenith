@@ -94,19 +94,24 @@ export function FinanceiroTab({ deals }: Props) {
 
   return (
     <div className="space-y-6">
-      {/* ============= HERO FINANCEIRO ============= */}
-      <section className="rounded-2xl border border-border bg-gradient-to-br from-card via-card to-card/60 overflow-hidden">
-        <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr]">
+      {/* ============= HERO FINANCEIRO — mesmo padrão do KpiBig hero ============= */}
+      <section className="relative overflow-hidden rounded-2xl border border-border border-l-2 border-l-primary bg-gradient-to-br from-card via-card to-primary/[0.08]">
+        {/* Glow verde sutil no canto */}
+        <div
+          className="pointer-events-none absolute -top-16 -right-16 h-40 w-40 rounded-full bg-primary/20 blur-3xl"
+          aria-hidden
+        />
+        <div className="relative grid grid-cols-1 lg:grid-cols-[1.4fr_1fr]">
           {/* Saldo principal */}
-          <div className="p-6 lg:p-8 border-b lg:border-b-0 lg:border-r border-border">
+          <div className="p-4 lg:p-5 border-b lg:border-b-0 lg:border-r border-border">
             <div className="flex items-center gap-2 text-xs uppercase tracking-[0.12em] text-muted-foreground">
               <Wallet className="h-3.5 w-3.5" />
               Saldo financeiro
             </div>
-            <div className="mt-3 flex items-baseline gap-3 flex-wrap">
+            <div className="mt-2 flex items-baseline gap-3 flex-wrap">
               <span
                 className={cn(
-                  "text-4xl lg:text-5xl font-bold tabular-nums tracking-tight",
+                  "text-3xl lg:text-4xl font-bold tabular-nums tracking-tight",
                   saldoVirtual >= 0 ? "text-primary" : "text-amber-500",
                 )}
               >
@@ -134,7 +139,7 @@ export function FinanceiroTab({ deals }: Props) {
 
             {/* Barra comprado vs comprometido */}
             {!isEmpty && totals.totalSpent > 0 && (
-              <div className="mt-6 space-y-2">
+              <div className="mt-4 space-y-1.5">
                 <div className="flex items-center justify-between text-[11px] uppercase tracking-wide text-muted-foreground">
                   <span>Uso do comprado</span>
                   <span className="tabular-nums">
@@ -158,7 +163,7 @@ export function FinanceiroTab({ deals }: Props) {
           </div>
 
           {/* Sparkline + métricas */}
-          <div className="p-6 lg:p-8 grid grid-cols-2 gap-4 content-between">
+          <div className="p-4 lg:p-5 grid grid-cols-2 gap-3 content-between">
             <MiniStat
               label="Investido (14d)"
               value={fmtBRL(dailySpend.reduce((a, b) => a + b, 0))}
