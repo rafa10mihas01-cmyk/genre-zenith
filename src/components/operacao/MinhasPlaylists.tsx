@@ -29,6 +29,8 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover
 import { PlaylistScoreBadge, type PlaylistScoreRow } from "./PlaylistScoreBadge";
 import { PlaylistTracksAnalysisCard } from "@/components/playlists/PlaylistTracksAnalysisCard";
 import { CuratorialStateBadge, CooldownStack, type CuratorialState } from "@/components/playlist/CuratorialStateBadge";
+import { IconBadge } from "@/components/playlist/IconBadge";
+import { GraduationCap } from "lucide-react";
 import { useActiveCooldowns } from "@/hooks/useActiveCooldowns";
 
 type ManagedPlaylist = {
