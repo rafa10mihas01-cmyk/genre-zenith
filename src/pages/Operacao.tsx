@@ -248,7 +248,7 @@ export default function Operacao() {
       <PageHeader
         domain="system"
         title="Catálogo"
-        subtitle="Gerenciar playlists publicadas"
+        subtitle="Catálogo publicado"
         actions={
           <Button
             variant="outline"

@@ -95,7 +95,7 @@ export default function Infraestrutura({ embedded = false }: { embedded?: boolea
         domain="system"
           kicker="Módulo de Sistema"
           title="Infraestrutura"
-          subtitle="Orquestrar VPS, sessões e contas Spotify"
+          subtitle="VPS, sessões e contas"
           actions={
             <Button variant="outline" onClick={load} disabled={loading} className="gap-1.5">
               <RefreshCw className={loading ? "h-4 w-4 animate-spin" : "h-4 w-4"} />

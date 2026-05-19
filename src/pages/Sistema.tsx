@@ -59,7 +59,7 @@ export default function Sistema() {
       <PageHeader
         domain="system"
         title="Sistema"
-        subtitle="Acompanhar o pipeline em tempo real"
+        subtitle="Tempo real"
       />
 
       <div className="sticky top-0 z-30 -mt-px bg-background/95 supports-[backdrop-filter]:bg-background/80 backdrop-blur-md border-b border-border -mx-4 md:-mx-6">

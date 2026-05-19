@@ -89,7 +89,7 @@ export default function Analytics() {
         kicker="Operação"
         icon={LineIcon}
         title="Analytics"
-        subtitle="Comparar promessas e entregas para refinar futuras campanhas"
+        subtitle="Promessa vs entrega"
         actions={
           <Button variant="outline" onClick={load} disabled={loading}>
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} /> Atualizar

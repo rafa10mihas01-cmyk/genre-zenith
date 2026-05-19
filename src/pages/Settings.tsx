@@ -322,7 +322,7 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
         <PageHeader
         domain="system"
           title="Configurações"
-          subtitle="Ajustes do sistema"
+          subtitle="Preferências"
         />
       )}
 
