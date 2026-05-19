@@ -23,6 +23,7 @@ import Clientes from "./pages/Clientes";
 import ClienteDetalhe from "./pages/ClienteDetalhe";
 import Performance from "./pages/Performance";
 import PlaylistDeals from "./pages/PlaylistDeals";
+import Financeiro from "./pages/Financeiro";
 import DealDetail from "./pages/DealDetail";
 // Curadores: rota antiga agora redireciona para /deals?tab=library
 import CuradorDetail from "./pages/CuradorDetail";
