@@ -469,10 +469,8 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
         <div className="space-y-5">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Quem é a operação?</CardTitle>
-              <CardDescription>
-                Cliente e curador valem pra TODAS as músicas desta sessão. Cada música vira uma campanha + um deal independente.
-              </CardDescription>
+              <CardTitle className="text-base">Sessão</CardTitle>
+              <CardDescription>Cliente e curador valem pra todas as músicas desta sessão.</CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5">
@@ -484,10 +482,9 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                     {clientsList.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
-                <p className="text-[11px] text-muted-foreground">Opcional. Identifica o dono comercial das campanhas.</p>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">Curador (dono das playlists) <span className="text-destructive">*</span></Label>
+                <Label className="text-xs">Curador <span className="text-destructive">*</span></Label>
                 <Select value={curatorId || "__none__"} onValueChange={v => setCuratorId(v === "__none__" ? "" : v)}>
                   <SelectTrigger><SelectValue placeholder="Sem curador" /></SelectTrigger>
                   <SelectContent>
@@ -495,7 +492,6 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                     {curatorsList.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
-                <p className="text-[11px] text-muted-foreground">Sem curador a campanha não gera deal real.</p>
               </div>
             </CardContent>
           </Card>
