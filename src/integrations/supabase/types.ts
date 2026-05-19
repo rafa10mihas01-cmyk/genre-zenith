@@ -3115,9 +3115,14 @@ export type Database = {
             | Database["public"]["Enums"]["curatorial_action_type"]
             | null
           last_metrics_at: string | null
+          last_onboarding_check_at: string | null
+          lifecycle_stage: string
           max_change_pct: number
           metadata: Json
           name: string
+          onboarding_checklist: Json
+          onboarding_completed_at: string | null
+          onboarding_ready_streak: number
           recommended_change_count: number | null
           spotify_playlist_id: string
           spotify_url: string
@@ -3143,9 +3148,14 @@ export type Database = {
             | Database["public"]["Enums"]["curatorial_action_type"]
             | null
           last_metrics_at?: string | null
+          last_onboarding_check_at?: string | null
+          lifecycle_stage?: string
           max_change_pct?: number
           metadata?: Json
           name: string
+          onboarding_checklist?: Json
+          onboarding_completed_at?: string | null
+          onboarding_ready_streak?: number
           recommended_change_count?: number | null
           spotify_playlist_id: string
           spotify_url: string
@@ -3171,9 +3181,14 @@ export type Database = {
             | Database["public"]["Enums"]["curatorial_action_type"]
             | null
           last_metrics_at?: string | null
+          last_onboarding_check_at?: string | null
+          lifecycle_stage?: string
           max_change_pct?: number
           metadata?: Json
           name?: string
+          onboarding_checklist?: Json
+          onboarding_completed_at?: string | null
+          onboarding_ready_streak?: number
           recommended_change_count?: number | null
           spotify_playlist_id?: string
           spotify_url?: string

@@ -101,14 +101,27 @@ Deno.serve(async (req) => {
         imported_by: guard.via === "user" ? guard.userId : null,
         metadata: { source: "import-account-playlists", owner_display_name: p.owner?.display_name ?? null },
       };
-      const { error } = await supabase
+      const { data: upserted, error } = await supabase
         .from("managed_playlists")
-        .upsert(payload, { onConflict: "spotify_playlist_id" });
+        .upsert(payload, { onConflict: "spotify_playlist_id" })
+        .select("id, lifecycle_stage")
+        .maybeSingle();
       if (error) {
         skipped++;
         console.error("upsert error", p.id, error.message);
       } else {
         imported++;
+        // Dispara onboarding-check (fire-and-forget) só pra playlists em estágio onboarding.
+        if (upserted?.id && upserted?.lifecycle_stage === "onboarding") {
+          fetch(`${SUPABASE_URL}/functions/v1/playlist-onboarding-check`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${SERVICE_KEY}`,
+            },
+            body: JSON.stringify({ playlist_id: upserted.id }),
+          }).catch((e) => console.warn("onboarding-check dispatch", upserted.id, (e as Error).message));
+        }
       }
     }
 
