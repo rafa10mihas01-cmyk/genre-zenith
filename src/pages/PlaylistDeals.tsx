@@ -34,6 +34,22 @@ const TABS = [
   { id: "all"      as const, label: "Todos",             icon: Layers },
 ];
 
+function filterByTab(
+  deals: CuratorDeal[],
+  tab: DealsTab,
+  withBaseline: Set<string>,
+): CuratorDeal[] {
+  switch (tab) {
+    case "done":    return deals.filter((d) => !!d.closed_at);
+    case "active":  return deals.filter((d) => !d.closed_at);
+    case "running": return deals.filter((d) => !d.closed_at && withBaseline.has(d.id));
+    case "waiting": return deals.filter((d) => !d.closed_at && !withBaseline.has(d.id));
+    case "all":
+    case "ledger":
+    default:        return deals;
+  }
+}
+
 export default function PlaylistDeals() {
   const [tabRaw, setTab] = useScreenField<DealsTab>("/playlist-deals", "tab", "active");
   // Aba "ledger" foi extraída para /financeiro — normaliza pra "active" se persistido.
