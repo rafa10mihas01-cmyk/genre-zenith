@@ -987,6 +987,35 @@ Deno.serve(async (req) => {
       suggestedDescription = `As ${totalTracks} mais tocadas · ${hot} · atualizada toda semana`;
     }
 
+    // 8.b.AI) Refino editorial via Lovable AI — gera título e descrição naturais.
+    // Algoritmo acima vira baseline/fallback automático.
+    const algoName = nameSuggestion;
+    const algoDescription = suggestedDescription;
+    let aiCopy: EditorialCopy | null = null;
+    let aiError: string | null = null;
+    try {
+      aiCopy = await generateEditorialCopy({
+        currentName: pl.name,
+        currentDescription: pl.description ?? null,
+        genreName: (model?.insights?.nicho_nome ?? model?.insights?.nicho ?? null) as string | null,
+        topKeywords,
+        missingKeywords: missing,
+        topArtists: genreArtistsTop.slice(0, 8).map((a) => a.artist),
+        topRecurringTracks: Array.from(genreRecurrence.entries())
+          .sort((a, b) => b[1].count - a[1].count)
+          .slice(0, 6)
+          .map(([, v]) => ({ title: v.track_name ?? "", artist: v.artist_name ?? "" })),
+        benchmarkSize: benchmark?.tracks_p50 ?? null,
+        currentSize: totalTracks,
+        competitors: competitors.slice(0, 6).map((c) => ({ name: c.name })),
+      });
+    } catch (e) {
+      aiError = (e as Error).message;
+    }
+    const editorialName = aiCopy?.titles?.[0] ?? algoName;
+    const editorialDescription = aiCopy?.descriptions?.[0] ?? algoDescription;
+
+
     // 8.c) target_position — agora vem direto da zona-alvo (calculada no passo 4),
     //      então não há mais override por popularity rank.
 
