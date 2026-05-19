@@ -901,9 +901,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Importar playlist</DialogTitle>
-            <DialogDescription>
-              Cole a URL pública da playlist no Spotify. O sistema puxa nome, capa e contagem.
-            </DialogDescription>
+            <DialogDescription>Cole a URL pública do Spotify.</DialogDescription>
           </DialogHeader>
           <Input
             value={importUrl}

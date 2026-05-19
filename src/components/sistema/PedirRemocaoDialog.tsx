@@ -43,10 +43,8 @@ export function PedirRemocaoDialog(props: PedirRemocaoDialogProps) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Pedir remoção ao curador</DialogTitle>
-          <DialogDescription>
-            Copie a mensagem abaixo e envie no canal habitual. Marcamos a sugestão como "remoção pedida" pra acompanharmos o resultado.
-          </DialogDescription>
+          <DialogTitle>Pedir remoção</DialogTitle>
+          <DialogDescription>Copie e envie no canal habitual.</DialogDescription>
         </DialogHeader>
         <Textarea
           value={message}

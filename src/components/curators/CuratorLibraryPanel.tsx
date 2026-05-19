@@ -371,9 +371,7 @@ export function CuratorLibraryPanel({ curator, deals, balance, onAddPurchase, fl
               <DialogTitle>Adicionar playlist</DialogTitle>
               <DraftIndicator lastSavedAt={draft.lastSavedAt} />
             </div>
-            <DialogDescription>
-              Cadastre manualmente uma playlist no catálogo de {curator.name}.
-            </DialogDescription>
+            <DialogDescription>Catálogo de {curator.name}.</DialogDescription>
           </DialogHeader>
           {draft.hasDraft && (
             <DraftBanner onRestore={handleRestoreDraft} onDiscard={draft.clearDraft} className="mb-2" />
@@ -406,9 +404,7 @@ export function CuratorLibraryPanel({ curator, deals, balance, onAddPurchase, fl
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Remover playlist do catálogo?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Os deals já existentes não são afetados — só remove da biblioteca consultiva.
-            </AlertDialogDescription>
+            <AlertDialogDescription>Deals existentes seguem ativos.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
@@ -421,9 +417,7 @@ export function CuratorLibraryPanel({ curator, deals, balance, onAddPurchase, fl
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Adicionar crédito</DialogTitle>
-            <DialogDescription>
-              Registre uma nova compra de plays com {curator.name}. O saldo é recalculado automaticamente.
-            </DialogDescription>
+            <DialogDescription>Nova compra com {curator.name}.</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div>
