@@ -88,6 +88,7 @@ function Stat({ label, value, tone }: { label: string; value: string | number; t
 
 export default function CuradorDetail() {
   const { id } = useParams<{ id: string }>();
+  const [healthOpen, setHealthOpen] = useState(false);
 
   if (!id) return <Navigate to="/curadores" replace />;
 
