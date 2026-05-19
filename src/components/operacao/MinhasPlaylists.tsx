@@ -81,7 +81,15 @@ type BrainRow = {
   signals: any;
 };
 
-type PlaylistStats = { avgHealth: number; topPerf: number; atRisk: number; inactive: number };
+type PlaylistStats = {
+  avgHealth: number;
+  topPerf: number;
+  atRisk: number;
+  inactive: number;
+  filteredFollowers: number;
+  filteredCount: number;
+  filterLabel: string | null;
+};
 
 export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => void } = {}) {
   const [items, setItems] = useState<ManagedPlaylist[]>([]);
@@ -430,9 +438,17 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   const inactive = scoreRows.filter(s => s.activity_score < 30).length;
   const topPerf = scoreRows.filter(s => s.health_score >= 70).length;
 
+  // Reflete filtros de gênero nos KPIs do topo
+  const visibleActive = visible.filter(p => !p.archived_at);
+  const filteredFollowers = visibleActive.reduce((s, p) => s + (p.followers ?? 0), 0);
+  const filteredCount = visibleActive.length;
+  const filterLabel = filterMissingGenre
+    ? "Sem gênero"
+    : (filterGenreId ? (genres.find(g => g.id === filterGenreId)?.nome ?? null) : null);
+
   useEffect(() => {
-    onStats?.({ avgHealth, topPerf, atRisk, inactive });
-  }, [avgHealth, topPerf, atRisk, inactive, onStats]);
+    onStats?.({ avgHealth, topPerf, atRisk, inactive, filteredFollowers, filteredCount, filterLabel });
+  }, [avgHealth, topPerf, atRisk, inactive, filteredFollowers, filteredCount, filterLabel, onStats]);
 
 
   // ====== Match score: top oportunidades ======
