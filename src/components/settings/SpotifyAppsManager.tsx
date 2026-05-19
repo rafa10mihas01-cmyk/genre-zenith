@@ -159,93 +159,116 @@ export function SpotifyAppsManager({ onChange }: { onChange?: (apps: SpotifyApp[
       )}
 
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{editing?.id ? "Editar app Spotify" : "Adicionar app Spotify"}</DialogTitle>
-            <DialogDescription className="text-xs">
-              Crie um app em <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noreferrer" className="underline">developer.spotify.com/dashboard</a> e cole as credenciais aqui.
-              No <span className="font-medium">Redirect URI</span> do app, adicione: <span className="font-mono">{window.location.origin}/configuracoes?spotify_callback=1</span>
+        <DialogContent className="sm:max-w-[560px] bg-card border-border/60 shadow-2xl">
+          <DialogHeader className="space-y-2 pb-2 border-b border-border/40">
+            <DialogTitle className="text-lg font-semibold text-foreground">
+              {editing?.id ? "Editar app Spotify" : "Adicionar app Spotify"}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground leading-relaxed">
+              Crie um app em{" "}
+              <a
+                href="https://developer.spotify.com/dashboard"
+                target="_blank"
+                rel="noreferrer"
+                className="text-primary hover:underline font-medium"
+              >
+                developer.spotify.com/dashboard
+              </a>{" "}
+              e cole as credenciais aqui.
+              <span className="block mt-2 p-2 rounded-md bg-muted/40 border border-border/40">
+                <span className="text-[10px] uppercase tracking-wide text-muted-foreground/80 block mb-1">
+                  Redirect URI do app
+                </span>
+                <span className="font-mono text-[11px] text-foreground break-all">
+                  {window.location.origin}/configuracoes?spotify_callback=1
+                </span>
+              </span>
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <Label className="text-xs">Nome interno</Label>
+          <div className="space-y-4 pt-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-foreground">Nome interno</Label>
               <Input
                 value={editing?.name ?? ""}
                 onChange={(e) => setEditing((s) => ({ ...s!, name: e.target.value }))}
                 placeholder='Ex: "App principal", "App 2 - rock"'
-                className="mt-1 h-9 text-sm"
+                className="h-10 text-sm bg-muted/30 border-border/60 focus-visible:border-primary/60 focus-visible:ring-primary/20"
               />
             </div>
-            <div>
-              <Label className="text-xs">Client ID</Label>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-foreground">Client ID</Label>
               <Input
                 value={(editing as any)?.client_id ?? ""}
                 onChange={(e) => setEditing((s) => ({ ...s!, ...(editing as any), client_id: e.target.value } as any))}
                 placeholder={editing?.id ? "Deixe vazio pra não alterar" : "32 caracteres hex"}
-                className="mt-1 h-9 text-sm font-mono"
+                className="h-10 text-sm font-mono bg-muted/30 border-border/60 focus-visible:border-primary/60 focus-visible:ring-primary/20"
               />
             </div>
-            <div>
-              <Label className="text-xs">Client Secret</Label>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-foreground">Client Secret</Label>
               <Input
                 type="password"
                 value={(editing as any)?.client_secret ?? ""}
                 onChange={(e) => setEditing((s) => ({ ...s!, ...(editing as any), client_secret: e.target.value } as any))}
                 placeholder={editing?.id ? "Deixe vazio pra não alterar" : "32 caracteres hex"}
-                className="mt-1 h-9 text-sm font-mono"
+                className="h-10 text-sm font-mono bg-muted/30 border-border/60 focus-visible:border-primary/60 focus-visible:ring-primary/20"
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs">Limite de contas</Label>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-foreground">Limite de contas</Label>
                 <Input
                   type="number" min={1} max={25}
                   value={editing?.max_accounts ?? 5}
                   onChange={(e) => setEditing((s) => ({ ...s!, max_accounts: Number(e.target.value) || 5 }))}
-                  className="mt-1 h-9 text-sm"
+                  className="h-10 text-sm bg-muted/30 border-border/60 focus-visible:border-primary/60 focus-visible:ring-primary/20"
                 />
-                <p className="text-[10px] text-muted-foreground mt-1">Spotify aceita até 25 em dev mode.</p>
+                <p className="text-[10px] text-muted-foreground">Spotify aceita até 25 em dev mode.</p>
               </div>
-              <div>
-                <Label className="text-xs">Status</Label>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-foreground">Status</Label>
                 <select
                   value={editing?.status ?? "active"}
                   onChange={(e) => setEditing((s) => ({ ...s!, status: e.target.value }))}
-                  className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  className="h-10 w-full rounded-md border border-border/60 bg-muted/30 px-3 text-sm text-foreground focus:outline-none focus:border-primary/60 focus:ring-2 focus:ring-primary/20"
                 >
                   <option value="active">Ativo</option>
                   <option value="paused">Pausado</option>
                 </select>
               </div>
             </div>
-            <div>
-              <Label className="text-xs">Notas (opcional)</Label>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-foreground">Notas (opcional)</Label>
               <Textarea
                 value={editing?.notes ?? ""}
                 onChange={(e) => setEditing((s) => ({ ...s!, notes: e.target.value }))}
                 rows={2}
-                className="mt-1 text-sm"
+                className="text-sm bg-muted/30 border-border/60 focus-visible:border-primary/60 focus-visible:ring-primary/20 resize-none"
               />
             </div>
-            <label className="flex items-center gap-2 text-xs">
+            <label className="flex items-start gap-2.5 text-xs text-muted-foreground p-3 rounded-md bg-muted/20 border border-border/40 cursor-pointer hover:bg-muted/30 transition-colors">
               <input
                 type="checkbox"
                 checked={!!editing?.is_default}
                 onChange={(e) => setEditing((s) => ({ ...s!, is_default: e.target.checked }))}
+                className="mt-0.5 accent-primary"
               />
-              Definir como app padrão (usado quando nenhum app é escolhido explicitamente)
+              <span className="leading-relaxed">
+                <span className="text-foreground font-medium">Definir como app padrão</span>
+                <span className="block text-[11px] mt-0.5">Usado quando nenhum app é escolhido explicitamente.</span>
+              </span>
             </label>
           </div>
-          <DialogFooter>
+          <DialogFooter className="pt-3 border-t border-border/40">
             <Button variant="outline" size="sm" onClick={() => setEditing(null)} disabled={saving}>Cancelar</Button>
-            <Button size="sm" onClick={save} disabled={saving}>
+            <Button size="sm" onClick={save} disabled={saving} className="bg-primary text-primary-foreground hover:bg-primary/90">
               {saving && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />}
               {editing?.id ? "Salvar" : "Cadastrar app"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
     </div>
   );
 }
