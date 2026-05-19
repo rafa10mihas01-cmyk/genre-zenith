@@ -1667,6 +1667,7 @@ export type Database = {
           last_reconciled_at: string | null
           monthly_amount: number | null
           next_invoice_at: string | null
+          origin: string
           payout_window: string
           public_token: string
           ramp_up_days: number
@@ -1709,6 +1710,7 @@ export type Database = {
           last_reconciled_at?: string | null
           monthly_amount?: number | null
           next_invoice_at?: string | null
+          origin?: string
           payout_window?: string
           public_token?: string
           ramp_up_days?: number
@@ -1751,6 +1753,7 @@ export type Database = {
           last_reconciled_at?: string | null
           monthly_amount?: number | null
           next_invoice_at?: string | null
+          origin?: string
           payout_window?: string
           public_token?: string
           ramp_up_days?: number
