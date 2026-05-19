@@ -646,11 +646,17 @@ Deno.serve(async (req) => {
       // Sem release_date para candidatos — assumimos freshness neutra
       const freshness = 50;
       const stability = 50;
-      const anchorScore  = Math.round(pop * 0.5  + aPop * 0.3  + recNorm * 0.2);
+      const mainArtist = String(c.artist_name ?? "").split(",")[0].trim().toLowerCase();
+      const isDominantArtist = mainArtist.length > 0 && dominantArtists.has(mainArtist);
+      const dominantBoost = isDominantArtist ? 20 : 0;
+      const anchorScore  = Math.round(pop * 0.5  + aPop * 0.3  + recNorm * 0.2) + dominantBoost;
       const premiumScore = Math.round(pop * 0.4  + recNorm * 0.35 + freshness * 0.25);
       const supportScore = Math.round(recNorm * 0.5 + pop * 0.3 + stability * 0.2);
       const tailScore    = Math.round(freshness * 0.5 + Math.max(0, 60 - pop) * 0.3 + recNorm * 0.2);
-      const anchorEligible = popularity != null && popularity >= 70 && (aPop >= 70 || c.count >= 5);
+      // Mesmo critério do tracksAnalysis: dominante do nicho passa com pop ≥ 55
+      const anchorEligible =
+        (popularity != null && popularity >= 70 && (aPop >= 70 || c.count >= 5)) ||
+        (isDominantArtist && popularity != null && popularity >= 55);
 
       const zonePool: { z: Zone; v: number }[] = [
         { z: "premium", v: premiumScore },
@@ -661,10 +667,11 @@ Deno.serve(async (req) => {
       zonePool.sort((a, b) => b.v - a.v);
       const targetZone = zonePool[0].z;
 
-      const mainArtist = String(c.artist_name ?? "").split(",")[0].trim().toLowerCase();
       const fromMissing = !!(mainArtist && missingArtistSet.has(mainArtist));
-      // Score global combinando função + recorrência + boost de artista faltando
-      const composite = Math.round(zonePool[0].v * 0.7 + recNorm * 0.3) + (fromMissing ? 8 : 0);
+      // Score global combinando função + recorrência + boost de artista faltando + boost dominante
+      const composite = Math.round(zonePool[0].v * 0.7 + recNorm * 0.3)
+        + (fromMissing ? 8 : 0)
+        + (isDominantArtist ? 10 : 0);
 
       return {
         spotify_track_id: c.id,
