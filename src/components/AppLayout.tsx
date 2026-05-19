@@ -182,9 +182,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                   "radial-gradient(ellipse 80% 60% at 50% 0%, hsl(141 76% 48% / 0.10) 0%, hsl(141 76% 48% / 0.04) 30%, transparent 70%)",
               }}
             />
-            <div className={fullscreen ? "relative z-10 w-full min-h-full" : "nx-page relative z-10"}>
+            <div className={fullscreen ? "relative z-10 w-full min-h-full" : "nx-page relative z-10 flex flex-col min-h-full"}>
               {children}
-              {!fullscreen && <AppFooter />}
+              {!fullscreen && <div className="mt-auto"><AppFooter /></div>}
             </div>
           </main>
         </div>
