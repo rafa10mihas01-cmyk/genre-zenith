@@ -253,41 +253,25 @@ export default function ClienteDetalhe() {
         }
       />
 
-      {/* Header card — identidade visual */}
-      <Card className="mb-6">
-        <CardContent className="p-5 flex items-start gap-4">
-          <div className="h-16 w-16 rounded-xl bg-primary/15 border border-primary/25 flex items-center justify-center text-lg font-bold text-primary shrink-0">
-            {initials || <Users2 className="h-6 w-6" />}
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-lg font-semibold text-foreground truncate">{client.name}</h2>
-              <Badge variant="secondary" className="text-[10.5px]">{CLIENT_TYPE_LABEL[client.client_type] ?? "Cliente"}</Badge>
-              {client.archived_at && <Badge variant="outline" className="text-[10.5px]">Arquivado</Badge>}
-            </div>
-            <div className="text-xs text-muted-foreground mt-1 flex items-center gap-3 flex-wrap">
-              {client.company && <span className="inline-flex items-center gap-1"><Building2 className="h-3 w-3" />{client.company}</span>}
-              {(client.city || client.country) && (
-                <span className="inline-flex items-center gap-1">
-                  <MapPin className="h-3 w-3" />{[client.city, client.country].filter(Boolean).join(", ")}
-                </span>
-              )}
-              {client.primary_genre && <span className="inline-flex items-center gap-1"><Music2 className="h-3 w-3" />{client.primary_genre}</span>}
-              <span className="inline-flex items-center gap-1">
-                <Calendar className="h-3 w-3" />
-                Desde {format(new Date(client.created_at), "dd MMM yyyy", { locale: ptBR })}
-              </span>
-            </div>
-            {client.tags?.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {client.tags.map((t) => (
-                  <Badge key={t} variant="outline" className="text-[10.5px] rounded-full">{t}</Badge>
-                ))}
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      {/* Metadata strip — complementa o PageHeader sem duplicar nome/tipo */}
+      {(client.archived_at || client.city || client.country || client.primary_genre || client.created_at || client.tags?.length > 0) && (
+        <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground">
+          {client.archived_at && <Badge variant="outline" className="text-[10.5px]">Arquivado</Badge>}
+          {(client.city || client.country) && (
+            <span className="inline-flex items-center gap-1">
+              <MapPin className="h-3 w-3" />{[client.city, client.country].filter(Boolean).join(", ")}
+            </span>
+          )}
+          {client.primary_genre && <span className="inline-flex items-center gap-1"><Music2 className="h-3 w-3" />{client.primary_genre}</span>}
+          <span className="inline-flex items-center gap-1">
+            <Calendar className="h-3 w-3" />
+            Desde {format(new Date(client.created_at), "dd MMM yyyy", { locale: ptBR })}
+          </span>
+          {client.tags?.length > 0 && client.tags.map((t) => (
+            <Badge key={t} variant="outline" className="text-[10.5px] rounded-full">{t}</Badge>
+          ))}
+        </div>
+      )}
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-6">
