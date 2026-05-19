@@ -179,7 +179,7 @@ export default function PlaylistDeals() {
       : deals;
     const set = new Map<string, number>();
     for (const d of base) {
-      const a = (d.song_artist ?? "").trim();
+      const a = (d.song_name ?? "").trim();
       if (!a) continue;
       set.set(a, (set.get(a) ?? 0) + 1);
     }
@@ -207,7 +207,7 @@ export default function PlaylistDeals() {
     }
 
     if (artistFilter) {
-      base = base.filter((d) => (d.song_artist ?? "").trim() === artistFilter);
+      base = base.filter((d) => (d.song_name ?? "").trim() === artistFilter);
     }
     // Agrupa por CAMPANHA (mesmo nome de música fica junto), independente de curador.
     // Dentro de cada campanha: ativos com baseline > ativos sem baseline > encerrados.
@@ -431,7 +431,7 @@ export default function PlaylistDeals() {
                 >
                   <Filter className="h-3.5 w-3.5" />
                   <span className="max-w-[140px] truncate">
-                    {artistFilter || "Músico"}
+                    {artistFilter || "Música"}
                   </span>
                   <ChevronDown className="h-3 w-3 opacity-70" />
                 </button>
@@ -439,7 +439,7 @@ export default function PlaylistDeals() {
               <DropdownMenuContent align="start" className="w-60 max-h-80 overflow-y-auto">
                 <DropdownMenuItem onClick={() => setArtistFilter("")} className="gap-2">
                   {!artistFilter ? <Check className="h-4 w-4 text-primary" /> : <span className="w-4" />}
-                  <span>Todos os músicos</span>
+                  <span>Todas as músicas</span>
                 </DropdownMenuItem>
                 {artistsAvailable.map((a) => (
                   <DropdownMenuItem
