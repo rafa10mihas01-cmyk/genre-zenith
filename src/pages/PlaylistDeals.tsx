@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { ListMusic, Plus, CheckCircle2, Layers, Activity, Target, Users, Receipt, User, ChevronDown, Briefcase } from "lucide-react";
+import { ListMusic, Plus, CheckCircle2, Layers, Activity, Target, Users, Receipt, User, ChevronDown, Briefcase, Filter, Check } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
@@ -36,6 +36,7 @@ const TABS = [
 export default function PlaylistDeals() {
   const [tab, setTab] = useScreenField<DealsTab>("/playlist-deals", "tab", "active");
   const [activeSubFilter, setActiveSubFilter] = useScreenField<"all" | "running" | "waiting">("/playlist-deals", "activeSub", "all");
+  const [artistFilter, setArtistFilter] = useScreenField<string>("/playlist-deals", "artist", "");
   const [newOpen, setNewOpen] = useState(false);
   const [logDeal, setLogDeal] = useState<CuratorDeal | null>(null);
   const [detailDeal, setDetailDeal] = useState<CuratorDeal | null>(null);
@@ -170,6 +171,30 @@ export default function PlaylistDeals() {
     return { all: actives.length, running, waiting };
   }, [deals, dealsWithBaseline]);
 
+  // Artistas disponíveis na aba atual (antes do filtro por artista)
+  const artistsAvailable = useMemo(() => {
+    const base =
+      tab === "done" ? deals.filter((d) => !!d.closed_at)
+      : tab === "active" ? deals.filter((d) => !d.closed_at)
+      : deals;
+    const set = new Map<string, number>();
+    for (const d of base) {
+      const a = (d.song_artist ?? "").trim();
+      if (!a) continue;
+      set.set(a, (set.get(a) ?? 0) + 1);
+    }
+    return Array.from(set.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+  }, [deals, tab]);
+
+  // Se o artista filtrado não existe mais na aba, reseta
+  useEffect(() => {
+    if (artistFilter && !artistsAvailable.some((a) => a.name === artistFilter)) {
+      setArtistFilter("");
+    }
+  }, [artistFilter, artistsAvailable, setArtistFilter]);
+
   const filtered = useMemo(() => {
     let base =
       tab === "done" ? deals.filter((d) => !!d.closed_at)
@@ -179,6 +204,10 @@ export default function PlaylistDeals() {
     if (tab === "active") {
       if (activeSubFilter === "running") base = base.filter((d) => dealsWithBaseline.has(d.id));
       else if (activeSubFilter === "waiting") base = base.filter((d) => !dealsWithBaseline.has(d.id));
+    }
+
+    if (artistFilter) {
+      base = base.filter((d) => (d.song_artist ?? "").trim() === artistFilter);
     }
     // Agrupa por CAMPANHA (mesmo nome de música fica junto), independente de curador.
     // Dentro de cada campanha: ativos com baseline > ativos sem baseline > encerrados.
@@ -217,7 +246,7 @@ export default function PlaylistDeals() {
       // mesma campanha: ativos primeiro
       return rank(a) - rank(b);
     });
-  }, [deals, dealsWithBaseline, tab, activeSubFilter]);
+  }, [deals, dealsWithBaseline, tab, activeSubFilter, artistFilter]);
 
   const handleNew = () => setNewOpen(true);
 
@@ -358,10 +387,10 @@ export default function PlaylistDeals() {
         </div>
       </div>
 
-      {/* Sub-filtro da aba Ativos */}
-      {tab === "active" && activeCounts.all > 0 && (
+      {/* Sub-filtros: estado (Ativos) + filtro por músico */}
+      {tab !== "ledger" && (deals.length > 0) && (
         <div className="flex items-center gap-1.5 flex-wrap">
-          {([
+          {tab === "active" && activeCounts.all > 0 && ([
             { id: "all" as const,     label: "Todos",             count: activeCounts.all },
             { id: "running" as const, label: "Rodando",           count: activeCounts.running },
             { id: "waiting" as const, label: "Aguardando início", count: activeCounts.waiting },
@@ -388,6 +417,44 @@ export default function PlaylistDeals() {
               </button>
             );
           })}
+
+          {artistsAvailable.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className={cn(
+                    "h-8 px-3 inline-flex items-center gap-1.5 rounded-full text-[12px] font-medium border transition-colors",
+                    artistFilter
+                      ? "bg-primary/15 text-primary border-primary/30"
+                      : "bg-transparent text-muted-foreground border-border hover:text-foreground hover:bg-muted/40",
+                  )}
+                >
+                  <Filter className="h-3.5 w-3.5" />
+                  <span className="max-w-[140px] truncate">
+                    {artistFilter || "Músico"}
+                  </span>
+                  <ChevronDown className="h-3 w-3 opacity-70" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-60 max-h-80 overflow-y-auto">
+                <DropdownMenuItem onClick={() => setArtistFilter("")} className="gap-2">
+                  {!artistFilter ? <Check className="h-4 w-4 text-primary" /> : <span className="w-4" />}
+                  <span>Todos os músicos</span>
+                </DropdownMenuItem>
+                {artistsAvailable.map((a) => (
+                  <DropdownMenuItem
+                    key={a.name}
+                    onClick={() => setArtistFilter(a.name)}
+                    className="gap-2"
+                  >
+                    {artistFilter === a.name ? <Check className="h-4 w-4 text-primary" /> : <span className="w-4" />}
+                    <span className="truncate flex-1">{a.name}</span>
+                    <span className="text-[10px] tabular-nums text-muted-foreground">{a.count}</span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       )}
 
