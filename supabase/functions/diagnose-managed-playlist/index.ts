@@ -50,6 +50,109 @@ function normName(s: any): string {
 
 function uniq<T>(arr: T[]): T[] { return Array.from(new Set(arr)); }
 
+// ---------- IA editorial (Lovable AI Gateway) ----------
+
+const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+
+type EditorialCopy = {
+  titles: string[];
+  descriptions: string[];
+  reasoning: string;
+};
+
+async function generateEditorialCopy(ctx: {
+  currentName: string;
+  currentDescription: string | null;
+  genreName: string | null;
+  topKeywords: string[];
+  missingKeywords: string[];
+  topArtists: string[];
+  topRecurringTracks: { title: string; artist: string }[];
+  benchmarkSize: number | null;
+  currentSize: number;
+  competitors: { name: string }[];
+}): Promise<EditorialCopy | null> {
+  if (!LOVABLE_API_KEY) return null;
+
+  const system = [
+    `Você é um editor musical sênior do Spotify, especializado em curadoria do nicho "${ctx.genreName ?? "música brasileira"}".`,
+    `Escreva como um curador humano de verdade: natural, contextual, com identidade própria.`,
+    `Referências mentais: RapCaviar, Esquenta Sertanejo, Fluxo das Quebradas, Piseiro Bom Demais — playlists editoriais reais.`,
+    ``,
+    `REGRAS DURAS:`,
+    `- Distribua keywords de forma NATURAL no título e descrição. NUNCA em MAIÚSCULAS artificiais.`,
+    `- NUNCA use concatenação feia tipo "Playlist FESTA 2024 HITS".`,
+    `- NUNCA use emoji.`,
+    `- NUNCA use linguagem motivacional, publicitária ou genérica de IA ("Descubra o melhor de...", "Embarque numa jornada...", "As mais tocadas...", "Atualizada toda semana").`,
+    `- NUNCA comece descrição com "As N mais" ou "Playlist com".`,
+    `- Descrição deve ter no MÁXIMO 180 caracteres, idealmente 80-140.`,
+    `- Título deve ter no MÁXIMO 40 caracteres.`,
+    `- Sempre em português brasileiro.`,
+    `- Soe como playlist editorial real do Spotify — personalidade, contexto musical, identidade de nicho.`,
+    ``,
+    `RETORNE APENAS JSON VÁLIDO neste formato exato:`,
+    `{"titles":["t1","t2","t3"],"descriptions":["d1","d2"],"reasoning":"frase curta"}`,
+  ].join("\n");
+
+  const userPayload = {
+    nome_atual: ctx.currentName,
+    descricao_atual: ctx.currentDescription,
+    nicho: ctx.genreName,
+    palavras_chave_prioritarias: ctx.topKeywords.slice(0, 10),
+    palavras_chave_faltando: ctx.missingKeywords.slice(0, 6),
+    artistas_dominantes_nicho: ctx.topArtists.slice(0, 8),
+    faixas_mais_recorrentes_nicho: ctx.topRecurringTracks.slice(0, 6),
+    tamanho_atual_faixas: ctx.currentSize,
+    tamanho_ideal_nicho: ctx.benchmarkSize,
+    playlists_lideres_nicho: ctx.competitors.slice(0, 5).map((c) => c.name),
+    instrucao: "Gere 3 títulos editoriais alternativos e 2 descrições editoriais, mais o reasoning curto explicando como cobre keywords + aproxima do padrão do nicho.",
+  };
+
+  const ctrl = new AbortController();
+  const timeout = setTimeout(() => ctrl.abort(), 12_000);
+
+  try {
+    const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+      },
+      signal: ctrl.signal,
+      body: JSON.stringify({
+        model: "google/gemini-3-flash-preview",
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: JSON.stringify(userPayload) },
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.7,
+      }),
+    });
+
+    if (!r.ok) {
+      throw new Error(`gateway_${r.status}`);
+    }
+    const j = await r.json();
+    const raw = j?.choices?.[0]?.message?.content;
+    if (!raw) throw new Error("empty_content");
+    const parsed = JSON.parse(raw);
+    const titles = Array.isArray(parsed.titles) ? parsed.titles.filter((x: unknown) => typeof x === "string" && x.trim().length > 0) : [];
+    const descriptions = Array.isArray(parsed.descriptions) ? parsed.descriptions.filter((x: unknown) => typeof x === "string" && x.trim().length > 0) : [];
+    if (titles.length === 0 && descriptions.length === 0) throw new Error("no_outputs");
+    return {
+      titles: titles.slice(0, 3),
+      descriptions: descriptions.slice(0, 2),
+      reasoning: typeof parsed.reasoning === "string" ? parsed.reasoning : "",
+    };
+  } catch (e) {
+    console.warn("[diagnose] editorial AI falhou:", (e as Error).message);
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 // ---------- handler ----------
 
 Deno.serve(async (req) => {
