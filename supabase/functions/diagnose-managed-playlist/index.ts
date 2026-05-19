@@ -183,9 +183,10 @@ Deno.serve(async (req) => {
     let competitors: any[] = [];
     let genreRecurrence: Map<string, { count: number; track_name: string | null; artist_name: string | null }> = new Map();
     let genreArtistsTop: { artist: string; count: number }[] = [];
+    let genreName: string | null = null;
 
     if (pl.genre_id) {
-      const [{ data: m }, { data: b }, { data: comps }, { data: srTracks }] = await Promise.all([
+      const [{ data: m }, { data: b }, { data: comps }, { data: srTracks }, { data: gRow }] = await Promise.all([
         supabase.from("genre_models")
           .select("palavras_chave, padroes_nome, musicas_recorrentes, insights")
           .eq("genre_id", pl.genre_id).maybeSingle(),
@@ -205,9 +206,11 @@ Deno.serve(async (req) => {
           .eq("genre_id", pl.genre_id)
           .not("spotify_track_id", "is", null)
           .limit(5000),
+        supabase.from("genres").select("nome").eq("id", pl.genre_id).maybeSingle(),
       ]);
       model = m;
       benchmark = b;
+      genreName = (gRow as any)?.nome ?? null;
       competitors = (comps ?? []).map((c: any) => ({
         spotify_playlist_id: c.spotify_playlist_id,
         name: c.name,
@@ -240,6 +243,24 @@ Deno.serve(async (req) => {
         .sort((a, b) => b.count - a.count)
         .slice(0, 30);
     }
+
+    // Adjacência de gêneros — pra checar aderência da faixa ao nicho via Spotify artist.genres
+    const NICHE_ADJACENCY: Record<string, string[]> = {
+      pagode: ["pagode", "samba"],
+      samba: ["samba", "pagode"],
+      sertanejo: ["sertanejo", "forro", "forró", "piseiro"],
+      forro: ["forro", "forró", "sertanejo", "piseiro"],
+      "forró": ["forró", "forro", "sertanejo", "piseiro"],
+      funk: ["funk", "baile", "carioca", "paulista", "mandelão", "automotivo", "tuim"],
+      gospel: ["gospel", "worship", "louvor", "cristã", "cristao"],
+      rap: ["rap", "trap", "hip hop", "hiphop"],
+      trap: ["trap", "rap", "hip hop"],
+      rock: ["rock", "metal", "punk", "indie"],
+      eletronica: ["eletronica", "eletrônica", "electro", "house", "techno", "edm"],
+      "eletrônica": ["eletrônica", "eletronica", "electro", "house", "techno", "edm"],
+    };
+    const baseNiche = (genreName ?? "").toLowerCase().trim();
+    const nicheTerms: string[] = baseNiche ? (NICHE_ADJACENCY[baseNiche] ?? [baseNiche]) : [];
 
     // 3) Faixas atuais da playlist gerenciada
     const { data: currentTracks } = await supabase
