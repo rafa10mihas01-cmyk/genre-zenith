@@ -110,7 +110,7 @@ export default function Campanhas() {
                 Recalcular
               </Button>
             )}
-            <Button onClick={() => setNewOpen(true)}>
+            <Button onClick={() => setTab("financeiro")}>
               <Plus className="h-4 w-4 mr-2" /> Nova campanha
             </Button>
           </>
