@@ -320,8 +320,16 @@ export function PlaylistCockpit({
           {/* ============ MEMÓRIA DE IMPACTO ============ */}
           <AdjustmentTimeline playlistId={managedId} />
 
-          <Tabs defaultValue="plano" className="space-y-4">
+          <Tabs defaultValue={market ? "mercado" : "identidade"} className="space-y-4">
             <TabsList className="bg-elevated/60 flex-wrap h-auto">
+              {market && (
+                <TabsTrigger value="mercado" className="gap-1.5">
+                  <TrendingUp className="h-3.5 w-3.5" /> Mercado
+                </TabsTrigger>
+              )}
+              <TabsTrigger value="identidade" className="gap-1.5">
+                <Eye className="h-3.5 w-3.5" /> Identidade
+              </TabsTrigger>
               <TabsTrigger value="plano" className="gap-1.5">
                 <Sparkles className="h-3.5 w-3.5" /> Plano de ação
                 {(buckets.remove.length + buckets.demote.length + buckets.promote.length + buckets.add.length) > 0 && (
@@ -330,14 +338,6 @@ export function PlaylistCockpit({
                   </Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="identidade" className="gap-1.5">
-                <Eye className="h-3.5 w-3.5" /> Identidade
-              </TabsTrigger>
-              {market && (
-                <TabsTrigger value="mercado" className="gap-1.5">
-                  <TrendingUp className="h-3.5 w-3.5" /> Mercado
-                </TabsTrigger>
-              )}
               <TabsTrigger value="projecao" className="gap-1.5">
                 <Activity className="h-3.5 w-3.5" /> Projeção
               </TabsTrigger>
