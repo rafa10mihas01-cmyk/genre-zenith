@@ -19,8 +19,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 
 const STORAGE_KEY = "nx-collect-settings";
 const SETTINGS_ROUTE = "/configuracoes";
+const SPOTIFY_SETTINGS_RETURN_KEY = "nx:spotify_settings_return";
 
 function getSpotifyRedirectUri() {
+  return `${window.location.origin}/spotify/callback`;
+}
+
+function getLegacySpotifySettingsRedirectUri() {
   return `${window.location.origin}${SETTINGS_ROUTE}?spotify_callback=1`;
 }
 
@@ -133,6 +138,7 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
   async function openInNewTab(forceLogin = false, appId?: string) {
     try {
       const redirect = getSpotifyRedirectUri();
+      localStorage.setItem(SPOTIFY_SETTINGS_RETURN_KEY, `${window.location.pathname}${window.location.search || ""}`);
       const qs = new URLSearchParams({ mode: "login", redirect });
       if (forceLogin) qs.set("force_login", "1");
       if (appId) qs.set("app_id", appId);
@@ -175,7 +181,7 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
     const code = params.get("code");
     const state = params.get("state");
     const error = params.get("error");
-    const redirect = getSpotifyRedirectUri();
+    const redirect = getLegacySpotifySettingsRedirectUri();
 
     // Marca como tratado E limpa a URL ANTES de qualquer await — impede re-entrada
     spotifyCallbackHandled.current = true;
@@ -219,6 +225,7 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
 
     try {
       const redirect = getSpotifyRedirectUri();
+      localStorage.setItem(SPOTIFY_SETTINGS_RETURN_KEY, `${window.location.pathname}${window.location.search || ""}`);
       const qs = new URLSearchParams({ mode: "login", redirect });
       if (forceLogin) qs.set("force_login", "1");
       if (appId) qs.set("app_id", appId);
