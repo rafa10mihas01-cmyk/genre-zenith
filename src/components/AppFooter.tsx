@@ -11,15 +11,15 @@ const SUPPORT_EMAIL = "suporte@nexengine.app";
 
 export function AppFooter() {
   return (
-    <footer className="mt-6 pt-4 pb-2 border-t border-border/40">
-      <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 text-[11px] text-muted-foreground/60">
+    <footer className="mt-4 pt-3 pb-0 border-t border-border/40">
+      <div className="flex flex-row flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[11px] leading-none text-muted-foreground/60">
         <div className="flex items-center gap-2">
           <NexEngineLogo variant="auto" size={14} />
           <span>Powered by <span className="text-foreground/70 font-medium">NexEngine</span></span>
         </div>
-        <span className="hidden sm:inline opacity-40">·</span>
+        <span className="opacity-40">·</span>
         <span className="tabular-nums">{APP_VERSION}</span>
-        <span className="hidden sm:inline opacity-40">·</span>
+        <span className="opacity-40">·</span>
         <a
           href={`mailto:${SUPPORT_EMAIL}`}
           className="hover:text-foreground transition-colors"
