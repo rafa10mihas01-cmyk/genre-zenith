@@ -375,78 +375,47 @@ export default function PlaylistDeals() {
       </section>
 
 
-      {/* TABS — mesmo padrão visual de Operação (border-b + ícone + label) */}
+      {/* TABS — Rodando e Aguardando promovidos a tabs; Música fica no canto direito */}
       <div className="sticky top-0 z-30 -mt-px bg-background/95 supports-[backdrop-filter]:bg-background/80 backdrop-blur-md border-b border-border -mx-4 md:-mx-6">
-        <div className="nx-tab-rail items-center gap-1 px-4 md:px-6">
-          {TABS.map((t) => {
-          const Icon = t.icon;
-          const active = tab === t.id;
-          return (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={cn(
-                "px-4 h-10 inline-flex items-center gap-2 text-sm font-medium border-b-2 transition-colors -mb-px shrink-0 whitespace-nowrap",
-                active
-                  ? "border-primary text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <Icon className="h-3.5 w-3.5" />
-              {t.label}
-              <span
-                className={cn(
-                  "ml-1 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-bold tabular-nums",
-                  active
-                    ? "bg-primary/15 text-primary"
-                    : "bg-muted text-muted-foreground",
-                )}
-              >
-                {tabCount(t.id)}
-              </span>
-            </button>
-          );
-          })}
-        </div>
-      </div>
-
-      {/* Sub-filtros: estado (Ativos) + filtro por músico */}
-      {(deals.length > 0) && (
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {tab === "active" && activeCounts.all > 0 && ([
-            { id: "all" as const,     label: "Todos",             count: activeCounts.all },
-            { id: "running" as const, label: "Rodando",           count: activeCounts.running },
-            { id: "waiting" as const, label: "Aguardando início", count: activeCounts.waiting },
-          ]).map((f) => {
-            const isActive = activeSubFilter === f.id;
-            return (
-              <button
-                key={f.id}
-                onClick={() => setActiveSubFilter(f.id)}
-                className={cn(
-                  "h-8 px-3 inline-flex items-center gap-1.5 rounded-full text-[12px] font-medium border transition-colors",
-                  isActive
-                    ? "bg-primary/15 text-primary border-primary/30"
-                    : "bg-transparent text-muted-foreground border-border hover:text-foreground hover:bg-muted/40",
-                )}
-              >
-                {f.label}
-                <span className={cn(
-                  "inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold tabular-nums",
-                  isActive ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground",
-                )}>
-                  {f.count}
-                </span>
-              </button>
-            );
-          })}
+        <div className="nx-tab-rail items-center gap-1 px-4 md:px-6 flex">
+          <div className="flex items-center gap-1 flex-1 min-w-0 overflow-x-auto scrollbar-none">
+            {TABS.map((t) => {
+              const Icon = t.icon;
+              const active = tab === t.id;
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => setTab(t.id)}
+                  className={cn(
+                    "px-4 h-10 inline-flex items-center gap-2 text-sm font-medium border-b-2 transition-colors -mb-px shrink-0 whitespace-nowrap",
+                    active
+                      ? "border-primary text-foreground"
+                      : "border-transparent text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  {t.label}
+                  <span
+                    className={cn(
+                      "ml-1 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-bold tabular-nums",
+                      active
+                        ? "bg-primary/15 text-primary"
+                        : "bg-muted text-muted-foreground",
+                    )}
+                  >
+                    {tabCount(t.id)}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
 
           {artistsAvailable.length > 0 && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
                   className={cn(
-                    "h-8 px-3 inline-flex items-center gap-1.5 rounded-full text-[12px] font-medium border transition-colors",
+                    "ml-auto shrink-0 h-8 px-3 inline-flex items-center gap-1.5 rounded-full text-[12px] font-medium border transition-colors",
                     artistFilter
                       ? "bg-primary/15 text-primary border-primary/30"
                       : "bg-transparent text-muted-foreground border-border hover:text-foreground hover:bg-muted/40",
@@ -459,7 +428,7 @@ export default function PlaylistDeals() {
                   <ChevronDown className="h-3 w-3 opacity-70" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-60 max-h-80 overflow-y-auto">
+              <DropdownMenuContent align="end" className="w-60 max-h-80 overflow-y-auto">
                 <DropdownMenuItem onClick={() => setArtistFilter("")} className="gap-2">
                   {!artistFilter ? <Check className="h-4 w-4 text-primary" /> : <span className="w-4" />}
                   <span>Todas as músicas</span>
@@ -479,7 +448,8 @@ export default function PlaylistDeals() {
             </DropdownMenu>
           )}
         </div>
-      )}
+      </div>
+
 
       {/* Conteúdo — altura mínima estável evita layout shift entre abas */}
       <div className="min-h-[480px] animate-tab-in">
