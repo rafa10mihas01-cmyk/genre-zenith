@@ -20,7 +20,7 @@ const ROUTE_TITLES: Record<string, string> = {
   
   "/catalogo": "Catálogo",
   "/performance": "Performance",
-  "/playlist-deals": "Playlist Deals",
+  "/playlist-deals": "Negociações",
   "/sistema": "Sistema",
   "/configuracoes": "Configurações",
 };
