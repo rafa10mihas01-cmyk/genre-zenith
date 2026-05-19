@@ -890,13 +890,15 @@ Deno.serve(async (req) => {
       };
     });
 
-    // 7.e) Sugestões restantes — distribui pelo DEFICIT de cada zona
-    //      ideal: anchor=2, premium=4, support=6, tail = max(0, total-12)
+    // 7.e) Sugestões restantes — distribui pelo DEFICIT de cada zona.
+    //      Meta de tamanho da playlist = benchmark.tracks_p50 do nicho (e não o tamanho atual).
+    //      Sub-dimensionada → cauda vira a zona com mais deficit.
+    const targetSize = benchP50Pool > 0 ? benchP50Pool : Math.max(totalTracks, 12);
     const zoneIdeal: Record<Zone, number> = {
       anchor: 2,
       premium: 4,
       support: 6,
-      tail: Math.max(0, totalTracks - 12),
+      tail: Math.max(0, targetSize - 12),
     };
     const deficits: Record<Zone, number> = {
       anchor: Math.max(0, zoneIdeal.anchor - (zoneCurrent.anchor ?? 0)),
