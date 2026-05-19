@@ -147,6 +147,38 @@ Deno.serve(async (req) => {
 
     const trackIds = (currentTracks ?? []).map((t: any) => t.spotify_track_id).filter(Boolean);
 
+    // 3.a) CAMPANHAS ATIVAS NA PLAYLIST — faixas com deal em andamento entram em estado PROTEGIDO.
+    // O analisador NÃO pode recomendar remover, rebaixar ou promover uma faixa em campanha ativa:
+    // ela tem meta + obrigação operacional. Só ajustes suaves dentro da própria zona.
+    type ProtectedTrack = {
+      campaign_id: string;
+      campaign_status: string;
+      planned_streams: number;
+      allocation_status: string;
+    };
+    const protectedTracks = new Map<string, ProtectedTrack>();
+    {
+      const { data: protRows } = await supabase
+        .from("campaign_eco_allocations")
+        .select("campaign_id, planned_streams, status, campaigns!inner(id, spotify_track_id, status)")
+        .eq("managed_playlist_id", pl.id)
+        .in("status", ["pending", "dispatched", "active"])
+        .in("campaigns.status", ["draft", "active", "paused"]);
+      for (const row of (protRows ?? []) as any[]) {
+        const tid = row.campaigns?.spotify_track_id;
+        if (!tid) continue;
+        // Se a mesma faixa tiver várias allocations, mantém a mais "forte"
+        const prev = protectedTracks.get(tid);
+        const cur: ProtectedTrack = {
+          campaign_id: row.campaign_id,
+          campaign_status: row.campaigns.status,
+          planned_streams: Number(row.planned_streams ?? 0),
+          allocation_status: row.status,
+        };
+        if (!prev || cur.planned_streams > prev.planned_streams) protectedTracks.set(tid, cur);
+      }
+    }
+
     // 3.b) Denominador de saturação = nº de playlists do nicho varridas
     let nichePlaylistCount = 0;
     if (pl.genre_id) {
