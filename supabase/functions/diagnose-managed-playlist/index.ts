@@ -367,6 +367,7 @@ Deno.serve(async (req) => {
       remove: tracksAnalysis.filter((x) => x.status === "remove").length,
       promote: tracksAnalysis.filter((x) => x.status === "promote").length,
       demote: tracksAnalysis.filter((x) => x.status === "demote").length,
+      protected: tracksAnalysis.filter((x) => x.status === "protected").length,
     };
     const saturatedCount = tracksAnalysis.filter((x) => x.saturation_pct >= 70).length;
     const noDataCount = tracksAnalysis.filter((x) => x.popularity == null).length;
