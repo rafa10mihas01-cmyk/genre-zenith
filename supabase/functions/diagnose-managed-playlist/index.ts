@@ -586,6 +586,7 @@ Deno.serve(async (req) => {
       from_missing_artist: boolean;
       popularity: number | null;
       artist_popularity: number | null;
+      cover_url: string | null;
       zone_scores: { anchor: number; premium: number; support: number; tail: number };
       anchor_eligible: boolean;
       target_zone: Zone;
