@@ -142,7 +142,7 @@ export function ProactiveAlertsCard() {
 
         // ordenar high primeiro, limitar
         out.sort((a, b) => (a.severity === "high" ? -1 : 1) - (b.severity === "high" ? -1 : 1));
-        setAlerts(out.slice(0, 6));
+        setAlerts(out.slice(0, 50));
       } finally {
         setLoading(false);
       }
@@ -190,7 +190,7 @@ export function ProactiveAlertsCard() {
           <CheckCircle2 className="h-4 w-4" /> Tudo sob controle
         </div>
       ) : (
-        <ul className="space-y-1.5">
+        <ul className="space-y-1.5 max-h-[228px] overflow-y-auto pr-1">
           {alerts.map((a) => {
             const Icon =
               a.kind === "trust_drop"
