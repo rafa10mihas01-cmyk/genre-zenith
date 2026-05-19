@@ -199,7 +199,26 @@ export function PlaylistCockpit({
         title: action === "all" ? "Plano executado" : "Bucket aplicado",
         description: summary || "sem alterações necessárias",
       });
-      runDiagnose();
+      if (action === "all") {
+        // Plano completo: re-roda diagnóstico pra refletir o novo estado.
+        runDiagnose();
+      } else {
+        // Bucket isolado: limpa SÓ esse bucket localmente, preservando os outros
+        // ainda pendentes. O usuário decide quando reavaliar.
+        setDiag((prev) => {
+          if (!prev) return prev;
+          const next: any = { ...prev };
+          if (action === "remove" || action === "demote" || action === "promote") {
+            next.tracks_analysis = (prev.tracks_analysis ?? []).filter(
+              (t: any) => t.status !== action,
+            );
+          }
+          if (action === "add") {
+            next.tracks_suggestions = [];
+          }
+          return next;
+        });
+      }
     } finally {
       setApplying(null);
     }
