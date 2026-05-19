@@ -449,8 +449,38 @@ function prettyAction(a: string): string {
     "daily-collect": "Coleta diária",
     "enrich-playlists": "Enriquecimento",
     "track-playlist-metrics": "Coleta de métricas",
+    "track_playlist_metrics": "Coleta de métricas",
+    "track_external_metrics": "Métricas externas",
     "learning-loop": "Aprendizado contínuo",
     "audit-brain": "Auditoria do cérebro",
+    "recover_print_batches": "Recuperação de evidências",
+    "spotify_token_watchdog": "Verificação do token Spotify",
+    "fetch_tracks_spotify": "Leitura de faixas no Spotify",
+    "fetch-tracks-spotify": "Leitura de faixas no Spotify",
+    "bot_ingest_dom": "Bot leu dados do Spotify",
+    "bot_collect": "Bot coletou dados do Spotify",
+    "sync-kworb-charts": "Sincronização Top 200 (kworb)",
   };
-  return map[a] ?? a.replace(/-/g, " ");
+  return map[a] ?? a.replace(/[-_]/g, " ").replace(/\b\w/g, c => c.toUpperCase());
 }
+
+function prettyMessage(msg: string | null | undefined): string {
+  if (!msg) return "";
+  const m = msg.trim();
+  // stuck=0 dispatched=0
+  const stuckMatch = m.match(/stuck=(\d+)\s+dispatched=(\d+)/);
+  if (stuckMatch) {
+    const [, stuck, disp] = stuckMatch;
+    if (stuck === "0" && disp === "0") return "Nenhum lote travado · nada a redespachar";
+    return `${stuck} travados · ${disp} redespachados`;
+  }
+  // checked=1 ok=1 fail=0 app_refreshed=false
+  const checkMatch = m.match(/checked=(\d+)\s+ok=(\d+)\s+fail=(\d+)(?:\s+app_refreshed=(\w+))?/);
+  if (checkMatch) {
+    const [, , ok, fail, refreshed] = checkMatch;
+    const base = `${ok} válidos · ${fail} com falha`;
+    return refreshed === "true" ? `${base} · token renovado` : base;
+  }
+  return m;
+}
+
