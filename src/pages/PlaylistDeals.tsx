@@ -402,7 +402,7 @@ export default function PlaylistDeals() {
       </div>
 
       {/* Sub-filtros: estado (Ativos) + filtro por músico */}
-      {tab !== "ledger" && (deals.length > 0) && (
+      {(deals.length > 0) && (
         <div className="flex items-center gap-1.5 flex-wrap">
           {tab === "active" && activeCounts.all > 0 && ([
             { id: "all" as const,     label: "Todos",             count: activeCounts.all },
