@@ -21,6 +21,7 @@ import { KpiBig } from "@/components/KpiBig";
 import { ProjecaoFaixa } from "@/components/operacao/SimuladorEntrega";
 import { CuratorialStateBadge, CooldownChip } from "@/components/playlist/CuratorialStateBadge";
 import { AdjustmentTimeline } from "@/components/playlists/cockpit/AdjustmentTimeline";
+import { OnboardingChecklist } from "@/components/playlists/cockpit/OnboardingChecklist";
 
 // -------------------- types --------------------
 type AnalysisTrack = {
@@ -350,6 +351,8 @@ export function PlaylistCockpit({
           />
         </div>
       </header>
+
+      <OnboardingChecklist managedId={managedId} />
 
       {loading ? (
         <Card className="p-10 grid place-items-center">
