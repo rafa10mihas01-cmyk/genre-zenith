@@ -18,6 +18,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { NewCampaignDialog } from "@/components/campanhas/NewCampaignDialog";
 
 type Campaign = {
   id: string;
@@ -54,6 +55,7 @@ export default function Campanhas() {
   
   const [recalcing, setRecalcing] = useState(false);
   const [tab, setTab] = useState<"lista" | "financeiro">("financeiro");
+  const [newOpen, setNewOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -102,17 +104,17 @@ export default function Campanhas() {
         subtitle="Planejar metas de plays e distribuir entre playlists próprias"
         domain="campaigns"
         actions={
-          tab === "lista" ? (
-            <>
+          <>
+            {tab === "lista" && (
               <Button variant="outline" onClick={recalcAll} disabled={recalcing}>
                 <RefreshCw className={`h-4 w-4 mr-2 ${recalcing ? "animate-spin" : ""}`} />
                 Recalcular
               </Button>
-              <Button onClick={() => setTab("financeiro")}>
-                <Plus className="h-4 w-4 mr-2" /> Nova campanha
-              </Button>
-            </>
-          ) : null
+            )}
+            <Button onClick={() => setNewOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" /> Nova campanha
+            </Button>
+          </>
         }
       />
 
@@ -218,6 +220,16 @@ export default function Campanhas() {
 
         {tab === "financeiro" && <Calculadora />}
       </PageContainer>
+
+      <NewCampaignDialog
+        open={newOpen}
+        onOpenChange={setNewOpen}
+        onCreated={(id) => {
+          setTab("lista");
+          load();
+          navigate(`/campanhas/${id}`);
+        }}
+      />
     </>
   );
 }
