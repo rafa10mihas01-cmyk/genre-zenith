@@ -620,49 +620,69 @@ export function DealHistorySheet({
             )}
 
             {/* TABS */}
-            <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)} className="flex-1 flex flex-col min-h-0">
-              <div className="px-3 sm:px-6 pt-3 border-b border-border shrink-0">
-                <TabsList className="bg-transparent p-0 h-auto gap-0 grid grid-cols-4 w-full sm:w-full">
+            <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)} className={cn("flex-1 flex flex-col min-h-0", asPage && "space-y-4")}>
+              <div className={cn(
+                asPage
+                  ? "px-0"
+                  : "px-3 sm:px-6 pt-3 border-b border-border shrink-0"
+              )}>
+                <TabsList
+                  className={cn(
+                    asPage
+                      ? ""
+                      : "bg-transparent p-0 h-auto gap-0 grid grid-cols-4 w-full sm:w-full",
+                  )}
+                >
                   <TabsTrigger
                     value="resumo"
                     aria-label="Resumo"
-                    className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none gap-1.5 h-12 sm:h-10 px-2 sm:px-3 flex-col sm:flex-row"
+                    className={cn(
+                      "gap-1.5",
+                      !asPage &&
+                        "bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none h-12 sm:h-10 px-2 sm:px-3 flex-col sm:flex-row",
+                    )}
                   >
-                    <BarChart3 className="h-5 w-5 sm:h-4 sm:w-4 shrink-0" />
-                    <span className="hidden sm:inline text-sm">Resumo</span>
+                    <BarChart3 className="h-3.5 w-3.5 shrink-0" />
+                    <span className={cn(asPage ? "" : "hidden sm:inline", "text-sm")}>Resumo</span>
                   </TabsTrigger>
                   <TabsTrigger
                     value="playlists"
                     aria-label="Curador"
-                    className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none gap-1.5 h-12 sm:h-10 px-2 sm:px-3 flex-col sm:flex-row sm:border-l sm:border-border"
+                    className={cn(
+                      "gap-1.5",
+                      !asPage &&
+                        "bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none h-12 sm:h-10 px-2 sm:px-3 flex-col sm:flex-row sm:border-l sm:border-border",
+                    )}
                   >
-                    <ListMusic className="h-5 w-5 sm:h-4 sm:w-4 shrink-0" />
-                    <span className="hidden sm:inline text-sm">Curador</span>
-                    <span className="text-[10px] sm:text-xs font-semibold tabular-nums">
-                      {curatorTotal}
-                    </span>
+                    <ListMusic className="h-3.5 w-3.5 shrink-0" />
+                    <span className={cn(asPage ? "" : "hidden sm:inline", "text-sm")}>Curador</span>
+                    <span className="ml-1 text-xs text-muted-foreground tabular-nums">{curatorTotal}</span>
                   </TabsTrigger>
                   <TabsTrigger
                     value="algoritmo"
                     aria-label="Algoritmo"
-                    className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none gap-1.5 h-12 sm:h-10 px-2 sm:px-3 flex-col sm:flex-row sm:border-l sm:border-border"
+                    className={cn(
+                      "gap-1.5",
+                      !asPage &&
+                        "bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none h-12 sm:h-10 px-2 sm:px-3 flex-col sm:flex-row sm:border-l sm:border-border",
+                    )}
                   >
-                    <Sparkles className="h-5 w-5 sm:h-4 sm:w-4 shrink-0" />
-                    <span className="hidden sm:inline text-sm">Algoritmo</span>
-                    <span className="text-[10px] sm:text-xs font-semibold tabular-nums">
-                      {algoTotal}
-                    </span>
+                    <Sparkles className="h-3.5 w-3.5 shrink-0" />
+                    <span className={cn(asPage ? "" : "hidden sm:inline", "text-sm")}>Algoritmo</span>
+                    <span className="ml-1 text-xs text-muted-foreground tabular-nums">{algoTotal}</span>
                   </TabsTrigger>
                   <TabsTrigger
                     value="historico"
                     aria-label="Histórico"
-                    className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none gap-1.5 h-12 sm:h-10 px-2 sm:px-3 flex-col sm:flex-row sm:border-l sm:border-border"
+                    className={cn(
+                      "gap-1.5",
+                      !asPage &&
+                        "bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none h-12 sm:h-10 px-2 sm:px-3 flex-col sm:flex-row sm:border-l sm:border-border",
+                    )}
                   >
-                    <Clock className="h-5 w-5 sm:h-4 sm:w-4 shrink-0" />
-                    <span className="hidden sm:inline text-sm">Histórico</span>
-                    <span className="text-[10px] sm:text-xs font-semibold tabular-nums">
-                      {reversedLogs.length}
-                    </span>
+                    <Clock className="h-3.5 w-3.5 shrink-0" />
+                    <span className={cn(asPage ? "" : "hidden sm:inline", "text-sm")}>Histórico</span>
+                    <span className="ml-1 text-xs text-muted-foreground tabular-nums">{reversedLogs.length}</span>
                   </TabsTrigger>
                 </TabsList>
               </div>
