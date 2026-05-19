@@ -30,6 +30,7 @@ import { ptBR } from "date-fns/locale";
 
 import { PageContainer } from "@/components/PageContainer";
 import { PageHeader } from "@/components/PageHeader";
+import { KpiBig } from "@/components/KpiBig";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
