@@ -266,7 +266,7 @@ export default function Valuation() {
             </p>
           </div>
         )}
-      </main>
+      </PageContainer>
     </>
   );
 }
