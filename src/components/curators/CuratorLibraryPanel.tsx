@@ -91,7 +91,16 @@ interface Props {
 }
 
 export function CuratorLibraryPanel({ curator, deals, balance, onAddPurchase, flush = false }: Props) {
-  const { items, stats, performance, loading, addManual, remove } = useCuratorLibrary(curator.id);
+  const { items, stats, performance, genresByLibrary, loading, addManual, remove } = useCuratorLibrary(curator.id);
+  const [genreFilter, setGenreFilter] = useState<string | null>(null);
+
+  // Universo de gêneros já trabalhados nesse curador (deriva de clients.primary_genre).
+  const availableGenres = (() => {
+    const set = new Set<string>();
+    for (const s of genresByLibrary.values()) for (const g of s) set.add(g);
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  })();
+
 
   const [addOpen, setAddOpen] = useState(false);
   const [name, setName] = useState("");
