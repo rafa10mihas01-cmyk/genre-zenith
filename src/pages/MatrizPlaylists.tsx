@@ -113,9 +113,9 @@ export default function MatrizPlaylists() {
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Grid3x3 className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">Headroom (X) × Confiança (Y)</span>
+            <span className="text-sm font-medium">Folga (X) × Confiança (Y)</span>
           </div>
-          <span className="text-[11px] text-muted-foreground">{rows.length} playlists com brain</span>
+          <span className="text-[11px] text-muted-foreground">{rows.length} playlists com perfil vivo</span>
         </div>
 
         <div className="relative aspect-[4/3] w-full bg-background rounded-xl border border-border overflow-hidden">
@@ -131,7 +131,7 @@ export default function MatrizPlaylists() {
 
           {/* Axis labels */}
           <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[11px] text-muted-foreground">
-            headroom →
+            folga →
           </div>
           <div className="absolute top-1/2 -left-2 -translate-y-1/2 -rotate-90 text-[11px] text-muted-foreground">
             ← confiança
@@ -218,7 +218,7 @@ export default function MatrizPlaylists() {
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium truncate">{r.name}</div>
                       <div className="text-[11px] text-muted-foreground">
-                        Headroom {(r.headroom_pct ?? 0).toFixed(0)}% · Confiança {r.confidence_score} · {r.signals_count} sinal(is)
+                        Folga {(r.headroom_pct ?? 0).toFixed(0)}% · Confiança {r.confidence_score} · {r.signals_count} {r.signals_count === 1 ? "sinal" : "sinais"}
                       </div>
                     </div>
                     <span className={cn("text-[11px] font-medium", meta.color)}>{meta.label}</span>

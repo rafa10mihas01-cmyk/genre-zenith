@@ -333,7 +333,7 @@ export function PlaylistCockpit({
           />
           {brainScore != null && (
             <KpiBig
-              label="Score"
+              label="Nota"
               value={`${brainScore}`}
               icon={ShieldCheck}
               tone={brainScore >= 75 ? "success" : brainScore >= 50 ? "primary" : "default"}

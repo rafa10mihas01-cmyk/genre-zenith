@@ -548,7 +548,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
                         <div className="text-[11px] text-muted-foreground tabular-nums flex items-center gap-1.5 flex-wrap mt-0.5">
                           <span className="inline-flex items-center gap-0.5">
                             <TrendingUp className="h-3 w-3" />
-                            {Math.round(Number(o.brain.headroom_pct))}% headroom
+                            {Math.round(Number(o.brain.headroom_pct))}% de folga
                           </span>
                           {o.sigCount > 0 && (
                             <span className="text-warning">· {o.sigCount} sinal{o.sigCount > 1 ? "is" : ""}</span>
@@ -897,9 +897,9 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
                       <span className="inline-flex items-center gap-1">
                         <Brain className="h-3 w-3 text-primary/70" />
                         {headroom !== null
-                          ? <>headroom <span className="font-semibold text-foreground tabular-nums">{headroom}%</span></>
+                          ? <>folga <span className="font-semibold text-foreground tabular-nums">{headroom}%</span></>
                           : <>perfil vivo</>}
-                        {sigCount > 0 && <span className="ml-1">· {sigCount} sinais</span>}
+                        {sigCount > 0 && <span className="ml-1">· {sigCount} {sigCount === 1 ? "sinal" : "sinais"}</span>}
                       </span>
                       <ArrowUpRight className="h-3 w-3" />
                     </Link>
@@ -1035,7 +1035,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
                             diagnosis.name_score >= 70
                               ? "bg-primary/15 border-primary/40 text-primary"
                               : "bg-warning/10 border-warning/30 text-warning",
-                          )}>Score {diagnosis.name_score}</span>
+                          )}>Nota {diagnosis.name_score}</span>
                         )}
                       </div>
                       <div className="text-xs text-muted-foreground">Atual</div>
