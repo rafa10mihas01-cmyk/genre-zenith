@@ -144,23 +144,21 @@ export default function Home() {
       <PageHeader title="Hoje" subtitle="Cockpit" />
 
       <PageContainer>
-        {/* PULSO DO SISTEMA — 4 KPIs principais */}
-        <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {/* PULSO DO SISTEMA — hierarquia cockpit: hero (Curadoria) + secundários + quiet */}
+        <section className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <PulseHero
+            to="/deals"
+            icon={Handshake}
+            label="Curadoria ativa"
+            value={loading ? "—" : `R$ ${formatNumber(s?.dealsValor)}`}
+            hint={loading ? " " : `${s?.dealsActive ?? 0} deals abertos`}
+          />
           <PulseCard
             to="/playlists"
             icon={Music2}
             label="Catálogo"
             value={loading ? "—" : formatNumber(s?.catalogPlaylists)}
             hint={loading ? " " : `${formatNumber(s?.catalogFollowers)} seguidores`}
-            accent="text-foreground"
-          />
-          <PulseCard
-            to="/deals"
-            icon={Handshake}
-            label="Curadoria ativa"
-            value={loading ? "—" : `R$ ${formatNumber(s?.dealsValor)}`}
-            hint={loading ? " " : `${s?.dealsActive ?? 0} deals abertos`}
-            accent="text-primary"
           />
           <PulseCard
             to="/curadores"
@@ -168,18 +166,17 @@ export default function Home() {
             label="Prospecção CRM"
             value={loading ? "—" : formatNumber(s?.crmNovo)}
             hint={loading ? " " : `${formatNumber(s?.crmNovoFollowers)} seguidores`}
-            accent="text-foreground"
           />
-          <PulseCard
+          <PulseQuiet
             to="/sistema?tab=alertas"
             icon={Bell}
             label="Notificações"
             value={loading ? "—" : formatNumber(s?.notifUnread)}
             hint={s && s.notifUnread > 0 ? "não lidas" : "tudo limpo"}
-            accent={s && s.notifUnread > 0 ? "text-warning" : "text-foreground"}
-            highlight={!!s && s.notifUnread > 0}
+            alert={!!s && s.notifUnread > 0}
           />
         </section>
+
 
         {/* KPIs DAS PLAYLISTS GERIDAS */}
         <ManagedPlaylistsKpis />
