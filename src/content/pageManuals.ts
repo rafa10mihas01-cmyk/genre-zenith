@@ -181,7 +181,7 @@ export const PAGE_MANUALS: Record<string, PageManualData> = {
   // DEALS (PLAYLIST DEALS)
   // ────────────────────────────────────────────────────────────────────
   deals: {
-    title: "Playlist Deals",
+    title: "Negociações",
     subtitle: "Transações fechadas entre curador e playlist.",
     sections: [
       {
