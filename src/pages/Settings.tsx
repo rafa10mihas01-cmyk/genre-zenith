@@ -406,7 +406,13 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
             )}
 
             {/* Apps Spotify (guarda-chuva multi-app) */}
-            <SpotifyAppsManager onChange={setSpotifyApps} />
+            <SpotifyAppsManager
+              onChange={setSpotifyApps}
+              onConnectAccount={(appId, forceLogin) => {
+                void (isInIframe ? openInNewTab(forceLogin, appId) : connectSpotify(forceLogin, appId));
+              }}
+            />
+
 
             {/* Contas conectadas */}
             <div>
