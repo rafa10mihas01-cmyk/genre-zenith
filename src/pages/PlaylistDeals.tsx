@@ -179,10 +179,7 @@ export default function PlaylistDeals() {
 
   // Artistas disponíveis na aba atual (antes do filtro por artista)
   const artistsAvailable = useMemo(() => {
-    const base =
-      tab === "done" ? deals.filter((d) => !!d.closed_at)
-      : tab === "active" ? deals.filter((d) => !d.closed_at)
-      : deals;
+    const base = filterByTab(deals, tab, dealsWithBaseline);
     const set = new Map<string, number>();
     for (const d of base) {
       const a = (d.song_name ?? "").trim();
@@ -192,7 +189,7 @@ export default function PlaylistDeals() {
     return Array.from(set.entries())
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
-  }, [deals, tab]);
+  }, [deals, tab, dealsWithBaseline]);
 
   // Se o artista filtrado não existe mais na aba, reseta
   useEffect(() => {
@@ -202,15 +199,8 @@ export default function PlaylistDeals() {
   }, [artistFilter, artistsAvailable, setArtistFilter]);
 
   const filtered = useMemo(() => {
-    let base =
-      tab === "done" ? deals.filter((d) => !!d.closed_at)
-      : tab === "active" ? deals.filter((d) => !d.closed_at)
-      : deals;
+    let base = filterByTab(deals, tab, dealsWithBaseline);
 
-    if (tab === "active") {
-      if (activeSubFilter === "running") base = base.filter((d) => dealsWithBaseline.has(d.id));
-      else if (activeSubFilter === "waiting") base = base.filter((d) => !dealsWithBaseline.has(d.id));
-    }
 
     if (artistFilter) {
       base = base.filter((d) => (d.song_name ?? "").trim() === artistFilter);
