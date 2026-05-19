@@ -276,26 +276,6 @@ export function DealRow(props: DealRowProps) {
               <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => props.onDetail(deal)}>
                 <History className="h-4 w-4" /> Abrir histórico
               </DropdownMenuItem>
-              {!isClosed && (
-                <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => props.onLog(deal)}>
-                  <Camera className="h-4 w-4" /> Enviar print
-                </DropdownMenuItem>
-              )}
-              {!isClosed && props.onForceCollect && (
-                <DropdownMenuItem
-                  className="gap-2 rounded-lg"
-                  onClick={async () => {
-                    try {
-                      await props.onForceCollect!(deal);
-                      toast.success("Coleta agendada");
-                    } catch {
-                      toast.error("Falha ao agendar coleta");
-                    }
-                  }}
-                >
-                  <Zap className="h-4 w-4" /> Coletar agora
-                </DropdownMenuItem>
-              )}
               {!isClosed && props.onClose && hasBaseline && (
                 <>
                   <DropdownMenuSeparator />
@@ -320,11 +300,6 @@ export function DealRow(props: DealRowProps) {
                     <Pencil className="h-4 w-4" /> Editar deal
                   </DropdownMenuItem>
                 </>
-              )}
-              {props.onDuplicate && (
-                <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => props.onDuplicate!(deal)}>
-                  <Copy className="h-4 w-4" /> Duplicar pra outra música
-                </DropdownMenuItem>
               )}
               <DropdownMenuSeparator />
               <DropdownMenuItem
