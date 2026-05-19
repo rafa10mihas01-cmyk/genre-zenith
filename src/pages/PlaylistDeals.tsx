@@ -326,7 +326,11 @@ export default function PlaylistDeals() {
           icon={ListMusic}
           label="Total de deals"
           value={formatNumber(kpi.total)}
-          hint="Deals cadastrados"
+          hint={
+            kpi.total > 0
+              ? `${kpi.campaignPct}% via campanha · ${kpi.total - kpi.fromCampaign} avulsos`
+              : "Deals cadastrados"
+          }
           domain="deals"
           loading={loading && deals.length === 0}
         />
