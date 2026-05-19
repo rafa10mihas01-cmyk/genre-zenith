@@ -91,23 +91,32 @@ Deno.serve(async (req) => {
     )
   }
 
+  // Aceita 2 caminhos de auth:
+  //   1. Authorization: Bearer <service_role JWT>  (chamadas internas legadas)
+  //   2. x-cron-secret: <vault secret>             (padrão dos crons NexEngine)
   const authHeader = req.headers.get('Authorization')
-  if (!authHeader?.startsWith('Bearer ')) {
+  const cronSecretHeader = req.headers.get('x-cron-secret')?.trim() ?? ''
+
+  let authorized = false
+
+  if (cronSecretHeader) {
+    const probe = createClient(supabaseUrl, supabaseServiceKey)
+    const { data: vaultSecret } = await probe.rpc('get_cron_secret')
+    if (typeof vaultSecret === 'string' && vaultSecret.length > 0 && cronSecretHeader === vaultSecret) {
+      authorized = true
+    }
+  }
+
+  if (!authorized && authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.slice('Bearer '.length).trim()
+    const claims = parseJwtClaims(token)
+    if (claims?.role === 'service_role') authorized = true
+  }
+
+  if (!authorized) {
     return new Response(
       JSON.stringify({ error: 'Unauthorized' }),
       { status: 401, headers: { 'Content-Type': 'application/json' } }
-    )
-  }
-
-  // Defense in depth: verify_jwt=true already requires a valid JWT at the
-  // gateway layer. This adds an explicit role check so only service-role
-  // callers can trigger queue processing.
-  const token = authHeader.slice('Bearer '.length).trim()
-  const claims = parseJwtClaims(token)
-  if (claims?.role !== 'service_role') {
-    return new Response(
-      JSON.stringify({ error: 'Forbidden' }),
-      { status: 403, headers: { 'Content-Type': 'application/json' } }
     )
   }
 
