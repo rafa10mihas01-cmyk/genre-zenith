@@ -973,6 +973,19 @@ Deno.serve(async (req) => {
     const effectivePct = Math.min(maxChangePctConfig, modeCapPct[mode]);
     const maxChanges = Math.max(0, Math.floor(totalTracks * effectivePct / 100));
 
+    // === Undersize override ===
+    // Se a playlist está abaixo do tamanho de mercado (benchmark.tracks_p50),
+    // o cap de % deixa de fazer sentido pra ADIÇÕES PURAS — uma playlist com
+    // 51 faixas num nicho que pede 112+ precisa CRESCER. Substituições continuam
+    // capadas (mexem em faixa existente = risco algorítmico).
+    // Cap absoluto por ciclo: 30 adições — mantém ritmo seguro de crescimento.
+    const benchP50 = Number(benchmark?.tracks_p50 ?? 0);
+    const undersizeGap = benchP50 > 0 ? Math.max(0, benchP50 - totalTracks) : 0;
+    const ADD_CAP_PER_CYCLE = 30;
+    const additionsCap = mode === "hold"
+      ? 0
+      : Math.max(maxChanges, Math.min(undersizeGap, ADD_CAP_PER_CYCLE));
+
     let cappedSuggestions = tracksSuggestions;
     if (mode === "hold" || tracksFullCooled) {
       cappedSuggestions = [];
@@ -980,9 +993,23 @@ Deno.serve(async (req) => {
         const cd = activeCooldowns.find((c) => c.action_type === "tracks_recycle" || c.action_type === "structural");
         justifications.push(`Cooldown de reciclagem ativo (${Math.ceil(cd?.days_remaining ?? 0)}d restantes). Adições suprimidas.`);
       }
-    } else if (maxChanges < tracksSuggestions.length) {
-      cappedSuggestions = tracksSuggestions.slice(0, maxChanges);
-      justifications.push(`Limitando a ${maxChanges} adições (${effectivePct}% das ${totalTracks} faixas) para preservar estabilidade do algoritmo.`);
+    } else {
+      // Separa substituições (risco) de adições puras (crescimento)
+      const subs = tracksSuggestions.filter((t: any) => t.is_substitution);
+      const adds = tracksSuggestions.filter((t: any) => !t.is_substitution);
+      const cappedSubs = subs.slice(0, maxChanges);
+      const cappedAdds = adds.slice(0, additionsCap);
+      cappedSuggestions = [...cappedSubs, ...cappedAdds];
+
+      if (undersizeGap > 0 && additionsCap > maxChanges) {
+        justifications.push(
+          `Playlist subdimensionada: ${totalTracks} faixa(s) vs ${benchP50} ideais no nicho (gap de ${undersizeGap}). ` +
+          `Cap de % suspenso para adições — liberadas ${cappedAdds.length} faixa(s) novas neste ciclo` +
+          (cappedSubs.length > 0 ? ` + ${cappedSubs.length} substituição(ões)` : "") + ".",
+        );
+      } else if (maxChanges < tracksSuggestions.length) {
+        justifications.push(`Limitando a ${maxChanges} adições (${effectivePct}% das ${totalTracks} faixas) para preservar estabilidade do algoritmo.`);
+      }
     }
 
     const recommendedRemove = (tracksFullCooled || mode === "hold") ? 0 : Math.min(counts.remove, maxChanges);
