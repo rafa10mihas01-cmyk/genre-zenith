@@ -190,29 +190,11 @@ export function CuratorLibraryPanel({ curator, deals, balance, onAddPurchase, fl
     }
   };
 
-  const px = flush ? "px-0" : "px-6";
+  const filteredItems = items.filter((p) => !genreFilter || genresByLibrary.get(p.id)?.has(genreFilter));
 
   return (
     <>
-      {/* Métricas */}
-      <div className="grid grid-cols-3 gap-px bg-border/30 rounded-xl overflow-hidden border border-border/40">
-        <div className="bg-card p-4">
-          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Playlists</div>
-          <div className="text-xl font-semibold">{items.length}</div>
-        </div>
-        <div className="bg-card p-4">
-          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Deals</div>
-          <div className="text-xl font-semibold">{deals.length}</div>
-        </div>
-        <div className="bg-card p-4">
-          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Streams 7d</div>
-          <div className="text-xl font-semibold">
-            {formatPlays(stats.reduce((a, s) => a + (s.total_streams_7d ?? 0), 0))}
-          </div>
-        </div>
-      </div>
-
-      {/* Saldo */}
+      {/* Saldo — card próprio, mesmo ritmo das seções do Cliente */}
       {(() => {
         const purchased = Number(balance?.purchased_plays ?? curator.purchased_plays ?? 0) || 0;
         const consumed = Number(balance?.consumed_plays ?? 0) || 0;
@@ -223,9 +205,9 @@ export function CuratorLibraryPanel({ curator, deals, balance, onAddPurchase, fl
         const cpp = consumed > 0 && totalCost > 0 ? totalCost / consumed : null;
         if (purchased === 0 && totalCost === 0 && !onAddPurchase) return null;
         return (
-          <div className="mt-4 rounded-xl border border-border/40 bg-[hsl(var(--elevated))] p-5 space-y-4">
+          <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
             <div className="flex items-center justify-between gap-3 flex-wrap">
-              <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Saldo</h3>
+              <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-semibold">Saldo</div>
               <div className="flex items-center gap-3">
                 {cpp !== null && (
                   <span className="text-[11px] text-muted-foreground">
@@ -245,21 +227,21 @@ export function CuratorLibraryPanel({ curator, deals, balance, onAddPurchase, fl
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="rounded-xl bg-card border border-border/40 px-4 py-3">
+                <div className="rounded-xl bg-[hsl(var(--elevated))] border border-border/40 px-4 py-3">
                   <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-1.5">Plays comprados</div>
                   <div className="text-[22px] font-bold tabular-nums leading-none">{formatPlays(purchased)}</div>
                   {totalCost > 0 && (
                     <div className="text-[11px] text-muted-foreground mt-1.5 tabular-nums">{formatBRL(totalCost)} total</div>
                   )}
                 </div>
-                <div className="rounded-xl bg-card border border-border/40 px-4 py-3">
+                <div className="rounded-xl bg-[hsl(var(--elevated))] border border-border/40 px-4 py-3">
                   <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-1.5">Restante</div>
                   <div className={cn("text-[22px] font-bold tabular-nums leading-none", overbooked ? "text-destructive" : "text-primary")}>
                     {overbooked ? "Estourado" : formatPlays(remaining)}
                   </div>
                   <div className="text-[11px] text-muted-foreground mt-1.5 tabular-nums">{formatPlays(consumed)} consumido</div>
                 </div>
-                <div className="rounded-xl bg-card border border-border/40 px-4 py-3">
+                <div className="rounded-xl bg-[hsl(var(--elevated))] border border-border/40 px-4 py-3">
                   <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-1.5">Consumido</div>
                   <div className="text-[22px] font-bold tabular-nums leading-none">{consumedPct}%</div>
                   <div className="mt-2"><Progress value={consumedPct} className="h-1.5 rounded-full" /></div>
@@ -270,15 +252,20 @@ export function CuratorLibraryPanel({ curator, deals, balance, onAddPurchase, fl
         );
       })()}
 
-      {/* Catálogo */}
-      <div className="mt-6 flex items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Catálogo de playlists</h3>
-        <Button size="sm" onClick={() => setAddOpen(true)} className="gap-2">
-          <Plus className="size-4" /> Adicionar
-        </Button>
-      </div>
+      {/* Catálogo — card próprio com header, filtro e lista (12 visíveis, resto scroll) */}
+      <div className="rounded-2xl border border-border bg-card p-5">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-baseline gap-2">
+            <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-semibold">Catálogo de playlists</div>
+            <span className="text-[11px] text-muted-foreground tabular-nums">
+              {filteredItems.length}{genreFilter ? ` de ${items.length}` : ""}
+            </span>
+          </div>
+          <Button size="sm" onClick={() => setAddOpen(true)} className="gap-2 h-8">
+            <Plus className="size-3.5" /> Adicionar
+          </Button>
+        </div>
 
-      {availableGenres.length > 0 && (
         <div className="mt-3 flex items-center gap-2 flex-wrap">
           <span className="text-[10.5px] uppercase tracking-[0.12em] text-muted-foreground">Gênero</span>
           <button
@@ -293,38 +280,49 @@ export function CuratorLibraryPanel({ curator, deals, balance, onAddPurchase, fl
           >
             Todos
           </button>
-          {availableGenres.map((g) => (
-            <button
-              type="button"
-              key={g}
-              onClick={() => setGenreFilter((cur) => (cur === g ? null : g))}
+          {availableGenres.length === 0 ? (
+            <span className="text-[11px] text-muted-foreground/70 italic">sem gêneros registrados ainda</span>
+          ) : (
+            availableGenres.map((g) => (
+              <button
+                type="button"
+                key={g}
+                onClick={() => setGenreFilter((cur) => (cur === g ? null : g))}
+                className={cn(
+                  "text-[11px] h-6 px-2.5 rounded-full border transition-colors",
+                  genreFilter === g
+                    ? "bg-foreground text-background border-foreground"
+                    : "border-border/40 text-muted-foreground hover:border-border hover:text-foreground",
+                )}
+              >
+                {g}
+              </button>
+            ))
+          )}
+        </div>
+
+        <div className="mt-4">
+          {loading ? (
+            <div className="flex items-center justify-center py-12 text-sm text-muted-foreground gap-2">
+              <Loader2 className="size-4 animate-spin" /> Carregando…
+            </div>
+          ) : items.length === 0 ? (
+            <div className="text-center py-12 rounded-xl border border-dashed border-border/40">
+              <Music className="mx-auto size-10 text-muted-foreground/40 mb-3" />
+              <p className="text-sm text-muted-foreground mb-1">Catálogo vazio.</p>
+              <p className="text-xs text-muted-foreground/70">
+                As playlists aparecem aqui automaticamente quando usadas em deals, ou cadastre manualmente.
+              </p>
+            </div>
+          ) : (
+            <div
               className={cn(
-                "text-[11px] h-6 px-2.5 rounded-full border transition-colors",
-                genreFilter === g
-                  ? "bg-foreground text-background border-foreground"
-                  : "border-border/40 text-muted-foreground hover:border-border hover:text-foreground",
+                "space-y-2 pr-1",
+                filteredItems.length > 12 && "max-h-[864px] overflow-y-auto",
               )}
             >
-              {g}
-            </button>
-          ))}
-        </div>
-      )}
+              {filteredItems
 
-      <div className="mt-3">
-        {loading ? (
-          <div className="flex items-center justify-center py-12 text-sm text-muted-foreground gap-2">
-            <Loader2 className="size-4 animate-spin" /> Carregando…
-          </div>
-        ) : items.length === 0 ? (
-          <div className="text-center py-12 rounded-xl border border-dashed border-border/40">
-
-            <Music className="mx-auto size-10 text-muted-foreground/40 mb-3" />
-            <p className="text-sm text-muted-foreground mb-1">Catálogo vazio.</p>
-            <p className="text-xs text-muted-foreground/70">
-              As playlists aparecem aqui automaticamente quando usadas em deals, ou cadastre manualmente.
-            </p>
-          </div>
         ) : (
           <div className="space-y-2">
             {items
