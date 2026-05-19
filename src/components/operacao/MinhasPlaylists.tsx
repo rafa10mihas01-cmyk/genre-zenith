@@ -48,6 +48,7 @@ type ManagedPlaylist = {
   last_maintenance_at?: string | null;
   max_change_pct?: number | null;
   recommended_change_count?: number | null;
+  lifecycle_stage?: "onboarding" | "testing" | "mature" | null;
 };
 
 type SpotifyAccountLite = { id: string; spotify_user_id: string | null; display_name: string | null; email: string | null; is_default: boolean | null };
