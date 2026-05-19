@@ -637,6 +637,7 @@ Deno.serve(async (req) => {
         from_missing_artist: fromMissing,
         popularity,
         artist_popularity: artistPop,
+        cover_url: m?.cover ?? null,
         zone_scores: { anchor: anchorScore, premium: premiumScore, support: supportScore, tail: tailScore },
         anchor_eligible: anchorEligible,
         target_zone: targetZone,
