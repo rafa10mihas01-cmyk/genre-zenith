@@ -93,41 +93,8 @@ function emptySong(): Song {
 
 function loadPersisted(): PersistedV2 {
   try {
-    const rawV2 = localStorage.getItem(STORAGE_KEY_V2);
-    if (rawV2) {
-      const parsed = JSON.parse(rawV2) as PersistedV2;
-      if (parsed?.songs?.length) {
-        // garante uid em todas
-        parsed.songs = parsed.songs.map(s => ({ ...emptySong(), ...s, uid: s.uid ?? makeUid() }));
-        parsed.activeIdx = Math.min(Math.max(0, parsed.activeIdx ?? 0), parsed.songs.length - 1);
-        return parsed;
-      }
-    }
-    // migra v1 → v2 (uma música)
-    const rawV1 = localStorage.getItem(STORAGE_KEY_V1);
-    if (rawV1) {
-      const v1 = JSON.parse(rawV1);
-      const s = emptySong();
-      return {
-        clientId: v1.clientId ?? "",
-        curatorId: v1.curatorId ?? "",
-        songs: [{
-          ...s,
-          fonte: v1.fonte ?? s.fonte,
-          trackUrl: v1.trackUrl ?? s.trackUrl,
-          track: v1.track ?? s.track,
-          baselineStreamsDay: v1.baselineStreamsDay ?? s.baselineStreamsDay,
-          meta: v1.meta ?? s.meta,
-          days: v1.days ?? s.days,
-          budget: v1.budget ?? s.budget,
-          modo: v1.modo ?? s.modo,
-          perfil: v1.perfil ?? s.perfil,
-          splitEco: v1.splitEco ?? s.splitEco,
-          startDateISO: v1.startDateISO ?? s.startDateISO,
-        }],
-        activeIdx: 0,
-      };
-    }
+    localStorage.removeItem(STORAGE_KEY_V2);
+    localStorage.removeItem(STORAGE_KEY_V1);
   } catch { /* ignore */ }
   return { clientId: "", curatorId: "", songs: [emptySong()], activeIdx: 0 };
 }
@@ -165,10 +132,6 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
       setClientsList((cls ?? []) as { id: string; name: string }[]);
       const crList = (crs ?? []) as { id: string; name: string }[];
       setCuratorsList(crList);
-      if (!curatorId) {
-        const ladoSul = crList.find(c => /l[áa]\s*do\s*sul/i.test(c.name));
-        if (ladoSul) setCuratorId(ladoSul.id);
-      }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -176,10 +139,10 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
   // Persistência
   useEffect(() => {
     try {
-      const payload: PersistedV2 = { clientId, curatorId, songs, activeIdx };
-      localStorage.setItem(STORAGE_KEY_V2, JSON.stringify(payload));
+      localStorage.removeItem(STORAGE_KEY_V2);
+      localStorage.removeItem(STORAGE_KEY_V1);
     } catch { /* ignore */ }
-  }, [clientId, curatorId, songs, activeIdx]);
+  }, []);
 
   // --- Helpers pra mutar a música ativa ---
   const patchActive = useCallback((patch: Partial<Song>) => {
