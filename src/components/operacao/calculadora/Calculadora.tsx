@@ -91,16 +91,27 @@ function emptySong(): Song {
   };
 }
 
+function hasStartedSongDraft(song: Song): boolean {
+  return !!song.track?.id || song.trackUrl.trim().length > 0;
+}
+
 function loadPersisted(): PersistedV2 {
   try {
     const rawV2 = localStorage.getItem(STORAGE_KEY_V2);
     if (rawV2) {
       const parsed = JSON.parse(rawV2) as PersistedV2;
       if (parsed?.songs?.length) {
-        // garante uid em todas
-        parsed.songs = parsed.songs.map(s => ({ ...emptySong(), ...s, uid: s.uid ?? makeUid() }));
-        parsed.activeIdx = Math.min(Math.max(0, parsed.activeIdx ?? 0), parsed.songs.length - 1);
-        return parsed;
+        const songs = parsed.songs.map(s => ({ ...emptySong(), ...s, uid: s.uid ?? makeUid() }));
+        const hasStartedDraft = songs.some(hasStartedSongDraft);
+        if (!hasStartedDraft) {
+          return { clientId: "", curatorId: "", songs: [emptySong()], activeIdx: 0 };
+        }
+        return {
+          clientId: parsed.clientId ?? "",
+          curatorId: parsed.curatorId ?? "",
+          songs,
+          activeIdx: Math.min(Math.max(0, parsed.activeIdx ?? 0), songs.length - 1),
+        };
       }
     }
     // migra v1 → v2 (uma música)
@@ -108,6 +119,9 @@ function loadPersisted(): PersistedV2 {
     if (rawV1) {
       const v1 = JSON.parse(rawV1);
       const s = emptySong();
+      if (!v1.track?.id && !String(v1.trackUrl ?? "").trim()) {
+        return { clientId: "", curatorId: "", songs: [emptySong()], activeIdx: 0 };
+      }
       return {
         clientId: v1.clientId ?? "",
         curatorId: v1.curatorId ?? "",
