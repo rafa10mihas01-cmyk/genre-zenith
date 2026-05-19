@@ -227,13 +227,13 @@ export function SeoScorePanel() {
                       Impacto estimado
                     </div>
                     <div className="text-sm">
-                      Subindo o score de <span className="font-bold tabular-nums">{open.result.score}</span> para <span className="font-bold tabular-nums">75</span>:
+                      Subindo a nota de <span className="font-bold tabular-nums">{open.result.score}</span> para <span className="font-bold tabular-nums">75</span>:
                     </div>
                     <div className="text-lg font-bold tabular-nums text-success mt-1">
                       +{open.impact75.toLocaleString("pt-BR")} seguidores
                     </div>
                     <div className="text-[10px] text-muted-foreground mt-1">
-                      Projeção heurística baseada em headroom de SEO.
+                      Projeção heurística baseada na folga de SEO.
                     </div>
                   </div>
                 )}
