@@ -163,7 +163,7 @@ export function FinanceiroTab({ deals }: Props) {
           </div>
 
           {/* Sparkline + métricas */}
-          <div className="p-6 lg:p-8 grid grid-cols-2 gap-4 content-between">
+          <div className="p-4 lg:p-5 grid grid-cols-2 gap-3 content-between">
             <MiniStat
               label="Investido (14d)"
               value={fmtBRL(dailySpend.reduce((a, b) => a + b, 0))}
