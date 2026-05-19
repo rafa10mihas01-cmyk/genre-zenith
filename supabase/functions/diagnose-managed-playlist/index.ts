@@ -446,6 +446,8 @@ Deno.serve(async (req) => {
       const artist = meta?.artist_id ? artistMeta.get(meta.artist_id) : undefined;
       const artistPop = artist?.popularity ?? null;
       const artistFollowers = artist?.followers ?? null;
+      const artistGenres = artist?.genres ?? [];
+      const nicheFit = classifyArtistVsNiche(meta?.artist_id ?? null);
       const pos: number = t.position ?? 0;
       const saturationPct = nichePlaylistCount > 0
         ? Math.min(100, Math.round((recurrence / nichePlaylistCount) * 100))
@@ -491,6 +493,7 @@ Deno.serve(async (req) => {
 
       return {
         t, recurrence, popularity, releaseDate, artistPop, artistFollowers,
+        artistGenres, nicheFit,
         pos, saturationPct, ageDays, releaseAgeYears, isDominantArtist,
         scores: { anchor: anchorScore, premium: premiumScore, support: supportScore, tail: tailScore, anchorEligible } as TrackScores,
       };
