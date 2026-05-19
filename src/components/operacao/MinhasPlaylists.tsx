@@ -22,8 +22,9 @@ import { formatNumber, timeAgo } from "@/lib/format";
 import {
   Plus, RefreshCw, ExternalLink, Music2, Sparkles, Archive, ArchiveRestore,
   ListMusic, AlertCircle, Activity, Brain, ArrowUpRight, Target, TrendingUp,
-  History, CheckCircle2, XCircle, Clock, Trash2, ChevronDown, ChevronRight, ArrowUpDown, Link2Off, Link2, Filter, Check,
+  History, CheckCircle2, XCircle, Clock, Trash2, ChevronDown, ChevronRight, ArrowUpDown, Link2Off, Link2, Filter, Check, CalendarDays,
 } from "lucide-react";
+import { MaintenanceCalendarDialog } from "./MaintenanceCalendarDialog";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { PlaylistScoreBadge, type PlaylistScoreRow } from "./PlaylistScoreBadge";
 import { PlaylistTracksAnalysisCard } from "@/components/playlists/PlaylistTracksAnalysisCard";
@@ -102,6 +103,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   const [showArchived, setShowArchived] = useState(false);
   const [sortBy, setSortBy] = useState<"recent" | "valuation">("recent");
   const [importOpen, setImportOpen] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importUrl, setImportUrl] = useState("");
   const [bulkImporting, setBulkImporting] = useState(false);
@@ -650,6 +652,17 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setCalendarOpen(true)}
+          className="gap-1.5 h-9 w-9 sm:w-auto px-0 sm:px-3 shrink-0"
+          title="Calendário de manutenção"
+          aria-label="Calendário de manutenção"
+        >
+          <CalendarDays className="h-4 w-4" />
+          <span className="hidden sm:inline">Manutenção</span>
+        </Button>
         {missingGenreCount > 0 && (
           <Button
             variant={filterMissingGenre ? "default" : "outline"}
@@ -1184,6 +1197,12 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
           </div>
         </SheetContent>
       </Sheet>
+      <MaintenanceCalendarDialog
+        open={calendarOpen}
+        onOpenChange={setCalendarOpen}
+        items={items}
+        genres={genres}
+      />
     </section>
   );
 }
