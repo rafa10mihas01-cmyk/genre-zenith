@@ -139,7 +139,7 @@ export function FinanceiroTab({ deals }: Props) {
 
             {/* Barra comprado vs comprometido */}
             {!isEmpty && totals.totalSpent > 0 && (
-              <div className="mt-6 space-y-2">
+              <div className="mt-4 space-y-1.5">
                 <div className="flex items-center justify-between text-[11px] uppercase tracking-wide text-muted-foreground">
                   <span>Uso do comprado</span>
                   <span className="tabular-nums">
