@@ -5857,6 +5857,7 @@ export type Database = {
           playlist_id: string
         }[]
       }
+      monitor_cron_http_failures: { Args: never; Returns: number }
       move_to_dlq: {
         Args: {
           dlq_name: string
