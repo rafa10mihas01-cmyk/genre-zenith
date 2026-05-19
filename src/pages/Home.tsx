@@ -339,16 +339,16 @@ function DeliveryCard({ s, loading }: { s: Snapshot | null; loading: boolean }) 
         <div className="h-20 rounded-md bg-muted/40 animate-pulse" />
       ) : (
         <>
-          <div className="grid grid-cols-3 gap-3">
-            <div>
+          <div className="grid grid-cols-3 rounded-xl border border-border/60 bg-muted/10 overflow-hidden divide-x divide-border/60">
+            <div className="flex flex-col items-center justify-center text-center py-4 px-2">
               <div className="text-xl font-bold tabular-nums leading-none">{formatNumber(s?.dealsTarget)}</div>
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-2">Contratado</div>
             </div>
-            <div>
+            <div className="flex flex-col items-center justify-center text-center py-4 px-2">
               <div className="text-xl font-bold tabular-nums leading-none text-primary">{formatNumber(s?.dealsEntregue)}</div>
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-2">Entregue</div>
             </div>
-            <div>
+            <div className="flex flex-col items-center justify-center text-center py-4 px-2">
               <div className={cn("text-xl font-bold tabular-nums leading-none", pct < 5 ? "text-destructive" : pct < 30 ? "text-warning" : "text-primary")}>
                 {pct.toFixed(1)}%
               </div>
@@ -362,7 +362,7 @@ function DeliveryCard({ s, loading }: { s: Snapshot | null; loading: boolean }) 
             />
           </div>
           {(s?.underdeliverDeals ?? 0) > 0 && (
-            <div className="text-xs text-warning flex items-center gap-1.5">
+            <div className="text-xs text-warning flex items-center justify-center gap-1.5 text-center">
               <AlertTriangle className="h-3.5 w-3.5" />
               <span><b>{s?.underdeliverDeals}</b> deals com entrega abaixo de 1%</span>
             </div>
