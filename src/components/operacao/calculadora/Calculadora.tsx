@@ -132,10 +132,6 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
       setClientsList((cls ?? []) as { id: string; name: string }[]);
       const crList = (crs ?? []) as { id: string; name: string }[];
       setCuratorsList(crList);
-      if (!curatorId) {
-        const ladoSul = crList.find(c => /l[áa]\s*do\s*sul/i.test(c.name));
-        if (ladoSul) setCuratorId(ladoSul.id);
-      }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
