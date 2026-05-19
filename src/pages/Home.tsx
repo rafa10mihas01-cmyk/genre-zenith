@@ -267,7 +267,7 @@ export default function Home() {
                     <div className="min-w-0 flex-1">
                       <div className="text-sm font-semibold leading-tight truncate">{prettyAction(l.acao)}</div>
                       {l.mensagem && (
-                        <div className="text-[11px] text-muted-foreground truncate mt-0.5">{l.mensagem}</div>
+                        <div className="text-[11px] text-muted-foreground truncate mt-0.5">{prettyMessage(l.mensagem)}</div>
                       )}
                     </div>
                     <span className="text-[11px] text-muted-foreground shrink-0 tabular-nums">
