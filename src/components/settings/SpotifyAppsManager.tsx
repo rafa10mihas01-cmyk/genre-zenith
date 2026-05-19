@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Layers, Plus, Star, Trash2, Pencil, Loader2, ExternalLink, AlertTriangle } from "lucide-react";
+import { Layers, Plus, Star, Trash2, Pencil, Loader2, ExternalLink, AlertTriangle, LinkIcon } from "lucide-react";
 import { toast } from "sonner";
 
 export type SpotifyApp = {
