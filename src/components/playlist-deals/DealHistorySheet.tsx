@@ -730,10 +730,10 @@ export function DealHistorySheet({
                         </div>
                       }
                     >
-                      <div className="grid grid-cols-3 gap-3">
-                        <div>
+                      <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                        <div className="min-w-0">
                           <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Total</div>
-                          <div className="text-2xl font-semibold text-primary tabular-nums leading-tight mt-1">
+                          <div className="text-lg sm:text-2xl font-semibold text-primary tabular-nums leading-tight mt-1 whitespace-nowrap overflow-hidden text-ellipsis">
                             {fmtCompact(
                               perfWindow === "24h"
                                 ? todayBreakdown.total_24h
@@ -744,18 +744,18 @@ export function DealHistorySheet({
                           </div>
                           <div className="text-[10px] text-muted-foreground mt-0.5">janela {perfWindow}</div>
                         </div>
-                        <div>
+                        <div className="min-w-0">
                           <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Curador</div>
-                          <div className="text-2xl font-semibold text-success tabular-nums leading-tight mt-1">
+                          <div className="text-lg sm:text-2xl font-semibold text-success tabular-nums leading-tight mt-1 whitespace-nowrap overflow-hidden text-ellipsis">
                             {fmtCompact(curatorWindowTotal)}
                           </div>
                           <div className="text-[10px] text-muted-foreground tabular-nums mt-0.5">
                           {curatorBreakdownRows.length} detectada{curatorBreakdownRows.length === 1 ? "" : "s"} · {curatorTotal} cadastrada{curatorTotal === 1 ? "" : "s"}
                           </div>
                         </div>
-                        <div>
+                        <div className="min-w-0">
                           <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Algoritmo</div>
-                          <div className="text-2xl font-semibold text-foreground tabular-nums leading-tight mt-1">
+                          <div className="text-lg sm:text-2xl font-semibold text-foreground tabular-nums leading-tight mt-1 whitespace-nowrap overflow-hidden text-ellipsis">
                             {fmtCompact(algoWindowTotal)}
                           </div>
                           <div className="text-[10px] text-muted-foreground tabular-nums mt-0.5">
