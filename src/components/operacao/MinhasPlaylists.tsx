@@ -1197,6 +1197,12 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
           </div>
         </SheetContent>
       </Sheet>
+      <MaintenanceCalendarDialog
+        open={calendarOpen}
+        onOpenChange={setCalendarOpen}
+        items={items}
+        genres={genres}
+      />
     </section>
   );
 }
