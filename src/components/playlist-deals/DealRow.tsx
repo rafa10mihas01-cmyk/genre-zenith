@@ -301,11 +301,6 @@ export function DealRow(props: DealRowProps) {
                   </DropdownMenuItem>
                 </>
               )}
-              {props.onDuplicate && (
-                <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => props.onDuplicate!(deal)}>
-                  <Copy className="h-4 w-4" /> Duplicar pra outra música
-                </DropdownMenuItem>
-              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="gap-2 rounded-lg text-destructive focus:text-destructive"
