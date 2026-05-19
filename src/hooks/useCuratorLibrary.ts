@@ -233,5 +233,5 @@ export function useCuratorLibrary(curatorId: string | null) {
     [load],
   );
 
-  return { items, stats, performance, loading, reload: load, addManual, updateStatus, remove };
+  return { items, stats, performance, genresByLibrary, loading, reload: load, addManual, updateStatus, remove };
 }
