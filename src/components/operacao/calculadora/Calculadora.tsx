@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { buildSnapshot, planEcoAllocations, closeCampaignFromCalculator } from "@/lib/campaignSnapshot";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -14,17 +14,16 @@ import { CalculadoraResultado, CalculadoraKpis } from "./CalculadoraResultado";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import {
-  calcCampaign, reverseFromBudget, formatBRL, formatInt,
+  calcCampaign, reverseFromBudget, formatInt,
   DEFAULT_SPLIT, COST_PER_STREAM,
   type Modo, type Perfil, type CampaignResult,
 } from "@/lib/campaignEngine";
-import { Calculator, Table2, ArrowRight, Target as TargetIcon, Users, Wallet, Music, Search, CheckCircle2, X, Loader2, Settings2, LayoutGrid, CalendarIcon, FileText } from "lucide-react";
+import { Calculator, Table2, ArrowRight, Target as TargetIcon, Users, Wallet, Music, Search, CheckCircle2, X, Loader2, Settings2, LayoutGrid, CalendarIcon, FileText, Plus, ListMusic } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format, addDays, differenceInCalendarDays, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 type Secao = "todos" | "musica" | "meta" | "estrategia";
-
 type Fonte = "manual" | "top200" | "concorrente" | "orcamento";
 
 type TrackMeta = {
@@ -32,8 +31,8 @@ type TrackMeta = {
   artist: string | null;
   thumbnail_url: string | null;
   id: string;
-  streamsDay?: number | null;   // streams/dia hoje (se estiver no Top 200)
-  position?: number | null;     // posição atual no Top 200 (se estiver)
+  streamsDay?: number | null;
+  position?: number | null;
   chartDate?: string | null;
 };
 
@@ -44,9 +43,9 @@ export interface CalculadoraHandoff {
   fonte: Fonte;
 }
 
-const STORAGE_KEY = "nx:calculadora:state:v1";
-
-type PersistedState = {
+// ---------- Por-música (uma campanha cada) ----------
+type Song = {
+  uid: string;
   fonte: Fonte;
   trackUrl: string;
   track: TrackMeta | null;
@@ -57,29 +56,101 @@ type PersistedState = {
   modo: Modo;
   perfil: Perfil;
   splitEco: number;
-  clientId: string;
-  curatorId: string;
+  startDateISO: string; // yyyy-mm-dd
 };
 
-function loadPersisted(): Partial<PersistedState> {
+const STORAGE_KEY_V2 = "nx:calc:state:v2";
+const STORAGE_KEY_V1 = "nx:calculadora:state:v1";
+
+type PersistedV2 = {
+  clientId: string;
+  curatorId: string;
+  songs: Song[];
+  activeIdx: number;
+};
+
+function makeUid() {
+  return Math.random().toString(36).slice(2, 10);
+}
+
+function emptySong(): Song {
+  return {
+    uid: makeUid(),
+    fonte: "manual",
+    trackUrl: "",
+    track: null,
+    baselineStreamsDay: 0,
+    meta: 1_000_000,
+    days: 60,
+    budget: 40_000,
+    modo: "simultaneo",
+    perfil: "mercado",
+    splitEco: DEFAULT_SPLIT.eco,
+    startDateISO: startOfDay(new Date()).toISOString().slice(0, 10),
+  };
+}
+
+function loadPersisted(): PersistedV2 {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch { return {}; }
+    const rawV2 = localStorage.getItem(STORAGE_KEY_V2);
+    if (rawV2) {
+      const parsed = JSON.parse(rawV2) as PersistedV2;
+      if (parsed?.songs?.length) {
+        // garante uid em todas
+        parsed.songs = parsed.songs.map(s => ({ ...emptySong(), ...s, uid: s.uid ?? makeUid() }));
+        parsed.activeIdx = Math.min(Math.max(0, parsed.activeIdx ?? 0), parsed.songs.length - 1);
+        return parsed;
+      }
+    }
+    // migra v1 → v2 (uma música)
+    const rawV1 = localStorage.getItem(STORAGE_KEY_V1);
+    if (rawV1) {
+      const v1 = JSON.parse(rawV1);
+      const s = emptySong();
+      return {
+        clientId: v1.clientId ?? "",
+        curatorId: v1.curatorId ?? "",
+        songs: [{
+          ...s,
+          fonte: v1.fonte ?? s.fonte,
+          trackUrl: v1.trackUrl ?? s.trackUrl,
+          track: v1.track ?? s.track,
+          baselineStreamsDay: v1.baselineStreamsDay ?? s.baselineStreamsDay,
+          meta: v1.meta ?? s.meta,
+          days: v1.days ?? s.days,
+          budget: v1.budget ?? s.budget,
+          modo: v1.modo ?? s.modo,
+          perfil: v1.perfil ?? s.perfil,
+          splitEco: v1.splitEco ?? s.splitEco,
+          startDateISO: v1.startDateISO ?? s.startDateISO,
+        }],
+        activeIdx: 0,
+      };
+    }
+  } catch { /* ignore */ }
+  return { clientId: "", curatorId: "", songs: [emptySong()], activeIdx: 0 };
 }
 
 export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandoff) => void }) {
-  const persisted = useMemo(loadPersisted, []);
+  const initial = useMemo(loadPersisted, []);
   const navigate = useNavigate();
   const [subtab, setSubtab] = useState<"calc" | "top200">("calc");
   const [secao, setSecao] = useState<Secao>("musica");
   const [closing, setClosing] = useState(false);
 
-  // Cliente e Curador (vinculação obrigatória pro fluxo de aprovação → deal real)
-  const [clientId, setClientId] = useState<string>(persisted.clientId ?? "");
-  const [curatorId, setCuratorId] = useState<string>(persisted.curatorId ?? "");
+  // Contexto fixo da sessão
+  const [clientId, setClientId] = useState<string>(initial.clientId);
+  const [curatorId, setCuratorId] = useState<string>(initial.curatorId);
   const [clientsList, setClientsList] = useState<{ id: string; name: string }[]>([]);
   const [curatorsList, setCuratorsList] = useState<{ id: string; name: string }[]>([]);
+
+  // Lista de músicas + ativa
+  const [songs, setSongs] = useState<Song[]>(initial.songs);
+  const [activeIdx, setActiveIdx] = useState<number>(initial.activeIdx);
+  const active = songs[activeIdx] ?? songs[0];
+
+  // Loader auxiliar (busca de música) por índice
+  const [trackLoading, setTrackLoading] = useState(false);
 
   useEffect(() => {
     void (async () => {
@@ -90,7 +161,6 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
       setClientsList((cls ?? []) as { id: string; name: string }[]);
       const crList = (crs ?? []) as { id: string; name: string }[];
       setCuratorsList(crList);
-      // Default Lá do Sul se existir e nada estiver selecionado
       if (!curatorId) {
         const ladoSul = crList.find(c => /l[áa]\s*do\s*sul/i.test(c.name));
         if (ladoSul) setCuratorId(ladoSul.id);
@@ -99,101 +169,74 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function salvarRascunho() {
-    if (!result) return;
-    if (!track?.id) {
-      toast({ title: "Carregue o link da música antes de salvar", variant: "destructive" });
-      return;
-    }
-    setClosing(true);
-    try {
-      const { data: playlists, error } = await supabase
-        .from("managed_playlists")
-        .select("id, followers")
-        .is("archived_at", null);
-      if (error) throw error;
-
-      const snapshot = buildSnapshot(result, {
-        spotifyTrackId: track.id,
-        trackUrl: trackUrl || null,
-        title: track.title,
-        artist: track.artist,
-        coverUrl: track.thumbnail_url,
-        baselineStreamsDay,
-      });
-
-      const allocations = planEcoAllocations(
-        result.streamsEco,
-        result.days,
-        (playlists ?? []).map(p => ({ id: p.id, followers: p.followers ?? 0 })),
-        result.modo,
-      );
-
-      const deadlineISO = addDays(startDate, result.days).toISOString().slice(0, 10);
-
-      const { campaignId } = await closeCampaignFromCalculator({
-        snapshot,
-        deadlineISO,
-        allocations,
-        clientId: clientId || null,
-        curatorId: curatorId || null,
-        status: "draft",
-      });
-
-      try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
-      toast({
-        title: "Rascunho salvo",
-        description: curatorId
-          ? "Revise na aba Campanhas Ativas e clique em Aprovar e disparar pra criar o deal real."
-          : "Sem curador definido — você ainda pode editar antes de aprovar.",
-      });
-      navigate(`/campanhas`);
-    } catch (e: any) {
-      toast({ title: "Erro ao salvar rascunho", description: e.message ?? String(e), variant: "destructive" });
-    } finally {
-      setClosing(false);
-    }
-  }
-
-
-
-
-  // Inputs (hidratados do localStorage)
-  const [fonte, setFonte] = useState<Fonte>(persisted.fonte ?? "manual");
-  const [trackUrl, setTrackUrl] = useState(persisted.trackUrl ?? "");
-  const [track, setTrack] = useState<TrackMeta | null>(persisted.track ?? null);
-  const [trackLoading, setTrackLoading] = useState(false);
-  const [baselineStreamsDay, setBaselineStreamsDay] = useState<number>(persisted.baselineStreamsDay ?? 0);
-  const [meta, setMeta] = useState<number>(persisted.meta ?? 1_000_000);
-  const [days, setDays] = useState<number>(persisted.days ?? 60);
-  const [budget, setBudget] = useState<number>(persisted.budget ?? 40_000);
-  const [modo, setModo] = useState<Modo>(persisted.modo ?? "simultaneo");
-  const [perfil, setPerfil] = useState<Perfil>(persisted.perfil ?? "mercado");
-  const [splitEco, setSplitEco] = useState<number>(persisted.splitEco ?? DEFAULT_SPLIT.eco);
-  const [startDate, setStartDate] = useState<Date>(() => {
-    const raw = (persisted as any).startDateISO as string | undefined;
-    if (raw) {
-      const d = new Date(raw);
-      if (!isNaN(d.getTime())) return startOfDay(d);
-    }
-    return startOfDay(new Date());
-  });
-
-  const endDate = useMemo(() => addDays(startDate, days), [startDate, days]);
-
-  // Persiste tudo a cada mudança
+  // Persistência
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        fonte, trackUrl, track, baselineStreamsDay, meta, days, budget, modo, perfil, splitEco,
-        clientId, curatorId,
-        startDateISO: startDate.toISOString().slice(0, 10),
-      }));
-    } catch { /* quota cheia, ignora */ }
-  }, [fonte, trackUrl, track, baselineStreamsDay, meta, days, budget, modo, perfil, splitEco, startDate, clientId, curatorId]);
+      const payload: PersistedV2 = { clientId, curatorId, songs, activeIdx };
+      localStorage.setItem(STORAGE_KEY_V2, JSON.stringify(payload));
+    } catch { /* ignore */ }
+  }, [clientId, curatorId, songs, activeIdx]);
+
+  // --- Helpers pra mutar a música ativa ---
+  const patchActive = useCallback((patch: Partial<Song>) => {
+    setSongs(prev => prev.map((s, i) => i === activeIdx ? { ...s, ...patch } : s));
+  }, [activeIdx]);
+
+  const setFonte = (v: Fonte) => patchActive({ fonte: v });
+  const setTrackUrl = (v: string) => patchActive({ trackUrl: v });
+  const setTrack = (v: TrackMeta | null) => patchActive({ track: v });
+  const setBaselineStreamsDay = (v: number) => patchActive({ baselineStreamsDay: v });
+  const setMeta = (v: number) => patchActive({ meta: v });
+  const setDays = (v: number) => patchActive({ days: v });
+  const setBudget = (v: number) => patchActive({ budget: v });
+  const setModo = (v: Modo) => patchActive({ modo: v });
+  const setPerfil = (v: Perfil) => patchActive({ perfil: v });
+  const setSplitEco = (v: number) => patchActive({ splitEco: v });
+  const setStartDate = (d: Date) => patchActive({ startDateISO: startOfDay(d).toISOString().slice(0, 10) });
+
+  // --- Multi-música ops ---
+  function addSong() {
+    setSongs(prev => [...prev, emptySong()]);
+    setActiveIdx(songs.length); // novo índice
+    setSecao("musica");
+  }
+
+  function removeSong(idx: number) {
+    if (songs.length === 1) {
+      // não remove a última — só reseta
+      setSongs([emptySong()]);
+      setActiveIdx(0);
+      return;
+    }
+    const next = songs.filter((_, i) => i !== idx);
+    setSongs(next);
+    setActiveIdx(prev => Math.min(prev, next.length - 1));
+  }
+
+  // Derivados da música ativa
+  const startDate = useMemo(() => {
+    const d = new Date(active.startDateISO);
+    return isNaN(d.getTime()) ? startOfDay(new Date()) : startOfDay(d);
+  }, [active.startDateISO]);
+  const endDate = useMemo(() => addDays(startDate, active.days), [startDate, active.days]);
+
+  const effectiveMeta = useMemo(() => {
+    if (active.fonte === "orcamento") return reverseFromBudget(active.budget, active.splitEco);
+    return active.meta;
+  }, [active.fonte, active.budget, active.splitEco, active.meta]);
+
+  const result = useMemo(() => calcCampaign({
+    meta: effectiveMeta, days: active.days, modo: active.modo, perfil: active.perfil, splitEcoPct: active.splitEco,
+  }), [effectiveMeta, active.days, active.modo, active.perfil, active.splitEco]);
+
+  // Validação por música (pra "Fechar todas")
+  function isSongReady(s: Song): boolean {
+    return !!s.track?.id && s.baselineStreamsDay >= 0 && (s.fonte === "orcamento" ? s.budget > 0 : s.meta > 0);
+  }
+  const readyCount = songs.filter(isSongReady).length;
 
   async function buscarMusica() {
-    const url = trackUrl.trim();
+    const url = active.trackUrl.trim();
     if (!url) { toast({ title: "Cole o link do Spotify primeiro" }); return; }
     setTrackLoading(true);
     try {
@@ -201,7 +244,6 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
       if (error) throw error;
       if (!data?.ok) throw new Error(data?.error ?? "Não consegui ler esse link");
       if (data.type !== "track") throw new Error("O link precisa ser de uma faixa (track)");
-      // Busca streams/dia atual da faixa no Top 200 (se estiver)
       let streamsDay: number | null = null;
       let position: number | null = null;
       let chartDate: string | null = null;
@@ -230,11 +272,11 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
           }
         }
       } catch { /* sem chart, segue */ }
-      setTrack({ id: data.id, title: data.title, artist: data.artist, thumbnail_url: data.thumbnail_url, streamsDay, position, chartDate });
-      // Pré-preenche baseline com o que o Top 200 mostra, MAS só se o usuário ainda não digitou nada
-      if (streamsDay != null && baselineStreamsDay === 0) {
-        setBaselineStreamsDay(streamsDay);
-      }
+      const newTrack: TrackMeta = { id: data.id, title: data.title, artist: data.artist, thumbnail_url: data.thumbnail_url, streamsDay, position, chartDate };
+      patchActive({
+        track: newTrack,
+        baselineStreamsDay: (streamsDay != null && active.baselineStreamsDay === 0) ? streamsDay : active.baselineStreamsDay,
+      });
     } catch (e: any) {
       toast({ title: "Erro ao buscar música", description: e?.message ?? String(e), variant: "destructive" });
     } finally {
@@ -242,34 +284,131 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
     }
   }
 
-  // Quando fonte = orçamento, meta vira derivada
-  const effectiveMeta = useMemo(() => {
-    if (fonte === "orcamento") return reverseFromBudget(budget, splitEco);
-    return meta;
-  }, [fonte, budget, splitEco, meta]);
+  // --- Fechamento (1 música ou todas) ---
+  async function closeOne(song: Song): Promise<{ ok: boolean; campaignId?: string; error?: string }> {
+    if (!song.track?.id) return { ok: false, error: "Sem música carregada" };
+    try {
+      const { data: playlists, error } = await supabase
+        .from("managed_playlists")
+        .select("id, followers")
+        .is("archived_at", null);
+      if (error) throw error;
 
-  const result = useMemo(() => calcCampaign({
-    meta: effectiveMeta, days, modo, perfil, splitEcoPct: splitEco,
-  }), [effectiveMeta, days, modo, perfil, splitEco]);
+      const effMeta = song.fonte === "orcamento" ? reverseFromBudget(song.budget, song.splitEco) : song.meta;
+      const r = calcCampaign({ meta: effMeta, days: song.days, modo: song.modo, perfil: song.perfil, splitEcoPct: song.splitEco });
+
+      const snapshot = buildSnapshot(r, {
+        spotifyTrackId: song.track.id,
+        trackUrl: song.trackUrl || null,
+        title: song.track.title,
+        artist: song.track.artist,
+        coverUrl: song.track.thumbnail_url,
+        baselineStreamsDay: song.baselineStreamsDay,
+      });
+
+      const allocations = planEcoAllocations(
+        r.streamsEco,
+        r.days,
+        (playlists ?? []).map(p => ({ id: p.id, followers: p.followers ?? 0 })),
+        r.modo,
+      );
+
+      const startD = startOfDay(new Date(song.startDateISO));
+      const deadlineISO = addDays(startD, r.days).toISOString().slice(0, 10);
+
+      const { campaignId } = await closeCampaignFromCalculator({
+        snapshot,
+        deadlineISO,
+        allocations,
+        clientId: clientId || null,
+        curatorId: curatorId || null,
+        status: "draft",
+      });
+      return { ok: true, campaignId };
+    } catch (e: any) {
+      return { ok: false, error: e?.message ?? String(e) };
+    }
+  }
+
+  async function salvarRascunhoAtiva() {
+    if (!active.track?.id) {
+      toast({ title: "Carregue o link da música antes de salvar", variant: "destructive" });
+      return;
+    }
+    setClosing(true);
+    const res = await closeOne(active);
+    if (!res.ok) {
+      toast({ title: "Erro ao salvar rascunho", description: res.error, variant: "destructive" });
+      setClosing(false);
+      return;
+    }
+    // remove só essa música do rascunho. Se for a única, limpa tudo.
+    if (songs.length === 1) {
+      try { localStorage.removeItem(STORAGE_KEY_V2); localStorage.removeItem(STORAGE_KEY_V1); } catch { /* ignore */ }
+      setClosing(false);
+      toast({ title: "Rascunho salvo", description: "Revise na aba Rascunhos e clique em Aprovar e disparar." });
+      navigate(`/campanhas`);
+      return;
+    }
+    removeSong(activeIdx);
+    setClosing(false);
+    toast({ title: "Música salva como rascunho", description: `Restam ${songs.length - 1} música(s) em planejamento.` });
+  }
+
+  async function fecharTodas() {
+    const ready = songs.filter(isSongReady);
+    if (ready.length === 0) {
+      toast({ title: "Nenhuma música pronta", variant: "destructive" });
+      return;
+    }
+    setClosing(true);
+    let ok = 0;
+    const errors: string[] = [];
+    for (const s of ready) {
+      const r = await closeOne(s);
+      if (r.ok) ok++;
+      else errors.push(`${s.track?.title ?? "Faixa"}: ${r.error}`);
+    }
+    setClosing(false);
+    if (ok > 0) {
+      // limpa rascunhos salvos com sucesso
+      const remaining = songs.filter(s => !isSongReady(s));
+      if (remaining.length === 0) {
+        try { localStorage.removeItem(STORAGE_KEY_V2); localStorage.removeItem(STORAGE_KEY_V1); } catch { /* ignore */ }
+        setSongs([emptySong()]);
+        setActiveIdx(0);
+      } else {
+        setSongs(remaining);
+        setActiveIdx(0);
+      }
+      toast({
+        title: `${ok} campanha(s) salvas como rascunho`,
+        description: errors.length ? `Falharam: ${errors.length}` : "Revise em Rascunhos e aprove pra criar os deals.",
+      });
+      if (errors.length === 0) navigate(`/campanhas`);
+    } else {
+      toast({ title: "Falha ao fechar campanhas", description: errors.join(" · "), variant: "destructive" });
+    }
+  }
 
   return (
     <div className="space-y-6">
-      {/* Sub-tabs */}
+      {/* Sub-tabs Calculadora / Top200 */}
       <div className="flex items-center gap-1 border-b border-border">
         {([
           { id: "calc", label: "Calculadora", icon: Calculator },
           { id: "top200", label: "Top 200 BR", icon: Table2 },
         ] as const).map(t => {
           const Icon = t.icon;
-          const active = subtab === t.id;
+          const isActive = subtab === t.id;
           return (
             <button
               key={t.id}
               onClick={() => setSubtab(t.id)}
               className={cn(
                 "px-4 h-10 inline-flex items-center gap-2 text-sm font-medium border-b-2 -mb-px transition-colors",
-                active ? "border-primary text-foreground"
-                       : "border-transparent text-muted-foreground hover:text-foreground",
+                isActive ? "border-primary text-foreground"
+                         : "border-transparent text-muted-foreground hover:text-foreground",
               )}
             >
               <Icon className="h-3.5 w-3.5" />
@@ -281,19 +420,95 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
 
       {subtab === "top200" ? (
         <Top200Tab onPick={(streamsDay) => {
-          // Heurística: meta = streams/dia × dias atuais
-          setFonte("manual");
-          setMeta(streamsDay * days);
+          patchActive({ fonte: "manual", meta: streamsDay * active.days });
           setSubtab("calc");
         }} />
       ) : (
         <div className="grid grid-cols-1 gap-6">
-          {/* KPIs do resultado — topo da página */}
+          {/* KPIs do resultado (música ativa) */}
           <CalculadoraKpis r={result} />
 
-          {/* Coluna esquerda: inputs */}
+          {/* Contexto fixo: Cliente + Curador (1x por sessão) */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Identificação da sessão</CardTitle>
+              <CardDescription>
+                Cliente e curador valem pra TODAS as músicas abaixo. Cada música abaixo vira uma campanha independente.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Cliente</Label>
+                <Select value={clientId || "__none__"} onValueChange={v => setClientId(v === "__none__" ? "" : v)}>
+                  <SelectTrigger><SelectValue placeholder="Sem cliente" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">— Sem cliente —</SelectItem>
+                    {clientsList.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Curador (dono das playlists)</Label>
+                <Select value={curatorId || "__none__"} onValueChange={v => setCuratorId(v === "__none__" ? "" : v)}>
+                  <SelectTrigger><SelectValue placeholder="Sem curador" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">— Sem curador (modo legado) —</SelectItem>
+                    {curatorsList.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Faixa de Músicas — cada tab é uma campanha em planejamento */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <ListMusic className="h-3.5 w-3.5" />
+                <span>Músicas em planejamento ({songs.length}) · cada uma vira 1 campanha + 1 deal</span>
+              </div>
+              <Button variant="outline" size="sm" onClick={addSong}>
+                <Plus className="h-3.5 w-3.5 mr-1" /> Música
+              </Button>
+            </div>
+            <div className="flex items-center gap-1 overflow-x-auto scrollbar-none border-b border-border -mx-1 px-1">
+              {songs.map((s, idx) => {
+                const isActive = idx === activeIdx;
+                const ready = isSongReady(s);
+                const label = s.track?.title ?? "Sem faixa";
+                return (
+                  <div key={s.uid} className="relative shrink-0">
+                    <button
+                      onClick={() => setActiveIdx(idx)}
+                      className={cn(
+                        "h-10 pl-3 pr-8 inline-flex items-center gap-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap max-w-[220px]",
+                        isActive ? "border-primary text-foreground"
+                                 : "border-transparent text-muted-foreground hover:text-foreground",
+                      )}
+                      title={label}
+                    >
+                      <span className={cn(
+                        "h-1.5 w-1.5 rounded-full shrink-0",
+                        ready ? "bg-primary" : "bg-muted-foreground/40",
+                      )} />
+                      <span className="truncate">{idx + 1}. {label}</span>
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); removeSong(idx); }}
+                      className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 inline-flex items-center justify-center text-muted-foreground hover:text-foreground rounded"
+                      aria-label="Remover música"
+                      title={songs.length === 1 ? "Limpar esta música" : "Remover música"}
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Inputs (operam sobre a música ativa) */}
           <div className="space-y-4">
-            {/* Filtro de seção — igual ao plano diário da execução */}
             <div className="flex items-center gap-1 rounded-xl border border-border bg-card p-1">
               {([
                 { id: "musica", label: "Música", icon: Music },
@@ -302,15 +517,15 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                 { id: "todos", label: "Tudo", icon: LayoutGrid },
               ] as const).map(s => {
                 const Icon = s.icon;
-                const active = secao === s.id;
+                const isActive = secao === s.id;
                 return (
                   <button
                     key={s.id}
                     onClick={() => setSecao(s.id)}
                     className={cn(
                       "flex-1 h-9 inline-flex items-center justify-center gap-1.5 rounded-lg text-xs font-medium transition-colors",
-                      active ? "bg-primary/15 text-primary"
-                             : "text-muted-foreground hover:text-foreground",
+                      isActive ? "bg-primary/15 text-primary"
+                               : "text-muted-foreground hover:text-foreground",
                     )}
                   >
                     <Icon className="h-3.5 w-3.5" />
@@ -319,39 +534,6 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                 );
               })}
             </div>
-
-            {/* Cliente + Curador — define dono da campanha e dono das playlists antes de aprovar */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Identificação</CardTitle>
-                <CardDescription>
-                  Selecione o cliente (dono da campanha) e o curador (dono das playlists). Ao aprovar, vira um deal real ligado ao curador.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Cliente</Label>
-                  <Select value={clientId || "__none__"} onValueChange={v => setClientId(v === "__none__" ? "" : v)}>
-                    <SelectTrigger><SelectValue placeholder="Sem cliente" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">— Sem cliente —</SelectItem>
-                      {clientsList.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Curador (dono das playlists)</Label>
-                  <Select value={curatorId || "__none__"} onValueChange={v => setCuratorId(v === "__none__" ? "" : v)}>
-                    <SelectTrigger><SelectValue placeholder="Sem curador" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">— Sem curador (modo legado) —</SelectItem>
-                      {curatorsList.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </CardContent>
-            </Card>
-
 
             {(secao === "todos" || secao === "musica") && (
             <Card>
@@ -365,22 +547,22 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                     <Music className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       placeholder="https://open.spotify.com/track/..."
-                      value={trackUrl}
+                      value={active.trackUrl}
                       onChange={e => { setTrackUrl(e.target.value); setTrack(null); }}
                       onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); buscarMusica(); } }}
                       className="pl-9"
                     />
                   </div>
-                  <Button onClick={buscarMusica} disabled={trackLoading || !trackUrl.trim()} variant="outline">
+                  <Button onClick={buscarMusica} disabled={trackLoading || !active.trackUrl.trim()} variant="outline">
                     {trackLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                     <span className="ml-1.5 hidden sm:inline">Buscar</span>
                   </Button>
                 </div>
 
-                {track && (
+                {active.track && (
                   <div className="flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/5 p-3">
-                    {track.thumbnail_url ? (
-                      <img src={track.thumbnail_url} alt={track.title ?? ""} className="h-14 w-14 rounded-md object-cover shrink-0" />
+                    {active.track.thumbnail_url ? (
+                      <img src={active.track.thumbnail_url} alt={active.track.title ?? ""} className="h-14 w-14 rounded-md object-cover shrink-0" />
                     ) : (
                       <div className="h-14 w-14 rounded-md bg-muted shrink-0 grid place-items-center">
                         <Music className="h-5 w-5 text-muted-foreground" />
@@ -389,14 +571,14 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                     <div className="flex-1 min-w-0">
                       <div className="font-semibold truncate text-sm flex items-center gap-1.5">
                         <CheckCircle2 className="h-3.5 w-3.5 text-primary shrink-0" />
-                        {track.title ?? "Faixa"}
+                        {active.track.title ?? "Faixa"}
                       </div>
-                      {track.artist && <div className="text-xs text-muted-foreground truncate">{track.artist}</div>}
+                      {active.track.artist && <div className="text-xs text-muted-foreground truncate">{active.track.artist}</div>}
                       <div className="text-[11px] mt-1">
-                        {track.streamsDay != null ? (
+                        {active.track.streamsDay != null ? (
                           <span className="text-foreground">
-                            <strong>{formatInt(track.streamsDay)}</strong> streams/dia hoje
-                            {track.position != null && <span className="text-muted-foreground"> · #{track.position} Top 200</span>}
+                            <strong>{formatInt(active.track.streamsDay)}</strong> streams/dia hoje
+                            {active.track.position != null && <span className="text-muted-foreground"> · #{active.track.position} Top 200</span>}
                           </span>
                         ) : (
                           <span className="text-muted-foreground">Fora do Top 200 BR (base: 0 streams/dia)</span>
@@ -413,21 +595,20 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                   </div>
                 )}
 
-                {/* Baseline manual — sempre visível, é a única verdade que a calculadora usa */}
                 <div className="space-y-1.5 pt-1">
                   <Label className="text-xs flex items-center justify-between">
                     <span>Streams/dia atuais da música <span className="text-destructive">*</span></span>
-                    {track?.streamsDay != null && baselineStreamsDay !== track.streamsDay && (
+                    {active.track?.streamsDay != null && active.baselineStreamsDay !== active.track.streamsDay && (
                       <button
                         type="button"
-                        onClick={() => setBaselineStreamsDay(track.streamsDay!)}
+                        onClick={() => setBaselineStreamsDay(active.track!.streamsDay!)}
                         className="text-[10px] text-primary hover:underline"
                       >
-                        usar Top 200 ({formatInt(track.streamsDay)})
+                        usar Top 200 ({formatInt(active.track.streamsDay)})
                       </button>
                     )}
                   </Label>
-                  <NumberInput value={baselineStreamsDay} onChange={setBaselineStreamsDay} placeholder="ex: 20.000" />
+                  <NumberInput value={active.baselineStreamsDay} onChange={setBaselineStreamsDay} placeholder="ex: 20.000" />
                   <p className="text-[11px] text-muted-foreground">
                     Quanto a faixa tá rodando hoje. É a baseline que vai ser descontada do alvo pra saber o gap real.
                   </p>
@@ -443,49 +624,49 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="grid grid-cols-2 gap-2">
-                  <FonteBtn active={fonte === "manual"} onClick={() => setFonte("manual")} icon={TargetIcon} label="Manual" />
-                  <FonteBtn active={fonte === "top200"} onClick={() => setFonte("top200")} icon={Table2} label="Top 200" />
-                  <FonteBtn active={fonte === "concorrente"} onClick={() => setFonte("concorrente")} icon={Users} label="Concorrente" />
-                  <FonteBtn active={fonte === "orcamento"} onClick={() => setFonte("orcamento")} icon={Wallet} label="Orçamento" />
+                  <FonteBtn active={active.fonte === "manual"} onClick={() => setFonte("manual")} icon={TargetIcon} label="Manual" />
+                  <FonteBtn active={active.fonte === "top200"} onClick={() => setFonte("top200")} icon={Table2} label="Top 200" />
+                  <FonteBtn active={active.fonte === "concorrente"} onClick={() => setFonte("concorrente")} icon={Users} label="Concorrente" />
+                  <FonteBtn active={active.fonte === "orcamento"} onClick={() => setFonte("orcamento")} icon={Wallet} label="Orçamento" />
                 </div>
 
-                {fonte === "manual" && (
+                {active.fonte === "manual" && (
                   <div>
                     <Label className="text-xs">Meta de streams</Label>
-                    <NumberInput value={meta} onChange={setMeta} placeholder="1.000.000" />
+                    <NumberInput value={active.meta} onChange={setMeta} placeholder="1.000.000" />
                   </div>
                 )}
-                {fonte === "top200" && (
+                {active.fonte === "top200" && (
                   <Top200Picker
-                    days={days}
-                    currentStreamsDay={baselineStreamsDay}
+                    days={active.days}
+                    currentStreamsDay={active.baselineStreamsDay}
                     onPick={(streamsDay, pos) => {
-                      const gapDay = Math.max(0, streamsDay - baselineStreamsDay);
-                      setMeta(gapDay * days);
+                      const gapDay = Math.max(0, streamsDay - active.baselineStreamsDay);
+                      setMeta(gapDay * active.days);
                       toast({
                         title: `Posição #${pos}`,
-                        description: baselineStreamsDay > 0
-                          ? `Alvo ${formatInt(streamsDay)}/d − hoje ${formatInt(baselineStreamsDay)}/d = ${formatInt(gapDay)}/d × ${days}d = ${formatInt(gapDay * days)}`
-                          : `${formatInt(streamsDay)} streams/dia × ${days}d = ${formatInt(streamsDay * days)}`,
+                        description: active.baselineStreamsDay > 0
+                          ? `Alvo ${formatInt(streamsDay)}/d − hoje ${formatInt(active.baselineStreamsDay)}/d = ${formatInt(gapDay)}/d × ${active.days}d = ${formatInt(gapDay * active.days)}`
+                          : `${formatInt(streamsDay)} streams/dia × ${active.days}d = ${formatInt(streamsDay * active.days)}`,
                       });
                     }}
                     onOpenList={() => setSubtab("top200")}
                   />
                 )}
-                {fonte === "concorrente" && (
+                {active.fonte === "concorrente" && (
                   <div className="space-y-2">
                     <Label className="text-xs">Link do artista concorrente</Label>
                     <Input placeholder="https://open.spotify.com/artist/..." />
                     <p className="text-xs text-muted-foreground">
                       Em breve: leitura automática de streams médios. Por enquanto, defina manualmente abaixo.
                     </p>
-                    <NumberInput value={meta} onChange={setMeta} />
+                    <NumberInput value={active.meta} onChange={setMeta} />
                   </div>
                 )}
-                {fonte === "orcamento" && (
+                {active.fonte === "orcamento" && (
                   <div className="space-y-2">
                     <Label className="text-xs">Orçamento disponível (R$)</Label>
-                    <NumberInput value={budget} onChange={setBudget} placeholder="40.000" />
+                    <NumberInput value={active.budget} onChange={setBudget} placeholder="40.000" />
                     <p className="text-xs text-muted-foreground">
                       Meta calculada: <span className="font-semibold text-foreground">{formatInt(effectiveMeta)} streams</span>
                     </p>
@@ -518,7 +699,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                         <Calendar
                           mode="single"
                           selected={startDate}
-                          onSelect={(d) => d && setStartDate(startOfDay(d))}
+                          onSelect={(d) => d && setStartDate(d)}
                           initialFocus
                           locale={ptBR}
                           className={cn("p-3 pointer-events-auto")}
@@ -554,20 +735,20 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                     </Popover>
                   </div>
                   <p className="text-[11px] text-muted-foreground mt-1.5">
-                    {days} dias · começa {format(startDate, "dd/MM", { locale: ptBR })} · termina {format(endDate, "dd/MM", { locale: ptBR })}
+                    {active.days} dias · começa {format(startDate, "dd/MM", { locale: ptBR })} · termina {format(endDate, "dd/MM", { locale: ptBR })}
                   </p>
                 </div>
 
                 <div>
-                  <Label className="text-xs">Duração: {days} dias</Label>
-                  <Slider value={[days]} onValueChange={([v]) => setDays(v)} min={15} max={180} step={5} className="mt-2" />
+                  <Label className="text-xs">Duração: {active.days} dias</Label>
+                  <Slider value={[active.days]} onValueChange={([v]) => setDays(v)} min={15} max={180} step={5} className="mt-2" />
                 </div>
 
                 <div>
                   <Label className="text-xs">Modo</Label>
                   <div className="grid grid-cols-2 gap-2 mt-1.5">
-                    <ModeBtn active={modo === "simultaneo"} onClick={() => setModo("simultaneo")} label="Simultâneo" hint="largura ampla" />
-                    <ModeBtn active={modo === "sequencial"} onClick={() => setModo("sequencial")} label="Sequencial" hint="pico marcado" />
+                    <ModeBtn active={active.modo === "simultaneo"} onClick={() => setModo("simultaneo")} label="Simultâneo" hint="largura ampla" />
+                    <ModeBtn active={active.modo === "sequencial"} onClick={() => setModo("sequencial")} label="Sequencial" hint="pico marcado" />
                   </div>
                 </div>
 
@@ -575,14 +756,14 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                   <Label className="text-xs">Perfil de audiência</Label>
                   <div className="grid grid-cols-3 gap-2 mt-1.5">
                     {(["frio", "mercado", "engajado"] as Perfil[]).map(p => (
-                      <ModeBtn key={p} active={perfil === p} onClick={() => setPerfil(p)} label={cap(p)} />
+                      <ModeBtn key={p} active={active.perfil === p} onClick={() => setPerfil(p)} label={cap(p)} />
                     ))}
                   </div>
                 </div>
 
                 <div>
-                  <Label className="text-xs">Split ecossistema: {splitEco}% próprio · {100 - splitEco}% externo</Label>
-                  <Slider value={[splitEco]} onValueChange={([v]) => setSplitEco(v)} min={0} max={100} step={5} className="mt-2" />
+                  <Label className="text-xs">Split ecossistema: {active.splitEco}% próprio · {100 - active.splitEco}% externo</Label>
+                  <Slider value={[active.splitEco]} onValueChange={([v]) => setSplitEco(v)} min={0} max={100} step={5} className="mt-2" />
                   <div className="text-[11px] text-muted-foreground mt-1.5 flex justify-between">
                     <span>Próprio R$ {(COST_PER_STREAM.eco * 1000).toFixed(0)}/mil</span>
                     <span>Externo R$ {(COST_PER_STREAM.ext * 1000).toFixed(0)}/mil</span>
@@ -593,7 +774,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
             )}
           </div>
 
-          {/* Coluna direita: resultado */}
+          {/* Resultado + ações de fechamento */}
           <div className="space-y-4">
             {secao === "todos" && <CalculadoraResultado r={result} />}
 
@@ -604,27 +785,36 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                     size="lg"
                     className="w-full"
                     variant="solid"
-                    onClick={() => onContinue({ result, trackUrl, track, fonte })}
+                    onClick={() => onContinue({ result, trackUrl: active.trackUrl, track: active.track, fonte: active.fonte })}
                   >
                     Continuar para execução
                     <ArrowRight className="h-4 w-4 ml-2" />
                   </Button>
                 ) : (
-                  <Button
-                    size="lg"
-                    className="w-full"
-                    variant="solid"
-                    onClick={salvarRascunho}
-                    disabled={closing}
-                  >
-                    {closing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
-                    Salvar como rascunho
-                    <ArrowRight className="h-4 w-4 ml-2" />
-                  </Button>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      onClick={salvarRascunhoAtiva}
+                      disabled={closing || !active.track?.id}
+                    >
+                      {closing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
+                      Fechar esta música
+                    </Button>
+                    <Button
+                      size="lg"
+                      variant="solid"
+                      onClick={fecharTodas}
+                      disabled={closing || readyCount === 0}
+                    >
+                      {closing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
+                      Fechar todas ({readyCount})
+                    </Button>
+                  </div>
                 )}
                 <p className="text-[11px] text-muted-foreground text-center">
-                  Vai pra <strong>Campanhas Ativas</strong> como rascunho. Lá você revisa e clica em
-                  <strong> Aprovar e disparar</strong> pra criar o deal real {curatorId ? "ligado ao curador selecionado" : "(selecione o curador antes pra ligar ao deal real)"}.
+                  Cada música vira <strong>1 campanha + 1 deal</strong> independente, ligados ao mesmo cliente e curador.
+                  Vão pra <strong>Rascunhos</strong> {curatorId ? "" : "— selecione o curador antes pra ligar ao deal real"}.
                 </p>
               </>
             )}
@@ -667,7 +857,6 @@ function ModeBtn({ active, onClick, label, hint }: { active: boolean; onClick: (
   );
 }
 
-/** Input numérico com separador de milhar BR. Zero nunca trava: campo aceita vazio. */
 function NumberInput({
   value, onChange, placeholder,
 }: { value: number; onChange: (v: number) => void; placeholder?: string }) {
@@ -686,7 +875,6 @@ function NumberInput({
   );
 }
 
-/** Seletor de posição do Top 200: dropdown 1-200 + atalho pra lista completa. */
 function Top200Picker({
   days, currentStreamsDay = 0, onPick, onOpenList,
 }: { days: number; currentStreamsDay?: number; onPick: (streamsDay: number, position: number) => void; onOpenList: () => void }) {
