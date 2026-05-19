@@ -87,7 +87,7 @@ export default function Valuation() {
         title="Valuation"
         subtitle="Avaliar valor estimado de uma playlist antes de comprar ou investir"
       />
-      <main className="px-6 py-6 space-y-6 max-w-5xl">
+      <PageContainer>
         <AnalyticsTabs />
         {/* Input */}
         <div className="nx-card space-y-3">
