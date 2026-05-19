@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { Activity, AlertTriangle, Eye, Heart, RotateCcw, Timer, Zap } from "lucide-react";
+import { IconBadge } from "./IconBadge";
 
 export type CuratorialState =
   | "saudavel"
@@ -9,13 +10,55 @@ export type CuratorialState =
   | "estrutural"
   | "cooldown";
 
-const STATE_META: Record<CuratorialState, { label: string; cls: string; Icon: typeof Heart }> = {
-  saudavel:   { label: "Saudável",     cls: "bg-primary/15 text-primary border-primary/30",         Icon: Heart },
-  observacao: { label: "Observação",   cls: "bg-muted/40 text-foreground border-border",            Icon: Eye },
-  leve:       { label: "Interv. leve", cls: "bg-warning/15 text-warning border-warning/30",         Icon: Activity },
-  moderada:   { label: "Interv. mod.", cls: "bg-warning/25 text-warning border-warning/50",         Icon: Zap },
-  estrutural: { label: "Reciclagem",   cls: "bg-destructive/15 text-destructive border-destructive/40", Icon: RotateCcw },
-  cooldown:   { label: "Cooldown",     cls: "bg-elevated text-muted-foreground border-border",      Icon: Timer },
+type Tone = "primary" | "warning" | "destructive" | "muted" | "neutral";
+
+const STATE_META: Record<
+  CuratorialState,
+  { label: string; tone: Tone; Icon: typeof Heart; description: string; filled?: boolean }
+> = {
+  saudavel: {
+    label: "Saudável",
+    tone: "primary",
+    Icon: Heart,
+    filled: true,
+    description:
+      "Playlist estável: métricas dentro do esperado e nenhuma intervenção recomendada. Pode receber novos deals normalmente.",
+  },
+  observacao: {
+    label: "Em observação",
+    tone: "muted",
+    Icon: Eye,
+    description:
+      "Playlist sob monitoramento. Sem ação imediata, mas vale acompanhar nos próximos dias antes de aplicar mudanças.",
+  },
+  leve: {
+    label: "Intervenção leve",
+    tone: "warning",
+    Icon: Activity,
+    description:
+      "Sugerido um ajuste pequeno (algumas faixas, capa ou descrição) para recuperar performance sem mexer na estrutura.",
+  },
+  moderada: {
+    label: "Intervenção moderada",
+    tone: "warning",
+    Icon: Zap,
+    description:
+      "Recomenda-se uma intervenção significativa: rotação de faixas dentro do limite do ciclo, possível troca de capa ou descrição.",
+  },
+  estrutural: {
+    label: "Reciclagem estrutural",
+    tone: "destructive",
+    Icon: RotateCcw,
+    description:
+      "Performance abaixo do mínimo aceitável. Necessária reciclagem profunda da playlist (estrutura, identidade, mix).",
+  },
+  cooldown: {
+    label: "Em cooldown",
+    tone: "muted",
+    Icon: Timer,
+    description:
+      "Janela de observação ativa após uma intervenção recente. Aguardando maturação antes de sugerir a próxima mudança.",
+  },
 };
 
 export function CuratorialStateBadge({
@@ -29,34 +72,20 @@ export function CuratorialStateBadge({
 }) {
   if (!state) return null;
   const meta = STATE_META[state] ?? STATE_META.saudavel;
-  const Icon = meta.Icon;
-  // Estado saudável vira só o ícone de coração (maior), pra dar respiro na régua de badges.
-  const iconOnly = state === "saudavel";
   return (
-    <span
+    <IconBadge
       title={`Estado curatorial: ${meta.label}`}
-      aria-label={meta.label}
-      className={cn(
-        "inline-flex items-center justify-center rounded-full border tabular-nums font-medium",
-        iconOnly
-          ? (compact ? "w-5 h-5" : "w-6 h-6")
-          : (compact ? "px-1.5 h-5 text-[10px] gap-1" : "px-2 h-6 text-[11px] gap-1"),
-        meta.cls,
-        className,
-      )}
-    >
-      <Icon
-        className={cn(
-          iconOnly
-            ? (compact ? "h-3 w-3" : "h-3.5 w-3.5")
-            : (compact ? "h-2.5 w-2.5" : "h-3 w-3"),
-        )}
-        {...(iconOnly ? { fill: "currentColor" } : {})}
-      />
-      {!iconOnly && meta.label}
-    </span>
+      description={meta.description}
+      icon={meta.Icon}
+      tone={meta.tone}
+      filled={meta.filled}
+      className={className}
+    />
   );
 }
+
+// Mantém STATE_META exportado para uso em outros lugares
+export { STATE_META as CURATORIAL_STATE_META };
 
 const ACTION_LABEL: Record<string, string> = {
   cover: "capa",
