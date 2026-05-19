@@ -528,7 +528,8 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
             <div className="flex gap-2 overflow-x-auto nx-scroll pb-1 -mx-1 px-1">
               {songResults.map((x, idx) => {
                 const isActive = idx === activeIdx;
-                const label = x.song.track?.title ?? "Sem faixa";
+                const hasTrack = !!x.song.track?.title;
+                const label = x.song.track?.title ?? "Em preparação";
                 const artist = x.song.track?.artist;
                 return (
                   <div
@@ -536,7 +537,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                     className={cn(
                       "group relative shrink-0 w-[240px] rounded-xl border bg-card transition-all",
                       isActive
-                        ? "border-primary/60 ring-1 ring-primary/30"
+                        ? "border-primary/60 ring-1 ring-primary/30 shadow-[0_0_0_1px_hsl(var(--primary)/0.15)]"
                         : "border-border hover:border-border/80 hover:bg-muted/20",
                     )}
                   >
@@ -547,8 +548,11 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                       {x.song.track?.thumbnail_url ? (
                         <img src={x.song.track.thumbnail_url} alt="" className="h-10 w-10 rounded-md object-cover shrink-0" />
                       ) : (
-                        <div className="h-10 w-10 rounded-md bg-muted grid place-items-center shrink-0">
-                          <Music className="h-4 w-4 text-muted-foreground" />
+                        <div className={cn(
+                          "h-10 w-10 rounded-md grid place-items-center shrink-0 border border-dashed",
+                          isActive ? "bg-primary/5 border-primary/30" : "bg-muted/40 border-border/60",
+                        )}>
+                          <Music className={cn("h-4 w-4", isActive ? "text-primary/70" : "text-muted-foreground/60")} />
                         </div>
                       )}
                       <div className="min-w-0 flex-1">
@@ -556,13 +560,16 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                           <span className="text-[10px] font-semibold text-muted-foreground tabular-nums">#{idx + 1}</span>
                           <span className={cn(
                             "h-1.5 w-1.5 rounded-full shrink-0",
-                            x.ready ? "bg-primary" : "bg-muted-foreground/40",
+                            x.ready ? "bg-primary" : "bg-muted-foreground/30",
                           )} />
                           <span className="text-[10px] uppercase tracking-wider text-muted-foreground truncate">
-                            {x.ready ? `${formatInt(x.r.meta)} · ${x.r.days}d` : "incompleta"}
+                            {x.ready ? `${formatInt(x.r.meta)} · ${x.r.days}d` : "aguardando"}
                           </span>
                         </div>
-                        <div className={cn("text-sm font-medium truncate", isActive ? "text-foreground" : "text-muted-foreground")}>
+                        <div className={cn(
+                          "text-sm font-medium truncate",
+                          isActive ? "text-foreground" : hasTrack ? "text-muted-foreground" : "text-muted-foreground/70 italic",
+                        )}>
                           {label}
                         </div>
                         {artist && (
