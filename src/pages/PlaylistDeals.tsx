@@ -207,7 +207,7 @@ export default function PlaylistDeals() {
     }
 
     if (artistFilter) {
-      base = base.filter((d) => (d.song_artist ?? "").trim() === artistFilter);
+      base = base.filter((d) => (d.song_name ?? "").trim() === artistFilter);
     }
     // Agrupa por CAMPANHA (mesmo nome de música fica junto), independente de curador.
     // Dentro de cada campanha: ativos com baseline > ativos sem baseline > encerrados.
