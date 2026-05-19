@@ -531,12 +531,6 @@ export function CuratorDealCard({
                   Editar deal
                 </DropdownMenuItem>
               )}
-              {onDuplicate && (
-                <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => onDuplicate(deal)}>
-                  <Copy className="h-4 w-4" />
-                  Duplicar pra outra música
-                </DropdownMenuItem>
-              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem className="gap-2 rounded-lg text-destructive focus:text-destructive" onClick={() => onDelete(deal)}>
                 <Trash2 className="h-4 w-4" />
