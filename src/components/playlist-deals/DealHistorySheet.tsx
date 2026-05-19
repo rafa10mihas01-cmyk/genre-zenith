@@ -1361,12 +1361,13 @@ export function DealHistorySheet({
 
   if (asPage) {
     return (
-      <div className="flex flex-col min-h-[calc(100vh-8rem)] rounded-2xl border border-border/50 bg-card overflow-hidden">
+      <div className="flex flex-col">
         {body}
         {dialogs}
       </div>
     );
   }
+
 
   return (
     <Sheet
