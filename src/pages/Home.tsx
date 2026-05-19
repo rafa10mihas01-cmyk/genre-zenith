@@ -151,7 +151,7 @@ export default function Home() {
             icon={Handshake}
             label="Curadoria ativa"
             value={loading ? "—" : `R$ ${formatNumber(s?.dealsValor)}`}
-            hint={loading ? " " : `${s?.dealsActive ?? 0} deals abertos`}
+            hint={loading ? " " : `${s?.dealsActive ?? 0} ${(s?.dealsActive ?? 0) === 1 ? "negociação aberta" : "negociações abertas"}`}
           />
           <PulseCard
             to="/playlists"
