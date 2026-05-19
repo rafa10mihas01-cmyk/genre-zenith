@@ -484,7 +484,7 @@ export default function PlaylistDeals() {
               </div>
               <div className="space-y-1.5 max-w-sm">
                 <div className="text-[18px] font-semibold text-foreground">
-                  {deals.length === 0 ? "Nenhum deal ainda" : "Nada nesta aba"}
+                  {deals.length === 0 ? "Sem deals" : "Vazio"}
                 </div>
                 <div className="text-[13px] text-muted-foreground leading-relaxed">
                   {deals.length === 0

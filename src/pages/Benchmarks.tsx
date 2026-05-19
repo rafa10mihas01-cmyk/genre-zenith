@@ -200,7 +200,7 @@ export default function Benchmarks() {
       ) : sorted.length === 0 ? (
         <Card className="p-12 text-center">
           <BarChart3 className="h-10 w-10 mx-auto mb-3 text-muted-foreground opacity-50" />
-          <div className="text-sm font-medium">Nenhum benchmark calculado ainda</div>
+          <div className="text-sm font-medium">Sem benchmarks</div>
           <div className="text-xs text-muted-foreground mt-1">
             Clique em "Recalcular" para processar a base atual de playlists.
           </div>

@@ -385,7 +385,7 @@ function CampanhasTab({ adminId, onChange }: { adminId: string; onChange?: () =>
           ))}
         </div>
       ) : list.length === 0 ? (
-        <div className="nx-card py-12 text-center text-sm text-muted-foreground">Nenhuma campanha ainda.</div>
+        <div className="nx-card py-12 text-center text-sm text-muted-foreground">Sem campanhas.</div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {list.map((c) => {
@@ -580,7 +580,7 @@ function ConvitesTab({ adminId, onChange }: { adminId: string; onChange?: () => 
           ))}
         </div>
       ) : list.length === 0 ? (
-        <div className="nx-card py-12 text-center text-sm text-muted-foreground">Nenhum convite ainda.</div>
+        <div className="nx-card py-12 text-center text-sm text-muted-foreground">Sem convites.</div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {list.map((i) => {
@@ -700,7 +700,7 @@ function MembrosTab({ onChange }: { onChange?: () => void }) {
           ))}
         </div>
       ) : list.length === 0 ? (
-        <div className="nx-card py-12 text-center text-sm text-muted-foreground">Nenhum membro ainda.</div>
+        <div className="nx-card py-12 text-center text-sm text-muted-foreground">Sem membros.</div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {list.map((m) => (

@@ -1462,7 +1462,7 @@ export default function CuratorPage() {
                   <ListMusic className="h-4 w-4 text-muted-foreground" />
                 </div>
                 <p className="text-[12px] text-muted-foreground max-w-xs">
-                  Nenhuma playlist enviada ainda
+                  Sem playlists enviadas
                 </p>
               </div>
             ) : (
@@ -1598,7 +1598,7 @@ export default function CuratorPage() {
                 ))
               ) : (
                 <div className="py-6 text-center text-[12px] text-muted-foreground">
-                  Nenhuma música da campanha estava nesta playlist antes do início.
+                  Nenhuma faixa da campanha estava aqui no início.
                 </div>
               )}
             </div>

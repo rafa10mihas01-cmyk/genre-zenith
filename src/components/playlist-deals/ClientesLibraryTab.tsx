@@ -179,7 +179,7 @@ export function ClientesLibraryTab({ deals, songs, loading }: Props) {
         <Card className="p-12 text-center">
           <User className="mx-auto size-10 text-muted-foreground/40 mb-3" />
           <p className="text-sm text-muted-foreground mb-4">
-            {query ? "Nenhum cliente encontrado." : "Nenhum cliente cadastrado ainda."}
+            {query ? "Nenhum cliente encontrado." : "Sem clientes."}
           </p>
           {!query && (
             <Button
@@ -501,7 +501,7 @@ function ClientDetailContent({
           <Card className="p-8 text-center">
             <Music2 className="mx-auto size-8 text-muted-foreground/40 mb-2" />
             <p className="text-sm text-muted-foreground">
-              Nenhuma música vinculada ainda. Selecione este cliente ao criar/editar uma música em um deal.
+              Sem músicas vinculadas.
             </p>
           </Card>
         ) : (

@@ -287,13 +287,13 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
       <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center justify-between gap-3">
-            <DialogTitle>Nova campanha — passo {step} de 3</DialogTitle>
+            <DialogTitle>Nova campanha · {step}/3</DialogTitle>
             <DraftIndicator lastSavedAt={lastSavedAt} />
           </div>
           <DialogDescription>
-            {step === 1 && "Defina a música, a meta de plays e o prazo."}
-            {step === 2 && "Revise a sugestão de playlists e ajuste se necessário."}
-            {step === 3 && "Confira e ative a campanha."}
+            {step === 1 && "Música, meta e prazo."}
+            {step === 2 && "Revisar distribuição."}
+            {step === 3 && "Ativar."}
           </DialogDescription>
         </DialogHeader>
 

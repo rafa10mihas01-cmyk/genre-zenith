@@ -124,7 +124,7 @@ export function EmailPreviewDialog({
       if (error) throw error;
       const payload = data as { success?: boolean; reason?: string } | null;
       if (payload?.success === false) {
-        toast.warning(`Não enviado: ${dados?.reason ?? "bloqueado"}`);
+        toast.warning(`Não enviado: ${payload?.reason ?? "bloqueado"}`);
       } else {
         toast.success(
           isFollowup

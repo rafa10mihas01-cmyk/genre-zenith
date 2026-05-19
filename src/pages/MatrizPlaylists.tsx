@@ -194,7 +194,7 @@ export default function MatrizPlaylists() {
           </div>
         ) : visible.length === 0 ? (
           <Card className="p-8 text-center text-sm text-muted-foreground">
-            Nenhuma playlist nesta categoria.
+            Vazio.
           </Card>
         ) : (
           <div className="space-y-2">

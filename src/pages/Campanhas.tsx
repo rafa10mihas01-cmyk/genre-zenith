@@ -202,7 +202,7 @@ export default function Campanhas() {
               </div>
             ) : filtered.length === 0 ? (
               <div className="border border-border rounded-2xl p-12 text-center text-muted-foreground">
-                Nenhuma campanha {filter !== "all" ? STATUS_LABEL[filter].toLowerCase() : ""} ainda. Crie a primeira.
+                Sem campanhas {filter !== "all" ? STATUS_LABEL[filter].toLowerCase() : ""}.
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">

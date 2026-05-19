@@ -255,7 +255,7 @@ export default function AdminAprendizado({ embedded = false }: { embedded?: bool
                         </tr>
                       ))}
                       {(data?.keywords ?? []).length === 0 && (
-                        <tr><td colSpan={6} className="py-6 text-center text-muted-foreground text-sm">Nenhuma keyword aprendida ainda</td></tr>
+                        <tr><td colSpan={6} className="py-6 text-center text-muted-foreground text-sm">Sem keywords.</td></tr>
                       )}
                     </tbody>
                   </table>

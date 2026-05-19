@@ -61,10 +61,8 @@ export function AlertPreferencesDialog({ open, onOpenChange }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Preferências de alerta</DialogTitle>
-          <DialogDescription>
-            Defina o que vira toast e push do navegador. Críticos passam sempre, ignorando estas regras.
-          </DialogDescription>
+          <DialogTitle>Alertas</DialogTitle>
+          <DialogDescription>Toast e push. Críticos sempre passam.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-5">

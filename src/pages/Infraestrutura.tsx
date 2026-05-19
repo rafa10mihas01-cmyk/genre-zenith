@@ -125,7 +125,7 @@ export default function Infraestrutura({ embedded = false }: { embedded?: boolea
           {loading && !vps.length ? (
             <Skeleton className="h-16 w-full" />
           ) : vps.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-6 text-center">Nenhum VPS cadastrado.</p>
+            <p className="text-sm text-muted-foreground py-6 text-center">Sem VPS.</p>
           ) : (
             <ul className="flex flex-col gap-2">
               {vps.map((v) => {
@@ -163,7 +163,7 @@ export default function Infraestrutura({ embedded = false }: { embedded?: boolea
           {loading && !accounts.length ? (
             <Skeleton className="h-16 w-full" />
           ) : accounts.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-6 text-center">Nenhuma conta vinculada.</p>
+            <p className="text-sm text-muted-foreground py-6 text-center">Sem contas.</p>
           ) : (
             <ul className="flex flex-col gap-2">
               {accounts.map((a) => {
@@ -199,7 +199,7 @@ export default function Infraestrutura({ embedded = false }: { embedded?: boolea
         {loading && !assignments.length ? (
           <Skeleton className="h-16 w-full" />
         ) : assignments.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-6 text-center">Nenhuma playlist atribuída.</p>
+          <p className="text-sm text-muted-foreground py-6 text-center">Sem playlists.</p>
         ) : (
           <div className="-mx-2 overflow-x-auto">
             <table className="w-full text-sm min-w-[420px]">

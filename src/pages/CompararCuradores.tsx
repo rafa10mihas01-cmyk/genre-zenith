@@ -93,7 +93,7 @@ function CuratorPicker({ selectedId, excludeId, onSelect, onClear, label }: Cura
         {isLoading ? (
           <Skeleton className="h-8 w-full" />
         ) : curators.length === 0 ? (
-          <div className="text-xs text-muted-foreground p-2">Nenhum encontrado.</div>
+          <div className="text-xs text-muted-foreground p-2">Vazio.</div>
         ) : (
           curators.map((c) => (
             <button

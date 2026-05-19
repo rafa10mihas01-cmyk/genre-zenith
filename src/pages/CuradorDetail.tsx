@@ -272,7 +272,7 @@ export default function CuradorDetail() {
             <div className="nx-card py-10 text-center text-sm text-muted-foreground">Carregando cérebro…</div>
           ) : !brain ? (
             <div className="nx-card py-10 text-center space-y-3">
-              <div className="text-sm text-muted-foreground">Nenhum cérebro calculado ainda para este curador.</div>
+              <div className="text-sm text-muted-foreground">Cérebro ainda não calculado.</div>
               <Button onClick={() => recalc.mutate(id)} disabled={recalc.isPending}>
                 <RefreshCw className={cn("h-4 w-4 mr-2", recalc.isPending && "animate-spin")} />
                 Calcular agora
@@ -479,7 +479,7 @@ export default function CuradorDetail() {
           {curatorDeals.length === 0 ? (
             <Card>
               <CardContent className="p-10 text-center">
-                <p className="text-sm text-muted-foreground">Nenhum deal registrado.</p>
+                <p className="text-sm text-muted-foreground">Sem deals.</p>
               </CardContent>
             </Card>
           ) : (
@@ -532,7 +532,7 @@ export default function CuradorDetail() {
               {resolvedCurator.notes ? (
                 <p className="text-sm text-foreground whitespace-pre-wrap">{resolvedCurator.notes}</p>
               ) : (
-                <p className="text-sm text-muted-foreground">Nenhuma observação cadastrada para este curador.</p>
+                <p className="text-sm text-muted-foreground">Sem observações.</p>
               )}
             </CardContent>
           </Card>

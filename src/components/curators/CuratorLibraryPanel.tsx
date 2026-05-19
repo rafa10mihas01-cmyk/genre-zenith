@@ -232,7 +232,7 @@ export function CuratorLibraryPanel({ curator, deals, balance, onAddPurchase, fl
             </div>
             {purchased === 0 && totalCost === 0 ? (
               <div className="text-xs text-muted-foreground">
-                Nenhuma compra registrada. Adicione plays comprados para começar a controlar o saldo deste curador.
+                Sem compras. Registre plays para acompanhar o saldo.
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -277,7 +277,7 @@ export function CuratorLibraryPanel({ curator, deals, balance, onAddPurchase, fl
         ) : items.length === 0 ? (
           <div className="text-center py-12 rounded-xl border border-dashed border-border/40">
             <Music className="mx-auto size-10 text-muted-foreground/40 mb-3" />
-            <p className="text-sm text-muted-foreground mb-1">Nenhuma playlist no catálogo.</p>
+            <p className="text-sm text-muted-foreground mb-1">Catálogo vazio.</p>
             <p className="text-xs text-muted-foreground/70">
               As playlists aparecem aqui automaticamente quando usadas em deals, ou cadastre manualmente.
             </p>
@@ -371,9 +371,7 @@ export function CuratorLibraryPanel({ curator, deals, balance, onAddPurchase, fl
               <DialogTitle>Adicionar playlist</DialogTitle>
               <DraftIndicator lastSavedAt={draft.lastSavedAt} />
             </div>
-            <DialogDescription>
-              Cadastre manualmente uma playlist no catálogo de {curator.name}.
-            </DialogDescription>
+            <DialogDescription>Catálogo de {curator.name}.</DialogDescription>
           </DialogHeader>
           {draft.hasDraft && (
             <DraftBanner onRestore={handleRestoreDraft} onDiscard={draft.clearDraft} className="mb-2" />
@@ -406,9 +404,7 @@ export function CuratorLibraryPanel({ curator, deals, balance, onAddPurchase, fl
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Remover playlist do catálogo?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Os deals já existentes não são afetados — só remove da biblioteca consultiva.
-            </AlertDialogDescription>
+            <AlertDialogDescription>Deals existentes seguem ativos.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
@@ -421,9 +417,7 @@ export function CuratorLibraryPanel({ curator, deals, balance, onAddPurchase, fl
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Adicionar crédito</DialogTitle>
-            <DialogDescription>
-              Registre uma nova compra de plays com {curator.name}. O saldo é recalculado automaticamente.
-            </DialogDescription>
+            <DialogDescription>Nova compra com {curator.name}.</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div>

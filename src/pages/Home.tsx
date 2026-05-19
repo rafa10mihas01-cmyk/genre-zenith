@@ -391,7 +391,7 @@ function ConcentrationCard({ s, loading }: { s: Snapshot | null; loading: boolea
       {loading ? (
         <div className="h-20 rounded-md bg-muted/40 animate-pulse" />
       ) : !top ? (
-        <div className="text-xs text-muted-foreground py-4">Nenhum deal aberto.</div>
+        <div className="text-xs text-muted-foreground py-4">Sem deals abertos.</div>
       ) : (
         <>
           <div className="flex-1 flex flex-col items-center justify-center text-center rounded-xl border border-border/60 bg-muted/10 py-6 px-4 gap-2">

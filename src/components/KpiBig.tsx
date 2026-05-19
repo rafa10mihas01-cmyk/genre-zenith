@@ -91,7 +91,7 @@ export function KpiBig({
           <Skeleton className="h-7 w-24 rounded-md bg-muted/80" />
         ) : isEmptyValue(value) ? (
           <span className="text-sm font-medium text-muted-foreground leading-none">
-            Sem dados ainda
+            Sem dados
           </span>
         ) : (
           <span className="text-lg sm:text-2xl font-bold tabular-nums leading-tight truncate max-w-full block">

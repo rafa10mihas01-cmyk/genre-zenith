@@ -171,7 +171,7 @@ export default function Campanhas() {
               <CardContent className="p-8 flex flex-col items-center text-center gap-3">
                 <Music2 className="h-7 w-7 text-muted-foreground" />
                 <p className="text-sm text-muted-foreground max-w-xs">
-                  Nenhuma campanha disponível agora. Quando tiver, ela aparece aqui.
+                  Sem campanhas no momento.
                 </p>
               </CardContent>
             </Card>

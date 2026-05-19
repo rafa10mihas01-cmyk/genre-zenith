@@ -318,7 +318,7 @@ export default function ClienteDetalhe() {
                   <InfoRow icon={Instagram} label="Instagram" value={client.instagram ? `@${client.instagram.replace(/^@/, "")}` : null} href={igHref} />
                   <InfoRow icon={ExternalLink} label="Spotify do artista" value={client.spotify_artist_url} href={client.spotify_artist_url ?? undefined} />
                   {!client.email && !client.phone && !client.contact && !client.instagram && !client.spotify_artist_url && (
-                    <p className="text-sm text-muted-foreground py-2">Nenhum contato cadastrado ainda.</p>
+                    <p className="text-sm text-muted-foreground py-2">Sem contatos.</p>
                   )}
                 </div>
               </CardContent>
@@ -337,7 +337,7 @@ export default function ClienteDetalhe() {
                   <InfoRow icon={FileText} label="Documento" value={client.document} />
                   <InfoRow icon={CreditCard} label="Condição de pagamento" value={client.payment_terms} />
                   {!client.primary_genre && client.monthly_listeners == null && !client.document && !client.payment_terms && (
-                    <p className="text-sm text-muted-foreground py-2">Sem dados de perfil ou comercial cadastrados.</p>
+                    <p className="text-sm text-muted-foreground py-2">Sem perfil comercial.</p>
                   )}
                 </div>
               </CardContent>
@@ -361,7 +361,7 @@ export default function ClienteDetalhe() {
               <CardContent className="p-10 text-center">
                 <Music2 className="mx-auto size-8 text-muted-foreground/40 mb-2" />
                 <p className="text-sm text-muted-foreground">
-                  Nenhuma música vinculada ainda. Selecione este cliente ao criar/editar uma música em um deal.
+                  Sem músicas vinculadas. Selecione o cliente ao criar uma música no deal.
                 </p>
               </CardContent>
             </Card>
@@ -416,7 +416,7 @@ export default function ClienteDetalhe() {
           {clientDeals.length === 0 ? (
             <Card>
               <CardContent className="p-10 text-center">
-                <p className="text-sm text-muted-foreground">Nenhum deal vinculado a este cliente.</p>
+                <p className="text-sm text-muted-foreground">Sem deals vinculados.</p>
               </CardContent>
             </Card>
           ) : (
@@ -463,7 +463,7 @@ export default function ClienteDetalhe() {
                 <p className="text-sm text-foreground whitespace-pre-wrap">{client.notes}</p>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  Nenhuma observação cadastrada. Clique em <strong>Editar dados</strong> para adicionar.
+                  Sem observações.
                 </p>
               )}
             </CardContent>
