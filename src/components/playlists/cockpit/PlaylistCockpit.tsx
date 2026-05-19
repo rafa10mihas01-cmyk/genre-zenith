@@ -1195,64 +1195,39 @@ function EditorialBanner({
   const Icon = meta.Icon;
 
   return (
-    <Card className={cn("p-3 md:p-4 border", meta.tone)}>
-      <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-5">
-        <div className="flex items-center gap-3 flex-1 min-w-0">
-          <div className={cn("h-8 w-8 rounded-lg border grid place-items-center shrink-0", meta.tone)}>
-            <Icon className="h-4 w-4" />
-          </div>
-          <div className="min-w-0 space-y-0.5 flex-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Modo curatorial</span>
-              <span className="text-sm font-bold leading-none">{meta.label}</span>
-              {state && <CuratorialStateBadge state={state} compact />}
-            </div>
-            {mode === "hold" ? (
-              <p className="text-xs font-medium text-foreground">
-                Nenhuma alteração recomendada agora. {justification}
-              </p>
-            ) : (
-              <p className="text-xs text-foreground/90 leading-snug line-clamp-2">{justification}</p>
-            )}
-            {caps && mode !== "hold" && (
-              <p className="text-[11px] text-muted-foreground tabular-nums">
-                Limite deste ciclo: <span className="text-foreground font-semibold">{caps.max_changes}</span> faixas ({caps.max_change_pct}%)
-                {caps.original_suggestions > caps.capped_suggestions && (
-                  <> · {caps.original_suggestions - caps.capped_suggestions} suprimidas</>
-                )}
-              </p>
-            )}
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-2 md:items-end shrink-0">
-          {cooldowns.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 md:justify-end">
-              {cooldowns.map((c) => (
-                <CooldownChip key={c.action_type} action={c.action_type} daysRemaining={c.days_remaining} />
-              ))}
-            </div>
-          )}
-          <Button
-            size="sm"
-            variant={mode === "hold" ? "outline" : "default"}
-            onClick={onRediagnose}
-            disabled={running}
-            className="gap-1.5"
-          >
-            {running ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-            Reavaliar
-          </Button>
-        </div>
+    <div className={cn("rounded-xl border px-3 py-2 flex items-center gap-3 flex-wrap", meta.tone)}>
+      <div className={cn("h-6 w-6 rounded-md border grid place-items-center shrink-0", meta.tone)}>
+        <Icon className="h-3.5 w-3.5" />
       </div>
-
-      {mode === "hold" && cooldowns.length === 0 && (
-        <div className="mt-4 pt-4 border-t border-current/10 flex items-start gap-2 text-[12px] text-muted-foreground">
-          <Heart className="h-3.5 w-3.5 mt-0.5 text-primary shrink-0" />
-          <span>Playlist madura. O melhor movimento agora é <span className="text-foreground font-medium">observar resultados</span> e deixar o algoritmo do Spotify maturar.</span>
-        </div>
-      )}
-    </Card>
+      <div className="flex items-center gap-2 flex-1 min-w-0 flex-wrap">
+        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Modo</span>
+        <span className="text-xs font-semibold leading-none">{meta.label}</span>
+        {state && <CuratorialStateBadge state={state} compact />}
+        {caps && mode !== "hold" && (
+          <span className="text-[11px] text-muted-foreground tabular-nums">
+            · limite <span className="text-foreground font-semibold">{caps.max_changes}</span> ({caps.max_change_pct}%)
+          </span>
+        )}
+        {cooldowns.length > 0 && (
+          <div className="flex flex-wrap gap-1 ml-auto md:ml-0">
+            {cooldowns.map((c) => (
+              <CooldownChip key={c.action_type} action={c.action_type} daysRemaining={c.days_remaining} />
+            ))}
+          </div>
+        )}
+      </div>
+      <Button
+        size="sm"
+        variant="ghost"
+        onClick={onRediagnose}
+        disabled={running}
+        className="gap-1 h-7 px-2 text-xs shrink-0"
+        title={justification || "Reavaliar"}
+      >
+        {running ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+        Reavaliar
+      </Button>
+    </div>
   );
 }
 
