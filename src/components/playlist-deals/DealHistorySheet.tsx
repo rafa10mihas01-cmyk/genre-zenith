@@ -143,15 +143,15 @@ function Kpi({
       ? "text-destructive"
       : "text-foreground";
   return (
-    <div className="rounded-2xl bg-card border border-border p-5">
+    <div className="rounded-2xl bg-card border border-border p-4 sm:p-5">
       <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
         {label}
       </div>
-      <div className={cn("text-[28px] font-semibold leading-tight mt-2 tabular-nums", toneCls)}>
+      <div className={cn("text-xl sm:text-[28px] font-semibold leading-tight mt-2 tabular-nums whitespace-nowrap overflow-hidden text-ellipsis", toneCls)}>
         {value}
       </div>
       {hint && (
-        <div className="text-xs text-muted-foreground mt-1.5 truncate">{hint}</div>
+        <div className="text-[11px] sm:text-xs text-muted-foreground mt-1.5 truncate">{hint}</div>
       )}
     </div>
   );
