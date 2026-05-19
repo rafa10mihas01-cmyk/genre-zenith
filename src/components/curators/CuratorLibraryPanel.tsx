@@ -378,14 +378,27 @@ export function CuratorLibraryPanel({ curator, deals, balance, onAddPurchase, fl
                         <Badge variant="secondary" className="text-[10px] h-4 px-1.5">inativa</Badge>
                       )}
                     </div>
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
                       {p.followers ? <span>{formatPlays(p.followers)} seguidores</span> : null}
                       <span>{stat?.deals_count ?? perf?.deals_count ?? 0} deals</span>
                       {stat && stat.avg_streams_per_deal > 0 && (
                         <span>~{formatPlays(stat.avg_streams_per_deal)}/deal</span>
                       )}
+                      {itemGenres.length > 0 && (
+                        <span className="inline-flex items-center gap-1">
+                          {itemGenres.map((g) => (
+                            <span
+                              key={g}
+                              className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-muted/40 text-muted-foreground border border-border/40"
+                            >
+                              {g}
+                            </span>
+                          ))}
+                        </span>
+                      )}
                     </div>
                   </div>
+
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     {p.spotify_url && (
                       <Button
