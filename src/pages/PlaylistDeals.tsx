@@ -320,18 +320,15 @@ export default function PlaylistDeals() {
         }
       />
 
-      {/* KPIs — padrão idêntico a Operação / Criação / Performance */}
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* KPIs — hierarquia cockpit: hero (Plays entregues) + secundários + quiet (histórico) */}
+      <section className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <KpiBig
-          icon={ListMusic}
-          label="Total de deals"
-          value={formatNumber(kpi.total)}
-          hint={
-            kpi.total > 0
-              ? `${kpi.campaignPct}% via campanha · ${kpi.total - kpi.fromCampaign} avulsos`
-              : "Deals cadastrados"
-          }
-          domain="deals"
+          tier="hero"
+          icon={Target}
+          label="Plays entregues"
+          value={formatNumber(kpi.earned)}
+          hint={kpi.total > 0 ? `${kpi.pct}% das metas` : "Sem metas ainda"}
+          domain="playlists"
           loading={loading && deals.length === 0}
         />
         <KpiBig
@@ -351,14 +348,20 @@ export default function PlaylistDeals() {
           loading={loading && deals.length === 0}
         />
         <KpiBig
-          icon={Target}
-          label="Plays entregues"
-          value={formatNumber(kpi.earned)}
-          hint={kpi.total > 0 ? `${kpi.pct}% das metas` : "Sem metas ainda"}
-          domain="playlists"
+          tier="quiet"
+          icon={ListMusic}
+          label="Total de deals"
+          value={formatNumber(kpi.total)}
+          hint={
+            kpi.total > 0
+              ? `${kpi.campaignPct}% via campanha · ${kpi.total - kpi.fromCampaign} avulsos`
+              : "Deals cadastrados"
+          }
+          domain="deals"
           loading={loading && deals.length === 0}
         />
       </section>
+
 
       {/* TABS — mesmo padrão visual de Operação (border-b + ícone + label) */}
       <div className="sticky top-0 z-30 -mt-px bg-background/95 supports-[backdrop-filter]:bg-background/80 backdrop-blur-md border-b border-border -mx-4 md:-mx-6">
