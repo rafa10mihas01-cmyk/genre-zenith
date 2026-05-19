@@ -91,57 +91,10 @@ function emptySong(): Song {
   };
 }
 
-function hasStartedSongDraft(song: Song): boolean {
-  return !!song.track?.id || song.trackUrl.trim().length > 0;
-}
-
 function loadPersisted(): PersistedV2 {
   try {
-    const rawV2 = localStorage.getItem(STORAGE_KEY_V2);
-    if (rawV2) {
-      const parsed = JSON.parse(rawV2) as PersistedV2;
-      if (parsed?.songs?.length) {
-        const songs = parsed.songs.map(s => ({ ...emptySong(), ...s, uid: s.uid ?? makeUid() }));
-        const hasStartedDraft = songs.some(hasStartedSongDraft);
-        if (!hasStartedDraft) {
-          return { clientId: "", curatorId: "", songs: [emptySong()], activeIdx: 0 };
-        }
-        return {
-          clientId: parsed.clientId ?? "",
-          curatorId: parsed.curatorId ?? "",
-          songs,
-          activeIdx: Math.min(Math.max(0, parsed.activeIdx ?? 0), songs.length - 1),
-        };
-      }
-    }
-    // migra v1 → v2 (uma música)
-    const rawV1 = localStorage.getItem(STORAGE_KEY_V1);
-    if (rawV1) {
-      const v1 = JSON.parse(rawV1);
-      const s = emptySong();
-      if (!v1.track?.id && !String(v1.trackUrl ?? "").trim()) {
-        return { clientId: "", curatorId: "", songs: [emptySong()], activeIdx: 0 };
-      }
-      return {
-        clientId: v1.clientId ?? "",
-        curatorId: v1.curatorId ?? "",
-        songs: [{
-          ...s,
-          fonte: v1.fonte ?? s.fonte,
-          trackUrl: v1.trackUrl ?? s.trackUrl,
-          track: v1.track ?? s.track,
-          baselineStreamsDay: v1.baselineStreamsDay ?? s.baselineStreamsDay,
-          meta: v1.meta ?? s.meta,
-          days: v1.days ?? s.days,
-          budget: v1.budget ?? s.budget,
-          modo: v1.modo ?? s.modo,
-          perfil: v1.perfil ?? s.perfil,
-          splitEco: v1.splitEco ?? s.splitEco,
-          startDateISO: v1.startDateISO ?? s.startDateISO,
-        }],
-        activeIdx: 0,
-      };
-    }
+    localStorage.removeItem(STORAGE_KEY_V2);
+    localStorage.removeItem(STORAGE_KEY_V1);
   } catch { /* ignore */ }
   return { clientId: "", curatorId: "", songs: [emptySong()], activeIdx: 0 };
 }
