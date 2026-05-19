@@ -22,6 +22,7 @@ import { ProjecaoFaixa } from "@/components/operacao/SimuladorEntrega";
 import { CuratorialStateBadge, CooldownChip } from "@/components/playlist/CuratorialStateBadge";
 import { AdjustmentTimeline } from "@/components/playlists/cockpit/AdjustmentTimeline";
 import { OnboardingChecklist } from "@/components/playlists/cockpit/OnboardingChecklist";
+import { SeoExperimentCard } from "@/components/playlists/cockpit/SeoExperimentCard";
 
 // -------------------- types --------------------
 type AnalysisTrack = {
@@ -371,6 +372,10 @@ export function PlaylistCockpit({
 
           {/* ============ MEMÓRIA DE IMPACTO ============ */}
           <AdjustmentTimeline playlistId={managedId} />
+
+          {/* ============ EXPERIMENTOS SEO (Fase 2) ============ */}
+          <SeoExperimentCard managedId={managedId} />
+
 
           <Tabs defaultValue={market ? "mercado" : "identidade"} className="space-y-4">
             <TabsList className="bg-elevated/60 flex-wrap h-auto">

@@ -3973,6 +3973,110 @@ export type Database = {
           },
         ]
       }
+      playlist_seo_experiments: {
+        Row: {
+          applied_at: string | null
+          baseline_at: string | null
+          baseline_followers: number | null
+          created_at: string
+          delta_followers: number | null
+          delta_pct: number | null
+          field: string
+          genre_id: string | null
+          id: string
+          measure_due_at: string | null
+          measured_at: string | null
+          measured_followers: number | null
+          outcome: string | null
+          pattern_key: string | null
+          pattern_label: string | null
+          playlist_id: string
+          reasoning: string | null
+          status: string
+          suggestion_source: string
+          updated_at: string
+          version_after: string
+          version_before: string
+        }
+        Insert: {
+          applied_at?: string | null
+          baseline_at?: string | null
+          baseline_followers?: number | null
+          created_at?: string
+          delta_followers?: number | null
+          delta_pct?: number | null
+          field: string
+          genre_id?: string | null
+          id?: string
+          measure_due_at?: string | null
+          measured_at?: string | null
+          measured_followers?: number | null
+          outcome?: string | null
+          pattern_key?: string | null
+          pattern_label?: string | null
+          playlist_id: string
+          reasoning?: string | null
+          status?: string
+          suggestion_source?: string
+          updated_at?: string
+          version_after: string
+          version_before: string
+        }
+        Update: {
+          applied_at?: string | null
+          baseline_at?: string | null
+          baseline_followers?: number | null
+          created_at?: string
+          delta_followers?: number | null
+          delta_pct?: number | null
+          field?: string
+          genre_id?: string | null
+          id?: string
+          measure_due_at?: string | null
+          measured_at?: string | null
+          measured_followers?: number | null
+          outcome?: string | null
+          pattern_key?: string | null
+          pattern_label?: string | null
+          playlist_id?: string
+          reasoning?: string | null
+          status?: string
+          suggestion_source?: string
+          updated_at?: string
+          version_after?: string
+          version_before?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "playlist_seo_experiments_genre_id_fkey"
+            columns: ["genre_id"]
+            isOneToOne: false
+            referencedRelation: "genres"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "playlist_seo_experiments_genre_id_fkey"
+            columns: ["genre_id"]
+            isOneToOne: false
+            referencedRelation: "genres_with_health"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "playlist_seo_experiments_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "managed_playlists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "playlist_seo_experiments_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_playlist_vps_assignment"
+            referencedColumns: ["managed_playlist_id"]
+          },
+        ]
+      }
       playlist_templates: {
         Row: {
           approved_at: string | null
@@ -4717,6 +4821,66 @@ export type Database = {
             columns: ["result_id"]
             isOneToOne: false
             referencedRelation: "search_results"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      seo_genre_lessons: {
+        Row: {
+          avg_delta_pct: number | null
+          confidence: number | null
+          field: string
+          genre_id: string
+          id: string
+          last_updated_at: string
+          negative_count: number
+          neutral_count: number
+          pattern_key: string
+          pattern_label: string
+          positive_count: number
+          samples_count: number
+        }
+        Insert: {
+          avg_delta_pct?: number | null
+          confidence?: number | null
+          field: string
+          genre_id: string
+          id?: string
+          last_updated_at?: string
+          negative_count?: number
+          neutral_count?: number
+          pattern_key: string
+          pattern_label: string
+          positive_count?: number
+          samples_count?: number
+        }
+        Update: {
+          avg_delta_pct?: number | null
+          confidence?: number | null
+          field?: string
+          genre_id?: string
+          id?: string
+          last_updated_at?: string
+          negative_count?: number
+          neutral_count?: number
+          pattern_key?: string
+          pattern_label?: string
+          positive_count?: number
+          samples_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seo_genre_lessons_genre_id_fkey"
+            columns: ["genre_id"]
+            isOneToOne: false
+            referencedRelation: "genres"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "seo_genre_lessons_genre_id_fkey"
+            columns: ["genre_id"]
+            isOneToOne: false
+            referencedRelation: "genres_with_health"
             referencedColumns: ["id"]
           },
         ]
