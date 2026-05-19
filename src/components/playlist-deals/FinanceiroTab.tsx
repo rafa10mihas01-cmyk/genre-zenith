@@ -5,6 +5,7 @@ import { Wallet, TrendingUp, Users, Receipt, Target } from "lucide-react";
 import { useCuratorFinance } from "@/hooks/useCuratorFinance";
 import { formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { KpiBig } from "@/components/KpiBig";
 import type { CuratorDeal } from "@/lib/curatorDealsUtils";
 
 const fmtBRL = (v: number | null | undefined) =>
