@@ -121,54 +121,6 @@ export type Database = {
         }
         Relationships: []
       }
-      ai_usage_log: {
-        Row: {
-          created_at: string
-          duration_ms: number | null
-          error: string | null
-          function_name: string
-          id: string
-          metadata: Json
-          model: string | null
-          provider: string
-          status: string
-          tokens_in: number | null
-          tokens_out: number | null
-          tokens_total: number | null
-          user_id: string | null
-        }
-        Insert: {
-          created_at?: string
-          duration_ms?: number | null
-          error?: string | null
-          function_name: string
-          id?: string
-          metadata?: Json
-          model?: string | null
-          provider?: string
-          status?: string
-          tokens_in?: number | null
-          tokens_out?: number | null
-          tokens_total?: number | null
-          user_id?: string | null
-        }
-        Update: {
-          created_at?: string
-          duration_ms?: number | null
-          error?: string | null
-          function_name?: string
-          id?: string
-          metadata?: Json
-          model?: string | null
-          provider?: string
-          status?: string
-          tokens_in?: number | null
-          tokens_out?: number | null
-          tokens_total?: number | null
-          user_id?: string | null
-        }
-        Relationships: []
-      }
       autopilot_runs: {
         Row: {
           cache_hits: Json
@@ -1304,39 +1256,6 @@ export type Database = {
           },
         ]
       }
-      community_points_ledger: {
-        Row: {
-          campaign_id: string | null
-          created_at: string
-          created_by: string | null
-          id: string
-          member_id: string
-          participation_id: string | null
-          points: number
-          reason: string
-        }
-        Insert: {
-          campaign_id?: string | null
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          member_id: string
-          participation_id?: string | null
-          points: number
-          reason: string
-        }
-        Update: {
-          campaign_id?: string | null
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          member_id?: string
-          participation_id?: string | null
-          points?: number
-          reason?: string
-        }
-        Relationships: []
-      }
       curator_brain: {
         Row: {
           avg_cpp: number | null
@@ -2396,24 +2315,6 @@ export type Database = {
           id?: number
           job_type?: string
           payload?: Json | null
-        }
-        Relationships: []
-      }
-      deprecation_flags: {
-        Row: {
-          enabled: boolean
-          key: string
-          updated_at: string
-        }
-        Insert: {
-          enabled?: boolean
-          key: string
-          updated_at?: string
-        }
-        Update: {
-          enabled?: boolean
-          key?: string
-          updated_at?: string
         }
         Relationships: []
       }
