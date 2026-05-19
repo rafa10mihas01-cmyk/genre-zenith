@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
+import { PageContainer } from "@/components/PageContainer";
 import { AnalyticsTabs } from "@/components/AnalyticsTabs";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
