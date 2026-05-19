@@ -1014,7 +1014,7 @@ export function DealHistorySheet({
                       Nenhum resultado pra essa busca.
                     </div>
                   ) : (
-                    <div className="rounded-2xl border border-border bg-card overflow-x-auto overflow-y-hidden overscroll-x-contain">
+                    <div className="rounded-2xl border border-border bg-card overflow-x-auto overflow-y-auto overscroll-x-contain max-h-[680px]">
                       <ul className="divide-y divide-border">
                         {curatorPlaylists.map((p) => (
                           <BreakdownRow key={p.id} r={toBreakdownRowData(p)} kind="curator" />
@@ -1122,7 +1122,7 @@ export function DealHistorySheet({
                       Nenhum resultado pra esse filtro.
                     </div>
                   ) : (
-                    <div className="rounded-2xl border border-border bg-card overflow-x-auto overflow-y-hidden overscroll-x-contain">
+                    <div className="rounded-2xl border border-border bg-card overflow-x-auto overflow-y-auto overscroll-x-contain max-h-[680px]">
                       <ul className="divide-y divide-border">
                         {algoPlaylists.map((p) => (
                           <BreakdownRow key={p.id} r={toBreakdownRowData(p)} kind="algo" />
