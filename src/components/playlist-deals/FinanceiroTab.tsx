@@ -79,9 +79,9 @@ export function FinanceiroTab({ deals }: Props) {
             Sem compras
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-auto max-h-[360px]">
             <table className="w-full text-sm">
-              <thead>
+              <thead className="sticky top-0 bg-card z-10">
                 <tr className="text-[11px] uppercase tracking-wide text-muted-foreground border-b border-border">
                   <th className="text-left px-5 py-2 font-medium">#</th>
                   <th className="text-left px-5 py-2 font-medium">Curador</th>
@@ -125,8 +125,8 @@ export function FinanceiroTab({ deals }: Props) {
             Sem compras
           </div>
         ) : (
-          <ul className="divide-y divide-border">
-            {purchases.slice(0, 10).map((p) => {
+          <ul className="divide-y divide-border overflow-auto max-h-[420px]">
+            {purchases.slice(0, 30).map((p) => {
               const curator = byCurator.find((c) => c.curator_id === p.curator_id);
               return (
                 <li key={p.id} className="px-5 py-3 flex items-center gap-4 text-sm">
