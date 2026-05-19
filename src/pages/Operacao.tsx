@@ -87,7 +87,7 @@ export default function Operacao() {
   const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
   const [accountsSummary, setAccountsSummary] = useState<AccountSummary>({ total: 0, active: 0, capacity_used: 0, capacity_max: 0 });
   const [managedFollowers, setManagedFollowers] = useState<{ sum: number; count: number }>({ sum: 0, count: 0 });
-  const [playlistStats, setPlaylistStats] = useState<{ avgHealth: number; topPerf: number; atRisk: number; inactive: number }>({ avgHealth: 0, topPerf: 0, atRisk: 0, inactive: 0 });
+  const [playlistStats, setPlaylistStats] = useState<{ avgHealth: number; topPerf: number; atRisk: number; inactive: number; filteredFollowers: number; filteredCount: number; filterLabel: string | null }>({ avgHealth: 0, topPerf: 0, atRisk: 0, inactive: 0, filteredFollowers: 0, filteredCount: 0, filterLabel: null });
 
   const load = async () => {
     setLoading(true);
@@ -270,9 +270,25 @@ export default function Operacao() {
         {/* KPIs operacionais — todos referenciam o catálogo importado (managed_playlists) */}
         {/* KPIs — hierarquia cockpit: hero (Salvamentos) + secundários + quiet (derivada) */}
         <section className="grid grid-cols-2 md:grid-cols-7 gap-3">
-          <KpiBig tier="hero" icon={Heart} label="Salvamentos totais" value={formatNumber(kpi.totalFollowers)} hint={`Somando ${formatNumber(kpi.totalPlaylists)} playlists`} domain="playlists" loading={loading} />
-          <KpiBig icon={Target}        label="Plays teóricos / mês" value={formatNumber(kpi.totalFollowers * 30)} tone="primary" hint={`${formatNumber(kpi.totalFollowers)} × 30 saves`} loading={loading} />
-          <KpiBig icon={Activity}      label="Total ativas"  value={formatNumber(kpi.totalPlaylists)} hint="Catálogo importado" loading={loading} />
+          {(() => {
+            const filtered = !!playlistStats.filterLabel;
+            const followers = filtered ? playlistStats.filteredFollowers : kpi.totalFollowers;
+            const count = filtered ? playlistStats.filteredCount : kpi.totalPlaylists;
+            const scopeHint = filtered
+              ? `${playlistStats.filterLabel} · ${formatNumber(count)} playlist${count === 1 ? "" : "s"}`
+              : `Somando ${formatNumber(count)} playlists`;
+            const playsHint = filtered
+              ? `${playlistStats.filterLabel} · ${formatNumber(followers)} × 30 saves`
+              : `${formatNumber(followers)} × 30 saves`;
+            const totalHint = filtered ? playlistStats.filterLabel! : "Catálogo importado";
+            return (
+              <>
+                <KpiBig tier="hero" icon={Heart} label="Salvamentos totais" value={formatNumber(followers)} hint={scopeHint} domain="playlists" loading={loading} />
+                <KpiBig icon={Target}        label="Plays teóricos / mês" value={formatNumber(followers * 30)} tone="primary" hint={playsHint} loading={loading} />
+                <KpiBig icon={Activity}      label="Total ativas"  value={formatNumber(count)} hint={totalHint} loading={loading} />
+              </>
+            );
+          })()}
           <KpiBig icon={Gauge}         label="Health médio"  value={String(playlistStats.avgHealth)} hint={`${playlistStats.topPerf} top performer${playlistStats.topPerf === 1 ? "" : "s"}`} loading={loading} />
           <KpiBig icon={ShieldAlert}   label="Em risco / inativas" value={`${playlistStats.atRisk} / ${playlistStats.inactive}`} tone={(playlistStats.atRisk + playlistStats.inactive) > 0 ? "destructive" : "default"} hint="Risco ≥ 60 · Atividade < 30" loading={loading} />
           <KpiBig tier="quiet" icon={AlertCircle} label="Precisa atenção" value={formatNumber(kpi.atencao)} tone={kpi.atencao > 0 ? "destructive" : "default"} hint="Auto em queda" loading={loading} />
