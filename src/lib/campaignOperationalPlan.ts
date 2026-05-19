@@ -1,4 +1,5 @@
 import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
+import { buildDailyPlateau } from "@/lib/playlistGrowthEngine";
 
 export type EcoPlanInput = {
   id: string;
