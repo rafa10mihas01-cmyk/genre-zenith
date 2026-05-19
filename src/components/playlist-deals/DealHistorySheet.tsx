@@ -690,7 +690,7 @@ export function DealHistorySheet({
               {/* BODY */}
               <div className="flex-1 overflow-y-auto">
                 {/* === RESUMO === */}
-                <TabsContent value="resumo" className="m-0 px-6 py-5 space-y-5">
+                <TabsContent value="resumo" className={cn("m-0 space-y-5", asPage ? "rounded-2xl border border-border bg-card p-5" : "px-6 py-5")}>
                   {/* aviso whitelist vazia */}
                   {!hasCuratorWhitelist && (
                     <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 flex gap-3">
@@ -914,7 +914,7 @@ export function DealHistorySheet({
                 </TabsContent>
 
                 {/* === CURADOR (whitelist) === */}
-                <TabsContent value="playlists" className="m-0 px-6 py-5 space-y-4">
+                <TabsContent value="playlists" className={cn("m-0 space-y-4", asPage ? "rounded-2xl border border-border bg-card p-5" : "px-6 py-5")}>
                   <div className="rounded-lg border border-white/[0.04] bg-[hsl(var(--elevated))]/40 px-3 py-2 text-[11px] text-muted-foreground leading-relaxed">
                     Playlists cadastradas pelo curador — é o que conta como entrega contratada.
                   </div>
@@ -1024,7 +1024,7 @@ export function DealHistorySheet({
                 </TabsContent>
 
                 {/* === ALGORITMO (editorial / orgânica / suspeita) === */}
-                <TabsContent value="algoritmo" className="m-0 px-6 py-5 space-y-4">
+                <TabsContent value="algoritmo" className={cn("m-0 space-y-4", asPage ? "rounded-2xl border border-border bg-card p-5" : "px-6 py-5")}>
                   <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-[11px] text-muted-foreground leading-relaxed">
                     <span className="text-foreground font-medium">Visualização apenas.</span>{" "}
                     Playlists detectadas pelo algoritmo do Spotify ou orgânicas — não contam na entrega do curador.
@@ -1132,7 +1132,7 @@ export function DealHistorySheet({
                 </TabsContent>
 
                 {/* === HISTÓRICO === */}
-                <TabsContent value="historico" className="m-0 px-6 py-5 space-y-3">
+                <TabsContent value="historico" className={cn("m-0 space-y-3", asPage ? "rounded-2xl border border-border bg-card p-5" : "px-6 py-5")}>
                   {reversedLogs.length === 0 ? (
                     <div className="rounded-2xl border border-border bg-card py-10 flex flex-col items-center text-center gap-2">
                       <div className="h-10 w-10 rounded-full bg-[hsl(var(--elevated))] border border-border flex items-center justify-center">
