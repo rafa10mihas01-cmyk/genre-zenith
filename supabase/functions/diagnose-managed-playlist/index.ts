@@ -530,7 +530,8 @@ Deno.serve(async (req) => {
       .slice(0, 80);
 
     // 7.b) Busca meta Spotify dos candidatos (popularity + artista) pra calcular zone scores
-    const candMeta = new Map<string, { popularity: number | null; artistPop: number | null }>();
+    const candMeta = new Map<string, { popularity: number | null; artistPop: number | null; cover: string | null }>();
+    const coverMap = new Map<string, string>();
     if (rawCandidates.length > 0) {
       try {
         const token = await getSpotifyToken();
@@ -544,9 +545,13 @@ Deno.serve(async (req) => {
           const j = await r.json();
           for (const tr of j.tracks ?? []) {
             if (!tr?.id) continue;
+            const imgs = tr.album?.images ?? [];
+            const cover = imgs[0]?.url ?? imgs[imgs.length - 1]?.url ?? null;
+            if (cover) coverMap.set(tr.id, cover);
             candMeta.set(tr.id, {
               popularity: typeof tr.popularity === "number" ? tr.popularity : null,
               artistPop: null,
+              cover,
             });
             if (tr.artists?.[0]?.id) candArtistIds.set(tr.id, tr.artists[0].id);
           }
