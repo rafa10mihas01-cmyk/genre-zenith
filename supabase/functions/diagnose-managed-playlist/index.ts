@@ -286,6 +286,13 @@ Deno.serve(async (req) => {
       anchorEligible: boolean;
     };
 
+    // Top-3 artistas dominantes do nicho — recebem boost de elegibilidade pra fachada.
+    // Regra: se o artista domina o nicho (top 3 por recorrência), ele entra na fachada
+    // mesmo com popularity 55-69, porque a leitura editorial vem do nicho, não do número absoluto.
+    const dominantArtists = new Set(
+      genreArtistsTop.slice(0, 3).map((a) => a.artist.toLowerCase()),
+    );
+
     // Pré-calcula sinais e scores de zona
     const rawTracks = (currentTracks ?? []).map((t: any) => {
       const meta = spotMeta.get(t.spotify_track_id);
@@ -320,27 +327,42 @@ Deno.serve(async (req) => {
         : ageDays > 30 ? 70
         : 40;
 
-      // Score por zona — pesos refletem a função
-      const anchorScore  = Math.round(pop * 0.5  + aPop * 0.3  + recNorm * 0.2);
+      // Artista dominante no nicho (top 3 por recorrência)?
+      const artistNameLower = String(t.artist_name ?? "").split(",")[0].trim().toLowerCase();
+      const isDominantArtist = artistNameLower.length > 0 && dominantArtists.has(artistNameLower);
+      const dominantBoost = isDominantArtist ? 20 : 0;
+
+      // Score por zona — pesos refletem a função.
+      // Artistas dominantes do nicho ganham +20 no anchorScore (leitura editorial > pop absoluto).
+      const anchorScore  = Math.round(pop * 0.5  + aPop * 0.3  + recNorm * 0.2) + dominantBoost;
       const premiumScore = Math.round(pop * 0.4  + recNorm * 0.35 + freshness * 0.25);
       const supportScore = Math.round(recNorm * 0.5 + pop * 0.3 + stability * 0.2);
       const tailScore    = Math.round(freshness * 0.5 + Math.max(0, 60 - pop) * 0.3 + recNorm * 0.2);
 
-      // Floor da fachada: só hit dominante (pop alto E (artista forte OU muito recorrente))
-      const anchorEligible = popularity != null && popularity >= 70 && (aPop >= 70 || recurrence >= 5);
+      // Floor da fachada:
+      //  - regra padrão: pop ≥ 70 E (artista forte OU muito recorrente), OU
+      //  - regra dominante: artista top-3 do nicho com pop ≥ 55 (cultura do nicho > pop absoluto)
+      const anchorEligible =
+        (popularity != null && popularity >= 70 && (aPop >= 70 || recurrence >= 5)) ||
+        (isDominantArtist && popularity != null && popularity >= 55);
 
       return {
         t, recurrence, popularity, releaseDate, artistPop, artistFollowers,
-        pos, saturationPct, ageDays, releaseAgeYears,
+        pos, saturationPct, ageDays, releaseAgeYears, isDominantArtist,
         scores: { anchor: anchorScore, premium: premiumScore, support: supportScore, tail: tailScore, anchorEligible } as TrackScores,
       };
     });
 
-    // Até 2 candidatas reais à fachada: top anchorScore que passam no floor
+    // Até 2 candidatas reais à fachada: top anchorScore que passam no floor.
+    // Artistas dominantes do nicho vão na frente (mesmo critério, mas o boost +20 já os empurra).
     const anchorSet = new Set(
       rawTracks
         .filter(x => x.scores.anchorEligible && !protectedTracks.has(x.t.spotify_track_id))
-        .sort((a, b) => b.scores.anchor - a.scores.anchor)
+        .sort((a, b) => {
+          // Dominante > não-dominante; depois por anchorScore
+          if (a.isDominantArtist !== b.isDominantArtist) return a.isDominantArtist ? -1 : 1;
+          return b.scores.anchor - a.scores.anchor;
+        })
         .slice(0, 2)
         .map(x => x.t.spotify_track_id),
     );
@@ -400,12 +422,24 @@ Deno.serve(async (req) => {
         status = goingUp ? "promote" : "demote";
         targetPosition = zoneMiddle(bestZone);
 
-        // Regra dura: posições 1-2 só pra quem passou no floor de fachada
+        // Regra dura da fachada (pos 1-2):
+        //   • só rebaixa se a faixa for realmente lixo (pop < 40 E recorrência 0)
+        //   • caso contrário, fachada se mantém — só campanha GRANDE consegue reposicionar
+        //     (campanhas grandes já chegam aqui via protectedInfo, então não é decidido aqui)
         if (currentZone === "anchor" && !scores.anchorEligible) {
-          status = "demote";
-          targetPosition = zoneMiddle("premium");
-          reasons.push(`na fachada (#${pos + 1}) sem força pra sustentar`);
-          reasons.push(`popularity ${popularity ?? "—"}${artistPop != null ? ` · artista ${artistPop}` : ""} — fachada exige hit dominante`);
+          const isTrash = (popularity != null && popularity < 40) && recurrence === 0;
+          if (isTrash) {
+            status = "demote";
+            targetPosition = zoneMiddle("premium");
+            reasons.push(`na fachada (#${pos + 1}) sem força mínima — pop ${popularity ?? "—"} e zero recorrência no nicho`);
+            reasons.push("fachada exige hit dominante ou artista top do nicho");
+          } else {
+            // mantém na fachada: faixa não é ideal mas não é trash; só campanha grande move
+            status = "keep";
+            targetPosition = null;
+            reasons.push(`fachada preservada · pop ${popularity ?? "—"}${artistPop != null ? ` · artista ${artistPop}` : ""}`);
+            reasons.push("posição 1-2 só muda por campanha grande ou faixa sem força mínima");
+          }
         } else if (goingUp) {
           reasons.push(`função melhor em ${ZONE_LABELS[bestZone]} (score ${bestZoneScore})`);
           reasons.push(`hoje em ${ZONE_LABELS[currentZone]} (#${pos + 1}) — subir pra zona ${ZONE_LABELS[bestZone]}`);
@@ -612,11 +646,17 @@ Deno.serve(async (req) => {
       // Sem release_date para candidatos — assumimos freshness neutra
       const freshness = 50;
       const stability = 50;
-      const anchorScore  = Math.round(pop * 0.5  + aPop * 0.3  + recNorm * 0.2);
+      const mainArtist = String(c.artist_name ?? "").split(",")[0].trim().toLowerCase();
+      const isDominantArtist = mainArtist.length > 0 && dominantArtists.has(mainArtist);
+      const dominantBoost = isDominantArtist ? 20 : 0;
+      const anchorScore  = Math.round(pop * 0.5  + aPop * 0.3  + recNorm * 0.2) + dominantBoost;
       const premiumScore = Math.round(pop * 0.4  + recNorm * 0.35 + freshness * 0.25);
       const supportScore = Math.round(recNorm * 0.5 + pop * 0.3 + stability * 0.2);
       const tailScore    = Math.round(freshness * 0.5 + Math.max(0, 60 - pop) * 0.3 + recNorm * 0.2);
-      const anchorEligible = popularity != null && popularity >= 70 && (aPop >= 70 || c.count >= 5);
+      // Mesmo critério do tracksAnalysis: dominante do nicho passa com pop ≥ 55
+      const anchorEligible =
+        (popularity != null && popularity >= 70 && (aPop >= 70 || c.count >= 5)) ||
+        (isDominantArtist && popularity != null && popularity >= 55);
 
       const zonePool: { z: Zone; v: number }[] = [
         { z: "premium", v: premiumScore },
@@ -627,10 +667,11 @@ Deno.serve(async (req) => {
       zonePool.sort((a, b) => b.v - a.v);
       const targetZone = zonePool[0].z;
 
-      const mainArtist = String(c.artist_name ?? "").split(",")[0].trim().toLowerCase();
       const fromMissing = !!(mainArtist && missingArtistSet.has(mainArtist));
-      // Score global combinando função + recorrência + boost de artista faltando
-      const composite = Math.round(zonePool[0].v * 0.7 + recNorm * 0.3) + (fromMissing ? 8 : 0);
+      // Score global combinando função + recorrência + boost de artista faltando + boost dominante
+      const composite = Math.round(zonePool[0].v * 0.7 + recNorm * 0.3)
+        + (fromMissing ? 8 : 0)
+        + (isDominantArtist ? 10 : 0);
 
       return {
         spotify_track_id: c.id,
