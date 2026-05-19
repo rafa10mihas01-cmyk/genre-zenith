@@ -75,21 +75,22 @@ export function KpiBig({
   const isHero = tier === "hero";
   const isQuiet = tier === "quiet";
 
+  // Hero usa SEMPRE verde primary pra manter régua padrão entre páginas.
   return (
     <div
       className={cn(
         "relative overflow-hidden flex flex-col gap-2 p-4 min-h-[120px] rounded-2xl border transition-colors",
         // Tier styling
-        isHero    && "md:col-span-2 border-border border-l-2 border-l-primary bg-card",
+        isHero    && "md:col-span-2 border-border border-l-2 border-l-primary bg-gradient-to-br from-card via-card to-primary/[0.08]",
         isQuiet   && "border-border/60 bg-card/60",
         !isHero && !isQuiet && "nx-card",
         className,
       )}
     >
-      {/* Glow sutil — só no hero */}
+      {/* Glow verde sutil no canto — só no hero */}
       {isHero && (
         <div
-          className="pointer-events-none absolute -top-12 -right-12 h-32 w-32 rounded-full bg-primary/10 blur-2xl"
+          className="pointer-events-none absolute -top-16 -right-16 h-40 w-40 rounded-full bg-primary/20 blur-3xl"
           aria-hidden
         />
       )}
