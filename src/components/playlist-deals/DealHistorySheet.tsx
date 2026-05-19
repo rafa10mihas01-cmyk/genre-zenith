@@ -566,32 +566,32 @@ export function DealHistorySheet({
     <>
         {deal && stats && (
           <>
-            {/* HEADER */}
-            <header className="shrink-0 px-6 pt-6 pb-4 border-b border-white/[0.04] bg-background">
-              <div className="flex items-start gap-4">
-                {deal.song_cover_url ? (
-                  <img
-                    src={deal.song_cover_url}
-                    alt=""
-                    className="h-14 w-14 rounded-xl object-cover ring-1 ring-white/[0.06] shrink-0"
-                  />
-                ) : (
-                  <div className="h-14 w-14 rounded-xl bg-[hsl(var(--elevated))] border border-white/[0.04] flex items-center justify-center shrink-0">
-                    <Music2 className="h-5 w-5 text-muted-foreground" />
+            {/* HEADER — só aparece no modo Sheet (drawer). Quando é página dedicada, o header é o PageHeader + KPIs externos. */}
+            {!asPage && (
+              <header className="shrink-0 px-6 pt-6 pb-4 border-b border-white/[0.04] bg-background">
+                <div className="flex items-start gap-4">
+                  {deal.song_cover_url ? (
+                    <img
+                      src={deal.song_cover_url}
+                      alt=""
+                      className="h-14 w-14 rounded-xl object-cover ring-1 ring-white/[0.06] shrink-0"
+                    />
+                  ) : (
+                    <div className="h-14 w-14 rounded-xl bg-[hsl(var(--elevated))] border border-white/[0.04] flex items-center justify-center shrink-0">
+                      <Music2 className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <h2 className="text-lg font-semibold text-foreground leading-tight break-words">
+                      {deal.song_name}
+                    </h2>
+                    <div className="text-sm text-muted-foreground mt-0.5 truncate">
+                      {deal.song_artist || "—"}
+                    </div>
+                    <div className="text-xs text-muted-foreground/80 mt-1.5 truncate">
+                      Curador: <span className="text-foreground font-medium">{deal.curator_name}</span>
+                    </div>
                   </div>
-                )}
-                <div className="min-w-0 flex-1">
-                  <h2 className="text-lg font-semibold text-foreground leading-tight break-words">
-                    {deal.song_name}
-                  </h2>
-                  <div className="text-sm text-muted-foreground mt-0.5 truncate">
-                    {deal.song_artist || "—"}
-                  </div>
-                  <div className="text-xs text-muted-foreground/80 mt-1.5 truncate">
-                    Curador: <span className="text-foreground font-medium">{deal.curator_name}</span>
-                  </div>
-                </div>
-                {!asPage && (
                   <button
                     type="button"
                     onClick={onClose}
@@ -600,24 +600,24 @@ export function DealHistorySheet({
                   >
                     <X className="h-4 w-4" />
                   </button>
-                )}
-              </div>
-
-              {/* progresso linear principal */}
-              <div className="mt-4">
-                <div className="flex items-baseline justify-between mb-1.5">
-                  <div className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">
-                    Entrega do curador
-                  </div>
-                  <div className="text-xs tabular-nums text-muted-foreground">
-                    <span className="text-foreground font-semibold">{fmt(stats.earned)}</span>
-                    {target > 0 && <> / {fmt(target)}</>}
-                    <span className="ml-2 text-foreground font-semibold">{stats.pct}%</span>
-                  </div>
                 </div>
-                <Progress value={stats.pct} className="h-1.5" />
-              </div>
-            </header>
+
+                {/* progresso linear principal */}
+                <div className="mt-4">
+                  <div className="flex items-baseline justify-between mb-1.5">
+                    <div className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">
+                      Entrega do curador
+                    </div>
+                    <div className="text-xs tabular-nums text-muted-foreground">
+                      <span className="text-foreground font-semibold">{fmt(stats.earned)}</span>
+                      {target > 0 && <> / {fmt(target)}</>}
+                      <span className="ml-2 text-foreground font-semibold">{stats.pct}%</span>
+                    </div>
+                  </div>
+                  <Progress value={stats.pct} className="h-1.5" />
+                </div>
+              </header>
+            )}
 
             {/* TABS */}
             <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)} className="flex-1 flex flex-col min-h-0">
