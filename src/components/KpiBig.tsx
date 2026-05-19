@@ -75,21 +75,32 @@ export function KpiBig({
   const isHero = tier === "hero";
   const isQuiet = tier === "quiet";
 
+  // Cor de glow/borda do hero: usa cor de domínio quando definida, senão primary.
+  const heroAccent = domain ? `hsl(var(--domain-${domain}))` : "hsl(var(--primary))";
+  const heroStyle: React.CSSProperties = isHero
+    ? {
+        backgroundImage: `linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--card)) 55%, ${heroAccent.replace("hsl(", "hsla(").replace(")", " / 0.08)")} 100%)`,
+        borderLeftColor: heroAccent,
+      }
+    : {};
+
   return (
     <div
+      style={heroStyle}
       className={cn(
         "relative overflow-hidden flex flex-col gap-2 p-4 min-h-[120px] rounded-2xl border transition-colors",
         // Tier styling
-        isHero    && "md:col-span-2 border-border border-l-2 border-l-primary bg-card",
+        isHero    && "md:col-span-2 border-border border-l-2",
         isQuiet   && "border-border/60 bg-card/60",
         !isHero && !isQuiet && "nx-card",
         className,
       )}
     >
-      {/* Glow sutil — só no hero */}
+      {/* Glow sutil — só no hero, na cor do domínio */}
       {isHero && (
         <div
-          className="pointer-events-none absolute -top-12 -right-12 h-32 w-32 rounded-full bg-primary/10 blur-2xl"
+          className="pointer-events-none absolute -top-12 -right-12 h-40 w-40 rounded-full blur-3xl opacity-40"
+          style={{ backgroundColor: heroAccent }}
           aria-hidden
         />
       )}
