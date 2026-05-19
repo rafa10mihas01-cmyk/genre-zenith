@@ -422,12 +422,24 @@ Deno.serve(async (req) => {
         status = goingUp ? "promote" : "demote";
         targetPosition = zoneMiddle(bestZone);
 
-        // Regra dura: posições 1-2 só pra quem passou no floor de fachada
+        // Regra dura da fachada (pos 1-2):
+        //   • só rebaixa se a faixa for realmente lixo (pop < 40 E recorrência 0)
+        //   • caso contrário, fachada se mantém — só campanha GRANDE consegue reposicionar
+        //     (campanhas grandes já chegam aqui via protectedInfo, então não é decidido aqui)
         if (currentZone === "anchor" && !scores.anchorEligible) {
-          status = "demote";
-          targetPosition = zoneMiddle("premium");
-          reasons.push(`na fachada (#${pos + 1}) sem força pra sustentar`);
-          reasons.push(`popularity ${popularity ?? "—"}${artistPop != null ? ` · artista ${artistPop}` : ""} — fachada exige hit dominante`);
+          const isTrash = (popularity != null && popularity < 40) && recurrence === 0;
+          if (isTrash) {
+            status = "demote";
+            targetPosition = zoneMiddle("premium");
+            reasons.push(`na fachada (#${pos + 1}) sem força mínima — pop ${popularity ?? "—"} e zero recorrência no nicho`);
+            reasons.push("fachada exige hit dominante ou artista top do nicho");
+          } else {
+            // mantém na fachada: faixa não é ideal mas não é trash; só campanha grande move
+            status = "keep";
+            targetPosition = null;
+            reasons.push(`fachada preservada · pop ${popularity ?? "—"}${artistPop != null ? ` · artista ${artistPop}` : ""}`);
+            reasons.push("posição 1-2 só muda por campanha grande ou faixa sem força mínima");
+          }
         } else if (goingUp) {
           reasons.push(`função melhor em ${ZONE_LABELS[bestZone]} (score ${bestZoneScore})`);
           reasons.push(`hoje em ${ZONE_LABELS[currentZone]} (#${pos + 1}) — subir pra zona ${ZONE_LABELS[bestZone]}`);
