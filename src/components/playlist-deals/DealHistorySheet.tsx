@@ -623,13 +623,13 @@ export function DealHistorySheet({
             <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)} className={cn("flex-1 flex flex-col min-h-0", asPage && "space-y-4")}>
               <div className={cn(
                 asPage
-                  ? "px-0"
+                  ? "-mx-1 px-1 overflow-x-auto scrollbar-none"
                   : "px-3 sm:px-6 pt-3 border-b border-border shrink-0"
               )}>
                 <TabsList
                   className={cn(
                     asPage
-                      ? ""
+                      ? "inline-flex w-max"
                       : "bg-transparent p-0 h-auto gap-0 grid grid-cols-4 w-full sm:w-full",
                   )}
                 >
