@@ -348,17 +348,12 @@ export default function CuradorDetail() {
           )}
 
 
-          <Card>
-            <CardContent className="p-5">
-              <CuratorLibraryPanel
-                curator={resolvedCurator}
-                deals={curatorDeals}
-                balance={balance}
-                onAddPurchase={addCuratorPurchase}
-                flush
-              />
-            </CardContent>
-          </Card>
+          <CuratorLibraryPanel
+            curator={resolvedCurator}
+            deals={curatorDeals}
+            balance={balance}
+            onAddPurchase={addCuratorPurchase}
+          />
         </TabsContent>
 
 
