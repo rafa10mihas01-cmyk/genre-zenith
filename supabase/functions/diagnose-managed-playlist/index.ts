@@ -320,7 +320,7 @@ Deno.serve(async (req) => {
       artist_id: string | null;
     };
     const spotMeta = new Map<string, SpotMeta>();
-    const artistMeta = new Map<string, { popularity: number | null; followers: number | null }>();
+    const artistMeta = new Map<string, { popularity: number | null; followers: number | null; genres: string[] }>();
 
     if (trackIds.length > 0) {
       try {
@@ -358,6 +358,7 @@ Deno.serve(async (req) => {
             artistMeta.set(ar.id, {
               popularity: typeof ar.popularity === "number" ? ar.popularity : null,
               followers: ar.followers?.total ?? null,
+              genres: Array.isArray(ar.genres) ? ar.genres.map((g: string) => String(g).toLowerCase()) : [],
             });
           }
         }
@@ -365,6 +366,24 @@ Deno.serve(async (req) => {
         // segue sem metadados — classificador degrada gracefully
       }
     }
+
+    // Helper: avalia se um artista (pelos seus spotify.genres) pertence ao nicho da playlist.
+    // Retorna:
+    //   "match"     → tem ao menos 1 gênero compatível com o nicho
+    //   "off_niche" → tem gêneros mas nenhum bate com o nicho
+    //   "unknown"   → artista sem gêneros mapeados (não dá pra decidir)
+    function classifyArtistVsNiche(artistId: string | null): "match" | "off_niche" | "unknown" {
+      if (!artistId || nicheTerms.length === 0) return "unknown";
+      const meta = artistMeta.get(artistId);
+      if (!meta || !meta.genres || meta.genres.length === 0) return "unknown";
+      for (const g of meta.genres) {
+        for (const term of nicheTerms) {
+          if (g.includes(term) || term.includes(g)) return "match";
+        }
+      }
+      return "off_niche";
+    }
+
 
     // 4) Classificação por faixa — ZONAS EDITORIAIS
     //
