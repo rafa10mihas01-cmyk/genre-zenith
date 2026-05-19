@@ -108,10 +108,10 @@ export function FinanceiroTab({ deals }: Props) {
               <Wallet className="h-3.5 w-3.5" />
               Saldo financeiro
             </div>
-            <div className="mt-3 flex items-baseline gap-3 flex-wrap">
+            <div className="mt-2 flex items-baseline gap-3 flex-wrap">
               <span
                 className={cn(
-                  "text-4xl lg:text-5xl font-bold tabular-nums tracking-tight",
+                  "text-3xl lg:text-4xl font-bold tabular-nums tracking-tight",
                   saldoVirtual >= 0 ? "text-primary" : "text-amber-500",
                 )}
               >
