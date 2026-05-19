@@ -60,15 +60,15 @@ export function FinanceiroTab({ deals }: Props) {
 
   return (
     <div className="space-y-6">
-      <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <section className="grid grid-cols-2 md:grid-cols-4 gap-3 items-stretch">
         <KpiBig
-          tier="hero"
           icon={Wallet}
           label="Total comprado"
           value={fmtBRL(totals.totalSpent)}
           hint={`${formatNumber(totals.totalPlays)} plays`}
           domain="deals"
           loading={loading}
+          className="h-full"
         />
         <KpiBig
           icon={Target}
@@ -77,6 +77,7 @@ export function FinanceiroTab({ deals }: Props) {
           hint={`${deals.filter(d => !d.closed_at).length} deals abertos`}
           domain="campaigns"
           loading={loading}
+          className="h-full"
         />
         <KpiBig
           icon={TrendingUp}
@@ -86,15 +87,16 @@ export function FinanceiroTab({ deals }: Props) {
           tone={saldoVirtual >= 0 ? "success" : "warning"}
           domain="deals"
           loading={loading}
+          className="h-full"
         />
         <KpiBig
-          tier="quiet"
           icon={Receipt}
           label="CPP médio"
           value={fmtCpp(totals.globalCpp)}
           hint="Custo por play global"
           domain="playlists"
           loading={loading}
+          className="h-full"
         />
       </section>
 
