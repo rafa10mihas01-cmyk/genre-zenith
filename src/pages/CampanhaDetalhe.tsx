@@ -109,7 +109,7 @@ export default function CampanhaDetalhe() {
         kicker="Operação"
         icon={Target}
         title={camp.track_name}
-        subtitle={camp.artist ? `Acompanhar entrega de ${camp.artist}` : "Acompanhar entrega da campanha"}
+        subtitle={camp.artist ? `Ver entrega de ${camp.artist}` : "Ver entrega da campanha"}
         actions={
           <>
             <Button variant="outline" onClick={recalc} disabled={busy}>

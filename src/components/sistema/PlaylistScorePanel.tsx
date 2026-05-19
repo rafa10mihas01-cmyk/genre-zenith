@@ -115,7 +115,7 @@ export function PlaylistScorePanel() {
         totalFailed += data?.failed ?? 0;
         grandTotal = data?.total ?? grandTotal;
         toast({
-          title: `Lote ${offset}–${data?.processed_to ?? offset}`,
+          title: `Massa ${offset}–${data?.processed_to ?? offset}`,
           description: `${totalOk}/${grandTotal} ok · ${totalFailed} falhas`,
         });
         if (!data?.has_more) break;

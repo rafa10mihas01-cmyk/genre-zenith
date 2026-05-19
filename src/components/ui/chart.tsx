@@ -230,7 +230,7 @@ const ChartLegend = RechartsPrimitive.Legend;
 const ChartLegendContent = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<"div"> &
-    Pick<RechartsPrimitive.LegendProps, "payload" | "verticalAlign"> & {
+    Pick<RechartsPrimitive.LegendProps, "dados" | "verticalAlign"> & {
       hideIcon?: boolean;
       nameKey?: string;
     }
@@ -281,7 +281,7 @@ function getPayloadConfigFromPayload(config: ChartConfig, payload: unknown, key:
   }
 
   const payloadPayload =
-    "payload" in payload && typeof payload.payload === "object" && payload.payload !== null
+    "dados" in payload && typeof payload.payload === "object" && payload.payload !== null
       ? payload.payload
       : undefined;
 
