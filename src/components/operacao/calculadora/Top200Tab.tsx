@@ -104,49 +104,51 @@ export function Top200Tab({ onPick }: { onPick?: (streamsDay: number, position: 
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <h3 className="text-sm font-semibold">Top 200 Brasil</h3>
           <p className="text-xs text-muted-foreground">Fonte: kworb · Clique em "Usar como meta" pra herdar streams/dia da posição.</p>
         </div>
-        {headerActions}
+        <div className="shrink-0">{headerActions}</div>
       </div>
 
       <div className="rounded-2xl border border-border overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/40 text-xs uppercase tracking-wider text-muted-foreground">
-            <tr>
-              <th className="px-3 py-2 text-left w-12">#</th>
-              <th className="px-3 py-2 text-left">Artista · Faixa</th>
-              <th className="px-3 py-2 text-right">Streams/dia</th>
-              <th className="px-3 py-2"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(r => (
-              <tr key={r.position} className="border-t border-border hover:bg-accent/20">
-                <td className="px-3 py-2 font-medium tabular-nums">{r.position}</td>
-                <td className="px-3 py-2 min-w-0">
-                  <div className="truncate">
-                    <span className="font-medium">{r.artist ?? "—"}</span>
-                    <span className="text-muted-foreground"> · {r.track ?? "—"}</span>
-                  </div>
-                </td>
-                <td className="px-3 py-2 text-right tabular-nums">{formatInt(r.streams_day)}</td>
-                <td className="px-3 py-2 text-right">
-                  {onPick && (
-                    <button
-                      onClick={() => onPick(r.streams_day, r.position)}
-                      className="text-xs text-primary hover:underline"
-                    >
-                      Usar como meta →
-                    </button>
-                  )}
-                </td>
+        <div className="overflow-x-auto nx-scroll">
+          <table className="w-full min-w-[560px] text-sm">
+            <thead className="bg-muted/40 text-xs uppercase tracking-wider text-muted-foreground">
+              <tr>
+                <th className="px-3 py-2 text-left w-12">#</th>
+                <th className="px-3 py-2 text-left">Artista · Faixa</th>
+                <th className="px-3 py-2 text-right whitespace-nowrap">Streams/dia</th>
+                <th className="px-3 py-2"></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {rows.map(r => (
+                <tr key={r.position} className="border-t border-border hover:bg-accent/20">
+                  <td className="px-3 py-2 font-medium tabular-nums">{r.position}</td>
+                  <td className="px-3 py-2 min-w-0 max-w-[280px]">
+                    <div className="truncate">
+                      <span className="font-medium">{r.artist ?? "—"}</span>
+                      <span className="text-muted-foreground"> · {r.track ?? "—"}</span>
+                    </div>
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums whitespace-nowrap">{formatInt(r.streams_day)}</td>
+                  <td className="px-3 py-2 text-right whitespace-nowrap">
+                    {onPick && (
+                      <button
+                        onClick={() => onPick(r.streams_day, r.position)}
+                        className="text-xs text-primary hover:underline"
+                      >
+                        Usar como meta →
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
