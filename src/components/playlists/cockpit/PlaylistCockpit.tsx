@@ -590,6 +590,9 @@ function CoverCard({ managedId, currentCover, leaders, spotifyPlaylistId }: {
   const [localCover, setLocalCover] = useState<string | null>(currentCover);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [pendingPreview, setPendingPreview] = useState<string | null>(null);
+  const [selectedLeader, setSelectedLeader] = useState<typeof leaders[number] | null>(null);
+
+  useEffect(() => { setLocalCover(currentCover); }, [currentCover]);
 
   const applyLeaderCover = async (leader: { spotify_playlist_id: string; cover_url: string | null; name: string }) => {
     if (!leader.cover_url) return;
@@ -601,6 +604,7 @@ function CoverCard({ managedId, currentCover, leaders, spotifyPlaylistId }: {
       if (error) throw error;
       if (!data?.ok) throw new Error(data?.error || "falha ao aplicar capa");
       setLocalCover(data.cover_url ?? leader.cover_url);
+      setSelectedLeader(null);
       toast({
         title: data.confirmed ? "Capa aplicada no Spotify" : "Capa enviada ao Spotify",
         description: data.confirmed ? `Usando a capa de "${leader.name}".` : "O Spotify aceitou a capa, mas a CDN ainda pode levar alguns segundos para exibir.",
@@ -623,6 +627,7 @@ function CoverCard({ managedId, currentCover, leaders, spotifyPlaylistId }: {
       return;
     }
     if (pendingPreview) URL.revokeObjectURL(pendingPreview);
+    setSelectedLeader(null);
     setPendingFile(file);
     setPendingPreview(URL.createObjectURL(file));
   };
@@ -631,6 +636,15 @@ function CoverCard({ managedId, currentCover, leaders, spotifyPlaylistId }: {
     if (pendingPreview) URL.revokeObjectURL(pendingPreview);
     setPendingFile(null);
     setPendingPreview(null);
+    setSelectedLeader(null);
+  };
+
+  const selectLeaderCover = (leader: typeof leaders[number]) => {
+    if (!leader.cover_url) return;
+    if (pendingPreview) URL.revokeObjectURL(pendingPreview);
+    setPendingFile(null);
+    setPendingPreview(null);
+    setSelectedLeader(leader);
   };
 
   const applyPending = async () => {
@@ -663,6 +677,11 @@ function CoverCard({ managedId, currentCover, leaders, spotifyPlaylistId }: {
       setUploading(false);
     }
   };
+
+  const isCoverApplying = uploading || applyingLeader !== null;
+  const selectedCoverPreview = pendingPreview ?? selectedLeader?.cover_url ?? null;
+  const selectedCoverName = pendingFile?.name ?? selectedLeader?.name ?? "";
+  const selectedCoverHint = pendingFile ? "Imagem escolhida do seu computador." : "Capa selecionada dos líderes do nicho.";
 
   return (
     <Card className="p-4 space-y-4">
