@@ -7,7 +7,7 @@ const items = [
   { to: "/", label: "Início", icon: Home, end: true },
   { to: "/curadores", label: "Curador", icon: Users },
   { to: "/campanhas", label: "Campanha", icon: Megaphone },
-  { to: "/playlist-deals", label: "Playlist", icon: ListMusic },
+  { to: "/catalogo", label: "Playlist", icon: ListMusic },
   { to: "/performance", label: "Analytics", icon: BarChart3 },
 ];
 
