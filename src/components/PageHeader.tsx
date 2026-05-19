@@ -1,5 +1,7 @@
 import { cn } from "@/lib/utils";
 import { ReactNode } from "react";
+import { PageManual } from "@/components/PageManual";
+
 
 /**
  * PageHeader — padrão GLOBAL e OBRIGATÓRIO de cabeçalho de página.
@@ -31,8 +33,15 @@ export interface PageHeaderProps {
   actions?: ReactNode;
   /** Cor de domínio: barra à esquerda do título + ícone do kicker tingido. */
   domain?: PageDomain;
+  /**
+   * Chave do manual contextual desta página (ver src/content/pageManuals.ts).
+   * Quando definida, mostra um botão "?" ao lado do título que abre um
+   * painel lateral com o manual.
+   */
+  manualKey?: string;
   className?: string;
 }
+
 
 export function PageHeader({
   title,
@@ -41,8 +50,10 @@ export function PageHeader({
   icon: Icon,
   actions,
   domain,
+  manualKey,
   className,
 }: PageHeaderProps) {
+
   const domainColor = domain ? `hsl(var(--domain-${domain}))` : undefined;
   return (
     <div className="h-[88px] shrink-0 lg:h-[120px] -mt-4 md:-mt-6 lg:-mt-8 -mb-4 md:-mb-5 lg:-mb-6">
@@ -79,10 +90,16 @@ export function PageHeader({
               {kicker}
             </div>
           )}
-          <h1 className="text-[19px] sm:text-2xl lg:text-3xl font-semibold tracking-tight leading-tight truncate min-w-0">
-            {title}
-          </h1>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <h1 className="text-[19px] sm:text-2xl lg:text-3xl font-semibold tracking-tight leading-tight truncate min-w-0">
+              {title}
+            </h1>
+            {manualKey && (
+              <PageManual manualKey={manualKey} accentColor={domainColor} />
+            )}
+          </div>
           <p className="block text-[12px] lg:text-sm text-muted-foreground max-w-2xl truncate lg:whitespace-normal">{subtitle}</p>
+
         </div>
         {actions && (
           <div

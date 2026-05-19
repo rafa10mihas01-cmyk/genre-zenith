@@ -102,6 +102,8 @@ export default function Campanhas() {
         title="Campanhas"
         subtitle="Metas e distribuição"
         domain="campaigns"
+        manualKey="campanhas"
+
         actions={
           tab === "lista" ? (
             <Button variant="outline" onClick={recalcAll} disabled={recalcing}>

@@ -286,6 +286,8 @@ export default function PlaylistDeals() {
         title="Playlist Deals"
         subtitle="Transações ativas"
         domain="deals"
+        manualKey="deals"
+
         actions={
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
