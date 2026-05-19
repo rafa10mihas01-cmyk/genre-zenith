@@ -394,18 +394,18 @@ function ConcentrationCard({ s, loading }: { s: Snapshot | null; loading: boolea
         <div className="text-xs text-muted-foreground py-4">Nenhum deal aberto.</div>
       ) : (
         <>
-          <div>
+          <div className="flex-1 flex flex-col items-center justify-center text-center rounded-xl border border-border/60 bg-muted/10 py-6 px-4 gap-2">
             <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Maior curador</div>
-            <div className="text-lg font-bold leading-tight mt-1 truncate">{top.name}</div>
-            <div className={cn("text-2xl font-bold tabular-nums mt-2", risk ? "text-destructive" : "text-foreground")}>
+            <div className="text-lg font-bold leading-tight truncate max-w-full">{top.name}</div>
+            <div className={cn("text-4xl font-bold tabular-nums mt-1", risk ? "text-destructive" : "text-foreground")}>
               {share.toFixed(0)}%
             </div>
-            <div className="text-[11px] text-muted-foreground mt-0.5">
+            <div className="text-[11px] text-muted-foreground">
               R$ {formatNumber(top.valor)} de R$ {formatNumber(s?.dealsValor)}
             </div>
           </div>
           {risk && (
-            <div className="text-xs text-destructive flex items-center gap-1.5">
+            <div className="text-xs text-destructive flex items-center justify-center gap-1.5 text-center">
               <AlertTriangle className="h-3.5 w-3.5" />
               <span>Risco alto — diversifique a base de curadores</span>
             </div>
