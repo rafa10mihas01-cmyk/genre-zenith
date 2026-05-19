@@ -190,7 +190,7 @@ export function ProactiveAlertsCard() {
           <CheckCircle2 className="h-4 w-4" /> Tudo sob controle
         </div>
       ) : (
-        <ul className="space-y-1.5">
+        <ul className="space-y-1.5 max-h-[228px] overflow-y-auto pr-1">
           {alerts.map((a) => {
             const Icon =
               a.kind === "trust_drop"
