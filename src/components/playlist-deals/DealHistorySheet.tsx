@@ -143,15 +143,15 @@ function Kpi({
       ? "text-destructive"
       : "text-foreground";
   return (
-    <div className="rounded-2xl bg-card border border-border p-5">
+    <div className="rounded-2xl bg-card border border-border p-4 sm:p-5">
       <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
         {label}
       </div>
-      <div className={cn("text-[28px] font-semibold leading-tight mt-2 tabular-nums", toneCls)}>
+      <div className={cn("text-xl sm:text-[28px] font-semibold leading-tight mt-2 tabular-nums whitespace-nowrap overflow-hidden text-ellipsis", toneCls)}>
         {value}
       </div>
       {hint && (
-        <div className="text-xs text-muted-foreground mt-1.5 truncate">{hint}</div>
+        <div className="text-[11px] sm:text-xs text-muted-foreground mt-1.5 truncate">{hint}</div>
       )}
     </div>
   );
@@ -623,13 +623,13 @@ export function DealHistorySheet({
             <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)} className={cn("flex-1 flex flex-col min-h-0", asPage && "space-y-4")}>
               <div className={cn(
                 asPage
-                  ? "px-0"
+                  ? "-mx-1 px-1 overflow-x-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]"
                   : "px-3 sm:px-6 pt-3 border-b border-border shrink-0"
               )}>
                 <TabsList
                   className={cn(
                     asPage
-                      ? ""
+                      ? "inline-flex w-max"
                       : "bg-transparent p-0 h-auto gap-0 grid grid-cols-4 w-full sm:w-full",
                   )}
                 >
@@ -730,10 +730,10 @@ export function DealHistorySheet({
                         </div>
                       }
                     >
-                      <div className="grid grid-cols-3 gap-3">
-                        <div>
+                      <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                        <div className="min-w-0">
                           <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Total</div>
-                          <div className="text-2xl font-semibold text-primary tabular-nums leading-tight mt-1">
+                          <div className="text-lg sm:text-2xl font-semibold text-primary tabular-nums leading-tight mt-1 whitespace-nowrap overflow-hidden text-ellipsis">
                             {fmtCompact(
                               perfWindow === "24h"
                                 ? todayBreakdown.total_24h
@@ -744,18 +744,18 @@ export function DealHistorySheet({
                           </div>
                           <div className="text-[10px] text-muted-foreground mt-0.5">janela {perfWindow}</div>
                         </div>
-                        <div>
+                        <div className="min-w-0">
                           <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Curador</div>
-                          <div className="text-2xl font-semibold text-success tabular-nums leading-tight mt-1">
+                          <div className="text-lg sm:text-2xl font-semibold text-success tabular-nums leading-tight mt-1 whitespace-nowrap overflow-hidden text-ellipsis">
                             {fmtCompact(curatorWindowTotal)}
                           </div>
                           <div className="text-[10px] text-muted-foreground tabular-nums mt-0.5">
                           {curatorBreakdownRows.length} detectada{curatorBreakdownRows.length === 1 ? "" : "s"} · {curatorTotal} cadastrada{curatorTotal === 1 ? "" : "s"}
                           </div>
                         </div>
-                        <div>
+                        <div className="min-w-0">
                           <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Algoritmo</div>
-                          <div className="text-2xl font-semibold text-foreground tabular-nums leading-tight mt-1">
+                          <div className="text-lg sm:text-2xl font-semibold text-foreground tabular-nums leading-tight mt-1 whitespace-nowrap overflow-hidden text-ellipsis">
                             {fmtCompact(algoWindowTotal)}
                           </div>
                           <div className="text-[10px] text-muted-foreground tabular-nums mt-0.5">
