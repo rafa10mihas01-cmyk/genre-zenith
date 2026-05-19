@@ -24,19 +24,20 @@ import { CloseDealDialog } from "@/components/playlist-deals/CloseDealDialog";
 import { FinanceiroTab } from "@/components/playlist-deals/FinanceiroTab";
 
 
-type DealsTab = "active" | "done" | "ledger" | "all";
+type DealsTab = "active" | "running" | "waiting" | "done" | "ledger" | "all";
 
 const TABS = [
-  { id: "active"   as const, label: "Ativos",      icon: Activity },
-  { id: "done"     as const, label: "Concluídos",  icon: CheckCircle2 },
-  { id: "all"      as const, label: "Todos",       icon: Layers },
+  { id: "active"   as const, label: "Ativos",            icon: Activity },
+  { id: "running"  as const, label: "Rodando",           icon: Play },
+  { id: "waiting"  as const, label: "Aguardando início", icon: Hourglass },
+  { id: "done"     as const, label: "Concluídos",        icon: CheckCircle2 },
+  { id: "all"      as const, label: "Todos",             icon: Layers },
 ];
 
 export default function PlaylistDeals() {
   const [tabRaw, setTab] = useScreenField<DealsTab>("/playlist-deals", "tab", "active");
   // Aba "ledger" foi extraída para /financeiro — normaliza pra "active" se persistido.
   const tab: DealsTab = tabRaw === "ledger" ? "active" : tabRaw;
-  const [activeSubFilter, setActiveSubFilter] = useScreenField<"all" | "running" | "waiting">("/playlist-deals", "activeSub", "all");
   const [artistFilter, setArtistFilter] = useScreenField<string>("/playlist-deals", "artist", "");
   const [newOpen, setNewOpen] = useState(false);
   const [logDeal, setLogDeal] = useState<CuratorDeal | null>(null);
