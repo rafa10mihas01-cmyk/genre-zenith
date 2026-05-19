@@ -1,130 +1,193 @@
 
-# Refatoração da Engine — ECO como motor único
+# Refino editorial via IA — diagnose-managed-playlist
 
-## Princípio
+## Objetivo
 
-> **A operação gera a curva. A curva não gera a operação.**
+Trocar a geração **mecânica** de `name_suggestion` e `suggested_description` por uma camada **editorial inteligente** (Lovable AI / Gemini Flash), mantendo todo o resto (score, keywords, benchmark, cooldowns, justificativas, caps) intacto. O algoritmo atual vira **baseline + fallback automático**.
 
-Hoje a Calculadora (`campaignEngine.ts`) impõe uma curva gaussiana com pico tardio. ECO entrega platô natural. Externo segue a gaussiana. Bot ignora cronograma. Vamos eliminar essa divergência sem tocar UI.
+## Escopo
 
----
+**Único arquivo alterado:** `supabase/functions/diagnose-managed-playlist/index.ts`
 
-## Etapas
+**Nada muda em:**
+- Frontend (`PlaylistCockpit`, painéis de diagnóstico) — continua lendo `name_suggestion` e `raw.suggested_description` como hoje
+- Schema do banco — nada de migration
+- Cooldowns, score, keywords, modos, justificativas
+- Lógica de faixas, substituições, capa
 
-### Fase 1 — Criar o motor único `playlistGrowthEngine`
+## Como funciona
 
-Novo arquivo: `src/lib/playlistGrowthEngine.ts`
-
-Função principal:
+```text
+┌────────────────────────────────────────────────────────┐
+│ Algoritmo atual (linhas 844-885)                       │
+│  → calcula keywords presentes/faltando                 │
+│  → gera nameSuggestion (concat MAIÚSCULO)              │
+│  → gera suggestedDescription (template do nicho)       │
+│  Esses viram BASELINE / FALLBACK                       │
+└────────────────────┬───────────────────────────────────┘
+                     │
+                     ▼
+┌────────────────────────────────────────────────────────┐
+│ NOVA camada: generateEditorialCopy()                   │
+│  → monta contexto rico (nome atual, nicho, keywords,   │
+│    artistas, top recorrentes, benchmark, descrição)    │
+│  → chama Lovable AI Gateway (gemini-3-flash-preview)   │
+│  → structured output: { titles[3], descriptions[2],    │
+│    reasoning }                                         │
+│  → timeout 12s, try/catch silencioso                   │
+└────────────────────┬───────────────────────────────────┘
+                     │
+            ┌────────┴────────┐
+            ▼                 ▼
+        SUCESSO            FALHA (timeout, 402, 429, parse)
+            │                 │
+            ▼                 ▼
+   name_suggestion =     name_suggestion =
+   ai.titles[0]          nameSuggestion (algoritmo)
+   raw.ai_titles =       raw.ai_used = false
+   ai.titles             raw.ai_error = motivo
+   raw.ai_reasoning
+   raw.ai_used = true
 ```
-buildDailyPlateau({
-  totalStreams, days, source: "eco" | "external",
-  rampDays?, weekdayVariation?, reportingDelay?, startDay?
-}): DailyPoint[]
+
+## Detalhe técnico
+
+### 1. Novo helper (topo do arquivo, após `uniq`)
+
+```ts
+const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+
+async function generateEditorialCopy(ctx: {
+  currentName: string;
+  currentDescription: string | null;
+  genreName: string | null;
+  topKeywords: string[];
+  missingKeywords: string[];
+  topArtists: string[];
+  topRecurringTracks: { title: string; artist: string }[];
+  benchmarkSize: number | null;
+  currentSize: number;
+  competitors: { name: string }[];
+}): Promise<{
+  titles: string[];
+  descriptions: string[];
+  reasoning: string;
+} | null> {
+  if (!LOVABLE_API_KEY) return null;
+  // monta system + user prompt
+  // POST https://ai.gateway.lovable.dev/v1/chat/completions
+  // model: google/gemini-3-flash-preview
+  // response_format: { type: "json_object" }
+  // AbortController com timeout 12s
+  // retorna null em qualquer erro
+}
 ```
 
-Características fixas (assinatura ECO):
-- **Ramp inicial**: 3-5 dias (curva log/sqrt), começa em ~20% e sobe até 100% do platô
-- **Platô diário**: `totalStreams / days_efetivos` (sem pico)
-- **Weekday variation**: ±10-15% (seg-qui ligeiramente acima, sex-dom abaixo)
-- **Reporting delay**: 2 dias para externo, 0 para eco
-- **Sem decay teatral**: cauda mantém ~85% do platô (queda só por fim de cronograma)
+**Prompt (resumo):**
+- **System:** "Você é um editor musical sênior do Spotify especializado no nicho {genreName}. Escreva como um curador humano: natural, contextual, com identidade. NÃO faça SEO agressivo, NÃO use MAIÚSCULAS artificiais, NÃO use emojis, NÃO use linguagem motivacional. Distribua keywords naturalmente. Soe como playlist editorial real do Spotify."
+- **User:** contexto estruturado (nome, nicho, keywords prioritárias, artistas dominantes, top faixas recorrentes, benchmark de tamanho, concorrentes top, descrição atual)
+- **Output esperado (JSON):**
+  ```json
+  {
+    "titles": ["...", "...", "..."],
+    "descriptions": ["...", "..."],
+    "reasoning": "curto, 1-2 frases: como cobre as keywords + aproxima do padrão do nicho"
+  }
+  ```
 
-Esse arquivo vira a **única fonte matemática** de distribuição temporal.
+### 2. Chamada (entre linhas 885 e 1067)
 
-### Fase 2 — Refatorar `campaignEngine.ts` (Calculadora)
+Após o cálculo do algoritmo (`nameSuggestion`, `suggestedDescription`), antes dos cooldowns:
 
-Remover `playlistFactor()` (gaussiana). Substituir `buildCurve()` por:
-
+```ts
+let aiCopy: Awaited<ReturnType<typeof generateEditorialCopy>> = null;
+let aiError: string | null = null;
+try {
+  aiCopy = await generateEditorialCopy({
+    currentName: pl.name,
+    currentDescription: pl.description ?? null,
+    genreName: model?.insights?.nicho_nome ?? null,
+    topKeywords,
+    missingKeywords: missing,
+    topArtists: genreArtistsTop.slice(0, 8).map(a => a.artist),
+    topRecurringTracks: topRecurringRaw.slice(0, 8).map(t => ({
+      title: t.title ?? "",
+      artist: t.artist ?? "",
+    })),
+    benchmarkSize: benchmark?.tracks_p50 ?? null,
+    currentSize: totalTracks,
+    competitors: competitors.slice(0, 6).map(c => ({ name: c.name })),
+  });
+} catch (e) {
+  aiError = String((e as Error).message);
+}
 ```
-1. Simular eco: para cada playlist alocada, chamar buildDailyPlateau(source="eco")
-2. Simular externo: para cada curador alocado, chamar buildDailyPlateau(source="external")
-3. Somar dia-a-dia → curva final
+
+### 3. Aplicação respeitando cooldowns
+
+```ts
+const algoName = nameSuggestion;            // baseline existente
+const algoDesc = suggestedDescription;      // baseline existente
+
+const editorialName = aiCopy?.titles?.[0] ?? algoName;
+const editorialDesc = aiCopy?.descriptions?.[0] ?? algoDesc;
+
+const finalNameSuggestion = hasCooldown("structural") ? null : editorialName;
+const finalDescriptionSuggestion = hasCooldown("description") ? null : editorialDesc;
 ```
 
-A Calculadora **não inventa mais curva** — ela soma o que a operação real vai entregar. Mantém a mesma interface pública (`calcCampaign`, `CampaignResult`, `CurvaPonto`) para não quebrar UI.
+### 4. Persistência no `raw`
 
-Pico, média, inércia continuam sendo retornados, mas derivados do agregado real.
+Adicionar ao bloco `raw: { ... }` (linha 1104):
 
-### Fase 3 — Refatorar Externo (`buildExternalPlan`)
+```ts
+ai_used: !!aiCopy,
+ai_error: aiError,
+ai_titles: aiCopy?.titles ?? null,           // 3 opções alternativas
+ai_descriptions: aiCopy?.descriptions ?? null, // 2 opções alternativas
+ai_reasoning: aiCopy?.reasoning ?? null,
+algo_name_baseline: algoName,                // pra debug/comparação
+algo_description_baseline: algoDesc,
+```
 
-Hoje usa `playlistFactor`. Trocar por `buildDailyPlateau(source="external")`:
-- ramp 3-5 dias
-- platô estável
-- weekday variation
-- delay 2 dias mantido
+## Regras de qualidade do prompt
 
-Cada curador vira fonte contínua, não pico explosivo.
+1. **Manter keywords** — mas distribuídas naturalmente, sem MAIÚSCULO, sem concatenação
+2. **Soar editorial** — referência mental: "RapCaviar", "Esquenta Sertanejo", "Fluxo das Quebradas"
+3. **Sem template** — proibir "as N mais tocadas", "atualizada toda semana", "playlist com as melhores"
+4. **Sem IAzice** — proibir emoji, "🎵", "Descubra o melhor de", "Embarque numa jornada"
+5. **Descrição curta** — máx ~180 chars (limite real do Spotify é 300, mas curador bom escreve enxuto)
+6. **PT-BR** sempre
 
-### Fase 4 — Unificar ECO (`buildEcoPlaylistPlan` em `campaignOperationalPlan.ts`)
+## Erros tratados (fallback automático)
 
-O modelo eco atual já está correto na forma, mas tem lógica própria. Vamos:
-- Manter `POSITION_PCT` e tier-based allocation (capacity por playlist é decisão correta dele)
-- Substituir o ramp interno e weekday flat por chamada ao mesmo `buildDailyPlateau(source="eco")` para a distribuição temporal por playlist
+| Erro | Comportamento |
+|---|---|
+| `LOVABLE_API_KEY` ausente | Usa algoritmo |
+| Timeout (12s) | Usa algoritmo |
+| 429 (rate limit) | Usa algoritmo, log no `raw.ai_error` |
+| 402 (créditos) | Usa algoritmo, log no `raw.ai_error` |
+| JSON inválido | Usa algoritmo |
+| `titles[]` vazio | Usa algoritmo só pra título |
 
-Resultado: eco e externo usam a **mesma assinatura temporal**, mudando apenas parâmetros.
+Diagnóstico **nunca falha** por causa da IA.
 
-### Fase 5 — Bot respeita cronograma
+## Custo
 
-`bot-execution-queue/index.ts` e `execution-planner/index.ts` hoje adicionam tudo. Mudanças:
+~1 chamada Gemini Flash por diagnóstico (~500-800 tokens input, ~200 output). Diagnóstico não é frequente (sob demanda + cron). Custo desprezível.
 
-1. `execution-planner` passa a filtrar allocations por `start_day` (não enfileira o que ainda não chegou)
-2. Adicionar coluna `start_day` no filtro de candidates:
-   ```
-   campaign_started_at + start_day_days <= now()
-   ```
-3. Respeitar `daily_cap` por playlist (se existir na allocation) — não enfileirar mais ADDs do que o cap permite por dia
+## Verificação
 
-Sem nova UI, sem nova tabela — só usa campos já existentes (`start_day`, `daily_cap`).
+1. Após deploy, abrir uma playlist em `/playlists/:id`
+2. Clicar "Diagnóstico"
+3. Verificar:
+   - `name_suggestion` não tem MAIÚSCULAS no meio
+   - Descrição não começa com "As N mais tocadas"
+   - `raw.ai_used = true` no console (debug)
+4. Testar fallback: temporariamente desligar key → diagnóstico continua funcionando com texto antigo
 
-### Fase 6 — Snapshot e Monitoring convergem
+## Fora de escopo
 
-- `campaignSnapshot.ts` já congela a `curva` retornada pela Calculadora — automaticamente passa a ter assinatura ECO sem mudança extra
-- `CampaignMonitoring` continua comparando real vs snapshot — agora os dois falam a mesma língua
-
----
-
-## Arquivos tocados
-
-**Novos:**
-- `src/lib/playlistGrowthEngine.ts` — motor único
-
-**Modificados (lógica, não UI):**
-- `src/lib/campaignEngine.ts` — remove gaussiana, deriva da operação
-- `src/lib/campaignOperationalPlan.ts` — eco usa motor único
-- `supabase/functions/execution-planner/index.ts` — respeita start_day + daily_cap
-- (se houver) função que monta `buildExternalPlan` — usa motor único
-
-**Intocados:**
-- Todos os componentes em `src/components/**`
-- Todas as páginas
-- `campaignSnapshot.ts` (só consome o resultado novo)
-- Schema do banco
-
----
-
-## Validação
-
-1. Rodar `calcCampaign` com inputs típicos antes/depois — confirmar que:
-   - sem pico tardio
-   - ramp 3-5 dias visível
-   - platô estável
-   - cauda sem decay agressivo
-2. Comparar curva projetada vs real de uma campanha ativa — divergência deve cair
-3. Spot-check no bot: jobs respeitam `start_day`
-
----
-
-## Fora de escopo (não fazemos agora)
-
-- Redesign visual da Calculadora ou Monitoring
-- Mudança no fluxo de fechamento de campanha
-- Novas tabelas, novas migrations de schema
-- Mudança em RLS, auth, ou contratos do bot VPS
-- Refatorar os 7 motores de score (fica pra fase futura, já está no AUDIT_04)
-
----
-
-## Resultado
-
-Uma única assinatura matemática (ECO) propaga por: Calculadora → Snapshot → Eco → Externo → Bot → Monitoring. O cliente vê o que vai acontecer. A operação entrega o que foi mostrado. Sem picos artificiais, sem divergência.
+- Mudar UI pra mostrar 3 opções de título (`ai_titles[]` fica disponível em `raw` pra próximo passo, se quiser depois)
+- Mudar tabela `playlist_diagnoses` (alternativas vivem em `raw` JSONB)
+- Aplicar IA em capa, faixas, ou outros campos
