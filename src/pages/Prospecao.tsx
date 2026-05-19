@@ -68,9 +68,10 @@ export default function Prospecao() {
 
       <PageContainer>
 
-      {/* KPIs — padrão Comunidade/Operação (sempre acima das tabs) */}
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* KPIs — hierarquia cockpit: hero (Curadores) + secundários + quiet (derivada) */}
+      <section className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <KpiBig
+          tier="hero"
           icon={Users}
           label="Curadores"
           value={formatNumber(kpis.curadores)}
@@ -95,6 +96,7 @@ export default function Prospecao() {
           loading={loading}
         />
         <KpiBig
+          tier="quiet"
           icon={TrendingUp}
           label="Ticket médio"
           value={formatBRL(kpis.ticket)}
@@ -103,6 +105,7 @@ export default function Prospecao() {
           loading={loading}
         />
       </section>
+
 
       {/* Segmento de alto nível */}
       <div className="sticky top-0 z-30 -mt-px bg-background/95 supports-[backdrop-filter]:bg-background/80 backdrop-blur-md border-b border-border -mx-4 md:-mx-6">
