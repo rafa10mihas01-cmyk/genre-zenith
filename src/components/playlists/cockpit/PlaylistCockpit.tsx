@@ -606,10 +606,18 @@ function IdentityField({ label, field, managedId, current, suggestion, score, on
   );
 }
 
-function CoverCard({ managedId, currentCover, leaders, spotifyPlaylistId }: {
+type CoverReference = {
+  id: string;
+  name: string;
+  subtitle?: string;
+  cover_url: string | null;
+  external_url?: string | null;
+};
+
+function CoverCard({ managedId, currentCover, references, spotifyPlaylistId }: {
   managedId: string;
   currentCover: string | null;
-  leaders: { spotify_playlist_id: string; name: string; followers: number; cover_url: string | null }[];
+  references: CoverReference[];
   spotifyPlaylistId: string;
 }) {
   const [uploading, setUploading] = useState(false);
@@ -617,7 +625,7 @@ function CoverCard({ managedId, currentCover, leaders, spotifyPlaylistId }: {
   const [localCover, setLocalCover] = useState<string | null>(currentCover);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [pendingPreview, setPendingPreview] = useState<string | null>(null);
-  const [selectedLeader, setSelectedLeader] = useState<typeof leaders[number] | null>(null);
+  const [selectedLeader, setSelectedLeader] = useState<CoverReference | null>(null);
 
   useEffect(() => { setLocalCover(currentCover); }, [currentCover]);
 
