@@ -115,45 +115,43 @@ export default function Campanhas() {
       />
 
       <PageContainer>
-        {/* KPIs globais — hierarquia cockpit: hero (Meta) + secundários + quiet (derivada) */}
-        {tab !== "financeiro" && (
-          <section className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
-            <KpiBig
-              tier="hero"
-              icon={Target}
-              label="Meta total"
-              value={kpis.goal.toLocaleString("pt-BR")}
-              hint="Plays planejados"
-              domain="campaigns"
-              loading={loading}
-            />
-            <KpiBig
-              icon={Megaphone}
-              label="Ativas"
-              value={kpis.activeCount.toLocaleString("pt-BR")}
-              hint="Em execução agora"
-              domain="campaigns"
-              loading={loading}
-            />
-            <KpiBig
-              icon={CheckCircle2}
-              label="Entregue"
-              value={kpis.delivered.toLocaleString("pt-BR")}
-              hint="Plays já contabilizados"
-              domain="deals"
-              loading={loading}
-            />
-            <KpiBig
-              tier="quiet"
-              icon={Percent}
-              label="Cumprimento médio"
-              value={`${kpis.pct}%`}
-              hint="Entregue ÷ meta"
-              domain="playlists"
-              loading={loading}
-            />
-          </section>
-        )}
+        {/* KPIs globais — sempre visíveis pra manter padrão entre abas */}
+        <section className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+          <KpiBig
+            tier="hero"
+            icon={Target}
+            label="Meta total"
+            value={kpis.goal.toLocaleString("pt-BR")}
+            hint="Plays planejados"
+            domain="campaigns"
+            loading={loading}
+          />
+          <KpiBig
+            icon={Megaphone}
+            label="Ativas"
+            value={kpis.activeCount.toLocaleString("pt-BR")}
+            hint="Em execução agora"
+            domain="campaigns"
+            loading={loading}
+          />
+          <KpiBig
+            icon={CheckCircle2}
+            label="Entregue"
+            value={kpis.delivered.toLocaleString("pt-BR")}
+            hint="Plays já contabilizados"
+            domain="deals"
+            loading={loading}
+          />
+          <KpiBig
+            tier="quiet"
+            icon={Percent}
+            label="Cumprimento médio"
+            value={`${kpis.pct}%`}
+            hint="Entregue ÷ meta"
+            domain="playlists"
+            loading={loading}
+          />
+        </section>
 
 
         <div className="flex items-center gap-1 border-b border-border mb-6 overflow-x-auto scrollbar-none -mx-4 px-4 lg:mx-0 lg:px-0">
