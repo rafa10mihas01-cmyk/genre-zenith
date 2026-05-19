@@ -145,6 +145,17 @@ export function SpotifyAppsManager({ onChange, onConnectAccount }: { onChange?: 
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
+                  {onConnectAccount && a.status === "active" && !full && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => onConnectAccount(a.id, true)}
+                      className="h-8 text-xs gap-1.5 border-primary/40 text-primary hover:bg-primary/10 hover:text-primary"
+                      title={`Conectar nova conta neste app (encerra a sessão Spotify atual e abre o login da próxima conta no app "${a.name}")`}
+                    >
+                      <LinkIcon className="h-3.5 w-3.5" /> Conectar conta
+                    </Button>
+                  )}
                   <Button size="sm" variant="ghost" onClick={() => setEditing(a)} className="h-8 w-8 p-0" title="Editar">
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
