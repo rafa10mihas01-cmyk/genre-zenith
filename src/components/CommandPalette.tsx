@@ -77,7 +77,7 @@ export function CommandPalette({
           </CommandItem>
           <CommandItem onSelect={() => go("/deals")}>
             <Handshake />
-            <span>Playlist Deals</span>
+            <span>Negociações</span>
             <CommandShortcut>G D</CommandShortcut>
           </CommandItem>
           <CommandItem onSelect={() => go("/deals?tab=library")}>
