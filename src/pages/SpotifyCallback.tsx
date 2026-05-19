@@ -166,7 +166,9 @@ export default function SpotifyCallback() {
                 Tudo pronto, {result.display_name ?? "bem-vindo"}!
               </h1>
               <p className="text-muted-foreground mb-2">
-                Sua conta Spotify foi conectada e você já está autenticado.
+                {localStorage.getItem(SETTINGS_RETURN_KEY)
+                  ? "Sua conta Spotify foi conectada ao sistema."
+                  : "Sua conta Spotify foi conectada e você já está autenticado."}
               </p>
               <p className="text-xs text-muted-foreground/70">
                 Redirecionando para o painel…
