@@ -71,6 +71,25 @@ async function fetchAsBase64Jpeg(url: string): Promise<string> {
   return uint8ToBase64(jpeg);
 }
 
+async function fetchSpotifyCoverUrl(spotifyPlaylistId: string, token: string): Promise<string | null> {
+  const r = await fetch(`https://api.spotify.com/v1/playlists/${spotifyPlaylistId}/images`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!r.ok) return null;
+  const images = await r.json().catch(() => null);
+  return Array.isArray(images) ? (images[0]?.url ?? null) : null;
+}
+
+async function waitForSpotifyCover(spotifyPlaylistId: string, token: string, previousUrl: string | null): Promise<string | null> {
+  let latest: string | null = null;
+  for (let i = 0; i < 8; i++) {
+    if (i > 0) await new Promise((resolve) => setTimeout(resolve, 1200));
+    latest = await fetchSpotifyCoverUrl(spotifyPlaylistId, token);
+    if (latest && latest !== previousUrl) return latest;
+  }
+  return latest;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return jr({ error: "POST only" }, 405);
@@ -121,6 +140,8 @@ Deno.serve(async (req) => {
     try { b64 = await fetchAsBase64Jpeg(imageUrl); }
     catch (e) { return jr({ ok: false, error: (e as Error).message }, 400); }
 
+    const previousCoverUrl = await fetchSpotifyCoverUrl(pl.spotify_playlist_id, token);
+
     const resp = await fetch(`https://api.spotify.com/v1/playlists/${pl.spotify_playlist_id}/images`, {
       method: "PUT",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "image/jpeg" },
@@ -131,14 +152,18 @@ Deno.serve(async (req) => {
       return jr({ ok: false, error: `Spotify ${resp.status}: ${t.slice(0, 300)}` }, 502);
     }
 
-    await supabase.from("managed_playlists").update({ cover_url: imageUrl }).eq("id", pl.id);
+    const spotifyCoverUrl = await waitForSpotifyCover(pl.spotify_playlist_id, token, previousCoverUrl);
+    const finalCoverUrl = spotifyCoverUrl ?? imageUrl;
+
+    await supabase.from("managed_playlists").update({ cover_url: finalCoverUrl }).eq("id", pl.id);
+    await supabase.from("playlists").update({ cover_url: finalCoverUrl }).eq("spotify_playlist_id", pl.spotify_playlist_id);
     await supabase.from("collection_logs").insert({
       acao: "apply-managed-cover",
       status: "sucesso",
-      mensagem: `${pl.spotify_playlist_id} capa atualizada`,
+      mensagem: `${pl.spotify_playlist_id} capa atualizada${spotifyCoverUrl ? " e confirmada" : " (aguardando CDN)"}`,
     });
 
-    return jr({ ok: true });
+    return jr({ ok: true, cover_url: finalCoverUrl, confirmed: Boolean(spotifyCoverUrl) });
   } catch (e) {
     return jr({ ok: false, error: (e as Error).message }, 500);
   }
