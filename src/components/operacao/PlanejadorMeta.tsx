@@ -7,6 +7,7 @@ import { toast } from "@/hooks/use-toast";
 import { formatNumber } from "@/lib/format";
 import { Target, Info, Sparkles, ListMusic, AlertTriangle, CheckCircle2, XCircle, ChevronDown, Music2, Loader2, Send, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getPositionPct } from "@/lib/campaignOperationalPlan";
 
 // Extrai spotify_track_id de URL/URI do Spotify
 function extractTrackId(input: string): string | null {
@@ -46,16 +47,9 @@ const PROFILES = [
   { id: "frio", label: "Frio", mult: 18, hint: "playlist passiva" },
 ] as const;
 
-// % de tráfego diário por posição (curva teórica)
-const POSITION_PCT: Record<number, number> = {
-  1: 0.12, 2: 0.10, 3: 0.08, 4: 0.07, 5: 0.06,
-  6: 0.05, 7: 0.045, 8: 0.04, 9: 0.035, 10: 0.03,
-  11: 0.02, 12: 0.018, 13: 0.016, 14: 0.014, 15: 0.013,
-  16: 0.012, 17: 0.011, 18: 0.010, 19: 0.009, 20: 0.008,
-};
-function posPct(p: number) {
-  return POSITION_PCT[p] ?? 0.003;
-}
+// % de tráfego diário por posição — usa a curva canônica de @/lib/campaignOperationalPlan
+// (verdade única do sistema; não duplicar valores aqui).
+const posPct = getPositionPct;
 
 type Slot = {
   playlistId: string;
