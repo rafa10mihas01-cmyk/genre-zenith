@@ -94,11 +94,16 @@ export function FinanceiroTab({ deals }: Props) {
 
   return (
     <div className="space-y-6">
-      {/* ============= HERO FINANCEIRO ============= */}
-      <section className="rounded-2xl border border-border bg-gradient-to-br from-card via-card to-card/60 overflow-hidden">
-        <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr]">
+      {/* ============= HERO FINANCEIRO — mesmo padrão do KpiBig hero ============= */}
+      <section className="relative overflow-hidden rounded-2xl border border-border border-l-2 border-l-primary bg-gradient-to-br from-card via-card to-primary/[0.08]">
+        {/* Glow verde sutil no canto */}
+        <div
+          className="pointer-events-none absolute -top-16 -right-16 h-40 w-40 rounded-full bg-primary/20 blur-3xl"
+          aria-hidden
+        />
+        <div className="relative grid grid-cols-1 lg:grid-cols-[1.4fr_1fr]">
           {/* Saldo principal */}
-          <div className="p-6 lg:p-8 border-b lg:border-b-0 lg:border-r border-border">
+          <div className="p-4 lg:p-5 border-b lg:border-b-0 lg:border-r border-border">
             <div className="flex items-center gap-2 text-xs uppercase tracking-[0.12em] text-muted-foreground">
               <Wallet className="h-3.5 w-3.5" />
               Saldo financeiro
