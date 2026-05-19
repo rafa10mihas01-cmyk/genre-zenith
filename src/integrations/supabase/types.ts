@@ -1256,6 +1256,39 @@ export type Database = {
           },
         ]
       }
+      community_points_ledger: {
+        Row: {
+          campaign_id: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          member_id: string
+          participation_id: string | null
+          points: number
+          reason: string
+        }
+        Insert: {
+          campaign_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          member_id: string
+          participation_id?: string | null
+          points: number
+          reason: string
+        }
+        Update: {
+          campaign_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          member_id?: string
+          participation_id?: string | null
+          points?: number
+          reason?: string
+        }
+        Relationships: []
+      }
       curator_brain: {
         Row: {
           avg_cpp: number | null
