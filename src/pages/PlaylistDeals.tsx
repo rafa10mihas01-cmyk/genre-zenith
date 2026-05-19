@@ -33,7 +33,9 @@ const TABS = [
 ];
 
 export default function PlaylistDeals() {
-  const [tab, setTab] = useScreenField<DealsTab>("/playlist-deals", "tab", "active");
+  const [tabRaw, setTab] = useScreenField<DealsTab>("/playlist-deals", "tab", "active");
+  // Aba "ledger" foi extraída para /financeiro — normaliza pra "active" se persistido.
+  const tab: DealsTab = tabRaw === "ledger" ? "active" : tabRaw;
   const [activeSubFilter, setActiveSubFilter] = useScreenField<"all" | "running" | "waiting">("/playlist-deals", "activeSub", "all");
   const [artistFilter, setArtistFilter] = useScreenField<string>("/playlist-deals", "artist", "");
   const [newOpen, setNewOpen] = useState(false);
