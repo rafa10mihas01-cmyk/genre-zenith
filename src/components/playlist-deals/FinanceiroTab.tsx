@@ -1,27 +1,20 @@
-// FinanceiroTab — dashboard operacional de custos da curadoria.
+// FinanceiroTab — landing financeira da operação de curadoria.
 // Lê do ledger curator_purchases via useCuratorFinance.
 import { useMemo } from "react";
-import { Wallet, TrendingUp, Users, Receipt, Target } from "lucide-react";
+import { Wallet, TrendingUp, TrendingDown, Receipt, Target, Trophy, Medal, Award, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { useCuratorFinance } from "@/hooks/useCuratorFinance";
 import { formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { KpiBig } from "@/components/KpiBig";
 import type { CuratorDeal } from "@/lib/curatorDealsUtils";
 
 const fmtBRL = (v: number | null | undefined) =>
   v == null ? "—" : v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-const fmtBRLShort = (v: number | null | undefined) => {
-  if (v == null) return "—";
-  const abs = Math.abs(v);
-  const sign = v < 0 ? "-" : "";
-  if (abs >= 1_000_000) return `${sign}R$ ${(abs / 1_000_000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} mi`;
-  if (abs >= 1_000) return `${sign}R$ ${(abs / 1_000).toLocaleString("pt-BR", { maximumFractionDigits: abs >= 10_000 ? 0 : 1 })} mil`;
-  return fmtBRL(v);
-};
-
 const fmtCpp = (v: number | null | undefined) =>
   v == null ? "—" : `R$ ${v.toFixed(4)}`;
+
+const initials = (name: string) =>
+  name.trim().split(/\s+/).slice(0, 2).map((s) => s[0]?.toUpperCase() ?? "").join("") || "?";
 
 interface Props {
   deals: CuratorDeal[];
@@ -30,7 +23,6 @@ interface Props {
 export function FinanceiroTab({ deals }: Props) {
   const { byCurator, purchases, totals, loading } = useCuratorFinance();
 
-  // Comprometido = soma de target_plays dos deals abertos × CPP global
   const committed = useMemo(() => {
     if (!totals.globalCpp) return 0;
     const openTarget = deals
@@ -40,177 +32,407 @@ export function FinanceiroTab({ deals }: Props) {
   }, [deals, totals.globalCpp]);
 
   const saldoVirtual = totals.totalSpent - committed;
+  const openDealsCount = deals.filter((d) => !d.closed_at).length;
 
-  // Ranking: menor CPP primeiro
+  // Ranking por menor CPP
   const ranking = useMemo(() => {
     return [...byCurator]
       .filter((r) => r.plays_purchased > 0)
       .sort((a, b) => (a.cpp ?? Infinity) - (b.cpp ?? Infinity));
   }, [byCurator]);
 
+  const topByVolume = useMemo(() => {
+    return [...byCurator]
+      .filter((r) => r.total_cost > 0)
+      .sort((a, b) => b.total_cost - a.total_cost)
+      .slice(0, 3);
+  }, [byCurator]);
+
+  // Gasto agrupado por dia (últimos 14 dias) para sparkline
+  const dailySpend = useMemo(() => {
+    const days = 14;
+    const buckets = new Array(days).fill(0);
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    for (const p of purchases) {
+      const d = new Date(p.purchased_at);
+      d.setHours(0, 0, 0, 0);
+      const diff = Math.floor((now.getTime() - d.getTime()) / 86_400_000);
+      if (diff >= 0 && diff < days) buckets[days - 1 - diff] += Number(p.amount ?? 0);
+    }
+    return buckets;
+  }, [purchases]);
+
+  const spendLast7 = dailySpend.slice(-7).reduce((a, b) => a + b, 0);
+  const spendPrev7 = dailySpend.slice(0, 7).reduce((a, b) => a + b, 0);
+  const trendPct = spendPrev7 > 0 ? ((spendLast7 - spendPrev7) / spendPrev7) * 100 : null;
+
+  // Compras agrupadas por dia para timeline
+  const timeline = useMemo(() => {
+    const groups: Record<string, typeof purchases> = {};
+    for (const p of purchases.slice(0, 40)) {
+      const d = new Date(p.purchased_at);
+      const key = d.toISOString().slice(0, 10);
+      (groups[key] ??= []).push(p);
+    }
+    return Object.entries(groups).sort(([a], [b]) => b.localeCompare(a));
+  }, [purchases]);
+
   if (loading) {
     return (
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[0, 1, 2, 3].map((i) => (
-          <div key={i} className="h-28 rounded-2xl bg-card border border-border animate-pulse" />
-        ))}
+      <div className="space-y-4">
+        <div className="h-44 rounded-2xl bg-card border border-border animate-pulse" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="h-72 rounded-2xl bg-card border border-border animate-pulse" />
+          <div className="h-72 rounded-2xl bg-card border border-border animate-pulse" />
+        </div>
       </div>
     );
   }
 
+  const isEmpty = totals.totalPlays === 0;
+
   return (
     <div className="space-y-6">
-      <section className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <KpiBig
-          tier="hero"
-          icon={Wallet}
-          label="Total comprado"
-          value={fmtBRL(totals.totalSpent)}
-          hint={`${formatNumber(totals.totalPlays)} plays`}
-          domain="deals"
-          loading={loading}
-        />
-        <KpiBig
-          icon={Target}
-          label="Comprometido"
-          value={fmtBRL(committed)}
-          hint={`${deals.filter(d => !d.closed_at).length} negociações abertas`}
-          domain="campaigns"
-          loading={loading}
-        />
-        <KpiBig
-          icon={TrendingUp}
-          label="Saldo derivado"
-          value={fmtBRL(saldoVirtual)}
-          hint="Comprado − comprometido"
-          tone={saldoVirtual >= 0 ? "success" : "warning"}
-          domain="deals"
-          loading={loading}
-        />
-        <KpiBig
-          tier="quiet"
-          icon={Receipt}
-          label="CPP médio"
-          value={fmtCpp(totals.globalCpp)}
-          hint="Custo por play global"
-          domain="playlists"
-          loading={loading}
-        />
+      {/* ============= HERO FINANCEIRO ============= */}
+      <section className="rounded-2xl border border-border bg-gradient-to-br from-card via-card to-card/60 overflow-hidden">
+        <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr]">
+          {/* Saldo principal */}
+          <div className="p-6 lg:p-8 border-b lg:border-b-0 lg:border-r border-border">
+            <div className="flex items-center gap-2 text-xs uppercase tracking-[0.12em] text-muted-foreground">
+              <Wallet className="h-3.5 w-3.5" />
+              Saldo financeiro
+            </div>
+            <div className="mt-3 flex items-baseline gap-3 flex-wrap">
+              <span
+                className={cn(
+                  "text-4xl lg:text-5xl font-bold tabular-nums tracking-tight",
+                  saldoVirtual >= 0 ? "text-primary" : "text-amber-500",
+                )}
+              >
+                {fmtBRL(saldoVirtual)}
+              </span>
+              {trendPct != null && !isEmpty && (
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium tabular-nums",
+                    trendPct >= 0
+                      ? "bg-primary/10 text-primary"
+                      : "bg-amber-500/10 text-amber-500",
+                  )}
+                >
+                  {trendPct >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+                  {Math.abs(trendPct).toFixed(0)}% vs. semana anterior
+                </span>
+              )}
+            </div>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {isEmpty
+                ? "Nenhuma compra registrada ainda."
+                : "Comprado em curadoria menos o comprometido nas negociações abertas."}
+            </p>
+
+            {/* Barra comprado vs comprometido */}
+            {!isEmpty && totals.totalSpent > 0 && (
+              <div className="mt-6 space-y-2">
+                <div className="flex items-center justify-between text-[11px] uppercase tracking-wide text-muted-foreground">
+                  <span>Uso do comprado</span>
+                  <span className="tabular-nums">
+                    {((Math.min(committed, totals.totalSpent) / totals.totalSpent) * 100).toFixed(0)}%
+                  </span>
+                </div>
+                <div className="h-2 rounded-full bg-elevated/60 overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-primary to-primary/60 rounded-full transition-all"
+                    style={{
+                      width: `${Math.min(100, (committed / Math.max(totals.totalSpent, 1)) * 100)}%`,
+                    }}
+                  />
+                </div>
+                <div className="flex justify-between text-xs text-muted-foreground tabular-nums">
+                  <span>Comprometido {fmtBRL(committed)}</span>
+                  <span>Total comprado {fmtBRL(totals.totalSpent)}</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Sparkline + métricas */}
+          <div className="p-6 lg:p-8 grid grid-cols-2 gap-4 content-between">
+            <MiniStat
+              label="Investido (14d)"
+              value={fmtBRL(dailySpend.reduce((a, b) => a + b, 0))}
+              icon={TrendingUp}
+            />
+            <MiniStat
+              label="CPP médio"
+              value={fmtCpp(totals.globalCpp)}
+              icon={Receipt}
+            />
+            <MiniStat
+              label="Comprometido"
+              value={fmtBRL(committed)}
+              icon={Target}
+              hint={`${openDealsCount} aberta${openDealsCount === 1 ? "" : "s"}`}
+            />
+            <MiniStat
+              label="Curadores ativos"
+              value={String(totals.curatorsCount)}
+              icon={Trophy}
+            />
+            <div className="col-span-2">
+              <div className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1.5">
+                Gasto diário · últimos 14 dias
+              </div>
+              <Sparkline data={dailySpend} />
+            </div>
+          </div>
+        </div>
       </section>
 
-      <section className="rounded-2xl bg-card border border-border overflow-hidden">
-        <header className="px-5 py-4 border-b border-border flex items-center justify-between">
-          <div>
-            <h3 className="text-sm font-semibold text-foreground">Ranking de curadores</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">Ordenado por menor CPP</p>
-          </div>
-          <Users className="h-4 w-4 text-muted-foreground" />
-        </header>
-        {ranking.length === 0 ? (
-          <div className="px-5 py-10 text-center text-sm text-muted-foreground">
-            Sem compras
-          </div>
-        ) : (
-          <div className="overflow-auto max-h-[360px]">
-            <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-card z-10">
-                <tr className="text-[11px] uppercase tracking-wide text-muted-foreground border-b border-border">
-                  <th className="text-left px-5 py-2 font-medium">#</th>
-                  <th className="text-left px-5 py-2 font-medium">Curador</th>
-                  <th className="text-right px-5 py-2 font-medium">Plays</th>
-                  <th className="text-right px-5 py-2 font-medium">Investido</th>
-                  <th className="text-right px-5 py-2 font-medium">CPP</th>
-                  <th className="text-right px-5 py-2 font-medium">Compras</th>
-                </tr>
-              </thead>
-              <tbody>
-                {ranking.map((r, i) => {
-                  const isCheap = totals.globalCpp && r.cpp != null && r.cpp < totals.globalCpp;
-                  const isExpensive = totals.globalCpp && r.cpp != null && r.cpp > totals.globalCpp * 1.5;
-                  return (
-                    <tr key={r.curator_id} className="border-b border-border last:border-0 hover:bg-elevated/40">
-                      <td className="px-5 py-3 text-muted-foreground tabular-nums">{i + 1}</td>
-                      <td className="px-5 py-3 font-medium text-foreground">{r.name}</td>
-                      <td className="px-5 py-3 text-right tabular-nums">{formatNumber(r.plays_purchased)}</td>
-                      <td className="px-5 py-3 text-right tabular-nums">{fmtBRL(r.total_cost)}</td>
-                      <td className={cn("px-5 py-3 text-right tabular-nums font-semibold",
-                        isCheap && "text-primary",
-                        isExpensive && "text-amber-500"
-                      )}>{fmtCpp(r.cpp)}</td>
-                      <td className="px-5 py-3 text-right text-muted-foreground tabular-nums">{r.purchase_count}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-
-      <section className="rounded-2xl bg-card border border-border overflow-hidden">
-        <header className="px-5 py-4 border-b border-border">
-          <h3 className="text-sm font-semibold text-foreground">Últimas compras</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">Histórico imutável do ledger</p>
-        </header>
-        {purchases.length === 0 ? (
-          <div className="px-5 py-10 text-center text-sm text-muted-foreground">
-            Sem compras
-          </div>
-        ) : (
-          <ul className="divide-y divide-border overflow-auto max-h-[420px]">
-            {purchases.slice(0, 30).map((p) => {
-              const curator = byCurator.find((c) => c.curator_id === p.curator_id);
+      {/* ============= PÓDIO ============= */}
+      {topByVolume.length > 0 && (
+        <section>
+          <header className="mb-3 flex items-baseline justify-between">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">Pódio do investimento</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">Quem mais recebeu volume financeiro</p>
+            </div>
+          </header>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {topByVolume.map((r, idx) => {
+              const share = totals.totalSpent > 0 ? (r.total_cost / totals.totalSpent) * 100 : 0;
+              const medalIcon = idx === 0 ? Trophy : idx === 1 ? Medal : Award;
+              const medalColor =
+                idx === 0
+                  ? "text-amber-400 bg-amber-400/10"
+                  : idx === 1
+                    ? "text-zinc-300 bg-zinc-300/10"
+                    : "text-amber-700 bg-amber-700/10";
+              const Icon = medalIcon;
               return (
-                <li key={p.id} className="px-5 py-3 flex items-center gap-4 text-sm">
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-foreground truncate">{curator?.name ?? "—"}</div>
-                    <div className="text-xs text-muted-foreground mt-0.5">
-                      {new Date(p.purchased_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })}
-                      {p.note && <span className="ml-2 opacity-70">· {p.note}</span>}
+                <div
+                  key={r.curator_id}
+                  className="rounded-2xl border border-border bg-card p-5 flex flex-col gap-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className={cn("h-9 w-9 rounded-full flex items-center justify-center", medalColor)}>
+                      <Icon className="h-4 w-4" />
+                    </div>
+                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                      #{idx + 1}
+                    </span>
+                  </div>
+                  <div>
+                    <div className="text-base font-semibold text-foreground truncate">{r.name}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5 tabular-nums">
+                      {formatNumber(r.plays_purchased)} plays · {r.purchase_count} compra{r.purchase_count === 1 ? "" : "s"}
                     </div>
                   </div>
-                  <div className="text-right tabular-nums">
-                    <div className="text-foreground">{formatNumber(p.plays_purchased)} plays</div>
-                    <div className="text-xs text-muted-foreground">{fmtBRL(p.amount)} · {fmtCpp(p.cpp)}</div>
+                  <div className="flex items-end justify-between pt-2 border-t border-border">
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Investido</div>
+                      <div className="text-lg font-bold text-foreground tabular-nums">{fmtBRL(r.total_cost)}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">CPP</div>
+                      <div className="text-sm font-semibold tabular-nums text-primary">{fmtCpp(r.cpp)}</div>
+                    </div>
                   </div>
-                </li>
+                  <div className="h-1 rounded-full bg-elevated/60 overflow-hidden">
+                    <div
+                      className="h-full bg-primary/70 rounded-full"
+                      style={{ width: `${Math.min(100, share)}%` }}
+                    />
+                  </div>
+                  <div className="text-[10px] text-muted-foreground tabular-nums">
+                    {share.toFixed(1)}% do total investido
+                  </div>
+                </div>
               );
             })}
-          </ul>
-        )}
-      </section>
+          </div>
+        </section>
+      )}
+
+      {/* ============= RANKING + TIMELINE ============= */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-4">
+        {/* Ranking enriquecido */}
+        <section className="rounded-2xl bg-card border border-border overflow-hidden">
+          <header className="px-5 py-4 border-b border-border">
+            <h3 className="text-sm font-semibold text-foreground">Ranking de eficiência</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">Menor CPP primeiro · barra mostra share do investimento</p>
+          </header>
+          {ranking.length === 0 ? (
+            <div className="px-5 py-12 text-center text-sm text-muted-foreground">
+              Sem compras registradas
+            </div>
+          ) : (
+            <ul className="divide-y divide-border max-h-[460px] overflow-auto">
+              {ranking.map((r, i) => {
+                const share = totals.totalSpent > 0 ? (r.total_cost / totals.totalSpent) * 100 : 0;
+                const isCheap = totals.globalCpp && r.cpp != null && r.cpp < totals.globalCpp;
+                const isExpensive = totals.globalCpp && r.cpp != null && r.cpp > totals.globalCpp * 1.5;
+                return (
+                  <li key={r.curator_id} className="px-5 py-3 hover:bg-elevated/40 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <span className="w-5 text-xs text-muted-foreground tabular-nums text-right">{i + 1}</span>
+                      <div className="h-8 w-8 rounded-full bg-elevated flex items-center justify-center text-[11px] font-semibold text-foreground shrink-0">
+                        {initials(r.name)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-medium text-foreground truncate">{r.name}</span>
+                          <span
+                            className={cn(
+                              "text-sm font-semibold tabular-nums shrink-0",
+                              isCheap && "text-primary",
+                              isExpensive && "text-amber-500",
+                              !isCheap && !isExpensive && "text-foreground",
+                            )}
+                          >
+                            {fmtCpp(r.cpp)}
+                          </span>
+                        </div>
+                        <div className="mt-1.5 flex items-center gap-2">
+                          <div className="flex-1 h-1 rounded-full bg-elevated/60 overflow-hidden">
+                            <div
+                              className={cn(
+                                "h-full rounded-full",
+                                isCheap ? "bg-primary/70" : isExpensive ? "bg-amber-500/60" : "bg-muted-foreground/40",
+                              )}
+                              style={{ width: `${Math.min(100, share)}%` }}
+                            />
+                          </div>
+                          <span className="text-[11px] text-muted-foreground tabular-nums shrink-0 w-14 text-right">
+                            {fmtBRL(r.total_cost)}
+                          </span>
+                          <span className="text-[11px] text-muted-foreground tabular-nums shrink-0 w-12 text-right">
+                            {formatNumber(r.plays_purchased)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+
+        {/* Timeline */}
+        <section className="rounded-2xl bg-card border border-border overflow-hidden">
+          <header className="px-5 py-4 border-b border-border">
+            <h3 className="text-sm font-semibold text-foreground">Últimas compras</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">Histórico imutável do ledger</p>
+          </header>
+          {timeline.length === 0 ? (
+            <div className="px-5 py-12 text-center text-sm text-muted-foreground">
+              Sem compras registradas
+            </div>
+          ) : (
+            <div className="max-h-[460px] overflow-auto px-5 py-4">
+              {timeline.map(([day, items]) => {
+                const dayTotal = items.reduce((acc, p) => acc + Number(p.amount ?? 0), 0);
+                const dayPlays = items.reduce((acc, p) => acc + Number(p.plays_purchased ?? 0), 0);
+                const dateLabel = new Date(day + "T12:00:00").toLocaleDateString("pt-BR", {
+                  day: "2-digit",
+                  month: "short",
+                });
+                return (
+                  <div key={day} className="mb-5 last:mb-0">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
+                        {dateLabel}
+                      </span>
+                      <span className="text-[11px] tabular-nums text-muted-foreground">
+                        {fmtBRL(dayTotal)} · {formatNumber(dayPlays)} plays
+                      </span>
+                    </div>
+                    <ul className="space-y-2 pl-3 border-l border-border">
+                      {items.map((p) => {
+                        const curator = byCurator.find((c) => c.curator_id === p.curator_id);
+                        return (
+                          <li key={p.id} className="relative pl-3">
+                            <span className="absolute -left-[7px] top-2 h-2 w-2 rounded-full bg-primary/60 ring-2 ring-card" />
+                            <div className="flex items-center justify-between gap-3 text-sm">
+                              <span className="font-medium text-foreground truncate">{curator?.name ?? "—"}</span>
+                              <span className="text-xs text-muted-foreground tabular-nums shrink-0">
+                                {fmtBRL(p.amount)}
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-muted-foreground tabular-nums mt-0.5">
+                              {formatNumber(p.plays_purchased)} plays · {fmtCpp(p.cpp)}
+                              {p.note && <span className="ml-2 opacity-70">· {p.note}</span>}
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      </div>
     </div>
   );
 }
 
-function Stat({
-  icon: Icon, label, value, mobileValue, hint, tone = "default",
+function MiniStat({
+  icon: Icon,
+  label,
+  value,
+  hint,
 }: {
-  icon: any; label: string; value: string; mobileValue?: string; hint?: string;
-  tone?: "default" | "primary" | "success" | "warning";
+  icon: any;
+  label: string;
+  value: string;
+  hint?: string;
 }) {
-  const valueColor =
-    tone === "primary" ? "text-primary"
-    : tone === "success" ? "text-primary"
-    : tone === "warning" ? "text-amber-500"
-    : "text-foreground";
   return (
-    <div className="rounded-2xl bg-card border border-border p-4 sm:p-5 min-h-[118px] overflow-hidden">
-      <div className="flex items-start gap-2 text-[10px] sm:text-xs text-muted-foreground uppercase tracking-[0.08em] sm:tracking-wide leading-tight min-w-0">
-        <Icon className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-        <span className="min-w-0 line-clamp-2 break-words">{label}</span>
+    <div>
+      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+        <Icon className="h-3 w-3" />
+        {label}
       </div>
-      <div className={cn("mt-2 tabular-nums font-bold leading-tight min-w-0", valueColor)}>
-        {mobileValue ? (
-          <>
-            <span className="block sm:hidden text-[22px] truncate">{mobileValue}</span>
-            <span className="hidden sm:block text-2xl truncate">{value}</span>
-          </>
-        ) : (
-          <span className="block text-xl sm:text-2xl truncate">{value}</span>
-        )}
-      </div>
-      {hint && <div className="text-[11px] sm:text-xs text-muted-foreground mt-1 line-clamp-2 leading-snug">{hint}</div>}
+      <div className="mt-1 text-base font-semibold text-foreground tabular-nums truncate">{value}</div>
+      {hint && <div className="text-[10px] text-muted-foreground tabular-nums">{hint}</div>}
     </div>
+  );
+}
+
+function Sparkline({ data }: { data: number[] }) {
+  const w = 220;
+  const h = 48;
+  const max = Math.max(...data, 1);
+  const stepX = data.length > 1 ? w / (data.length - 1) : w;
+  const points = data.map((v, i) => {
+    const x = i * stepX;
+    const y = h - (v / max) * (h - 4) - 2;
+    return [x, y] as const;
+  });
+  const path = points.map(([x, y], i) => (i === 0 ? `M ${x} ${y}` : `L ${x} ${y}`)).join(" ");
+  const area = `${path} L ${w} ${h} L 0 ${h} Z`;
+  const hasData = data.some((v) => v > 0);
+
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-12" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="spark-fill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.35" />
+          <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      {hasData ? (
+        <>
+          <path d={area} fill="url(#spark-fill)" />
+          <path d={path} fill="none" stroke="hsl(var(--primary))" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+        </>
+      ) : (
+        <line x1="0" y1={h - 2} x2={w} y2={h - 2} stroke="hsl(var(--border))" strokeWidth="1" strokeDasharray="3 3" />
+      )}
+    </svg>
   );
 }
