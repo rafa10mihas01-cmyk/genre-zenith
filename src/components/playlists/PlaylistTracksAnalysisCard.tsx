@@ -18,6 +18,7 @@ import {
 import { cn } from "@/lib/utils";
 
 type Status = "keep" | "remove" | "promote" | "demote" | "protected";
+type Zone = "anchor" | "premium" | "support" | "tail";
 
 type TrackRow = {
   spotify_track_id: string;
@@ -32,6 +33,12 @@ type TrackRow = {
   saturation_pct?: number;
   age_days_in_playlist?: number | null;
   release_date?: string | null;
+  // zona editorial
+  current_zone?: Zone;
+  best_zone?: Zone;
+  target_position?: number | null;
+  anchor_eligible?: boolean;
+  zone_scores?: { anchor: number; premium: number; support: number; tail: number };
   // proteção de campanha
   is_protected?: boolean;
   protected_campaign_id?: string | null;
@@ -53,6 +60,23 @@ type Summary = {
   saturated_pct?: number;
   no_data?: number;
   missing_artists?: { artist: string; count: number }[];
+  zone_current?: Record<Zone, number>;
+  zone_best?: Record<Zone, number>;
+  anchor_has_eligible?: boolean;
+  anchor_misuse?: number;
+};
+
+const ZONE_LABELS: Record<Zone, string> = {
+  anchor: "Fachada",
+  premium: "Premium",
+  support: "Sustentação",
+  tail: "Cauda",
+};
+const ZONE_HINT: Record<Zone, string> = {
+  anchor: "#1-2 · só hits dominantes",
+  premium: "#3-6 · zona de impulsionamento",
+  support: "#7-12 · sustenta retenção",
+  tail: "#13+ · descoberta e catálogo",
 };
 
 function fmtNum(n: number | null | undefined) {
@@ -213,6 +237,65 @@ export function PlaylistTracksAnalysisCard({ managedId }: { managedId: string })
         </div>
       </Card>
 
+      {/* Estrutura editorial — zonas atuais vs. ideais */}
+      {summary.zone_current && summary.zone_best && (
+        <Card className="p-5 space-y-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold">Estrutura editorial</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Distribuição atual vs. ideal por zona da playlist
+              </p>
+            </div>
+            {summary.anchor_has_eligible === false && (
+              <Badge variant="outline" className="text-[10px] border-warning/40 text-warning bg-warning/5 gap-1 shrink-0">
+                <AlertTriangle className="h-3 w-3" />
+                Fachada sem hit dominante
+              </Badge>
+            )}
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            {(["anchor", "premium", "support", "tail"] as Zone[]).map((z) => {
+              const cur = summary.zone_current?.[z] ?? 0;
+              const best = summary.zone_best?.[z] ?? 0;
+              const diff = best - cur;
+              return (
+                <div key={z} className="rounded-lg border border-border p-3 space-y-1.5">
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{ZONE_LABELS[z]}</div>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-xl font-semibold tabular-nums">{cur}</span>
+                    <span className="text-[11px] text-muted-foreground">faixas hoje</span>
+                  </div>
+                  <div className="flex items-center gap-1 text-[11px]">
+                    <span className="text-muted-foreground">ideal {best}</span>
+                    {diff !== 0 && (
+                      <span className={cn(
+                        "tabular-nums",
+                        diff > 0 ? "text-warning" : "text-muted-foreground",
+                      )}>
+                        ({diff > 0 ? "+" : ""}{diff})
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground/80 pt-1 border-t border-border/40">
+                    {ZONE_HINT[z]}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {!!summary.anchor_misuse && summary.anchor_misuse > 0 && (
+            <div className="flex items-start gap-2 text-xs text-warning bg-warning/5 border border-warning/30 rounded-md p-2">
+              <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+              <span>
+                {summary.anchor_misuse} faixa{summary.anchor_misuse > 1 ? "s ocupam" : " ocupa"} a fachada sem força pra sustentar.
+                A fachada (#1-2) exige popularity ≥ 70 + artista forte ou recorrência alta no nicho.
+              </span>
+            </div>
+          )}
+        </Card>
+      )}
+
       {/* Artistas faltando */}
       {missingArtists.length > 0 && (
         <Card className="p-5 space-y-3">
@@ -254,6 +337,7 @@ export function PlaylistTracksAnalysisCard({ managedId }: { managedId: string })
                 <tr className="border-b border-border">
                   <th className="text-left font-medium py-2 pr-2 w-10">#</th>
                   <th className="text-left font-medium py-2 pr-2">Faixa</th>
+                  <th className="text-left font-medium py-2 pr-2">Zona</th>
                   <th className="text-left font-medium py-2 pr-2">Status</th>
                   <th className="text-left font-medium py-2 pr-2">Motivo</th>
                   <th className="text-right font-medium py-2 pr-2">Popularity</th>
@@ -269,12 +353,27 @@ export function PlaylistTracksAnalysisCard({ managedId }: { managedId: string })
                   const pop = t.popularity;
                   const sat = t.saturation_pct ?? 0;
                   const age = t.age_days_in_playlist;
+                  const curZone = t.current_zone;
+                  const bestZone = t.best_zone;
+                  const zoneMoved = curZone && bestZone && curZone !== bestZone;
                   return (
                     <tr key={t.spotify_track_id} className="border-b border-border/40 last:border-0 align-top">
                       <td className="py-2 pr-2 text-muted-foreground tabular-nums">{t.position + 1}</td>
                       <td className="py-2 pr-2 min-w-[180px]">
                         <div className="font-medium text-foreground/90 truncate max-w-[260px]">{t.track_name ?? "—"}</div>
                         <div className="text-muted-foreground truncate max-w-[260px]">{t.artist_name ?? "—"}</div>
+                      </td>
+                      <td className="py-2 pr-2 whitespace-nowrap">
+                        {curZone ? (
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-[11px] text-foreground/90">{ZONE_LABELS[curZone]}</span>
+                            {zoneMoved && (
+                              <span className="text-[10px] text-warning">→ {ZONE_LABELS[bestZone!]}</span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
                       </td>
                       <td className="py-2 pr-2">
                         <Badge variant="outline" className={cn("text-[10px] gap-1", meta.cls)}>
