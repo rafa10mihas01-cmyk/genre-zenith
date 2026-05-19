@@ -1331,7 +1331,8 @@ export function DealHistorySheet({
                           )}
                         </div>
                       );
-                    })
+                    })}
+                    </div>
                   )}
                 </TabsContent>
               </div>
