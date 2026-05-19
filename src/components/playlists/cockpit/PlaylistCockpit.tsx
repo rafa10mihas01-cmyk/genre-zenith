@@ -588,6 +588,8 @@ function CoverCard({ managedId, currentCover, leaders, spotifyPlaylistId }: {
   const [uploading, setUploading] = useState(false);
   const [applyingLeader, setApplyingLeader] = useState<string | null>(null);
   const [localCover, setLocalCover] = useState<string | null>(currentCover);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [pendingPreview, setPendingPreview] = useState<string | null>(null);
 
   const applyLeaderCover = async (leader: { spotify_playlist_id: string; cover_url: string | null; name: string }) => {
     if (!leader.cover_url) return;
@@ -607,7 +609,7 @@ function CoverCard({ managedId, currentCover, leaders, spotifyPlaylistId }: {
     }
   };
 
-  const handleFile = async (file: File) => {
+  const selectFile = (file: File) => {
     if (!file) return;
     if (!/^image\/(png|jpe?g|webp)$/i.test(file.type)) {
       toast({ title: "Formato inválido", description: "Use PNG, JPG ou WEBP.", variant: "destructive" });
@@ -617,13 +619,26 @@ function CoverCard({ managedId, currentCover, leaders, spotifyPlaylistId }: {
       toast({ title: "Arquivo grande", description: "Máximo 8MB (será comprimido).", variant: "destructive" });
       return;
     }
+    if (pendingPreview) URL.revokeObjectURL(pendingPreview);
+    setPendingFile(file);
+    setPendingPreview(URL.createObjectURL(file));
+  };
+
+  const clearPending = () => {
+    if (pendingPreview) URL.revokeObjectURL(pendingPreview);
+    setPendingFile(null);
+    setPendingPreview(null);
+  };
+
+  const applyPending = async () => {
+    if (!pendingFile) return;
     setUploading(true);
     try {
-      const ext = file.name.split(".").pop()?.toLowerCase() || "png";
+      const ext = pendingFile.name.split(".").pop()?.toLowerCase() || "png";
       const path = `${managedId}/${Date.now()}.${ext}`;
       const { error: upErr } = await supabase.storage
         .from("playlist-covers")
-        .upload(path, file, { contentType: file.type, upsert: false });
+        .upload(path, pendingFile, { contentType: pendingFile.type, upsert: false });
       if (upErr) throw upErr;
       const { data: pub } = supabase.storage.from("playlist-covers").getPublicUrl(path);
       const imageUrl = pub.publicUrl;
@@ -634,7 +649,8 @@ function CoverCard({ managedId, currentCover, leaders, spotifyPlaylistId }: {
       if (error) throw error;
       if (!data?.ok) throw new Error(data?.error || "falha ao aplicar capa");
       setLocalCover(imageUrl);
-      toast({ title: "Capa atualizada" });
+      clearPending();
+      toast({ title: "Capa atualizada", description: "Pode demorar alguns segundos pra aparecer no Spotify." });
     } catch (e: any) {
       toast({ title: "Erro ao enviar capa", description: e?.message ?? String(e), variant: "destructive" });
     } finally {
