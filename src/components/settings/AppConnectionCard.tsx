@@ -31,16 +31,16 @@ export function AppConnectionCard({
     <section className="nx-card overflow-hidden">
       {/* Header */}
       <header className="p-4 border-b border-border">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-start gap-3 min-w-0">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+          <div className="flex items-start gap-3 min-w-0 flex-1">
             <div className={cn("h-9 w-9 rounded-lg bg-muted/40 flex items-center justify-center shrink-0 border", s.ring)}>
               <Icon className={cn("h-4 w-4", s.text)} />
             </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-sm font-bold truncate">{name}</h2>
                 <span className={cn(
-                  "inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full border",
+                  "inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full border whitespace-nowrap shrink-0",
                   s.ring, s.text, "bg-background",
                 )}>
                   <span className={cn("h-1.5 w-1.5 rounded-full", s.dot)} />
@@ -52,7 +52,11 @@ export function AppConnectionCard({
               )}
             </div>
           </div>
-          {actions && <div className="flex items-center gap-2 shrink-0">{actions}</div>}
+          {actions && (
+            <div className="flex items-center gap-2 sm:shrink-0 max-sm:w-full max-sm:justify-end max-sm:flex-wrap">
+              {actions}
+            </div>
+          )}
         </div>
       </header>
 
