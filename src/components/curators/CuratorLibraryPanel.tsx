@@ -278,6 +278,39 @@ export function CuratorLibraryPanel({ curator, deals, balance, onAddPurchase, fl
         </Button>
       </div>
 
+      {availableGenres.length > 0 && (
+        <div className="mt-3 flex items-center gap-2 flex-wrap">
+          <span className="text-[10.5px] uppercase tracking-[0.12em] text-muted-foreground">Gênero</span>
+          <button
+            type="button"
+            onClick={() => setGenreFilter(null)}
+            className={cn(
+              "text-[11px] h-6 px-2.5 rounded-full border transition-colors",
+              genreFilter === null
+                ? "bg-foreground text-background border-foreground"
+                : "border-border/40 text-muted-foreground hover:border-border hover:text-foreground",
+            )}
+          >
+            Todos
+          </button>
+          {availableGenres.map((g) => (
+            <button
+              type="button"
+              key={g}
+              onClick={() => setGenreFilter((cur) => (cur === g ? null : g))}
+              className={cn(
+                "text-[11px] h-6 px-2.5 rounded-full border transition-colors",
+                genreFilter === g
+                  ? "bg-foreground text-background border-foreground"
+                  : "border-border/40 text-muted-foreground hover:border-border hover:text-foreground",
+              )}
+            >
+              {g}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="mt-3">
         {loading ? (
           <div className="flex items-center justify-center py-12 text-sm text-muted-foreground gap-2">
@@ -285,6 +318,7 @@ export function CuratorLibraryPanel({ curator, deals, balance, onAddPurchase, fl
           </div>
         ) : items.length === 0 ? (
           <div className="text-center py-12 rounded-xl border border-dashed border-border/40">
+
             <Music className="mx-auto size-10 text-muted-foreground/40 mb-3" />
             <p className="text-sm text-muted-foreground mb-1">Catálogo vazio.</p>
             <p className="text-xs text-muted-foreground/70">
