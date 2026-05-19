@@ -1,14 +1,14 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { Home, Handshake, BarChart3, ListMusic, Settings } from "lucide-react";
+import { Home, Users, Megaphone, ListMusic, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Bottom nav reduzido aos itens primários do novo menu.
 const items = [
-  { to: "/", label: "Hoje", icon: Home, end: true },
-  { to: "/catalogo", label: "Catálogo", icon: ListMusic },
-  { to: "/performance", label: "Métricas", icon: BarChart3 },
-  { to: "/playlist-deals", label: "Playlist", icon: Handshake },
-  { to: "/configuracoes", label: "Ajustes", icon: Settings },
+  { to: "/", label: "Início", icon: Home, end: true },
+  { to: "/curadores", label: "Curador", icon: Users },
+  { to: "/campanhas", label: "Campanha", icon: Megaphone },
+  { to: "/playlist-deals", label: "Playlist", icon: ListMusic },
+  { to: "/performance", label: "Analytics", icon: BarChart3 },
 ];
 
 /**
