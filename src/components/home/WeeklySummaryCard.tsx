@@ -129,8 +129,8 @@ export function WeeklySummaryCard() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
+          <div className="grid grid-cols-2 rounded-xl border border-border/60 bg-muted/10 overflow-hidden divide-x divide-border/60">
+            <div className="flex flex-col items-center justify-center text-center py-5 px-3">
               <div className={cn(
                 "text-2xl font-bold tabular-nums leading-none",
                 (s.followersGained7d ?? 0) >= 0 ? "text-primary" : "text-destructive",
@@ -139,7 +139,7 @@ export function WeeklySummaryCard() {
               </div>
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-2">7 dias</div>
             </div>
-            <div>
+            <div className="flex flex-col items-center justify-center text-center py-5 px-3">
               <div className={cn(
                 "text-2xl font-bold tabular-nums leading-none",
                 s.followersGainedToday === null ? "text-muted-foreground"
