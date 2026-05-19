@@ -13,10 +13,11 @@ import {
   AlertTriangle,
   UserPlus,
   Flame,
+  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type Status = "keep" | "remove" | "promote" | "demote";
+type Status = "keep" | "remove" | "promote" | "demote" | "protected";
 
 type TrackRow = {
   spotify_track_id: string;
@@ -31,6 +32,11 @@ type TrackRow = {
   saturation_pct?: number;
   age_days_in_playlist?: number | null;
   release_date?: string | null;
+  // proteção de campanha
+  is_protected?: boolean;
+  protected_campaign_id?: string | null;
+  protected_campaign_status?: string | null;
+  protected_planned_streams?: number | null;
   // legacy
   streams_28d?: number | null;
   growth_28d_pct?: number | null;
@@ -42,6 +48,7 @@ type Summary = {
   remove?: number;
   promote?: number;
   demote?: number;
+  protected?: number;
   saturated?: number;
   saturated_pct?: number;
   no_data?: number;
@@ -56,6 +63,7 @@ function fmtNum(n: number | null | undefined) {
 }
 
 const STATUS_META: Record<Status, { label: string; cls: string; icon: any }> = {
+  protected: { label: "Protegida", cls: "border-domain-campaigns/40 text-domain-campaigns bg-domain-campaigns/5", icon: ShieldCheck },
   keep: { label: "Manter", cls: "border-primary/30 text-primary bg-primary/5", icon: CheckCircle2 },
   remove: { label: "Remover", cls: "border-destructive/40 text-destructive bg-destructive/5", icon: TrendingDown },
   promote: { label: "Promover", cls: "border-warning/40 text-warning bg-warning/5", icon: ArrowUp },
@@ -118,6 +126,7 @@ export function PlaylistTracksAnalysisCard({ managedId }: { managedId: string })
     remove: summary.remove ?? analysis.filter((x) => x.status === "remove").length,
     promote: summary.promote ?? analysis.filter((x) => x.status === "promote").length,
     demote: summary.demote ?? analysis.filter((x) => x.status === "demote").length,
+    protected: summary.protected ?? analysis.filter((x) => x.status === "protected").length,
   };
   const missingArtists = summary.missing_artists ?? [];
 
@@ -130,8 +139,9 @@ export function PlaylistTracksAnalysisCard({ managedId }: { managedId: string })
           <h2 className="text-sm font-semibold">Análise faixa-a-faixa</h2>
           <span className="text-xs text-muted-foreground ml-1">{counts.total} faixas</span>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs">
+        <div className="grid grid-cols-2 sm:grid-cols-6 gap-3 text-xs">
           {[
+            { key: "protected" as Status, n: counts.protected, label: "Protegidas" },
             { key: "keep" as Status, n: counts.keep, label: "Manter" },
             { key: "remove" as Status, n: counts.remove, label: "Remover" },
             { key: "promote" as Status, n: counts.promote, label: "Promover" },
@@ -156,6 +166,15 @@ export function PlaylistTracksAnalysisCard({ managedId }: { managedId: string })
           </div>
         </div>
 
+        {counts.protected > 0 && (
+          <div className="flex items-start gap-2 text-xs text-foreground/80 bg-domain-campaigns/5 border border-domain-campaigns/30 rounded-md p-2">
+            <ShieldCheck className="h-3.5 w-3.5 mt-0.5 shrink-0 text-domain-campaigns" />
+            <span>
+              {counts.protected} faixa{counts.protected > 1 ? "s estão" : " está"} em campanha ativa — protegida{counts.protected > 1 ? "s" : ""} contra remoção e rebaixamento automático até a meta ser entregue.
+            </span>
+          </div>
+        )}
+
         {summary.no_data != null && summary.no_data > 0 && (
           <div className="flex items-start gap-2 text-xs text-muted-foreground bg-muted/30 border border-border rounded-md p-2">
             <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
@@ -175,7 +194,7 @@ export function PlaylistTracksAnalysisCard({ managedId }: { managedId: string })
           >
             Todas ({counts.total})
           </Button>
-          {(["remove", "promote", "demote", "keep"] as Status[]).map((k) => {
+          {(["protected", "remove", "promote", "demote", "keep"] as Status[]).map((k) => {
             const meta = STATUS_META[k];
             const n = counts[k];
             return (
