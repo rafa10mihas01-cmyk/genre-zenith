@@ -1020,7 +1020,10 @@ Deno.serve(async (req) => {
             original_suggestions: tracksSuggestions.length,
           },
           active_cooldowns: activeCooldowns,
-        },
+          // === Camada 3 — substituições por função editorial ===
+          substitutions: substitutions,
+          zone_deficits: deficits,
+          zone_ideal: zoneIdeal,
       })
       .select()
       .single();
