@@ -5,25 +5,26 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { Top200Tab } from "./Top200Tab";
 import { CalculadoraResultado, CalculadoraKpis } from "./CalculadoraResultado";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import {
-  calcCampaign, reverseFromBudget, formatInt,
+  calcCampaign, reverseFromBudget, formatInt, formatBRL,
   DEFAULT_SPLIT, COST_PER_STREAM,
   type Modo, type Perfil, type CampaignResult,
 } from "@/lib/campaignEngine";
-import { Calculator, Table2, ArrowRight, Target as TargetIcon, Users, Wallet, Music, Search, CheckCircle2, X, Loader2, Settings2, LayoutGrid, CalendarIcon, FileText, Plus, ListMusic } from "lucide-react";
+import { Table2, ArrowRight, ArrowLeft, Target as TargetIcon, Users, Wallet, Music, Search, CheckCircle2, X, Loader2, CalendarIcon, FileText, Plus, ListMusic, Layers, Zap, Pencil } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format, addDays, differenceInCalendarDays, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-type Secao = "todos" | "musica" | "meta" | "estrategia";
 type Fonte = "manual" | "top200" | "concorrente" | "orcamento";
 
 type TrackMeta = {
@@ -134,9 +135,13 @@ function loadPersisted(): PersistedV2 {
 export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandoff) => void }) {
   const initial = useMemo(loadPersisted, []);
   const navigate = useNavigate();
-  const [subtab, setSubtab] = useState<"calc" | "top200">("calc");
-  const [secao, setSecao] = useState<Secao>("musica");
   const [closing, setClosing] = useState(false);
+  const [top200Open, setTop200Open] = useState(false);
+  // Wizard: 1 Sessão · 2 Músicas · 3 Revisão.
+  // Se já existe contexto salvo, abre direto em "Músicas".
+  const [step, setStep] = useState<1 | 2 | 3>(
+    () => ((initial.clientId || initial.curatorId) && initial.songs.length > 0 ? 2 : 1),
+  );
 
   // Contexto fixo da sessão
   const [clientId, setClientId] = useState<string>(initial.clientId);
@@ -149,7 +154,6 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
   const [activeIdx, setActiveIdx] = useState<number>(initial.activeIdx);
   const active = songs[activeIdx] ?? songs[0];
 
-  // Loader auxiliar (busca de música) por índice
   const [trackLoading, setTrackLoading] = useState(false);
 
   useEffect(() => {
@@ -197,13 +201,11 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
   // --- Multi-música ops ---
   function addSong() {
     setSongs(prev => [...prev, emptySong()]);
-    setActiveIdx(songs.length); // novo índice
-    setSecao("musica");
+    setActiveIdx(songs.length);
   }
 
   function removeSong(idx: number) {
     if (songs.length === 1) {
-      // não remove a última — só reseta
       setSongs([emptySong()]);
       setActiveIdx(0);
       return;
@@ -229,11 +231,34 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
     meta: effectiveMeta, days: active.days, modo: active.modo, perfil: active.perfil, splitEcoPct: active.splitEco,
   }), [effectiveMeta, active.days, active.modo, active.perfil, active.splitEco]);
 
-  // Validação por música (pra "Fechar todas")
   function isSongReady(s: Song): boolean {
     return !!s.track?.id && s.baselineStreamsDay >= 0 && (s.fonte === "orcamento" ? s.budget > 0 : s.meta > 0);
   }
   const readyCount = songs.filter(isSongReady).length;
+
+  // Agregados (para Revisão) — calcula curva de cada música pronta.
+  const songResults = useMemo(() => songs.map(s => ({
+    song: s,
+    ready: isSongReady(s),
+    r: calcCampaign({
+      meta: s.fonte === "orcamento" ? reverseFromBudget(s.budget, s.splitEco) : s.meta,
+      days: s.days, modo: s.modo, perfil: s.perfil, splitEcoPct: s.splitEco,
+    }),
+  })), [songs]);
+  const totals = useMemo(() => {
+    const ready = songResults.filter(x => x.ready);
+    return {
+      count: ready.length,
+      totalMeta: ready.reduce((s, x) => s + x.r.meta, 0),
+      totalCost: ready.reduce((s, x) => s + x.r.custoTotal, 0),
+      maxDays: ready.reduce((s, x) => Math.max(s, x.r.days), 0),
+      totalEco: ready.reduce((s, x) => s + x.r.streamsEco, 0),
+      totalExt: ready.reduce((s, x) => s + x.r.streamsExt, 0),
+    };
+  }, [songResults]);
+
+  const clientName = clientsList.find(c => c.id === clientId)?.name ?? "Sem cliente";
+  const curatorName = curatorsList.find(c => c.id === curatorId)?.name ?? "Sem curador";
 
   async function buscarMusica() {
     const url = active.trackUrl.trim();
@@ -284,7 +309,6 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
     }
   }
 
-  // --- Fechamento (1 música ou todas) ---
   async function closeOne(song: Song): Promise<{ ok: boolean; campaignId?: string; error?: string }> {
     if (!song.track?.id) return { ok: false, error: "Sem música carregada" };
     try {
@@ -342,11 +366,10 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
       setClosing(false);
       return;
     }
-    // remove só essa música do rascunho. Se for a única, limpa tudo.
     if (songs.length === 1) {
       try { localStorage.removeItem(STORAGE_KEY_V2); localStorage.removeItem(STORAGE_KEY_V1); } catch { /* ignore */ }
       setClosing(false);
-      toast({ title: "Rascunho salvo", description: "Revise na aba Rascunhos e clique em Aprovar e disparar." });
+      toast({ title: "Rascunho salvo", description: "Revise na aba Aprovação e clique em Aprovar e disparar." });
       navigate(`/campanhas`);
       return;
     }
@@ -371,7 +394,6 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
     }
     setClosing(false);
     if (ok > 0) {
-      // limpa rascunhos salvos com sucesso
       const remaining = songs.filter(s => !isSongReady(s));
       if (remaining.length === 0) {
         try { localStorage.removeItem(STORAGE_KEY_V2); localStorage.removeItem(STORAGE_KEY_V1); } catch { /* ignore */ }
@@ -383,7 +405,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
       }
       toast({
         title: `${ok} campanha(s) salvas como rascunho`,
-        description: errors.length ? `Falharam: ${errors.length}` : "Revise em Rascunhos e aprove pra criar os deals.",
+        description: errors.length ? `Falharam: ${errors.length}` : "Revise em Aprovação e aprove pra criar os deals.",
       });
       if (errors.length === 0) navigate(`/campanhas`);
     } else {
@@ -391,52 +413,68 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
     }
   }
 
+  const canGoStep2 = !!(curatorId || clientId);
+  const canGoStep3 = readyCount > 0;
+
   return (
     <div className="space-y-6">
-      {/* Sub-tabs Calculadora / Top200 */}
-      <div className="flex items-center gap-1 border-b border-border">
-        {([
-          { id: "calc", label: "Calculadora", icon: Calculator },
-          { id: "top200", label: "Top 200 BR", icon: Table2 },
-        ] as const).map(t => {
-          const Icon = t.icon;
-          const isActive = subtab === t.id;
-          return (
-            <button
-              key={t.id}
-              onClick={() => setSubtab(t.id)}
-              className={cn(
-                "px-4 h-10 inline-flex items-center gap-2 text-sm font-medium border-b-2 -mb-px transition-colors",
-                isActive ? "border-primary text-foreground"
-                         : "border-transparent text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <Icon className="h-3.5 w-3.5" />
-              {t.label}
-            </button>
-          );
-        })}
+      {/* ============== STEPPER ============== */}
+      <div className="rounded-2xl border border-border bg-card px-4 py-3">
+        <div className="flex items-center gap-2 sm:gap-3">
+          {([
+            { n: 1 as const, label: "Sessão",  hint: canGoStep2 ? `${clientName} · ${curatorName}` : "Cliente & curador" },
+            { n: 2 as const, label: "Músicas", hint: `${songs.length} em planejamento` },
+            { n: 3 as const, label: "Revisão", hint: `${readyCount} pronta(s)` },
+          ]).map((s, i, arr) => {
+            const isActive = step === s.n;
+            const done = step > s.n;
+            const clickable = s.n === 1 || (s.n === 2 && canGoStep2) || (s.n === 3 && canGoStep3);
+            return (
+              <div key={s.n} className="flex items-center flex-1 gap-2 sm:gap-3 min-w-0">
+                <button
+                  type="button"
+                  onClick={() => clickable && setStep(s.n)}
+                  disabled={!clickable}
+                  className={cn(
+                    "flex items-center gap-2.5 min-w-0 text-left transition-opacity rounded-lg px-1.5 py-1 -mx-1.5",
+                    !clickable && "opacity-50 cursor-not-allowed",
+                    clickable && !isActive && "hover:bg-muted/30",
+                  )}
+                >
+                  <span className={cn(
+                    "shrink-0 h-7 w-7 rounded-full grid place-items-center text-xs font-semibold border-2 transition-colors",
+                    isActive ? "bg-primary text-primary-foreground border-primary"
+                    : done ? "bg-primary/15 text-primary border-primary/40"
+                    : "bg-muted text-muted-foreground border-border",
+                  )}>{done ? <CheckCircle2 className="h-3.5 w-3.5" /> : s.n}</span>
+                  <span className="min-w-0 hidden sm:block">
+                    <span className={cn("block text-sm font-semibold truncate", isActive ? "text-foreground" : "text-muted-foreground")}>{s.label}</span>
+                    <span className="block text-[11px] text-muted-foreground truncate">{s.hint}</span>
+                  </span>
+                  <span className={cn("sm:hidden text-sm font-semibold truncate", isActive ? "text-foreground" : "text-muted-foreground")}>
+                    {s.label}
+                  </span>
+                </button>
+                {i < arr.length - 1 && (
+                  <span className={cn("flex-1 h-px", done ? "bg-primary/40" : "bg-border")} />
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
-      {subtab === "top200" ? (
-        <Top200Tab onPick={(streamsDay) => {
-          patchActive({ fonte: "manual", meta: streamsDay * active.days });
-          setSubtab("calc");
-        }} />
-      ) : (
-        <div className="grid grid-cols-1 gap-6">
-          {/* KPIs do resultado (música ativa) */}
-          <CalculadoraKpis r={result} />
-
-          {/* Contexto fixo: Cliente + Curador (1x por sessão) */}
+      {/* ============== STEP 1 — SESSÃO ============== */}
+      {step === 1 && (
+        <div className="space-y-5">
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm">Identificação da sessão</CardTitle>
+              <CardTitle className="text-base">Quem é a operação?</CardTitle>
               <CardDescription>
-                Cliente e curador valem pra TODAS as músicas abaixo. Cada música abaixo vira uma campanha independente.
+                Cliente e curador valem pra TODAS as músicas desta sessão. Cada música vira uma campanha + um deal independente.
               </CardDescription>
             </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label className="text-xs">Cliente</Label>
                 <Select value={clientId || "__none__"} onValueChange={v => setClientId(v === "__none__" ? "" : v)}>
@@ -446,9 +484,10 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                     {clientsList.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
+                <p className="text-[11px] text-muted-foreground">Opcional. Identifica o dono comercial das campanhas.</p>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">Curador (dono das playlists)</Label>
+                <Label className="text-xs">Curador (dono das playlists) <span className="text-destructive">*</span></Label>
                 <Select value={curatorId || "__none__"} onValueChange={v => setCuratorId(v === "__none__" ? "" : v)}>
                   <SelectTrigger><SelectValue placeholder="Sem curador" /></SelectTrigger>
                   <SelectContent>
@@ -456,371 +495,499 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                     {curatorsList.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
+                <p className="text-[11px] text-muted-foreground">Sem curador a campanha não gera deal real.</p>
               </div>
             </CardContent>
           </Card>
 
-          {/* Faixa de Músicas — cada tab é uma campanha em planejamento */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <ListMusic className="h-3.5 w-3.5" />
-                <span>Músicas em planejamento ({songs.length}) · cada uma vira 1 campanha + 1 deal</span>
-              </div>
-              <Button variant="outline" size="sm" onClick={addSong}>
-                <Plus className="h-3.5 w-3.5 mr-1" /> Música
-              </Button>
-            </div>
-            <div className="flex items-center gap-1 overflow-x-auto scrollbar-none border-b border-border -mx-1 px-1">
-              {songs.map((s, idx) => {
-                const isActive = idx === activeIdx;
-                const ready = isSongReady(s);
-                const label = s.track?.title ?? "Sem faixa";
-                return (
-                  <div key={s.uid} className="relative shrink-0">
-                    <button
-                      onClick={() => setActiveIdx(idx)}
-                      className={cn(
-                        "h-10 pl-3 pr-8 inline-flex items-center gap-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap max-w-[220px]",
-                        isActive ? "border-primary text-foreground"
-                                 : "border-transparent text-muted-foreground hover:text-foreground",
-                      )}
-                      title={label}
-                    >
-                      <span className={cn(
-                        "h-1.5 w-1.5 rounded-full shrink-0",
-                        ready ? "bg-primary" : "bg-muted-foreground/40",
-                      )} />
-                      <span className="truncate">{idx + 1}. {label}</span>
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); removeSong(idx); }}
-                      className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 inline-flex items-center justify-center text-muted-foreground hover:text-foreground rounded"
-                      aria-label="Remover música"
-                      title={songs.length === 1 ? "Limpar esta música" : "Remover música"}
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Inputs (operam sobre a música ativa) */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-1 rounded-xl border border-border bg-card p-1">
-              {([
-                { id: "musica", label: "Música", icon: Music },
-                { id: "meta", label: "Meta", icon: TargetIcon },
-                { id: "estrategia", label: "Estratégia", icon: Settings2 },
-                { id: "todos", label: "Tudo", icon: LayoutGrid },
-              ] as const).map(s => {
-                const Icon = s.icon;
-                const isActive = secao === s.id;
-                return (
-                  <button
-                    key={s.id}
-                    onClick={() => setSecao(s.id)}
-                    className={cn(
-                      "flex-1 h-9 inline-flex items-center justify-center gap-1.5 rounded-lg text-xs font-medium transition-colors",
-                      isActive ? "bg-primary/15 text-primary"
-                               : "text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    <Icon className="h-3.5 w-3.5" />
-                    {s.label}
-                  </button>
-                );
-              })}
-            </div>
-
-            {(secao === "todos" || secao === "musica") && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Música</CardTitle>
-                <CardDescription>Cole o link do Spotify e clique em Buscar pra confirmar a faixa</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <Music className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="https://open.spotify.com/track/..."
-                      value={active.trackUrl}
-                      onChange={e => { setTrackUrl(e.target.value); setTrack(null); }}
-                      onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); buscarMusica(); } }}
-                      className="pl-9"
-                    />
-                  </div>
-                  <Button onClick={buscarMusica} disabled={trackLoading || !active.trackUrl.trim()} variant="outline">
-                    {trackLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                    <span className="ml-1.5 hidden sm:inline">Buscar</span>
-                  </Button>
-                </div>
-
-                {active.track && (
-                  <div className="flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/5 p-3">
-                    {active.track.thumbnail_url ? (
-                      <img src={active.track.thumbnail_url} alt={active.track.title ?? ""} className="h-14 w-14 rounded-md object-cover shrink-0" />
-                    ) : (
-                      <div className="h-14 w-14 rounded-md bg-muted shrink-0 grid place-items-center">
-                        <Music className="h-5 w-5 text-muted-foreground" />
-                      </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <div className="font-semibold truncate text-sm flex items-center gap-1.5">
-                        <CheckCircle2 className="h-3.5 w-3.5 text-primary shrink-0" />
-                        {active.track.title ?? "Faixa"}
-                      </div>
-                      {active.track.artist && <div className="text-xs text-muted-foreground truncate">{active.track.artist}</div>}
-                      <div className="text-[11px] mt-1">
-                        {active.track.streamsDay != null ? (
-                          <span className="text-foreground">
-                            <strong>{formatInt(active.track.streamsDay)}</strong> streams/dia hoje
-                            {active.track.position != null && <span className="text-muted-foreground"> · #{active.track.position} Top 200</span>}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">Fora do Top 200 BR (base: 0 streams/dia)</span>
-                        )}
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => { setTrack(null); setTrackUrl(""); }}
-                      className="text-muted-foreground hover:text-foreground shrink-0"
-                      aria-label="Limpar"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
-                )}
-
-                <div className="space-y-1.5 pt-1">
-                  <Label className="text-xs flex items-center justify-between">
-                    <span>Streams/dia atuais da música <span className="text-destructive">*</span></span>
-                    {active.track?.streamsDay != null && active.baselineStreamsDay !== active.track.streamsDay && (
-                      <button
-                        type="button"
-                        onClick={() => setBaselineStreamsDay(active.track!.streamsDay!)}
-                        className="text-[10px] text-primary hover:underline"
-                      >
-                        usar Top 200 ({formatInt(active.track.streamsDay)})
-                      </button>
-                    )}
-                  </Label>
-                  <NumberInput value={active.baselineStreamsDay} onChange={setBaselineStreamsDay} placeholder="ex: 20.000" />
-                  <p className="text-[11px] text-muted-foreground">
-                    Quanto a faixa tá rodando hoje. É a baseline que vai ser descontada do alvo pra saber o gap real.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-            )}
-
-            {(secao === "todos" || secao === "meta") && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Fonte da meta</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="grid grid-cols-2 gap-2">
-                  <FonteBtn active={active.fonte === "manual"} onClick={() => setFonte("manual")} icon={TargetIcon} label="Manual" />
-                  <FonteBtn active={active.fonte === "top200"} onClick={() => setFonte("top200")} icon={Table2} label="Top 200" />
-                  <FonteBtn active={active.fonte === "concorrente"} onClick={() => setFonte("concorrente")} icon={Users} label="Concorrente" />
-                  <FonteBtn active={active.fonte === "orcamento"} onClick={() => setFonte("orcamento")} icon={Wallet} label="Orçamento" />
-                </div>
-
-                {active.fonte === "manual" && (
-                  <div>
-                    <Label className="text-xs">Meta de streams</Label>
-                    <NumberInput value={active.meta} onChange={setMeta} placeholder="1.000.000" />
-                  </div>
-                )}
-                {active.fonte === "top200" && (
-                  <Top200Picker
-                    days={active.days}
-                    currentStreamsDay={active.baselineStreamsDay}
-                    onPick={(streamsDay, pos) => {
-                      const gapDay = Math.max(0, streamsDay - active.baselineStreamsDay);
-                      setMeta(gapDay * active.days);
-                      toast({
-                        title: `Posição #${pos}`,
-                        description: active.baselineStreamsDay > 0
-                          ? `Alvo ${formatInt(streamsDay)}/d − hoje ${formatInt(active.baselineStreamsDay)}/d = ${formatInt(gapDay)}/d × ${active.days}d = ${formatInt(gapDay * active.days)}`
-                          : `${formatInt(streamsDay)} streams/dia × ${active.days}d = ${formatInt(streamsDay * active.days)}`,
-                      });
-                    }}
-                    onOpenList={() => setSubtab("top200")}
-                  />
-                )}
-                {active.fonte === "concorrente" && (
-                  <div className="space-y-2">
-                    <Label className="text-xs">Link do artista concorrente</Label>
-                    <Input placeholder="https://open.spotify.com/artist/..." />
-                    <p className="text-xs text-muted-foreground">
-                      Em breve: leitura automática de streams médios. Por enquanto, defina manualmente abaixo.
-                    </p>
-                    <NumberInput value={active.meta} onChange={setMeta} />
-                  </div>
-                )}
-                {active.fonte === "orcamento" && (
-                  <div className="space-y-2">
-                    <Label className="text-xs">Orçamento disponível (R$)</Label>
-                    <NumberInput value={active.budget} onChange={setBudget} placeholder="40.000" />
-                    <p className="text-xs text-muted-foreground">
-                      Meta calculada: <span className="font-semibold text-foreground">{formatInt(effectiveMeta)} streams</span>
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-            )}
-
-            {(secao === "todos" || secao === "estrategia") && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Estratégia</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label className="text-xs">Janela da campanha</Label>
-                  <div className="grid grid-cols-2 gap-2 mt-1.5">
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" className="justify-start text-left font-normal h-10">
-                          <CalendarIcon className="h-3.5 w-3.5 mr-2 opacity-70" />
-                          <div className="flex flex-col items-start leading-tight">
-                            <span className="text-[10px] uppercase text-muted-foreground">Início</span>
-                            <span className="text-xs">{format(startDate, "dd MMM yyyy", { locale: ptBR })}</span>
-                          </div>
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={startDate}
-                          onSelect={(d) => d && setStartDate(d)}
-                          initialFocus
-                          locale={ptBR}
-                          className={cn("p-3 pointer-events-auto")}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" className="justify-start text-left font-normal h-10">
-                          <CalendarIcon className="h-3.5 w-3.5 mr-2 opacity-70" />
-                          <div className="flex flex-col items-start leading-tight">
-                            <span className="text-[10px] uppercase text-muted-foreground">Fim</span>
-                            <span className="text-xs">{format(endDate, "dd MMM yyyy", { locale: ptBR })}</span>
-                          </div>
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={endDate}
-                          onSelect={(d) => {
-                            if (!d) return;
-                            const diff = differenceInCalendarDays(startOfDay(d), startDate);
-                            const clamped = Math.min(180, Math.max(15, diff));
-                            setDays(clamped);
-                          }}
-                          disabled={(d) => differenceInCalendarDays(d, startDate) < 15}
-                          initialFocus
-                          locale={ptBR}
-                          className={cn("p-3 pointer-events-auto")}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground mt-1.5">
-                    {active.days} dias · começa {format(startDate, "dd/MM", { locale: ptBR })} · termina {format(endDate, "dd/MM", { locale: ptBR })}
-                  </p>
-                </div>
-
-                <div>
-                  <Label className="text-xs">Duração: {active.days} dias</Label>
-                  <Slider value={[active.days]} onValueChange={([v]) => setDays(v)} min={15} max={180} step={5} className="mt-2" />
-                </div>
-
-                <div>
-                  <Label className="text-xs">Modo</Label>
-                  <div className="grid grid-cols-2 gap-2 mt-1.5">
-                    <ModeBtn active={active.modo === "simultaneo"} onClick={() => setModo("simultaneo")} label="Simultâneo" hint="largura ampla" />
-                    <ModeBtn active={active.modo === "sequencial"} onClick={() => setModo("sequencial")} label="Sequencial" hint="pico marcado" />
-                  </div>
-                </div>
-
-                <div>
-                  <Label className="text-xs">Perfil de audiência</Label>
-                  <div className="grid grid-cols-3 gap-2 mt-1.5">
-                    {(["frio", "mercado", "engajado"] as Perfil[]).map(p => (
-                      <ModeBtn key={p} active={active.perfil === p} onClick={() => setPerfil(p)} label={cap(p)} />
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <Label className="text-xs">Split ecossistema: {active.splitEco}% próprio · {100 - active.splitEco}% externo</Label>
-                  <Slider value={[active.splitEco]} onValueChange={([v]) => setSplitEco(v)} min={0} max={100} step={5} className="mt-2" />
-                  <div className="text-[11px] text-muted-foreground mt-1.5 flex justify-between">
-                    <span>Próprio R$ {(COST_PER_STREAM.eco * 1000).toFixed(0)}/mil</span>
-                    <span>Externo R$ {(COST_PER_STREAM.ext * 1000).toFixed(0)}/mil</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            )}
-          </div>
-
-          {/* Resultado + ações de fechamento */}
-          <div className="space-y-4">
-            {secao === "todos" && <CalculadoraResultado r={result} />}
-
-            {secao === "todos" && (
-              <>
-                {onContinue ? (
-                  <Button
-                    size="lg"
-                    className="w-full"
-                    variant="solid"
-                    onClick={() => onContinue({ result, trackUrl: active.trackUrl, track: active.track, fonte: active.fonte })}
-                  >
-                    Continuar para execução
-                    <ArrowRight className="h-4 w-4 ml-2" />
-                  </Button>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <Button
-                      size="lg"
-                      variant="outline"
-                      onClick={salvarRascunhoAtiva}
-                      disabled={closing || !active.track?.id}
-                    >
-                      {closing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
-                      Fechar esta música
-                    </Button>
-                    <Button
-                      size="lg"
-                      variant="solid"
-                      onClick={fecharTodas}
-                      disabled={closing || readyCount === 0}
-                    >
-                      {closing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
-                      Fechar todas ({readyCount})
-                    </Button>
-                  </div>
-                )}
-                <p className="text-[11px] text-muted-foreground text-center">
-                  Cada música vira <strong>1 campanha + 1 deal</strong> independente, ligados ao mesmo cliente e curador.
-                  Vão pra <strong>Rascunhos</strong> {curatorId ? "" : "— selecione o curador antes pra ligar ao deal real"}.
-                </p>
-              </>
-            )}
+          <div className="flex justify-end">
+            <Button size="lg" variant="solid" onClick={() => setStep(2)} disabled={!canGoStep2}>
+              Avançar pra Músicas <ArrowRight className="h-4 w-4 ml-2" />
+            </Button>
           </div>
         </div>
       )}
+
+      {/* ============== STEP 2 — MÚSICAS ============== */}
+      {step === 2 && (
+        <div className="space-y-5">
+          <SessionChip clientName={clientName} curatorName={curatorName} onEdit={() => setStep(1)} />
+
+          <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-5">
+            {/* Lista lateral */}
+            <aside className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="text-xs text-muted-foreground inline-flex items-center gap-1.5">
+                  <ListMusic className="h-3.5 w-3.5" /> Músicas ({songs.length})
+                </div>
+                <Button variant="outline" size="sm" onClick={addSong}>
+                  <Plus className="h-3.5 w-3.5 mr-1" /> Música
+                </Button>
+              </div>
+              <div className="rounded-xl border border-border overflow-hidden bg-card">
+                {songResults.map((x, idx) => {
+                  const isActive = idx === activeIdx;
+                  const label = x.song.track?.title ?? "Sem faixa";
+                  return (
+                    <div key={x.song.uid} className={cn("relative group border-b border-border last:border-b-0", isActive && "bg-primary/5")}>
+                      <button
+                        onClick={() => setActiveIdx(idx)}
+                        className={cn(
+                          "w-full text-left p-3 pr-9 flex items-center gap-2.5 transition-colors",
+                          !isActive && "hover:bg-muted/30",
+                        )}
+                      >
+                        {x.song.track?.thumbnail_url ? (
+                          <img src={x.song.track.thumbnail_url} alt="" className="h-9 w-9 rounded-md object-cover shrink-0" />
+                        ) : (
+                          <div className="h-9 w-9 rounded-md bg-muted grid place-items-center shrink-0">
+                            <Music className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <div className={cn("text-sm font-medium truncate", isActive ? "text-foreground" : "text-muted-foreground")}>
+                            {idx + 1}. {label}
+                          </div>
+                          <div className="text-[11px] text-muted-foreground truncate flex items-center gap-1.5">
+                            <span className={cn(
+                              "h-1.5 w-1.5 rounded-full shrink-0",
+                              x.ready ? "bg-primary" : "bg-muted-foreground/40",
+                            )} />
+                            {x.ready ? `${formatInt(x.r.meta)} streams · ${x.r.days}d` : "incompleta"}
+                          </div>
+                        </div>
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); removeSong(idx); }}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 inline-flex items-center justify-center text-muted-foreground hover:text-foreground rounded opacity-60 group-hover:opacity-100 transition-opacity"
+                        aria-label="Remover música"
+                        title={songs.length === 1 ? "Limpar esta música" : "Remover música"}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </aside>
+
+            {/* Formulário vertical único — Música → Meta → Estratégia */}
+            <div className="space-y-5">
+              {/* KPIs SÓ da música ativa (operação atual). */}
+              <CalculadoraKpis r={result} />
+
+              {/* Música */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">Música</CardTitle>
+                  <CardDescription>Cole o link do Spotify e clique em Buscar pra confirmar a faixa</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Music className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="https://open.spotify.com/track/..."
+                        value={active.trackUrl}
+                        onChange={e => { setTrackUrl(e.target.value); setTrack(null); }}
+                        onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); buscarMusica(); } }}
+                        className="pl-9"
+                      />
+                    </div>
+                    <Button onClick={buscarMusica} disabled={trackLoading || !active.trackUrl.trim()} variant="outline">
+                      {trackLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                      <span className="ml-1.5 hidden sm:inline">Buscar</span>
+                    </Button>
+                  </div>
+
+                  {active.track && (
+                    <div className="flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/5 p-3">
+                      {active.track.thumbnail_url ? (
+                        <img src={active.track.thumbnail_url} alt={active.track.title ?? ""} className="h-14 w-14 rounded-md object-cover shrink-0" />
+                      ) : (
+                        <div className="h-14 w-14 rounded-md bg-muted shrink-0 grid place-items-center">
+                          <Music className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold truncate text-sm flex items-center gap-1.5">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-primary shrink-0" />
+                          {active.track.title ?? "Faixa"}
+                        </div>
+                        {active.track.artist && <div className="text-xs text-muted-foreground truncate">{active.track.artist}</div>}
+                        <div className="text-[11px] mt-1">
+                          {active.track.streamsDay != null ? (
+                            <span className="text-foreground">
+                              <strong>{formatInt(active.track.streamsDay)}</strong> streams/dia hoje
+                              {active.track.position != null && <span className="text-muted-foreground"> · #{active.track.position} Top 200</span>}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">Fora do Top 200 BR (base: 0 streams/dia)</span>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => { setTrack(null); setTrackUrl(""); }}
+                        className="text-muted-foreground hover:text-foreground shrink-0"
+                        aria-label="Limpar"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="space-y-1.5 pt-1">
+                    <Label className="text-xs flex items-center justify-between">
+                      <span>Streams/dia atuais da música <span className="text-destructive">*</span></span>
+                      {active.track?.streamsDay != null && active.baselineStreamsDay !== active.track.streamsDay && (
+                        <button
+                          type="button"
+                          onClick={() => setBaselineStreamsDay(active.track!.streamsDay!)}
+                          className="text-[10px] text-primary hover:underline"
+                        >
+                          usar Top 200 ({formatInt(active.track.streamsDay)})
+                        </button>
+                      )}
+                    </Label>
+                    <NumberInput value={active.baselineStreamsDay} onChange={setBaselineStreamsDay} placeholder="ex: 20.000" />
+                    <p className="text-[11px] text-muted-foreground">
+                      Quanto a faixa tá rodando hoje. É a baseline que vai ser descontada do alvo pra saber o gap real.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Fonte da meta */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">Fonte da meta</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    <FonteBtn active={active.fonte === "manual"} onClick={() => setFonte("manual")} icon={TargetIcon} label="Manual" />
+                    <FonteBtn active={active.fonte === "top200"} onClick={() => setFonte("top200")} icon={Table2} label="Top 200" />
+                    <FonteBtn active={active.fonte === "concorrente"} onClick={() => setFonte("concorrente")} icon={Users} label="Concorrente" />
+                    <FonteBtn active={active.fonte === "orcamento"} onClick={() => setFonte("orcamento")} icon={Wallet} label="Orçamento" />
+                  </div>
+
+                  {active.fonte === "manual" && (
+                    <div>
+                      <Label className="text-xs">Meta de streams</Label>
+                      <NumberInput value={active.meta} onChange={setMeta} placeholder="1.000.000" />
+                    </div>
+                  )}
+                  {active.fonte === "top200" && (
+                    <Top200Picker
+                      days={active.days}
+                      currentStreamsDay={active.baselineStreamsDay}
+                      onPick={(streamsDay, pos) => {
+                        const gapDay = Math.max(0, streamsDay - active.baselineStreamsDay);
+                        setMeta(gapDay * active.days);
+                        toast({
+                          title: `Posição #${pos}`,
+                          description: active.baselineStreamsDay > 0
+                            ? `Alvo ${formatInt(streamsDay)}/d − hoje ${formatInt(active.baselineStreamsDay)}/d = ${formatInt(gapDay)}/d × ${active.days}d = ${formatInt(gapDay * active.days)}`
+                            : `${formatInt(streamsDay)} streams/dia × ${active.days}d = ${formatInt(streamsDay * active.days)}`,
+                        });
+                      }}
+                      onOpenList={() => setTop200Open(true)}
+                    />
+                  )}
+                  {active.fonte === "concorrente" && (
+                    <div className="space-y-2">
+                      <Label className="text-xs">Link do artista concorrente</Label>
+                      <Input placeholder="https://open.spotify.com/artist/..." />
+                      <p className="text-xs text-muted-foreground">
+                        Em breve: leitura automática de streams médios. Por enquanto, defina manualmente abaixo.
+                      </p>
+                      <NumberInput value={active.meta} onChange={setMeta} />
+                    </div>
+                  )}
+                  {active.fonte === "orcamento" && (
+                    <div className="space-y-2">
+                      <Label className="text-xs">Orçamento disponível (R$)</Label>
+                      <NumberInput value={active.budget} onChange={setBudget} placeholder="40.000" />
+                      <p className="text-xs text-muted-foreground">
+                        Meta calculada: <span className="font-semibold text-foreground">{formatInt(effectiveMeta)} streams</span>
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Estratégia */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">Estratégia</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label className="text-xs">Janela da campanha</Label>
+                    <div className="grid grid-cols-2 gap-2 mt-1.5">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className="justify-start text-left font-normal h-10">
+                            <CalendarIcon className="h-3.5 w-3.5 mr-2 opacity-70" />
+                            <div className="flex flex-col items-start leading-tight">
+                              <span className="text-[10px] uppercase text-muted-foreground">Início</span>
+                              <span className="text-xs">{format(startDate, "dd MMM yyyy", { locale: ptBR })}</span>
+                            </div>
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={startDate}
+                            onSelect={(d) => d && setStartDate(d)}
+                            initialFocus
+                            locale={ptBR}
+                            className={cn("p-3 pointer-events-auto")}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className="justify-start text-left font-normal h-10">
+                            <CalendarIcon className="h-3.5 w-3.5 mr-2 opacity-70" />
+                            <div className="flex flex-col items-start leading-tight">
+                              <span className="text-[10px] uppercase text-muted-foreground">Fim</span>
+                              <span className="text-xs">{format(endDate, "dd MMM yyyy", { locale: ptBR })}</span>
+                            </div>
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={endDate}
+                            onSelect={(d) => {
+                              if (!d) return;
+                              const diff = differenceInCalendarDays(startOfDay(d), startDate);
+                              const clamped = Math.min(180, Math.max(15, diff));
+                              setDays(clamped);
+                            }}
+                            disabled={(d) => differenceInCalendarDays(d, startDate) < 15}
+                            initialFocus
+                            locale={ptBR}
+                            className={cn("p-3 pointer-events-auto")}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-1.5">
+                      {active.days} dias · começa {format(startDate, "dd/MM", { locale: ptBR })} · termina {format(endDate, "dd/MM", { locale: ptBR })}
+                    </p>
+                  </div>
+
+                  <div>
+                    <Label className="text-xs">Duração: {active.days} dias</Label>
+                    <Slider value={[active.days]} onValueChange={([v]) => setDays(v)} min={15} max={180} step={5} className="mt-2" />
+                  </div>
+
+                  <div>
+                    <Label className="text-xs">Modo</Label>
+                    <div className="grid grid-cols-2 gap-2 mt-1.5">
+                      <ModeBtn active={active.modo === "simultaneo"} onClick={() => setModo("simultaneo")} label="Simultâneo" hint="largura ampla" />
+                      <ModeBtn active={active.modo === "sequencial"} onClick={() => setModo("sequencial")} label="Sequencial" hint="pico marcado" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label className="text-xs">Perfil de audiência</Label>
+                    <div className="grid grid-cols-3 gap-2 mt-1.5">
+                      {(["frio", "mercado", "engajado"] as Perfil[]).map(p => (
+                        <ModeBtn key={p} active={active.perfil === p} onClick={() => setPerfil(p)} label={cap(p)} />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label className="text-xs">Split ecossistema: {active.splitEco}% próprio · {100 - active.splitEco}% externo</Label>
+                    <Slider value={[active.splitEco]} onValueChange={([v]) => setSplitEco(v)} min={0} max={100} step={5} className="mt-2" />
+                    <div className="text-[11px] text-muted-foreground mt-1.5 flex justify-between">
+                      <span>Próprio R$ {(COST_PER_STREAM.eco * 1000).toFixed(0)}/mil</span>
+                      <span>Externo R$ {(COST_PER_STREAM.ext * 1000).toFixed(0)}/mil</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between pt-1">
+            <Button variant="ghost" onClick={() => setStep(1)}>
+              <ArrowLeft className="h-4 w-4 mr-2" /> Sessão
+            </Button>
+            <Button size="lg" variant="solid" onClick={() => setStep(3)} disabled={!canGoStep3}>
+              Revisar ({readyCount}) <ArrowRight className="h-4 w-4 ml-2" />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* ============== STEP 3 — REVISÃO ============== */}
+      {step === 3 && (
+        <div className="space-y-5">
+          <SessionChip clientName={clientName} curatorName={curatorName} onEdit={() => setStep(1)} />
+
+          {/* KPIs agregados — só desta operação. */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <ReviewKpi icon={TargetIcon} label="Meta agregada" value={formatInt(totals.totalMeta)} hint={`${totals.count} de ${songs.length} música(s)`} />
+            <ReviewKpi icon={Wallet} label="Custo total" value={formatBRL(totals.totalCost)} hint={`R$ ${totals.totalMeta > 0 ? (totals.totalCost / totals.totalMeta).toFixed(3) : "0.000"}/stream`} />
+            <ReviewKpi icon={Zap} label="Duração máx" value={`${totals.maxDays}d`} hint="janela mais longa" />
+            <ReviewKpi
+              icon={Layers}
+              label="Eco / Ext"
+              value={`${totals.totalMeta > 0 ? Math.round((totals.totalEco / totals.totalMeta) * 100) : 0}% / ${totals.totalMeta > 0 ? Math.round((totals.totalExt / totals.totalMeta) * 100) : 0}%`}
+              hint={`${formatInt(totals.totalEco)} eco · ${formatInt(totals.totalExt)} ext`}
+            />
+          </div>
+
+          {/* Resumo música a música */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Músicas desta operação</CardTitle>
+              <CardDescription>Cada linha vira 1 campanha + 1 deal independente. Clique pra voltar à música no passo anterior.</CardDescription>
+            </CardHeader>
+            <CardContent className="p-0">
+              {songResults.map((x, idx) => (
+                <button
+                  key={x.song.uid}
+                  type="button"
+                  onClick={() => { setActiveIdx(idx); setStep(2); }}
+                  className={cn(
+                    "w-full flex items-center gap-3 p-4 border-t border-border first:border-t-0 text-left transition-colors hover:bg-muted/30",
+                    !x.ready && "opacity-60",
+                  )}
+                >
+                  {x.song.track?.thumbnail_url ? (
+                    <img src={x.song.track.thumbnail_url} alt="" className="h-11 w-11 rounded-md object-cover shrink-0" />
+                  ) : (
+                    <div className="h-11 w-11 rounded-md bg-muted grid place-items-center shrink-0">
+                      <Music className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium truncate">
+                      {idx + 1}. {x.song.track?.title ?? "Sem faixa"}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground truncate">
+                      {x.song.track?.artist ?? "—"} · {x.r.days}d · {x.song.modo} · {x.song.perfil} · split {x.song.splitEco}/{100 - x.song.splitEco}
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className="text-sm font-semibold tabular-nums">{formatInt(x.r.meta)}</div>
+                    <div className="text-[11px] text-muted-foreground tabular-nums">{formatBRL(x.r.custoTotal)}</div>
+                  </div>
+                  {!x.ready && <Badge variant="outline" className="text-[10px] shrink-0">incompleta</Badge>}
+                </button>
+              ))}
+            </CardContent>
+          </Card>
+
+          {/* Distribuição + curva da música ativa (referência) */}
+          {active.track?.id && (
+            <div className="space-y-2">
+              <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                Preview de curva · {active.track.title}
+              </div>
+              <CalculadoraResultado r={result} />
+            </div>
+          )}
+
+          {/* Ações de fechamento */}
+          <div className="flex items-center justify-between gap-3 pt-1">
+            <Button variant="ghost" onClick={() => setStep(2)}>
+              <ArrowLeft className="h-4 w-4 mr-2" /> Voltar pra músicas
+            </Button>
+            <div className="flex items-center gap-2">
+              {onContinue ? (
+                <Button
+                  size="lg"
+                  className="w-full"
+                  variant="solid"
+                  onClick={() => onContinue({ result, trackUrl: active.trackUrl, track: active.track, fonte: active.fonte })}
+                >
+                  Continuar para execução
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    onClick={salvarRascunhoAtiva}
+                    disabled={closing || !active.track?.id}
+                  >
+                    {closing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
+                    Salvar só ativa
+                  </Button>
+                  <Button
+                    size="lg"
+                    variant="solid"
+                    onClick={fecharTodas}
+                    disabled={closing || readyCount === 0}
+                  >
+                    {closing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
+                    Fechar campanhas ({readyCount})
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+          <p className="text-[11px] text-muted-foreground text-center">
+            Cada música vira <strong>1 campanha + 1 deal</strong> independente. Vão pra <strong>Aprovação</strong>
+            {curatorId ? "" : " — selecione o curador antes pra ligar ao deal real"}.
+          </p>
+        </div>
+      )}
+
+      {/* Top 200 BR — agora em modal, acionado pela fonte "Top 200" */}
+      <Dialog open={top200Open} onOpenChange={setTop200Open}>
+        <DialogContent className="max-w-5xl">
+          <DialogHeader>
+            <DialogTitle>Top 200 BR</DialogTitle>
+          </DialogHeader>
+          <Top200Tab onPick={(streamsDay) => {
+            patchActive({ fonte: "manual", meta: streamsDay * active.days });
+            setTop200Open(false);
+          }} />
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+/** Chip de contexto da sessão — fica no topo dos passos 2 e 3 com botão pra editar. */
+function SessionChip({ clientName, curatorName, onEdit }: { clientName: string; curatorName: string; onEdit: () => void }) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-2.5">
+      <div className="flex items-center gap-4 min-w-0 text-xs">
+        <div className="min-w-0">
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Cliente</div>
+          <div className="text-sm font-medium truncate">{clientName}</div>
+        </div>
+        <div className="h-8 w-px bg-border shrink-0" />
+        <div className="min-w-0">
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Curador</div>
+          <div className="text-sm font-medium truncate">{curatorName}</div>
+        </div>
+      </div>
+      <Button variant="ghost" size="sm" onClick={onEdit} className="shrink-0">
+        <Pencil className="h-3.5 w-3.5 mr-1.5" /> Editar
+      </Button>
+    </div>
+  );
+}
+
+function ReviewKpi({ icon: Icon, label, value, hint }: { icon: any; label: string; value: string; hint?: string }) {
+  return (
+    <div className="rounded-2xl border border-border bg-card p-4">
+      <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground">
+        <Icon className="h-3.5 w-3.5" />
+        {label}
+      </div>
+      <div className="text-xl font-semibold mt-1 tabular-nums">{value}</div>
+      {hint && <div className="text-xs text-muted-foreground mt-0.5">{hint}</div>}
     </div>
   );
 }

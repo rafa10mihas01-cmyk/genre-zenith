@@ -113,46 +113,48 @@ export default function Campanhas() {
       />
 
       <PageContainer>
-        {/* KPIs — padrão Comunidade/Operação (sempre acima das tabs) */}
-        <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <KpiBig
-            icon={Megaphone}
-            label="Ativas"
-            value={kpis.activeCount.toLocaleString("pt-BR")}
-            hint="Em execução agora"
-            domain="campaigns"
-            loading={loading}
-          />
-          <KpiBig
-            icon={Target}
-            label="Meta total"
-            value={kpis.goal.toLocaleString("pt-BR")}
-            hint="Plays planejados"
-            domain="campaigns"
-            loading={loading}
-          />
-          <KpiBig
-            icon={CheckCircle2}
-            label="Entregue"
-            value={kpis.delivered.toLocaleString("pt-BR")}
-            hint="Plays já contabilizados"
-            domain="deals"
-            loading={loading}
-          />
-          <KpiBig
-            icon={Percent}
-            label="Cumprimento médio"
-            value={`${kpis.pct}%`}
-            hint="Entregue ÷ meta"
-            domain="playlists"
-            loading={loading}
-          />
-        </section>
+        {/* KPIs globais — só fora do fluxo de planejamento, pra não competir com KPIs da operação atual. */}
+        {tab !== "financeiro" && (
+          <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <KpiBig
+              icon={Megaphone}
+              label="Ativas"
+              value={kpis.activeCount.toLocaleString("pt-BR")}
+              hint="Em execução agora"
+              domain="campaigns"
+              loading={loading}
+            />
+            <KpiBig
+              icon={Target}
+              label="Meta total"
+              value={kpis.goal.toLocaleString("pt-BR")}
+              hint="Plays planejados"
+              domain="campaigns"
+              loading={loading}
+            />
+            <KpiBig
+              icon={CheckCircle2}
+              label="Entregue"
+              value={kpis.delivered.toLocaleString("pt-BR")}
+              hint="Plays já contabilizados"
+              domain="deals"
+              loading={loading}
+            />
+            <KpiBig
+              icon={Percent}
+              label="Cumprimento médio"
+              value={`${kpis.pct}%`}
+              hint="Entregue ÷ meta"
+              domain="playlists"
+              loading={loading}
+            />
+          </section>
+        )}
 
         <div className="flex items-center gap-1 border-b border-border mb-6 overflow-x-auto scrollbar-none -mx-4 px-4 lg:mx-0 lg:px-0">
           {([
-            { id: "financeiro", label: "Planejamento", labelLong: "Planejamento Financeiro", icon: Calculator },
-            { id: "lista", label: "Rascunhos", labelLong: "Rascunhos & Aprovação", icon: ListChecks },
+            { id: "financeiro", label: "Planejamento", labelLong: "Planejamento", icon: Calculator },
+            { id: "lista", label: "Aprovação", labelLong: "Aprovação", icon: ListChecks },
             { id: "deals", label: "Deals", labelLong: "Deals", icon: Handshake },
           ] as const).map(t => {
             const Icon = t.icon;
