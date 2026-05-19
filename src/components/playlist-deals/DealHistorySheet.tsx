@@ -566,32 +566,32 @@ export function DealHistorySheet({
     <>
         {deal && stats && (
           <>
-            {/* HEADER */}
-            <header className="shrink-0 px-6 pt-6 pb-4 border-b border-white/[0.04] bg-background">
-              <div className="flex items-start gap-4">
-                {deal.song_cover_url ? (
-                  <img
-                    src={deal.song_cover_url}
-                    alt=""
-                    className="h-14 w-14 rounded-xl object-cover ring-1 ring-white/[0.06] shrink-0"
-                  />
-                ) : (
-                  <div className="h-14 w-14 rounded-xl bg-[hsl(var(--elevated))] border border-white/[0.04] flex items-center justify-center shrink-0">
-                    <Music2 className="h-5 w-5 text-muted-foreground" />
+            {/* HEADER — só aparece no modo Sheet (drawer). Quando é página dedicada, o header é o PageHeader + KPIs externos. */}
+            {!asPage && (
+              <header className="shrink-0 px-6 pt-6 pb-4 border-b border-white/[0.04] bg-background">
+                <div className="flex items-start gap-4">
+                  {deal.song_cover_url ? (
+                    <img
+                      src={deal.song_cover_url}
+                      alt=""
+                      className="h-14 w-14 rounded-xl object-cover ring-1 ring-white/[0.06] shrink-0"
+                    />
+                  ) : (
+                    <div className="h-14 w-14 rounded-xl bg-[hsl(var(--elevated))] border border-white/[0.04] flex items-center justify-center shrink-0">
+                      <Music2 className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <h2 className="text-lg font-semibold text-foreground leading-tight break-words">
+                      {deal.song_name}
+                    </h2>
+                    <div className="text-sm text-muted-foreground mt-0.5 truncate">
+                      {deal.song_artist || "—"}
+                    </div>
+                    <div className="text-xs text-muted-foreground/80 mt-1.5 truncate">
+                      Curador: <span className="text-foreground font-medium">{deal.curator_name}</span>
+                    </div>
                   </div>
-                )}
-                <div className="min-w-0 flex-1">
-                  <h2 className="text-lg font-semibold text-foreground leading-tight break-words">
-                    {deal.song_name}
-                  </h2>
-                  <div className="text-sm text-muted-foreground mt-0.5 truncate">
-                    {deal.song_artist || "—"}
-                  </div>
-                  <div className="text-xs text-muted-foreground/80 mt-1.5 truncate">
-                    Curador: <span className="text-foreground font-medium">{deal.curator_name}</span>
-                  </div>
-                </div>
-                {!asPage && (
                   <button
                     type="button"
                     onClick={onClose}
@@ -600,77 +600,98 @@ export function DealHistorySheet({
                   >
                     <X className="h-4 w-4" />
                   </button>
-                )}
-              </div>
-
-              {/* progresso linear principal */}
-              <div className="mt-4">
-                <div className="flex items-baseline justify-between mb-1.5">
-                  <div className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">
-                    Entrega do curador
-                  </div>
-                  <div className="text-xs tabular-nums text-muted-foreground">
-                    <span className="text-foreground font-semibold">{fmt(stats.earned)}</span>
-                    {target > 0 && <> / {fmt(target)}</>}
-                    <span className="ml-2 text-foreground font-semibold">{stats.pct}%</span>
-                  </div>
                 </div>
-                <Progress value={stats.pct} className="h-1.5" />
-              </div>
-            </header>
+
+                {/* progresso linear principal */}
+                <div className="mt-4">
+                  <div className="flex items-baseline justify-between mb-1.5">
+                    <div className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">
+                      Entrega do curador
+                    </div>
+                    <div className="text-xs tabular-nums text-muted-foreground">
+                      <span className="text-foreground font-semibold">{fmt(stats.earned)}</span>
+                      {target > 0 && <> / {fmt(target)}</>}
+                      <span className="ml-2 text-foreground font-semibold">{stats.pct}%</span>
+                    </div>
+                  </div>
+                  <Progress value={stats.pct} className="h-1.5" />
+                </div>
+              </header>
+            )}
 
             {/* TABS */}
-            <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)} className="flex-1 flex flex-col min-h-0">
-              <div className="px-3 sm:px-6 pt-3 border-b border-border shrink-0">
-                <TabsList className="bg-transparent p-0 h-auto gap-0 grid grid-cols-4 w-full sm:w-full">
+            <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)} className={cn("flex-1 flex flex-col min-h-0", asPage && "space-y-4")}>
+              <div className={cn(
+                asPage
+                  ? "px-0"
+                  : "px-3 sm:px-6 pt-3 border-b border-border shrink-0"
+              )}>
+                <TabsList
+                  className={cn(
+                    asPage
+                      ? ""
+                      : "bg-transparent p-0 h-auto gap-0 grid grid-cols-4 w-full sm:w-full",
+                  )}
+                >
                   <TabsTrigger
                     value="resumo"
                     aria-label="Resumo"
-                    className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none gap-1.5 h-12 sm:h-10 px-2 sm:px-3 flex-col sm:flex-row"
+                    className={cn(
+                      "gap-1.5",
+                      !asPage &&
+                        "bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none h-12 sm:h-10 px-2 sm:px-3 flex-col sm:flex-row",
+                    )}
                   >
-                    <BarChart3 className="h-5 w-5 sm:h-4 sm:w-4 shrink-0" />
-                    <span className="hidden sm:inline text-sm">Resumo</span>
+                    <BarChart3 className="h-3.5 w-3.5 shrink-0" />
+                    <span className={cn(asPage ? "" : "hidden sm:inline", "text-sm")}>Resumo</span>
                   </TabsTrigger>
                   <TabsTrigger
                     value="playlists"
                     aria-label="Curador"
-                    className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none gap-1.5 h-12 sm:h-10 px-2 sm:px-3 flex-col sm:flex-row sm:border-l sm:border-border"
+                    className={cn(
+                      "gap-1.5",
+                      !asPage &&
+                        "bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none h-12 sm:h-10 px-2 sm:px-3 flex-col sm:flex-row sm:border-l sm:border-border",
+                    )}
                   >
-                    <ListMusic className="h-5 w-5 sm:h-4 sm:w-4 shrink-0" />
-                    <span className="hidden sm:inline text-sm">Curador</span>
-                    <span className="text-[10px] sm:text-xs font-semibold tabular-nums">
-                      {curatorTotal}
-                    </span>
+                    <ListMusic className="h-3.5 w-3.5 shrink-0" />
+                    <span className={cn(asPage ? "" : "hidden sm:inline", "text-sm")}>Curador</span>
+                    <span className="ml-1 text-xs text-muted-foreground tabular-nums">{curatorTotal}</span>
                   </TabsTrigger>
                   <TabsTrigger
                     value="algoritmo"
                     aria-label="Algoritmo"
-                    className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none gap-1.5 h-12 sm:h-10 px-2 sm:px-3 flex-col sm:flex-row sm:border-l sm:border-border"
+                    className={cn(
+                      "gap-1.5",
+                      !asPage &&
+                        "bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none h-12 sm:h-10 px-2 sm:px-3 flex-col sm:flex-row sm:border-l sm:border-border",
+                    )}
                   >
-                    <Sparkles className="h-5 w-5 sm:h-4 sm:w-4 shrink-0" />
-                    <span className="hidden sm:inline text-sm">Algoritmo</span>
-                    <span className="text-[10px] sm:text-xs font-semibold tabular-nums">
-                      {algoTotal}
-                    </span>
+                    <Sparkles className="h-3.5 w-3.5 shrink-0" />
+                    <span className={cn(asPage ? "" : "hidden sm:inline", "text-sm")}>Algoritmo</span>
+                    <span className="ml-1 text-xs text-muted-foreground tabular-nums">{algoTotal}</span>
                   </TabsTrigger>
                   <TabsTrigger
                     value="historico"
                     aria-label="Histórico"
-                    className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none gap-1.5 h-12 sm:h-10 px-2 sm:px-3 flex-col sm:flex-row sm:border-l sm:border-border"
+                    className={cn(
+                      "gap-1.5",
+                      !asPage &&
+                        "bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none h-12 sm:h-10 px-2 sm:px-3 flex-col sm:flex-row sm:border-l sm:border-border",
+                    )}
                   >
-                    <Clock className="h-5 w-5 sm:h-4 sm:w-4 shrink-0" />
-                    <span className="hidden sm:inline text-sm">Histórico</span>
-                    <span className="text-[10px] sm:text-xs font-semibold tabular-nums">
-                      {reversedLogs.length}
-                    </span>
+                    <Clock className="h-3.5 w-3.5 shrink-0" />
+                    <span className={cn(asPage ? "" : "hidden sm:inline", "text-sm")}>Histórico</span>
+                    <span className="ml-1 text-xs text-muted-foreground tabular-nums">{reversedLogs.length}</span>
                   </TabsTrigger>
                 </TabsList>
               </div>
 
               {/* BODY */}
-              <div className="flex-1 overflow-y-auto">
+              <div className={cn(asPage ? "space-y-4" : "flex-1 overflow-y-auto")}>
+
                 {/* === RESUMO === */}
-                <TabsContent value="resumo" className="m-0 px-6 py-5 space-y-5">
+                <TabsContent value="resumo" className={cn("m-0 space-y-5", asPage ? "rounded-2xl border border-border bg-card p-5" : "px-6 py-5")}>
                   {/* aviso whitelist vazia */}
                   {!hasCuratorWhitelist && (
                     <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 flex gap-3">
@@ -894,7 +915,7 @@ export function DealHistorySheet({
                 </TabsContent>
 
                 {/* === CURADOR (whitelist) === */}
-                <TabsContent value="playlists" className="m-0 px-6 py-5 space-y-4">
+                <TabsContent value="playlists" className={cn("m-0 space-y-4", asPage ? "rounded-2xl border border-border bg-card p-5" : "px-6 py-5")}>
                   <div className="rounded-lg border border-white/[0.04] bg-[hsl(var(--elevated))]/40 px-3 py-2 text-[11px] text-muted-foreground leading-relaxed">
                     Playlists cadastradas pelo curador — é o que conta como entrega contratada.
                   </div>
@@ -1004,7 +1025,7 @@ export function DealHistorySheet({
                 </TabsContent>
 
                 {/* === ALGORITMO (editorial / orgânica / suspeita) === */}
-                <TabsContent value="algoritmo" className="m-0 px-6 py-5 space-y-4">
+                <TabsContent value="algoritmo" className={cn("m-0 space-y-4", asPage ? "rounded-2xl border border-border bg-card p-5" : "px-6 py-5")}>
                   <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-[11px] text-muted-foreground leading-relaxed">
                     <span className="text-foreground font-medium">Visualização apenas.</span>{" "}
                     Playlists detectadas pelo algoritmo do Spotify ou orgânicas — não contam na entrega do curador.
@@ -1112,7 +1133,7 @@ export function DealHistorySheet({
                 </TabsContent>
 
                 {/* === HISTÓRICO === */}
-                <TabsContent value="historico" className="m-0 px-6 py-5 space-y-3">
+                <TabsContent value="historico" className={cn("m-0 space-y-3", asPage ? "rounded-2xl border border-border bg-card p-5" : "px-6 py-5")}>
                   {reversedLogs.length === 0 ? (
                     <div className="rounded-2xl border border-border bg-card py-10 flex flex-col items-center text-center gap-2">
                       <div className="h-10 w-10 rounded-full bg-[hsl(var(--elevated))] border border-border flex items-center justify-center">
@@ -1341,12 +1362,13 @@ export function DealHistorySheet({
 
   if (asPage) {
     return (
-      <div className="flex flex-col min-h-[calc(100vh-8rem)] rounded-2xl border border-border/50 bg-card overflow-hidden">
+      <div className="flex flex-col">
         {body}
         {dialogs}
       </div>
     );
   }
+
 
   return (
     <Sheet
