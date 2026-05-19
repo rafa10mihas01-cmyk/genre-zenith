@@ -190,6 +190,11 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
   // Persistência
   useEffect(() => {
     try {
+      if (!songs.some(hasStartedSongDraft)) {
+        localStorage.removeItem(STORAGE_KEY_V2);
+        localStorage.removeItem(STORAGE_KEY_V1);
+        return;
+      }
       const payload: PersistedV2 = { clientId, curatorId, songs, activeIdx };
       localStorage.setItem(STORAGE_KEY_V2, JSON.stringify(payload));
     } catch { /* ignore */ }
