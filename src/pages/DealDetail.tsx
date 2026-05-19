@@ -102,7 +102,7 @@ export default function DealDetail() {
         <>
           {/* KPIs — hierarquia cockpit, mesmo padrão do Cliente e Curador */}
           {stats && (
-            <div className="grid grid-cols-2 md:grid-cols-6 gap-2 pt-4 mb-6">
+            <div className="grid grid-cols-2 md:grid-cols-7 gap-2 pt-4 mb-6">
               <KpiBig
                 label="Entrega"
                 value={`${stats.pct}%`}
