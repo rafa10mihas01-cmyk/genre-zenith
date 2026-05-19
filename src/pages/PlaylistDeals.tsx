@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { ListMusic, Plus, CheckCircle2, Layers, Activity, Target, Users, Receipt, User, ChevronDown, Briefcase, Filter, Check } from "lucide-react";
+import { ListMusic, Plus, CheckCircle2, Layers, Activity, Target, Users, Receipt, User, ChevronDown, Briefcase, Filter, Check, Play, Hourglass } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
@@ -24,19 +24,36 @@ import { CloseDealDialog } from "@/components/playlist-deals/CloseDealDialog";
 import { FinanceiroTab } from "@/components/playlist-deals/FinanceiroTab";
 
 
-type DealsTab = "active" | "done" | "ledger" | "all";
+type DealsTab = "active" | "running" | "waiting" | "done" | "ledger" | "all";
 
 const TABS = [
-  { id: "active"   as const, label: "Ativos",      icon: Activity },
-  { id: "done"     as const, label: "Concluídos",  icon: CheckCircle2 },
-  { id: "all"      as const, label: "Todos",       icon: Layers },
+  { id: "active"   as const, label: "Ativos",            icon: Activity },
+  { id: "running"  as const, label: "Rodando",           icon: Play },
+  { id: "waiting"  as const, label: "Aguardando início", icon: Hourglass },
+  { id: "done"     as const, label: "Concluídos",        icon: CheckCircle2 },
+  { id: "all"      as const, label: "Todos",             icon: Layers },
 ];
+
+function filterByTab(
+  deals: CuratorDeal[],
+  tab: DealsTab,
+  withBaseline: Set<string>,
+): CuratorDeal[] {
+  switch (tab) {
+    case "done":    return deals.filter((d) => !!d.closed_at);
+    case "active":  return deals.filter((d) => !d.closed_at);
+    case "running": return deals.filter((d) => !d.closed_at && withBaseline.has(d.id));
+    case "waiting": return deals.filter((d) => !d.closed_at && !withBaseline.has(d.id));
+    case "all":
+    case "ledger":
+    default:        return deals;
+  }
+}
 
 export default function PlaylistDeals() {
   const [tabRaw, setTab] = useScreenField<DealsTab>("/playlist-deals", "tab", "active");
   // Aba "ledger" foi extraída para /financeiro — normaliza pra "active" se persistido.
   const tab: DealsTab = tabRaw === "ledger" ? "active" : tabRaw;
-  const [activeSubFilter, setActiveSubFilter] = useScreenField<"all" | "running" | "waiting">("/playlist-deals", "activeSub", "all");
   const [artistFilter, setArtistFilter] = useScreenField<string>("/playlist-deals", "artist", "");
   const [newOpen, setNewOpen] = useState(false);
   const [logDeal, setLogDeal] = useState<CuratorDeal | null>(null);
@@ -178,10 +195,7 @@ export default function PlaylistDeals() {
 
   // Artistas disponíveis na aba atual (antes do filtro por artista)
   const artistsAvailable = useMemo(() => {
-    const base =
-      tab === "done" ? deals.filter((d) => !!d.closed_at)
-      : tab === "active" ? deals.filter((d) => !d.closed_at)
-      : deals;
+    const base = filterByTab(deals, tab, dealsWithBaseline);
     const set = new Map<string, number>();
     for (const d of base) {
       const a = (d.song_name ?? "").trim();
@@ -191,7 +205,7 @@ export default function PlaylistDeals() {
     return Array.from(set.entries())
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
-  }, [deals, tab]);
+  }, [deals, tab, dealsWithBaseline]);
 
   // Se o artista filtrado não existe mais na aba, reseta
   useEffect(() => {
@@ -201,15 +215,8 @@ export default function PlaylistDeals() {
   }, [artistFilter, artistsAvailable, setArtistFilter]);
 
   const filtered = useMemo(() => {
-    let base =
-      tab === "done" ? deals.filter((d) => !!d.closed_at)
-      : tab === "active" ? deals.filter((d) => !d.closed_at)
-      : deals;
+    let base = filterByTab(deals, tab, dealsWithBaseline);
 
-    if (tab === "active") {
-      if (activeSubFilter === "running") base = base.filter((d) => dealsWithBaseline.has(d.id));
-      else if (activeSubFilter === "waiting") base = base.filter((d) => !dealsWithBaseline.has(d.id));
-    }
 
     if (artistFilter) {
       base = base.filter((d) => (d.song_name ?? "").trim() === artistFilter);
@@ -251,7 +258,7 @@ export default function PlaylistDeals() {
       // mesma campanha: ativos primeiro
       return rank(a) - rank(b);
     });
-  }, [deals, dealsWithBaseline, tab, activeSubFilter, artistFilter]);
+  }, [deals, dealsWithBaseline, tab, artistFilter]);
 
   const handleNew = () => setNewOpen(true);
 
@@ -278,6 +285,8 @@ export default function PlaylistDeals() {
   const tabCount = (id: DealsTab) => {
     if (id === "all") return kpi.total;
     if (id === "done") return kpi.done;
+    if (id === "running") return activeCounts.running;
+    if (id === "waiting") return activeCounts.waiting;
     return kpi.active;
   };
 
@@ -366,78 +375,47 @@ export default function PlaylistDeals() {
       </section>
 
 
-      {/* TABS — mesmo padrão visual de Operação (border-b + ícone + label) */}
+      {/* TABS — Rodando e Aguardando promovidos a tabs; Música fica no canto direito */}
       <div className="sticky top-0 z-30 -mt-px bg-background/95 supports-[backdrop-filter]:bg-background/80 backdrop-blur-md border-b border-border -mx-4 md:-mx-6">
-        <div className="nx-tab-rail items-center gap-1 px-4 md:px-6">
-          {TABS.map((t) => {
-          const Icon = t.icon;
-          const active = tab === t.id;
-          return (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={cn(
-                "px-4 h-10 inline-flex items-center gap-2 text-sm font-medium border-b-2 transition-colors -mb-px shrink-0 whitespace-nowrap",
-                active
-                  ? "border-primary text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <Icon className="h-3.5 w-3.5" />
-              {t.label}
-              <span
-                className={cn(
-                  "ml-1 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-bold tabular-nums",
-                  active
-                    ? "bg-primary/15 text-primary"
-                    : "bg-muted text-muted-foreground",
-                )}
-              >
-                {tabCount(t.id)}
-              </span>
-            </button>
-          );
-          })}
-        </div>
-      </div>
-
-      {/* Sub-filtros: estado (Ativos) + filtro por músico */}
-      {(deals.length > 0) && (
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {tab === "active" && activeCounts.all > 0 && ([
-            { id: "all" as const,     label: "Todos",             count: activeCounts.all },
-            { id: "running" as const, label: "Rodando",           count: activeCounts.running },
-            { id: "waiting" as const, label: "Aguardando início", count: activeCounts.waiting },
-          ]).map((f) => {
-            const isActive = activeSubFilter === f.id;
-            return (
-              <button
-                key={f.id}
-                onClick={() => setActiveSubFilter(f.id)}
-                className={cn(
-                  "h-8 px-3 inline-flex items-center gap-1.5 rounded-full text-[12px] font-medium border transition-colors",
-                  isActive
-                    ? "bg-primary/15 text-primary border-primary/30"
-                    : "bg-transparent text-muted-foreground border-border hover:text-foreground hover:bg-muted/40",
-                )}
-              >
-                {f.label}
-                <span className={cn(
-                  "inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold tabular-nums",
-                  isActive ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground",
-                )}>
-                  {f.count}
-                </span>
-              </button>
-            );
-          })}
+        <div className="nx-tab-rail items-center gap-1 px-4 md:px-6 flex">
+          <div className="flex items-center gap-1 flex-1 min-w-0 overflow-x-auto scrollbar-none">
+            {TABS.map((t) => {
+              const Icon = t.icon;
+              const active = tab === t.id;
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => setTab(t.id)}
+                  className={cn(
+                    "px-4 h-10 inline-flex items-center gap-2 text-sm font-medium border-b-2 transition-colors -mb-px shrink-0 whitespace-nowrap",
+                    active
+                      ? "border-primary text-foreground"
+                      : "border-transparent text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  {t.label}
+                  <span
+                    className={cn(
+                      "ml-1 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-bold tabular-nums",
+                      active
+                        ? "bg-primary/15 text-primary"
+                        : "bg-muted text-muted-foreground",
+                    )}
+                  >
+                    {tabCount(t.id)}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
 
           {artistsAvailable.length > 0 && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
                   className={cn(
-                    "h-8 px-3 inline-flex items-center gap-1.5 rounded-full text-[12px] font-medium border transition-colors",
+                    "ml-auto shrink-0 h-8 px-3 inline-flex items-center gap-1.5 rounded-full text-[12px] font-medium border transition-colors",
                     artistFilter
                       ? "bg-primary/15 text-primary border-primary/30"
                       : "bg-transparent text-muted-foreground border-border hover:text-foreground hover:bg-muted/40",
@@ -450,7 +428,7 @@ export default function PlaylistDeals() {
                   <ChevronDown className="h-3 w-3 opacity-70" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-60 max-h-80 overflow-y-auto">
+              <DropdownMenuContent align="end" className="w-60 max-h-80 overflow-y-auto">
                 <DropdownMenuItem onClick={() => setArtistFilter("")} className="gap-2">
                   {!artistFilter ? <Check className="h-4 w-4 text-primary" /> : <span className="w-4" />}
                   <span>Todas as músicas</span>
@@ -470,7 +448,8 @@ export default function PlaylistDeals() {
             </DropdownMenu>
           )}
         </div>
-      )}
+      </div>
+
 
       {/* Conteúdo — altura mínima estável evita layout shift entre abas */}
       <div className="min-h-[480px] animate-tab-in">
