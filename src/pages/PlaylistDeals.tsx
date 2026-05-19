@@ -285,6 +285,8 @@ export default function PlaylistDeals() {
   const tabCount = (id: DealsTab) => {
     if (id === "all") return kpi.total;
     if (id === "done") return kpi.done;
+    if (id === "running") return activeCounts.running;
+    if (id === "waiting") return activeCounts.waiting;
     return kpi.active;
   };
 
