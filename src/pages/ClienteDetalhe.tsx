@@ -254,15 +254,8 @@ export default function ClienteDetalhe() {
         }
       />
 
-      {/* Tags (se houver) — única coisa que sobra fora do subtitle */}
-      {(client.archived_at || client.tags?.length > 0) && (
-        <div className="flex flex-wrap items-center gap-1.5">
-          {client.archived_at && <Badge variant="outline" className="text-[10.5px]">Arquivado</Badge>}
-          {client.tags?.map((t) => (
-            <Badge key={t} variant="outline" className="text-[10.5px] rounded-full">{t}</Badge>
-          ))}
-        </div>
-      )}
+
+
 
 
       {/* KPIs — hierarquia cockpit (mesmo padrão de Início / Campanhas / Catálogo) */}
