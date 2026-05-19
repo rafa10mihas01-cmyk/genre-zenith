@@ -472,9 +472,7 @@ export default function PlaylistDeals() {
 
       {/* Conteúdo — altura mínima estável evita layout shift entre abas */}
       <div className="min-h-[480px] animate-tab-in">
-        {tab === "ledger" ? (
-          <FinanceiroTab deals={deals} />
-        ) : loading && deals.length === 0 ? (
+        {loading && deals.length === 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
               <div key={i} className="nx-card h-56 animate-pulse" />
