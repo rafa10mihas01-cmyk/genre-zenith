@@ -22,7 +22,7 @@ import { formatNumber, timeAgo } from "@/lib/format";
 import {
   Plus, RefreshCw, ExternalLink, Music2, Sparkles, Archive, ArchiveRestore,
   ListMusic, AlertCircle, Activity, Brain, ArrowUpRight, Target, TrendingUp,
-  History, CheckCircle2, XCircle, Clock, Trash2, ChevronDown, ChevronRight, ArrowUpDown, Link2Off, Link2,
+  History, CheckCircle2, XCircle, Clock, Trash2, ChevronDown, ChevronRight, ArrowUpDown, Link2Off, Link2, Filter, Check,
 } from "lucide-react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { PlaylistScoreBadge, type PlaylistScoreRow } from "./PlaylistScoreBadge";
@@ -272,6 +272,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
 
   const [genres, setGenres] = useState<{ id: string; nome: string }[]>([]);
   const [filterMissingGenre, setFilterMissingGenre] = useState(false);
+  const [filterGenreId, setFilterGenreId] = useState<string | null>(null);
   const [savingGenre, setSavingGenre] = useState(false);
 
   useEffect(() => {
@@ -313,6 +314,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   const visible = items
     .filter((p) => (showArchived ? !!p.archived_at : !p.archived_at))
     .filter((p) => (filterMissingGenre ? !p.genre_id : true))
+    .filter((p) => (filterGenreId ? p.genre_id === filterGenreId : true))
     .slice()
     .sort((a, b) => {
       if (sortBy !== "valuation") return 0;
@@ -619,6 +621,41 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
           <ArrowUpDown className="h-4 w-4" />
           <span className="hidden sm:inline">{sortBy === "valuation" ? "Valuation" : "Recente"}</span>
         </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant={filterGenreId ? "default" : "outline"}
+              size="sm"
+              className="gap-1.5 h-9 w-9 sm:w-auto px-0 sm:px-3 shrink-0"
+              title="Filtrar por gênero"
+              aria-label="Filtrar por gênero"
+            >
+              <Filter className="h-4 w-4" />
+              <span className="hidden sm:inline max-w-[120px] truncate">
+                {filterGenreId
+                  ? genres.find(g => g.id === filterGenreId)?.nome ?? "Gênero"
+                  : "Gênero"}
+              </span>
+              <ChevronDown className="h-3.5 w-3.5 opacity-70 -mr-0.5 hidden sm:inline" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-56 max-h-80 overflow-y-auto">
+            <DropdownMenuItem onClick={() => setFilterGenreId(null)} className="gap-2">
+              {!filterGenreId ? <Check className="h-4 w-4 text-primary" /> : <span className="w-4" />}
+              <span>Todos os gêneros</span>
+            </DropdownMenuItem>
+            {genres.map((g) => (
+              <DropdownMenuItem
+                key={g.id}
+                onClick={() => setFilterGenreId(g.id)}
+                className="gap-2"
+              >
+                {filterGenreId === g.id ? <Check className="h-4 w-4 text-primary" /> : <span className="w-4" />}
+                <span className="truncate">{g.nome}</span>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
         {missingGenreCount > 0 && (
           <Button
             variant={filterMissingGenre ? "default" : "outline"}
