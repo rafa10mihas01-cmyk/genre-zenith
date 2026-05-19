@@ -80,12 +80,27 @@ async function fetchSpotifyCoverUrl(spotifyPlaylistId: string, token: string): P
   return Array.isArray(images) ? (images[0]?.url ?? null) : null;
 }
 
+// Extrai só o hash final da imagem (ignora CDN shard e prefixo de tamanho).
+// Ex.: https://image-cdn-fa.spotifycdn.com/image/ab67706c0000bebbHASH
+//   → HASH. Mosaicos auto-gerados começam com ab67706c, capas uploaded não.
+function extractImageHash(url: string | null): string | null {
+  if (!url) return null;
+  const m = url.match(/\/image\/[a-f0-9]{16}([a-f0-9]+)/i);
+  return m ? m[1].toLowerCase() : url.toLowerCase();
+}
+
+function isAutoMosaic(url: string | null): boolean {
+  return !!url && /\/image\/ab67706c[0-9a-f]+/i.test(url);
+}
+
 async function waitForSpotifyCover(spotifyPlaylistId: string, token: string, previousUrl: string | null): Promise<string | null> {
+  const prevHash = extractImageHash(previousUrl);
   let latest: string | null = null;
   for (let i = 0; i < 8; i++) {
     if (i > 0) await new Promise((resolve) => setTimeout(resolve, 1200));
     latest = await fetchSpotifyCoverUrl(spotifyPlaylistId, token);
-    if (latest && latest !== previousUrl) return latest;
+    const curHash = extractImageHash(latest);
+    if (latest && curHash && curHash !== prevHash) return latest;
   }
   return latest;
 }
@@ -153,17 +168,37 @@ Deno.serve(async (req) => {
     }
 
     const spotifyCoverUrl = await waitForSpotifyCover(pl.spotify_playlist_id, token, previousCoverUrl);
-    const finalCoverUrl = spotifyCoverUrl ?? imageUrl;
+    const prevHash = extractImageHash(previousCoverUrl);
+    const curHash = extractImageHash(spotifyCoverUrl);
+    const changed = !!curHash && curHash !== prevHash;
+    const stillMosaic = isAutoMosaic(spotifyCoverUrl);
 
-    await supabase.from("managed_playlists").update({ cover_url: finalCoverUrl }).eq("id", pl.id);
-    await supabase.from("playlists").update({ cover_url: finalCoverUrl }).eq("spotify_playlist_id", pl.spotify_playlist_id);
+    // Spotify às vezes retorna 202 mas silenciosamente NÃO aplica a capa
+    // (token sem permissão real de ugc-image-upload, ou app em dev mode).
+    // Se a imagem não mudou ou continua sendo mosaico auto, falha explícita.
+    if (!changed || stillMosaic) {
+      await supabase.from("collection_logs").insert({
+        acao: "apply-managed-cover",
+        status: "erro",
+        mensagem: `${pl.spotify_playlist_id} Spotify aceitou (202) mas não aplicou (owner=${ownerId ?? "?"}, mosaic=${stillMosaic}, changed=${changed})`,
+      });
+      return jr({
+        ok: false,
+        confirmed: false,
+        cover_url: spotifyCoverUrl,
+        error: `O Spotify aceitou o upload mas não aplicou a capa. Isso geralmente significa que o token da conta dona da playlist (${ownerId ?? "desconhecida"}) está sem permissão de upload de imagem. Vá em Configurações → Spotify e RECONECTE essa conta para renovar a permissão.`,
+      }, 200);
+    }
+
+    await supabase.from("managed_playlists").update({ cover_url: spotifyCoverUrl }).eq("id", pl.id);
+    await supabase.from("playlists").update({ cover_url: spotifyCoverUrl }).eq("spotify_playlist_id", pl.spotify_playlist_id);
     await supabase.from("collection_logs").insert({
       acao: "apply-managed-cover",
       status: "sucesso",
-      mensagem: `${pl.spotify_playlist_id} capa atualizada${spotifyCoverUrl ? " e confirmada" : " (aguardando CDN)"}`,
+      mensagem: `${pl.spotify_playlist_id} capa atualizada e confirmada`,
     });
 
-    return jr({ ok: true, cover_url: finalCoverUrl, confirmed: Boolean(spotifyCoverUrl) });
+    return jr({ ok: true, cover_url: spotifyCoverUrl, confirmed: true });
   } catch (e) {
     return jr({ ok: false, error: (e as Error).message }, 500);
   }
