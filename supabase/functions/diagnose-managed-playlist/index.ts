@@ -487,7 +487,6 @@ Deno.serve(async (req) => {
     }));
     const hasCooldown = (a: string) => activeCooldowns.some((c) => c.action_type === a);
     const maxChangePctConfig: number = Number(pl.max_change_pct ?? 5);
-    const removeRatio = counts.total > 0 ? counts.remove / counts.total : 0;
     const saturatedRatio = counts.total > 0 ? saturatedCount / counts.total : 0;
 
     // 8.h) Decisão de modo — primeiro pergunta se vale a pena mexer
