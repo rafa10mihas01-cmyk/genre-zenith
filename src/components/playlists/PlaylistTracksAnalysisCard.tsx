@@ -66,6 +66,49 @@ type Summary = {
   zone_best?: Record<Zone, number>;
   anchor_has_eligible?: boolean;
   anchor_misuse?: number;
+  add?: number;
+  add_from_missing?: number;
+  substitutions?: number;
+  zone_deficits?: Record<Zone, number>;
+  zone_ideal?: Record<Zone, number>;
+};
+
+type Substitution = {
+  replaces_track_id: string;
+  replaces_track_name: string | null;
+  replaces_artist_name: string | null;
+  replaces_position: number;
+  slot_zone: Zone;
+  slot_zone_label: string;
+  candidate: {
+    spotify_track_id: string;
+    nome: string;
+    artista: string;
+    popularity: number | null;
+    recurrence_in_genre: number;
+    zone_fit_score: number;
+    function_role: string;
+    from_missing_artist: boolean;
+    suggested_position: number;
+  } | null;
+};
+
+type Suggestion = {
+  spotify_track_id: string;
+  nome: string;
+  artista: string;
+  count: number;
+  popularity?: number | null;
+  from_missing_artist?: boolean;
+  target_zone?: Zone;
+  target_zone_label?: string;
+  function_role?: string;
+  zone_fit_score?: number;
+  suggested_position?: number;
+  fills_deficit?: boolean;
+  is_substitution?: boolean;
+  replaces_track_name?: string | null;
+  replaces_artist_name?: string | null;
 };
 
 const ZONE_LABELS: Record<Zone, string> = {
