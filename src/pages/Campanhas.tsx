@@ -55,7 +55,6 @@ export default function Campanhas() {
   
   const [recalcing, setRecalcing] = useState(false);
   const [tab, setTab] = useState<"lista" | "financeiro">("financeiro");
-  const [newOpen, setNewOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
