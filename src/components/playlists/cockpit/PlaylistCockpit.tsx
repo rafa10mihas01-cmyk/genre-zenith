@@ -762,12 +762,12 @@ function CoverCard({ managedId, currentCover, leaders, spotifyPlaylistId }: {
                     <div className="absolute inset-0 rounded-md bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 p-1">
                       <button
                         type="button"
-                        disabled={!l.cover_url || busy || !!applyingLeader}
-                        onClick={() => applyLeaderCover(l)}
-                        title={`Usar capa de "${l.name}"`}
+                        disabled={!l.cover_url || isCoverApplying}
+                        onClick={() => selectLeaderCover(l)}
+                        title={`Selecionar capa de "${l.name}"`}
                         className="text-[9px] font-semibold leading-tight text-primary-foreground bg-primary hover:bg-primary/90 rounded px-1.5 py-0.5 disabled:opacity-50"
                       >
-                        {busy ? "..." : "Usar essa"}
+                        {busy ? "..." : "Escolher"}
                       </button>
                       <a
                         href={`https://open.spotify.com/playlist/${l.spotify_playlist_id}`}
@@ -784,7 +784,7 @@ function CoverCard({ managedId, currentCover, leaders, spotifyPlaylistId }: {
             </div>
           )}
           <div className="text-[11px] text-muted-foreground pt-1">
-            Passe o mouse na capa de um líder e clique "Usar essa" pra aplicar direto, ou use "Trocar capa" pra subir a sua.
+            Escolha uma capa sua ou uma referência. Depois confirme em "Aplicar no Spotify".
           </div>
         </div>
       </div>
