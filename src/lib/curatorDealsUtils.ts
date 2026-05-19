@@ -23,6 +23,8 @@ export type CuratorDeal = {
   closed_status?: "completed" | "cancelled" | null;
   closed_reason?: string | null;
   final_report_url?: string | null;
+  campaign_id?: string | null;
+  origin?: "campaign" | "manual" | null;
 };
 
 export type CuratorDealSong = {

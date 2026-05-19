@@ -135,12 +135,16 @@ export default function PlaylistDeals() {
       else active++;
     }
     const pct = totalTarget > 0 ? Math.round((totalEarned / totalTarget) * 100) : 0;
+    const fromCampaign = deals.filter((d) => d.origin === "campaign").length;
+    const campaignPct = deals.length > 0 ? Math.round((fromCampaign / deals.length) * 100) : 0;
     return {
       total: deals.length,
       active,
       done,
       earned: totalEarned,
       pct,
+      fromCampaign,
+      campaignPct,
     };
   }, [deals, logs, playlists, progressByDeal]);
 
@@ -322,7 +326,11 @@ export default function PlaylistDeals() {
           icon={ListMusic}
           label="Total de deals"
           value={formatNumber(kpi.total)}
-          hint="Deals cadastrados"
+          hint={
+            kpi.total > 0
+              ? `${kpi.campaignPct}% via campanha · ${kpi.total - kpi.fromCampaign} avulsos`
+              : "Deals cadastrados"
+          }
           domain="deals"
           loading={loading && deals.length === 0}
         />
