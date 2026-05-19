@@ -125,8 +125,8 @@ export function FinanceiroTab({ deals }: Props) {
             Sem compras
           </div>
         ) : (
-          <ul className="divide-y divide-border">
-            {purchases.slice(0, 10).map((p) => {
+          <ul className="divide-y divide-border overflow-auto max-h-[420px]">
+            {purchases.slice(0, 30).map((p) => {
               const curator = byCurator.find((c) => c.curator_id === p.curator_id);
               return (
                 <li key={p.id} className="px-5 py-3 flex items-center gap-4 text-sm">
