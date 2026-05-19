@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
  */
 export function CalculadoraKpis({ r }: { r: CampaignResult }) {
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
       {/* Headline — ocupa 2 colunas no desktop, tipografia maior, acento primary */}
       <KpiHero
         icon={TrendingUp}
