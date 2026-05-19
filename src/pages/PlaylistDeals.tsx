@@ -171,6 +171,30 @@ export default function PlaylistDeals() {
     return { all: actives.length, running, waiting };
   }, [deals, dealsWithBaseline]);
 
+  // Artistas disponíveis na aba atual (antes do filtro por artista)
+  const artistsAvailable = useMemo(() => {
+    const base =
+      tab === "done" ? deals.filter((d) => !!d.closed_at)
+      : tab === "active" ? deals.filter((d) => !d.closed_at)
+      : deals;
+    const set = new Map<string, number>();
+    for (const d of base) {
+      const a = (d.song_artist ?? "").trim();
+      if (!a) continue;
+      set.set(a, (set.get(a) ?? 0) + 1);
+    }
+    return Array.from(set.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+  }, [deals, tab]);
+
+  // Se o artista filtrado não existe mais na aba, reseta
+  useEffect(() => {
+    if (artistFilter && !artistsAvailable.some((a) => a.name === artistFilter)) {
+      setArtistFilter("");
+    }
+  }, [artistFilter, artistsAvailable, setArtistFilter]);
+
   const filtered = useMemo(() => {
     let base =
       tab === "done" ? deals.filter((d) => !!d.closed_at)
@@ -180,6 +204,10 @@ export default function PlaylistDeals() {
     if (tab === "active") {
       if (activeSubFilter === "running") base = base.filter((d) => dealsWithBaseline.has(d.id));
       else if (activeSubFilter === "waiting") base = base.filter((d) => !dealsWithBaseline.has(d.id));
+    }
+
+    if (artistFilter) {
+      base = base.filter((d) => (d.song_artist ?? "").trim() === artistFilter);
     }
     // Agrupa por CAMPANHA (mesmo nome de música fica junto), independente de curador.
     // Dentro de cada campanha: ativos com baseline > ativos sem baseline > encerrados.
