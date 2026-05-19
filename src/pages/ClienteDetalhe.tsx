@@ -192,11 +192,15 @@ export default function ClienteDetalhe() {
 
   return (
     <PageContainer>
-
-
       <PageHeader
         title={client.name}
-        subtitle={`${CLIENT_TYPE_LABEL[client.client_type] ?? "Cliente"}${client.company ? ` · ${client.company}` : ""}`}
+        subtitle={[
+          CLIENT_TYPE_LABEL[client.client_type] ?? "Cliente",
+          client.company,
+          [client.city, client.country].filter(Boolean).join(", ") || null,
+          client.primary_genre,
+          `Desde ${format(new Date(client.created_at), "dd MMM yyyy", { locale: ptBR })}`,
+        ].filter(Boolean).join(" · ")}
         actions={
           <div className="flex items-center gap-2">
             <Button size="sm" variant="outline" className="gap-1.5 h-9 rounded-full" onClick={() => setEditing(true)}>
@@ -250,25 +254,16 @@ export default function ClienteDetalhe() {
         }
       />
 
-      {/* Metadata strip — complementa o PageHeader sem duplicar nome/tipo */}
-      {(client.archived_at || client.city || client.country || client.primary_genre || client.created_at || client.tags?.length > 0) && (
-        <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground">
+      {/* Tags (se houver) — única coisa que sobra fora do subtitle */}
+      {(client.archived_at || client.tags?.length > 0) && (
+        <div className="flex flex-wrap items-center gap-1.5">
           {client.archived_at && <Badge variant="outline" className="text-[10.5px]">Arquivado</Badge>}
-          {(client.city || client.country) && (
-            <span className="inline-flex items-center gap-1">
-              <MapPin className="h-3 w-3" />{[client.city, client.country].filter(Boolean).join(", ")}
-            </span>
-          )}
-          {client.primary_genre && <span className="inline-flex items-center gap-1"><Music2 className="h-3 w-3" />{client.primary_genre}</span>}
-          <span className="inline-flex items-center gap-1">
-            <Calendar className="h-3 w-3" />
-            Desde {format(new Date(client.created_at), "dd MMM yyyy", { locale: ptBR })}
-          </span>
-          {client.tags?.length > 0 && client.tags.map((t) => (
+          {client.tags?.map((t) => (
             <Badge key={t} variant="outline" className="text-[10.5px] rounded-full">{t}</Badge>
           ))}
         </div>
       )}
+
 
       {/* KPIs — hierarquia cockpit (mesmo padrão de Início / Campanhas / Catálogo) */}
       <div className="grid grid-cols-2 md:grid-cols-6 gap-2 mb-6">
