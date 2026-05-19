@@ -30,6 +30,7 @@ import { ptBR } from "date-fns/locale";
 
 import { PageContainer } from "@/components/PageContainer";
 import { PageHeader } from "@/components/PageHeader";
+import { KpiBig } from "@/components/KpiBig";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -273,14 +274,22 @@ export default function ClienteDetalhe() {
         </div>
       )}
 
-      {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-6">
-        <Stat label="Músicas" value={kpis.musicas} />
-        <Stat label="Deals" value={kpis.deals} />
-        <Stat label="Ativos" value={kpis.ativos} tone="primary" />
-        <Stat label="Concluídos" value={kpis.concluidos} tone="success" />
-        <Stat label="Investido" value={formatBRL(kpis.investido)} tone="muted" />
+      {/* KPIs — hierarquia cockpit (mesmo padrão de Início / Campanhas / Catálogo) */}
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-2 mb-6">
+        <KpiBig
+          label="Investido"
+          value={formatBRL(kpis.investido)}
+          icon={CreditCard}
+          hint={kpis.deals > 0 ? `Em ${kpis.deals} deal${kpis.deals === 1 ? "" : "s"}` : "Sem deals"}
+          tier="hero"
+          domain="clients"
+        />
+        <KpiBig label="Deals" value={kpis.deals} icon={FileText} hint="Total fechados" domain="deals" />
+        <KpiBig label="Ativos" value={kpis.ativos} icon={CheckCircle2} hint="Em andamento" tone="primary" domain="deals" />
+        <KpiBig label="Músicas" value={kpis.musicas} icon={Music2} hint="No catálogo do cliente" domain="clients" />
+        <KpiBig label="Concluídos" value={kpis.concluidos} icon={CheckCircle2} hint="Entregues" tier="quiet" />
       </div>
+
 
       <Tabs defaultValue="visao" className="space-y-4">
         <TabsList>
