@@ -29,12 +29,13 @@ type DealsTab = "active" | "done" | "ledger" | "all";
 const TABS = [
   { id: "active"   as const, label: "Ativos",      icon: Activity },
   { id: "done"     as const, label: "Concluídos",  icon: CheckCircle2 },
-  { id: "ledger"   as const, label: "Financeiro",  icon: Receipt },
   { id: "all"      as const, label: "Todos",       icon: Layers },
 ];
 
 export default function PlaylistDeals() {
-  const [tab, setTab] = useScreenField<DealsTab>("/playlist-deals", "tab", "active");
+  const [tabRaw, setTab] = useScreenField<DealsTab>("/playlist-deals", "tab", "active");
+  // Aba "ledger" foi extraída para /financeiro — normaliza pra "active" se persistido.
+  const tab: DealsTab = tabRaw === "ledger" ? "active" : tabRaw;
   const [activeSubFilter, setActiveSubFilter] = useScreenField<"all" | "running" | "waiting">("/playlist-deals", "activeSub", "all");
   const [artistFilter, setArtistFilter] = useScreenField<string>("/playlist-deals", "artist", "");
   const [newOpen, setNewOpen] = useState(false);
@@ -401,7 +402,7 @@ export default function PlaylistDeals() {
       </div>
 
       {/* Sub-filtros: estado (Ativos) + filtro por músico */}
-      {tab !== "ledger" && (deals.length > 0) && (
+      {(deals.length > 0) && (
         <div className="flex items-center gap-1.5 flex-wrap">
           {tab === "active" && activeCounts.all > 0 && ([
             { id: "all" as const,     label: "Todos",             count: activeCounts.all },
@@ -473,9 +474,7 @@ export default function PlaylistDeals() {
 
       {/* Conteúdo — altura mínima estável evita layout shift entre abas */}
       <div className="min-h-[480px] animate-tab-in">
-        {tab === "ledger" ? (
-          <FinanceiroTab deals={deals} />
-        ) : loading && deals.length === 0 ? (
+        {loading && deals.length === 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
               <div key={i} className="nx-card h-56 animate-pulse" />

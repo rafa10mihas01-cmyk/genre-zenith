@@ -336,4 +336,35 @@ export const PAGE_MANUALS: Record<string, PageManualData> = {
       },
     ],
   },
+
+  financeiro: {
+    title: "Financeiro",
+    subtitle: "Custos, CPP e ranking de eficiência por curador.",
+    sections: [
+      {
+        heading: "O que você encontra aqui",
+        body: [
+          "• Total comprado, comprometido e saldo derivado (comprado − comprometido).",
+          "• CPP médio global (custo por play) — referência pra avaliar todo curador novo.",
+          "• Ranking de curadores ordenado por menor CPP — quem entrega mais barato fica no topo.",
+          "• Histórico imutável das últimas compras (ledger).",
+        ],
+      },
+      {
+        heading: "Como usar",
+        body: [
+          "• Verde no CPP = mais barato que o CPP global. Âmbar = 50% mais caro que a média.",
+          "• Use o ranking pra decidir pra QUEM mandar a próxima campanha primeiro.",
+          "• Saldo derivado negativo significa que você prometeu mais plays do que comprou — revisar antes de fechar deal novo.",
+        ],
+      },
+      {
+        heading: "Como NÃO usar",
+        body:
+          "Os números aqui são derivados do ledger de compras (curator_purchases). " +
+          "Pra ajustar saldo de um curador específico, use 'Adicionar saldo' no fluxo " +
+          "de novo deal — NUNCA edite manualmente os totais.",
+      },
+    ],
+  },
 };
