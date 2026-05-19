@@ -96,7 +96,7 @@ export default function AdminAprendizado({ embedded = false }: { embedded?: bool
     try {
       const { error } = await supabase.functions.invoke("learn-from-winners", { body: { genre_id: genreId, min_winner: 60 } });
       if (error) throw error;
-      toast({ title: "Aprendizado executado" });
+      toast({ title: "Executado" });
       // reload
       const base = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.functions.supabase.co/learning-audit`;
       const { data: { session } } = await supabase.auth.getSession();

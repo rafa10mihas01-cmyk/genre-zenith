@@ -146,7 +146,7 @@ export function PlaylistCockpit({
       });
       if (error || !data?.ok) throw new Error(error?.message ?? data?.error ?? "Falha");
       setDiag(data.diagnosis);
-      toast({ title: "Diagnóstico atualizado" });
+      toast({ title: "Diagnóstico pronto" });
     } catch (e: any) {
       toast({ title: "Erro no diagnóstico", description: e.message, variant: "destructive" });
     } finally {
@@ -628,7 +628,7 @@ function CoverCard({ managedId, currentCover, leaders, spotifyPlaylistId }: {
       if (error) throw error;
       if (!data?.ok) throw new Error(data?.error || "falha ao aplicar capa");
       setLocalCover(imageUrl);
-      toast({ title: "Capa atualizada no Spotify", description: "Pode levar alguns segundos pra atualizar lá." });
+      toast({ title: "Capa atualizada" });
     } catch (e: any) {
       toast({ title: "Erro ao enviar capa", description: e?.message ?? String(e), variant: "destructive" });
     } finally {

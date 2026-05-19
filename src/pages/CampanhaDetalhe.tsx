@@ -62,7 +62,7 @@ export default function CampanhaDetalhe() {
     const { error } = await (supabase.rpc as any)("recalc_campaign_progress", { p_campaign_id: id });
     setBusy(false);
     if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
-    else { toast({ title: "Progresso atualizado" }); load(); }
+    else { toast({ title: "Atualizado" }); load(); }
   }
 
   async function updateStatus(newStatus: string) {
