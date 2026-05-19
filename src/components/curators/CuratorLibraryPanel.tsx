@@ -321,13 +321,8 @@ export function CuratorLibraryPanel({ curator, deals, balance, onAddPurchase, fl
                 filteredItems.length > 12 && "max-h-[864px] overflow-y-auto",
               )}
             >
-              {filteredItems
+              {filteredItems.map((p) => {
 
-        ) : (
-          <div className="space-y-2">
-            {items
-              .filter((p) => !genreFilter || genresByLibrary.get(p.id)?.has(genreFilter))
-              .map((p) => {
               const stat = stats.find((s) => s.library_id === p.id);
               const perf = performance.find((s) => s.library_id === p.id);
               const perfClass = perf?.performance_class ?? "sem_historico";
