@@ -528,7 +528,7 @@ Deno.serve(async (req) => {
     }
 
     const tracksAnalysis = rawTracks.map((x) => {
-      const { t, recurrence, popularity, releaseDate, artistPop, artistFollowers, pos, saturationPct, ageDays, scores } = x;
+      const { t, recurrence, popularity, releaseDate, artistPop, artistFollowers, artistGenres, nicheFit, pos, saturationPct, ageDays, scores, isDominantArtist } = x;
       const currentZone = zoneFromPos(pos);
       const bestZone = pickBestZone(x);
       const bestZoneScore = scores[bestZone];
@@ -550,13 +550,21 @@ Deno.serve(async (req) => {
         }
         reasons.push("zona reservada · só ajustes suaves dentro do bloco da campanha");
       }
-      // 1) REMOVER saturada — enterrada e sem função em zona nenhuma
+      // 1) REMOVER fora-do-nicho — artista tem gêneros mapeados no Spotify e nenhum bate com o nicho,
+      //    não é dominante e não tem recorrência. Pagode com funk no meio sai daqui.
+      else if (nicheFit === "off_niche" && recurrence === 0 && !isDominantArtist) {
+        status = "remove";
+        const gShown = artistGenres.slice(0, 2).join(", ");
+        reasons.push(`fora do nicho · artista é ${gShown || "outro gênero"}, playlist é ${genreName ?? "—"}`);
+        reasons.push("nenhum gênero do artista bate com o nicho da playlist");
+      }
+      // 2) REMOVER saturada — enterrada e sem função em zona nenhuma
       else if (saturationPct >= 70 && pos >= 20 && bestZoneScore < 45) {
         status = "remove";
         reasons.push(`saturada no nicho (${saturationPct}%) e enterrada em #${pos + 1}`);
         reasons.push("não cumpre função em nenhuma zona");
       }
-      // 2) REMOVER frio — sem força em zona nenhuma + sem recorrência + tempo de teste
+      // 3) REMOVER frio — sem força em zona nenhuma + sem recorrência + tempo de teste
       else if (popularity != null && popularity < 30 && recurrence === 0 && (ageDays == null || ageDays > 30) && bestZoneScore < 25) {
         status = "remove";
         reasons.push(`popularity ${popularity} e zero presença no nicho`);
