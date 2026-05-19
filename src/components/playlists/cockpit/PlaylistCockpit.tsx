@@ -590,6 +590,9 @@ function CoverCard({ managedId, currentCover, leaders, spotifyPlaylistId }: {
   const [localCover, setLocalCover] = useState<string | null>(currentCover);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [pendingPreview, setPendingPreview] = useState<string | null>(null);
+  const [selectedLeader, setSelectedLeader] = useState<typeof leaders[number] | null>(null);
+
+  useEffect(() => { setLocalCover(currentCover); }, [currentCover]);
 
   const applyLeaderCover = async (leader: { spotify_playlist_id: string; cover_url: string | null; name: string }) => {
     if (!leader.cover_url) return;
@@ -601,6 +604,7 @@ function CoverCard({ managedId, currentCover, leaders, spotifyPlaylistId }: {
       if (error) throw error;
       if (!data?.ok) throw new Error(data?.error || "falha ao aplicar capa");
       setLocalCover(data.cover_url ?? leader.cover_url);
+      setSelectedLeader(null);
       toast({
         title: data.confirmed ? "Capa aplicada no Spotify" : "Capa enviada ao Spotify",
         description: data.confirmed ? `Usando a capa de "${leader.name}".` : "O Spotify aceitou a capa, mas a CDN ainda pode levar alguns segundos para exibir.",
@@ -623,6 +627,7 @@ function CoverCard({ managedId, currentCover, leaders, spotifyPlaylistId }: {
       return;
     }
     if (pendingPreview) URL.revokeObjectURL(pendingPreview);
+    setSelectedLeader(null);
     setPendingFile(file);
     setPendingPreview(URL.createObjectURL(file));
   };
@@ -631,6 +636,15 @@ function CoverCard({ managedId, currentCover, leaders, spotifyPlaylistId }: {
     if (pendingPreview) URL.revokeObjectURL(pendingPreview);
     setPendingFile(null);
     setPendingPreview(null);
+    setSelectedLeader(null);
+  };
+
+  const selectLeaderCover = (leader: typeof leaders[number]) => {
+    if (!leader.cover_url) return;
+    if (pendingPreview) URL.revokeObjectURL(pendingPreview);
+    setPendingFile(null);
+    setPendingPreview(null);
+    setSelectedLeader(leader);
   };
 
   const applyPending = async () => {
@@ -664,6 +678,11 @@ function CoverCard({ managedId, currentCover, leaders, spotifyPlaylistId }: {
     }
   };
 
+  const isCoverApplying = uploading || applyingLeader !== null;
+  const selectedCoverPreview = pendingPreview ?? selectedLeader?.cover_url ?? null;
+  const selectedCoverName = pendingFile?.name ?? selectedLeader?.name ?? "";
+  const selectedCoverHint = pendingFile ? "Imagem escolhida do seu computador." : "Capa selecionada dos líderes do nicho.";
+
   return (
     <Card className="p-4 space-y-4">
       <div className="flex items-center justify-between">
@@ -672,15 +691,15 @@ function CoverCard({ managedId, currentCover, leaders, spotifyPlaylistId }: {
           <label className={cn(
             "inline-flex items-center gap-1 h-7 px-2 text-xs rounded-md cursor-pointer",
             "bg-primary text-primary-foreground hover:bg-primary/90 font-medium",
-            (uploading || !!pendingFile) && "opacity-60 pointer-events-none",
+            isCoverApplying && "opacity-60 pointer-events-none",
           )}>
             <Plus className="h-3 w-3" />
-            {pendingFile ? "Capa selecionada" : "Escolher capa"}
+            Escolher capa
             <input
               type="file"
               accept="image/png,image/jpeg,image/webp"
               className="hidden"
-              disabled={uploading || !!pendingFile}
+              disabled={isCoverApplying}
               onChange={(e) => { const f = e.target.files?.[0]; if (f) selectFile(f); e.currentTarget.value = ""; }}
             />
           </label>
@@ -691,19 +710,24 @@ function CoverCard({ managedId, currentCover, leaders, spotifyPlaylistId }: {
           </Button>
         </div>
       </div>
-      {pendingFile && pendingPreview && (
+      {selectedCoverPreview && (pendingFile || selectedLeader) && (
         <div className="flex items-center gap-3 rounded-lg border border-primary/40 bg-primary/5 p-3">
-          <img src={pendingPreview} alt="prévia" className="w-16 h-16 rounded-md object-cover ring-1 ring-border" />
+          <img src={selectedCoverPreview} alt="capa selecionada" className="w-16 h-16 rounded-md object-cover ring-1 ring-border" />
           <div className="flex-1 min-w-0">
-            <div className="text-xs font-medium truncate">{pendingFile.name}</div>
-            <div className="text-[10px] text-muted-foreground">Pronta pra aplicar no Spotify.</div>
+            <div className="text-xs font-medium truncate">{selectedCoverName}</div>
+            <div className="text-[10px] text-muted-foreground">{selectedCoverHint}</div>
           </div>
-          <Button size="sm" variant="ghost" onClick={clearPending} disabled={uploading} className="h-7 text-xs">
+          <Button size="sm" variant="ghost" onClick={clearPending} disabled={isCoverApplying} className="h-7 text-xs">
             Cancelar
           </Button>
-          <Button size="sm" onClick={applyPending} disabled={uploading} className="h-7 text-xs gap-1.5">
-            {uploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
-            {uploading ? "Aplicando..." : "Aplicar capa"}
+          <Button
+            size="sm"
+            onClick={() => pendingFile ? applyPending() : selectedLeader && applyLeaderCover(selectedLeader)}
+            disabled={isCoverApplying}
+            className="h-7 text-xs gap-1.5"
+          >
+            {isCoverApplying ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+            {isCoverApplying ? "Aplicando..." : "Aplicar no Spotify"}
           </Button>
         </div>
       )}
@@ -738,12 +762,12 @@ function CoverCard({ managedId, currentCover, leaders, spotifyPlaylistId }: {
                     <div className="absolute inset-0 rounded-md bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 p-1">
                       <button
                         type="button"
-                        disabled={!l.cover_url || busy || !!applyingLeader}
-                        onClick={() => applyLeaderCover(l)}
-                        title={`Usar capa de "${l.name}"`}
+                        disabled={!l.cover_url || isCoverApplying}
+                        onClick={() => selectLeaderCover(l)}
+                        title={`Selecionar capa de "${l.name}"`}
                         className="text-[9px] font-semibold leading-tight text-primary-foreground bg-primary hover:bg-primary/90 rounded px-1.5 py-0.5 disabled:opacity-50"
                       >
-                        {busy ? "..." : "Usar essa"}
+                        {busy ? "..." : "Escolher"}
                       </button>
                       <a
                         href={`https://open.spotify.com/playlist/${l.spotify_playlist_id}`}
@@ -760,7 +784,7 @@ function CoverCard({ managedId, currentCover, leaders, spotifyPlaylistId }: {
             </div>
           )}
           <div className="text-[11px] text-muted-foreground pt-1">
-            Passe o mouse na capa de um líder e clique "Usar essa" pra aplicar direto, ou use "Trocar capa" pra subir a sua.
+            Escolha uma capa sua ou uma referência. Depois confirme em "Aplicar no Spotify".
           </div>
         </div>
       </div>
