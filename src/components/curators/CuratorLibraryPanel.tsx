@@ -327,12 +327,15 @@ export function CuratorLibraryPanel({ curator, deals, balance, onAddPurchase, fl
           </div>
         ) : (
           <div className="space-y-2">
-            {items.map((p) => {
+            {items
+              .filter((p) => !genreFilter || genresByLibrary.get(p.id)?.has(genreFilter))
+              .map((p) => {
               const stat = stats.find((s) => s.library_id === p.id);
               const perf = performance.find((s) => s.library_id === p.id);
               const perfClass = perf?.performance_class ?? "sem_historico";
               const isSuspicious = perfClass === "suspeita";
               const isExcellent = perfClass === "excelente";
+              const itemGenres = Array.from(genresByLibrary.get(p.id) ?? []);
               return (
                 <div
                   key={p.id}
