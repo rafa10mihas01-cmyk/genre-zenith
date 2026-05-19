@@ -33,7 +33,7 @@ async function callAuth(qs: string, init?: RequestInit) {
   return resp.json();
 }
 
-export function SpotifyAppsManager({ onChange }: { onChange?: (apps: SpotifyApp[]) => void }) {
+export function SpotifyAppsManager({ onChange, onConnectAccount }: { onChange?: (apps: SpotifyApp[]) => void; onConnectAccount?: (appId: string, forceLogin: boolean) => void }) {
   const [apps, setApps] = useState<SpotifyApp[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Partial<SpotifyApp> | null>(null);
