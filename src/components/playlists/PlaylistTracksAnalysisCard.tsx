@@ -18,6 +18,7 @@ import {
 import { cn } from "@/lib/utils";
 
 type Status = "keep" | "remove" | "promote" | "demote" | "protected";
+type Zone = "anchor" | "premium" | "support" | "tail";
 
 type TrackRow = {
   spotify_track_id: string;
@@ -32,6 +33,12 @@ type TrackRow = {
   saturation_pct?: number;
   age_days_in_playlist?: number | null;
   release_date?: string | null;
+  // zona editorial
+  current_zone?: Zone;
+  best_zone?: Zone;
+  target_position?: number | null;
+  anchor_eligible?: boolean;
+  zone_scores?: { anchor: number; premium: number; support: number; tail: number };
   // proteção de campanha
   is_protected?: boolean;
   protected_campaign_id?: string | null;
@@ -53,6 +60,23 @@ type Summary = {
   saturated_pct?: number;
   no_data?: number;
   missing_artists?: { artist: string; count: number }[];
+  zone_current?: Record<Zone, number>;
+  zone_best?: Record<Zone, number>;
+  anchor_has_eligible?: boolean;
+  anchor_misuse?: number;
+};
+
+const ZONE_LABELS: Record<Zone, string> = {
+  anchor: "Fachada",
+  premium: "Premium",
+  support: "Sustentação",
+  tail: "Cauda",
+};
+const ZONE_HINT: Record<Zone, string> = {
+  anchor: "#1-2 · só hits dominantes",
+  premium: "#3-6 · zona de impulsionamento",
+  support: "#7-12 · sustenta retenção",
+  tail: "#13+ · descoberta e catálogo",
 };
 
 function fmtNum(n: number | null | undefined) {
