@@ -313,7 +313,7 @@ export function PlaylistCockpit({
         </div>
 
         {/* KPI row — mesma régua do DealDetail/Cliente/Curador */}
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
           <KpiBig
             label="Seguidores"
             value={fmtNum(followers)}
@@ -347,17 +347,6 @@ export function PlaylistCockpit({
               : (diag?.raw?.health_status ?? "saudavel") === "frio" ? "destructive"
               : "default"
             }
-          />
-          <KpiBig
-            label="Diagnóstico"
-            value={
-              diag
-                ? new Date(diag.created_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })
-                : "—"
-            }
-            icon={Timer}
-            tier="quiet"
-            hint={diag ? "última análise" : "sem dados"}
           />
         </div>
       </header>
