@@ -17,6 +17,7 @@ import {
   Heart, Eye, RotateCcw, Timer, Zap, ShieldCheck, AlertTriangle,
 } from "lucide-react";
 import { PlaylistTracksTab } from "@/components/playlists/PlaylistTracksTab";
+import { KpiBig } from "@/components/KpiBig";
 import { ProjecaoFaixa } from "@/components/operacao/SimuladorEntrega";
 import { CuratorialStateBadge, CooldownChip } from "@/components/playlist/CuratorialStateBadge";
 import { AdjustmentTimeline } from "@/components/playlists/cockpit/AdjustmentTimeline";
@@ -243,52 +244,53 @@ export function PlaylistCockpit({
 
   return (
     <div className="mx-auto w-full max-w-[1600px] px-4 md:px-8 py-4 md:py-5 space-y-4">
-      {/* ============ 1. HERO (compacto) ============ */}
-      <Card className="overflow-hidden border-0 bg-gradient-to-br from-primary/[0.08] via-card to-card relative">
-        <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.12),transparent_55%)]" />
-        <div className="relative p-4 md:p-5 flex flex-col md:flex-row gap-4 md:gap-5 items-start">
-          <div className="relative shrink-0">
+      {/* ============ 1. HEADER (slim, padrão cockpit) ============ */}
+      <header className="space-y-3">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            {onBack && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onBack}
+                className="h-7 -ml-2 text-muted-foreground hover:text-foreground gap-1 text-xs shrink-0"
+              >
+                <ArrowLeft className="h-3 w-3" /> Voltar
+              </Button>
+            )}
             {coverUrl ? (
-              <img src={coverUrl} alt={playlistName}
-                className="w-20 h-20 md:w-24 md:h-24 rounded-xl object-cover shadow-lg ring-1 ring-white/5" />
+              <img
+                src={coverUrl}
+                alt={playlistName}
+                className="w-10 h-10 rounded-md object-cover ring-1 ring-white/5 shrink-0"
+              />
             ) : (
-              <div className="w-20 h-20 md:w-24 md:h-24 rounded-xl bg-elevated grid place-items-center">
-                <Music2 className="h-7 w-7 text-muted-foreground/40" />
+              <div className="w-10 h-10 rounded-md bg-elevated grid place-items-center shrink-0">
+                <Music2 className="h-4 w-4 text-muted-foreground/40" />
               </div>
             )}
-          </div>
-          <div className="flex-1 min-w-0 space-y-2">
-            <div className="flex items-center gap-2 flex-wrap">
-              {onBack && (
-                <Button variant="ghost" size="sm" onClick={onBack} className="h-6 -ml-2 text-muted-foreground hover:text-foreground gap-1 text-xs">
-                  <ArrowLeft className="h-3 w-3" /> Voltar
-                </Button>
-              )}
-              {genreName && (
-                <Badge variant="outline" className="text-[10px] uppercase tracking-wider">{genreName}</Badge>
-              )}
-              {diag?.raw?.niche_rank && diag.raw.niche_total && (
-                <Badge variant="outline" className="text-[10px] gap-1 border-primary/30 text-primary">
-                  <Crown className="h-3 w-3" /> #{diag.raw.niche_rank} de {diag.raw.niche_total}
-                </Badge>
-              )}
-              <span className={cn("inline-flex items-center gap-1 px-2 h-5 rounded-full border text-[10px] font-medium", health.tone)}>
-                <health.Icon className="h-3 w-3" /> {health.label}
-              </span>
-            </div>
-            <h1 className="text-xl md:text-2xl font-bold tracking-tight leading-tight truncate">
-              {playlistName}
-            </h1>
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs">
-              <Stat label="Seguidores" value={fmtNum(followers)} accent />
-              <Stat label="Faixas" value={fmtNum(liveTracksCount)} />
-              {brainScore != null && <Stat label="Score" value={`${brainScore}`} />}
-              {diag && (
-                <Stat label="Diagnóstico" value={new Date(diag.created_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })} muted />
-              )}
+            <div className="min-w-0 flex-1">
+              <h1 className="text-base md:text-lg font-semibold tracking-tight leading-tight truncate">
+                {playlistName}
+              </h1>
+              <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                {genreName && (
+                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+                    {genreName}
+                  </span>
+                )}
+                {genreName && diag?.raw?.niche_rank && (
+                  <span className="text-muted-foreground/40 text-[10px]">·</span>
+                )}
+                {diag?.raw?.niche_rank && diag.raw.niche_total && (
+                  <span className="inline-flex items-center gap-1 text-[10px] text-primary font-medium">
+                    <Crown className="h-3 w-3" /> #{diag.raw.niche_rank} de {diag.raw.niche_total}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2 md:flex-col md:items-end shrink-0">
+          <div className="flex flex-wrap gap-2 shrink-0">
             <Button onClick={runDiagnose} disabled={running} size="sm" className="gap-1.5 h-8">
               {running ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
               {diag ? "Rodar nova análise" : "Rodar análise"}
@@ -300,7 +302,56 @@ export function PlaylistCockpit({
             </Button>
           </div>
         </div>
-      </Card>
+
+        {/* KPI row — mesma régua do DealDetail/Cliente/Curador */}
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
+          <KpiBig
+            label="Seguidores"
+            value={fmtNum(followers)}
+            icon={Users}
+            tier="hero"
+            tone="primary"
+            domain="playlists"
+          />
+          <KpiBig
+            label="Faixas"
+            value={fmtNum(liveTracksCount)}
+            icon={Music2}
+            domain="playlists"
+            hint={idealRange ? `ideal ${idealRange[0]}–${idealRange[1]}` : undefined}
+          />
+          {brainScore != null && (
+            <KpiBig
+              label="Score"
+              value={`${brainScore}`}
+              icon={ShieldCheck}
+              tone={brainScore >= 75 ? "success" : brainScore >= 50 ? "primary" : "default"}
+            />
+          )}
+          <KpiBig
+            label="Saúde"
+            value={health.label}
+            icon={health.Icon}
+            tier="quiet"
+            tone={
+              (diag?.raw?.health_status ?? "saudavel") === "aquecido" ? "primary"
+              : (diag?.raw?.health_status ?? "saudavel") === "frio" ? "destructive"
+              : "default"
+            }
+          />
+          <KpiBig
+            label="Diagnóstico"
+            value={
+              diag
+                ? new Date(diag.created_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })
+                : "—"
+            }
+            icon={Timer}
+            tier="quiet"
+            hint={diag ? "última análise" : "sem dados"}
+          />
+        </div>
+      </header>
 
       {loading ? (
         <Card className="p-10 grid place-items-center">
