@@ -387,10 +387,10 @@ export default function PlaylistDeals() {
         </div>
       </div>
 
-      {/* Sub-filtro da aba Ativos */}
-      {tab === "active" && activeCounts.all > 0 && (
+      {/* Sub-filtros: estado (Ativos) + filtro por músico */}
+      {tab !== "ledger" && (deals.length > 0) && (
         <div className="flex items-center gap-1.5 flex-wrap">
-          {([
+          {tab === "active" && activeCounts.all > 0 && ([
             { id: "all" as const,     label: "Todos",             count: activeCounts.all },
             { id: "running" as const, label: "Rodando",           count: activeCounts.running },
             { id: "waiting" as const, label: "Aguardando início", count: activeCounts.waiting },
@@ -417,6 +417,44 @@ export default function PlaylistDeals() {
               </button>
             );
           })}
+
+          {artistsAvailable.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className={cn(
+                    "h-8 px-3 inline-flex items-center gap-1.5 rounded-full text-[12px] font-medium border transition-colors",
+                    artistFilter
+                      ? "bg-primary/15 text-primary border-primary/30"
+                      : "bg-transparent text-muted-foreground border-border hover:text-foreground hover:bg-muted/40",
+                  )}
+                >
+                  <Filter className="h-3.5 w-3.5" />
+                  <span className="max-w-[140px] truncate">
+                    {artistFilter || "Músico"}
+                  </span>
+                  <ChevronDown className="h-3 w-3 opacity-70" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-60 max-h-80 overflow-y-auto">
+                <DropdownMenuItem onClick={() => setArtistFilter("")} className="gap-2">
+                  {!artistFilter ? <Check className="h-4 w-4 text-primary" /> : <span className="w-4" />}
+                  <span>Todos os músicos</span>
+                </DropdownMenuItem>
+                {artistsAvailable.map((a) => (
+                  <DropdownMenuItem
+                    key={a.name}
+                    onClick={() => setArtistFilter(a.name)}
+                    className="gap-2"
+                  >
+                    {artistFilter === a.name ? <Check className="h-4 w-4 text-primary" /> : <span className="w-4" />}
+                    <span className="truncate flex-1">{a.name}</span>
+                    <span className="text-[10px] tabular-nums text-muted-foreground">{a.count}</span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       )}
 
