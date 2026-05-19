@@ -1267,6 +1267,14 @@ Deno.serve(async (req) => {
           substitutions: substitutions,
           zone_deficits: deficits,
           zone_ideal: zoneIdeal,
+          // === Camada IA editorial ===
+          ai_used: !!aiCopy,
+          ai_error: aiError,
+          ai_titles: aiCopy?.titles ?? null,
+          ai_descriptions: aiCopy?.descriptions ?? null,
+          ai_reasoning: aiCopy?.reasoning ?? null,
+          algo_name_baseline: algoName,
+          algo_description_baseline: algoDescription,
         },
       })
       .select()
