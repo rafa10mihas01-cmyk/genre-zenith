@@ -629,20 +629,20 @@ function CoverCard({ managedId, currentCover, references, spotifyPlaylistId }: {
 
   useEffect(() => { setLocalCover(currentCover); }, [currentCover]);
 
-  const applyLeaderCover = async (leader: { spotify_playlist_id: string; cover_url: string | null; name: string }) => {
-    if (!leader.cover_url) return;
-    setApplyingLeader(leader.spotify_playlist_id);
+  const applyLeaderCover = async (ref: CoverReference) => {
+    if (!ref.cover_url) return;
+    setApplyingLeader(ref.id);
     try {
       const { data, error } = await supabase.functions.invoke("apply-managed-cover", {
-        body: { playlist_id: managedId, image_url: leader.cover_url },
+        body: { playlist_id: managedId, image_url: ref.cover_url },
       });
       if (error) throw error;
       if (!data?.ok) throw new Error(data?.error || "falha ao aplicar capa");
-      setLocalCover(data.cover_url ?? leader.cover_url);
+      setLocalCover(data.cover_url ?? ref.cover_url);
       setSelectedLeader(null);
       toast({
         title: data.confirmed ? "Capa aplicada no Spotify" : "Capa enviada ao Spotify",
-        description: data.confirmed ? `Usando a capa de "${leader.name}".` : "O Spotify aceitou a capa, mas a CDN ainda pode levar alguns segundos para exibir.",
+        description: data.confirmed ? `Usando a capa de "${ref.name}".` : "O Spotify aceitou a capa, mas a CDN ainda pode levar alguns segundos para exibir.",
       });
     } catch (e: any) {
       toast({ title: "Erro ao aplicar capa", description: e?.message ?? String(e), variant: "destructive" });
