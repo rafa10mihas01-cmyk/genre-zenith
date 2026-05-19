@@ -520,7 +520,10 @@ Deno.serve(async (req) => {
     //      - suggested_position: posição calculada pela zona-alvo
     const currentIds = new Set(trackIds);
     const missingArtistSet = new Set(missingArtists.map((a) => a.artist.toLowerCase()));
-    const N_SUGGEST = 15;
+    // Pool de sugestões — escala quando a playlist está subdimensionada vs benchmark do nicho
+    const benchP50Pool = Number(benchmark?.tracks_p50 ?? 0);
+    const undersizeGapPool = benchP50Pool > 0 ? Math.max(0, benchP50Pool - totalTracks) : 0;
+    const N_SUGGEST = Math.max(15, Math.min(undersizeGapPool + 5, 40));
 
     // 7.a) Top candidatas brutas (por recorrência) — limitamos antes de gastar API Spotify
     const rawCandidates = Array.from(genreRecurrence.entries())
