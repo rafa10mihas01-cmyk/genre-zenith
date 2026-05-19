@@ -30,11 +30,11 @@ export function MobileBottomNav() {
         "shadow-[0_-1px_8px_rgba(0,0,0,0.04)]"
       )}
         style={{
-        paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 4px)",
-        paddingTop: "6px",
+        paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 22px)",
+        paddingTop: "10px",
         paddingLeft: "calc(env(safe-area-inset-left, 0px) + 16px)",
         paddingRight: "calc(env(safe-area-inset-right, 0px) + 16px)",
-        minHeight: "calc(50px + env(safe-area-inset-bottom, 0px))",
+        minHeight: "calc(64px + env(safe-area-inset-bottom, 0px))",
       }}
       aria-label="Navegação principal"
     >
@@ -52,7 +52,7 @@ export function MobileBottomNav() {
                 aria-label={item.label}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "group w-full min-w-0 flex flex-col items-center justify-center gap-0.5 py-1 px-1",
+                  "group w-full min-w-0 flex flex-col items-center justify-center gap-1 py-1.5 px-1",
                   "rounded-xl transition-all duration-200 active:scale-95",
                   active
                     ? "text-primary bg-primary/10"
@@ -60,13 +60,13 @@ export function MobileBottomNav() {
                 )}
               >
                 <Icon
-                  size={20}
+                  size={22}
                   strokeWidth={active ? 2.4 : 2}
                   className="shrink-0 transition-transform"
                 />
                 <span
                   className={cn(
-                    "text-[10px] leading-none font-medium truncate max-w-full whitespace-nowrap",
+                    "text-[11px] leading-none font-medium truncate max-w-full whitespace-nowrap",
                     active && "font-semibold"
                   )}
                 >
