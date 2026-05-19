@@ -306,7 +306,7 @@
      Padding: 16px mobile → 24px desktop. Conteúdo nunca encosta na borda. */
   .nx-page {
     padding: var(--space-page-y) 8px;
-    padding-bottom: calc(env(safe-area-inset-bottom) + 2px);
+    padding-bottom: 0;
     display: flex;
     flex-direction: column;
     gap: var(--space-section);

@@ -11,7 +11,7 @@ const SUPPORT_EMAIL = "suporte@nexengine.app";
 
 export function AppFooter() {
   return (
-    <footer className="mt-4 pt-3 pb-0 border-t border-border/40">
+    <footer className="hidden lg:block mt-4 pt-3 pb-0 border-t border-border/40">
       <div className="flex flex-row flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[11px] leading-none text-muted-foreground/60">
         <div className="flex items-center gap-2">
           <NexEngineLogo variant="auto" size={14} />
