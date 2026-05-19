@@ -293,7 +293,7 @@ export default function PlaylistDeals() {
   return (
     <PageContainer>
       <PageHeader
-        title="Playlist Deals"
+        title="Negociações"
         subtitle="Transações ativas"
         domain="deals"
         manualKey="deals"
