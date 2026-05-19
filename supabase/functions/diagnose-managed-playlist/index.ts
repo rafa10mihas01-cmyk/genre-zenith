@@ -1196,8 +1196,8 @@ Deno.serve(async (req) => {
     const coverSuggestion = hasCooldown("cover")
       ? {}
       : (model?.insights?.cover ?? model?.insights?.dna_visual ?? {});
-    const finalNameSuggestion = hasCooldown("structural") ? null : nameSuggestion;
-    const finalDescriptionSuggestion = hasCooldown("description") ? null : suggestedDescription;
+    const finalNameSuggestion = hasCooldown("structural") ? null : editorialName;
+    const finalDescriptionSuggestion = hasCooldown("description") ? null : editorialDescription;
     if (hasCooldown("cover")) justifications.push("Capa em cooldown — sugestão visual suspensa.");
     if (hasCooldown("description")) justifications.push("Descrição em cooldown — texto atual mantido.");
 
