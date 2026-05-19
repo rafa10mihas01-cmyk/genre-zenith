@@ -192,11 +192,7 @@ export default function ClienteDetalhe() {
 
   return (
     <PageContainer>
-      <div className="mb-3">
-        <Button variant="ghost" size="sm" asChild className="gap-1.5 h-8 -ml-2 text-muted-foreground">
-          <Link to="/clientes"><ArrowLeft className="h-4 w-4" /> Clientes</Link>
-        </Button>
-      </div>
+
 
       <PageHeader
         title={client.name}
