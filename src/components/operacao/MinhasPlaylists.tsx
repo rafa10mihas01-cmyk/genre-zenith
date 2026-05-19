@@ -103,6 +103,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   const [showArchived, setShowArchived] = useState(false);
   const [sortBy, setSortBy] = useState<"recent" | "valuation">("recent");
   const [importOpen, setImportOpen] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importUrl, setImportUrl] = useState("");
   const [bulkImporting, setBulkImporting] = useState(false);
