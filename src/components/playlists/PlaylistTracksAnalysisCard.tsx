@@ -337,6 +337,7 @@ export function PlaylistTracksAnalysisCard({ managedId }: { managedId: string })
                 <tr className="border-b border-border">
                   <th className="text-left font-medium py-2 pr-2 w-10">#</th>
                   <th className="text-left font-medium py-2 pr-2">Faixa</th>
+                  <th className="text-left font-medium py-2 pr-2">Zona</th>
                   <th className="text-left font-medium py-2 pr-2">Status</th>
                   <th className="text-left font-medium py-2 pr-2">Motivo</th>
                   <th className="text-right font-medium py-2 pr-2">Popularity</th>
@@ -352,12 +353,27 @@ export function PlaylistTracksAnalysisCard({ managedId }: { managedId: string })
                   const pop = t.popularity;
                   const sat = t.saturation_pct ?? 0;
                   const age = t.age_days_in_playlist;
+                  const curZone = t.current_zone;
+                  const bestZone = t.best_zone;
+                  const zoneMoved = curZone && bestZone && curZone !== bestZone;
                   return (
                     <tr key={t.spotify_track_id} className="border-b border-border/40 last:border-0 align-top">
                       <td className="py-2 pr-2 text-muted-foreground tabular-nums">{t.position + 1}</td>
                       <td className="py-2 pr-2 min-w-[180px]">
                         <div className="font-medium text-foreground/90 truncate max-w-[260px]">{t.track_name ?? "—"}</div>
                         <div className="text-muted-foreground truncate max-w-[260px]">{t.artist_name ?? "—"}</div>
+                      </td>
+                      <td className="py-2 pr-2 whitespace-nowrap">
+                        {curZone ? (
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-[11px] text-foreground/90">{ZONE_LABELS[curZone]}</span>
+                            {zoneMoved && (
+                              <span className="text-[10px] text-warning">→ {ZONE_LABELS[bestZone!]}</span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
                       </td>
                       <td className="py-2 pr-2">
                         <Badge variant="outline" className={cn("text-[10px] gap-1", meta.cls)}>
