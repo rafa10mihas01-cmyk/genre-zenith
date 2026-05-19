@@ -119,9 +119,12 @@ export function PlaylistCockpit({
   followers, tracksCount, genreName, brainScore, onBack,
 }: Props) {
   const [diag, setDiag] = useState<Diagnosis | null>(null);
+  const [liveTracksCount, setLiveTracksCount] = useState(tracksCount);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [applying, setApplying] = useState<null | "remove" | "demote" | "promote" | "add" | "all">(null);
+
+  useEffect(() => { setLiveTracksCount(tracksCount); }, [tracksCount]);
 
   const loadLatest = useCallback(async () => {
     setLoading(true);
@@ -177,6 +180,9 @@ export function PlaylistCockpit({
           variant: "destructive",
         });
         return;
+      }
+      if (typeof data?.current_tracks_count === "number") {
+        setLiveTracksCount(data.current_tracks_count);
       }
       const summary = (data?.steps ?? [])
         .map((s: any) => {
@@ -256,7 +262,7 @@ export function PlaylistCockpit({
             </h1>
             <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs">
               <Stat label="Seguidores" value={fmtNum(followers)} accent />
-              <Stat label="Faixas" value={fmtNum(tracksCount)} />
+              <Stat label="Faixas" value={fmtNum(liveTracksCount)} />
               {brainScore != null && <Stat label="Score" value={`${brainScore}`} />}
               {diag && (
                 <Stat label="Diagnóstico" value={new Date(diag.created_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })} muted />
@@ -350,14 +356,14 @@ export function PlaylistCockpit({
               <BucketReorder
                 kind="demote"
                 items={buckets.demote}
-                totalTracks={tracksCount}
+                totalTracks={liveTracksCount}
                 applying={applying === "demote" || applying === "all"}
                 onApplyAll={() => applyPlan("demote")}
               />
               <BucketReorder
                 kind="promote"
                 items={buckets.promote}
-                totalTracks={tracksCount}
+                totalTracks={liveTracksCount}
                 applying={applying === "promote" || applying === "all"}
                 onApplyAll={() => applyPlan("promote")}
               />
@@ -429,7 +435,7 @@ export function PlaylistCockpit({
                   name: playlistName,
                   cover_url: coverUrl,
                   followers: followers ?? 0,
-                  tracks_count: tracksCount,
+                  tracks_count: liveTracksCount,
                 }}
               />
             </TabsContent>

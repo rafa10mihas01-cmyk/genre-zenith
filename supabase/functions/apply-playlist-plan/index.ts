@@ -57,6 +57,22 @@ async function fetchAllTrackUris(playlistId: string, token: string): Promise<str
   return uris;
 }
 
+async function syncManagedSnapshot(authHeader: string, playlistId: string) {
+  const r = await fetch(`${SUPABASE_URL}/functions/v1/sync-managed-playlist-tracks`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: authHeader,
+      apikey: SERVICE_KEY,
+    },
+    body: JSON.stringify({ playlist_id: playlistId }),
+  });
+  const txt = await r.text();
+  let body: any = null;
+  try { body = JSON.parse(txt); } catch { /* ignore */ }
+  return { ok: r.ok && body?.ok !== false, total: body?.total ?? null, error: body?.error ?? txt };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const guard = await requireTeamAccess(req);
@@ -240,10 +256,23 @@ Deno.serve(async (req) => {
       return jr({ ok: false, action, partial: report, error: `${msg}${hint}` }, 502);
     }
 
+    const finalUris = await fetchAllTrackUris(spId, token).catch(() => null);
+    if (finalUris) {
+      report.current_tracks_count = finalUris.length;
+      await supabase
+        .from("managed_playlists")
+        .update({ tracks_count: finalUris.length, last_metrics_at: new Date().toISOString() })
+        .eq("id", pl.id);
+    }
+
+    const sync = await syncManagedSnapshot(`Bearer ${SERVICE_KEY}`, pl.id).catch((e) => ({ ok: false, error: String(e), total: null }));
+    report.sync = sync.ok ? { ok: true, total: sync.total } : { ok: false, error: sync.error };
+    if (sync.ok && typeof sync.total === "number") report.current_tracks_count = sync.total;
+
     await supabase.from("collection_logs").insert({
       acao: "apply-playlist-plan",
       status: "sucesso",
-      mensagem: `${spId} (${action}): ${JSON.stringify(report.steps)}`,
+      mensagem: `${spId} (${action}): ${JSON.stringify(report.steps)} count=${report.current_tracks_count ?? "?"}`,
     });
 
     return jr(report);
