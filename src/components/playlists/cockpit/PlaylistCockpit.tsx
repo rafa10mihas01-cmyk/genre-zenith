@@ -417,7 +417,15 @@ export function PlaylistCockpit({
               <CoverCard
                 managedId={managedId}
                 currentCover={coverUrl}
-                leaders={diag.raw?.market_insights?.leader_playlists ?? []}
+                references={(diag.raw?.market_insights?.top_recurring_tracks ?? [])
+                  .filter((t: any) => t?.cover_url)
+                  .map((t: any) => ({
+                    id: t.spotify_track_id,
+                    name: t.title ?? "—",
+                    subtitle: t.artist ?? "",
+                    cover_url: t.cover_url,
+                    external_url: t.spotify_track_id ? `https://open.spotify.com/track/${t.spotify_track_id}` : null,
+                  }))}
                 spotifyPlaylistId={spotifyPlaylistId}
               />
               {(diag.raw?.missing_keywords?.length ?? 0) > 0 && (
