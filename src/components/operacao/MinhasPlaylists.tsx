@@ -767,8 +767,16 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
                   <span><span className="font-semibold text-foreground">{p.tracks_count || "—"}</span> fx</span>
                 </div>
                 {/* Linha única de status — todos os badges juntos, ocupando a largura disponível */}
-                {(valuations[p.spotify_playlist_id] || p.last_diagnosis_at || p.account_id || !p.account_id || p.curatorial_state || (cooldownsByPlaylist[p.id]?.length ?? 0) > 0) && (
+                {(valuations[p.spotify_playlist_id] || p.last_diagnosis_at || p.account_id || !p.account_id || p.curatorial_state || p.lifecycle_stage === "onboarding" || (cooldownsByPlaylist[p.id]?.length ?? 0) > 0) && (
                   <div className="flex items-center gap-1 flex-wrap mt-0.5">
+                    {p.lifecycle_stage === "onboarding" && (
+                      <span
+                        title="Em onboarding — padronização pendente antes de receber deals"
+                        className="inline-flex items-center px-1.5 h-[18px] rounded-full bg-primary/10 border border-primary/40 text-primary text-[10px] font-semibold"
+                      >
+                        Onboarding
+                      </span>
+                    )}
                     {p.account_id && (() => {
                       const acc = accounts.find(a => a.id === p.account_id);
                       const label = acc?.display_name || acc?.email || "conta";
