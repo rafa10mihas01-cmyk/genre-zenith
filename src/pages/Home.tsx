@@ -282,42 +282,90 @@ export default function Home() {
 }
 
 /* ============================================================
- * Subcomponentes
+ * Subcomponentes — KPIs do topo (mesma régua de hierarquia da Calculadora)
  * ============================================================ */
 
+/** KPI headline — ocupa 2 colunas, glow primary, tipografia maior. Reservado p/ a métrica âncora. */
+function PulseHero({
+  to, icon: Icon, label, value, hint,
+}: { to: string; icon: any; label: string; value: string; hint: string }) {
+  return (
+    <Link
+      to={to}
+      className="md:col-span-2 group relative overflow-hidden rounded-2xl border border-border border-l-2 border-l-primary bg-card p-4 transition-colors hover:bg-[hsl(var(--card-hover,var(--card)))]"
+    >
+      {/* glow sutil verde — cockpit */}
+      <div className="pointer-events-none absolute -top-12 -right-12 h-32 w-32 rounded-full bg-primary/10 blur-2xl" aria-hidden />
+      <div className="relative flex items-center justify-between">
+        <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.12em] font-semibold text-primary">
+          <Icon className="h-3.5 w-3.5" />
+          {label}
+        </div>
+        <ArrowRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+      </div>
+      <div className="relative mt-1.5 text-3xl md:text-4xl font-semibold tabular-nums tracking-tight text-foreground">
+        {value}
+      </div>
+      <div className="relative mt-1 text-xs text-muted-foreground truncate">{hint}</div>
+    </Link>
+  );
+}
+
+/** KPI secundário — leitura tática. */
 function PulseCard({
-  to, icon: Icon, label, value, hint, accent = "text-foreground", highlight = false,
-}: {
-  to: string;
-  icon: any;
-  label: string;
-  value: string;
-  hint: string;
-  accent?: string;
-  highlight?: boolean;
-}) {
+  to, icon: Icon, label, value, hint,
+}: { to: string; icon: any; label: string; value: string; hint: string }) {
+  return (
+    <Link
+      to={to}
+      className="group rounded-2xl border border-border bg-card p-4 flex flex-col gap-1 transition-colors hover:bg-[hsl(var(--card-hover,var(--card)))]"
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted-foreground">
+          <Icon className="h-3.5 w-3.5" />
+          {label}
+        </div>
+        <ArrowRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+      </div>
+      <div className="text-xl font-semibold mt-1 tabular-nums text-foreground">{value}</div>
+      <div className="text-xs text-muted-foreground truncate">{hint}</div>
+    </Link>
+  );
+}
+
+/** KPI quiet — peso reduzido. Promove-se a warning quando `alert` for true. */
+function PulseQuiet({
+  to, icon: Icon, label, value, hint, alert = false,
+}: { to: string; icon: any; label: string; value: string; hint: string; alert?: boolean }) {
   return (
     <Link
       to={to}
       className={cn(
-        "nx-card-hover p-4 flex flex-col gap-2 group min-h-[110px]",
-        highlight && "ring-1 ring-warning/40",
+        "group rounded-2xl border bg-card/60 p-4 flex flex-col gap-1 transition-colors hover:bg-[hsl(var(--card-hover,var(--card)))]",
+        alert ? "border-warning/40 ring-1 ring-warning/20" : "border-border/60",
       )}
     >
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Icon className="h-3.5 w-3.5 text-muted-foreground" />
-          <span className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-semibold">
-            {label}
-          </span>
+        <div className={cn(
+          "flex items-center gap-2 text-[11px] uppercase tracking-wider",
+          alert ? "text-warning" : "text-muted-foreground/80",
+        )}>
+          <Icon className="h-3.5 w-3.5" />
+          {label}
         </div>
-        <ArrowRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+        <ArrowRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
       </div>
-      <div className={cn("text-2xl font-bold tabular-nums leading-none", accent)}>{value}</div>
-      <div className="text-[11px] text-muted-foreground truncate">{hint}</div>
+      <div className={cn(
+        "text-lg font-medium mt-1 tabular-nums",
+        alert ? "text-warning" : "text-muted-foreground",
+      )}>
+        {value}
+      </div>
+      <div className="text-xs text-muted-foreground/70 truncate">{hint}</div>
     </Link>
   );
 }
+
 
 function DeliveryCard({ s, loading }: { s: Snapshot | null; loading: boolean }) {
   const pct = s && s.dealsTarget > 0 ? (s.dealsEntregue / s.dealsTarget) * 100 : 0;
