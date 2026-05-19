@@ -30,18 +30,30 @@ export function CuratorialStateBadge({
   if (!state) return null;
   const meta = STATE_META[state] ?? STATE_META.saudavel;
   const Icon = meta.Icon;
+  // Estado saudável vira só o ícone de coração (maior), pra dar respiro na régua de badges.
+  const iconOnly = state === "saudavel";
   return (
     <span
       title={`Estado curatorial: ${meta.label}`}
+      aria-label={meta.label}
       className={cn(
-        "inline-flex items-center gap-1 rounded-full border tabular-nums font-medium",
-        compact ? "px-1.5 h-5 text-[10px]" : "px-2 h-6 text-[11px]",
+        "inline-flex items-center justify-center rounded-full border tabular-nums font-medium",
+        iconOnly
+          ? (compact ? "w-5 h-5" : "w-6 h-6")
+          : (compact ? "px-1.5 h-5 text-[10px] gap-1" : "px-2 h-6 text-[11px] gap-1"),
         meta.cls,
         className,
       )}
     >
-      <Icon className={compact ? "h-2.5 w-2.5" : "h-3 w-3"} />
-      {meta.label}
+      <Icon
+        className={cn(
+          iconOnly
+            ? (compact ? "h-3 w-3" : "h-3.5 w-3.5")
+            : (compact ? "h-2.5 w-2.5" : "h-3 w-3"),
+        )}
+        {...(iconOnly ? { fill: "currentColor" } : {})}
+      />
+      {!iconOnly && meta.label}
     </span>
   );
 }
