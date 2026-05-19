@@ -134,11 +134,7 @@ export default function CuradorDetail() {
   if (!resolvedCurator) {
     return (
       <PageContainer>
-        <div className="mb-3">
-          <Button variant="ghost" size="sm" asChild className="gap-1.5 h-8 -ml-2 text-muted-foreground">
-            <Link to="/curadores"><ArrowLeft className="h-4 w-4" /> Curadores</Link>
-          </Button>
-        </div>
+        
         <PageHeader
         domain="curators" title="Carregando curador…" subtitle="Buscando dados do curador" />
       </PageContainer>
