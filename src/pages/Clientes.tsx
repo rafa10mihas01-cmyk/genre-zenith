@@ -66,9 +66,10 @@ export default function Clientes() {
 
       <PageContainer>
 
-      {/* KPIs — padrão Comunidade/Operação */}
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* KPIs — hierarquia cockpit: hero (Clientes) + secundários + quiet (histórico) */}
+      <section className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <KpiBig
+          tier="hero"
           icon={Users}
           label="Clientes"
           value={formatNumber(kpis.total)}
@@ -93,6 +94,7 @@ export default function Clientes() {
           loading={loading}
         />
         <KpiBig
+          tier="quiet"
           icon={Handshake}
           label="Deals totais"
           value={formatNumber(kpis.deals)}
@@ -101,6 +103,7 @@ export default function Clientes() {
           loading={loading}
         />
       </section>
+
 
         <ClientesLibraryTab deals={deals} songs={songs} loading={loading} />
       </PageContainer>
