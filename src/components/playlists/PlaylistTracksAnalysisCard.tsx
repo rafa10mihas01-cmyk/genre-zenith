@@ -346,6 +346,124 @@ export function PlaylistTracksAnalysisCard({ managedId }: { managedId: string })
         </Card>
       )}
 
+      {/* Substituições editoriais — pareia cada faixa que sai com candidata que cumpre a MESMA função */}
+      {substitutions.filter((s) => s.candidate).length > 0 && (
+        <Card className="p-5 space-y-3">
+          <div className="flex items-center gap-2">
+            <ArrowRightLeft className="h-4 w-4 text-primary" />
+            <h2 className="text-sm font-semibold">Substituições por função editorial</h2>
+            <span className="text-xs text-muted-foreground">{substitutions.filter((s) => s.candidate).length}</span>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Para cada faixa que sai, o sistema sugere outra do nicho que cumpre o mesmo papel na mesma zona — preservando o equilíbrio da playlist.
+          </p>
+          <div className="space-y-2">
+            {substitutions.filter((s) => s.candidate).map((s) => (
+              <div
+                key={s.replaces_track_id}
+                className="grid grid-cols-1 sm:grid-cols-[1fr,auto,1fr] gap-2 sm:gap-3 items-center rounded-md border border-border bg-card/40 p-3"
+              >
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+                    <span>Sai · #{s.replaces_position + 1}</span>
+                    <span className="opacity-60">·</span>
+                    <span>{s.slot_zone_label}</span>
+                  </div>
+                  <div className="text-xs font-medium text-foreground/90 truncate">{s.replaces_track_name ?? "—"}</div>
+                  <div className="text-xs text-muted-foreground truncate">{s.replaces_artist_name ?? "—"}</div>
+                </div>
+                <ArrowRightLeft className="h-3.5 w-3.5 text-primary mx-auto rotate-0 sm:rotate-0" />
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-primary">
+                    <span>Entra · #{(s.candidate!.suggested_position + 1)}</span>
+                    <span className="opacity-60">·</span>
+                    <span className="truncate">{s.candidate!.function_role}</span>
+                  </div>
+                  <div className="text-xs font-medium text-foreground/90 truncate flex items-center gap-1.5">
+                    {s.candidate!.nome}
+                    {s.candidate!.from_missing_artist && (
+                      <Badge variant="outline" className="text-[9px] h-4 px-1 border-warning/40 text-warning bg-warning/5">
+                        artista faltando
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="text-xs text-muted-foreground truncate">
+                    {s.candidate!.artista}
+                    <span className="ml-1.5 tabular-nums opacity-70">
+                      · pop {s.candidate!.popularity ?? "—"} · {s.candidate!.recurrence_in_genre}× no nicho · fit {s.candidate!.zone_fit_score}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* Adições por função (deficits de zona) */}
+      {suggestions.filter((s) => !s.is_substitution).length > 0 && (
+        <Card className="p-5 space-y-3">
+          <div className="flex items-center gap-2">
+            <Plus className="h-4 w-4 text-primary" />
+            <h2 className="text-sm font-semibold">Adicionar por função editorial</h2>
+            <span className="text-xs text-muted-foreground">{suggestions.filter((s) => !s.is_substitution).length}</span>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Faixas do nicho que ocupariam zonas com déficit — entram cumprindo o papel que está faltando, não só por popularidade.
+          </p>
+          <div className="overflow-x-auto -mx-5 px-5">
+            <table className="w-full text-xs">
+              <thead className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                <tr className="border-b border-border">
+                  <th className="text-left font-medium py-2 pr-2 w-12">Pos</th>
+                  <th className="text-left font-medium py-2 pr-2">Faixa</th>
+                  <th className="text-left font-medium py-2 pr-2">Zona-alvo</th>
+                  <th className="text-left font-medium py-2 pr-2">Função</th>
+                  <th className="text-right font-medium py-2 pr-2">Popularity</th>
+                  <th className="text-right font-medium py-2 pr-2">No nicho</th>
+                  <th className="text-right font-medium py-2">Fit</th>
+                </tr>
+              </thead>
+              <tbody>
+                {suggestions.filter((s) => !s.is_substitution).map((s) => (
+                  <tr key={s.spotify_track_id} className="border-b border-border/40 last:border-0 align-top">
+                    <td className="py-2 pr-2 text-muted-foreground tabular-nums">
+                      {s.suggested_position != null ? `#${s.suggested_position + 1}` : "—"}
+                    </td>
+                    <td className="py-2 pr-2 min-w-[180px]">
+                      <div className="font-medium text-foreground/90 truncate max-w-[260px] flex items-center gap-1.5">
+                        {s.nome}
+                        {s.from_missing_artist && (
+                          <Badge variant="outline" className="text-[9px] h-4 px-1 border-warning/40 text-warning bg-warning/5">
+                            artista faltando
+                          </Badge>
+                        )}
+                        {s.fills_deficit && (
+                          <Badge variant="outline" className="text-[9px] h-4 px-1 border-primary/40 text-primary bg-primary/5">
+                            preenche déficit
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="text-muted-foreground truncate max-w-[260px]">{s.artista}</div>
+                    </td>
+                    <td className="py-2 pr-2 whitespace-nowrap text-foreground/90">
+                      {s.target_zone_label ?? (s.target_zone ? ZONE_LABELS[s.target_zone] : "—")}
+                    </td>
+                    <td className="py-2 pr-2 text-muted-foreground max-w-[200px] truncate">{s.function_role ?? "—"}</td>
+                    <td className="py-2 pr-2 text-right tabular-nums">
+                      {s.popularity == null ? <span className="text-muted-foreground">—</span> : s.popularity}
+                    </td>
+                    <td className="py-2 pr-2 text-right tabular-nums">{s.count}×</td>
+                    <td className="py-2 text-right tabular-nums text-foreground/90">{s.zone_fit_score ?? "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+
+
       {/* Artistas faltando */}
       {missingArtists.length > 0 && (
         <Card className="p-5 space-y-3">
