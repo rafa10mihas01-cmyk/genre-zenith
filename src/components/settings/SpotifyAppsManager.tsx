@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Layers, Plus, Star, Trash2, Pencil, Loader2, ExternalLink, AlertTriangle } from "lucide-react";
+import { Layers, Plus, Star, Trash2, Pencil, Loader2, ExternalLink, AlertTriangle, LinkIcon } from "lucide-react";
 import { toast } from "sonner";
 
 export type SpotifyApp = {
@@ -33,7 +33,7 @@ async function callAuth(qs: string, init?: RequestInit) {
   return resp.json();
 }
 
-export function SpotifyAppsManager({ onChange }: { onChange?: (apps: SpotifyApp[]) => void }) {
+export function SpotifyAppsManager({ onChange, onConnectAccount }: { onChange?: (apps: SpotifyApp[]) => void; onConnectAccount?: (appId: string, forceLogin: boolean) => void }) {
   const [apps, setApps] = useState<SpotifyApp[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Partial<SpotifyApp> | null>(null);
@@ -145,6 +145,17 @@ export function SpotifyAppsManager({ onChange }: { onChange?: (apps: SpotifyApp[
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
+                  {onConnectAccount && a.status === "active" && !full && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => onConnectAccount(a.id, true)}
+                      className="h-8 text-xs gap-1.5 border-primary/40 text-primary hover:bg-primary/10 hover:text-primary"
+                      title={`Conectar nova conta neste app (encerra a sessão Spotify atual e abre o login da próxima conta no app "${a.name}")`}
+                    >
+                      <LinkIcon className="h-3.5 w-3.5" /> Conectar conta
+                    </Button>
+                  )}
                   <Button size="sm" variant="ghost" onClick={() => setEditing(a)} className="h-8 w-8 p-0" title="Editar">
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
