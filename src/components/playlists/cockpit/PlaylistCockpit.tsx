@@ -716,7 +716,7 @@ function CoverCard({ managedId, currentCover, references, spotifyPlaylistId }: {
   const isCoverApplying = uploading || applyingLeader !== null;
   const selectedCoverPreview = pendingPreview ?? selectedLeader?.cover_url ?? null;
   const selectedCoverName = pendingFile?.name ?? selectedLeader?.name ?? "";
-  const selectedCoverHint = pendingFile ? "Imagem escolhida do seu computador." : "Capa selecionada dos líderes do nicho.";
+  const selectedCoverHint = pendingFile ? "Imagem escolhida do seu computador." : "Capa selecionada das faixas do nicho.";
 
   return (
     <Card className="p-4 space-y-4">
