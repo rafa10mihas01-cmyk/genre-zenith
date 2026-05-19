@@ -287,6 +287,15 @@ export function PlaylistCockpit({
                     <Crown className="h-3 w-3" /> #{diag.raw.niche_rank} de {diag.raw.niche_total}
                   </span>
                 )}
+                {diag && (
+                  <>
+                    <span className="text-muted-foreground/40 text-[10px]">·</span>
+                    <span className="inline-flex items-center gap-1 text-[10px] text-destructive/80 tabular-nums">
+                      <Timer className="h-3 w-3" />
+                      {new Date(diag.created_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+                    </span>
+                  </>
+                )}
               </div>
             </div>
           </div>
