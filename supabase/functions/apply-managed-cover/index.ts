@@ -172,21 +172,36 @@ Deno.serve(async (req) => {
     const spotifyCoverUrl = await waitForSpotifyCover(pl.spotify_playlist_id, token, previousCoverUrl);
     const prevHash = extractImageHash(previousCoverUrl);
     const curHash = extractImageHash(spotifyCoverUrl);
-    const changed = !!curHash && curHash !== prevHash;
+    const stillMosaic = isMosaicCover(spotifyCoverUrl);
+    const changed = !!curHash && curHash !== prevHash && !stillMosaic;
 
-    // Se a URL não mudou, não marcamos como confirmado; mas não bloqueamos o fluxo,
-    // porque o Spotify pode manter o mesmo CDN hash quando a imagem aplicada é igual.
     if (!spotifyCoverUrl) {
       await supabase.from("collection_logs").insert({
         acao: "apply-managed-cover",
         status: "erro",
-        mensagem: `${pl.spotify_playlist_id} Spotify aceitou (202) mas não retornou capa atual (owner=${ownerId ?? "?"}, changed=${changed})`,
+        mensagem: `${pl.spotify_playlist_id} Spotify aceitou (202) mas não retornou capa atual (owner=${ownerId ?? "?"})`,
       });
       return jr({
         ok: false,
         confirmed: false,
         cover_url: spotifyCoverUrl,
-        error: "O Spotify aceitou o upload, mas não retornou a capa atualizada para confirmação. Tente novamente em alguns segundos.",
+        error: "O Spotify aceitou o upload, mas não retornou a capa atualizada. Tente novamente em alguns segundos.",
+      }, 200);
+    }
+
+    // Spotify aceitou (202) mas devolveu mosaico = imagem foi descartada silenciosamente.
+    // Causas típicas: JPEG não-quadrado, corrompido, ou conta sem permissão real sobre a playlist.
+    if (stillMosaic) {
+      await supabase.from("collection_logs").insert({
+        acao: "apply-managed-cover",
+        status: "erro",
+        mensagem: `${pl.spotify_playlist_id} Spotify aceitou (202) mas manteve mosaico (owner=${ownerId ?? "?"}) — capa NÃO foi aplicada`,
+      });
+      return jr({
+        ok: false,
+        confirmed: false,
+        cover_url: spotifyCoverUrl,
+        error: `O Spotify aceitou o upload mas manteve o mosaico automático — a capa não foi aplicada. Verifique se a conta "${ownerId ?? "?"}" é realmente dona desta playlist no Spotify e tente outra imagem (quadrada, sem distorção).`,
       }, 200);
     }
 
@@ -195,7 +210,7 @@ Deno.serve(async (req) => {
     await supabase.from("collection_logs").insert({
       acao: "apply-managed-cover",
       status: "sucesso",
-      mensagem: `${pl.spotify_playlist_id} capa atualizada${changed ? " e confirmada" : ""}`,
+      mensagem: `${pl.spotify_playlist_id} capa atualizada e confirmada`,
     });
 
     return jr({ ok: true, cover_url: spotifyCoverUrl, confirmed: changed });
