@@ -351,14 +351,14 @@ export function PlaylistCockpit({
             domain="playlists"
             hint={idealRange ? `ideal ${idealRange[0]}–${idealRange[1]}` : undefined}
           />
-          {brainScore != null && (
-            <KpiBig
-              label="Nota"
-              value={`${brainScore}`}
-              icon={ShieldCheck}
-              tone={brainScore >= 75 ? "success" : brainScore >= 50 ? "primary" : "default"}
-            />
-          )}
+          <KpiBig
+            label="Nota"
+            value={brainScore != null ? `${brainScore}` : "—"}
+            icon={ShieldCheck}
+            tone={brainScore == null ? "default" : brainScore >= 75 ? "success" : brainScore >= 50 ? "primary" : "default"}
+            hint={brainScore == null ? "sem análise" : undefined}
+          />
+
           <KpiBig
             label="Saúde"
             value={health.label}
