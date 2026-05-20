@@ -331,7 +331,7 @@ Deno.serve(async (req) => {
       const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
       const { data: apps, error } = await supabase
         .from("spotify_apps")
-        .select("id, name, client_id, max_accounts, is_default, status, notes, created_at")
+        .select("id, name, slug, client_id, max_accounts, is_default, status, notes, created_at")
         .order("is_default", { ascending: false })
         .order("created_at", { ascending: true });
       if (error) return jr({ ok: false, error: error.message }, 500);
