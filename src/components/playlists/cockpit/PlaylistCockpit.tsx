@@ -268,7 +268,7 @@ export function PlaylistCockpit({
     <div className="mx-auto w-full max-w-[1600px] px-4 md:px-8 py-4 md:py-5 space-y-4">
       {/* ============ 1. HEADER (slim, padrão cockpit) ============ */}
       <header className="space-y-3">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0 flex-1">
             {onBack && (
               <Button
@@ -321,14 +321,14 @@ export function PlaylistCockpit({
               </div>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2 shrink-0">
-            <Button onClick={runDiagnose} disabled={running} size="sm" className="gap-1.5 h-8">
+          <div className="flex gap-2 shrink-0 w-full sm:w-auto">
+            <Button onClick={runDiagnose} disabled={running} size="sm" className="gap-1.5 h-8 flex-1 sm:flex-initial">
               {running ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
               {diag ? "Rodar nova análise" : "Rodar análise"}
             </Button>
-            <Button variant="outline" size="sm" asChild className="h-8">
-              <a href={spotifyUrl} target="_blank" rel="noreferrer" className="gap-1.5">
-                <ExternalLink className="h-3.5 w-3.5" /> Abrir no Spotify
+            <Button variant="outline" size="sm" asChild className="h-8 flex-1 sm:flex-initial">
+              <a href={spotifyUrl} target="_blank" rel="noreferrer" className="gap-1.5 justify-center">
+                <ExternalLink className="h-3.5 w-3.5" /> <span className="sm:inline">Abrir no Spotify</span>
               </a>
             </Button>
           </div>
