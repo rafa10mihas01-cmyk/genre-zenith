@@ -152,8 +152,34 @@ Deno.serve(async (req) => {
         return jr({ ok: false, error: (e as Error).message }, 400);
       }
 
-      // Pega credenciais (com fallback env se appId=null)
+      // Pega credenciais (com fallback env se appId=null) + slug pra validar redirect
       const creds = await getAppCredentials(appId);
+      let expectedSlug: string | null = null;
+      if (appId) {
+        const { data: appRow } = await supabase
+          .from("spotify_apps")
+          .select("slug")
+          .eq("id", appId)
+          .maybeSingle();
+        expectedSlug = appRow?.slug ?? null;
+      }
+
+      // Valida que o redirect informado tem path /spotify/callback/<slug>
+      // (ou /spotify/callback simples se appId=null — fluxo público/legado)
+      try {
+        const u = new URL(redirect);
+        const expectedPath = expectedSlug
+          ? `/spotify/callback/${expectedSlug}`
+          : "/spotify/callback";
+        if (u.pathname !== expectedPath) {
+          return jr({
+            ok: false,
+            error: `redirect_uri inválido: esperado terminar em ${expectedPath}, recebido ${u.pathname}`,
+          }, 400);
+        }
+      } catch {
+        return jr({ ok: false, error: "redirect não é URL válida" }, 400);
+      }
 
       const state = crypto.randomUUID();
       const { error: stErr } = await supabase
@@ -169,7 +195,7 @@ Deno.serve(async (req) => {
       authUrl.searchParams.set("state", state);
       authUrl.searchParams.set("show_dialog", "true");
 
-      return jr({ ok: true, url: authUrl.toString(), state, app: creds.name, app_id: appId, force_login: forceLogin });
+      return jr({ ok: true, url: authUrl.toString(), state, app: creds.name, app_id: appId, slug: expectedSlug, force_login: forceLogin });
     }
 
     if (mode === "callback") {
