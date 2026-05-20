@@ -89,8 +89,8 @@ export default function Operacao() {
   const [managedFollowers, setManagedFollowers] = useState<{ sum: number; count: number }>({ sum: 0, count: 0 });
   const [playlistStats, setPlaylistStats] = useState<{ avgHealth: number; topPerf: number; atRisk: number; inactive: number; filteredFollowers: number; filteredCount: number; filterLabel: string | null }>({ avgHealth: 0, topPerf: 0, atRisk: 0, inactive: 0, filteredFollowers: 0, filteredCount: 0, filterLabel: null });
 
-  const load = async () => {
-    setLoading(true);
+  const load = async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) setLoading(true);
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
 
     const [{ data: tpls }, { data: snaps }, { data: adjs }, { data: genres }, { data: accs }, { data: managed }] = await Promise.all([
@@ -184,7 +184,7 @@ export default function Operacao() {
 
   useEffect(() => {
     load();
-    const t = setInterval(load, 60_000);
+    const t = setInterval(() => load({ silent: true }), 60_000);
     return () => clearInterval(t);
   }, []);
 
@@ -256,7 +256,7 @@ export default function Operacao() {
             variant="outline"
             size="icon"
             className="rounded-full h-9 w-9"
-            onClick={load}
+            onClick={() => load()}
             disabled={loading}
             aria-label="Recarregar"
             title="Recarregar"
