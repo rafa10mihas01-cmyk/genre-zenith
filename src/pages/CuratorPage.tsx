@@ -274,7 +274,7 @@ export default function CuratorPage() {
   // Tick a cada 60s pra atualizar countdown
   const [, setNowTick] = useState(0);
   // Janela visível nas playlists do curador
-  const [playlistWindow, setPlaylistWindow] = useState<"24h" | "7d" | "28d">("7d");
+  const [playlistWindow, setPlaylistWindow] = useState<"7d" | "28d">("7d");
   useEffect(() => {
     const id = setInterval(() => setNowTick((n) => n + 1), 60_000);
     return () => clearInterval(id);
