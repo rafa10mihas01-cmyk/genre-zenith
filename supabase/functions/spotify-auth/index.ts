@@ -60,13 +60,6 @@ async function resolveAppForNewAccount(sb: any, requestedAppId?: string | null) 
       .maybeSingle();
     if (!app) throw new Error("App informado não existe");
     if (app.status !== "active") throw new Error(`App "${app.name}" está ${app.status}`);
-    const { count } = await sb
-      .from("spotify_user_tokens")
-      .select("*", { count: "exact", head: true })
-      .eq("app_id", app.id);
-    if ((count ?? 0) >= app.max_accounts) {
-      throw new Error(`App "${app.name}" lotado (${count}/${app.max_accounts}). Escolha outro.`);
-    }
     return app.id as string;
   }
 
@@ -87,6 +80,32 @@ async function resolveAppForNewAccount(sb: any, requestedAppId?: string | null) 
   }
   // Sem apps ou todos lotados → null = usa fallback env
   return null;
+}
+
+async function assertAppHasSlotForSpotifyUser(sb: any, appId: string | null, spotifyUserId: string) {
+  if (!appId) return;
+
+  const { data: app } = await sb
+    .from("spotify_apps")
+    .select("id, name, max_accounts")
+    .eq("id", appId)
+    .maybeSingle();
+  if (!app) throw new Error("App informado não existe");
+
+  const { data: existing } = await sb
+    .from("spotify_user_tokens")
+    .select("spotify_user_id, app_id")
+    .eq("spotify_user_id", spotifyUserId)
+    .maybeSingle();
+  if (existing?.app_id === appId) return;
+
+  const { count } = await sb
+    .from("spotify_user_tokens")
+    .select("*", { count: "exact", head: true })
+    .eq("app_id", appId);
+  if ((count ?? 0) >= app.max_accounts) {
+    throw new Error(`App "${app.name}" lotado (${count}/${app.max_accounts}). Escolha outro.`);
+  }
 }
 
 Deno.serve(async (req) => {
