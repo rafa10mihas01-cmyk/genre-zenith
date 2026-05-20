@@ -21,8 +21,9 @@ const STORAGE_KEY = "nx-collect-settings";
 const SETTINGS_ROUTE = "/configuracoes";
 const SPOTIFY_SETTINGS_RETURN_KEY = "nx:spotify_settings_return";
 
-function getSpotifyRedirectUri() {
-  return `${window.location.origin}/spotify/callback`;
+function getSpotifyRedirectUri(slug?: string | null) {
+  const base = `${window.location.origin}/spotify/callback`;
+  return slug ? `${base}/${slug}` : base;
 }
 
 function getLegacySpotifySettingsRedirectUri() {
