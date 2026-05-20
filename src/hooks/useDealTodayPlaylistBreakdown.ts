@@ -186,9 +186,9 @@ export function useDealTodayPlaylistBreakdown(dealId: string | null | undefined)
 
       rows.sort((a, b) => b.total_delivered - a.total_delivered || b.today_plays - a.today_plays);
       const total_today = rows.reduce((s, r) => s + r.today_plays, 0);
-      const total_24h = rows.reduce((s, r) => s + (r.plays_24h ?? 0), 0);
-      const total_7d = rows.reduce((s, r) => s + (r.plays_7d ?? 0), 0);
-      const total_28d = rows.reduce((s, r) => s + (r.plays_28d ?? 0), 0);
+      const total_24h = sumNullable(rows.map((r) => r.plays_24h));
+      const total_7d = sumNullable(rows.map((r) => r.plays_7d));
+      const total_28d = sumNullable(rows.map((r) => r.plays_28d));
       const total_delivered = rows.reduce((s, r) => s + r.total_delivered, 0);
       return { total_today, total_24h, total_7d, total_28d, total_delivered, rows };
     },
