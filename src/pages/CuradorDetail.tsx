@@ -177,25 +177,28 @@ export default function CuradorDetail() {
         ].filter(Boolean).join(" · ")}
         actions={
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" asChild className="gap-1.5 h-9 rounded-full">
-              <Link to="/deals/comparar"><Activity className="h-4 w-4" /> Comparar</Link>
+            <Button variant="outline" size="sm" asChild className="gap-1.5 h-9 rounded-full px-2.5 sm:px-3">
+              <Link to="/deals/comparar">
+                <Activity className="h-4 w-4" />
+                <span className="hidden sm:inline">Comparar</span>
+              </Link>
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => recalc.mutate(id)}
               disabled={recalc.isPending}
-              className="gap-1.5 h-9 rounded-full"
+              className="gap-1.5 h-9 rounded-full px-2.5 sm:px-3"
             >
               <RefreshCw className={cn("h-4 w-4", recalc.isPending && "animate-spin")} />
-              Recalcular cérebro
+              <span className="hidden sm:inline">Recalcular cérebro</span>
             </Button>
           </div>
         }
       />
 
       {/* KPIs — hierarquia cockpit (mesmo padrão do Cliente) */}
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-2 pt-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-2 pt-4 mb-6">
         <KpiBig
           label="Investido"
           value={formatBRL(investido)}
@@ -204,7 +207,13 @@ export default function CuradorDetail() {
           tier="hero"
           domain="curators"
         />
-        <KpiBig label="Negociações" value={curatorDeals.length} icon={FileText} hint="Total fechados" domain="deals" />
+        <KpiBig
+          label="Negociações"
+          value={curatorDeals.length}
+          icon={FileText}
+          hint={concluidos > 0 ? `${concluidos} concluído${concluidos === 1 ? "" : "s"} · ${ativos} ativo${ativos === 1 ? "" : "s"}` : `${ativos} em andamento`}
+          domain="deals"
+        />
         <KpiBig label="Ativos" value={ativos} icon={CheckCircle2} hint="Em andamento" tone="primary" domain="deals" />
         <KpiBig
           label="Trust score"
@@ -214,7 +223,6 @@ export default function CuradorDetail() {
           tone={trustTone === "success" ? "success" : trustTone === "primary" ? "primary" : trustTone === "destructive" ? "warning" : "default"}
           domain="curators"
         />
-        <KpiBig label="Concluídos" value={concluidos} icon={CheckCircle2} hint="Entregues" tier="quiet" />
       </div>
 
 
