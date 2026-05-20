@@ -388,17 +388,20 @@ Deno.serve(async (req) => {
         const patch: any = { name, max_accounts, is_default, notes, status };
         if (client_id) patch.client_id = client_id;
         if (client_secret) patch.client_secret = client_secret;
+        if (slug) patch.slug = slug;
         const { error } = await supabase.from("spotify_apps").update(patch).eq("id", id);
         if (error) return jr({ ok: false, error: error.message }, 500);
         return jr({ ok: true, id });
       } else {
+        const insert: any = { name, client_id, client_secret, max_accounts, is_default, notes, status };
+        if (slug) insert.slug = slug;
         const { data, error } = await supabase
           .from("spotify_apps")
-          .insert({ name, client_id, client_secret, max_accounts, is_default, notes, status })
-          .select("id")
+          .insert(insert)
+          .select("id, slug")
           .single();
         if (error) return jr({ ok: false, error: error.message }, 500);
-        return jr({ ok: true, id: data.id });
+        return jr({ ok: true, id: data.id, slug: data.slug });
       }
     }
 
