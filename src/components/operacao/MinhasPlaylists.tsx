@@ -1039,23 +1039,26 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
       </Dialog>
 
       {/* Diagnosis drawer */}
-      <Sheet open={!!drawerPl} onOpenChange={(o) => !o && setDrawerPl(null)}>
-        <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
+      <Dialog open={!!drawerPl} onOpenChange={(o) => !o && setDrawerPl(null)}>
+        <DialogContent className="max-w-2xl max-h-[88vh] overflow-y-auto p-0">
           {drawerPl && (
             <>
-              <SheetHeader>
-                <SheetTitle className="flex items-center gap-3">
+              <DialogHeader className="px-6 pt-6 pb-4 border-b border-border">
+                <DialogTitle className="flex items-center gap-3 text-left">
                   {drawerPl.cover_url && (
-                    <img src={drawerPl.cover_url} alt="" className="h-12 w-12 rounded-md object-cover" />
+                    <img src={drawerPl.cover_url} alt="" className="h-14 w-14 rounded-md object-cover shrink-0" />
                   )}
-                  <span className="truncate">{drawerPl.name}</span>
-                </SheetTitle>
-                <SheetDescription>
-                  {formatNumber(drawerPl.followers)} seguidores · {drawerPl.tracks_count} faixas
-                </SheetDescription>
-              </SheetHeader>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-base font-semibold">{drawerPl.name}</div>
+                    <div className="text-xs font-normal text-muted-foreground mt-1">
+                      {formatNumber(drawerPl.followers)} seguidores · {drawerPl.tracks_count} faixas
+                    </div>
+                  </div>
+                </DialogTitle>
+                <DialogDescription className="sr-only">Detalhes e diagnóstico da playlist</DialogDescription>
+              </DialogHeader>
 
-              <div className="mt-6 space-y-4">
+              <div className="px-6 py-5 space-y-4">
                 {/* Genre tagger */}
                 <div className="nx-card flex items-center gap-3">
                   <div className="flex-1 min-w-0">
@@ -1079,37 +1082,43 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
                   </select>
                 </div>
 
-                <div className="flex flex-wrap gap-2">
-                  <Button onClick={() => runDiagnosis(drawerPl)} disabled={diagLoading} className="gap-1.5">
+                {/* Ações primárias */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  <Button onClick={() => runDiagnosis(drawerPl)} disabled={diagLoading} className="gap-1.5 justify-center">
                     <Sparkles className="h-4 w-4" />
-                    {diagLoading ? "Analisando..." : diagnosis ? "Rodar novo diagnóstico" : "Diagnosticar agora"}
+                    {diagLoading ? "Analisando..." : diagnosis ? "Novo diagnóstico" : "Diagnosticar"}
                   </Button>
                   {drawerPl.canonical_playlist_id && (
                     <>
-                      <Button variant="outline" asChild className="gap-1.5">
+                      <Button variant="outline" asChild className="gap-1.5 justify-center">
                         <Link to={`/playlists/${drawerPl.canonical_playlist_id}`}>
                           <Brain className="h-4 w-4" /> Perfil vivo
                         </Link>
                       </Button>
-                      <Button variant="outline" asChild className="gap-1.5">
+                      <Button variant="outline" asChild className="gap-1.5 justify-center">
                         <Link to={`/playlists/${drawerPl.canonical_playlist_id}?tab=faixas`}>
                           <Music2 className="h-4 w-4" /> Editar faixas
                         </Link>
                       </Button>
                     </>
                   )}
-                  <Button variant="outline" asChild>
+                  <Button variant="outline" asChild className="justify-center">
                     <a href={drawerPl.spotify_url} target="_blank" rel="noreferrer" className="gap-1.5">
                       <ExternalLink className="h-4 w-4" /> Abrir no Spotify
                     </a>
                   </Button>
+                </div>
+
+                {/* Ações de arquivo (separadas, secundárias) */}
+                <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
                   {drawerPl.archived_at ? (
                     <>
-                      <Button variant="outline" onClick={() => archive(drawerPl, true)} className="gap-1.5">
+                      <Button variant="outline" size="sm" onClick={() => archive(drawerPl, true)} className="gap-1.5">
                         <ArchiveRestore className="h-4 w-4" /> Restaurar
                       </Button>
                       <Button
                         variant="outline"
+                        size="sm"
                         onClick={() => deletePermanent(drawerPl)}
                         className="gap-1.5 text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
                       >
@@ -1117,7 +1126,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
                       </Button>
                     </>
                   ) : (
-                    <Button variant="outline" onClick={() => archive(drawerPl)} className="gap-1.5">
+                    <Button variant="outline" size="sm" onClick={() => archive(drawerPl)} className="gap-1.5">
                       <Archive className="h-4 w-4" /> Mover para lixeira
                     </Button>
                   )}
@@ -1125,7 +1134,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
 
                 {!diagnosis && !diagLoading && (
                   <div className="nx-card text-center py-8 text-sm text-muted-foreground">
-                    Sem diagnóstico ainda. Clique em <strong>Diagnosticar agora</strong> para gerar sugestões.
+                    Sem diagnóstico ainda. Clique em <strong>Diagnosticar</strong> para gerar sugestões.
                   </div>
                 )}
 
@@ -1232,8 +1241,8 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
               </div>
             </>
           )}
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
 
       {/* Diário de sincronização */}
       <Sheet open={logOpen} onOpenChange={setLogOpen}>
