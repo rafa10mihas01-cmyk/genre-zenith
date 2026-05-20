@@ -27,6 +27,12 @@ type Props = {
   engagementMultiplier?: number;
   shareToken?: string | null;
   showShare?: boolean;
+  track?: {
+    name: string;
+    artist?: string | null;
+    coverUrl?: string | null;
+    spotifyUrl?: string | null;
+  } | null;
 };
 
 function dateLabel(startedAt: string, day: number) {
