@@ -158,7 +158,7 @@ export async function checkTrackInPlaylist(
   } catch (_) { /* ignore */ }
 
   while (offset < 10000) {
-    const url = new URL(`https://api.spotify.com/v1/playlists/${playlistId}/tracks`);
+    const url = new URL(`https://api.spotify.com/v1/playlists/${playlistId}/items`);
     url.searchParams.set("fields", fields);
     url.searchParams.set("limit", "100");
     url.searchParams.set("offset", String(offset));

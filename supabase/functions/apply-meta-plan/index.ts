@@ -41,7 +41,7 @@ async function spotifyFetch(url: string, init: RequestInit, token: string) {
 async function fetchAllTrackUris(playlistId: string, token: string): Promise<string[]> {
   const uris: string[] = [];
   let url: string | null =
-    `https://api.spotify.com/v1/playlists/${playlistId}/tracks?fields=items(track(uri)),next&limit=100`;
+    `https://api.spotify.com/v1/playlists/${playlistId}/items?fields=items(track(uri)),next&limit=100`;
   while (url) {
     const j = await spotifyFetch(url, { method: "GET" }, token);
     for (const it of j.items ?? []) {
@@ -118,7 +118,7 @@ Deno.serve(async (req) => {
             continue;
           }
           await spotifyFetch(
-            `https://api.spotify.com/v1/playlists/${pl.spotify_playlist_id}/tracks`,
+            `https://api.spotify.com/v1/playlists/${pl.spotify_playlist_id}/items`,
             {
               method: "PUT",
               body: JSON.stringify({
@@ -134,7 +134,7 @@ Deno.serve(async (req) => {
           // não existe — inserir na posição (Spotify empurra as demais pra baixo)
           const position = Math.min(targetIdx, uris.length);
           await spotifyFetch(
-            `https://api.spotify.com/v1/playlists/${pl.spotify_playlist_id}/tracks`,
+            `https://api.spotify.com/v1/playlists/${pl.spotify_playlist_id}/items`,
             {
               method: "POST",
               body: JSON.stringify({ uris: [trackUri], position }),

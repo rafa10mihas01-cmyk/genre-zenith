@@ -41,7 +41,7 @@ async function fetchPlaylistTracks(
 ): Promise<TrackOut[]> {
   const out: TrackOut[] = [];
   let url: string | null =
-    `https://api.spotify.com/v1/playlists/${playlistId}/tracks` +
+    `https://api.spotify.com/v1/playlists/${playlistId}/items` +
     `?fields=items(track(id,name,artists(name))),next&limit=100`;
   let pos = 0;
 
