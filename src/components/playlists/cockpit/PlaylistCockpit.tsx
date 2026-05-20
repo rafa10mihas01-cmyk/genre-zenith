@@ -523,7 +523,7 @@ export function PlaylistCockpit({
           <SeoExperimentCard managedId={managedId} />
 
 
-          <Tabs defaultValue={market ? "mercado" : "identidade"} className="space-y-4">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
             <TabsList className="bg-elevated/60 flex-wrap h-auto">
               {market && (
                 <TabsTrigger value="mercado" className="gap-1.5">
