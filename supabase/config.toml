@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.get-shared-campaign-plan]
 verify_jwt = false
+
+[functions.campaign-plan-api]
+verify_jwt = false
