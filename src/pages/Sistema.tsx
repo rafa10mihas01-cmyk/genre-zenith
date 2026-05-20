@@ -19,6 +19,7 @@ import Settings from "@/pages/Settings";
 import Infraestrutura from "@/pages/Infraestrutura";
 import AdminAprendizado from "@/pages/AdminAprendizado";
 import { SeoLessonsPanel } from "@/components/sistema/SeoLessonsPanel";
+import { SpotifyReconnectBanner } from "@/components/sistema/SpotifyReconnectBanner";
 
 type SistemaTab =
   | "fluxo" | "robo" | "coleta" | "execucao" | "ao-vivo" | "saude" | "aprendizado" | "seo" | "alertas" | "infra" | "configuracoes";
@@ -63,6 +64,9 @@ export default function Sistema() {
         title="Sistema"
         subtitle="Tempo real"
       />
+
+      <SpotifyReconnectBanner />
+
 
       <div className="sticky top-0 z-30 -mt-px bg-background/95 supports-[backdrop-filter]:bg-background/80 backdrop-blur-md border-b border-border -mx-4 md:-mx-6">
         <div className="nx-tab-rail items-center gap-1 px-4 md:px-6">
