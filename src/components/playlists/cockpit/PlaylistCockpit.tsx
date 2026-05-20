@@ -1137,8 +1137,22 @@ function BucketReorder({ kind, items, totalTracks, applying, onApplyAll }: {
   );
 }
 
+function NewTrackTarget({ zone, pos }: { zone: Zone; pos: number }) {
+  return (
+    <div className="flex items-center gap-1.5 shrink-0 w-32">
+      <span className="text-[9px] uppercase tracking-wider font-bold text-primary bg-primary/15 px-1.5 py-0.5 rounded">
+        NOVA
+      </span>
+      <span className="text-muted-foreground/50 text-[11px]">→</span>
+      <span className="text-foreground text-[11px] font-semibold tabular-nums truncate">
+        {ZONE_LABELS[zone]} #{pos + 1}
+      </span>
+    </div>
+  );
+}
+
 function BucketAdd({ items, applying, onApplyAll }: {
-  items: Suggestion[]; applying: boolean; onApplyAll: () => void;
+  items: Array<Suggestion & { _zone: Zone }>; applying: boolean; onApplyAll: () => void;
 }) {
   return (
     <BucketShell
@@ -1160,19 +1174,23 @@ function BucketAdd({ items, applying, onApplyAll }: {
       }
     >
       {items.map((t) => (
-        <TrackLine
+        <div
           key={t.spotify_track_id}
-          position={0}
-          target={t.suggested_position}
-          title={t.nome || "—"}
-          artist={t.artista || "—"}
-          reason={`${t.count}× nas playlists vencedoras do nicho${t.from_missing_artist ? " · artista faltando" : ""}`}
-          action={
+          className="flex items-center gap-3 px-4 py-2.5 hover:bg-elevated/40 transition-colors"
+        >
+          <NewTrackTarget zone={t._zone} pos={t.suggested_position} />
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-medium truncate">{t.nome || "—"}</div>
+            <div className="text-xs text-muted-foreground truncate">
+              {t.artista || "—"} · {reasonForAdd(t)}
+            </div>
+          </div>
+          <div className="shrink-0">
             <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
               Adicionar
             </span>
-          }
-        />
+          </div>
+        </div>
       ))}
     </BucketShell>
   );
