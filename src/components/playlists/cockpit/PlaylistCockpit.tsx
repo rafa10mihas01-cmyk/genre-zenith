@@ -39,6 +39,7 @@ type AnalysisTrack = {
   target_position?: number | null;
 };
 
+type Zone = "anchor" | "premium" | "support" | "tail";
 type Suggestion = {
   spotify_track_id: string;
   nome: string;
@@ -46,6 +47,8 @@ type Suggestion = {
   count: number;
   suggested_position: number;
   from_missing_artist?: boolean;
+  target_zone?: Zone;
+  target_zone_label?: string;
 };
 
 type Diagnosis = {
