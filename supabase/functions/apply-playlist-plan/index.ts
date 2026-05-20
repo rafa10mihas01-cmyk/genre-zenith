@@ -188,9 +188,9 @@ Deno.serve(async (req) => {
       let skipped = 0;
       for (const it of sorted) {
         const uri = `spotify:track:${it.spotify_track_id}`;
-        const idx = currentUris!.indexOf(uri);
+        const idx = findPlaylistTrackIndex(currentRefs!, uri);
         if (idx < 0) { skipped++; continue; }
-        const total = currentUris!.length;
+        const total = currentRefs!.length;
         // target: usa target_position se vier do diag, senão fallback
         const fallback = kind === "promote" ? moved : Math.max(total - 1, 0);
         let target = Number.isFinite(it.target_position) ? Number(it.target_position) : fallback;
@@ -198,22 +198,11 @@ Deno.serve(async (req) => {
         // Para mover para o final: insert_before = total. Para o topo: 0.
         let insertBefore = Math.max(0, Math.min(target, total));
         if (insertBefore === idx || insertBefore === idx + 1) { skipped++; continue; }
-        const res = await spotifyFetch(
-          `https://api.spotify.com/v1/playlists/${spId}/items`,
-          {
-            method: "PUT",
-            body: JSON.stringify({
-              range_start: idx,
-              insert_before: insertBefore,
-              range_length: 1,
-            }),
-          },
-          token,
-        );
+        const res = await reorderPlaylistTracks(spId, { range_start: idx, insert_before: insertBefore, range_length: 1 }, token);
         // Atualiza memória local
-        const [item] = currentUris!.splice(idx, 1);
+        const [item] = currentRefs!.splice(idx, 1);
         const adjusted = insertBefore > idx ? insertBefore - 1 : insertBefore;
-        currentUris!.splice(adjusted, 0, item);
+        currentRefs!.splice(adjusted, 0, item);
         moved++;
         report.snapshot_id = res?.snapshot_id ?? report.snapshot_id;
       }
