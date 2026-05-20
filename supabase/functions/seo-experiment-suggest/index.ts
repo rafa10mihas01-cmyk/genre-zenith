@@ -100,18 +100,49 @@ Deno.serve(async (req) => {
 
     const current = field === "name" ? (pl.name ?? "") : (pl.description ?? "");
 
+    // Detecta DNA da playlist atual para a IA espelhar (não impor estética estrangeira)
+    const dnaSource = `${pl.name ?? ""} ${pl.description ?? ""}`;
+    const emojiRegex = /[\p{Extended_Pictographic}\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu;
+    const dnaEmojis = (dnaSource.match(emojiRegex) ?? []).slice(0, 6);
+    const letters = dnaSource.replace(/[^A-Za-zÀ-ÿ]/g, "");
+    const upperRatio = letters.length ? letters.replace(/[^A-ZÀ-Ý]/g, "").length / letters.length : 0;
+    const usesCaps = upperRatio > 0.5;
+    const usesEmojis = dnaEmojis.length > 0;
+    const dnaSummary = [
+      `caixa: ${usesCaps ? "CAIXA ALTA dominante" : upperRatio > 0.2 ? "mista" : "minúscula"}`,
+      `emojis observados: ${usesEmojis ? dnaEmojis.join(" ") : "nenhum"}`,
+      `tom atual do nome: "${pl.name ?? ""}"`,
+      `tom atual da descrição: "${pl.description ?? ""}"`,
+    ].join(" | ");
+
     // Gera sugestão via Lovable AI Gateway
     const system = [
-      `Você é editor sênior do Spotify, nicho "${genreName ?? "música brasileira"}".`,
-      `Sua missão: propor UMA micro-mudança no ${field === "name" ? "TÍTULO" : "DESCRIÇÃO"} de uma playlist editorial para testar impacto em SEO interno do Spotify.`,
-      bestPattern
-        ? `O padrão a aplicar é: "${bestPattern.pattern_label}" (key: ${bestPattern.pattern_key}). Esse padrão historicamente teve delta médio ${Number(bestPattern.avg_delta_pct).toFixed(2)}% em ${bestPattern.samples_count} amostras.`
-        : `Não há padrão histórico ainda — proponha um padrão claro e específico (ex.: "adicionar palavra-chave do nicho no início", "encurtar para foco editorial", "incluir verbo de ação"). NUNCA use emojis.`,
-      `Regras: NUNCA emojis. NUNCA maiúsculas artificiais. Português brasileiro. Soar como editor humano real.`,
-      field === "name" ? `Título máximo 40 caracteres.` : `Descrição entre 60 e 180 caracteres.`,
-      `Mudança deve ser SUTIL (não reescrever do zero). Mantenha a identidade da playlist.`,
+      `Você é um CURADOR BRASILEIRO de playlists independentes de ALTO CTR no Spotify — não é editor corporativo, não é editor gringo, não é RapCaviar.`,
+      `Sua referência são playlists virais brasileiras do nicho "${genreName ?? "música brasileira popular"}": títulos com impacto, chamada direta, emoção real, energia popular BR.`,
+      `Missão: propor UMA evolução no ${field === "name" ? "TÍTULO" : "DESCRIÇÃO"} dessa playlist mantendo o DNA dela.`,
       ``,
-      `Retorne APENAS JSON: {"version_after":"...","pattern_key":"...","pattern_label":"...","reasoning":"..."}`,
+      `DNA atual da playlist (ESPELHE, não substitua):`,
+      dnaSummary,
+      ``,
+      `REGRAS DE ESTILO (obrigatórias):`,
+      `1. Espelhe o DNA: se já usa CAIXA ALTA, continue em CAIXA ALTA; se usa emoji, continue usando emoji; se é minúscula editorial, mantenha minúscula.`,
+      `2. EMOJIS são LIBERADOS e estratégicos (1 a 3, no máximo 4). Use para gerar atenção e CTR — não é proibido, é ferramenta. Proibido: spam visual, 5+ emojis seguidos, emoji infantil aleatório.`,
+      `3. CAIXA ALTA é PERMITIDA quando é coerente com o nicho e dá impacto (ex.: "FUNK MANDELÃO 2025 🔥", "SÓ PEDRADA PRA SOFRER 💔").`,
+      `4. Tom: humano, emocional, popular, musical, brasileiro de verdade. Chamada direta ("COLOCA NO ALEATÓRIO", "PRA OUVIR NO CARRO", "SOFRENDO COM ESTILO"). Pode usar gíria do nicho quando natural.`,
+      `5. PROIBIDO: tom frio editorial Spotify global, lowercase forçado quando o DNA é caixa alta, linguagem corporativa, "curadoria selecionada", "uma seleção de", "vibes" genérico, spam cringe de internet, hashtag, @, link.`,
+      `6. Mantenha keywords do nicho (SEO continua importante) — só que de forma NATURAL dentro do tom popular BR.`,
+      `7. Mudança SUTIL: não reescreva do zero. Evolua o que já existe preservando identidade.`,
+      ``,
+      bestPattern
+        ? `Padrão histórico do nicho a aplicar: "${bestPattern.pattern_label}" (key: ${bestPattern.pattern_key}, delta médio ${Number(bestPattern.avg_delta_pct).toFixed(2)}% em ${bestPattern.samples_count} amostras). Aplique respeitando o DNA acima.`
+        : `Sem padrão histórico — proponha um padrão claro e específico coerente com o universo de playlists BR de alto CTR (ex.: "adicionar emoji emocional no fim", "trocar palavra fria por palavra de impacto", "incluir chamada direta").`,
+      ``,
+      field === "name"
+        ? `LIMITE TÍTULO: máximo 45 caracteres (contando emojis).`
+        : `LIMITE DESCRIÇÃO: entre 40 e 180 caracteres. Pode (e deve, quando combinar com o DNA) terminar com 1-2 emojis emocionais.`,
+      ``,
+      `Retorne APENAS JSON válido: {"version_after":"...","pattern_key":"...","pattern_label":"...","reasoning":"..."}`,
+      `O campo "reasoning" deve explicar em 1 frase por que essa mudança bate com o DNA da playlist e com playlists BR virais do nicho.`,
     ].join("\n");
 
     const userPayload = {
@@ -120,6 +151,12 @@ Deno.serve(async (req) => {
       nicho: genreName,
       nome_playlist: pl.name,
       descricao_playlist: pl.description,
+      dna_detectado: {
+        usa_caixa_alta: usesCaps,
+        usa_emojis: usesEmojis,
+        emojis_encontrados: dnaEmojis,
+        razao_maiusculas: Number(upperRatio.toFixed(2)),
+      },
     };
 
     const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
