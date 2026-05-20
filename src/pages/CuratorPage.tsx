@@ -1435,7 +1435,7 @@ export default function CuratorPage() {
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <div className="inline-flex rounded-full bg-[hsl(var(--elevated))] border border-border p-0.5">
-                  {(["24h", "7d", "28d"] as const).map((w) => (
+                  {(["7d", "28d"] as const).map((w) => (
                     <button
                       key={w}
                       type="button"
