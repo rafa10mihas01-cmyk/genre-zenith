@@ -1241,8 +1241,26 @@ Deno.serve(async (req) => {
     } catch (e) {
       aiError = (e as Error).message;
     }
-    const editorialName = aiCopy?.titles?.[0] ?? algoName;
+    // Ranking BR-viral: compara TODOS os candidatos (AI + algoName + nome atual) por score
+    // de SEO/CTR e escolhe o maior. Garante que nome forte nunca vire abstrato.
+    const titleCandidates: string[] = [
+      ...(aiCopy?.titles ?? []),
+      ...(algoName ? [algoName] : []),
+      pl.name, // baseline: nome atual sempre concorre
+    ].filter((t): t is string => typeof t === "string" && t.trim().length > 0);
+    const nicheLeaderNames = competitors.slice(0, 8).map((c) => c.name);
+    const scored = titleCandidates.map((t) => ({
+      title: t,
+      score: scoreTitle({
+        candidate: t,
+        topKeywords,
+        currentName: pl.name,
+        nicheLeaders: nicheLeaderNames,
+      }),
+    })).sort((a, b) => b.score - a.score);
+    const editorialName = scored[0]?.title ?? aiCopy?.titles?.[0] ?? algoName;
     const editorialDescription = aiCopy?.descriptions?.[0] ?? algoDescription;
+
 
 
     // 8.c) target_position — agora vem direto da zona-alvo (calculada no passo 4),
