@@ -143,6 +143,7 @@ export function SpotifyAppsManager({ onChange, onConnectAccount }: { onChange?: 
       notes: editing.notes ?? null,
       status: editing.status ?? "active",
     };
+    if (editing.slug) body.slug = String(editing.slug).trim();
     if ((editing as any).client_id) body.client_id = (editing as any).client_id;
     if ((editing as any).client_secret) body.client_secret = (editing as any).client_secret;
 
