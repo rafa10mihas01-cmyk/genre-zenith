@@ -60,6 +60,80 @@ type EditorialCopy = {
   reasoning: string;
 };
 
+// Palavras "fortes" típicas de playlist BR viral (boost de score).
+const STRONG_BR_TOKENS = [
+  "top", "melhores", "as mais", "mais tocadas", "2025", "2026",
+  "brasil", "nacional", "hits", "playlist", "fluxo", "só",
+];
+const STRONG_EMOJIS = ["🔥", "💥", "🚨", "❤️", "🇧🇷", "👑", "💣", "⚡"];
+
+function countKeywordsInName(name: string, keywords: string[]): number {
+  const lower = name.toLowerCase();
+  return keywords.filter((k) => k && lower.includes(k.toLowerCase())).length;
+}
+
+function hasUppercaseWord(s: string): boolean {
+  return /\b[A-ZÁÉÍÓÚÂÊÔÃÕÇ]{2,}\b/.test(s);
+}
+
+function hasStrongEmoji(s: string): boolean {
+  return STRONG_EMOJIS.some((e) => s.includes(e));
+}
+
+function hasStrongBrToken(s: string): boolean {
+  const lower = s.toLowerCase();
+  return STRONG_BR_TOKENS.some((t) => lower.includes(t));
+}
+
+function similarityToNicheLeaders(s: string, leaders: string[]): number {
+  const tokens = new Set(s.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((w) => w.length > 2));
+  let hits = 0;
+  for (const l of leaders) {
+    const lt = l.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((w) => w.length > 2);
+    for (const w of lt) if (tokens.has(w)) { hits++; break; }
+  }
+  return hits;
+}
+
+/**
+ * Score editorial BR-viral. Maior = melhor.
+ *  +3 por keyword forte preservada
+ *  +2 caixa alta presente
+ *  +1 por emoji forte
+ *  +2 se contém TOP / MELHORES / 2026 / etc.
+ *  +3 por similaridade com nomes das playlists líderes do nicho
+ *  -4 se nenhuma keyword do nicho aparece (abstrato/conceitual)
+ *  -5 por keyword forte presente no nome ATUAL que foi REMOVIDA
+ */
+export function scoreTitle(opts: {
+  candidate: string;
+  topKeywords: string[];
+  currentName: string;
+  nicheLeaders: string[];
+}): number {
+  const { candidate, topKeywords, currentName, nicheLeaders } = opts;
+  if (!candidate || candidate.length > 60) return -100;
+
+  let score = 0;
+
+  const kwPresent = topKeywords.filter((k) => k && candidate.toLowerCase().includes(k.toLowerCase()));
+  score += kwPresent.length * 3;
+
+  if (hasUppercaseWord(candidate)) score += 2;
+  if (hasStrongEmoji(candidate)) score += 1;
+  if (hasStrongBrToken(candidate)) score += 2;
+
+  score += similarityToNicheLeaders(candidate, nicheLeaders) * 3;
+
+  if (kwPresent.length === 0) score -= 4;
+
+  const inCurrent = topKeywords.filter((k) => k && currentName.toLowerCase().includes(k.toLowerCase()));
+  const lost = inCurrent.filter((k) => !candidate.toLowerCase().includes(k.toLowerCase()));
+  score -= lost.length * 5;
+
+  return score;
+}
+
 async function generateEditorialCopy(ctx: {
   currentName: string;
   currentDescription: string | null;
@@ -74,23 +148,45 @@ async function generateEditorialCopy(ctx: {
 }): Promise<EditorialCopy | null> {
   if (!LOVABLE_API_KEY) return null;
 
+  const keywordsInCurrent = countKeywordsInName(ctx.currentName, ctx.topKeywords);
+  const preserveMode = keywordsInCurrent >= 2;
+
   const system = [
-    `Você é um editor musical sênior do Spotify, especializado em curadoria do nicho "${ctx.genreName ?? "música brasileira"}".`,
-    `Escreva como um curador humano de verdade: natural, contextual, com identidade própria.`,
-    `Referências mentais: RapCaviar, Esquenta Sertanejo, Fluxo das Quebradas, Piseiro Bom Demais — playlists editoriais reais.`,
+    `Você é um CURADOR BR especialista em playlists VIRAIS no Spotify, nicho "${ctx.genreName ?? "música brasileira"}".`,
+    `Pensa como dono de playlist que vive de CTR e busca — não como editor global do Spotify.`,
+    ``,
+    `PRIORIDADE ABSOLUTA: SEO + CTR > criatividade artística.`,
+    `Cada palavra do título serve pra ser BUSCADA ou pra dar TAP.`,
     ``,
     `REGRAS DURAS:`,
-    `- Distribua keywords de forma NATURAL no título e descrição. NUNCA em MAIÚSCULAS artificiais.`,
-    `- NUNCA use concatenação feia tipo "Playlist FESTA 2024 HITS".`,
-    `- NUNCA use emoji.`,
-    `- NUNCA use linguagem motivacional, publicitária ou genérica de IA ("Descubra o melhor de...", "Embarque numa jornada...", "As mais tocadas...", "Atualizada toda semana").`,
-    `- NUNCA comece descrição com "As N mais" ou "Playlist com".`,
-    `- Descrição deve ter no MÁXIMO 180 caracteres, idealmente 80-140.`,
-    `- Título deve ter no MÁXIMO 40 caracteres.`,
-    `- Sempre em português brasileiro.`,
-    `- Soe como playlist editorial real do Spotify — personalidade, contexto musical, identidade de nicho.`,
+    `- CAIXA ALTA é PERMITIDA e INCENTIVADA em keywords fortes (RAP NACIONAL, FUNK, TOP, MELHORES, 2026).`,
+    `- EMOJIS são PERMITIDOS e INCENTIVADOS no título: 🔥 💥 🚨 ❤️ 🇧🇷 👑 ⚡ — máximo 2 por título, geralmente nas pontas.`,
+    `- Palavras vencedoras como "AS MELHORES", "TOP", "AS MAIS TOCADAS", "2026", "NACIONAL", "BRASIL" devem ser usadas quando fazem sentido.`,
+    `- PRESERVE as keywords fortes do nome atual. NUNCA remova uma keyword que já estava lá.`,
+    `- Título máximo 40 caracteres (contando emoji).`,
+    `- Português brasileiro, linguagem direta de rua / playlist de bairro.`,
     ``,
-    `RETORNE APENAS JSON VÁLIDO neste formato exato:`,
+    `REFERÊNCIAS REAIS (imite ESTE padrão, não Spotify Global):`,
+    `- "RAP NACIONAL 🔥 AS MELHORES"`,
+    `- "FUNK 2026 🔥"`,
+    `- "SÓ MODÃO 💥"`,
+    `- "TRAP BRASIL 🇧🇷"`,
+    `- "SERTANEJO AS MAIS TOCADAS"`,
+    `- "PISEIRO TOP 🚨"`,
+    ``,
+    `NUNCA FAÇA:`,
+    `- Nomes abstratos/poéticos ("fluxo das ruas", "ecos do asfalto", "vibes da quebrada").`,
+    `- Linguagem editorial Spotify Global (RapCaviar, Mint, Pollen).`,
+    `- Substituir keyword forte por sinônimo artístico.`,
+    `- Descrição com "Descubra...", "Embarque numa jornada...", "Curadoria especial...".`,
+    ``,
+    preserveMode
+      ? `MODO PRESERVAÇÃO ATIVO: o nome atual já contém ${keywordsInCurrent} keywords fortes do nicho. NÃO reinvente — OTIMIZE. Mantenha estrutura e keywords. Apenas adicione emoji forte, ano (2026) ou palavra de CTR (TOP / AS MELHORES) se faltarem.`
+      : `MODO REESCRITA: o nome atual é fraco em SEO. Reescreva mantendo o nicho, usando padrão BR viral (caixa alta + keyword forte + emoji).`,
+    ``,
+    `DESCRIÇÃO: máximo 180 char, BR direta, pode usar emoji, pode chamar pra ação ("dá o play", "atualizada toda semana", "os hits que tão dominando"). NÃO use tom conceitual/poético.`,
+    ``,
+    `RETORNE APENAS JSON VÁLIDO:`,
     `{"titles":["t1","t2","t3"],"descriptions":["d1","d2"],"reasoning":"frase curta"}`,
   ].join("\n");
 
@@ -100,12 +196,18 @@ async function generateEditorialCopy(ctx: {
     nicho: ctx.genreName,
     palavras_chave_prioritarias: ctx.topKeywords.slice(0, 10),
     palavras_chave_faltando: ctx.missingKeywords.slice(0, 6),
+    palavras_chave_ja_presentes_no_nome: ctx.topKeywords.filter((k) =>
+      ctx.currentName.toLowerCase().includes(k.toLowerCase())
+    ),
+    modo: preserveMode ? "preservar_e_otimizar" : "reescrever_com_seo_br",
     artistas_dominantes_nicho: ctx.topArtists.slice(0, 8),
     faixas_mais_recorrentes_nicho: ctx.topRecurringTracks.slice(0, 6),
     tamanho_atual_faixas: ctx.currentSize,
     tamanho_ideal_nicho: ctx.benchmarkSize,
     playlists_lideres_nicho: ctx.competitors.slice(0, 5).map((c) => c.name),
-    instrucao: "Gere 3 títulos editoriais alternativos e 2 descrições editoriais, mais o reasoning curto explicando como cobre keywords + aproxima do padrão do nicho.",
+    instrucao: preserveMode
+      ? "Gere 3 variações OTIMIZADAS do título atual (mantendo keywords) + 2 descrições BR diretas com emoji e CTA."
+      : "Gere 3 títulos BR virais (caixa alta + keyword forte + emoji quando fizer sentido) + 2 descrições BR diretas com emoji e CTA.",
   };
 
   const ctrl = new AbortController();
@@ -126,7 +228,7 @@ async function generateEditorialCopy(ctx: {
           { role: "user", content: JSON.stringify(userPayload) },
         ],
         response_format: { type: "json_object" },
-        temperature: 0.7,
+        temperature: 0.35,
       }),
     });
 
