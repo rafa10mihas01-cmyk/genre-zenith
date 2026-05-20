@@ -157,9 +157,11 @@ Deno.serve(async (req) => {
       }, 412);
     }
 
-    let b64: string;
-    try { b64 = await fetchAsBase64Jpeg(imageUrl); }
+    let jpeg: EncodedCover;
+    try { jpeg = await fetchAsCleanJpeg(imageUrl); }
     catch (e) { return jr({ ok: false, error: (e as Error).message }, 400); }
+    const b64 = uint8ToBase64(jpeg.bytes);
+    console.log(`[cover] PUT ${pl.spotify_playlist_id} owner=${ownerId ?? "?"} ${jpeg.width}x${jpeg.height} q=${jpeg.quality} ${jpeg.bytes.byteLength}b base64=${b64.length}c`);
 
     const previousCoverUrl = await fetchSpotifyCoverUrl(pl.spotify_playlist_id, token);
 
@@ -168,9 +170,10 @@ Deno.serve(async (req) => {
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "image/jpeg" },
       body: b64,
     });
+    const respText = await resp.text().catch(() => "");
+    console.log(`[cover] Spotify resposta status=${resp.status} body="${respText.slice(0, 200)}"`);
     if (!resp.ok && resp.status !== 202) {
-      const t = await resp.text();
-      return jr({ ok: false, error: `Spotify ${resp.status}: ${t.slice(0, 300)}` }, 502);
+      return jr({ ok: false, error: `Spotify ${resp.status}: ${respText.slice(0, 300)}` }, 502);
     }
 
     const spotifyCoverUrl = await waitForSpotifyCover(pl.spotify_playlist_id, token, previousCoverUrl);
