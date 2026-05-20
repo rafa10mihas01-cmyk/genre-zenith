@@ -423,6 +423,23 @@ Deno.serve(async (req) => {
       const end = zone === "tail" ? Math.max(a, totalTracks - 1) : b;
       return Math.floor((a + end) / 2);
     }
+    // Distribui N posições espalhadas naturalmente dentro de uma zona,
+    // evitando colisão/empilhamento. Comportamento de editor humano:
+    //   1 item  → meio da zona
+    //   N itens → espaçamento uniforme entre [a, end]
+    //   N > span → satura nos limites sem duplicar
+    function distributeInZone(zone: Zone, count: number): number[] {
+      if (count <= 0) return [];
+      const [a, b] = ZONE_RANGES[zone];
+      const end = zone === "tail" ? Math.max(a, totalTracks - 1) : b;
+      const span = Math.max(0, end - a);
+      if (count === 1) return [Math.floor((a + end) / 2)];
+      const positions: number[] = [];
+      for (let i = 0; i < count; i++) {
+        positions.push(a + Math.round((i * span) / (count - 1)));
+      }
+      return positions;
+    }
 
     type TrackScores = {
       anchor: number; premium: number; support: number; tail: number;
@@ -652,6 +669,28 @@ Deno.serve(async (req) => {
       };
     });
 
+    // 4.b) Distribuição inteligente dentro das zonas — evita colisão/empilhamento
+    // Agrupa por (status, best_zone) e espalha target_position naturalmente.
+    // Ordem dentro do grupo:
+    //   promote → maior popularity primeiro (pega a melhor posição da zona)
+    //   demote  → quem está mais próximo do topo primeiro (sai mais cedo)
+    const reorderGroups = new Map<string, any[]>();
+    for (const t of tracksAnalysis) {
+      if ((t.status === "promote" || t.status === "demote") && t.target_position != null) {
+        const key = `${t.status}:${t.best_zone}`;
+        if (!reorderGroups.has(key)) reorderGroups.set(key, []);
+        reorderGroups.get(key)!.push(t);
+      }
+    }
+    for (const [key, group] of reorderGroups) {
+      const [status, zone] = key.split(":") as ["promote" | "demote", Zone];
+      group.sort((a, b) => status === "promote"
+        ? (b.popularity ?? 0) - (a.popularity ?? 0)
+        : (a.position ?? 0) - (b.position ?? 0));
+      const positions = distributeInZone(zone, group.length);
+      group.forEach((t, i) => { t.target_position = positions[i]; });
+    }
+
     // 5) Artistas presentes na playlist
     const presentArtists = new Set<string>(
       (currentTracks ?? [])
@@ -663,6 +702,7 @@ Deno.serve(async (req) => {
       .slice(0, 10);
 
     // 6) Resumo
+
     const counts = {
       total: totalTracks,
       keep: tracksAnalysis.filter((x) => x.status === "keep").length,
@@ -994,6 +1034,37 @@ Deno.serve(async (req) => {
         })),
       ...extraSuggestions,
     ];
+
+    // 7.g) Dedup de sugestões por spotify_track_id — uma faixa não pode aparecer
+    // como substituição E adição ao mesmo tempo. Substituição tem prioridade
+    // (já está ligada a uma remoção). Ordem original preservada.
+    {
+      const seenSugIds = new Set<string>();
+      for (let i = tracksSuggestions.length - 1; i >= 0; i--) {
+        const id = tracksSuggestions[i]?.spotify_track_id;
+        if (!id) continue;
+        if (seenSugIds.has(id)) tracksSuggestions.splice(i, 1);
+        else seenSugIds.add(id);
+      }
+    }
+
+    // 7.h) Distribuição inteligente de suggested_position nas adições — mesma lógica
+    // do reorder: agrupa por target_zone e espalha pra evitar empilhamento.
+    {
+      const sugGroups = new Map<Zone, any[]>();
+      for (const s of tracksSuggestions) {
+        const z = s.target_zone as Zone;
+        if (!z) continue;
+        if (!sugGroups.has(z)) sugGroups.set(z, []);
+        sugGroups.get(z)!.push(s);
+      }
+      for (const [zone, group] of sugGroups) {
+        group.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+        const positions = distributeInZone(zone, group.length);
+        group.forEach((s, i) => { s.suggested_position = positions[i]; });
+      }
+    }
+
 
     // Adiciona contagem ao summary pra UI exibir KPI "ADICIONAR"
     (tracksSummary as any).add = tracksSuggestions.length;

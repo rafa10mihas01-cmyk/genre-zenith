@@ -230,15 +230,35 @@ export function PlaylistCockpit({
   // ---- buckets ----
   const analysis = diag?.tracks_analysis ?? [];
   const suggestions = diag?.tracks_suggestions ?? [];
+  const caps = diag?.raw?.applied_caps;
   const buckets = useMemo(() => {
-    const remove = analysis.filter((t) => t.status === "remove")
+    const removeAll = analysis.filter((t) => t.status === "remove")
       .sort((a, b) => a.position - b.position);
-    const demote = analysis.filter((t) => t.status === "demote")
+    const demoteAll = analysis.filter((t) => t.status === "demote")
       .sort((a, b) => a.position - b.position);
-    const promote = analysis.filter((t) => t.status === "promote")
+    const promoteAll = analysis.filter((t) => t.status === "promote")
       .sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0));
-    return { remove, demote, promote, add: suggestions };
-  }, [analysis, suggestions]);
+
+    // Aplica o cap recomendado pelo cérebro — detecta tudo, executa só o que
+    // cabe neste ciclo (5% por padrão). UI mostra "X detectadas · Y recomendadas".
+    const recRemove = caps?.recommended_remove ?? removeAll.length;
+    const recDemote = caps?.recommended_demote ?? demoteAll.length;
+    const recPromote = caps?.recommended_promote ?? promoteAll.length;
+
+    return {
+      remove: removeAll.slice(0, recRemove),
+      demote: demoteAll.slice(0, recDemote),
+      promote: promoteAll.slice(0, recPromote),
+      add: suggestions,
+      detected: {
+        remove: removeAll.length,
+        demote: demoteAll.length,
+        promote: promoteAll.length,
+        add: suggestions.length,
+      },
+    };
+  }, [analysis, suggestions, caps]);
+
 
   const health = HEALTH_META[diag?.raw?.health_status ?? "saudavel"];
   const market = diag?.raw?.market_insights;
@@ -404,11 +424,12 @@ export function PlaylistCockpit({
             {/* ============ PLANO DE AÇÃO ============ */}
             <TabsContent value="plano" className="space-y-4 mt-0">
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                <ActionCard kind="remove" count={buckets.remove.length} hrefId="bucket-remove" />
-                <ActionCard kind="demote" count={buckets.demote.length} hrefId="bucket-demote" />
-                <ActionCard kind="promote" count={buckets.promote.length} hrefId="bucket-promote" />
-                <ActionCard kind="add" count={buckets.add.length} hrefId="bucket-add" />
+                <ActionCard kind="remove" count={buckets.remove.length} detected={buckets.detected.remove} hrefId="bucket-remove" />
+                <ActionCard kind="demote" count={buckets.demote.length} detected={buckets.detected.demote} hrefId="bucket-demote" />
+                <ActionCard kind="promote" count={buckets.promote.length} detected={buckets.detected.promote} hrefId="bucket-promote" />
+                <ActionCard kind="add" count={buckets.add.length} detected={buckets.detected.add} hrefId="bucket-add" />
               </div>
+
               {(buckets.remove.length + buckets.demote.length + buckets.promote.length + buckets.add.length) > 0 && (
                 <Card className="p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 bg-primary/5 border-primary/30">
                   <div className="space-y-0.5">
@@ -894,9 +915,10 @@ const ACTION_META = {
   add: { label: "Adicionar", Icon: Plus, tone: "border-primary/50 bg-primary/15 text-primary", hint: "Faixas dominando o nicho" },
 } as const;
 
-function ActionCard({ kind, count, hrefId }: { kind: keyof typeof ACTION_META; count: number; hrefId: string }) {
+function ActionCard({ kind, count, detected, hrefId }: { kind: keyof typeof ACTION_META; count: number; detected?: number; hrefId: string }) {
   const m = ACTION_META[kind];
-  const disabled = count === 0;
+  const disabled = count === 0 && (detected ?? 0) === 0;
+  const hasMore = detected != null && detected > count;
   return (
     <a
       href={`#${hrefId}`}
@@ -916,10 +938,17 @@ function ActionCard({ kind, count, hrefId }: { kind: keyof typeof ACTION_META; c
         <span className="text-[10px] uppercase tracking-wider font-bold">{m.label}</span>
       </div>
       <div className="text-3xl font-bold tabular-nums leading-none">{count}</div>
-      <div className="text-[11px] opacity-80 mt-1.5 leading-snug">{m.hint}</div>
+      {hasMore ? (
+        <div className="text-[11px] opacity-80 mt-1.5 leading-snug">
+          de {detected} detectadas · cap deste ciclo
+        </div>
+      ) : (
+        <div className="text-[11px] opacity-80 mt-1.5 leading-snug">{m.hint}</div>
+      )}
     </a>
   );
 }
+
 
 // -------- buckets --------
 function BucketShell({

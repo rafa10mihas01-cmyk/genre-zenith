@@ -101,7 +101,7 @@ Deno.serve(async (req) => {
     // 2) Último diagnóstico
     const { data: diag } = await supabase
       .from("playlist_diagnoses")
-      .select("id, tracks_analysis, tracks_suggestions, created_at")
+      .select("id, tracks_analysis, tracks_suggestions, raw, created_at")
       .eq("playlist_id", pl.id)
       .order("created_at", { ascending: false })
       .limit(1)
@@ -110,11 +110,24 @@ Deno.serve(async (req) => {
 
     const analysis: any[] = Array.isArray(diag.tracks_analysis) ? diag.tracks_analysis : [];
     const suggestions: any[] = Array.isArray(diag.tracks_suggestions) ? diag.tracks_suggestions : [];
+    const caps = (diag as any).raw?.applied_caps ?? null;
 
-    const removeItems = analysis.filter((t) => t.status === "remove" && t.spotify_track_id);
-    const demoteItems = analysis.filter((t) => t.status === "demote" && t.spotify_track_id);
-    const promoteItems = analysis.filter((t) => t.status === "promote" && t.spotify_track_id);
+    // Respeita os caps do cérebro: detecta tudo, aplica só o recomendado neste
+    // ciclo. Ordena por prioridade ANTES de truncar pra pegar os mais críticos.
+    let removeItems = analysis.filter((t) => t.status === "remove" && t.spotify_track_id)
+      .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+    let demoteItems = analysis.filter((t) => t.status === "demote" && t.spotify_track_id)
+      .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+    let promoteItems = analysis.filter((t) => t.status === "promote" && t.spotify_track_id)
+      .sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0));
+
+    if (caps) {
+      if (typeof caps.recommended_remove === "number") removeItems = removeItems.slice(0, caps.recommended_remove);
+      if (typeof caps.recommended_demote === "number") demoteItems = demoteItems.slice(0, caps.recommended_demote);
+      if (typeof caps.recommended_promote === "number") promoteItems = promoteItems.slice(0, caps.recommended_promote);
+    }
     const addItems = suggestions.filter((s) => s.spotify_track_id).slice(0, limitAdd);
+
 
     // 3) OAuth token do dono
     let ownerId: string | null = null;
