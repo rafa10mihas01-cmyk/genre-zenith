@@ -4,7 +4,7 @@
 //     redireciona para /operacao
 //   • caso contrário → mostra tela "acesso pendente"
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { CheckCircle2, AlertCircle, Loader2, ArrowRight, Home, Clock, ShieldAlert, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PublicShell } from "@/components/public/PublicShell";
