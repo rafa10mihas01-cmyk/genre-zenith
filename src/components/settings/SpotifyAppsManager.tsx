@@ -37,6 +37,7 @@ async function callAuth(qs: string, init?: RequestInit) {
 // URLs publicadas/preview/custom domain conhecidas — usadas pra montar as 3 redirect URIs
 // que precisam ser coladas no painel do Spotify Developer pra CADA app.
 const KNOWN_ORIGINS: { label: string; origin: string }[] = [
+  { label: "Editor Lovable", origin: "https://f5e1a9fd-9e98-4abe-83b5-56808d1c1add.lovableproject.com" },
   { label: "Preview Lovable", origin: "https://id-preview--f5e1a9fd-9e98-4abe-83b5-56808d1c1add.lovable.app" },
   { label: "Publicado", origin: "https://genre-zenith.lovable.app" },
   { label: "Domínio próprio", origin: "https://engine.nexcreatorx.com" },
@@ -64,7 +65,7 @@ function AppRedirectUrisPanel({ slug, compact = false }: { slug: string; compact
   async function copyAll() {
     try {
       await navigator.clipboard.writeText(urls.map((u) => u.url).join("\n"));
-      toast.success("3 URLs copiadas");
+      toast.success(`${urls.length} URLs copiadas`);
     } catch {
       toast.error("Falha ao copiar");
     }
@@ -81,7 +82,7 @@ function AppRedirectUrisPanel({ slug, compact = false }: { slug: string; compact
           onClick={copyAll}
           className="text-[10px] inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
         >
-          <Copy className="h-2.5 w-2.5" /> Copiar 3
+          <Copy className="h-2.5 w-2.5" /> Copiar {urls.length}
         </button>
       </div>
       <div className="space-y-1">
@@ -101,7 +102,7 @@ function AppRedirectUrisPanel({ slug, compact = false }: { slug: string; compact
         ))}
       </div>
       <p className="text-[10px] text-muted-foreground leading-relaxed pt-1">
-        Cole essas 3 URLs em <strong>Edit Settings → Redirect URIs</strong> do app no Spotify Developer Dashboard.
+        Cole essas 4 URLs em <strong>Edit Settings → Redirect URIs</strong> do app no Spotify Developer Dashboard.
       </p>
     </div>
   );

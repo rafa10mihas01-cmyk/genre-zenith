@@ -16,15 +16,11 @@ import { AccountsManager } from "@/components/operacao/AccountsManager";
 import { AppConnectionCard } from "@/components/settings/AppConnectionCard";
 import { SpotifyAppsManager, type SpotifyApp } from "@/components/settings/SpotifyAppsManager";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { getSpotifyRedirectUri } from "@/lib/spotifyPublicAuth";
 
 const STORAGE_KEY = "nx-collect-settings";
 const SETTINGS_ROUTE = "/configuracoes";
 const SPOTIFY_SETTINGS_RETURN_KEY = "nx:spotify_settings_return";
-
-function getSpotifyRedirectUri(slug?: string | null) {
-  const base = `${window.location.origin}/spotify/callback`;
-  return slug ? `${base}/${slug}` : base;
-}
 
 function getLegacySpotifySettingsRedirectUri() {
   return `${window.location.origin}${SETTINGS_ROUTE}?spotify_callback=1`;
