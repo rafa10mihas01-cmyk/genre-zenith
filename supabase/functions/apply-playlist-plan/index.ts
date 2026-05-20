@@ -149,11 +149,13 @@ Deno.serve(async (req) => {
     const spId = pl.spotify_playlist_id;
     const report: Record<string, any> = { ok: true, steps: [] };
 
-    // helpers que mantêm a tracklist em memória sincronizada com a playlist real
-    let currentUris: string[] | null = null;
-    async function ensureCurrent(): Promise<string[]> {
-      if (!currentUris) currentUris = await fetchAllTrackUris(spId, token);
-      return currentUris;
+    // helpers que mantêm a tracklist em memória sincronizada com a playlist real.
+    // Usamos refs com linked_from porque o Spotify pode devolver uma URI relinkada
+    // diferente da URI original salva no diagnóstico.
+    let currentRefs: PlaylistTrackRef[] | null = null;
+    async function ensureCurrent(): Promise<PlaylistTrackRef[]> {
+      if (!currentRefs) currentRefs = await listPlaylistTrackRefs(spId, token);
+      return currentRefs;
     }
 
     async function doRemove() {
@@ -161,22 +163,11 @@ Deno.serve(async (req) => {
         report.steps.push({ action: "remove", skipped: true, reason: "nada a remover" });
         return;
       }
-      // Spotify aceita até 100 por chamada. O endpoint atual de remoção é
-      // /items e o corpo precisa ser { items: [{ uri }] }.
       const uris = removeItems.map((t) => `spotify:track:${t.spotify_track_id}`);
-      const chunks: string[][] = [];
-      for (let i = 0; i < uris.length; i += 100) chunks.push(uris.slice(i, i + 100));
-      let removed = 0;
-      for (const ch of chunks) {
-        const res = await spotifyFetch(
-          `https://api.spotify.com/v1/playlists/${spId}/items`,
-          { method: "DELETE", body: JSON.stringify({ items: ch.map((uri) => ({ uri })) }) },
-          token,
-        );
-        removed += ch.length;
-        if (currentUris) currentUris = currentUris.filter((u) => !ch.includes(u));
-        report.snapshot_id = res?.snapshot_id ?? report.snapshot_id;
-      }
+      const res = await removePlaylistTracks(spId, uris, token);
+      if (currentRefs) currentRefs = currentRefs.filter((ref) => !uris.some((uri) => ref.uri === uri || ref.linked_from_uri === uri));
+      report.snapshot_id = res?.snapshot_id ?? report.snapshot_id;
+      const removed = res.removed;
       report.steps.push({ action: "remove", removed });
     }
 
