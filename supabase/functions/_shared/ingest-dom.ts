@@ -92,7 +92,7 @@ export async function processDomItem(
         .select("auto_collect_interval_minutes")
         .eq("id", song_id)
         .single();
-      const intervalMin = (songRow as any)?.auto_collect_interval_minutes ?? 1440;
+      const intervalMin = (songRow as any)?.auto_collect_interval_minutes ?? 2880;
       const nextAt = new Date(Date.now() + intervalMin * 60_000).toISOString();
       await supabase
         .from("curator_deal_songs")
@@ -255,7 +255,7 @@ export async function processDomItem(
     .select("auto_collect_interval_minutes")
     .eq("id", song_id)
     .single();
-  const intervalMin = (songRow as any)?.auto_collect_interval_minutes ?? 1440;
+  const intervalMin = (songRow as any)?.auto_collect_interval_minutes ?? 2880;
   const nextAt = new Date(Date.now() + intervalMin * 60_000).toISOString();
 
   await supabase
