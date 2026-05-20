@@ -449,6 +449,43 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
               )}
 
               {spotifyAccounts.length > 0 && (
+                <div className="mb-3 p-3 rounded-lg border border-warning/30 bg-warning/5 space-y-2">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
+                    <div className="text-[11px] text-muted-foreground leading-relaxed">
+                      <strong className="text-foreground">Cada e-mail abaixo precisa estar em <em>Users and Access</em> do app correspondente</strong> no{" "}
+                      <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noreferrer" className="text-primary hover:underline inline-flex items-center gap-1">
+                        Spotify Developer Dashboard <ExternalLink className="h-3 w-3" />
+                      </a>
+                      . Sem isso, operações em <span className="font-mono">/tracks</span> (adicionar, remover, reordenar) retornam <span className="font-mono text-warning">403 Forbidden</span> — mesmo que capa e título funcionem normalmente.
+                    </div>
+                  </div>
+                  {spotifyApps.length > 0 && (() => {
+                    const byApp = new Map<string, { app: SpotifyApp | null; emails: string[] }>();
+                    for (const acc of spotifyAccounts) {
+                      const app = spotifyApps.find((a) => a.id === acc.app_id) ?? null;
+                      const key = acc.app_id ?? "legacy";
+                      if (!byApp.has(key)) byApp.set(key, { app, emails: [] });
+                      byApp.get(key)!.emails.push(acc.email ?? acc.display_name ?? acc.spotify_user_id);
+                    }
+                    return (
+                      <div className="ml-6 space-y-1.5">
+                        {Array.from(byApp.values()).map(({ app, emails }, i) => (
+                          <div key={i} className="text-[11px] leading-relaxed">
+                            <span className="font-medium text-foreground">{app?.name ?? "App legado (env)"}</span>
+                            <span className="text-muted-foreground"> ({emails.length} {emails.length === 1 ? "conta" : "contas"}):</span>
+                            <div className="font-mono text-[10px] text-muted-foreground/90 mt-0.5 pl-2">
+                              {emails.join(" · ")}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
+              {spotifyAccounts.length > 0 && (
                 <div className="space-y-1.5">
                   {spotifyAccounts.map((acc) => {
                     const grantedScopes: string[] = (acc.scope ?? "").split(/\s+/).filter(Boolean);
