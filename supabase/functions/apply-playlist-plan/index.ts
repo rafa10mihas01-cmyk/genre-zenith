@@ -13,6 +13,14 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
 import { getUserAccessToken, getSpotifyToken } from "../_shared/spotify.ts";
+import {
+  addPlaylistTracks,
+  findPlaylistTrackIndex,
+  listPlaylistTrackRefs,
+  removePlaylistTracks,
+  reorderPlaylistTracks,
+  type PlaylistTrackRef,
+} from "../_shared/spotify-playlist.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -40,21 +48,6 @@ async function spotifyFetch(url: string, init: RequestInit, token: string) {
     throw new Error(`Spotify ${r.status}: ${txt.slice(0, 300)}`);
   }
   try { return txt ? JSON.parse(txt) : {}; } catch { return {}; }
-}
-
-async function fetchAllTrackUris(playlistId: string, token: string): Promise<string[]> {
-  const uris: string[] = [];
-  let url: string | null =
-    `https://api.spotify.com/v1/playlists/${playlistId}/items?fields=items(track(uri)),next&limit=100`;
-  while (url) {
-    const j = await spotifyFetch(url, { method: "GET" }, token);
-    for (const it of j.items ?? []) {
-      const uri = it?.track?.uri;
-      if (uri) uris.push(uri);
-    }
-    url = j.next ?? null;
-  }
-  return uris;
 }
 
 async function syncManagedSnapshot(authHeader: string, playlistId: string) {
