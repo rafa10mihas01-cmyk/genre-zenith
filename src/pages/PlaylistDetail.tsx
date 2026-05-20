@@ -20,6 +20,10 @@ type PlaylistRow = {
 
 type ManagedRow = {
   id: string;
+  name: string | null;
+  followers: number | null;
+  canonical_playlist_id: string | null;
+  spotify_playlist_id: string;
   cover_url: string | null;
   description: string | null;
   tracks_count: number;
@@ -53,22 +57,44 @@ export default function PlaylistDetail() {
         .select("id, spotify_playlist_id, name, followers, cover_url, genre_id")
         .eq("id", id)
         .maybeSingle();
-      setPl(p as PlaylistRow | null);
+      let playlist = p as PlaylistRow | null;
 
-      if (p?.spotify_playlist_id) {
+      if (playlist?.spotify_playlist_id) {
         const { data: m } = await supabase
           .from("managed_playlists")
-          .select("id, cover_url, description, tracks_count, spotify_url, genre_id")
-          .eq("spotify_playlist_id", p.spotify_playlist_id)
+          .select("id, name, followers, canonical_playlist_id, spotify_playlist_id, cover_url, description, tracks_count, spotify_url, genre_id")
+          .eq("spotify_playlist_id", playlist.spotify_playlist_id)
           .maybeSingle();
         setMgd(m as ManagedRow | null);
 
-        const genreId = (m as any)?.genre_id ?? p?.genre_id;
+        const genreId = (m as any)?.genre_id ?? playlist?.genre_id;
         if (genreId) {
           const { data: g } = await supabase.from("genres").select("nome").eq("id", genreId).maybeSingle();
           setGenreName((g as any)?.nome ?? null);
         }
+      } else {
+        const { data: m } = await supabase
+          .from("managed_playlists")
+          .select("id, name, followers, canonical_playlist_id, spotify_playlist_id, cover_url, description, tracks_count, spotify_url, genre_id")
+          .eq("id", id)
+          .maybeSingle();
+        setMgd(m as ManagedRow | null);
+        if (m) {
+          playlist = {
+            id: (m as ManagedRow).canonical_playlist_id ?? (m as ManagedRow).id,
+            spotify_playlist_id: (m as ManagedRow).spotify_playlist_id,
+            name: (m as ManagedRow).name,
+            followers: (m as ManagedRow).followers,
+            cover_url: (m as ManagedRow).cover_url,
+            genre_id: (m as ManagedRow).genre_id,
+          };
+          if ((m as ManagedRow).genre_id) {
+            const { data: g } = await supabase.from("genres").select("nome").eq("id", (m as ManagedRow).genre_id).maybeSingle();
+            setGenreName((g as any)?.nome ?? null);
+          }
+        }
       }
+      setPl(playlist);
       setLoading(false);
     })();
   }, [id]);

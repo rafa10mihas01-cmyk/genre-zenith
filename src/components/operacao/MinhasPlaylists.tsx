@@ -826,13 +826,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
           {visible.map((p) => (
             <Link
               key={p.id}
-              to={p.canonical_playlist_id ? `/playlists/${p.canonical_playlist_id}` : "#"}
-              onClick={(e) => {
-                if (!p.canonical_playlist_id) {
-                  e.preventDefault();
-                  openDiagnosis(p);
-                }
-              }}
+              to={`/playlists/${p.canonical_playlist_id ?? p.id}`}
               className="nx-card !p-0 overflow-hidden text-left group hover:border-foreground/25 transition-colors flex flex-col"
             >
               <div className="relative aspect-square bg-elevated overflow-hidden">
@@ -994,11 +988,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
                   const sigCount = Array.isArray(b.signals) ? b.signals.length : 0;
                   const headroom = b.headroom_pct;
                   return (
-                    <Link
-                      to={`/playlists/${p.canonical_playlist_id}`}
-                      onClick={(e) => e.stopPropagation()}
-                      className="mt-1 -mx-2.5 -mb-2.5 px-2.5 py-1.5 border-t border-border bg-elevated/50 hover:bg-elevated text-[10px] flex items-center justify-between text-muted-foreground hover:text-foreground transition-colors"
-                    >
+                    <div className="mt-1 -mx-2.5 -mb-2.5 px-2.5 py-1.5 border-t border-border bg-elevated/50 text-[10px] flex items-center justify-between text-muted-foreground transition-colors">
                       <span className="inline-flex items-center gap-1">
                         <Brain className="h-3 w-3 text-primary/70" />
                         {headroom !== null
@@ -1007,7 +997,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
                         {sigCount > 0 && <span className="ml-1">· {sigCount} {sigCount === 1 ? "sinal" : "sinais"}</span>}
                       </span>
                       <ArrowUpRight className="h-3 w-3" />
-                    </Link>
+                    </div>
                   );
                 })()}
               </div>
