@@ -346,7 +346,18 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
 
   useEffect(() => {
     supabase.from("genres").select("id, nome").order("nome").then(({ data }) => {
-      setGenres((data ?? []) as any);
+      const PRIORITY = ["funk", "trap", "sertanejo", "samba", "pagode", "piseiro"];
+      const norm = (s: string) => s.toLowerCase().trim();
+      const list = (data ?? []) as { id: string; nome: string }[];
+      const sorted = [...list].sort((a, b) => {
+        const ia = PRIORITY.indexOf(norm(a.nome));
+        const ib = PRIORITY.indexOf(norm(b.nome));
+        if (ia !== -1 && ib !== -1) return ia - ib;
+        if (ia !== -1) return -1;
+        if (ib !== -1) return 1;
+        return a.nome.localeCompare(b.nome, "pt-BR");
+      });
+      setGenres(sorted as any);
     });
     loadAccounts();
     // Auto-vincula conta Spotify pelo dono da playlist
