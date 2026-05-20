@@ -11,6 +11,7 @@ import { toast } from "sonner";
 export type SpotifyApp = {
   id: string;
   name: string;
+  slug: string;
   client_id: string;
   client_id_preview: string;
   max_accounts: number;
