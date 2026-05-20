@@ -92,46 +92,19 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
     }
   }, []);
 
-  function openSpotifyPopup(authUrl: string, forceLogin = false) {
-    const popup = window.open("about:blank", "_blank");
+  function openSpotifyPopup(authUrl: string, _forceLogin = false) {
+    // Vai DIRETO para a URL de autorização do Spotify.
+    // A URL já inclui `show_dialog=true`, então o Spotify mostra o seletor de conta
+    // automaticamente. Não passamos por accounts.spotify.com/logout porque o Spotify
+    // redireciona para a página da conta e o popup vira cross-origin, travando o fluxo.
+    const popup = window.open(authUrl, "_blank");
     if (!popup) {
       toast.error("Pop-up bloqueado", { description: "Permita pop-ups para este site e tente de novo." });
       return null;
     }
-
-    if (forceLogin) {
-      popup.document.write(`
-        <html><head><title>Trocando conta no Spotify…</title>
-        <style>
-          body{margin:0;display:flex;align-items:center;justify-content:center;height:100vh;
-          background:${POPUP_THEME.bg};color:${POPUP_THEME.fg};font-family:Inter,system-ui,sans-serif;flex-direction:column;gap:16px;}
-          .spinner{width:32px;height:32px;border:3px solid ${POPUP_THEME.accent};border-top-color:transparent;
-          border-radius:50%;animation:spin .8s linear infinite;}
-          .hint{max-width:320px;text-align:center;line-height:1.5;color:${POPUP_THEME.muted};font-size:14px;}
-          @keyframes spin{to{transform:rotate(360deg);}}
-        </style></head>
-        <body>
-          <div class="spinner"></div>
-          <div>Preparando troca de conta…</div>
-          <div class="hint">Estamos encerrando a sessão atual do Spotify e abrindo a autorização da próxima conta.</div>
-        </body></html>
-      `);
-      popup.document.close();
-
-      popup.location.href = "https://accounts.spotify.com/logout";
-      window.setTimeout(() => {
-        try {
-          popup.location.href = authUrl;
-        } catch {
-          window.open(authUrl, "_blank");
-        }
-      }, 1400);
-    } else {
-      popup.location.href = authUrl;
-    }
-
     return popup;
   }
+
 
   async function openInNewTab(forceLogin = false, appId?: string) {
     try {
