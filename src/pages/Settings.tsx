@@ -85,6 +85,7 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
   const [isInIframe, setIsInIframe] = useState(false);
   const [spotifyApps, setSpotifyApps] = useState<SpotifyApp[]>([]);
   const [pickerOpen, setPickerOpen] = useState<null | { forceLogin: boolean }>(null);
+  const [requiredScopes, setRequiredScopes] = useState<string[]>([]);
 
   useEffect(() => {
     try {
@@ -169,7 +170,12 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
     else setSpotifyResult({ ok: false, msg: data?.error ?? "Falha desconhecida" });
   }
 
-  useEffect(() => { void loadStats(); void loadSpotifyAccounts(); }, []);
+  useEffect(() => { void loadStats(); void loadSpotifyAccounts(); void loadRequiredScopes(); }, []);
+
+  async function loadRequiredScopes() {
+    const j = await callSpotifyAuth("mode=scopes");
+    if (j?.ok && Array.isArray(j.scopes)) setRequiredScopes(j.scopes);
+  }
 
   // Trata retorno do OAuth do Spotify (guard contra StrictMode/duplo-disparo)
   const spotifyCallbackHandled = useRef(false);
@@ -472,31 +478,57 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
 
               {spotifyAccounts.length > 0 && (
                 <div className="space-y-1.5">
-                  {spotifyAccounts.map((acc) => (
-                    <div key={acc.id} className="flex items-center justify-between gap-2 p-2.5 rounded-lg border border-border bg-muted/20">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-sm truncate">{acc.display_name ?? acc.spotify_user_id}</span>
-                          {acc.is_default && (
-                            <span className="text-[10px] inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/15 text-primary">
-                              <Star className="h-2.5 w-2.5" /> padrão
-                            </span>
-                          )}
+                  {spotifyAccounts.map((acc) => {
+                    const grantedScopes: string[] = (acc.scope ?? "").split(/\s+/).filter(Boolean);
+                    const missingScopes = requiredScopes.filter((s) => !grantedScopes.includes(s));
+                    const needsReauth = requiredScopes.length > 0 && missingScopes.length > 0;
+                    return (
+                      <div key={acc.id} className="flex items-center justify-between gap-2 p-2.5 rounded-lg border border-border bg-muted/20">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-medium text-sm truncate">{acc.display_name ?? acc.spotify_user_id}</span>
+                            {acc.is_default && (
+                              <span className="text-[10px] inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/15 text-primary">
+                                <Star className="h-2.5 w-2.5" /> padrão
+                              </span>
+                            )}
+                            {needsReauth && (
+                              <span
+                                className="text-[10px] inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-warning/15 text-warning border border-warning/30"
+                                title={`Escopos faltando: ${missingScopes.join(", ")}`}
+                              >
+                                <AlertTriangle className="h-2.5 w-2.5" /> reautorizar ({missingScopes.length})
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-xs text-muted-foreground font-mono truncate">{acc.email ?? acc.spotify_user_id}</div>
                         </div>
-                        <div className="text-xs text-muted-foreground font-mono truncate">{acc.email ?? acc.spotify_user_id}</div>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        {!acc.is_default && (
-                          <Button size="sm" variant="ghost" onClick={() => setDefaultAccount(acc.id)} className="h-8 px-2 text-xs gap-1">
-                            <Star className="h-3 w-3" /> Padrão
+                        <div className="flex items-center gap-1">
+                          {needsReauth && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                void (isInIframe ? openInNewTab(true, acc.app_id ?? undefined) : connectSpotify(true, acc.app_id ?? undefined));
+                              }}
+                              className="h-8 text-xs gap-1 border-warning/40 text-warning hover:bg-warning/10 hover:text-warning"
+                              title={`Refazer login pra conceder: ${missingScopes.join(", ")}`}
+                            >
+                              <RefreshCw className="h-3 w-3" /> Reautorizar
+                            </Button>
+                          )}
+                          {!acc.is_default && (
+                            <Button size="sm" variant="ghost" onClick={() => setDefaultAccount(acc.id)} className="h-8 px-2 text-xs gap-1">
+                              <Star className="h-3 w-3" /> Padrão
+                            </Button>
+                          )}
+                          <Button size="sm" variant="ghost" onClick={() => removeAccount(acc.id)} className="h-8 w-8 p-0 text-destructive hover:text-destructive">
+                            <Trash2 className="h-3.5 w-3.5" />
                           </Button>
-                        )}
-                        <Button size="sm" variant="ghost" onClick={() => removeAccount(acc.id)} className="h-8 w-8 p-0 text-destructive hover:text-destructive">
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

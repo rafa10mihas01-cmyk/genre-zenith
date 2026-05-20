@@ -10,12 +10,21 @@ const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ENV_CLIENT_ID = Deno.env.get("SPOTIFY_CLIENT_ID");
 const ENV_CLIENT_SECRET = Deno.env.get("SPOTIFY_CLIENT_SECRET");
 
-export const SPOTIFY_USER_SCOPES = [
+// Escopos necessários pra operação completa da NexEngine:
+//   - modify-public/private → adicionar/remover faixas, reordenar, mudar nome/descrição
+//   - read-private/collaborative → listar playlists privadas e colaborativas do usuário
+//   - ugc-image-upload → trocar capa
+//   - user-read-email / user-read-private → identificar conta (display_name, email, country)
+export const SPOTIFY_USER_SCOPES_LIST = [
   "playlist-modify-public",
   "playlist-modify-private",
+  "playlist-read-private",
+  "playlist-read-collaborative",
   "ugc-image-upload",
   "user-read-email",
-].join(" ");
+  "user-read-private",
+];
+export const SPOTIFY_USER_SCOPES = SPOTIFY_USER_SCOPES_LIST.join(" ");
 
 function db() {
   return createClient(SUPABASE_URL, SERVICE_KEY);
