@@ -214,7 +214,7 @@ Deno.serve(async (req) => {
         let insertBefore = Math.max(0, Math.min(target, total));
         if (insertBefore === idx || insertBefore === idx + 1) { skipped++; continue; }
         const res = await spotifyFetch(
-          `https://api.spotify.com/v1/playlists/${spId}/tracks`,
+          `https://api.spotify.com/v1/playlists/${spId}/items`,
           {
             method: "PUT",
             body: JSON.stringify({
@@ -242,7 +242,7 @@ Deno.serve(async (req) => {
       }
       const uris = addItems.map((s) => `spotify:track:${s.spotify_track_id}`);
       const res = await spotifyFetch(
-        `https://api.spotify.com/v1/playlists/${spId}/tracks`,
+        `https://api.spotify.com/v1/playlists/${spId}/items`,
         { method: "POST", body: JSON.stringify({ uris, position: 0 }) },
         token,
       );
