@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Layers, Plus, Star, Trash2, Pencil, Loader2, ExternalLink, AlertTriangle, LinkIcon } from "lucide-react";
+import { Layers, Plus, Star, Trash2, Pencil, Loader2, ExternalLink, AlertTriangle, LinkIcon, Copy, Check } from "lucide-react";
 import { toast } from "sonner";
 
 export type SpotifyApp = {
