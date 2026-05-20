@@ -81,12 +81,17 @@ async function fetchSpotifyCoverUrl(spotifyPlaylistId: string, token: string): P
 }
 
 // Extrai só o hash final da imagem (ignora CDN shard e prefixo de tamanho).
-// Ex.: https://image-cdn-fa.spotifycdn.com/image/ab67706c0000bebbHASH
-//   → HASH. Mosaicos auto-gerados começam com ab67706c, capas uploaded não.
 function extractImageHash(url: string | null): string | null {
   if (!url) return null;
   const m = url.match(/\/image\/[a-f0-9]{16}([a-f0-9]+)/i);
   return m ? m[1].toLowerCase() : url.toLowerCase();
+}
+
+// Mosaicos auto-gerados pelo Spotify começam com "ab67706c".
+// Capas uploaded pelo usuário NUNCA usam esse prefixo.
+function isMosaicCover(url: string | null): boolean {
+  if (!url) return false;
+  return /\/image\/ab67706c/i.test(url);
 }
 
 async function waitForSpotifyCover(spotifyPlaylistId: string, token: string, previousUrl: string | null): Promise<string | null> {
@@ -96,7 +101,8 @@ async function waitForSpotifyCover(spotifyPlaylistId: string, token: string, pre
     if (i > 0) await new Promise((resolve) => setTimeout(resolve, 1200));
     latest = await fetchSpotifyCoverUrl(spotifyPlaylistId, token);
     const curHash = extractImageHash(latest);
-    if (latest && curHash && curHash !== prevHash) return latest;
+    // Só "mudou" de verdade se virou capa custom (não-mosaico) com hash diferente
+    if (latest && curHash && curHash !== prevHash && !isMosaicCover(latest)) return latest;
   }
   return latest;
 }
