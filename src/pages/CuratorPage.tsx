@@ -1519,9 +1519,7 @@ export default function CuratorPage() {
                           </div>
                           {(() => {
                             const v =
-                              playlistWindow === "24h"
-                                ? p.plays_24h
-                                : playlistWindow === "7d"
+                              playlistWindow === "7d"
                                 ? p.plays_7d
                                 : p.plays_28d;
                             const has = v !== null && v !== undefined;
