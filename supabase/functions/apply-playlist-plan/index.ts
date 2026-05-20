@@ -186,27 +186,43 @@ Deno.serve(async (req) => {
       });
       let moved = 0;
       let skipped = 0;
+      const details: any[] = [];
       for (const it of sorted) {
         const uri = `spotify:track:${it.spotify_track_id}`;
-        const idx = findPlaylistTrackIndex(currentRefs!, uri);
-        if (idx < 0) { skipped++; continue; }
         const total = currentRefs!.length;
+        let idx = findPlaylistTrackIndex(currentRefs!, uri);
+        let index_source = "track_id";
+        if (idx < 0 && Number.isFinite(it.position)) {
+          const fallbackIdx = Math.max(0, Math.min(Number(it.position), total - 1));
+          idx = fallbackIdx;
+          index_source = "diagnosis_position";
+        }
+        if (idx < 0) {
+          skipped++;
+          details.push({ track_id: it.spotify_track_id, skipped: "not_found", position: it.position, target_position: it.target_position });
+          continue;
+        }
         // target: usa target_position se vier do diag, senão fallback
         const fallback = kind === "promote" ? moved : Math.max(total - 1, 0);
         let target = Number.isFinite(it.target_position) ? Number(it.target_position) : fallback;
         // insert_before: Spotify trata como índice ANTES de remover.
         // Para mover para o final: insert_before = total. Para o topo: 0.
         let insertBefore = Math.max(0, Math.min(target, total));
-        if (insertBefore === idx || insertBefore === idx + 1) { skipped++; continue; }
+        if (insertBefore === idx || insertBefore === idx + 1) {
+          skipped++;
+          details.push({ track_id: it.spotify_track_id, skipped: "already_at_target", index: idx, target_position: target });
+          continue;
+        }
         const res = await reorderPlaylistTracks(spId, { range_start: idx, insert_before: insertBefore, range_length: 1 }, token);
         // Atualiza memória local
         const [item] = currentRefs!.splice(idx, 1);
         const adjusted = insertBefore > idx ? insertBefore - 1 : insertBefore;
         currentRefs!.splice(adjusted, 0, item);
         moved++;
+        details.push({ track_id: it.spotify_track_id, from: idx, to: adjusted, target_position: target, index_source });
         report.snapshot_id = res?.snapshot_id ?? report.snapshot_id;
       }
-      report.steps.push({ action: kind, moved, skipped });
+      report.steps.push({ action: kind, moved, skipped, details });
     }
 
     async function doAdd() {
