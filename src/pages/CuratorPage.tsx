@@ -274,7 +274,7 @@ export default function CuratorPage() {
   // Tick a cada 60s pra atualizar countdown
   const [, setNowTick] = useState(0);
   // Janela visível nas playlists do curador
-  const [playlistWindow, setPlaylistWindow] = useState<"24h" | "7d" | "28d">("7d");
+  const [playlistWindow, setPlaylistWindow] = useState<"7d" | "28d">("7d");
   useEffect(() => {
     const id = setInterval(() => setNowTick((n) => n + 1), 60_000);
     return () => clearInterval(id);
@@ -1435,7 +1435,7 @@ export default function CuratorPage() {
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <div className="inline-flex rounded-full bg-[hsl(var(--elevated))] border border-border p-0.5">
-                  {(["24h", "7d", "28d"] as const).map((w) => (
+                  {(["7d", "28d"] as const).map((w) => (
                     <button
                       key={w}
                       type="button"
@@ -1519,9 +1519,7 @@ export default function CuratorPage() {
                           </div>
                           {(() => {
                             const v =
-                              playlistWindow === "24h"
-                                ? p.plays_24h
-                                : playlistWindow === "7d"
+                              playlistWindow === "7d"
                                 ? p.plays_7d
                                 : p.plays_28d;
                             const has = v !== null && v !== undefined;

@@ -144,7 +144,8 @@ export async function processDomItem(
     const plays24h = p.plays_24h != null ? toInt(p.plays_24h) : null;
     const plays7d  = p.plays_7d  != null ? toInt(p.plays_7d)  : null;
     const plays28d = p.plays_28d != null ? toInt(p.plays_28d) : null;
-    const plays = plays24h ?? plays7d ?? plays28d ?? 0;
+    // Janela oficial agora é 7d. Fallback: 7d → 28d → 24h (compat) → 0.
+    const plays = plays7d ?? plays28d ?? plays24h ?? 0;
     totalPlays += plays;
 
     let playlistId: string | null = null;

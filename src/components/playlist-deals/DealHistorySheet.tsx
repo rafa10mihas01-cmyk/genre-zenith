@@ -262,10 +262,10 @@ function BreakdownRow({ r, kind }: { r: BreakdownRowData; kind: "curator" | "alg
         </div>
       </div>
 
-      {/* 3 colunas: 24h / 7d / 28d — janelas oficiais do Spotify for Artists */}
+      {/* Janelas oficiais do Spotify for Artists: 7d (pagamento) e 28d (contexto) */}
       <div className="flex items-center gap-1 shrink-0">
-        {(["24h", "7d", "28d"] as const).map((w) => {
-          const v = w === "24h" ? r.plays_24h : w === "7d" ? r.plays_7d : r.plays_28d;
+        {(["7d", "28d"] as const).map((w) => {
+          const v = w === "7d" ? r.plays_7d : r.plays_28d;
           return (
             <div
               key={w}
@@ -398,7 +398,7 @@ export function DealHistorySheet({
   asPage = false,
 }: DealHistorySheetProps) {
   const [tab, setTab] = useState<"resumo" | "playlists" | "algoritmo" | "historico">("resumo");
-  const [perfWindow, setPerfWindow] = useState<"24h" | "7d" | "28d">("7d");
+  const [perfWindow, setPerfWindow] = useState<"7d" | "28d">("7d");
   const [pasteOpen, setPasteOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [selectedLogId, setSelectedLogId] = useState<string | null>(null);
@@ -510,8 +510,8 @@ export function DealHistorySheet({
     () => (todayBreakdown?.rows ?? []).filter((r) => r.match_status !== "curator"),
     [todayBreakdown],
   );
-  const sumWindow = (rows: typeof curatorBreakdownRows, w: "24h" | "7d" | "28d") =>
-    rows.reduce((s, r) => s + (w === "24h" ? r.plays_24h ?? 0 : w === "7d" ? r.plays_7d ?? 0 : r.total_delivered || r.plays_28d || 0), 0);
+  const sumWindow = (rows: typeof curatorBreakdownRows, w: "7d" | "28d") =>
+    rows.reduce((s, r) => s + (w === "7d" ? r.plays_7d ?? 0 : r.total_delivered || r.plays_28d || 0), 0);
   const curatorWindowTotal = sumWindow(curatorBreakdownRows, perfWindow);
   const algoWindowTotal = sumWindow(algoBreakdownRows, perfWindow);
 
@@ -712,7 +712,7 @@ export function DealHistorySheet({
                       title="Performance na janela"
                       right={
                         <div className="inline-flex rounded-lg border border-border bg-[hsl(var(--elevated))] p-0.5">
-                          {(["24h", "7d", "28d"] as const).map((w) => (
+                          {(["7d", "28d"] as const).map((w) => (
                             <button
                               key={w}
                               onClick={() => setPerfWindow(w)}
@@ -735,9 +735,7 @@ export function DealHistorySheet({
                           <div className="text-lg sm:text-2xl font-semibold text-primary tabular-nums leading-tight mt-1 whitespace-nowrap overflow-hidden text-ellipsis">
                             {(() => {
                               const v =
-                                perfWindow === "24h"
-                                  ? todayBreakdown.total_24h
-                                  : perfWindow === "7d"
+                                perfWindow === "7d"
                                   ? todayBreakdown.total_7d
                                   : todayBreakdown.total_28d;
                               return v == null ? "—" : fmtCompact(v);
