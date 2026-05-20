@@ -39,6 +39,7 @@ type AnalysisTrack = {
   target_position?: number | null;
 };
 
+type Zone = "anchor" | "premium" | "support" | "tail";
 type Suggestion = {
   spotify_track_id: string;
   nome: string;
@@ -46,6 +47,8 @@ type Suggestion = {
   count: number;
   suggested_position: number;
   from_missing_artist?: boolean;
+  target_zone?: Zone;
+  target_zone_label?: string;
 };
 
 type Diagnosis = {
@@ -115,6 +118,43 @@ const HEALTH_META: Record<string, { label: string; tone: string; Icon: any }> = 
   saudavel: { label: "Saudável", tone: "text-foreground border-border bg-elevated", Icon: Activity },
   frio: { label: "Frio", tone: "text-destructive border-destructive/40 bg-destructive/10", Icon: Snowflake },
 };
+
+// Zonas curatoriais — espelham ZONE_RANGES do diagnose-managed-playlist.
+const ZONE_LABELS: Record<Zone, string> = {
+  anchor: "Fachada",
+  premium: "Premium",
+  support: "Sustentação",
+  tail: "Cauda",
+};
+// Tamanho real de cada zona — limita quantas sugestões podem brigar pelo mesmo trecho.
+const ZONE_CAPS: Record<Zone, number> = {
+  anchor: 2,
+  premium: 4,
+  support: 6,
+  tail: Number.POSITIVE_INFINITY,
+};
+function zoneFromPos(pos: number): Zone {
+  if (pos <= 1) return "anchor";
+  if (pos <= 5) return "premium";
+  if (pos <= 11) return "support";
+  return "tail";
+}
+// Motivo curto e humano pra cada faixa sugerida — esconde o engine.
+function reasonForAdd(s: Suggestion): string {
+  if (s.from_missing_artist) return "Artista dominante faltando";
+  const c = s.count ?? 0;
+  if (c >= 4) return "Muito forte no nicho";
+  if (c >= 2) return `Recorrente no nicho (${c}×)`;
+  return "Sugerida pelo modelo do nicho";
+}
+// Pega só o motivo mais relevante (primeiro), com fallback humano por ação.
+function shortReason(t: AnalysisTrack, kind: "remove" | "promote" | "demote"): string {
+  const first = (t.reasons ?? []).find((r) => r && r.trim().length > 0);
+  if (first) return first;
+  if (kind === "remove") return "Baixa performance";
+  if (kind === "promote") return "Mercado já reconheceu";
+  return "Pouca tração na vitrine";
+}
 
 // -------------------- main --------------------
 export function PlaylistCockpit({
@@ -240,16 +280,30 @@ export function PlaylistCockpit({
       .sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0));
 
     // Aplica o cap recomendado pelo cérebro — detecta tudo, executa só o que
-    // cabe neste ciclo (5% por padrão). UI mostra "X detectadas · Y recomendadas".
+    // cabe neste ciclo. UI mostra "X detectadas · Y recomendadas".
     const recRemove = caps?.recommended_remove ?? removeAll.length;
     const recDemote = caps?.recommended_demote ?? demoteAll.length;
     const recPromote = caps?.recommended_promote ?? promoteAll.length;
+
+    // Adicionar: respeita capped_suggestions do backend e ainda aplica
+    // cap por zona pra não empilhar 6 faixas brigando por posição 0/1.
+    const addAfterBackendCap = caps?.capped_suggestions != null
+      ? suggestions.slice(0, caps.capped_suggestions)
+      : suggestions;
+    const zoneCount: Record<Zone, number> = { anchor: 0, premium: 0, support: 0, tail: 0 };
+    const addFinal: Array<Suggestion & { _zone: Zone }> = [];
+    for (const s of addAfterBackendCap) {
+      const z = (s.target_zone ?? zoneFromPos(s.suggested_position ?? 99)) as Zone;
+      if (zoneCount[z] >= ZONE_CAPS[z]) continue;
+      zoneCount[z]++;
+      addFinal.push({ ...s, _zone: z });
+    }
 
     return {
       remove: removeAll.slice(0, recRemove),
       demote: demoteAll.slice(0, recDemote),
       promote: promoteAll.slice(0, recPromote),
-      add: suggestions,
+      add: addFinal,
       detected: {
         remove: removeAll.length,
         demote: demoteAll.length,
@@ -1028,7 +1082,7 @@ function BucketRemove({ items, applying, onApplyAll }: {
           target={null}
           title={t.track_name ?? "—"}
           artist={t.artist_name ?? "—"}
-          reason={(t.reasons ?? [])[0] ?? "baixa performance"}
+          reason={shortReason(t, "remove")}
           action={<span className="text-[10px] text-muted-foreground uppercase tracking-wider">Remover</span>}
         />
       ))}
@@ -1071,7 +1125,7 @@ function BucketReorder({ kind, items, totalTracks, applying, onApplyAll }: {
           target={t.target_position ?? (kind === "promote" ? 5 : Math.max(30, totalTracks - 10))}
           title={t.track_name ?? "—"}
           artist={t.artist_name ?? "—"}
-          reason={(t.reasons ?? []).join(" · ") || "—"}
+          reason={shortReason(t, kind)}
           action={
             <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
               {kind === "promote" ? "Promover" : "Rebaixar"}
@@ -1083,8 +1137,22 @@ function BucketReorder({ kind, items, totalTracks, applying, onApplyAll }: {
   );
 }
 
+function NewTrackTarget({ zone, pos }: { zone: Zone; pos: number }) {
+  return (
+    <div className="flex items-center gap-1.5 shrink-0 w-32">
+      <span className="text-[9px] uppercase tracking-wider font-bold text-primary bg-primary/15 px-1.5 py-0.5 rounded">
+        NOVA
+      </span>
+      <span className="text-muted-foreground/50 text-[11px]">→</span>
+      <span className="text-foreground text-[11px] font-semibold tabular-nums truncate">
+        {ZONE_LABELS[zone]} #{pos + 1}
+      </span>
+    </div>
+  );
+}
+
 function BucketAdd({ items, applying, onApplyAll }: {
-  items: Suggestion[]; applying: boolean; onApplyAll: () => void;
+  items: Array<Suggestion & { _zone: Zone }>; applying: boolean; onApplyAll: () => void;
 }) {
   return (
     <BucketShell
@@ -1106,19 +1174,23 @@ function BucketAdd({ items, applying, onApplyAll }: {
       }
     >
       {items.map((t) => (
-        <TrackLine
+        <div
           key={t.spotify_track_id}
-          position={0}
-          target={t.suggested_position}
-          title={t.nome || "—"}
-          artist={t.artista || "—"}
-          reason={`${t.count}× nas playlists vencedoras do nicho${t.from_missing_artist ? " · artista faltando" : ""}`}
-          action={
+          className="flex items-center gap-3 px-4 py-2.5 hover:bg-elevated/40 transition-colors"
+        >
+          <NewTrackTarget zone={t._zone} pos={t.suggested_position} />
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-medium truncate">{t.nome || "—"}</div>
+            <div className="text-xs text-muted-foreground truncate">
+              {t.artista || "—"} · {reasonForAdd(t)}
+            </div>
+          </div>
+          <div className="shrink-0">
             <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
               Adicionar
             </span>
-          }
-        />
+          </div>
+        </div>
       ))}
     </BucketShell>
   );
