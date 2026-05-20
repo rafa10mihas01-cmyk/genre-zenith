@@ -1035,6 +1035,37 @@ Deno.serve(async (req) => {
       ...extraSuggestions,
     ];
 
+    // 7.g) Dedup de sugestões por spotify_track_id — uma faixa não pode aparecer
+    // como substituição E adição ao mesmo tempo. Substituição tem prioridade
+    // (já está ligada a uma remoção). Ordem original preservada.
+    {
+      const seenSugIds = new Set<string>();
+      for (let i = tracksSuggestions.length - 1; i >= 0; i--) {
+        const id = tracksSuggestions[i]?.spotify_track_id;
+        if (!id) continue;
+        if (seenSugIds.has(id)) tracksSuggestions.splice(i, 1);
+        else seenSugIds.add(id);
+      }
+    }
+
+    // 7.h) Distribuição inteligente de suggested_position nas adições — mesma lógica
+    // do reorder: agrupa por target_zone e espalha pra evitar empilhamento.
+    {
+      const sugGroups = new Map<Zone, any[]>();
+      for (const s of tracksSuggestions) {
+        const z = s.target_zone as Zone;
+        if (!z) continue;
+        if (!sugGroups.has(z)) sugGroups.set(z, []);
+        sugGroups.get(z)!.push(s);
+      }
+      for (const [zone, group] of sugGroups) {
+        group.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+        const positions = distributeInZone(zone, group.length);
+        group.forEach((s, i) => { s.suggested_position = positions[i]; });
+      }
+    }
+
+
     // Adiciona contagem ao summary pra UI exibir KPI "ADICIONAR"
     (tracksSummary as any).add = tracksSuggestions.length;
     (tracksSummary as any).add_from_missing = tracksSuggestions.filter((t: any) => t.from_missing_artist).length;
