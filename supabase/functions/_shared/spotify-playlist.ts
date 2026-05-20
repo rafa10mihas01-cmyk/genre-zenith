@@ -52,24 +52,60 @@ function toUri(uriOrId: string): string {
   return uriOrId.startsWith("spotify:track:") ? uriOrId : `spotify:track:${uriOrId}`;
 }
 
+function toTrackId(uriOrId: string): string {
+  return uriOrId.startsWith("spotify:track:") ? uriOrId.split(":").pop() ?? uriOrId : uriOrId;
+}
+
+export type PlaylistTrackRef = {
+  uri: string;
+  id: string | null;
+  linked_from_uri?: string | null;
+  linked_from_id?: string | null;
+};
+
+export function trackRefMatches(ref: PlaylistTrackRef, uriOrId: string): boolean {
+  const uri = toUri(uriOrId);
+  const id = toTrackId(uriOrId);
+  return ref.uri === uri || ref.id === id || ref.linked_from_uri === uri || ref.linked_from_id === id;
+}
+
+export function findPlaylistTrackIndex(refs: PlaylistTrackRef[], uriOrId: string): number {
+  return refs.findIndex((ref) => trackRefMatches(ref, uriOrId));
+}
+
+/** Lista TODAS as faixas com URI primária e linked_from para evitar relink por mercado/conta. */
+export async function listPlaylistTrackRefs(
+  playlistId: string,
+  token: string,
+  fetcher: SpotifyFetch = defaultSpotifyFetch,
+): Promise<PlaylistTrackRef[]> {
+  const refs: PlaylistTrackRef[] = [];
+  let url: string | null =
+    `https://api.spotify.com/v1/playlists/${playlistId}/items?fields=items(track(id,uri,linked_from(id,uri))),next&limit=100`;
+  while (url) {
+    const j: any = await fetcher(url, { method: "GET" }, token);
+    for (const it of j.items ?? []) {
+      const tr = it?.track;
+      if (!tr?.uri) continue;
+      refs.push({
+        uri: tr.uri,
+        id: tr.id ?? null,
+        linked_from_uri: tr.linked_from?.uri ?? null,
+        linked_from_id: tr.linked_from?.id ?? null,
+      });
+    }
+    url = j.next ?? null;
+  }
+  return refs;
+}
+
 /** Lista TODAS as URIs de tracks da playlist (paginado, 100 por página). */
 export async function listPlaylistTrackUris(
   playlistId: string,
   token: string,
   fetcher: SpotifyFetch = defaultSpotifyFetch,
 ): Promise<string[]> {
-  const uris: string[] = [];
-  let url: string | null =
-    `https://api.spotify.com/v1/playlists/${playlistId}/items?fields=items(track(uri)),next&limit=100`;
-  while (url) {
-    const j: any = await fetcher(url, { method: "GET" }, token);
-    for (const it of j.items ?? []) {
-      const u = it?.track?.uri;
-      if (u) uris.push(u);
-    }
-    url = j.next ?? null;
-  }
-  return uris;
+  return (await listPlaylistTrackRefs(playlistId, token, fetcher)).map((ref) => ref.uri);
 }
 
 /** Adiciona faixas (POST /items, até 100 por chunk). */

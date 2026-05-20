@@ -13,6 +13,14 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
 import { getUserAccessToken, getSpotifyToken } from "../_shared/spotify.ts";
+import {
+  addPlaylistTracks,
+  findPlaylistTrackIndex,
+  listPlaylistTrackRefs,
+  removePlaylistTracks,
+  reorderPlaylistTracks,
+  type PlaylistTrackRef,
+} from "../_shared/spotify-playlist.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -40,21 +48,6 @@ async function spotifyFetch(url: string, init: RequestInit, token: string) {
     throw new Error(`Spotify ${r.status}: ${txt.slice(0, 300)}`);
   }
   try { return txt ? JSON.parse(txt) : {}; } catch { return {}; }
-}
-
-async function fetchAllTrackUris(playlistId: string, token: string): Promise<string[]> {
-  const uris: string[] = [];
-  let url: string | null =
-    `https://api.spotify.com/v1/playlists/${playlistId}/items?fields=items(track(uri)),next&limit=100`;
-  while (url) {
-    const j = await spotifyFetch(url, { method: "GET" }, token);
-    for (const it of j.items ?? []) {
-      const uri = it?.track?.uri;
-      if (uri) uris.push(uri);
-    }
-    url = j.next ?? null;
-  }
-  return uris;
 }
 
 async function syncManagedSnapshot(authHeader: string, playlistId: string) {
@@ -154,13 +147,33 @@ Deno.serve(async (req) => {
     }
 
     const spId = pl.spotify_playlist_id;
+    const playlistDbId = pl.id;
+    const expectedTracksCount = Number(pl.tracks_count ?? 0);
     const report: Record<string, any> = { ok: true, steps: [] };
 
-    // helpers que mantêm a tracklist em memória sincronizada com a playlist real
-    let currentUris: string[] | null = null;
-    async function ensureCurrent(): Promise<string[]> {
-      if (!currentUris) currentUris = await fetchAllTrackUris(spId, token);
-      return currentUris;
+    // helpers que mantêm a tracklist em memória sincronizada com a playlist real.
+    // Usamos refs com linked_from porque o Spotify pode devolver uma URI relinkada
+    // diferente da URI original salva no diagnóstico.
+    let currentRefs: PlaylistTrackRef[] | null = null;
+    async function loadSnapshotRefs(): Promise<PlaylistTrackRef[]> {
+      const { data } = await supabase
+        .from("managed_playlist_tracks")
+        .select("spotify_track_id")
+        .eq("playlist_id", playlistDbId)
+        .order("position", { ascending: true });
+      return (data ?? [])
+        .map((row: any) => String(row.spotify_track_id ?? "").trim())
+        .filter(Boolean)
+        .map((id) => ({ uri: `spotify:track:${id}`, id }));
+    }
+    async function ensureCurrent(): Promise<PlaylistTrackRef[]> {
+      if (!currentRefs) {
+        const refs = await listPlaylistTrackRefs(spId, token).catch(() => []);
+        currentRefs = expectedTracksCount > 0 && refs.length < Math.floor(expectedTracksCount * 0.8)
+          ? await loadSnapshotRefs()
+          : refs;
+      }
+      return currentRefs;
     }
 
     async function doRemove() {
@@ -168,22 +181,11 @@ Deno.serve(async (req) => {
         report.steps.push({ action: "remove", skipped: true, reason: "nada a remover" });
         return;
       }
-      // Spotify aceita até 100 por chamada. O endpoint atual de remoção é
-      // /items e o corpo precisa ser { items: [{ uri }] }.
       const uris = removeItems.map((t) => `spotify:track:${t.spotify_track_id}`);
-      const chunks: string[][] = [];
-      for (let i = 0; i < uris.length; i += 100) chunks.push(uris.slice(i, i + 100));
-      let removed = 0;
-      for (const ch of chunks) {
-        const res = await spotifyFetch(
-          `https://api.spotify.com/v1/playlists/${spId}/items`,
-          { method: "DELETE", body: JSON.stringify({ items: ch.map((uri) => ({ uri })) }) },
-          token,
-        );
-        removed += ch.length;
-        if (currentUris) currentUris = currentUris.filter((u) => !ch.includes(u));
-        report.snapshot_id = res?.snapshot_id ?? report.snapshot_id;
-      }
+      const res = await removePlaylistTracks(spId, uris, token);
+      if (currentRefs) currentRefs = currentRefs.filter((ref) => !uris.some((uri) => ref.uri === uri || ref.linked_from_uri === uri));
+      report.snapshot_id = res?.snapshot_id ?? report.snapshot_id;
+      const removed = res.removed;
       report.steps.push({ action: "remove", removed });
     }
 
@@ -202,38 +204,43 @@ Deno.serve(async (req) => {
       });
       let moved = 0;
       let skipped = 0;
+      const details: any[] = [];
       for (const it of sorted) {
         const uri = `spotify:track:${it.spotify_track_id}`;
-        const idx = currentUris!.indexOf(uri);
-        if (idx < 0) { skipped++; continue; }
-        const total = currentUris!.length;
+        const total = currentRefs!.length;
+        let idx = findPlaylistTrackIndex(currentRefs!, uri);
+        let index_source = "track_id";
+        if (idx < 0 && Number.isFinite(it.position)) {
+          const fallbackIdx = Math.max(0, Math.min(Number(it.position), total - 1));
+          idx = fallbackIdx;
+          index_source = "diagnosis_position";
+        }
+        if (idx < 0) {
+          skipped++;
+          details.push({ track_id: it.spotify_track_id, skipped: "not_found", position: it.position, target_position: it.target_position });
+          continue;
+        }
         // target: usa target_position se vier do diag, senão fallback
         const fallback = kind === "promote" ? moved : Math.max(total - 1, 0);
         let target = Number.isFinite(it.target_position) ? Number(it.target_position) : fallback;
         // insert_before: Spotify trata como índice ANTES de remover.
         // Para mover para o final: insert_before = total. Para o topo: 0.
         let insertBefore = Math.max(0, Math.min(target, total));
-        if (insertBefore === idx || insertBefore === idx + 1) { skipped++; continue; }
-        const res = await spotifyFetch(
-          `https://api.spotify.com/v1/playlists/${spId}/items`,
-          {
-            method: "PUT",
-            body: JSON.stringify({
-              range_start: idx,
-              insert_before: insertBefore,
-              range_length: 1,
-            }),
-          },
-          token,
-        );
+        if (insertBefore === idx || insertBefore === idx + 1) {
+          skipped++;
+          details.push({ track_id: it.spotify_track_id, skipped: "already_at_target", index: idx, target_position: target });
+          continue;
+        }
+        const res = await reorderPlaylistTracks(spId, { range_start: idx, insert_before: insertBefore, range_length: 1 }, token);
         // Atualiza memória local
-        const [item] = currentUris!.splice(idx, 1);
+        const [item] = currentRefs!.splice(idx, 1);
         const adjusted = insertBefore > idx ? insertBefore - 1 : insertBefore;
-        currentUris!.splice(adjusted, 0, item);
+        currentRefs!.splice(adjusted, 0, item);
         moved++;
+        details.push({ track_id: it.spotify_track_id, from: idx, to: adjusted, target_position: target, index_source });
         report.snapshot_id = res?.snapshot_id ?? report.snapshot_id;
       }
-      report.steps.push({ action: kind, moved, skipped });
+      report.steps.push({ action: kind, moved, skipped, details });
     }
 
     async function doAdd() {
@@ -242,14 +249,13 @@ Deno.serve(async (req) => {
         return;
       }
       const uris = addItems.map((s) => `spotify:track:${s.spotify_track_id}`);
-      const res = await spotifyFetch(
-        `https://api.spotify.com/v1/playlists/${spId}/items`,
-        { method: "POST", body: JSON.stringify({ uris, position: 0 }) },
-        token,
-      );
+      const res = await addPlaylistTracks(spId, uris, token, { position: 0 });
       report.steps.push({ action: "add", added: uris.length });
       report.snapshot_id = res?.snapshot_id ?? report.snapshot_id;
-      if (currentUris) currentUris = [...uris, ...currentUris];
+      if (currentRefs) currentRefs = [
+        ...uris.map((uri) => ({ uri, id: uri.split(":").pop() ?? null })),
+        ...currentRefs,
+      ];
     }
 
     try {
@@ -270,12 +276,12 @@ Deno.serve(async (req) => {
       return jr({ ok: false, action, partial: report, error: `${msg}${hint}` }, 502);
     }
 
-    const finalUris = await fetchAllTrackUris(spId, token).catch(() => null);
-    if (finalUris) {
-      report.current_tracks_count = finalUris.length;
+    const finalRefs = await listPlaylistTrackRefs(spId, token).catch(() => null);
+    if (finalRefs) {
+      report.current_tracks_count = finalRefs.length;
       await supabase
         .from("managed_playlists")
-        .update({ tracks_count: finalUris.length, last_metrics_at: new Date().toISOString() })
+        .update({ tracks_count: finalRefs.length, last_metrics_at: new Date().toISOString() })
         .eq("id", pl.id);
     }
 
