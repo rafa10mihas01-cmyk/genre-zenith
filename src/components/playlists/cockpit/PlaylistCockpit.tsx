@@ -119,6 +119,43 @@ const HEALTH_META: Record<string, { label: string; tone: string; Icon: any }> = 
   frio: { label: "Frio", tone: "text-destructive border-destructive/40 bg-destructive/10", Icon: Snowflake },
 };
 
+// Zonas curatoriais — espelham ZONE_RANGES do diagnose-managed-playlist.
+const ZONE_LABELS: Record<Zone, string> = {
+  anchor: "Fachada",
+  premium: "Premium",
+  support: "Sustentação",
+  tail: "Cauda",
+};
+// Tamanho real de cada zona — limita quantas sugestões podem brigar pelo mesmo trecho.
+const ZONE_CAPS: Record<Zone, number> = {
+  anchor: 2,
+  premium: 4,
+  support: 6,
+  tail: Number.POSITIVE_INFINITY,
+};
+function zoneFromPos(pos: number): Zone {
+  if (pos <= 1) return "anchor";
+  if (pos <= 5) return "premium";
+  if (pos <= 11) return "support";
+  return "tail";
+}
+// Motivo curto e humano pra cada faixa sugerida — esconde o engine.
+function reasonForAdd(s: Suggestion): string {
+  if (s.from_missing_artist) return "Artista dominante faltando";
+  const c = s.count ?? 0;
+  if (c >= 4) return "Muito forte no nicho";
+  if (c >= 2) return `Recorrente no nicho (${c}×)`;
+  return "Sugerida pelo modelo do nicho";
+}
+// Pega só o motivo mais relevante (primeiro), com fallback humano por ação.
+function shortReason(t: AnalysisTrack, kind: "remove" | "promote" | "demote"): string {
+  const first = (t.reasons ?? []).find((r) => r && r.trim().length > 0);
+  if (first) return first;
+  if (kind === "remove") return "Baixa performance";
+  if (kind === "promote") return "Mercado já reconheceu";
+  return "Pouca tração na vitrine";
+}
+
 // -------------------- main --------------------
 export function PlaylistCockpit({
   managedId, spotifyPlaylistId, spotifyUrl, playlistName, coverUrl,
