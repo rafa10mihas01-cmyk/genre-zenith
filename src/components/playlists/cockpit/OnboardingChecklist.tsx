@@ -29,6 +29,7 @@ export function OnboardingChecklist({ managedId }: Props) {
   if (data.lifecycle_stage !== "onboarding") return null;
 
   const chk = data.onboarding_checklist;
+  const blockingIssues = Array.isArray(chk?.blocking_issues) ? chk.blocking_issues : [];
 
   return (
     <Card className="p-4 border-primary/30 bg-primary/5 space-y-3">
@@ -77,13 +78,13 @@ export function OnboardingChecklist({ managedId }: Props) {
             })}
           </div>
 
-          {chk.blocking_issues.length > 0 && (
+          {blockingIssues.length > 0 && (
             <div className="border-t border-border/60 pt-2 space-y-1">
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
                 Para liberar deals
               </div>
               <ul className="text-xs text-muted-foreground space-y-0.5 list-disc list-inside">
-                {chk.blocking_issues.map((b) => (
+                {blockingIssues.map((b) => (
                   <li key={b}>{HINTS[b] ?? b}</li>
                 ))}
               </ul>
