@@ -255,15 +255,14 @@ function BreakdownRow({ r, kind }: { r: BreakdownRowData; kind: "curator" | "alg
           )}
         </div>
         <div className="text-[11px] text-muted-foreground tabular-nums mt-0.5 pl-3.5">
-          Total <span className="text-foreground font-medium">{fmtCompact(r.total_delivered)}</span>
-          <span className="text-muted-foreground/70"> · Δ hoje </span>
+          <span className="text-muted-foreground/70">Δ hoje </span>
           <span className="text-foreground font-medium">+{fmtCompact(r.today_plays)}</span>
           {r.song_name && <> · <span className="text-foreground/80">♪ {r.song_name}</span></>}
           {r.spotify_owner_name && <> · {r.spotify_owner_name}</>}
         </div>
       </div>
 
-      {/* 3 colunas: 24h / 7d / 28d */}
+      {/* 3 colunas: 24h / 7d / 28d — janelas oficiais do Spotify for Artists */}
       <div className="flex items-center gap-1 shrink-0">
         {(["24h", "7d", "28d"] as const).map((w) => {
           const v = w === "24h" ? r.plays_24h : w === "7d" ? r.plays_7d : r.plays_28d;
@@ -271,13 +270,13 @@ function BreakdownRow({ r, kind }: { r: BreakdownRowData; kind: "curator" | "alg
             <div
               key={w}
               className="w-14 text-right rounded-md px-1.5 py-1"
-              title={`Janela ${w} (Spotify for Artists)`}
+              title={`Plays na janela ${w} segundo o Spotify for Artists`}
             >
               <div className="text-[13px] font-semibold text-foreground tabular-nums leading-tight">
-                {w === "28d" && r.total_delivered > 0 ? fmtCompact(r.total_delivered) : v != null ? fmtCompact(v) : "—"}
+                {v != null ? fmtCompact(v) : "—"}
               </div>
               <div className="text-[9.5px] uppercase tracking-wider text-muted-foreground">
-                {w === "28d" && r.total_delivered > 0 ? "TOTAL" : w}
+                {w}
               </div>
             </div>
           );
