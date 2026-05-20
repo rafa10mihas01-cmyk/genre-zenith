@@ -48,8 +48,9 @@ export async function handleSpotifyLogin(): Promise<void> {
     throw new Error(json.error || "Falha ao iniciar OAuth do Spotify");
   }
 
-  // Guarda o state para validar no callback (proteção CSRF leve)
-  sessionStorage.setItem(STATE_KEY, json.state);
+  // Guarda o state para validar no callback (proteção CSRF leve).
+  // Usa localStorage porque o popup aberto na sequência tem sessionStorage isolado.
+  localStorage.setItem(STATE_KEY, json.state);
 
   if (popup) {
     popup.location.replace(json.url);
