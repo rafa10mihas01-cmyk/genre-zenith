@@ -96,6 +96,10 @@ Deno.serve(async (req) => {
   const mode = url.searchParams.get("mode") ?? "ping";
 
   try {
+    if (mode === "scopes") {
+      return jr({ ok: true, scopes: SPOTIFY_USER_SCOPES_LIST });
+    }
+
     if (mode === "ping") {
       const force = url.searchParams.get("force") === "1";
       const token = await getSpotifyToken(force);
