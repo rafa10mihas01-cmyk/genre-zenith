@@ -22,9 +22,6 @@ const SETTINGS_ROUTE = "/configuracoes";
 const SPOTIFY_SETTINGS_RETURN_KEY = "nx:spotify_settings_return";
 
 function getSpotifyRedirectUri() {
-  if (window.location.hostname.startsWith("id-preview--")) {
-    return getLegacySpotifySettingsRedirectUri();
-  }
   return `${window.location.origin}/spotify/callback`;
 }
 
