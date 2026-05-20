@@ -153,8 +153,25 @@ Deno.serve(async (req) => {
     // Usamos refs com linked_from porque o Spotify pode devolver uma URI relinkada
     // diferente da URI original salva no diagnóstico.
     let currentRefs: PlaylistTrackRef[] | null = null;
+    async function loadSnapshotRefs(): Promise<PlaylistTrackRef[]> {
+      const { data } = await supabase
+        .from("managed_playlist_tracks")
+        .select("spotify_track_id")
+        .eq("playlist_id", pl.id)
+        .order("position", { ascending: true });
+      return (data ?? [])
+        .map((row: any) => String(row.spotify_track_id ?? "").trim())
+        .filter(Boolean)
+        .map((id) => ({ uri: `spotify:track:${id}`, id }));
+    }
     async function ensureCurrent(): Promise<PlaylistTrackRef[]> {
-      if (!currentRefs) currentRefs = await listPlaylistTrackRefs(spId, token);
+      if (!currentRefs) {
+        const refs = await listPlaylistTrackRefs(spId, token).catch(() => []);
+        const expected = Number(pl.tracks_count ?? 0);
+        currentRefs = expected > 0 && refs.length < Math.floor(expected * 0.8)
+          ? await loadSnapshotRefs()
+          : refs;
+      }
       return currentRefs;
     }
 
