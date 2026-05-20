@@ -29,21 +29,35 @@ export type TodayPlaylistRow = {
 
 export type TodayBreakdown = {
   total_today: number;
-  total_24h: number;
-  total_7d: number;
-  total_28d: number;
+  total_24h: number | null;
+  total_7d: number | null;
+  total_28d: number | null;
   total_delivered: number;
   rows: TodayPlaylistRow[];
 };
 
 const EMPTY: TodayBreakdown = {
   total_today: 0,
-  total_24h: 0,
-  total_7d: 0,
-  total_28d: 0,
+  total_24h: null,
+  total_7d: null,
+  total_28d: null,
   total_delivered: 0,
   rows: [],
 };
+
+// Soma tratando null como "sem dado": se nenhuma linha tiver valor,
+// retorna null (para exibir "—" em vez de 0).
+function sumNullable(vals: Array<number | null>): number | null {
+  let sum = 0;
+  let has = false;
+  for (const v of vals) {
+    if (v != null && Number.isFinite(v)) {
+      sum += v;
+      has = true;
+    }
+  }
+  return has ? sum : null;
+}
 
 type SnapshotRow = {
   playlist_id: string | null;
