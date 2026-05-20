@@ -4,23 +4,12 @@
 
 
 const STATE_KEY = "nx:spotify_oauth_state";
-const CANONICAL_PREVIEW_ORIGIN = "https://id-preview--f5e1a9fd-9e98-4abe-83b5-56808d1c1add.lovable.app";
-
-function getSpotifyRedirectOrigin(): string {
-  const { origin, hostname } = window.location;
-
-  // Dentro do editor o app roda em *.lovableproject.com, mas esse domínio interno
-  // não é o Preview URL público cadastrado no Spotify Developer.
-  if (hostname.endsWith(".lovableproject.com")) return CANONICAL_PREVIEW_ORIGIN;
-
-  return origin;
-}
 
 export function getSpotifyRedirectUri(slug?: string | null): string {
   // O redirect_uri precisa ser EXATAMENTE igual ao cadastrado no painel
   // de desenvolvedor do Spotify. Cada app tem seu próprio path /spotify/callback/<slug>.
   // Sem slug = fluxo público/legado em /spotify/callback.
-  const base = `${getSpotifyRedirectOrigin()}/spotify/callback`;
+  const base = `${window.location.origin}/spotify/callback`;
   return slug ? `${base}/${slug}` : base;
 }
 
