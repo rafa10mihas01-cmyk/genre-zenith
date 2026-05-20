@@ -251,6 +251,12 @@ Deno.serve(async (req) => {
       }
       const me = await meResp.json();
 
+      try {
+        await assertAppHasSlotForSpotifyUser(supabase, stRow.app_id, me.id);
+      } catch (e) {
+        return jr({ ok: false, error: (e as Error).message }, 400);
+      }
+
       const { count } = await supabase
         .from("spotify_user_tokens")
         .select("*", { count: "exact", head: true })
