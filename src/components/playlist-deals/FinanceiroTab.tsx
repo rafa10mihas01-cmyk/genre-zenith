@@ -264,7 +264,7 @@ export function FinanceiroTab({ deals }: Props) {
       <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-4">
         {/* Ranking enriquecido */}
         <section className="rounded-2xl bg-card border border-border overflow-hidden">
-          <header className="px-5 py-4 border-b border-border">
+          <header className="px-4 sm:px-5 py-4 border-b border-border">
             <h3 className="text-sm font-semibold text-foreground">Ranking de eficiência</h3>
             <p className="text-xs text-muted-foreground mt-0.5">Menor CPP primeiro · barra mostra share do investimento</p>
           </header>
@@ -279,15 +279,15 @@ export function FinanceiroTab({ deals }: Props) {
                 const isCheap = totals.globalCpp && r.cpp != null && r.cpp < totals.globalCpp;
                 const isExpensive = totals.globalCpp && r.cpp != null && r.cpp > totals.globalCpp * 1.5;
                 return (
-                  <li key={r.curator_id} className="px-5 py-3 hover:bg-elevated/40 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <span className="w-5 text-xs text-muted-foreground tabular-nums text-right">{i + 1}</span>
+                  <li key={r.curator_id} className="px-4 sm:px-5 py-3 hover:bg-elevated/40 transition-colors">
+                    <div className="flex items-center gap-2.5 sm:gap-3">
+                      <span className="w-4 text-xs text-muted-foreground tabular-nums text-right shrink-0">{i + 1}</span>
                       <div className="h-8 w-8 rounded-full bg-elevated flex items-center justify-center text-[11px] font-semibold text-foreground shrink-0">
                         {initials(r.name)}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
-                          <span className="font-medium text-foreground truncate">{r.name}</span>
+                          <span className="font-medium text-foreground truncate text-[15px] sm:text-sm">{r.name}</span>
                           <span
                             className={cn(
                               "text-sm font-semibold tabular-nums shrink-0",
@@ -299,22 +299,18 @@ export function FinanceiroTab({ deals }: Props) {
                             {fmtCpp(r.cpp)}
                           </span>
                         </div>
-                        <div className="mt-1.5 flex items-center gap-2">
-                          <div className="flex-1 h-1 rounded-full bg-elevated/60 overflow-hidden">
-                            <div
-                              className={cn(
-                                "h-full rounded-full",
-                                isCheap ? "bg-primary/70" : isExpensive ? "bg-amber-500/60" : "bg-muted-foreground/40",
-                              )}
-                              style={{ width: `${Math.min(100, share)}%` }}
-                            />
-                          </div>
-                          <span className="text-[11px] text-muted-foreground tabular-nums shrink-0 w-14 text-right">
-                            {fmtBRL(r.total_cost)}
-                          </span>
-                          <span className="text-[11px] text-muted-foreground tabular-nums shrink-0 w-12 text-right">
-                            {formatNumber(r.plays_purchased)}
-                          </span>
+                        <div className="mt-1.5 h-1 rounded-full bg-elevated/60 overflow-hidden">
+                          <div
+                            className={cn(
+                              "h-full rounded-full",
+                              isCheap ? "bg-primary/70" : isExpensive ? "bg-amber-500/60" : "bg-muted-foreground/40",
+                            )}
+                            style={{ width: `${Math.min(100, share)}%` }}
+                          />
+                        </div>
+                        <div className="mt-1 flex items-center justify-between gap-2 text-[11px] text-muted-foreground tabular-nums">
+                          <span>{fmtBRL(r.total_cost)}</span>
+                          <span>{formatNumber(r.plays_purchased)} plays</span>
                         </div>
                       </div>
                     </div>
@@ -327,7 +323,7 @@ export function FinanceiroTab({ deals }: Props) {
 
         {/* Timeline */}
         <section className="rounded-2xl bg-card border border-border overflow-hidden">
-          <header className="px-5 py-4 border-b border-border">
+          <header className="px-4 sm:px-5 py-4 border-b border-border">
             <h3 className="text-sm font-semibold text-foreground">Últimas compras</h3>
             <p className="text-xs text-muted-foreground mt-0.5">Histórico imutável do ledger</p>
           </header>
@@ -336,7 +332,7 @@ export function FinanceiroTab({ deals }: Props) {
               Sem compras registradas
             </div>
           ) : (
-            <div className="max-h-[460px] overflow-auto px-5 py-4">
+            <div className="max-h-[460px] overflow-auto px-4 sm:px-5 py-4">
               {timeline.map(([day, items]) => {
                 const dayTotal = items.reduce((acc, p) => acc + Number(p.amount ?? 0), 0);
                 const dayPlays = items.reduce((acc, p) => acc + Number(p.plays_purchased ?? 0), 0);
@@ -346,7 +342,7 @@ export function FinanceiroTab({ deals }: Props) {
                 });
                 return (
                   <div key={day} className="mb-5 last:mb-0">
-                    <div className="flex items-center justify-between mb-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-0.5 mb-2">
                       <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
                         {dateLabel}
                       </span>
