@@ -29,21 +29,35 @@ export type TodayPlaylistRow = {
 
 export type TodayBreakdown = {
   total_today: number;
-  total_24h: number;
-  total_7d: number;
-  total_28d: number;
+  total_24h: number | null;
+  total_7d: number | null;
+  total_28d: number | null;
   total_delivered: number;
   rows: TodayPlaylistRow[];
 };
 
 const EMPTY: TodayBreakdown = {
   total_today: 0,
-  total_24h: 0,
-  total_7d: 0,
-  total_28d: 0,
+  total_24h: null,
+  total_7d: null,
+  total_28d: null,
   total_delivered: 0,
   rows: [],
 };
+
+// Soma tratando null como "sem dado": se nenhuma linha tiver valor,
+// retorna null (para exibir "—" em vez de 0).
+function sumNullable(vals: Array<number | null>): number | null {
+  let sum = 0;
+  let has = false;
+  for (const v of vals) {
+    if (v != null && Number.isFinite(v)) {
+      sum += v;
+      has = true;
+    }
+  }
+  return has ? sum : null;
+}
 
 type SnapshotRow = {
   playlist_id: string | null;
@@ -172,9 +186,9 @@ export function useDealTodayPlaylistBreakdown(dealId: string | null | undefined)
 
       rows.sort((a, b) => b.total_delivered - a.total_delivered || b.today_plays - a.today_plays);
       const total_today = rows.reduce((s, r) => s + r.today_plays, 0);
-      const total_24h = rows.reduce((s, r) => s + (r.plays_24h ?? 0), 0);
-      const total_7d = rows.reduce((s, r) => s + (r.plays_7d ?? 0), 0);
-      const total_28d = rows.reduce((s, r) => s + (r.plays_28d ?? 0), 0);
+      const total_24h = sumNullable(rows.map((r) => r.plays_24h));
+      const total_7d = sumNullable(rows.map((r) => r.plays_7d));
+      const total_28d = sumNullable(rows.map((r) => r.plays_28d));
       const total_delivered = rows.reduce((s, r) => s + r.total_delivered, 0);
       return { total_today, total_24h, total_7d, total_28d, total_delivered, rows };
     },
