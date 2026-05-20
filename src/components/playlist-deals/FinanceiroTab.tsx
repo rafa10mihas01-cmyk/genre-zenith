@@ -323,7 +323,7 @@ export function FinanceiroTab({ deals }: Props) {
 
         {/* Timeline */}
         <section className="rounded-2xl bg-card border border-border overflow-hidden">
-          <header className="px-5 py-4 border-b border-border">
+          <header className="px-4 sm:px-5 py-4 border-b border-border">
             <h3 className="text-sm font-semibold text-foreground">Últimas compras</h3>
             <p className="text-xs text-muted-foreground mt-0.5">Histórico imutável do ledger</p>
           </header>
@@ -332,7 +332,7 @@ export function FinanceiroTab({ deals }: Props) {
               Sem compras registradas
             </div>
           ) : (
-            <div className="max-h-[460px] overflow-auto px-5 py-4">
+            <div className="max-h-[460px] overflow-auto px-4 sm:px-5 py-4">
               {timeline.map(([day, items]) => {
                 const dayTotal = items.reduce((acc, p) => acc + Number(p.amount ?? 0), 0);
                 const dayPlays = items.reduce((acc, p) => acc + Number(p.plays_purchased ?? 0), 0);
@@ -342,7 +342,7 @@ export function FinanceiroTab({ deals }: Props) {
                 });
                 return (
                   <div key={day} className="mb-5 last:mb-0">
-                    <div className="flex items-center justify-between mb-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-0.5 mb-2">
                       <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
                         {dateLabel}
                       </span>
