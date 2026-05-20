@@ -5,10 +5,12 @@
 
 const STATE_KEY = "nx:spotify_oauth_state";
 
-export function getSpotifyRedirectUri(): string {
+export function getSpotifyRedirectUri(slug?: string | null): string {
   // O redirect_uri precisa ser EXATAMENTE igual ao cadastrado no painel
-  // de desenvolvedor do Spotify. Usamos a origem atual + /spotify/callback.
-  return `${window.location.origin}/spotify/callback`;
+  // de desenvolvedor do Spotify. Cada app tem seu próprio path /spotify/callback/<slug>.
+  // Sem slug = fluxo público/legado em /spotify/callback.
+  const base = `${window.location.origin}/spotify/callback`;
+  return slug ? `${base}/${slug}` : base;
 }
 
 /**
