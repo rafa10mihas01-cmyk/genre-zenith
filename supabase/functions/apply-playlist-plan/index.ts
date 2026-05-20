@@ -176,7 +176,7 @@ Deno.serve(async (req) => {
       for (const ch of chunks) {
         const res = await spotifyFetch(
           `https://api.spotify.com/v1/playlists/${spId}/tracks`,
-          { method: "DELETE", body: JSON.stringify({ tracks: ch.map((uri) => ({ uri })), uris: ch }) },
+          { method: "DELETE", body: JSON.stringify({ tracks: ch.map((uri) => ({ uri })) }) },
           token,
         );
         removed += ch.length;
