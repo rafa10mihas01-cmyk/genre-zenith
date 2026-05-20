@@ -149,6 +149,24 @@ function reasonForAdd(s: Suggestion): string {
   if (c >= 2) return `Recorrente no nicho (${c}×)`;
   return "Sugerida pelo modelo do nicho";
 }
+// Função editorial humana por zona — usada na linha do ADICIONAR.
+const ROLE_BY_ZONE: Record<Zone, string> = {
+  anchor: "entra no topo",
+  premium: "retenção forte",
+  support: "recorrente no nicho",
+  tail: "volume complementar",
+};
+function roleLabel(s: Suggestion & { _zone?: Zone }): string {
+  if (s.function_role) return s.function_role;
+  return ROLE_BY_ZONE[(s._zone ?? s.target_zone ?? "support") as Zone];
+}
+// Range de posição (1-indexado) por zona — pra mostrar #1-2, #3-6 etc.
+const ZONE_RANGE_LABEL: Record<Zone, string> = {
+  anchor: "#1-2",
+  premium: "#3-6",
+  support: "#7-12",
+  tail: "#13+",
+};
 // Pega só o motivo mais relevante (primeiro), com fallback humano por ação.
 function shortReason(t: AnalysisTrack, kind: "remove" | "promote" | "demote"): string {
   const first = (t.reasons ?? []).find((r) => r && r.trim().length > 0);
@@ -156,6 +174,10 @@ function shortReason(t: AnalysisTrack, kind: "remove" | "promote" | "demote"): s
   if (kind === "remove") return "Baixa performance";
   if (kind === "promote") return "Mercado já reconheceu";
   return "Pouca tração na vitrine";
+}
+// Normaliza string pra comparar nomes (sem acento, sem case, sem espaços).
+function norm(s: string | null | undefined): string {
+  return (s ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
 }
 
 // -------------------- main --------------------
