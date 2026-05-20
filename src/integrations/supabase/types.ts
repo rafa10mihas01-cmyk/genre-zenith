@@ -3123,6 +3123,7 @@ export type Database = {
           onboarding_checklist: Json
           onboarding_completed_at: string | null
           onboarding_ready_streak: number
+          owner_spotify_user_id: string | null
           recommended_change_count: number | null
           spotify_playlist_id: string
           spotify_url: string
@@ -3156,6 +3157,7 @@ export type Database = {
           onboarding_checklist?: Json
           onboarding_completed_at?: string | null
           onboarding_ready_streak?: number
+          owner_spotify_user_id?: string | null
           recommended_change_count?: number | null
           spotify_playlist_id: string
           spotify_url: string
@@ -3189,6 +3191,7 @@ export type Database = {
           onboarding_checklist?: Json
           onboarding_completed_at?: string | null
           onboarding_ready_streak?: number
+          owner_spotify_user_id?: string | null
           recommended_change_count?: number | null
           spotify_playlist_id?: string
           spotify_url?: string
