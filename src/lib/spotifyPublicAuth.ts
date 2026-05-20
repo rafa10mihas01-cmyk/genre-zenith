@@ -60,7 +60,10 @@ export async function handleSpotifyLogin(): Promise<void> {
 }
 
 export function consumeStoredState(): string | null {
-  const v = sessionStorage.getItem(STATE_KEY);
+  // Lê de localStorage (compartilhado entre janelas/abas da mesma origem).
+  // Fallback para sessionStorage para compatibilidade com sessões em andamento.
+  const v = localStorage.getItem(STATE_KEY) ?? sessionStorage.getItem(STATE_KEY);
+  localStorage.removeItem(STATE_KEY);
   sessionStorage.removeItem(STATE_KEY);
   return v;
 }
