@@ -309,6 +309,19 @@ export function SpotifyAppsManager({ onChange, onConnectAccount }: { onChange?: 
               />
             </div>
             <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-foreground">
+                Identificador (slug)
+                <span className="ml-1 text-[10px] font-normal text-muted-foreground">— usado na URL de retorno</span>
+              </Label>
+              <Input
+                value={editing?.slug ?? ""}
+                onChange={(e) => setEditing((s) => ({ ...s!, slug: e.target.value }))}
+                placeholder={editing?.id ? "" : "Deixe vazio pra gerar a partir do nome"}
+                className="h-10 text-sm font-mono bg-muted/30 border-border/60 focus-visible:border-primary/60 focus-visible:ring-primary/20"
+              />
+              <p className="text-[10px] text-muted-foreground">Só letras minúsculas, números e hífen. Ex: <span className="font-mono">nexengine-03</span>.</p>
+            </div>
+            <div className="space-y-1.5">
               <Label className="text-xs font-medium text-foreground">Client ID</Label>
               <Input
                 value={(editing as any)?.client_id ?? ""}
