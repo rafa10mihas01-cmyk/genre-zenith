@@ -155,6 +155,7 @@ type SnapshotHistoryEntry = {
   is_baseline: boolean;
   playlists_count: number;
   total_plays: number;
+  print_url: string | null;
 };
 
 function formatPlays(n: number | null | undefined): string {
