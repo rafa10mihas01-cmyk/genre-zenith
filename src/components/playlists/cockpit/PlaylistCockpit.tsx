@@ -49,6 +49,8 @@ type Suggestion = {
   from_missing_artist?: boolean;
   target_zone?: Zone;
   target_zone_label?: string;
+  function_role?: string;
+  popularity?: number | null;
 };
 
 type Diagnosis = {
@@ -147,6 +149,24 @@ function reasonForAdd(s: Suggestion): string {
   if (c >= 2) return `Recorrente no nicho (${c}×)`;
   return "Sugerida pelo modelo do nicho";
 }
+// Função editorial humana por zona — usada na linha do ADICIONAR.
+const ROLE_BY_ZONE: Record<Zone, string> = {
+  anchor: "entra no topo",
+  premium: "retenção forte",
+  support: "recorrente no nicho",
+  tail: "volume complementar",
+};
+function roleLabel(s: Suggestion & { _zone?: Zone }): string {
+  if (s.function_role) return s.function_role;
+  return ROLE_BY_ZONE[(s._zone ?? s.target_zone ?? "support") as Zone];
+}
+// Range de posição (1-indexado) por zona — pra mostrar #1-2, #3-6 etc.
+const ZONE_RANGE_LABEL: Record<Zone, string> = {
+  anchor: "#1-2",
+  premium: "#3-6",
+  support: "#7-12",
+  tail: "#13+",
+};
 // Pega só o motivo mais relevante (primeiro), com fallback humano por ação.
 function shortReason(t: AnalysisTrack, kind: "remove" | "promote" | "demote"): string {
   const first = (t.reasons ?? []).find((r) => r && r.trim().length > 0);
@@ -154,6 +174,10 @@ function shortReason(t: AnalysisTrack, kind: "remove" | "promote" | "demote"): s
   if (kind === "remove") return "Baixa performance";
   if (kind === "promote") return "Mercado já reconheceu";
   return "Pouca tração na vitrine";
+}
+// Normaliza string pra comparar nomes (sem acento, sem case, sem espaços).
+function norm(s: string | null | undefined): string {
+  return (s ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
 }
 
 // -------------------- main --------------------
@@ -166,6 +190,7 @@ export function PlaylistCockpit({
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [applying, setApplying] = useState<null | "remove" | "demote" | "promote" | "add" | "all">(null);
+  const [activeTab, setActiveTab] = useState<string>("identidade");
 
   useEffect(() => { setLiveTracksCount(tracksCount); }, [tracksCount]);
 
@@ -183,6 +208,30 @@ export function PlaylistCockpit({
   }, [managedId]);
 
   useEffect(() => { loadLatest(); }, [loadLatest]);
+
+  // Quando o diagnóstico chega, escolhe a aba inicial uma única vez.
+  const [initialTabSet, setInitialTabSet] = useState(false);
+  useEffect(() => {
+    if (!initialTabSet && diag) {
+      setActiveTab(diag.raw?.market_insights ? "mercado" : "identidade");
+      setInitialTabSet(true);
+    }
+  }, [diag, initialTabSet]);
+
+  // Pula da aba Mercado pro card correspondente no Plano de ação.
+  const jumpToPlanAdd = useCallback((trackId?: string) => {
+    setActiveTab("plano");
+    setTimeout(() => {
+      const target = trackId
+        ? document.querySelector(`[data-add-track-id="${trackId}"]`)
+        : document.getElementById("bucket-add");
+      target?.scrollIntoView({ behavior: "smooth", block: "center" });
+      if (trackId && target) {
+        target.classList.add("ring-2", "ring-primary/60");
+        setTimeout(() => target.classList.remove("ring-2", "ring-primary/60"), 1800);
+      }
+    }, 80);
+  }, []);
 
   async function runDiagnose() {
     setRunning(true);
@@ -287,17 +336,32 @@ export function PlaylistCockpit({
 
     // Adicionar: respeita capped_suggestions do backend e ainda aplica
     // cap por zona pra não empilhar 6 faixas brigando por posição 0/1.
+    // Excedente "desce" pra próxima zona com vaga (anchor → premium → support → tail).
     const addAfterBackendCap = caps?.capped_suggestions != null
       ? suggestions.slice(0, caps.capped_suggestions)
       : suggestions;
+    const ZONE_ORDER: Zone[] = ["anchor", "premium", "support", "tail"];
+    function zoneStart(z: Zone): number {
+      return z === "anchor" ? 0 : z === "premium" ? 2 : z === "support" ? 6 : 12;
+    }
     const zoneCount: Record<Zone, number> = { anchor: 0, premium: 0, support: 0, tail: 0 };
     const addFinal: Array<Suggestion & { _zone: Zone }> = [];
     for (const s of addAfterBackendCap) {
-      const z = (s.target_zone ?? zoneFromPos(s.suggested_position ?? 99)) as Zone;
+      const original = (s.target_zone ?? zoneFromPos(s.suggested_position ?? 99)) as Zone;
+      let z: Zone = original;
+      const startIdx = ZONE_ORDER.indexOf(original);
+      for (let k = startIdx; k < ZONE_ORDER.length; k++) {
+        if (zoneCount[ZONE_ORDER[k]] < ZONE_CAPS[ZONE_ORDER[k]]) { z = ZONE_ORDER[k]; break; }
+      }
       if (zoneCount[z] >= ZONE_CAPS[z]) continue;
       zoneCount[z]++;
-      addFinal.push({ ...s, _zone: z });
+      // Reescreve posição se desceu de zona, pra UI mostrar a zona real.
+      const pos = z === original
+        ? (s.suggested_position ?? zoneStart(z) + zoneCount[z] - 1)
+        : zoneStart(z) + zoneCount[z] - 1;
+      addFinal.push({ ...s, _zone: z, suggested_position: pos });
     }
+
 
     return {
       remove: removeAll.slice(0, recRemove),
@@ -317,6 +381,14 @@ export function PlaylistCockpit({
   const health = HEALTH_META[diag?.raw?.health_status ?? "saudavel"];
   const market = diag?.raw?.market_insights;
   const idealRange = market?.ideal_track_count_range;
+  // Sets pra cruzar Mercado ↔ Plano: o que já está, o que está sugerido.
+  const currentTrackKeys = useMemo(() => new Set(analysis.map((t) => norm(t.track_name))), [analysis]);
+  const currentArtistKeys = useMemo(() => new Set(analysis.map((t) => norm(t.artist_name))), [analysis]);
+  const suggestionByTitle = useMemo(() => {
+    const m = new Map<string, string>(); // norm(title) → spotify_track_id
+    for (const s of buckets.add) m.set(norm(s.nome), s.spotify_track_id);
+    return m;
+  }, [buckets.add]);
 
   return (
     <div className="mx-auto w-full max-w-[1600px] px-4 md:px-8 py-4 md:py-5 space-y-4">
@@ -451,7 +523,7 @@ export function PlaylistCockpit({
           <SeoExperimentCard managedId={managedId} />
 
 
-          <Tabs defaultValue={market ? "mercado" : "identidade"} className="space-y-4">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
             <TabsList className="bg-elevated/60 flex-wrap h-auto">
               {market && (
                 <TabsTrigger value="mercado" className="gap-1.5">
@@ -579,7 +651,15 @@ export function PlaylistCockpit({
             {/* ============ MERCADO ============ */}
             {market && (
               <TabsContent value="mercado" className="space-y-4 mt-0">
-                <MarketBlock market={market} idealRange={idealRange} />
+                <MarketBlock
+                  market={market}
+                  idealRange={idealRange}
+                  currentTrackKeys={currentTrackKeys}
+                  currentArtistKeys={currentArtistKeys}
+                  suggestionByTitle={suggestionByTitle}
+                  onJumpToAdd={jumpToPlanAdd}
+                />
+
               </TabsContent>
             )}
 
@@ -1173,31 +1253,52 @@ function BucketAdd({ items, applying, onApplyAll }: {
         )
       }
     >
-      {items.map((t) => (
-        <div
-          key={t.spotify_track_id}
-          className="flex items-center gap-3 px-4 py-2.5 hover:bg-elevated/40 transition-colors"
-        >
-          <NewTrackTarget zone={t._zone} pos={t.suggested_position} />
-          <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium truncate">{t.nome || "—"}</div>
-            <div className="text-xs text-muted-foreground truncate">
-              {t.artista || "—"} · {reasonForAdd(t)}
+      {items.map((t) => {
+        const zoneLabel = ZONE_LABELS[t._zone];
+        const role = roleLabel(t);
+        const range = ZONE_RANGE_LABEL[t._zone];
+        const rec = (t.count ?? 0) >= 2 ? `recorrência ${t.count}×` : null;
+        const pop = (t.popularity != null) ? `pop ${t.popularity}` : null;
+        const editorial = [`${zoneLabel} · ${role}`, range, rec, pop].filter(Boolean).join(" · ");
+        return (
+          <div
+            key={t.spotify_track_id}
+            data-add-track-id={t.spotify_track_id}
+            className="flex items-center gap-3 px-4 py-2.5 hover:bg-elevated/40 transition-colors rounded"
+          >
+            <NewTrackTarget zone={t._zone} pos={t.suggested_position} />
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium truncate">{t.nome || "—"}</div>
+              <div className="text-xs text-muted-foreground truncate">
+                {t.artista || "—"} · {editorial}
+              </div>
+            </div>
+            <div className="shrink-0">
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                Adicionar
+              </span>
             </div>
           </div>
-          <div className="shrink-0">
-            <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
-              Adicionar
-            </span>
-          </div>
-        </div>
-      ))}
+        );
+      })}
+
     </BucketShell>
   );
 }
 
 // -------- mercado --------
-function MarketBlock({ market, idealRange }: { market: any; idealRange: any }) {
+function MarketBlock({
+  market, idealRange, currentTrackKeys, currentArtistKeys, suggestionByTitle, onJumpToAdd,
+}: {
+  market: any;
+  idealRange: any;
+  currentTrackKeys: Set<string>;
+  currentArtistKeys: Set<string>;
+  suggestionByTitle: Map<string, string>;
+  onJumpToAdd: (trackId?: string) => void;
+}) {
+  const sampleSize = market.niche_playlist_count ?? 0;
+  const benchmarkReady = Array.isArray(idealRange) && idealRange[0] != null && idealRange[1] != null;
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <Card className="p-4 space-y-3">
@@ -1205,16 +1306,30 @@ function MarketBlock({ market, idealRange }: { market: any; idealRange: any }) {
           <Target className="h-4 w-4 text-primary" />
           <span className="text-sm font-semibold">Tamanho ideal</span>
         </div>
-        <div className="text-2xl font-bold tabular-nums">
-          {idealRange?.[0] ?? "—"}<span className="text-muted-foreground mx-1">–</span>{idealRange?.[1] ?? "—"}
-          <span className="text-xs text-muted-foreground ml-1 font-normal">faixas</span>
-        </div>
-        <div className="text-[11px] text-muted-foreground">
-          Saturação média do nicho: <strong className="text-foreground">{market.avg_saturation_pct ?? "—"}%</strong>
-        </div>
-        <div className="text-[11px] text-muted-foreground">
-          Baseado em <strong className="text-foreground">{market.niche_playlist_count ?? "—"}</strong> playlists varridas
-        </div>
+        {benchmarkReady ? (
+          <>
+            <div className="text-2xl font-bold tabular-nums">
+              {idealRange[0]}<span className="text-muted-foreground mx-1">–</span>{idealRange[1]}
+              <span className="text-xs text-muted-foreground ml-1 font-normal">faixas</span>
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              Saturação média do nicho: <strong className="text-foreground">{market.avg_saturation_pct ?? "—"}%</strong>
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              Baseado em <strong className="text-foreground">{sampleSize}</strong> playlists varridas
+            </div>
+          </>
+        ) : (
+          <div className="space-y-1.5">
+            <div className="inline-flex items-center gap-1.5 text-[11px] text-warning bg-warning/10 border border-warning/30 px-2 py-1 rounded">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Benchmark em processamento
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              {sampleSize > 0 ? `${sampleSize} playlists analisadas` : "Aguardando dados do nicho"}
+            </div>
+          </div>
+        )}
       </Card>
 
       <Card className="p-4 space-y-2">
@@ -1223,12 +1338,22 @@ function MarketBlock({ market, idealRange }: { market: any; idealRange: any }) {
           <span className="text-sm font-semibold">Artistas dominando</span>
         </div>
         <ul className="space-y-1">
-          {(market.top_artists ?? []).slice(0, 6).map((a: any, i: number) => (
-            <li key={i} className="flex justify-between text-xs">
-              <span className="truncate">{a.name}</span>
-              <span className="text-muted-foreground tabular-nums shrink-0 ml-2">{a.plays_in_niche}×</span>
-            </li>
-          ))}
+          {(market.top_artists ?? []).slice(0, 6).map((a: any, i: number) => {
+            const present = currentArtistKeys.has(norm(a.name));
+            return (
+              <li key={i} className="flex justify-between items-center text-xs gap-2">
+                <span className="truncate flex-1 flex items-center gap-1.5">
+                  {present ? (
+                    <Check className="h-3 w-3 text-primary shrink-0" />
+                  ) : (
+                    <span className="text-destructive/70 text-[10px] font-bold shrink-0">✗</span>
+                  )}
+                  <span className="truncate">{a.name}</span>
+                </span>
+                <span className="text-muted-foreground tabular-nums shrink-0">{a.plays_in_niche}×</span>
+              </li>
+            );
+          })}
         </ul>
       </Card>
 
@@ -1238,17 +1363,44 @@ function MarketBlock({ market, idealRange }: { market: any; idealRange: any }) {
           <span className="text-sm font-semibold">Faixas mais recorrentes</span>
         </div>
         <ul className="space-y-1.5">
-          {(market.top_recurring_tracks ?? []).slice(0, 5).map((t: any, i: number) => (
-            <li key={i} className="text-xs">
-              <div className="font-medium truncate">{t.title ?? "—"}</div>
-              <div className="text-muted-foreground truncate flex justify-between">
-                <span>{t.artist ?? "—"}</span>
-                <span className="tabular-nums">{t.niche_playlists_count}×</span>
-              </div>
-            </li>
-          ))}
+          {(market.top_recurring_tracks ?? []).slice(0, 5).map((t: any, i: number) => {
+            const key = norm(t.title);
+            const isInPlaylist = currentTrackKeys.has(key);
+            const suggestedId = suggestionByTitle.get(key);
+            return (
+              <li key={i} className="text-xs">
+                <div className="font-medium truncate flex items-center gap-1.5">
+                  {isInPlaylist && <Check className="h-3 w-3 text-primary shrink-0" />}
+                  <span className="truncate">{t.title ?? "—"}</span>
+                </div>
+                <div className="text-muted-foreground truncate flex justify-between items-center gap-2">
+                  <span className="truncate">{t.artist ?? "—"}</span>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {isInPlaylist ? (
+                      <span className="text-[9px] uppercase tracking-wider text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                        Na playlist
+                      </span>
+                    ) : suggestedId ? (
+                      <button
+                        onClick={() => onJumpToAdd(suggestedId)}
+                        className="text-[9px] uppercase tracking-wider text-primary bg-primary/15 hover:bg-primary/25 px-1.5 py-0.5 rounded transition-colors"
+                      >
+                        Sugerida
+                      </button>
+                    ) : (
+                      <span className="text-[9px] uppercase tracking-wider text-muted-foreground/60 px-1.5 py-0.5">
+                        Fora do plano
+                      </span>
+                    )}
+                    <span className="tabular-nums">{t.niche_playlists_count}×</span>
+                  </div>
+                </div>
+              </li>
+            );
+          })}
         </ul>
       </Card>
+
 
       {(market.leader_playlists?.length ?? 0) > 0 && (
         <Card className="p-4 space-y-2 lg:col-span-3">
