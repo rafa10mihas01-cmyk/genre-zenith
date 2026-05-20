@@ -712,7 +712,7 @@ export function DealHistorySheet({
                       title="Performance na janela"
                       right={
                         <div className="inline-flex rounded-lg border border-border bg-[hsl(var(--elevated))] p-0.5">
-                          {(["24h", "7d", "28d"] as const).map((w) => (
+                          {(["7d", "28d"] as const).map((w) => (
                             <button
                               key={w}
                               onClick={() => setPerfWindow(w)}
@@ -735,9 +735,7 @@ export function DealHistorySheet({
                           <div className="text-lg sm:text-2xl font-semibold text-primary tabular-nums leading-tight mt-1 whitespace-nowrap overflow-hidden text-ellipsis">
                             {(() => {
                               const v =
-                                perfWindow === "24h"
-                                  ? todayBreakdown.total_24h
-                                  : perfWindow === "7d"
+                                perfWindow === "7d"
                                   ? todayBreakdown.total_7d
                                   : todayBreakdown.total_28d;
                               return v == null ? "—" : fmtCompact(v);
