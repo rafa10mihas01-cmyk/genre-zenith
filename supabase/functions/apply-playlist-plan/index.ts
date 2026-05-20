@@ -215,14 +215,13 @@ Deno.serve(async (req) => {
         return;
       }
       const uris = addItems.map((s) => `spotify:track:${s.spotify_track_id}`);
-      const res = await spotifyFetch(
-        `https://api.spotify.com/v1/playlists/${spId}/items`,
-        { method: "POST", body: JSON.stringify({ uris, position: 0 }) },
-        token,
-      );
+      const res = await addPlaylistTracks(spId, uris, token, { position: 0 });
       report.steps.push({ action: "add", added: uris.length });
       report.snapshot_id = res?.snapshot_id ?? report.snapshot_id;
-      if (currentUris) currentUris = [...uris, ...currentUris];
+      if (currentRefs) currentRefs = [
+        ...uris.map((uri) => ({ uri, id: uri.split(":").pop() ?? null })),
+        ...currentRefs,
+      ];
     }
 
     try {
@@ -243,12 +242,12 @@ Deno.serve(async (req) => {
       return jr({ ok: false, action, partial: report, error: `${msg}${hint}` }, 502);
     }
 
-    const finalUris = await fetchAllTrackUris(spId, token).catch(() => null);
-    if (finalUris) {
-      report.current_tracks_count = finalUris.length;
+    const finalRefs = await listPlaylistTrackRefs(spId, token).catch(() => null);
+    if (finalRefs) {
+      report.current_tracks_count = finalRefs.length;
       await supabase
         .from("managed_playlists")
-        .update({ tracks_count: finalUris.length, last_metrics_at: new Date().toISOString() })
+        .update({ tracks_count: finalRefs.length, last_metrics_at: new Date().toISOString() })
         .eq("id", pl.id);
     }
 
