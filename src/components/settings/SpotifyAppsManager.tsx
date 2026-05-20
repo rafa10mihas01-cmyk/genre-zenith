@@ -34,6 +34,79 @@ async function callAuth(qs: string, init?: RequestInit) {
   return resp.json();
 }
 
+// URLs publicadas/preview/custom domain conhecidas — usadas pra montar as 3 redirect URIs
+// que precisam ser coladas no painel do Spotify Developer pra CADA app.
+const KNOWN_ORIGINS: { label: string; origin: string }[] = [
+  { label: "Preview Lovable", origin: "https://id-preview--f5e1a9fd-9e98-4abe-83b5-56808d1c1add.lovable.app" },
+  { label: "Publicado", origin: "https://genre-zenith.lovable.app" },
+  { label: "Domínio próprio", origin: "https://engine.nexcreatorx.com" },
+];
+
+function buildAppRedirects(slug: string): { label: string; url: string }[] {
+  return KNOWN_ORIGINS.map(({ label, origin }) => ({ label, url: `${origin}/spotify/callback/${slug}` }));
+}
+
+function AppRedirectUrisPanel({ slug, compact = false }: { slug: string; compact?: boolean }) {
+  const urls = useMemo(() => buildAppRedirects(slug), [slug]);
+  const [copied, setCopied] = useState<string | null>(null);
+
+  async function copyOne(url: string) {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(url);
+      toast.success("URL copiada");
+      setTimeout(() => setCopied((c) => (c === url ? null : c)), 1500);
+    } catch {
+      toast.error("Falha ao copiar");
+    }
+  }
+
+  async function copyAll() {
+    try {
+      await navigator.clipboard.writeText(urls.map((u) => u.url).join("\n"));
+      toast.success("3 URLs copiadas");
+    } catch {
+      toast.error("Falha ao copiar");
+    }
+  }
+
+  return (
+    <div className={compact ? "mt-2 space-y-1" : "mt-2 p-2.5 rounded-md bg-muted/30 border border-border/40 space-y-1.5"}>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[10px] uppercase tracking-wide text-muted-foreground/80">
+          Redirect URIs do app <span className="text-foreground font-mono">{slug}</span>
+        </span>
+        <button
+          type="button"
+          onClick={copyAll}
+          className="text-[10px] inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+        >
+          <Copy className="h-2.5 w-2.5" /> Copiar 3
+        </button>
+      </div>
+      <div className="space-y-1">
+        {urls.map((u) => (
+          <div key={u.url} className="flex items-center gap-2 group">
+            <span className="text-[9px] uppercase tracking-wide text-muted-foreground/70 w-16 shrink-0">{u.label}</span>
+            <code className="flex-1 min-w-0 text-[10px] font-mono text-foreground truncate">{u.url}</code>
+            <button
+              type="button"
+              onClick={() => copyOne(u.url)}
+              className="opacity-50 hover:opacity-100 text-muted-foreground hover:text-primary transition"
+              title="Copiar"
+            >
+              {copied === u.url ? <Check className="h-3 w-3 text-primary" /> : <Copy className="h-3 w-3" />}
+            </button>
+          </div>
+        ))}
+      </div>
+      <p className="text-[10px] text-muted-foreground leading-relaxed pt-1">
+        Cole essas 3 URLs em <strong>Edit Settings → Redirect URIs</strong> do app no Spotify Developer Dashboard.
+      </p>
+    </div>
+  );
+}
+
 export function SpotifyAppsManager({ onChange, onConnectAccount }: { onChange?: (apps: SpotifyApp[]) => void; onConnectAccount?: (appId: string, forceLogin: boolean) => void }) {
   const [apps, setApps] = useState<SpotifyApp[]>([]);
   const [loading, setLoading] = useState(true);
