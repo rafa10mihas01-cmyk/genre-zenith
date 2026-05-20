@@ -262,10 +262,10 @@ function BreakdownRow({ r, kind }: { r: BreakdownRowData; kind: "curator" | "alg
         </div>
       </div>
 
-      {/* 3 colunas: 24h / 7d / 28d — janelas oficiais do Spotify for Artists */}
+      {/* Janelas oficiais do Spotify for Artists: 7d (pagamento) e 28d (contexto) */}
       <div className="flex items-center gap-1 shrink-0">
-        {(["24h", "7d", "28d"] as const).map((w) => {
-          const v = w === "24h" ? r.plays_24h : w === "7d" ? r.plays_7d : r.plays_28d;
+        {(["7d", "28d"] as const).map((w) => {
+          const v = w === "7d" ? r.plays_7d : r.plays_28d;
           return (
             <div
               key={w}
