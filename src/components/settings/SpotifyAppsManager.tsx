@@ -270,14 +270,15 @@ export function SpotifyAppsManager({ onChange, onConnectAccount }: { onChange?: 
                 developer.spotify.com/dashboard
               </a>{" "}
               e cole as credenciais aqui.
-              <span className="block mt-2 p-2 rounded-md bg-muted/40 border border-border/40">
-                <span className="text-[10px] uppercase tracking-wide text-muted-foreground/80 block mb-1">
-                  Redirect URI do app
+              {editing?.slug ? (
+                <span className="block mt-2">
+                  <AppRedirectUrisPanel slug={editing.slug} />
                 </span>
-                <span className="font-mono text-[11px] text-foreground break-all">
-                  {window.location.origin}/spotify/callback
+              ) : (
+                <span className="block mt-2 p-2 rounded-md bg-muted/40 border border-border/40 text-[11px] text-muted-foreground">
+                  Defina o <strong>identificador (slug)</strong> abaixo. Após salvar, as 3 Redirect URIs específicas desse app aparecem aqui pra você colar no Spotify Developer.
                 </span>
-              </span>
+              )}
               {scopes.length > 0 && (
                 <span className="block mt-2 p-2 rounded-md bg-muted/40 border border-border/40">
                   <span className="text-[10px] uppercase tracking-wide text-muted-foreground/80 block mb-1">
