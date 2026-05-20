@@ -4969,6 +4969,7 @@ export type Database = {
           max_accounts: number
           name: string
           notes: string | null
+          slug: string
           status: string
           updated_at: string
         }
@@ -4981,6 +4982,7 @@ export type Database = {
           max_accounts?: number
           name: string
           notes?: string | null
+          slug: string
           status?: string
           updated_at?: string
         }
@@ -4993,6 +4995,7 @@ export type Database = {
           max_accounts?: number
           name?: string
           notes?: string | null
+          slug?: string
           status?: string
           updated_at?: string
         }
@@ -6183,6 +6186,7 @@ export type Database = {
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       slugify: { Args: { p_text: string }; Returns: string }
+      spotify_app_slugify: { Args: { input: string }; Returns: string }
       suggest_campaign_playlists: {
         Args: { p_deadline: string; p_exclude_active?: boolean; p_goal: number }
         Returns: {

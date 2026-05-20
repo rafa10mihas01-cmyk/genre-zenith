@@ -4,7 +4,7 @@
 //     redireciona para /operacao
 //   • caso contrário → mostra tela "acesso pendente"
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { CheckCircle2, AlertCircle, Loader2, ArrowRight, Home, Clock, ShieldAlert, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PublicShell } from "@/components/public/PublicShell";
@@ -22,6 +22,7 @@ interface Result {
 
 export default function SpotifyCallback() {
   const [params] = useSearchParams();
+  const { slug } = useParams<{ slug?: string }>();
   const navigate = useNavigate();
   const ranRef = useRef(false);
   const [status, setStatus] = useState<Status>("loading");
@@ -64,7 +65,9 @@ export default function SpotifyCallback() {
       return;
     }
 
-    const redirect = getSpotifyRedirectUri();
+    // Reconstroi o redirect EXATAMENTE como foi enviado no /authorize
+    // (precisa bater 100% com o que o Spotify recebeu).
+    const redirect = getSpotifyRedirectUri(slug);
     const functionName = isSettingsConnection ? "spotify-auth" : "spotify-public-auth";
     const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${functionName}?mode=callback&code=${encodeURIComponent(
       code,

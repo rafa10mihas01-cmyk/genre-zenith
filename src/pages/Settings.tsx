@@ -21,8 +21,9 @@ const STORAGE_KEY = "nx-collect-settings";
 const SETTINGS_ROUTE = "/configuracoes";
 const SPOTIFY_SETTINGS_RETURN_KEY = "nx:spotify_settings_return";
 
-function getSpotifyRedirectUri() {
-  return `${window.location.origin}/spotify/callback`;
+function getSpotifyRedirectUri(slug?: string | null) {
+  const base = `${window.location.origin}/spotify/callback`;
+  return slug ? `${base}/${slug}` : base;
 }
 
 function getLegacySpotifySettingsRedirectUri() {
@@ -138,7 +139,8 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
 
   async function openInNewTab(forceLogin = false, appId?: string) {
     try {
-      const redirect = getSpotifyRedirectUri();
+      const slug = appId ? spotifyApps.find((a) => a.id === appId)?.slug ?? null : null;
+      const redirect = getSpotifyRedirectUri(slug);
       localStorage.setItem(SPOTIFY_SETTINGS_RETURN_KEY, `${window.location.pathname}${window.location.search || ""}`);
       const qs = new URLSearchParams({ mode: "login", redirect });
       if (forceLogin) qs.set("force_login", "1");
@@ -230,7 +232,8 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
     }
 
     try {
-      const redirect = getSpotifyRedirectUri();
+      const slug = appId ? spotifyApps.find((a) => a.id === appId)?.slug ?? null : null;
+      const redirect = getSpotifyRedirectUri(slug);
       localStorage.setItem(SPOTIFY_SETTINGS_RETURN_KEY, `${window.location.pathname}${window.location.search || ""}`);
       const qs = new URLSearchParams({ mode: "login", redirect });
       if (forceLogin) qs.set("force_login", "1");

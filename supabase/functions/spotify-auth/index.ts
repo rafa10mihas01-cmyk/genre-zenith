@@ -152,8 +152,34 @@ Deno.serve(async (req) => {
         return jr({ ok: false, error: (e as Error).message }, 400);
       }
 
-      // Pega credenciais (com fallback env se appId=null)
+      // Pega credenciais (com fallback env se appId=null) + slug pra validar redirect
       const creds = await getAppCredentials(appId);
+      let expectedSlug: string | null = null;
+      if (appId) {
+        const { data: appRow } = await supabase
+          .from("spotify_apps")
+          .select("slug")
+          .eq("id", appId)
+          .maybeSingle();
+        expectedSlug = appRow?.slug ?? null;
+      }
+
+      // Valida que o redirect informado tem path /spotify/callback/<slug>
+      // (ou /spotify/callback simples se appId=null — fluxo público/legado)
+      try {
+        const u = new URL(redirect);
+        const expectedPath = expectedSlug
+          ? `/spotify/callback/${expectedSlug}`
+          : "/spotify/callback";
+        if (u.pathname !== expectedPath) {
+          return jr({
+            ok: false,
+            error: `redirect_uri inválido: esperado terminar em ${expectedPath}, recebido ${u.pathname}`,
+          }, 400);
+        }
+      } catch {
+        return jr({ ok: false, error: "redirect não é URL válida" }, 400);
+      }
 
       const state = crypto.randomUUID();
       const { error: stErr } = await supabase
@@ -169,7 +195,7 @@ Deno.serve(async (req) => {
       authUrl.searchParams.set("state", state);
       authUrl.searchParams.set("show_dialog", "true");
 
-      return jr({ ok: true, url: authUrl.toString(), state, app: creds.name, app_id: appId, force_login: forceLogin });
+      return jr({ ok: true, url: authUrl.toString(), state, app: creds.name, app_id: appId, slug: expectedSlug, force_login: forceLogin });
     }
 
     if (mode === "callback") {
@@ -305,7 +331,7 @@ Deno.serve(async (req) => {
       const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
       const { data: apps, error } = await supabase
         .from("spotify_apps")
-        .select("id, name, client_id, max_accounts, is_default, status, notes, created_at")
+        .select("id, name, slug, client_id, max_accounts, is_default, status, notes, created_at")
         .order("is_default", { ascending: false })
         .order("created_at", { ascending: true });
       if (error) return jr({ ok: false, error: error.message }, 500);
@@ -338,6 +364,7 @@ Deno.serve(async (req) => {
       const body = await req.json().catch(() => ({}));
       const id: string | undefined = body.id;
       const name: string = (body.name ?? "").trim();
+      const slug: string | null = body.slug ? String(body.slug).trim() : null;
       const client_id: string = (body.client_id ?? "").trim();
       const client_secret: string = (body.client_secret ?? "").trim();
       const max_accounts: number = Number(body.max_accounts ?? 5);
@@ -361,17 +388,20 @@ Deno.serve(async (req) => {
         const patch: any = { name, max_accounts, is_default, notes, status };
         if (client_id) patch.client_id = client_id;
         if (client_secret) patch.client_secret = client_secret;
+        if (slug) patch.slug = slug;
         const { error } = await supabase.from("spotify_apps").update(patch).eq("id", id);
         if (error) return jr({ ok: false, error: error.message }, 500);
         return jr({ ok: true, id });
       } else {
+        const insert: any = { name, client_id, client_secret, max_accounts, is_default, notes, status };
+        if (slug) insert.slug = slug;
         const { data, error } = await supabase
           .from("spotify_apps")
-          .insert({ name, client_id, client_secret, max_accounts, is_default, notes, status })
-          .select("id")
+          .insert(insert)
+          .select("id, slug")
           .single();
         if (error) return jr({ ok: false, error: error.message }, 500);
-        return jr({ ok: true, id: data.id });
+        return jr({ ok: true, id: data.id, slug: data.slug });
       }
     }
 

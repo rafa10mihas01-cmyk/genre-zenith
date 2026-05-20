@@ -1,16 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Layers, Plus, Star, Trash2, Pencil, Loader2, ExternalLink, AlertTriangle, LinkIcon } from "lucide-react";
+import { Layers, Plus, Star, Trash2, Pencil, Loader2, ExternalLink, AlertTriangle, LinkIcon, Copy, Check } from "lucide-react";
 import { toast } from "sonner";
 
 export type SpotifyApp = {
   id: string;
   name: string;
+  slug: string;
   client_id: string;
   client_id_preview: string;
   max_accounts: number;
@@ -31,6 +32,79 @@ async function callAuth(qs: string, init?: RequestInit) {
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", ...(init?.headers ?? {}) },
   });
   return resp.json();
+}
+
+// URLs publicadas/preview/custom domain conhecidas — usadas pra montar as 3 redirect URIs
+// que precisam ser coladas no painel do Spotify Developer pra CADA app.
+const KNOWN_ORIGINS: { label: string; origin: string }[] = [
+  { label: "Preview Lovable", origin: "https://id-preview--f5e1a9fd-9e98-4abe-83b5-56808d1c1add.lovable.app" },
+  { label: "Publicado", origin: "https://genre-zenith.lovable.app" },
+  { label: "Domínio próprio", origin: "https://engine.nexcreatorx.com" },
+];
+
+function buildAppRedirects(slug: string): { label: string; url: string }[] {
+  return KNOWN_ORIGINS.map(({ label, origin }) => ({ label, url: `${origin}/spotify/callback/${slug}` }));
+}
+
+function AppRedirectUrisPanel({ slug, compact = false }: { slug: string; compact?: boolean }) {
+  const urls = useMemo(() => buildAppRedirects(slug), [slug]);
+  const [copied, setCopied] = useState<string | null>(null);
+
+  async function copyOne(url: string) {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(url);
+      toast.success("URL copiada");
+      setTimeout(() => setCopied((c) => (c === url ? null : c)), 1500);
+    } catch {
+      toast.error("Falha ao copiar");
+    }
+  }
+
+  async function copyAll() {
+    try {
+      await navigator.clipboard.writeText(urls.map((u) => u.url).join("\n"));
+      toast.success("3 URLs copiadas");
+    } catch {
+      toast.error("Falha ao copiar");
+    }
+  }
+
+  return (
+    <div className={compact ? "mt-2 space-y-1" : "mt-2 p-2.5 rounded-md bg-muted/30 border border-border/40 space-y-1.5"}>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[10px] uppercase tracking-wide text-muted-foreground/80">
+          Redirect URIs do app <span className="text-foreground font-mono">{slug}</span>
+        </span>
+        <button
+          type="button"
+          onClick={copyAll}
+          className="text-[10px] inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+        >
+          <Copy className="h-2.5 w-2.5" /> Copiar 3
+        </button>
+      </div>
+      <div className="space-y-1">
+        {urls.map((u) => (
+          <div key={u.url} className="flex items-center gap-2 group">
+            <span className="text-[9px] uppercase tracking-wide text-muted-foreground/70 w-16 shrink-0">{u.label}</span>
+            <code className="flex-1 min-w-0 text-[10px] font-mono text-foreground truncate">{u.url}</code>
+            <button
+              type="button"
+              onClick={() => copyOne(u.url)}
+              className="opacity-50 hover:opacity-100 text-muted-foreground hover:text-primary transition"
+              title="Copiar"
+            >
+              {copied === u.url ? <Check className="h-3 w-3 text-primary" /> : <Copy className="h-3 w-3" />}
+            </button>
+          </div>
+        ))}
+      </div>
+      <p className="text-[10px] text-muted-foreground leading-relaxed pt-1">
+        Cole essas 3 URLs em <strong>Edit Settings → Redirect URIs</strong> do app no Spotify Developer Dashboard.
+      </p>
+    </div>
+  );
 }
 
 export function SpotifyAppsManager({ onChange, onConnectAccount }: { onChange?: (apps: SpotifyApp[]) => void; onConnectAccount?: (appId: string, forceLogin: boolean) => void }) {
@@ -69,6 +143,7 @@ export function SpotifyAppsManager({ onChange, onConnectAccount }: { onChange?: 
       notes: editing.notes ?? null,
       status: editing.status ?? "active",
     };
+    if (editing.slug) body.slug = String(editing.slug).trim();
     if ((editing as any).client_id) body.client_id = (editing as any).client_id;
     if ((editing as any).client_secret) body.client_secret = (editing as any).client_secret;
 
@@ -130,45 +205,49 @@ export function SpotifyAppsManager({ onChange, onConnectAccount }: { onChange?: 
           {apps.map((a) => {
             const full = a.slots_remaining <= 0;
             return (
-              <div key={a.id} className="flex items-center justify-between gap-2 p-2.5 rounded-lg border border-border bg-muted/20">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-medium text-sm truncate">{a.name}</span>
-                    {a.is_default && (
-                      <span className="text-[10px] inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/15 text-primary">
-                        <Star className="h-2.5 w-2.5" /> padrão
+              <div key={a.id} className="p-2.5 rounded-lg border border-border bg-muted/20">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-medium text-sm truncate">{a.name}</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono">{a.slug}</span>
+                      {a.is_default && (
+                        <span className="text-[10px] inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/15 text-primary">
+                          <Star className="h-2.5 w-2.5" /> padrão
+                        </span>
+                      )}
+                      {a.status !== "active" && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{a.status}</span>
+                      )}
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded ${full ? "bg-destructive/15 text-destructive" : "bg-success/15 text-success"}`}>
+                        {a.accounts_used}/{a.max_accounts} contas
                       </span>
-                    )}
-                    {a.status !== "active" && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{a.status}</span>
-                    )}
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded ${full ? "bg-destructive/15 text-destructive" : "bg-success/15 text-success"}`}>
-                      {a.accounts_used}/{a.max_accounts} contas
-                    </span>
+                    </div>
+                    <div className="text-[11px] text-muted-foreground font-mono truncate mt-0.5">
+                      {a.client_id_preview}
+                    </div>
                   </div>
-                  <div className="text-[11px] text-muted-foreground font-mono truncate mt-0.5">
-                    {a.client_id_preview}
-                  </div>
-                </div>
-                <div className="flex items-center gap-1">
-                  {onConnectAccount && a.status === "active" && !full && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => onConnectAccount(a.id, true)}
-                      className="h-8 text-xs gap-1.5 border-primary/40 text-primary hover:bg-primary/10 hover:text-primary"
-                      title={`Conectar nova conta neste app (encerra a sessão Spotify atual e abre o login da próxima conta no app "${a.name}")`}
-                    >
-                      <LinkIcon className="h-3.5 w-3.5" /> Conectar conta
+                  <div className="flex items-center gap-1">
+                    {onConnectAccount && a.status === "active" && !full && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onConnectAccount(a.id, true)}
+                        className="h-8 text-xs gap-1.5 border-primary/40 text-primary hover:bg-primary/10 hover:text-primary"
+                        title={`Conectar nova conta neste app (encerra a sessão Spotify atual e abre o login da próxima conta no app "${a.name}")`}
+                      >
+                        <LinkIcon className="h-3.5 w-3.5" /> Conectar conta
+                      </Button>
+                    )}
+                    <Button size="sm" variant="ghost" onClick={() => setEditing(a)} className="h-8 w-8 p-0" title="Editar">
+                      <Pencil className="h-3.5 w-3.5" />
                     </Button>
-                  )}
-                  <Button size="sm" variant="ghost" onClick={() => setEditing(a)} className="h-8 w-8 p-0" title="Editar">
-                    <Pencil className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => del(a.id, a.name)} className="h-8 w-8 p-0 text-destructive hover:text-destructive" title="Remover">
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
+                    <Button size="sm" variant="ghost" onClick={() => del(a.id, a.name)} className="h-8 w-8 p-0 text-destructive hover:text-destructive" title="Remover">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </div>
+                <AppRedirectUrisPanel slug={a.slug} compact />
               </div>
             );
           })}
@@ -192,14 +271,15 @@ export function SpotifyAppsManager({ onChange, onConnectAccount }: { onChange?: 
                 developer.spotify.com/dashboard
               </a>{" "}
               e cole as credenciais aqui.
-              <span className="block mt-2 p-2 rounded-md bg-muted/40 border border-border/40">
-                <span className="text-[10px] uppercase tracking-wide text-muted-foreground/80 block mb-1">
-                  Redirect URI do app
+              {editing?.slug ? (
+                <span className="block mt-2">
+                  <AppRedirectUrisPanel slug={editing.slug} />
                 </span>
-                <span className="font-mono text-[11px] text-foreground break-all">
-                  {window.location.origin}/spotify/callback
+              ) : (
+                <span className="block mt-2 p-2 rounded-md bg-muted/40 border border-border/40 text-[11px] text-muted-foreground">
+                  Defina o <strong>identificador (slug)</strong> abaixo. Após salvar, as 3 Redirect URIs específicas desse app aparecem aqui pra você colar no Spotify Developer.
                 </span>
-              </span>
+              )}
               {scopes.length > 0 && (
                 <span className="block mt-2 p-2 rounded-md bg-muted/40 border border-border/40">
                   <span className="text-[10px] uppercase tracking-wide text-muted-foreground/80 block mb-1">
@@ -228,6 +308,19 @@ export function SpotifyAppsManager({ onChange, onConnectAccount }: { onChange?: 
                 placeholder='Ex: "App principal", "App 2 - rock"'
                 className="h-10 text-sm bg-muted/30 border-border/60 focus-visible:border-primary/60 focus-visible:ring-primary/20"
               />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-foreground">
+                Identificador (slug)
+                <span className="ml-1 text-[10px] font-normal text-muted-foreground">— usado na URL de retorno</span>
+              </Label>
+              <Input
+                value={editing?.slug ?? ""}
+                onChange={(e) => setEditing((s) => ({ ...s!, slug: e.target.value }))}
+                placeholder={editing?.id ? "" : "Deixe vazio pra gerar a partir do nome"}
+                className="h-10 text-sm font-mono bg-muted/30 border-border/60 focus-visible:border-primary/60 focus-visible:ring-primary/20"
+              />
+              <p className="text-[10px] text-muted-foreground">Só letras minúsculas, números e hífen. Ex: <span className="font-mono">nexengine-03</span>.</p>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-medium text-foreground">Client ID</Label>
