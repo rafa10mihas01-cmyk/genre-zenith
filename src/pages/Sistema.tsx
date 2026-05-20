@@ -19,6 +19,7 @@ import Settings from "@/pages/Settings";
 import Infraestrutura from "@/pages/Infraestrutura";
 import AdminAprendizado from "@/pages/AdminAprendizado";
 import { SeoLessonsPanel } from "@/components/sistema/SeoLessonsPanel";
+import { SpotifyReconnectBanner } from "@/components/sistema/SpotifyReconnectBanner";
 
 type SistemaTab =
   | "fluxo" | "robo" | "coleta" | "execucao" | "ao-vivo" | "saude" | "aprendizado" | "seo" | "alertas" | "infra" | "configuracoes";
