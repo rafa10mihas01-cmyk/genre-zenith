@@ -491,11 +491,20 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
                     const grantedScopes: string[] = (acc.scope ?? "").split(/\s+/).filter(Boolean);
                     const missingScopes = requiredScopes.filter((s) => !grantedScopes.includes(s));
                     const needsReauth = requiredScopes.length > 0 && missingScopes.length > 0;
+                    const accApp = spotifyApps.find((a) => a.id === acc.app_id);
                     return (
                       <div key={acc.id} className="flex items-center justify-between gap-2 p-2.5 rounded-lg border border-border bg-muted/20">
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-medium text-sm truncate">{acc.display_name ?? acc.spotify_user_id}</span>
+                            {accApp && (
+                              <span
+                                className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono"
+                                title={`Esta conta está autenticada via o app "${accApp.name}". Ela precisa estar em Users and Access desse app no Spotify Developer.`}
+                              >
+                                {accApp.name}
+                              </span>
+                            )}
                             {acc.is_default && (
                               <span className="text-[10px] inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/15 text-primary">
                                 <Star className="h-2.5 w-2.5" /> padrão
