@@ -48,6 +48,7 @@ export function CampaignFullPlanCard({
   engagementMultiplier = 30,
   shareToken,
   showShare = true,
+  track = null,
 }: Props) {
   const [showZeros, setShowZeros] = useState(false);
   const [mode, setMode] = useState<"diario" | "acumulado">("diario");
