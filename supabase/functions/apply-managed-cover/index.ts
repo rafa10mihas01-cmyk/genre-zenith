@@ -91,13 +91,6 @@ function extractImageHash(url: string | null): string | null {
   return m ? m[1].toLowerCase() : url.toLowerCase();
 }
 
-// Mosaicos auto-gerados pelo Spotify começam com "ab67706c".
-// Capas uploaded pelo usuário NUNCA usam esse prefixo.
-function isMosaicCover(url: string | null): boolean {
-  if (!url) return false;
-  return /\/image\/ab67706c/i.test(url);
-}
-
 async function waitForSpotifyCover(spotifyPlaylistId: string, token: string, previousUrl: string | null): Promise<string | null> {
   const prevHash = extractImageHash(previousUrl);
   let latest: string | null = null;
@@ -105,8 +98,9 @@ async function waitForSpotifyCover(spotifyPlaylistId: string, token: string, pre
     if (i > 0) await new Promise((resolve) => setTimeout(resolve, 1200));
     latest = await fetchSpotifyCoverUrl(spotifyPlaylistId, token);
     const curHash = extractImageHash(latest);
-    // Só "mudou" de verdade se virou capa custom (não-mosaico) com hash diferente
-    if (latest && curHash && curHash !== prevHash && !isMosaicCover(latest)) return latest;
+    // O prefixo /image/ab67706c também aparece em capas customizadas de playlist.
+    // Então a confirmação confiável aqui é mudança de hash, não o prefixo da URL.
+    if (latest && curHash && curHash !== prevHash) return latest;
   }
   return latest;
 }
@@ -179,8 +173,8 @@ Deno.serve(async (req) => {
     const spotifyCoverUrl = await waitForSpotifyCover(pl.spotify_playlist_id, token, previousCoverUrl);
     const prevHash = extractImageHash(previousCoverUrl);
     const curHash = extractImageHash(spotifyCoverUrl);
-    const stillMosaic = isMosaicCover(spotifyCoverUrl);
-    const changed = !!curHash && curHash !== prevHash && !stillMosaic;
+    const changed = !!curHash && curHash !== prevHash;
+    console.log(`[cover] verifica prev=${prevHash ?? "null"} cur=${curHash ?? "null"} changed=${changed} url=${spotifyCoverUrl ?? "null"}`);
 
     if (!spotifyCoverUrl) {
       await supabase.from("collection_logs").insert({
@@ -196,19 +190,19 @@ Deno.serve(async (req) => {
       }, 200);
     }
 
-    // Spotify aceitou (202) mas devolveu mosaico = imagem foi descartada silenciosamente.
-    // Causas típicas: JPEG não-quadrado, corrompido, ou conta sem permissão real sobre a playlist.
-    if (stillMosaic) {
+    // Spotify aceitou (202), mas a capa publicada ainda tem o mesmo hash.
+    // Nesse caso o upload foi aceito pela borda, mas não entrou na playlist.
+    if (!changed) {
       await supabase.from("collection_logs").insert({
         acao: "apply-managed-cover",
         status: "erro",
-        mensagem: `${pl.spotify_playlist_id} Spotify aceitou (202) mas manteve mosaico (owner=${ownerId ?? "?"}) — capa NÃO foi aplicada`,
+        mensagem: `${pl.spotify_playlist_id} Spotify aceitou (202) mas a capa não mudou (owner=${ownerId ?? "?"})`,
       });
       return jr({
         ok: false,
         confirmed: false,
         cover_url: spotifyCoverUrl,
-        error: `O Spotify aceitou o upload mas manteve o mosaico automático — a capa não foi aplicada. Verifique se a conta "${ownerId ?? "?"}" é realmente dona desta playlist no Spotify e tente outra imagem (quadrada, sem distorção).`,
+        error: "O Spotify aceitou o upload, mas a capa publicada ainda não mudou. Tente novamente em alguns segundos ou use outra imagem.",
       }, 200);
     }
 
