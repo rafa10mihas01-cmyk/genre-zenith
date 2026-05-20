@@ -1974,41 +1974,79 @@ export default function CuratorPage() {
                                 });
                                 return (
                                   <li key={entry.captured_at}>
-                                    <div className="rounded-lg border border-border/50 bg-card p-3 flex items-center gap-3">
-                                      <div className="h-10 w-10 rounded-lg bg-muted/40 ring-1 ring-border flex items-center justify-center shrink-0">
-                                        <ImageIcon className="h-4 w-4 text-muted-foreground" />
-                                      </div>
-                                      <div className="min-w-0 flex-1">
-                                        <div className="text-[13px] font-semibold leading-tight capitalize">
-                                          {dayLabel} · {time}
-                                        </div>
-                                        <div className="text-[11px] text-muted-foreground mt-0.5 tabular-nums">
-                                          {entry.is_baseline ? "Baseline" : "Snapshot"} ·{" "}
-                                          {entry.playlists_count}{" "}
-                                          {entry.playlists_count === 1
-                                            ? "playlist"
-                                            : "playlists"}
-                                        </div>
-                                      </div>
-                                      <div className="text-right shrink-0">
-                                        <div className="text-[13px] font-bold tabular-nums leading-tight">
-                                          {Number(entry.total_plays).toLocaleString("pt-BR")}
-                                        </div>
-                                        {next && delta !== 0 && (
-                                          <div
-                                            className={cn(
-                                              "text-[10.5px] font-semibold tabular-nums mt-0.5",
-                                              delta >= 0
-                                                ? "text-success"
-                                                : "text-destructive",
-                                            )}
-                                          >
-                                            {delta >= 0 ? "+" : "−"}
-                                            {Math.abs(delta).toLocaleString("pt-BR")}
+                                    {entry.print_url ? (
+                                      <a
+                                        href={entry.print_url}
+                                        target="_blank"
+                                        rel="noreferrer noopener"
+                                        className="block rounded-lg border border-border/50 bg-card p-3 flex items-center gap-3 hover:bg-[hsl(var(--hover))] hover:border-border transition-colors"
+                                      >
+                                        <img
+                                          src={entry.print_url}
+                                          alt={`Print de ${dayLabel}`}
+                                          loading="lazy"
+                                          className="h-10 w-10 rounded-lg object-cover ring-1 ring-border shrink-0 bg-muted/40"
+                                        />
+                                        <div className="min-w-0 flex-1">
+                                          <div className="text-[13px] font-semibold leading-tight capitalize">
+                                            {dayLabel} · {time}
                                           </div>
-                                        )}
+                                          <div className="text-[11px] text-muted-foreground mt-0.5 tabular-nums">
+                                            {entry.is_baseline ? "Baseline" : "Snapshot"} ·{" "}
+                                            {entry.playlists_count}{" "}
+                                            {entry.playlists_count === 1 ? "playlist" : "playlists"} · abrir print
+                                          </div>
+                                        </div>
+                                        <div className="text-right shrink-0">
+                                          <div className="text-[13px] font-bold tabular-nums leading-tight">
+                                            {Number(entry.total_plays).toLocaleString("pt-BR")}
+                                          </div>
+                                          {next && delta !== 0 && (
+                                            <div
+                                              className={cn(
+                                                "text-[10.5px] font-semibold tabular-nums mt-0.5",
+                                                delta >= 0 ? "text-success" : "text-destructive",
+                                              )}
+                                            >
+                                              {delta >= 0 ? "+" : "−"}
+                                              {Math.abs(delta).toLocaleString("pt-BR")}
+                                            </div>
+                                          )}
+                                        </div>
+                                      </a>
+                                    ) : (
+                                      <div className="rounded-lg border border-border/50 bg-card p-3 flex items-center gap-3">
+                                        <div className="h-10 w-10 rounded-lg bg-muted/40 ring-1 ring-border flex items-center justify-center shrink-0">
+                                          <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                          <div className="text-[13px] font-semibold leading-tight capitalize">
+                                            {dayLabel} · {time}
+                                          </div>
+                                          <div className="text-[11px] text-muted-foreground mt-0.5 tabular-nums">
+                                            {entry.is_baseline ? "Baseline" : "Snapshot"} ·{" "}
+                                            {entry.playlists_count}{" "}
+                                            {entry.playlists_count === 1 ? "playlist" : "playlists"}
+                                          </div>
+                                        </div>
+                                        <div className="text-right shrink-0">
+                                          <div className="text-[13px] font-bold tabular-nums leading-tight">
+                                            {Number(entry.total_plays).toLocaleString("pt-BR")}
+                                          </div>
+                                          {next && delta !== 0 && (
+                                            <div
+                                              className={cn(
+                                                "text-[10.5px] font-semibold tabular-nums mt-0.5",
+                                                delta >= 0 ? "text-success" : "text-destructive",
+                                              )}
+                                            >
+                                              {delta >= 0 ? "+" : "−"}
+                                              {Math.abs(delta).toLocaleString("pt-BR")}
+                                            </div>
+                                          )}
+                                        </div>
                                       </div>
-                                    </div>
+                                    )}
                                   </li>
                                 );
                               })}
