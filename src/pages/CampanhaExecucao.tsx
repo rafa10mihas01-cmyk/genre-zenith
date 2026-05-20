@@ -77,7 +77,7 @@ export default function CampanhaExecucao() {
       const [{ data: c }, { data: a }] = await Promise.all([
         supabase
           .from("campaigns")
-          .select("id, track_name, artist, cover_url, status, deadline, started_at, simulation_snapshot, snapshot_locked_at, eco_dispatched_at, engagement_multiplier, public_plan_token")
+          .select("id, track_name, artist, cover_url, status, deadline, started_at, simulation_snapshot, snapshot_locked_at, eco_dispatched_at, engagement_multiplier, public_plan_token, spotify_track_url")
           .eq("id", id)
           .maybeSingle(),
         supabase
@@ -352,6 +352,12 @@ export default function CampanhaExecucao() {
             allocations={allocs as any}
             engagementMultiplier={(camp as any).engagement_multiplier ?? 30}
             shareToken={(camp as any).public_plan_token ?? null}
+            track={{
+              name: camp.track_name,
+              artist: camp.artist,
+              coverUrl: camp.cover_url,
+              spotifyUrl: (camp as any).spotify_track_url ?? null,
+            }}
           />
         </TabsContent>
 

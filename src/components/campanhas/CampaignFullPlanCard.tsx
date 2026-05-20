@@ -27,6 +27,12 @@ type Props = {
   engagementMultiplier?: number;
   shareToken?: string | null;
   showShare?: boolean;
+  track?: {
+    name: string;
+    artist?: string | null;
+    coverUrl?: string | null;
+    spotifyUrl?: string | null;
+  } | null;
 };
 
 function dateLabel(startedAt: string, day: number) {
@@ -42,6 +48,7 @@ export function CampaignFullPlanCard({
   engagementMultiplier = 30,
   shareToken,
   showShare = true,
+  track = null,
 }: Props) {
   const [showZeros, setShowZeros] = useState(false);
   const [mode, setMode] = useState<"diario" | "acumulado">("diario");
@@ -162,6 +169,35 @@ export function CampaignFullPlanCard({
         </div>
       </CardHeader>
       <CardContent>
+        {track && (
+          <div className="mb-3 flex items-center gap-3 rounded-lg border border-border bg-elevated/30 p-2.5">
+            {track.coverUrl ? (
+              <img src={track.coverUrl} alt="" className="w-12 h-12 rounded-md object-cover flex-shrink-0" />
+            ) : (
+              <div className="w-12 h-12 rounded-md bg-muted flex-shrink-0" />
+            )}
+            <div className="min-w-0 flex-1">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Música da campanha</div>
+              {track.spotifyUrl ? (
+                <a
+                  href={track.spotifyUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-sm truncate hover:text-primary inline-flex items-center gap-1.5 max-w-full"
+                  title="Abrir música no Spotify"
+                >
+                  <span className="truncate">{track.name}</span>
+                  <ExternalLink className="h-3 w-3 flex-shrink-0 opacity-70" />
+                </a>
+              ) : (
+                <div className="font-semibold text-sm truncate">{track.name}</div>
+              )}
+              {track.artist && (
+                <div className="text-xs text-muted-foreground truncate">{track.artist}</div>
+              )}
+            </div>
+          </div>
+        )}
         <div className="rounded-lg border border-border overflow-hidden">
           <div className="max-h-[560px] overflow-auto">
             <table className="text-[11px] border-separate border-spacing-0 min-w-full">
