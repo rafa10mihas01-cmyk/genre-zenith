@@ -139,7 +139,8 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
 
   async function openInNewTab(forceLogin = false, appId?: string) {
     try {
-      const redirect = getSpotifyRedirectUri();
+      const slug = appId ? spotifyApps.find((a) => a.id === appId)?.slug ?? null : null;
+      const redirect = getSpotifyRedirectUri(slug);
       localStorage.setItem(SPOTIFY_SETTINGS_RETURN_KEY, `${window.location.pathname}${window.location.search || ""}`);
       const qs = new URLSearchParams({ mode: "login", redirect });
       if (forceLogin) qs.set("force_login", "1");
