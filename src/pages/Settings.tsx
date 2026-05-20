@@ -170,7 +170,12 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
     else setSpotifyResult({ ok: false, msg: data?.error ?? "Falha desconhecida" });
   }
 
-  useEffect(() => { void loadStats(); void loadSpotifyAccounts(); }, []);
+  useEffect(() => { void loadStats(); void loadSpotifyAccounts(); void loadRequiredScopes(); }, []);
+
+  async function loadRequiredScopes() {
+    const j = await callSpotifyAuth("mode=scopes");
+    if (j?.ok && Array.isArray(j.scopes)) setRequiredScopes(j.scopes);
+  }
 
   // Trata retorno do OAuth do Spotify (guard contra StrictMode/duplo-disparo)
   const spotifyCallbackHandled = useRef(false);
