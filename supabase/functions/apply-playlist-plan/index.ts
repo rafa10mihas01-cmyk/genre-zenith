@@ -45,7 +45,7 @@ async function spotifyFetch(url: string, init: RequestInit, token: string) {
 async function fetchAllTrackUris(playlistId: string, token: string): Promise<string[]> {
   const uris: string[] = [];
   let url: string | null =
-    `https://api.spotify.com/v1/playlists/${playlistId}/tracks?fields=items(track(uri)),next&limit=100`;
+    `https://api.spotify.com/v1/playlists/${playlistId}/items?fields=items(track(uri)),next&limit=100`;
   while (url) {
     const j = await spotifyFetch(url, { method: "GET" }, token);
     for (const it of j.items ?? []) {
@@ -175,7 +175,7 @@ Deno.serve(async (req) => {
       let removed = 0;
       for (const ch of chunks) {
         const res = await spotifyFetch(
-          `https://api.spotify.com/v1/playlists/${spId}/tracks`,
+          `https://api.spotify.com/v1/playlists/${spId}/items`,
           { method: "DELETE", body: JSON.stringify({ tracks: ch.map((uri) => ({ uri })) }) },
           token,
         );
