@@ -424,11 +424,12 @@ export function PlaylistCockpit({
             {/* ============ PLANO DE AÇÃO ============ */}
             <TabsContent value="plano" className="space-y-4 mt-0">
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                <ActionCard kind="remove" count={buckets.remove.length} hrefId="bucket-remove" />
-                <ActionCard kind="demote" count={buckets.demote.length} hrefId="bucket-demote" />
-                <ActionCard kind="promote" count={buckets.promote.length} hrefId="bucket-promote" />
-                <ActionCard kind="add" count={buckets.add.length} hrefId="bucket-add" />
+                <ActionCard kind="remove" count={buckets.remove.length} detected={buckets.detected.remove} hrefId="bucket-remove" />
+                <ActionCard kind="demote" count={buckets.demote.length} detected={buckets.detected.demote} hrefId="bucket-demote" />
+                <ActionCard kind="promote" count={buckets.promote.length} detected={buckets.detected.promote} hrefId="bucket-promote" />
+                <ActionCard kind="add" count={buckets.add.length} detected={buckets.detected.add} hrefId="bucket-add" />
               </div>
+
               {(buckets.remove.length + buckets.demote.length + buckets.promote.length + buckets.add.length) > 0 && (
                 <Card className="p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 bg-primary/5 border-primary/30">
                   <div className="space-y-0.5">
