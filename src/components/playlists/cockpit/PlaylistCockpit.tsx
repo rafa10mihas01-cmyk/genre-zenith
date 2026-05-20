@@ -243,16 +243,30 @@ export function PlaylistCockpit({
       .sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0));
 
     // Aplica o cap recomendado pelo cérebro — detecta tudo, executa só o que
-    // cabe neste ciclo (5% por padrão). UI mostra "X detectadas · Y recomendadas".
+    // cabe neste ciclo. UI mostra "X detectadas · Y recomendadas".
     const recRemove = caps?.recommended_remove ?? removeAll.length;
     const recDemote = caps?.recommended_demote ?? demoteAll.length;
     const recPromote = caps?.recommended_promote ?? promoteAll.length;
+
+    // Adicionar: respeita capped_suggestions do backend e ainda aplica
+    // cap por zona pra não empilhar 6 faixas brigando por posição 0/1.
+    const addAfterBackendCap = caps?.capped_suggestions != null
+      ? suggestions.slice(0, caps.capped_suggestions)
+      : suggestions;
+    const zoneCount: Record<Zone, number> = { anchor: 0, premium: 0, support: 0, tail: 0 };
+    const addFinal: Array<Suggestion & { _zone: Zone }> = [];
+    for (const s of addAfterBackendCap) {
+      const z = (s.target_zone ?? zoneFromPos(s.suggested_position ?? 99)) as Zone;
+      if (zoneCount[z] >= ZONE_CAPS[z]) continue;
+      zoneCount[z]++;
+      addFinal.push({ ...s, _zone: z });
+    }
 
     return {
       remove: removeAll.slice(0, recRemove),
       demote: demoteAll.slice(0, recDemote),
       promote: promoteAll.slice(0, recPromote),
-      add: suggestions,
+      add: addFinal,
       detected: {
         remove: removeAll.length,
         demote: demoteAll.length,
