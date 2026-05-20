@@ -352,6 +352,12 @@ export default function CampanhaExecucao() {
             allocations={allocs as any}
             engagementMultiplier={(camp as any).engagement_multiplier ?? 30}
             shareToken={(camp as any).public_plan_token ?? null}
+            track={{
+              name: camp.track_name,
+              artist: camp.artist,
+              coverUrl: camp.cover_url,
+              spotifyUrl: (camp as any).spotify_track_url ?? null,
+            }}
           />
         </TabsContent>
 
