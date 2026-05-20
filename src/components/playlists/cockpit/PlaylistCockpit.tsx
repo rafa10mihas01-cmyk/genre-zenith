@@ -336,17 +336,32 @@ export function PlaylistCockpit({
 
     // Adicionar: respeita capped_suggestions do backend e ainda aplica
     // cap por zona pra não empilhar 6 faixas brigando por posição 0/1.
+    // Excedente "desce" pra próxima zona com vaga (anchor → premium → support → tail).
     const addAfterBackendCap = caps?.capped_suggestions != null
       ? suggestions.slice(0, caps.capped_suggestions)
       : suggestions;
+    const ZONE_ORDER: Zone[] = ["anchor", "premium", "support", "tail"];
+    function zoneStart(z: Zone): number {
+      return z === "anchor" ? 0 : z === "premium" ? 2 : z === "support" ? 6 : 12;
+    }
     const zoneCount: Record<Zone, number> = { anchor: 0, premium: 0, support: 0, tail: 0 };
     const addFinal: Array<Suggestion & { _zone: Zone }> = [];
     for (const s of addAfterBackendCap) {
-      const z = (s.target_zone ?? zoneFromPos(s.suggested_position ?? 99)) as Zone;
+      const original = (s.target_zone ?? zoneFromPos(s.suggested_position ?? 99)) as Zone;
+      let z: Zone = original;
+      const startIdx = ZONE_ORDER.indexOf(original);
+      for (let k = startIdx; k < ZONE_ORDER.length; k++) {
+        if (zoneCount[ZONE_ORDER[k]] < ZONE_CAPS[ZONE_ORDER[k]]) { z = ZONE_ORDER[k]; break; }
+      }
       if (zoneCount[z] >= ZONE_CAPS[z]) continue;
       zoneCount[z]++;
-      addFinal.push({ ...s, _zone: z });
+      // Reescreve posição se desceu de zona, pra UI mostrar a zona real.
+      const pos = z === original
+        ? (s.suggested_position ?? zoneStart(z) + zoneCount[z] - 1)
+        : zoneStart(z) + zoneCount[z] - 1;
+      addFinal.push({ ...s, _zone: z, suggested_position: pos });
     }
+
 
     return {
       remove: removeAll.slice(0, recRemove),
