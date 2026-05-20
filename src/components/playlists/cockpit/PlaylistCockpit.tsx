@@ -1322,16 +1322,18 @@ function MarketBlock({
           </>
         ) : (
           <div className="space-y-1.5">
-            <div className="inline-flex items-center gap-1.5 text-[11px] text-warning bg-warning/10 border border-warning/30 px-2 py-1 rounded">
-              <Loader2 className="h-3 w-3 animate-spin" />
-              Benchmark em processamento
+            <div className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground bg-muted/30 border border-border px-2 py-1 rounded">
+              {sampleSize > 0 ? "Benchmark sem faixa ideal ainda" : "Sem dados do nicho ainda"}
             </div>
             <div className="text-[11px] text-muted-foreground">
-              {sampleSize > 0 ? `${sampleSize} playlists analisadas` : "Aguardando dados do nicho"}
+              {sampleSize > 0
+                ? `${sampleSize} playlists varridas · próximo recálculo automático às 03:00`
+                : "Cron diário roda às 03:00 — inclua concorrentes monitorados neste nicho"}
             </div>
           </div>
         )}
       </Card>
+
 
       <Card className="p-4 space-y-2">
         <div className="flex items-center gap-2">
