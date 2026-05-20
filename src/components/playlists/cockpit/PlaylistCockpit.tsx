@@ -23,6 +23,8 @@ import { CuratorialStateBadge, CooldownChip } from "@/components/playlist/Curato
 import { AdjustmentTimeline } from "@/components/playlists/cockpit/AdjustmentTimeline";
 import { OnboardingChecklist } from "@/components/playlists/cockpit/OnboardingChecklist";
 import { SeoExperimentCard } from "@/components/playlists/cockpit/SeoExperimentCard";
+import { GenrePicker } from "@/components/playlists/cockpit/GenrePicker";
+
 
 // -------------------- types --------------------
 type AnalysisTrack = {
@@ -422,14 +424,14 @@ export function PlaylistCockpit({
                 {playlistName}
               </h1>
               <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                {genreName && (
-                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
-                    {genreName}
-                  </span>
-                )}
-                {genreName && diag?.raw?.niche_rank && (
+                <GenrePicker
+                  managedId={managedId}
+                  currentGenreName={genreName ?? null}
+                />
+                {diag?.raw?.niche_rank && (
                   <span className="text-muted-foreground/40 text-[10px]">·</span>
                 )}
+
                 {diag?.raw?.niche_rank && diag.raw.niche_total && (
                   <span className="inline-flex items-center gap-1 text-[10px] text-primary font-medium">
                     <Crown className="h-3 w-3" /> #{diag.raw.niche_rank} de {diag.raw.niche_total}
