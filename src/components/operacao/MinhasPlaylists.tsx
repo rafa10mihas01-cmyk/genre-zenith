@@ -175,6 +175,62 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
       setBulkImporting(false);
     }
   }
+
+  // Contas a IGNORAR na sincronização global (já importadas e congeladas)
+  const EXCLUDED_SPOTIFY_USER_IDS = new Set<string>([
+    "31kxavlirmnk4nm63bozv6z4pgri", // Top Hits Brasil 🇧🇷 (rafa10mihas01@gmail.com) — não re-sincronizar
+  ]);
+
+  async function handleBulkImportAllAccounts() {
+    setBulkImporting(true);
+    try {
+      const { data: tokens, error: tokErr } = await supabase
+        .from("spotify_user_tokens")
+        .select("spotify_user_id, display_name, email");
+      if (tokErr) throw new Error(tokErr.message);
+
+      const targets = (tokens ?? []).filter(
+        (t) => t.spotify_user_id && !EXCLUDED_SPOTIFY_USER_IDS.has(t.spotify_user_id),
+      );
+      if (targets.length === 0) {
+        toast({ title: "Nenhuma conta para sincronizar" });
+        return;
+      }
+
+      toast({
+        title: `Sincronizando ${targets.length} contas…`,
+        description: "Isso pode levar alguns segundos.",
+      });
+
+      let totalImported = 0;
+      const failures: string[] = [];
+      for (const t of targets) {
+        try {
+          const { data, error } = await supabase.functions.invoke("import-account-playlists", {
+            body: { spotify_user_id: t.spotify_user_id },
+          });
+          if (error || !data?.ok) {
+            failures.push(`${t.display_name ?? t.email ?? t.spotify_user_id}: ${error?.message ?? data?.error ?? "falhou"}`);
+          } else {
+            totalImported += data.imported ?? 0;
+          }
+        } catch (e: any) {
+          failures.push(`${t.display_name ?? t.spotify_user_id}: ${e.message}`);
+        }
+      }
+
+      toast({
+        title: "Sincronização concluída",
+        description: `${totalImported} playlists importadas de ${targets.length - failures.length}/${targets.length} contas${failures.length ? ` — falhas: ${failures.slice(0, 2).join("; ")}` : ""}`,
+        variant: failures.length ? "destructive" : "default",
+      });
+      load();
+    } catch (e: any) {
+      toast({ title: "Erro na sincronização global", description: e.message, variant: "destructive" });
+    } finally {
+      setBulkImporting(false);
+    }
+  }
   const [drawerPl, setDrawerPl] = useState<ManagedPlaylist | null>(null);
   const [applyingSuggestions, setApplyingSuggestions] = useState(false);
 
