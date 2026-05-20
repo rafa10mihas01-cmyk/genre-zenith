@@ -184,7 +184,7 @@ export default function Operacao() {
 
   useEffect(() => {
     load();
-    const t = setInterval(load, 60_000);
+    const t = setInterval(() => load({ silent: true }), 60_000);
     return () => clearInterval(t);
   }, []);
 
