@@ -1287,7 +1287,18 @@ function BucketAdd({ items, applying, onApplyAll }: {
 }
 
 // -------- mercado --------
-function MarketBlock({ market, idealRange }: { market: any; idealRange: any }) {
+function MarketBlock({
+  market, idealRange, currentTrackKeys, currentArtistKeys, suggestionByTitle, onJumpToAdd,
+}: {
+  market: any;
+  idealRange: any;
+  currentTrackKeys: Set<string>;
+  currentArtistKeys: Set<string>;
+  suggestionByTitle: Map<string, string>;
+  onJumpToAdd: (trackId?: string) => void;
+}) {
+  const sampleSize = market.niche_playlist_count ?? 0;
+  const benchmarkReady = Array.isArray(idealRange) && idealRange[0] != null && idealRange[1] != null;
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <Card className="p-4 space-y-3">
@@ -1295,16 +1306,30 @@ function MarketBlock({ market, idealRange }: { market: any; idealRange: any }) {
           <Target className="h-4 w-4 text-primary" />
           <span className="text-sm font-semibold">Tamanho ideal</span>
         </div>
-        <div className="text-2xl font-bold tabular-nums">
-          {idealRange?.[0] ?? "—"}<span className="text-muted-foreground mx-1">–</span>{idealRange?.[1] ?? "—"}
-          <span className="text-xs text-muted-foreground ml-1 font-normal">faixas</span>
-        </div>
-        <div className="text-[11px] text-muted-foreground">
-          Saturação média do nicho: <strong className="text-foreground">{market.avg_saturation_pct ?? "—"}%</strong>
-        </div>
-        <div className="text-[11px] text-muted-foreground">
-          Baseado em <strong className="text-foreground">{market.niche_playlist_count ?? "—"}</strong> playlists varridas
-        </div>
+        {benchmarkReady ? (
+          <>
+            <div className="text-2xl font-bold tabular-nums">
+              {idealRange[0]}<span className="text-muted-foreground mx-1">–</span>{idealRange[1]}
+              <span className="text-xs text-muted-foreground ml-1 font-normal">faixas</span>
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              Saturação média do nicho: <strong className="text-foreground">{market.avg_saturation_pct ?? "—"}%</strong>
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              Baseado em <strong className="text-foreground">{sampleSize}</strong> playlists varridas
+            </div>
+          </>
+        ) : (
+          <div className="space-y-1.5">
+            <div className="inline-flex items-center gap-1.5 text-[11px] text-warning bg-warning/10 border border-warning/30 px-2 py-1 rounded">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Benchmark em processamento
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              {sampleSize > 0 ? `${sampleSize} playlists analisadas` : "Aguardando dados do nicho"}
+            </div>
+          </div>
+        )}
       </Card>
 
       <Card className="p-4 space-y-2">
@@ -1313,12 +1338,22 @@ function MarketBlock({ market, idealRange }: { market: any; idealRange: any }) {
           <span className="text-sm font-semibold">Artistas dominando</span>
         </div>
         <ul className="space-y-1">
-          {(market.top_artists ?? []).slice(0, 6).map((a: any, i: number) => (
-            <li key={i} className="flex justify-between text-xs">
-              <span className="truncate">{a.name}</span>
-              <span className="text-muted-foreground tabular-nums shrink-0 ml-2">{a.plays_in_niche}×</span>
-            </li>
-          ))}
+          {(market.top_artists ?? []).slice(0, 6).map((a: any, i: number) => {
+            const present = currentArtistKeys.has(norm(a.name));
+            return (
+              <li key={i} className="flex justify-between items-center text-xs gap-2">
+                <span className="truncate flex-1 flex items-center gap-1.5">
+                  {present ? (
+                    <Check className="h-3 w-3 text-primary shrink-0" />
+                  ) : (
+                    <span className="text-destructive/70 text-[10px] font-bold shrink-0">✗</span>
+                  )}
+                  <span className="truncate">{a.name}</span>
+                </span>
+                <span className="text-muted-foreground tabular-nums shrink-0">{a.plays_in_niche}×</span>
+              </li>
+            );
+          })}
         </ul>
       </Card>
 
@@ -1328,17 +1363,44 @@ function MarketBlock({ market, idealRange }: { market: any; idealRange: any }) {
           <span className="text-sm font-semibold">Faixas mais recorrentes</span>
         </div>
         <ul className="space-y-1.5">
-          {(market.top_recurring_tracks ?? []).slice(0, 5).map((t: any, i: number) => (
-            <li key={i} className="text-xs">
-              <div className="font-medium truncate">{t.title ?? "—"}</div>
-              <div className="text-muted-foreground truncate flex justify-between">
-                <span>{t.artist ?? "—"}</span>
-                <span className="tabular-nums">{t.niche_playlists_count}×</span>
-              </div>
-            </li>
-          ))}
+          {(market.top_recurring_tracks ?? []).slice(0, 5).map((t: any, i: number) => {
+            const key = norm(t.title);
+            const isInPlaylist = currentTrackKeys.has(key);
+            const suggestedId = suggestionByTitle.get(key);
+            return (
+              <li key={i} className="text-xs">
+                <div className="font-medium truncate flex items-center gap-1.5">
+                  {isInPlaylist && <Check className="h-3 w-3 text-primary shrink-0" />}
+                  <span className="truncate">{t.title ?? "—"}</span>
+                </div>
+                <div className="text-muted-foreground truncate flex justify-between items-center gap-2">
+                  <span className="truncate">{t.artist ?? "—"}</span>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {isInPlaylist ? (
+                      <span className="text-[9px] uppercase tracking-wider text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                        Na playlist
+                      </span>
+                    ) : suggestedId ? (
+                      <button
+                        onClick={() => onJumpToAdd(suggestedId)}
+                        className="text-[9px] uppercase tracking-wider text-primary bg-primary/15 hover:bg-primary/25 px-1.5 py-0.5 rounded transition-colors"
+                      >
+                        Sugerida
+                      </button>
+                    ) : (
+                      <span className="text-[9px] uppercase tracking-wider text-muted-foreground/60 px-1.5 py-0.5">
+                        Fora do plano
+                      </span>
+                    )}
+                    <span className="tabular-nums">{t.niche_playlists_count}×</span>
+                  </div>
+                </div>
+              </li>
+            );
+          })}
         </ul>
       </Card>
+
 
       {(market.leader_playlists?.length ?? 0) > 0 && (
         <Card className="p-4 space-y-2 lg:col-span-3">
