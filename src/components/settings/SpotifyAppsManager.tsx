@@ -204,45 +204,49 @@ export function SpotifyAppsManager({ onChange, onConnectAccount }: { onChange?: 
           {apps.map((a) => {
             const full = a.slots_remaining <= 0;
             return (
-              <div key={a.id} className="flex items-center justify-between gap-2 p-2.5 rounded-lg border border-border bg-muted/20">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-medium text-sm truncate">{a.name}</span>
-                    {a.is_default && (
-                      <span className="text-[10px] inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/15 text-primary">
-                        <Star className="h-2.5 w-2.5" /> padrão
+              <div key={a.id} className="p-2.5 rounded-lg border border-border bg-muted/20">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-medium text-sm truncate">{a.name}</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono">{a.slug}</span>
+                      {a.is_default && (
+                        <span className="text-[10px] inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/15 text-primary">
+                          <Star className="h-2.5 w-2.5" /> padrão
+                        </span>
+                      )}
+                      {a.status !== "active" && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{a.status}</span>
+                      )}
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded ${full ? "bg-destructive/15 text-destructive" : "bg-success/15 text-success"}`}>
+                        {a.accounts_used}/{a.max_accounts} contas
                       </span>
-                    )}
-                    {a.status !== "active" && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{a.status}</span>
-                    )}
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded ${full ? "bg-destructive/15 text-destructive" : "bg-success/15 text-success"}`}>
-                      {a.accounts_used}/{a.max_accounts} contas
-                    </span>
+                    </div>
+                    <div className="text-[11px] text-muted-foreground font-mono truncate mt-0.5">
+                      {a.client_id_preview}
+                    </div>
                   </div>
-                  <div className="text-[11px] text-muted-foreground font-mono truncate mt-0.5">
-                    {a.client_id_preview}
-                  </div>
-                </div>
-                <div className="flex items-center gap-1">
-                  {onConnectAccount && a.status === "active" && !full && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => onConnectAccount(a.id, true)}
-                      className="h-8 text-xs gap-1.5 border-primary/40 text-primary hover:bg-primary/10 hover:text-primary"
-                      title={`Conectar nova conta neste app (encerra a sessão Spotify atual e abre o login da próxima conta no app "${a.name}")`}
-                    >
-                      <LinkIcon className="h-3.5 w-3.5" /> Conectar conta
+                  <div className="flex items-center gap-1">
+                    {onConnectAccount && a.status === "active" && !full && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onConnectAccount(a.id, true)}
+                        className="h-8 text-xs gap-1.5 border-primary/40 text-primary hover:bg-primary/10 hover:text-primary"
+                        title={`Conectar nova conta neste app (encerra a sessão Spotify atual e abre o login da próxima conta no app "${a.name}")`}
+                      >
+                        <LinkIcon className="h-3.5 w-3.5" /> Conectar conta
+                      </Button>
+                    )}
+                    <Button size="sm" variant="ghost" onClick={() => setEditing(a)} className="h-8 w-8 p-0" title="Editar">
+                      <Pencil className="h-3.5 w-3.5" />
                     </Button>
-                  )}
-                  <Button size="sm" variant="ghost" onClick={() => setEditing(a)} className="h-8 w-8 p-0" title="Editar">
-                    <Pencil className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => del(a.id, a.name)} className="h-8 w-8 p-0 text-destructive hover:text-destructive" title="Remover">
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
+                    <Button size="sm" variant="ghost" onClick={() => del(a.id, a.name)} className="h-8 w-8 p-0 text-destructive hover:text-destructive" title="Remover">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </div>
+                <AppRedirectUrisPanel slug={a.slug} compact />
               </div>
             );
           })}
