@@ -230,15 +230,35 @@ export function PlaylistCockpit({
   // ---- buckets ----
   const analysis = diag?.tracks_analysis ?? [];
   const suggestions = diag?.tracks_suggestions ?? [];
+  const caps = diag?.raw?.applied_caps;
   const buckets = useMemo(() => {
-    const remove = analysis.filter((t) => t.status === "remove")
+    const removeAll = analysis.filter((t) => t.status === "remove")
       .sort((a, b) => a.position - b.position);
-    const demote = analysis.filter((t) => t.status === "demote")
+    const demoteAll = analysis.filter((t) => t.status === "demote")
       .sort((a, b) => a.position - b.position);
-    const promote = analysis.filter((t) => t.status === "promote")
+    const promoteAll = analysis.filter((t) => t.status === "promote")
       .sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0));
-    return { remove, demote, promote, add: suggestions };
-  }, [analysis, suggestions]);
+
+    // Aplica o cap recomendado pelo cérebro — detecta tudo, executa só o que
+    // cabe neste ciclo (5% por padrão). UI mostra "X detectadas · Y recomendadas".
+    const recRemove = caps?.recommended_remove ?? removeAll.length;
+    const recDemote = caps?.recommended_demote ?? demoteAll.length;
+    const recPromote = caps?.recommended_promote ?? promoteAll.length;
+
+    return {
+      remove: removeAll.slice(0, recRemove),
+      demote: demoteAll.slice(0, recDemote),
+      promote: promoteAll.slice(0, recPromote),
+      add: suggestions,
+      detected: {
+        remove: removeAll.length,
+        demote: demoteAll.length,
+        promote: promoteAll.length,
+        add: suggestions.length,
+      },
+    };
+  }, [analysis, suggestions, caps]);
+
 
   const health = HEALTH_META[diag?.raw?.health_status ?? "saudavel"];
   const market = diag?.raw?.market_insights;
