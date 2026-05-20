@@ -698,8 +698,8 @@ function CoverCard({ managedId, currentCover, references, spotifyPlaylistId }: {
       setLocalCover(data.cover_url ?? ref.cover_url);
       setSelectedLeader(null);
       toast({
-        title: data.confirmed ? "Capa aplicada no Spotify" : "Capa enviada ao Spotify",
-        description: data.confirmed ? `Usando a capa de "${ref.name}".` : "O Spotify aceitou a capa, mas a CDN ainda pode levar alguns segundos para exibir.",
+        title: data.unchanged ? "Capa já aplicada" : data.confirmed ? "Capa aplicada no Spotify" : "Capa enviada ao Spotify",
+        description: data.unchanged ? "Essa referência já é visualmente igual à capa atual." : data.confirmed ? `Usando a capa de "${ref.name}".` : "O Spotify aceitou a capa, mas a CDN ainda pode levar alguns segundos para exibir.",
       });
     } catch (e: any) {
       toast({ title: "Erro ao aplicar capa", description: e?.message ?? String(e), variant: "destructive" });
@@ -760,8 +760,8 @@ function CoverCard({ managedId, currentCover, references, spotifyPlaylistId }: {
       setLocalCover(data.cover_url ?? imageUrl);
       clearPending();
       toast({
-        title: data.confirmed ? "Capa aplicada no Spotify" : "Capa enviada ao Spotify",
-        description: data.confirmed ? "A nova capa já foi confirmada no Spotify." : "O Spotify aceitou a capa, mas a CDN ainda pode levar alguns segundos para exibir.",
+        title: data.unchanged ? "Capa já aplicada" : data.confirmed ? "Capa aplicada no Spotify" : "Capa enviada ao Spotify",
+        description: data.unchanged ? "A imagem enviada já é visualmente igual à capa atual." : data.confirmed ? "A nova capa já foi confirmada no Spotify." : "O Spotify aceitou a capa, mas a CDN ainda pode levar alguns segundos para exibir.",
       });
     } catch (e: any) {
       toast({ title: "Erro ao enviar capa", description: e?.message ?? String(e), variant: "destructive" });

@@ -33,6 +33,21 @@ function uint8ToBase64(buf: Uint8Array): string {
 
 type EncodedCover = { bytes: Uint8Array; width: number; height: number; quality: number };
 
+async function visualDistance(a: EncodedCover, b: EncodedCover): Promise<number> {
+  const ai = await resize(await decodeJpeg(a.bytes), { width: 64, height: 64, method: "lanczos3" });
+  const bi = await resize(await decodeJpeg(b.bytes), { width: 64, height: 64, method: "lanczos3" });
+  let sum = 0;
+  let count = 0;
+  for (let i = 0; i < ai.data.length && i < bi.data.length; i += 4) {
+    for (let c = 0; c < 3; c++) {
+      const d = ai.data[i + c] - bi.data[i + c];
+      sum += d * d;
+      count++;
+    }
+  }
+  return Math.sqrt(sum / Math.max(1, count));
+}
+
 async function imageToCleanJpeg(buf: Uint8Array, contentType: string): Promise<EncodedCover> {
   const isPng = /png/i.test(contentType) || (buf[0] === 0x89 && buf[1] === 0x50);
   const imageData = isPng ? await decodePng(buf) : await decodeJpeg(buf);
@@ -154,10 +169,22 @@ Deno.serve(async (req) => {
     let jpeg: EncodedCover;
     try { jpeg = await fetchAsCleanJpeg(imageUrl); }
     catch (e) { return jr({ ok: false, error: (e as Error).message }, 400); }
+    const previousCoverUrl = await fetchSpotifyCoverUrl(pl.spotify_playlist_id, token);
+    if (previousCoverUrl) {
+      try {
+        const currentJpeg = await fetchAsCleanJpeg(previousCoverUrl);
+        const distance = await visualDistance(jpeg, currentJpeg);
+        console.log(`[cover] visual-distance=${distance.toFixed(2)} selected=${imageUrl} current=${previousCoverUrl}`);
+        if (distance < 2) {
+          return jr({ ok: true, unchanged: true, confirmed: true, cover_url: previousCoverUrl, message: "Essa imagem já é a capa atual da playlist." });
+        }
+      } catch (e) {
+        console.warn(`[cover] comparação visual falhou: ${(e as Error).message}`);
+      }
+    }
+
     const b64 = uint8ToBase64(jpeg.bytes);
     console.log(`[cover] PUT ${pl.spotify_playlist_id} owner=${ownerId ?? "?"} ${jpeg.width}x${jpeg.height} q=${jpeg.quality} ${jpeg.bytes.byteLength}b base64=${b64.length}c`);
-
-    const previousCoverUrl = await fetchSpotifyCoverUrl(pl.spotify_playlist_id, token);
 
     const resp = await fetch(`https://api.spotify.com/v1/playlists/${pl.spotify_playlist_id}/images`, {
       method: "PUT",
