@@ -178,9 +178,9 @@ Deno.serve(async (req) => {
     const plays24h = snap.plays_24h != null ? toInt(snap.plays_24h) : null;
     const plays7d  = snap.plays_7d  != null ? toInt(snap.plays_7d)  : (snap.plays != null ? toInt(snap.plays) : null);
     const plays28d = snap.plays_28d != null ? toInt(snap.plays_28d) : null;
-    // Para o campo legado `plays` (não-nulo no schema): preferimos 24h (janela oficial),
-    // depois 7d, depois 28d, depois 0.
-    const plays = plays24h ?? plays7d ?? plays28d ?? 0;
+    // Para o campo legado `plays` (não-nulo no schema): janela oficial agora é 7d.
+    // Fallback: 7d → 28d → 24h (compat com payloads antigos) → 0.
+    const plays = plays7d ?? plays28d ?? plays24h ?? 0;
 
     // Match robusto via RPC: spotify_id → nome normalizado → fuzzy ≥0.6
     let playlistId: string | null = null;
