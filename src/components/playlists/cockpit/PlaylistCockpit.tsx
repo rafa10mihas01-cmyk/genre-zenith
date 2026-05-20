@@ -190,6 +190,7 @@ export function PlaylistCockpit({
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [applying, setApplying] = useState<null | "remove" | "demote" | "promote" | "add" | "all">(null);
+  const [activeTab, setActiveTab] = useState<string>("identidade");
 
   useEffect(() => { setLiveTracksCount(tracksCount); }, [tracksCount]);
 
