@@ -90,9 +90,9 @@ Deno.serve(async (req) => {
       }, 412);
     }
 
-    // 4) POST /playlists/{id}/tracks — insere todas em bloco na posição 0 (topo)
+    // 4) POST /playlists/{id}/items — insere todas em bloco na posição 0 (topo)
     //    Spotify aceita até 100 URIs por chamada; nosso limit é 50.
-    const r = await fetch(`https://api.spotify.com/v1/playlists/${pl.spotify_playlist_id}/tracks`, {
+    const r = await fetch(`https://api.spotify.com/v1/playlists/${pl.spotify_playlist_id}/items`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
