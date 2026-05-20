@@ -398,7 +398,7 @@ export function DealHistorySheet({
   asPage = false,
 }: DealHistorySheetProps) {
   const [tab, setTab] = useState<"resumo" | "playlists" | "algoritmo" | "historico">("resumo");
-  const [perfWindow, setPerfWindow] = useState<"24h" | "7d" | "28d">("7d");
+  const [perfWindow, setPerfWindow] = useState<"7d" | "28d">("7d");
   const [pasteOpen, setPasteOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [selectedLogId, setSelectedLogId] = useState<string | null>(null);
