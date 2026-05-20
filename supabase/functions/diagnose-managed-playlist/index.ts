@@ -669,6 +669,28 @@ Deno.serve(async (req) => {
       };
     });
 
+    // 4.b) Distribuição inteligente dentro das zonas — evita colisão/empilhamento
+    // Agrupa por (status, best_zone) e espalha target_position naturalmente.
+    // Ordem dentro do grupo:
+    //   promote → maior popularity primeiro (pega a melhor posição da zona)
+    //   demote  → quem está mais próximo do topo primeiro (sai mais cedo)
+    const reorderGroups = new Map<string, any[]>();
+    for (const t of tracksAnalysis) {
+      if ((t.status === "promote" || t.status === "demote") && t.target_position != null) {
+        const key = `${t.status}:${t.best_zone}`;
+        if (!reorderGroups.has(key)) reorderGroups.set(key, []);
+        reorderGroups.get(key)!.push(t);
+      }
+    }
+    for (const [key, group] of reorderGroups) {
+      const [status, zone] = key.split(":") as ["promote" | "demote", Zone];
+      group.sort((a, b) => status === "promote"
+        ? (b.popularity ?? 0) - (a.popularity ?? 0)
+        : (a.position ?? 0) - (b.position ?? 0));
+      const positions = distributeInZone(zone, group.length);
+      group.forEach((t, i) => { t.target_position = positions[i]; });
+    }
+
     // 5) Artistas presentes na playlist
     const presentArtists = new Set<string>(
       (currentTracks ?? [])
@@ -680,6 +702,7 @@ Deno.serve(async (req) => {
       .slice(0, 10);
 
     // 6) Resumo
+
     const counts = {
       total: totalTracks,
       keep: tracksAnalysis.filter((x) => x.status === "keep").length,
