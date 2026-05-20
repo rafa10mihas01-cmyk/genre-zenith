@@ -31,7 +31,9 @@ function uint8ToBase64(buf: Uint8Array): string {
   return btoa(binary);
 }
 
-async function imageToJpegUnderLimit(buf: Uint8Array, contentType: string): Promise<Uint8Array> {
+type EncodedCover = { bytes: Uint8Array; width: number; height: number; quality: number };
+
+async function imageToCleanJpeg(buf: Uint8Array, contentType: string): Promise<EncodedCover> {
   const isPng = /png/i.test(contentType) || (buf[0] === 0x89 && buf[1] === 0x50);
   const imageData = isPng ? await decodePng(buf) : await decodeJpeg(buf);
   const sizes = [640, 512, 400, 320];
@@ -43,7 +45,9 @@ async function imageToJpegUnderLimit(buf: Uint8Array, contentType: string): Prom
     for (const quality of qualities) {
       const out = await encodeJpeg(resized, { quality });
       const bytes = new Uint8Array(out);
-      if (bytes.byteLength <= MAX_BYTES) return bytes;
+      if (bytes.byteLength <= MAX_BYTES) {
+        return { bytes, width: size, height: size, quality };
+      }
     }
   }
   throw new Error("não foi possível comprimir a capa abaixo de 256KB");
@@ -54,21 +58,21 @@ function isAllowedImageUrl(url: string): boolean {
     const u = new URL(url);
     if (u.protocol !== "https:") return false;
     if (u.hostname === new URL(SUPABASE_URL).hostname) return true;
-    // CDN do Spotify (capas de playlists/artistas) — fonte segura e pública
     if (/(^|\.)scdn\.co$/i.test(u.hostname)) return true;
     if (/spotifycdn\.com$/i.test(u.hostname)) return true;
     return false;
   } catch { return false; }
 }
 
-async function fetchAsBase64Jpeg(url: string): Promise<string> {
+// SEMPRE re-encoda como baseline JPEG quadrado e limpo (sem ICC/EXIF/progressivo).
+// O Spotify aceita 202 e descarta silenciosamente JPEGs com perfis embutidos
+// ou encoding progressivo — por isso o passthrough do CDN da Spotify falhava.
+async function fetchAsCleanJpeg(url: string): Promise<EncodedCover> {
   const r = await fetch(url);
   if (!r.ok) throw new Error(`fetch image ${r.status}`);
   const buf = new Uint8Array(await r.arrayBuffer());
-  const ct = r.headers.get("content-type") ?? "image/png";
-  if (/jpeg|jpg/i.test(ct) && buf.byteLength <= MAX_BYTES) return uint8ToBase64(buf);
-  const jpeg = await imageToJpegUnderLimit(buf, ct);
-  return uint8ToBase64(jpeg);
+  const ct = r.headers.get("content-type") ?? "image/jpeg";
+  return await imageToCleanJpeg(buf, ct);
 }
 
 async function fetchSpotifyCoverUrl(spotifyPlaylistId: string, token: string): Promise<string | null> {
@@ -153,9 +157,11 @@ Deno.serve(async (req) => {
       }, 412);
     }
 
-    let b64: string;
-    try { b64 = await fetchAsBase64Jpeg(imageUrl); }
+    let jpeg: EncodedCover;
+    try { jpeg = await fetchAsCleanJpeg(imageUrl); }
     catch (e) { return jr({ ok: false, error: (e as Error).message }, 400); }
+    const b64 = uint8ToBase64(jpeg.bytes);
+    console.log(`[cover] PUT ${pl.spotify_playlist_id} owner=${ownerId ?? "?"} ${jpeg.width}x${jpeg.height} q=${jpeg.quality} ${jpeg.bytes.byteLength}b base64=${b64.length}c`);
 
     const previousCoverUrl = await fetchSpotifyCoverUrl(pl.spotify_playlist_id, token);
 
@@ -164,9 +170,10 @@ Deno.serve(async (req) => {
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "image/jpeg" },
       body: b64,
     });
+    const respText = await resp.text().catch(() => "");
+    console.log(`[cover] Spotify resposta status=${resp.status} body="${respText.slice(0, 200)}"`);
     if (!resp.ok && resp.status !== 202) {
-      const t = await resp.text();
-      return jr({ ok: false, error: `Spotify ${resp.status}: ${t.slice(0, 300)}` }, 502);
+      return jr({ ok: false, error: `Spotify ${resp.status}: ${respText.slice(0, 300)}` }, 502);
     }
 
     const spotifyCoverUrl = await waitForSpotifyCover(pl.spotify_playlist_id, token, previousCoverUrl);
