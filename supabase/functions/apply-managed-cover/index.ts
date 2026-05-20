@@ -33,6 +33,21 @@ function uint8ToBase64(buf: Uint8Array): string {
 
 type EncodedCover = { bytes: Uint8Array; width: number; height: number; quality: number };
 
+async function visualDistance(a: EncodedCover, b: EncodedCover): Promise<number> {
+  const ai = await resize(await decodeJpeg(a.bytes), { width: 64, height: 64, method: "lanczos3" });
+  const bi = await resize(await decodeJpeg(b.bytes), { width: 64, height: 64, method: "lanczos3" });
+  let sum = 0;
+  let count = 0;
+  for (let i = 0; i < ai.data.length && i < bi.data.length; i += 4) {
+    for (let c = 0; c < 3; c++) {
+      const d = ai.data[i + c] - bi.data[i + c];
+      sum += d * d;
+      count++;
+    }
+  }
+  return Math.sqrt(sum / Math.max(1, count));
+}
+
 async function imageToCleanJpeg(buf: Uint8Array, contentType: string): Promise<EncodedCover> {
   const isPng = /png/i.test(contentType) || (buf[0] === 0x89 && buf[1] === 0x50);
   const imageData = isPng ? await decodePng(buf) : await decodeJpeg(buf);
