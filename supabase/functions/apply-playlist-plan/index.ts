@@ -7,7 +7,7 @@
 //   limit_add?: number (default 15, max 50),
 // }
 //
-// Ordem do "all": remove → demote → promote → add (executado em sequência,
+// Ordem do "all": add → remove → demote → promote (executado em sequência,
 // parando no primeiro erro fatal, mas retornando relatório por etapa).
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -248,21 +248,22 @@ Deno.serve(async (req) => {
         report.steps.push({ action: "add", skipped: true, reason: "sem sugestões" });
         return;
       }
+      await ensureCurrent();
       const uris = addItems.map((s) => `spotify:track:${s.spotify_track_id}`);
       const res = await addPlaylistTracks(spId, uris, token, { position: 0 });
       report.steps.push({ action: "add", added: uris.length });
       report.snapshot_id = res?.snapshot_id ?? report.snapshot_id;
-      if (currentRefs) currentRefs = [
+      currentRefs = [
         ...uris.map((uri) => ({ uri, id: uri.split(":").pop() ?? null })),
-        ...currentRefs,
+        ...(currentRefs ?? []),
       ];
     }
 
     try {
+      if (action === "add" || action === "all") await doAdd();
       if (action === "remove" || action === "all") await doRemove();
       if (action === "demote" || action === "all") await doReorder("demote");
       if (action === "promote" || action === "all") await doReorder("promote");
-      if (action === "add" || action === "all") await doAdd();
     } catch (e) {
       const msg = (e as Error).message;
       const hint = msg.includes("403")
