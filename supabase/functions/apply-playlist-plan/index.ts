@@ -168,15 +168,16 @@ Deno.serve(async (req) => {
         report.steps.push({ action: "remove", skipped: true, reason: "nada a remover" });
         return;
       }
-      // Spotify aceita até 100 por chamada
+      // Spotify aceita até 100 por chamada. O endpoint atual de remoção é
+      // /items e o corpo precisa ser { items: [{ uri }] }.
       const uris = removeItems.map((t) => `spotify:track:${t.spotify_track_id}`);
       const chunks: string[][] = [];
       for (let i = 0; i < uris.length; i += 100) chunks.push(uris.slice(i, i + 100));
       let removed = 0;
       for (const ch of chunks) {
         const res = await spotifyFetch(
-          `https://api.spotify.com/v1/playlists/${spId}/tracks`,
-          { method: "DELETE", body: JSON.stringify({ tracks: ch.map((uri) => ({ uri })) }) },
+          `https://api.spotify.com/v1/playlists/${spId}/items`,
+          { method: "DELETE", body: JSON.stringify({ items: ch.map((uri) => ({ uri })) }) },
           token,
         );
         removed += ch.length;
