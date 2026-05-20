@@ -256,7 +256,7 @@ export default function Operacao() {
             variant="outline"
             size="icon"
             className="rounded-full h-9 w-9"
-            onClick={load}
+            onClick={() => load()}
             disabled={loading}
             aria-label="Recarregar"
             title="Recarregar"
