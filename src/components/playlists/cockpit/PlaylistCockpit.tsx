@@ -915,9 +915,10 @@ const ACTION_META = {
   add: { label: "Adicionar", Icon: Plus, tone: "border-primary/50 bg-primary/15 text-primary", hint: "Faixas dominando o nicho" },
 } as const;
 
-function ActionCard({ kind, count, hrefId }: { kind: keyof typeof ACTION_META; count: number; hrefId: string }) {
+function ActionCard({ kind, count, detected, hrefId }: { kind: keyof typeof ACTION_META; count: number; detected?: number; hrefId: string }) {
   const m = ACTION_META[kind];
-  const disabled = count === 0;
+  const disabled = count === 0 && (detected ?? 0) === 0;
+  const hasMore = detected != null && detected > count;
   return (
     <a
       href={`#${hrefId}`}
@@ -937,10 +938,17 @@ function ActionCard({ kind, count, hrefId }: { kind: keyof typeof ACTION_META; c
         <span className="text-[10px] uppercase tracking-wider font-bold">{m.label}</span>
       </div>
       <div className="text-3xl font-bold tabular-nums leading-none">{count}</div>
-      <div className="text-[11px] opacity-80 mt-1.5 leading-snug">{m.hint}</div>
+      {hasMore ? (
+        <div className="text-[11px] opacity-80 mt-1.5 leading-snug">
+          de {detected} detectadas · cap deste ciclo
+        </div>
+      ) : (
+        <div className="text-[11px] opacity-80 mt-1.5 leading-snug">{m.hint}</div>
+      )}
     </a>
   );
 }
+
 
 // -------- buckets --------
 function BucketShell({
