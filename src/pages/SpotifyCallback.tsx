@@ -57,8 +57,13 @@ export default function SpotifyCallback() {
       return;
     }
 
+    // Apps com slug são SEMPRE conexão administrativa (gerenciada via Settings).
+    // O state é validado no servidor (tabela spotify_oauth_states) — não precisamos
+    // checar localStorage aqui. Isso replica o fluxo legado de /settings?spotify_callback=1
+    // que já funciona para a NexEngine há semanas.
+    const isAdminAppConnection = !!slug;
     const stored = consumeStoredState();
-    const isSettingsConnection = !!settingsReturn;
+    const isSettingsConnection = isAdminAppConnection || !!settingsReturn;
     if (!isSettingsConnection && (!stored || stored !== state)) {
       setStatus("error");
       setError("Sessão de autorização expirou. Tente conectar novamente.");
