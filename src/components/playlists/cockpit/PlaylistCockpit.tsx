@@ -209,6 +209,30 @@ export function PlaylistCockpit({
 
   useEffect(() => { loadLatest(); }, [loadLatest]);
 
+  // Quando o diagnóstico chega, escolhe a aba inicial uma única vez.
+  const [initialTabSet, setInitialTabSet] = useState(false);
+  useEffect(() => {
+    if (!initialTabSet && diag) {
+      setActiveTab(diag.raw?.market_insights ? "mercado" : "identidade");
+      setInitialTabSet(true);
+    }
+  }, [diag, initialTabSet]);
+
+  // Pula da aba Mercado pro card correspondente no Plano de ação.
+  const jumpToPlanAdd = useCallback((trackId?: string) => {
+    setActiveTab("plano");
+    setTimeout(() => {
+      const target = trackId
+        ? document.querySelector(`[data-add-track-id="${trackId}"]`)
+        : document.getElementById("bucket-add");
+      target?.scrollIntoView({ behavior: "smooth", block: "center" });
+      if (trackId && target) {
+        target.classList.add("ring-2", "ring-primary/60");
+        setTimeout(() => target.classList.remove("ring-2", "ring-primary/60"), 1800);
+      }
+    }, 80);
+  }, []);
+
   async function runDiagnose() {
     setRunning(true);
     try {
