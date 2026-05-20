@@ -169,10 +169,22 @@ Deno.serve(async (req) => {
     let jpeg: EncodedCover;
     try { jpeg = await fetchAsCleanJpeg(imageUrl); }
     catch (e) { return jr({ ok: false, error: (e as Error).message }, 400); }
+    const previousCoverUrl = await fetchSpotifyCoverUrl(pl.spotify_playlist_id, token);
+    if (previousCoverUrl) {
+      try {
+        const currentJpeg = await fetchAsCleanJpeg(previousCoverUrl);
+        const distance = await visualDistance(jpeg, currentJpeg);
+        console.log(`[cover] visual-distance=${distance.toFixed(2)} selected=${imageUrl} current=${previousCoverUrl}`);
+        if (distance < 2) {
+          return jr({ ok: true, unchanged: true, confirmed: true, cover_url: previousCoverUrl, message: "Essa imagem já é a capa atual da playlist." });
+        }
+      } catch (e) {
+        console.warn(`[cover] comparação visual falhou: ${(e as Error).message}`);
+      }
+    }
+
     const b64 = uint8ToBase64(jpeg.bytes);
     console.log(`[cover] PUT ${pl.spotify_playlist_id} owner=${ownerId ?? "?"} ${jpeg.width}x${jpeg.height} q=${jpeg.quality} ${jpeg.bytes.byteLength}b base64=${b64.length}c`);
-
-    const previousCoverUrl = await fetchSpotifyCoverUrl(pl.spotify_playlist_id, token);
 
     const resp = await fetch(`https://api.spotify.com/v1/playlists/${pl.spotify_playlist_id}/images`, {
       method: "PUT",
