@@ -56,7 +56,7 @@ export function CampaignFullPlanCard({
 
   function copyShareLink() {
     if (!shareToken) return;
-    const url = `${window.location.origin}/p/plano/${shareToken}`;
+    const url = `https://engine.nexcreatorx.com/p/plano/${shareToken}`;
     navigator.clipboard.writeText(url);
     setCopied(true);
     toast({
