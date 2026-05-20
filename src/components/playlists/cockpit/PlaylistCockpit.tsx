@@ -23,6 +23,8 @@ import { CuratorialStateBadge, CooldownChip } from "@/components/playlist/Curato
 import { AdjustmentTimeline } from "@/components/playlists/cockpit/AdjustmentTimeline";
 import { OnboardingChecklist } from "@/components/playlists/cockpit/OnboardingChecklist";
 import { SeoExperimentCard } from "@/components/playlists/cockpit/SeoExperimentCard";
+import { GenrePicker } from "@/components/playlists/cockpit/GenrePicker";
+
 
 // -------------------- types --------------------
 type AnalysisTrack = {
