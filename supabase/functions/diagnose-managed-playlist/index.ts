@@ -423,6 +423,23 @@ Deno.serve(async (req) => {
       const end = zone === "tail" ? Math.max(a, totalTracks - 1) : b;
       return Math.floor((a + end) / 2);
     }
+    // Distribui N posições espalhadas naturalmente dentro de uma zona,
+    // evitando colisão/empilhamento. Comportamento de editor humano:
+    //   1 item  → meio da zona
+    //   N itens → espaçamento uniforme entre [a, end]
+    //   N > span → satura nos limites sem duplicar
+    function distributeInZone(zone: Zone, count: number): number[] {
+      if (count <= 0) return [];
+      const [a, b] = ZONE_RANGES[zone];
+      const end = zone === "tail" ? Math.max(a, totalTracks - 1) : b;
+      const span = Math.max(0, end - a);
+      if (count === 1) return [Math.floor((a + end) / 2)];
+      const positions: number[] = [];
+      for (let i = 0; i < count; i++) {
+        positions.push(a + Math.round((i * span) / (count - 1)));
+      }
+      return positions;
+    }
 
     type TrackScores = {
       anchor: number; premium: number; support: number; tail: number;
