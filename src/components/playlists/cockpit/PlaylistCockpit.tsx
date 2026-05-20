@@ -651,7 +651,15 @@ export function PlaylistCockpit({
             {/* ============ MERCADO ============ */}
             {market && (
               <TabsContent value="mercado" className="space-y-4 mt-0">
-                <MarketBlock market={market} idealRange={idealRange} />
+                <MarketBlock
+                  market={market}
+                  idealRange={idealRange}
+                  currentTrackKeys={currentTrackKeys}
+                  currentArtistKeys={currentArtistKeys}
+                  suggestionByTitle={suggestionByTitle}
+                  onJumpToAdd={jumpToPlanAdd}
+                />
+
               </TabsContent>
             )}
 
