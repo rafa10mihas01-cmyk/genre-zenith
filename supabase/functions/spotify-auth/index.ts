@@ -364,6 +364,7 @@ Deno.serve(async (req) => {
       const body = await req.json().catch(() => ({}));
       const id: string | undefined = body.id;
       const name: string = (body.name ?? "").trim();
+      const slug: string | null = body.slug ? String(body.slug).trim() : null;
       const client_id: string = (body.client_id ?? "").trim();
       const client_secret: string = (body.client_secret ?? "").trim();
       const max_accounts: number = Number(body.max_accounts ?? 5);
