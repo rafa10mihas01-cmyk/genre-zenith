@@ -200,6 +200,23 @@ export function SpotifyAppsManager({ onChange, onConnectAccount }: { onChange?: 
                   {window.location.origin}/spotify/callback
                 </span>
               </span>
+              {scopes.length > 0 && (
+                <span className="block mt-2 p-2 rounded-md bg-muted/40 border border-border/40">
+                  <span className="text-[10px] uppercase tracking-wide text-muted-foreground/80 block mb-1">
+                    Escopos solicitados na autorização ({scopes.length})
+                  </span>
+                  <span className="flex flex-wrap gap-1">
+                    {scopes.map((s) => (
+                      <span key={s} className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
+                        {s}
+                      </span>
+                    ))}
+                  </span>
+                  <span className="block mt-1.5 text-[10px] text-muted-foreground leading-relaxed">
+                    Esses escopos são pedidos a cada conta no momento do login. Não precisa configurar nada no Spotify Developer — basta que o app esteja em <strong>Development mode</strong> e as contas adicionadas em <em>Users and Access</em>.
+                  </span>
+                </span>
+              )}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 pt-2">
