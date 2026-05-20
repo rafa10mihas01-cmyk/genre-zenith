@@ -38,6 +38,7 @@ export function SpotifyAppsManager({ onChange, onConnectAccount }: { onChange?: 
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Partial<SpotifyApp> | null>(null);
   const [saving, setSaving] = useState(false);
+  const [scopes, setScopes] = useState<string[]>([]);
 
   async function load() {
     setLoading(true);
@@ -51,7 +52,12 @@ export function SpotifyAppsManager({ onChange, onConnectAccount }: { onChange?: 
     }
   }
 
-  useEffect(() => { void load(); }, []);
+  async function loadScopes() {
+    const j = await callAuth("mode=scopes");
+    if (j?.ok && Array.isArray(j.scopes)) setScopes(j.scopes);
+  }
+
+  useEffect(() => { void load(); void loadScopes(); }, []);
 
   async function save() {
     if (!editing) return;
