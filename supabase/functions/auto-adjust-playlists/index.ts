@@ -48,7 +48,7 @@ async function spotifyFetch(token: string, url: string, init?: RequestInit) {
 async function getPlaylistTracks(token: string, playlistId: string): Promise<string[]> {
   const uris: string[] = [];
   let url: string | null =
-    `https://api.spotify.com/v1/playlists/${playlistId}/tracks?fields=items(track(uri)),next&limit=100`;
+    `https://api.spotify.com/v1/playlists/${playlistId}/items?fields=items(track(uri)),next&limit=100`;
   while (url) {
     const r = await spotifyFetch(token, url);
     if (!r.ok) break;
@@ -85,7 +85,7 @@ async function replaceTracks(token: string, playlistId: string, uris: string[]) 
   const first = uris.slice(0, 100);
   const r = await spotifyFetch(
     token,
-    `https://api.spotify.com/v1/playlists/${playlistId}/tracks`,
+    `https://api.spotify.com/v1/playlists/${playlistId}/items`,
     { method: "PUT", body: JSON.stringify({ uris: first }) },
   );
   if (!r.ok) return false;
@@ -94,7 +94,7 @@ async function replaceTracks(token: string, playlistId: string, uris: string[]) 
     const chunk = uris.slice(i, i + 100);
     const rr = await spotifyFetch(
       token,
-      `https://api.spotify.com/v1/playlists/${playlistId}/tracks`,
+      `https://api.spotify.com/v1/playlists/${playlistId}/items`,
       { method: "POST", body: JSON.stringify({ uris: chunk }) },
     );
     if (!rr.ok) return false;
