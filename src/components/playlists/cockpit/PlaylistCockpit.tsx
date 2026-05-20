@@ -381,6 +381,14 @@ export function PlaylistCockpit({
   const health = HEALTH_META[diag?.raw?.health_status ?? "saudavel"];
   const market = diag?.raw?.market_insights;
   const idealRange = market?.ideal_track_count_range;
+  // Sets pra cruzar Mercado ↔ Plano: o que já está, o que está sugerido.
+  const currentTrackKeys = useMemo(() => new Set(analysis.map((t) => norm(t.track_name))), [analysis]);
+  const currentArtistKeys = useMemo(() => new Set(analysis.map((t) => norm(t.artist_name))), [analysis]);
+  const suggestionByTitle = useMemo(() => {
+    const m = new Map<string, string>(); // norm(title) → spotify_track_id
+    for (const s of buckets.add) m.set(norm(s.nome), s.spotify_track_id);
+    return m;
+  }, [buckets.add]);
 
   return (
     <div className="mx-auto w-full max-w-[1600px] px-4 md:px-8 py-4 md:py-5 space-y-4">
