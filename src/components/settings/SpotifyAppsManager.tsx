@@ -65,7 +65,7 @@ function AppRedirectUrisPanel({ slug, compact = false }: { slug: string; compact
   async function copyAll() {
     try {
       await navigator.clipboard.writeText(urls.map((u) => u.url).join("\n"));
-      toast.success("3 URLs copiadas");
+      toast.success(`${urls.length} URLs copiadas`);
     } catch {
       toast.error("Falha ao copiar");
     }
@@ -82,7 +82,7 @@ function AppRedirectUrisPanel({ slug, compact = false }: { slug: string; compact
           onClick={copyAll}
           className="text-[10px] inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
         >
-          <Copy className="h-2.5 w-2.5" /> Copiar 3
+          <Copy className="h-2.5 w-2.5" /> Copiar {urls.length}
         </button>
       </div>
       <div className="space-y-1">
