@@ -1082,7 +1082,7 @@ function BucketRemove({ items, applying, onApplyAll }: {
           target={null}
           title={t.track_name ?? "—"}
           artist={t.artist_name ?? "—"}
-          reason={(t.reasons ?? [])[0] ?? "baixa performance"}
+          reason={shortReason(t, "remove")}
           action={<span className="text-[10px] text-muted-foreground uppercase tracking-wider">Remover</span>}
         />
       ))}
