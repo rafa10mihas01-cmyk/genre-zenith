@@ -1125,7 +1125,7 @@ function BucketReorder({ kind, items, totalTracks, applying, onApplyAll }: {
           target={t.target_position ?? (kind === "promote" ? 5 : Math.max(30, totalTracks - 10))}
           title={t.track_name ?? "—"}
           artist={t.artist_name ?? "—"}
-          reason={(t.reasons ?? []).join(" · ") || "—"}
+          reason={shortReason(t, kind)}
           action={
             <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
               {kind === "promote" ? "Promover" : "Rebaixar"}
