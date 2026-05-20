@@ -510,8 +510,8 @@ export function DealHistorySheet({
     () => (todayBreakdown?.rows ?? []).filter((r) => r.match_status !== "curator"),
     [todayBreakdown],
   );
-  const sumWindow = (rows: typeof curatorBreakdownRows, w: "24h" | "7d" | "28d") =>
-    rows.reduce((s, r) => s + (w === "24h" ? r.plays_24h ?? 0 : w === "7d" ? r.plays_7d ?? 0 : r.total_delivered || r.plays_28d || 0), 0);
+  const sumWindow = (rows: typeof curatorBreakdownRows, w: "7d" | "28d") =>
+    rows.reduce((s, r) => s + (w === "7d" ? r.plays_7d ?? 0 : r.total_delivered || r.plays_28d || 0), 0);
   const curatorWindowTotal = sumWindow(curatorBreakdownRows, perfWindow);
   const algoWindowTotal = sumWindow(algoBreakdownRows, perfWindow);
 
