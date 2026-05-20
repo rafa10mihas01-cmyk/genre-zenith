@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
     const token = await getSpotifyToken();
     const out: any[] = [];
     let url: string | null =
-      `https://api.spotify.com/v1/playlists/${pl.spotify_playlist_id}/tracks` +
+      `https://api.spotify.com/v1/playlists/${pl.spotify_playlist_id}/items` +
       `?fields=items(added_at,track(id,name,duration_ms,artists(name),album(images))),next&limit=100`;
     while (url) {
       const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
