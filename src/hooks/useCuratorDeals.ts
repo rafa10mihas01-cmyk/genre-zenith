@@ -733,7 +733,7 @@ export function useCuratorDeals() {
             ...baseRow,
             auto_collect: true,
             auto_collect_status: "idle",
-            auto_collect_interval_minutes: 1440,
+            auto_collect_interval_minutes: 2880,
             next_auto_collect_at: new Date().toISOString(),
           });
         }
