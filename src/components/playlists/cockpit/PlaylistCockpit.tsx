@@ -49,6 +49,8 @@ type Suggestion = {
   from_missing_artist?: boolean;
   target_zone?: Zone;
   target_zone_label?: string;
+  function_role?: string;
+  popularity?: number | null;
 };
 
 type Diagnosis = {
