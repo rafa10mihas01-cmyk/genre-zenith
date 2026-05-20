@@ -734,13 +734,15 @@ export function DealHistorySheet({
                         <div className="min-w-0">
                           <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Total</div>
                           <div className="text-lg sm:text-2xl font-semibold text-primary tabular-nums leading-tight mt-1 whitespace-nowrap overflow-hidden text-ellipsis">
-                            {fmtCompact(
-                              perfWindow === "24h"
-                                ? todayBreakdown.total_24h
-                                : perfWindow === "7d"
-                                ? todayBreakdown.total_7d
-                                : todayBreakdown.total_28d,
-                            )}
+                            {(() => {
+                              const v =
+                                perfWindow === "24h"
+                                  ? todayBreakdown.total_24h
+                                  : perfWindow === "7d"
+                                  ? todayBreakdown.total_7d
+                                  : todayBreakdown.total_28d;
+                              return v == null ? "—" : fmtCompact(v);
+                            })()}
                           </div>
                           <div className="text-[10px] text-muted-foreground mt-0.5">janela {perfWindow}</div>
                         </div>
