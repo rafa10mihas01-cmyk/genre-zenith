@@ -137,7 +137,7 @@ export function KpiBig({
           <span
             className={cn(
               "tabular-nums leading-tight truncate max-w-full block",
-              isHero  ? "text-3xl md:text-4xl font-semibold tracking-tight"
+              isHero  ? "text-2xl sm:text-3xl md:text-4xl font-semibold tracking-tight"
               : isQuiet ? "text-lg font-medium"
               : "text-lg sm:text-2xl font-bold",
             )}
