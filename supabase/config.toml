@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.campaign-plan-api]
 verify_jwt = false
+
+[functions.campaign-daily-plan]
+verify_jwt = false
