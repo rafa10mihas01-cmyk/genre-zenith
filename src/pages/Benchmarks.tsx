@@ -237,30 +237,32 @@ export default function Benchmarks() {
 
               <div className="space-y-3">
                 <div>
-                  <div className="flex items-center gap-1.5 text-xs font-medium mb-1.5">
-                    <Users className="h-3.5 w-3.5 text-muted-foreground" /> Seguidores
+                  <div className="flex items-center gap-1.5 text-xs font-medium mb-1.5 text-muted-foreground">
+                    <Users className="h-3.5 w-3.5" /> Seguidores por playlist
                   </div>
-                  <PercentileBar
+                  <PercentileTriad
                     p50={row.followers_p50}
                     p75={row.followers_p75}
                     p90={row.followers_p90}
+                    unit="seg."
                   />
                 </div>
                 <div>
-                  <div className="flex items-center gap-1.5 text-xs font-medium mb-1.5">
-                    <ListMusic className="h-3.5 w-3.5 text-muted-foreground" /> Faixas por playlist
+                  <div className="flex items-center gap-1.5 text-xs font-medium mb-1.5 text-muted-foreground">
+                    <ListMusic className="h-3.5 w-3.5" /> Faixas por playlist
                   </div>
-                  <PercentileBar
+                  <PercentileTriad
                     p50={row.tracks_p50}
                     p75={row.tracks_p75}
                     p90={row.tracks_p90}
+                    unit="faixas"
                   />
                 </div>
               </div>
 
-              <div className="flex items-center justify-between border-t pt-3 text-[11px] text-muted-foreground">
-                <span>Plays/seguidor estimado</span>
-                <span className="font-medium text-foreground">
+              <div className="flex items-center justify-between border-t border-border pt-3 text-[11px] text-muted-foreground">
+                <span>Plays / seguidor (estimado)</span>
+                <span className="font-medium text-foreground tabular-nums">
                   {Number(row.plays_per_follower_estimate).toFixed(3)}
                 </span>
               </div>
