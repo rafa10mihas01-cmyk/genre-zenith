@@ -1282,7 +1282,7 @@ export default function CuratorPage() {
         )}
 
         {/* Banner pós-cadastro: contador + aviso permanente */}
-        {hasCuratorPlaylists && (
+        {activeTab === "cadastro" && hasCuratorPlaylists && (
           <div className="nx-card !p-3 flex items-center justify-between gap-3 border-border/60">
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center ring-1 ring-primary/20 shrink-0">
