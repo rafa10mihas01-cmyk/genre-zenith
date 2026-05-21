@@ -150,13 +150,46 @@ type ProgressPerSong = {
   progress_pct: number;
 };
 
+type SnapshotPlaylistEntry = {
+  playlist_id: string;
+  playlist_name: string;
+  image_url: string | null;
+  spotify_url: string | null;
+  spotify_owner_name: string | null;
+  followers: number | null;
+  plays: number | null;
+  plays_7d: number | null;
+};
+
 type SnapshotHistoryEntry = {
   captured_at: string;
   is_baseline: boolean;
   playlists_count: number;
   total_plays: number;
   print_url: string | null;
+  print_urls?: string[] | null;
+  note?: string | null;
+  playlists?: SnapshotPlaylistEntry[];
 };
+
+function cleanSnapshotNote(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  let s = String(raw).trim();
+  s = s.replace(/^\[bot[^\]]*\]\s*/i, "").trim();
+  if (!s) return null;
+  const low = s.toLowerCase();
+  if (low === "coleta diária" || low === "coleta diaria" || low === "auto-collect") return "coleta";
+  if (low === "baseline inicial") return "baseline";
+  return s;
+}
+
+function formatFollowers(n: number | null | undefined): string {
+  if (n == null || !Number.isFinite(Number(n))) return "—";
+  const v = Number(n);
+  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1).replace(".", ",")}M`;
+  if (v >= 1_000) return `${(v / 1_000).toFixed(1).replace(".", ",")}k`;
+  return v.toLocaleString("pt-BR");
+}
 
 function formatPlays(n: number | null | undefined): string {
   if (n == null || !Number.isFinite(Number(n))) return "0";
