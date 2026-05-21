@@ -1937,6 +1937,7 @@ export default function CuratorPage() {
 
 
         {/* Histórico de prints — vem da RPC get_curator_deal_snapshot_history */}
+        {activeTab === "historico" && (
         <Card className="nx-card !p-0 border-border">
           <CardContent className="p-5 sm:p-6 pt-5 sm:pt-6 md:pt-6 space-y-5">
             <div className="flex items-center justify-between">
