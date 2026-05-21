@@ -310,31 +310,24 @@ export default function ClientCampaignPage() {
                   <>
                     <div className="flex items-center gap-4">
                       {headerCover ? (
-                        <div className="relative shrink-0">
-                          <div
-                            aria-hidden
-                            className="absolute inset-0 -z-10 rounded-xl blur-xl opacity-50"
-                            style={{ background: "rgba(29,185,84,0.35)" }}
-                          />
-                          <img
-                            src={headerCover}
-                            alt={headerName}
-                            className="w-[72px] h-[72px] rounded-xl object-cover ring-1 ring-border"
-                            loading="eager"
-                          />
-                        </div>
+                        <img
+                          src={headerCover}
+                          alt={headerName}
+                          className="w-[72px] h-[72px] rounded-xl object-cover ring-1 ring-border shrink-0"
+                          loading="eager"
+                        />
                       ) : (
                         <div className="w-[72px] h-[72px] rounded-xl bg-muted shrink-0 flex items-center justify-center ring-1 ring-border">
                           <Music2 className="h-6 w-6 text-muted-foreground" />
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
-                        <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70 mb-1 inline-flex items-center gap-2">
+                        <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70 mb-1">
                           {selectedSong ? "Música selecionada" : "Música"}
                         </div>
-                        <h1 className="text-[17px] sm:text-[18px] font-semibold leading-tight tracking-tight truncate">
+                        <h2 className="text-[17px] sm:text-[18px] font-semibold leading-tight tracking-tight truncate">
                           {headerName}
-                        </h1>
+                        </h2>
                         {headerArtist && (
                           <p className="text-[12px] text-muted-foreground truncate mt-0.5 leading-snug">
                             {headerArtist}
@@ -352,8 +345,8 @@ export default function ClientCampaignPage() {
 
                     <div className="h-px bg-border" />
 
-                    {/* HERO — número neutro + microcopy temporal + frase humana */}
-                    <div className={cn("rounded-xl p-4 ring-1", semaforo.bg, semaforo.ring)}>
+                    {/* Número da meta — neutro, sem caixa colorida (padrão sistema interno) */}
+                    <div>
                       <div className="flex items-baseline gap-1.5 flex-wrap">
                         <span className="text-[30px] sm:text-[36px] font-bold tabular-nums leading-none tracking-tight text-foreground">
                           {formatFullPlays(progress.delivered)}
@@ -365,7 +358,7 @@ export default function ClientCampaignPage() {
                       <p className="mt-1.5 text-[11px] text-muted-foreground">
                         Plays entregues desde o início da campanha
                       </p>
-                      <div className="mt-3 h-1 rounded-full bg-background/40 overflow-hidden">
+                      <div className="mt-3 h-1 rounded-full bg-muted overflow-hidden">
                         <div
                           className={cn("h-full rounded-full transition-all duration-500", semaforo.dot)}
                           style={{ width: `${Math.min(100, progress.pct)}%` }}
