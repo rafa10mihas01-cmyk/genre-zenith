@@ -1450,7 +1450,7 @@ export default function CuratorPage() {
         </Card>
         )}
         {/* Performance por playlist — vem direto da RPC */}
-        {perPlaylistCurator.length > 0 && (
+        {activeTab === "entrega" && perPlaylistCurator.length > 0 && (
           <Card className="nx-card !p-0 border-border">
             <CardContent className="p-5 sm:p-6 pt-5 sm:pt-6 md:pt-6 space-y-4">
               <div className="w-full flex items-center justify-between gap-4">
