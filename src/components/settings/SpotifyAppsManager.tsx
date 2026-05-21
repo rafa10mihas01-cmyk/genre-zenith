@@ -361,7 +361,7 @@ export function SpotifyAppsManager({
                       Nenhuma conta vinculada ainda. Use "Conectar conta" acima.
                     </p>
                   ) : (
-                    <ul className="space-y-1.5">
+                    <ul className="space-y-1.5 max-h-[210px] overflow-y-auto pr-1 -mr-1 nx-scroll">
                       {appAccounts.map((acc) => {
                         const grantedScopes: string[] = (acc.scope ?? "").split(/\s+/).filter(Boolean);
                         const missingScopes = requiredScopes.filter((s) => !grantedScopes.includes(s));
