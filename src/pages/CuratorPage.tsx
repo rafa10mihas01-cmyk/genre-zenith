@@ -561,6 +561,13 @@ export default function CuratorPage() {
   // FASE 1 — apenas playlists oficialmente cadastradas pelo curador (match_status='curator')
   // alimentam progresso/KPIs/Performance. Sem essas, o portal esconde tudo e pede cadastro.
   const hasCuratorPlaylists = curatorPlaylists.length > 0;
+  // Default da tab: se não tem playlist cadastrada, abre em "Cadastro";
+  // se já tem, abre em "Entrega". Só roda uma vez no primeiro load.
+  useEffect(() => {
+    if (loading || initialTabSetRef.current) return;
+    initialTabSetRef.current = true;
+    setActiveTab(hasCuratorPlaylists ? "entrega" : "cadastro");
+  }, [loading, hasCuratorPlaylists]);
   const curatorOwnedPlaylistIds = useMemo(() => {
     const ids = new Set<string>();
     for (const p of playlists) {
