@@ -1523,6 +1523,7 @@ export default function CuratorPage() {
 
 
         {/* Playlists do curador */}
+        {activeTab === "entrega" && (
         <Card className="nx-card !p-0 border-border">
           <CardContent className="p-5 sm:p-6 pt-5 sm:pt-6 md:pt-6 space-y-4">
             <div className="w-full flex items-center justify-between gap-4 flex-wrap">
