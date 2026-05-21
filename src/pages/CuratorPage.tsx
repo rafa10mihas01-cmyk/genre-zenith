@@ -2142,6 +2142,7 @@ export default function CuratorPage() {
             )}
           </CardContent>
         </Card>
+        )}
 
         {/* Footer */}
         <footer className="pt-6 pb-4 flex flex-col items-center justify-center gap-1.5 text-center">
