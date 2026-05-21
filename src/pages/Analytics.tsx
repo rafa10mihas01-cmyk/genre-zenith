@@ -9,7 +9,8 @@ import { PageContainer } from "@/components/PageContainer";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { StatusDot } from "@/components/ui/status-dot";
-import { LineChart as LineIcon, RefreshCw, Handshake } from "lucide-react";
+import { LineChart as LineIcon, RefreshCw, Handshake, Activity, Zap, TrendingUp, DollarSign } from "lucide-react";
+import { KpiBig } from "@/components/KpiBig";
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from "recharts";
