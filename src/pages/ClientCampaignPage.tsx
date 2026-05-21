@@ -561,17 +561,19 @@ export default function ClientCampaignPage() {
                         labelStyle={{ color: "hsl(var(--muted-foreground))" }}
                         formatter={(v: number) => [formatFullPlays(v), "Plays"]}
                       />
-                      {progress.target > 0 && (
+                      {/* Linha de meta só aparece quando já passou de 20% — antes disso parece inalcançável */}
+                      {progress.target > 0 && progress.pct >= 20 && (
                         <ReferenceLine
                           y={progress.target}
                           stroke="hsl(var(--primary))"
                           strokeDasharray="4 4"
-                          strokeOpacity={0.5}
+                          strokeOpacity={0.35}
                           label={{
                             value: "Meta",
                             position: "right",
                             fill: "hsl(var(--primary))",
                             fontSize: 10,
+                            fillOpacity: 0.6,
                           }}
                         />
                       )}
