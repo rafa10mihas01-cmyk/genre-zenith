@@ -194,13 +194,12 @@ function SectionHeader({ icon: Icon, title, subtitle }: { icon: typeof Activity;
   );
 }
 
-function SubTabs<T extends string>({
-  value, onChange, options,
-}: {
+function SubTabs<T extends string>(props: {
   value: T;
   onChange: (v: T) => void;
   options: { id: T; label: string; icon: typeof Activity }[];
 }) {
+  const { value, onChange, options } = props;
   return (
     <div className="inline-flex items-center gap-1 p-1 rounded-lg bg-muted/30 border border-border">
       {options.map((o) => {
