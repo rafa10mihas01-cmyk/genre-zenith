@@ -2009,7 +2009,10 @@ export default function CuratorPage() {
                                   : (entry.print_url ? [entry.print_url] : []);
                                 const cleanNote = cleanSnapshotNote(entry.note);
                                 const snapPlaylists = entry.playlists ?? [];
-                                const coverUrl = prints[0] ?? snapPlaylists[0]?.image_url ?? null;
+                                const coverUrl =
+                                  selectedSong?.song_cover_url ??
+                                  songs[0]?.song_cover_url ??
+                                  null;
                                 return (
                                   <li key={entry.captured_at}>
                                     <details className="group/snap rounded-lg border border-border/50 bg-card overflow-hidden [&[open]>summary_.snapchev]:rotate-90">
