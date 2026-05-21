@@ -1248,7 +1248,7 @@ export default function CuratorPage() {
         )}
 
         {/* Estado vazio: sem playlists cadastradas pelo curador */}
-        {!hasCuratorPlaylists && (
+        {activeTab === "cadastro" && !hasCuratorPlaylists && (
           <Card className="nx-card !p-0 border-primary/40 animate-nx-heartbeat">
             <CardContent className="p-6 sm:p-8 pt-6 sm:pt-8 md:pt-8 flex flex-col items-center text-center gap-4">
               <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center ring-1 ring-primary/30">
