@@ -218,25 +218,30 @@ export default function ClientCampaignPage() {
   const remaining = Math.max(0, progress.target - progress.delivered);
   const isDone = progress.target > 0 && progress.delivered >= progress.target;
 
-  // Semáforo do status (mesmo padrão do CuratorPage)
+  // Status — sem vermelho destrutivo. Só verde (ok) ou âmbar suave (warn).
+  // Vermelho fica reservado pra erro real (campanha cancelada, dias sem print).
   const dailyAvg = progress.target_days > 0 ? progress.delivered / Math.max(1, progress.days_elapsed) : 0;
   const dailyGoal = progress.target_days > 0 ? progress.target / progress.target_days : 0;
   const dailyRatio = dailyGoal > 0 ? dailyAvg / dailyGoal : 1;
-  const statusKey: "ok" | "warn" | "low" = isDone
+  const statusKey: "ok" | "warn" = isDone
     ? "ok"
     : dailyGoal === 0
     ? "ok"
-    : dailyRatio >= 1
+    : dailyRatio >= 0.95
     ? "ok"
-    : dailyRatio >= 0.7
-    ? "warn"
-    : "low";
-  const statusMap = {
-    ok:   { dot: "bg-success",     text: "text-success",     ring: "ring-success/30",     bg: "bg-success/10",     label: isDone ? "Meta batida" : "Batendo a meta" },
-    warn: { dot: "bg-warning",     text: "text-warning",     ring: "ring-warning/30",     bg: "bg-warning/10",     label: "Atenção — abaixo da meta" },
-    low:  { dot: "bg-destructive", text: "text-destructive", ring: "ring-destructive/30", bg: "bg-destructive/10", label: "Abaixo da meta" },
-  } as const;
-  const semaforo = statusMap[statusKey];
+    : "warn";
+  const humanLabel: string = isDone
+    ? "Meta batida"
+    : progress.pace === "acelerando"
+      ? "Campanha acelerando"
+      : statusKey === "warn"
+        ? "Entregando abaixo do ritmo esperado"
+        : progress.delivered > 0
+          ? "Entrega estável"
+          : "Campanha em andamento";
+  const semaforo = statusKey === "ok"
+    ? { dot: "bg-success", text: "text-success", ring: "ring-success/25", bg: "bg-success/[0.05]", label: humanLabel }
+    : { dot: "bg-warning", text: "text-warning", ring: "ring-warning/25", bg: "bg-warning/[0.05]", label: humanLabel };
 
   return (
     <div className="relative min-h-screen bg-background py-8 sm:py-10 overflow-hidden">
