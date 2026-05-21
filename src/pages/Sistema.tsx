@@ -26,6 +26,7 @@ import Infraestrutura from "@/pages/Infraestrutura";
 import AdminAprendizado from "@/pages/AdminAprendizado";
 import { SeoLessonsPanel } from "@/components/sistema/SeoLessonsPanel";
 import { SpotifyReconnectBanner } from "@/components/sistema/SpotifyReconnectBanner";
+import { SystemKpis } from "@/components/sistema/SystemKpis";
 
 type SistemaTab = "visao-geral" | "motores" | "avancado" | "configuracoes";
 type MotorSub = "robo" | "coleta" | "execucao";
