@@ -1303,7 +1303,7 @@ export default function CuratorPage() {
 
 
         {/* Total acumulado (histórico) — separado visualmente do delta */}
-        {hasCuratorPlaylists && stats.hasBaseline && (
+        {activeTab === "entrega" && hasCuratorPlaylists && stats.hasBaseline && (
           <Card className="nx-card !p-0 border-border">
             <CardContent className="p-5 pt-5 md:pt-5 grid grid-cols-2 gap-4 divide-x divide-border">
               <div className="pr-2">
