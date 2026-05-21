@@ -184,13 +184,21 @@ export default function ClientCampaignPage() {
   };
 
   const chartData = useMemo(() => {
-    return series.map((p) => ({
-      date: new Date(p.date).toLocaleDateString("pt-BR", {
-        day: "2-digit",
-        month: "short",
-      }),
-      plays: p.delivered,
-    }));
+    // Curva acumulada monotônica: nunca cai. Dia sem print = patamar horizontal
+    // ("estável aguardando próximo print"), não queda. Mais honesto e calmante
+    // do que plotar delta diário, que finge "queda" quando só faltou coleta.
+    let running = 0;
+    return series.map((p) => {
+      const delta = Math.max(0, p.delivered || 0);
+      running += delta;
+      return {
+        date: new Date(p.date).toLocaleDateString("pt-BR", {
+          day: "2-digit",
+          month: "short",
+        }),
+        plays: running,
+      };
+    });
   }, [series]);
 
   if (loading) {
