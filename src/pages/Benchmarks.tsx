@@ -53,33 +53,46 @@ function GrowthBadge({ pct }: { pct: number | null }) {
   );
 }
 
-function PercentileBar({
+function PercentileTriad({
   p50,
   p75,
   p90,
+  unit,
   format = formatNumber,
 }: {
   p50: number | null;
   p75: number | null;
   p90: number | null;
+  unit: string;
   format?: (n: number) => string;
 }) {
-  if (!p90) return <div className="text-[11px] text-muted-foreground">—</div>;
-  const max = p90;
-  const w50 = p50 ? (p50 / max) * 100 : 0;
-  const w75 = p75 ? (p75 / max) * 100 : 0;
+  if (!p90) {
+    return <div className="text-[11px] text-muted-foreground">sem amostra suficiente</div>;
+  }
+  const cells: Array<{ label: string; hint: string; val: number | null; emphasis?: boolean }> = [
+    { label: "Típica", hint: "metade fica abaixo", val: p50 },
+    { label: "Forte", hint: "top 25%", val: p75, emphasis: true },
+    { label: "Topo", hint: "top 10%", val: p90 },
+  ];
   return (
-    <div className="space-y-1.5">
-      <div className="relative h-2 w-full overflow-hidden rounded-full bg-muted">
-        <div className="absolute inset-y-0 left-0 rounded-full bg-primary/30" style={{ width: "100%" }} />
-        <div className="absolute inset-y-0 left-0 rounded-full bg-primary/60" style={{ width: `${w75}%` }} />
-        <div className="absolute inset-y-0 left-0 rounded-full bg-primary" style={{ width: `${w50}%` }} />
-      </div>
-      <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-        <span>p50 {p50 ? format(p50) : "—"}</span>
-        <span>p75 {p75 ? format(p75) : "—"}</span>
-        <span>p90 {format(p90)}</span>
-      </div>
+    <div className="grid grid-cols-3 divide-x divide-border rounded-lg border border-border bg-muted/20">
+      {cells.map((c) => (
+        <div key={c.label} className="px-3 py-2.5">
+          <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+            {c.label}
+          </div>
+          <div
+            className={cn(
+              "mt-0.5 text-base font-semibold tabular-nums",
+              c.emphasis ? "text-foreground" : "text-foreground/80",
+            )}
+          >
+            {c.val != null ? format(c.val) : "—"}
+            <span className="ml-1 text-[10px] font-normal text-muted-foreground">{unit}</span>
+          </div>
+          <div className="mt-0.5 text-[10px] text-muted-foreground/80">{c.hint}</div>
+        </div>
+      ))}
     </div>
   );
 }
