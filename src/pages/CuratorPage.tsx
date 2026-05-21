@@ -16,6 +16,7 @@ import {
   ImageIcon,
   ClipboardPaste,
   Plus,
+  HelpCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
@@ -44,6 +45,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { NexEngineLogo } from "@/components/NexEngineLogo";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { CuratorNotificationsBell } from "@/components/public/CuratorNotificationsBell";
