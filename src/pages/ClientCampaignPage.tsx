@@ -357,38 +357,32 @@ export default function ClientCampaignPage() {
 
                     <div className="h-px bg-border" />
 
-                    {/* HERO STATUS — entregue / meta + barra (mesmo padrão Curador) */}
-                    <div className={cn("rounded-2xl p-5 ring-1", semaforo.bg, semaforo.ring)}>
-                      <div className="flex items-center justify-between gap-3 mb-3">
-                        <span className={cn("inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em]", semaforo.text)}>
-                          <span className={cn("h-2 w-2 rounded-full", semaforo.dot)} />
-                          {semaforo.label}
-                        </span>
-                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                          Plays entregues
-                        </span>
-                      </div>
-                      <div className="flex items-baseline gap-2 flex-wrap">
-                        <span className={cn("text-[34px] sm:text-[40px] font-bold tabular-nums leading-none tracking-tight", semaforo.text)}>
+                    {/* HERO — número neutro + microcopy temporal + frase humana */}
+                    <div className={cn("rounded-xl p-4 ring-1", semaforo.bg, semaforo.ring)}>
+                      <div className="flex items-baseline gap-1.5 flex-wrap">
+                        <span className="text-[30px] sm:text-[36px] font-bold tabular-nums leading-none tracking-tight text-foreground">
                           {formatFullPlays(progress.delivered)}
                         </span>
-                        <span className="text-[20px] sm:text-[22px] font-semibold tabular-nums text-muted-foreground leading-none">
+                        <span className="text-[16px] sm:text-[18px] font-semibold tabular-nums text-muted-foreground leading-none">
                           / {formatFullPlays(progress.target)}
                         </span>
-                        <span className="text-[11px] uppercase tracking-wider text-muted-foreground ml-1">
-                          entregue · meta total
-                        </span>
                       </div>
-                      <div className="mt-3 h-1.5 rounded-full bg-background/40 overflow-hidden">
+                      <p className="mt-1.5 text-[11px] text-muted-foreground">
+                        Plays entregues desde o início da campanha
+                      </p>
+                      <div className="mt-3 h-1 rounded-full bg-background/40 overflow-hidden">
                         <div
                           className={cn("h-full rounded-full transition-all duration-500", semaforo.dot)}
                           style={{ width: `${Math.min(100, progress.pct)}%` }}
                         />
                       </div>
-                      <div className="mt-3 flex items-center justify-between gap-3 text-[11px] text-muted-foreground tabular-nums">
-                        <span>{progress.pct.toFixed(1)}% da meta · faltam {formatPlays(remaining)}</span>
+                      <div className="mt-2.5 flex items-center justify-between gap-3 flex-wrap">
+                        <span className={cn("inline-flex items-center gap-1.5 text-[12px] font-medium", semaforo.text)}>
+                          <span className={cn("h-1.5 w-1.5 rounded-full", semaforo.dot)} />
+                          {semaforo.label}
+                        </span>
                         {progress.last7_growth > 0 && (
-                          <span className="text-[10px] uppercase tracking-wider inline-flex items-center gap-1">
+                          <span className="text-[10.5px] uppercase tracking-wider inline-flex items-center gap-1 text-muted-foreground tabular-nums">
                             <TrendingUp className="h-3 w-3" />
                             +{formatPlays(progress.last7_growth)} em 7d
                           </span>
