@@ -14,7 +14,10 @@ import {
   CalendarDays,
   CheckCircle2,
   ExternalLink,
+  Image as ImageIcon,
+  ChevronRight,
 } from "lucide-react";
+import { PrintThumbs } from "@/components/playlist-deals/PrintThumbs";
 import {
   Area,
   AreaChart,
