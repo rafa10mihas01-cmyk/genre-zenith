@@ -1650,6 +1650,7 @@ export default function CuratorPage() {
 
 
         {/* Modal: músicas já presentes em uma playlist do curador */}
+        {activeTab === "entrega" && (
         <Dialog open={!!curatorPlaylistModalKey} onOpenChange={(o) => !o && setCuratorPlaylistModalKey(null)}>
           <DialogContent className="max-w-md w-[calc(100%-2rem)] overflow-hidden">
             <DialogHeader className="min-w-0">
