@@ -1646,6 +1646,7 @@ export default function CuratorPage() {
             )}
           </CardContent>
         </Card>
+        )}
 
 
 
