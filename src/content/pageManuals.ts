@@ -304,35 +304,37 @@ export const PAGE_MANUALS: Record<string, PageManualData> = {
   // ────────────────────────────────────────────────────────────────────
   analytics: {
     title: "Analytics",
-    subtitle: "Promessa vs entrega — performance histórica da operação.",
+    subtitle: "Leitura direta do motor de deals — entrega real, não promessa.",
     sections: [
       {
         heading: "O que você encontra aqui",
         body:
-          "Visão analítica: total de campanhas, adições prometidas, entregues, " +
-          "taxa de cumprimento, performance por curador e por playlist, evolução " +
-          "no tempo. É o lugar pra ENTENDER tendências, não pra agir no curto prazo.",
+          "Snapshot vivo da operação: quantos deals estão rodando, quantos plays " +
+          "foram entregues de verdade (delta entre snapshots), ritmo de cada deal " +
+          "ativo, quais playlists estão entregando mais e o custo por play real.",
       },
       {
         heading: "Como ler os KPIs do topo",
         body: [
-          "• Campanhas — total no período (X ativas dentro).",
-          "• Prometido — soma das metas de adição.",
-          "• Entregue — adições confirmadas em playlists.",
-          "• Taxa — Entregue ÷ Prometido (saúde da operação).",
+          "• Deals ativos — quantos deals estão em execução agora.",
+          "• Plays entregues (7d) — delta real de plays nos últimos 7 dias.",
+          "• Média diária (30d) — plays entregues no mês ÷ 30.",
+          "• Custo por play real — soma do custo dos deals com entrega ÷ plays entregues.",
         ],
       },
       {
-        heading: "Quando atualizar",
+        heading: "Ritmo dos deals ativos",
         body:
-          "Os dados são reagregados via botão \"Atualizar\". Use depois de " +
-          "encerrar campanhas, importar deals em lote ou ajustar metas.",
+          "Cada linha compara o que o deal já entregou com o que deveria ter entregue " +
+          "até hoje (proporcional à janela). Adiantado / No ritmo / Lento / Crítico. " +
+          "Ordenado pelos mais críticos primeiro.",
       },
       {
-        heading: "Como NÃO usar",
+        heading: "Fonte dos dados",
         body:
-          "Analytics não é fonte da verdade pra valor financeiro de deal " +
-          "individual — pra isso vá em /deals → Financeiro. Aqui é AGREGADO.",
+          "100% lido de curator_deals + curator_deal_snapshots + curator_deal_logs. " +
+          "Sem dependência de campaigns, allocations ou views legadas — ver " +
+          "docs/DEPRECATED_ANALYTICS.md.",
       },
     ],
   },
