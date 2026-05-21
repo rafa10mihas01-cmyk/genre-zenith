@@ -2018,15 +2018,25 @@ export default function CuratorPage() {
                               <div className="text-[13px] font-bold tabular-nums leading-tight">
                                 {Number(entry.total_plays).toLocaleString("pt-BR")}
                               </div>
+                              <div className="text-[9.5px] uppercase tracking-wider text-muted-foreground/80 mt-0.5">
+                                total da playlist
+                              </div>
                               {next && delta !== 0 && (
-                                <div
-                                  className={cn(
-                                    "text-[10.5px] font-semibold tabular-nums mt-0.5",
-                                    delta >= 0 ? "text-success" : "text-destructive",
-                                  )}
-                                >
-                                  {delta >= 0 ? "+" : "−"}
-                                  {Math.abs(delta).toLocaleString("pt-BR")}
+                                <div className="mt-1.5">
+                                  <div
+                                    className={cn(
+                                      "text-[11px] font-semibold tabular-nums leading-none",
+                                      delta >= 0 ? "text-success" : "text-warning",
+                                    )}
+                                  >
+                                    {delta >= 0 ? "+" : "−"}
+                                    {Math.abs(delta).toLocaleString("pt-BR")}
+                                  </div>
+                                  <div className="text-[9.5px] text-muted-foreground/80 mt-0.5 leading-tight">
+                                    {delta >= 0
+                                      ? "novos plays desde o último print"
+                                      : "Spotify revisou plays"}
+                                  </div>
                                 </div>
                               )}
                             </div>
