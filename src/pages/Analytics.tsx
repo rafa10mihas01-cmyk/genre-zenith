@@ -61,15 +61,17 @@ export default function Analytics() {
     setSnapshots30d(s30);
     setSnapshots7d(((snap7Res.data ?? []) as unknown as Snapshot[]));
 
-    // Busca nomes das playlists envolvidas (managed_playlists.spotify_playlist_id? — usar tabela playlists)
+    // Busca nomes das playlists envolvidas (snapshots.playlist_id → curator_playlists.id)
     const ids = [...new Set(s30.map((s) => s.playlist_id).filter(Boolean))] as string[];
     if (ids.length > 0) {
       const { data: pls } = await supabase
-        .from("managed_playlists")
-        .select("id, name")
+        .from("curator_playlists")
+        .select("id, playlist_name")
         .in("id", ids);
       const map: Record<string, string> = {};
-      for (const p of (pls ?? []) as { id: string; name: string }[]) map[p.id] = p.name;
+      for (const p of (pls ?? []) as { id: string; playlist_name: string | null }[]) {
+        if (p.playlist_name) map[p.id] = p.playlist_name;
+      }
       setPlaylistsMeta(map);
     } else {
       setPlaylistsMeta({});
