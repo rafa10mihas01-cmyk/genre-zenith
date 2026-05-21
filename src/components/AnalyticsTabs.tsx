@@ -3,7 +3,7 @@ import { LineChart, BarChart3, Globe2, Gauge } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const TABS = [
-  { to: "/analytics", label: "Campanhas", icon: LineChart, end: true, match: ["/analytics", "/heatmap"] },
+  { to: "/analytics", label: "Deals", icon: LineChart, end: true, match: ["/analytics", "/heatmap"] },
   { to: "/performance", label: "Playlists", icon: BarChart3, match: ["/performance", "/matriz"] },
   { to: "/benchmarks", label: "Mercado", icon: Globe2 },
   { to: "/valuation", label: "Avaliar", icon: Gauge },
