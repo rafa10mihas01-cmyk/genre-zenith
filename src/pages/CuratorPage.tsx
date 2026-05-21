@@ -1244,8 +1244,8 @@ export default function CuratorPage() {
                   <span className="text-[11px] font-semibold tabular-nums text-foreground">0</span>
                   <span className="text-[11px] text-muted-foreground">playlists declaradas</span>
                 </div>
-                <p className="text-[11px] text-amber-600 dark:text-amber-500 leading-relaxed mt-2 font-medium">
-                  ⚠ Playlists adicionadas após o início da coleta contam como orgânicas e não somam na meta.
+                <p className="text-[11px] text-muted-foreground leading-relaxed mt-2">
+                  Cadastre suas playlists antes do primeiro print para que contem na meta.
                 </p>
               </div>
               <Button
