@@ -1921,262 +1921,171 @@ export default function CuratorPage() {
             ) : (
               (() => {
                 const reversed = [...snapshotHistory].reverse();
-                // Agrupa por semana (segunda 00:00 local como início)
-                const startOfWeek = (iso: string) => {
-                  const d = new Date(iso);
-                  d.setHours(0, 0, 0, 0);
-                  const dow = d.getDay(); // 0=dom .. 6=sab
-                  const diff = (dow + 6) % 7; // dias desde segunda
-                  d.setDate(d.getDate() - diff);
-                  return d.getTime();
-                };
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                const thisWeek = startOfWeek(today.toISOString());
-                const oneWeek = 7 * 24 * 60 * 60 * 1000;
-                const fmtShort = (ts: number) =>
-                  new Date(ts).toLocaleDateString("pt-BR", {
-                    day: "2-digit",
-                    month: "short",
-                  });
-                const labelFor = (ts: number) => {
-                  const end = ts + 6 * 24 * 60 * 60 * 1000;
-                  const range = `${fmtShort(ts)} – ${fmtShort(end)}`;
-                  if (ts === thisWeek) return { title: "Resumo desta semana", range };
-                  if (ts === thisWeek - oneWeek) return { title: "Semana passada", range };
-                  return { title: `Semana de ${fmtShort(ts)}`, range };
-                };
-
-                const groups = new Map<number, typeof reversed>();
-                for (const e of reversed) {
-                  const k = startOfWeek(e.captured_at);
-                  if (!groups.has(k)) groups.set(k, []);
-                  groups.get(k)!.push(e);
-                }
-                const orderedKeys = Array.from(groups.keys()).sort((a, b) => b - a);
-
                 return (
-                  <div className="max-h-[520px] overflow-y-auto pr-1 -mr-1 scroll-smooth space-y-2.5 [mask-image:linear-gradient(to_bottom,black_calc(100%-32px),transparent)]">
-                    {orderedKeys.map((key, idx) => {
-                      const entries = groups.get(key)!;
-                      // Total da semana = último (mais recente) - primeiro (mais antigo) snapshot da semana
-                      const sortedAsc = [...entries].sort(
-                        (a, b) =>
-                          new Date(a.captured_at).getTime() -
-                          new Date(b.captured_at).getTime(),
-                      );
-                      const first = sortedAsc[0];
-                      const last = sortedAsc[sortedAsc.length - 1];
-                      const weekDelta =
-                        Number(last.total_plays) - Number(first.total_plays);
-                      const lastPlays = Number(last.total_plays);
-                      const { title, range } = labelFor(key);
-
+                  <div className="max-h-[600px] overflow-y-auto pr-1 -mr-1 scroll-smooth space-y-2.5 [mask-image:linear-gradient(to_bottom,black_calc(100%-32px),transparent)]">
+                    {reversed.map((entry, idx) => {
+                      const next = reversed[idx + 1];
+                      const delta = next
+                        ? Number(entry.total_plays) - Number(next.total_plays)
+                        : 0;
+                      const dt = new Date(entry.captured_at);
+                      const dayLabel = dt.toLocaleDateString("pt-BR", {
+                        weekday: "short",
+                        day: "2-digit",
+                        month: "2-digit",
+                      });
+                      const time = dt.toLocaleTimeString("pt-BR", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      });
+                      const prints = (entry.print_urls && entry.print_urls.length > 0)
+                        ? entry.print_urls
+                        : (entry.print_url ? [entry.print_url] : []);
+                      const cleanNote = cleanSnapshotNote(entry.note);
+                      const snapPlaylists = entry.playlists ?? [];
+                      const coverUrl =
+                        selectedSong?.song_cover_url ??
+                        songs[0]?.song_cover_url ??
+                        null;
                       return (
                         <details
-                          key={key}
+                          key={entry.captured_at}
                           open={idx === 0}
-                          className="group nx-subcard p-0 overflow-hidden [&[open]>summary_.chev]:rotate-90"
+                          className="group/snap nx-subcard p-0 overflow-hidden [&[open]>summary_.snapchev]:rotate-90"
                         >
                           <summary className="cursor-pointer list-none p-3.5 flex items-center gap-3 hover:bg-[hsl(var(--hover))] transition-colors">
-                            <ChevronRight className="chev h-4 w-4 text-muted-foreground shrink-0 transition-transform" />
+                            {coverUrl ? (
+                              <img
+                                src={coverUrl}
+                                alt={`Capa de ${dayLabel}`}
+                                loading="lazy"
+                                className="h-11 w-11 rounded-lg object-cover ring-1 ring-border shrink-0 bg-muted/40"
+                              />
+                            ) : (
+                              <div className="h-11 w-11 rounded-lg bg-muted/40 ring-1 ring-border flex items-center justify-center shrink-0">
+                                <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                              </div>
+                            )}
                             <div className="min-w-0 flex-1">
-                              <div className="text-[13px] font-semibold leading-tight truncate">
-                                {title}
+                              <div className="text-[13px] font-semibold leading-tight capitalize">
+                                {dayLabel} · {time}
                               </div>
                               <div className="text-[11px] text-muted-foreground mt-0.5 tabular-nums">
-                                {range} · {entries.length}{" "}
-                                {entries.length === 1 ? "print" : "prints"}
+                                {entry.is_baseline ? "Baseline" : "Coleta"} ·{" "}
+                                {entry.playlists_count}{" "}
+                                {entry.playlists_count === 1 ? "playlist" : "playlists"}
+                                {prints.length > 0 && (
+                                  <>
+                                    {" · "}
+                                    {prints.length} {prints.length === 1 ? "print" : "prints"}
+                                  </>
+                                )}
                               </div>
                             </div>
                             <div className="text-right shrink-0">
                               <div className="text-[13px] font-bold tabular-nums leading-tight">
-                                {lastPlays.toLocaleString("pt-BR")}
+                                {Number(entry.total_plays).toLocaleString("pt-BR")}
                               </div>
-                              {entries.length > 1 && weekDelta !== 0 && (
+                              {next && delta !== 0 && (
                                 <div
                                   className={cn(
                                     "text-[10.5px] font-semibold tabular-nums mt-0.5",
-                                    weekDelta >= 0 ? "text-success" : "text-destructive",
+                                    delta >= 0 ? "text-success" : "text-destructive",
                                   )}
                                 >
-                                  {weekDelta >= 0 ? "+" : "−"}
-                                  {Math.abs(weekDelta).toLocaleString("pt-BR")} na semana
+                                  {delta >= 0 ? "+" : "−"}
+                                  {Math.abs(delta).toLocaleString("pt-BR")}
                                 </div>
                               )}
                             </div>
+                            <ChevronRight className="snapchev h-4 w-4 text-muted-foreground shrink-0 transition-transform ml-1" />
                           </summary>
-                          <div className="border-t border-border/60 px-3.5 py-3 bg-[hsl(var(--background))]/40">
-                            <ul className="space-y-2">
-                              {entries.map((entry) => {
-                                const globalIdx = reversed.findIndex(
-                                  (x) => x.captured_at === entry.captured_at,
-                                );
-                                const next = reversed[globalIdx + 1];
-                                const delta = next
-                                  ? Number(entry.total_plays) - Number(next.total_plays)
-                                  : 0;
-                                const dt = new Date(entry.captured_at);
-                                const dayLabel = dt.toLocaleDateString("pt-BR", {
-                                  weekday: "short",
-                                  day: "2-digit",
-                                  month: "2-digit",
-                                });
-                                const time = dt.toLocaleTimeString("pt-BR", {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                });
-                                const prints = (entry.print_urls && entry.print_urls.length > 0)
-                                  ? entry.print_urls
-                                  : (entry.print_url ? [entry.print_url] : []);
-                                const cleanNote = cleanSnapshotNote(entry.note);
-                                const snapPlaylists = entry.playlists ?? [];
-                                const coverUrl =
-                                  selectedSong?.song_cover_url ??
-                                  songs[0]?.song_cover_url ??
-                                  null;
-                                return (
-                                  <li key={entry.captured_at}>
-                                    <details className="group/snap rounded-lg border border-border/50 bg-card overflow-hidden [&[open]>summary_.snapchev]:rotate-90">
-                                      <summary className="cursor-pointer list-none p-3 flex items-center gap-3 hover:bg-[hsl(var(--hover))] transition-colors">
-                                        {coverUrl ? (
-                                          <img
-                                            src={coverUrl}
-                                            alt={`Print de ${dayLabel}`}
-                                            loading="lazy"
-                                            className="h-10 w-10 rounded-lg object-cover ring-1 ring-border shrink-0 bg-muted/40"
-                                          />
-                                        ) : (
-                                          <div className="h-10 w-10 rounded-lg bg-muted/40 ring-1 ring-border flex items-center justify-center shrink-0">
-                                            <ImageIcon className="h-4 w-4 text-muted-foreground" />
-                                          </div>
-                                        )}
-                                        <div className="min-w-0 flex-1">
-                                          <div className="text-[13px] font-semibold leading-tight capitalize">
-                                            {dayLabel} · {time}
-                                          </div>
-                                          <div className="text-[11px] text-muted-foreground mt-0.5 tabular-nums">
-                                            {entry.is_baseline ? "Baseline" : "Snapshot"} ·{" "}
-                                            {entry.playlists_count}{" "}
-                                            {entry.playlists_count === 1 ? "playlist" : "playlists"}
-                                            {prints.length > 0 && (
-                                              <>
-                                                {" · "}
-                                                {prints.length} {prints.length === 1 ? "print" : "prints"}
-                                              </>
-                                            )}
-                                          </div>
+
+                          <div className="border-t border-border/60 px-4 py-4 bg-[hsl(var(--background))]/40 space-y-4">
+                            {cleanNote && (
+                              <div>
+                                <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
+                                  Observação
+                                </div>
+                                <div className="text-[12.5px] text-foreground/90 rounded-md bg-muted/30 px-3 py-2 leading-relaxed">
+                                  {cleanNote}
+                                </div>
+                              </div>
+                            )}
+
+                            {prints.length > 0 && (
+                              <div>
+                                <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">
+                                  Prints ({prints.length})
+                                </div>
+                                <PrintThumbs urls={prints} size="md" />
+                              </div>
+                            )}
+
+                            <div>
+                              <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">
+                                Playlists do registro ({snapPlaylists.length})
+                              </div>
+                              {snapPlaylists.length === 0 ? (
+                                <div className="text-[12px] text-muted-foreground italic py-2">
+                                  Nenhuma playlist vinculada a este registro.
+                                </div>
+                              ) : (
+                                <ul className="space-y-1.5">
+                                  {snapPlaylists.map((pl) => (
+                                    <li
+                                      key={pl.playlist_id}
+                                      className="flex items-center gap-3 rounded-md border border-border/40 bg-[hsl(var(--elevated))]/40 px-2.5 py-2"
+                                    >
+                                      {pl.image_url ? (
+                                        <img
+                                          src={pl.image_url}
+                                          alt=""
+                                          className="h-9 w-9 rounded-md object-cover shrink-0 ring-1 ring-border/50"
+                                        />
+                                      ) : (
+                                        <div className="h-9 w-9 rounded-md bg-muted/40 flex items-center justify-center shrink-0">
+                                          <Music2 className="h-4 w-4 text-muted-foreground" />
                                         </div>
-                                        <div className="text-right shrink-0">
-                                          <div className="text-[13px] font-bold tabular-nums leading-tight">
-                                            {Number(entry.total_plays).toLocaleString("pt-BR")}
-                                          </div>
-                                          {next && delta !== 0 && (
-                                            <div
-                                              className={cn(
-                                                "text-[10.5px] font-semibold tabular-nums mt-0.5",
-                                                delta >= 0 ? "text-success" : "text-destructive",
-                                              )}
-                                            >
-                                              {delta >= 0 ? "+" : "−"}
-                                              {Math.abs(delta).toLocaleString("pt-BR")}
-                                            </div>
-                                          )}
+                                      )}
+                                      <div className="min-w-0 flex-1">
+                                        <div className="text-[12.5px] font-medium leading-tight truncate">
+                                          {pl.playlist_name}
                                         </div>
-                                        <ChevronRight className="snapchev h-4 w-4 text-muted-foreground shrink-0 transition-transform ml-1" />
-                                      </summary>
-
-                                      <div className="border-t border-border/60 px-4 py-4 bg-[hsl(var(--background))]/40 space-y-4">
-                                        {cleanNote && (
-                                          <div>
-                                            <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
-                                              Observação
-                                            </div>
-                                            <div className="text-[12.5px] text-foreground/90 rounded-md bg-muted/30 px-3 py-2 leading-relaxed">
-                                              {cleanNote}
-                                            </div>
-                                          </div>
-                                        )}
-
-                                        {prints.length > 0 && (
-                                          <div>
-                                            <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">
-                                              Prints ({prints.length})
-                                            </div>
-                                            <PrintThumbs urls={prints} size="md" />
-                                          </div>
-                                        )}
-
-                                        <div>
-                                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">
-                                            Playlists do registro ({snapPlaylists.length})
-                                          </div>
-                                          {snapPlaylists.length === 0 ? (
-                                            <div className="text-[12px] text-muted-foreground italic py-2">
-                                              Nenhuma playlist vinculada a este registro.
-                                            </div>
-                                          ) : (
-                                            <ul className="space-y-1.5">
-                                              {snapPlaylists.map((pl) => (
-                                                <li
-                                                  key={pl.playlist_id}
-                                                  className="flex items-center gap-3 rounded-md border border-border/40 bg-[hsl(var(--elevated))]/40 px-2.5 py-2"
-                                                >
-                                                  {pl.image_url ? (
-                                                    <img
-                                                      src={pl.image_url}
-                                                      alt=""
-                                                      className="h-9 w-9 rounded-md object-cover shrink-0 ring-1 ring-border/50"
-                                                    />
-                                                  ) : (
-                                                    <div className="h-9 w-9 rounded-md bg-muted/40 flex items-center justify-center shrink-0">
-                                                      <Music2 className="h-4 w-4 text-muted-foreground" />
-                                                    </div>
-                                                  )}
-                                                  <div className="min-w-0 flex-1">
-                                                    <div className="text-[12.5px] font-medium leading-tight truncate">
-                                                      {pl.playlist_name}
-                                                    </div>
-                                                    <div className="text-[10.5px] text-muted-foreground truncate mt-0.5">
-                                                      {pl.spotify_owner_name ?? "—"}
-                                                      {pl.followers != null && (
-                                                        <>
-                                                          {" · "}
-                                                          {formatFollowers(pl.followers)} seguidores
-                                                        </>
-                                                      )}
-                                                    </div>
-                                                  </div>
-                                                  <div className="text-right shrink-0">
-                                                    <div className="text-[12.5px] font-semibold tabular-nums leading-tight">
-                                                      {Number(pl.plays ?? 0).toLocaleString("pt-BR")}
-                                                    </div>
-                                                    <div className="text-[10px] text-muted-foreground">
-                                                      plays
-                                                    </div>
-                                                  </div>
-                                                  {pl.spotify_url && (
-                                                    <a
-                                                      href={pl.spotify_url}
-                                                      target="_blank"
-                                                      rel="noopener noreferrer"
-                                                      className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
-                                                      aria-label="Abrir no Spotify"
-                                                    >
-                                                      <ExternalLink className="h-3.5 w-3.5" />
-                                                    </a>
-                                                  )}
-                                                </li>
-                                              ))}
-                                            </ul>
+                                        <div className="text-[10.5px] text-muted-foreground truncate mt-0.5">
+                                          {pl.spotify_owner_name ?? "—"}
+                                          {pl.followers != null && (
+                                            <>
+                                              {" · "}
+                                              {formatFollowers(pl.followers)} seguidores
+                                            </>
                                           )}
                                         </div>
                                       </div>
-                                    </details>
-                                  </li>
-                                );
-                              })}
-                            </ul>
+                                      <div className="text-right shrink-0">
+                                        <div className="text-[12.5px] font-semibold tabular-nums leading-tight">
+                                          {Number(pl.plays ?? 0).toLocaleString("pt-BR")}
+                                        </div>
+                                        <div className="text-[10px] text-muted-foreground">
+                                          plays
+                                        </div>
+                                      </div>
+                                      {pl.spotify_url && (
+                                        <a
+                                          href={pl.spotify_url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                                          aria-label="Abrir no Spotify"
+                                        >
+                                          <ExternalLink className="h-3.5 w-3.5" />
+                                        </a>
+                                      )}
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
                           </div>
                         </details>
                       );
