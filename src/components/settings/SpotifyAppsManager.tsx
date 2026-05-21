@@ -153,6 +153,8 @@ export function SpotifyAppsManager({
   const [editing, setEditing] = useState<Partial<SpotifyApp> | null>(null);
   const [saving, setSaving] = useState(false);
   const [scopes, setScopes] = useState<string[]>([]);
+  const [page, setPage] = useState(0);
+  const APPS_PER_PAGE = 5;
 
   async function load() {
     setLoading(true);
