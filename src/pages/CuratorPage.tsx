@@ -1975,10 +1975,18 @@ export default function CuratorPage() {
                         selectedSong?.song_cover_url ??
                         songs[0]?.song_cover_url ??
                         null;
+                      const snapshotKey = `${entry.captured_at}-${idx}`;
                       return (
                         <details
-                          key={entry.captured_at}
-                          
+                          key={snapshotKey}
+                          open={openSnapshotKey === snapshotKey}
+                          onToggle={(event) => {
+                            const isOpen = event.currentTarget.open;
+                            setOpenSnapshotKey((current) => {
+                              if (isOpen) return snapshotKey;
+                              return current === snapshotKey ? null : current;
+                            });
+                          }}
                           className="group/snap nx-subcard p-0 overflow-hidden [&[open]>summary_.snapchev]:rotate-90"
                         >
                           <summary className="cursor-pointer list-none p-3.5 flex items-center gap-3 hover:bg-[hsl(var(--hover))] transition-colors">
