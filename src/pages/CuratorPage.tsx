@@ -1328,7 +1328,7 @@ export default function CuratorPage() {
               <Progress value={stats.pct} className="h-2 rounded-full" />
               <div className="flex items-center justify-between text-[12px] tabular-nums pt-1">
                 <span className="text-foreground font-medium">
-                  Entregue (delta): <span className="font-semibold">{formatPlays(stats.earned)}</span>
+                  Entregue desde o início: <span className="font-semibold">{formatPlays(stats.earned)}</span>
                 </span>
                 <span className="text-muted-foreground">
                   Meta: {formatPlays(stats.target)}
