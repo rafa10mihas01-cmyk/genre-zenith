@@ -1913,6 +1913,7 @@ export default function CuratorPage() {
             </p>
           </CardContent>
         </Card>
+        )}
 
         <PasteUrlsDialog
           open={pasteOpen}
