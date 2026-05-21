@@ -159,7 +159,7 @@ export default function Sistema() {
 
         {activeTab === "avancado" && isAdmin && (
           <div className="space-y-4">
-            <SubTabs
+            <SubTabs<AvancadoSub>
               value={avancadoSub}
               onChange={setAvancadoSub}
               options={[
