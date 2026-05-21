@@ -1974,7 +1974,7 @@ export default function CuratorPage() {
                       return (
                         <details
                           key={entry.captured_at}
-                          open={idx === 0}
+                          
                           className="group/snap nx-subcard p-0 overflow-hidden [&[open]>summary_.snapchev]:rotate-90"
                         >
                           <summary className="cursor-pointer list-none p-3.5 flex items-center gap-3 hover:bg-[hsl(var(--hover))] transition-colors">
