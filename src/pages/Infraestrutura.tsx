@@ -150,7 +150,6 @@ export default function Infraestrutura({ embedded = false }: { embedded?: boolea
               loading={loading}
             />
             <KpiBig
-              tier="quiet"
               icon={ListMusic}
               label="Playlists operadas"
               value={totalPlaylists}
