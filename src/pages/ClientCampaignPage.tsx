@@ -135,6 +135,8 @@ export default function ClientCampaignPage() {
   const [playlists, setPlaylists] = useState<SafePlaylist[]>([]);
   const [songs, setSongs] = useState<SafeSong[]>([]);
   const [selectedSongId, setSelectedSongId] = useState<string | null>(null);
+  const [snapshotHistory, setSnapshotHistory] = useState<SafeSnapshotEntry[]>([]);
+  const [openSnapshotKey, setOpenSnapshotKey] = useState<string | null>(null);
 
   const load = async () => {
     if (!token) return;
