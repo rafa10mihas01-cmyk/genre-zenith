@@ -39,7 +39,7 @@ export function PrintThumbs({ urls, className, size = "md" }: PrintThumbsProps) 
   return (
     <>
       <div className={cn("flex flex-wrap gap-1.5", className)}>
-        {urls.map((u) => {
+        {ordered.map((u) => {
           const pdf = isPdf(u);
           return (
             <a
