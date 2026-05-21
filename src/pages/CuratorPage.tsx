@@ -942,12 +942,12 @@ export default function CuratorPage() {
                           <img
                             src={headerCover}
                             alt={headerName}
-                            className="w-[72px] h-[72px] rounded-xl object-cover ring-1 ring-border"
+                            className="w-14 h-14 rounded-lg object-cover ring-1 ring-border"
                           />
                         </div>
                       ) : (
-                        <div className="w-[72px] h-[72px] rounded-xl bg-muted shrink-0 flex items-center justify-center ring-1 ring-border">
-                          <ListMusic className="h-6 w-6 text-muted-foreground" />
+                        <div className="w-14 h-14 rounded-lg bg-muted shrink-0 flex items-center justify-center ring-1 ring-border">
+                          <ListMusic className="h-5 w-5 text-muted-foreground" />
                         </div>
                       );
                     })()}
