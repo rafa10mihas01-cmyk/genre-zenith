@@ -71,6 +71,21 @@ type SafePlaylist = {
   status: "Nova" | "Crescendo" | "Destaque" | "Estável";
 };
 type SafeSeriesPoint = { date: string; delivered: number };
+type SafeSnapshotPlaylist = {
+  playlist_id: string;
+  playlist_name: string;
+  image_url: string | null;
+  plays: number;
+};
+type SafeSnapshotEntry = {
+  captured_at: string;
+  is_baseline: boolean;
+  playlists_count: number;
+  total_plays: number;
+  print_url: string | null;
+  print_urls: string[];
+  playlists: SafeSnapshotPlaylist[];
+};
 
 function formatPlays(n: number | null | undefined): string {
   if (n == null || !Number.isFinite(Number(n))) return "0";
