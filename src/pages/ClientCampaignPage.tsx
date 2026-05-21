@@ -91,18 +91,6 @@ function formatShortDate(iso: string | Date | null | undefined): string {
     return "—";
   }
 }
-function formatDateTime(iso: string | null | undefined): string {
-  if (!iso) return "—";
-  try {
-    const d = new Date(iso);
-    const date = d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
-    const time = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-    return `${date} · ${time}`;
-  } catch {
-    return "—";
-  }
-}
-
 // Status visíveis ao cliente — reduzidos a 2 leituras humanas.
 // O mapa interno (Nova/Crescendo/Destaque/Estável) é colapsado.
 function clientPlaylistStatus(p: SafePlaylist): "entregando" | "aguardando" {
@@ -116,15 +104,6 @@ const PLAYLIST_STATUS_STYLES: Record<"entregando" | "aguardando", string> = {
 const PLAYLIST_STATUS_LABEL: Record<"entregando" | "aguardando", string> = {
   "entregando": "Entregando",
   "aguardando": "Aguardando atualização",
-};
-
-const PACE_LABEL: Record<SafeProgress["pace"], { label: string; tone: string }> = {
-  "abaixo do esperado": {
-    label: "Entregando abaixo do ritmo esperado",
-    tone: "text-warning",
-  },
-  "normal": { label: "Entrega estável", tone: "text-foreground" },
-  "acelerando": { label: "Campanha acelerando", tone: "text-success" },
 };
 
 export default function ClientCampaignPage() {
