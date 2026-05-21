@@ -338,6 +338,28 @@ Deno.serve(async (req) => {
       status,
     };
 
+    // 6) Histórico de prints (sanitizado — sem spotify_url, dono, followers, note)
+    const { data: snapHistRaw } = await admin.rpc("get_curator_deal_snapshot_history", {
+      p_deal_id: dealId!,
+    });
+    const snapHist = Array.isArray(snapHistRaw) ? snapHistRaw : [];
+    const safeSnapshotHistory = (snapHist as AnyRec[]).map((entry) => ({
+      captured_at: entry.captured_at,
+      is_baseline: Boolean(entry.is_baseline),
+      playlists_count: Number(entry.playlists_count ?? 0),
+      total_plays: Number(entry.total_plays ?? 0),
+      print_url: (entry.print_url as string | null) ?? null,
+      print_urls: Array.isArray(entry.print_urls) ? entry.print_urls : [],
+      playlists: Array.isArray(entry.playlists)
+        ? (entry.playlists as AnyRec[]).map((pl) => ({
+          playlist_id: String(pl.playlist_id ?? ""),
+          playlist_name: (pl.playlist_name as string | null) ?? "Playlist",
+          image_url: (pl.image_url as string | null) ?? null,
+          plays: Number(pl.plays ?? 0),
+        }))
+        : [],
+    }));
+
     return jr({
       ok: true,
       deal: safeDeal,
@@ -355,6 +377,7 @@ Deno.serve(async (req) => {
       },
       series,
       playlists: safePlaylists,
+      snapshot_history: safeSnapshotHistory,
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
