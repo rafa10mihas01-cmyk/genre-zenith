@@ -249,47 +249,36 @@ export default function ClientCampaignPage() {
     : { dot: "bg-warning", text: "text-warning", ring: "ring-warning/25", bg: "bg-warning/[0.05]", label: humanLabel };
 
   return (
-    <div className="relative min-h-screen bg-background py-8 sm:py-10 overflow-hidden">
-      {/* Atmosfera verde — suave e difusa (igual CuratorPage) */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 -z-0 hidden dark:block"
-        style={{
-          background: [
-            "radial-gradient(ellipse 70% 45% at 50% 0%, rgba(29,185,84,0.09) 0%, rgba(29,185,84,0) 75%)",
-            "radial-gradient(ellipse 45% 55% at 0% 30%, rgba(29,185,84,0.05) 0%, rgba(29,185,84,0) 75%)",
-            "radial-gradient(ellipse 45% 55% at 100% 50%, rgba(29,185,84,0.045) 0%, rgba(29,185,84,0) 75%)",
-            "radial-gradient(ellipse 75% 35% at 50% 100%, rgba(29,185,84,0.04) 0%, rgba(29,185,84,0) 75%)",
-          ].join(", "),
-        }}
-      />
-
-      <div className="relative z-10 w-full max-w-[1200px] mx-auto px-5 sm:px-6 md:px-8">
-        <div className="max-w-xl md:max-w-2xl mx-auto space-y-4 sm:space-y-5">
-          {/* Topbar — compacto, igual CuratorPage */}
-          <div className="flex items-center justify-between gap-3 py-2 border-b border-border/50">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <NexEngineLogo variant="mark" size={20} />
-              <div className="min-w-0">
-                <div className="text-[12.5px] font-semibold tracking-tight leading-tight truncate">
-                  {deal.song_artist || "Cliente"}
-                </div>
-                <div className="text-[10px] text-muted-foreground/60 mt-0.5 leading-none truncate">
-                  Acompanhamento da campanha
-                </div>
+    <div className="relative min-h-screen bg-background">
+      <div className="relative z-10 w-full max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        {/* Header — padrão PageHeader do sistema interno (kicker + título + subtítulo) */}
+        <header className="flex items-center justify-between gap-3 border-b border-border/60 pb-5 mb-6">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <NexEngineLogo variant="mark" size={28} />
+            <div className="min-w-0 space-y-1">
+              <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-bold">
+                Campanha
               </div>
-            </div>
-            <div className="flex items-center gap-0.5 rounded-lg border border-border/40 bg-card/40 backdrop-blur-sm px-1 py-0.5">
-              <ThemeToggle />
+              <h1 className="text-[19px] sm:text-2xl lg:text-3xl font-semibold tracking-tight leading-tight truncate">
+                {deal.song_artist || "Cliente"}
+              </h1>
+              <p className="text-[12px] lg:text-sm text-muted-foreground truncate">
+                Acompanhamento da campanha
+              </p>
             </div>
           </div>
+          <div className="shrink-0">
+            <ThemeToggle />
+          </div>
+        </header>
 
-          {/* Header — Campanha + identidade + semáforo */}
-          <Card className="nx-card !p-0 overflow-hidden border-border">
-            <CardContent className="p-5 sm:p-6 pt-5 sm:pt-6 md:pt-6 space-y-6">
+        <div className="space-y-6">
+          {/* Card principal — música + meta + progresso (estilo nx-card padrão) */}
+          <Card className="nx-card !p-0 border-border">
+            <CardContent className="p-5 sm:p-6 space-y-6">
               <div className="flex items-center justify-between gap-3">
-                <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary/80">
-                  Campanha
+                <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                  Música em campanha
                 </span>
                 <span
                   className={cn(
@@ -310,6 +299,7 @@ export default function ClientCampaignPage() {
                   {semaforo.label}
                 </span>
               </div>
+
 
               {/* Identidade da música */}
               {(() => {
