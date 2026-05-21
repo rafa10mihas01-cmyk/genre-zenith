@@ -723,13 +723,13 @@ export default function ClientCampaignPage() {
                 </div>
 
                 {(() => {
-                  const reversed = [...snapshotHistory].reverse();
+                  const ordered = [...snapshotHistory];
                   return (
                     <div className="max-h-[600px] overflow-y-auto pr-1 -mr-1 scroll-smooth space-y-2.5 nx-scroll">
-                      {reversed.map((entry, idx) => {
-                        const next = reversed[idx + 1];
-                        const delta = next
-                          ? Number(entry.total_plays) - Number(next.total_plays)
+                      {ordered.map((entry, idx) => {
+                        const prev = ordered[idx - 1];
+                        const delta = prev
+                          ? Number(entry.total_plays) - Number(prev.total_plays)
                           : 0;
                         const dt = new Date(entry.captured_at);
                         const dayLabel = dt.toLocaleDateString("pt-BR", {
