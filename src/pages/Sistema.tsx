@@ -142,7 +142,7 @@ export default function Sistema() {
 
         {activeTab === "motores" && (
           <div className="space-y-4">
-            <SubTabs
+            <SubTabs<MotorSub>
               value={motorSub}
               onChange={setMotorSub}
               options={[
