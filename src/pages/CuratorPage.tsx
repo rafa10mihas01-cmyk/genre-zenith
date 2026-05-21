@@ -1722,6 +1722,7 @@ export default function CuratorPage() {
             })()}
           </DialogContent>
         </Dialog>
+        )}
 
         {/* Adicionar playlist */}
         {activeTab === "cadastro" && (
