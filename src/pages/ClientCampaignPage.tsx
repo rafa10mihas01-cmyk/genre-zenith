@@ -418,7 +418,7 @@ export default function ClientCampaignPage() {
 
           {/* Músicas da campanha — filtro visual (espelha CuratorPage) */}
           {hasMultipleSongs && (
-            <Card className="nx-card !p-0 border-border">
+            <Card className="nx-card nx-card-glow !p-0 border-border">
               <CardContent className="p-5 sm:p-6 pt-7 sm:pt-8 md:pt-8 space-y-5">
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
@@ -515,7 +515,7 @@ export default function ClientCampaignPage() {
 
           {/* Gráfico — evolução */}
           {chartData.length > 1 && (
-            <Card className="nx-card !p-0 border-border">
+            <Card className="nx-card nx-card-glow !p-0 border-border">
                 <CardContent className="p-5 sm:p-6 pt-8 sm:pt-9 space-y-5">
                 <div className="flex items-center justify-between gap-3 flex-wrap">
                   <div>
@@ -601,7 +601,7 @@ export default function ClientCampaignPage() {
 
           {/* Playlists monitoradas */}
           {playlists.length > 0 ? (
-            <Card className="nx-card !p-0 border-border">
+            <Card className="nx-card nx-card-glow !p-0 border-border">
               <CardContent className="p-5 sm:p-6 pt-8 sm:pt-9 space-y-5">
                 <div className="flex items-start justify-between gap-3 flex-wrap">
                   <div className="min-w-0">
@@ -693,7 +693,7 @@ export default function ClientCampaignPage() {
               </CardContent>
             </Card>
           ) : (
-            <Card className="nx-card !p-0 border-border">
+            <Card className="nx-card nx-card-glow !p-0 border-border">
               <CardContent className="p-8 text-center space-y-2">
                 <div className="mx-auto h-12 w-12 rounded-2xl bg-muted/40 ring-1 ring-border flex items-center justify-center">
                   <ListMusic className="h-5 w-5 text-muted-foreground" />
@@ -708,7 +708,7 @@ export default function ClientCampaignPage() {
 
           {/* Histórico de prints — só leitura, sem links externos pra Spotify */}
           {snapshotHistory.length > 0 && (
-            <Card className="nx-card !p-0 border-border">
+            <Card className="nx-card nx-card-glow !p-0 border-border">
               <CardContent className="p-5 sm:p-6 space-y-5">
                 <div className="flex items-center justify-between">
                   <div className="min-w-0">
