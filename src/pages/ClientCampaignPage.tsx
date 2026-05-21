@@ -14,7 +14,6 @@ import {
   Music2,
   CalendarDays,
   CheckCircle2,
-  Activity,
   ExternalLink,
 } from "lucide-react";
 import {
