@@ -11,6 +11,7 @@ import {
 } from "recharts";
 import { toast } from "@/hooks/use-toast";
 import { AnalyticsTabs } from "@/components/AnalyticsTabs";
+import HeatmapEntregas from "@/pages/HeatmapEntregas";
 
 type Overview = {
   totals: {
@@ -219,6 +220,11 @@ export default function Analytics() {
               })}
             </div>
           )}
+        </Section>
+
+        {/* Heatmap — janelas de entrega (era aba top-level, virou seção aqui) */}
+        <Section title="Heatmap de entregas">
+          <HeatmapEntregas embedded />
         </Section>
       </PageContainer>
     </>

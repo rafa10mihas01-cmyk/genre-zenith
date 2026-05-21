@@ -51,8 +51,8 @@ import Analytics from "./pages/Analytics";
 import Valuation from "./pages/Valuation";
 import PlaylistDetail from "./pages/PlaylistDetail";
 import Benchmarks from "./pages/Benchmarks";
-import MatrizPlaylists from "./pages/MatrizPlaylists";
-import HeatmapEntregas from "./pages/HeatmapEntregas";
+// MatrizPlaylists e HeatmapEntregas viraram sub-aba/seção dentro de Performance e Analytics.
+// Rotas antigas /matriz e /heatmap continuam ativas como redirects.
 
 import NotFound from "./pages/NotFound";
 
@@ -144,8 +144,8 @@ const App = () => (
               <Route path="/curadores/:id" element={<Protected><CuradorDetail /></Protected>} />
               <Route path="/curadoria-preview" element={<Protected><CuradoriaPreview /></Protected>} />
               <Route path="/benchmarks" element={<Protected><Benchmarks /></Protected>} />
-              <Route path="/matriz" element={<Protected><MatrizPlaylists /></Protected>} />
-              <Route path="/heatmap" element={<Protected><HeatmapEntregas /></Protected>} />
+              <Route path="/matriz" element={<Navigate to="/performance?tab=matriz" replace />} />
+              <Route path="/heatmap" element={<Navigate to="/analytics" replace />} />
               
               <Route path="/sistema" element={<Protected><Sistema /></Protected>} />
               <Route path="/infra" element={<Protected><AdminRoute><Sistema /></AdminRoute></Protected>} />

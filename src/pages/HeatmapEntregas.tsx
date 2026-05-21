@@ -15,7 +15,7 @@ const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
 type Mode = "count" | "plays";
 
-export default function HeatmapEntregas() {
+export default function HeatmapEntregas({ embedded = false }: { embedded?: boolean } = {}) {
   const [mode, setMode] = useState<Mode>("plays");
   const [days, setDays] = useState<30 | 60 | 90>(30);
 
@@ -71,11 +71,12 @@ export default function HeatmapEntregas() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Heatmap de entregas"
-        subtitle="Janelas de entrega"
-      />
-      <AnalyticsTabs />
+      {!embedded && (
+        <>
+          <PageHeader title="Heatmap de entregas" subtitle="Janelas de entrega" />
+          <AnalyticsTabs />
+        </>
+      )}
 
       {/* === DESTAQUE: PICO === */}
       <Card className="p-5 border-primary/30 bg-primary/5">

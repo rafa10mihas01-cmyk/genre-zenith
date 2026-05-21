@@ -38,7 +38,7 @@ function classify(headroom: number, confidence: number): Quadrant {
   return "avoid";
 }
 
-export default function MatrizPlaylists() {
+export default function MatrizPlaylists({ embedded = false }: { embedded?: boolean } = {}) {
   const [selected, setSelected] = useState<Quadrant | null>(null);
 
   const { data: rows = [], isLoading } = useQuery({
@@ -76,12 +76,16 @@ export default function MatrizPlaylists() {
 
   return (
     <div className="space-y-8">
-      <PageHeader
-        domain="playlists"
-        title="Matriz de prioridade"
-        subtitle="Capacidade × confiança"
-      />
-      <AnalyticsTabs />
+      {!embedded && (
+        <>
+          <PageHeader
+            domain="playlists"
+            title="Matriz de prioridade"
+            subtitle="Capacidade × confiança"
+          />
+          <AnalyticsTabs />
+        </>
+      )}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {(Object.keys(QUADRANT_META) as Quadrant[]).map((q) => {

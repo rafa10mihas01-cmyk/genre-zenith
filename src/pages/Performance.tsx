@@ -20,6 +20,7 @@ import { TopMovers } from "@/components/performance/TopMovers";
 import { FollowersTimeline } from "@/components/performance/FollowersTimeline";
 import { SeoScorePanel } from "@/components/performance/SeoScorePanel";
 import { BeforeAfterTimeline } from "@/components/performance/BeforeAfterTimeline";
+import MatrizPlaylists from "@/pages/MatrizPlaylists";
 import type { DatasetRow, Insight, GenreRow } from "@/components/performance/types";
 
 export default function Performance() {
@@ -160,6 +161,7 @@ export default function Performance() {
                 )}
               </TabsTrigger>
               <TabsTrigger value="detalhe">Detalhe ({totalPubs})</TabsTrigger>
+              <TabsTrigger value="matriz">Matriz</TabsTrigger>
             </TabsList>
 
             {/* Visão geral — o que aconteceu */}
@@ -188,6 +190,11 @@ export default function Performance() {
             {/* Detalhe — tabela de playlists */}
             <TabsContent value="detalhe" className="min-h-[480px] animate-tab-in mt-0">
               <PlaylistsTable dataset={dataset} genres={genres} altaIds={altaIds} baixaIds={baixaIds} />
+            </TabsContent>
+
+            {/* Matriz — capacidade × confiança (era aba top-level, virou sub-aba aqui) */}
+            <TabsContent value="matriz" className="min-h-[480px] animate-tab-in mt-0">
+              <MatrizPlaylists embedded />
             </TabsContent>
           </Tabs>
         </>
