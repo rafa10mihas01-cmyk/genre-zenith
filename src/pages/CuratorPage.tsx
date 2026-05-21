@@ -318,6 +318,7 @@ export default function CuratorPage() {
   const [playlistWindow, setPlaylistWindow] = useState<"7d" | "28d">("7d");
   // Tabs: divide a página em fases pra evitar scroll gigante no mobile
   const [activeTab, setActiveTab] = useState<"cadastro" | "entrega" | "historico">("entrega");
+  const [openSnapshotKey, setOpenSnapshotKey] = useState<string | null>(null);
   const initialTabSetRef = useRef(false);
   useEffect(() => {
     const id = setInterval(() => setNowTick((n) => n + 1), 60_000);
@@ -1159,7 +1160,10 @@ export default function CuratorPage() {
                 <button
                   key={t.id}
                   type="button"
-                  onClick={() => setActiveTab(t.id)}
+                  onClick={() => {
+                    if (t.id === "historico" || activeTab === "historico") setOpenSnapshotKey(null);
+                    setActiveTab(t.id);
+                  }}
                   aria-pressed={isActive}
                   className={cn(
                     "inline-flex items-center justify-center gap-1.5 rounded-full px-2 py-1 text-[11.5px] font-medium tracking-tight transition-colors whitespace-nowrap min-w-0",
@@ -1971,10 +1975,18 @@ export default function CuratorPage() {
                         selectedSong?.song_cover_url ??
                         songs[0]?.song_cover_url ??
                         null;
+                      const snapshotKey = `${entry.captured_at}-${idx}`;
                       return (
                         <details
-                          key={entry.captured_at}
-                          
+                          key={snapshotKey}
+                          open={openSnapshotKey === snapshotKey}
+                          onToggle={(event) => {
+                            const isOpen = event.currentTarget.open;
+                            setOpenSnapshotKey((current) => {
+                              if (isOpen) return snapshotKey;
+                              return current === snapshotKey ? null : current;
+                            });
+                          }}
                           className="group/snap nx-subcard p-0 overflow-hidden [&[open]>summary_.snapchev]:rotate-90"
                         >
                           <summary className="cursor-pointer list-none p-3.5 flex items-center gap-3 hover:bg-[hsl(var(--hover))] transition-colors">
