@@ -27,8 +27,19 @@ export function GenrePicker({ managedId, currentGenreName, onChanged }: Props) {
 
   useEffect(() => {
     if (!open || genres.length > 0) return;
-    supabase.from("genres").select("id, nome").order("nome").then(({ data }) => {
-      setGenres((data ?? []) as Genre[]);
+    // Ordem editorial fixa: nichos principais primeiro, resto alfabético.
+    const PRIORITY = ["funk", "trap", "sertanejo", "pagode", "piseiro", "forró", "rap"];
+    supabase.from("genres").select("id, nome").then(({ data }) => {
+      const list = (data ?? []) as Genre[];
+      const sorted = [...list].sort((a, b) => {
+        const ia = PRIORITY.indexOf(a.nome.toLowerCase());
+        const ib = PRIORITY.indexOf(b.nome.toLowerCase());
+        if (ia !== -1 && ib !== -1) return ia - ib;
+        if (ia !== -1) return -1;
+        if (ib !== -1) return 1;
+        return a.nome.localeCompare(b.nome, "pt-BR");
+      });
+      setGenres(sorted);
     });
   }, [open, genres.length]);
 
