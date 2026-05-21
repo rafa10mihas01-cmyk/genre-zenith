@@ -61,10 +61,12 @@ Deno.serve(async (req) => {
 
     if (pls && pls.length > 0) {
       const token = await getSpotifyToken();
-      for (const p of pls) {
+      const CONCURRENCY = 6;
+
+      const processOne = async (p: typeof pls[number]) => {
         try {
           const meta = await fetchMeta(p.spotify_playlist_id, token);
-          if (!meta) { failed++; continue; }
+          if (!meta) { failed++; return; }
           const update: Record<string, unknown> = {
             followers: meta.followers,
             tracks_count: meta.tracks_count,
@@ -108,19 +110,26 @@ Deno.serve(async (req) => {
           synced++;
 
           if (canonicalId) {
-            const r = await fetch(`${SUPABASE_URL}/functions/v1/playlist-brain-calc`, {
+            // fire-and-forget pra não bloquear o sync
+            fetch(`${SUPABASE_URL}/functions/v1/playlist-brain-calc`, {
               method: "POST",
               headers: { "Content-Type": "application/json", Authorization: `Bearer ${SERVICE_KEY}` },
               body: JSON.stringify({ playlist_id: canonicalId }),
-            });
-            if (r.ok) recalculated++;
+            }).then((r) => { if (r.ok) recalculated++; }).catch(() => {});
           }
         } catch (e) {
           failed++;
           errors.push(`${p.name}: ${(e as Error).message}`);
         }
+      };
+
+      // processa em chunks paralelos pra caber no timeout do edge function
+      for (let i = 0; i < pls.length; i += CONCURRENCY) {
+        const chunk = pls.slice(i, i + CONCURRENCY);
+        await Promise.all(chunk.map(processOne));
       }
     }
+
 
     await supabase.from("sync_log").insert({
       source, synced, failed, recalculated,
