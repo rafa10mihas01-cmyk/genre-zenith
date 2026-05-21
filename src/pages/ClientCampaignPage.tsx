@@ -586,7 +586,7 @@ export default function ClientCampaignPage() {
                         type="monotone"
                         dataKey="plays"
                         stroke="hsl(var(--primary))"
-                        strokeWidth={2}
+                        strokeWidth={1.25}
                         fill="url(#g_plays)"
                       />
                     </AreaChart>
