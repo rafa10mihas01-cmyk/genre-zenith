@@ -8,13 +8,11 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useExternalSplash } from "@/hooks/useExternalSplash";
 import { PageLoader } from "@/components/PageLoader";
 import {
-  Loader2,
   TrendingUp,
   ListMusic,
   Music2,
   CalendarDays,
   CheckCircle2,
-  Activity,
   ExternalLink,
 } from "lucide-react";
 import {
@@ -29,9 +27,7 @@ import {
 } from "recharts";
 
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { NexEngineLogo } from "@/components/NexEngineLogo";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { cn } from "@/lib/utils";
@@ -94,32 +90,19 @@ function formatShortDate(iso: string | Date | null | undefined): string {
     return "—";
   }
 }
-function formatDateTime(iso: string | null | undefined): string {
-  if (!iso) return "—";
-  try {
-    const d = new Date(iso);
-    const date = d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
-    const time = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-    return `${date} · ${time}`;
-  } catch {
-    return "—";
-  }
+// Status visíveis ao cliente — reduzidos a 2 leituras humanas.
+// O mapa interno (Nova/Crescendo/Destaque/Estável) é colapsado.
+function clientPlaylistStatus(p: SafePlaylist): "entregando" | "aguardando" {
+  if (p.status === "Nova" || p.delivered <= 0) return "aguardando";
+  return "entregando";
 }
-
-const PLAYLIST_STATUS_STYLES: Record<SafePlaylist["status"], string> = {
-  "Nova": "bg-blue-500/10 text-blue-400 border-blue-500/20",
-  "Crescendo": "bg-primary/10 text-primary border-primary/20",
-  "Destaque": "bg-amber-500/10 text-amber-400 border-amber-500/20",
-  "Estável": "bg-muted text-muted-foreground border-border",
+const PLAYLIST_STATUS_STYLES: Record<"entregando" | "aguardando", string> = {
+  "entregando": "bg-success/10 text-success border-success/20",
+  "aguardando": "bg-muted text-muted-foreground border-border",
 };
-
-const PACE_LABEL: Record<SafeProgress["pace"], { label: string; tone: string }> = {
-  "abaixo do esperado": {
-    label: "Ritmo abaixo do esperado",
-    tone: "text-warning",
-  },
-  "normal": { label: "Ritmo normal", tone: "text-foreground" },
-  "acelerando": { label: "Ritmo acelerando", tone: "text-primary" },
+const PLAYLIST_STATUS_LABEL: Record<"entregando" | "aguardando", string> = {
+  "entregando": "Entregando",
+  "aguardando": "Aguardando atualização",
 };
 
 export default function ClientCampaignPage() {
@@ -210,25 +193,30 @@ export default function ClientCampaignPage() {
   const remaining = Math.max(0, progress.target - progress.delivered);
   const isDone = progress.target > 0 && progress.delivered >= progress.target;
 
-  // Semáforo do status (mesmo padrão do CuratorPage)
+  // Status — sem vermelho destrutivo. Só verde (ok) ou âmbar suave (warn).
+  // Vermelho fica reservado pra erro real (campanha cancelada, dias sem print).
   const dailyAvg = progress.target_days > 0 ? progress.delivered / Math.max(1, progress.days_elapsed) : 0;
   const dailyGoal = progress.target_days > 0 ? progress.target / progress.target_days : 0;
   const dailyRatio = dailyGoal > 0 ? dailyAvg / dailyGoal : 1;
-  const statusKey: "ok" | "warn" | "low" = isDone
+  const statusKey: "ok" | "warn" = isDone
     ? "ok"
     : dailyGoal === 0
     ? "ok"
-    : dailyRatio >= 1
+    : dailyRatio >= 0.95
     ? "ok"
-    : dailyRatio >= 0.7
-    ? "warn"
-    : "low";
-  const statusMap = {
-    ok:   { dot: "bg-success",     text: "text-success",     ring: "ring-success/30",     bg: "bg-success/10",     label: isDone ? "Meta batida" : "Batendo a meta" },
-    warn: { dot: "bg-warning",     text: "text-warning",     ring: "ring-warning/30",     bg: "bg-warning/10",     label: "Atenção — abaixo da meta" },
-    low:  { dot: "bg-destructive", text: "text-destructive", ring: "ring-destructive/30", bg: "bg-destructive/10", label: "Abaixo da meta" },
-  } as const;
-  const semaforo = statusMap[statusKey];
+    : "warn";
+  const humanLabel: string = isDone
+    ? "Meta batida"
+    : progress.pace === "acelerando"
+      ? "Campanha acelerando"
+      : statusKey === "warn"
+        ? "Entregando abaixo do ritmo esperado"
+        : progress.delivered > 0
+          ? "Entrega estável"
+          : "Campanha em andamento";
+  const semaforo = statusKey === "ok"
+    ? { dot: "bg-success", text: "text-success", ring: "ring-success/25", bg: "bg-success/[0.05]", label: humanLabel }
+    : { dot: "bg-warning", text: "text-warning", ring: "ring-warning/25", bg: "bg-warning/[0.05]", label: humanLabel };
 
   return (
     <div className="relative min-h-screen bg-background py-8 sm:py-10 overflow-hidden">
@@ -344,38 +332,32 @@ export default function ClientCampaignPage() {
 
                     <div className="h-px bg-border" />
 
-                    {/* HERO STATUS — entregue / meta + barra (mesmo padrão Curador) */}
-                    <div className={cn("rounded-2xl p-5 ring-1", semaforo.bg, semaforo.ring)}>
-                      <div className="flex items-center justify-between gap-3 mb-3">
-                        <span className={cn("inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em]", semaforo.text)}>
-                          <span className={cn("h-2 w-2 rounded-full", semaforo.dot)} />
-                          {semaforo.label}
-                        </span>
-                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                          Plays entregues
-                        </span>
-                      </div>
-                      <div className="flex items-baseline gap-2 flex-wrap">
-                        <span className={cn("text-[34px] sm:text-[40px] font-bold tabular-nums leading-none tracking-tight", semaforo.text)}>
+                    {/* HERO — número neutro + microcopy temporal + frase humana */}
+                    <div className={cn("rounded-xl p-4 ring-1", semaforo.bg, semaforo.ring)}>
+                      <div className="flex items-baseline gap-1.5 flex-wrap">
+                        <span className="text-[30px] sm:text-[36px] font-bold tabular-nums leading-none tracking-tight text-foreground">
                           {formatFullPlays(progress.delivered)}
                         </span>
-                        <span className="text-[20px] sm:text-[22px] font-semibold tabular-nums text-muted-foreground leading-none">
+                        <span className="text-[16px] sm:text-[18px] font-semibold tabular-nums text-muted-foreground leading-none">
                           / {formatFullPlays(progress.target)}
                         </span>
-                        <span className="text-[11px] uppercase tracking-wider text-muted-foreground ml-1">
-                          entregue · meta total
-                        </span>
                       </div>
-                      <div className="mt-3 h-1.5 rounded-full bg-background/40 overflow-hidden">
+                      <p className="mt-1.5 text-[11px] text-muted-foreground">
+                        Plays entregues desde o início da campanha
+                      </p>
+                      <div className="mt-3 h-1 rounded-full bg-background/40 overflow-hidden">
                         <div
                           className={cn("h-full rounded-full transition-all duration-500", semaforo.dot)}
                           style={{ width: `${Math.min(100, progress.pct)}%` }}
                         />
                       </div>
-                      <div className="mt-3 flex items-center justify-between gap-3 text-[11px] text-muted-foreground tabular-nums">
-                        <span>{progress.pct.toFixed(1)}% da meta · faltam {formatPlays(remaining)}</span>
+                      <div className="mt-2.5 flex items-center justify-between gap-3 flex-wrap">
+                        <span className={cn("inline-flex items-center gap-1.5 text-[12px] font-medium", semaforo.text)}>
+                          <span className={cn("h-1.5 w-1.5 rounded-full", semaforo.dot)} />
+                          {semaforo.label}
+                        </span>
                         {progress.last7_growth > 0 && (
-                          <span className="text-[10px] uppercase tracking-wider inline-flex items-center gap-1">
+                          <span className="text-[10.5px] uppercase tracking-wider inline-flex items-center gap-1 text-muted-foreground tabular-nums">
                             <TrendingUp className="h-3 w-3" />
                             +{formatPlays(progress.last7_growth)} em 7d
                           </span>
@@ -468,55 +450,35 @@ export default function ClientCampaignPage() {
             </Card>
           )}
 
-          {/* Mini KPIs */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            {[
-              {
-                icon: Activity,
-                label: "Ritmo",
-                value: PACE_LABEL[progress.pace].label.replace(/^Ritmo\s+/i, "") || "—",
-                tone: PACE_LABEL[progress.pace].tone,
-              },
-              {
-                icon: ListMusic,
-                label: "Playlists",
-                value: String(playlists.length),
-              },
-              {
-                icon: CalendarDays,
-                label: "Tempo",
-                value:
-                  progress.target_days > 0
-                    ? `Dia ${Math.max(0, Math.floor(progress.days_elapsed))} de ${progress.target_days}`
-                    : `${Math.max(0, Math.floor(progress.days_elapsed))} dias`,
-              },
-              {
-                icon: CheckCircle2,
-                label: "Atualizado",
-                value: formatDateTime(deal.last_update),
-                small: true,
-              },
-            ].map((kpi) => (
-              <Card key={kpi.label} className="nx-card !p-0 border-border">
-                <CardContent className="p-4 space-y-1.5 min-w-0">
-                  <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
-                    <kpi.icon className="h-3.5 w-3.5" />
-                    <span className="truncate">{kpi.label}</span>
-                  </div>
-                  <p
-                    className={cn(
-                      "font-semibold tabular-nums truncate",
-                      kpi.small ? "text-[13px] sm:text-[14px]" : "text-base sm:text-lg",
-                      "tone" in kpi && kpi.tone ? kpi.tone : "text-foreground",
-                    )}
-                    title={kpi.value}
-                  >
-                    {kpi.value}
-                  </p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          {/* Linha discreta — só Playlists ativas + Última atualização */}
+          {(() => {
+            const activeCount = playlists.filter((p) => clientPlaylistStatus(p) === "entregando").length;
+            const lastUpdateRelative = (() => {
+              if (!deal.last_update) return "—";
+              const diffMs = Date.now() - new Date(deal.last_update).getTime();
+              if (diffMs < 0) return "agora";
+              const mins = Math.floor(diffMs / 60000);
+              if (mins < 1) return "agora";
+              if (mins < 60) return `há ${mins} min`;
+              const hrs = Math.floor(mins / 60);
+              if (hrs < 24) return `há ${hrs}h`;
+              const days = Math.floor(hrs / 24);
+              return `há ${days}d`;
+            })();
+            return (
+              <div className="flex items-center justify-between gap-3 px-1 text-[11.5px] text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5">
+                  <ListMusic className="h-3.5 w-3.5" />
+                  <span className="tabular-nums text-foreground/85 font-medium">{activeCount}</span>
+                  <span>{activeCount === 1 ? "playlist ativa" : "playlists ativas"}</span>
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  <span>Atualizado {lastUpdateRelative}</span>
+                </span>
+              </div>
+            );
+          })()}
 
           {/* Gráfico — evolução */}
           {chartData.length > 1 && (
@@ -574,17 +536,19 @@ export default function ClientCampaignPage() {
                         labelStyle={{ color: "hsl(var(--muted-foreground))" }}
                         formatter={(v: number) => [formatFullPlays(v), "Plays"]}
                       />
-                      {progress.target > 0 && (
+                      {/* Linha de meta só aparece quando já passou de 20% — antes disso parece inalcançável */}
+                      {progress.target > 0 && progress.pct >= 20 && (
                         <ReferenceLine
                           y={progress.target}
                           stroke="hsl(var(--primary))"
                           strokeDasharray="4 4"
-                          strokeOpacity={0.5}
+                          strokeOpacity={0.35}
                           label={{
                             value: "Meta",
                             position: "right",
                             fill: "hsl(var(--primary))",
                             fontSize: 10,
+                            fillOpacity: 0.6,
                           }}
                         />
                       )}
@@ -657,27 +621,37 @@ export default function ClientCampaignPage() {
                           <p className="text-[13.5px] font-medium truncate" title={p.name}>
                             {p.name}
                           </p>
-                          <div className="flex items-center gap-2 mt-1 min-w-0">
-                            <span
-                              className={cn(
-                                "text-[10px] font-medium px-1.5 py-0.5 rounded border whitespace-nowrap",
-                                PLAYLIST_STATUS_STYLES[p.status],
-                              )}
-                            >
-                              {p.status}
-                            </span>
-                            <span className="text-[10px] text-muted-foreground/70 uppercase tracking-wider">
-                              entregando
-                            </span>
-                          </div>
+                          {(() => {
+                            const st = clientPlaylistStatus(p);
+                            return (
+                              <div className="flex items-center gap-2 mt-1 min-w-0">
+                                <span
+                                  className={cn(
+                                    "text-[10px] font-medium px-1.5 py-0.5 rounded border whitespace-nowrap",
+                                    PLAYLIST_STATUS_STYLES[st],
+                                  )}
+                                >
+                                  {PLAYLIST_STATUS_LABEL[st]}
+                                </span>
+                              </div>
+                            );
+                          })()}
                         </div>
                         <div className="text-right shrink-0">
-                          <div className="text-[14px] font-semibold tabular-nums text-primary leading-none">
-                            +{formatPlays(p.delivered)}
-                          </div>
-                          <div className="text-[9px] uppercase tracking-wider text-muted-foreground mt-1">
-                            entregues
-                          </div>
+                          {p.delivered > 0 ? (
+                            <>
+                              <div className="text-[14px] font-semibold tabular-nums text-foreground leading-none">
+                                +{formatPlays(p.delivered)}
+                              </div>
+                              <div className="text-[9px] uppercase tracking-wider text-muted-foreground mt-1">
+                                entregues
+                              </div>
+                            </>
+                          ) : (
+                            <div className="text-[10.5px] text-muted-foreground/80 italic leading-snug max-w-[120px]">
+                              Aguardando primeiro print
+                            </div>
+                          )}
                         </div>
                       </div>
                     </li>
