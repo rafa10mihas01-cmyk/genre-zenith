@@ -808,7 +808,7 @@ export function LogPrintDialog({
                     <div className="space-y-3">
                       <div className="grid grid-cols-3 gap-2">
                         {items.map((it, idx) => (
-                          <div key={idx} className="relative">
+                          <div key={idx} className="relative group">
                             <img
                               src={it.url}
                               alt={`Print ${idx + 1}`}
@@ -822,8 +822,30 @@ export function LogPrintDialog({
                             >
                               <X className="h-3 w-3" />
                             </button>
-                            <div className="absolute bottom-1 left-1 h-5 px-1.5 rounded bg-background/80 border border-border text-[10px] tabular-nums flex items-center">
+                            <div className="absolute bottom-1 left-1 h-5 px-1.5 rounded bg-background/80 border border-border text-[10px] tabular-nums font-semibold flex items-center">
                               {idx + 1}
+                            </div>
+                            <div className="absolute bottom-1 right-1 flex gap-0.5">
+                              <button
+                                type="button"
+                                onClick={() => moveItem(idx, -1)}
+                                disabled={idx === 0}
+                                className="h-5 w-5 rounded bg-background/90 border border-border flex items-center justify-center text-[10px] font-bold hover:bg-background disabled:opacity-30 disabled:cursor-not-allowed"
+                                aria-label="Mover para trás"
+                                title="Mover para trás"
+                              >
+                                ‹
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => moveItem(idx, 1)}
+                                disabled={idx === items.length - 1}
+                                className="h-5 w-5 rounded bg-background/90 border border-border flex items-center justify-center text-[10px] font-bold hover:bg-background disabled:opacity-30 disabled:cursor-not-allowed"
+                                aria-label="Mover para frente"
+                                title="Mover para frente"
+                              >
+                                ›
+                              </button>
                             </div>
                           </div>
                         ))}
@@ -838,8 +860,20 @@ export function LogPrintDialog({
                           </button>
                         )}
                       </div>
-                      <div className="text-xs text-muted-foreground text-center">
-                        {items.length} / {MAX_FILES} prints
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="text-xs text-muted-foreground">
+                          {items.length} / {MAX_FILES} prints · cabeçalho deve ser o nº 1
+                        </div>
+                        {items.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={sortItemsByName}
+                            className="text-[11px] text-primary hover:underline"
+                            title="Ordena pelos nomes dos arquivos (útil quando os prints têm timestamp no nome)"
+                          >
+                            Ordenar por nome
+                          </button>
+                        )}
                       </div>
                       <Button className="w-full gap-1.5" onClick={handleAnalyze}>
                         <Sparkles className="h-4 w-4" />
