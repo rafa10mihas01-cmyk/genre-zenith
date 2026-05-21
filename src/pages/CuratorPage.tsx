@@ -834,7 +834,7 @@ export default function CuratorPage() {
         )}
 
         {/* Header — campanha + música */}
-        <Card className="nx-card !p-0 overflow-hidden border-border">
+        <Card className="nx-card nx-card-glow !p-0 overflow-hidden border-border">
           <CardContent className="p-3.5 sm:p-4 pt-3.5 sm:pt-4 md:pt-4 space-y-3.5">
 
             <div className="flex items-center justify-between gap-3">
@@ -1054,7 +1054,7 @@ export default function CuratorPage() {
 
         {/* Músicas da campanha — filtro visual */}
         {hasMultipleSongs && (
-          <Card className="nx-card !p-0 border-border">
+          <Card className="nx-card nx-card-glow !p-0 border-border">
             <CardContent className="p-5 sm:p-6 pt-5 sm:pt-6 md:pt-6 space-y-5">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
@@ -1188,7 +1188,7 @@ export default function CuratorPage() {
         {/* Meta combinada — sempre visível, mesmo antes de cadastrar playlists.
             É o número do contrato. Sem isso o curador não sabe o que entregar. */}
         {activeTab === "entrega" && (stats.target > 0 || stats.dailyGoal > 0) && (
-          <Card className="nx-card !p-0 border-border">
+          <Card className="nx-card nx-card-glow !p-0 border-border">
             <CardContent className="p-5 sm:p-6 pt-5 sm:pt-6 md:pt-6">
               <div className="flex items-center justify-between gap-3 mb-4">
                 <div className="min-w-0">
@@ -1287,7 +1287,7 @@ export default function CuratorPage() {
 
         {/* Total acumulado (histórico) — separado visualmente do delta */}
         {activeTab === "entrega" && hasCuratorPlaylists && stats.hasBaseline && (
-          <Card className="nx-card !p-0 border-border">
+          <Card className="nx-card nx-card-glow !p-0 border-border">
             <CardContent className="p-5 pt-5 md:pt-5 grid grid-cols-2 gap-4 divide-x divide-border">
               <div className="pr-2">
                 <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
@@ -1318,7 +1318,7 @@ export default function CuratorPage() {
 
         {/* Combinado total */}
         {activeTab === "entrega" && hasCuratorPlaylists && (
-        <Card className="nx-card !p-0 border-border">
+        <Card className="nx-card nx-card-glow !p-0 border-border">
           <CardContent className="p-5 sm:p-6 pt-5 sm:pt-6 md:pt-6 space-y-6">
             <div className="flex items-center justify-between">
               <div>
@@ -1434,7 +1434,7 @@ export default function CuratorPage() {
         )}
         {/* Performance por playlist — vem direto da RPC */}
         {activeTab === "entrega" && perPlaylistCurator.length > 0 && (
-          <Card className="nx-card !p-0 border-border">
+          <Card className="nx-card nx-card-glow !p-0 border-border">
             <CardContent className="p-5 sm:p-6 pt-5 sm:pt-6 md:pt-6 space-y-4">
               <div className="w-full flex items-center justify-between gap-4">
                 <div className="min-w-0 flex-1">
@@ -1499,7 +1499,7 @@ export default function CuratorPage() {
 
         {/* Playlists do curador */}
         {activeTab === "entrega" && (
-        <Card className="nx-card !p-0 border-border">
+        <Card className="nx-card nx-card-glow !p-0 border-border">
           <CardContent className="p-5 sm:p-6 pt-5 sm:pt-6 md:pt-6 space-y-4">
             <div className="w-full flex items-center justify-between gap-4 flex-wrap">
               <div className="min-w-0 flex-1">
@@ -1704,7 +1704,7 @@ export default function CuratorPage() {
 
         {/* Adicionar playlist */}
         {activeTab === "cadastro" && (
-        <Card className="nx-card !p-0 border-border">
+        <Card className="nx-card nx-card-glow !p-0 border-border">
           <CardContent className="p-5 sm:p-6 pt-5 sm:pt-6 md:pt-6 space-y-5">
             <div>
               <h2 className="text-[15px] font-semibold tracking-tight">Adicionar playlist</h2>
@@ -1919,7 +1919,7 @@ export default function CuratorPage() {
 
         {/* Histórico de prints — vem da RPC get_curator_deal_snapshot_history */}
         {activeTab === "historico" && (
-        <Card className="nx-card !p-0 border-border">
+        <Card className="nx-card nx-card-glow !p-0 border-border">
           <CardContent className="p-5 sm:p-6 pt-5 sm:pt-6 md:pt-6 space-y-5">
             <div className="flex items-center justify-between">
               <div className="min-w-0">
