@@ -20,6 +20,7 @@ import {
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { cn } from "@/lib/utils";
+import { PrintThumbs } from "@/components/playlist-deals/PrintThumbs";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useExternalSplash } from "@/hooks/useExternalSplash";
