@@ -111,7 +111,7 @@ const sections: NavSection[] = [
     label: "Admin",
     items: [
       {
-        title: "Infra",
+        title: "Sistema",
         url: "/sistema",
         icon: Server,
         adminOnly: true,

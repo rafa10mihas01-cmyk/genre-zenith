@@ -26,6 +26,7 @@ import Infraestrutura from "@/pages/Infraestrutura";
 import AdminAprendizado from "@/pages/AdminAprendizado";
 import { SeoLessonsPanel } from "@/components/sistema/SeoLessonsPanel";
 import { SpotifyReconnectBanner } from "@/components/sistema/SpotifyReconnectBanner";
+import { SystemKpis } from "@/components/sistema/SystemKpis";
 
 type SistemaTab = "visao-geral" | "motores" | "avancado" | "configuracoes";
 type MotorSub = "robo" | "coleta" | "execucao";
@@ -121,6 +122,7 @@ export default function Sistema() {
       <div className="min-h-[480px] animate-tab-in">
         {activeTab === "visao-geral" && (
           <div className="space-y-8">
+            <SystemKpis />
             <section id="section-fluxo">
               <SectionHeader icon={Workflow} title="Fluxo do sistema" subtitle="Pipeline em tempo real" />
               <FluxoVisual />

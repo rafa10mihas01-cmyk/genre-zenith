@@ -12,8 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { RefreshCw, Server, KeyRound, Pencil, Activity, ListMusic, ShieldCheck } from "lucide-react";
-import { KpiBig } from "@/components/KpiBig";
+import { RefreshCw, Server, KeyRound, Pencil } from "lucide-react";
 import { timeAgo } from "@/lib/format";
 
 type VpsNode = {
@@ -113,53 +112,6 @@ export default function Infraestrutura({ embedded = false }: { embedded?: boolea
           </Button>
         </div>
       )}
-      {/* KPIs — visão operacional */}
-      {(() => {
-        const vpsActive = vps.filter(v => v.status === "active").length;
-        const accActive = accounts.filter(a => a.status === "active").length;
-        const accExpired = accounts.filter(a => a.status === "expired").length;
-        const totalPlaylists = assignments.reduce((s, a) => s + a.playlist_count, 0);
-        const capacity = vps.reduce((s, v) => s + (v.status === "active" ? v.max_concurrent_sessions : 0), 0);
-        return (
-          <section className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-            <KpiBig
-              tier="hero"
-              className="md:col-span-1"
-              icon={Server}
-              label="Servidores ativos"
-              value={vpsActive}
-              hint={`${vps.length} total · ${capacity} sessões`}
-              domain="system"
-              loading={loading}
-            />
-            <KpiBig
-              icon={KeyRound}
-              label="Contas ativas"
-              value={accActive}
-              hint={`${accounts.length} cadastradas`}
-              domain="system"
-              loading={loading}
-            />
-            <KpiBig
-              icon={ShieldCheck}
-              label="Sessões expiradas"
-              value={accExpired}
-              hint={accExpired > 0 ? "Reautenticar" : "Tudo válido"}
-              tone={accExpired > 0 ? "warning" : "success"}
-              domain="system"
-              loading={loading}
-            />
-            <KpiBig
-              icon={ListMusic}
-              label="Playlists operadas"
-              value={totalPlaylists}
-              hint={`${assignments.length} atribuições`}
-              domain="playlists"
-              loading={loading}
-            />
-          </section>
-        );
-      })()}
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* VPS Nodes */}
