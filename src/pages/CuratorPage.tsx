@@ -1334,7 +1334,7 @@ export default function CuratorPage() {
         )}
 
         {/* Combinado total */}
-        {hasCuratorPlaylists && (
+        {activeTab === "entrega" && hasCuratorPlaylists && (
         <Card className="nx-card !p-0 border-border">
           <CardContent className="p-5 sm:p-6 pt-5 sm:pt-6 md:pt-6 space-y-6">
             <div className="flex items-center justify-between">
