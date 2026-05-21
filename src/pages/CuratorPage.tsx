@@ -1204,7 +1204,7 @@ export default function CuratorPage() {
 
         {/* Meta combinada — sempre visível, mesmo antes de cadastrar playlists.
             É o número do contrato. Sem isso o curador não sabe o que entregar. */}
-        {(stats.target > 0 || stats.dailyGoal > 0) && (
+        {activeTab === "entrega" && (stats.target > 0 || stats.dailyGoal > 0) && (
           <Card className="nx-card !p-0 border-border">
             <CardContent className="p-5 sm:p-6 pt-5 sm:pt-6 md:pt-6">
               <div className="flex items-center justify-between gap-3 mb-4">
