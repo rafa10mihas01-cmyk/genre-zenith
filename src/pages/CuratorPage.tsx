@@ -2004,53 +2004,28 @@ export default function CuratorPage() {
                                   hour: "2-digit",
                                   minute: "2-digit",
                                 });
+                                const prints = (entry.print_urls && entry.print_urls.length > 0)
+                                  ? entry.print_urls
+                                  : (entry.print_url ? [entry.print_url] : []);
+                                const cleanNote = cleanSnapshotNote(entry.note);
+                                const snapPlaylists = entry.playlists ?? [];
+                                const coverUrl = prints[0] ?? snapPlaylists[0]?.image_url ?? null;
                                 return (
                                   <li key={entry.captured_at}>
-                                    {entry.print_url ? (
-                                      <a
-                                        href={entry.print_url}
-                                        target="_blank"
-                                        rel="noreferrer noopener"
-                                        className="block rounded-lg border border-border/50 bg-card p-3 flex items-center gap-3 hover:bg-[hsl(var(--hover))] hover:border-border transition-colors"
-                                      >
-                                        <img
-                                          src={entry.print_url}
-                                          alt={`Print de ${dayLabel}`}
-                                          loading="lazy"
-                                          className="h-10 w-10 rounded-lg object-cover ring-1 ring-border shrink-0 bg-muted/40"
-                                        />
-                                        <div className="min-w-0 flex-1">
-                                          <div className="text-[13px] font-semibold leading-tight capitalize">
-                                            {dayLabel} · {time}
+                                    <details className="group/snap rounded-lg border border-border/50 bg-card overflow-hidden [&[open]>summary_.snapchev]:rotate-90">
+                                      <summary className="cursor-pointer list-none p-3 flex items-center gap-3 hover:bg-[hsl(var(--hover))] transition-colors">
+                                        {coverUrl ? (
+                                          <img
+                                            src={coverUrl}
+                                            alt={`Print de ${dayLabel}`}
+                                            loading="lazy"
+                                            className="h-10 w-10 rounded-lg object-cover ring-1 ring-border shrink-0 bg-muted/40"
+                                          />
+                                        ) : (
+                                          <div className="h-10 w-10 rounded-lg bg-muted/40 ring-1 ring-border flex items-center justify-center shrink-0">
+                                            <ImageIcon className="h-4 w-4 text-muted-foreground" />
                                           </div>
-                                          <div className="text-[11px] text-muted-foreground mt-0.5 tabular-nums">
-                                            {entry.is_baseline ? "Baseline" : "Snapshot"} ·{" "}
-                                            {entry.playlists_count}{" "}
-                                            {entry.playlists_count === 1 ? "playlist" : "playlists"} · abrir print
-                                          </div>
-                                        </div>
-                                        <div className="text-right shrink-0">
-                                          <div className="text-[13px] font-bold tabular-nums leading-tight">
-                                            {Number(entry.total_plays).toLocaleString("pt-BR")}
-                                          </div>
-                                          {next && delta !== 0 && (
-                                            <div
-                                              className={cn(
-                                                "text-[10.5px] font-semibold tabular-nums mt-0.5",
-                                                delta >= 0 ? "text-success" : "text-destructive",
-                                              )}
-                                            >
-                                              {delta >= 0 ? "+" : "−"}
-                                              {Math.abs(delta).toLocaleString("pt-BR")}
-                                            </div>
-                                          )}
-                                        </div>
-                                      </a>
-                                    ) : (
-                                      <div className="rounded-lg border border-border/50 bg-card p-3 flex items-center gap-3">
-                                        <div className="h-10 w-10 rounded-lg bg-muted/40 ring-1 ring-border flex items-center justify-center shrink-0">
-                                          <ImageIcon className="h-4 w-4 text-muted-foreground" />
-                                        </div>
+                                        )}
                                         <div className="min-w-0 flex-1">
                                           <div className="text-[13px] font-semibold leading-tight capitalize">
                                             {dayLabel} · {time}
@@ -2059,6 +2034,12 @@ export default function CuratorPage() {
                                             {entry.is_baseline ? "Baseline" : "Snapshot"} ·{" "}
                                             {entry.playlists_count}{" "}
                                             {entry.playlists_count === 1 ? "playlist" : "playlists"}
+                                            {prints.length > 0 && (
+                                              <>
+                                                {" · "}
+                                                {prints.length} {prints.length === 1 ? "print" : "prints"}
+                                              </>
+                                            )}
                                           </div>
                                         </div>
                                         <div className="text-right shrink-0">
@@ -2077,8 +2058,96 @@ export default function CuratorPage() {
                                             </div>
                                           )}
                                         </div>
+                                        <ChevronRight className="snapchev h-4 w-4 text-muted-foreground shrink-0 transition-transform ml-1" />
+                                      </summary>
+
+                                      <div className="border-t border-border/60 px-4 py-4 bg-[hsl(var(--background))]/40 space-y-4">
+                                        {cleanNote && (
+                                          <div>
+                                            <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
+                                              Observação
+                                            </div>
+                                            <div className="text-[12.5px] text-foreground/90 rounded-md bg-muted/30 px-3 py-2 leading-relaxed">
+                                              {cleanNote}
+                                            </div>
+                                          </div>
+                                        )}
+
+                                        {prints.length > 0 && (
+                                          <div>
+                                            <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">
+                                              Prints ({prints.length})
+                                            </div>
+                                            <PrintThumbs urls={prints} size="md" />
+                                          </div>
+                                        )}
+
+                                        <div>
+                                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">
+                                            Playlists do registro ({snapPlaylists.length})
+                                          </div>
+                                          {snapPlaylists.length === 0 ? (
+                                            <div className="text-[12px] text-muted-foreground italic py-2">
+                                              Nenhuma playlist vinculada a este registro.
+                                            </div>
+                                          ) : (
+                                            <ul className="space-y-1.5">
+                                              {snapPlaylists.map((pl) => (
+                                                <li
+                                                  key={pl.playlist_id}
+                                                  className="flex items-center gap-3 rounded-md border border-border/40 bg-[hsl(var(--elevated))]/40 px-2.5 py-2"
+                                                >
+                                                  {pl.image_url ? (
+                                                    <img
+                                                      src={pl.image_url}
+                                                      alt=""
+                                                      className="h-9 w-9 rounded-md object-cover shrink-0 ring-1 ring-border/50"
+                                                    />
+                                                  ) : (
+                                                    <div className="h-9 w-9 rounded-md bg-muted/40 flex items-center justify-center shrink-0">
+                                                      <Music2 className="h-4 w-4 text-muted-foreground" />
+                                                    </div>
+                                                  )}
+                                                  <div className="min-w-0 flex-1">
+                                                    <div className="text-[12.5px] font-medium leading-tight truncate">
+                                                      {pl.playlist_name}
+                                                    </div>
+                                                    <div className="text-[10.5px] text-muted-foreground truncate mt-0.5">
+                                                      {pl.spotify_owner_name ?? "—"}
+                                                      {pl.followers != null && (
+                                                        <>
+                                                          {" · "}
+                                                          {formatFollowers(pl.followers)} seguidores
+                                                        </>
+                                                      )}
+                                                    </div>
+                                                  </div>
+                                                  <div className="text-right shrink-0">
+                                                    <div className="text-[12.5px] font-semibold tabular-nums leading-tight">
+                                                      {Number(pl.plays ?? 0).toLocaleString("pt-BR")}
+                                                    </div>
+                                                    <div className="text-[10px] text-muted-foreground">
+                                                      plays
+                                                    </div>
+                                                  </div>
+                                                  {pl.spotify_url && (
+                                                    <a
+                                                      href={pl.spotify_url}
+                                                      target="_blank"
+                                                      rel="noopener noreferrer"
+                                                      className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                                                      aria-label="Abrir no Spotify"
+                                                    >
+                                                      <ExternalLink className="h-3.5 w-3.5" />
+                                                    </a>
+                                                  )}
+                                                </li>
+                                              ))}
+                                            </ul>
+                                          )}
+                                        </div>
                                       </div>
-                                    )}
+                                    </details>
                                   </li>
                                 );
                               })}
