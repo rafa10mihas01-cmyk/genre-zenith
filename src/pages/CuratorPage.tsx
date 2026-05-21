@@ -316,6 +316,9 @@ export default function CuratorPage() {
   const [, setNowTick] = useState(0);
   // Janela visível nas playlists do curador
   const [playlistWindow, setPlaylistWindow] = useState<"7d" | "28d">("7d");
+  // Tabs: divide a página em fases pra evitar scroll gigante no mobile
+  const [activeTab, setActiveTab] = useState<"cadastro" | "entrega" | "historico">("entrega");
+  const initialTabSetRef = useRef(false);
   useEffect(() => {
     const id = setInterval(() => setNowTick((n) => n + 1), 60_000);
     return () => clearInterval(id);
