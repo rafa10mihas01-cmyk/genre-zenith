@@ -1449,8 +1449,6 @@ export default function CuratorPage() {
 
               <ul className="space-y-1.5 max-h-[420px] overflow-y-auto pr-1 -mr-1">
                 {perPlaylistCurator.map((p) => {
-                  const baseline = Number(p.baseline_plays ?? 0);
-                  const latest = Number(p.latest_plays ?? 0);
                   const delivered = Number(p.delivered ?? 0);
                   return (
                     <li key={p.playlist_id} className="nx-subcard p-3">
