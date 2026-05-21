@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
-  Settings as SettingsIcon, KeyRound, CheckCircle2, XCircle, Loader2, Zap, RefreshCw, LogOut, Database, CalendarClock, Play, Music2, UserCheck, Star, Trash2, AlertTriangle, ExternalLink, Plug, Users,
+  Settings as SettingsIcon, KeyRound, CheckCircle2, XCircle, Loader2, Zap, RefreshCw, LogOut, Database, CalendarClock, Play, Music2, UserCheck, Star, Trash2, AlertTriangle, ExternalLink, Plug, Users, Layers,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -311,15 +311,15 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
         />
       )}
 
-      <Tabs defaultValue="conexoes" className={embedded ? "" : "mt-2"}>
+      <Tabs defaultValue="spotify" className={embedded ? "" : "mt-2"}>
         {/* TABS — mesmo padrão visual de Operação / Playlist Deals / Sistema */}
         <div className="sticky top-0 z-30 bg-background/95 supports-[backdrop-filter]:bg-background/80 backdrop-blur-md border-b border-border -mx-4 md:-mx-6">
         <TabsList className="nx-tab-rail h-auto bg-transparent p-0 rounded-none items-center gap-1 justify-start px-4 md:px-6">
           <TabsTrigger
-            value="conexoes"
+            value="spotify"
             className="px-4 h-10 inline-flex items-center gap-2 text-sm font-medium border-b-2 border-transparent text-muted-foreground rounded-none bg-transparent shadow-none -mb-px shrink-0 whitespace-nowrap transition-colors hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none"
           >
-            <Plug className="h-3.5 w-3.5" /> Conexões
+            <Music2 className="h-3.5 w-3.5" /> Spotify
           </TabsTrigger>
           <TabsTrigger
             value="coleta"
@@ -328,10 +328,10 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
             <Database className="h-3.5 w-3.5" /> Coleta
           </TabsTrigger>
           <TabsTrigger
-            value="contas-spotify"
+            value="catalogo"
             className="px-4 h-10 inline-flex items-center gap-2 text-sm font-medium border-b-2 border-transparent text-muted-foreground rounded-none bg-transparent shadow-none -mb-px shrink-0 whitespace-nowrap transition-colors hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none"
           >
-            <Music2 className="h-3.5 w-3.5" /> Contas Spotify
+            <Layers className="h-3.5 w-3.5" /> Contas de catálogo
           </TabsTrigger>
           <TabsTrigger
             value="equipe"
@@ -348,212 +348,54 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
         </TabsList>
         </div>
 
-        {/* ───────────────────────── CONEXÕES ───────────────────────── */}
-        <TabsContent value="conexoes" className="space-y-3 mt-4">
-
-          {/* ============ APP: SPOTIFY ============ */}
-          <AppConnectionCard
-            icon={Music2}
-            name="Spotify"
-            description="Busca de seguidores reais e criação de playlists a partir de templates aprovados."
-            status="ok"
-            statusLabel="API conectada"
-            actions={
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={testSpotify}
-                disabled={spotifyTesting}
-                className="h-8 text-xs gap-1.5"
-              >
-                {spotifyTesting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-                Testar conexão
-              </Button>
-            }
-          >
-            {/* Resultado de teste (quando aparece) */}
-            {spotifyResult && (
-              <div className={`mb-4 p-3 rounded-lg border text-sm ${
-                spotifyResult.ok
-                  ? "bg-success/10 border-success/30 text-success-foreground"
-                  : "bg-destructive/10 border-destructive/30 text-destructive"
-              }`}>
-                <div className="flex items-center gap-2 font-medium">
-                  {spotifyResult.ok ? <CheckCircle2 className="h-4 w-4 text-success" /> : <XCircle className="h-4 w-4 text-destructive" />}
-                  {spotifyResult.msg}
-                </div>
-                {spotifyResult.meta?.token && (
-                  <div className="mt-2 text-xs text-muted-foreground">
-                    Token: <span className="font-mono text-foreground">{spotifyResult.meta.token}</span>
-                  </div>
-                )}
+        {/* ───────────────────────── SPOTIFY ───────────────────────── */}
+        <TabsContent value="spotify" className="space-y-3 mt-4">
+          {/* Teste de conexão (resultado contextual) */}
+          {spotifyResult && (
+            <div className={`p-3 rounded-lg border text-sm ${
+              spotifyResult.ok
+                ? "bg-success/10 border-success/30 text-success-foreground"
+                : "bg-destructive/10 border-destructive/30 text-destructive"
+            }`}>
+              <div className="flex items-center gap-2 font-medium">
+                {spotifyResult.ok ? <CheckCircle2 className="h-4 w-4 text-success" /> : <XCircle className="h-4 w-4 text-destructive" />}
+                {spotifyResult.msg}
               </div>
-            )}
-
-            {/* Apps Spotify (guarda-chuva multi-app) */}
-            <SpotifyAppsManager
-              onChange={setSpotifyApps}
-              onConnectAccount={(appId, forceLogin) => {
-                void (isInIframe ? openInNewTab(forceLogin, appId) : connectSpotify(forceLogin, appId));
-              }}
-            />
-
-
-            {/* Contas conectadas */}
-            <div>
-              <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
-                <div>
-                  <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-bold">
-                    Contas conectadas
-                  </h3>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
-                    {spotifyAccounts.length === 0
-                      ? "Sem contas vinculadas."
-                      : `${spotifyAccounts.length} conta${spotifyAccounts.length > 1 ? "s" : ""} ativa${spotifyAccounts.length > 1 ? "s" : ""}.`}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    onClick={() => handleAddAccountClick(false)}
-                    disabled={connectingSpotify}
-                    className="h-8 text-xs gap-1.5"
-                  >
-                    {connectingSpotify
-                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      : isInIframe ? <ExternalLink className="h-3.5 w-3.5" /> : <Music2 className="h-3.5 w-3.5" />}
-                    {spotifyAccounts.length > 0 ? "Adicionar conta" : "Conectar conta"}
-                  </Button>
-                  {spotifyAccounts.length > 0 && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleAddAccountClick(true)}
-                      disabled={connectingSpotify}
-                      className="h-8 text-xs gap-1.5"
-                    >
-                      <RefreshCw className="h-3.5 w-3.5" />
-                      Trocar conta
-                    </Button>
-                  )}
-                </div>
-              </div>
-
-              {isInIframe && (
-                <div className="mb-3 p-2.5 rounded-lg border border-warning/30 bg-warning/5 flex items-start gap-2">
-                  <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0 mt-0.5" />
-                  <p className="text-[11px] text-muted-foreground leading-relaxed">
-                    O Spotify bloqueia login dentro do preview. Os botões acima abrem em nova aba.
-                  </p>
-                </div>
-              )}
-
-              {spotifyAccounts.length > 0 && (
-                <div className="mb-3 p-3 rounded-lg border border-warning/30 bg-warning/5 space-y-2">
-                  <div className="flex items-start gap-2">
-                    <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
-                    <div className="text-[11px] text-muted-foreground leading-relaxed">
-                      <strong className="text-foreground">Cada e-mail abaixo precisa estar em <em>Users and Access</em> do app correspondente</strong> no{" "}
-                      <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noreferrer" className="text-primary hover:underline inline-flex items-center gap-1">
-                        Spotify Developer Dashboard <ExternalLink className="h-3 w-3" />
-                      </a>
-                      . Sem isso, operações em <span className="font-mono">/tracks</span> (adicionar, remover, reordenar) retornam <span className="font-mono text-warning">403 Forbidden</span> — mesmo que capa e título funcionem normalmente.
-                    </div>
-                  </div>
-                  {spotifyApps.length > 0 && (() => {
-                    const byApp = new Map<string, { app: SpotifyApp | null; emails: string[] }>();
-                    for (const acc of spotifyAccounts) {
-                      const app = spotifyApps.find((a) => a.id === acc.app_id) ?? null;
-                      const key = acc.app_id ?? "legacy";
-                      if (!byApp.has(key)) byApp.set(key, { app, emails: [] });
-                      byApp.get(key)!.emails.push(acc.email ?? acc.display_name ?? acc.spotify_user_id);
-                    }
-                    return (
-                      <div className="ml-6 space-y-1.5">
-                        {Array.from(byApp.values()).map(({ app, emails }, i) => (
-                          <div key={i} className="text-[11px] leading-relaxed">
-                            <span className="font-medium text-foreground">{app?.name ?? "App legado (env)"}</span>
-                            <span className="text-muted-foreground"> ({emails.length} {emails.length === 1 ? "conta" : "contas"}):</span>
-                            <div className="font-mono text-[10px] text-muted-foreground/90 mt-0.5 pl-2">
-                              {emails.join(" · ")}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    );
-                  })()}
-                </div>
-              )}
-
-              {spotifyAccounts.length > 0 && (
-                <div className="space-y-1.5">
-                  {spotifyAccounts.map((acc) => {
-                    const grantedScopes: string[] = (acc.scope ?? "").split(/\s+/).filter(Boolean);
-                    const missingScopes = requiredScopes.filter((s) => !grantedScopes.includes(s));
-                    const needsReauth = requiredScopes.length > 0 && missingScopes.length > 0;
-                    const accApp = spotifyApps.find((a) => a.id === acc.app_id);
-                    return (
-                      <div key={acc.id} className="flex items-center justify-between gap-2 p-2.5 rounded-lg border border-border bg-muted/20">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-medium text-sm truncate">{acc.display_name ?? acc.spotify_user_id}</span>
-                            {accApp && (
-                              <span
-                                className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono"
-                                title={`Esta conta está autenticada via o app "${accApp.name}". Ela precisa estar em Users and Access desse app no Spotify Developer.`}
-                              >
-                                {accApp.name}
-                              </span>
-                            )}
-                            {acc.is_default && (
-                              <span className="text-[10px] inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/15 text-primary">
-                                <Star className="h-2.5 w-2.5" /> padrão
-                              </span>
-                            )}
-                            {needsReauth && (
-                              <span
-                                className="text-[10px] inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-warning/15 text-warning border border-warning/30"
-                                title={`Escopos faltando: ${missingScopes.join(", ")}`}
-                              >
-                                <AlertTriangle className="h-2.5 w-2.5" /> reautorizar ({missingScopes.length})
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-xs text-muted-foreground font-mono truncate">{acc.email ?? acc.spotify_user_id}</div>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          {needsReauth && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                void (isInIframe ? openInNewTab(true, acc.app_id ?? undefined) : connectSpotify(true, acc.app_id ?? undefined));
-                              }}
-                              className="h-8 text-xs gap-1 border-warning/40 text-warning hover:bg-warning/10 hover:text-warning"
-                              title={`Refazer login pra conceder: ${missingScopes.join(", ")}`}
-                            >
-                              <RefreshCw className="h-3 w-3" /> Reautorizar
-                            </Button>
-                          )}
-                          {!acc.is_default && (
-                            <Button size="sm" variant="ghost" onClick={() => setDefaultAccount(acc.id)} className="h-8 px-2 text-xs gap-1">
-                              <Star className="h-3 w-3" /> Padrão
-                            </Button>
-                          )}
-                          <Button size="sm" variant="ghost" onClick={() => removeAccount(acc.id)} className="h-8 w-8 p-0 text-destructive hover:text-destructive">
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </div>
-                    );
-                  })}
+              {spotifyResult.meta?.token && (
+                <div className="mt-2 text-xs text-muted-foreground">
+                  Token: <span className="font-mono text-foreground">{spotifyResult.meta.token}</span>
                 </div>
               )}
             </div>
-          </AppConnectionCard>
+          )}
+
+          <div className="flex justify-end">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={testSpotify}
+              disabled={spotifyTesting}
+              className="h-8 text-xs gap-1.5"
+            >
+              {spotifyTesting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+              Testar API
+            </Button>
+          </div>
+
+          <SpotifyAppsManager
+            accounts={spotifyAccounts}
+            requiredScopes={requiredScopes}
+            isInIframe={isInIframe}
+            onChange={setSpotifyApps}
+            onConnect={(appId, forceLogin) => {
+              void (isInIframe ? openInNewTab(forceLogin, appId) : connectSpotify(forceLogin, appId));
+            }}
+            onSetDefaultAccount={setDefaultAccount}
+            onRemoveAccount={removeAccount}
+          />
         </TabsContent>
 
-        {/* Picker: qual app usar pra próxima conta? */}
+        {/* Picker: qual app usar pra próxima conta? (mantido pra fluxos legados) */}
         <Dialog open={!!pickerOpen} onOpenChange={(o) => !o && setPickerOpen(null)}>
           <DialogContent>
             <DialogHeader>
@@ -662,8 +504,8 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
       </section>
         </TabsContent>
 
-        {/* ───────────────────── CONTAS SPOTIFY ───────────────────── */}
-        <TabsContent value="contas-spotify" className="mt-4">
+        {/* ───────────────── CONTAS DE CATÁLOGO ───────────────── */}
+        <TabsContent value="catalogo" className="mt-4">
           <AccountsManager />
         </TabsContent>
 

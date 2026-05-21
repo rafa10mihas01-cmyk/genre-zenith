@@ -1,3 +1,6 @@
+// SpotifyAppsManager — central operacional multi-app/multi-conta.
+// Cada APP é um card; contas vivem aninhadas dentro do app correspondente.
+// Configs técnicas (Redirect URIs, scopes, edit/remove) ficam em <details> colapsável.
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -5,8 +8,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Layers, Plus, Star, Trash2, Pencil, Loader2, ExternalLink, AlertTriangle, LinkIcon, Copy, Check } from "lucide-react";
+import {
+  Plus, Star, Trash2, Pencil, Loader2, ExternalLink, AlertTriangle, LinkIcon, Copy, Check,
+  Music2, RefreshCw, Settings2, ChevronDown,
+} from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 export type SpotifyApp = {
   id: string;
@@ -23,6 +30,16 @@ export type SpotifyApp = {
   created_at: string;
 };
 
+export type SpotifyAccount = {
+  id: string;
+  app_id: string | null;
+  spotify_user_id: string;
+  display_name: string | null;
+  email: string | null;
+  is_default: boolean;
+  scope: string | null;
+};
+
 async function callAuth(qs: string, init?: RequestInit) {
   const { data: { session } } = await supabase.auth.getSession();
   const token = session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -34,8 +51,6 @@ async function callAuth(qs: string, init?: RequestInit) {
   return resp.json();
 }
 
-// URLs publicadas/preview/custom domain conhecidas — usadas pra montar as 3 redirect URIs
-// que precisam ser coladas no painel do Spotify Developer pra CADA app.
 const KNOWN_ORIGINS: { label: string; origin: string }[] = [
   { label: "Editor Lovable", origin: "https://f5e1a9fd-9e98-4abe-83b5-56808d1c1add.lovableproject.com" },
   { label: "Preview Lovable", origin: "https://id-preview--f5e1a9fd-9e98-4abe-83b5-56808d1c1add.lovable.app" },
@@ -47,7 +62,7 @@ function buildAppRedirects(slug: string): { label: string; url: string }[] {
   return KNOWN_ORIGINS.map(({ label, origin }) => ({ label, url: `${origin}/spotify/callback/${slug}` }));
 }
 
-function AppRedirectUrisPanel({ slug, compact = false }: { slug: string; compact?: boolean }) {
+function RedirectUrisPanel({ slug }: { slug: string }) {
   const urls = useMemo(() => buildAppRedirects(slug), [slug]);
   const [copied, setCopied] = useState<string | null>(null);
 
@@ -57,25 +72,20 @@ function AppRedirectUrisPanel({ slug, compact = false }: { slug: string; compact
       setCopied(url);
       toast.success("URL copiada");
       setTimeout(() => setCopied((c) => (c === url ? null : c)), 1500);
-    } catch {
-      toast.error("Falha ao copiar");
-    }
+    } catch { toast.error("Falha ao copiar"); }
   }
-
   async function copyAll() {
     try {
       await navigator.clipboard.writeText(urls.map((u) => u.url).join("\n"));
       toast.success(`${urls.length} URLs copiadas`);
-    } catch {
-      toast.error("Falha ao copiar");
-    }
+    } catch { toast.error("Falha ao copiar"); }
   }
 
   return (
-    <div className={compact ? "mt-2 space-y-1" : "mt-2 p-2.5 rounded-md bg-muted/30 border border-border/40 space-y-1.5"}>
+    <div className="space-y-1.5">
       <div className="flex items-center justify-between gap-2">
         <span className="text-[10px] uppercase tracking-wide text-muted-foreground/80">
-          Redirect URIs do app <span className="text-foreground font-mono">{slug}</span>
+          Redirect URIs — colar no Spotify Developer
         </span>
         <button
           type="button"
@@ -101,14 +111,43 @@ function AppRedirectUrisPanel({ slug, compact = false }: { slug: string; compact
           </div>
         ))}
       </div>
-      <p className="text-[10px] text-muted-foreground leading-relaxed pt-1">
-        Cole essas 4 URLs em <strong>Edit Settings → Redirect URIs</strong> do app no Spotify Developer Dashboard.
-      </p>
     </div>
   );
 }
 
-export function SpotifyAppsManager({ onChange, onConnectAccount }: { onChange?: (apps: SpotifyApp[]) => void; onConnectAccount?: (appId: string, forceLogin: boolean) => void }) {
+function CapacityBar({ used, max }: { used: number; max: number }) {
+  const pct = max === 0 ? 0 : Math.min(100, Math.round((used / max) * 100));
+  const tone =
+    pct > 90 ? "bg-destructive"
+    : pct > 60 ? "bg-warning"
+    : "bg-success";
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between text-[10px] uppercase tracking-wide text-muted-foreground">
+        <span>Capacidade</span>
+        <span className="tabular-nums text-foreground font-medium">{used}/{max} contas</span>
+      </div>
+      <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+        <div className={cn("h-full transition-all", tone)} style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
+
+interface Props {
+  accounts: SpotifyAccount[];
+  requiredScopes: string[];
+  isInIframe: boolean;
+  onConnect: (appId: string, forceLogin: boolean) => void;
+  onSetDefaultAccount: (id: string) => void;
+  onRemoveAccount: (id: string) => void;
+  onChange?: (apps: SpotifyApp[]) => void;
+}
+
+export function SpotifyAppsManager({
+  accounts, requiredScopes, isInIframe,
+  onConnect, onSetDefaultAccount, onRemoveAccount, onChange,
+}: Props) {
   const [apps, setApps] = useState<SpotifyApp[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Partial<SpotifyApp> | null>(null);
@@ -170,16 +209,47 @@ export function SpotifyAppsManager({ onChange, onConnectAccount }: { onChange?: 
     await load();
   }
 
+  // ─── Resumo operacional ───
+  const totalApps = apps.length;
+  const totalUsed = apps.reduce((sum, a) => sum + a.accounts_used, 0);
+  const totalMax = apps.reduce((sum, a) => sum + a.max_accounts, 0);
+  const allHealthy = apps.length > 0 && apps.every((a) => a.status === "active");
+  const accountsByApp = useMemo(() => {
+    const m = new Map<string, SpotifyAccount[]>();
+    for (const a of accounts) {
+      const k = a.app_id ?? "__legacy__";
+      const arr = m.get(k) ?? [];
+      arr.push(a);
+      m.set(k, arr);
+    }
+    return m;
+  }, [accounts]);
+  const legacyAccounts = accountsByApp.get("__legacy__") ?? [];
+
   return (
-    <div className="mb-5">
-      <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
-        <div>
-          <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-bold flex items-center gap-1.5">
-            <Layers className="h-3 w-3" /> Apps Spotify (guarda-chuva)
-          </h3>
-          <p className="text-[11px] text-muted-foreground mt-0.5">
-            Cada app do Spotify Developer aceita até 25 contas. Cadastre vários para distribuir.
-          </p>
+    <div className="space-y-4">
+      {/* ─── Header operacional ─── */}
+      <header className="nx-card p-4 flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="h-10 w-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+            <Music2 className="h-5 w-5 text-primary" />
+          </div>
+          <div className="min-w-0">
+            <h2 className="text-sm font-bold">Infraestrutura Spotify</h2>
+            <p className="text-xs text-muted-foreground mt-0.5 tabular-nums">
+              {loading ? "Carregando…" : (
+                <>
+                  <span className="text-foreground font-medium">{totalApps}</span> app{totalApps === 1 ? "" : "s"}
+                  {" · "}
+                  <span className="text-foreground font-medium">{totalUsed}/{totalMax}</span> contas
+                  {" · "}
+                  <span className={allHealthy ? "text-success" : "text-warning"}>
+                    {totalApps === 0 ? "sem apps" : allHealthy ? "todas saudáveis" : "atenção"}
+                  </span>
+                </>
+              )}
+            </p>
+          </div>
         </div>
         <Button
           size="sm"
@@ -187,117 +257,248 @@ export function SpotifyAppsManager({ onChange, onConnectAccount }: { onChange?: 
           onClick={() => setEditing({ name: "", max_accounts: 5, is_default: apps.length === 0, status: "active" })}
           className="h-8 text-xs gap-1.5"
         >
-          <Plus className="h-3.5 w-3.5" /> Adicionar app
+          <Plus className="h-3.5 w-3.5" /> Cadastrar app
         </Button>
-      </div>
+      </header>
 
-      {loading ? (
-        <div className="text-xs text-muted-foreground">Carregando…</div>
-      ) : apps.length === 0 ? (
-        <div className="p-3 rounded-lg border border-warning/30 bg-warning/5 flex items-start gap-2">
-          <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
-          <div className="text-xs leading-relaxed">
-            Nenhum app cadastrado. Hoje o sistema usa credenciais legadas do servidor.
-            Cadastre seu primeiro app no <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noreferrer" className="underline inline-flex items-center gap-1">Spotify Developer <ExternalLink className="h-3 w-3" /></a> e cole o <span className="font-mono">Client ID</span> + <span className="font-mono">Client Secret</span> aqui.
-          </div>
-        </div>
-      ) : (
-        <div className="space-y-1.5">
-          {apps.map((a) => {
-            const full = a.slots_remaining <= 0;
-            return (
-              <div key={a.id} className="p-2.5 rounded-lg border border-border bg-muted/20">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium text-sm truncate">{a.name}</span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono">{a.slug}</span>
-                      {a.is_default && (
-                        <span className="text-[10px] inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/15 text-primary">
-                          <Star className="h-2.5 w-2.5" /> padrão
-                        </span>
-                      )}
-                      {a.status !== "active" && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{a.status}</span>
-                      )}
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded ${full ? "bg-destructive/15 text-destructive" : "bg-success/15 text-success"}`}>
-                        {a.accounts_used}/{a.max_accounts} contas
-                      </span>
-                    </div>
-                    <div className="text-[11px] text-muted-foreground font-mono truncate mt-0.5">
-                      {a.client_id_preview}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    {onConnectAccount && a.status === "active" && !full && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => onConnectAccount(a.id, true)}
-                        className="h-8 text-xs gap-1.5 border-primary/40 text-primary hover:bg-primary/10 hover:text-primary"
-                        title={`Conectar nova conta neste app (encerra a sessão Spotify atual e abre o login da próxima conta no app "${a.name}")`}
-                      >
-                        <LinkIcon className="h-3.5 w-3.5" /> Conectar conta
-                      </Button>
-                    )}
-                    <Button size="sm" variant="ghost" onClick={() => setEditing(a)} className="h-8 w-8 p-0" title="Editar">
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => del(a.id, a.name)} className="h-8 w-8 p-0 text-destructive hover:text-destructive" title="Remover">
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                </div>
-                <AppRedirectUrisPanel slug={a.slug} compact />
-              </div>
-            );
-          })}
+      {/* ─── Aviso contextual único (iframe) ─── */}
+      {isInIframe && (
+        <div className="p-2.5 rounded-lg border border-warning/30 bg-warning/5 flex items-start gap-2">
+          <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0 mt-0.5" />
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            O Spotify bloqueia login dentro do preview. A conexão de contas abre em nova aba automaticamente.
+          </p>
         </div>
       )}
 
+      {/* ─── Apps ─── */}
+      {loading ? (
+        <div className="nx-card p-6 text-center text-xs text-muted-foreground">Carregando apps…</div>
+      ) : apps.length === 0 ? (
+        <div className="nx-card p-6 text-center space-y-3">
+          <div className="h-12 w-12 rounded-full bg-muted/40 border border-border flex items-center justify-center mx-auto">
+            <Music2 className="h-5 w-5 text-muted-foreground" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold">Cadastre seu primeiro app Spotify</h3>
+            <p className="text-xs text-muted-foreground mt-1 max-w-md mx-auto leading-relaxed">
+              Cada app aceita até 25 contas. Crie no{" "}
+              <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noreferrer" className="text-primary hover:underline inline-flex items-center gap-1">
+                Spotify Developer <ExternalLink className="h-3 w-3" />
+              </a>{" "}
+              e cole as credenciais aqui.
+            </p>
+          </div>
+          <Button
+            size="sm"
+            onClick={() => setEditing({ name: "", max_accounts: 5, is_default: true, status: "active" })}
+            className="h-9 text-xs gap-1.5"
+          >
+            <Plus className="h-3.5 w-3.5" /> Cadastrar app
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {apps.map((a) => {
+            const appAccounts = accountsByApp.get(a.id) ?? [];
+            const full = a.slots_remaining <= 0;
+            const isPaused = a.status !== "active";
+            return (
+              <article key={a.id} className="nx-card overflow-hidden">
+                {/* App header */}
+                <header className="p-4 border-b border-border">
+                  <div className="flex items-start justify-between gap-3 flex-wrap">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="text-sm font-bold">{a.name}</h3>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono">{a.slug}</span>
+                        {a.is_default && (
+                          <span className="text-[10px] inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/15 text-primary">
+                            <Star className="h-2.5 w-2.5" /> padrão
+                          </span>
+                        )}
+                        {isPaused ? (
+                          <span className="text-[10px] inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-warning/30 text-warning bg-warning/10">
+                            <span className="h-1.5 w-1.5 rounded-full bg-warning" /> pausado
+                          </span>
+                        ) : (
+                          <span className="text-[10px] inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-success/30 text-success bg-success/10">
+                            <span className="h-1.5 w-1.5 rounded-full bg-success" /> ativo
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground font-mono truncate mt-1">{a.client_id_preview}</div>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={isPaused || full}
+                      onClick={() => onConnect(a.id, true)}
+                      className="h-8 text-xs gap-1.5 border-primary/40 text-primary hover:bg-primary/10 hover:text-primary disabled:opacity-50"
+                      title={
+                        isPaused ? "App pausado"
+                        : full ? "Sem vagas neste app"
+                        : `Conectar nova conta no app "${a.name}"`
+                      }
+                    >
+                      <LinkIcon className="h-3.5 w-3.5" /> Conectar conta
+                    </Button>
+                  </div>
+                  <div className="mt-3">
+                    <CapacityBar used={a.accounts_used} max={a.max_accounts} />
+                  </div>
+                </header>
+
+                {/* Contas aninhadas */}
+                <div className="p-4 space-y-1.5">
+                  <div className="text-[10px] uppercase tracking-wide text-muted-foreground font-bold">
+                    Contas vinculadas {appAccounts.length > 0 && <span className="text-muted-foreground/70">({appAccounts.length})</span>}
+                  </div>
+                  {appAccounts.length === 0 ? (
+                    <p className="text-xs text-muted-foreground italic py-2">
+                      Nenhuma conta vinculada ainda. Use "Conectar conta" acima.
+                    </p>
+                  ) : (
+                    <ul className="space-y-1.5">
+                      {appAccounts.map((acc) => {
+                        const grantedScopes: string[] = (acc.scope ?? "").split(/\s+/).filter(Boolean);
+                        const missingScopes = requiredScopes.filter((s) => !grantedScopes.includes(s));
+                        const needsReauth = requiredScopes.length > 0 && missingScopes.length > 0;
+                        return (
+                          <li key={acc.id} className="flex items-center justify-between gap-2 p-2.5 rounded-lg border border-border bg-muted/20">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-medium text-sm truncate">{acc.display_name ?? acc.spotify_user_id}</span>
+                                {acc.is_default && (
+                                  <span className="text-[10px] inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/15 text-primary">
+                                    <Star className="h-2.5 w-2.5" /> padrão
+                                  </span>
+                                )}
+                                {needsReauth && (
+                                  <span
+                                    className="text-[10px] inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-warning/15 text-warning border border-warning/30"
+                                    title={`Escopos faltando: ${missingScopes.join(", ")}`}
+                                  >
+                                    <AlertTriangle className="h-2.5 w-2.5" /> reautorizar
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-xs text-muted-foreground font-mono truncate">{acc.email ?? acc.spotify_user_id}</div>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              {needsReauth && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => onConnect(a.id, true)}
+                                  className="h-8 px-2 text-xs gap-1 text-warning hover:bg-warning/10 hover:text-warning"
+                                  title={`Reautorizar para conceder: ${missingScopes.join(", ")}`}
+                                >
+                                  <RefreshCw className="h-3 w-3" />
+                                </Button>
+                              )}
+                              {!acc.is_default && (
+                                <Button size="sm" variant="ghost" onClick={() => onSetDefaultAccount(acc.id)} className="h-8 w-8 p-0" title="Definir como padrão">
+                                  <Star className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
+                              <Button size="sm" variant="ghost" onClick={() => onRemoveAccount(acc.id)} className="h-8 w-8 p-0 text-destructive hover:text-destructive" title="Remover conta">
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
+
+                {/* Configurações avançadas (colapsável) */}
+                <details className="group border-t border-border bg-muted/10">
+                  <summary className="px-4 py-2.5 cursor-pointer list-none flex items-center justify-between gap-2 text-[11px] uppercase tracking-wide text-muted-foreground hover:text-foreground transition-colors">
+                    <span className="inline-flex items-center gap-1.5">
+                      <Settings2 className="h-3 w-3" /> Configurações avançadas
+                    </span>
+                    <ChevronDown className="h-3.5 w-3.5 transition-transform group-open:rotate-180" />
+                  </summary>
+                  <div className="px-4 pb-4 pt-1 space-y-3">
+                    <RedirectUrisPanel slug={a.slug} />
+                    {scopes.length > 0 && (
+                      <div className="space-y-1.5">
+                        <span className="text-[10px] uppercase tracking-wide text-muted-foreground/80 block">
+                          Escopos solicitados ({scopes.length})
+                        </span>
+                        <div className="flex flex-wrap gap-1">
+                          {scopes.map((s) => (
+                            <span key={s} className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">{s}</span>
+                          ))}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground leading-relaxed">
+                          Cada conta precisa estar em <strong>Users and Access</strong> deste app no Spotify Developer.
+                        </p>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2 pt-2 border-t border-border/40">
+                      <Button size="sm" variant="ghost" onClick={() => setEditing(a)} className="h-7 text-xs gap-1.5">
+                        <Pencil className="h-3 w-3" /> Editar app
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => del(a.id, a.name)} className="h-7 text-xs gap-1.5 text-destructive hover:text-destructive">
+                        <Trash2 className="h-3 w-3" /> Remover app
+                      </Button>
+                    </div>
+                  </div>
+                </details>
+              </article>
+            );
+          })}
+
+          {/* Contas legadas (sem app vinculado) */}
+          {legacyAccounts.length > 0 && (
+            <article className="nx-card overflow-hidden border-dashed">
+              <header className="p-4 border-b border-border">
+                <h3 className="text-sm font-bold">App legado (env)</h3>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Contas autenticadas via credenciais antigas do servidor, sem app vinculado.
+                </p>
+              </header>
+              <ul className="p-4 space-y-1.5">
+                {legacyAccounts.map((acc) => (
+                  <li key={acc.id} className="flex items-center justify-between gap-2 p-2.5 rounded-lg border border-border bg-muted/20">
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium text-sm truncate">{acc.display_name ?? acc.spotify_user_id}</div>
+                      <div className="text-xs text-muted-foreground font-mono truncate">{acc.email ?? acc.spotify_user_id}</div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {!acc.is_default && (
+                        <Button size="sm" variant="ghost" onClick={() => onSetDefaultAccount(acc.id)} className="h-8 w-8 p-0" title="Definir como padrão">
+                          <Star className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                      <Button size="sm" variant="ghost" onClick={() => onRemoveAccount(acc.id)} className="h-8 w-8 p-0 text-destructive hover:text-destructive">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </article>
+          )}
+        </div>
+      )}
+
+      {/* Dialog de edição/cadastro */}
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
         <DialogContent className="sm:max-w-[560px] bg-card border-border/60 shadow-2xl">
           <DialogHeader className="space-y-2 pb-2 border-b border-border/40">
             <DialogTitle className="text-lg font-semibold text-foreground">
-              {editing?.id ? "Editar app Spotify" : "Adicionar app Spotify"}
+              {editing?.id ? "Editar app Spotify" : "Cadastrar app Spotify"}
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground leading-relaxed">
               Crie um app em{" "}
-              <a
-                href="https://developer.spotify.com/dashboard"
-                target="_blank"
-                rel="noreferrer"
-                className="text-primary hover:underline font-medium"
-              >
+              <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noreferrer" className="text-primary hover:underline font-medium">
                 developer.spotify.com/dashboard
               </a>{" "}
               e cole as credenciais aqui.
-              {editing?.slug ? (
-                <span className="block mt-2">
-                  <AppRedirectUrisPanel slug={editing.slug} />
-                </span>
-              ) : (
-                <span className="block mt-2 p-2 rounded-md bg-muted/40 border border-border/40 text-[11px] text-muted-foreground">
-                  Defina o <strong>identificador (slug)</strong> abaixo. Após salvar, as 3 Redirect URIs específicas desse app aparecem aqui pra você colar no Spotify Developer.
-                </span>
-              )}
-              {scopes.length > 0 && (
-                <span className="block mt-2 p-2 rounded-md bg-muted/40 border border-border/40">
-                  <span className="text-[10px] uppercase tracking-wide text-muted-foreground/80 block mb-1">
-                    Escopos solicitados na autorização ({scopes.length})
-                  </span>
-                  <span className="flex flex-wrap gap-1">
-                    {scopes.map((s) => (
-                      <span key={s} className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
-                        {s}
-                      </span>
-                    ))}
-                  </span>
-                  <span className="block mt-1.5 text-[10px] text-muted-foreground leading-relaxed">
-                    Esses escopos são pedidos a cada conta no momento do login. Não precisa configurar nada no Spotify Developer — basta que o app esteja em <strong>Development mode</strong> e as contas adicionadas em <em>Users and Access</em>.
-                  </span>
-                </span>
-              )}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 pt-2">
@@ -374,6 +575,11 @@ export function SpotifyAppsManager({ onChange, onConnectAccount }: { onChange?: 
                 className="text-sm bg-muted/30 border-border/60 focus-visible:border-primary/60 focus-visible:ring-primary/20 resize-none"
               />
             </div>
+            {editing?.slug && (
+              <div className="p-3 rounded-md bg-muted/20 border border-border/40">
+                <RedirectUrisPanel slug={editing.slug} />
+              </div>
+            )}
             <label className="flex items-start gap-2.5 text-xs text-muted-foreground p-3 rounded-md bg-muted/20 border border-border/40 cursor-pointer hover:bg-muted/30 transition-colors">
               <input
                 type="checkbox"
@@ -396,7 +602,6 @@ export function SpotifyAppsManager({ onChange, onConnectAccount }: { onChange?: 
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
     </div>
   );
 }
