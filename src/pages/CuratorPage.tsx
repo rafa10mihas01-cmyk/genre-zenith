@@ -1471,24 +1471,18 @@ export default function CuratorPage() {
                               </span>
                             )}
                           </div>
-                          <div className="mt-1 flex items-center gap-2 text-[10.5px] text-muted-foreground tabular-nums">
-                            <span>base {formatPlays(baseline)}</span>
-                            <span className="text-muted-foreground/40">→</span>
-                            <span>atual {formatPlays(latest)}</span>
+                          <div className="mt-1 flex items-center gap-2 text-[10px] text-muted-foreground/70 tabular-nums">
                             {p.last_captured_at && (
-                              <>
-                                <span className="text-muted-foreground/40">·</span>
-                                <span>{formatShortDate(p.last_captured_at)}</span>
-                              </>
+                              <span>último print {formatShortDate(p.last_captured_at)}</span>
                             )}
                           </div>
                         </div>
                         <div className="text-right shrink-0">
-                          <div className="text-[14px] font-bold tabular-nums leading-tight text-primary">
+                          <div className="text-[15px] font-bold tabular-nums leading-tight text-foreground">
                             +{formatPlays(delivered)}
                           </div>
                           <div className="text-[9.5px] text-muted-foreground uppercase tracking-wider mt-0.5">
-                            entregue
+                            entregues desde o início
                           </div>
                         </div>
                       </div>
