@@ -1167,8 +1167,8 @@ export default function CuratorPage() {
         )}
 
         {/* Tabs por fase — pipeline em pílulas, mobile-first */}
-        <div className="flex justify-center pt-1 sticky top-2 z-30">
-          <div className="inline-flex items-center gap-0.5 rounded-full bg-card/85 backdrop-blur-md border border-border/60 p-1 shadow-[0_8px_24px_-12px_rgba(0,0,0,0.5)]">
+        <div className="pt-1 sticky top-2 z-30">
+          <div className="grid grid-cols-3 items-center gap-0.5 rounded-full bg-card/80 backdrop-blur-md border border-border/50 p-0.5 shadow-[0_4px_16px_-8px_rgba(0,0,0,0.4)] w-full">
             {([
               { id: "cadastro" as const, label: "Cadastro", icon: ListMusic, count: curatorPlaylists.length || null },
               { id: "entrega" as const, label: "Entrega", icon: Target, count: stats.target > 0 ? `${stats.pct}%` : null },
@@ -1183,16 +1183,16 @@ export default function CuratorPage() {
                   onClick={() => setActiveTab(t.id)}
                   aria-pressed={isActive}
                   className={cn(
-                    "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-medium transition-colors whitespace-nowrap",
+                    "inline-flex items-center justify-center gap-1.5 rounded-full px-2 py-1 text-[11.5px] font-medium tracking-tight transition-colors whitespace-nowrap min-w-0",
                     isActive
-                      ? "bg-[hsl(var(--elevated))] text-foreground shadow-sm"
+                      ? "bg-[hsl(var(--elevated))] text-foreground"
                       : "text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  <Icon className="h-3.5 w-3.5" />
-                  <span>{t.label}</span>
+                  <Icon className="h-3 w-3 shrink-0" />
+                  <span className="truncate">{t.label}</span>
                   {t.count != null && (
-                    <span className={cn("text-[10.5px] tabular-nums ml-0.5", isActive ? "text-primary" : "text-muted-foreground/70")}>
+                    <span className={cn("text-[10px] tabular-nums", isActive ? "text-primary" : "text-muted-foreground/60")}>
                       {t.count}
                     </span>
                   )}
