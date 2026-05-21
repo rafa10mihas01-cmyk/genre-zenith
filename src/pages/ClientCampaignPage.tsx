@@ -646,27 +646,37 @@ export default function ClientCampaignPage() {
                           <p className="text-[13.5px] font-medium truncate" title={p.name}>
                             {p.name}
                           </p>
-                          <div className="flex items-center gap-2 mt-1 min-w-0">
-                            <span
-                              className={cn(
-                                "text-[10px] font-medium px-1.5 py-0.5 rounded border whitespace-nowrap",
-                                PLAYLIST_STATUS_STYLES[p.status],
-                              )}
-                            >
-                              {p.status}
-                            </span>
-                            <span className="text-[10px] text-muted-foreground/70 uppercase tracking-wider">
-                              entregando
-                            </span>
-                          </div>
+                          {(() => {
+                            const st = clientPlaylistStatus(p);
+                            return (
+                              <div className="flex items-center gap-2 mt-1 min-w-0">
+                                <span
+                                  className={cn(
+                                    "text-[10px] font-medium px-1.5 py-0.5 rounded border whitespace-nowrap",
+                                    PLAYLIST_STATUS_STYLES[st],
+                                  )}
+                                >
+                                  {PLAYLIST_STATUS_LABEL[st]}
+                                </span>
+                              </div>
+                            );
+                          })()}
                         </div>
                         <div className="text-right shrink-0">
-                          <div className="text-[14px] font-semibold tabular-nums text-primary leading-none">
-                            +{formatPlays(p.delivered)}
-                          </div>
-                          <div className="text-[9px] uppercase tracking-wider text-muted-foreground mt-1">
-                            entregues
-                          </div>
+                          {p.delivered > 0 ? (
+                            <>
+                              <div className="text-[14px] font-semibold tabular-nums text-foreground leading-none">
+                                +{formatPlays(p.delivered)}
+                              </div>
+                              <div className="text-[9px] uppercase tracking-wider text-muted-foreground mt-1">
+                                entregues
+                              </div>
+                            </>
+                          ) : (
+                            <div className="text-[10.5px] text-muted-foreground/80 italic leading-snug max-w-[120px]">
+                              Aguardando primeiro print
+                            </div>
+                          )}
                         </div>
                       </div>
                     </li>
