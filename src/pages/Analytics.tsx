@@ -125,7 +125,6 @@ export default function Analytics() {
         {/* KPIs reais */}
         <section className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
           <KpiBig
-            tier="hero"
             icon={Activity}
             label="Deals ativos"
             value={activeDeals.length}
@@ -150,7 +149,6 @@ export default function Analytics() {
             loading={loading}
           />
           <KpiBig
-            tier="quiet"
             icon={DollarSign}
             label="Custo por play"
             value={cpp != null ? `R$ ${cpp.toFixed(4)}` : "—"}
