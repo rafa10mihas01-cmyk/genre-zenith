@@ -475,55 +475,35 @@ export default function ClientCampaignPage() {
             </Card>
           )}
 
-          {/* Mini KPIs */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            {[
-              {
-                icon: Activity,
-                label: "Ritmo",
-                value: PACE_LABEL[progress.pace].label.replace(/^Ritmo\s+/i, "") || "—",
-                tone: PACE_LABEL[progress.pace].tone,
-              },
-              {
-                icon: ListMusic,
-                label: "Playlists",
-                value: String(playlists.length),
-              },
-              {
-                icon: CalendarDays,
-                label: "Tempo",
-                value:
-                  progress.target_days > 0
-                    ? `Dia ${Math.max(0, Math.floor(progress.days_elapsed))} de ${progress.target_days}`
-                    : `${Math.max(0, Math.floor(progress.days_elapsed))} dias`,
-              },
-              {
-                icon: CheckCircle2,
-                label: "Atualizado",
-                value: formatDateTime(deal.last_update),
-                small: true,
-              },
-            ].map((kpi) => (
-              <Card key={kpi.label} className="nx-card !p-0 border-border">
-                <CardContent className="p-4 space-y-1.5 min-w-0">
-                  <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
-                    <kpi.icon className="h-3.5 w-3.5" />
-                    <span className="truncate">{kpi.label}</span>
-                  </div>
-                  <p
-                    className={cn(
-                      "font-semibold tabular-nums truncate",
-                      kpi.small ? "text-[13px] sm:text-[14px]" : "text-base sm:text-lg",
-                      "tone" in kpi && kpi.tone ? kpi.tone : "text-foreground",
-                    )}
-                    title={kpi.value}
-                  >
-                    {kpi.value}
-                  </p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          {/* Linha discreta — só Playlists ativas + Última atualização */}
+          {(() => {
+            const activeCount = playlists.filter((p) => clientPlaylistStatus(p) === "entregando").length;
+            const lastUpdateRelative = (() => {
+              if (!deal.last_update) return "—";
+              const diffMs = Date.now() - new Date(deal.last_update).getTime();
+              if (diffMs < 0) return "agora";
+              const mins = Math.floor(diffMs / 60000);
+              if (mins < 1) return "agora";
+              if (mins < 60) return `há ${mins} min`;
+              const hrs = Math.floor(mins / 60);
+              if (hrs < 24) return `há ${hrs}h`;
+              const days = Math.floor(hrs / 24);
+              return `há ${days}d`;
+            })();
+            return (
+              <div className="flex items-center justify-between gap-3 px-1 text-[11.5px] text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5">
+                  <ListMusic className="h-3.5 w-3.5" />
+                  <span className="tabular-nums text-foreground/85 font-medium">{activeCount}</span>
+                  <span>{activeCount === 1 ? "playlist ativa" : "playlists ativas"}</span>
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  <span>Atualizado {lastUpdateRelative}</span>
+                </span>
+              </div>
+            );
+          })()}
 
           {/* Gráfico — evolução */}
           {chartData.length > 1 && (
