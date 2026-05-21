@@ -1166,6 +1166,42 @@ export default function CuratorPage() {
           </Card>
         )}
 
+        {/* Tabs por fase — pipeline em pílulas, mobile-first */}
+        <div className="flex justify-center pt-1 sticky top-2 z-30">
+          <div className="inline-flex items-center gap-0.5 rounded-full bg-card/85 backdrop-blur-md border border-border/60 p-1 shadow-[0_8px_24px_-12px_rgba(0,0,0,0.5)]">
+            {([
+              { id: "cadastro" as const, label: "Cadastro", icon: ListMusic, count: curatorPlaylists.length || null },
+              { id: "entrega" as const, label: "Entrega", icon: Target, count: stats.target > 0 ? `${stats.pct}%` : null },
+              { id: "historico" as const, label: "Histórico", icon: Clock, count: snapshotHistory.length || null },
+            ]).map((t) => {
+              const Icon = t.icon;
+              const isActive = activeTab === t.id;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setActiveTab(t.id)}
+                  aria-pressed={isActive}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-medium transition-colors whitespace-nowrap",
+                    isActive
+                      ? "bg-[hsl(var(--elevated))] text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  <span>{t.label}</span>
+                  {t.count != null && (
+                    <span className={cn("text-[10.5px] tabular-nums ml-0.5", isActive ? "text-primary" : "text-muted-foreground/70")}>
+                      {t.count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Meta combinada — sempre visível, mesmo antes de cadastrar playlists.
             É o número do contrato. Sem isso o curador não sabe o que entregar. */}
         {(stats.target > 0 || stats.dailyGoal > 0) && (
