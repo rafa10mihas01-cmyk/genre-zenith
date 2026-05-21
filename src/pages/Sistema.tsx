@@ -122,6 +122,7 @@ export default function Sistema() {
       <div className="min-h-[480px] animate-tab-in">
         {activeTab === "visao-geral" && (
           <div className="space-y-8">
+            <SystemKpis />
             <section id="section-fluxo">
               <SectionHeader icon={Workflow} title="Fluxo do sistema" subtitle="Pipeline em tempo real" />
               <FluxoVisual />
