@@ -2025,7 +2025,7 @@ export default function CuratorPage() {
                               <div className="text-[9.5px] uppercase tracking-wider text-muted-foreground/80 mt-0.5">
                                 total da playlist
                               </div>
-                              {next && delta !== 0 && (
+                              {prev && delta !== 0 && (
                                 <div className="mt-1.5">
                                   <div
                                     className={cn(
