@@ -1724,6 +1724,7 @@ export default function CuratorPage() {
         </Dialog>
 
         {/* Adicionar playlist */}
+        {activeTab === "cadastro" && (
         <Card className="nx-card !p-0 border-border">
           <CardContent className="p-5 sm:p-6 pt-5 sm:pt-6 md:pt-6 space-y-5">
             <div>
