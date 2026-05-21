@@ -16,6 +16,7 @@ import {
   ImageIcon,
   ClipboardPaste,
   Plus,
+  HelpCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
@@ -44,6 +45,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { NexEngineLogo } from "@/components/NexEngineLogo";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { CuratorNotificationsBell } from "@/components/public/CuratorNotificationsBell";
@@ -986,15 +993,30 @@ export default function CuratorPage() {
                     const s = statusMap[statusKey];
                     return (
                        <div className={cn("rounded-2xl p-5 ring-1", s.bg, s.ring)}>
-                         <div className="flex items-center justify-between gap-3 mb-3">
-                           <span className={cn("inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em]", s.text)}>
-                             <span className={cn("h-2 w-2 rounded-full", s.dot)} />
-                             {s.label}
-                           </span>
-                           <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                             Entrega real do curador
-                           </span>
-                         </div>
+                          <div className="flex items-center justify-between gap-3 mb-3">
+                            <span className={cn("inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em]", s.text)}>
+                              <span className={cn("h-2 w-2 rounded-full", s.dot)} />
+                              {s.label}
+                            </span>
+                            <TooltipProvider delayDuration={100}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground cursor-help">
+                                    Entrega real do curador
+                                    <HelpCircle className="h-3 w-3 text-muted-foreground/70" />
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="max-w-[280px] text-xs leading-relaxed">
+                                  <p>
+                                    Total novo desde o início da campanha, descontando o que a playlist já tinha antes (baseline).
+                                  </p>
+                                  <p className="mt-1 text-muted-foreground">
+                                    Esse é o valor real que o curador trouxe de plays adicionais.
+                                  </p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </div>
                          <div className="flex items-baseline gap-2 flex-wrap">
                            <span className={cn("text-[34px] sm:text-[40px] font-bold tabular-nums leading-none tracking-tight", s.text)}>
                              {formatPlays(stats.earned)}
