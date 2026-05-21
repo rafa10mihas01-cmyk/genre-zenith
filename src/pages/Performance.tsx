@@ -19,13 +19,33 @@ import { FollowersTimeline } from "@/components/performance/FollowersTimeline";
 import MatrizPlaylists from "@/pages/MatrizPlaylists";
 import type { DatasetRow, GenreRow } from "@/components/performance/types";
 
+type ManagedPlaylistRow = {
+  id: string;
+  genre_id: string | null;
+  name: string;
+  spotify_playlist_id: string;
+  spotify_url: string;
+  followers: number;
+  tracks_count: number;
+  imported_at: string;
+  updated_at: string;
+  last_metrics_at: string | null;
+};
+
+type MetricsSnapshotRow = {
+  spotify_playlist_id: string;
+  followers: number;
+  total_tracks: number | null;
+  collected_at: string;
+};
+
 /**
- * /performance — lê APENAS do motor vivo:
- *   - get_performance_dataset (agrega playlist_brain + snapshots)
- *   - genres (lookup)
+ * /performance — lê APENAS o inventário vivo:
+ *   - managed_playlists (playlists atuais da operação)
+ *   - playlist_metrics_snapshots filtrado por essas playlists
+ *   - playlist_brain apenas para timestamp/status
  *
- * Aposentado: performance_insights (congelado há semanas).
- * Ver docs/DEPRECATED_ANALYTICS.md.
+ * Aposentado aqui: get_performance_dataset (baseado em playlist_templates antigas).
  */
 export default function Performance() {
   const [dataset, setDataset] = useState<DatasetRow[]>([]);
@@ -37,8 +57,12 @@ export default function Performance() {
 
   async function load() {
     setLoading(true);
-    const [{ data: ds }, { data: gs }, { data: pb }] = await Promise.all([
-      supabase.rpc("get_performance_dataset", { p_min_age_hours: 0 }),
+    const [{ data: playlists, error: playlistsError }, { data: gs }, { data: pb }] = await Promise.all([
+      supabase
+        .from("managed_playlists")
+        .select("id, genre_id, name, spotify_playlist_id, spotify_url, followers, tracks_count, imported_at, updated_at, last_metrics_at")
+        .is("archived_at", null)
+        .order("imported_at", { ascending: false }),
       supabase.from("genres").select("id, nome").order("nome"),
       supabase
         .from("playlist_brain")
@@ -47,7 +71,60 @@ export default function Performance() {
         .limit(1)
         .maybeSingle(),
     ]);
-    setDataset((ds as unknown as DatasetRow[]) ?? []);
+
+    if (playlistsError) {
+      toast.error(`Falha ao carregar playlists atuais: ${playlistsError.message}`);
+      setLoading(false);
+      return;
+    }
+
+    const currentPlaylists = ((playlists ?? []) as ManagedPlaylistRow[]);
+    const spotifyIds = currentPlaylists.map((p) => p.spotify_playlist_id).filter(Boolean);
+    const { data: snapshots } = spotifyIds.length > 0
+      ? await supabase
+          .from("playlist_metrics_snapshots")
+          .select("spotify_playlist_id, followers, total_tracks, collected_at")
+          .in("spotify_playlist_id", spotifyIds)
+          .order("collected_at", { ascending: true })
+          .limit(10000)
+      : { data: [] as MetricsSnapshotRow[] };
+
+    const snapshotsByPlaylist = new Map<string, MetricsSnapshotRow[]>();
+    ((snapshots ?? []) as MetricsSnapshotRow[]).forEach((snapshot) => {
+      const list = snapshotsByPlaylist.get(snapshot.spotify_playlist_id) ?? [];
+      list.push(snapshot);
+      snapshotsByPlaylist.set(snapshot.spotify_playlist_id, list);
+    });
+
+    const liveDataset: DatasetRow[] = currentPlaylists.map((playlist) => {
+      const history = snapshotsByPlaylist.get(playlist.spotify_playlist_id) ?? [];
+      const first = history[0];
+      const last = history[history.length - 1];
+      const followersStart = first?.followers ?? playlist.followers ?? 0;
+      const followersNow = last?.followers ?? playlist.followers ?? 0;
+      const growth = followersNow - followersStart;
+      const firstDate = first?.collected_at ?? playlist.imported_at;
+      const lastDate = last?.collected_at ?? playlist.last_metrics_at ?? playlist.updated_at;
+      const hours = Math.max(0, (new Date(lastDate).getTime() - new Date(firstDate).getTime()) / 36e5);
+
+      return {
+        template_id: playlist.id,
+        genre_id: playlist.genre_id,
+        nome: playlist.name,
+        spotify_playlist_id: playlist.spotify_playlist_id,
+        spotify_url: playlist.spotify_url,
+        followers_start: followersStart,
+        followers_now: followersNow,
+        crescimento_absoluto: growth,
+        crescimento_percentual: followersStart > 0 ? Number(((growth / followersStart) * 100).toFixed(2)) : null,
+        tempo_horas: hours > 0 ? hours : null,
+        total_tracks: last?.total_tracks ?? playlist.tracks_count ?? null,
+        created_on_spotify_at: playlist.imported_at,
+        last_snapshot_at: last?.collected_at ?? playlist.last_metrics_at,
+      };
+    });
+
+    setDataset(liveDataset);
     setGenres((gs as GenreRow[]) ?? []);
     setLastUpdate(((pb as any)?.updated_at as string | undefined) ?? null);
     setLoading(false);
@@ -82,6 +159,7 @@ export default function Performance() {
   }
 
   const totalPubs = dataset.length;
+  const spotifyPlaylistIds = useMemo(() => dataset.map((d) => d.spotify_playlist_id).filter(Boolean), [dataset]);
 
   const heroStatus = useMemo(() => {
     if (loading && totalPubs === 0) {
@@ -137,7 +215,7 @@ export default function Performance() {
             </TabsList>
 
             <TabsContent value="visao" className="space-y-3 md:space-y-4 animate-tab-in mt-0">
-              <FollowersTimeline />
+              <FollowersTimeline playlistIds={spotifyPlaylistIds} />
               <TopMovers dataset={dataset} />
               <GenreRanking dataset={dataset} genres={genres} />
             </TabsContent>

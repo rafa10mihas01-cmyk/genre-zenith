@@ -24,26 +24,33 @@ type Point = { day: string; followers: number };
  * Lê playlist_metrics_snapshots e agrupa por dia.
  * Mostra "Aguardando histórico" quando dados são insuficientes.
  */
-export function FollowersTimeline() {
+export function FollowersTimeline({ playlistIds = [] }: { playlistIds?: string[] }) {
   const [range, setRange] = useState<Range>("30d");
   const [snaps, setSnaps] = useState<Snap[]>([]);
   const [loading, setLoading] = useState(true);
+  const playlistKey = useMemo(() => playlistIds.slice().sort().join("|"), [playlistIds]);
 
   useEffect(() => {
     (async () => {
       setLoading(true);
       const days = range === "7d" ? 7 : range === "30d" ? 30 : 90;
       const since = new Date(Date.now() - days * 24 * 3600 * 1000).toISOString();
+      if (playlistIds.length === 0) {
+        setSnaps([]);
+        setLoading(false);
+        return;
+      }
       const { data } = await supabase
         .from("playlist_metrics_snapshots")
         .select("spotify_playlist_id, followers, collected_at")
+        .in("spotify_playlist_id", playlistIds)
         .gte("collected_at", since)
         .order("collected_at", { ascending: true })
         .limit(5000);
       setSnaps((data ?? []) as Snap[]);
       setLoading(false);
     })();
-  }, [range]);
+  }, [range, playlistKey]);
 
   const points = useMemo<Point[]>(() => {
     if (snaps.length === 0) return [];
