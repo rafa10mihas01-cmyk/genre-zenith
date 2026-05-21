@@ -1319,7 +1319,7 @@ export default function CuratorPage() {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-[15px] font-semibold tracking-tight">Progresso da meta total</h2>
-                <p className="text-[10.5px] text-muted-foreground mt-0.5">Entrega real (delta) vs meta contratada</p>
+                <p className="text-[10.5px] text-muted-foreground mt-0.5">Plays entregues desde o início vs meta contratada</p>
               </div>
               <span className="text-[20px] font-bold tabular-nums">{stats.pct}%</span>
             </div>
