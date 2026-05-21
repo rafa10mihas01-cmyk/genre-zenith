@@ -153,6 +153,7 @@ export default function ClientCampaignPage() {
       setPlaylists([]);
       setSongs([]);
       setSelectedSongId(null);
+      setSnapshotHistory([]);
     } else {
       setDeal(data.deal);
       setProgress(data.progress);
@@ -160,6 +161,7 @@ export default function ClientCampaignPage() {
       setPlaylists(data.playlists ?? []);
       setSongs(data.songs ?? []);
       setSelectedSongId(data.selected_song_id ?? null);
+      setSnapshotHistory((data.snapshot_history ?? []) as SafeSnapshotEntry[]);
       setError(null);
     }
     setLoading(false);
