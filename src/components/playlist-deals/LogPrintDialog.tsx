@@ -296,6 +296,24 @@ export function LogPrintDialog({
     });
   };
 
+  const moveItem = (idx: number, dir: -1 | 1) => {
+    setItems((prev) => {
+      const target = idx + dir;
+      if (target < 0 || target >= prev.length) return prev;
+      const next = [...prev];
+      [next[idx], next[target]] = [next[target], next[idx]];
+      return next;
+    });
+  };
+
+  const sortItemsByName = () => {
+    setItems((prev) =>
+      [...prev].sort((a, b) =>
+        a.file.name.localeCompare(b.file.name, undefined, { numeric: true, sensitivity: "base" }),
+      ),
+    );
+  };
+
   const handleAnalyze = async () => {
     if (!deal || items.length === 0) return;
     setStep("analyzing");
