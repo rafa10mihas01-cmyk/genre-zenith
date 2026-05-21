@@ -988,72 +988,50 @@ export default function CuratorPage() {
 
                   <div className="h-px bg-border" />
 
-                  {/* HERO STATUS — Entrega real (delta) vs Meta diária + semáforo 🟢🟡🔴 */}
+                  {/* HERO — Quanto entregou + quanto falta + frase humana */}
                   {hasCuratorPlaylists && stats.hasBaseline ? (() => {
                     const dailyRatio = stats.dailyGoal > 0 ? stats.dailyAvg / stats.dailyGoal : 0;
-                    const statusKey: "ok" | "warn" | "low" =
+                    // Vermelho só pra erro real (zero entrega após 7 dias). Senão, âmbar suave.
+                    const statusKey: "ok" | "warn" =
                       stats.dailyGoal === 0 ? "ok"
-                      : dailyRatio >= 1 ? "ok"
-                      : dailyRatio >= 0.7 ? "warn"
-                      : "low";
-                    const statusMap = {
-                      ok:   { dot: "bg-success",     text: "text-success",     ring: "ring-success/30",     bg: "bg-success/10",     label: "Batendo a meta" },
-                      warn: { dot: "bg-warning",     text: "text-warning",     ring: "ring-warning/30",     bg: "bg-warning/10",     label: "Atenção — abaixo da meta" },
-                      low:  { dot: "bg-destructive", text: "text-destructive", ring: "ring-destructive/30", bg: "bg-destructive/10", label: "Abaixo da meta" },
-                    } as const;
-                    const s = statusMap[statusKey];
+                      : dailyRatio >= 0.95 ? "ok"
+                      : "warn";
+                    const s = statusKey === "ok"
+                      ? { dot: "bg-success",  text: "text-success",  ring: "ring-success/25",  bg: "bg-success/[0.06]" }
+                      : { dot: "bg-warning",  text: "text-warning",  ring: "ring-warning/25",  bg: "bg-warning/[0.06]" };
+                    // Frase humana, sem jargão.
+                    const remainingPerDay = stats.dailyGoal > 0
+                      ? Math.max(0, stats.dailyGoal - stats.dailyAvg)
+                      : 0;
+                    const humanLine = statusKey === "ok"
+                      ? "Você está no ritmo da meta"
+                      : remainingPerDay > 0
+                        ? `Faltam ${formatPlays(remainingPerDay)} plays por dia para bater a meta`
+                        : "Ritmo abaixo do esperado nos últimos dias";
                     return (
-                       <div className={cn("rounded-xl p-3.5 ring-1", s.bg, s.ring)}>
-                          <div className="flex items-center justify-between gap-3 mb-2">
-                            <span className={cn("inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.12em]", s.text)}>
-                              <span className={cn("h-1.5 w-1.5 rounded-full", s.dot)} />
-                              {s.label}
-                            </span>
-                            <TooltipProvider delayDuration={100}>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <span className="inline-flex items-center gap-1 text-[9.5px] uppercase tracking-wider text-muted-foreground cursor-help">
-                                    Entrega real do curador
-                                    <HelpCircle className="h-2.5 w-2.5 text-muted-foreground/70" />
-                                  </span>
-                                </TooltipTrigger>
-                                <TooltipContent side="top" className="max-w-[280px] text-xs leading-relaxed">
-                                  <p>
-                                    Total novo desde o início da campanha, descontando o que a playlist já tinha antes (baseline).
-                                  </p>
-                                  <p className="mt-1 text-muted-foreground">
-                                    Esse é o valor real que o curador trouxe de plays adicionais.
-                                  </p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          </div>
-                         <div className="flex items-baseline gap-1.5 flex-wrap">
-                           <span className={cn("text-[26px] sm:text-[30px] font-bold tabular-nums leading-none tracking-tight", s.text)}>
-                             {formatPlays(stats.earned)}
-                           </span>
-                           <span className="text-[15px] sm:text-[16px] font-semibold tabular-nums text-muted-foreground leading-none">
-                             / {formatPlays(stats.target)}
-                           </span>
-                           <span className="text-[9.5px] uppercase tracking-wider text-muted-foreground ml-1">
-                             entregue · meta
-                           </span>
-                         </div>
-                         <div className="mt-2.5 h-1 rounded-full bg-background/40 overflow-hidden">
-                           <div
-                             className={cn("h-full rounded-full transition-all duration-500", s.dot)}
-                             style={{ width: `${Math.min(100, stats.pct)}%` }}
-                           />
-                         </div>
-                         <div className="mt-2 flex items-center justify-between gap-3 text-[10px] text-muted-foreground tabular-nums">
-                           <span>
-                             {stats.pct}% da meta total
-                           </span>
-                           <span className="text-[9px] uppercase tracking-wider">
-                             Ritmo: {formatPlays(stats.dailyAvg)}/dia · meta {formatPlays(stats.dailyGoal)}/dia
-                           </span>
-                         </div>
-                       </div>
+                      <div className={cn("rounded-xl p-3.5 ring-1", s.bg, s.ring)}>
+                        <div className="flex items-baseline gap-1.5 flex-wrap">
+                          <span className={cn("text-[26px] sm:text-[30px] font-bold tabular-nums leading-none tracking-tight text-foreground")}>
+                            {formatPlays(stats.earned)}
+                          </span>
+                          <span className="text-[15px] sm:text-[16px] font-semibold tabular-nums text-muted-foreground leading-none">
+                            / {formatPlays(stats.target)}
+                          </span>
+                          <span className="text-[10px] uppercase tracking-wider text-muted-foreground ml-1">
+                            entregue desde o início
+                          </span>
+                        </div>
+                        <div className="mt-2.5 h-1 rounded-full bg-background/40 overflow-hidden">
+                          <div
+                            className={cn("h-full rounded-full transition-all duration-500", s.dot)}
+                            style={{ width: `${Math.min(100, stats.pct)}%` }}
+                          />
+                        </div>
+                        <div className={cn("mt-2.5 inline-flex items-center gap-1.5 text-[12px] font-medium", s.text)}>
+                          <span className={cn("h-1.5 w-1.5 rounded-full", s.dot)} />
+                          {humanLine}
+                        </div>
+                      </div>
                     );
                   })() : null}
 
