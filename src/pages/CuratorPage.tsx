@@ -316,6 +316,9 @@ export default function CuratorPage() {
   const [, setNowTick] = useState(0);
   // Janela visível nas playlists do curador
   const [playlistWindow, setPlaylistWindow] = useState<"7d" | "28d">("7d");
+  // Tabs: divide a página em fases pra evitar scroll gigante no mobile
+  const [activeTab, setActiveTab] = useState<"cadastro" | "entrega" | "historico">("entrega");
+  const initialTabSetRef = useRef(false);
   useEffect(() => {
     const id = setInterval(() => setNowTick((n) => n + 1), 60_000);
     return () => clearInterval(id);
@@ -558,6 +561,13 @@ export default function CuratorPage() {
   // FASE 1 — apenas playlists oficialmente cadastradas pelo curador (match_status='curator')
   // alimentam progresso/KPIs/Performance. Sem essas, o portal esconde tudo e pede cadastro.
   const hasCuratorPlaylists = curatorPlaylists.length > 0;
+  // Default da tab: se não tem playlist cadastrada, abre em "Cadastro";
+  // se já tem, abre em "Entrega". Só roda uma vez no primeiro load.
+  useEffect(() => {
+    if (loading || initialTabSetRef.current) return;
+    initialTabSetRef.current = true;
+    setActiveTab(hasCuratorPlaylists ? "entrega" : "cadastro");
+  }, [loading, hasCuratorPlaylists]);
   const curatorOwnedPlaylistIds = useMemo(() => {
     const ids = new Set<string>();
     for (const p of playlists) {
@@ -1156,9 +1166,45 @@ export default function CuratorPage() {
           </Card>
         )}
 
+        {/* Tabs por fase — pipeline em pílulas, mobile-first */}
+        <div className="flex justify-center pt-1 sticky top-2 z-30">
+          <div className="inline-flex items-center gap-0.5 rounded-full bg-card/85 backdrop-blur-md border border-border/60 p-1 shadow-[0_8px_24px_-12px_rgba(0,0,0,0.5)]">
+            {([
+              { id: "cadastro" as const, label: "Cadastro", icon: ListMusic, count: curatorPlaylists.length || null },
+              { id: "entrega" as const, label: "Entrega", icon: Target, count: stats.target > 0 ? `${stats.pct}%` : null },
+              { id: "historico" as const, label: "Histórico", icon: Clock, count: snapshotHistory.length || null },
+            ]).map((t) => {
+              const Icon = t.icon;
+              const isActive = activeTab === t.id;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setActiveTab(t.id)}
+                  aria-pressed={isActive}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-medium transition-colors whitespace-nowrap",
+                    isActive
+                      ? "bg-[hsl(var(--elevated))] text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  <span>{t.label}</span>
+                  {t.count != null && (
+                    <span className={cn("text-[10.5px] tabular-nums ml-0.5", isActive ? "text-primary" : "text-muted-foreground/70")}>
+                      {t.count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Meta combinada — sempre visível, mesmo antes de cadastrar playlists.
             É o número do contrato. Sem isso o curador não sabe o que entregar. */}
-        {(stats.target > 0 || stats.dailyGoal > 0) && (
+        {activeTab === "entrega" && (stats.target > 0 || stats.dailyGoal > 0) && (
           <Card className="nx-card !p-0 border-border">
             <CardContent className="p-5 sm:p-6 pt-5 sm:pt-6 md:pt-6">
               <div className="flex items-center justify-between gap-3 mb-4">
@@ -1202,7 +1248,7 @@ export default function CuratorPage() {
         )}
 
         {/* Estado vazio: sem playlists cadastradas pelo curador */}
-        {!hasCuratorPlaylists && (
+        {activeTab === "cadastro" && !hasCuratorPlaylists && (
           <Card className="nx-card !p-0 border-primary/40 animate-nx-heartbeat">
             <CardContent className="p-6 sm:p-8 pt-6 sm:pt-8 md:pt-8 flex flex-col items-center text-center gap-4">
               <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center ring-1 ring-primary/30">
@@ -1236,7 +1282,7 @@ export default function CuratorPage() {
         )}
 
         {/* Banner pós-cadastro: contador + aviso permanente */}
-        {hasCuratorPlaylists && (
+        {activeTab === "cadastro" && hasCuratorPlaylists && (
           <div className="nx-card !p-3 flex items-center justify-between gap-3 border-border/60">
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center ring-1 ring-primary/20 shrink-0">
@@ -1257,7 +1303,7 @@ export default function CuratorPage() {
 
 
         {/* Total acumulado (histórico) — separado visualmente do delta */}
-        {hasCuratorPlaylists && stats.hasBaseline && (
+        {activeTab === "entrega" && hasCuratorPlaylists && stats.hasBaseline && (
           <Card className="nx-card !p-0 border-border">
             <CardContent className="p-5 pt-5 md:pt-5 grid grid-cols-2 gap-4 divide-x divide-border">
               <div className="pr-2">
@@ -1288,7 +1334,7 @@ export default function CuratorPage() {
         )}
 
         {/* Combinado total */}
-        {hasCuratorPlaylists && (
+        {activeTab === "entrega" && hasCuratorPlaylists && (
         <Card className="nx-card !p-0 border-border">
           <CardContent className="p-5 sm:p-6 pt-5 sm:pt-6 md:pt-6 space-y-6">
             <div className="flex items-center justify-between">
@@ -1404,7 +1450,7 @@ export default function CuratorPage() {
         </Card>
         )}
         {/* Performance por playlist — vem direto da RPC */}
-        {perPlaylistCurator.length > 0 && (
+        {activeTab === "entrega" && perPlaylistCurator.length > 0 && (
           <Card className="nx-card !p-0 border-border">
             <CardContent className="p-5 sm:p-6 pt-5 sm:pt-6 md:pt-6 space-y-4">
               <div className="w-full flex items-center justify-between gap-4">
@@ -1477,6 +1523,7 @@ export default function CuratorPage() {
 
 
         {/* Playlists do curador */}
+        {activeTab === "entrega" && (
         <Card className="nx-card !p-0 border-border">
           <CardContent className="p-5 sm:p-6 pt-5 sm:pt-6 md:pt-6 space-y-4">
             <div className="w-full flex items-center justify-between gap-4 flex-wrap">
@@ -1600,10 +1647,12 @@ export default function CuratorPage() {
             )}
           </CardContent>
         </Card>
+        )}
 
 
 
         {/* Modal: músicas já presentes em uma playlist do curador */}
+        {activeTab === "entrega" && (
         <Dialog open={!!curatorPlaylistModalKey} onOpenChange={(o) => !o && setCuratorPlaylistModalKey(null)}>
           <DialogContent className="max-w-md w-[calc(100%-2rem)] overflow-hidden">
             <DialogHeader className="min-w-0">
@@ -1676,8 +1725,10 @@ export default function CuratorPage() {
             })()}
           </DialogContent>
         </Dialog>
+        )}
 
         {/* Adicionar playlist */}
+        {activeTab === "cadastro" && (
         <Card className="nx-card !p-0 border-border">
           <CardContent className="p-5 sm:p-6 pt-5 sm:pt-6 md:pt-6 space-y-5">
             <div>
@@ -1867,6 +1918,7 @@ export default function CuratorPage() {
             </p>
           </CardContent>
         </Card>
+        )}
 
         <PasteUrlsDialog
           open={pasteOpen}
@@ -1891,6 +1943,7 @@ export default function CuratorPage() {
 
 
         {/* Histórico de prints — vem da RPC get_curator_deal_snapshot_history */}
+        {activeTab === "historico" && (
         <Card className="nx-card !p-0 border-border">
           <CardContent className="p-5 sm:p-6 pt-5 sm:pt-6 md:pt-6 space-y-5">
             <div className="flex items-center justify-between">
@@ -2096,6 +2149,7 @@ export default function CuratorPage() {
             )}
           </CardContent>
         </Card>
+        )}
 
         {/* Footer */}
         <footer className="pt-6 pb-4 flex flex-col items-center justify-center gap-1.5 text-center">
