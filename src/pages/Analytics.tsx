@@ -125,6 +125,8 @@ export default function Analytics() {
         {/* KPIs reais */}
         <section className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
           <KpiBig
+            tier="hero"
+            className="md:col-span-1"
             icon={Activity}
             label="Deals ativos"
             value={activeDeals.length}
@@ -132,6 +134,7 @@ export default function Analytics() {
             domain="deals"
             loading={loading}
           />
+
           <KpiBig
             icon={Zap}
             label="Plays entregues (7d)"

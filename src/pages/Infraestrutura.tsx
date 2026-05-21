@@ -124,6 +124,7 @@ export default function Infraestrutura({ embedded = false }: { embedded?: boolea
           <section className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
             <KpiBig
               tier="hero"
+              className="md:col-span-1"
               icon={Server}
               label="Servidores ativos"
               value={vpsActive}
