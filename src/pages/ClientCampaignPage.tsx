@@ -8,7 +8,6 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useExternalSplash } from "@/hooks/useExternalSplash";
 import { PageLoader } from "@/components/PageLoader";
 import {
-  Loader2,
   TrendingUp,
   ListMusic,
   Music2,
