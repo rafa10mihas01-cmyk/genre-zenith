@@ -249,36 +249,47 @@ export default function ClientCampaignPage() {
     : { dot: "bg-warning", text: "text-warning", ring: "ring-warning/25", bg: "bg-warning/[0.05]", label: humanLabel };
 
   return (
-    <div className="relative min-h-screen bg-background">
-      <div className="relative z-10 w-full max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-        {/* Header — padrão PageHeader do sistema interno (kicker + título + subtítulo) */}
-        <header className="flex items-center justify-between gap-3 border-b border-border/60 pb-5 mb-6">
-          <div className="flex items-center gap-3 min-w-0 flex-1">
-            <NexEngineLogo variant="mark" size={28} />
-            <div className="min-w-0 space-y-1">
-              <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-bold">
-                Campanha
+    <div className="relative min-h-screen bg-background py-8 sm:py-10 overflow-hidden">
+      {/* Atmosfera verde — suave e difusa (igual CuratorPage) */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 -z-0 hidden dark:block"
+        style={{
+          background: [
+            "radial-gradient(ellipse 70% 45% at 50% 0%, rgba(29,185,84,0.09) 0%, rgba(29,185,84,0) 75%)",
+            "radial-gradient(ellipse 45% 55% at 0% 30%, rgba(29,185,84,0.05) 0%, rgba(29,185,84,0) 75%)",
+            "radial-gradient(ellipse 45% 55% at 100% 50%, rgba(29,185,84,0.045) 0%, rgba(29,185,84,0) 75%)",
+            "radial-gradient(ellipse 75% 35% at 50% 100%, rgba(29,185,84,0.04) 0%, rgba(29,185,84,0) 75%)",
+          ].join(", "),
+        }}
+      />
+
+      <div className="relative z-10 w-full max-w-[1200px] mx-auto px-5 sm:px-6 md:px-8">
+        <div className="max-w-xl md:max-w-2xl mx-auto space-y-4 sm:space-y-5">
+          {/* Topbar — compacto, igual CuratorPage */}
+          <div className="flex items-center justify-between gap-3 py-2 border-b border-border/50">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <NexEngineLogo variant="mark" size={20} />
+              <div className="min-w-0">
+                <div className="text-[12.5px] font-semibold tracking-tight leading-tight truncate">
+                  {deal.song_artist || "Cliente"}
+                </div>
+                <div className="text-[10px] text-muted-foreground/60 mt-0.5 leading-none truncate">
+                  Acompanhamento da campanha
+                </div>
               </div>
-              <h1 className="text-[19px] sm:text-2xl lg:text-3xl font-semibold tracking-tight leading-tight truncate">
-                {deal.song_artist || "Cliente"}
-              </h1>
-              <p className="text-[12px] lg:text-sm text-muted-foreground truncate">
-                Acompanhamento da campanha
-              </p>
+            </div>
+            <div className="flex items-center gap-0.5 rounded-lg border border-border/40 bg-card/40 backdrop-blur-sm px-1 py-0.5">
+              <ThemeToggle />
             </div>
           </div>
-          <div className="shrink-0">
-            <ThemeToggle />
-          </div>
-        </header>
 
-        <div className="space-y-6">
-          {/* Card principal — música + meta + progresso (estilo nx-card padrão) */}
-          <Card className="nx-card !p-0 border-border">
-            <CardContent className="p-5 sm:p-6 space-y-6">
+          {/* Header — Campanha + identidade + semáforo */}
+          <Card className="nx-card nx-card-glow !p-0 overflow-hidden border-border">
+            <CardContent className="p-5 sm:p-6 pt-5 sm:pt-6 md:pt-6 space-y-6">
               <div className="flex items-center justify-between gap-3">
-                <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                  Música em campanha
+                <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary/80">
+                  Campanha
                 </span>
                 <span
                   className={cn(
@@ -301,6 +312,7 @@ export default function ClientCampaignPage() {
               </div>
 
 
+
               {/* Identidade da música */}
               {(() => {
                 const headerCover = selectedSong?.song_cover_url ?? deal.song_cover_url;
@@ -310,24 +322,31 @@ export default function ClientCampaignPage() {
                   <>
                     <div className="flex items-center gap-4">
                       {headerCover ? (
-                        <img
-                          src={headerCover}
-                          alt={headerName}
-                          className="w-[72px] h-[72px] rounded-xl object-cover ring-1 ring-border shrink-0"
-                          loading="eager"
-                        />
+                        <div className="relative shrink-0">
+                          <div
+                            aria-hidden
+                            className="absolute inset-0 -z-10 rounded-xl blur-xl opacity-50"
+                            style={{ background: "rgba(29,185,84,0.35)" }}
+                          />
+                          <img
+                            src={headerCover}
+                            alt={headerName}
+                            className="w-[72px] h-[72px] rounded-xl object-cover ring-1 ring-border"
+                            loading="eager"
+                          />
+                        </div>
                       ) : (
                         <div className="w-[72px] h-[72px] rounded-xl bg-muted shrink-0 flex items-center justify-center ring-1 ring-border">
                           <Music2 className="h-6 w-6 text-muted-foreground" />
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
-                        <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70 mb-1">
+                        <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70 mb-1 inline-flex items-center gap-2">
                           {selectedSong ? "Música selecionada" : "Música"}
                         </div>
-                        <h2 className="text-[17px] sm:text-[18px] font-semibold leading-tight tracking-tight truncate">
+                        <h1 className="text-[17px] sm:text-[18px] font-semibold leading-tight tracking-tight truncate">
                           {headerName}
-                        </h2>
+                        </h1>
                         {headerArtist && (
                           <p className="text-[12px] text-muted-foreground truncate mt-0.5 leading-snug">
                             {headerArtist}
@@ -345,8 +364,8 @@ export default function ClientCampaignPage() {
 
                     <div className="h-px bg-border" />
 
-                    {/* Número da meta — neutro, sem caixa colorida (padrão sistema interno) */}
-                    <div>
+                    {/* HERO — número neutro + microcopy temporal + frase humana */}
+                    <div className={cn("rounded-xl p-4 ring-1", semaforo.bg, semaforo.ring)}>
                       <div className="flex items-baseline gap-1.5 flex-wrap">
                         <span className="text-[30px] sm:text-[36px] font-bold tabular-nums leading-none tracking-tight text-foreground">
                           {formatFullPlays(progress.delivered)}
@@ -358,7 +377,7 @@ export default function ClientCampaignPage() {
                       <p className="mt-1.5 text-[11px] text-muted-foreground">
                         Plays entregues desde o início da campanha
                       </p>
-                      <div className="mt-3 h-1 rounded-full bg-muted overflow-hidden">
+                      <div className="mt-3 h-1 rounded-full bg-background/40 overflow-hidden">
                         <div
                           className={cn("h-full rounded-full transition-all duration-500", semaforo.dot)}
                           style={{ width: `${Math.min(100, progress.pct)}%` }}
@@ -377,6 +396,7 @@ export default function ClientCampaignPage() {
                         )}
                       </div>
                     </div>
+
 
                     {(deal.smartlink_url || selectedSong?.smartlink_url) && (
                       <a
@@ -398,7 +418,7 @@ export default function ClientCampaignPage() {
 
           {/* Músicas da campanha — filtro visual (espelha CuratorPage) */}
           {hasMultipleSongs && (
-            <Card className="nx-card !p-0 border-border">
+            <Card className="nx-card nx-card-glow !p-0 border-border">
               <CardContent className="p-5 sm:p-6 pt-7 sm:pt-8 md:pt-8 space-y-5">
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
@@ -495,7 +515,7 @@ export default function ClientCampaignPage() {
 
           {/* Gráfico — evolução */}
           {chartData.length > 1 && (
-            <Card className="nx-card !p-0 border-border">
+            <Card className="nx-card nx-card-glow !p-0 border-border">
                 <CardContent className="p-5 sm:p-6 pt-8 sm:pt-9 space-y-5">
                 <div className="flex items-center justify-between gap-3 flex-wrap">
                   <div>
@@ -581,7 +601,7 @@ export default function ClientCampaignPage() {
 
           {/* Playlists monitoradas */}
           {playlists.length > 0 ? (
-            <Card className="nx-card !p-0 border-border">
+            <Card className="nx-card nx-card-glow !p-0 border-border">
               <CardContent className="p-5 sm:p-6 pt-8 sm:pt-9 space-y-5">
                 <div className="flex items-start justify-between gap-3 flex-wrap">
                   <div className="min-w-0">
@@ -673,7 +693,7 @@ export default function ClientCampaignPage() {
               </CardContent>
             </Card>
           ) : (
-            <Card className="nx-card !p-0 border-border">
+            <Card className="nx-card nx-card-glow !p-0 border-border">
               <CardContent className="p-8 text-center space-y-2">
                 <div className="mx-auto h-12 w-12 rounded-2xl bg-muted/40 ring-1 ring-border flex items-center justify-center">
                   <ListMusic className="h-5 w-5 text-muted-foreground" />
@@ -688,7 +708,7 @@ export default function ClientCampaignPage() {
 
           {/* Histórico de prints — só leitura, sem links externos pra Spotify */}
           {snapshotHistory.length > 0 && (
-            <Card className="nx-card !p-0 border-border">
+            <Card className="nx-card nx-card-glow !p-0 border-border">
               <CardContent className="p-5 sm:p-6 space-y-5">
                 <div className="flex items-center justify-between">
                   <div className="min-w-0">
