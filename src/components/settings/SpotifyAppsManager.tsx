@@ -454,6 +454,42 @@ export function SpotifyAppsManager({
             );
           })}
 
+          {/* Paginação de apps */}
+          {apps.length > APPS_PER_PAGE && (() => {
+            const totalPages = Math.ceil(apps.length / APPS_PER_PAGE);
+            const safePage = Math.min(page, totalPages - 1);
+            const from = safePage * APPS_PER_PAGE + 1;
+            const to = Math.min(safePage * APPS_PER_PAGE + APPS_PER_PAGE, apps.length);
+            return (
+              <div className="flex items-center justify-between gap-3 px-1 pt-1">
+                <span className="text-[11px] text-muted-foreground tabular-nums">
+                  Apps <span className="text-foreground font-medium">{from}–{to}</span> de {apps.length}
+                </span>
+                <div className="flex items-center gap-1">
+                  <Button
+                    size="sm" variant="outline"
+                    disabled={safePage === 0}
+                    onClick={() => setPage((p) => Math.max(0, p - 1))}
+                    className="h-7 text-xs"
+                  >
+                    Anterior
+                  </Button>
+                  <span className="text-[11px] text-muted-foreground tabular-nums px-2">
+                    {safePage + 1}/{totalPages}
+                  </span>
+                  <Button
+                    size="sm" variant="outline"
+                    disabled={safePage >= totalPages - 1}
+                    onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                    className="h-7 text-xs"
+                  >
+                    Próxima
+                  </Button>
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Contas legadas (sem app vinculado) */}
           {legacyAccounts.length > 0 && (
             <article className="nx-card overflow-hidden border-dashed">
