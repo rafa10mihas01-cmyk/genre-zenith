@@ -1512,7 +1512,7 @@ export default function CuratorPage() {
                   Playlists monitoradas
                 </h2>
                 <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
-                  Plays capturados na janela selecionada — atualizam após cada print enviado pelo produtor
+                  Visualização das playlists — não altera a entrega total da campanha
                 </p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
