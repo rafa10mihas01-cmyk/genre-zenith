@@ -153,6 +153,8 @@ export function SpotifyAppsManager({
   const [editing, setEditing] = useState<Partial<SpotifyApp> | null>(null);
   const [saving, setSaving] = useState(false);
   const [scopes, setScopes] = useState<string[]>([]);
+  const [page, setPage] = useState(0);
+  const APPS_PER_PAGE = 5;
 
   async function load() {
     setLoading(true);
@@ -299,7 +301,7 @@ export function SpotifyAppsManager({
         </div>
       ) : (
         <div className="space-y-3">
-          {apps.map((a) => {
+          {apps.slice(page * APPS_PER_PAGE, page * APPS_PER_PAGE + APPS_PER_PAGE).map((a) => {
             const appAccounts = accountsByApp.get(a.id) ?? [];
             const full = a.slots_remaining <= 0;
             const isPaused = a.status !== "active";
@@ -359,7 +361,7 @@ export function SpotifyAppsManager({
                       Nenhuma conta vinculada ainda. Use "Conectar conta" acima.
                     </p>
                   ) : (
-                    <ul className="space-y-1.5">
+                    <ul className="space-y-1.5 max-h-[210px] overflow-y-auto pr-1 -mr-1 nx-scroll">
                       {appAccounts.map((acc) => {
                         const grantedScopes: string[] = (acc.scope ?? "").split(/\s+/).filter(Boolean);
                         const missingScopes = requiredScopes.filter((s) => !grantedScopes.includes(s));
@@ -451,6 +453,42 @@ export function SpotifyAppsManager({
               </article>
             );
           })}
+
+          {/* Paginação de apps */}
+          {apps.length > APPS_PER_PAGE && (() => {
+            const totalPages = Math.ceil(apps.length / APPS_PER_PAGE);
+            const safePage = Math.min(page, totalPages - 1);
+            const from = safePage * APPS_PER_PAGE + 1;
+            const to = Math.min(safePage * APPS_PER_PAGE + APPS_PER_PAGE, apps.length);
+            return (
+              <div className="flex items-center justify-between gap-3 px-1 pt-1">
+                <span className="text-[11px] text-muted-foreground tabular-nums">
+                  Apps <span className="text-foreground font-medium">{from}–{to}</span> de {apps.length}
+                </span>
+                <div className="flex items-center gap-1">
+                  <Button
+                    size="sm" variant="outline"
+                    disabled={safePage === 0}
+                    onClick={() => setPage((p) => Math.max(0, p - 1))}
+                    className="h-7 text-xs"
+                  >
+                    Anterior
+                  </Button>
+                  <span className="text-[11px] text-muted-foreground tabular-nums px-2">
+                    {safePage + 1}/{totalPages}
+                  </span>
+                  <Button
+                    size="sm" variant="outline"
+                    disabled={safePage >= totalPages - 1}
+                    onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                    className="h-7 text-xs"
+                  >
+                    Próxima
+                  </Button>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Contas legadas (sem app vinculado) */}
           {legacyAccounts.length > 0 && (
