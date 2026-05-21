@@ -12,7 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { RefreshCw, Server, KeyRound, Pencil } from "lucide-react";
+import { RefreshCw, Server, KeyRound, Pencil, Activity, ListMusic, ShieldCheck } from "lucide-react";
+import { KpiBig } from "@/components/KpiBig";
 import { timeAgo } from "@/lib/format";
 
 type VpsNode = {
