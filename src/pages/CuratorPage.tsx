@@ -834,7 +834,8 @@ export default function CuratorPage() {
 
         {/* Header — campanha + música */}
         <Card className="nx-card !p-0 overflow-hidden border-border">
-          <CardContent className="p-5 sm:p-6 pt-5 sm:pt-6 md:pt-6 space-y-6">
+          <CardContent className="p-3.5 sm:p-4 pt-3.5 sm:pt-4 md:pt-4 space-y-3.5">
+
             <div className="flex items-center justify-between gap-3">
               <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary/80">
                 Campanha
@@ -941,12 +942,12 @@ export default function CuratorPage() {
                           <img
                             src={headerCover}
                             alt={headerName}
-                            className="w-[72px] h-[72px] rounded-xl object-cover ring-1 ring-border"
+                            className="w-14 h-14 rounded-lg object-cover ring-1 ring-border"
                           />
                         </div>
                       ) : (
-                        <div className="w-[72px] h-[72px] rounded-xl bg-muted shrink-0 flex items-center justify-center ring-1 ring-border">
-                          <ListMusic className="h-6 w-6 text-muted-foreground" />
+                        <div className="w-14 h-14 rounded-lg bg-muted shrink-0 flex items-center justify-center ring-1 ring-border">
+                          <ListMusic className="h-5 w-5 text-muted-foreground" />
                         </div>
                       );
                     })()}
@@ -1002,18 +1003,18 @@ export default function CuratorPage() {
                     } as const;
                     const s = statusMap[statusKey];
                     return (
-                       <div className={cn("rounded-2xl p-5 ring-1", s.bg, s.ring)}>
-                          <div className="flex items-center justify-between gap-3 mb-3">
-                            <span className={cn("inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em]", s.text)}>
-                              <span className={cn("h-2 w-2 rounded-full", s.dot)} />
+                       <div className={cn("rounded-xl p-3.5 ring-1", s.bg, s.ring)}>
+                          <div className="flex items-center justify-between gap-3 mb-2">
+                            <span className={cn("inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.12em]", s.text)}>
+                              <span className={cn("h-1.5 w-1.5 rounded-full", s.dot)} />
                               {s.label}
                             </span>
                             <TooltipProvider delayDuration={100}>
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <span className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground cursor-help">
+                                  <span className="inline-flex items-center gap-1 text-[9.5px] uppercase tracking-wider text-muted-foreground cursor-help">
                                     Entrega real do curador
-                                    <HelpCircle className="h-3 w-3 text-muted-foreground/70" />
+                                    <HelpCircle className="h-2.5 w-2.5 text-muted-foreground/70" />
                                   </span>
                                 </TooltipTrigger>
                                 <TooltipContent side="top" className="max-w-[280px] text-xs leading-relaxed">
@@ -1027,29 +1028,29 @@ export default function CuratorPage() {
                               </Tooltip>
                             </TooltipProvider>
                           </div>
-                         <div className="flex items-baseline gap-2 flex-wrap">
-                           <span className={cn("text-[34px] sm:text-[40px] font-bold tabular-nums leading-none tracking-tight", s.text)}>
+                         <div className="flex items-baseline gap-1.5 flex-wrap">
+                           <span className={cn("text-[26px] sm:text-[30px] font-bold tabular-nums leading-none tracking-tight", s.text)}>
                              {formatPlays(stats.earned)}
                            </span>
-                           <span className="text-[20px] sm:text-[22px] font-semibold tabular-nums text-muted-foreground leading-none">
+                           <span className="text-[15px] sm:text-[16px] font-semibold tabular-nums text-muted-foreground leading-none">
                              / {formatPlays(stats.target)}
                            </span>
-                           <span className="text-[11px] uppercase tracking-wider text-muted-foreground ml-1">
-                             entregue (delta) · meta total
+                           <span className="text-[9.5px] uppercase tracking-wider text-muted-foreground ml-1">
+                             entregue · meta
                            </span>
                          </div>
-                         <div className="mt-3 h-1.5 rounded-full bg-background/40 overflow-hidden">
+                         <div className="mt-2.5 h-1 rounded-full bg-background/40 overflow-hidden">
                            <div
                              className={cn("h-full rounded-full transition-all duration-500", s.dot)}
                              style={{ width: `${Math.min(100, stats.pct)}%` }}
                            />
                          </div>
-                         <div className="mt-3 flex items-center justify-between gap-3 text-[11px] text-muted-foreground tabular-nums">
+                         <div className="mt-2 flex items-center justify-between gap-3 text-[10px] text-muted-foreground tabular-nums">
                            <span>
                              {stats.pct}% da meta total
                            </span>
-                           <span className="text-[10px] uppercase tracking-wider">
-                             Ritmo histórico: {formatPlays(stats.dailyAvg)}/dia · meta {formatPlays(stats.dailyGoal)}/dia
+                           <span className="text-[9px] uppercase tracking-wider">
+                             Ritmo: {formatPlays(stats.dailyAvg)}/dia · meta {formatPlays(stats.dailyGoal)}/dia
                            </span>
                          </div>
                        </div>
