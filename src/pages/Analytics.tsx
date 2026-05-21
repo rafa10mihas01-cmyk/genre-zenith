@@ -149,7 +149,6 @@ export default function Analytics() {
             loading={loading}
           />
           <KpiBig
-            tier="quiet"
             icon={DollarSign}
             label="Custo por play"
             value={cpp != null ? `R$ ${cpp.toFixed(4)}` : "—"}
