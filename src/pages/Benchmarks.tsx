@@ -192,18 +192,26 @@ export default function Benchmarks() {
         </Card>
       </div>
 
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-muted-foreground mr-2">Ordenar por:</span>
-        {(["sample", "followers", "growth"] as const).map((k) => (
-          <Button
-            key={k}
-            size="sm"
-            variant={sortBy === k ? "default" : "outline"}
-            onClick={() => setSortBy(k)}
-          >
-            {k === "sample" ? "Amostra" : k === "followers" ? "Seguidores" : "Crescimento"}
-          </Button>
-        ))}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground mr-2">Ordenar por:</span>
+          {(["sample", "followers", "growth"] as const).map((k) => (
+            <Button
+              key={k}
+              size="sm"
+              variant={sortBy === k ? "default" : "outline"}
+              onClick={() => setSortBy(k)}
+            >
+              {k === "sample" ? "Amostra" : k === "followers" ? "Seguidores" : "Crescimento"}
+            </Button>
+          ))}
+        </div>
+        <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+          <span className="font-medium text-foreground/80">Como ler:</span>
+          <span><strong className="text-foreground/80">Típica</strong> = mediana do nicho</span>
+          <span><strong className="text-foreground/80">Forte</strong> = melhor que 75%</span>
+          <span><strong className="text-foreground/80">Topo</strong> = top 10%</span>
+        </div>
       </div>
 
       {isLoading ? (
