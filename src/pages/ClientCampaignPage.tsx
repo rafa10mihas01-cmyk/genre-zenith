@@ -106,20 +106,28 @@ function formatDateTime(iso: string | null | undefined): string {
   }
 }
 
-const PLAYLIST_STATUS_STYLES: Record<SafePlaylist["status"], string> = {
-  "Nova": "bg-blue-500/10 text-blue-400 border-blue-500/20",
-  "Crescendo": "bg-primary/10 text-primary border-primary/20",
-  "Destaque": "bg-amber-500/10 text-amber-400 border-amber-500/20",
-  "Estável": "bg-muted text-muted-foreground border-border",
+// Status visíveis ao cliente — reduzidos a 2 leituras humanas.
+// O mapa interno (Nova/Crescendo/Destaque/Estável) é colapsado.
+function clientPlaylistStatus(p: SafePlaylist): "entregando" | "aguardando" {
+  if (p.status === "Nova" || p.delivered <= 0) return "aguardando";
+  return "entregando";
+}
+const PLAYLIST_STATUS_STYLES: Record<"entregando" | "aguardando", string> = {
+  "entregando": "bg-success/10 text-success border-success/20",
+  "aguardando": "bg-muted text-muted-foreground border-border",
+};
+const PLAYLIST_STATUS_LABEL: Record<"entregando" | "aguardando", string> = {
+  "entregando": "Entregando",
+  "aguardando": "Aguardando atualização",
 };
 
 const PACE_LABEL: Record<SafeProgress["pace"], { label: string; tone: string }> = {
   "abaixo do esperado": {
-    label: "Ritmo abaixo do esperado",
+    label: "Entregando abaixo do ritmo esperado",
     tone: "text-warning",
   },
-  "normal": { label: "Ritmo normal", tone: "text-foreground" },
-  "acelerando": { label: "Ritmo acelerando", tone: "text-primary" },
+  "normal": { label: "Entrega estável", tone: "text-foreground" },
+  "acelerando": { label: "Campanha acelerando", tone: "text-success" },
 };
 
 export default function ClientCampaignPage() {
