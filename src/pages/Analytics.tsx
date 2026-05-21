@@ -123,31 +123,43 @@ export default function Analytics() {
         <AnalyticsTabs />
 
         {/* KPIs reais */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <Kpi
+        <section className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+          <KpiBig
+            tier="hero"
+            icon={Activity}
             label="Deals ativos"
-            value={activeDeals.length.toString()}
-            sub={`${deals.length} no total`}
+            value={activeDeals.length}
+            hint={`${deals.length} no total`}
+            domain="deals"
             loading={loading}
           />
-          <Kpi
+          <KpiBig
+            icon={Zap}
             label="Plays entregues (7d)"
             value={plays7d.toLocaleString("pt-BR")}
+            hint="Janela curta — ritmo recente"
+            domain="campaigns"
             loading={loading}
           />
-          <Kpi
+          <KpiBig
+            icon={TrendingUp}
             label="Média diária (30d)"
             value={dailyAvg30d.toLocaleString("pt-BR")}
-            sub={`${plays30d.toLocaleString("pt-BR")} no período`}
+            hint={`${plays30d.toLocaleString("pt-BR")} no período`}
+            domain="playlists"
             loading={loading}
           />
-          <Kpi
-            label="Custo por play real"
+          <KpiBig
+            tier="quiet"
+            icon={DollarSign}
+            label="Custo por play"
             value={cpp != null ? `R$ ${cpp.toFixed(4)}` : "—"}
-            sub={cpp != null ? "soma(custo) ÷ plays entregues" : "Sem entregas no período"}
+            hint={cpp != null ? "soma(custo) ÷ plays" : "Sem entregas"}
+            domain="system"
             loading={loading}
           />
-        </div>
+        </section>
+
 
         {/* Ritmo dos deals ativos */}
         <Section title="Ritmo dos deals ativos">
