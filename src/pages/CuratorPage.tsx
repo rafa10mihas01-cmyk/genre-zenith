@@ -1273,7 +1273,7 @@ export default function CuratorPage() {
                   {curatorPlaylists.length === 1 ? "playlist declarada" : "playlists declaradas"}
                 </div>
                 <div className="text-[11px] text-muted-foreground leading-tight mt-0.5">
-                  Playlists adicionadas após o início contam como orgânicas e não somam na meta.
+                  Cadastre suas playlists antes do primeiro print para que contem na meta.
                 </div>
               </div>
             </div>
