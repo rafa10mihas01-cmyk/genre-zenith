@@ -51,8 +51,8 @@ import Analytics from "./pages/Analytics";
 import Valuation from "./pages/Valuation";
 import PlaylistDetail from "./pages/PlaylistDetail";
 import Benchmarks from "./pages/Benchmarks";
-import MatrizPlaylists from "./pages/MatrizPlaylists";
-import HeatmapEntregas from "./pages/HeatmapEntregas";
+// MatrizPlaylists e HeatmapEntregas viraram sub-aba/seção dentro de Performance e Analytics.
+// Rotas antigas /matriz e /heatmap continuam ativas como redirects.
 
 import NotFound from "./pages/NotFound";
 
