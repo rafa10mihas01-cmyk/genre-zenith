@@ -834,7 +834,8 @@ export default function CuratorPage() {
 
         {/* Header — campanha + música */}
         <Card className="nx-card !p-0 overflow-hidden border-border">
-          <CardContent className="p-5 sm:p-6 pt-5 sm:pt-6 md:pt-6 space-y-6">
+          <CardContent className="p-3.5 sm:p-4 pt-3.5 sm:pt-4 md:pt-4 space-y-3.5">
+
             <div className="flex items-center justify-between gap-3">
               <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary/80">
                 Campanha
