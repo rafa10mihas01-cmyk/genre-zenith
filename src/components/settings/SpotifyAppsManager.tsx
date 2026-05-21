@@ -301,7 +301,7 @@ export function SpotifyAppsManager({
         </div>
       ) : (
         <div className="space-y-3">
-          {apps.map((a) => {
+          {apps.slice(page * APPS_PER_PAGE, page * APPS_PER_PAGE + APPS_PER_PAGE).map((a) => {
             const appAccounts = accountsByApp.get(a.id) ?? [];
             const full = a.slots_remaining <= 0;
             const isPaused = a.status !== "active";
