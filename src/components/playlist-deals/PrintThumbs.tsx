@@ -14,17 +14,32 @@ function isPdf(url: string): boolean {
   return /\.pdf(\?|$)/i.test(url);
 }
 
+function fileNameFromUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    return u.pathname.split("/").pop() ?? url;
+  } catch {
+    return url.split("/").pop() ?? url;
+  }
+}
+
 export function PrintThumbs({ urls, className, size = "md" }: PrintThumbsProps) {
   const [open, setOpen] = useState<string | null>(null);
 
   if (!urls || urls.length === 0) return null;
+
+  // Ordena por nome de arquivo (timestamp embutido) pra exibir do mais antigo
+  // pro mais novo — cabeçalho/baseline primeiro, depois prints em sequência.
+  const ordered = [...urls].sort((a, b) =>
+    fileNameFromUrl(a).localeCompare(fileNameFromUrl(b), undefined, { numeric: true, sensitivity: "base" }),
+  );
 
   const dim = size === "sm" ? "h-10 w-10" : "h-14 w-14";
 
   return (
     <>
       <div className={cn("flex flex-wrap gap-1.5", className)}>
-        {urls.map((u) => {
+        {ordered.map((u) => {
           const pdf = isPdf(u);
           return (
             <a
