@@ -45,8 +45,10 @@ async function fetchAllTrackUris(playlistId: string, token: string): Promise<str
   while (url) {
     const j = await spotifyFetch(url, { method: "GET" }, token);
     for (const it of j.items ?? []) {
-      const uri = it?.track?.uri;
-      if (uri) uris.push(uri);
+      // IMPORTANTE: preservar slots vazios (faixas locais/removidas têm track=null)
+      // pra que os índices batam EXATAMENTE com o que o Spotify enxerga.
+      const uri = it?.track?.uri ?? "";
+      uris.push(uri);
     }
     url = j.next ?? null;
   }
@@ -111,10 +113,17 @@ Deno.serve(async (req) => {
         const existingIdx = uris.indexOf(trackUri);
 
         if (existingIdx >= 0) {
-          // já existe — mover pra posição alvo
-          const insertBefore = Math.max(0, Math.min(targetIdx, uris.length));
+          // já existe — mover pra posição alvo.
+          // Semântica do Spotify: insert_before usa índices da lista ORIGINAL.
+          // - Subindo (existingIdx > targetIdx): insert_before = targetIdx
+          // - Descendo (existingIdx < targetIdx): insert_before = targetIdx + 1
+          //   (porque o próprio item ocupa um slot antes do destino)
+          const clampedTarget = Math.max(0, Math.min(targetIdx, uris.length - 1));
+          const insertBefore = existingIdx < clampedTarget
+            ? Math.min(clampedTarget + 1, uris.length)
+            : clampedTarget;
           if (insertBefore === existingIdx || insertBefore === existingIdx + 1) {
-            results.push({ playlist_id: pl.id, name: pl.name, status: "skip", message: "já está na posição" });
+            results.push({ playlist_id: pl.id, name: pl.name, status: "skip", message: `já está na posição ${existingIdx + 1}` });
             continue;
           }
           await spotifyFetch(
@@ -129,7 +138,7 @@ Deno.serve(async (req) => {
             },
             token,
           );
-          results.push({ playlist_id: pl.id, name: pl.name, status: "moved", message: `movida pra pos ${slot.position}` });
+          results.push({ playlist_id: pl.id, name: pl.name, status: "moved", message: `${existingIdx + 1} → ${slot.position}` });
         } else {
           // não existe — inserir na posição (Spotify empurra as demais pra baixo)
           const position = Math.min(targetIdx, uris.length);
