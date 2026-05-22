@@ -121,9 +121,8 @@ export function FinancialOverview() {
                     : 0;
                   const isOpen = expanded.has(s.campaign_id);
                   return (
-                    <>
+                    <Fragment key={s.campaign_id}>
                       <tr
-                        key={s.campaign_id}
                         className="hover:bg-elevated/40 cursor-pointer"
                         onClick={() => toggle(s.campaign_id)}
                       >
