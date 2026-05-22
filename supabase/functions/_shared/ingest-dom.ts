@@ -165,22 +165,25 @@ export async function processDomItem(
     }
 
     if (!playlistId) {
-      const { data: created, error: cErr } = await supabase
-        .from("curator_playlists")
-        .insert({
-          deal_id,
-          song_id,
-          spotify_url: sUrl,
-          spotify_playlist_id: sId,
-          playlist_name: sName ?? "Sem nome",
-          followers: p.followers ?? null,
-        })
-        .select("id")
-        .single();
-      if (cErr) { skipped++; continue; }
-      playlistId = (created as any).id;
-      matchMethod = "created";
+      // NÃO cria nova playlist automaticamente: snapshot pertence a playlist
+      // não cadastrada no deal. Loga + notifica + pula.
+      const ref = sId ?? sName ?? "unknown";
+      await supabase.from("collection_logs").insert({
+        acao: "no_match",
+        status: "alerta",
+        mensagem: `[WARN] no_match: playlist ${ref} not registered in deal ${deal_id}`,
+      });
+      await supabase.rpc("create_notification", {
+        p_type: "playlist_nao_identificada",
+        p_title: "Playlist não identificada no deal",
+        p_message: `Playlist não cadastrada no deal — verificar manualmente: ${ref}`,
+        p_action_url: `/playlist-deals/${deal_id}`,
+        p_metadata: { deal_id, song_id, spotify_playlist_id: sId, playlist_name: sName },
+      });
+      skipped++;
+      continue;
     }
+
 
     const { error: insErr } = await supabase.from("curator_deal_snapshots").insert({
       deal_id,
