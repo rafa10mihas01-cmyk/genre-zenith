@@ -1698,8 +1698,10 @@ Deno.serve(async (req) => {
             leaderRelN: Math.round(leaderRelN),
             visualN: Math.round(visualN),
             final: Math.round(final),
+            release_date_source: t.release_date_source,
           },
         };
+
       }).sort((a, b) => b._final - a._final);
 
       const pickEight = (sortedScored: ReturnType<typeof computeScored>) => {
