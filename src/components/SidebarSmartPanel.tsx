@@ -120,20 +120,8 @@ export function SidebarSmartPanel() {
     const checkSystem = async () => {
       const next: SidebarAlert[] = [];
       try {
-        // Apify bloqueado?
-        const { data: flags } = await supabase
-          .from("system_flags")
-          .select("apify_blocked")
-          .limit(1)
-          .maybeSingle();
-        if (flags?.apify_blocked) {
-          next.push({
-            id: "apify-blocked",
-            label: "Coleta pausada (Apify)",
-            intent: "warning",
-            to: "/configuracoes",
-          });
-        }
+        // Apify descontinuado — coleta agora 100% via Spotify Web API.
+
 
         // Baixo volume nas últimas 24h?
         const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
