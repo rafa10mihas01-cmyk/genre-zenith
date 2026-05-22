@@ -77,6 +77,7 @@ export function SpreadsheetUploadCard({
     setPreview(null);
     setError(null);
     setPhase("idle");
+    setCommitting(false);
     if (inputRef.current) inputRef.current.value = "";
   };
 
