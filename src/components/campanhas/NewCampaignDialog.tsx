@@ -278,6 +278,10 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
         created_by: user?.id ?? null,
         client_id: clientId || null,
         curator_id: curatorId || null,
+        valor_cobrado: currencyDigitsToNumber(valorCobradoDigits) ?? null,
+        forma_recebimento: formaRecebimento || null,
+        valor_recebido: jaRecebido ? (currencyDigitsToNumber(valorCobradoDigits) ?? null) : null,
+        recebido_em: jaRecebido && recebidoEm ? recebidoEm : null,
       } as any)
       .select("id")
       .single();
@@ -412,6 +416,62 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
                 <Label>Notas</Label>
                 <Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} maxLength={500} />
               </div>
+            </div>
+
+            {/* Cobrança do cliente */}
+            <div className="mt-6 space-y-3 rounded-lg border border-border/60 bg-muted/10 p-4">
+              <div className="flex items-baseline justify-between">
+                <h4 className="text-sm font-semibold text-foreground">Cobrança do cliente</h4>
+                <span className="text-[11px] text-muted-foreground">Entrada · opcional</span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Valor cobrado</Label>
+                  <Input
+                    inputMode="numeric"
+                    placeholder="R$ 0,00"
+                    value={formatCurrencyBRL(valorCobradoDigits)}
+                    onChange={e => setValorCobradoDigits(e.target.value.replace(/\D/g, ""))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Forma de recebimento</Label>
+                  <Select value={formaRecebimento || "__none__"} onValueChange={v => setFormaRecebimento(v === "__none__" ? "" : v)}>
+                    <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">A definir</SelectItem>
+                      <SelectItem value="pix">PIX</SelectItem>
+                      <SelectItem value="boleto">Boleto</SelectItem>
+                      <SelectItem value="cartao">Cartão</SelectItem>
+                      <SelectItem value="transferencia">Transferência</SelectItem>
+                      <SelectItem value="outro">Outro</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="md:col-span-2 flex items-center gap-2 pt-1">
+                  <Checkbox
+                    id="ja-recebido"
+                    checked={jaRecebido}
+                    onCheckedChange={(v) => {
+                      const checked = v === true;
+                      setJaRecebido(checked);
+                      if (checked && !recebidoEm) setRecebidoEm(new Date().toISOString().slice(0, 10));
+                    }}
+                  />
+                  <Label htmlFor="ja-recebido" className="cursor-pointer text-sm">
+                    Já recebi este valor
+                  </Label>
+                </div>
+                {jaRecebido && (
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>Data do recebimento</Label>
+                    <Input type="date" value={recebidoEm} onChange={e => setRecebidoEm(e.target.value)} />
+                  </div>
+                )}
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Se ficar em branco, o lançamento entra como "a receber" no Financeiro.
+              </p>
             </div>
           </div>
         )}
