@@ -84,9 +84,10 @@ export function EngineHealthGrid() {
       try {
         // engine-health reads query params (GET), then invoke direct via fetch
         const url = `${import.meta.env.VITE_SUPABASE_URL ?? ""}/functions/v1/engine-health?all=1`;
+        const { data: { session } } = await supabase.auth.getSession();
         const res = await fetch(url, {
           headers: {
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            Authorization: `Bearer ${session?.access_token ?? ""}`,
             apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
           },
         });
