@@ -108,7 +108,7 @@ export function SpreadsheetUploadCard({
         return;
       }
       setPreview(data.summary as Preview);
-      setPhase("previewed");
+      setPhase("previewed"); setCommitting(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setPhase("idle");
@@ -117,7 +117,7 @@ export function SpreadsheetUploadCard({
 
   const handleCommit = async () => {
     if (!file) return;
-    setPhase("committing");
+    setCommitting(true);
     setError(null);
     try {
       const b64 = await fileToBase64(file);
@@ -131,7 +131,7 @@ export function SpreadsheetUploadCard({
       });
       if (fnErr || !data?.ok) {
         setError(data?.error || fnErr?.message || "Falha ao gravar");
-        setPhase("previewed");
+        setPhase("previewed"); setCommitting(false);
         return;
       }
       setPhase("done");
@@ -141,7 +141,7 @@ export function SpreadsheetUploadCard({
       }, 1800);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
-      setPhase("previewed");
+      setPhase("previewed"); setCommitting(false);
     }
   };
 
@@ -234,8 +234,8 @@ export function SpreadsheetUploadCard({
               )}
             </div>
             <div className="flex gap-2">
-              <Button onClick={handleCommit} disabled={phase === "committing"} className="flex-1">
-                {phase === "committing" ? (
+              <Button onClick={handleCommit} disabled={committing} className="flex-1">
+                {committing ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     Importando...
@@ -244,7 +244,7 @@ export function SpreadsheetUploadCard({
                   "Confirmar importação"
                 )}
               </Button>
-              <Button variant="outline" onClick={reset} disabled={phase === "committing"}>
+              <Button variant="outline" onClick={reset} disabled={committing}>
                 Cancelar
               </Button>
             </div>
