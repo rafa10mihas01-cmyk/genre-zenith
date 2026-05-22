@@ -177,13 +177,21 @@ function detectFormat(fileName: string, buf: Uint8Array): "csv" | "xlsx" {
 function parseBuf(
   buf: Uint8Array,
   fmt: "csv" | "xlsx",
-): { rows: ParsedRow[]; warnings: string[]; detected: string[] } {
+): { rows: ParsedRow[]; warnings: string[]; detected: string[]; autoFixes: Record<string, number> } {
   const warnings: string[] = [];
+  const autoFixes: Record<string, number> = {
+    empty_rows: 0,
+    junk_rows: 0,
+    duplicates: 0,
+    url_cleaned: 0,
+    number_normalized: 0,
+    negative_clamped: 0,
+    invalid_position: 0,
+  };
   let wb;
   if (fmt === "csv") {
     let text = new TextDecoder("utf-8").decode(buf);
     if (text.charCodeAt(0) === 0xfeff) text = text.slice(1);
-    // Detecta separador (; vs ,)
     const firstLine = text.split(/\r?\n/)[0] ?? "";
     const sep = (firstLine.match(/;/g) ?? []).length >
         (firstLine.match(/,/g) ?? []).length
@@ -194,7 +202,7 @@ function parseBuf(
     wb = XLSX.read(buf, { type: "array" });
   }
   const sheet = wb.Sheets[wb.SheetNames[0]];
-  if (!sheet) return { rows: [], warnings: ["Planilha sem abas"], detected: [] };
+  if (!sheet) return { rows: [], warnings: ["Planilha sem abas"], detected: [], autoFixes };
   const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: null });
 
   const detected: string[] = [];
@@ -205,6 +213,7 @@ function parseBuf(
     }
   }
 
+  const seen = new Set<string>();
   const rows: ParsedRow[] = [];
   for (const r of raw) {
     const mapped: Record<string, unknown> = {};
@@ -213,15 +222,41 @@ function parseBuf(
       if (key) mapped[key] = v;
     }
     const playlist_name = String(mapped.playlist_name ?? "").trim();
-    if (!playlist_name) continue;
+    if (!playlist_name) { autoFixes.empty_rows++; continue; }
+    if (isJunkRow(playlist_name)) { autoFixes.junk_rows++; continue; }
+
     const streamsRaw = mapped.streams;
-    const streams = typeof streamsRaw === "number"
-      ? Math.max(0, Math.round(streamsRaw))
-      : parseInt(String(streamsRaw ?? "0").replace(/[^\d]/g, ""), 10) || 0;
-    const playlist_uri = mapped.playlist_uri ? String(mapped.playlist_uri).trim() : null;
-    const playlist_url = mapped.playlist_url ? String(mapped.playlist_url).trim() : null;
+    const streamsParsed = parseFlexibleNumber(streamsRaw);
+    if (typeof streamsRaw === "string" && streamsRaw !== String(streamsParsed)) {
+      autoFixes.number_normalized++;
+    }
+    const streams = streamsParsed < 0 ? (autoFixes.negative_clamped++, 0) : streamsParsed;
+
+    const rawUri = mapped.playlist_uri ? String(mapped.playlist_uri) : null;
+    const rawUrl = mapped.playlist_url ? String(mapped.playlist_url) : null;
+    const playlist_uri = cleanUrl(rawUri);
+    const playlist_url = cleanUrl(rawUrl);
+    if ((rawUri && rawUri !== playlist_uri) || (rawUrl && rawUrl !== playlist_url)) {
+      autoFixes.url_cleaned++;
+    }
     const playlist_spotify_id = extractPlaylistId(playlist_uri) ||
       extractPlaylistId(playlist_url);
+
+    let position_in_playlist: number | null = null;
+    if (mapped.position_in_playlist != null) {
+      const p = Number(mapped.position_in_playlist);
+      if (isFinite(p) && p > 0) position_in_playlist = Math.round(p);
+      else if (mapped.position_in_playlist !== "" && mapped.position_in_playlist !== 0) {
+        autoFixes.invalid_position++;
+      }
+    }
+
+    // dedupe por (spotify_id || nome+owner)
+    const dedupeKey = (playlist_spotify_id ||
+      `${playlist_name}|${mapped.owner_name ?? ""}`).toLowerCase();
+    if (seen.has(dedupeKey)) { autoFixes.duplicates++; continue; }
+    seen.add(dedupeKey);
+
     rows.push({
       row_position: mapped.row_position != null ? Number(mapped.row_position) || null : null,
       version_name: String(mapped.version_name ?? "").trim(),
@@ -232,15 +267,13 @@ function parseBuf(
       playlist_spotify_id,
       country: mapped.country ? String(mapped.country).trim() : null,
       owner_name: mapped.owner_name ? String(mapped.owner_name).trim() : null,
-      position_in_playlist: mapped.position_in_playlist != null
-        ? Number(mapped.position_in_playlist) || null
-        : null,
+      position_in_playlist,
       streams,
       raw: r as Record<string, unknown>,
     });
   }
   if (rows.length === 0) warnings.push("Nenhuma linha válida encontrada");
-  return { rows, warnings, detected };
+  return { rows, warnings, detected, autoFixes };
 }
 
 type MatchResult = {
