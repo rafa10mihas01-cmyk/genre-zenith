@@ -1589,6 +1589,7 @@ Deno.serve(async (req) => {
           ? Math.round((Date.now() - new Date(v.latest_coletado_em).getTime()) / 86400_000)
           : Number.POSITIVE_INFINITY,
         coletado_em_latest: v.latest_coletado_em ?? null,
+        score_breakdown: null,
       }));
     }
 
