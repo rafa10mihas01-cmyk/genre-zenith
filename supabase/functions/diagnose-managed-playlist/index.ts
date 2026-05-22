@@ -1319,6 +1319,8 @@ Deno.serve(async (req) => {
       leader_followers: number;
       popularity: number | null;
       editorial_score: number;
+      pool_age_days: number;
+      coletado_em_latest: string | null;
     }> = [];
 
     try {
