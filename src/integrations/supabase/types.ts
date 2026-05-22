@@ -1602,6 +1602,8 @@ export type Database = {
           created_at: string
           created_by: string | null
           deal_id: string
+          flag_reason: string | null
+          flagged: boolean
           id: string
           is_baseline: boolean
           match_method: string | null
@@ -1624,6 +1626,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           deal_id: string
+          flag_reason?: string | null
+          flagged?: boolean
           id?: string
           is_baseline?: boolean
           match_method?: string | null
@@ -1646,6 +1650,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           deal_id?: string
+          flag_reason?: string | null
+          flagged?: boolean
           id?: string
           is_baseline?: boolean
           match_method?: string | null
