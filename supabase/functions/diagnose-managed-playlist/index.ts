@@ -1441,7 +1441,7 @@ Deno.serve(async (req) => {
             .gte("captured_at", thirtyAgoISO);
           const { data: snapsOld } = await supabase
             .from("playlist_track_snapshots")
-            .select("track_ids")
+            .select("playlist_spotify_id, track_ids")
             .in("playlist_spotify_id", topIds)
             .lt("captured_at", thirtyAgoISO);
 
