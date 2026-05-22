@@ -28,7 +28,9 @@ Deno.serve(async (req) => {
   const sb = createClient(SUPABASE_URL, SERVICE_ROLE);
   try {
     const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
-    const limit = Math.min(Number(body.limit ?? 60), 200);
+    const limit = Math.min(Number(body.limit ?? 60), 300);
+    const tierMode: string | null = body.tier ?? null; // "leader" → force top-N by followers per genre
+    const explicitIds: string[] = Array.isArray(body.playlist_ids) ? body.playlist_ids : [];
 
     // Retenção: 60 dias
     const cutoffISO = new Date(Date.now() - RETENTION_DAYS * 86400_000).toISOString();
@@ -44,7 +46,7 @@ Deno.serve(async (req) => {
       .not("spotify_playlist_id", "is", null);
     const managedIds = new Set<string>((managed ?? []).map((m: any) => m.spotify_playlist_id));
 
-    // 2. PLUS: leader + sample medium
+    // 2. PLUS: leader + sample medium (por refresh_tier)
     const { data: targets } = await sb
       .from("search_results")
       .select("spotify_playlist_id, refresh_tier")
@@ -52,14 +54,50 @@ Deno.serve(async (req) => {
       .not("spotify_playlist_id", "is", null)
       .limit(limit * 3);
 
+    // 3. EXTRA: top-N por followers de cada genre ativo (cobre playlists sem refresh_tier)
+    const topByGenre: Array<{ id: string; source: string }> = [];
+    if (tierMode === "leader" || explicitIds.length === 0) {
+      const { data: genreRows } = await sb
+        .from("genres")
+        .select("id");
+      const N_PER_GENRE = tierMode === "leader" ? 10 : 5;
+      for (const g of (genreRows ?? []) as any[]) {
+        const { data: topRows } = await sb
+          .from("search_results")
+          .select("spotify_playlist_id")
+          .eq("genre_id", g.id)
+          .eq("is_valid", true)
+          .is("duplicate_of", null)
+          .not("spotify_playlist_id", "is", null)
+          .not("seguidores", "is", null)
+          .order("seguidores", { ascending: false })
+          .limit(N_PER_GENRE);
+        for (const r of (topRows ?? []) as any[]) {
+          topByGenre.push({ id: r.spotify_playlist_id, source: "top-by-followers" });
+        }
+      }
+    }
+
     const list: Array<{ id: string; source: string }> = [];
     const seen = new Set<string>();
 
-    // managed primeiro (garantia mínima)
+    // explicit ids first (manual override)
+    for (const id of explicitIds) {
+      if (seen.has(id)) continue;
+      seen.add(id);
+      list.push({ id, source: "explicit" });
+    }
+    // managed (garantia mínima)
     for (const id of managedIds) {
       if (seen.has(id)) continue;
       seen.add(id);
       list.push({ id, source: "managed" });
+    }
+    // top por followers de cada genre (cobre leaders sem refresh_tier)
+    for (const t of topByGenre) {
+      if (seen.has(t.id)) continue;
+      seen.add(t.id);
+      list.push(t);
     }
     // depois os tier leader/medium até o limit
     for (const r of (targets ?? []) as any[]) {
@@ -67,7 +105,7 @@ Deno.serve(async (req) => {
       if (r.refresh_tier === "medium" && Math.random() > 0.2) continue;
       seen.add(r.spotify_playlist_id);
       list.push({ id: r.spotify_playlist_id, source: r.refresh_tier });
-      if (list.length >= Math.max(limit, managedIds.size)) break;
+      if (list.length >= Math.max(limit, managedIds.size + topByGenre.length)) break;
     }
 
     const token = await getSpotifyToken();

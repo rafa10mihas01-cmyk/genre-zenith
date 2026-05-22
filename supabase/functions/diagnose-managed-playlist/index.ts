@@ -1374,6 +1374,8 @@ Deno.serve(async (req) => {
       // Boost x1.2 (cap 100) se track aparece em snapshot recente (<30d) de alguma top-N.
       const leaderRelMap = new Map<string, { count: number; recentlyAdded: boolean }>();
       let leaderRelN_total = 0;
+      let _topLeaderIds: string[] = [];
+      let _missingSnapshotLeaderIds: string[] = [];
       if (candidateIds.length > 0 && pl.genre_id) {
         // top-N playlists do nicho (N = min(10, total))
         const { data: nicheRows } = await supabase
@@ -1394,6 +1396,7 @@ Deno.serve(async (req) => {
         const N = Math.min(10, dedupedTop.length);
         leaderRelN_total = N;
         const topIds = dedupedTop.slice(0, N).map((p) => p.id);
+        _topLeaderIds = topIds;
 
         if (topIds.length > 0) {
           // 1) busca os result_ids das top-N e mapeia quais candidate tracks aparecem em cada
@@ -1438,9 +1441,16 @@ Deno.serve(async (req) => {
             .gte("captured_at", thirtyAgoISO);
           const { data: snapsOld } = await supabase
             .from("playlist_track_snapshots")
-            .select("track_ids")
+            .select("playlist_spotify_id, track_ids")
             .in("playlist_spotify_id", topIds)
             .lt("captured_at", thirtyAgoISO);
+
+          // Track which top leaders have NO snapshot at all (root cause of leaderRelN=0)
+          const snappedIds = new Set<string>([
+            ...((snapsRecent ?? []) as any[]).map((s) => s.playlist_spotify_id),
+            ...((snapsOld ?? []) as any[]).map((s: any) => s.playlist_spotify_id),
+          ]);
+          _missingSnapshotLeaderIds = topIds.filter((id) => !snappedIds.has(id));
 
           const inRecent = new Set<string>();
           for (const s of (snapsRecent ?? []) as any[]) {
@@ -1739,6 +1749,13 @@ Deno.serve(async (req) => {
       };
 
       let scored = computeScored();
+      if (scored.length > 0 && scored.every((t: any) => (t._breakdown?.leaderRelN ?? 0) === 0)) {
+        console.warn(
+          `[INFO] leaderRelN_zero: genre=${pl.genre_id} ` +
+          `snapshots_missing=${_missingSnapshotLeaderIds.length} ` +
+          `top_leaders=${_topLeaderIds.slice(0, 3).join(",")}`,
+        );
+      }
       let picked = pickEight(scored);
       // Fallback: se penalidade derrubou demais e ficou < 8, relaxa progressivamente.
       const relaxSteps = [0.33, 0.66, 1.0];
