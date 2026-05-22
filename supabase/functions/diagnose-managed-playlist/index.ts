@@ -1749,6 +1749,13 @@ Deno.serve(async (req) => {
       };
 
       let scored = computeScored();
+      if (scored.length > 0 && scored.every((t: any) => (t._breakdown?.leaderRelN ?? 0) === 0)) {
+        console.warn(
+          `[INFO] leaderRelN_zero: genre=${pl.genre_id} ` +
+          `snapshots_missing=${_missingSnapshotLeaderIds.length} ` +
+          `top_leaders=${_topLeaderIds.slice(0, 3).join(",")}`,
+        );
+      }
       let picked = pickEight(scored);
       // Fallback: se penalidade derrubou demais e ficou < 8, relaxa progressivamente.
       const relaxSteps = [0.33, 0.66, 1.0];
