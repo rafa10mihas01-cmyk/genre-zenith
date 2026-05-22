@@ -11,8 +11,10 @@ export interface TemplateEntry {
 
 import { template as spotifySessionExpired } from './spotify-session-expired.tsx'
 import { template as curatorOutreach } from './curator-outreach.tsx'
+import { template as labelSpreadsheetReminder } from './label-spreadsheet-reminder.tsx'
 
 export const TEMPLATES: Record<string, TemplateEntry> = {
   'spotify-session-expired': spotifySessionExpired,
   'curator-outreach': curatorOutreach,
+  'label-spreadsheet-reminder': labelSpreadsheetReminder,
 }
