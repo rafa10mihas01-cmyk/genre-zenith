@@ -40,13 +40,14 @@ Deno.serve(async (req) => {
     for (const g of genres as any[]) {
       // ── HISTORIC: agrega search_tracks ponderado por tempo (últimos 18 meses)
       const since = new Date(Date.now() - 540 * 86400_000).toISOString();
-      const { data: tracks } = await sb
+      const { data: tracks, error: tErr } = await sb
         .from("search_tracks")
-        .select("spotify_track_id, nome_musica, artista, coletado_em, spotify_playlist_id")
+        .select("spotify_track_id, nome_musica, artista, coletado_em")
         .eq("genre_id", g.id)
         .not("spotify_track_id", "is", null)
         .gte("coletado_em", since)
         .limit(10000);
+      if (tErr) console.error("historic err", g.slug, tErr.message);
 
       const hMap = new Map<string, { score: number; name: string; artist: string; last: string }>();
       for (const t of (tracks ?? []) as any[]) {
@@ -61,7 +62,8 @@ Deno.serve(async (req) => {
         .sort((a, b) => b[1].score - a[1].score)
         .slice(0, QUOTAS.historic);
 
-      // ── LEADER: tracks que aparecem em playlists com leadership ≥ 0.55
+      // ── LEADER: tracks coletadas a partir de search_results de playlists com leadership ≥ 0.55
+      // (search_tracks.result_id → search_results.id → spotify_playlist_id)
       const { data: leaderPls } = await sb
         .from("playlist_leadership")
         .select("playlists!inner(spotify_playlist_id, genre_id)")
@@ -71,18 +73,25 @@ Deno.serve(async (req) => {
 
       const lMap = new Map<string, { score: number; name: string; artist: string; last: string }>();
       if (leaderSpIds.length) {
-        const { data: lTracks } = await sb
-          .from("search_tracks")
-          .select("spotify_track_id, nome_musica, artista, coletado_em, spotify_playlist_id")
-          .in("spotify_playlist_id", leaderSpIds)
-          .not("spotify_track_id", "is", null)
-          .limit(5000);
-        for (const t of (lTracks ?? []) as any[]) {
-          const w = temporalWeight(t.coletado_em);
-          const cur = lMap.get(t.spotify_track_id) ?? { score: 0, name: t.nome_musica, artist: t.artista, last: t.coletado_em };
-          cur.score += w;
-          if (t.coletado_em > cur.last) cur.last = t.coletado_em;
-          lMap.set(t.spotify_track_id, cur);
+        const { data: leaderResults } = await sb
+          .from("search_results")
+          .select("id")
+          .in("spotify_playlist_id", leaderSpIds);
+        const resultIds = (leaderResults ?? []).map((r: any) => r.id);
+        if (resultIds.length) {
+          const { data: lTracks } = await sb
+            .from("search_tracks")
+            .select("spotify_track_id, nome_musica, artista, coletado_em")
+            .in("result_id", resultIds)
+            .not("spotify_track_id", "is", null)
+            .limit(5000);
+          for (const t of (lTracks ?? []) as any[]) {
+            const w = temporalWeight(t.coletado_em);
+            const cur = lMap.get(t.spotify_track_id) ?? { score: 0, name: t.nome_musica, artist: t.artista, last: t.coletado_em };
+            cur.score += w;
+            if (t.coletado_em > cur.last) cur.last = t.coletado_em;
+            lMap.set(t.spotify_track_id, cur);
+          }
         }
       }
       const leaderTop = [...lMap.entries()]
