@@ -1603,7 +1603,7 @@ Deno.serve(async (req) => {
           final =
             recorrenciaN * 0.35 +
             recenciaN * 0.30 +
-            leaderRelN * 0.20 +
+            leaderN_legacy * 0.20 +
             visualN * 0.10;
         } else {
           recenciaN = recenciaBuckets(t._ageDays);
