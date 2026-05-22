@@ -86,10 +86,35 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 5) upsert em managed_playlists
+    // 5) enriquecimento: busca followers de CADA playlist em paralelo (lotes de 8)
+    // /v1/me/playlists não retorna followers — só /v1/playlists/{id} retorna.
+    const followersMap = new Map<string, number | null>();
+    const CONCURRENCY = 8;
+    for (let i = 0; i < owned.length; i += CONCURRENCY) {
+      const batch = owned.slice(i, i + CONCURRENCY);
+      await Promise.all(batch.map(async (p) => {
+        try {
+          const r = await fetch(
+            `https://api.spotify.com/v1/playlists/${p.id}?fields=followers(total)`,
+            { headers: { Authorization: `Bearer ${token}` } },
+          );
+          if (!r.ok) { followersMap.set(p.id, null); return; }
+          const j = await r.json();
+          followersMap.set(p.id, j?.followers?.total ?? null);
+        } catch {
+          followersMap.set(p.id, null);
+        }
+      }));
+    }
+
+    // 6) upsert em managed_playlists já com followers preenchidos
+    const nowIso = new Date().toISOString();
     let imported = 0;
     let skipped = 0;
+    const snapshotInserts: Array<{ playlist_spotify_id: string; followers: number | null; total_tracks: number | null }> = [];
+
     for (const p of owned) {
+      const followers = followersMap.get(p.id) ?? null;
       const payload = {
         spotify_playlist_id: p.id,
         spotify_url: p.external_urls?.spotify ?? `https://open.spotify.com/playlist/${p.id}`,
@@ -97,8 +122,11 @@ Deno.serve(async (req) => {
         description: p.description ?? null,
         cover_url: p.images && p.images.length > 0 ? p.images[0].url : null,
         tracks_count: p.tracks?.total ?? 0,
+        followers,
+        last_metrics_at: nowIso,
         account_id: accountId,
         imported_by: guard.via === "user" ? guard.userId : null,
+        owner_spotify_user_id: ownerId,
         metadata: { source: "import-account-playlists", owner_display_name: p.owner?.display_name ?? null },
       };
       const { data: upserted, error } = await supabase
@@ -111,6 +139,11 @@ Deno.serve(async (req) => {
         console.error("upsert error", p.id, error.message);
       } else {
         imported++;
+        snapshotInserts.push({
+          playlist_spotify_id: p.id,
+          followers,
+          total_tracks: p.tracks?.total ?? null,
+        });
         // Dispara onboarding-check (fire-and-forget) só pra playlists em estágio onboarding.
         if (upserted?.id && upserted?.lifecycle_stage === "onboarding") {
           fetch(`${SUPABASE_URL}/functions/v1/playlist-onboarding-check`, {
@@ -125,11 +158,35 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 6) atualiza contagem na conta
+    // 7) snapshot temporal de followers (mesma tabela usada pelo refresh-search-results)
+    if (snapshotInserts.length) {
+      const { error: sErr } = await supabase
+        .from("playlist_followers_snapshots")
+        .insert(snapshotInserts);
+      if (sErr) console.warn("snapshot insert:", sErr.message);
+    }
+
+    // 8) se a playlist já existe em search_results, atualiza followers/cover/tracks lá também
+    const ids = owned.map((p) => p.id);
+    if (ids.length) {
+      for (const p of owned) {
+        const followers = followersMap.get(p.id);
+        await supabase.from("search_results").update({
+          seguidores: followers ?? null,
+          nome_playlist: p.name ?? null,
+          imagem_url: p.images?.[0]?.url ?? null,
+          total_musicas: p.tracks?.total ?? null,
+          last_refreshed_at: nowIso,
+          followers_verified_at: nowIso,
+        }).eq("spotify_playlist_id", p.id);
+      }
+    }
+
+    // 9) atualiza contagem na conta
     if (accountId) {
       await supabase
         .from("accounts")
-        .update({ current_playlists: owned.length, updated_at: new Date().toISOString() })
+        .update({ current_playlists: owned.length, updated_at: nowIso })
         .eq("id", accountId);
     }
 
