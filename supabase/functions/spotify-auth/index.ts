@@ -297,7 +297,7 @@ Deno.serve(async (req) => {
           access_token, refresh_token, scope, expires_at,
           app_id: stRow.app_id,
           is_default: (count ?? 0) === 0,
-        }, { onConflict: "spotify_user_id" });
+        }, { onConflict: "app_id,spotify_user_id" });
       if (upErr) return jr({ ok: false, error: upErr.message }, 500);
 
       return jr({

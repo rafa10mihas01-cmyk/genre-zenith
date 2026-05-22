@@ -1,0 +1,2 @@
+ALTER TABLE public.spotify_user_tokens DROP CONSTRAINT IF EXISTS spotify_user_tokens_spotify_user_id_key;
+ALTER TABLE public.spotify_user_tokens ADD CONSTRAINT spotify_user_tokens_app_spotify_user_unique UNIQUE (app_id, spotify_user_id);
