@@ -1573,13 +1573,25 @@ Deno.serve(async (req) => {
       });
 
       const maxNiche = Math.max(1, ...enriched.map((t) => t.niche_count));
-      const maxLeaderF = Math.max(1, ...enriched.map((t) => t.leader_followers));
+      const maxLeaderF = Math.max(1, ...enriched.map((t) => t.leader_followers)); // mantido p/ payload legacy/cockpit
       const scored = enriched.map((t) => {
         // recorrência sobre pool 90d já filtrado (vide prompt 2)
         const recorrenciaN = (t.niche_count / maxNiche) * 100;
-        // TODO (Prompt 5): substituir por leadership relativo (leaderRelN normalizado
-        // por percentil/posição no nicho). Por ora mantém max-absoluto.
-        const leaderRelN = (t.leader_followers / maxLeaderF) * 100;
+
+        // leaderRelN: presença nas top-N playlists do nicho (substitui max-absoluto).
+        // Fallback (sem dados): mantém método legado normalizado por max-followers.
+        let leaderRelN: number;
+        if (leaderRelN_total > 0) {
+          const lr = leaderRelMap.get(t.spotify_track_id);
+          const base = lr ? (lr.count / leaderRelN_total) * 100 : 0;
+          leaderRelN = lr?.recentlyAdded ? Math.min(100, base * 1.2) : base;
+        } else {
+          leaderRelN = (t.leader_followers / maxLeaderF) * 100;
+        }
+
+        // Legacy score continua usando o leaderN antigo (max-followers) p/ A/B fiel.
+        const leaderN_legacy = (t.leader_followers / maxLeaderF) * 100;
+
         const visualN = qualityVisual(t);
 
         let recenciaN: number;
