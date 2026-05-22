@@ -30,6 +30,21 @@ function formatPlaysShort(n: number): string {
   return n.toLocaleString("pt-BR");
 }
 
+function formatCurrencyBRL(raw: string): string {
+  if (!raw) return "";
+  const cents = parseInt(raw, 10);
+  if (Number.isNaN(cents)) return "";
+  return (cents / 100).toLocaleString("pt-BR", {
+    style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2,
+  });
+}
+function currencyDigitsToNumber(raw: string): number | undefined {
+  if (!raw) return undefined;
+  const cents = parseInt(raw, 10);
+  if (Number.isNaN(cents)) return undefined;
+  return cents / 100;
+}
+
 type Suggestion = {
   playlist_id: string;
   playlist_name: string;
@@ -69,6 +84,12 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
   const [notes, setNotes] = useState("");
   const [clientId, setClientId] = useState<string>("");
   const [curatorId, setCuratorId] = useState<string>("");
+
+  // Cobrança do cliente
+  const [valorCobradoDigits, setValorCobradoDigits] = useState<string>("");
+  const [formaRecebimento, setFormaRecebimento] = useState<string>("");
+  const [jaRecebido, setJaRecebido] = useState<boolean>(false);
+  const [recebidoEm, setRecebidoEm] = useState<string>("");
 
   // listas (carregadas ao abrir)
   const [clientsList, setClientsList] = useState<{ id: string; name: string }[]>([]);
