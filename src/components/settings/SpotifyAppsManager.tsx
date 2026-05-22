@@ -331,20 +331,36 @@ export function SpotifyAppsManager({
                       </div>
                       <div className="text-[11px] text-muted-foreground font-mono truncate mt-1">{a.client_id_preview}</div>
                     </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={isPaused || full}
-                      onClick={() => onConnect(a.id, true)}
-                      className="h-8 text-xs gap-1.5 border-primary/40 text-primary hover:bg-primary/10 hover:text-primary disabled:opacity-50"
-                      title={
-                        isPaused ? "App pausado"
-                        : full ? "Sem vagas neste app"
-                        : `Conectar nova conta no app "${a.name}"`
-                      }
-                    >
-                      <LinkIcon className="h-3.5 w-3.5" /> Conectar conta
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={isPaused || full}
+                        onClick={() => setInviteAppId(a.id)}
+                        className="h-8 text-xs gap-1.5 border-white/10 hover:bg-white/[0.06] disabled:opacity-50"
+                        title={
+                          isPaused ? "App pausado"
+                          : full ? "Sem vagas neste app"
+                          : `Gerar link de convite para "${a.name}"`
+                        }
+                      >
+                        <LinkIcon className="h-3.5 w-3.5" /> Link de convite
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={isPaused || full}
+                        onClick={() => onConnect(a.id, true)}
+                        className="h-8 text-xs gap-1.5 border-primary/40 text-primary hover:bg-primary/10 hover:text-primary disabled:opacity-50"
+                        title={
+                          isPaused ? "App pausado"
+                          : full ? "Sem vagas neste app"
+                          : `Conectar nova conta no app "${a.name}"`
+                        }
+                      >
+                        <LinkIcon className="h-3.5 w-3.5" /> Conectar conta
+                      </Button>
+                    </div>
                   </div>
                   <div className="mt-3">
                     <CapacityBar used={a.accounts_used} max={a.max_accounts} />
