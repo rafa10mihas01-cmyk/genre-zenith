@@ -53,7 +53,7 @@ function prettyLog(action: string, message: string, status: string): string {
       : "Playlists enriquecidas com seguidores reais.";
   }
   if (a.includes("fetch-tracks")) return "Faixas das playlists baixadas para análise.";
-  if (a.includes("test-apify")) return status === "error" ? "Teste da coleta Spotify falhou." : "Coleta Spotify saudável.";
+  // (test-apify removido — não usamos mais Apify)
   return m || `Evento: ${action}`;
 }
 
@@ -88,7 +88,7 @@ export function buildFluxoNodes(opts: {
     logs.filter((l) => actions.some((a) => (l.acao ?? "").includes(a)));
 
   // ============ NÓ 1: DESCOBERTA SPOTIFY ============
-  const discLogs = logsByAction(["run-search", "enrich-playlists", "fetch-tracks", "test-apify", "spotify_token", "spotify-auth"]);
+  const discLogs = logsByAction(["run-search", "enrich-playlists", "fetch-tracks", "spotify_token", "spotify-auth"]);
   const discErrors = discLogs.filter((l) => l.status === "error");
   const discRunning = discLogs.find((l) => l.status === "running");
   const tokenError = discLogs.find((l) => (l.acao ?? "").includes("spotify") && l.status === "error");
