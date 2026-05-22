@@ -63,19 +63,20 @@ Deno.serve(async (req) => {
       "VERSION NAME",
       "ISRC",
       "PLAYLIST",
+      "PLAYLIST URL",
       "COUNTRY",
       "OWNER NAME",
       "CURRENT POSITION",
       "STREAMS",
     ];
     const examples = [
-      [1, trackName, isrc, "Funk Hits", "BR", "spotify", 6, 277160],
-      [2, trackName, isrc, "Top Brasil", "BR", "spotify", 17, 212060],
-      [3, trackName, isrc, "Nome da playlist do curador", "BR", "id_do_dono", 4, 28751],
+      [1, trackName, isrc, "Funk Hits", "https://open.spotify.com/playlist/37i9dQZF1DX0XUfTFmNBRM", "BR", "spotify", 6, 277160],
+      [2, trackName, isrc, "Top Brasil", "https://open.spotify.com/playlist/37i9dQZF1DWVCKO3xAlT1Q", "BR", "spotify", 17, 212060],
+      [3, trackName, isrc, "Nome da playlist do curador", "https://open.spotify.com/playlist/XXXXXXXXXXXXXXXXXXXXXX", "BR", "id_do_dono", 4, 28751],
     ];
     const ws1 = XLSX.utils.aoa_to_sheet([headers, ...examples]);
     ws1["!cols"] = [
-      { wch: 4 }, { wch: 24 }, { wch: 14 }, { wch: 38 },
+      { wch: 4 }, { wch: 24 }, { wch: 14 }, { wch: 32 }, { wch: 52 },
       { wch: 8 }, { wch: 28 }, { wch: 10 }, { wch: 12 },
     ];
     XLSX.utils.book_append_sheet(wb, ws1, "Placements");
