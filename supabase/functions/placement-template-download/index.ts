@@ -1,0 +1,126 @@
+// placement-template-download
+// Gera um XLSX modelo personalizado pro cliente preencher com placements.
+// Inclui aba "Placements" com headers oficiais + 3 linhas de exemplo
+// preenchidas com a faixa do deal, e aba "Instruções".
+//
+// Body: { client_token: string }
+// Retorna: { ok: true, file_base64, file_name }
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import * as XLSX from "npm:xlsx@0.18.5";
+
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+function jr(p: unknown, status = 200) {
+  return new Response(JSON.stringify(p), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+function bytesToBase64(bytes: Uint8Array): string {
+  let bin = "";
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin);
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  try {
+    const body = await req.json().catch(() => ({}));
+    const token = String(body?.client_token ?? "").trim();
+    if (!token) return jr({ ok: false, error: "client_token obrigatório" }, 400);
+
+    const admin = createClient(SUPABASE_URL, SERVICE_KEY);
+    const { data: resolved, error: resErr } = await admin.rpc("resolve_client_token", {
+      _token: token,
+    });
+    if (resErr) return jr({ ok: false, error: resErr.message }, 200);
+    const row = Array.isArray(resolved) && resolved.length > 0 ? resolved[0] : null;
+    if (!row?.deal_id) return jr({ ok: false, error: "token inválido" }, 403);
+
+    // Tenta buscar info da faixa pra preencher exemplos
+    let trackName = "Nome da música";
+    let isrc = "BR0000000000";
+    let artistName = "";
+    if (row.song_id) {
+      const { data: song } = await admin
+        .from("curator_deal_songs")
+        .select("title, isrc, artist")
+        .eq("id", row.song_id)
+        .maybeSingle();
+      if (song?.title) trackName = song.title;
+      if (song?.isrc) isrc = song.isrc;
+      if (song?.artist) artistName = song.artist;
+    }
+
+    const wb = XLSX.utils.book_new();
+
+    // Aba 1: Placements
+    const headers = [
+      "#",
+      "VERSION NAME",
+      "ISRC",
+      "PLAYLIST",
+      "COUNTRY",
+      "OWNER NAME",
+      "CURRENT POSITION",
+      "STREAMS",
+    ];
+    const examples = [
+      [1, trackName, isrc, "Funk Hits", "BR", "spotify", 6, 277160],
+      [2, trackName, isrc, "Top Brasil", "BR", "spotify", 17, 212060],
+      [3, trackName, isrc, "Nome da playlist do curador", "BR", "id_do_dono", 4, 28751],
+    ];
+    const ws1 = XLSX.utils.aoa_to_sheet([headers, ...examples]);
+    ws1["!cols"] = [
+      { wch: 4 }, { wch: 24 }, { wch: 14 }, { wch: 38 },
+      { wch: 8 }, { wch: 28 }, { wch: 10 }, { wch: 12 },
+    ];
+    XLSX.utils.book_append_sheet(wb, ws1, "Placements");
+
+    // Aba 2: Instruções
+    const instr = [
+      ["INSTRUÇÕES — Planilha de Placements NexEngine"],
+      [""],
+      [`Música: ${trackName}${artistName ? ` — ${artistName}` : ""}`],
+      [`ISRC: ${isrc}`],
+      [""],
+      ["Como preencher:"],
+      ["1. Apague as 3 linhas de exemplo da aba 'Placements'."],
+      ["2. Cole as linhas do export da sua distribuidora OU do Spotify for Artists."],
+      ["3. Mantenha os nomes das colunas exatamente como estão."],
+      ["4. Salve em .xlsx e suba aqui no portal."],
+      [""],
+      ["Você também pode subir o CSV cru exportado do Spotify"],
+      ["(Nome;URI;Streams;Posição;URL) — o sistema reconhece automaticamente."],
+      [""],
+      ["Significado das colunas:"],
+      ["#                 → número da linha (pode deixar em branco)"],
+      ["VERSION NAME      → nome da faixa"],
+      ["ISRC              → código ISRC da faixa (12 caracteres)"],
+      ["PLAYLIST          → nome da playlist"],
+      ["COUNTRY           → código do país (BR, US, etc)"],
+      ["OWNER NAME        → ID ou nome do dono da playlist"],
+      ["CURRENT POSITION  → posição da faixa dentro da playlist"],
+      ["STREAMS           → total de streams gerados pela playlist"],
+      [""],
+      ["Frequência recomendada: subir uma nova planilha a cada 2 dias."],
+    ];
+    const ws2 = XLSX.utils.aoa_to_sheet(instr);
+    ws2["!cols"] = [{ wch: 80 }];
+    XLSX.utils.book_append_sheet(wb, ws2, "Instruções");
+
+    const out = XLSX.write(wb, { type: "array", bookType: "xlsx" }) as Uint8Array;
+    const b64 = bytesToBase64(new Uint8Array(out));
+    const safeTrack = trackName.replace(/[^a-zA-Z0-9._-]+/g, "_").slice(0, 40);
+    return jr({
+      ok: true,
+      file_base64: b64,
+      file_name: `placements_${safeTrack}_modelo.xlsx`,
+    });
+  } catch (e) {
+    return jr({ ok: false, error: e instanceof Error ? e.message : String(e) }, 200);
+  }
+});
