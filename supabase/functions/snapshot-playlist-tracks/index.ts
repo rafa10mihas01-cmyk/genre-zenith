@@ -112,15 +112,41 @@ Deno.serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({
+    const payload = {
       ok: true,
       scanned: list.length,
       managed_covered: managedIds.size,
       inserted, unchanged, failed,
       pruned_old: pruned ?? 0,
       retention_days: RETENTION_DAYS,
-    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    };
+
+    await sb.from("cron_health").insert({
+      job_name: "snapshot-playlist-tracks",
+      status: failed > 0 ? "partial" : "ok",
+      metrics: {
+        snapshot_count_per_run: inserted,
+        scanned: list.length,
+        managed_covered: managedIds.size,
+        unchanged,
+        failed,
+        pruned_old: pruned ?? 0,
+      },
+      duration_ms: Date.now() - startedAt,
+      message: `inserted=${inserted} unchanged=${unchanged} failed=${failed} pruned=${pruned ?? 0}`,
+    });
+
+    return new Response(JSON.stringify(payload), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (e) {
+    await sb.from("cron_health").insert({
+      job_name: "snapshot-playlist-tracks",
+      status: "error",
+      metrics: { snapshot_count_per_run: 0 },
+      duration_ms: Date.now() - startedAt,
+      message: String(e).slice(0, 500),
+    }).then(() => {}, () => {});
     return new Response(JSON.stringify({ ok: false, error: String(e) }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
