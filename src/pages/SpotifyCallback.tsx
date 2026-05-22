@@ -250,14 +250,15 @@ export default function SpotifyCallback() {
               <p className="text-muted-foreground mb-3 leading-relaxed">
                 Este aplicativo está em <span className="text-foreground font-medium">fase de testes</span>.
               </p>
-              <p className="text-sm text-muted-foreground mb-8 leading-relaxed">
+              <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
                 No momento, apenas usuários autorizados podem conectar.
                 Se você precisa de acesso, entre em contato com o suporte.
               </p>
-
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-                <Button asChild size="lg" className="nx-cta-btn gap-2 min-w-[200px] h-11 text-sm">
-                  <a href="mailto:suporte@nexcreatorx.com?subject=Solicitação%20de%20acesso%20NexEngine">
+              {error && (
+                <pre className="mb-6 mx-auto max-w-md whitespace-pre-wrap break-words rounded-md border border-white/10 bg-white/[0.03] p-3 text-left text-[11px] text-muted-foreground/80">
+                  {error}
+                </pre>
+              )}
                     <Mail className="h-4 w-4" />
                     Falar com o suporte
                   </a>
