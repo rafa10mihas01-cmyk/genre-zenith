@@ -1488,6 +1488,39 @@ Deno.serve(async (req) => {
 
       const now = Date.now();
 
+      // === Cross-run memory: editorial_history (últimos 7 dias) ============
+      // Penalidade soft no score final (não exclui) p/ evitar capas repetidas.
+      const historyMap = new Map<string, number>(); // track_id → days since last run
+      if (pl.genre_id) {
+        const sevenDaysAgo = new Date(Date.now() - 7 * 86400_000).toISOString().slice(0, 10);
+        const { data: histRows } = await supabase
+          .from("editorial_history")
+          .select("track_id, run_date")
+          .eq("genre_id", pl.genre_id)
+          .gte("run_date", sevenDaysAgo);
+        for (const r of (histRows ?? []) as any[]) {
+          const tid = String(r.track_id);
+          const daysAgo = Math.max(
+            0,
+            Math.round((Date.now() - new Date(r.run_date).getTime()) / 86400_000),
+          );
+          const prev = historyMap.get(tid);
+          if (prev == null || daysAgo < prev) historyMap.set(tid, daysAgo);
+        }
+      }
+      // relaxFactor ∈ [0..1]: 0 = penalidade cheia, 1 = sem penalidade (fallback).
+      let historyRelaxFactor = 0;
+      const historyPenalty = (trackId: string): number => {
+        const d = historyMap.get(trackId);
+        if (d == null) return 1.0;
+        let base: number;
+        if (d <= 1) base = 0.70;
+        else if (d <= 3) base = 0.85;
+        else if (d <= 7) base = 0.95;
+        else base = 1.0;
+        return base + (1 - base) * historyRelaxFactor;
+      };
+
       // Legacy: bônus por release_date (mantido p/ A/B)
       const legacyTemporalBonus = (ageDays: number | null): number => {
         if (ageDays == null) return 45;
