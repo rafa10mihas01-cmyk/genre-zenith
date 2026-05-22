@@ -648,7 +648,7 @@ export function SpotifyAppsManager({
               </span>
             </label>
           </div>
-          <DialogFooter className="pt-3 border-t border-border/40">
+          <DialogFooter className="px-6 py-3 border-t border-border/40 shrink-0">
             <Button variant="outline" size="sm" onClick={() => setEditing(null)} disabled={saving}>Cancelar</Button>
             <Button size="sm" onClick={save} disabled={saving} className="bg-primary text-primary-foreground hover:bg-primary/90">
               {saving && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />}
