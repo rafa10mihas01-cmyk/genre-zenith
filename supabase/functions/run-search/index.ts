@@ -503,6 +503,7 @@ Deno.serve(async (req) => {
 
       const tracks = Array.isArray(it.tracks) ? it.tracks : [];
       if (tracks.length > 0 && resultId) {
+        const nowIso = new Date().toISOString();
         const trackRows = tracks.slice(0, 100).map((t: any, idx: number) => {
           let artista = pickStr(t, "artist", "artistName") ?? "Desconhecido";
           if (Array.isArray(t.artists)) {
@@ -515,6 +516,7 @@ Deno.serve(async (req) => {
             artista,
             spotify_track_id: pickStr(t, "id", "trackId", "spotifyId"),
             posicao_na_playlist: idx + 1,
+            coletado_em: nowIso,
           };
         });
         // Para evitar acumular tracks em re-execuções, limpa antes (só nas que estamos atualizando)
