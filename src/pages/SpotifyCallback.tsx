@@ -109,6 +109,16 @@ export default function SpotifyCallback() {
           spotify_user_id: json.spotify_user_id,
         });
 
+        if (isInvite) {
+          setResult({
+            display_name: json.display_name,
+            email: json.email,
+            spotify_user_id: json.spotify_user_id,
+          });
+          setStatus("success");
+          return;
+        }
+
         if (isSettingsConnection) {
           localStorage.removeItem(SETTINGS_RETURN_KEY);
           setStatus("success");
