@@ -238,6 +238,14 @@ export default function Home() {
           </div>
         </section>
 
+        {/* SAÚDE DO MOTOR EDITORIAL */}
+        <section className="space-y-3">
+          <h2 className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-semibold px-1">
+            Saúde do motor editorial
+          </h2>
+          <EngineHealthGrid />
+        </section>
+
         {/* ATIVIDADE RECENTE */}
         <section className="space-y-3">
           <h2 className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-semibold px-1">
