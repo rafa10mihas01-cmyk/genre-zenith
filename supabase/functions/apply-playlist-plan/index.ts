@@ -221,11 +221,18 @@ Deno.serve(async (req) => {
           continue;
         }
         // target: usa target_position se vier do diag, senão fallback
+        // Promote (subir): fallback é "moved" (vai empilhando no topo).
+        // Demote (descer): fallback é o final da lista (índice total-1).
         const fallback = kind === "promote" ? moved : Math.max(total - 1, 0);
         let target = Number.isFinite(it.target_position) ? Number(it.target_position) : fallback;
-        // insert_before: Spotify trata como índice ANTES de remover.
-        // Para mover para o final: insert_before = total. Para o topo: 0.
-        let insertBefore = Math.max(0, Math.min(target, total));
+        target = Math.max(0, Math.min(target, total - 1));
+        // Spotify reorder: insert_before usa índices da lista ORIGINAL.
+        //   - Subindo (idx > target): insert_before = target → cai em target ✓
+        //   - Descendo (idx < target): insert_before = target + 1 (compensa o slot
+        //     que o próprio item ocupa antes de ser movido) → cai em target ✓
+        const insertBefore = idx < target
+          ? Math.min(target + 1, total)
+          : target;
         if (insertBefore === idx || insertBefore === idx + 1) {
           skipped++;
           details.push({ track_id: it.spotify_track_id, skipped: "already_at_target", index: idx, target_position: target });
