@@ -82,12 +82,7 @@ export function EngineHealthGrid() {
     (async () => {
       setLoading(true);
       try {
-        const { data, error } = await supabase.functions.invoke("engine-health", {
-          body: { all: 1 },
-          // GET via body=null fallback: use POST is fine here, function reads URL only
-          // — wrap as a real GET via direct fetch to honor query param.
-        });
-        // supabase.functions.invoke uses POST; engine-health reads query, so call the URL directly
+        // engine-health reads query params (GET), then invoke direct via fetch
         const url = `${import.meta.env.VITE_SUPABASE_URL ?? ""}/functions/v1/engine-health?all=1`;
         const res = await fetch(url, {
           headers: {
@@ -96,7 +91,7 @@ export function EngineHealthGrid() {
           },
         });
         const j = res.ok ? await res.json() : null;
-        const list: HealthItem[] = j?.items ?? data?.items ?? [];
+        const list: HealthItem[] = j?.items ?? [];
         if (cancelled) return;
         setItems(list);
 
