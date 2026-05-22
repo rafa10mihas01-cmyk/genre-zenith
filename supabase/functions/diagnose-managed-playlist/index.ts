@@ -1787,7 +1787,12 @@ Deno.serve(async (req) => {
             track_id: t.spotify_track_id,
             position: idx + 1,
             score_final: Math.round(t._final * 100) / 100,
+            track_name: t.title ?? null,
+            artist_name: t.artist ?? null,
+            cover_url: t.cover_url ?? null,
+            release_date: t.release_date ?? null,
           }));
+
           await supabase.from("editorial_history").insert(rows);
         } catch (e) {
           console.warn("[diagnose] editorial_history insert failed", e);
