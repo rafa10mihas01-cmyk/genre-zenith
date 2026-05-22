@@ -196,39 +196,55 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } },
-    );
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
     const dealId: string | undefined = body?.deal_id;
+    const scanAllActive: boolean = body?.scan_all_active === true;
+
+    // === Modo cron (service role) — Authorization: Bearer <SERVICE_ROLE_KEY> ===
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+    const isCron = scanAllActive && serviceKey && authHeader === `Bearer ${serviceKey}`;
+
+    let supabase: any;
+    let userId: string | null = null;
+
+    if (isCron) {
+      supabase = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      );
+    } else {
+      const userAuth = req.headers.get("Authorization");
+      if (!userAuth) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      supabase = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_ANON_KEY")!,
+        { global: { headers: { Authorization: userAuth } } },
+      );
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      userId = user.id;
+    }
 
     let dealsQuery = supabase
       .from("curator_deals")
       .select(
         "id, user_id, song_name, curator_name, spotify_owner_id, started_at, ends_at, target_plays",
-      )
-      .eq("user_id", user.id);
+      );
 
+    if (!isCron && userId) dealsQuery = dealsQuery.eq("user_id", userId);
     if (dealId) dealsQuery = dealsQuery.eq("id", dealId);
+    if (isCron && !dealId) dealsQuery = dealsQuery.eq("state", "active");
 
     const { data: deals, error } = await dealsQuery;
     if (error) throw error;
@@ -248,7 +264,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ results }), {
+    return new Response(JSON.stringify({ results, mode: isCron ? "cron" : "user" }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {

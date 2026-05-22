@@ -477,6 +477,13 @@ export type Database = {
             referencedColumns: ["campaign_id"]
           },
           {
+            foreignKeyName: "campaign_allocations_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "v_financial_summary"
+            referencedColumns: ["campaign_id"]
+          },
+          {
             foreignKeyName: "campaign_allocations_playlist_id_fkey"
             columns: ["playlist_id"]
             isOneToOne: false
@@ -535,6 +542,13 @@ export type Database = {
             columns: ["campaign_id"]
             isOneToOne: false
             referencedRelation: "v_campaign_velocity"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "campaign_eco_allocations_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "v_financial_summary"
             referencedColumns: ["campaign_id"]
           },
           {
@@ -606,6 +620,13 @@ export type Database = {
             columns: ["campaign_id"]
             isOneToOne: false
             referencedRelation: "v_campaign_velocity"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "campaign_eco_snapshots_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "v_financial_summary"
             referencedColumns: ["campaign_id"]
           },
           {
@@ -745,6 +766,13 @@ export type Database = {
             referencedRelation: "v_campaign_velocity"
             referencedColumns: ["campaign_id"]
           },
+          {
+            foreignKeyName: "campaign_external_packages_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "v_financial_summary"
+            referencedColumns: ["campaign_id"]
+          },
         ]
       }
       campaigns: {
@@ -759,10 +787,12 @@ export type Database = {
           deal_id: string | null
           eco_dispatched_at: string | null
           engagement_multiplier: number
+          forma_recebimento: string | null
           goal_plays: number
           id: string
           notes: string | null
           public_plan_token: string
+          recebido_em: string | null
           simulation_snapshot: Json | null
           snapshot_locked_at: string | null
           spotify_track_id: string | null
@@ -773,6 +803,8 @@ export type Database = {
           total_delivered: number
           track_name: string
           updated_at: string
+          valor_cobrado: number | null
+          valor_recebido: number | null
         }
         Insert: {
           artist?: string | null
@@ -785,10 +817,12 @@ export type Database = {
           deal_id?: string | null
           eco_dispatched_at?: string | null
           engagement_multiplier?: number
+          forma_recebimento?: string | null
           goal_plays: number
           id?: string
           notes?: string | null
           public_plan_token?: string
+          recebido_em?: string | null
           simulation_snapshot?: Json | null
           snapshot_locked_at?: string | null
           spotify_track_id?: string | null
@@ -799,6 +833,8 @@ export type Database = {
           total_delivered?: number
           track_name: string
           updated_at?: string
+          valor_cobrado?: number | null
+          valor_recebido?: number | null
         }
         Update: {
           artist?: string | null
@@ -811,10 +847,12 @@ export type Database = {
           deal_id?: string | null
           eco_dispatched_at?: string | null
           engagement_multiplier?: number
+          forma_recebimento?: string | null
           goal_plays?: number
           id?: string
           notes?: string | null
           public_plan_token?: string
+          recebido_em?: string | null
           simulation_snapshot?: Json | null
           snapshot_locked_at?: string | null
           spotify_track_id?: string | null
@@ -825,6 +863,8 @@ export type Database = {
           total_delivered?: number
           track_name?: string
           updated_at?: string
+          valor_cobrado?: number | null
+          valor_recebido?: number | null
         }
         Relationships: [
           {
@@ -1511,6 +1551,47 @@ export type Database = {
           },
         ]
       }
+      curator_deal_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          deal_id: string
+          id: string
+          method: string | null
+          notes: string | null
+          payment_date: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          deal_id: string
+          id?: string
+          method?: string | null
+          notes?: string | null
+          payment_date?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          deal_id?: string
+          id?: string
+          method?: string | null
+          notes?: string | null
+          payment_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "curator_deal_payments_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "curator_deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       curator_deal_snapshots: {
         Row: {
           ai_confidence: number | null
@@ -1521,6 +1602,8 @@ export type Database = {
           created_at: string
           created_by: string | null
           deal_id: string
+          flag_reason: string | null
+          flagged: boolean
           id: string
           is_baseline: boolean
           match_method: string | null
@@ -1543,6 +1626,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           deal_id: string
+          flag_reason?: string | null
+          flagged?: boolean
           id?: string
           is_baseline?: boolean
           match_method?: string | null
@@ -1565,6 +1650,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           deal_id?: string
+          flag_reason?: string | null
+          flagged?: boolean
           id?: string
           is_baseline?: boolean
           match_method?: string | null
@@ -1852,6 +1939,13 @@ export type Database = {
             columns: ["campaign_id"]
             isOneToOne: false
             referencedRelation: "v_campaign_velocity"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "curator_deals_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "v_financial_summary"
             referencedColumns: ["campaign_id"]
           },
           {
@@ -6588,6 +6682,23 @@ export type Database = {
         }
         Relationships: []
       }
+      v_financial_summary: {
+        Row: {
+          artist: string | null
+          campaign_id: string | null
+          campaign_status: string | null
+          created_at: string | null
+          margem_bruta: number | null
+          margem_pct: number | null
+          num_deals: number | null
+          receita_pendente: number | null
+          total_pago_curadores: number | null
+          track_name: string | null
+          valor_cobrado: number | null
+          valor_recebido: number | null
+        }
+        Relationships: []
+      }
       v_playlist_delivery_history: {
         Row: {
           avg_daily_delivery: number | null
@@ -7051,6 +7162,10 @@ export type Database = {
         Returns: number
       }
       normalize_playlist_name: { Args: { p_name: string }; Returns: string }
+      notify_baseline_missing: {
+        Args: { p_deal_id: string }
+        Returns: undefined
+      }
       notify_member: {
         Args: {
           p_action_url?: string

@@ -45,6 +45,18 @@ async function reconcileDeal(supabase: any, deal: any) {
 
   await supabase.from("curator_deals").update(updatePayload).eq("id", deal.id);
 
+  // ===== FIX C: detecta baseline ausente e notifica =====
+  {
+    const { count } = await supabase
+      .from("curator_deal_snapshots")
+      .select("id", { count: "exact", head: true })
+      .eq("deal_id", deal.id)
+      .eq("is_baseline", true);
+    if (!count || count === 0) {
+      await supabase.rpc("notify_baseline_missing", { p_deal_id: deal.id });
+    }
+  }
+
   const milestone = await checkDealMilestones(supabase, deal, delivered);
 
   return {
