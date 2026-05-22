@@ -10,6 +10,7 @@ import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { formatNumber, timeAgo } from "@/lib/format";
+import { GenreBrainPanel } from "@/components/sistema/GenreBrainPanel";
 
 type GenreItem = {
   id: string; slug: string; nome: string; ativo: boolean;
@@ -119,7 +120,11 @@ export default function AdminAprendizado({ embedded = false }: { embedded?: bool
         domain="system" title="Governança do Aprendizado" subtitle="Governança da IA" icon={<Brain className="h-5 w-5" />} />
       )}
 
-      <div className={cn("grid grid-cols-12 gap-6", !embedded && "mt-6")}>
+      <div className={cn(!embedded && "mt-6", "mb-6")}>
+        <GenreBrainPanel />
+      </div>
+
+      <div className="grid grid-cols-12 gap-6">
         {/* SIDEBAR GÊNEROS */}
         <aside className="col-span-12 lg:col-span-3">
           <div className="nx-card p-3 sticky top-4 max-h-[80vh] overflow-y-auto">
