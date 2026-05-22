@@ -1566,6 +1566,7 @@ Deno.serve(async (req) => {
           editorial_score: Math.round(t._final),
           pool_age_days: ageDaysFromIso(latest),
           coletado_em_latest: latest,
+          score_breakdown: t._breakdown ?? null,
         };
       });
     } catch (e) {
