@@ -8,6 +8,7 @@ import {
 import { formatNumber, timeAgo } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/PageHeader";
+import { EngineHealthGrid } from "@/components/cockpit/EngineHealthGrid";
 import { PageContainer } from "@/components/PageContainer";
 import { useSetSidebarKpis } from "@/contexts/SidebarContext";
 import { OperationalHealthCard } from "@/components/home/OperationalHealthCard";
@@ -236,6 +237,14 @@ export default function Home() {
             <OperationalHealthCard />
             <BrainFreshnessCard />
           </div>
+        </section>
+
+        {/* SAÚDE DO MOTOR EDITORIAL */}
+        <section className="space-y-3">
+          <h2 className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-semibold px-1">
+            Saúde do motor editorial
+          </h2>
+          <EngineHealthGrid />
         </section>
 
         {/* ATIVIDADE RECENTE */}
