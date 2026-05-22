@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
 import { FinanceiroTab } from "@/components/playlist-deals/FinanceiroTab";
 import { FinancialOverview } from "@/components/financeiro/FinancialOverview";
+import { PricingSettingsPanel } from "@/components/financeiro/PricingSettingsPanel";
 import { useCuratorDeals } from "@/hooks/useCuratorDeals";
 
 export default function Financeiro() {
@@ -23,6 +24,7 @@ export default function Financeiro() {
       <PageContainer>
         <div className="space-y-8">
           <FinancialOverview />
+          <PricingSettingsPanel />
           <FinanceiroTab deals={deals} />
         </div>
       </PageContainer>
