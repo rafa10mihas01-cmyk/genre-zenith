@@ -193,6 +193,8 @@ export function DealRow(props: DealRowProps) {
             pulse={status.pulse}
           />
         </div>
+      </div>
+
 
       {/* Divisor sutil */}
       <div className="mx-4 border-t border-border/40" />
