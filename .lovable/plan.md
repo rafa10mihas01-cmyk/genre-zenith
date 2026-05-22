@@ -1,64 +1,99 @@
+# Plano — Centralizar custos e preços por stream
+
 ## Objetivo
-Plugar o motor `buildEcoPlan` no fluxo dos `curator_deals` e ligar um cron diário que compara entrega real vs planejado, marcando deals atrasados/com spike.
+Tirar `COST_PER_STREAM` do código, colocar numa tabela de configuração editável pela UI, e adicionar "preço de venda sugerido" + "margem alvo". Tudo retrocompatível — se a tabela estiver vazia, usa os defaults atuais (0,028 / 0,040).
 
-## 1. Nova tabela `curator_deal_plan` (migration)
+## 1. Banco — nova tabela `pricing_settings` (singleton por user)
 
-Guarda a meta diária por playlist de cada deal — espelha o que `campaign_eco_allocations` faz para campanhas.
+```sql
+CREATE TABLE public.pricing_settings (
+  id uuid PK default gen_random_uuid(),
+  user_id uuid NOT NULL UNIQUE,           -- 1 linha por usuário
+  cost_per_stream_eco numeric NOT NULL default 0.028,   -- R$/stream interno
+  cost_per_stream_ext numeric NOT NULL default 0.040,   -- R$/stream externo
+  price_per_stream_sell numeric NOT NULL default 0.080, -- preço de venda sugerido
+  target_margin_pct numeric NOT NULL default 50,        -- margem alvo %
+  created_at, updated_at
+);
+-- RLS: owner-only
+```
 
-Colunas:
-- `id`, `deal_id` (FK curator_deals), `curator_playlist_id` (FK curator_playlists), `playlist_name`, `followers`
-- `position` (3–20, vinda do `distributeEcoPositions`)
-- `start_day` (dia 1..N)
-- `cap_dia` (teto diário sustentável da playlist)
-- `daily` (jsonb com array de metas por dia)
-- `total_streams` (soma do daily)
-- `generated_at`, `engagement_mult`
-- Unique (deal_id, curator_playlist_id)
+Trigger de upsert: na primeira leitura do user, cria a linha com defaults.
 
-Tabela adicional `curator_deal_delivery_status`:
-- `deal_id` PK, `last_checked_at`, `expected_to_date`, `actual_to_date`, `delta_pct`, `status` (`on_track` | `lagging` | `spiking` | `paused`), `reason`, `spike_playlist_ids` (jsonb)
+## 2. Hook `usePricingSettings`
 
-RLS: dono do deal lê via `user_id` do deal pai (security definer helper já existente).
+`src/hooks/usePricingSettings.ts` — lê/atualiza a linha. Cache via React Query.
 
-## 2. Nova edge function `build-deal-plan`
+```ts
+const { settings, update } = usePricingSettings();
+// settings.cost_per_stream_eco etc.
+```
 
-Inputs: `{ deal_id }`. Service role.
+## 3. Refatorar engine (sem quebrar)
 
-Fluxo:
-1. Carrega `curator_deals` (started_at, ends_at, target_plays, ramp_up_days, duration_days).
-2. Carrega `curator_playlists` do deal onde `match_status in ('curator','baseline')` e `followers > 0`.
-3. Monta `Alloc[]` mapeando cada playlist como `{ id, planned_streams, start_day, managed_playlists: { followers, name, ... } }`. `planned_streams` distribui `target_plays` proporcional aos followers (com piso).
-4. Snapshot sintético: `{ days: duration_days, modo: 'simultaneo', curva: [{streamsDay: daily_goal}] * days }`.
-5. Chama `buildEcoPlan` (já existe em `_shared/computeEcoPlan.ts`).
-6. Upsert em `curator_deal_plan` (apaga linhas órfãs).
+`src/lib/campaignEngine.ts`: `COST_PER_STREAM` vira **default fallback**. A função `calculate(input, costs?)` aceita override opcional:
 
-Chamado em:
-- `enrich-curator-paste` (após salvar curator_playlists, dispara `build-deal-plan` em background)
-- `register-curator-playlist` (mesmo)
+```ts
+export function calculateCampaign(input, costs = COST_PER_STREAM) {
+  ...
+  const custoEco = streamsEco * costs.eco;
+  const custoExt = streamsExt * costs.ext;
+}
+```
 
-## 3. Novo cron `cron-deal-delivery-check` (1x/dia, 09:00 UTC)
+Quem chama (calculadora, NewCampaignDialog) passa os custos vindos do hook. Onde não passar, segue usando o default → **zero quebra**.
 
-Para cada `curator_deals` ativo (state='active'):
-1. Lê plano (`curator_deal_plan`) e soma `daily` até hoje → `expected_to_date`.
-2. Lê `curator_deal_snapshots` mais recente → `actual_to_date` (reconciled_total_plays - baseline).
-3. `delta_pct = (actual / expected) - 1`.
-4. Status:
-   - `< -25%` → `lagging`
-   - `> +50%` em <48h → `spiking`
-   - se 3+ playlists ganharam streams_7d > 2× cap_dia no mesmo dia → marca em `spike_playlist_ids` (anti-spam)
-   - senão `on_track`
-5. Upsert em `curator_deal_delivery_status`.
+`src/lib/externalPackage.ts`: `DEFAULT_COST_PER_STREAM` também recebe override.
 
-## 4. UI mínima (sem expandir escopo)
+## 4. UI — página de configuração
 
-Em `/playlist-deals` (lista de Ativos) e na página do deal, mostrar badge de status (`on_track`/`lagging`/`spiking`) lendo `curator_deal_delivery_status`. Sem nova rota, sem novo módulo.
+Nova aba em **/sistema** chamada **"Pricing"** (ou dentro de `/financeiro` como botão "⚙ Configurar custos"):
 
-## 5. Cron schedule
+```
+┌─ Custos por stream ────────────────┐
+│ Ecossistema interno  R$ [0,028]   │
+│ Curadores externos   R$ [0,040]   │
+│                                    │
+│ Preço de venda       R$ [0,080]   │
+│ Margem alvo            [ 50 ] %   │
+└────────────────────────────────────┘
+```
 
-`pg_cron` chamando `cron-deal-delivery-check` 1x/dia às 09:00 UTC.
+Salvar = upsert na tabela.
 
-## Detalhes técnicos
-- Plano é regenerado idempotente — sempre recomputado a partir das curator_playlists atuais. Sem migração de dados antigos.
-- `engagement_mult` default 30 (mesmo do sistema novo).
-- `build-deal-plan` é fire-and-forget no paste; falha não bloqueia import.
-- Cron grava log em `system_health_logs` se já existir, senão só console.
+## 5. Sugestão de preço no NewCampaignDialog
+
+No diálogo de Nova Campanha, ao lado de "Valor cobrado", mostrar:
+- *"Sugerido: R$ X (custo R$Y + margem 50%)"*
+- Botão "Aplicar sugerido" preenche `valor_cobrado`
+
+Custo Y = `streamsEco × costEco + streamsExt × costExt` do snapshot.
+
+## 6. Financeiro — coluna margem alvo vs real
+
+Em `FinanceiroTab`, adicionar coluna "Margem" mostrando real vs alvo (verde se ≥ alvo, âmbar se abaixo).
+
+## Arquivos tocados
+
+- ✨ migration: `pricing_settings` + RLS + trigger upsert default
+- ✨ `src/hooks/usePricingSettings.ts`
+- ✨ `src/components/sistema/PricingSettingsPanel.tsx`
+- ✏️ `src/lib/campaignEngine.ts` — aceita override opcional
+- ✏️ `src/lib/externalPackage.ts` — aceita override opcional
+- ✏️ `src/components/campanhas/NewCampaignDialog.tsx` — usa hook + sugestão de preço
+- ✏️ `src/pages/Sistema.tsx` — registra nova aba "Pricing"
+- ✏️ `src/components/playlist-deals/FinanceiroTab.tsx` — coluna margem vs alvo
+- ✏️ `src/content/pageManuals.ts` — manual da aba Pricing
+
+## Garantias de "não quebrar"
+
+1. Engine continua exportando `COST_PER_STREAM` como default — qualquer chamador antigo segue funcionando.
+2. Tabela tem defaults idênticos aos hardcoded → comportamento idêntico até você editar.
+3. Sem migration destrutiva, sem alterar tabelas existentes.
+4. RLS owner-only — nada vaza entre users.
+
+## Fora do escopo (deixar pra depois)
+
+- Histórico de mudanças de preço (auditoria)
+- Preços por gênero ou por cliente VIP
+- Repasse parcial / split entre múltiplos parceiros
