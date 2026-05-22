@@ -1426,21 +1426,33 @@ Deno.serve(async (req) => {
         return q;
       };
 
-      // NEW: trend velocity por track (genre_trends)
+      // NEW: trend velocity por track (genre_trends, janela 7d).
+      // Staleness guard: se >80% do pool tem updated_at > 7d (ou sem row),
+      // sinal é considerado stale e cai pra neutro (20) pra todos.
       const velocityMap = new Map<string, number>(); // track_id → velocity
+      let velocityStale = false;
       if (!useLegacyScore && candidateIds.length > 0 && pl.genre_id) {
+        const sevenDaysAgoISO = new Date(Date.now() - 7 * 86400_000).toISOString();
         const { data: trendRows } = await supabase
           .from("genre_trends")
-          .select("track_id, velocity")
+          .select("track_id, velocity, updated_at")
           .eq("genre_id", pl.genre_id)
-          .in("track_id", candidateIds);
+          .in("track_id", candidateIds)
+          .gte("updated_at", sevenDaysAgoISO);
         for (const r of (trendRows ?? []) as any[]) {
           if (r.track_id != null && r.velocity != null) {
             velocityMap.set(String(r.track_id), Number(r.velocity));
           }
         }
+        const freshPct = velocityMap.size / candidateIds.length;
+        if (freshPct < 0.2) {
+          velocityStale = true;
+          const stalePct = Math.round((1 - freshPct) * 100);
+          console.warn(`[WARN] velocity_signal_stale: pool=${pl.genre_id}, stale_pct=${stalePct}%`);
+        }
       }
       const velocityScore = (trackId: string): number => {
+        if (velocityStale) return 20;                                   // fallback global neutral
         const v = velocityMap.get(trackId);
         if (v == null) return 20;                                       // neutral (no signal ≠ zero)
         if (v >= 2.5) return 100;

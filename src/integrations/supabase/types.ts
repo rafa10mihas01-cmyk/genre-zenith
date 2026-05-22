@@ -1289,6 +1289,36 @@ export type Database = {
         }
         Relationships: []
       }
+      cron_health: {
+        Row: {
+          duration_ms: number | null
+          id: string
+          job_name: string
+          message: string | null
+          metrics: Json
+          ran_at: string
+          status: string
+        }
+        Insert: {
+          duration_ms?: number | null
+          id?: string
+          job_name: string
+          message?: string | null
+          metrics?: Json
+          ran_at?: string
+          status?: string
+        }
+        Update: {
+          duration_ms?: number | null
+          id?: string
+          job_name?: string
+          message?: string | null
+          metrics?: Json
+          ran_at?: string
+          status?: string
+        }
+        Relationships: []
+      }
       curator_brain: {
         Row: {
           avg_cpp: number | null
