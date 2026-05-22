@@ -1321,6 +1321,14 @@ Deno.serve(async (req) => {
       editorial_score: number;
       pool_age_days: number;
       coletado_em_latest: string | null;
+      score_breakdown: {
+        velocityN: number;
+        recenciaN: number;
+        recorrenciaN: number;
+        leaderRelN: number;
+        visualN: number;
+        final: number;
+      } | null;
     }> = [];
 
     try {
