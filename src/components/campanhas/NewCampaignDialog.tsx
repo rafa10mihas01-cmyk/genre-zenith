@@ -30,6 +30,21 @@ function formatPlaysShort(n: number): string {
   return n.toLocaleString("pt-BR");
 }
 
+function formatCurrencyBRL(raw: string): string {
+  if (!raw) return "";
+  const cents = parseInt(raw, 10);
+  if (Number.isNaN(cents)) return "";
+  return (cents / 100).toLocaleString("pt-BR", {
+    style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2,
+  });
+}
+function currencyDigitsToNumber(raw: string): number | undefined {
+  if (!raw) return undefined;
+  const cents = parseInt(raw, 10);
+  if (Number.isNaN(cents)) return undefined;
+  return cents / 100;
+}
+
 type Suggestion = {
   playlist_id: string;
   playlist_name: string;
@@ -70,6 +85,12 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
   const [clientId, setClientId] = useState<string>("");
   const [curatorId, setCuratorId] = useState<string>("");
 
+  // Cobrança do cliente
+  const [valorCobradoDigits, setValorCobradoDigits] = useState<string>("");
+  const [formaRecebimento, setFormaRecebimento] = useState<string>("");
+  const [jaRecebido, setJaRecebido] = useState<boolean>(false);
+  const [recebidoEm, setRecebidoEm] = useState<string>("");
+
   // listas (carregadas ao abrir)
   const [clientsList, setClientsList] = useState<{ id: string; name: string }[]>([]);
   const [curatorsList, setCuratorsList] = useState<{ id: string; name: string }[]>([]);
@@ -89,6 +110,7 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
     setStartDate(new Date().toISOString().slice(0, 10));
     setDeadline("");
     setClientId(""); setCuratorId("");
+    setValorCobradoDigits(""); setFormaRecebimento(""); setJaRecebido(false); setRecebidoEm("");
     setItems([]); setActivate(false);
   };
 
@@ -111,11 +133,13 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
   const draftSnapshot = useMemo(() => ({
     step, trackName, artist, trackUrl, goal, startDate, deadline, notes,
     clientId, curatorId,
+    valorCobradoDigits, formaRecebimento, jaRecebido, recebidoEm,
     items: items.map(i => ({
       playlist_id: i.playlist_id, selected: i.selected, target_override: i.target_override,
     })),
     activate,
-  }), [step, trackName, artist, trackUrl, goal, startDate, deadline, notes, clientId, curatorId, items, activate]);
+  }), [step, trackName, artist, trackUrl, goal, startDate, deadline, notes, clientId, curatorId,
+       valorCobradoDigits, formaRecebimento, jaRecebido, recebidoEm, items, activate]);
 
   const isDraftEmpty = !trackName.trim() && !artist.trim() && !trackUrl.trim() && !notes.trim()
     && step === 1 && goal === 50000 && !deadline;
@@ -142,6 +166,10 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
     setNotes(d.notes ?? "");
     setClientId((d as any).clientId ?? "");
     setCuratorId((d as any).curatorId ?? "");
+    setValorCobradoDigits((d as any).valorCobradoDigits ?? "");
+    setFormaRecebimento((d as any).formaRecebimento ?? "");
+    setJaRecebido(Boolean((d as any).jaRecebido));
+    setRecebidoEm((d as any).recebidoEm ?? "");
     setActivate(d.activate ?? false);
     setDraftDismissed(true);
     // Se o draft estava no passo 2, refaz a sugestão e reaplica seleções
@@ -250,6 +278,10 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
         created_by: user?.id ?? null,
         client_id: clientId || null,
         curator_id: curatorId || null,
+        valor_cobrado: currencyDigitsToNumber(valorCobradoDigits) ?? null,
+        forma_recebimento: formaRecebimento || null,
+        valor_recebido: jaRecebido ? (currencyDigitsToNumber(valorCobradoDigits) ?? null) : null,
+        recebido_em: jaRecebido && recebidoEm ? recebidoEm : null,
       } as any)
       .select("id")
       .single();
@@ -384,6 +416,62 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
                 <Label>Notas</Label>
                 <Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} maxLength={500} />
               </div>
+            </div>
+
+            {/* Cobrança do cliente */}
+            <div className="mt-6 space-y-3 rounded-lg border border-border/60 bg-muted/10 p-4">
+              <div className="flex items-baseline justify-between">
+                <h4 className="text-sm font-semibold text-foreground">Cobrança do cliente</h4>
+                <span className="text-[11px] text-muted-foreground">Entrada · opcional</span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Valor cobrado</Label>
+                  <Input
+                    inputMode="numeric"
+                    placeholder="R$ 0,00"
+                    value={formatCurrencyBRL(valorCobradoDigits)}
+                    onChange={e => setValorCobradoDigits(e.target.value.replace(/\D/g, ""))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Forma de recebimento</Label>
+                  <Select value={formaRecebimento || "__none__"} onValueChange={v => setFormaRecebimento(v === "__none__" ? "" : v)}>
+                    <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">A definir</SelectItem>
+                      <SelectItem value="pix">PIX</SelectItem>
+                      <SelectItem value="boleto">Boleto</SelectItem>
+                      <SelectItem value="cartao">Cartão</SelectItem>
+                      <SelectItem value="transferencia">Transferência</SelectItem>
+                      <SelectItem value="outro">Outro</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="md:col-span-2 flex items-center gap-2 pt-1">
+                  <Checkbox
+                    id="ja-recebido"
+                    checked={jaRecebido}
+                    onCheckedChange={(v) => {
+                      const checked = v === true;
+                      setJaRecebido(checked);
+                      if (checked && !recebidoEm) setRecebidoEm(new Date().toISOString().slice(0, 10));
+                    }}
+                  />
+                  <Label htmlFor="ja-recebido" className="cursor-pointer text-sm">
+                    Já recebi este valor
+                  </Label>
+                </div>
+                {jaRecebido && (
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>Data do recebimento</Label>
+                    <Input type="date" value={recebidoEm} onChange={e => setRecebidoEm(e.target.value)} />
+                  </div>
+                )}
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Se ficar em branco, o lançamento entra como "a receber" no Financeiro.
+              </p>
             </div>
           </div>
         )}
