@@ -1329,6 +1329,7 @@ Deno.serve(async (req) => {
         visualN: number;
         final: number;
       } | null;
+      last_seen_run: number | null;
     }> = [];
 
     try {
@@ -1488,6 +1489,39 @@ Deno.serve(async (req) => {
 
       const now = Date.now();
 
+      // === Cross-run memory: editorial_history (últimos 7 dias) ============
+      // Penalidade soft no score final (não exclui) p/ evitar capas repetidas.
+      const historyMap = new Map<string, number>(); // track_id → days since last run
+      if (pl.genre_id) {
+        const sevenDaysAgo = new Date(Date.now() - 7 * 86400_000).toISOString().slice(0, 10);
+        const { data: histRows } = await supabase
+          .from("editorial_history")
+          .select("track_id, run_date")
+          .eq("genre_id", pl.genre_id)
+          .gte("run_date", sevenDaysAgo);
+        for (const r of (histRows ?? []) as any[]) {
+          const tid = String(r.track_id);
+          const daysAgo = Math.max(
+            0,
+            Math.round((Date.now() - new Date(r.run_date).getTime()) / 86400_000),
+          );
+          const prev = historyMap.get(tid);
+          if (prev == null || daysAgo < prev) historyMap.set(tid, daysAgo);
+        }
+      }
+      // relaxFactor ∈ [0..1]: 0 = penalidade cheia, 1 = sem penalidade (fallback).
+      let historyRelaxFactor = 0;
+      const historyPenalty = (trackId: string): number => {
+        const d = historyMap.get(trackId);
+        if (d == null) return 1.0;
+        let base: number;
+        if (d <= 1) base = 0.70;
+        else if (d <= 3) base = 0.85;
+        else if (d <= 7) base = 0.95;
+        else base = 1.0;
+        return base + (1 - base) * historyRelaxFactor;
+      };
+
       // Legacy: bônus por release_date (mantido p/ A/B)
       const legacyTemporalBonus = (ageDays: number | null): number => {
         if (ageDays == null) return 45;
@@ -1574,7 +1608,7 @@ Deno.serve(async (req) => {
 
       const maxNiche = Math.max(1, ...enriched.map((t) => t.niche_count));
       const maxLeaderF = Math.max(1, ...enriched.map((t) => t.leader_followers)); // mantido p/ payload legacy/cockpit
-      const scored = enriched.map((t) => {
+      const computeScored = () => enriched.map((t) => {
         // recorrência sobre pool 90d já filtrado (vide prompt 2)
         const recorrenciaN = (t.niche_count / maxNiche) * 100;
 
@@ -1596,11 +1630,11 @@ Deno.serve(async (req) => {
 
         let recenciaN: number;
         let velocityN: number;
-        let final: number;
+        let finalRaw: number;
         if (useLegacyScore) {
           recenciaN = legacyTemporalBonus(t._ageDays);
           velocityN = 0;
-          final =
+          finalRaw =
             recorrenciaN * 0.35 +
             recenciaN * 0.30 +
             leaderN_legacy * 0.20 +
@@ -1608,13 +1642,16 @@ Deno.serve(async (req) => {
         } else {
           recenciaN = recenciaBuckets(t._ageDays);
           velocityN = velocityScore(t.spotify_track_id);
-          final =
+          finalRaw =
             velocityN * 0.35 +
             recenciaN * 0.25 +
             recorrenciaN * 0.15 +
             leaderRelN * 0.15 +
             visualN * 0.10;
         }
+        // Cross-run memory penalty (soft, relaxável)
+        const penalty = historyPenalty(t.spotify_track_id);
+        const final = finalRaw * penalty;
         return {
           ...t,
           _final: final,
@@ -1629,36 +1666,53 @@ Deno.serve(async (req) => {
         };
       }).sort((a, b) => b._final - a._final);
 
-      // 8.d.5 — Diversidade editorial: dedup por album_id, cover_url, artista (não consecutivo, máx 2/grid)
-      const seenAlbums = new Set<string>();
-      const seenCovers = new Set<string>();
-      const artistCount = new Map<string, number>();
-      const picked: typeof scored = [];
-      let lastArtist: string | null = null;
-      for (const t of scored) {
-        if (picked.length >= 8) break;
-        if (!t.cover_url) continue; // grid visual: sem capa, fora
-        const album = t.album_id ?? "";
-        const cover = t.cover_url ?? "";
-        const artistKey = (t.artist ?? "").toLowerCase().split(",")[0].trim();
-        if (album && seenAlbums.has(album)) continue;
-        if (cover && seenCovers.has(cover)) continue;
-        if (artistKey && (artistCount.get(artistKey) ?? 0) >= 2) continue;
-        if (artistKey && artistKey === lastArtist) continue;
-        picked.push(t);
-        if (album) seenAlbums.add(album);
-        if (cover) seenCovers.add(cover);
-        if (artistKey) artistCount.set(artistKey, (artistCount.get(artistKey) ?? 0) + 1);
-        lastArtist = artistKey || lastArtist;
-      }
-      // Fallback: relaxa diversidade só se grid ficou < 8 (nichos pequenos)
-      if (picked.length < 8) {
-        for (const t of scored) {
-          if (picked.length >= 8) break;
-          if (picked.includes(t)) continue;
-          if (!t.cover_url) continue;
-          picked.push(t);
+      const pickEight = (sortedScored: ReturnType<typeof computeScored>) => {
+        const seenAlbums = new Set<string>();
+        const seenCovers = new Set<string>();
+        const artistCount = new Map<string, number>();
+        const out: ReturnType<typeof computeScored> = [];
+        let lastArtist: string | null = null;
+        for (const t of sortedScored) {
+          if (out.length >= 8) break;
+          if (!t.cover_url) continue; // grid visual: sem capa, fora
+          const album = t.album_id ?? "";
+          const cover = t.cover_url ?? "";
+          const artistKey = (t.artist ?? "").toLowerCase().split(",")[0].trim();
+          if (album && seenAlbums.has(album)) continue;
+          if (cover && seenCovers.has(cover)) continue;
+          if (artistKey && (artistCount.get(artistKey) ?? 0) >= 2) continue;
+          if (artistKey && artistKey === lastArtist) continue;
+          out.push(t);
+          if (album) seenAlbums.add(album);
+          if (cover) seenCovers.add(cover);
+          if (artistKey) artistCount.set(artistKey, (artistCount.get(artistKey) ?? 0) + 1);
+          lastArtist = artistKey || lastArtist;
         }
+        // Fallback diversidade: nichos pequenos
+        if (out.length < 8) {
+          for (const t of sortedScored) {
+            if (out.length >= 8) break;
+            if (out.includes(t)) continue;
+            if (!t.cover_url) continue;
+            out.push(t);
+          }
+        }
+        return out;
+      };
+
+      let scored = computeScored();
+      let picked = pickEight(scored);
+      // Fallback: se penalidade derrubou demais e ficou < 8, relaxa progressivamente.
+      const relaxSteps = [0.33, 0.66, 1.0];
+      for (const step of relaxSteps) {
+        if (picked.length >= 8) break;
+        historyRelaxFactor = step;
+        scored = computeScored();
+        picked = pickEight(scored);
+        console.info(
+          `[INFO] history_penalty_relaxed: genre=${pl.genre_id}, ` +
+          `relax=${step}, unique_available=${picked.length}`,
+        );
       }
 
       const ageDaysFromIso = (iso: string | null): number => {
@@ -1669,6 +1723,7 @@ Deno.serve(async (req) => {
       topRecurringTracks = picked.map((t) => {
         const rec = genreRecurrence.get(t.spotify_track_id);
         const latest = rec?.latest_coletado_em ?? null;
+        const lastSeen = historyMap.get(t.spotify_track_id);
         return {
           spotify_track_id: t.spotify_track_id,
           title: t.title,
@@ -1682,8 +1737,24 @@ Deno.serve(async (req) => {
           pool_age_days: ageDaysFromIso(latest),
           coletado_em_latest: latest,
           score_breakdown: t._breakdown ?? null,
+          last_seen_run: lastSeen ?? null,
         };
       });
+
+      // Persiste escolhas em editorial_history (cross-run memory).
+      if (pl.genre_id && picked.length > 0) {
+        try {
+          const rows = picked.map((t, idx) => ({
+            genre_id: pl.genre_id,
+            track_id: t.spotify_track_id,
+            position: idx + 1,
+            score_final: Math.round(t._final * 100) / 100,
+          }));
+          await supabase.from("editorial_history").insert(rows);
+        } catch (e) {
+          console.warn("[diagnose] editorial_history insert failed", e);
+        }
+      }
     } catch (e) {
       console.error("[diagnose] visual ranking failed, falling back to legacy", e);
       // Fallback: top 8 por recorrência pura (compat com UI)
@@ -1705,6 +1776,7 @@ Deno.serve(async (req) => {
           : Number.POSITIVE_INFINITY,
         coletado_em_latest: v.latest_coletado_em ?? null,
         score_breakdown: null,
+        last_seen_run: null,
       }));
     }
 

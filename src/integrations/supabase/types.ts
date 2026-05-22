@@ -2468,6 +2468,36 @@ export type Database = {
           },
         ]
       }
+      editorial_history: {
+        Row: {
+          created_at: string
+          genre_id: string
+          id: number
+          position: number | null
+          run_date: string
+          score_final: number | null
+          track_id: string
+        }
+        Insert: {
+          created_at?: string
+          genre_id: string
+          id?: number
+          position?: number | null
+          run_date?: string
+          score_final?: number | null
+          track_id: string
+        }
+        Update: {
+          created_at?: string
+          genre_id?: string
+          id?: number
+          position?: number | null
+          run_date?: string
+          score_final?: number | null
+          track_id?: string
+        }
+        Relationships: []
+      }
       email_send_log: {
         Row: {
           created_at: string
