@@ -804,8 +804,8 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                     <Label className="text-xs">Split ecossistema: {active.splitEco}% próprio · {100 - active.splitEco}% externo</Label>
                     <Slider value={[active.splitEco]} onValueChange={([v]) => setSplitEco(v)} min={0} max={100} step={5} className="mt-2" />
                     <div className="text-[11px] text-muted-foreground mt-1.5 flex justify-between">
-                      <span>Próprio R$ {(COST_PER_STREAM.eco * 1000).toFixed(0)}/mil</span>
-                      <span>Externo R$ {(COST_PER_STREAM.ext * 1000).toFixed(0)}/mil</span>
+                      <span>Próprio R$ {(pricingCosts.eco * 1000).toFixed(0)}/mil</span>
+                      <span>Externo R$ {(pricingCosts.ext * 1000).toFixed(0)}/mil</span>
                     </div>
                   </div>
                 </CardContent>
