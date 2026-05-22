@@ -154,6 +154,7 @@ export function SpotifyAppsManager({
   const [saving, setSaving] = useState(false);
   const [scopes, setScopes] = useState<string[]>([]);
   const [page, setPage] = useState(0);
+  const [inviteAppId, setInviteAppId] = useState<string | null>(null);
   const APPS_PER_PAGE = 5;
 
   async function load() {
@@ -331,20 +332,36 @@ export function SpotifyAppsManager({
                       </div>
                       <div className="text-[11px] text-muted-foreground font-mono truncate mt-1">{a.client_id_preview}</div>
                     </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={isPaused || full}
-                      onClick={() => onConnect(a.id, true)}
-                      className="h-8 text-xs gap-1.5 border-primary/40 text-primary hover:bg-primary/10 hover:text-primary disabled:opacity-50"
-                      title={
-                        isPaused ? "App pausado"
-                        : full ? "Sem vagas neste app"
-                        : `Conectar nova conta no app "${a.name}"`
-                      }
-                    >
-                      <LinkIcon className="h-3.5 w-3.5" /> Conectar conta
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={isPaused || full}
+                        onClick={() => setInviteAppId(a.id)}
+                        className="h-8 text-xs gap-1.5 border-white/10 hover:bg-white/[0.06] disabled:opacity-50"
+                        title={
+                          isPaused ? "App pausado"
+                          : full ? "Sem vagas neste app"
+                          : `Gerar link de convite para "${a.name}"`
+                        }
+                      >
+                        <LinkIcon className="h-3.5 w-3.5" /> Link de convite
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={isPaused || full}
+                        onClick={() => onConnect(a.id, true)}
+                        className="h-8 text-xs gap-1.5 border-primary/40 text-primary hover:bg-primary/10 hover:text-primary disabled:opacity-50"
+                        title={
+                          isPaused ? "App pausado"
+                          : full ? "Sem vagas neste app"
+                          : `Conectar nova conta no app "${a.name}"`
+                        }
+                      >
+                        <LinkIcon className="h-3.5 w-3.5" /> Conectar conta
+                      </Button>
+                    </div>
                   </div>
                   <div className="mt-3">
                     <CapacityBar used={a.accounts_used} max={a.max_accounts} />
@@ -640,6 +657,160 @@ export function SpotifyAppsManager({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <InviteDialog
+        appId={inviteAppId}
+        app={apps.find((a) => a.id === inviteAppId) ?? null}
+        onClose={() => setInviteAppId(null)}
+      />
     </div>
+  );
+}
+
+function InviteDialog({
+  appId, app, onClose,
+}: {
+  appId: string | null;
+  app: SpotifyApp | null;
+  onClose: () => void;
+}) {
+  const [label, setLabel] = useState("");
+  const [hours, setHours] = useState(48);
+  const [creating, setCreating] = useState(false);
+  const [link, setLink] = useState<string | null>(null);
+  const [expiresAt, setExpiresAt] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (!appId) {
+      setLabel(""); setHours(48); setLink(null); setExpiresAt(null); setCopied(false);
+    }
+  }, [appId]);
+
+  async function generate() {
+    if (!appId) return;
+    setCreating(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const resp = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/spotify-invite?mode=create`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ app_id: appId, label: label || null, hours, origin: window.location.origin }),
+        },
+      );
+      const j = await resp.json();
+      if (!j.ok) {
+        toast.error("Falha ao gerar convite", { description: j.error });
+      } else {
+        setLink(j.url || `${window.location.origin}${j.path}`);
+        setExpiresAt(j.expires_at);
+        toast.success("Link de convite criado");
+      }
+    } catch (e) {
+      toast.error("Erro de rede", { description: (e as Error).message });
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  async function copyLink() {
+    if (!link) return;
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+      toast.success("Link copiado");
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error("Falha ao copiar");
+    }
+  }
+
+  return (
+    <Dialog open={!!appId} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-base">Link de convite — {app?.name}</DialogTitle>
+          <DialogDescription className="text-xs">
+            Gere um link único e mande pro dono da conta Spotify. Ele autoriza
+            direto com o e-mail e senha dele — você nunca vê a senha.
+          </DialogDescription>
+        </DialogHeader>
+
+        {!link ? (
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Identificação (opcional)</Label>
+              <Input
+                placeholder='Ex: "Conta do João — Cliente XYZ"'
+                value={label}
+                onChange={(e) => setLabel(e.target.value)}
+                className="h-9 text-sm"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Aparece pra você no histórico e pra pessoa na página de autorização.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs">Validade</Label>
+              <select
+                value={hours}
+                onChange={(e) => setHours(Number(e.target.value))}
+                className="w-full h-9 rounded-md border border-border/40 bg-background px-2 text-sm"
+              >
+                <option value={6}>6 horas</option>
+                <option value={24}>24 horas</option>
+                <option value={48}>48 horas (recomendado)</option>
+                <option value={168}>7 dias</option>
+                <option value={336}>14 dias</option>
+              </select>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" size="sm" onClick={onClose} disabled={creating}>Cancelar</Button>
+              <Button size="sm" onClick={generate} disabled={creating} className="bg-primary text-primary-foreground hover:bg-primary/90">
+                {creating && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />}
+                Gerar link
+              </Button>
+            </DialogFooter>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-2">
+              <Label className="text-[10px] uppercase tracking-wide text-primary">Link gerado</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  value={link}
+                  readOnly
+                  className="h-9 text-xs font-mono bg-background"
+                  onFocus={(e) => e.currentTarget.select()}
+                />
+                <Button size="sm" variant="outline" onClick={copyLink} className="h-9 px-3 shrink-0">
+                  {copied ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
+                </Button>
+              </div>
+              {expiresAt && (
+                <p className="text-[11px] text-muted-foreground">
+                  Válido até {new Date(expiresAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })} · uso único
+                </p>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Mande esse link pela pessoa por WhatsApp, e-mail ou onde preferir.
+              Quando ela autorizar, a conta cai automaticamente no app{" "}
+              <span className="text-foreground font-medium">{app?.name}</span>.
+            </p>
+            <DialogFooter>
+              <Button size="sm" onClick={onClose} className="bg-primary text-primary-foreground hover:bg-primary/90">
+                Fechar
+              </Button>
+            </DialogFooter>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }

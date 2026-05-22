@@ -15,6 +15,7 @@ import ResetPassword from "./pages/ResetPassword";
 import Privacy from "./pages/Privacy";
 import Landing from "./pages/Landing";
 import SpotifyCallback from "./pages/SpotifyCallback";
+import SpotifyInvite from "./pages/SpotifyInvite";
 import RootRoute from "./components/RootRoute";
 // Cérebro e Criação foram aposentados — rotas legadas agora redirecionam para /inteligencia
 import Operacao from "./pages/Operacao";
@@ -94,6 +95,7 @@ const App = () => (
               <Route path="/landing" element={<Landing />} />
               <Route path="/spotify/callback" element={<SpotifyCallback />} />
               <Route path="/spotify/callback/:slug" element={<SpotifyCallback />} />
+              <Route path="/spotify/invite/:token" element={<SpotifyInvite />} />
               <Route path="/curador/:token" element={<CuratorPage />} />
               <Route path="/campanha/:token" element={<ClientCampaignPage />} />
               <Route path="/p/plano/:token" element={<PlanoCampanhaPublico />} />

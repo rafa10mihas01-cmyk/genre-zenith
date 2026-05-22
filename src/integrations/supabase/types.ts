@@ -6109,6 +6109,50 @@ export type Database = {
         }
         Relationships: []
       }
+      spotify_invite_tokens: {
+        Row: {
+          app_id: string
+          consumed_at: string | null
+          consumed_email: string | null
+          consumed_spotify_user_id: string | null
+          created_at: string
+          created_by: string | null
+          expires_at: string
+          label: string | null
+          token: string
+        }
+        Insert: {
+          app_id: string
+          consumed_at?: string | null
+          consumed_email?: string | null
+          consumed_spotify_user_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          expires_at: string
+          label?: string | null
+          token: string
+        }
+        Update: {
+          app_id?: string
+          consumed_at?: string | null
+          consumed_email?: string | null
+          consumed_spotify_user_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string
+          label?: string | null
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "spotify_invite_tokens_app_id_fkey"
+            columns: ["app_id"]
+            isOneToOne: false
+            referencedRelation: "spotify_apps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       spotify_oauth_states: {
         Row: {
           app_id: string | null
