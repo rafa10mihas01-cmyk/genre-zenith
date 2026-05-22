@@ -316,6 +316,18 @@ Deno.serve(async (req) => {
         if (upErr) console.error("upsert search_tracks err", upErr);
         else savedTracks += slice.length;
       }
+
+      // Backfill: garante que NENHUMA row deste gênero fique com result_id NULL.
+      // (Upsert do supabase-js sobrescreve campos — se fallbackResultId vier null
+      // numa execução, pode zerar result_id de rows antigas. Esse passo restaura.)
+      if (fallbackResultId) {
+        const { error: bfErr } = await supabase
+          .from("search_tracks")
+          .update({ result_id: fallbackResultId })
+          .eq("genre_id", body.genre_id)
+          .is("result_id", null);
+        if (bfErr) console.error("backfill result_id err", bfErr);
+      }
     }
 
     // Atualiza term

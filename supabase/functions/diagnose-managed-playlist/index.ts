@@ -1782,18 +1782,21 @@ Deno.serve(async (req) => {
       // Persiste escolhas em editorial_history (cross-run memory).
       if (pl.genre_id && picked.length > 0) {
         try {
-          const rows = picked.map((t, idx) => ({
-            genre_id: pl.genre_id,
-            track_id: t.spotify_track_id,
-            position: idx + 1,
-            score_final: Math.round(t._final * 100) / 100,
-            track_name: t.title ?? null,
-            artist_name: t.artist ?? null,
-            cover_url: t.cover_url ?? null,
-            release_date: t.release_date ?? null,
-          }));
-
-          await supabase.from("editorial_history").insert(rows);
+          const rows = picked.map((t, idx) => {
+            const rec = genreRecurrence.get(t.spotify_track_id);
+            return {
+              genre_id: pl.genre_id,
+              track_id: t.spotify_track_id,
+              position: idx + 1,
+              score_final: Math.round(t._final * 100) / 100,
+              track_name: t.title ?? rec?.track_name ?? null,
+              artist_name: t.artist ?? rec?.artist_name ?? null,
+              cover_url: t.cover_url ?? coverMap.get(t.spotify_track_id) ?? null,
+              release_date: t.release_date ?? null,
+            };
+          });
+          const { error: ehErr } = await supabase.from("editorial_history").insert(rows);
+          if (ehErr) console.warn("[diagnose] editorial_history insert err", ehErr);
         } catch (e) {
           console.warn("[diagnose] editorial_history insert failed", e);
         }
