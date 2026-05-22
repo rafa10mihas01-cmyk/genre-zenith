@@ -1374,6 +1374,8 @@ Deno.serve(async (req) => {
       // Boost x1.2 (cap 100) se track aparece em snapshot recente (<30d) de alguma top-N.
       const leaderRelMap = new Map<string, { count: number; recentlyAdded: boolean }>();
       let leaderRelN_total = 0;
+      let _topLeaderIds: string[] = [];
+      let _missingSnapshotLeaderIds: string[] = [];
       if (candidateIds.length > 0 && pl.genre_id) {
         // top-N playlists do nicho (N = min(10, total))
         const { data: nicheRows } = await supabase
