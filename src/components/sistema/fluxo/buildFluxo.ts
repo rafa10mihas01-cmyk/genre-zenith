@@ -88,7 +88,7 @@ export function buildFluxoNodes(opts: {
     logs.filter((l) => actions.some((a) => (l.acao ?? "").includes(a)));
 
   // ============ NÓ 1: DESCOBERTA SPOTIFY ============
-  const discLogs = logsByAction(["run-search", "enrich-playlists", "fetch-tracks", "test-apify", "spotify_token", "spotify-auth"]);
+  const discLogs = logsByAction(["run-search", "enrich-playlists", "fetch-tracks", "spotify_token", "spotify-auth"]);
   const discErrors = discLogs.filter((l) => l.status === "error");
   const discRunning = discLogs.find((l) => l.status === "running");
   const tokenError = discLogs.find((l) => (l.acao ?? "").includes("spotify") && l.status === "error");
