@@ -1,8 +1,8 @@
 // SpreadsheetUploadCard — card do portal público pro cliente subir a planilha
-// da gravadora quando o deal NÃO tem Spotify conectado.
-// Mostra última atualização, preview antes de confirmar e histórico curto.
+// (XLSX da distribuidora OU CSV do Spotify) quando o deal NÃO tem Spotify
+// conectado. Mostra última atualização, preview com matches e histórico curto.
 import { useEffect, useRef, useState } from "react";
-import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Loader2, Download } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,6 +21,13 @@ type Preview = {
   rows: number;
   total_streams: number;
   unique_isrcs: string[];
+  format?: string;
+  playlists_recognized?: number;
+  curators_recognized?: number;
+  internal_count?: number;
+  organic_count?: number;
+  best_position?: number | null;
+  top_playlists?: Array<{ name: string; streams: number; owner: string | null; is_internal?: boolean }>;
   playlists: Array<{ name: string; streams: number; owner: string | null }>;
   warnings: string[];
 };
@@ -83,8 +90,11 @@ export function SpreadsheetUploadCard({
 
   const handleFile = async (f: File) => {
     setError(null);
-    if (!f.name.toLowerCase().endsWith(".xlsx") && !f.name.toLowerCase().endsWith(".xls")) {
-      setError("Envie um arquivo .xlsx");
+    const lower = f.name.toLowerCase();
+    const isXlsx = lower.endsWith(".xlsx") || lower.endsWith(".xls");
+    const isCsv = lower.endsWith(".csv");
+    if (!isXlsx && !isCsv) {
+      setError("Envie .xlsx, .xls ou .csv");
       return;
     }
     if (f.size > 8 * 1024 * 1024) {
@@ -146,6 +156,35 @@ export function SpreadsheetUploadCard({
     }
   };
 
+  const [downloadingTpl, setDownloadingTpl] = useState(false);
+  const handleDownloadTemplate = async () => {
+    setDownloadingTpl(true);
+    setError(null);
+    try {
+      const { data, error: fnErr } = await supabase.functions.invoke("placement-template-download", {
+        body: { client_token: clientToken },
+      });
+      if (fnErr || !data?.ok) {
+        setError(data?.error || fnErr?.message || "Falha ao gerar modelo");
+        return;
+      }
+      const b64 = data.file_base64 as string;
+      const name = data.file_name as string;
+      const bin = atob(b64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const blob = new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = name; a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setDownloadingTpl(false);
+    }
+  };
+
   return (
     <Card className="border-border/60 bg-card">
       <CardContent className="p-5 space-y-4">
@@ -158,9 +197,8 @@ export function SpreadsheetUploadCard({
               </h3>
             </div>
             <p className="text-xs text-muted-foreground mt-1 max-w-md">
-              Suba a planilha mais recente fornecida pela gravadora (.xlsx).
-              O sistema reconhece automaticamente as colunas padrão e atualiza
-              streams, playlists e progresso.
+              Suba a planilha mais recente (.xlsx da distribuidora ou .csv do Spotify for Artists).
+              O sistema reconhece as colunas, cruza com playlists e curadores conhecidos e atualiza o painel.
             </p>
           </div>
           <div className="text-right shrink-0">
@@ -210,28 +248,60 @@ export function SpreadsheetUploadCard({
           </div>
         ) : phase === "previewed" && preview ? (
           <div className="space-y-3">
-            <div className="rounded-lg border border-border/60 bg-muted/30 p-4 space-y-2">
-              <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                Pré-visualização
+            <div className="rounded-lg border border-border/60 bg-muted/30 p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                  Pré-visualização
+                </div>
+                {preview.format && (
+                  <div className="text-[10px] uppercase tracking-wide text-muted-foreground border border-border/60 rounded px-1.5 py-0.5">
+                    {preview.format}
+                  </div>
+                )}
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <div>
                   <div className="text-[11px] text-muted-foreground">Playlists</div>
-                  <div className="text-xl font-semibold text-foreground">
-                    {preview.rows}
-                  </div>
+                  <div className="text-xl font-semibold text-foreground">{preview.rows}</div>
                 </div>
                 <div>
-                  <div className="text-[11px] text-muted-foreground">Total de streams</div>
-                  <div className="text-xl font-semibold text-foreground">
-                    {fmtNumber(preview.total_streams)}
-                  </div>
+                  <div className="text-[11px] text-muted-foreground">Streams</div>
+                  <div className="text-xl font-semibold text-foreground">{fmtNumber(preview.total_streams)}</div>
+                </div>
+                <div>
+                  <div className="text-[11px] text-muted-foreground">Nossas</div>
+                  <div className="text-xl font-semibold text-primary">{preview.internal_count ?? 0}</div>
+                </div>
+                <div>
+                  <div className="text-[11px] text-muted-foreground">Orgânicas</div>
+                  <div className="text-xl font-semibold text-foreground">{preview.organic_count ?? preview.rows}</div>
                 </div>
               </div>
-              {preview.warnings.length > 0 && (
-                <div className="text-[11px] text-amber-500">
-                  {preview.warnings.join(" · ")}
+              {(preview.playlists_recognized || preview.curators_recognized || preview.best_position) && (
+                <div className="text-[11px] text-muted-foreground flex flex-wrap gap-x-3 gap-y-1">
+                  {preview.playlists_recognized ? <span>{preview.playlists_recognized} playlists reconhecidas</span> : null}
+                  {preview.curators_recognized ? <span>· {preview.curators_recognized} curador(es) identificado(s)</span> : null}
+                  {preview.best_position ? <span>· melhor posição #{preview.best_position}</span> : null}
                 </div>
+              )}
+              {preview.top_playlists && preview.top_playlists.length > 0 && (
+                <div className="pt-2 border-t border-border/60">
+                  <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Top playlists</div>
+                  <ul className="space-y-1">
+                    {preview.top_playlists.slice(0, 3).map((p, i) => (
+                      <li key={i} className="flex items-center justify-between text-[12px]">
+                        <span className="truncate flex items-center gap-1.5">
+                          {p.is_internal && <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />}
+                          <span className="truncate">{p.name}</span>
+                        </span>
+                        <span className="text-muted-foreground tabular-nums shrink-0 ml-2">{fmtNumber(p.streams)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {preview.warnings.length > 0 && (
+                <div className="text-[11px] text-amber-500">{preview.warnings.join(" · ")}</div>
               )}
             </div>
             <div className="flex gap-2">
@@ -251,53 +321,66 @@ export function SpreadsheetUploadCard({
             </div>
           </div>
         ) : (
-          <div
-            onDragOver={(e) => {
-              e.preventDefault();
-              setDragOver(true);
-            }}
-            onDragLeave={() => setDragOver(false)}
-            onDrop={(e) => {
-              e.preventDefault();
-              setDragOver(false);
-              const f = e.dataTransfer.files?.[0];
-              if (f) handleFile(f);
-            }}
-            onClick={() => inputRef.current?.click()}
-            className={cn(
-              "rounded-lg border-2 border-dashed transition-colors cursor-pointer p-6 text-center",
-              dragOver
-                ? "border-primary bg-primary/5"
-                : "border-border hover:border-primary/50 hover:bg-muted/30",
-            )}
-          >
-            <input
-              ref={inputRef}
-              type="file"
-              accept=".xlsx,.xls"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
+          <>
+            <div
+              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragOver(false);
+                const f = e.dataTransfer.files?.[0];
                 if (f) handleFile(f);
               }}
-            />
-            {phase === "previewing" ? (
-              <>
-                <Loader2 className="h-6 w-6 text-muted-foreground mx-auto mb-2 animate-spin" />
-                <div className="text-sm text-muted-foreground">Lendo planilha...</div>
-              </>
-            ) : (
-              <>
-                <Upload className="h-6 w-6 text-muted-foreground mx-auto mb-2" />
-                <div className="text-sm text-foreground">
-                  Arraste a planilha aqui ou <span className="text-primary">clique para selecionar</span>
-                </div>
-                <div className="text-[11px] text-muted-foreground mt-1">
-                  Formato .xlsx · máx 8MB
-                </div>
-              </>
-            )}
-          </div>
+              onClick={() => inputRef.current?.click()}
+              className={cn(
+                "rounded-lg border-2 border-dashed transition-colors cursor-pointer p-6 text-center",
+                dragOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/50 hover:bg-muted/30",
+              )}
+            >
+              <input
+                ref={inputRef}
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleFile(f);
+                }}
+              />
+              {phase === "previewing" ? (
+                <>
+                  <Loader2 className="h-6 w-6 text-muted-foreground mx-auto mb-2 animate-spin" />
+                  <div className="text-sm text-muted-foreground">Lendo planilha...</div>
+                </>
+              ) : (
+                <>
+                  <Upload className="h-6 w-6 text-muted-foreground mx-auto mb-2" />
+                  <div className="text-sm text-foreground">
+                    Arraste a planilha aqui ou <span className="text-primary">clique para selecionar</span>
+                  </div>
+                  <div className="text-[11px] text-muted-foreground mt-1">
+                    .xlsx, .xls ou .csv · máx 8MB
+                  </div>
+                </>
+              )}
+            </div>
+            <div className="flex justify-center">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleDownloadTemplate}
+                disabled={downloadingTpl}
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                {downloadingTpl ? (
+                  <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                ) : (
+                  <Download className="h-3.5 w-3.5 mr-1.5" />
+                )}
+                Baixar planilha modelo
+              </Button>
+            </div>
+          </>
         )}
 
         {error && (
