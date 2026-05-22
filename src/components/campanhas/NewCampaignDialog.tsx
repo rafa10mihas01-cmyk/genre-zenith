@@ -435,6 +435,29 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
                     value={formatCurrencyBRL(valorCobradoDigits)}
                     onChange={e => setValorCobradoDigits(e.target.value.replace(/\D/g, ""))}
                   />
+                  {goal > 0 && (() => {
+                    const custoEstimado = (goal * 0.6 * pricingCosts.eco) + (goal * 0.4 * pricingCosts.ext);
+                    const margem = Math.max(0, Math.min(99, pricing.target_margin_pct));
+                    const sugeridoPorMargem = margem < 100 ? custoEstimado / (1 - margem / 100) : custoEstimado;
+                    const sugeridoPorTabela = goal * pricing.price_per_stream_sell;
+                    const sugerido = Math.max(sugeridoPorMargem, sugeridoPorTabela);
+                    const aplicar = () => setValorCobradoDigits(String(Math.round(sugerido * 100)));
+                    return (
+                      <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+                        <span>
+                          Sugerido: <strong className="text-foreground">{sugerido.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })}</strong>
+                          {" "}· custo {custoEstimado.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })} · margem alvo {margem.toFixed(0)}%
+                        </span>
+                        <button
+                          type="button"
+                          onClick={aplicar}
+                          className="text-primary hover:underline font-medium whitespace-nowrap"
+                        >
+                          Aplicar
+                        </button>
+                      </div>
+                    );
+                  })()}
                 </div>
                 <div className="space-y-2">
                   <Label>Forma de recebimento</Label>
