@@ -200,10 +200,10 @@ Deno.serve(async (req) => {
     const dealId: string | undefined = body?.deal_id;
     const scanAllActive: boolean = body?.scan_all_active === true;
 
-    // === Modo cron (service role) — header x-cron-secret ===
-    const cronSecret = req.headers.get("x-cron-secret");
-    const expectedSecret = Deno.env.get("CRON_SECRET");
-    const isCron = scanAllActive && cronSecret && expectedSecret && cronSecret === expectedSecret;
+    // === Modo cron (service role) — Authorization: Bearer <SERVICE_ROLE_KEY> ===
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+    const isCron = scanAllActive && serviceKey && authHeader === `Bearer ${serviceKey}`;
 
     let supabase: any;
     let userId: string | null = null;
