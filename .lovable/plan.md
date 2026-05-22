@@ -1,190 +1,153 @@
+# Genre Brain — Plano de Implementação
 
-# Reescrita do módulo Analytics — motor de deals
-
-Plano executável para reescrever a área `/analytics` lendo direto do motor vivo (`curator_deals` / `curator_deal_snapshots` / `curator_deal_logs` / `playlist_brain` / `genre_benchmarks`), aposentando as fontes legadas (`campaigns.total_delivered`, `campaign_allocations`, `v_playlist_delivery_history`, `performance_insights`, `v_campaign_velocity`, RPC `get_campaign_analytics_overview`).
-
----
-
-## 1. Mapa dos componentes atuais
-
-Auditoria por arquivo + fonte de dados + estado real do pipeline:
-
-| Página / componente | Fonte de dados | Estado | Decisão |
-|---|---|---|---|
-| `pages/Analytics.tsx` — KPIs Prometido/Entregue/Cumprimento + gráfico stack | RPC `get_campaign_analytics_overview` (lê `campaigns.total_delivered`) | **MORTO** (campanhas não recebem update) | Reescrever |
-| `pages/Analytics.tsx` — "Performance por playlist" Top/Bottom 10 | mesmo overview RPC | **MORTO** | Reescrever |
-| `pages/Analytics.tsx` — "Velocidade em execução" | view `v_campaign_velocity` (lê allocations + campaigns) | **MORTO** (allocations=0) | Substituir por velocidade de deals |
-| `pages/Analytics.tsx` — Heatmap embedado | `curator_deal_logs` | **VIVO** | Mantido |
-| `pages/Performance.tsx` — KPIs + insights | RPC `get_performance_dataset` + `performance_insights` | **PARCIAL** — dataset roda; insights congelados há 28 dias | Manter dataset, dropar painel de insights congelado |
-| `pages/MatrizPlaylists.tsx` | `playlist_brain` (227 linhas, fresh) | **VIVO** | Mantido |
-| `pages/HeatmapEntregas.tsx` | `curator_deal_logs` | **VIVO** | Mantido |
-| `pages/Benchmarks.tsx` | `genre_benchmarks` | **VIVO** | Mantido |
-| `pages/Valuation.tsx` | RPC `evaluate_playlist_by_url` | **VIVO** | Mantido |
-| `AnalyticsTabs.tsx` | nav | — | Renomear "Campanhas"→"Deals" |
-
-Pulse do banco (confirma a auditoria):
-- `curator_deal_snapshots`: **4 735 linhas, última 2026-05-20** ✅
-- `curator_deal_logs`: **62 linhas, última 2026-05-20** ✅
-- `curator_deals`: 7 linhas ✅
-- `playlist_brain`: 227, atualizada hoje ✅
-- `campaign_allocations`: **0 linhas** ❌
-- `performance_insights`: **1 linha, 28 dias atrás** ❌
+Vou organizar os 12 blocos que você mandou em **6 fases sequenciais**, do alicerce até a inteligência cultural. Cada fase é entregável sozinha (gera valor imediato) e prepara a próxima. Nada de Spotify como verdade — Spotify vira só "sinal secundário".
 
 ---
 
-## 2. Nova arquitetura semântica
+## Princípio guia (vale pra todas as fases)
+
+- **Fonte de verdade = comportamento do ecossistema NexEngine** (tracks recorrentes, playlists similares, performance real, SEO, estética).
+- **Spotify = 1 sinal entre vários**, com peso pequeno (~10–15%).
+- **Tudo ponderado por recência** (peso temporal já entra na Fase 1 como função utilitária reutilizável).
+- **Nada destrutivo**: `genre_id` atual continua existindo como "primary genre" durante toda a migração. As novas tabelas convivem.
+
+---
+
+## FASE 1 — Fundação: Confidence + Peso Temporal
+*Sem isso, nada do resto funciona.*
+
+Cobre os blocos: **1 (Genre Confidence)** e **8 (Peso Temporal)**.
+
+**Entregas:**
+- Nova tabela `playlist_genres` (playlist_id, genre_id, confidence 0–1, source, evidence jsonb, updated_at). UNIQUE(playlist_id, genre_id).
+- Função utilitária `recencyWeight(date)` em `_shared/` — curva: 30d=1.0, 90d=0.7, 180d=0.45, 365d=0.2, >365=0.05. Reusada por TODAS as fases seguintes.
+- Edge function `genre-confidence-calc` que computa confidence multi-gênero por playlist a partir de:
+  - search_terms que descobriram a playlist
+  - tracks recorrentes (com peso temporal)
+  - artistas dominantes
+  - SEO do título
+- Migração de dados: para cada playlist com `genre_id` atual, cria linha em `playlist_genres` com confidence inicial calculada.
+- Painel admin em `/sistema?tab=aprendizado` mostrando "confidence por playlist" pra QA visual.
+
+**Por que primeiro:** todas as fases seguintes leem `playlist_genres.confidence` em vez de `playlists.genre_id`.
+
+---
+
+## FASE 2 — Subgêneros + Search Terms Vivos
+*Granularidade real do mercado BR.*
+
+Cobre os blocos: **2 (Subgêneros)**, **4 (Search Terms Vivos)**, **5 (Score do Termo)**.
+
+**Entregas:**
+- Tabela `subgenres` (id, parent_genre_id, slug, nome, palavras-chave, ativo). Seed inicial: funk → mandelão, consciente, automotivo, putaria, rave, paulista, viral, trap-funk. Mesmo pra sertanejo, piseiro, trap, pagode, forró, agro, pop BR.
+- Extensão de `search_terms`: adicionar `subgenre_id`, `trend_score`, `search_velocity`, `growth_rate`, `quality_score`, `last_evaluated_at`, `status` (emergente/ativo/saturado/morto).
+- Edge function `search-terms-evaluator` (cron diário): pra cada termo, recalcula score com base em
+  - nº de playlists válidas encontradas nos últimos 30d
+  - follower médio dessas playlists
+  - atividade (snapshots recentes)
+  - recorrência útil das tracks
+  - performance de campanhas no nicho
+- Pruning automático: termos com `quality_score < threshold` por 30 dias → `status=morto` (não entram em novas coletas, mas histórico preserva).
+- `generate-terms` (que já existe) ganha consciência de subgênero ao gerar novos termos via AI.
+
+---
+
+## FASE 3 — Clusterização + Playlists Líderes
+*O ecossistema começa a se enxergar.*
+
+Cobre os blocos: **6 (Clusters)** e **9 (Playlists Líderes)**.
+
+**Entregas:**
+- Tabela `playlist_clusters` (cluster_id, subgenre_id, strength, sample_size, centroid jsonb).
+- Tabela `playlist_cluster_members` (playlist_id, cluster_id, similarity, joined_at).
+- Edge function `cluster-playlists` (cron semanal): clusteriza por similaridade de
+  - artistas em comum (Jaccard)
+  - tracks em comum (Jaccard)
+  - SEO do título (n-grams)
+  - faixa de seguidores
+- Tabela `playlist_leadership` (playlist_id, leadership_score, follower_rank, growth_rank, activity_rank, calculated_at).
+- Edge function `compute-leadership` que combina followers + crescimento recente + presença em benchmarks + qualidade editorial.
+- Líderes ganham peso 2x nas Fases 4–6.
+
+---
+
+## FASE 4 — Reclassificação + Drift Cultural
+*A playlist deixa de ser "estática".*
+
+Cobre o bloco: **3 (Reclassificação Automática)**.
+
+**Entregas:**
+- Campos novos em `playlist_genres`: `previous_confidence`, `drift_score`, `migration_score`, `trend_shift`.
+- Edge function `detect-genre-drift` (cron semanal): compara confidence atual vs 30d atrás. Quando drift > threshold:
+  - reclassifica primary genre (atualiza `playlists.genre_id`)
+  - emite sinal em `playlist_brain.signals` ("migrou de trap → funk viral, 80% das adds recentes")
+  - registra em `playlist_genre_history` (audit trail)
+- Detector cruza 4 sinais: mudança de repertório, mudança de SEO no título, mudança visual (capa nova → cores novas), mudança de artistas recorrentes.
+
+---
+
+## FASE 5 — SEO Semântico + Estética do Nicho
+*Genre Brain começa a "ver" e "falar" como o nicho.*
+
+Cobre os blocos: **10 (SEO Semântico)** e **11 (Estética)**.
+
+**Entregas:**
+- Tabela `genre_seo_lexicon` (subgenre_id, token, type [palavra/emoji/estrutura/numero], strength, status [forte/morto/viral], last_seen). Alimentada por análise dos títulos das playlists líderes do nicho com peso temporal.
+- Tabela `genre_visual_signature` (subgenre_id, dominant_colors jsonb, contrast_avg, has_face_pct, style_tags, aggressiveness_score, sample_size, calculated_at). Alimentada por análise das capas das playlists líderes (palette extraction + classificação via Lovable AI vision).
+- Edge function `learn-genre-lexicon` (cron semanal).
+- Edge function `learn-genre-aesthetics` (cron semanal).
+- Tudo refeito a cada ciclo com peso temporal — o lexicon de hoje ≠ lexicon de 6 meses atrás.
+- Integração: `diagnose-managed-playlist` passa a usar lexicon pra sugerir SEO, e a curadoria visual (refactor anterior) passa a usar a visual signature como filtro de "aderência estética".
+
+---
+
+## FASE 6 — Genre Brain Central
+*A camada que une tudo.*
+
+Cobre o bloco: **7 (Genre Brain)** e fecha o **12 (objetivo final)**.
+
+**Entregas:**
+- Tabela `genre_brain` (1 linha por subgenre):
+  - playlists_dominantes (top N por leadership)
+  - artistas_dominantes (top N com peso temporal)
+  - tracks_dominantes (top N com peso temporal)
+  - estetica (FK pra `genre_visual_signature`)
+  - seo (FK pra `genre_seo_lexicon`)
+  - cluster_principal_id
+  - sazonalidade (jsonb, padrões mensais)
+  - growth_curve (jsonb, snapshot followers totais do nicho)
+  - status (emergente/crescendo/estável/declinando/morto)
+  - confidence_score
+  - last_calculated_at
+- Edge function `genre-brain-calc` (cron diário): roda em batch pra todos os subgêneros ativos, agrega resultados das Fases 1–5.
+- Página nova em `/sistema` ou aba dentro de `/curadores`: **"Genre Brain"** — dashboard ao vivo mostrando, por subgênero: status, top playlists/artistas/tracks AGORA, paleta dominante, lexicon SEO ativo, curva de crescimento. UI seguindo PageHeader + design system.
+- API interna que outros módulos (cockpit, diagnose, recomendações de capa, campaign engine) podem consultar pra perguntar: *"como é o nicho HOJE?"*
+
+---
+
+## Detalhes técnicos transversais
+
+- **Tudo via Lovable Cloud** (Supabase). RLS em todas as tabelas novas com `has_role(auth.uid(), 'admin')` ou `team_access` conforme o caso.
+- **Crons** novos: `search-terms-evaluator` (diário), `cluster-playlists` (semanal), `compute-leadership` (diário), `detect-genre-drift` (semanal), `learn-genre-lexicon` (semanal), `learn-genre-aesthetics` (semanal), `genre-brain-calc` (diário).
+- **AI**: Fases 5–6 usam Lovable AI Gateway (`google/gemini-3-flash-preview` pra texto, `google/gemini-2.5-flash` pra vision em capas).
+- **Backward compatibility**: `playlists.genre_id` continua existindo como "primary" e é atualizado pela Fase 4. Nenhum código antigo quebra.
+- **Observabilidade**: cada cron loga em tabela `engine_runs` (que já existe no padrão do projeto) com nº processado, erros, duração.
+
+---
+
+## Ordem sugerida de execução
 
 ```text
-DEAL (artista, janela, meta) 
-   └─ SNAPSHOT diário (plays, followers, delta)
-        └─ LOG de execução (timestamp, playlist, ação)
-              └─ PLAYLIST_BRAIN (saúde, score)
+Fase 1 (Fundação)        → 1 sprint
+Fase 2 (Subgêneros+Terms) → 1 sprint
+Fase 3 (Clusters+Líderes) → 1 sprint
+Fase 4 (Drift)            → 0.5 sprint
+Fase 5 (SEO+Estética)     → 1 sprint
+Fase 6 (Genre Brain)      → 1 sprint
 ```
 
-O Analytics passa a responder 4 perguntas, nessa ordem:
-
-1. **Deals** — quanto está rodando AGORA, no ritmo certo?
-2. **Playlists** — quais entregam de verdade?
-3. **Mercado** — como meus gêneros se comparam?
-4. **Avaliar** — quanto vale uma playlist?
+Total: **~5.5 sprints**. Cada fase ship-able sozinha, sem big bang.
 
 ---
 
-## 3. Nova estrutura de abas
-
-| Aba atual | Aba nova | Conteúdo |
-|---|---|---|
-| Campanhas | **Deals** (`/analytics`) | KPIs reais + ritmo + heatmap |
-| Playlists | **Playlists** (`/performance`) | Dataset live + Matriz (sub-aba) |
-| Mercado | **Mercado** (`/benchmarks`) | inalterado |
-| Avaliar | **Avaliar** (`/valuation`) | inalterado |
-
----
-
-## 4. Aba "Deals" — reescrita completa de `Analytics.tsx`
-
-Fonte única: `curator_deal_snapshots` + `curator_deal_logs` + `curator_deals`.
-
-### KPIs (4 cards)
-Todos calculados em JS sobre os últimos N dias de snapshots:
-
-- **Deals ativos** = `curator_deals where status='active'`
-- **Plays entregues (7d)** = soma de `(snapshot.plays - snapshot_anterior.plays)` por deal, janela 7d
-- **Delta médio diário** = média de delta diário entre snapshots consecutivos
-- **Custo por play real** = soma `deal.amount` / soma de plays entregues no período
-
-### Seção "Ritmo dos deals ativos"
-Substitui "Velocidade":
-- Para cada deal ativo: plays prometidos vs entregue acumulado, plays/dia médio (últimos 3 snapshots), pace ratio (real/esperado), status (Adiantado / No ritmo / Lenta / Crítica).
-
-### Seção "Entregas por dia (30d)"
-LineChart: agrega `curator_deal_logs` por dia → conta entregas. Substitui o BarChart stacked de status de campanha.
-
-### Seção "Top playlists entregando (30d)"
-Agrega `curator_deal_logs` por `playlist_id` na janela → top 10 com plays entregues, deals atendidos, último log.
-
-### Seção "Heatmap de entregas"
-Mantido, já vivo.
-
----
-
-## 5. Aba "Playlists" — limpeza de `Performance.tsx`
-
-- Remover o card de `performance_insights` (congelado).
-- Manter `get_performance_dataset` (vivo) — é apenas leitura de `playlist_brain` + agregados.
-- Adicionar banner de "última atualização" lendo `max(updated_at)` do `playlist_brain`.
-- `MatrizPlaylists.tsx` continua igual.
-
----
-
-## 6. Marcação de legado (sem deletar)
-
-Criar `docs/DEPRECATED_ANALYTICS.md` listando:
-- `campaign_allocations` (tabela)
-- `v_playlist_delivery_history` (view)
-- `v_campaign_velocity` (view)
-- `performance_insights` (tabela — só painel removido; ingestão fica)
-- `campaigns.total_delivered` (coluna)
-- RPC `get_campaign_analytics_overview`
-
-E adicionar comentário `// @deprecated` em cada import remanescente. Nenhum DROP/DELETE neste PR.
-
----
-
-## 7. Arquivos tocados
-
-**Reescritos:**
-- `src/pages/Analytics.tsx` — nova versão lendo snapshots/logs/deals
-- `src/pages/Performance.tsx` — remover bloco performance_insights
-
-**Atualizados:**
-- `src/components/AnalyticsTabs.tsx` — label "Campanhas" → "Deals"
-- `src/content/pageManuals.ts` — atualizar manual "analytics" com nova semântica
-
-**Novos:**
-- `src/lib/dealsAnalytics.ts` — helpers puros: `computeDealVelocity`, `aggregateDeliveriesByDay`, `topPlaylistsFromLogs`, `realCostPerPlay`
-- `docs/DEPRECATED_ANALYTICS.md`
-
-**Não tocados:**
-- `Benchmarks.tsx`, `Valuation.tsx`, `MatrizPlaylists.tsx`, `HeatmapEntregas.tsx`, backend, edge functions, ingestão de snapshots.
-
----
-
-## 8. Detalhes técnicos
-
-### Queries principais (client-side, via supabase-js)
-
-```ts
-// snapshots da janela (com deal)
-supabase
-  .from("curator_deal_snapshots")
-  .select("deal_id, captured_at, plays, followers, curator_deals!inner(id, status, amount, plays_promised, artist_name, started_at)")
-  .gte("captured_at", since30d)
-  .order("captured_at", { ascending: true });
-
-// logs da janela (para entregas/dia, heatmap, top playlists)
-supabase
-  .from("curator_deal_logs")
-  .select("id, created_at, deal_id, playlist_id, playlist_name, plays_added")
-  .gte("created_at", since30d);
-
-// deals ativos com último snapshot
-supabase
-  .from("curator_deals")
-  .select("*, snapshots:curator_deal_snapshots(plays, captured_at)")
-  .eq("status", "active");
-```
-
-### Cálculos puros (em `dealsAnalytics.ts`)
-- **delta diário por deal**: ordenar snapshots, subtrair plays consecutivos, dividir por dias entre captures.
-- **pace_ratio**: `(entregue_até_hoje / dias_decorridos) / (prometido / dias_totais_da_janela)`.
-- **cost_per_play_real**: `sum(deals.amount) / sum(deltas_de_plays)`.
-
-### Skeleton e estados vazios
-- Empty state "Nenhum deal ativo" → CTA pra `/playlist-deals`.
-- Empty state "Sem snapshots ainda" → texto neutro, sem CTA.
-
-### Performance
-- Uma única chamada paralela `Promise.all([snapshots, logs, deals])`.
-- Limite 5k linhas (snapshots tem 4.7k hoje, sobra folga).
-- Sem realtime nesta fase.
-
----
-
-## 9. O que NÃO está neste plano
-
-- Não cria triggers, jobs ou sync entre snapshots e campaigns.
-- Não toca em ingestão, ops-agent, edge functions, bot.
-- Não apaga tabelas/views legadas.
-- Não mexe em `/campanhas`, `/playlist-deals`, `/clientes`, `/curadores`.
-- Sem mudanças visuais cosméticas — só alinhamento real ao motor vivo.
-
----
-
-## 10. Critério de "pronto"
-
-- `/analytics` mostra números coerentes com a operação real (snapshots de hoje).
-- Zero imports de `campaign_allocations`, `v_playlist_delivery_history`, `v_campaign_velocity` ou RPC `get_campaign_analytics_overview` na nova `Analytics.tsx`.
-- KPI "Custo por play" bate com o cálculo manual em SQL nos últimos 30 dias.
-- `Performance.tsx` não exibe mais o painel de insights congelados.
-- Documento `DEPRECATED_ANALYTICS.md` listando o que foi aposentado.
+**Confirma esse desenho e a ordem das 6 fases?** Se sim, começo pela Fase 1 (Fundação) — tabela `playlist_genres` + função de peso temporal + edge function de confidence. Se quiser ajustar ordem, escopo de alguma fase, ou cortar/fundir blocos, me diz antes de eu começar a codar.
