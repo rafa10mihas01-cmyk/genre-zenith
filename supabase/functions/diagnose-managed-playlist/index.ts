@@ -283,7 +283,8 @@ Deno.serve(async (req) => {
     let model: any = null;
     let benchmark: any = null;
     let competitors: any[] = [];
-    let genreRecurrence: Map<string, { count: number; track_name: string | null; artist_name: string | null }> = new Map();
+    let genreRecurrence: Map<string, { count: number; track_name: string | null; artist_name: string | null; latest_coletado_em: string | null }> = new Map();
+    let poolAgeDaysCap: number | "all" = 90; // janela efetiva usada no pool de candidatos
     let genreArtistsTop: { artist: string; count: number }[] = [];
     let genreName: string | null = null;
 
