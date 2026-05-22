@@ -34,6 +34,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { NexEngineLogo } from "@/components/NexEngineLogo";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { cn } from "@/lib/utils";
+import { SpreadsheetUploadCard } from "@/components/client-portal/SpreadsheetUploadCard";
 
 type SafeDeal = {
   campaign_name: string;
