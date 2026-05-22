@@ -73,7 +73,11 @@ export default function SpotifyCallback() {
     // Reconstroi o redirect EXATAMENTE como foi enviado no /authorize
     // (precisa bater 100% com o que o Spotify recebeu).
     const redirect = getSpotifyRedirectUri(slug);
-    const functionName = isSettingsConnection ? "spotify-auth" : "spotify-public-auth";
+    // Convite por link público — state começa com "inv_"
+    const isInvite = state.startsWith("inv_");
+    const functionName = isInvite
+      ? "spotify-invite"
+      : isSettingsConnection ? "spotify-auth" : "spotify-public-auth";
     const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${functionName}?mode=callback&code=${encodeURIComponent(
       code,
     )}&state=${encodeURIComponent(state)}&redirect=${encodeURIComponent(redirect)}`;
@@ -82,7 +86,7 @@ export default function SpotifyCallback() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         const resp = await fetch(url, {
-          headers: isSettingsConnection
+          headers: (isSettingsConnection && !isInvite)
             ? { Authorization: `Bearer ${session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` }
             : { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
         });
