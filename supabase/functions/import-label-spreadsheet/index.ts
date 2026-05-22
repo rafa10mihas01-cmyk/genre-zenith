@@ -439,6 +439,8 @@ Deno.serve(async (req) => {
         owner: r.owner_name,
       })),
       warnings,
+      auto_fixes: autoFixes,
+      auto_fixes_total: Object.values(autoFixes).reduce((a, b) => a + b, 0),
     };
 
     if (mode === "preview") {
