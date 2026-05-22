@@ -1617,7 +1617,12 @@ Deno.serve(async (req) => {
       const enriched = topByRecurrence.map(([id, v]) => {
         const m = meta.get(id);
         const sig = perTrack.get(id);
-        const releaseDate: string | null = m?.album?.release_date ?? null;
+        // Prefer persisted release_date (search_tracks) → API meta → null.
+        const persisted = persistedReleaseDate.get(id) ?? null;
+        const apiRelease: string | null = m?.album?.release_date ?? null;
+        const releaseDate: string | null = persisted ?? apiRelease ?? null;
+        const release_date_source: "persisted" | "spotify_api" | "missing" =
+          persisted ? "persisted" : apiRelease ? "spotify_api" : "missing";
         const ageDays = releaseDate
           ? Math.max(0, (now - new Date(releaseDate).getTime()) / 86400000)
           : null;
@@ -1630,10 +1635,12 @@ Deno.serve(async (req) => {
           cover_url: coverMap.get(id) ?? null,
           album_id: m?.album?.id ?? null,
           release_date: releaseDate,
+          release_date_source,
           popularity: typeof m?.popularity === "number" ? m.popularity : null,
           _ageDays: ageDays,
         };
       });
+
 
       const maxNiche = Math.max(1, ...enriched.map((t) => t.niche_count));
       const maxLeaderF = Math.max(1, ...enriched.map((t) => t.leader_followers)); // mantido p/ payload legacy/cockpit
