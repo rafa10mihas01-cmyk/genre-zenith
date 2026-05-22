@@ -543,8 +543,8 @@ export function SpotifyAppsManager({
 
       {/* Dialog de edição/cadastro */}
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
-        <DialogContent className="sm:max-w-[560px] bg-card border-border/60 shadow-2xl">
-          <DialogHeader className="space-y-2 pb-2 border-b border-border/40">
+        <DialogContent className="sm:max-w-[560px] max-h-[90vh] p-0 bg-card border-border/60 shadow-2xl flex flex-col overflow-hidden">
+          <DialogHeader className="space-y-2 px-6 pt-6 pb-3 border-b border-border/40 shrink-0">
             <DialogTitle className="text-lg font-semibold text-foreground">
               {editing?.id ? "Editar app Spotify" : "Cadastrar app Spotify"}
             </DialogTitle>
@@ -556,7 +556,7 @@ export function SpotifyAppsManager({
               e cole as credenciais aqui.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 pt-2">
+          <div className="space-y-4 px-6 py-4 overflow-y-auto flex-1 min-h-0 nx-scroll min-w-0">
             <div className="space-y-1.5">
               <Label className="text-xs font-medium text-foreground">Nome interno</Label>
               <Input
