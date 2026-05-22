@@ -375,13 +375,25 @@ Deno.serve(async (req) => {
     const hash = await sha256Hex(buf);
     const fmt = detectFormat(fileName, buf);
 
-    const { rows, warnings, detected } = parseBuf(buf, fmt);
+    const { rows, warnings, detected, autoFixes } = parseBuf(buf, fmt);
     if (rows.length === 0) {
+      // 🔴 Detetive bloqueia só quando é grave de verdade
+      const hasStreamsCol = detected.some((d) => d.includes("→ streams"));
+      const hasPlaylistCol = detected.some((d) => d.includes("→ playlist_name"));
+      let friendlyError = "Não consegui ler nenhuma linha dessa planilha.";
+      if (!hasStreamsCol && !hasPlaylistCol) {
+        friendlyError = "Não encontrei as colunas de playlist e streams. Confira se o cabeçalho está na primeira linha.";
+      } else if (!hasStreamsCol) {
+        friendlyError = "Achei a coluna de playlists, mas não a de streams. Renomeie a coluna de números para 'STREAMS' ou 'PLAYS'.";
+      } else if (!hasPlaylistCol) {
+        friendlyError = "Achei a coluna de streams, mas não a de playlist. Renomeie a coluna de nomes para 'PLAYLIST' ou 'NOME'.";
+      }
       return jr({
         ok: false,
-        error: "Planilha vazia ou sem colunas reconhecidas",
+        error: friendlyError,
         warnings,
         detected_columns: detected,
+        auto_fixes: autoFixes,
       }, 200);
     }
 
