@@ -2457,6 +2457,85 @@ export type Database = {
         }
         Relationships: []
       }
+      delivery_proofs: {
+        Row: {
+          bot_correlation_id: string | null
+          captured_at: string
+          created_at: string
+          deal_id: string
+          id: string
+          playlist_id: string
+          playlist_name: string
+          plays_24h: number | null
+          plays_7d: number | null
+          plays_total: number
+          position_in_playlist: number | null
+          screenshot_url: string | null
+          song_id: string
+          source: string
+          spotify_playlist_id: string
+          track_name: string
+        }
+        Insert: {
+          bot_correlation_id?: string | null
+          captured_at?: string
+          created_at?: string
+          deal_id: string
+          id?: string
+          playlist_id: string
+          playlist_name: string
+          plays_24h?: number | null
+          plays_7d?: number | null
+          plays_total: number
+          position_in_playlist?: number | null
+          screenshot_url?: string | null
+          song_id: string
+          source?: string
+          spotify_playlist_id: string
+          track_name: string
+        }
+        Update: {
+          bot_correlation_id?: string | null
+          captured_at?: string
+          created_at?: string
+          deal_id?: string
+          id?: string
+          playlist_id?: string
+          playlist_name?: string
+          plays_24h?: number | null
+          plays_7d?: number | null
+          plays_total?: number
+          position_in_playlist?: number | null
+          screenshot_url?: string | null
+          song_id?: string
+          source?: string
+          spotify_playlist_id?: string
+          track_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_proofs_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "curator_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_proofs_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "curator_playlists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_proofs_song_id_fkey"
+            columns: ["song_id"]
+            isOneToOne: false
+            referencedRelation: "curator_deal_songs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deprecation_blocked_jobs: {
         Row: {
           blocked_at: string
