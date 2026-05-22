@@ -279,7 +279,28 @@ Deno.serve(async (req) => {
       flagged,
       flag_reason: flagReason,
     });
-    if (insErr) skipped++; else inserted++;
+    if (insErr) {
+      skipped++;
+    } else {
+      inserted++;
+      // Prova imutável de entrega
+      await supabase.from("delivery_proofs").insert({
+        deal_id,
+        song_id,
+        playlist_id: playlistId,
+        spotify_playlist_id: sId ?? "",
+        playlist_name: sName ?? "unknown",
+        track_name: trackName,
+        plays_total: plays,
+        plays_24h: plays24h,
+        plays_7d: plays7d,
+        position_in_playlist: snap.position ?? snap.position_in_playlist ?? null,
+        source: snap.source ?? "spotify_for_artists",
+        screenshot_url: screenshotUrl,
+        bot_correlation_id: correlation_id ?? null,
+        captured_at: new Date().toISOString(),
+      });
+    }
   }
 
   // Se for baseline, persiste blacklist de playlists do deal.
