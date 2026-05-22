@@ -34,6 +34,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { StatusDot, type StatusVariant } from "@/components/ui/status-dot";
 import { MetricCell } from "@/components/ui/metric-cell";
+import { DealDeliveryBadge } from "@/components/playlist-deals/DealDeliveryBadge";
+import { useDeliveryStatusMap } from "@/hooks/useDeliveryStatus";
 import { cn } from "@/lib/utils";
 
 export interface DealRowProps {
@@ -67,6 +69,7 @@ function formatPlays(n: number): string {
  */
 export function DealRow(props: DealRowProps) {
   const { deal, logs, playlists, songs = [], progress } = props;
+  const deliveryMap = useDeliveryStatusMap([deal.id]);
   const stats = computeCuratorStats(deal, logs, playlists, progress ?? null);
   const { earned, pct, vel, eta, hasBaseline, todayPlays } = stats;
   const target = Number(deal.target_plays ?? 0);
@@ -183,13 +186,16 @@ export function DealRow(props: DealRowProps) {
             )}
           </div>
         </button>
-        <StatusDot
-          variant={status.variant}
-          label={status.label}
-          pulse={status.pulse}
-          className="shrink-0"
-        />
+        <div className="flex items-center gap-1.5 shrink-0">
+          <DealDeliveryBadge row={deliveryMap[deal.id]} />
+          <StatusDot
+            variant={status.variant}
+            label={status.label}
+            pulse={status.pulse}
+          />
+        </div>
       </div>
+
 
       {/* Divisor sutil */}
       <div className="mx-4 border-t border-border/40" />

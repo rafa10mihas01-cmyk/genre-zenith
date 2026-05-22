@@ -1,45 +1,64 @@
-# Upload de planilha pelo cliente (fallback quando não tem Spotify)
+## Objetivo
+Plugar o motor `buildEcoPlan` no fluxo dos `curator_deals` e ligar um cron diário que compara entrega real vs planejado, marcando deals atrasados/com spike.
 
-## Resumo
-Quando o deal **não tem Spotify conectado**, o portal do cliente mostra um card de upload de planilha. Cliente sobe .xlsx (formato da gravadora), sistema parseia, grava como snapshot — motor (velocidade/ETA/score) roda igual. Se passar 48h sem upload, dispara email automático cobrando + alerta interno.
+## 1. Nova tabela `curator_deal_plan` (migration)
 
-## O que vou construir
+Guarda a meta diária por playlist de cada deal — espelha o que `campaign_eco_allocations` faz para campanhas.
 
-### 1. Banco
-- **Tabela `label_spreadsheet_uploads`**: histórico dos uploads (deal_id, uploaded_by, file_path, rows_imported, total_streams, status, created_at). RLS: cliente do deal vê só os dele, equipe vê tudo.
-- **Storage bucket `label-spreadsheets`** (privado): guarda os .xlsx originais pra auditoria.
-- **Sem mudança em `curator_deals`**: detecção "tem Spotify?" usa `spotify_owner_id IS NULL` (já existe) como sinal de "fonte planilha".
+Colunas:
+- `id`, `deal_id` (FK curator_deals), `curator_playlist_id` (FK curator_playlists), `playlist_name`, `followers`
+- `position` (3–20, vinda do `distributeEcoPositions`)
+- `start_day` (dia 1..N)
+- `cap_dia` (teto diário sustentável da playlist)
+- `daily` (jsonb com array de metas por dia)
+- `total_streams` (soma do daily)
+- `generated_at`, `engagement_mult`
+- Unique (deal_id, curator_playlist_id)
 
-### 2. Edge function `import-label-spreadsheet`
-- Recebe `{ deal_id, file_path, client_token }` ou `{ deal_id, file_base64 }`.
-- Valida token público do cliente.
-- Parseia .xlsx (colunas: `#`, `VERSION NAME`, `ISRC`, `PLAYLIST`, `COUNTRY`, `OWNER NAME`, `CURRENT POSITION`, `STREAMS`).
-- Valida ISRC bate com música do deal (se ISRC do deal estiver preenchido).
-- Modo **preview** (`?preview=1`): só retorna contagem ("114 playlists, 73.924 streams") sem gravar.
-- Modo **commit**: grava em `curator_deal_snapshots` (uma linha por playlist, source = `label_spreadsheet`) + um agregado em `curator_deal_logs`. Detecta duplicata (mesmo hash de conteúdo + mesma data) e ignora.
-- Insere row em `label_spreadsheet_uploads`.
+Tabela adicional `curator_deal_delivery_status`:
+- `deal_id` PK, `last_checked_at`, `expected_to_date`, `actual_to_date`, `delta_pct`, `status` (`on_track` | `lagging` | `spiking` | `paused`), `reason`, `spike_playlist_ids` (jsonb)
 
-### 3. UI no portal do cliente
-- Em `ClientCampaignPage.tsx` (quando `deal.spotify_owner_id` é nulo): card novo "Atualizar dados da campanha".
-- Drag-and-drop .xlsx → mostra preview ("vou importar X playlists, Y streams — confirmar?") → grava.
-- Mostra "última atualização há Xd" + lista dos 5 últimos uploads.
-- Banner amarelo suave se passar de 48h sem upload.
+RLS: dono do deal lê via `user_id` do deal pai (security definer helper já existente).
 
-### 4. Lembrete automático
-- Cron diário (pg_cron) chama edge function `check-pending-spreadsheet-uploads`.
-- Pra cada deal ativo sem Spotify e com último upload > 48h: chama `send-transactional-email` (template novo `label-spreadsheet-reminder`) + cria notificação interna.
-- Idempotency key inclui o dia, então não envia 2x no mesmo dia.
+## 2. Nova edge function `build-deal-plan`
 
-## O que NÃO vou mexer
-- Coletor Spotify (continua igual pros deals que têm token).
-- Cálculo de velocidade/ETA/score (vai consumir os snapshots independente da origem).
-- Sidebar / navegação principal.
+Inputs: `{ deal_id }`. Service role.
+
+Fluxo:
+1. Carrega `curator_deals` (started_at, ends_at, target_plays, ramp_up_days, duration_days).
+2. Carrega `curator_playlists` do deal onde `match_status in ('curator','baseline')` e `followers > 0`.
+3. Monta `Alloc[]` mapeando cada playlist como `{ id, planned_streams, start_day, managed_playlists: { followers, name, ... } }`. `planned_streams` distribui `target_plays` proporcional aos followers (com piso).
+4. Snapshot sintético: `{ days: duration_days, modo: 'simultaneo', curva: [{streamsDay: daily_goal}] * days }`.
+5. Chama `buildEcoPlan` (já existe em `_shared/computeEcoPlan.ts`).
+6. Upsert em `curator_deal_plan` (apaga linhas órfãs).
+
+Chamado em:
+- `enrich-curator-paste` (após salvar curator_playlists, dispara `build-deal-plan` em background)
+- `register-curator-playlist` (mesmo)
+
+## 3. Novo cron `cron-deal-delivery-check` (1x/dia, 09:00 UTC)
+
+Para cada `curator_deals` ativo (state='active'):
+1. Lê plano (`curator_deal_plan`) e soma `daily` até hoje → `expected_to_date`.
+2. Lê `curator_deal_snapshots` mais recente → `actual_to_date` (reconciled_total_plays - baseline).
+3. `delta_pct = (actual / expected) - 1`.
+4. Status:
+   - `< -25%` → `lagging`
+   - `> +50%` em <48h → `spiking`
+   - se 3+ playlists ganharam streams_7d > 2× cap_dia no mesmo dia → marca em `spike_playlist_ids` (anti-spam)
+   - senão `on_track`
+5. Upsert em `curator_deal_delivery_status`.
+
+## 4. UI mínima (sem expandir escopo)
+
+Em `/playlist-deals` (lista de Ativos) e na página do deal, mostrar badge de status (`on_track`/`lagging`/`spiking`) lendo `curator_deal_delivery_status`. Sem nova rota, sem novo módulo.
+
+## 5. Cron schedule
+
+`pg_cron` chamando `cron-deal-delivery-check` 1x/dia às 09:00 UTC.
 
 ## Detalhes técnicos
-- Layout da planilha = exato o que a gravadora mandou (testado contra `pls_carnivoro_2026-05-22.xlsx`). Se vier outra ordem de colunas, parseia por header name.
-- Parser xlsx no edge function: usa `xlsx` via `npm:xlsx@0.18.5`.
-- Storage bucket privado com RLS: só o owner do deal (via client_token) pode subir; equipe lê tudo.
-- Email reminder usa Lovable Emails (infra já existe — vi `email_send_log`, `email_send_state` no banco).
-
-## Próxima ação se você aprovar
-Crio a migration, o bucket, a edge function, a UI no portal, o template de email e o cron — tudo numa rodada.
+- Plano é regenerado idempotente — sempre recomputado a partir das curator_playlists atuais. Sem migração de dados antigos.
+- `engagement_mult` default 30 (mesmo do sistema novo).
+- `build-deal-plan` é fire-and-forget no paste; falha não bloqueia import.
+- Cron grava log em `system_health_logs` se já existir, senão só console.
