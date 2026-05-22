@@ -59,8 +59,7 @@ Deno.serve(async (req) => {
     if (tierMode === "leader" || explicitIds.length === 0) {
       const { data: genreRows } = await sb
         .from("genres")
-        .select("id")
-        .eq("is_active", true);
+        .select("id");
       const N_PER_GENRE = tierMode === "leader" ? 10 : 5;
       for (const g of (genreRows ?? []) as any[]) {
         const { data: topRows } = await sb
