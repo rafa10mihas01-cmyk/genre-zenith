@@ -1384,15 +1384,31 @@ Deno.serve(async (req) => {
       }
 
       // 8.d.4 — Score editorial
+      // Feature flag: USE_LEGACY_SCORE=true mantém pesos antigos. Default = nova fórmula.
+      const useLegacyScore = (Deno.env.get("USE_LEGACY_SCORE") ?? "").toLowerCase() === "true";
+
       const now = Date.now();
-      const temporalBonus = (ageDays: number | null): number => {
-        if (ageDays == null) return 45;          // neutro p/ sem release_date
-        if (ageDays <= 90) return 100;           // bônus forte
-        if (ageDays <= 180) return 70;           // neutro+
-        if (ageDays <= 365) return 45;           // penalidade leve
-        if (ageDays <= 730) return 20;           // penalidade
-        return 5;                                // penalidade forte (>2 anos)
+
+      // Legacy: bônus por release_date (mantido p/ A/B)
+      const legacyTemporalBonus = (ageDays: number | null): number => {
+        if (ageDays == null) return 45;
+        if (ageDays <= 90) return 100;
+        if (ageDays <= 180) return 70;
+        if (ageDays <= 365) return 45;
+        if (ageDays <= 730) return 20;
+        return 5;
       };
+      // NEW: buckets mais finos (release_date)
+      const recenciaBuckets = (ageDays: number | null): number => {
+        if (ageDays == null) return 40;          // neutro p/ sem release_date
+        if (ageDays <= 30) return 100;
+        if (ageDays <= 90) return 85;
+        if (ageDays <= 180) return 65;
+        if (ageDays <= 365) return 40;
+        if (ageDays <= 730) return 20;
+        return 5;
+      };
+
       const qualityVisual = (t: any): number => {
         // Proxy de qualidade/estética moderna sem CV:
         // capa HD presente + popularity (sinal de relevância atual no Spotify).
@@ -1400,6 +1416,28 @@ Deno.serve(async (req) => {
         if (t.cover_url) q += 50;
         if (typeof t.popularity === "number") q += Math.min(50, t.popularity / 2);
         return q;
+      };
+
+      // NEW: trend velocity por track (genre_trends)
+      const velocityMap = new Map<string, number>(); // track_id → velocity
+      if (!useLegacyScore && candidateIds.length > 0 && pl.genre_id) {
+        const { data: trendRows } = await supabase
+          .from("genre_trends")
+          .select("track_id, velocity")
+          .eq("genre_id", pl.genre_id)
+          .in("track_id", candidateIds);
+        for (const r of (trendRows ?? []) as any[]) {
+          if (r.track_id != null && r.velocity != null) {
+            velocityMap.set(String(r.track_id), Number(r.velocity));
+          }
+        }
+      }
+      const velocityScore = (trackId: string): number => {
+        const v = velocityMap.get(trackId);
+        if (v == null) return 20;                                       // neutral (no signal ≠ zero)
+        if (v >= 2.5) return 100;
+        if (v >= 1.5) return 50 + ((v - 1.5) / 1.0) * 50;               // linear 50→100
+        return 0;
       };
 
       const enriched = topByRecurrence.map(([id, v]) => {
@@ -1426,16 +1464,46 @@ Deno.serve(async (req) => {
       const maxNiche = Math.max(1, ...enriched.map((t) => t.niche_count));
       const maxLeaderF = Math.max(1, ...enriched.map((t) => t.leader_followers));
       const scored = enriched.map((t) => {
-        const recurrenciaN = (t.niche_count / maxNiche) * 100;
-        const recenciaN = temporalBonus(t._ageDays);
-        const leaderN = (t.leader_followers / maxLeaderF) * 100;
+        // recorrência sobre pool 90d já filtrado (vide prompt 2)
+        const recorrenciaN = (t.niche_count / maxNiche) * 100;
+        // TODO (Prompt 5): substituir por leadership relativo (leaderRelN normalizado
+        // por percentil/posição no nicho). Por ora mantém max-absoluto.
+        const leaderRelN = (t.leader_followers / maxLeaderF) * 100;
         const visualN = qualityVisual(t);
-        const final =
-          recurrenciaN * 0.35 +
-          recenciaN * 0.30 +
-          leaderN * 0.20 +
-          visualN * 0.10;
-        return { ...t, _final: final };
+
+        let recenciaN: number;
+        let velocityN: number;
+        let final: number;
+        if (useLegacyScore) {
+          recenciaN = legacyTemporalBonus(t._ageDays);
+          velocityN = 0;
+          final =
+            recorrenciaN * 0.35 +
+            recenciaN * 0.30 +
+            leaderRelN * 0.20 +
+            visualN * 0.10;
+        } else {
+          recenciaN = recenciaBuckets(t._ageDays);
+          velocityN = velocityScore(t.spotify_track_id);
+          final =
+            velocityN * 0.35 +
+            recenciaN * 0.25 +
+            recorrenciaN * 0.15 +
+            leaderRelN * 0.15 +
+            visualN * 0.10;
+        }
+        return {
+          ...t,
+          _final: final,
+          _breakdown: {
+            velocityN: Math.round(velocityN),
+            recenciaN: Math.round(recenciaN),
+            recorrenciaN: Math.round(recorrenciaN),
+            leaderRelN: Math.round(leaderRelN),
+            visualN: Math.round(visualN),
+            final: Math.round(final),
+          },
+        };
       }).sort((a, b) => b._final - a._final);
 
       // 8.d.5 — Diversidade editorial: dedup por album_id, cover_url, artista (não consecutivo, máx 2/grid)
