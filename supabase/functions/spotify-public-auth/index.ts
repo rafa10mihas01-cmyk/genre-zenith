@@ -54,10 +54,11 @@ Deno.serve(async (req) => {
     if (mode === "login") {
       const redirect = url.searchParams.get("redirect");
       if (!redirect) return jr({ ok: false, error: "redirect obrigatório" }, 400);
+      const appIdParam = url.searchParams.get("app_id");
 
       const state = crypto.randomUUID();
       const supabase = db();
-      const creds = await getAppCredentials();
+      const creds = await getAppCredentials(appIdParam);
       const { error: stErr } = await supabase
         .from("spotify_oauth_states")
         .insert({ state, user_id: null, flow: "public_login", app_id: creds.app_id });
