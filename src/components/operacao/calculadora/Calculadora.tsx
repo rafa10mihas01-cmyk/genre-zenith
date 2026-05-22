@@ -206,10 +206,10 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
     song: s,
     ready: isSongReady(s),
     r: calcCampaign({
-      meta: s.fonte === "orcamento" ? reverseFromBudget(s.budget, s.splitEco) : s.meta,
+      meta: s.fonte === "orcamento" ? reverseFromBudget(s.budget, s.splitEco, pricingCosts) : s.meta,
       days: s.days, modo: s.modo, perfil: s.perfil, splitEcoPct: s.splitEco,
-    }),
-  })), [songs]);
+    }, pricingCosts),
+  })), [songs, pricingCosts]);
   const totals = useMemo(() => {
     const ready = songResults.filter(x => x.ready);
     return {
