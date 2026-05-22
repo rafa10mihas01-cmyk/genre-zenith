@@ -382,7 +382,6 @@ export function SpreadsheetUploadCard({
             </div>
           </>
         )}
-        )}
 
         {error && (
           <div className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-[12px] text-destructive flex items-start gap-2">
