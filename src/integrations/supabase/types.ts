@@ -3985,6 +3985,56 @@ export type Database = {
           },
         ]
       }
+      playlist_genre_history: {
+        Row: {
+          created_at: string
+          detected_by: string
+          drift_score: number | null
+          evidence: Json
+          id: string
+          new_confidence: number | null
+          new_genre_id: string | null
+          playlist_id: string
+          previous_confidence: number | null
+          previous_genre_id: string | null
+          reason: string | null
+        }
+        Insert: {
+          created_at?: string
+          detected_by?: string
+          drift_score?: number | null
+          evidence?: Json
+          id?: string
+          new_confidence?: number | null
+          new_genre_id?: string | null
+          playlist_id: string
+          previous_confidence?: number | null
+          previous_genre_id?: string | null
+          reason?: string | null
+        }
+        Update: {
+          created_at?: string
+          detected_by?: string
+          drift_score?: number | null
+          evidence?: Json
+          id?: string
+          new_confidence?: number | null
+          new_genre_id?: string | null
+          playlist_id?: string
+          previous_confidence?: number | null
+          previous_genre_id?: string | null
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "playlist_genre_history_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "playlists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       playlist_genres: {
         Row: {
           calculated_at: string
@@ -3995,9 +4045,11 @@ export type Database = {
           genre_id: string
           id: string
           is_primary: boolean
+          migration_score: number
           playlist_id: string
           previous_confidence: number | null
           source: string
+          trend_shift: string | null
           updated_at: string
         }
         Insert: {
@@ -4009,9 +4061,11 @@ export type Database = {
           genre_id: string
           id?: string
           is_primary?: boolean
+          migration_score?: number
           playlist_id: string
           previous_confidence?: number | null
           source?: string
+          trend_shift?: string | null
           updated_at?: string
         }
         Update: {
@@ -4023,9 +4077,11 @@ export type Database = {
           genre_id?: string
           id?: string
           is_primary?: boolean
+          migration_score?: number
           playlist_id?: string
           previous_confidence?: number | null
           source?: string
+          trend_shift?: string | null
           updated_at?: string
         }
         Relationships: [
