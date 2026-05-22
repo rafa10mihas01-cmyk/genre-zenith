@@ -1460,8 +1460,35 @@ Deno.serve(async (req) => {
         }
       }
 
-      // 8.d.3 — Metadata Spotify (release_date, album.id, popularity, cover HD)
+      // 8.d.3 — Metadata Spotify (cover HD, popularity, album.id) + release_date persistido
       const meta = new Map<string, any>();
+      // PERSISTED release_date (preferido — vem de search_tracks após o run-search refeito)
+      const persistedReleaseDate = new Map<string, string | null>();
+      if (candidateIds.length > 0 && pl.genre_id) {
+        try {
+          const { data: stRows } = await supabase
+            .from("search_tracks")
+            .select("spotify_track_id, release_date, cover_url, popularity")
+            .eq("genre_id", pl.genre_id)
+            .in("spotify_track_id", candidateIds);
+          for (const r of (stRows ?? []) as any[]) {
+            if (!r?.spotify_track_id) continue;
+            persistedReleaseDate.set(String(r.spotify_track_id), r.release_date ?? null);
+            // Pre-popula cover/popularity caso o /v1/tracks abaixo falhe
+            if (r.cover_url && !coverMap.get(String(r.spotify_track_id))) {
+              coverMap.set(String(r.spotify_track_id), r.cover_url);
+            }
+            if (r.popularity != null) {
+              meta.set(String(r.spotify_track_id), {
+                ...(meta.get(String(r.spotify_track_id)) ?? {}),
+                popularity: r.popularity,
+              });
+            }
+          }
+        } catch (e) {
+          console.warn("[diagnose] persisted release_date load failed", (e as Error).message);
+        }
+      }
       if (candidateIds.length > 0) {
         try {
           const token = await getSpotifyToken();
@@ -1474,7 +1501,8 @@ Deno.serve(async (req) => {
             const j = await r.json();
             for (const tr of j.tracks ?? []) {
               if (!tr?.id) continue;
-              meta.set(tr.id, tr);
+              const prev = meta.get(tr.id) ?? {};
+              meta.set(tr.id, { ...prev, ...tr });
               const imgs = tr.album?.images ?? [];
               const cover = imgs[0]?.url ?? imgs[imgs.length - 1]?.url ?? null;
               if (cover) coverMap.set(tr.id, cover);
@@ -1482,6 +1510,7 @@ Deno.serve(async (req) => {
           }
         } catch { /* segue sem metadata extra */ }
       }
+
 
       // 8.d.4 — Score editorial
       // Feature flag: USE_LEGACY_SCORE=true mantém pesos antigos. Default = nova fórmula.
