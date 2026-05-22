@@ -1460,8 +1460,35 @@ Deno.serve(async (req) => {
         }
       }
 
-      // 8.d.3 — Metadata Spotify (release_date, album.id, popularity, cover HD)
+      // 8.d.3 — Metadata Spotify (cover HD, popularity, album.id) + release_date persistido
       const meta = new Map<string, any>();
+      // PERSISTED release_date (preferido — vem de search_tracks após o run-search refeito)
+      const persistedReleaseDate = new Map<string, string | null>();
+      if (candidateIds.length > 0 && pl.genre_id) {
+        try {
+          const { data: stRows } = await supabase
+            .from("search_tracks")
+            .select("spotify_track_id, release_date, cover_url, popularity")
+            .eq("genre_id", pl.genre_id)
+            .in("spotify_track_id", candidateIds);
+          for (const r of (stRows ?? []) as any[]) {
+            if (!r?.spotify_track_id) continue;
+            persistedReleaseDate.set(String(r.spotify_track_id), r.release_date ?? null);
+            // Pre-popula cover/popularity caso o /v1/tracks abaixo falhe
+            if (r.cover_url && !coverMap.get(String(r.spotify_track_id))) {
+              coverMap.set(String(r.spotify_track_id), r.cover_url);
+            }
+            if (r.popularity != null) {
+              meta.set(String(r.spotify_track_id), {
+                ...(meta.get(String(r.spotify_track_id)) ?? {}),
+                popularity: r.popularity,
+              });
+            }
+          }
+        } catch (e) {
+          console.warn("[diagnose] persisted release_date load failed", (e as Error).message);
+        }
+      }
       if (candidateIds.length > 0) {
         try {
           const token = await getSpotifyToken();
@@ -1474,7 +1501,8 @@ Deno.serve(async (req) => {
             const j = await r.json();
             for (const tr of j.tracks ?? []) {
               if (!tr?.id) continue;
-              meta.set(tr.id, tr);
+              const prev = meta.get(tr.id) ?? {};
+              meta.set(tr.id, { ...prev, ...tr });
               const imgs = tr.album?.images ?? [];
               const cover = imgs[0]?.url ?? imgs[imgs.length - 1]?.url ?? null;
               if (cover) coverMap.set(tr.id, cover);
@@ -1482,6 +1510,7 @@ Deno.serve(async (req) => {
           }
         } catch { /* segue sem metadata extra */ }
       }
+
 
       // 8.d.4 — Score editorial
       // Feature flag: USE_LEGACY_SCORE=true mantém pesos antigos. Default = nova fórmula.
@@ -1588,7 +1617,12 @@ Deno.serve(async (req) => {
       const enriched = topByRecurrence.map(([id, v]) => {
         const m = meta.get(id);
         const sig = perTrack.get(id);
-        const releaseDate: string | null = m?.album?.release_date ?? null;
+        // Prefer persisted release_date (search_tracks) → API meta → null.
+        const persisted = persistedReleaseDate.get(id) ?? null;
+        const apiRelease: string | null = m?.album?.release_date ?? null;
+        const releaseDate: string | null = persisted ?? apiRelease ?? null;
+        const release_date_source: "persisted" | "spotify_api" | "missing" =
+          persisted ? "persisted" : apiRelease ? "spotify_api" : "missing";
         const ageDays = releaseDate
           ? Math.max(0, (now - new Date(releaseDate).getTime()) / 86400000)
           : null;
@@ -1601,10 +1635,12 @@ Deno.serve(async (req) => {
           cover_url: coverMap.get(id) ?? null,
           album_id: m?.album?.id ?? null,
           release_date: releaseDate,
+          release_date_source,
           popularity: typeof m?.popularity === "number" ? m.popularity : null,
           _ageDays: ageDays,
         };
       });
+
 
       const maxNiche = Math.max(1, ...enriched.map((t) => t.niche_count));
       const maxLeaderF = Math.max(1, ...enriched.map((t) => t.leader_followers)); // mantido p/ payload legacy/cockpit
@@ -1662,8 +1698,10 @@ Deno.serve(async (req) => {
             leaderRelN: Math.round(leaderRelN),
             visualN: Math.round(visualN),
             final: Math.round(final),
+            release_date_source: t.release_date_source,
           },
         };
+
       }).sort((a, b) => b._final - a._final);
 
       const pickEight = (sortedScored: ReturnType<typeof computeScored>) => {
@@ -1749,7 +1787,12 @@ Deno.serve(async (req) => {
             track_id: t.spotify_track_id,
             position: idx + 1,
             score_final: Math.round(t._final * 100) / 100,
+            track_name: t.title ?? null,
+            artist_name: t.artist ?? null,
+            cover_url: t.cover_url ?? null,
+            release_date: t.release_date ?? null,
           }));
+
           await supabase.from("editorial_history").insert(rows);
         } catch (e) {
           console.warn("[diagnose] editorial_history insert failed", e);
