@@ -137,6 +137,9 @@ export default function ClientCampaignPage() {
   const [selectedSongId, setSelectedSongId] = useState<string | null>(null);
   const [snapshotHistory, setSnapshotHistory] = useState<SafeSnapshotEntry[]>([]);
   const [openSnapshotKey, setOpenSnapshotKey] = useState<string | null>(null);
+  const [spreadsheetSource, setSpreadsheetSource] = useState(false);
+  const [lastSpreadsheetUploadAt, setLastSpreadsheetUploadAt] = useState<string | null>(null);
+  const [recentUploads, setRecentUploads] = useState<any[]>([]);
 
   const load = async () => {
     if (!token) return;
@@ -154,6 +157,8 @@ export default function ClientCampaignPage() {
       setSongs([]);
       setSelectedSongId(null);
       setSnapshotHistory([]);
+      setSpreadsheetSource(false);
+      setRecentUploads([]);
     } else {
       setDeal(data.deal);
       setProgress(data.progress);
@@ -162,6 +167,9 @@ export default function ClientCampaignPage() {
       setSongs(data.songs ?? []);
       setSelectedSongId(data.selected_song_id ?? null);
       setSnapshotHistory((data.snapshot_history ?? []) as SafeSnapshotEntry[]);
+      setSpreadsheetSource(Boolean(data.spreadsheet_source));
+      setLastSpreadsheetUploadAt(data.last_spreadsheet_upload_at ?? null);
+      setRecentUploads(data.recent_uploads ?? []);
       setError(null);
     }
     setLoading(false);
