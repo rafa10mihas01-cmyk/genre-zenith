@@ -217,6 +217,44 @@ Deno.serve(async (req) => {
       matchMethod = "created";
     }
 
+    // ===== FIX A: anti-spike / anti-drop validation =====
+    let flagged = false;
+    let flagReason: string | null = null;
+    if (!isBaseline && plays > 0) {
+      const { data: prevSnap } = await supabase
+        .from("curator_deal_snapshots")
+        .select("plays, captured_at")
+        .eq("song_id", song_id)
+        .eq("playlist_id", playlistId)
+        .order("captured_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const prevPlays = Number(prevSnap?.plays ?? 0);
+      if (prevPlays > 0) {
+        if (plays < prevPlays * 0.5) {
+          flagged = true;
+          flagReason = `plays_decrease: ${plays} < ${prevPlays} * 0.5`;
+        } else if (plays > prevPlays * 10) {
+          flagged = true;
+          flagReason = `plays_spike: ${plays} > ${prevPlays} * 10`;
+        }
+        if (flagged) {
+          await supabase.from("collection_logs").insert({
+            acao: "bot_collect",
+            status: "alerta",
+            mensagem: `flag song=${song_id} playlist=${playlistId} ${flagReason}`,
+          });
+          await supabase.rpc("create_notification", {
+            p_type: "warning",
+            p_title: "Snapshot suspeito detectado",
+            p_message: `Deal ${deal_id}: ${flagReason}`,
+            p_action_url: `/playlist-deals/${deal_id}`,
+            p_metadata: { deal_id, song_id, playlist_id: playlistId, plays, prev_plays: prevPlays },
+          });
+        }
+      }
+    }
+
     const { error: insErr } = await supabase.from("curator_deal_snapshots").insert({
       deal_id,
       song_id,
@@ -228,6 +266,8 @@ Deno.serve(async (req) => {
       source: snap.source ?? "spotify_for_artists",
       match_method: matchMethod ?? (sId ? "spotify_id" : "name"),
       is_baseline: isBaseline,
+      flagged,
+      flag_reason: flagReason,
     });
     if (insErr) skipped++; else inserted++;
   }
