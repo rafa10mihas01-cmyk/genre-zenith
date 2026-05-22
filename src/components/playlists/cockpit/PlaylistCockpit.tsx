@@ -1201,21 +1201,25 @@ function BucketReorder({ kind, items, totalTracks, applying, onApplyAll }: {
         )
       }
     >
-      {items.map((t) => (
-        <TrackLine
-          key={t.spotify_track_id}
-          position={t.position + 1}
-          target={t.target_position ?? (kind === "promote" ? 5 : Math.max(30, totalTracks - 10))}
-          title={t.track_name ?? "—"}
-          artist={t.artist_name ?? "—"}
-          reason={shortReason(t, kind)}
-          action={
-            <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
-              {kind === "promote" ? "Promover" : "Rebaixar"}
-            </span>
-          }
-        />
-      ))}
+      {items.map((t) => {
+        // target_position vem 0-based do diagnose; UI sempre 1-based humano.
+        const target0 = t.target_position ?? (kind === "promote" ? 4 : Math.max(29, totalTracks - 11));
+        return (
+          <TrackLine
+            key={t.spotify_track_id}
+            position={t.position + 1}
+            target={target0 + 1}
+            title={t.track_name ?? "—"}
+            artist={t.artist_name ?? "—"}
+            reason={shortReason(t, kind)}
+            action={
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                {kind === "promote" ? "Promover" : "Rebaixar"}
+              </span>
+            }
+          />
+        );
+      })}
     </BucketShell>
   );
 }
