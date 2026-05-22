@@ -1,9 +1,10 @@
-// Financeiro — página dedicada com o dashboard de custos da curadoria.
-// Extraído da aba dentro de /playlist-deals para ganhar destaque no sidebar.
+// Financeiro — receita do cliente, custo do curador e margem por campanha,
+// além do dashboard de CPP/ranking de curadoria (FinanceiroTab).
 import { Wallet } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
 import { FinanceiroTab } from "@/components/playlist-deals/FinanceiroTab";
+import { FinancialOverview } from "@/components/financeiro/FinancialOverview";
 import { useCuratorDeals } from "@/hooks/useCuratorDeals";
 
 export default function Financeiro() {
@@ -15,13 +16,17 @@ export default function Financeiro() {
         kicker="Operação"
         icon={Wallet}
         title="Financeiro"
-        subtitle="Custos, CPP e ranking de curadores"
+        subtitle="Receita do cliente, custo do curador e margem"
         domain="deals"
         manualKey="financeiro"
       />
       <PageContainer>
-        <FinanceiroTab deals={deals} />
+        <div className="space-y-8">
+          <FinancialOverview />
+          <FinanceiroTab deals={deals} />
+        </div>
       </PageContainer>
     </>
   );
 }
+
