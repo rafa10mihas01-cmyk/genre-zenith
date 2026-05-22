@@ -27,6 +27,9 @@ verify_jwt = false
 [functions.handle-email-suppression]
 verify_jwt = false
 
+[functions.detect-curator-fraud]
+verify_jwt = false
+
 [functions.get-shared-campaign-plan]
 verify_jwt = false
 
