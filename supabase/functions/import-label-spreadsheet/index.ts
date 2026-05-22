@@ -73,6 +73,8 @@ const HEADER_MAP: Record<string, string> = {
   "URI": "playlist_uri",
   "URL": "playlist_url",
   "LINK": "playlist_url",
+  "PLAYLIST URL": "playlist_url",
+  "PLAYLIST LINK": "playlist_url",
   "COUNTRY": "country",
   "PAIS": "country",
   "PAÍS": "country",
