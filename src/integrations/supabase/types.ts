@@ -2900,6 +2900,103 @@ export type Database = {
         }
         Relationships: []
       }
+      genre_seo_lexicon: {
+        Row: {
+          first_seen: string
+          genre_id: string | null
+          id: string
+          last_seen: string
+          occurrences: number
+          status: string
+          strength: number
+          subgenre_id: string | null
+          token: string
+          token_type: string
+          updated_at: string
+        }
+        Insert: {
+          first_seen?: string
+          genre_id?: string | null
+          id?: string
+          last_seen?: string
+          occurrences?: number
+          status?: string
+          strength?: number
+          subgenre_id?: string | null
+          token: string
+          token_type?: string
+          updated_at?: string
+        }
+        Update: {
+          first_seen?: string
+          genre_id?: string | null
+          id?: string
+          last_seen?: string
+          occurrences?: number
+          status?: string
+          strength?: number
+          subgenre_id?: string | null
+          token?: string
+          token_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "genre_seo_lexicon_subgenre_id_fkey"
+            columns: ["subgenre_id"]
+            isOneToOne: false
+            referencedRelation: "subgenres"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      genre_visual_signature: {
+        Row: {
+          aggressiveness_score: number | null
+          calculated_at: string
+          contrast_avg: number | null
+          dominant_colors: Json
+          genre_id: string | null
+          has_face_pct: number | null
+          id: string
+          sample_size: number
+          style_tags: Json
+          subgenre_id: string
+        }
+        Insert: {
+          aggressiveness_score?: number | null
+          calculated_at?: string
+          contrast_avg?: number | null
+          dominant_colors?: Json
+          genre_id?: string | null
+          has_face_pct?: number | null
+          id?: string
+          sample_size?: number
+          style_tags?: Json
+          subgenre_id: string
+        }
+        Update: {
+          aggressiveness_score?: number | null
+          calculated_at?: string
+          contrast_avg?: number | null
+          dominant_colors?: Json
+          genre_id?: string | null
+          has_face_pct?: number | null
+          id?: string
+          sample_size?: number
+          style_tags?: Json
+          subgenre_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "genre_visual_signature_subgenre_id_fkey"
+            columns: ["subgenre_id"]
+            isOneToOne: true
+            referencedRelation: "subgenres"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       genres: {
         Row: {
           ativo: boolean | null
