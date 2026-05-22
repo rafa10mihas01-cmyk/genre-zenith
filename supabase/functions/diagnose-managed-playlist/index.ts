@@ -1266,45 +1266,199 @@ Deno.serve(async (req) => {
     // 8.c) target_position — agora vem direto da zona-alvo (calculada no passo 4),
     //      então não há mais override por popularity rank.
 
-    // 8.d) market_insights — usa benchmark + genreRecurrence + genreArtistsTop
-    const topRecurringRaw = Array.from(genreRecurrence.entries())
-      .map(([id, v]) => ({
+    // 8.d) market_insights — curadoria visual editorial (não é mais "top recorrência pura")
+    // Score final =
+    //   recorrencia*0.35 + recencia*0.30 + presenca_em_playlists_lideres*0.20
+    //   + qualidade_visual*0.10 + (diversidade aplicada na seleção)
+    // Objetivo: referências MODERNAS, com viés a últimos 90 dias e playlists líderes do nicho.
+    let topRecurringTracks: Array<{
+      spotify_track_id: string;
+      title: string | null;
+      artist: string | null;
+      niche_playlists_count: number;
+      cover_url: string | null;
+      release_date: string | null;
+      leader_followers: number;
+      popularity: number | null;
+      editorial_score: number;
+    }> = [];
+
+    try {
+      // 8.d.1 — Top 40 candidatos por recorrência (pool de seleção)
+      const topByRecurrence = Array.from(genreRecurrence.entries())
+        .sort((a, b) => b[1].count - a[1].count)
+        .slice(0, 40);
+      const candidateIds = topByRecurrence.map(([id]) => id).filter(Boolean);
+
+      // 8.d.2 — Sinais por track: leader_followers (max) e recencia no nicho (último coletado_em)
+      const perTrack = new Map<string, { leaderF: number; lastSeen: number }>();
+      if (candidateIds.length > 0 && pl.genre_id) {
+        const { data: stEnriched } = await supabase
+          .from("search_tracks")
+          .select("spotify_track_id, result_id, coletado_em")
+          .eq("genre_id", pl.genre_id)
+          .in("spotify_track_id", candidateIds);
+        const resultIds = [...new Set((stEnriched ?? []).map((r: any) => r.result_id).filter(Boolean))];
+        const followersMap = new Map<string, number>();
+        if (resultIds.length > 0) {
+          const { data: srRows } = await supabase
+            .from("search_results")
+            .select("id,seguidores")
+            .in("id", resultIds);
+          for (const r of (srRows ?? []) as any[]) followersMap.set(r.id, r.seguidores ?? 0);
+        }
+        for (const row of (stEnriched ?? []) as any[]) {
+          if (!row.spotify_track_id) continue;
+          const f = followersMap.get(row.result_id) ?? 0;
+          const ts = row.coletado_em ? new Date(row.coletado_em).getTime() : 0;
+          const cur = perTrack.get(row.spotify_track_id);
+          if (!cur) perTrack.set(row.spotify_track_id, { leaderF: f, lastSeen: ts });
+          else {
+            if (f > cur.leaderF) cur.leaderF = f;
+            if (ts > cur.lastSeen) cur.lastSeen = ts;
+          }
+        }
+      }
+
+      // 8.d.3 — Metadata Spotify (release_date, album.id, popularity, cover HD)
+      const meta = new Map<string, any>();
+      if (candidateIds.length > 0) {
+        try {
+          const token = await getSpotifyToken();
+          for (let i = 0; i < candidateIds.length; i += 50) {
+            const slice = candidateIds.slice(i, i + 50);
+            const r = await fetch(`https://api.spotify.com/v1/tracks?ids=${slice.join(",")}`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            if (!r.ok) continue;
+            const j = await r.json();
+            for (const tr of j.tracks ?? []) {
+              if (!tr?.id) continue;
+              meta.set(tr.id, tr);
+              const imgs = tr.album?.images ?? [];
+              const cover = imgs[0]?.url ?? imgs[imgs.length - 1]?.url ?? null;
+              if (cover) coverMap.set(tr.id, cover);
+            }
+          }
+        } catch { /* segue sem metadata extra */ }
+      }
+
+      // 8.d.4 — Score editorial
+      const now = Date.now();
+      const temporalBonus = (ageDays: number | null): number => {
+        if (ageDays == null) return 45;          // neutro p/ sem release_date
+        if (ageDays <= 90) return 100;           // bônus forte
+        if (ageDays <= 180) return 70;           // neutro+
+        if (ageDays <= 365) return 45;           // penalidade leve
+        if (ageDays <= 730) return 20;           // penalidade
+        return 5;                                // penalidade forte (>2 anos)
+      };
+      const qualityVisual = (t: any): number => {
+        // Proxy de qualidade/estética moderna sem CV:
+        // capa HD presente + popularity (sinal de relevância atual no Spotify).
+        let q = 0;
+        if (t.cover_url) q += 50;
+        if (typeof t.popularity === "number") q += Math.min(50, t.popularity / 2);
+        return q;
+      };
+
+      const enriched = topByRecurrence.map(([id, v]) => {
+        const m = meta.get(id);
+        const sig = perTrack.get(id);
+        const releaseDate: string | null = m?.album?.release_date ?? null;
+        const ageDays = releaseDate
+          ? Math.max(0, (now - new Date(releaseDate).getTime()) / 86400000)
+          : null;
+        return {
+          spotify_track_id: id,
+          title: v.track_name,
+          artist: v.artist_name,
+          niche_count: v.count,
+          leader_followers: sig?.leaderF ?? 0,
+          cover_url: coverMap.get(id) ?? null,
+          album_id: m?.album?.id ?? null,
+          release_date: releaseDate,
+          popularity: typeof m?.popularity === "number" ? m.popularity : null,
+          _ageDays: ageDays,
+        };
+      });
+
+      const maxNiche = Math.max(1, ...enriched.map((t) => t.niche_count));
+      const maxLeaderF = Math.max(1, ...enriched.map((t) => t.leader_followers));
+      const scored = enriched.map((t) => {
+        const recurrenciaN = (t.niche_count / maxNiche) * 100;
+        const recenciaN = temporalBonus(t._ageDays);
+        const leaderN = (t.leader_followers / maxLeaderF) * 100;
+        const visualN = qualityVisual(t);
+        const final =
+          recurrenciaN * 0.35 +
+          recenciaN * 0.30 +
+          leaderN * 0.20 +
+          visualN * 0.10;
+        return { ...t, _final: final };
+      }).sort((a, b) => b._final - a._final);
+
+      // 8.d.5 — Diversidade editorial: dedup por album_id, cover_url, artista (não consecutivo, máx 2/grid)
+      const seenAlbums = new Set<string>();
+      const seenCovers = new Set<string>();
+      const artistCount = new Map<string, number>();
+      const picked: typeof scored = [];
+      let lastArtist: string | null = null;
+      for (const t of scored) {
+        if (picked.length >= 8) break;
+        if (!t.cover_url) continue; // grid visual: sem capa, fora
+        const album = t.album_id ?? "";
+        const cover = t.cover_url ?? "";
+        const artistKey = (t.artist ?? "").toLowerCase().split(",")[0].trim();
+        if (album && seenAlbums.has(album)) continue;
+        if (cover && seenCovers.has(cover)) continue;
+        if (artistKey && (artistCount.get(artistKey) ?? 0) >= 2) continue;
+        if (artistKey && artistKey === lastArtist) continue;
+        picked.push(t);
+        if (album) seenAlbums.add(album);
+        if (cover) seenCovers.add(cover);
+        if (artistKey) artistCount.set(artistKey, (artistCount.get(artistKey) ?? 0) + 1);
+        lastArtist = artistKey || lastArtist;
+      }
+      // Fallback: relaxa diversidade só se grid ficou < 8 (nichos pequenos)
+      if (picked.length < 8) {
+        for (const t of scored) {
+          if (picked.length >= 8) break;
+          if (picked.includes(t)) continue;
+          if (!t.cover_url) continue;
+          picked.push(t);
+        }
+      }
+
+      topRecurringTracks = picked.map((t) => ({
+        spotify_track_id: t.spotify_track_id,
+        title: t.title,
+        artist: t.artist,
+        niche_playlists_count: t.niche_count,
+        cover_url: t.cover_url,
+        release_date: t.release_date,
+        leader_followers: t.leader_followers,
+        popularity: t.popularity,
+        editorial_score: Math.round(t._final),
+      }));
+    } catch (e) {
+      console.error("[diagnose] visual ranking failed, falling back to legacy", e);
+      // Fallback: top 8 por recorrência pura (compat com UI)
+      const fb = Array.from(genreRecurrence.entries())
+        .sort((a, b) => b[1].count - a[1].count)
+        .slice(0, 8);
+      topRecurringTracks = fb.map(([id, v]) => ({
         spotify_track_id: id,
         title: v.track_name,
         artist: v.artist_name,
         niche_playlists_count: v.count,
-      }))
-      .sort((a, b) => b.niche_playlists_count - a.niche_playlists_count)
-      .slice(0, 8);
-
-    // Enriquece com capas — usa coverMap (já preenchido pelos candidatos);
-    // pra IDs faltantes, faz UMA call extra ao /v1/tracks.
-    const missingCoverIds = topRecurringRaw
-      .map((t) => t.spotify_track_id)
-      .filter((id) => id && !coverMap.has(id)) as string[];
-    if (missingCoverIds.length > 0) {
-      try {
-        const token = await getSpotifyToken();
-        for (let i = 0; i < missingCoverIds.length; i += 50) {
-          const ids = missingCoverIds.slice(i, i + 50);
-          const r = await fetch(`https://api.spotify.com/v1/tracks?ids=${ids.join(",")}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (!r.ok) continue;
-          const j = await r.json();
-          for (const tr of j.tracks ?? []) {
-            if (!tr?.id) continue;
-            const imgs = tr.album?.images ?? [];
-            const cover = imgs[0]?.url ?? imgs[imgs.length - 1]?.url ?? null;
-            if (cover) coverMap.set(tr.id, cover);
-          }
-        }
-      } catch { /* segue sem capas extras */ }
+        cover_url: coverMap.get(id) ?? null,
+        release_date: null,
+        leader_followers: 0,
+        popularity: null,
+        editorial_score: 0,
+      }));
     }
-    const topRecurringTracks = topRecurringRaw.map((t) => ({
-      ...t,
-      cover_url: t.spotify_track_id ? coverMap.get(t.spotify_track_id) ?? null : null,
-    }));
 
     const marketInsights = {
       ideal_track_count_range: benchmark
