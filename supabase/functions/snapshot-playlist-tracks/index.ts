@@ -24,8 +24,9 @@ async function sha1(input: string): Promise<string> {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const startedAt = Date.now();
+  const sb = createClient(SUPABASE_URL, SERVICE_ROLE);
   try {
-    const sb = createClient(SUPABASE_URL, SERVICE_ROLE);
     const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
     const limit = Math.min(Number(body.limit ?? 60), 200);
 
