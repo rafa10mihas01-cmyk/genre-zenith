@@ -21,6 +21,7 @@ import { getSpotifyRedirectUri } from "@/lib/spotifyPublicAuth";
 const STORAGE_KEY = "nx-collect-settings";
 const SETTINGS_ROUTE = "/configuracoes";
 const SPOTIFY_SETTINGS_RETURN_KEY = "nx:spotify_settings_return";
+const SPOTIFY_LOGOUT_URL = "https://accounts.spotify.com/logout";
 
 function getLegacySpotifySettingsRedirectUri() {
   return `${window.location.origin}${SETTINGS_ROUTE}?spotify_callback=1`;
@@ -92,21 +93,45 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
     }
   }, []);
 
-  function openSpotifyPopup(authUrl: string, _forceLogin = false) {
-    // Vai DIRETO para a URL de autorização do Spotify.
-    // A URL já inclui `show_dialog=true`, então o Spotify mostra o seletor de conta
-    // automaticamente. Não passamos por accounts.spotify.com/logout porque o Spotify
-    // redireciona para a página da conta e o popup vira cross-origin, travando o fluxo.
-    const popup = window.open(authUrl, "_blank");
+  function writeSpotifyPopupMessage(popup: Window, title: string, body: string) {
+    try {
+      popup.document.open();
+      popup.document.write(
+        `<html><head><title>${title}</title></head><body style="margin:0;background:${POPUP_THEME.bg};color:${POPUP_THEME.fg};font-family:Inter,system-ui,sans-serif;display:grid;min-height:100vh;place-items:center;text-align:center;padding:32px"><main><div style="width:40px;height:40px;border-radius:999px;background:${POPUP_THEME.accent};margin:0 auto 18px"></div><h1 style="font-size:18px;margin:0 0 8px">${title}</h1><p style="color:${POPUP_THEME.muted};font-size:13px;line-height:1.5;margin:0;max-width:320px">${body}</p></main></body></html>`,
+      );
+      popup.document.close();
+    } catch { /* popup pode já estar cross-origin */ }
+  }
+
+  function openSpotifyPopup(authUrl: string, forceLogin = false, existingPopup?: Window | null) {
+    const popup = existingPopup && !existingPopup.closed ? existingPopup : window.open("about:blank", "_blank");
     if (!popup) {
       toast.error("Pop-up bloqueado", { description: "Permita pop-ups para este site e tente de novo." });
       return null;
     }
+
+    if (forceLogin) {
+      writeSpotifyPopupMessage(popup, "Trocando conta Spotify", "Vamos sair da conta Spotify atual e abrir a tela limpa para entrar com outra conta.");
+      popup.location.href = SPOTIFY_LOGOUT_URL;
+      window.setTimeout(() => {
+        try {
+          if (!popup.closed) popup.location.href = authUrl;
+        } catch { /* ignore */ }
+      }, 1400);
+      return popup;
+    }
+
+    popup.location.href = authUrl;
     return popup;
   }
 
 
   async function openInNewTab(forceLogin = false, appId?: string) {
+    const preopenedPopup = forceLogin ? window.open("about:blank", "_blank") : null;
+    if (preopenedPopup) {
+      writeSpotifyPopupMessage(preopenedPopup, "Preparando Spotify", "Gerando o link seguro de autorização.");
+    }
+
     try {
       const slug = appId ? spotifyApps.find((a) => a.id === appId)?.slug ?? null : null;
       const redirect = getSpotifyRedirectUri(slug);
@@ -117,7 +142,7 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
       const j = await callSpotifyAuth(qs.toString());
       if (!j?.ok) throw new Error(j?.error ?? "Falha ao gerar URL do Spotify");
 
-      const opened = openSpotifyPopup(j.url, forceLogin);
+      const opened = openSpotifyPopup(j.url, forceLogin, preopenedPopup);
       if (!opened) {
         if (window.top) window.top.location.href = j.url;
         else window.location.href = j.url;
@@ -128,6 +153,7 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
           : "Aprove o acesso. Depois volte aqui e atualize que a conta aparece.",
       });
     } catch (e: any) {
+      preopenedPopup?.close();
       toast.error("Erro ao abrir Spotify", { description: e?.message });
     }
   }
@@ -211,10 +237,9 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
       if (!j?.ok) throw new Error(j?.error ?? "Falha");
 
       if (forceLogin) {
-        popup.close();
-        openSpotifyPopup(j.url, true);
+        openSpotifyPopup(j.url, true, popup);
         toast.info("Escolha a outra conta", {
-          description: `App: ${j.app ?? "default"}. Vamos encerrar a sessão atual e abrir a autorização da próxima conta.`,
+          description: `App: ${j.app ?? "default"}. Vamos limpar a sessão Spotify antes da autorização.`,
         });
       } else {
         popup.location.href = j.url;
