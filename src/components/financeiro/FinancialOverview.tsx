@@ -180,7 +180,7 @@ export function FinancialOverview() {
                           </td>
                         </tr>
                       )}
-                    </>
+                    </Fragment>
                   );
                 })}
               </tbody>
