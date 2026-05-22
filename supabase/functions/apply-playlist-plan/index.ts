@@ -267,10 +267,15 @@ Deno.serve(async (req) => {
     }
 
     try {
-      if (action === "add" || action === "all") await doAdd();
+      // Ordem editorial: remove → demote → promote → add.
+      // ADD por último para que promote/demote operem sobre a lista ORIGINAL
+      // (que é a base dos target_position calculados pelo diagnose). Caso
+      // contrário, um ADD prévio empurra todos os índices originais e os
+      // targets caem dentro do bloco recém-adicionado.
       if (action === "remove" || action === "all") await doRemove();
       if (action === "demote" || action === "all") await doReorder("demote");
       if (action === "promote" || action === "all") await doReorder("promote");
+      if (action === "add" || action === "all") await doAdd();
     } catch (e) {
       const msg = (e as Error).message;
       const hint = msg.includes("403")
