@@ -27,7 +27,68 @@ function jr(p: unknown, status = 200) {
 }
 
 function normalize(s: unknown): string {
-  return String(s ?? "").trim().toUpperCase();
+  return String(s ?? "")
+    .trim()
+    .toUpperCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+// 🕵️ Detetive de números: aceita "1.234,56", "1,234.56", "12k", "1.2M", "12 345"
+function parseFlexibleNumber(input: unknown): number {
+  if (input == null) return 0;
+  if (typeof input === "number") return Math.max(0, Math.round(input));
+  let s = String(input).trim().toLowerCase();
+  if (!s) return 0;
+  // sufixos k/m/b
+  let mult = 1;
+  const sufMatch = s.match(/([kmb])\s*$/);
+  if (sufMatch) {
+    mult = sufMatch[1] === "k" ? 1_000 : sufMatch[1] === "m" ? 1_000_000 : 1_000_000_000;
+    s = s.slice(0, -1).trim();
+  }
+  // remove tudo que não é dígito, vírgula, ponto ou sinal
+  s = s.replace(/[^\d.,\-]/g, "");
+  if (!s) return 0;
+  // se tem os dois separadores, o último é o decimal
+  const lastComma = s.lastIndexOf(",");
+  const lastDot = s.lastIndexOf(".");
+  let normalized: string;
+  if (lastComma >= 0 && lastDot >= 0) {
+    const decSep = lastComma > lastDot ? "," : ".";
+    const thouSep = decSep === "," ? "." : ",";
+    normalized = s.split(thouSep).join("").replace(decSep, ".");
+  } else if (lastComma >= 0) {
+    // só vírgula: se tiver 3 dígitos depois e sem ponto, é separador de milhar
+    const after = s.length - lastComma - 1;
+    normalized = after === 3 && s.indexOf(",") !== lastComma
+      ? s.split(",").join("")
+      : s.replace(",", ".");
+  } else {
+    normalized = s;
+  }
+  const n = parseFloat(normalized);
+  if (!isFinite(n)) return 0;
+  return Math.max(0, Math.round(n * mult));
+}
+
+// 🕵️ Detetive de URL: limpa ?si=, aspas, espaços, caracteres invisíveis
+function cleanUrl(input: unknown): string | null {
+  if (input == null) return null;
+  const s = String(input)
+    .replace(/[\u200B-\u200D\uFEFF]/g, "")
+    .replace(/^["'\s]+|["'\s]+$/g, "")
+    .trim();
+  if (!s) return null;
+  // tira query params do Spotify (?si=, ?utm_, etc)
+  return s.split("?")[0].split("#")[0];
+}
+
+// 🕵️ Detecta linhas de "Total" / rodapé que distribuidoras costumam colocar
+function isJunkRow(playlistName: string): boolean {
+  const n = playlistName.toUpperCase().trim();
+  if (!n) return true;
+  return /^(TOTAL|TOTAIS|SUBTOTAL|GRAND TOTAL|SUM|SOMA|RESUMO|TOTAL GERAL)\b/.test(n);
 }
 
 async function sha256Hex(buf: Uint8Array): Promise<string> {
