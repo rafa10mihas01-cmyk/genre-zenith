@@ -2470,31 +2470,43 @@ export type Database = {
       }
       editorial_history: {
         Row: {
+          artist_name: string | null
+          cover_url: string | null
           created_at: string
           genre_id: string
           id: number
           position: number | null
+          release_date: string | null
           run_date: string
           score_final: number | null
           track_id: string
+          track_name: string | null
         }
         Insert: {
+          artist_name?: string | null
+          cover_url?: string | null
           created_at?: string
           genre_id: string
           id?: number
           position?: number | null
+          release_date?: string | null
           run_date?: string
           score_final?: number | null
           track_id: string
+          track_name?: string | null
         }
         Update: {
+          artist_name?: string | null
+          cover_url?: string | null
           created_at?: string
           genre_id?: string
           id?: number
           position?: number | null
+          release_date?: string | null
           run_date?: string
           score_final?: number | null
           track_id?: string
+          track_name?: string | null
         }
         Relationships: []
       }
@@ -5659,32 +5671,47 @@ export type Database = {
       }
       search_tracks: {
         Row: {
+          album: string | null
           artista: string
           coletado_em: string | null
+          cover_url: string | null
+          duration_ms: number | null
           genre_id: string | null
           id: string
           nome_musica: string
+          popularity: number | null
           posicao_na_playlist: number | null
+          release_date: string | null
           result_id: string | null
           spotify_track_id: string | null
         }
         Insert: {
+          album?: string | null
           artista: string
           coletado_em?: string | null
+          cover_url?: string | null
+          duration_ms?: number | null
           genre_id?: string | null
           id?: string
           nome_musica: string
+          popularity?: number | null
           posicao_na_playlist?: number | null
+          release_date?: string | null
           result_id?: string | null
           spotify_track_id?: string | null
         }
         Update: {
+          album?: string | null
           artista?: string
           coletado_em?: string | null
+          cover_url?: string | null
+          duration_ms?: number | null
           genre_id?: string | null
           id?: string
           nome_musica?: string
+          popularity?: number | null
           posicao_na_playlist?: number | null
+          release_date?: string | null
           result_id?: string | null
           spotify_track_id?: string | null
         }
