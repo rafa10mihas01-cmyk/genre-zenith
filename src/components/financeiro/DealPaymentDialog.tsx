@@ -1,0 +1,108 @@
+// DealPaymentDialog — registra um pagamento ao curador.
+import { useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "@/hooks/use-toast";
+
+interface Props {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  dealId: string;
+  dealLabel: string;
+  remainingHint?: number | null;
+  onSubmit: (input: {
+    deal_id: string;
+    amount: number;
+    payment_date?: string;
+    method?: string;
+    notes?: string;
+  }) => Promise<void>;
+}
+
+const METHODS = ["PIX", "Transferência", "Boleto", "Dinheiro", "Outro"];
+
+export function DealPaymentDialog({ open, onOpenChange, dealId, dealLabel, remainingHint, onSubmit }: Props) {
+  const [amount, setAmount] = useState("");
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [method, setMethod] = useState("PIX");
+  const [notes, setNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async () => {
+    const value = Number(amount.replace(",", "."));
+    if (!Number.isFinite(value) || value <= 0) {
+      toast({ title: "Valor inválido", description: "Informe um valor maior que zero.", variant: "destructive" });
+      return;
+    }
+    setSaving(true);
+    try {
+      await onSubmit({ deal_id: dealId, amount: value, payment_date: date, method, notes: notes.trim() || undefined });
+      toast({ title: "Pagamento registrado", description: `R$ ${value.toFixed(2)} — ${dealLabel}` });
+      setAmount("");
+      setNotes("");
+      onOpenChange(false);
+    } catch (e: any) {
+      toast({ title: "Erro", description: e.message ?? String(e), variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Registrar pagamento</DialogTitle>
+          <p className="text-xs text-muted-foreground">{dealLabel}</p>
+        </DialogHeader>
+
+        <div className="space-y-4 pt-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="amt">Valor (R$)</Label>
+            <Input
+              id="amt"
+              inputMode="decimal"
+              placeholder={remainingHint != null ? `Sugerido: ${remainingHint.toFixed(2)}` : "0,00"}
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              autoFocus
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="date">Data</Label>
+              <Input id="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="method">Método</Label>
+              <select
+                id="method"
+                value={method}
+                onChange={(e) => setMethod(e.target.value)}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                {METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="notes">Observação</Label>
+            <Textarea id="notes" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Opcional" />
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>Cancelar</Button>
+          <Button variant="solid" onClick={handleSubmit} disabled={saving}>
+            {saving ? "Salvando…" : "Confirmar pagamento"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
