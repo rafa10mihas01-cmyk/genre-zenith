@@ -90,8 +90,11 @@ export function SpreadsheetUploadCard({
 
   const handleFile = async (f: File) => {
     setError(null);
-    if (!f.name.toLowerCase().endsWith(".xlsx") && !f.name.toLowerCase().endsWith(".xls")) {
-      setError("Envie um arquivo .xlsx");
+    const lower = f.name.toLowerCase();
+    const isXlsx = lower.endsWith(".xlsx") || lower.endsWith(".xls");
+    const isCsv = lower.endsWith(".csv");
+    if (!isXlsx && !isCsv) {
+      setError("Envie .xlsx, .xls ou .csv");
       return;
     }
     if (f.size > 8 * 1024 * 1024) {
