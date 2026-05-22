@@ -1470,17 +1470,28 @@ Deno.serve(async (req) => {
         }
       }
 
-      topRecurringTracks = picked.map((t) => ({
-        spotify_track_id: t.spotify_track_id,
-        title: t.title,
-        artist: t.artist,
-        niche_playlists_count: t.niche_count,
-        cover_url: t.cover_url,
-        release_date: t.release_date,
-        leader_followers: t.leader_followers,
-        popularity: t.popularity,
-        editorial_score: Math.round(t._final),
-      }));
+      const ageDaysFromIso = (iso: string | null): number => {
+        if (!iso) return Number.POSITIVE_INFINITY;
+        return Math.round((Date.now() - new Date(iso).getTime()) / 86400_000);
+      };
+
+      topRecurringTracks = picked.map((t) => {
+        const rec = genreRecurrence.get(t.spotify_track_id);
+        const latest = rec?.latest_coletado_em ?? null;
+        return {
+          spotify_track_id: t.spotify_track_id,
+          title: t.title,
+          artist: t.artist,
+          niche_playlists_count: t.niche_count,
+          cover_url: t.cover_url,
+          release_date: t.release_date,
+          leader_followers: t.leader_followers,
+          popularity: t.popularity,
+          editorial_score: Math.round(t._final),
+          pool_age_days: ageDaysFromIso(latest),
+          coletado_em_latest: latest,
+        };
+      });
     } catch (e) {
       console.error("[diagnose] visual ranking failed, falling back to legacy", e);
       // Fallback: top 8 por recorrência pura (compat com UI)
@@ -1497,6 +1508,10 @@ Deno.serve(async (req) => {
         leader_followers: 0,
         popularity: null,
         editorial_score: 0,
+        pool_age_days: v.latest_coletado_em
+          ? Math.round((Date.now() - new Date(v.latest_coletado_em).getTime()) / 86400_000)
+          : Number.POSITIVE_INFINITY,
+        coletado_em_latest: v.latest_coletado_em ?? null,
       }));
     }
 
