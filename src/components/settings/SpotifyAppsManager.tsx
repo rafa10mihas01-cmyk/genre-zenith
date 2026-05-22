@@ -366,7 +366,7 @@ export function SpotifyAppsManager({
                     </div>
                   </div>
                   <div className="mt-3">
-                    <CapacityBar used={a.accounts_used} max={a.max_accounts} />
+                    <CapacityBar used={liveUsed} max={a.max_accounts} />
                   </div>
                 </header>
 
