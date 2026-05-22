@@ -95,6 +95,7 @@ const App = () => (
               <Route path="/landing" element={<Landing />} />
               <Route path="/spotify/callback" element={<SpotifyCallback />} />
               <Route path="/spotify/callback/:slug" element={<SpotifyCallback />} />
+              <Route path="/spotify/invite/:token" element={<SpotifyInvite />} />
               <Route path="/curador/:token" element={<CuratorPage />} />
               <Route path="/campanha/:token" element={<ClientCampaignPage />} />
               <Route path="/p/plano/:token" element={<PlanoCampanhaPublico />} />
