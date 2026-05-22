@@ -154,6 +154,7 @@ export function SpotifyAppsManager({
   const [saving, setSaving] = useState(false);
   const [scopes, setScopes] = useState<string[]>([]);
   const [page, setPage] = useState(0);
+  const [inviteAppId, setInviteAppId] = useState<string | null>(null);
   const APPS_PER_PAGE = 5;
 
   async function load() {
