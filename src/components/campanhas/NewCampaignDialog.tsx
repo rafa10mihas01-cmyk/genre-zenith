@@ -74,6 +74,7 @@ interface Props {
 export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [busy, setBusy] = useState(false);
+  const { settings: pricing, costs: pricingCosts } = usePricingSettings();
 
   // step 1
   const [trackName, setTrackName] = useState("");
