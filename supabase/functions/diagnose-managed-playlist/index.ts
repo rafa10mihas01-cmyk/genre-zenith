@@ -1445,6 +1445,13 @@ Deno.serve(async (req) => {
             .in("playlist_spotify_id", topIds)
             .lt("captured_at", thirtyAgoISO);
 
+          // Track which top leaders have NO snapshot at all (root cause of leaderRelN=0)
+          const snappedIds = new Set<string>([
+            ...((snapsRecent ?? []) as any[]).map((s) => s.playlist_spotify_id),
+            ...((snapsOld ?? []) as any[]).map((s: any) => s.playlist_spotify_id),
+          ]);
+          _missingSnapshotLeaderIds = topIds.filter((id) => !snappedIds.has(id));
+
           const inRecent = new Set<string>();
           for (const s of (snapsRecent ?? []) as any[]) {
             for (const tid of (s.track_ids ?? [])) inRecent.add(String(tid));
