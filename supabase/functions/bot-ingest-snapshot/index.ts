@@ -34,8 +34,9 @@ Deno.serve(async (req) => {
   let body: any;
   try { body = await req.json(); } catch { return jr({ error: "invalid_json" }, 400); }
 
-  const { song_id, deal_id, total_plays, snapshots, note, print_urls, print_taken, error: bot_error } = body ?? {};
+  const { song_id, deal_id, total_plays, snapshots, note, print_urls, print_taken, error: bot_error, correlation_id } = body ?? {};
   if (!deal_id || !song_id) return jr({ error: "deal_id and song_id required" }, 400);
+  const screenshotUrl: string | null = Array.isArray(print_urls) && print_urls.length > 0 ? String(print_urls[0]) : null;
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
