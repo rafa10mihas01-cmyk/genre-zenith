@@ -1396,6 +1396,7 @@ Deno.serve(async (req) => {
         const N = Math.min(10, dedupedTop.length);
         leaderRelN_total = N;
         const topIds = dedupedTop.slice(0, N).map((p) => p.id);
+        _topLeaderIds = topIds;
 
         if (topIds.length > 0) {
           // 1) busca os result_ids das top-N e mapeia quais candidate tracks aparecem em cada
