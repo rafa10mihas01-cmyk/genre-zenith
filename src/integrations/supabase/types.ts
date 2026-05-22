@@ -5604,6 +5604,39 @@ export type Database = {
           },
         ]
       }
+      pricing_settings: {
+        Row: {
+          cost_per_stream_eco: number
+          cost_per_stream_ext: number
+          created_at: string
+          id: string
+          price_per_stream_sell: number
+          target_margin_pct: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cost_per_stream_eco?: number
+          cost_per_stream_ext?: number
+          created_at?: string
+          id?: string
+          price_per_stream_sell?: number
+          target_margin_pct?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cost_per_stream_eco?: number
+          cost_per_stream_ext?: number
+          created_at?: string
+          id?: string
+          price_per_stream_sell?: number
+          target_margin_pct?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       rate_limits: {
         Row: {
           count: number
