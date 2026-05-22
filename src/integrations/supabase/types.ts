@@ -3615,6 +3615,89 @@ export type Database = {
         }
         Relationships: []
       }
+      playlist_cluster_members: {
+        Row: {
+          cluster_id: string
+          id: string
+          joined_at: string
+          playlist_id: string
+          similarity: number
+        }
+        Insert: {
+          cluster_id: string
+          id?: string
+          joined_at?: string
+          playlist_id: string
+          similarity?: number
+        }
+        Update: {
+          cluster_id?: string
+          id?: string
+          joined_at?: string
+          playlist_id?: string
+          similarity?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "playlist_cluster_members_cluster_id_fkey"
+            columns: ["cluster_id"]
+            isOneToOne: false
+            referencedRelation: "playlist_clusters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "playlist_cluster_members_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "playlists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      playlist_clusters: {
+        Row: {
+          centroid: Json
+          created_at: string
+          genre_id: string | null
+          id: string
+          label: string | null
+          sample_size: number
+          strength: number
+          subgenre_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          centroid?: Json
+          created_at?: string
+          genre_id?: string | null
+          id?: string
+          label?: string | null
+          sample_size?: number
+          strength?: number
+          subgenre_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          centroid?: Json
+          created_at?: string
+          genre_id?: string | null
+          id?: string
+          label?: string | null
+          sample_size?: number
+          strength?: number
+          subgenre_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "playlist_clusters_subgenre_id_fkey"
+            columns: ["subgenre_id"]
+            isOneToOne: false
+            referencedRelation: "subgenres"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       playlist_cooldowns: {
         Row: {
           action_type: Database["public"]["Enums"]["curatorial_action_type"]
@@ -3964,6 +4047,50 @@ export type Database = {
             foreignKeyName: "playlist_genres_playlist_id_fkey"
             columns: ["playlist_id"]
             isOneToOne: false
+            referencedRelation: "playlists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      playlist_leadership: {
+        Row: {
+          activity_rank: number
+          benchmark_rank: number
+          calculated_at: string
+          evidence: Json
+          follower_rank: number
+          growth_rank: number
+          id: string
+          leadership_score: number
+          playlist_id: string
+        }
+        Insert: {
+          activity_rank?: number
+          benchmark_rank?: number
+          calculated_at?: string
+          evidence?: Json
+          follower_rank?: number
+          growth_rank?: number
+          id?: string
+          leadership_score?: number
+          playlist_id: string
+        }
+        Update: {
+          activity_rank?: number
+          benchmark_rank?: number
+          calculated_at?: string
+          evidence?: Json
+          follower_rank?: number
+          growth_rank?: number
+          id?: string
+          leadership_score?: number
+          playlist_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "playlist_leadership_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: true
             referencedRelation: "playlists"
             referencedColumns: ["id"]
           },
