@@ -10,6 +10,7 @@ import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { formatNumber, timeAgo } from "@/lib/format";
+import { GenreBrainPanel } from "@/components/sistema/GenreBrainPanel";
 
 type GenreItem = {
   id: string; slug: string; nome: string; ativo: boolean;
