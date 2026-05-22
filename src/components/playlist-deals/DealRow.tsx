@@ -69,6 +69,7 @@ function formatPlays(n: number): string {
  */
 export function DealRow(props: DealRowProps) {
   const { deal, logs, playlists, songs = [], progress } = props;
+  const deliveryMap = useDeliveryStatusMap([deal.id]);
   const stats = computeCuratorStats(deal, logs, playlists, progress ?? null);
   const { earned, pct, vel, eta, hasBaseline, todayPlays } = stats;
   const target = Number(deal.target_plays ?? 0);
