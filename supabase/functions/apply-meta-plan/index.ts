@@ -45,8 +45,10 @@ async function fetchAllTrackUris(playlistId: string, token: string): Promise<str
   while (url) {
     const j = await spotifyFetch(url, { method: "GET" }, token);
     for (const it of j.items ?? []) {
-      const uri = it?.track?.uri;
-      if (uri) uris.push(uri);
+      // IMPORTANTE: preservar slots vazios (faixas locais/removidas têm track=null)
+      // pra que os índices batam EXATAMENTE com o que o Spotify enxerga.
+      const uri = it?.track?.uri ?? "";
+      uris.push(uri);
     }
     url = j.next ?? null;
   }
