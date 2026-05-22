@@ -140,6 +140,14 @@ Deno.serve(async (req) => {
     .eq("song_id", song_id);
   const isBaseline = (existingLogs ?? 0) === 0;
 
+  // Pega nome da faixa pra delivery_proofs
+  const { data: songInfo } = await supabase
+    .from("curator_deal_songs")
+    .select("song_name, song_artist")
+    .eq("id", song_id)
+    .maybeSingle();
+  const trackName = [songInfo?.song_name, songInfo?.song_artist].filter(Boolean).join(" — ") || "unknown";
+
   // Para cada snapshot, achar/criar curator_playlist e inserir snapshot.
   // Função utilitária inline pra extrair playlist id do url.
   const extractId = (url: string | null | undefined) => {
