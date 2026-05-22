@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
   const sb = createClient(SUPABASE_URL, SERVICE_KEY);
 
   // 1) buscar subgêneros-alvo
-  let genresQ = sb.from("genres").select("id, slug, name, parent_genre_id").eq("active", true);
+  let genresQ = sb.from("genres").select("id, slug, nome").eq("ativo", true);
   if (body.genre_id) genresQ = genresQ.eq("id", body.genre_id);
   const { data: genres, error: gErr } = await genresQ;
   if (gErr) return jr({ ok: false, error: gErr.message }, 500);
