@@ -252,8 +252,8 @@ Deno.serve(async (req) => {
     const fileName = String(body?.file_name ?? "planilha.xlsx");
     const mode = body?.mode === "commit" ? "commit" : "preview";
 
-    if (!token) return jr({ ok: false, error: "client_token obrigatório" }, 400);
-    if (!fileB64) return jr({ ok: false, error: "file_base64 obrigatório" }, 400);
+    if (!token) return jr({ ok: false, error: "Link do cliente inválido. Reabra o portal pelo link enviado." }, 200);
+    if (!fileB64) return jr({ ok: false, error: "Arquivo obrigatório" }, 200);
 
     const admin = createClient(SUPABASE_URL, SERVICE_KEY);
 
@@ -262,7 +262,7 @@ Deno.serve(async (req) => {
     });
     if (resErr) return jr({ ok: false, error: resErr.message }, 200);
     const row = Array.isArray(resolved) && resolved.length > 0 ? resolved[0] : null;
-    if (!row?.deal_id) return jr({ ok: false, error: "token inválido" }, 403);
+    if (!row?.deal_id) return jr({ ok: false, error: "Link do cliente inválido ou expirado. Reabra o portal pelo link enviado." }, 200);
 
     const dealId = String(row.deal_id);
     const songId = row.song_id ? String(row.song_id) : null;
@@ -271,10 +271,10 @@ Deno.serve(async (req) => {
     try {
       buf = base64ToBytes(fileB64);
     } catch (_) {
-      return jr({ ok: false, error: "Arquivo inválido (base64)" }, 400);
+      return jr({ ok: false, error: "Arquivo inválido" }, 200);
     }
     if (buf.length > 8 * 1024 * 1024) {
-      return jr({ ok: false, error: "Arquivo grande demais (máx 8MB)" }, 400);
+      return jr({ ok: false, error: "Arquivo grande demais (máx 8MB)" }, 200);
     }
     const hash = await sha256Hex(buf);
     const fmt = detectFormat(fileName, buf);
