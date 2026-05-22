@@ -3072,6 +3072,63 @@ export type Database = {
           },
         ]
       }
+      genre_trends: {
+        Row: {
+          artist: string | null
+          bucket: string
+          evidence: Json
+          genre_id: string
+          id: string
+          last_seen_at: string | null
+          score: number
+          track_id: string
+          track_name: string | null
+          updated_at: string
+          velocity: number | null
+        }
+        Insert: {
+          artist?: string | null
+          bucket: string
+          evidence?: Json
+          genre_id: string
+          id?: string
+          last_seen_at?: string | null
+          score?: number
+          track_id: string
+          track_name?: string | null
+          updated_at?: string
+          velocity?: number | null
+        }
+        Update: {
+          artist?: string | null
+          bucket?: string
+          evidence?: Json
+          genre_id?: string
+          id?: string
+          last_seen_at?: string | null
+          score?: number
+          track_id?: string
+          track_name?: string | null
+          updated_at?: string
+          velocity?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "genre_trends_genre_id_fkey"
+            columns: ["genre_id"]
+            isOneToOne: false
+            referencedRelation: "genres"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "genre_trends_genre_id_fkey"
+            columns: ["genre_id"]
+            isOneToOne: false
+            referencedRelation: "genres_with_health"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       genre_visual_signature: {
         Row: {
           aggressiveness_score: number | null
@@ -4204,6 +4261,30 @@ export type Database = {
           },
         ]
       }
+      playlist_followers_snapshots: {
+        Row: {
+          captured_at: string
+          followers: number | null
+          id: string
+          playlist_spotify_id: string
+          total_tracks: number | null
+        }
+        Insert: {
+          captured_at?: string
+          followers?: number | null
+          id?: string
+          playlist_spotify_id: string
+          total_tracks?: number | null
+        }
+        Update: {
+          captured_at?: string
+          followers?: number | null
+          id?: string
+          playlist_spotify_id?: string
+          total_tracks?: number | null
+        }
+        Relationships: []
+      }
       playlist_genre_history: {
         Row: {
           created_at: string
@@ -4334,6 +4415,7 @@ export type Database = {
           calculated_at: string
           evidence: Json
           follower_rank: number
+          freshness_rank: number | null
           growth_rank: number
           id: string
           leadership_score: number
@@ -4345,6 +4427,7 @@ export type Database = {
           calculated_at?: string
           evidence?: Json
           follower_rank?: number
+          freshness_rank?: number | null
           growth_rank?: number
           id?: string
           leadership_score?: number
@@ -4356,6 +4439,7 @@ export type Database = {
           calculated_at?: string
           evidence?: Json
           follower_rank?: number
+          freshness_rank?: number | null
           growth_rank?: number
           id?: string
           leadership_score?: number
@@ -4685,6 +4769,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      playlist_track_snapshots: {
+        Row: {
+          captured_at: string
+          id: string
+          playlist_spotify_id: string
+          track_ids: string[]
+          tracks_hash: string
+        }
+        Insert: {
+          captured_at?: string
+          id?: string
+          playlist_spotify_id: string
+          track_ids?: string[]
+          tracks_hash: string
+        }
+        Update: {
+          captured_at?: string
+          id?: string
+          playlist_spotify_id?: string
+          track_ids?: string[]
+          tracks_hash?: string
+        }
+        Relationships: []
       }
       playlists: {
         Row: {
@@ -5035,26 +5143,33 @@ export type Database = {
           enrich_failed: boolean
           enriched_at: string | null
           first_seen_at: string
+          followers_growth: number | null
+          followers_growth_rate: number | null
           followers_source:
             | Database["public"]["Enums"]["followers_source_type"]
             | null
           followers_verified_at: string | null
+          freshness_score: number | null
           genre_id: string | null
           id: string
           imagem_url: string | null
           is_valid: boolean
+          last_refreshed_at: string | null
           last_seen_at: string
           needs_enrich: boolean
+          next_refresh_due: string | null
           nome_normalizado: string | null
           nome_playlist: string
           owner_id: string | null
           owner_type: string | null
           posicao: number
+          previous_followers: number | null
           priority_score: number | null
           quality_flag: string | null
           quality_flagged_at: string | null
           quality_score: number | null
           quality_score_version: number | null
+          refresh_tier: string | null
           score: number | null
           seguidores: number | null
           spotify_playlist_id: string | null
@@ -5079,26 +5194,33 @@ export type Database = {
           enrich_failed?: boolean
           enriched_at?: string | null
           first_seen_at?: string
+          followers_growth?: number | null
+          followers_growth_rate?: number | null
           followers_source?:
             | Database["public"]["Enums"]["followers_source_type"]
             | null
           followers_verified_at?: string | null
+          freshness_score?: number | null
           genre_id?: string | null
           id?: string
           imagem_url?: string | null
           is_valid?: boolean
+          last_refreshed_at?: string | null
           last_seen_at?: string
           needs_enrich?: boolean
+          next_refresh_due?: string | null
           nome_normalizado?: string | null
           nome_playlist: string
           owner_id?: string | null
           owner_type?: string | null
           posicao: number
+          previous_followers?: number | null
           priority_score?: number | null
           quality_flag?: string | null
           quality_flagged_at?: string | null
           quality_score?: number | null
           quality_score_version?: number | null
+          refresh_tier?: string | null
           score?: number | null
           seguidores?: number | null
           spotify_playlist_id?: string | null
@@ -5123,26 +5245,33 @@ export type Database = {
           enrich_failed?: boolean
           enriched_at?: string | null
           first_seen_at?: string
+          followers_growth?: number | null
+          followers_growth_rate?: number | null
           followers_source?:
             | Database["public"]["Enums"]["followers_source_type"]
             | null
           followers_verified_at?: string | null
+          freshness_score?: number | null
           genre_id?: string | null
           id?: string
           imagem_url?: string | null
           is_valid?: boolean
+          last_refreshed_at?: string | null
           last_seen_at?: string
           needs_enrich?: boolean
+          next_refresh_due?: string | null
           nome_normalizado?: string | null
           nome_playlist?: string
           owner_id?: string | null
           owner_type?: string | null
           posicao?: number
+          previous_followers?: number | null
           priority_score?: number | null
           quality_flag?: string | null
           quality_flagged_at?: string | null
           quality_score?: number | null
           quality_score_version?: number | null
+          refresh_tier?: string | null
           score?: number | null
           seguidores?: number | null
           spotify_playlist_id?: string | null
