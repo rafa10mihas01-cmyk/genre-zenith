@@ -188,13 +188,13 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
   const endDate = useMemo(() => addDays(startDate, active.days), [startDate, active.days]);
 
   const effectiveMeta = useMemo(() => {
-    if (active.fonte === "orcamento") return reverseFromBudget(active.budget, active.splitEco);
+    if (active.fonte === "orcamento") return reverseFromBudget(active.budget, active.splitEco, pricingCosts);
     return active.meta;
-  }, [active.fonte, active.budget, active.splitEco, active.meta]);
+  }, [active.fonte, active.budget, active.splitEco, active.meta, pricingCosts]);
 
   const result = useMemo(() => calcCampaign({
     meta: effectiveMeta, days: active.days, modo: active.modo, perfil: active.perfil, splitEcoPct: active.splitEco,
-  }), [effectiveMeta, active.days, active.modo, active.perfil, active.splitEco]);
+  }, pricingCosts), [effectiveMeta, active.days, active.modo, active.perfil, active.splitEco, pricingCosts]);
 
   function isSongReady(s: Song): boolean {
     return !!s.track?.id && s.baselineStreamsDay >= 0 && (s.fonte === "orcamento" ? s.budget > 0 : s.meta > 0);
