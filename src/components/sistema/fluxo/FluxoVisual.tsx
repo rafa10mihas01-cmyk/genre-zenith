@@ -61,10 +61,8 @@ export function FluxoVisual({ compact = false }: { compact?: boolean }) {
         invalidPlaylists: sr.invalid,
         avgFollowersValid: sr.avgFollowersValid,
       },
-      discoveryBlocked: {
-        blocked: stats?.systemFlags?.apify_blocked ?? false,
-        reason: stats?.systemFlags?.apify_blocked_reason ?? undefined,
-      },
+      // Apify foi descontinuado — coleta agora é 100% via Spotify Web API.
+      discoveryBlocked: { blocked: false },
       genreFilter: stats?.genreFilter ?? null,
       catalogStat: { total: catTotal.count ?? 0, active: catActive.count ?? 0 },
       dealStat: { activeDeals: dealsActive.count ?? 0, pendingSongs: songsPending.count ?? 0, dueToday: 0 },
