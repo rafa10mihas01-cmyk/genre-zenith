@@ -17,6 +17,7 @@
 // } | { ok: false, error: string }
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { recordMetric } from "../_shared/ops-metrics.ts";
+import { requireTeamAccess } from "../_shared/auth.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -268,14 +269,8 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return j({ ok: false, error: "Method not allowed" }, 405);
   const t0 = Date.now();
 
-  const authHeader = req.headers.get("Authorization") ?? "";
-  const token = authHeader.replace(/^Bearer\s+/i, "");
-  if (!token) return j({ ok: false, error: "missing auth" }, 401);
-  const supabase = createClient(SUPABASE_URL, ANON_KEY, {
-    global: { headers: { Authorization: `Bearer ${token}` } },
-  });
-  const { data: userData, error: userErr } = await supabase.auth.getUser();
-  if (userErr || !userData?.user) return j({ ok: false, error: "unauthorized" }, 401);
+  const guard = await requireTeamAccess(req);
+  if (!guard.ok) return guard.resp;
 
   if (!LOVABLE_API_KEY) return j({ ok: false, error: "LOVABLE_API_KEY ausente" }, 500);
 
