@@ -53,7 +53,7 @@ function prettyLog(action: string, message: string, status: string): string {
       : "Playlists enriquecidas com seguidores reais.";
   }
   if (a.includes("fetch-tracks")) return "Faixas das playlists baixadas para análise.";
-  if (a.includes("test-apify")) return status === "error" ? "Teste da coleta Spotify falhou." : "Coleta Spotify saudável.";
+  // (test-apify removido — não usamos mais Apify)
   return m || `Evento: ${action}`;
 }
 
