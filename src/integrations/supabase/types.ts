@@ -2845,6 +2845,60 @@ export type Database = {
           },
         ]
       }
+      genre_brain_history: {
+        Row: {
+          active_leaders: number | null
+          avg_confidence: number | null
+          avg_leadership_score: number | null
+          captured_at: string
+          cluster_strength_avg: number | null
+          freshness_avg: number | null
+          genre_id: string
+          id: string
+          knowledge_score: number | null
+          metadata: Json | null
+          playlists_with_genre: number | null
+          recent_drifts_7d: number | null
+          slug: string | null
+          tokens_strong: number | null
+          tokens_total: number | null
+        }
+        Insert: {
+          active_leaders?: number | null
+          avg_confidence?: number | null
+          avg_leadership_score?: number | null
+          captured_at?: string
+          cluster_strength_avg?: number | null
+          freshness_avg?: number | null
+          genre_id: string
+          id?: string
+          knowledge_score?: number | null
+          metadata?: Json | null
+          playlists_with_genre?: number | null
+          recent_drifts_7d?: number | null
+          slug?: string | null
+          tokens_strong?: number | null
+          tokens_total?: number | null
+        }
+        Update: {
+          active_leaders?: number | null
+          avg_confidence?: number | null
+          avg_leadership_score?: number | null
+          captured_at?: string
+          cluster_strength_avg?: number | null
+          freshness_avg?: number | null
+          genre_id?: string
+          id?: string
+          knowledge_score?: number | null
+          metadata?: Json | null
+          playlists_with_genre?: number | null
+          recent_drifts_7d?: number | null
+          slug?: string | null
+          tokens_strong?: number | null
+          tokens_total?: number | null
+        }
+        Relationships: []
+      }
       genre_filters: {
         Row: {
           base_daily: number
@@ -2904,6 +2958,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      genre_lexicon_history: {
+        Row: {
+          captured_at: string
+          genre_id: string
+          id: string
+          rank: number | null
+          slug: string | null
+          status: string | null
+          term: string
+          weight: number | null
+        }
+        Insert: {
+          captured_at?: string
+          genre_id: string
+          id?: string
+          rank?: number | null
+          slug?: string | null
+          status?: string | null
+          term: string
+          weight?: number | null
+        }
+        Update: {
+          captured_at?: string
+          genre_id?: string
+          id?: string
+          rank?: number | null
+          slug?: string | null
+          status?: string | null
+          term?: string
+          weight?: number | null
+        }
+        Relationships: []
       }
       genre_models: {
         Row: {
@@ -3071,6 +3158,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      genre_trend_events: {
+        Row: {
+          created_at: string
+          description: string | null
+          event_type: string
+          genre_id: string | null
+          id: string
+          occurred_at: string
+          payload: Json | null
+          severity: string | null
+          subgenre_slug: string | null
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          event_type: string
+          genre_id?: string | null
+          id?: string
+          occurred_at?: string
+          payload?: Json | null
+          severity?: string | null
+          subgenre_slug?: string | null
+          title: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          event_type?: string
+          genre_id?: string | null
+          id?: string
+          occurred_at?: string
+          payload?: Json | null
+          severity?: string | null
+          subgenre_slug?: string | null
+          title?: string
+        }
+        Relationships: []
       }
       genre_trends: {
         Row: {
@@ -4097,6 +4223,36 @@ export type Database = {
           },
         ]
       }
+      playlist_drift_snapshots: {
+        Row: {
+          captured_at: string
+          dominant_genre: string | null
+          genre_mix: Json
+          id: string
+          playlist_id: string
+          playlist_spotify_id: string | null
+          track_sample_size: number | null
+        }
+        Insert: {
+          captured_at?: string
+          dominant_genre?: string | null
+          genre_mix?: Json
+          id?: string
+          playlist_id: string
+          playlist_spotify_id?: string | null
+          track_sample_size?: number | null
+        }
+        Update: {
+          captured_at?: string
+          dominant_genre?: string | null
+          genre_mix?: Json
+          id?: string
+          playlist_id?: string
+          playlist_spotify_id?: string | null
+          track_sample_size?: number | null
+        }
+        Relationships: []
+      }
       playlist_ecosystem_score: {
         Row: {
           avg_track_momentum: number | null
@@ -4454,6 +4610,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      playlist_leadership_history: {
+        Row: {
+          activity_rank: number | null
+          captured_at: string
+          evidence: Json | null
+          follower_rank: number | null
+          followers: number | null
+          freshness_rank: number | null
+          growth_rank: number | null
+          id: string
+          leadership_score: number | null
+          playlist_id: string
+          rank_position: number | null
+        }
+        Insert: {
+          activity_rank?: number | null
+          captured_at?: string
+          evidence?: Json | null
+          follower_rank?: number | null
+          followers?: number | null
+          freshness_rank?: number | null
+          growth_rank?: number | null
+          id?: string
+          leadership_score?: number | null
+          playlist_id: string
+          rank_position?: number | null
+        }
+        Update: {
+          activity_rank?: number | null
+          captured_at?: string
+          evidence?: Json | null
+          follower_rank?: number | null
+          followers?: number | null
+          freshness_rank?: number | null
+          growth_rank?: number | null
+          id?: string
+          leadership_score?: number | null
+          playlist_id?: string
+          rank_position?: number | null
+        }
+        Relationships: []
       }
       playlist_metrics_snapshots: {
         Row: {

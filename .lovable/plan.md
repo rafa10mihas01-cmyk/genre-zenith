@@ -1,150 +1,117 @@
-# Fase 9 — NexEngine Vivo
+# Fase 10 — Observabilidade Evolutiva
 
-Objetivo: o catálogo passa a respirar no mesmo ritmo do cérebro. Foco em **freshness**, **ingestão contínua**, **recorrência ponderada por tempo** e **velocidade de tendência**.
+Transformar o Genre Brain em **radar cultural vivo**: histórico temporal, drift visual, heatmap de mercado, evolução semântica e de liderança. Sem alertas — só visualização e baseline.
 
-Nenhuma mudança em `apply-managed-cover`, upload manual, resize ou compressão.
+## Escopo
 
----
+Tudo entra em `/sistema` → aba **Aprendizado** (substitui o `GenreBrainPanel` atual por uma versão expandida com sub-abas). Sem nova rota, sem mexer no sidebar.
+
+```
+Aprendizado
+ ├─ Visão Geral        (KPIs + sparklines 7d/30d/90d)
+ ├─ Timeline Cultural  (eventos por dia: termos, artistas, playlists, drift)
+ ├─ Drift Visual       (antes → agora por playlist)
+ ├─ Heatmap Mercado    (subgêneros: crescendo / esfriando / saturado)
+ ├─ Semântica          (termos nascendo/morrendo, SEO/emoji dominante)
+ └─ Liderança          (evolução do leadership_score por playlist)
+```
 
 ## 1. Schema (migration)
 
-### `search_results` (adições, não destrutivo)
-- `last_refreshed_at timestamptz`
-- `previous_followers integer`
-- `followers_growth integer` (delta vs último snapshot)
-- `followers_growth_rate numeric` (delta / dias)
-- `freshness_score numeric` (0–1, calculado)
-- `refresh_tier text` ('leader' | 'medium' | 'small')  — define cadência
-- `next_refresh_due timestamptz` — coluna alvo do worker
+**Tabelas de snapshots temporais** (todas com RLS `select` autenticado, `insert` service role):
 
-### `playlist_followers_snapshots` (nova — série temporal leve)
-- `playlist_spotify_id text`
-- `followers integer`
-- `total_tracks integer`
-- `captured_at timestamptz`
-- índice composto (`playlist_spotify_id`, `captured_at desc`)
+- `genre_brain_history` — snapshot diário do `genre_brain` (subgenre, knowledge_score, leadership_avg, drift_count_7d, cluster_strength, freshness_avg, lexical_size, captured_at).
+- `genre_trend_events` — eventos discretos da timeline (subgenre, event_type ∈ `term_emerging|term_dying|artist_rising|playlist_growing|cluster_heating|editorial_shift|drift_detected`, payload jsonb, severity, occurred_at).
+- `playlist_drift_snapshots` — composição genérica por playlist em pontos no tempo (playlist_id, genre_mix jsonb `{trap:0.82,...}`, captured_at). Usado pra ANTES→AGORA.
+- `genre_lexicon_history` — snapshot semanal do léxico (subgenre, term, weight, status ∈ `emerging|stable|declining|dead`, captured_at).
+- `playlist_leadership_history` — snapshot diário do leadership_score por playlist (playlist_id, leadership_score, freshness_score, followers, rank, captured_at).
+- Índices: `(subgenre, captured_at desc)`, `(playlist_id, captured_at desc)`, `(occurred_at desc)`.
 
-### `playlist_track_snapshots` (nova — pra detectar troca de tracks)
-- `playlist_spotify_id text`
-- `track_ids text[]` (hash leve dos top 50)
-- `tracks_hash text`
-- `captured_at timestamptz`
+## 2. Edge functions de captura (snapshot)
 
-### `genre_trends` (nova — pool dinâmico por subgênero)
-- `genre_id uuid`
-- `track_id text`, `artist text`, `track_name text`
-- `bucket text` ('historic' | 'recent' | 'leader' | 'viral')
-- `score numeric`, `velocity numeric`
-- `last_seen_at timestamptz`
-- chave (`genre_id`, `track_id`, `bucket`)
+Funções que persistem o estado atual no histórico (rodam em cron):
 
-Tudo com RLS: leitura authenticated, escrita admin / service role.
+- `snapshot-genre-brain` (diário 04:30) → grava `genre_brain_history` a partir de `genre_brain`.
+- `snapshot-playlist-leadership` (diário 04:45) → grava `playlist_leadership_history` a partir de `playlist_leadership`.
+- `snapshot-playlist-mix` (diário 05:15) → calcula mix de gêneros dos top tracks de cada playlist líder → `playlist_drift_snapshots`.
+- `snapshot-genre-lexicon` (semanal dom 03:30) → diff vs snapshot anterior → marca termos `emerging/declining/dead` em `genre_lexicon_history`.
+- `detect-trend-events` (diário 06:30) → varre últimos 7d das tabelas de history e gera eventos em `genre_trend_events` (regras: variação ±20% knowledge_score → editorial_shift; novo termo top10 → term_emerging; playlist +30% followers → playlist_growing; etc).
 
----
+Reutilizam `temporalWeight()` do `_shared/recency.ts`.
 
-## 2. Edge Functions (novas)
+## 3. Edge functions de leitura (agregação para UI)
 
-### `refresh-search-results`
-- Lê `search_results` ordenado por `next_refresh_due asc`.
-- Define tier:
-  - `leader` (followers > 100k OU playlist em `playlist_leadership` ≥ 0.55) → diário
-  - `medium` (followers 10k–100k) → semanal
-  - `small` → quinzenal
-- Para cada playlist: chama Spotify `GET /playlists/{id}` (campos: followers, name, images, tracks.total, snapshot_id) usando helper compartilhado.
-- Atualiza `search_results`: `seguidores`, `nome`, `cover_url`, `total_tracks`, `previous_followers`, `followers_growth`, `followers_growth_rate`, `last_refreshed_at`, `next_refresh_due`.
-- Insere linha em `playlist_followers_snapshots`.
-- Recalcula `freshness_score`.
-- Batch size configurável (default 50/run, limit por tier).
+Endpoints que a UI chama (rápidos, GET com query param `?window=7d|30d|90d`):
 
-### `snapshot-playlist-tracks`
-- Só para playlists tier `leader` + amostragem de `medium`.
-- Pega top 50 tracks, gera hash determinístico, grava em `playlist_track_snapshots` somente quando hash mudou.
-- Saída usada por `compute-trend-velocity`.
+- `get-brain-overview` → KPIs atuais + série temporal de 7 métricas (knowledge, leadership_avg, drift_activity, cluster_strength, trend_velocity, lexical_growth, freshness) + variação % + direção.
+- `get-cultural-timeline` → eventos ordenados, agrupados por dia, filtros por subgenre/type.
+- `get-drift-comparison?playlist_id=` → mix atual vs mix de N dias atrás + tracks que entraram/saíram.
+- `get-market-heatmap` → array de subgêneros com score de temperatura (`growth`, `activity`, `drift`, `saturation`) → renderizado como grid de células coloridas.
+- `get-semantic-evolution?subgenre=` → termos nascendo/morrendo/dominantes + emojis + amostras de títulos.
+- `get-leadership-evolution?subgenre=` → top N playlists com série temporal de leadership_score + delta.
 
-### `compute-trend-velocity`
-- Lê `playlist_track_snapshots` últimos 14d e histórico 60d.
-- Para cada (track_id, genre_id) calcula:
-  - `presence_14d`, `presence_60d`
-  - `trend_velocity = presence_14d / max(1, presence_60d/4)`
-  - `emergence_score`: penaliza tracks já dominantes históricos
-- Upsert em `genre_trends` bucket `recent` / `viral` (velocity > 2.5).
+## 4. UI (frontend)
 
-### `build-genre-reference-pool`
-- Por subgênero ativo, monta pool de 40:
-  - 10 histórico (top recorrência ponderada por tempo)
-  - 15 recente (trend_velocity alto)
-  - 10 leader (tracks que aparecem em playlists com leadership ≥ 0.55)
-  - 5 viral (emergence_score alto)
-- Grava em `genre_trends` bucket correspondente; substitui pool anterior do mesmo bucket por subgênero (transacional).
+**Refatorar** `src/components/sistema/GenreBrainPanel.tsx` em:
 
----
-
-## 3. Recorrência temporal (`_shared/recency.ts`)
-
-Já existe `recency.ts` da Fase 2. Estender com:
-```ts
-export function temporalWeight(days: number): number {
-  if (days <= 30) return 1.0;
-  if (days <= 90) return 0.7;
-  if (days <= 180) return 0.4;
-  if (days <= 365) return 0.15;
-  return 0.05;
-}
 ```
-E aplicar em `genre-confidence-calc`, `compute-leadership`, `detect-genre-drift` substituindo o peso linear por `temporalWeight(daysSince(last_seen))`.
+src/components/sistema/brain/
+ ├─ BrainOverviewTab.tsx       (KPI cards + sparklines via recharts)
+ ├─ CulturalTimelineTab.tsx    (feed vertical de eventos, ícone por type)
+ ├─ DriftVisualTab.tsx         (seletor de playlist → 2 stacked bars ANTES/AGORA + diff de tracks)
+ ├─ MarketHeatmapTab.tsx       (grid bento-style, cor = temperatura, tamanho = atividade)
+ ├─ SemanticEvolutionTab.tsx   (3 colunas: nascendo / dominante / morrendo + cloud de emojis)
+ ├─ LeadershipEvolutionTab.tsx (line chart multi-série + tabela de mudanças)
+ └─ shared/
+     ├─ MetricCard.tsx         (valor + delta % + direção + sparkline)
+     ├─ WindowSelector.tsx     (7d/30d/90d toggle)
+     └─ TrendBadge.tsx         (subindo/caindo/estável)
+```
 
-Saturação de leader_followers é resolvida via:
-- `freshness_score` entra como multiplicador no leadership formula:
-  `leadership_score = 0.35*followers + 0.20*growth + 0.20*activity + 0.10*benchmark + 0.15*freshness`
-- Normalização por log: `log10(followers+1)/log10(MAX+1)` em vez de divisão crua, eliminando saturação no topo.
+Lib: `recharts` (já instalado). Sem novas deps.
 
----
+### Linguagem visual
 
-## 4. Freshness Score (fórmula)
+Seguir design system existente (bg #050505, card #171717, primary #1DB954 só em ação). Cores temáticas como **acento pequeno**:
+- Crescendo → verde-marca (acento)
+- Caindo → vermelho-suave
+- Estável → muted
+- Emergente → âmbar
+- Drift → roxo (curadores)
 
-`freshness_score (0–1)` =
-- 0.30 × `recency_factor` (1 se `last_refreshed_at` ≤ 7d, decai linear até 90d)
-- 0.25 × `followers_growth_norm` (clamp do growth_rate)
-- 0.20 × `track_change_recency` (snapshot mudou últimos 30d)
-- 0.15 × `editorial_activity` (mudanças nos últimos 90d)
-- 0.10 × `update_velocity` (frequência de snapshot_id distintos)
+Layout sente-se como radar/observatório: cards grandes, números grandes, gráficos limpos, hover revela detalhes. NÃO parecer painel admin técnico.
 
----
+## 5. Crons (pg_cron)
 
-## 5. Crons (insert via cron.schedule)
+5 novos jobs na migration:
 
-| Job | Cron | Função |
+| Job | Hora | Função |
 |---|---|---|
-| `refresh-leaders-daily` | `0 5 * * *` | `refresh-search-results` body `{ tier: "leader" }` |
-| `refresh-medium-weekly` | `0 5 * * 2` | `{ tier: "medium" }` |
-| `refresh-small-biweekly` | `0 5 1,15 * *` | `{ tier: "small" }` |
-| `snapshot-tracks-daily` | `30 5 * * *` | `snapshot-playlist-tracks` |
-| `compute-trend-velocity-daily` | `0 6 * * *` | `compute-trend-velocity` |
-| `build-reference-pool-daily` | `30 6 * * *` | `build-genre-reference-pool` |
+| `snapshot-brain-daily` | 04:30 | snapshot-genre-brain |
+| `snapshot-leadership-history-daily` | 04:45 | snapshot-playlist-leadership |
+| `snapshot-playlist-mix-daily` | 05:15 | snapshot-playlist-mix |
+| `snapshot-lexicon-weekly` | dom 03:30 | snapshot-genre-lexicon |
+| `detect-trend-events-daily` | 06:30 | detect-trend-events |
 
-Encadeamento: refresh → snapshot → velocity → pool → (à noite) leadership/brain rodam com dados frescos.
+## 6. Backfill inicial
 
----
+Migration roda uma vez:
+- Copia estado atual de `genre_brain`, `playlist_leadership`, `genre_brain_lexicon` pros `_history` (1 ponto).
+- A partir daí os crons constroem a série dia a dia.
 
-## 6. UI (mínimo, não invasivo)
+Aviso na UI: "Histórico em construção — métricas temporais ficam ricas após 7 dias de captura."
 
-- `GenreBrainPanel`: adicionar coluna `freshness_avg` no detail drawer + badge "vivo/parado" no card (verde se freshness ≥ 0.6, cinza se < 0.3).
-- Sem nova página.
+## 7. Out of scope
 
----
+- Notificações/alertas (Fase 11).
+- Mudanças em pipeline `apply-managed-cover`, upload, resize.
+- Sidebar, rotas novas.
+- Mudanças em `genre_brain` / `playlist_leadership` (só leitura).
 
-## 7. Fora de escopo (explícito)
+## Entrega em 3 PRs lógicos
 
-- `apply-managed-cover` — intocado
-- upload manual, resize, compressão — intocados
-- design system, sidebar, rotas — sem mudança
+1. **Schema + backfill + snapshot functions + crons** (validável via SQL).
+2. **Funções de leitura agregada** (validáveis via curl).
+3. **UI: refator do panel em sub-abas + componentes shared** (validável visualmente em `/sistema?tab=aprendizado`).
 
----
-
-## Entrega em 3 PRs lógicos dentro desta loop
-
-1. **Schema + helpers** (migration + `recency.ts` estendido)
-2. **Edge functions** (`refresh-search-results`, `snapshot-playlist-tracks`, `compute-trend-velocity`, `build-genre-reference-pool`) + ajuste em `compute-leadership` (log + freshness)
-3. **Crons + UI badge freshness**
-
-Tudo deployable e validado por chamadas curl antes de fechar.
+Posso começar pelo PR 1 (migration + snapshots)?
