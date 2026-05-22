@@ -433,6 +433,18 @@ Deno.serve(async (req) => {
         metadata: { ...summary, mode: publicToken ? "public" : "admin", preview },
       });
 
+      // Fire-and-forget: regenera plano de entrega
+      if (!preview) {
+        fetch(`${SUPABASE_URL}/functions/v1/build-deal-plan`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${SERVICE_KEY}`,
+          },
+          body: JSON.stringify({ deal_id: deal.id }),
+        }).catch((err) => console.error("[register-curator-playlist] build-deal-plan trigger falhou", err));
+      }
+
       return jr({
         ok: true,
         summary,

@@ -449,6 +449,18 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Fire-and-forget: regenera plano de entrega após paste real
+    if (!dryRun) {
+      fetch(`${SUPABASE_URL}/functions/v1/build-deal-plan`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+        },
+        body: JSON.stringify({ deal_id: dealId }),
+      }).catch((err) => console.error("[enrich-curator-paste] build-deal-plan trigger falhou", err));
+    }
+
     return jr({
       ok: true,
       dry_run: dryRun,
