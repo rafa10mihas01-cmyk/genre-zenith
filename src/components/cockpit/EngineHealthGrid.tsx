@@ -104,10 +104,10 @@ export function EngineHealthGrid() {
         if (ids.length > 0) {
           const { data: genres } = await supabase
             .from("genres")
-            .select("id, name")
+            .select("id, nome")
             .in("id", ids);
           const map: Record<string, string> = {};
-          for (const g of genres ?? []) map[g.id] = g.name;
+          for (const g of (genres ?? []) as Array<{ id: string; nome: string }>) map[g.id] = g.nome;
           if (!cancelled) setLabels(map);
         }
       } catch (e: any) {
