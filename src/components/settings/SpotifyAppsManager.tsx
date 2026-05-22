@@ -97,13 +97,13 @@ function RedirectUrisPanel({ slug }: { slug: string }) {
       </div>
       <div className="space-y-1">
         {urls.map((u) => (
-          <div key={u.url} className="flex items-center gap-2 group">
-            <span className="text-[9px] uppercase tracking-wide text-muted-foreground/70 w-16 shrink-0">{u.label}</span>
-            <code className="flex-1 min-w-0 text-[10px] font-mono text-foreground truncate">{u.url}</code>
+          <div key={u.url} className="flex items-start gap-2 group min-w-0">
+            <span className="text-[9px] uppercase tracking-wide text-muted-foreground/70 w-16 shrink-0 pt-0.5">{u.label}</span>
+            <code className="flex-1 min-w-0 text-[10px] font-mono text-foreground break-all leading-snug">{u.url}</code>
             <button
               type="button"
               onClick={() => copyOne(u.url)}
-              className="opacity-50 hover:opacity-100 text-muted-foreground hover:text-primary transition"
+              className="opacity-50 hover:opacity-100 text-muted-foreground hover:text-primary transition shrink-0 mt-0.5"
               title="Copiar"
             >
               {copied === u.url ? <Check className="h-3 w-3 text-primary" /> : <Copy className="h-3 w-3" />}
