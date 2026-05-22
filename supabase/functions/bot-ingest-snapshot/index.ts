@@ -34,8 +34,9 @@ Deno.serve(async (req) => {
   let body: any;
   try { body = await req.json(); } catch { return jr({ error: "invalid_json" }, 400); }
 
-  const { song_id, deal_id, total_plays, snapshots, note, print_urls, print_taken, error: bot_error } = body ?? {};
+  const { song_id, deal_id, total_plays, snapshots, note, print_urls, print_taken, error: bot_error, correlation_id } = body ?? {};
   if (!deal_id || !song_id) return jr({ error: "deal_id and song_id required" }, 400);
+  const screenshotUrl: string | null = Array.isArray(print_urls) && print_urls.length > 0 ? String(print_urls[0]) : null;
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
@@ -138,6 +139,14 @@ Deno.serve(async (req) => {
     .select("id", { count: "exact", head: true })
     .eq("song_id", song_id);
   const isBaseline = (existingLogs ?? 0) === 0;
+
+  // Pega nome da faixa pra delivery_proofs
+  const { data: songInfo } = await supabase
+    .from("curator_deal_songs")
+    .select("song_name, song_artist")
+    .eq("id", song_id)
+    .maybeSingle();
+  const trackName = [songInfo?.song_name, songInfo?.song_artist].filter(Boolean).join(" — ") || "unknown";
 
   // Para cada snapshot, achar/criar curator_playlist e inserir snapshot.
   // Função utilitária inline pra extrair playlist id do url.
@@ -270,7 +279,28 @@ Deno.serve(async (req) => {
       flagged,
       flag_reason: flagReason,
     });
-    if (insErr) skipped++; else inserted++;
+    if (insErr) {
+      skipped++;
+    } else {
+      inserted++;
+      // Prova imutável de entrega
+      await supabase.from("delivery_proofs").insert({
+        deal_id,
+        song_id,
+        playlist_id: playlistId,
+        spotify_playlist_id: sId ?? "",
+        playlist_name: sName ?? "unknown",
+        track_name: trackName,
+        plays_total: plays,
+        plays_24h: plays24h,
+        plays_7d: plays7d,
+        position_in_playlist: snap.position ?? snap.position_in_playlist ?? null,
+        source: snap.source ?? "spotify_for_artists",
+        screenshot_url: screenshotUrl,
+        bot_correlation_id: correlation_id ?? null,
+        captured_at: new Date().toISOString(),
+      });
+    }
   }
 
   // Se for baseline, persiste blacklist de playlists do deal.
