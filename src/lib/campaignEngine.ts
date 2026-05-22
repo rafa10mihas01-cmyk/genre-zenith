@@ -8,10 +8,17 @@
  * Split padrão: 60% eco / 40% externo.
  */
 
+/**
+ * Defaults usados quando o usuário ainda não configurou `pricing_settings`.
+ * Toda função aqui aceita um override opcional `costs` — quem chama deve
+ * passar `usePricingSettings().costs` quando logado.
+ */
 export const COST_PER_STREAM = {
   eco: 0.028,
   ext: 0.040,
 } as const;
+
+export type CostPerStream = { eco: number; ext: number };
 
 export const DEFAULT_SPLIT = { eco: 60, ext: 40 } as const;
 
