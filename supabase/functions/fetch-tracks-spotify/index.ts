@@ -113,6 +113,7 @@ Deno.serve(async (req) => {
       // Limpa tracks antigas dessa playlist (snapshot atual)
       await supabase.from("search_tracks").delete().eq("result_id", body.result_id);
 
+      const nowIso = new Date().toISOString();
       const rows = tracks.map((t) => ({
         result_id: body.result_id!,
         genre_id: result?.genre_id ?? null,
@@ -120,6 +121,7 @@ Deno.serve(async (req) => {
         nome_musica: t.nome_musica,
         artista: t.artista,
         posicao_na_playlist: t.posicao_na_playlist,
+        coletado_em: nowIso,
       }));
       const { error: insErr } = await supabase.from("search_tracks").insert(rows);
       if (insErr) throw new Error(`save tracks: ${insErr.message}`);

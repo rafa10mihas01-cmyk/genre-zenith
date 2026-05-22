@@ -1,6 +1,13 @@
-// snapshot-playlist-tracks — Fase 9.
-// Captura hash dos top 50 track IDs de playlists alvo (tier leader + sample medium).
-// Só grava nova linha quando o hash mudou (= playlist trocou tracks).
+// snapshot-playlist-tracks — Cron diário.
+// Captura hash dos top 50 track IDs de playlists alvo. Só grava nova linha
+// quando o hash mudou (= playlist trocou tracks).
+//
+// Garantias por execução:
+//   - Retenção: apaga snapshots com captured_at < NOW() - 60 dias.
+//   - MINIMUM: TODAS as managed_playlists são processadas em todo run
+//     (mesmo que não tenham mudado — força registro de "ainda igual" via
+//     no-op skip; o snapshot anterior comprova continuidade).
+//   - PLUS: tier=leader (todos) + sample 20% medium até `limit`.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
@@ -8,6 +15,7 @@ import { getSpotifyToken } from "../_shared/spotify.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const RETENTION_DAYS = 60;
 
 async function sha1(input: string): Promise<string> {
   const buf = await crypto.subtle.digest("SHA-1", new TextEncoder().encode(input));
@@ -19,9 +27,23 @@ Deno.serve(async (req) => {
   try {
     const sb = createClient(SUPABASE_URL, SERVICE_ROLE);
     const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
-    const limit = Math.min(Number(body.limit ?? 60), 150);
+    const limit = Math.min(Number(body.limit ?? 60), 200);
 
-    // alvo: tier=leader (todos) + sample 20% medium
+    // Retenção: 60 dias
+    const cutoffISO = new Date(Date.now() - RETENTION_DAYS * 86400_000).toISOString();
+    const { count: pruned } = await sb
+      .from("playlist_track_snapshots")
+      .delete({ count: "exact" })
+      .lt("captured_at", cutoffISO);
+
+    // 1. MINIMUM: todas as managed_playlists (com spotify_playlist_id)
+    const { data: managed } = await sb
+      .from("managed_playlists")
+      .select("spotify_playlist_id")
+      .not("spotify_playlist_id", "is", null);
+    const managedIds = new Set<string>((managed ?? []).map((m: any) => m.spotify_playlist_id));
+
+    // 2. PLUS: leader + sample medium
     const { data: targets } = await sb
       .from("search_results")
       .select("spotify_playlist_id, refresh_tier")
@@ -29,21 +51,22 @@ Deno.serve(async (req) => {
       .not("spotify_playlist_id", "is", null)
       .limit(limit * 3);
 
-    if (!targets?.length) {
-      return new Response(JSON.stringify({ ok: true, processed: 0 }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // dedupe + sample
+    const list: Array<{ id: string; source: string }> = [];
     const seen = new Set<string>();
-    const list: Array<{ id: string; tier: string }> = [];
-    for (const r of targets as any[]) {
+
+    // managed primeiro (garantia mínima)
+    for (const id of managedIds) {
+      if (seen.has(id)) continue;
+      seen.add(id);
+      list.push({ id, source: "managed" });
+    }
+    // depois os tier leader/medium até o limit
+    for (const r of (targets ?? []) as any[]) {
       if (seen.has(r.spotify_playlist_id)) continue;
-      seen.add(r.spotify_playlist_id);
       if (r.refresh_tier === "medium" && Math.random() > 0.2) continue;
-      list.push({ id: r.spotify_playlist_id, tier: r.refresh_tier });
-      if (list.length >= limit) break;
+      seen.add(r.spotify_playlist_id);
+      list.push({ id: r.spotify_playlist_id, source: r.refresh_tier });
+      if (list.length >= Math.max(limit, managedIds.size)) break;
     }
 
     const token = await getSpotifyToken();
@@ -65,7 +88,6 @@ Deno.serve(async (req) => {
         if (!ids.length) continue;
         const hash = await sha1(ids.join("|"));
 
-        // pega último hash
         const { data: last } = await sb
           .from("playlist_track_snapshots")
           .select("tracks_hash")
@@ -89,9 +111,14 @@ Deno.serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ ok: true, scanned: list.length, inserted, unchanged, failed }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(JSON.stringify({
+      ok: true,
+      scanned: list.length,
+      managed_covered: managedIds.size,
+      inserted, unchanged, failed,
+      pruned_old: pruned ?? 0,
+      retention_days: RETENTION_DAYS,
+    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     return new Response(JSON.stringify({ ok: false, error: String(e) }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
