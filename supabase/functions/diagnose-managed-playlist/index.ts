@@ -1329,6 +1329,7 @@ Deno.serve(async (req) => {
         visualN: number;
         final: number;
       } | null;
+      last_seen_run: number | null;
     }> = [];
 
     try {
