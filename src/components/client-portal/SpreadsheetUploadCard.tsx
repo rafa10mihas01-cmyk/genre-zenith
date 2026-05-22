@@ -21,6 +21,13 @@ type Preview = {
   rows: number;
   total_streams: number;
   unique_isrcs: string[];
+  format?: string;
+  playlists_recognized?: number;
+  curators_recognized?: number;
+  internal_count?: number;
+  organic_count?: number;
+  best_position?: number | null;
+  top_playlists?: Array<{ name: string; streams: number; owner: string | null; is_internal?: boolean }>;
   playlists: Array<{ name: string; streams: number; owner: string | null }>;
   warnings: string[];
 };
