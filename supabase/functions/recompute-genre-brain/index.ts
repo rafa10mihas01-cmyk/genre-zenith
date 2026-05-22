@@ -136,8 +136,8 @@ Deno.serve(async (req) => {
     const row = {
       genre_id: g.id,
       slug: g.slug,
-      display_name: g.name,
-      parent_genre_id: g.parent_genre_id,
+      display_name: (g as any).nome,
+      parent_genre_id: null,
 
       top_tokens: topTokens,
       tokens_total: tokensTotal,
