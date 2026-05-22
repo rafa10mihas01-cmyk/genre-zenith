@@ -1,5 +1,5 @@
 // FinancialOverview — visão Cliente↔Curador: receita, custo, margem e pagamentos.
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { ChevronDown, ChevronRight, AlertTriangle, Plus, TrendingUp, TrendingDown, DollarSign, Wallet } from "lucide-react";
 import { useFinancialOverview, type DealFinanceRow } from "@/hooks/useFinancialOverview";
 import { DealPaymentDialog } from "./DealPaymentDialog";
