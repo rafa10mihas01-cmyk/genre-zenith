@@ -63,7 +63,8 @@ export function SpreadsheetUploadCard({
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
-  const [phase, setPhase] = useState<"idle" | "previewing" | "previewed" | "committing" | "done">("idle");
+  const [phase, setPhase] = useState<"idle" | "previewing" | "previewed" | "done">("idle");
+  const [committing, setCommitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
 
