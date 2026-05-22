@@ -19,11 +19,8 @@ function jr(p: unknown, status = 200) {
   });
 }
 
-function bytesToBase64(bytes: Uint8Array): string {
-  let bin = "";
-  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-  return btoa(bin);
-}
+
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -111,8 +108,7 @@ Deno.serve(async (req) => {
     ws2["!cols"] = [{ wch: 80 }];
     XLSX.utils.book_append_sheet(wb, ws2, "Instruções");
 
-    const out = XLSX.write(wb, { type: "array", bookType: "xlsx" }) as Uint8Array;
-    const b64 = bytesToBase64(new Uint8Array(out));
+    const b64 = XLSX.write(wb, { type: "base64", bookType: "xlsx" }) as string;
     const safeTrack = trackName.replace(/[^a-zA-Z0-9._-]+/g, "_").slice(0, 40);
     return jr({
       ok: true,
