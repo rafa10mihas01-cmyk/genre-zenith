@@ -1,117 +1,45 @@
-# Fase 10 — Observabilidade Evolutiva
+# Upload de planilha pelo cliente (fallback quando não tem Spotify)
 
-Transformar o Genre Brain em **radar cultural vivo**: histórico temporal, drift visual, heatmap de mercado, evolução semântica e de liderança. Sem alertas — só visualização e baseline.
+## Resumo
+Quando o deal **não tem Spotify conectado**, o portal do cliente mostra um card de upload de planilha. Cliente sobe .xlsx (formato da gravadora), sistema parseia, grava como snapshot — motor (velocidade/ETA/score) roda igual. Se passar 48h sem upload, dispara email automático cobrando + alerta interno.
 
-## Escopo
+## O que vou construir
 
-Tudo entra em `/sistema` → aba **Aprendizado** (substitui o `GenreBrainPanel` atual por uma versão expandida com sub-abas). Sem nova rota, sem mexer no sidebar.
+### 1. Banco
+- **Tabela `label_spreadsheet_uploads`**: histórico dos uploads (deal_id, uploaded_by, file_path, rows_imported, total_streams, status, created_at). RLS: cliente do deal vê só os dele, equipe vê tudo.
+- **Storage bucket `label-spreadsheets`** (privado): guarda os .xlsx originais pra auditoria.
+- **Sem mudança em `curator_deals`**: detecção "tem Spotify?" usa `spotify_owner_id IS NULL` (já existe) como sinal de "fonte planilha".
 
-```
-Aprendizado
- ├─ Visão Geral        (KPIs + sparklines 7d/30d/90d)
- ├─ Timeline Cultural  (eventos por dia: termos, artistas, playlists, drift)
- ├─ Drift Visual       (antes → agora por playlist)
- ├─ Heatmap Mercado    (subgêneros: crescendo / esfriando / saturado)
- ├─ Semântica          (termos nascendo/morrendo, SEO/emoji dominante)
- └─ Liderança          (evolução do leadership_score por playlist)
-```
+### 2. Edge function `import-label-spreadsheet`
+- Recebe `{ deal_id, file_path, client_token }` ou `{ deal_id, file_base64 }`.
+- Valida token público do cliente.
+- Parseia .xlsx (colunas: `#`, `VERSION NAME`, `ISRC`, `PLAYLIST`, `COUNTRY`, `OWNER NAME`, `CURRENT POSITION`, `STREAMS`).
+- Valida ISRC bate com música do deal (se ISRC do deal estiver preenchido).
+- Modo **preview** (`?preview=1`): só retorna contagem ("114 playlists, 73.924 streams") sem gravar.
+- Modo **commit**: grava em `curator_deal_snapshots` (uma linha por playlist, source = `label_spreadsheet`) + um agregado em `curator_deal_logs`. Detecta duplicata (mesmo hash de conteúdo + mesma data) e ignora.
+- Insere row em `label_spreadsheet_uploads`.
 
-## 1. Schema (migration)
+### 3. UI no portal do cliente
+- Em `ClientCampaignPage.tsx` (quando `deal.spotify_owner_id` é nulo): card novo "Atualizar dados da campanha".
+- Drag-and-drop .xlsx → mostra preview ("vou importar X playlists, Y streams — confirmar?") → grava.
+- Mostra "última atualização há Xd" + lista dos 5 últimos uploads.
+- Banner amarelo suave se passar de 48h sem upload.
 
-**Tabelas de snapshots temporais** (todas com RLS `select` autenticado, `insert` service role):
+### 4. Lembrete automático
+- Cron diário (pg_cron) chama edge function `check-pending-spreadsheet-uploads`.
+- Pra cada deal ativo sem Spotify e com último upload > 48h: chama `send-transactional-email` (template novo `label-spreadsheet-reminder`) + cria notificação interna.
+- Idempotency key inclui o dia, então não envia 2x no mesmo dia.
 
-- `genre_brain_history` — snapshot diário do `genre_brain` (subgenre, knowledge_score, leadership_avg, drift_count_7d, cluster_strength, freshness_avg, lexical_size, captured_at).
-- `genre_trend_events` — eventos discretos da timeline (subgenre, event_type ∈ `term_emerging|term_dying|artist_rising|playlist_growing|cluster_heating|editorial_shift|drift_detected`, payload jsonb, severity, occurred_at).
-- `playlist_drift_snapshots` — composição genérica por playlist em pontos no tempo (playlist_id, genre_mix jsonb `{trap:0.82,...}`, captured_at). Usado pra ANTES→AGORA.
-- `genre_lexicon_history` — snapshot semanal do léxico (subgenre, term, weight, status ∈ `emerging|stable|declining|dead`, captured_at).
-- `playlist_leadership_history` — snapshot diário do leadership_score por playlist (playlist_id, leadership_score, freshness_score, followers, rank, captured_at).
-- Índices: `(subgenre, captured_at desc)`, `(playlist_id, captured_at desc)`, `(occurred_at desc)`.
+## O que NÃO vou mexer
+- Coletor Spotify (continua igual pros deals que têm token).
+- Cálculo de velocidade/ETA/score (vai consumir os snapshots independente da origem).
+- Sidebar / navegação principal.
 
-## 2. Edge functions de captura (snapshot)
+## Detalhes técnicos
+- Layout da planilha = exato o que a gravadora mandou (testado contra `pls_carnivoro_2026-05-22.xlsx`). Se vier outra ordem de colunas, parseia por header name.
+- Parser xlsx no edge function: usa `xlsx` via `npm:xlsx@0.18.5`.
+- Storage bucket privado com RLS: só o owner do deal (via client_token) pode subir; equipe lê tudo.
+- Email reminder usa Lovable Emails (infra já existe — vi `email_send_log`, `email_send_state` no banco).
 
-Funções que persistem o estado atual no histórico (rodam em cron):
-
-- `snapshot-genre-brain` (diário 04:30) → grava `genre_brain_history` a partir de `genre_brain`.
-- `snapshot-playlist-leadership` (diário 04:45) → grava `playlist_leadership_history` a partir de `playlist_leadership`.
-- `snapshot-playlist-mix` (diário 05:15) → calcula mix de gêneros dos top tracks de cada playlist líder → `playlist_drift_snapshots`.
-- `snapshot-genre-lexicon` (semanal dom 03:30) → diff vs snapshot anterior → marca termos `emerging/declining/dead` em `genre_lexicon_history`.
-- `detect-trend-events` (diário 06:30) → varre últimos 7d das tabelas de history e gera eventos em `genre_trend_events` (regras: variação ±20% knowledge_score → editorial_shift; novo termo top10 → term_emerging; playlist +30% followers → playlist_growing; etc).
-
-Reutilizam `temporalWeight()` do `_shared/recency.ts`.
-
-## 3. Edge functions de leitura (agregação para UI)
-
-Endpoints que a UI chama (rápidos, GET com query param `?window=7d|30d|90d`):
-
-- `get-brain-overview` → KPIs atuais + série temporal de 7 métricas (knowledge, leadership_avg, drift_activity, cluster_strength, trend_velocity, lexical_growth, freshness) + variação % + direção.
-- `get-cultural-timeline` → eventos ordenados, agrupados por dia, filtros por subgenre/type.
-- `get-drift-comparison?playlist_id=` → mix atual vs mix de N dias atrás + tracks que entraram/saíram.
-- `get-market-heatmap` → array de subgêneros com score de temperatura (`growth`, `activity`, `drift`, `saturation`) → renderizado como grid de células coloridas.
-- `get-semantic-evolution?subgenre=` → termos nascendo/morrendo/dominantes + emojis + amostras de títulos.
-- `get-leadership-evolution?subgenre=` → top N playlists com série temporal de leadership_score + delta.
-
-## 4. UI (frontend)
-
-**Refatorar** `src/components/sistema/GenreBrainPanel.tsx` em:
-
-```
-src/components/sistema/brain/
- ├─ BrainOverviewTab.tsx       (KPI cards + sparklines via recharts)
- ├─ CulturalTimelineTab.tsx    (feed vertical de eventos, ícone por type)
- ├─ DriftVisualTab.tsx         (seletor de playlist → 2 stacked bars ANTES/AGORA + diff de tracks)
- ├─ MarketHeatmapTab.tsx       (grid bento-style, cor = temperatura, tamanho = atividade)
- ├─ SemanticEvolutionTab.tsx   (3 colunas: nascendo / dominante / morrendo + cloud de emojis)
- ├─ LeadershipEvolutionTab.tsx (line chart multi-série + tabela de mudanças)
- └─ shared/
-     ├─ MetricCard.tsx         (valor + delta % + direção + sparkline)
-     ├─ WindowSelector.tsx     (7d/30d/90d toggle)
-     └─ TrendBadge.tsx         (subindo/caindo/estável)
-```
-
-Lib: `recharts` (já instalado). Sem novas deps.
-
-### Linguagem visual
-
-Seguir design system existente (bg #050505, card #171717, primary #1DB954 só em ação). Cores temáticas como **acento pequeno**:
-- Crescendo → verde-marca (acento)
-- Caindo → vermelho-suave
-- Estável → muted
-- Emergente → âmbar
-- Drift → roxo (curadores)
-
-Layout sente-se como radar/observatório: cards grandes, números grandes, gráficos limpos, hover revela detalhes. NÃO parecer painel admin técnico.
-
-## 5. Crons (pg_cron)
-
-5 novos jobs na migration:
-
-| Job | Hora | Função |
-|---|---|---|
-| `snapshot-brain-daily` | 04:30 | snapshot-genre-brain |
-| `snapshot-leadership-history-daily` | 04:45 | snapshot-playlist-leadership |
-| `snapshot-playlist-mix-daily` | 05:15 | snapshot-playlist-mix |
-| `snapshot-lexicon-weekly` | dom 03:30 | snapshot-genre-lexicon |
-| `detect-trend-events-daily` | 06:30 | detect-trend-events |
-
-## 6. Backfill inicial
-
-Migration roda uma vez:
-- Copia estado atual de `genre_brain`, `playlist_leadership`, `genre_brain_lexicon` pros `_history` (1 ponto).
-- A partir daí os crons constroem a série dia a dia.
-
-Aviso na UI: "Histórico em construção — métricas temporais ficam ricas após 7 dias de captura."
-
-## 7. Out of scope
-
-- Notificações/alertas (Fase 11).
-- Mudanças em pipeline `apply-managed-cover`, upload, resize.
-- Sidebar, rotas novas.
-- Mudanças em `genre_brain` / `playlist_leadership` (só leitura).
-
-## Entrega em 3 PRs lógicos
-
-1. **Schema + backfill + snapshot functions + crons** (validável via SQL).
-2. **Funções de leitura agregada** (validáveis via curl).
-3. **UI: refator do panel em sub-abas + componentes shared** (validável visualmente em `/sistema?tab=aprendizado`).
-
-Posso começar pelo PR 1 (migration + snapshots)?
+## Próxima ação se você aprovar
+Crio a migration, o bucket, a edge function, a UI no portal, o template de email e o cron — tudo numa rodada.
