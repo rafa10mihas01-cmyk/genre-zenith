@@ -260,7 +260,12 @@ Deno.serve(async (req) => {
       });
       if (!tokenResp.ok) {
         const t = await tokenResp.text();
-        return jr({ ok: false, error: `token exchange ${tokenResp.status} (app=${creds.name}): ${t.slice(0, 200)}` }, 400);
+        console.error("[spotify-auth] token exchange failed", {
+          app_id: stRow.app_id, app_name: creds.name,
+          client_id_prefix: creds.client_id.slice(0, 6),
+          redirect_uri: redirect, status: tokenResp.status, body: t.slice(0, 500),
+        });
+        return jr({ ok: false, error: `token exchange ${tokenResp.status} (app=${creds.name}, client_id=${creds.client_id.slice(0, 6)}…, redirect=${redirect}): ${t.slice(0, 300)}` }, 400);
       }
       const tj = await tokenResp.json();
       const access_token: string = tj.access_token;
@@ -273,13 +278,20 @@ Deno.serve(async (req) => {
       });
       if (!meResp.ok) {
         const t = await meResp.text();
-        return jr({ ok: false, error: `me ${meResp.status}: ${t.slice(0, 200)}` }, 400);
+        console.error("[spotify-auth] /me failed", {
+          app_id: stRow.app_id, app_name: creds.name,
+          status: meResp.status, body: t.slice(0, 500),
+        });
+        return jr({ ok: false, error: `/me ${meResp.status} (app=${creds.name}): ${t.slice(0, 300)}` }, 400);
       }
       const me = await meResp.json();
 
       try {
         await assertAppHasSlotForSpotifyUser(supabase, stRow.app_id, me.id);
       } catch (e) {
+        console.error("[spotify-auth] slot check failed", {
+          app_id: stRow.app_id, spotify_user: me.id, err: (e as Error).message,
+        });
         return jr({ ok: false, error: (e as Error).message }, 400);
       }
 
