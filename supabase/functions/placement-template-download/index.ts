@@ -102,6 +102,7 @@ Deno.serve(async (req) => {
       ["VERSION NAME      → nome da faixa"],
       ["ISRC              → código ISRC da faixa (12 caracteres)"],
       ["PLAYLIST          → nome da playlist"],
+      ["PLAYLIST URL      → link da playlist no Spotify (https://open.spotify.com/playlist/...)"],
       ["COUNTRY           → código do país (BR, US, etc)"],
       ["OWNER NAME        → ID ou nome do dono da playlist"],
       ["CURRENT POSITION  → posição da faixa dentro da playlist"],
