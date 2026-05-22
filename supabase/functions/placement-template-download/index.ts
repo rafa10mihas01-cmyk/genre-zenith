@@ -47,12 +47,11 @@ Deno.serve(async (req) => {
     if (row.song_id) {
       const { data: song } = await admin
         .from("curator_deal_songs")
-        .select("title, isrc, artist")
+        .select("song_name, song_artist")
         .eq("id", row.song_id)
         .maybeSingle();
-      if (song?.title) trackName = song.title;
-      if (song?.isrc) isrc = song.isrc;
-      if (song?.artist) artistName = song.artist;
+      if (song?.song_name) trackName = song.song_name;
+      if (song?.song_artist) artistName = song.song_artist;
     }
 
     const wb = XLSX.utils.book_new();
