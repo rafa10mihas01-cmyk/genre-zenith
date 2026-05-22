@@ -2723,6 +2723,128 @@ export type Database = {
           },
         ]
       }
+      genre_brain: {
+        Row: {
+          active_leaders: number
+          aesthetics_updated_at: string | null
+          aggressiveness_score: number | null
+          avg_confidence: number | null
+          avg_leadership_score: number | null
+          contrast_avg: number | null
+          created_at: string
+          display_name: string
+          dominant_colors: Json
+          genre_id: string
+          has_face_pct: number | null
+          id: string
+          knowledge_score: number | null
+          last_recomputed_at: string
+          leadership_updated_at: string | null
+          lexicon_updated_at: string | null
+          metadata: Json
+          parent_genre_id: string | null
+          playlists_total: number
+          playlists_with_genre: number
+          recent_drifts_7d: number
+          recent_reclassifications_7d: number
+          slug: string
+          style_tags: Json
+          tokens_strong: number
+          tokens_total: number
+          top_tokens: Json
+          updated_at: string
+        }
+        Insert: {
+          active_leaders?: number
+          aesthetics_updated_at?: string | null
+          aggressiveness_score?: number | null
+          avg_confidence?: number | null
+          avg_leadership_score?: number | null
+          contrast_avg?: number | null
+          created_at?: string
+          display_name: string
+          dominant_colors?: Json
+          genre_id: string
+          has_face_pct?: number | null
+          id?: string
+          knowledge_score?: number | null
+          last_recomputed_at?: string
+          leadership_updated_at?: string | null
+          lexicon_updated_at?: string | null
+          metadata?: Json
+          parent_genre_id?: string | null
+          playlists_total?: number
+          playlists_with_genre?: number
+          recent_drifts_7d?: number
+          recent_reclassifications_7d?: number
+          slug: string
+          style_tags?: Json
+          tokens_strong?: number
+          tokens_total?: number
+          top_tokens?: Json
+          updated_at?: string
+        }
+        Update: {
+          active_leaders?: number
+          aesthetics_updated_at?: string | null
+          aggressiveness_score?: number | null
+          avg_confidence?: number | null
+          avg_leadership_score?: number | null
+          contrast_avg?: number | null
+          created_at?: string
+          display_name?: string
+          dominant_colors?: Json
+          genre_id?: string
+          has_face_pct?: number | null
+          id?: string
+          knowledge_score?: number | null
+          last_recomputed_at?: string
+          leadership_updated_at?: string | null
+          lexicon_updated_at?: string | null
+          metadata?: Json
+          parent_genre_id?: string | null
+          playlists_total?: number
+          playlists_with_genre?: number
+          recent_drifts_7d?: number
+          recent_reclassifications_7d?: number
+          slug?: string
+          style_tags?: Json
+          tokens_strong?: number
+          tokens_total?: number
+          top_tokens?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "genre_brain_genre_id_fkey"
+            columns: ["genre_id"]
+            isOneToOne: true
+            referencedRelation: "genres"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "genre_brain_genre_id_fkey"
+            columns: ["genre_id"]
+            isOneToOne: true
+            referencedRelation: "genres_with_health"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "genre_brain_parent_genre_id_fkey"
+            columns: ["parent_genre_id"]
+            isOneToOne: false
+            referencedRelation: "genres"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "genre_brain_parent_genre_id_fkey"
+            columns: ["parent_genre_id"]
+            isOneToOne: false
+            referencedRelation: "genres_with_health"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       genre_filters: {
         Row: {
           base_daily: number
