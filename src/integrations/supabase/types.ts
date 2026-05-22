@@ -3902,6 +3902,73 @@ export type Database = {
           },
         ]
       }
+      playlist_genres: {
+        Row: {
+          calculated_at: string
+          confidence: number
+          created_at: string
+          drift_score: number | null
+          evidence: Json
+          genre_id: string
+          id: string
+          is_primary: boolean
+          playlist_id: string
+          previous_confidence: number | null
+          source: string
+          updated_at: string
+        }
+        Insert: {
+          calculated_at?: string
+          confidence?: number
+          created_at?: string
+          drift_score?: number | null
+          evidence?: Json
+          genre_id: string
+          id?: string
+          is_primary?: boolean
+          playlist_id: string
+          previous_confidence?: number | null
+          source?: string
+          updated_at?: string
+        }
+        Update: {
+          calculated_at?: string
+          confidence?: number
+          created_at?: string
+          drift_score?: number | null
+          evidence?: Json
+          genre_id?: string
+          id?: string
+          is_primary?: boolean
+          playlist_id?: string
+          previous_confidence?: number | null
+          source?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "playlist_genres_genre_id_fkey"
+            columns: ["genre_id"]
+            isOneToOne: false
+            referencedRelation: "genres"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "playlist_genres_genre_id_fkey"
+            columns: ["genre_id"]
+            isOneToOne: false
+            referencedRelation: "genres_with_health"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "playlist_genres_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "playlists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       playlist_metrics_snapshots: {
         Row: {
           collected_at: string
