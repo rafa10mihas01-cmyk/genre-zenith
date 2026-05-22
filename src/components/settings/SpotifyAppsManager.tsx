@@ -351,7 +351,7 @@ export function SpotifyAppsManager({
                         size="sm"
                         variant="outline"
                         disabled={isPaused || full}
-                        onClick={() => onConnect(a.id, true)}
+                        onClick={() => onConnect(a.id, false)}
                         className="h-8 text-xs gap-1.5 border-primary/40 text-primary hover:bg-primary/10 hover:text-primary disabled:opacity-50"
                         title={
                           isPaused ? "App pausado"
@@ -409,7 +409,7 @@ export function SpotifyAppsManager({
                                 <Button
                                   size="sm"
                                   variant="ghost"
-                                  onClick={() => onConnect(a.id, true)}
+                                  onClick={() => onConnect(a.id, false)}
                                   className="h-8 px-2 text-xs gap-1 text-warning hover:bg-warning/10 hover:text-warning"
                                   title={`Reautorizar para conceder: ${missingScopes.join(", ")}`}
                                 >
