@@ -20,6 +20,7 @@ import {
   DEFAULT_SPLIT, COST_PER_STREAM,
   type Modo, type Perfil, type CampaignResult,
 } from "@/lib/campaignEngine";
+import { usePricingSettings } from "@/hooks/usePricingSettings";
 import { Table2, ArrowRight, ArrowLeft, Target as TargetIcon, Users, Wallet, Music, Search, CheckCircle2, X, Loader2, CalendarIcon, FileText, Plus, ListMusic, Layers, Zap, Pencil } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format, addDays, differenceInCalendarDays, startOfDay } from "date-fns";
@@ -102,6 +103,7 @@ function loadPersisted(): PersistedV2 {
 export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandoff) => void }) {
   const initial = useMemo(loadPersisted, []);
   const navigate = useNavigate();
+  const { costs: pricingCosts } = usePricingSettings();
   const [closing, setClosing] = useState(false);
   const [top200Open, setTop200Open] = useState(false);
   // Wizard: 1 Sessão · 2 Músicas · 3 Revisão.
@@ -186,13 +188,13 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
   const endDate = useMemo(() => addDays(startDate, active.days), [startDate, active.days]);
 
   const effectiveMeta = useMemo(() => {
-    if (active.fonte === "orcamento") return reverseFromBudget(active.budget, active.splitEco);
+    if (active.fonte === "orcamento") return reverseFromBudget(active.budget, active.splitEco, pricingCosts);
     return active.meta;
-  }, [active.fonte, active.budget, active.splitEco, active.meta]);
+  }, [active.fonte, active.budget, active.splitEco, active.meta, pricingCosts]);
 
   const result = useMemo(() => calcCampaign({
     meta: effectiveMeta, days: active.days, modo: active.modo, perfil: active.perfil, splitEcoPct: active.splitEco,
-  }), [effectiveMeta, active.days, active.modo, active.perfil, active.splitEco]);
+  }, pricingCosts), [effectiveMeta, active.days, active.modo, active.perfil, active.splitEco, pricingCosts]);
 
   function isSongReady(s: Song): boolean {
     return !!s.track?.id && s.baselineStreamsDay >= 0 && (s.fonte === "orcamento" ? s.budget > 0 : s.meta > 0);
@@ -204,10 +206,10 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
     song: s,
     ready: isSongReady(s),
     r: calcCampaign({
-      meta: s.fonte === "orcamento" ? reverseFromBudget(s.budget, s.splitEco) : s.meta,
+      meta: s.fonte === "orcamento" ? reverseFromBudget(s.budget, s.splitEco, pricingCosts) : s.meta,
       days: s.days, modo: s.modo, perfil: s.perfil, splitEcoPct: s.splitEco,
-    }),
-  })), [songs]);
+    }, pricingCosts),
+  })), [songs, pricingCosts]);
   const totals = useMemo(() => {
     const ready = songResults.filter(x => x.ready);
     return {
@@ -281,8 +283,8 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
         .is("archived_at", null);
       if (error) throw error;
 
-      const effMeta = song.fonte === "orcamento" ? reverseFromBudget(song.budget, song.splitEco) : song.meta;
-      const r = calcCampaign({ meta: effMeta, days: song.days, modo: song.modo, perfil: song.perfil, splitEcoPct: song.splitEco });
+      const effMeta = song.fonte === "orcamento" ? reverseFromBudget(song.budget, song.splitEco, pricingCosts) : song.meta;
+      const r = calcCampaign({ meta: effMeta, days: song.days, modo: song.modo, perfil: song.perfil, splitEcoPct: song.splitEco }, pricingCosts);
 
       const snapshot = buildSnapshot(r, {
         spotifyTrackId: song.track.id,
@@ -802,8 +804,8 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                     <Label className="text-xs">Split ecossistema: {active.splitEco}% próprio · {100 - active.splitEco}% externo</Label>
                     <Slider value={[active.splitEco]} onValueChange={([v]) => setSplitEco(v)} min={0} max={100} step={5} className="mt-2" />
                     <div className="text-[11px] text-muted-foreground mt-1.5 flex justify-between">
-                      <span>Próprio R$ {(COST_PER_STREAM.eco * 1000).toFixed(0)}/mil</span>
-                      <span>Externo R$ {(COST_PER_STREAM.ext * 1000).toFixed(0)}/mil</span>
+                      <span>Próprio R$ {(pricingCosts.eco * 1000).toFixed(0)}/mil</span>
+                      <span>Externo R$ {(pricingCosts.ext * 1000).toFixed(0)}/mil</span>
                     </div>
                   </div>
                 </CardContent>

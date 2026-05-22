@@ -8,10 +8,17 @@
  * Split padrão: 60% eco / 40% externo.
  */
 
+/**
+ * Defaults usados quando o usuário ainda não configurou `pricing_settings`.
+ * Toda função aqui aceita um override opcional `costs` — quem chama deve
+ * passar `usePricingSettings().costs` quando logado.
+ */
 export const COST_PER_STREAM = {
   eco: 0.028,
   ext: 0.040,
 } as const;
+
+export type CostPerStream = { eco: number; ext: number };
 
 export const DEFAULT_SPLIT = { eco: 60, ext: 40 } as const;
 
@@ -205,18 +212,17 @@ function buildCurve(
 }
 
 
-export function calcCampaign(input: CampaignInput): CampaignResult {
+export function calcCampaign(input: CampaignInput, costs: CostPerStream = COST_PER_STREAM): CampaignResult {
   const meta = Math.max(0, Math.round(input.meta));
   const days = Math.max(1, Math.round(input.days));
   const splitEcoPct = Math.min(100, Math.max(0, input.splitEcoPct));
-  const splitExtPct = 100 - splitEcoPct;
   const inercia = INERCIA_BY_PERFIL[input.perfil];
 
   const streamsEco = Math.round((meta * splitEcoPct) / 100);
   const streamsExt = meta - streamsEco;
 
-  const custoEco = streamsEco * COST_PER_STREAM.eco;
-  const custoExt = streamsExt * COST_PER_STREAM.ext;
+  const custoEco = streamsEco * costs.eco;
+  const custoExt = streamsExt * costs.ext;
   const custoTotal = custoEco + custoExt;
   const custoPorStream = meta > 0 ? custoTotal / meta : 0;
 
@@ -225,21 +231,10 @@ export function calcCampaign(input: CampaignInput): CampaignResult {
   const mediaPorDia = meta / days;
 
   return {
-    meta,
-    days,
-    modo: input.modo,
-    perfil: input.perfil,
-    splitEcoPct,
-    streamsEco,
-    streamsExt,
-    custoEco,
-    custoExt,
-    custoTotal,
-    custoPorStream,
-    picoPorDia,
-    mediaPorDia,
-    inercia,
-    curva,
+    meta, days, modo: input.modo, perfil: input.perfil, splitEcoPct,
+    streamsEco, streamsExt,
+    custoEco, custoExt, custoTotal, custoPorStream,
+    picoPorDia, mediaPorDia, inercia, curva,
   };
 }
 
@@ -247,11 +242,10 @@ export function calcCampaign(input: CampaignInput): CampaignResult {
  * Modo reverso: dado um orçamento, retorna a meta (streams) atingível
  * mantendo o mesmo split eco/ext.
  */
-export function reverseFromBudget(budget: number, splitEcoPct: number): number {
+export function reverseFromBudget(budget: number, splitEcoPct: number, costs: CostPerStream = COST_PER_STREAM): number {
   const ecoFrac = splitEcoPct / 100;
   const extFrac = 1 - ecoFrac;
-  // budget = meta * (ecoFrac * COST_eco + extFrac * COST_ext)
-  const blended = ecoFrac * COST_PER_STREAM.eco + extFrac * COST_PER_STREAM.ext;
+  const blended = ecoFrac * costs.eco + extFrac * costs.ext;
   if (blended <= 0) return 0;
   return Math.floor(budget / blended);
 }
