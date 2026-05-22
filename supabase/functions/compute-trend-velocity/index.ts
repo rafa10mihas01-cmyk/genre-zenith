@@ -74,7 +74,9 @@ Deno.serve(async (req) => {
       const [genre_id, track_id] = k.split("|");
       const baseline = Math.max(1, b.historic / (WINDOW_HISTORIC / WINDOW_RECENT));
       const velocity = b.recent / baseline;
-      if (b.recent < 2 && velocity < 1.5) continue; // ruído
+      // TEMP: baseline relaxado (b.recent<1) enquanto playlist_track_snapshots
+      // ainda está acumulando histórico. Voltar a `<2` quando snaps>500.
+      if (b.recent < 1 && velocity < 1.5) continue; // ruído
       const bucket: "recent" | "viral" = velocity >= VIRAL_THRESHOLD && b.recent >= 3 ? "viral" : "recent";
       const score = Number((velocity * Math.log10(1 + b.recent)).toFixed(4));
       rows.push({
