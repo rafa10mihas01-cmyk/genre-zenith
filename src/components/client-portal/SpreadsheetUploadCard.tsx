@@ -30,6 +30,18 @@ type Preview = {
   top_playlists?: Array<{ name: string; streams: number; owner: string | null; is_internal?: boolean }>;
   playlists: Array<{ name: string; streams: number; owner: string | null }>;
   warnings: string[];
+  auto_fixes?: Record<string, number>;
+  auto_fixes_total?: number;
+};
+
+const FIX_LABELS: Record<string, string> = {
+  empty_rows: "linhas vazias removidas",
+  junk_rows: "linhas de total ignoradas",
+  duplicates: "duplicatas removidas",
+  url_cleaned: "URLs limpas",
+  number_normalized: "números normalizados",
+  negative_clamped: "valores negativos zerados",
+  invalid_position: "posições inválidas ignoradas",
 };
 
 interface Props {
@@ -300,6 +312,19 @@ export function SpreadsheetUploadCard({
                   </ul>
                 </div>
               )}
+              {preview.auto_fixes_total && preview.auto_fixes_total > 0 ? (
+                <div className="pt-2 border-t border-border/60 flex items-start gap-2 text-[11px] text-muted-foreground">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
+                  <span>
+                    <span className="text-foreground font-medium">{preview.auto_fixes_total} ajuste{preview.auto_fixes_total > 1 ? "s" : ""} automático{preview.auto_fixes_total > 1 ? "s" : ""}</span>
+                    {" — "}
+                    {Object.entries(preview.auto_fixes ?? {})
+                      .filter(([, n]) => n > 0)
+                      .map(([k, n]) => `${n} ${FIX_LABELS[k] ?? k}`)
+                      .join(" · ")}
+                  </span>
+                </div>
+              ) : null}
               {preview.warnings.length > 0 && (
                 <div className="text-[11px] text-amber-500">{preview.warnings.join(" · ")}</div>
               )}
