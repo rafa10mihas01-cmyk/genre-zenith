@@ -97,13 +97,13 @@ function RedirectUrisPanel({ slug }: { slug: string }) {
       </div>
       <div className="space-y-1">
         {urls.map((u) => (
-          <div key={u.url} className="flex items-center gap-2 group">
-            <span className="text-[9px] uppercase tracking-wide text-muted-foreground/70 w-16 shrink-0">{u.label}</span>
-            <code className="flex-1 min-w-0 text-[10px] font-mono text-foreground truncate">{u.url}</code>
+          <div key={u.url} className="flex items-start gap-2 group min-w-0">
+            <span className="text-[9px] uppercase tracking-wide text-muted-foreground/70 w-16 shrink-0 pt-0.5">{u.label}</span>
+            <code className="flex-1 min-w-0 text-[10px] font-mono text-foreground break-all leading-snug">{u.url}</code>
             <button
               type="button"
               onClick={() => copyOne(u.url)}
-              className="opacity-50 hover:opacity-100 text-muted-foreground hover:text-primary transition"
+              className="opacity-50 hover:opacity-100 text-muted-foreground hover:text-primary transition shrink-0 mt-0.5"
               title="Copiar"
             >
               {copied === u.url ? <Check className="h-3 w-3 text-primary" /> : <Copy className="h-3 w-3" />}
@@ -543,8 +543,8 @@ export function SpotifyAppsManager({
 
       {/* Dialog de edição/cadastro */}
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
-        <DialogContent className="sm:max-w-[560px] bg-card border-border/60 shadow-2xl">
-          <DialogHeader className="space-y-2 pb-2 border-b border-border/40">
+        <DialogContent className="sm:max-w-[560px] max-h-[90vh] p-0 bg-card border-border/60 shadow-2xl flex flex-col overflow-hidden">
+          <DialogHeader className="space-y-2 px-6 pt-6 pb-3 border-b border-border/40 shrink-0">
             <DialogTitle className="text-lg font-semibold text-foreground">
               {editing?.id ? "Editar app Spotify" : "Cadastrar app Spotify"}
             </DialogTitle>
@@ -556,7 +556,7 @@ export function SpotifyAppsManager({
               e cole as credenciais aqui.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 pt-2">
+          <div className="space-y-4 px-6 py-4 overflow-y-auto flex-1 min-h-0 nx-scroll min-w-0">
             <div className="space-y-1.5">
               <Label className="text-xs font-medium text-foreground">Nome interno</Label>
               <Input
@@ -648,7 +648,7 @@ export function SpotifyAppsManager({
               </span>
             </label>
           </div>
-          <DialogFooter className="pt-3 border-t border-border/40">
+          <DialogFooter className="px-6 py-3 border-t border-border/40 shrink-0">
             <Button variant="outline" size="sm" onClick={() => setEditing(null)} disabled={saving}>Cancelar</Button>
             <Button size="sm" onClick={save} disabled={saving} className="bg-primary text-primary-foreground hover:bg-primary/90">
               {saving && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />}
