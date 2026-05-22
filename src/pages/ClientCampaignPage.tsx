@@ -714,6 +714,16 @@ export default function ClientCampaignPage() {
             </Card>
           )}
 
+          {/* Upload de planilha — só quando o deal não tem Spotify conectado */}
+          {spreadsheetSource && (
+            <SpreadsheetUploadCard
+              clientToken={token!}
+              lastUploadAt={lastSpreadsheetUploadAt}
+              recentUploads={recentUploads}
+              onUploaded={load}
+            />
+          )}
+
           {/* Histórico de prints — só leitura, sem links externos pra Spotify */}
           {snapshotHistory.length > 0 && (
             <Card className="nx-card nx-card-glow !p-0 border-border">
