@@ -304,7 +304,9 @@ export function SpotifyAppsManager({
         <div className="space-y-3">
           {apps.slice(page * APPS_PER_PAGE, page * APPS_PER_PAGE + APPS_PER_PAGE).map((a) => {
             const appAccounts = accountsByApp.get(a.id) ?? [];
-            const full = a.slots_remaining <= 0;
+            // Deriva uso a partir das contas reais (prop), pra atualizar na hora ao deletar/conectar.
+            const liveUsed = appAccounts.length;
+            const full = liveUsed >= a.max_accounts;
             const isPaused = a.status !== "active";
             return (
               <article key={a.id} className="nx-card overflow-hidden">
