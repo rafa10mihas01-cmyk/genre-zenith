@@ -283,8 +283,8 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
         .is("archived_at", null);
       if (error) throw error;
 
-      const effMeta = song.fonte === "orcamento" ? reverseFromBudget(song.budget, song.splitEco) : song.meta;
-      const r = calcCampaign({ meta: effMeta, days: song.days, modo: song.modo, perfil: song.perfil, splitEcoPct: song.splitEco });
+      const effMeta = song.fonte === "orcamento" ? reverseFromBudget(song.budget, song.splitEco, pricingCosts) : song.meta;
+      const r = calcCampaign({ meta: effMeta, days: song.days, modo: song.modo, perfil: song.perfil, splitEcoPct: song.splitEco }, pricingCosts);
 
       const snapshot = buildSnapshot(r, {
         spotifyTrackId: song.track.id,
