@@ -214,8 +214,8 @@ export function SpotifyAppsManager({
 
   // ─── Resumo operacional ───
   const totalApps = apps.length;
-  const totalUsed = apps.reduce((sum, a) => sum + a.accounts_used, 0);
   const totalMax = apps.reduce((sum, a) => sum + a.max_accounts, 0);
+  const totalUsed = accounts.filter((a) => a.app_id && apps.some((x) => x.id === a.app_id)).length;
   const allHealthy = apps.length > 0 && apps.every((a) => a.status === "active");
   const accountsByApp = useMemo(() => {
     const m = new Map<string, SpotifyAccount[]>();
@@ -304,7 +304,9 @@ export function SpotifyAppsManager({
         <div className="space-y-3">
           {apps.slice(page * APPS_PER_PAGE, page * APPS_PER_PAGE + APPS_PER_PAGE).map((a) => {
             const appAccounts = accountsByApp.get(a.id) ?? [];
-            const full = a.slots_remaining <= 0;
+            // Deriva uso a partir das contas reais (prop), pra atualizar na hora ao deletar/conectar.
+            const liveUsed = appAccounts.length;
+            const full = liveUsed >= a.max_accounts;
             const isPaused = a.status !== "active";
             return (
               <article key={a.id} className="nx-card overflow-hidden">
@@ -364,7 +366,7 @@ export function SpotifyAppsManager({
                     </div>
                   </div>
                   <div className="mt-3">
-                    <CapacityBar used={a.accounts_used} max={a.max_accounts} />
+                    <CapacityBar used={liveUsed} max={a.max_accounts} />
                   </div>
                 </header>
 
