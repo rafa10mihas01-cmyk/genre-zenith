@@ -4797,30 +4797,51 @@ export type Database = {
           created_at: string | null
           executado: boolean | null
           genre_id: string | null
+          growth_rate: number
           id: string
+          last_evaluated_at: string | null
+          quality_score: number
+          search_velocity: number
+          status: string
+          subgenre_id: string | null
           termo: string
           tipo: string
           total_resultados: number | null
+          trend_score: number
           ultima_execucao: string | null
         }
         Insert: {
           created_at?: string | null
           executado?: boolean | null
           genre_id?: string | null
+          growth_rate?: number
           id?: string
+          last_evaluated_at?: string | null
+          quality_score?: number
+          search_velocity?: number
+          status?: string
+          subgenre_id?: string | null
           termo: string
           tipo: string
           total_resultados?: number | null
+          trend_score?: number
           ultima_execucao?: string | null
         }
         Update: {
           created_at?: string | null
           executado?: boolean | null
           genre_id?: string | null
+          growth_rate?: number
           id?: string
+          last_evaluated_at?: string | null
+          quality_score?: number
+          search_velocity?: number
+          status?: string
+          subgenre_id?: string | null
           termo?: string
           tipo?: string
           total_resultados?: number | null
+          trend_score?: number
           ultima_execucao?: string | null
         }
         Relationships: [
@@ -4836,6 +4857,13 @@ export type Database = {
             columns: ["genre_id"]
             isOneToOne: false
             referencedRelation: "genres_with_health"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "search_terms_subgenre_id_fkey"
+            columns: ["subgenre_id"]
+            isOneToOne: false
+            referencedRelation: "subgenres"
             referencedColumns: ["id"]
           },
         ]
@@ -5211,6 +5239,57 @@ export type Database = {
             columns: ["app_id"]
             isOneToOne: false
             referencedRelation: "spotify_apps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subgenres: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          descricao: string | null
+          id: string
+          nome: string
+          palavras_chave: Json
+          parent_genre_id: string
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          nome: string
+          palavras_chave?: Json
+          parent_genre_id: string
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          nome?: string
+          palavras_chave?: Json
+          parent_genre_id?: string
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subgenres_parent_genre_id_fkey"
+            columns: ["parent_genre_id"]
+            isOneToOne: false
+            referencedRelation: "genres"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subgenres_parent_genre_id_fkey"
+            columns: ["parent_genre_id"]
+            isOneToOne: false
+            referencedRelation: "genres_with_health"
             referencedColumns: ["id"]
           },
         ]
