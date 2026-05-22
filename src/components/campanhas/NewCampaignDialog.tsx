@@ -110,6 +110,7 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
     setStartDate(new Date().toISOString().slice(0, 10));
     setDeadline("");
     setClientId(""); setCuratorId("");
+    setValorCobradoDigits(""); setFormaRecebimento(""); setJaRecebido(false); setRecebidoEm("");
     setItems([]); setActivate(false);
   };
 
@@ -132,11 +133,13 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
   const draftSnapshot = useMemo(() => ({
     step, trackName, artist, trackUrl, goal, startDate, deadline, notes,
     clientId, curatorId,
+    valorCobradoDigits, formaRecebimento, jaRecebido, recebidoEm,
     items: items.map(i => ({
       playlist_id: i.playlist_id, selected: i.selected, target_override: i.target_override,
     })),
     activate,
-  }), [step, trackName, artist, trackUrl, goal, startDate, deadline, notes, clientId, curatorId, items, activate]);
+  }), [step, trackName, artist, trackUrl, goal, startDate, deadline, notes, clientId, curatorId,
+       valorCobradoDigits, formaRecebimento, jaRecebido, recebidoEm, items, activate]);
 
   const isDraftEmpty = !trackName.trim() && !artist.trim() && !trackUrl.trim() && !notes.trim()
     && step === 1 && goal === 50000 && !deadline;
@@ -163,6 +166,10 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
     setNotes(d.notes ?? "");
     setClientId((d as any).clientId ?? "");
     setCuratorId((d as any).curatorId ?? "");
+    setValorCobradoDigits((d as any).valorCobradoDigits ?? "");
+    setFormaRecebimento((d as any).formaRecebimento ?? "");
+    setJaRecebido(Boolean((d as any).jaRecebido));
+    setRecebidoEm((d as any).recebidoEm ?? "");
     setActivate(d.activate ?? false);
     setDraftDismissed(true);
     // Se o draft estava no passo 2, refaz a sugestão e reaplica seleções
