@@ -3598,6 +3598,104 @@ export type Database = {
         }
         Relationships: []
       }
+      label_spreadsheet_reminders: {
+        Row: {
+          created_at: string
+          deal_id: string
+          id: string
+          recipient_email: string | null
+          sent_for_date: string
+        }
+        Insert: {
+          created_at?: string
+          deal_id: string
+          id?: string
+          recipient_email?: string | null
+          sent_for_date?: string
+        }
+        Update: {
+          created_at?: string
+          deal_id?: string
+          id?: string
+          recipient_email?: string | null
+          sent_for_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "label_spreadsheet_reminders_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "curator_deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      label_spreadsheet_uploads: {
+        Row: {
+          content_hash: string
+          created_at: string
+          deal_id: string
+          error_message: string | null
+          file_name: string | null
+          file_path: string
+          id: string
+          reference_date: string
+          rows_imported: number
+          song_id: string | null
+          status: string
+          total_streams: number
+          uploaded_by: string | null
+          uploaded_via: string
+        }
+        Insert: {
+          content_hash: string
+          created_at?: string
+          deal_id: string
+          error_message?: string | null
+          file_name?: string | null
+          file_path: string
+          id?: string
+          reference_date?: string
+          rows_imported?: number
+          song_id?: string | null
+          status?: string
+          total_streams?: number
+          uploaded_by?: string | null
+          uploaded_via?: string
+        }
+        Update: {
+          content_hash?: string
+          created_at?: string
+          deal_id?: string
+          error_message?: string | null
+          file_name?: string | null
+          file_path?: string
+          id?: string
+          reference_date?: string
+          rows_imported?: number
+          song_id?: string | null
+          status?: string
+          total_streams?: number
+          uploaded_by?: string | null
+          uploaded_via?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "label_spreadsheet_uploads_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "curator_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "label_spreadsheet_uploads_song_id_fkey"
+            columns: ["song_id"]
+            isOneToOne: false
+            referencedRelation: "curator_deal_songs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       learning_loop_runs: {
         Row: {
           duracao_ms: number | null
@@ -7380,6 +7478,14 @@ export type Database = {
           batch_id: string
           deal_id: string
           print_urls: Json
+          song_id: string
+        }[]
+      }
+      resolve_client_token: {
+        Args: { _token: string }
+        Returns: {
+          deal_id: string
+          has_spotify: boolean
           song_id: string
         }[]
       }

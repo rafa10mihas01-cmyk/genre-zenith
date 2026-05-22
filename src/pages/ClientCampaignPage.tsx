@@ -34,6 +34,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { NexEngineLogo } from "@/components/NexEngineLogo";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { cn } from "@/lib/utils";
+import { SpreadsheetUploadCard } from "@/components/client-portal/SpreadsheetUploadCard";
 
 type SafeDeal = {
   campaign_name: string;
@@ -137,6 +138,9 @@ export default function ClientCampaignPage() {
   const [selectedSongId, setSelectedSongId] = useState<string | null>(null);
   const [snapshotHistory, setSnapshotHistory] = useState<SafeSnapshotEntry[]>([]);
   const [openSnapshotKey, setOpenSnapshotKey] = useState<string | null>(null);
+  const [spreadsheetSource, setSpreadsheetSource] = useState(false);
+  const [lastSpreadsheetUploadAt, setLastSpreadsheetUploadAt] = useState<string | null>(null);
+  const [recentUploads, setRecentUploads] = useState<any[]>([]);
 
   const load = async () => {
     if (!token) return;
@@ -154,6 +158,8 @@ export default function ClientCampaignPage() {
       setSongs([]);
       setSelectedSongId(null);
       setSnapshotHistory([]);
+      setSpreadsheetSource(false);
+      setRecentUploads([]);
     } else {
       setDeal(data.deal);
       setProgress(data.progress);
@@ -162,6 +168,9 @@ export default function ClientCampaignPage() {
       setSongs(data.songs ?? []);
       setSelectedSongId(data.selected_song_id ?? null);
       setSnapshotHistory((data.snapshot_history ?? []) as SafeSnapshotEntry[]);
+      setSpreadsheetSource(Boolean(data.spreadsheet_source));
+      setLastSpreadsheetUploadAt(data.last_spreadsheet_upload_at ?? null);
+      setRecentUploads(data.recent_uploads ?? []);
       setError(null);
     }
     setLoading(false);
@@ -704,6 +713,16 @@ export default function ClientCampaignPage() {
                 </p>
               </CardContent>
             </Card>
+          )}
+
+          {/* Upload de planilha — só quando o deal não tem Spotify conectado */}
+          {spreadsheetSource && (
+            <SpreadsheetUploadCard
+              clientToken={token!}
+              lastUploadAt={lastSpreadsheetUploadAt}
+              recentUploads={recentUploads}
+              onUploaded={load}
+            />
           )}
 
           {/* Histórico de prints — só leitura, sem links externos pra Spotify */}

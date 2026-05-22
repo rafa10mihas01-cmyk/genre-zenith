@@ -125,7 +125,7 @@ Deno.serve(async (req) => {
     const { data: deal, error: dealErr } = await admin
       .from("curator_deals")
       .select(
-        "id, song_name, song_artist, song_cover_url, target_plays, daily_goal, baseline_plays, started_at, ends_at, created_at, closed_at, state",
+        "id, song_name, song_artist, song_cover_url, target_plays, daily_goal, baseline_plays, started_at, ends_at, created_at, closed_at, state, spotify_owner_id",
       )
       .eq("id", dealId!)
       .maybeSingle();
@@ -360,6 +360,21 @@ Deno.serve(async (req) => {
         : [],
     }));
 
+    // 7) Status do upload de planilha (só importa se NÃO tem Spotify conectado)
+    const hasSpotify = Boolean(dealRow.spotify_owner_id);
+    let recentUploads: AnyRec[] = [];
+    let lastSpreadsheetUploadAt: string | null = null;
+    if (!hasSpotify) {
+      const { data: uploads } = await admin
+        .from("label_spreadsheet_uploads")
+        .select("id, created_at, rows_imported, total_streams, status, file_name")
+        .eq("deal_id", dealId!)
+        .order("created_at", { ascending: false })
+        .limit(5);
+      recentUploads = (uploads ?? []) as AnyRec[];
+      lastSpreadsheetUploadAt = recentUploads[0]?.created_at ?? null;
+    }
+
     return jr({
       ok: true,
       deal: safeDeal,
@@ -378,6 +393,9 @@ Deno.serve(async (req) => {
       series,
       playlists: safePlaylists,
       snapshot_history: safeSnapshotHistory,
+      spreadsheet_source: !hasSpotify,
+      last_spreadsheet_upload_at: lastSpreadsheetUploadAt,
+      recent_uploads: recentUploads,
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
