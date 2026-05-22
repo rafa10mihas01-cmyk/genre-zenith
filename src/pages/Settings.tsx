@@ -21,7 +21,6 @@ import { getSpotifyRedirectUri } from "@/lib/spotifyPublicAuth";
 const STORAGE_KEY = "nx-collect-settings";
 const SETTINGS_ROUTE = "/configuracoes";
 const SPOTIFY_SETTINGS_RETURN_KEY = "nx:spotify_settings_return";
-const SPOTIFY_LOGOUT_URL = "https://accounts.spotify.com/logout";
 
 function getLegacySpotifySettingsRedirectUri() {
   return `${window.location.origin}${SETTINGS_ROUTE}?spotify_callback=1`;
@@ -111,13 +110,8 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
     }
 
     if (forceLogin) {
-      writeSpotifyPopupMessage(popup, "Trocando conta Spotify", "Vamos sair da conta Spotify atual e abrir a tela limpa para entrar com outra conta.");
-      popup.location.href = SPOTIFY_LOGOUT_URL;
-      window.setTimeout(() => {
-        try {
-          if (!popup.closed) popup.location.href = authUrl;
-        } catch { /* ignore */ }
-      }, 1400);
+      writeSpotifyPopupMessage(popup, "Abrindo autorização", "Enviando para a tela correta de autorização do app Spotify.");
+      popup.location.href = authUrl;
       return popup;
     }
 
@@ -149,7 +143,7 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
       }
       toast.info(forceLogin ? "Trocando conta no Spotify" : `Autorização aberta (app: ${j.app ?? "default"})`, {
         description: forceLogin
-          ? "A sessão atual será encerrada e a próxima conta poderá ser autorizada."
+          ? "A tela oficial de autorização será aberta sem passar pela página de conta do Spotify."
           : "Aprove o acesso. Depois volte aqui e atualize que a conta aparece.",
       });
     } catch (e: any) {
@@ -239,7 +233,7 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
       if (forceLogin) {
         openSpotifyPopup(j.url, true, popup);
         toast.info("Escolha a outra conta", {
-          description: `App: ${j.app ?? "default"}. Vamos limpar a sessão Spotify antes da autorização.`,
+          description: `App: ${j.app ?? "default"}. A autorização será aberta direto no Spotify.`,
         });
       } else {
         popup.location.href = j.url;
