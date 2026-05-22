@@ -1503,6 +1503,50 @@ export type Database = {
         }
         Relationships: []
       }
+      curator_deal_delivery_status: {
+        Row: {
+          actual_to_date: number
+          deal_id: string
+          delta_pct: number
+          expected_to_date: number
+          last_checked_at: string
+          reason: string | null
+          spike_playlist_ids: Json
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          actual_to_date?: number
+          deal_id: string
+          delta_pct?: number
+          expected_to_date?: number
+          last_checked_at?: string
+          reason?: string | null
+          spike_playlist_ids?: Json
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          actual_to_date?: number
+          deal_id?: string
+          delta_pct?: number
+          expected_to_date?: number
+          last_checked_at?: string
+          reason?: string | null
+          spike_playlist_ids?: Json
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "curator_deal_delivery_status_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: true
+            referencedRelation: "curator_deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       curator_deal_logs: {
         Row: {
           created_at: string
@@ -1585,6 +1629,66 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "curator_deal_payments_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "curator_deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      curator_deal_plan: {
+        Row: {
+          cap_dia: number
+          curator_playlist_id: string
+          daily: Json
+          deal_id: string
+          engagement_mult: number
+          followers: number
+          generated_at: string
+          id: string
+          playlist_name: string
+          position: number
+          start_day: number
+          total_streams: number
+        }
+        Insert: {
+          cap_dia?: number
+          curator_playlist_id: string
+          daily?: Json
+          deal_id: string
+          engagement_mult?: number
+          followers?: number
+          generated_at?: string
+          id?: string
+          playlist_name: string
+          position?: number
+          start_day?: number
+          total_streams?: number
+        }
+        Update: {
+          cap_dia?: number
+          curator_playlist_id?: string
+          daily?: Json
+          deal_id?: string
+          engagement_mult?: number
+          followers?: number
+          generated_at?: string
+          id?: string
+          playlist_name?: string
+          position?: number
+          start_day?: number
+          total_streams?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "curator_deal_plan_curator_playlist_id_fkey"
+            columns: ["curator_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "curator_playlists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curator_deal_plan_deal_id_fkey"
             columns: ["deal_id"]
             isOneToOne: false
             referencedRelation: "curator_deals"
