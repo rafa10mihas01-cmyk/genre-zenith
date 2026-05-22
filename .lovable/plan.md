@@ -1,153 +1,150 @@
-# Genre Brain — Plano de Implementação
+# Fase 9 — NexEngine Vivo
 
-Vou organizar os 12 blocos que você mandou em **6 fases sequenciais**, do alicerce até a inteligência cultural. Cada fase é entregável sozinha (gera valor imediato) e prepara a próxima. Nada de Spotify como verdade — Spotify vira só "sinal secundário".
+Objetivo: o catálogo passa a respirar no mesmo ritmo do cérebro. Foco em **freshness**, **ingestão contínua**, **recorrência ponderada por tempo** e **velocidade de tendência**.
 
----
-
-## Princípio guia (vale pra todas as fases)
-
-- **Fonte de verdade = comportamento do ecossistema NexEngine** (tracks recorrentes, playlists similares, performance real, SEO, estética).
-- **Spotify = 1 sinal entre vários**, com peso pequeno (~10–15%).
-- **Tudo ponderado por recência** (peso temporal já entra na Fase 1 como função utilitária reutilizável).
-- **Nada destrutivo**: `genre_id` atual continua existindo como "primary genre" durante toda a migração. As novas tabelas convivem.
+Nenhuma mudança em `apply-managed-cover`, upload manual, resize ou compressão.
 
 ---
 
-## FASE 1 — Fundação: Confidence + Peso Temporal
-*Sem isso, nada do resto funciona.*
+## 1. Schema (migration)
 
-Cobre os blocos: **1 (Genre Confidence)** e **8 (Peso Temporal)**.
+### `search_results` (adições, não destrutivo)
+- `last_refreshed_at timestamptz`
+- `previous_followers integer`
+- `followers_growth integer` (delta vs último snapshot)
+- `followers_growth_rate numeric` (delta / dias)
+- `freshness_score numeric` (0–1, calculado)
+- `refresh_tier text` ('leader' | 'medium' | 'small')  — define cadência
+- `next_refresh_due timestamptz` — coluna alvo do worker
 
-**Entregas:**
-- Nova tabela `playlist_genres` (playlist_id, genre_id, confidence 0–1, source, evidence jsonb, updated_at). UNIQUE(playlist_id, genre_id).
-- Função utilitária `recencyWeight(date)` em `_shared/` — curva: 30d=1.0, 90d=0.7, 180d=0.45, 365d=0.2, >365=0.05. Reusada por TODAS as fases seguintes.
-- Edge function `genre-confidence-calc` que computa confidence multi-gênero por playlist a partir de:
-  - search_terms que descobriram a playlist
-  - tracks recorrentes (com peso temporal)
-  - artistas dominantes
-  - SEO do título
-- Migração de dados: para cada playlist com `genre_id` atual, cria linha em `playlist_genres` com confidence inicial calculada.
-- Painel admin em `/sistema?tab=aprendizado` mostrando "confidence por playlist" pra QA visual.
+### `playlist_followers_snapshots` (nova — série temporal leve)
+- `playlist_spotify_id text`
+- `followers integer`
+- `total_tracks integer`
+- `captured_at timestamptz`
+- índice composto (`playlist_spotify_id`, `captured_at desc`)
 
-**Por que primeiro:** todas as fases seguintes leem `playlist_genres.confidence` em vez de `playlists.genre_id`.
+### `playlist_track_snapshots` (nova — pra detectar troca de tracks)
+- `playlist_spotify_id text`
+- `track_ids text[]` (hash leve dos top 50)
+- `tracks_hash text`
+- `captured_at timestamptz`
 
----
+### `genre_trends` (nova — pool dinâmico por subgênero)
+- `genre_id uuid`
+- `track_id text`, `artist text`, `track_name text`
+- `bucket text` ('historic' | 'recent' | 'leader' | 'viral')
+- `score numeric`, `velocity numeric`
+- `last_seen_at timestamptz`
+- chave (`genre_id`, `track_id`, `bucket`)
 
-## FASE 2 — Subgêneros + Search Terms Vivos
-*Granularidade real do mercado BR.*
-
-Cobre os blocos: **2 (Subgêneros)**, **4 (Search Terms Vivos)**, **5 (Score do Termo)**.
-
-**Entregas:**
-- Tabela `subgenres` (id, parent_genre_id, slug, nome, palavras-chave, ativo). Seed inicial: funk → mandelão, consciente, automotivo, putaria, rave, paulista, viral, trap-funk. Mesmo pra sertanejo, piseiro, trap, pagode, forró, agro, pop BR.
-- Extensão de `search_terms`: adicionar `subgenre_id`, `trend_score`, `search_velocity`, `growth_rate`, `quality_score`, `last_evaluated_at`, `status` (emergente/ativo/saturado/morto).
-- Edge function `search-terms-evaluator` (cron diário): pra cada termo, recalcula score com base em
-  - nº de playlists válidas encontradas nos últimos 30d
-  - follower médio dessas playlists
-  - atividade (snapshots recentes)
-  - recorrência útil das tracks
-  - performance de campanhas no nicho
-- Pruning automático: termos com `quality_score < threshold` por 30 dias → `status=morto` (não entram em novas coletas, mas histórico preserva).
-- `generate-terms` (que já existe) ganha consciência de subgênero ao gerar novos termos via AI.
+Tudo com RLS: leitura authenticated, escrita admin / service role.
 
 ---
 
-## FASE 3 — Clusterização + Playlists Líderes
-*O ecossistema começa a se enxergar.*
+## 2. Edge Functions (novas)
 
-Cobre os blocos: **6 (Clusters)** e **9 (Playlists Líderes)**.
+### `refresh-search-results`
+- Lê `search_results` ordenado por `next_refresh_due asc`.
+- Define tier:
+  - `leader` (followers > 100k OU playlist em `playlist_leadership` ≥ 0.55) → diário
+  - `medium` (followers 10k–100k) → semanal
+  - `small` → quinzenal
+- Para cada playlist: chama Spotify `GET /playlists/{id}` (campos: followers, name, images, tracks.total, snapshot_id) usando helper compartilhado.
+- Atualiza `search_results`: `seguidores`, `nome`, `cover_url`, `total_tracks`, `previous_followers`, `followers_growth`, `followers_growth_rate`, `last_refreshed_at`, `next_refresh_due`.
+- Insere linha em `playlist_followers_snapshots`.
+- Recalcula `freshness_score`.
+- Batch size configurável (default 50/run, limit por tier).
 
-**Entregas:**
-- Tabela `playlist_clusters` (cluster_id, subgenre_id, strength, sample_size, centroid jsonb).
-- Tabela `playlist_cluster_members` (playlist_id, cluster_id, similarity, joined_at).
-- Edge function `cluster-playlists` (cron semanal): clusteriza por similaridade de
-  - artistas em comum (Jaccard)
-  - tracks em comum (Jaccard)
-  - SEO do título (n-grams)
-  - faixa de seguidores
-- Tabela `playlist_leadership` (playlist_id, leadership_score, follower_rank, growth_rank, activity_rank, calculated_at).
-- Edge function `compute-leadership` que combina followers + crescimento recente + presença em benchmarks + qualidade editorial.
-- Líderes ganham peso 2x nas Fases 4–6.
+### `snapshot-playlist-tracks`
+- Só para playlists tier `leader` + amostragem de `medium`.
+- Pega top 50 tracks, gera hash determinístico, grava em `playlist_track_snapshots` somente quando hash mudou.
+- Saída usada por `compute-trend-velocity`.
 
----
+### `compute-trend-velocity`
+- Lê `playlist_track_snapshots` últimos 14d e histórico 60d.
+- Para cada (track_id, genre_id) calcula:
+  - `presence_14d`, `presence_60d`
+  - `trend_velocity = presence_14d / max(1, presence_60d/4)`
+  - `emergence_score`: penaliza tracks já dominantes históricos
+- Upsert em `genre_trends` bucket `recent` / `viral` (velocity > 2.5).
 
-## FASE 4 — Reclassificação + Drift Cultural
-*A playlist deixa de ser "estática".*
-
-Cobre o bloco: **3 (Reclassificação Automática)**.
-
-**Entregas:**
-- Campos novos em `playlist_genres`: `previous_confidence`, `drift_score`, `migration_score`, `trend_shift`.
-- Edge function `detect-genre-drift` (cron semanal): compara confidence atual vs 30d atrás. Quando drift > threshold:
-  - reclassifica primary genre (atualiza `playlists.genre_id`)
-  - emite sinal em `playlist_brain.signals` ("migrou de trap → funk viral, 80% das adds recentes")
-  - registra em `playlist_genre_history` (audit trail)
-- Detector cruza 4 sinais: mudança de repertório, mudança de SEO no título, mudança visual (capa nova → cores novas), mudança de artistas recorrentes.
-
----
-
-## FASE 5 — SEO Semântico + Estética do Nicho
-*Genre Brain começa a "ver" e "falar" como o nicho.*
-
-Cobre os blocos: **10 (SEO Semântico)** e **11 (Estética)**.
-
-**Entregas:**
-- Tabela `genre_seo_lexicon` (subgenre_id, token, type [palavra/emoji/estrutura/numero], strength, status [forte/morto/viral], last_seen). Alimentada por análise dos títulos das playlists líderes do nicho com peso temporal.
-- Tabela `genre_visual_signature` (subgenre_id, dominant_colors jsonb, contrast_avg, has_face_pct, style_tags, aggressiveness_score, sample_size, calculated_at). Alimentada por análise das capas das playlists líderes (palette extraction + classificação via Lovable AI vision).
-- Edge function `learn-genre-lexicon` (cron semanal).
-- Edge function `learn-genre-aesthetics` (cron semanal).
-- Tudo refeito a cada ciclo com peso temporal — o lexicon de hoje ≠ lexicon de 6 meses atrás.
-- Integração: `diagnose-managed-playlist` passa a usar lexicon pra sugerir SEO, e a curadoria visual (refactor anterior) passa a usar a visual signature como filtro de "aderência estética".
+### `build-genre-reference-pool`
+- Por subgênero ativo, monta pool de 40:
+  - 10 histórico (top recorrência ponderada por tempo)
+  - 15 recente (trend_velocity alto)
+  - 10 leader (tracks que aparecem em playlists com leadership ≥ 0.55)
+  - 5 viral (emergence_score alto)
+- Grava em `genre_trends` bucket correspondente; substitui pool anterior do mesmo bucket por subgênero (transacional).
 
 ---
 
-## FASE 6 — Genre Brain Central
-*A camada que une tudo.*
+## 3. Recorrência temporal (`_shared/recency.ts`)
 
-Cobre o bloco: **7 (Genre Brain)** e fecha o **12 (objetivo final)**.
-
-**Entregas:**
-- Tabela `genre_brain` (1 linha por subgenre):
-  - playlists_dominantes (top N por leadership)
-  - artistas_dominantes (top N com peso temporal)
-  - tracks_dominantes (top N com peso temporal)
-  - estetica (FK pra `genre_visual_signature`)
-  - seo (FK pra `genre_seo_lexicon`)
-  - cluster_principal_id
-  - sazonalidade (jsonb, padrões mensais)
-  - growth_curve (jsonb, snapshot followers totais do nicho)
-  - status (emergente/crescendo/estável/declinando/morto)
-  - confidence_score
-  - last_calculated_at
-- Edge function `genre-brain-calc` (cron diário): roda em batch pra todos os subgêneros ativos, agrega resultados das Fases 1–5.
-- Página nova em `/sistema` ou aba dentro de `/curadores`: **"Genre Brain"** — dashboard ao vivo mostrando, por subgênero: status, top playlists/artistas/tracks AGORA, paleta dominante, lexicon SEO ativo, curva de crescimento. UI seguindo PageHeader + design system.
-- API interna que outros módulos (cockpit, diagnose, recomendações de capa, campaign engine) podem consultar pra perguntar: *"como é o nicho HOJE?"*
-
----
-
-## Detalhes técnicos transversais
-
-- **Tudo via Lovable Cloud** (Supabase). RLS em todas as tabelas novas com `has_role(auth.uid(), 'admin')` ou `team_access` conforme o caso.
-- **Crons** novos: `search-terms-evaluator` (diário), `cluster-playlists` (semanal), `compute-leadership` (diário), `detect-genre-drift` (semanal), `learn-genre-lexicon` (semanal), `learn-genre-aesthetics` (semanal), `genre-brain-calc` (diário).
-- **AI**: Fases 5–6 usam Lovable AI Gateway (`google/gemini-3-flash-preview` pra texto, `google/gemini-2.5-flash` pra vision em capas).
-- **Backward compatibility**: `playlists.genre_id` continua existindo como "primary" e é atualizado pela Fase 4. Nenhum código antigo quebra.
-- **Observabilidade**: cada cron loga em tabela `engine_runs` (que já existe no padrão do projeto) com nº processado, erros, duração.
-
----
-
-## Ordem sugerida de execução
-
-```text
-Fase 1 (Fundação)        → 1 sprint
-Fase 2 (Subgêneros+Terms) → 1 sprint
-Fase 3 (Clusters+Líderes) → 1 sprint
-Fase 4 (Drift)            → 0.5 sprint
-Fase 5 (SEO+Estética)     → 1 sprint
-Fase 6 (Genre Brain)      → 1 sprint
+Já existe `recency.ts` da Fase 2. Estender com:
+```ts
+export function temporalWeight(days: number): number {
+  if (days <= 30) return 1.0;
+  if (days <= 90) return 0.7;
+  if (days <= 180) return 0.4;
+  if (days <= 365) return 0.15;
+  return 0.05;
+}
 ```
+E aplicar em `genre-confidence-calc`, `compute-leadership`, `detect-genre-drift` substituindo o peso linear por `temporalWeight(daysSince(last_seen))`.
 
-Total: **~5.5 sprints**. Cada fase ship-able sozinha, sem big bang.
+Saturação de leader_followers é resolvida via:
+- `freshness_score` entra como multiplicador no leadership formula:
+  `leadership_score = 0.35*followers + 0.20*growth + 0.20*activity + 0.10*benchmark + 0.15*freshness`
+- Normalização por log: `log10(followers+1)/log10(MAX+1)` em vez de divisão crua, eliminando saturação no topo.
 
 ---
 
-**Confirma esse desenho e a ordem das 6 fases?** Se sim, começo pela Fase 1 (Fundação) — tabela `playlist_genres` + função de peso temporal + edge function de confidence. Se quiser ajustar ordem, escopo de alguma fase, ou cortar/fundir blocos, me diz antes de eu começar a codar.
+## 4. Freshness Score (fórmula)
+
+`freshness_score (0–1)` =
+- 0.30 × `recency_factor` (1 se `last_refreshed_at` ≤ 7d, decai linear até 90d)
+- 0.25 × `followers_growth_norm` (clamp do growth_rate)
+- 0.20 × `track_change_recency` (snapshot mudou últimos 30d)
+- 0.15 × `editorial_activity` (mudanças nos últimos 90d)
+- 0.10 × `update_velocity` (frequência de snapshot_id distintos)
+
+---
+
+## 5. Crons (insert via cron.schedule)
+
+| Job | Cron | Função |
+|---|---|---|
+| `refresh-leaders-daily` | `0 5 * * *` | `refresh-search-results` body `{ tier: "leader" }` |
+| `refresh-medium-weekly` | `0 5 * * 2` | `{ tier: "medium" }` |
+| `refresh-small-biweekly` | `0 5 1,15 * *` | `{ tier: "small" }` |
+| `snapshot-tracks-daily` | `30 5 * * *` | `snapshot-playlist-tracks` |
+| `compute-trend-velocity-daily` | `0 6 * * *` | `compute-trend-velocity` |
+| `build-reference-pool-daily` | `30 6 * * *` | `build-genre-reference-pool` |
+
+Encadeamento: refresh → snapshot → velocity → pool → (à noite) leadership/brain rodam com dados frescos.
+
+---
+
+## 6. UI (mínimo, não invasivo)
+
+- `GenreBrainPanel`: adicionar coluna `freshness_avg` no detail drawer + badge "vivo/parado" no card (verde se freshness ≥ 0.6, cinza se < 0.3).
+- Sem nova página.
+
+---
+
+## 7. Fora de escopo (explícito)
+
+- `apply-managed-cover` — intocado
+- upload manual, resize, compressão — intocados
+- design system, sidebar, rotas — sem mudança
+
+---
+
+## Entrega em 3 PRs lógicos dentro desta loop
+
+1. **Schema + helpers** (migration + `recency.ts` estendido)
+2. **Edge functions** (`refresh-search-results`, `snapshot-playlist-tracks`, `compute-trend-velocity`, `build-genre-reference-pool`) + ajuste em `compute-leadership` (log + freshness)
+3. **Crons + UI badge freshness**
+
+Tudo deployable e validado por chamadas curl antes de fechar.

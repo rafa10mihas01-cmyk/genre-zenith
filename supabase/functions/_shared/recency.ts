@@ -31,3 +31,41 @@ export function normalize(value: number, ceiling: number): number {
   if (ceiling <= 0) return 0;
   return Math.max(0, Math.min(1, value / ceiling));
 }
+
+/** Buckets temporais discretos (Fase 9 — recorrência ponderada).
+ *  Mais agressivo que recencyWeight: faz tracks/eventos antigos
+ *  pararem de dominar o ranking cultural.
+ *      <=  30d -> 1.00
+ *      <=  90d -> 0.70
+ *      <= 180d -> 0.40
+ *      <= 365d -> 0.15
+ *      > 365d  -> 0.05
+ */
+export function temporalWeight(daysOrDate: number | string | Date | null | undefined, ref: Date = new Date()): number {
+  let days: number;
+  if (daysOrDate == null) return 0.05;
+  if (typeof daysOrDate === "number") {
+    days = daysOrDate;
+  } else {
+    const d = typeof daysOrDate === "string" ? new Date(daysOrDate) : daysOrDate;
+    if (isNaN(d.getTime())) return 0.05;
+    days = (ref.getTime() - d.getTime()) / 86400_000;
+  }
+  if (days <= 30) return 1.0;
+  if (days <= 90) return 0.7;
+  if (days <= 180) return 0.4;
+  if (days <= 365) return 0.15;
+  return 0.05;
+}
+
+/** Freshness 0–1 baseado em quão recente foi a última atualização. */
+export function recencyFactor(lastAt: string | Date | null | undefined, ref: Date = new Date()): number {
+  if (!lastAt) return 0;
+  const d = typeof lastAt === "string" ? new Date(lastAt) : lastAt;
+  if (isNaN(d.getTime())) return 0;
+  const days = (ref.getTime() - d.getTime()) / 86400_000;
+  if (days <= 7) return 1;
+  if (days >= 90) return 0;
+  return 1 - (days - 7) / 83;
+}
+

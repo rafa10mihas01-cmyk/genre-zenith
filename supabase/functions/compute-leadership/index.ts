@@ -62,6 +62,18 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Freshness por playlist (vem de search_results pelo spotify_playlist_id).
+    const { data: srFresh } = await supabase
+      .from("search_results")
+      .select("spotify_playlist_id, freshness_score")
+      .in("spotify_playlist_id", spIds);
+    const freshByPl = new Map<string, number>();
+    for (const r of (srFresh ?? []) as any[]) {
+      const cur = freshByPl.get(r.spotify_playlist_id) ?? 0;
+      const v = Number(r.freshness_score) || 0;
+      if (v > cur) freshByPl.set(r.spotify_playlist_id, v);
+    }
+
     // Ceilings for normalization
     const maxFollowers = Math.max(1, ...pls.map((p: any) => p.followers ?? 0));
     let maxGrowth = 1;
@@ -83,15 +95,19 @@ Deno.serve(async (req) => {
     });
 
     const rows = computed.map(({ p, growth, activity, snaps }) => {
+      // Log normalization elimina saturação no topo.
       const followerRank = normalize(Math.log10(1 + (p.followers ?? 0)), Math.log10(1 + maxFollowers));
       const growthRank = normalize(Math.max(0, growth), Math.max(0.01, maxGrowth));
       const activityRank = normalize(activity, maxActivity);
-      const benchmarkRank = snaps > 3 ? 1.0 : snaps / 4; // proxy: being tracked = benchmark presence
+      const benchmarkRank = snaps > 3 ? 1.0 : snaps / 4;
+      const freshnessRank = freshByPl.get(p.spotify_playlist_id) ?? 0;
+      // Fórmula Fase 9: 35 followers + 20 growth + 20 activity + 10 benchmark + 15 freshness
       const leadership =
-        0.40 * followerRank +
-        0.25 * growthRank +
+        0.35 * followerRank +
+        0.20 * growthRank +
         0.20 * activityRank +
-        0.15 * benchmarkRank;
+        0.10 * benchmarkRank +
+        0.15 * freshnessRank;
       return {
         playlist_id: p.id,
         leadership_score: Number(leadership.toFixed(4)),
@@ -99,10 +115,12 @@ Deno.serve(async (req) => {
         growth_rank: Number(growthRank.toFixed(4)),
         activity_rank: Number(activityRank.toFixed(4)),
         benchmark_rank: Number(benchmarkRank.toFixed(4)),
-        evidence: { followers: p.followers ?? 0, growth_30d_pct: Number(growth.toFixed(4)), activity_weighted: Number(activity.toFixed(2)), snapshots: snaps },
+        freshness_rank: Number(freshnessRank.toFixed(4)),
+        evidence: { followers: p.followers ?? 0, growth_30d_pct: Number(growth.toFixed(4)), activity_weighted: Number(activity.toFixed(2)), snapshots: snaps, freshness: freshnessRank },
         calculated_at: new Date().toISOString(),
       };
     });
+
 
     // Upsert in batches
     let written = 0;
