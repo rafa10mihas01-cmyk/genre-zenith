@@ -15,6 +15,7 @@ import ResetPassword from "./pages/ResetPassword";
 import Privacy from "./pages/Privacy";
 import Landing from "./pages/Landing";
 import SpotifyCallback from "./pages/SpotifyCallback";
+import SpotifyInvite from "./pages/SpotifyInvite";
 import RootRoute from "./components/RootRoute";
 // Cérebro e Criação foram aposentados — rotas legadas agora redirecionam para /inteligencia
 import Operacao from "./pages/Operacao";
