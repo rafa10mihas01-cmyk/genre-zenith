@@ -259,6 +259,9 @@ export default function SpotifyCallback() {
                   {error}
                 </pre>
               )}
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                <Button asChild size="lg" className="nx-cta-btn gap-2 min-w-[200px] h-11 text-sm">
+                  <a href="mailto:suporte@nexcreatorx.com?subject=Solicitação%20de%20acesso%20NexEngine">
                     <Mail className="h-4 w-4" />
                     Falar com o suporte
                   </a>
