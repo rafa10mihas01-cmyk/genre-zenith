@@ -289,7 +289,7 @@ Deno.serve(async (req) => {
     let genreName: string | null = null;
 
     if (pl.genre_id) {
-      const [{ data: m }, { data: b }, { data: comps }, { data: srTracks }, { data: gRow }] = await Promise.all([
+      const [{ data: m }, { data: b }, { data: comps }, { data: gRow }] = await Promise.all([
         supabase.from("genre_models")
           .select("palavras_chave, padroes_nome, musicas_recorrentes, insights")
           .eq("genre_id", pl.genre_id).maybeSingle(),
@@ -304,13 +304,43 @@ Deno.serve(async (req) => {
           .not("followers", "is", null)
           .order("followers", { ascending: false })
           .limit(10),
-        supabase.from("search_tracks")
-          .select("spotify_track_id, nome_musica, artista")
-          .eq("genre_id", pl.genre_id)
-          .not("spotify_track_id", "is", null)
-          .limit(5000),
         supabase.from("genres").select("nome").eq("id", pl.genre_id).maybeSingle(),
       ]);
+
+      // 🆕 search_tracks com FILTRO TEMPORAL antes do top-40.
+      // Primário: 90d. Fallback 1: 180d. Fallback 2: all-time + WARN.
+      async function fetchPool(daysOrAll: number | "all") {
+        let q = supabase
+          .from("search_tracks")
+          .select("spotify_track_id, nome_musica, artista, coletado_em")
+          .eq("genre_id", pl.genre_id)
+          .not("spotify_track_id", "is", null)
+          .order("coletado_em", { ascending: false })
+          .limit(5000);
+        if (daysOrAll !== "all") {
+          const cutoff = new Date(Date.now() - daysOrAll * 86400_000).toISOString();
+          q = q.gte("coletado_em", cutoff);
+        }
+        return q;
+      }
+      const uniqIds = (rows: any[] | null | undefined) =>
+        new Set((rows ?? []).map((r) => r.spotify_track_id).filter(Boolean)).size;
+
+      let srTracks: any[] | null = null;
+      let { data: pool90 } = await fetchPool(90);
+      if (uniqIds(pool90) >= 40) {
+        srTracks = pool90; poolAgeDaysCap = 90;
+      } else {
+        const { data: pool180 } = await fetchPool(180);
+        if (uniqIds(pool180) >= 40) {
+          srTracks = pool180; poolAgeDaysCap = 180;
+        } else {
+          const { data: poolAll } = await fetchPool("all");
+          srTracks = poolAll; poolAgeDaysCap = "all";
+          console.warn(`[WARN] pool_age_fallback: nicho=${pl.genre_id}, days_extended=all (uniq90=${uniqIds(pool90)}, uniq180=${uniqIds(pool180)}, uniqAll=${uniqIds(poolAll)})`);
+        }
+      }
+
       model = m;
       benchmark = b;
       genreName = (gRow as any)?.nome ?? null;
@@ -321,18 +351,25 @@ Deno.serve(async (req) => {
         cover_url: c.cover_url,
       }));
 
-      // Recorrência por track_id no nicho
+      // Recorrência por track_id no nicho — SOMENTE no pool filtrado por recência.
       for (const t of srTracks ?? []) {
         if (!t.spotify_track_id) continue;
         const cur = genreRecurrence.get(t.spotify_track_id);
-        if (cur) cur.count++;
-        else genreRecurrence.set(t.spotify_track_id, {
-          count: 1,
-          track_name: t.nome_musica ?? null,
-          artist_name: t.artista ?? null,
-        });
+        if (cur) {
+          cur.count++;
+          if (t.coletado_em && (!cur.latest_coletado_em || t.coletado_em > cur.latest_coletado_em)) {
+            cur.latest_coletado_em = t.coletado_em;
+          }
+        } else {
+          genreRecurrence.set(t.spotify_track_id, {
+            count: 1,
+            track_name: t.nome_musica ?? null,
+            artist_name: t.artista ?? null,
+            latest_coletado_em: t.coletado_em ?? null,
+          });
+        }
       }
-      // Top artistas do nicho (por nº de aparições)
+      // Top artistas do nicho (por nº de aparições, no mesmo pool filtrado)
       const artistCount = new Map<string, number>();
       for (const t of srTracks ?? []) {
         if (!t.artista) continue;
