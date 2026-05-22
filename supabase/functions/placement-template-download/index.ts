@@ -19,6 +19,10 @@ function jr(p: unknown, status = 200) {
   });
 }
 
+function appError(error: string) {
+  return jr({ ok: false, error, fallback: true }, 200);
+}
+
 
 
 
@@ -27,15 +31,15 @@ Deno.serve(async (req) => {
   try {
     const body = await req.json().catch(() => ({}));
     const token = String(body?.client_token ?? "").trim();
-    if (!token) return jr({ ok: false, error: "client_token obrigatório" }, 400);
+    if (!token) return appError("Link do cliente inválido. Reabra o portal pelo link enviado.");
 
     const admin = createClient(SUPABASE_URL, SERVICE_KEY);
     const { data: resolved, error: resErr } = await admin.rpc("resolve_client_token", {
       _token: token,
     });
-    if (resErr) return jr({ ok: false, error: resErr.message }, 200);
+    if (resErr) return appError(resErr.message);
     const row = Array.isArray(resolved) && resolved.length > 0 ? resolved[0] : null;
-    if (!row?.deal_id) return jr({ ok: false, error: "token inválido" }, 403);
+    if (!row?.deal_id) return appError("Link do cliente inválido ou expirado. Reabra o portal pelo link enviado.");
 
     // Tenta buscar info da faixa pra preencher exemplos
     let trackName = "Nome da música";
@@ -116,6 +120,6 @@ Deno.serve(async (req) => {
       file_name: `placements_${safeTrack}_modelo.xlsx`,
     });
   } catch (e) {
-    return jr({ ok: false, error: e instanceof Error ? e.message : String(e) }, 200);
+    return appError(e instanceof Error ? e.message : String(e));
   }
 });
