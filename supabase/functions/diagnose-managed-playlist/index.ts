@@ -1368,6 +1368,97 @@ Deno.serve(async (req) => {
         }
       }
 
+      // 8.d.2.b — leaderRelScore: presença nas TOP-N playlists do nicho (por followers).
+      // Substitui max(seguidores) — que satura em nichos pequenos.
+      // Boost x1.2 (cap 100) se track aparece em snapshot recente (<30d) de alguma top-N.
+      const leaderRelMap = new Map<string, { count: number; recentlyAdded: boolean }>();
+      let leaderRelN_total = 0;
+      if (candidateIds.length > 0 && pl.genre_id) {
+        // top-N playlists do nicho (N = min(10, total))
+        const { data: nicheRows } = await supabase
+          .from("search_results")
+          .select("spotify_playlist_id, seguidores")
+          .eq("genre_id", pl.genre_id)
+          .not("spotify_playlist_id", "is", null)
+          .not("seguidores", "is", null)
+          .order("seguidores", { ascending: false })
+          .limit(50);
+        const dedupedTop: Array<{ id: string; followers: number }> = [];
+        const seenTop = new Set<string>();
+        for (const r of (nicheRows ?? []) as any[]) {
+          if (seenTop.has(r.spotify_playlist_id)) continue;
+          seenTop.add(r.spotify_playlist_id);
+          dedupedTop.push({ id: r.spotify_playlist_id, followers: r.seguidores ?? 0 });
+        }
+        const N = Math.min(10, dedupedTop.length);
+        leaderRelN_total = N;
+        const topIds = dedupedTop.slice(0, N).map((p) => p.id);
+
+        if (topIds.length > 0) {
+          // 1) busca os result_ids das top-N e mapeia quais candidate tracks aparecem em cada
+          const { data: topResults } = await supabase
+            .from("search_results")
+            .select("id, spotify_playlist_id")
+            .eq("genre_id", pl.genre_id)
+            .in("spotify_playlist_id", topIds);
+          const resultIdToPlaylist = new Map<string, string>();
+          for (const r of (topResults ?? []) as any[]) resultIdToPlaylist.set(r.id, r.spotify_playlist_id);
+          const topResultIds = Array.from(resultIdToPlaylist.keys());
+
+          if (topResultIds.length > 0) {
+            const { data: stInTop } = await supabase
+              .from("search_tracks")
+              .select("spotify_track_id, result_id")
+              .in("result_id", topResultIds)
+              .in("spotify_track_id", candidateIds);
+            // count playlists distintas por track
+            const perTrackTopPlaylists = new Map<string, Set<string>>();
+            for (const row of (stInTop ?? []) as any[]) {
+              if (!row.spotify_track_id) continue;
+              const pid = resultIdToPlaylist.get(row.result_id);
+              if (!pid) continue;
+              const s = perTrackTopPlaylists.get(row.spotify_track_id) ?? new Set<string>();
+              s.add(pid);
+              perTrackTopPlaylists.set(row.spotify_track_id, s);
+            }
+            for (const [tid, set] of perTrackTopPlaylists.entries()) {
+              leaderRelMap.set(tid, { count: set.size, recentlyAdded: false });
+            }
+          }
+
+          // 2) Recency boost via playlist_track_snapshots:
+          //    track aparece em snapshot (<30d) de alguma top-N E não aparece
+          //    em snapshot mais antigo que 30d → "recém adicionada".
+          const thirtyAgoISO = new Date(Date.now() - 30 * 86400_000).toISOString();
+          const { data: snapsRecent } = await supabase
+            .from("playlist_track_snapshots")
+            .select("playlist_spotify_id, track_ids, captured_at")
+            .in("playlist_spotify_id", topIds)
+            .gte("captured_at", thirtyAgoISO);
+          const { data: snapsOld } = await supabase
+            .from("playlist_track_snapshots")
+            .select("track_ids")
+            .in("playlist_spotify_id", topIds)
+            .lt("captured_at", thirtyAgoISO);
+
+          const inRecent = new Set<string>();
+          for (const s of (snapsRecent ?? []) as any[]) {
+            for (const tid of (s.track_ids ?? [])) inRecent.add(String(tid));
+          }
+          const inOld = new Set<string>();
+          for (const s of (snapsOld ?? []) as any[]) {
+            for (const tid of (s.track_ids ?? [])) inOld.add(String(tid));
+          }
+          for (const tid of candidateIds) {
+            if (!inRecent.has(tid)) continue;
+            if (inOld.has(tid)) continue; // já existia → não é "recém adicionada"
+            const cur = leaderRelMap.get(tid);
+            if (cur) cur.recentlyAdded = true;
+            // se não está em leaderRelMap, não tem presença em top-N → boost irrelevante
+          }
+        }
+      }
+
       // 8.d.3 — Metadata Spotify (release_date, album.id, popularity, cover HD)
       const meta = new Map<string, any>();
       if (candidateIds.length > 0) {
