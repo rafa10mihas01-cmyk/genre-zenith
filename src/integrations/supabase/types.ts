@@ -3630,6 +3630,108 @@ export type Database = {
           },
         ]
       }
+      label_spreadsheet_rows: {
+        Row: {
+          country: string | null
+          created_at: string
+          deal_id: string
+          id: string
+          is_internal: boolean
+          isrc: string | null
+          matched_curator_id: string | null
+          matched_playlist_id: string | null
+          owner_name: string | null
+          playlist_name: string
+          playlist_spotify_id: string | null
+          playlist_uri: string | null
+          playlist_url: string | null
+          position: number | null
+          raw_payload: Json | null
+          song_id: string | null
+          streams: number
+          upload_id: string
+          version_name: string | null
+        }
+        Insert: {
+          country?: string | null
+          created_at?: string
+          deal_id: string
+          id?: string
+          is_internal?: boolean
+          isrc?: string | null
+          matched_curator_id?: string | null
+          matched_playlist_id?: string | null
+          owner_name?: string | null
+          playlist_name: string
+          playlist_spotify_id?: string | null
+          playlist_uri?: string | null
+          playlist_url?: string | null
+          position?: number | null
+          raw_payload?: Json | null
+          song_id?: string | null
+          streams?: number
+          upload_id: string
+          version_name?: string | null
+        }
+        Update: {
+          country?: string | null
+          created_at?: string
+          deal_id?: string
+          id?: string
+          is_internal?: boolean
+          isrc?: string | null
+          matched_curator_id?: string | null
+          matched_playlist_id?: string | null
+          owner_name?: string | null
+          playlist_name?: string
+          playlist_spotify_id?: string | null
+          playlist_uri?: string | null
+          playlist_url?: string | null
+          position?: number | null
+          raw_payload?: Json | null
+          song_id?: string | null
+          streams?: number
+          upload_id?: string
+          version_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "label_spreadsheet_rows_matched_curator_id_fkey"
+            columns: ["matched_curator_id"]
+            isOneToOne: false
+            referencedRelation: "curators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "label_spreadsheet_rows_matched_curator_id_fkey"
+            columns: ["matched_curator_id"]
+            isOneToOne: false
+            referencedRelation: "v_curator_balance"
+            referencedColumns: ["curator_id"]
+          },
+          {
+            foreignKeyName: "label_spreadsheet_rows_matched_curator_id_fkey"
+            columns: ["matched_curator_id"]
+            isOneToOne: false
+            referencedRelation: "v_curator_finance"
+            referencedColumns: ["curator_id"]
+          },
+          {
+            foreignKeyName: "label_spreadsheet_rows_matched_playlist_id_fkey"
+            columns: ["matched_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "playlists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "label_spreadsheet_rows_upload_id_fkey"
+            columns: ["upload_id"]
+            isOneToOne: false
+            referencedRelation: "label_spreadsheet_uploads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       label_spreadsheet_uploads: {
         Row: {
           content_hash: string
