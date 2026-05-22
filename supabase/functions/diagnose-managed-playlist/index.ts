@@ -1776,6 +1776,7 @@ Deno.serve(async (req) => {
           : Number.POSITIVE_INFINITY,
         coletado_em_latest: v.latest_coletado_em ?? null,
         score_breakdown: null,
+        last_seen_run: null,
       }));
     }
 
