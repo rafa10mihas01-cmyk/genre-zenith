@@ -8,6 +8,7 @@ import {
 import { formatNumber, timeAgo } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/PageHeader";
+import { EngineHealthGrid } from "@/components/cockpit/EngineHealthGrid";
 import { PageContainer } from "@/components/PageContainer";
 import { useSetSidebarKpis } from "@/contexts/SidebarContext";
 import { OperationalHealthCard } from "@/components/home/OperationalHealthCard";
