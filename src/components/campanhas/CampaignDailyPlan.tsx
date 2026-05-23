@@ -14,6 +14,7 @@ import {
   buildEcoPlaylistPlan,
   buildExternalPlan,
   exportCampaignPlanCsv,
+  getCampaignPreferredPositions,
   type EcoPlanInput,
   type ExternalPlanInput,
 } from "@/lib/campaignOperationalPlan";
@@ -89,7 +90,11 @@ export function CampaignDailyPlan({
   }, [campaignId, refreshKey]);
 
   const plan = useMemo(() => {
-    const ecoPlans = buildEcoPlaylistPlan(snapshot, ecoAllocations, { engagementMultiplier, startedAt });
+    const ecoPlans = buildEcoPlaylistPlan(snapshot, ecoAllocations, {
+      engagementMultiplier,
+      startedAt,
+      positions: undefined,
+    });
     const externalPlans = buildExternalPlan(snapshot, externalItems, { startedAt });
     const daily = buildDailyCampaignPlan({ snapshot, startedAt, ecoPlans, externalPlans });
     return { ecoPlans, externalPlans, daily };
