@@ -76,9 +76,15 @@ export function useEcosystemCapacity(genre: string, days: number): EcosystemCapa
         }
       }
 
+      // Capacidade REAL pra UMA faixa: ela só ocupa 1 slot por playlist.
+      // Ceiling = posição #1 = POSITION_PCT[0] (12% dos followers/dia).
+      // Não usar sum(followers) puro — isso seria 100% do tráfego diário pra uma única faixa, impossível.
+      const TOP_SLOT_PCT = POSITION_PCT[0] ?? 0.12;
       const sumFollowers = (list: typeof all) =>
         list.reduce((s, p) => s + Math.max(0, p.followers ?? 0), 0);
-      const perDay = sumFollowers(core) + sumFollowers(neighbors);
+      const rawFollowersPerDay = sumFollowers(core) + sumFollowers(neighbors);
+      const perDay = Math.round(rawFollowersPerDay * TOP_SLOT_PCT);
+
       const total = perDay * Math.max(1, days);
 
       if (cancelled) return;
