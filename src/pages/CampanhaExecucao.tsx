@@ -438,7 +438,7 @@ export default function CampanhaExecucao() {
         mode="internal"
         tab={tab}
         onTabChange={setTab}
-        hiddenTabs={["curve"]}
+        
         delivered={delivered}
         goal={snapshot.meta}
         daysElapsed={daysElapsed}
