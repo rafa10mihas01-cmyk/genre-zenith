@@ -204,27 +204,48 @@ export function OverviewTab({
         </CardContent>
       </Card>
 
-      {/* Financeiro só interno */}
-      {showFinance && (
-        <Card>
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between mb-3">
-              <div className="text-sm font-semibold">Resumo financeiro interno</div>
-              {onJumpTab && (
-                <Button variant="ghost" size="sm" onClick={() => onJumpTab("finance")} className="h-7 text-xs">
-                  Detalhes <ArrowRight className="h-3 w-3 ml-1" />
-                </Button>
-              )}
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-              <Kpi label="Investimento" value={formatBRL(snapshot.custoTotal)} compact />
-              <Kpi label="CPP" value={formatBRL(snapshot.custoPorStream)} sub="por stream" compact />
-              <Kpi label="Eco" value={`${snapshot.splitEcoPct}%`} sub={`${formatInt(snapshot.streamsEco)} streams`} compact />
-              <Kpi label="Externo" value={`${100 - snapshot.splitEcoPct}%`} sub={`${formatInt(snapshot.streamsExt)} streams`} compact />
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* Financeiro só interno: custo NexEngine x venda pro cliente x margem */}
+      {showFinance && (() => {
+        const venda = snapshot.clientPriceTotal
+          ?? (snapshot.pricePerStreamSell ? snapshot.meta * snapshot.pricePerStreamSell : 0);
+        const custo = snapshot.custoTotal ?? 0;
+        const margem = venda - custo;
+        const margemPct = venda > 0 ? Math.round((margem / venda) * 100) : 0;
+        return (
+          <Card>
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <div className="text-sm font-semibold">Resumo financeiro interno</div>
+                  <div className="text-xs text-muted-foreground">
+                    {snapshot.pricePerStreamSell
+                      ? `Tabela de venda: R$ ${(snapshot.pricePerStreamSell * 1_000_000).toLocaleString("pt-BR", { maximumFractionDigits: 0 })} / 1M streams`
+                      : "Tabela de venda não definida"}
+                  </div>
+                </div>
+                {onJumpTab && (
+                  <Button variant="ghost" size="sm" onClick={() => onJumpTab("finance")} className="h-7 text-xs">
+                    Detalhes <ArrowRight className="h-3 w-3 ml-1" />
+                  </Button>
+                )}
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                <Kpi label="Custo (eu pago)" value={formatBRL(custo)} sub={`CPP R$ ${snapshot.custoPorStream.toFixed(3).replace(".", ",")}`} compact />
+                <Kpi label="Venda (cliente paga)" value={formatBRL(venda)} sub={`${formatInt(snapshot.meta)} streams`} tone="primary" compact />
+                <Kpi
+                  label="Margem"
+                  value={formatBRL(margem)}
+                  sub={`${margemPct}% sobre venda`}
+                  tone={margem > 0 ? "primary" : "warning"}
+                  compact
+                />
+                <Kpi label="Split eco / ext" value={`${snapshot.splitEcoPct}% / ${100 - snapshot.splitEcoPct}%`} sub={`${formatInt(snapshot.streamsEco)} eco`} compact />
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
+
     </div>
   );
 }
