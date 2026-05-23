@@ -1,7 +1,8 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Music, Users, ExternalLink, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatBRL, formatInt } from "@/lib/campaignEngine";
