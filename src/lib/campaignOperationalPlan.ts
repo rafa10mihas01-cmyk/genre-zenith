@@ -610,6 +610,25 @@ export function buildEcoPlaylistPlan(
       daily[i] = Math.max(1, Math.round(baseCap * ramp * weekday));
     }
 
+    const targetTotal = Math.max(0, Math.round(a.planned_streams || 0));
+    const rawTotal = daily.reduce((s, v) => s + v, 0);
+    if (targetTotal > 0 && rawTotal > targetTotal) {
+      let allocated = 0;
+      for (let i = 0; i < daily.length; i++) {
+        if (daily[i] <= 0) continue;
+        const scaled = Math.max(0, Math.round((daily[i] / rawTotal) * targetTotal));
+        daily[i] = Math.min(scaled, Math.max(0, targetTotal - allocated));
+        allocated += daily[i];
+      }
+      let delta = targetTotal - allocated;
+      for (let i = daily.length - 1; i >= 0 && delta !== 0; i--) {
+        if (rawTotal > 0 && (daily[i] > 0 || i >= startDay - 1)) {
+          daily[i] += delta;
+          delta = 0;
+        }
+      }
+    }
+
     const realTotal = daily.reduce((s, v) => s + v, 0);
 
     return {
