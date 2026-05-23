@@ -321,6 +321,46 @@ function CampaignRow({ c }: { c: Campaign }) {
               <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
             </div>
           </div>
+
+          {/* Aprovação do cliente — visível em rascunho e ativa */}
+          {clientUrl && (c.status === "draft" || c.status === "active") && (
+            <div
+              className={cn(
+                "rounded-lg border px-2.5 py-2 flex items-center justify-between gap-2",
+                clientApproved
+                  ? "border-primary/30 bg-primary/5"
+                  : clientPendingAdjust
+                    ? "border-amber-500/30 bg-amber-500/5"
+                    : "border-border/60 bg-muted/20",
+              )}
+            >
+              <div className="flex items-center gap-1.5 min-w-0">
+                {clientApproved ? (
+                  <CheckCircle2 className="h-3.5 w-3.5 text-primary shrink-0" />
+                ) : clientPendingAdjust ? (
+                  <MessageSquareWarning className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                ) : (
+                  <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                )}
+                <span className="text-[11px] truncate">
+                  {clientApproved
+                    ? `Aprovado por ${c.client_approved_by ?? "cliente"}`
+                    : clientPendingAdjust
+                      ? "Cliente pediu ajuste"
+                      : "Aguardando cliente"}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={copyClientLink}
+                className="shrink-0 inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
+                title="Copiar link de aprovação do cliente"
+              >
+                {copied ? <Check className="h-3 w-3 text-primary" /> : <Copy className="h-3 w-3" />}
+                {copied ? "Copiado" : "Copiar link"}
+              </button>
+            </div>
+          )}
         </div>
       </Link>
 
