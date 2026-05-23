@@ -158,16 +158,13 @@ export function OperacaoTab({ allocations, snapshots, externalItems, totalDays, 
           <TabsTrigger value="external">Externo <span className="ml-1.5 text-[10px] text-muted-foreground tabular-nums">{totals.externalCount}</span></TabsTrigger>
         </TabsList>
 
-        <TabsContent value={filter} className="mt-4 space-y-4">
-          {/* Régua de entrega — só o que importa pro dia-a-dia */}
-          <div className="grid grid-cols-3 gap-3">
+        <TabsContent value={filter} className="mt-3 space-y-3">
+          {/* Régua de entrega — compacta, uma linha */}
+          <div className="grid grid-cols-3 gap-2">
             <SummaryKpi label="Entregue" value={formatInt(scope.delivered)} sub={`de ${formatInt(scope.planned)}`} />
-            <SummaryKpi label="Falta" value={formatInt(scope.remaining)} sub={scope.remaining === 0 ? "meta batida" : "pra bater a meta"} />
-            <SummaryKpi label="Cobertura" value={`${scope.coverage}%`} sub={scope.coverage >= 100 ? "no alvo" : scope.coverage >= 80 ? "perto do alvo" : "abaixo do alvo"} />
+            <SummaryKpi label="Falta" value={formatInt(scope.remaining)} sub={scope.remaining === 0 ? "meta batida" : "pra bater"} />
+            <SummaryKpi label="Cobertura" value={`${scope.coverage}%`} sub={scope.coverage >= 100 ? "no alvo" : scope.coverage >= 80 ? "perto" : "abaixo"} />
           </div>
-
-
-
 
           {filteredRows.length === 0 ? (
             <Card>
@@ -178,27 +175,13 @@ export function OperacaoTab({ allocations, snapshots, externalItems, totalDays, 
           ) : (
             <Card>
               <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead className="text-[11px] uppercase tracking-wider text-muted-foreground border-b border-border">
-                      <tr>
-                        <th className="text-left font-medium px-4 py-2.5">Fonte</th>
-                        <th className="text-left font-medium px-4 py-2.5">Nome</th>
-                        <th className="text-right font-medium px-4 py-2.5">Entrega</th>
-                        <th className="text-right font-medium px-4 py-2.5">Custo</th>
-                        <th className="text-left font-medium px-4 py-2.5">Status</th>
-                        <th className="px-4 py-2.5"></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(expanded ? filteredRows : filteredRows.slice(0, ROW_LIMIT)).map((r) => (
-                        <OperacaoRow key={r.key} row={r} />
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <ul className="divide-y divide-border/40">
+                  {(expanded ? filteredRows : filteredRows.slice(0, ROW_LIMIT)).map((r) => (
+                    <OperacaoRow key={r.key} row={r} />
+                  ))}
+                </ul>
                 {filteredRows.length > ROW_LIMIT && (
-                  <div className="border-t border-border px-4 py-2.5 flex items-center justify-between text-xs">
+                  <div className="border-t border-border px-3 py-2 flex items-center justify-between text-xs">
                     <span className="text-muted-foreground tabular-nums">
                       {expanded
                         ? `Mostrando todas (${filteredRows.length})`
