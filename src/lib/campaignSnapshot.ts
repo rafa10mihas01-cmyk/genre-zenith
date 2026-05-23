@@ -157,11 +157,20 @@ export async function closeCampaignFromCalculator(args: {
   }
 
   // Enriquecer snapshot com o preço cobrado do cliente (congelado no fechamento).
+  // Se a calculadora já fechou um valor manual, ele tem prioridade sobre a tabela.
+  const manualClientPrice = typeof snapshot.clientPriceTotal === "number" && snapshot.clientPriceTotal > 0
+    ? snapshot.clientPriceTotal
+    : null;
+  const finalClientPrice = manualClientPrice ?? Math.round(snapshot.meta * pricingSell * 100) / 100;
+  const finalPricePerStream = manualClientPrice && snapshot.meta > 0
+    ? manualClientPrice / snapshot.meta
+    : pricingSell;
   const enrichedSnapshot: CampaignSnapshot = {
     ...snapshot,
-    pricePerStreamSell: pricingSell,
-    clientPriceTotal: Math.round(snapshot.meta * pricingSell * 100) / 100,
+    pricePerStreamSell: finalPricePerStream,
+    clientPriceTotal: finalClientPrice,
   };
+
 
   const { data: campaign, error } = await supabase
     .from("campaigns")
