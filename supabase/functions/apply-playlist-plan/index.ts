@@ -86,7 +86,7 @@ Deno.serve(async (req) => {
     // 1) Managed playlist
     const { data: pl } = await supabase
       .from("managed_playlists")
-      .select("id, spotify_playlist_id, name, tracks_count")
+      .select("id, spotify_playlist_id, name, tracks_count, lifecycle_phase")
       .eq("id", playlistId)
       .maybeSingle();
     if (!pl?.spotify_playlist_id) return jr({ ok: false, error: "playlist sem spotify_playlist_id" }, 404);
