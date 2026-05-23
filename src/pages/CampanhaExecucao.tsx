@@ -447,6 +447,14 @@ export default function CampanhaExecucao() {
             </div>
           ),
 
+          operacao: (
+            <OperacaoTab
+              allocations={allocs}
+              snapshots={snaps}
+              externalItems={externalItems}
+            />
+          ),
+
           playlists: (
             <div className="space-y-6">
               <PlaylistsGrid
