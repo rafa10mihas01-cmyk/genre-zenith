@@ -45,6 +45,7 @@ export function CampaignHub({
 
   // Tabs sem conteúdo são ocultas.
   const visible = tabs.filter(t => !hiddenTabs.includes(t.id) && (mode === "internal" || !t.internalOnly) && t.content != null);
+  const activeTab = visible.some((t) => t.id === tab) ? tab : visible[0]?.id;
 
   return (
     <div className="campaign-hub">
@@ -60,7 +61,7 @@ export function CampaignHub({
       />
 
 
-      <Tabs value={tab} onValueChange={(v) => onTabChange(v as CampaignHubTabId)}>
+      <Tabs value={activeTab} onValueChange={(v) => onTabChange(v as CampaignHubTabId)}>
         <div className={cn(
           "sticky top-[120px] z-20 -mx-4 md:-mx-6 px-4 md:px-6",
           "border-b border-border bg-background/85 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70",
