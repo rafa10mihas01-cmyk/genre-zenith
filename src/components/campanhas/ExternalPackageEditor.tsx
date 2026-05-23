@@ -180,64 +180,103 @@ export function ExternalPackageEditor({
         )}
 
         {items.length > 0 && (
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs border-separate border-spacing-0">
-              <thead className="text-muted-foreground">
-                <tr>
-                  <th className="text-left font-medium py-2 px-3 border-b border-border">Curador</th>
-                  <th className="text-right font-medium py-2 px-3 border-b border-border w-32">Streams</th>
-                  <th className="text-right font-medium py-2 px-3 border-b border-border w-24">R$/stream</th>
-                  <th className="text-right font-medium py-2 px-3 border-b border-border w-28">Custo</th>
-                  <th className="text-right font-medium py-2 px-3 border-b border-border w-32">Status</th>
-                  {!isDispatched && <th className="w-10 border-b border-border" />}
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((it, i) => (
-                  <tr key={it.id} className={cn("hover:bg-elevated/60", i % 2 === 1 && "bg-elevated/30")}>
-                    <td className="py-2.5 px-3 border-b border-border/30">
-                      <div className="font-medium">{it.curators?.name ?? "—"}</div>
-                      {it.curators?.contact && <div className="text-[10px] text-muted-foreground">{it.curators.contact}</div>}
-                    </td>
-                    <td className="py-2.5 px-3 text-right border-b border-border/30">
-                      {isDispatched ? (
-                        <span className="tabular-nums font-semibold">{formatInt(it.assigned_streams)}</span>
-                      ) : (
-                        <Input
-                          type="number"
-                          value={it.assigned_streams}
-                          onChange={(e) => handleStreamsChange(it, Math.max(0, parseInt(e.target.value || "0", 10)))}
-                          className="h-7 text-right tabular-nums w-28 ml-auto"
-                        />
-                      )}
-                    </td>
-                    <td className="py-2.5 px-3 text-right tabular-nums text-muted-foreground border-b border-border/30">
-                      {it.cost_per_stream.toFixed(3)}
-                    </td>
-                    <td className="py-2.5 px-3 text-right tabular-nums font-semibold border-b border-border/30">
-                      {formatBRL(it.assigned_cost)}
-                    </td>
-                    <td className="py-2.5 px-3 text-right border-b border-border/30">
-                      {it.curator_deal_id ? (
-                        <Link to={`/deals/${it.curator_deal_id}`} className="text-primary text-[10px] underline">
-                          Deal aberto
-                        </Link>
-                      ) : (
-                        <span className="text-[10px] text-muted-foreground">Rascunho</span>
-                      )}
-                    </td>
-                    {!isDispatched && (
-                      <td className="py-2.5 px-2 text-right border-b border-border/30">
-                        <button onClick={() => handleRemove(it)} className="text-muted-foreground hover:text-destructive">
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </td>
-                    )}
+          <>
+            <div className="text-[11px] text-muted-foreground">
+              Distribuição calculada sobre <strong className="text-foreground">{snapshot.days} dias</strong> de campanha.
+              Use essas metas para combinar a entrega com cada curador.
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs border-separate border-spacing-0">
+                <thead className="text-muted-foreground">
+                  <tr>
+                    <th className="text-left font-medium py-2 px-3 border-b border-border">Curador</th>
+                    <th className="text-right font-medium py-2 px-3 border-b border-border w-32">Total streams</th>
+                    <th className="text-right font-medium py-2 px-3 border-b border-border w-24">Por dia</th>
+                    <th className="text-right font-medium py-2 px-3 border-b border-border w-24">Por mês</th>
+                    <th className="text-right font-medium py-2 px-3 border-b border-border w-20">R$/stream</th>
+                    <th className="text-right font-medium py-2 px-3 border-b border-border w-28">Custo total</th>
+                    <th className="text-right font-medium py-2 px-3 border-b border-border w-28">Status</th>
+                    {!isDispatched && <th className="w-10 border-b border-border" />}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {items.map((it, i) => {
+                    const days = Math.max(1, snapshot.days || 1);
+                    const perDay = Math.round(it.assigned_streams / days);
+                    const perMonth = Math.round(perDay * 30);
+                    return (
+                      <tr key={it.id} className={cn("hover:bg-elevated/60", i % 2 === 1 && "bg-elevated/30")}>
+                        <td className="py-2.5 px-3 border-b border-border/30">
+                          <div className="font-medium">{it.curators?.name ?? "—"}</div>
+                          {it.curators?.contact && <div className="text-[10px] text-muted-foreground">{it.curators.contact}</div>}
+                        </td>
+                        <td className="py-2.5 px-3 text-right border-b border-border/30">
+                          {isDispatched ? (
+                            <span className="tabular-nums font-semibold">{formatInt(it.assigned_streams)}</span>
+                          ) : (
+                            <Input
+                              type="number"
+                              value={it.assigned_streams}
+                              onChange={(e) => handleStreamsChange(it, Math.max(0, parseInt(e.target.value || "0", 10)))}
+                              className="h-7 text-right tabular-nums w-28 ml-auto"
+                            />
+                          )}
+                        </td>
+                        <td className="py-2.5 px-3 text-right tabular-nums border-b border-border/30">
+                          <span className="font-medium">{formatInt(perDay)}</span>
+                          <span className="text-[10px] text-muted-foreground ml-1">/dia</span>
+                        </td>
+                        <td className="py-2.5 px-3 text-right tabular-nums border-b border-border/30">
+                          <span className="font-medium">{formatInt(perMonth)}</span>
+                          <span className="text-[10px] text-muted-foreground ml-1">/mês</span>
+                        </td>
+                        <td className="py-2.5 px-3 text-right tabular-nums text-muted-foreground border-b border-border/30">
+                          {it.cost_per_stream.toFixed(3)}
+                        </td>
+                        <td className="py-2.5 px-3 text-right tabular-nums font-semibold border-b border-border/30">
+                          {formatBRL(it.assigned_cost)}
+                        </td>
+                        <td className="py-2.5 px-3 text-right border-b border-border/30">
+                          {it.curator_deal_id ? (
+                            <Link to={`/playlist-deals/${it.curator_deal_id}`} className="text-primary text-[10px] underline">
+                              Deal aberto
+                            </Link>
+                          ) : (
+                            <span className="text-[10px] text-muted-foreground">Rascunho</span>
+                          )}
+                        </td>
+                        {!isDispatched && (
+                          <td className="py-2.5 px-2 text-right border-b border-border/30">
+                            <button onClick={() => handleRemove(it)} className="text-muted-foreground hover:text-destructive">
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot className="text-muted-foreground">
+                  <tr>
+                    <td className="py-2 px-3 text-[10px] uppercase tracking-wider">Total externo</td>
+                    <td className="py-2 px-3 text-right tabular-nums font-semibold text-foreground">{formatInt(totalStreams)}</td>
+                    <td className="py-2 px-3 text-right tabular-nums font-semibold text-foreground">
+                      {formatInt(Math.round(totalStreams / Math.max(1, snapshot.days || 1)))}
+                      <span className="text-[10px] text-muted-foreground ml-1">/dia</span>
+                    </td>
+                    <td className="py-2 px-3 text-right tabular-nums font-semibold text-foreground">
+                      {formatInt(Math.round((totalStreams / Math.max(1, snapshot.days || 1)) * 30))}
+                      <span className="text-[10px] text-muted-foreground ml-1">/mês</span>
+                    </td>
+                    <td className="py-2 px-3" />
+                    <td className="py-2 px-3 text-right tabular-nums font-semibold text-foreground">{formatBRL(totalCost)}</td>
+                    <td className="py-2 px-3" />
+                    {!isDispatched && <td />}
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </>
         )}
       </CardContent>
     </Card>
