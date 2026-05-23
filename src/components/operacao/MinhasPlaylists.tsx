@@ -546,6 +546,10 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
     })
     .slice()
     .sort((a, b) => {
+      // Ao filtrar por gênero, ordena pelas maiores (followers desc)
+      if (filterGenreId) {
+        return (b.followers ?? 0) - (a.followers ?? 0);
+      }
       if (sortBy !== "valuation") return 0;
       const va = valuations[a.spotify_playlist_id]?.valuation_score ?? -1;
       const vb = valuations[b.spotify_playlist_id]?.valuation_score ?? -1;
