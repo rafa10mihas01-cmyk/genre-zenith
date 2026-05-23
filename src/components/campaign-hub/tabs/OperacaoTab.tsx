@@ -117,15 +117,11 @@ export function OperacaoTab({ allocations, snapshots, externalItems }: Props) {
     );
   }, [rows]);
 
-  if (rows.length === 0) {
-    return (
-      <Card>
-        <CardContent className="p-8 text-center text-sm text-muted-foreground">
-          Esta campanha ainda não tem playlists internas alocadas nem curadores externos contratados.
-        </CardContent>
-      </Card>
-    );
-  }
+  const [filter, setFilter] = useState<"all" | "internal" | "external">("all");
+  const filteredRows = useMemo(
+    () => (filter === "all" ? rows : rows.filter((r) => r.source === filter)),
+    [rows, filter],
+  );
 
   return (
     <div className="space-y-4">
@@ -137,30 +133,47 @@ export function OperacaoTab({ allocations, snapshots, externalItems }: Props) {
         <SummaryKpi label="Fontes" value={`${totals.internalCount + totals.externalCount}`} sub={`${totals.internalCount} interna · ${totals.externalCount} externa`} />
       </div>
 
-      {/* Tabela unificada */}
-      <Card>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="text-[11px] uppercase tracking-wider text-muted-foreground border-b border-border">
-                <tr>
-                  <th className="text-left font-medium px-4 py-2.5">Fonte</th>
-                  <th className="text-left font-medium px-4 py-2.5">Nome</th>
-                  <th className="text-right font-medium px-4 py-2.5">Entrega</th>
-                  <th className="text-right font-medium px-4 py-2.5">Custo</th>
-                  <th className="text-left font-medium px-4 py-2.5">Status</th>
-                  <th className="px-4 py-2.5"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => (
-                  <OperacaoRow key={r.key} row={r} />
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+      <Tabs value={filter} onValueChange={(v) => setFilter(v as typeof filter)}>
+        <TabsList>
+          <TabsTrigger value="all">Todas <span className="ml-1.5 text-[10px] text-muted-foreground tabular-nums">{rows.length}</span></TabsTrigger>
+          <TabsTrigger value="internal">Interno <span className="ml-1.5 text-[10px] text-muted-foreground tabular-nums">{totals.internalCount}</span></TabsTrigger>
+          <TabsTrigger value="external">Externo <span className="ml-1.5 text-[10px] text-muted-foreground tabular-nums">{totals.externalCount}</span></TabsTrigger>
+        </TabsList>
+
+        <TabsContent value={filter} className="mt-4">
+          {filteredRows.length === 0 ? (
+            <Card>
+              <CardContent className="p-8 text-center text-sm text-muted-foreground">
+                Nenhuma fonte {filter === "internal" ? "interna" : filter === "external" ? "externa" : ""} nesta campanha.
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="text-[11px] uppercase tracking-wider text-muted-foreground border-b border-border">
+                      <tr>
+                        <th className="text-left font-medium px-4 py-2.5">Fonte</th>
+                        <th className="text-left font-medium px-4 py-2.5">Nome</th>
+                        <th className="text-right font-medium px-4 py-2.5">Entrega</th>
+                        <th className="text-right font-medium px-4 py-2.5">Custo</th>
+                        <th className="text-left font-medium px-4 py-2.5">Status</th>
+                        <th className="px-4 py-2.5"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredRows.map((r) => (
+                        <OperacaoRow key={r.key} row={r} />
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
