@@ -412,6 +412,14 @@ export default function PlanoCampanhaPublico() {
                 </CardContent>
               </Card>
             ),
+            upload: clientToken ? (
+              <SpreadsheetUploadCard
+                clientToken={clientToken}
+                lastUploadAt={lastUploadAt}
+                recentUploads={recentUploads}
+                onUploaded={load}
+              />
+            ) : null,
           }}
         />
 
