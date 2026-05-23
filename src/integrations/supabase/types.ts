@@ -800,15 +800,18 @@ export type Database = {
           deadline: string | null
           deal_id: string | null
           eco_dispatched_at: string | null
+          eco_max_pct: number
           engagement_multiplier: number
           forma_recebimento: string | null
           goal_plays: number
           id: string
+          locked_eco_streams: number | null
           notes: string | null
           public_plan_token: string
           recebido_em: string | null
           simulation_snapshot: Json | null
           snapshot_locked_at: string | null
+          split_locked_at: string | null
           spotify_track_id: string | null
           spotify_track_url: string | null
           started_at: string
@@ -835,15 +838,18 @@ export type Database = {
           deadline?: string | null
           deal_id?: string | null
           eco_dispatched_at?: string | null
+          eco_max_pct?: number
           engagement_multiplier?: number
           forma_recebimento?: string | null
           goal_plays: number
           id?: string
+          locked_eco_streams?: number | null
           notes?: string | null
           public_plan_token?: string
           recebido_em?: string | null
           simulation_snapshot?: Json | null
           snapshot_locked_at?: string | null
+          split_locked_at?: string | null
           spotify_track_id?: string | null
           spotify_track_url?: string | null
           started_at?: string
@@ -870,15 +876,18 @@ export type Database = {
           deadline?: string | null
           deal_id?: string | null
           eco_dispatched_at?: string | null
+          eco_max_pct?: number
           engagement_multiplier?: number
           forma_recebimento?: string | null
           goal_plays?: number
           id?: string
+          locked_eco_streams?: number | null
           notes?: string | null
           public_plan_token?: string
           recebido_em?: string | null
           simulation_snapshot?: Json | null
           snapshot_locked_at?: string | null
+          split_locked_at?: string | null
           spotify_track_id?: string | null
           spotify_track_url?: string | null
           started_at?: string
