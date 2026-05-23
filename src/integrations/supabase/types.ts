@@ -2976,6 +2976,80 @@ export type Database = {
         }
         Relationships: []
       }
+      genre_affinities: {
+        Row: {
+          computed_at: string
+          created_at: string
+          genre_a_id: string
+          genre_b_id: string
+          id: string
+          lexicon_score: number | null
+          manual_score: number | null
+          method: string
+          notes: string | null
+          score: number
+          shared_tokens: Json | null
+          updated_at: string
+        }
+        Insert: {
+          computed_at?: string
+          created_at?: string
+          genre_a_id: string
+          genre_b_id: string
+          id?: string
+          lexicon_score?: number | null
+          manual_score?: number | null
+          method: string
+          notes?: string | null
+          score: number
+          shared_tokens?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          computed_at?: string
+          created_at?: string
+          genre_a_id?: string
+          genre_b_id?: string
+          id?: string
+          lexicon_score?: number | null
+          manual_score?: number | null
+          method?: string
+          notes?: string | null
+          score?: number
+          shared_tokens?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "genre_affinities_genre_a_id_fkey"
+            columns: ["genre_a_id"]
+            isOneToOne: false
+            referencedRelation: "genres"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "genre_affinities_genre_a_id_fkey"
+            columns: ["genre_a_id"]
+            isOneToOne: false
+            referencedRelation: "genres_with_health"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "genre_affinities_genre_b_id_fkey"
+            columns: ["genre_b_id"]
+            isOneToOne: false
+            referencedRelation: "genres"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "genre_affinities_genre_b_id_fkey"
+            columns: ["genre_b_id"]
+            isOneToOne: false
+            referencedRelation: "genres_with_health"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       genre_backfill_attempts: {
         Row: {
           details: Json
