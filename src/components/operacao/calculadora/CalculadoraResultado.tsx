@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatBRL, formatInt, type CampaignResult } from "@/lib/campaignEngine";
-import { TrendingUp, Wallet, Zap, Layers, Flame, Rocket, Activity, Anchor } from "lucide-react";
+import { TrendingUp, Wallet, Zap, Layers, Flame, Rocket, Activity, Anchor, Coins } from "lucide-react";
 import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 
@@ -8,8 +8,12 @@ import { cn } from "@/lib/utils";
  *   META é o headline (peso visual dominante)
  *   Pico/dia e Duração são secundários (leitura tática)
  *   Custo é terciário (referência financeira)
+ *   Cliente paga é o valor cobrado (se pricePerStreamSell informado)
  */
-export function CalculadoraKpis({ r }: { r: CampaignResult }) {
+export function CalculadoraKpis({ r, pricePerStreamSell }: { r: CampaignResult; pricePerStreamSell?: number }) {
+  const clientTotal = pricePerStreamSell && pricePerStreamSell > 0
+    ? Math.round(r.meta * pricePerStreamSell * 100) / 100
+    : null;
   return (
     <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
       {/* Headline — ocupa 2 colunas no desktop, tipografia maior, acento primary */}
@@ -31,15 +35,25 @@ export function CalculadoraKpis({ r }: { r: CampaignResult }) {
         value={`${r.days}d`}
         hint={r.modo === "simultaneo" ? "simultâneo" : "sequencial"}
       />
-      <KpiQuiet
-        icon={Wallet}
-        label="Custo"
-        value={formatBRL(r.custoTotal)}
-        hint={`R$ ${r.custoPorStream.toFixed(3)}/stream`}
-      />
+      {clientTotal != null ? (
+        <KpiClient
+          icon={Coins}
+          label="Cliente paga"
+          value={formatBRL(clientTotal)}
+          hint={`custo ${formatBRL(r.custoTotal)} · margem ${formatBRL(clientTotal - r.custoTotal)}`}
+        />
+      ) : (
+        <KpiQuiet
+          icon={Wallet}
+          label="Custo"
+          value={formatBRL(r.custoTotal)}
+          hint={`R$ ${r.custoPorStream.toFixed(3)}/stream`}
+        />
+      )}
     </div>
   );
 }
+
 
 export function CalculadoraResultado({ r }: { r: CampaignResult }) {
   return (
@@ -120,6 +134,20 @@ function KpiQuiet({ icon: Icon, label, value, hint }: { icon: any; label: string
       </div>
       <div className="text-lg font-medium mt-1 tabular-nums text-muted-foreground">{value}</div>
       {hint && <div className="text-xs text-muted-foreground/70 mt-0.5">{hint}</div>}
+    </div>
+  );
+}
+
+/** KPI cliente — destaca o valor cobrado, com borda primary suave */
+function KpiClient({ icon: Icon, label, value, hint }: { icon: any; label: string; value: string; hint?: string }) {
+  return (
+    <div className="rounded-2xl border border-primary/40 bg-primary/5 p-4">
+      <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider font-semibold text-primary">
+        <Icon className="h-3.5 w-3.5" />
+        {label}
+      </div>
+      <div className="text-xl font-semibold mt-1 tabular-nums text-foreground">{value}</div>
+      {hint && <div className="text-[10px] text-muted-foreground mt-0.5">{hint}</div>}
     </div>
   );
 }
