@@ -342,6 +342,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   const [genres, setGenres] = useState<{ id: string; nome: string }[]>([]);
   const [filterMissingGenre, setFilterMissingGenre] = useState(false);
   const [filterGenreId, setFilterGenreId] = useState<string | null>(null);
+  const [filterSize, setFilterSize] = useState<"all" | "pequena" | "media" | "grande" | "top">("all");
   const [savingGenre, setSavingGenre] = useState(false);
 
   useEffect(() => {
