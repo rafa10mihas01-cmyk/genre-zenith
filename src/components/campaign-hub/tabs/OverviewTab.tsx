@@ -3,7 +3,8 @@ import { Button } from "@/components/ui/button";
 import { formatInt, formatBRL } from "@/lib/campaignEngine";
 import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
 import { cn } from "@/lib/utils";
-import { Music, Camera, TrendingUp, TrendingDown, Minus, ArrowRight, ExternalLink } from "lucide-react";
+import { Music, Camera, TrendingUp, TrendingDown, Minus, ArrowRight, ExternalLink, ChevronDown } from "lucide-react";
+import { useState } from "react";
 import type { EcoAllocation } from "../types";
 
 type EcoSnap = {
@@ -39,6 +40,7 @@ export function OverviewTab({
   snapshot, delivered, daysElapsed, showFinance, hideDeliveryPlan = false, hideCurveShortcut = false,
   allocations = [], snapshots = [], proofs = [], onJumpTab,
 }: Props) {
+  const [planOpen, setPlanOpen] = useState(false);
   const pct = snapshot.meta > 0 ? Math.min(100, Math.round((delivered / snapshot.meta) * 100)) : 0;
   const plannedToDate = snapshot.curva.slice(0, daysElapsed).reduce((s, p) => s + p.streamsDay, 0);
   const adherence = plannedToDate > 0 ? Math.round((delivered / plannedToDate) * 100) : 0;
@@ -84,25 +86,32 @@ export function OverviewTab({
       {/* Plano de entrega — leitura única: meta total, ritmo, split eco/ext, hoje */}
       {!hideDeliveryPlan && (
       <Card>
-        <CardContent className="p-5 space-y-5">
-          <div className="flex items-start justify-between gap-4 flex-wrap">
-            <div>
-              <div className="text-sm font-semibold">Plano de entrega</div>
-              <div className="text-xs text-muted-foreground">
-                Quanto falta, em quanto tempo, e como se divide entre ecossistema e externo
-              </div>
+        <button
+          type="button"
+          onClick={() => setPlanOpen(o => !o)}
+          className="w-full text-left p-5 flex items-start justify-between gap-4 flex-wrap hover:bg-muted/20 transition-colors rounded-[inherit]"
+        >
+          <div>
+            <div className="text-sm font-semibold flex items-center gap-2">
+              Plano de entrega
+              <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", planOpen && "rotate-180")} />
             </div>
-            <div className="text-right">
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Ritmo necessário</div>
-              <div className="text-2xl font-semibold tabular-nums leading-none mt-1">
-                {formatInt(ritmoNecessario)}<span className="text-xs text-muted-foreground font-normal">/dia</span>
-              </div>
-              <div className="text-[10px] text-muted-foreground tabular-nums mt-1">
-                {daysRemaining}d restantes · {formatInt(restante)} a entregar
-              </div>
+            <div className="text-xs text-muted-foreground">
+              Quanto falta, em quanto tempo, e como se divide entre ecossistema e externo
             </div>
           </div>
-
+          <div className="text-right">
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Ritmo necessário</div>
+            <div className="text-2xl font-semibold tabular-nums leading-none mt-1">
+              {formatInt(ritmoNecessario)}<span className="text-xs text-muted-foreground font-normal">/dia</span>
+            </div>
+            <div className="text-[10px] text-muted-foreground tabular-nums mt-1">
+              {daysRemaining}d restantes · {formatInt(restante)} a entregar
+            </div>
+          </div>
+        </button>
+        {planOpen && (
+        <CardContent className="p-5 pt-0 space-y-5">
           <div>
             <div className="flex items-baseline justify-between text-xs mb-1.5">
               <span className="text-muted-foreground">Meta</span>
@@ -160,6 +169,7 @@ export function OverviewTab({
             </div>
           </div>
         </CardContent>
+        )}
       </Card>
       )}
 
