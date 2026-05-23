@@ -85,47 +85,57 @@ export function useNotifications() {
   });
 
   useEffect(() => {
-    const channel = supabase
-      .channel("notifications-stream")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "notifications" },
-        (payload) => {
-          const n = payload.new as NotificationRow;
-          qc.setQueryData<NotificationRow[]>(QUERY_KEY, (prev) => {
-            const list = prev ?? [];
-            if (list.some((p) => p.id === n.id)) return list;
-            return [n, ...list].slice(0, LIMIT);
-          });
-          if (shouldToast(n)) {
-            const opts = { description: n.message } as const;
-            if (n.type === "critical") toast.error(n.title, { ...opts, duration: 10_000 });
-            else if (n.type === "warning") toast.warning(n.title, { ...opts, duration: 6_000 });
-            if (n.type === "critical" || n.type === "warning") {
-              showPush({
-                title: n.title,
-                body: n.message,
-                tag: n.metadata?.dedupe_key ?? n.metadata?.kind ?? n.id,
-                url: n.action_url ?? undefined,
-              });
+    let cancelled = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (cancelled || !user) return;
+
+      const filter = `user_id=eq.${user.id}`;
+      channel = supabase
+        .channel(`notifications-stream-${user.id}`)
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "notifications", filter },
+          (payload) => {
+            const n = payload.new as NotificationRow;
+            qc.setQueryData<NotificationRow[]>(QUERY_KEY, (prev) => {
+              const list = prev ?? [];
+              if (list.some((p) => p.id === n.id)) return list;
+              return [n, ...list].slice(0, LIMIT);
+            });
+            if (shouldToast(n)) {
+              const opts = { description: n.message } as const;
+              if (n.type === "critical") toast.error(n.title, { ...opts, duration: 10_000 });
+              else if (n.type === "warning") toast.warning(n.title, { ...opts, duration: 6_000 });
+              if (n.type === "critical" || n.type === "warning") {
+                showPush({
+                  title: n.title,
+                  body: n.message,
+                  tag: n.metadata?.dedupe_key ?? n.metadata?.kind ?? n.id,
+                  url: n.action_url ?? undefined,
+                });
+              }
             }
           }
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "notifications" },
-        (payload) => {
-          const n = payload.new as NotificationRow;
-          qc.setQueryData<NotificationRow[]>(QUERY_KEY, (prev) =>
-            (prev ?? []).map((p) => (p.id === n.id ? { ...p, ...n } : p)),
-          );
-        }
-      )
-      .subscribe();
+        )
+        .on(
+          "postgres_changes",
+          { event: "UPDATE", schema: "public", table: "notifications", filter },
+          (payload) => {
+            const n = payload.new as NotificationRow;
+            qc.setQueryData<NotificationRow[]>(QUERY_KEY, (prev) =>
+              (prev ?? []).map((p) => (p.id === n.id ? { ...p, ...n } : p)),
+            );
+          }
+        )
+        .subscribe();
+    })();
 
     return () => {
-      supabase.removeChannel(channel);
+      cancelled = true;
+      if (channel) supabase.removeChannel(channel);
     };
   }, [qc]);
 
