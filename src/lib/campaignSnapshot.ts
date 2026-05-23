@@ -152,6 +152,13 @@ export async function closeCampaignFromCalculator(args: {
     }
   }
 
+  // Enriquecer snapshot com o preço cobrado do cliente (congelado no fechamento).
+  const enrichedSnapshot: CampaignSnapshot = {
+    ...snapshot,
+    pricePerStreamSell: pricingSell,
+    clientPriceTotal: Math.round(snapshot.meta * pricingSell * 100) / 100,
+  };
+
   const { data: campaign, error } = await supabase
     .from("campaigns")
     .insert({
@@ -164,7 +171,7 @@ export async function closeCampaignFromCalculator(args: {
       deadline: deadlineISO,
       status,
       total_allocated: allocations.reduce((s, a) => s + a.planned_streams, 0),
-      simulation_snapshot: snapshot as any,
+      simulation_snapshot: enrichedSnapshot as any,
       snapshot_locked_at: snapshot.lockedAt,
       client_id: clientId,
       curator_id: curatorId ?? NEXENGINE_CURATOR_ID,
