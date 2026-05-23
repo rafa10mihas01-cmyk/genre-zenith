@@ -87,6 +87,9 @@ export default function PlanoCampanhaPublico() {
       setAllocs((data as any).allocations ?? []);
       setSnaps((data as any).snapshots ?? []);
       setProofs((data as any).proofs ?? []);
+      setClientToken((data as any).client_token ?? null);
+      setLastUploadAt((data as any).last_spreadsheet_upload_at ?? null);
+      setRecentUploads((data as any).recent_uploads ?? []);
       setErr(null);
     }
     setLoading(false);
