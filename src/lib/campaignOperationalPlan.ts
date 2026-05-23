@@ -543,6 +543,7 @@ export function buildEcoPlaylistPlan(
     })),
     snapshot.days,
     multiplier,
+    { preferredSlots: getCampaignPreferredPositions(snapshot) },
   );
 
   const ordered = [...allocs].sort((a, b) => b.planned_streams - a.planned_streams);
