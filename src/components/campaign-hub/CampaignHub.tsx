@@ -32,7 +32,7 @@ export function CampaignHub({
   camp, mode, delivered, goal, daysElapsed, daysTotal, lastUpdateAt,
   tab, onTabChange, slots, hiddenTabs = [], heroExtraActions,
 }: Props) {
-  const clientAllowedTabs: CampaignHubTabId[] = ["overview", "playlists", "proofs"];
+  const clientAllowedTabs: CampaignHubTabId[] = ["overview", "playlists", "proofs", "upload"];
   const tabs: TabDef[] = [
     { id: "overview",  label: "Visão geral",  icon: LayoutDashboard, content: slots.overview  ?? null },
     { id: "playlists", label: "Playlists",    icon: ListMusic,       content: slots.playlists ?? null },

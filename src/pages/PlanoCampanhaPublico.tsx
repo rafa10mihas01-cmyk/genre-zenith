@@ -54,6 +54,28 @@ type Camp = CampaignHubCampaign & {
   client_adjustment_request?: string | null;
 };
 
+type SpreadsheetUpload = {
+  id: string;
+  created_at: string;
+  rows_imported: number;
+  total_streams: number;
+  status: string;
+  file_name: string | null;
+};
+
+type SharedCampaignPlanResponse = {
+  error?: string;
+  campaign?: Camp;
+  allocations?: EcoAllocation[];
+  snapshots?: EcoSnap[];
+  proofs?: DeliveryProof[];
+  client_token?: string | null;
+  last_spreadsheet_upload_at?: string | null;
+  recent_uploads?: SpreadsheetUpload[];
+};
+
+type PublicRpc = (fn: string, args: Record<string, unknown>) => Promise<{ error: { message: string } | null }>;
+
 export default function PlanoCampanhaPublico() {
   const { token } = useParams<{ token: string }>();
   const [camp, setCamp] = useState<Camp | null>(null);
@@ -62,7 +84,7 @@ export default function PlanoCampanhaPublico() {
   const [proofs, setProofs] = useState<DeliveryProof[]>([]);
   const [clientToken, setClientToken] = useState<string | null>(null);
   const [lastUploadAt, setLastUploadAt] = useState<string | null>(null);
-  const [recentUploads, setRecentUploads] = useState<any[]>([]);
+  const [recentUploads, setRecentUploads] = useState<SpreadsheetUpload[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [tab, setTab] = useState<CampaignHubTabId>("overview");
@@ -80,16 +102,17 @@ export default function PlanoCampanhaPublico() {
     if (!token) return;
     setLoading(true);
     const { data, error } = await supabase.functions.invoke("get-shared-campaign-plan", { body: { token } });
-    if (error || (data as any)?.error) {
-      setErr((data as any)?.error ?? error?.message ?? "Erro");
+    const payload = data as SharedCampaignPlanResponse | null;
+    if (error || payload?.error) {
+      setErr(payload?.error ?? error?.message ?? "Erro");
     } else {
-      setCamp((data as any).campaign);
-      setAllocs((data as any).allocations ?? []);
-      setSnaps((data as any).snapshots ?? []);
-      setProofs((data as any).proofs ?? []);
-      setClientToken((data as any).client_token ?? null);
-      setLastUploadAt((data as any).last_spreadsheet_upload_at ?? null);
-      setRecentUploads((data as any).recent_uploads ?? []);
+      setCamp(payload?.campaign ?? null);
+      setAllocs(payload?.allocations ?? []);
+      setSnaps(payload?.snapshots ?? []);
+      setProofs(payload?.proofs ?? []);
+      setClientToken(payload?.client_token ?? null);
+      setLastUploadAt(payload?.last_spreadsheet_upload_at ?? null);
+      setRecentUploads(payload?.recent_uploads ?? []);
       setErr(null);
     }
     setLoading(false);
@@ -176,7 +199,7 @@ export default function PlanoCampanhaPublico() {
   async function handleApprove() {
     if (approverName.trim().length < 2) { toast.error("Informe seu nome"); return; }
     setApproving(true);
-    const { error } = await supabase.rpc("client_approve_campaign" as any, {
+    const { error } = await (supabase.rpc as unknown as PublicRpc)("client_approve_campaign", {
       p_token: token, p_approver_name: approverName.trim(), p_approver_ip: null,
     });
     setApproving(false);
@@ -188,7 +211,7 @@ export default function PlanoCampanhaPublico() {
   async function handleAdjust() {
     if (adjustMsg.trim().length < 3) { toast.error("Descreva o ajuste"); return; }
     setAdjusting(true);
-    const { error } = await supabase.rpc("client_request_adjustment" as any, {
+    const { error } = await (supabase.rpc as unknown as PublicRpc)("client_request_adjustment", {
       p_token: token, p_message: adjustMsg.trim(), p_requester_name: adjustName.trim() || null,
     });
     setAdjusting(false);
@@ -412,6 +435,14 @@ export default function PlanoCampanhaPublico() {
                 </CardContent>
               </Card>
             ),
+            upload: clientToken ? (
+              <SpreadsheetUploadCard
+                clientToken={clientToken}
+                lastUploadAt={lastUploadAt}
+                recentUploads={recentUploads}
+                onUploaded={load}
+              />
+            ) : null,
           }}
         />
 
