@@ -158,12 +158,21 @@ export default function PlanoCampanhaPublico() {
         </div>
 
         {isApproved ? (
-          <div className="rounded-2xl border border-primary/40 bg-primary/5 p-4 mb-6 flex items-start gap-3 print:hidden">
-            <CheckCircle2 className="h-5 w-5 text-primary mt-0.5 shrink-0" />
-            <div>
-              <div className="font-semibold">Aprovado por {camp.client_approved_by}</div>
-              <div className="text-xs text-muted-foreground">em {new Date(camp.client_approved_at!).toLocaleString("pt-BR")}</div>
+          <div className="rounded-2xl border border-primary/40 bg-primary/5 p-4 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 print:hidden">
+            <div className="flex items-start gap-3">
+              <CheckCircle2 className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+              <div>
+                <div className="font-semibold">Aprovado por {camp.client_approved_by}</div>
+                <div className="text-xs text-muted-foreground">em {new Date(camp.client_approved_at!).toLocaleString("pt-BR")}</div>
+              </div>
             </div>
+            {trackingToken ? (
+              <Button size="sm" onClick={() => navigate(`/campanha/${trackingToken}`)}>
+                Acompanhar campanha
+              </Button>
+            ) : (
+              <div className="text-xs text-muted-foreground">Campanha em preparação. O acompanhamento aparece aqui em instantes.</div>
+            )}
           </div>
         ) : isRejected ? (
           <div className="rounded-2xl border border-amber-500/40 bg-amber-500/5 p-4 mb-6 print:hidden">
