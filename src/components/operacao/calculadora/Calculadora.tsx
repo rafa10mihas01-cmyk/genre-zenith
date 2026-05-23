@@ -1146,12 +1146,12 @@ function FonteBtn({ active, onClick, icon: Icon, label }: any) {
   );
 }
 
-function ModeBtn({ active, onClick, label, hint }: { active: boolean; onClick: () => void; label: string; hint?: string }) {
-  return (
+function ModeBtn({ active, onClick, label, hint, tooltip }: { active: boolean; onClick: () => void; label: string; hint?: string; tooltip?: string }) {
+  const btn = (
     <button
       onClick={onClick}
       className={cn(
-        "h-12 rounded-lg border text-xs font-medium transition-colors px-2",
+        "h-12 rounded-lg border text-xs font-medium transition-colors px-2 w-full",
         active ? "border-primary bg-primary/10 text-primary"
                : "border-border hover:border-foreground/30 text-muted-foreground hover:text-foreground",
       )}
@@ -1159,6 +1159,17 @@ function ModeBtn({ active, onClick, label, hint }: { active: boolean; onClick: (
       <div>{label}</div>
       {hint && <div className="text-[10px] opacity-70">{hint}</div>}
     </button>
+  );
+  if (!tooltip) return btn;
+  return (
+    <TooltipProvider delayDuration={150}>
+      <Tooltip>
+        <TooltipTrigger asChild>{btn}</TooltipTrigger>
+        <TooltipContent side="top" className="max-w-[260px] text-xs leading-relaxed">
+          {tooltip}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
 
