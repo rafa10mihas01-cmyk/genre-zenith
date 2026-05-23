@@ -31,6 +31,9 @@ export interface CampaignSnapshot {
   mediaPorDia: number;
   inercia: number;
   curva: { day: number; streamsDay: number; cumulative: number; streamsEcoDay?: number; streamsExtDay?: number }[];
+  // Pricing pro cliente — snapshot do que ele vai pagar. Opcionais p/ retrocompat.
+  pricePerStreamSell?: number;
+  clientPriceTotal?: number;
 }
 
 export function buildSnapshot(
