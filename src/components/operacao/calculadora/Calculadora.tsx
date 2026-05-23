@@ -942,14 +942,16 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
 
       {/* Top 200 BR — agora em modal, acionado pela fonte "Top 200" */}
       <Dialog open={top200Open} onOpenChange={setTop200Open}>
-        <DialogContent className="max-w-5xl">
-          <DialogHeader>
+        <DialogContent className="max-w-5xl max-h-[85vh] flex flex-col p-0 gap-0">
+          <DialogHeader className="px-6 pt-6 pb-3 border-b border-border shrink-0">
             <DialogTitle>Top 200 BR</DialogTitle>
           </DialogHeader>
-          <Top200Tab onPick={(streamsDay) => {
-            patchActive({ fonte: "manual", meta: streamsDay * active.days });
-            setTop200Open(false);
-          }} />
+          <div className="flex-1 min-h-0 overflow-y-auto nx-scroll px-6 py-4">
+            <Top200Tab onPick={(streamsDay) => {
+              patchActive({ fonte: "manual", meta: streamsDay * active.days });
+              setTop200Open(false);
+            }} />
+          </div>
         </DialogContent>
       </Dialog>
     </div>
