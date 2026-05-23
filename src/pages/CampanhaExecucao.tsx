@@ -516,6 +516,12 @@ export default function CampanhaExecucao() {
                   delta_plays: p.plays_24h ?? null,
                 }))}
                 onJumpTab={(t) => setTab(t)}
+                splitLockedAt={camp.split_locked_at ?? null}
+                lockedEcoStreams={camp.locked_eco_streams ?? null}
+                ecoMaxPct={camp.eco_max_pct ?? 70}
+                canManageSplit={true}
+                onLockSplit={handleLockSplit}
+                onUnlockSplit={handleUnlockSplit}
               />
               <CampaignMonitoring
                 campaignId={camp.id}
