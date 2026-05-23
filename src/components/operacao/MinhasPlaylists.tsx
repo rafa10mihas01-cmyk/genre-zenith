@@ -397,6 +397,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   const [savingGenre, setSavingGenre] = useState(false);
   const [suggesting, setSuggesting] = useState(false);
   const [suggestProgress, setSuggestProgress] = useState<{ done: number; total: number } | null>(null);
+  const pendingSuggestionCount = items.filter(i => !i.archived_at && !i.genre_id && i.suggested_genre_id).length;
 
 
   async function runGenreSuggest() {
@@ -442,9 +443,11 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
 
       toast({
         title: "Sugestões geradas",
-        description: `${okTotal} de ${ids.length} classificadas${failTotal ? ` · ${failTotal} falharam` : ""}.`,
+        description: `${okTotal} de ${ids.length} classificadas${failTotal ? ` · ${failTotal} falharam` : ""}. Abrindo Sem gênero para revisar.`,
       });
       await load();
+      setFilterGenreId(null);
+      setFilterMissingGenre(true);
     } catch (e: any) {
       toast({ title: "Falha ao sugerir gêneros", description: e.message ?? String(e), variant: "destructive" });
     } finally {
@@ -933,29 +936,40 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
             size="sm"
             onClick={() => setFilterMissingGenre(v => !v)}
             className="gap-1.5 h-9 px-2 sm:px-3 shrink-0"
-            title={`Sem gênero (${missingGenreCount})`}
+            title={`Sem gênero (${missingGenreCount})${pendingSuggestionCount ? ` · ${pendingSuggestionCount} com sugestão` : ""}`}
             aria-label="Filtrar sem gênero"
           >
             <AlertCircle className="h-4 w-4" />
-            <span className="hidden sm:inline">Sem gênero ({missingGenreCount})</span>
+            <span className="hidden sm:inline">
+              Sem gênero ({missingGenreCount}{pendingSuggestionCount ? ` · ${pendingSuggestionCount} sugeridas` : ""})
+            </span>
             <span className="sm:hidden tabular-nums text-[11px]">{missingGenreCount}</span>
           </Button>
         )}
         {missingGenreCount > 0 && (
           <Button
-            variant="outline"
+            variant={pendingSuggestionCount ? "default" : "outline"}
             size="sm"
-            onClick={runGenreSuggest}
+            onClick={() => {
+              if (pendingSuggestionCount && !suggesting) {
+                setFilterGenreId(null);
+                setFilterMissingGenre(true);
+                return;
+              }
+              runGenreSuggest();
+            }}
             disabled={suggesting}
             className="gap-1.5 h-9 px-2 sm:px-3 shrink-0"
-            title="Sugerir gêneros via IA"
-            aria-label="Sugerir gêneros via IA"
+            title={pendingSuggestionCount ? "Revisar sugestões pendentes" : "Sugerir gêneros via IA"}
+            aria-label={pendingSuggestionCount ? "Revisar sugestões pendentes" : "Sugerir gêneros via IA"}
           >
             <Sparkles className={cn("h-4 w-4", suggesting && "animate-pulse")} />
             <span className="hidden sm:inline">
               {suggesting
                 ? (suggestProgress ? `Sugerindo… ${suggestProgress.done}/${suggestProgress.total}` : "Sugerindo…")
-                : `Sugerir gêneros (${missingGenreCount})`}
+                : pendingSuggestionCount
+                  ? `Revisar sugestões (${pendingSuggestionCount})`
+                  : `Sugerir gêneros (${missingGenreCount})`}
             </span>
           </Button>
         )}
