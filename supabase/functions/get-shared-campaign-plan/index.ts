@@ -30,7 +30,7 @@ Deno.serve(async (req) => {
 
   const { data: camp, error: cErr } = await supabase
     .from("campaigns")
-    .select("id, track_name, artist, cover_url, spotify_track_url, spotify_track_id, started_at, deadline, simulation_snapshot, engagement_multiplier, client_approved_at, client_approved_by, client_rejected_at, client_adjustment_request")
+    .select("id, deal_id, track_name, artist, cover_url, spotify_track_url, spotify_track_id, started_at, deadline, simulation_snapshot, engagement_multiplier, client_approved_at, client_approved_by, client_rejected_at, client_adjustment_request")
     .eq("public_plan_token", token)
     .maybeSingle();
 
@@ -45,5 +45,22 @@ Deno.serve(async (req) => {
 
   if (aErr) return jr({ error: aErr.message }, 500);
 
-  return jr({ campaign: camp, allocations: allocs ?? [] });
+  // Se a campanha já virou deal, descobre o token do painel pra mandar o
+  // cliente pra acompanhar a campanha ao vivo (o orçamento "some" e fica só
+  // a página de acompanhamento).
+  let trackingToken: string | null = null;
+  if ((camp as any).deal_id) {
+    const { data: songs } = await supabase
+      .from("curator_deal_songs")
+      .select("slug, client_token, campaign_id, position")
+      .eq("deal_id", (camp as any).deal_id)
+      .order("position", { ascending: true })
+      .limit(50);
+    if (songs && songs.length) {
+      const match = songs.find((s: any) => s.campaign_id === camp.id) ?? songs[0];
+      trackingToken = String((match as any).slug ?? (match as any).client_token ?? "") || null;
+    }
+  }
+
+  return jr({ campaign: camp, allocations: allocs ?? [], tracking_token: trackingToken });
 });
