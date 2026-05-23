@@ -840,68 +840,9 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                 </CardContent>
               </Card>
 
-              {/* Valor que o cliente paga (orçamento de venda) */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Wallet className="h-4 w-4 text-primary" />
-                    Valor cliente
-                  </CardTitle>
-                  <CardDescription>
-                    Quanto o cliente vai pagar nesta música. Vira o orçamento que aparece no portal pra ele aprovar.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div>
-                    <Label className="text-xs">Valor fechado (R$)</Label>
-                    <NumberInput
-                      value={active.clientPriceTotal}
-                      onChange={setClientPriceTotal}
-                      placeholder={`tabela: ${formatBRL((effectiveMeta || 0) * (pricingSettings.price_per_stream_sell || 0))}`}
-                    />
-                  </div>
-                  {effectiveMeta > 0 && (
-                    <div className="grid grid-cols-2 gap-2 text-[11px]">
-                      <div className="rounded-lg border border-border bg-muted/20 p-2">
-                        <div className="text-muted-foreground">Tabela (R$/1M)</div>
-                        <div className="text-foreground font-semibold tabular-nums">
-                          {formatBRL((pricingSettings.price_per_stream_sell || 0) * 1_000_000)}
-                        </div>
-                      </div>
-                      <div className="rounded-lg border border-border bg-muted/20 p-2">
-                        <div className="text-muted-foreground">Custo interno</div>
-                        <div className="text-foreground font-semibold tabular-nums">{formatBRL(result.custoTotal)}</div>
-                      </div>
-                      {active.clientPriceTotal > 0 && (
-                        <>
-                          <div className="rounded-lg border border-primary/30 bg-primary/5 p-2">
-                            <div className="text-muted-foreground">R$/stream venda</div>
-                            <div className="text-primary font-semibold tabular-nums">
-                              R$ {(active.clientPriceTotal / effectiveMeta).toFixed(4)}
-                            </div>
-                          </div>
-                          <div className="rounded-lg border border-primary/30 bg-primary/5 p-2">
-                            <div className="text-muted-foreground">Margem</div>
-                            <div className="text-primary font-semibold tabular-nums">
-                              {formatBRL(active.clientPriceTotal - result.custoTotal)}
-                              {active.clientPriceTotal > 0 && (
-                                <span className="text-muted-foreground font-normal ml-1">
-                                  ({Math.round(((active.clientPriceTotal - result.custoTotal) / active.clientPriceTotal) * 100)}%)
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  )}
-                  {active.clientPriceTotal === 0 && (
-                    <p className="text-[11px] text-muted-foreground">
-                      Vazio = usa a tabela ({formatBRL((pricingSettings.price_per_stream_sell || 0) * 1_000_000)} / 1M streams).
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
+              {/* Valor cliente removido — preço já vem da tabela definida em Financeiro */}
+
+
 
 
 
