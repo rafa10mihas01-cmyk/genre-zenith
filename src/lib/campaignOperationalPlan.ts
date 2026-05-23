@@ -139,6 +139,21 @@ export function getCampaignPreferredPositions(snapshot?: CampaignSnapshot | null
     : [MIN_CAMPAIGN_POSITION];
 }
 
+export function inferEcoPreferredPositions(
+  snapshot: CampaignSnapshot,
+  allocs: EcoPositionInput[],
+  engagementMultiplier = 30,
+): number[] {
+  const saved = getCampaignPreferredPositions(snapshot);
+  if (saved.some((p) => p < MIN_CAMPAIGN_POSITION)) return saved;
+  const neededPerDay = allocs.reduce((sum, a) => sum + Math.max(0, a.planned_streams || 0), 0) / Math.max(1, snapshot.days);
+  const baseSlotThree = allocs.reduce(
+    (sum, a) => sum + calculateTrackDailyStreams(a.followers, engagementMultiplier, MIN_CAMPAIGN_POSITION),
+    0,
+  );
+  return neededPerDay > baseSlotThree * 1.02 ? [1, 2, 3] : saved;
+}
+
 /**
  * @deprecated Removido — agora a capacidade é derivada de POSITION_PCT.
  * Mantido apenas para compatibilidade de import; não usar em novas chamadas.
