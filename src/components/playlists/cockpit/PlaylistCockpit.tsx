@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -194,6 +194,23 @@ export function PlaylistCockpit({
   const [running, setRunning] = useState(false);
   const [applying, setApplying] = useState<null | "remove" | "demote" | "promote" | "add" | "all">(null);
   const [activeTab, setActiveTab] = useState<string>("identidade");
+  const [archiving, setArchiving] = useState(false);
+  const navigate = useNavigate();
+
+  async function handleArchive() {
+    if (!confirm(`Mover "${playlistName}" para a lixeira?`)) return;
+    setArchiving(true);
+    const { error } = await supabase.functions.invoke("archive-managed-playlist", {
+      body: { playlist_id: managedId, restore: false },
+    });
+    setArchiving(false);
+    if (error) {
+      toast({ title: "Erro ao arquivar", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Movida para lixeira", description: "Você pode restaurar em Catálogo › Lixeira." });
+    if (onBack) onBack(); else navigate("/catalogo");
+  }
 
   useEffect(() => { setLiveTracksCount(tracksCount); }, [tracksCount]);
 
@@ -460,8 +477,20 @@ export function PlaylistCockpit({
                 <ExternalLink className="h-3.5 w-3.5" /> <span className="sm:inline">Abrir no Spotify</span>
               </a>
             </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleArchive}
+              disabled={archiving}
+              className="h-8 gap-1.5 text-muted-foreground hover:text-destructive hover:border-destructive/40"
+              title="Mover para lixeira"
+            >
+              {archiving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+              <span className="hidden sm:inline">Lixeira</span>
+            </Button>
           </div>
         </div>
+
 
         {/* KPI row — mesma régua do DealDetail/Cliente/Curador */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
