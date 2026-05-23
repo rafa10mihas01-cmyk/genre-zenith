@@ -1130,8 +1130,10 @@ Deno.serve(async (req) => {
           zone_fit_score: pick.zone_scores[slot.slot_zone],
           function_role: pick.function_role,
           from_missing_artist: pick.from_missing_artist,
+          trending_position: pick.trending_position,
           suggested_position: slot.position, // assume a vaga liberada
         } : null,
+
       };
     });
 
