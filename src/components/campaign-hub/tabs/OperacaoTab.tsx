@@ -209,90 +209,92 @@ function OperacaoRow({ row }: { row: Row }) {
   const progress = row.planned > 0 ? Math.min(100, Math.round((row.delivered / row.planned) * 100)) : 0;
   const statusLabel = STATUS_LABEL[row.status] ?? row.status;
   const isInternal = row.source === "internal";
+  const isLive = row.status === "active" || row.status === "dispatched" || row.delivered > 0;
+  const dotColor = isLive
+    ? "bg-primary"
+    : row.status === "paused" || row.status === "failed" || row.status === "cancelled"
+      ? "bg-destructive/70"
+      : "bg-muted-foreground/40";
 
   return (
-    <tr className="border-b border-border/50 last:border-0 hover:bg-elevated/30 transition-colors">
-      <td className="px-4 py-3 align-middle">
-        <Badge
-          variant="outline"
-          className={cn(
-            "gap-1 text-[10px] uppercase font-semibold border-2",
-            isInternal
-              ? "border-primary/40 text-primary"
-              : "border-purple-500/40 text-purple-400",
-          )}
-        >
-          {isInternal ? <Sparkles className="h-3 w-3" /> : <Users className="h-3 w-3" />}
-          {isInternal ? "NexEngine" : "Curador"}
-        </Badge>
-      </td>
-      <td className="px-4 py-3 align-middle min-w-[200px]">
-        <div className="flex items-center gap-2.5">
-          {row.cover_url ? (
-            <img src={row.cover_url} alt="" className="w-8 h-8 rounded object-cover shrink-0" />
-          ) : (
-            <div className="w-8 h-8 rounded bg-muted grid place-items-center shrink-0">
-              <Music className="h-3.5 w-3.5 text-muted-foreground" />
-            </div>
-          )}
-          <div className="min-w-0">
-            <div className="font-medium truncate leading-tight">{row.name}</div>
-            <div className="text-[11px] text-muted-foreground truncate">{row.subtitle}</div>
-          </div>
+    <li className="flex items-center gap-3 px-3 py-1.5 hover:bg-elevated/30 transition-colors text-xs">
+      {/* Status dot + fonte */}
+      <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", dotColor)} title={statusLabel} />
+      <span
+        className={cn(
+          "inline-flex items-center gap-1 text-[9px] uppercase font-semibold shrink-0 w-[58px]",
+          isInternal ? "text-primary" : "text-purple-400",
+        )}
+      >
+        {isInternal ? <Sparkles className="h-2.5 w-2.5" /> : <Users className="h-2.5 w-2.5" />}
+        {isInternal ? "Engine" : "Curador"}
+      </span>
+
+      {/* Capa + nome */}
+      {row.cover_url ? (
+        <img src={row.cover_url} alt="" className="w-6 h-6 rounded object-cover shrink-0" />
+      ) : (
+        <div className="w-6 h-6 rounded bg-muted grid place-items-center shrink-0">
+          <Music className="h-3 w-3 text-muted-foreground" />
         </div>
-      </td>
-      <td className="px-4 py-3 align-middle text-right min-w-[180px]">
-        <div className="tabular-nums text-xs font-medium">
-          {formatInt(row.delivered)} <span className="text-muted-foreground">/ {formatInt(row.planned)}</span>
+      )}
+      <div className="min-w-0 flex-1">
+        <div className="font-medium truncate leading-tight">{row.name}</div>
+        <div className="text-[10px] text-muted-foreground truncate leading-tight">{row.subtitle}</div>
+      </div>
+
+      {/* Custo (só externos com custo) */}
+      {row.cost > 0 && (
+        <span className="tabular-nums text-[11px] text-muted-foreground shrink-0 w-16 text-right">
+          {formatBRL(row.cost)}
+        </span>
+      )}
+
+      {/* Barra + entrega — coluna fixa */}
+      <div className="shrink-0 w-[180px]">
+        <div className="flex items-baseline justify-between gap-2 text-[11px] leading-none">
+          <span className="tabular-nums font-medium">{formatInt(row.delivered)}</span>
+          <span className="tabular-nums text-muted-foreground">/ {formatInt(row.planned)}</span>
         </div>
-        <div className="h-1 rounded-full bg-muted overflow-hidden mt-1.5">
+        <div className="h-0.5 rounded-full bg-muted overflow-hidden mt-1">
           <div className="h-full bg-primary transition-all" style={{ width: `${progress}%` }} />
         </div>
-      </td>
-      <td className="px-4 py-3 align-middle text-right tabular-nums text-xs">
-        {row.cost > 0 ? formatBRL(row.cost) : <span className="text-muted-foreground">—</span>}
-      </td>
-      <td className="px-4 py-3 align-middle">
-        <span className="text-xs text-foreground-body">{statusLabel}</span>
-      </td>
-      <td className="px-4 py-3 align-middle text-right">
-        <div className="flex items-center justify-end gap-2">
-          {row.spotify_url && (
-            <a
-              href={row.spotify_url}
-              target="_blank"
-              rel="noreferrer"
-              className="text-muted-foreground hover:text-foreground"
-              title="Abrir no Spotify"
-            >
-              <ExternalLink className="h-3.5 w-3.5" />
-            </a>
-          )}
-          {row.deal_link && (
-            <Link
-              to={row.deal_link}
-              className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
-            >
-              Ver deal
-            </Link>
-          )}
-        </div>
-      </td>
-    </tr>
+      </div>
+
+      {/* Ações */}
+      <div className="flex items-center gap-1.5 shrink-0 w-12 justify-end">
+        {row.spotify_url && (
+          <a
+            href={row.spotify_url}
+            target="_blank"
+            rel="noreferrer"
+            className="text-muted-foreground hover:text-foreground"
+            title="Abrir no Spotify"
+          >
+            <ExternalLink className="h-3 w-3" />
+          </a>
+        )}
+        {row.deal_link && (
+          <Link
+            to={row.deal_link}
+            className="text-[10px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+          >
+            deal
+          </Link>
+        )}
+      </div>
+    </li>
   );
 }
 
 function SummaryKpi({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">{label}</div>
-      <div className="text-xl font-semibold tabular-nums leading-tight mt-1">{value}</div>
-      {sub && <div className="text-[10px] text-muted-foreground mt-1">{sub}</div>}
+    <div className="rounded-lg border border-border bg-card px-3 py-2">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium">{label}</span>
+        {sub && <span className="text-[10px] text-muted-foreground truncate">{sub}</span>}
+      </div>
+      <div className="text-base font-semibold tabular-nums leading-tight mt-0.5">{value}</div>
     </div>
   );
-}
-
-function pct(a: number, b: number) {
-  if (!b) return 0;
-  return Math.round((a / b) * 100);
 }
