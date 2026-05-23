@@ -27,6 +27,7 @@ import { useEcosystemCapacity } from "@/hooks/useEcosystemCapacity";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format, addDays, differenceInCalendarDays, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { calculatePlaylistCapacity } from "@/lib/campaignOperationalPlan";
 
 type Fonte = "manual" | "top200" | "concorrente" | "orcamento";
 
@@ -60,10 +61,13 @@ type Song = {
   modo: Modo;
   perfil: Perfil;
   splitEco: number;
+  engagementMultiplier: number;
   startDateISO: string; // yyyy-mm-dd
   clientPriceTotal: number; // R$ que o cliente paga (manual) — 0 = usa tabela
   genre: string; // p/ filtrar playlists na distribuição
 };
+
+const ENGAGEMENT_PRESETS = [18, 30, 50] as const;
 
 const STORAGE_KEY_V2 = "nx:calc:state:v2";
 const STORAGE_KEY_V1 = "nx:calculadora:state:v1";
@@ -97,6 +101,7 @@ function emptySong(): Song {
     modo: "simultaneo",
     perfil: "mercado",
     splitEco: DEFAULT_SPLIT.eco,
+    engagementMultiplier: 30,
     startDateISO: startOfDay(new Date()).toISOString().slice(0, 10),
     clientPriceTotal: 0,
     genre: "",
@@ -172,6 +177,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
   const setModo = (v: Modo) => patchActive({ modo: v });
   const setPerfil = (v: Perfil) => patchActive({ perfil: v });
   const setSplitEco = (v: number) => patchActive({ splitEco: v });
+  const setEngagementMultiplier = (v: number) => patchActive({ engagementMultiplier: Math.max(1, Math.min(200, Math.round(v || 1))) });
   const setStartDate = (d: Date) => patchActive({ startDateISO: startOfDay(d).toISOString().slice(0, 10) });
   const setClientPriceTotal = (v: number) => patchActive({ clientPriceTotal: v });
   const setGenre = (v: string) => patchActive({ genre: v });
@@ -210,7 +216,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
   }, pricingCosts), [effectiveMeta, active.days, active.modo, active.perfil, active.splitEco, pricingCosts]);
 
   // Capacidade real do ecossistema filtrada por gênero da música ativa.
-  const ecoCap = useEcosystemCapacity(active.genre, active.days);
+  const ecoCap = useEcosystemCapacity(active.genre, active.days, active.engagementMultiplier ?? 30);
   const ecoNeeded = result.streamsEco;
   const ecoUsagePct = ecoCap.capacityTotal > 0
     ? Math.round((ecoNeeded / ecoCap.capacityTotal) * 100)
