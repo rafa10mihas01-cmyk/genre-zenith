@@ -1,153 +1,121 @@
+## Refator: Central Viva da Campanha
 
-# Motor Editorial Vivo — Lifecycle, Bloated Mode & Roadmap
+O usuário quer transformar **dois ambientes** que hoje vivem separados em uma experiência única, premium e modular:
 
-Conecta o que já existe (pipeline, net-positive, genre affinity) e adiciona o que falta: **redução acima do benchmark** e **roadmap multi-ciclo visível no cockpit**.
+- **Interno** → `/campanhas/:id/execucao` (CampanhaExecucao.tsx)
+- **Cliente** → `/p/plano/:token` (PlanoCampanhaPublico.tsx)
 
-## O que já existe (apenas confirmar/ligar)
+Mesma arquitetura visual, mesmos componentes, **filtros de dados diferentes**. Cliente nunca vê custo/margem/CPP/eco real.
 
-- `genre_affinities` + `getGenreNeighbors()` / `expandGenrePool()` — pronto em `_shared/genre-affinity.ts`
-- `playlist-brain-calc` calcula capacity, headroom, sinais
-- `diagnose-managed-playlist` gera plano de adições/substituições com boost de Top 200 BR
-- `apply-playlist-plan` aplica o ciclo
-- `genre_benchmarks` (tabela existente) já guarda mediana de tracks por nicho
-- `lifecycle_stage` em `managed_playlists` já existe (`onboarding | testing | mature`) — vamos adicionar uma coluna **separada** `lifecycle_phase` para a fase editorial dinâmica (seed/growth/mature/bloated/decline), sem mexer no stage de onboarding
+---
 
-## O que é NOVO
+### Arquitetura (sem quebrar nada)
 
-### 1. Schema (migration)
+Tudo novo vai em `src/components/campaign-hub/`. As páginas atuais viram **cascas finas** que montam os blocos. Nada de lógica de negócio nova — só remontagem visual sobre os dados que já existem (`campaigns`, `campaign_eco_allocations`, `campaign_print_logs`, `campaign_daily_progress`).
 
-```sql
-ALTER TABLE managed_playlists
-  ADD COLUMN lifecycle_phase text NOT NULL DEFAULT 'seed'
-    CHECK (lifecycle_phase IN ('seed','growth','mature','bloated','decline')),
-  ADD COLUMN lifecycle_phase_updated_at timestamptz;
-
-ALTER TABLE playlist_brain
-  ADD COLUMN lifecycle_phase text,
-  ADD COLUMN benchmark_tracks integer,
-  ADD COLUMN ratio_to_benchmark numeric(5,2),
-  ADD COLUMN growth_roadmap jsonb NOT NULL DEFAULT '[]'::jsonb;
+```text
+src/components/campaign-hub/
+├── CampaignHub.tsx              ← shell: hero sticky + tabs sticky + outlet
+├── CampaignHero.tsx             ← capa + faixa + artista + progresso + status + CTA
+│                                  modo="internal" mostra "Compartilhar/Abrir portal"
+│                                  modo="client"   mostra "Aprovar" (se pendente)
+├── tabs/
+│   ├── OverviewTab.tsx          ← KPIs grandes + curva grande + últimas provas
+│   ├── PlaylistsTab.tsx         ← grid operacional: Ativas | Pendentes | Pausadas
+│   ├── ProofsTab.tsx            ← timeline visual de prints (preview grande, delta, posição)
+│   ├── CurveTab.tsx             ← curva como protagonista (full width)
+│   ├── FinanceTab.tsx           ← SÓ interno (custo, margem, CPP, eco)
+│   └── LogsTab.tsx              ← SÓ interno (auditoria)
+├── PlaylistCard.tsx             ← card operacional (posição, plays, crescimento, último print)
+├── ProofTimelineItem.tsx        ← item premium da timeline de provas
+└── types.ts                     ← CampaignHubData + modo "internal" | "client"
 ```
 
-### 2. `playlist-brain-calc` — fase + benchmark
+### Hero sticky (topo)
 
-Lê `genre_benchmarks` para o `genre_id` (mediana de track_count das playlists do mesmo nicho). Calcula `ratio = tracks_count / benchmark` e deriva fase:
-
-```
-seed     ratio < 0.30
-growth   0.30 ≤ ratio < 0.80
-mature   0.80 ≤ ratio ≤ 1.20
-bloated  ratio > 1.20
-decline  followers OU saves_rate caíram em 2+ snapshots consecutivos
-         (sobrescreve qualquer fase)
+```text
+┌──────────────────────────────────────────────────────────────┐
+│ [capa] Faixa — Artista                    [Compartilhar] [↗] │
+│         ●● Ativa · D7 de 21 · faltam 14d                     │
+│         ▓▓▓▓▓▓▓▓▓░░░░░░░  43%   12.400 / 28.500 streams      │
+│         última atualização há 2h                             │
+└──────────────────────────────────────────────────────────────┘
 ```
 
-Persiste em `managed_playlists.lifecycle_phase` + `playlist_brain.lifecycle_phase / benchmark_tracks / ratio_to_benchmark`.
+Sticky no scroll (`sticky top-0 z-20 backdrop-blur`), encolhe quando rola (altura 140→64px). No modo cliente, **antes da aprovação** mostra investimento + botão "Aprovar plano"; **depois** vira hero live com progresso.
 
-### 3. `diagnose-managed-playlist` — bloated mode + roadmap
+### Tabs sticky (logo abaixo do hero)
 
-**Bloated** (novo bloco):
-- `max_removals_per_cycle = min(ceil(excess * 0.25), 50)`
-- `additions_per_cycle = 0` (exceto faixas excepcionais — score > P95 do pool)
-- Ordem de remoção:
-  1. menor `niche_adherence`
-  2. menor recorrência em playlists do nicho
-  3. menor popularidade contextual (vs mediana do nicho)
-  4. maior saturação de artista (>1 faixa do mesmo artista)
-  5. mais antiga com menor contribuição editorial
-- `max_per_day = ceil(max_removals_per_cycle / 5)` (espalha por 5 dias)
+Interno: Visão Geral · Playlists · Provas · Curva · Financeiro · Logs
+Cliente: Visão Geral · Playlists · Provas · Curva (sem Financeiro/Logs)
 
-**Roadmap** (todas as fases construtivas/redutoras):
+Mesmo componente `<CampaignHub mode="internal" | "client" />`, controla quais tabs renderiza.
 
-```ts
-function buildRoadmap(current, benchmark, phase) {
-  const out = []; let t = current, c = 1;
-  while (c <= 20) {
-    const r = t / benchmark;
-    if (phase === 'seed' || phase === 'growth') {
-      const gap = benchmark - t; if (gap <= 0) break;
-      const add = phase === 'seed' ? Math.min(gap, 80) : Math.min(gap, Math.ceil(benchmark*0.25));
-      out.push({ cycle: c, delta: +add, total: t+add, action: 'build', phase });
-      t += add;
-    } else if (phase === 'bloated') {
-      const exc = t - benchmark; if (exc <= 0) break;
-      const rem = Math.min(Math.ceil(exc*0.25), 50);
-      out.push({ cycle: c, delta: -rem, total: t-rem, action: 'trim', phase });
-      t -= rem;
-    } else break;
-    const nr = t/benchmark; if (nr >= 0.80 && nr <= 1.20) break;
-    c++;
-  }
-  return out;
-}
+### Playlists (grid operacional)
+
+Substitui a tabela atual por **grid de cards** agrupado por status:
+
+- **Ativas** (no ar) — destaque, ordenadas por plays entregues
+- **Pendentes** (aguardando) — colapsada por padrão se >5
+- **Pausadas** — colapsada por padrão
+
+Cada card mostra: capa, nome, **posição atual** (#3), plays entregues / planejado com barra, **delta de crescimento 24h**, thumb do último print clicável, dot de status. Esconde ruído de "aguardando primeiro print" — agrupa em "+12 ainda não dispararam".
+
+Cliente vê o mesmo grid **sem** posição interna, sem distinção próprio/externo (só "Playlists da campanha").
+
+### Provas (timeline premium)
+
+Hoje prints estão enterrados dentro de `CampaignMonitoring`. Vira **timeline vertical full-width**, cada entrada parece um "post" da campanha:
+
+```text
+○─ há 2h · Playlist X
+│   ┌────────────────────────────────┐
+│   │  [preview grande do print]      │
+│   └────────────────────────────────┘
+│   +420 plays  ·  posição #4 → #2  ·  3 playlists afetadas
+│
+○─ ontem 18:30 · ...
 ```
 
-Salva em `playlist_brain.growth_roadmap`.
+Sem cara de tabela. Preview do print em destaque (clique → lightbox).
 
-### 4. `apply-playlist-plan` — net-positive enforcement
+### Curva (protagonista)
 
-Adicionar guarda:
+Sobe pra largura total, eixos legíveis, marca onde estamos hoje (linha vertical), zona de "abaixo do plano" / "acima". Tooltip rico. Reusa dados de `snapshot.curva` + `campaign_daily_progress`.
 
-```ts
-const phase = managed.lifecycle_phase;
-const net = additions.length - removals.length;
-if (phase !== 'bloated' && net < 0) {
-  throw new Error('BLOCKED: net negative cycle only allowed in bloated phase');
-}
-```
+### Fluxo do cliente
 
-### 5. `generate-deal-plan` — expansão por afinidade (confirmar)
+Mesmo link `/p/plano/:token` antes e depois da aprovação:
 
-Verifica se já chama `expandGenrePool`; se não, adiciona o gatilho quando capacidade < 80% do alvo. Retorna `genres_used` no payload.
+- **Antes**: Hero mostra "Plano da campanha" + investimento (sem 70/30) + botão **Aprovar/Solicitar ajuste**. Tabs limitadas (Visão Geral + Curva). Já é o `<CampaignHub mode="client" stage="approval" />`.
+- **Depois**: mesmo componente, `stage="live"`. Card de aprovação some, Hero vira live, tabs completas do cliente (+ Playlists + Provas).
 
-### 6. Pipeline pós-import (confirmar)
+Detecta stage por `client_approved_at != null`. Não precisa redirect — a página detecta sozinha.
 
-Confirma que `import-account-playlists` enfileira `classify-genre → snapshot → brain-calc → diagnose → cover-suggestion`. Se faltar etapa, completa via `enqueue-playlist-job`.
+### Separação visão interna × cliente (regra dura)
 
-### 7. Cockpit — Timeline do Roadmap (NOVO componente)
+Tudo passa por um `filterForClient(data)` no hub. Cliente **nunca** recebe: `custoTotal`, `custoPorStream`, `splitEcoPct`, `streamsEco`, `streamsExt`, margem, CPP, nome de playlist própria vs externa. Já existe `ClientInvestmentCard` — reaproveitar.
 
-Arquivo: `src/components/playlists/cockpit/LifecycleRoadmapCard.tsx`
+---
 
-- Lê `playlist_brain.growth_roadmap` + `lifecycle_phase`
-- Renderiza timeline (usa `Timeline` de `@/components/ui/timeline.tsx`)
-- Cores:
-  - seed/growth → verde (primary)
-  - bloated → âmbar/laranja (warning)
-  - decline → vermelho (destructive)
-  - mature → check com mensagem "modo refinamento"
-- Mostra `Gêneros usados: X · Y (afinidade 0.85)` quando `metadata.genres_used` existe
-- Estados:
-  - BUILDING: `● Ciclo 1 (agora) +80 → 110` etc
-  - TRIMMING: `● Ciclo 1 (agora) -70 → 250` etc
-  - STABLE: ✅ Benchmark atingido — modo refinamento
-- Inserir no `PlaylistCockpit` logo abaixo do `PlaylistTracksAnalysisCard`
+### Detalhes técnicos
 
-### 8. Hook
+- **Sticky correto**: hero + tabs num wrapper `sticky top-0`, conteúdo das tabs com `scroll-margin-top` pra âncoras não ficarem atrás.
+- **Sem quebrar rotas**: `/campanhas/:id/execucao` continua existindo, só troca o conteúdo. `/p/plano/:token` idem.
+- **Reuso**: `CampaignDailyPlan`, `CampaignMonitoring`, `CampaignFullPlanCard`, `ExternalPackageEditor` continuam existindo — viram **filhos** das novas tabs (Curve usa o gráfico de DailyPlan, Logs usa Monitoring, etc). Nada é deletado nessa primeira passada.
+- **Dados**: nenhum schema novo. Só leitura. Edge function `get-shared-campaign-plan` já devolve o que precisa; só adicionar prints/progresso se faltarem (a edge já é a fonte do cliente).
+- **Design tokens**: tudo via tokens existentes (`--background`, `--card`, `--primary`, domain `campaigns`). Sem cor crua.
 
-`src/hooks/usePlaylistBrain.ts` — estender tipo `PlaylistBrain` com `lifecycle_phase`, `benchmark_tracks`, `ratio_to_benchmark`, `growth_roadmap`.
+### Entregas faseadas (pra eu não quebrar nada de uma vez)
 
-## Arquivos tocados
+1. **Fase 1** — `CampaignHub` shell + `CampaignHero` sticky + tabs sticky, plugando os componentes que já existem dentro de cada tab. Visualmente já vira premium, código existente intacto.
+2. **Fase 2** — `PlaylistsTab` grid + `ProofsTab` timeline (novos componentes substituindo a tabela + bloco de prints atual).
+3. **Fase 3** — Modo `client` no mesmo hub, `PlanoCampanhaPublico` passa a renderizar `<CampaignHub mode="client" />` com filtro de dados.
 
-**Migração:** 1 nova
+Cada fase é um deploy seguro e testável.
 
-**Edge functions editadas:**
-- `playlist-brain-calc/index.ts` (fase + benchmark)
-- `diagnose-managed-playlist/index.ts` (bloated + roadmap)
-- `apply-playlist-plan/index.ts` (enforce net-positive)
-- `generate-deal-plan/index.ts` (confirmar expandGenrePool)
-- `import-account-playlists/index.ts` (confirmar pipeline)
+### Fora de escopo
 
-**Frontend:**
-- `src/components/playlists/cockpit/LifecycleRoadmapCard.tsx` (novo)
-- `src/components/playlists/cockpit/PlaylistCockpit.tsx` (inserir card)
-- `src/hooks/usePlaylistBrain.ts` (tipo)
-
-## Verificação final
-
-Após deploy, rodo `diagnose-managed-playlist` em 3 playlists representativas e retorno phase + roadmap JSON para cada cenário (seed / bloated / decline).
-
-## Fora de escopo
-
-- Reescrever pipeline existente
-- Mexer em `lifecycle_stage` (onboarding/testing/mature) — fica intacto, é outro eixo
-- Recriar genre affinity (já está em produção)
+- Não toco em `Campanhas.tsx` (lista) nem em `CampanhaDetalhe.tsx` (detalhe operacional antigo).
+- Não mexo em business logic (engine, snapshot, eco dispatch).
+- Não crio tabela nova nem migration.
