@@ -65,7 +65,12 @@ type Song = {
   startDateISO: string; // yyyy-mm-dd
   clientPriceTotal: number; // R$ que o cliente paga (manual) — 0 = usa tabela
   genre: string; // p/ filtrar playlists na distribuição
+  // Top 200 picker (controlado pra meta recalcular sozinho quando days muda)
+  top200Pos: number | null;
+  top200StreamsDay: number | null;
+  top200ChartDate: string | null;
 };
+
 
 const ENGAGEMENT_PRESETS = [18, 30, 50] as const;
 
