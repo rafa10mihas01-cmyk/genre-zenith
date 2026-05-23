@@ -82,7 +82,7 @@ export default function CampanhaExecucao() {
     const [{ data: c }, { data: a }, { data: s }, { data: pkg }] = await Promise.all([
       supabase
         .from("campaigns")
-        .select("id, deal_id, track_name, artist, cover_url, status, deadline, started_at, simulation_snapshot, snapshot_locked_at, eco_dispatched_at, engagement_multiplier, public_plan_token, spotify_track_url, total_delivered, client_approved_at")
+        .select("id, deal_id, track_name, artist, cover_url, status, deadline, started_at, simulation_snapshot, snapshot_locked_at, eco_dispatched_at, engagement_multiplier, public_plan_token, spotify_track_id, spotify_track_url, goal_plays, created_by, total_delivered, client_approved_at")
         .eq("id", id)
         .maybeSingle(),
       supabase
@@ -107,6 +107,52 @@ export default function CampanhaExecucao() {
     setSnaps((s ?? []) as EcoSnap[]);
 
     let dealId = (c as { deal_id?: string | null } | null)?.deal_id ?? null;
+    if (!dealId && c?.spotify_track_id) {
+      const { data: auth } = await supabase.auth.getUser();
+      const userId = c.created_by ?? auth.user?.id ?? null;
+      if (userId) {
+        const goal = Number(c.goal_plays ?? snapshot?.meta ?? 0);
+        const { data: newDeal } = await supabase
+          .from("curator_deals")
+          .insert({
+            user_id: userId,
+            curator_name: "Campanha",
+            song_spotify_url: c.spotify_track_url || `spotify:track:${c.spotify_track_id}`,
+            song_name: c.track_name,
+            song_artist: c.artist,
+            song_cover_url: c.cover_url,
+            target_plays: goal,
+            baseline_plays: 0,
+            cost: 0,
+            started_at: c.started_at,
+            ends_at: c.deadline ? `${c.deadline}T23:59:59.000Z` : null,
+            state: "active",
+            source: "campaign_internal",
+            origin: "campaign",
+            campaign_id: c.id,
+          })
+          .select("id")
+          .single();
+        if (newDeal?.id) {
+          dealId = newDeal.id;
+          await supabase.from("curator_deal_songs").insert({
+            deal_id: dealId,
+            spotify_track_id: c.spotify_track_id,
+            song_spotify_url: c.spotify_track_url || `spotify:track:${c.spotify_track_id}`,
+            song_name: c.track_name,
+            song_artist: c.artist,
+            song_cover_url: c.cover_url,
+            target_plays: goal,
+            baseline_plays: 0,
+            position: 1,
+            started_at: c.started_at,
+            ends_at: c.deadline ? `${c.deadline}T23:59:59.000Z` : null,
+          });
+          await supabase.from("campaigns").update({ deal_id: dealId }).eq("id", c.id);
+          setCamp({ ...(c as unknown as CampaignHubCampaign), deal_id: dealId });
+        }
+      }
+    }
     let hydratedUploadState = false;
     if (!dealId && (c as { public_plan_token?: string | null } | null)?.public_plan_token) {
       const { data: shared } = await supabase.functions.invoke("get-shared-campaign-plan", {
