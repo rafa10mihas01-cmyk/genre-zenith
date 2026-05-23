@@ -5,7 +5,7 @@ import { PageContainer } from "@/components/PageContainer";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { formatBRL, formatInt } from "@/lib/campaignEngine";
 import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
 import { ExternalPackageEditor } from "@/components/campanhas/ExternalPackageEditor";
@@ -21,22 +21,26 @@ import { PlaylistsGrid } from "@/components/campaign-hub/PlaylistsGrid";
 import { ProofsTimeline, type ProofEvent } from "@/components/campaign-hub/ProofsTimeline";
 import type { CampaignHubCampaign, CampaignHubTabId, EcoAllocation } from "@/components/campaign-hub/types";
 
-const STATUS_LABEL: Record<string, string> = {
-  pending: "Aguardando",
-  dispatched: "Enviada ao bot",
-  active: "No ar",
-  done: "Concluída",
-  failed: "Falhou",
-  cancelled: "Cancelada",
+type EcoSnap = {
+  id: string;
+  managed_playlist_id: string;
+  plays_24h: number | null;
+  plays_7d: number | null;
+  plays_28d: number | null;
+  captured_at: string;
+  source?: string | null;
 };
 
-const STATUS_TONE: Record<string, string> = {
-  pending: "bg-muted text-muted-foreground border-border",
-  dispatched: "bg-warning/10 text-warning border-warning/30",
-  active: "bg-primary/15 text-primary border-primary/40",
-  done: "bg-primary/10 text-primary border-primary/30",
-  failed: "bg-destructive/10 text-destructive border-destructive/30",
-  cancelled: "bg-muted text-muted-foreground border-border",
+type DeliveryProof = {
+  id: string;
+  playlist_id: string;
+  playlist_name: string;
+  screenshot_url: string | null;
+  plays_total: number;
+  plays_24h: number | null;
+  position_in_playlist: number | null;
+  source: string | null;
+  captured_at: string;
 };
 
 export default function CampanhaExecucao() {
