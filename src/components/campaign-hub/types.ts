@@ -35,5 +35,6 @@ export type CampaignHubTabId =
   | "playlists"
   | "proofs"
   | "curve"
+  | "upload"
   | "finance"
   | "logs";
