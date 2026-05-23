@@ -222,7 +222,28 @@ function CampaignRow({ c }: { c: Campaign }) {
       toast({ title: "Campanha aprovada", description: "Deal real criado e enviado para a fila de coleta." });
       return data;
     } catch (e) {
-      toast({ title: "Erro ao aprovar", description: (e as Error).message, variant: "destructive" });
+      const raw = (e as Error).message ?? "";
+      const map: Record<string, { title: string; description: string }> = {
+        client_approval_required: {
+          title: "Aguardando aprovação do cliente",
+          description: "Copie o link público do plano e mande pro cliente. Quando ele aprovar, este botão libera.",
+        },
+        curator_required: {
+          title: "Sem curador",
+          description: "Edite a campanha e selecione o curador dono das playlists.",
+        },
+        campaign_not_in_approvable_state: {
+          title: "Campanha já aprovada",
+          description: "Esta campanha não está em rascunho — não precisa aprovar de novo.",
+        },
+        campaign_not_found: {
+          title: "Campanha não encontrada",
+          description: "Talvez tenha sido excluída. Recarregue a página.",
+        },
+      };
+      const key = Object.keys(map).find((k) => raw.includes(k));
+      const t = key ? map[key] : { title: "Erro ao aprovar", description: raw };
+      toast({ title: t.title, description: t.description, variant: "destructive" });
     }
   }
 
