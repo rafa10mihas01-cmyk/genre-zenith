@@ -558,7 +558,11 @@ export function buildEcoPlaylistPlan(
     })),
     snapshot.days,
     multiplier,
-    { preferredSlots: getCampaignPreferredPositions(snapshot) },
+    { preferredSlots: inferEcoPreferredPositions(snapshot, allocs.map(a => ({
+      id: a.id,
+      planned_streams: a.planned_streams,
+      followers: Number(a.managed_playlists?.followers ?? 0),
+    })), multiplier) },
   );
 
   const ordered = [...allocs].sort((a, b) => b.planned_streams - a.planned_streams);
