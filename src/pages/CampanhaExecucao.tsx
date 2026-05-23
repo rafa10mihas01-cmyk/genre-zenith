@@ -566,6 +566,17 @@ export default function CampanhaExecucao() {
                 <TabsTrigger value="completo">Plano completo</TabsTrigger>
               </TabsList>
               <TabsContent value="diario" className="mt-0 space-y-4">
+                <CampaignDailyPlan
+                  campaignId={camp.id}
+                  snapshot={snapshot}
+                  startedAt={camp.started_at}
+                  ecoAllocations={allocs as unknown as Parameters<typeof CampaignDailyPlan>[0]["ecoAllocations"]}
+                  refreshKey={planRefreshKey}
+                  engagementMultiplier={camp.engagement_multiplier ?? 30}
+                  onEngagementChange={(v) => setCamp((c) => c ? ({ ...c, engagement_multiplier: v }) : c)}
+                />
+              </TabsContent>
+              <TabsContent value="completo" className="mt-0 space-y-4">
                 <Card className={cn(
                   "border-2",
                   camp.eco_dispatched_at ? "border-primary/30 bg-primary/[0.03]" : "border-primary/40",
@@ -598,17 +609,6 @@ export default function CampanhaExecucao() {
                     )}
                   </CardContent>
                 </Card>
-                <CampaignDailyPlan
-                  campaignId={camp.id}
-                  snapshot={snapshot}
-                  startedAt={camp.started_at}
-                  ecoAllocations={allocs as unknown as Parameters<typeof CampaignDailyPlan>[0]["ecoAllocations"]}
-                  refreshKey={planRefreshKey}
-                  engagementMultiplier={camp.engagement_multiplier ?? 30}
-                  onEngagementChange={(v) => setCamp((c) => c ? ({ ...c, engagement_multiplier: v }) : c)}
-                />
-              </TabsContent>
-              <TabsContent value="completo" className="mt-0">
                 <CampaignFullPlanCard
                   snapshot={snapshot}
                   startedAt={camp.started_at}
@@ -623,6 +623,7 @@ export default function CampanhaExecucao() {
                   }}
                 />
               </TabsContent>
+
             </Tabs>
           ),
 
