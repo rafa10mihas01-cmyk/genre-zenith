@@ -2150,9 +2150,15 @@ Deno.serve(async (req) => {
             max_change_pct: effectivePct,
             max_change_pct_config: maxChangePctConfig,
             max_changes: maxChanges,
-            recommended_remove: recommendedRemove,
+            // Em 'bloated' o cap de remoção segue o budget editorial (25% do excesso, máx 50).
+            // Em outras fases mantém o cap normal e ZERA adições só não-conformes.
+            recommended_remove: bloatedBudget
+              ? Math.max(recommendedRemove, bloatedBudget.max_per_cycle)
+              : recommendedRemove,
             recommended_promote: recommendedPromote,
             recommended_demote: recommendedDemote,
+            recommended_add: lifecyclePhaseDiag === "bloated" ? 0 : null,
+            max_per_day: bloatedBudget?.max_per_day ?? null,
             capped_suggestions: cappedSuggestions.length,
             original_suggestions: tracksSuggestions.length,
           },
