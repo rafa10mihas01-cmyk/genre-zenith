@@ -428,14 +428,29 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
     if (songs.length === 1) {
       try { localStorage.removeItem(STORAGE_KEY_V2); localStorage.removeItem(STORAGE_KEY_V1); } catch { /* ignore */ }
       setClosing(false);
-      toast({ title: "Rascunho salvo", description: "Revise na aba Aprovação e clique em Aprovar e disparar." });
+      if (res.shortfall) {
+        toast({
+          title: "Rascunho salvo — eco insuficiente",
+          description: `Ecossistema compatível cobre ${formatInt(res.shortfall.capacity)} streams. Faltam ${formatInt(res.shortfall.missing)} — considere subir o externo pra ~${res.shortfall.suggestedExtPct}%.`,
+        });
+      } else {
+        toast({ title: "Rascunho salvo", description: "Revise na aba Aprovação e clique em Aprovar e disparar." });
+      }
       navigate(`/campanhas`);
       return;
     }
     removeSong(activeIdx);
     setClosing(false);
-    toast({ title: "Rascunho salvo" });
+    if (res.shortfall) {
+      toast({
+        title: "Rascunho salvo — eco insuficiente",
+        description: `Faltam ${formatInt(res.shortfall.missing)} streams no eco. Sugiro externo ~${res.shortfall.suggestedExtPct}%.`,
+      });
+    } else {
+      toast({ title: "Rascunho salvo" });
+    }
   }
+
 
   async function fecharTodas() {
     const ready = songs.filter(isSongReady);
