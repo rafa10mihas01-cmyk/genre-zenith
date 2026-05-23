@@ -388,9 +388,12 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
         }
       }
 
-      // Capacidade total realista do eco (≈ 1 play/save/dia)
+      // Capacidade total do eco = saves × multiplicador/30 × dias.
       const sumFollowers = (list: typeof allPlaylists) => list.reduce((s, p) => s + Math.max(0, p.followers ?? 0), 0);
-      const capacity = (sumFollowers(coreSlice) + sumFollowers(neighborSlice)) * r.days;
+      const capacity = calculatePlaylistCapacity(
+        sumFollowers(coreSlice) + sumFollowers(neighborSlice),
+        song.engagementMultiplier ?? 30,
+      ) * r.days;
       let shortfall: { capacity: number; missing: number; suggestedExtPct: number } | undefined;
       if (r.streamsEco > capacity && r.meta > 0) {
         const missing = r.streamsEco - capacity;
@@ -422,6 +425,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
         snapshot,
         deadlineISO,
         allocations,
+        engagementMultiplier: song.engagementMultiplier ?? 30,
         clientId: clientId || null,
         curatorId: curatorId || null,
         status: "draft",
