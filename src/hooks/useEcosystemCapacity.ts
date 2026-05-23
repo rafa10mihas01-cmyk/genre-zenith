@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { POSITION_PCT } from "@/lib/campaignOperationalPlan";
+import { calculatePlaylistCapacity } from "@/lib/campaignOperationalPlan";
 
 
 export interface EcosystemCapacity {
@@ -16,9 +16,10 @@ export interface EcosystemCapacity {
 /**
  * Calcula a capacidade do ecossistema próprio filtrado por afinidade de gênero.
  * Mesma lógica de filtragem do closeOne(): núcleo (mesmo gênero) + vizinhos ≥ 0.70.
- * Capacidade ≈ followers * dias (1 play/save/dia).
+ * Capacidade diária = saves × (multiplicador/30).
+ * Ex.: 1.000 saves com ×30 por 30 dias = 30.000 streams na janela.
  */
-export function useEcosystemCapacity(genre: string, days: number): EcosystemCapacity {
+export function useEcosystemCapacity(genre: string, days: number, engagementMultiplier = 30): EcosystemCapacity {
   const [state, setState] = useState<EcosystemCapacity>({
     loading: false,
     playlistCount: 0,
@@ -76,14 +77,10 @@ export function useEcosystemCapacity(genre: string, days: number): EcosystemCapa
         }
       }
 
-      // Capacidade REAL pra UMA faixa: ela só ocupa 1 slot por playlist.
-      // Ceiling = posição #1 = POSITION_PCT[0] (12% dos followers/dia).
-      // Não usar sum(followers) puro — isso seria 100% do tráfego diário pra uma única faixa, impossível.
-      const TOP_SLOT_PCT = POSITION_PCT[0] ?? 0.12;
       const sumFollowers = (list: typeof all) =>
         list.reduce((s, p) => s + Math.max(0, p.followers ?? 0), 0);
-      const rawFollowersPerDay = sumFollowers(core) + sumFollowers(neighbors);
-      const perDay = Math.round(rawFollowersPerDay * TOP_SLOT_PCT);
+      const saves = sumFollowers(core) + sumFollowers(neighbors);
+      const perDay = Math.round(calculatePlaylistCapacity(saves, engagementMultiplier));
 
       const total = perDay * Math.max(1, days);
 
@@ -99,7 +96,7 @@ export function useEcosystemCapacity(genre: string, days: number): EcosystemCapa
       });
     })();
     return () => { cancelled = true; };
-  }, [genre, days]);
+  }, [genre, days, engagementMultiplier]);
 
   return state;
 }
