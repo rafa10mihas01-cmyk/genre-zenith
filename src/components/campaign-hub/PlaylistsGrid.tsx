@@ -86,7 +86,7 @@ export function PlaylistsGrid({ allocations, snapshots, proofThumbs = [], positi
 
   return (
     <div className="space-y-6">
-      {(["active", "pending", "paused"] as Group[]).map((g) => (
+      {groupsToRender.map((g) => (
         <PlaylistGroup
           key={g}
           group={g}
