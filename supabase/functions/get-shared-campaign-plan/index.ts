@@ -74,10 +74,40 @@ Deno.serve(async (req) => {
     proofs = dp ?? [];
   }
 
+  // Cliente também precisa subir planilha — pegamos o client_token da primeira
+  // música do deal correspondente (mesma lógica do portal /campanha/:token).
+  let clientToken: string | null = null;
+  let lastSpreadsheetUploadAt: string | null = null;
+  let recentUploads: any[] = [];
+  if (camp.deal_id) {
+    const { data: song } = await supabase
+      .from("curator_deal_songs")
+      .select("client_token")
+      .eq("deal_id", camp.deal_id)
+      .not("client_token", "is", null)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    clientToken = (song as any)?.client_token ?? null;
+
+    const { data: uploads } = await supabase
+      .from("label_spreadsheet_uploads")
+      .select("id, created_at, rows_imported, total_streams, status, file_name")
+      .eq("deal_id", camp.deal_id)
+      .order("created_at", { ascending: false })
+      .limit(10);
+    recentUploads = uploads ?? [];
+    lastSpreadsheetUploadAt = (uploads as any)?.[0]?.created_at ?? null;
+  }
+
   return jr({
     campaign: camp,
     allocations: allocs ?? [],
     snapshots: snaps ?? [],
     proofs,
+    client_token: clientToken,
+    last_spreadsheet_upload_at: lastSpreadsheetUploadAt,
+    recent_uploads: recentUploads,
   });
 });
+

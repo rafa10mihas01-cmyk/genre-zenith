@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LayoutDashboard, ListMusic, Camera, LineChart, Wallet, ScrollText } from "lucide-react";
+import { LayoutDashboard, ListMusic, Camera, LineChart, Wallet, ScrollText, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CampaignHero } from "./CampaignHero";
 import type { CampaignHubCampaign, CampaignHubMode, CampaignHubTabId } from "./types";
@@ -33,13 +33,15 @@ export function CampaignHub({
   const tabs: TabDef[] = [
     { id: "overview",  label: "Visão geral", icon: LayoutDashboard, content: slots.overview  ?? null },
     { id: "playlists", label: "Playlists",   icon: ListMusic,       content: slots.playlists ?? null },
-    { id: "proofs",    label: "Provas",      icon: Camera,          content: slots.proofs    ?? null },
+    { id: "proofs",    label: "Histórico",   icon: Camera,          content: slots.proofs    ?? null },
     { id: "curve",     label: "Curva",       icon: LineChart,       content: slots.curve     ?? null },
+    { id: "upload",    label: "Atualizar",   icon: Upload,          content: slots.upload    ?? null },
     { id: "finance",   label: "Financeiro",  icon: Wallet,          content: slots.finance   ?? null, internalOnly: true },
     { id: "logs",      label: "Logs",        icon: ScrollText,      content: slots.logs      ?? null, internalOnly: true },
   ];
 
-  const visible = tabs.filter(t => mode === "internal" || !t.internalOnly);
+  // Tabs sem conteúdo são ocultas (ex.: "upload" só aparece quando há client_token).
+  const visible = tabs.filter(t => (mode === "internal" || !t.internalOnly) && t.content != null);
 
   return (
     <div className="campaign-hub">

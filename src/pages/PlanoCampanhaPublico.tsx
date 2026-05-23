@@ -23,6 +23,7 @@ import { ProofsTimeline, type ProofEvent } from "@/components/campaign-hub/Proof
 import { CampaignDailyPlan } from "@/components/campanhas/CampaignDailyPlan";
 import { distributeEcoPositions } from "@/lib/campaignOperationalPlan";
 import { ClientHeroCard } from "@/components/campaign-hub/ClientHeroCard";
+import { SpreadsheetUploadCard } from "@/components/client-portal/SpreadsheetUploadCard";
 import type { CampaignHubCampaign, CampaignHubTabId, EcoAllocation } from "@/components/campaign-hub/types";
 
 type EcoSnap = {
@@ -59,6 +60,9 @@ export default function PlanoCampanhaPublico() {
   const [allocs, setAllocs] = useState<EcoAllocation[]>([]);
   const [snaps, setSnaps] = useState<EcoSnap[]>([]);
   const [proofs, setProofs] = useState<DeliveryProof[]>([]);
+  const [clientToken, setClientToken] = useState<string | null>(null);
+  const [lastUploadAt, setLastUploadAt] = useState<string | null>(null);
+  const [recentUploads, setRecentUploads] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [tab, setTab] = useState<CampaignHubTabId>("overview");
@@ -83,6 +87,9 @@ export default function PlanoCampanhaPublico() {
       setAllocs((data as any).allocations ?? []);
       setSnaps((data as any).snapshots ?? []);
       setProofs((data as any).proofs ?? []);
+      setClientToken((data as any).client_token ?? null);
+      setLastUploadAt((data as any).last_spreadsheet_upload_at ?? null);
+      setRecentUploads((data as any).recent_uploads ?? []);
       setErr(null);
     }
     setLoading(false);
@@ -380,8 +387,17 @@ export default function PlanoCampanhaPublico() {
                 showShare={false}
               />
             ),
+            upload: clientToken ? (
+              <SpreadsheetUploadCard
+                clientToken={clientToken}
+                lastUploadAt={lastUploadAt}
+                recentUploads={recentUploads as any}
+                onUploaded={load}
+              />
+            ) : null,
           }}
         />
+
 
         <p className="text-[10px] text-muted-foreground mt-6 text-center">
           Plano e acompanhamento gerados pela NexEngine. Acesso somente leitura.
