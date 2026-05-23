@@ -30,7 +30,7 @@ Deno.serve(async (req) => {
 
   const { data: camp, error: cErr } = await supabase
     .from("campaigns")
-    .select("id, track_name, artist, cover_url, spotify_track_url, spotify_track_id, started_at, deadline, simulation_snapshot, engagement_multiplier")
+    .select("id, track_name, artist, cover_url, spotify_track_url, spotify_track_id, started_at, deadline, simulation_snapshot, engagement_multiplier, client_approved_at, client_approved_by, client_rejected_at, client_adjustment_request")
     .eq("public_plan_token", token)
     .maybeSingle();
 

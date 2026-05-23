@@ -116,9 +116,13 @@ export function planEcoAllocations(
 }
 
 /**
- * Cria a campanha com snapshot congelado + grava o plano de alocação Eco.
- * Retorna o id da campanha pra navegação imediata pra /campanhas/:id/execucao.
+ * Cria a campanha com snapshot congelado + plano de alocação Eco.
+ * Pricing (operacional + mercado + venda) é snapshotado por alocação.
+ * Default status = "draft" — só vira "active" depois da aprovação do cliente
+ * + approve_campaign interno.
  */
+const NEXENGINE_CURATOR_ID = "f37de5a5-c2e6-44bd-a14e-2718c83b1bd8";
+
 export async function closeCampaignFromCalculator(args: {
   snapshot: CampaignSnapshot;
   deadlineISO: string;
@@ -127,7 +131,23 @@ export async function closeCampaignFromCalculator(args: {
   curatorId?: string | null;
   status?: "draft" | "active";
 }): Promise<{ campaignId: string }> {
-  const { snapshot, deadlineISO, allocations, clientId = null, curatorId = null, status = "active" } = args;
+  const { snapshot, deadlineISO, allocations, clientId = null, curatorId = null, status = "draft" } = args;
+
+  // Snapshot de pricing (operacional + mercado + venda) pras alocações eco
+  const { data: { user } } = await supabase.auth.getUser();
+  let pricingOpEco = 0, pricingMarketEco = 0, pricingSell = 0;
+  if (user) {
+    const { data: pricing } = await supabase
+      .from("pricing_settings")
+      .select("cost_per_stream_eco, market_per_stream_eco, price_per_stream_sell")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (pricing) {
+      pricingOpEco = Number((pricing as any).cost_per_stream_eco) || 0;
+      pricingMarketEco = Number((pricing as any).market_per_stream_eco) || 0;
+      pricingSell = Number((pricing as any).price_per_stream_sell) || 0;
+    }
+  }
 
   const { data: campaign, error } = await supabase
     .from("campaigns")
@@ -144,7 +164,7 @@ export async function closeCampaignFromCalculator(args: {
       simulation_snapshot: snapshot as any,
       snapshot_locked_at: snapshot.lockedAt,
       client_id: clientId,
-      curator_id: curatorId,
+      curator_id: curatorId ?? NEXENGINE_CURATOR_ID,
     } as any)
     .select("id")
     .single();
@@ -158,8 +178,11 @@ export async function closeCampaignFromCalculator(args: {
       planned_streams: a.planned_streams,
       start_day: a.start_day,
       status: "pending" as const,
+      cost_per_stream_op: pricingOpEco,
+      market_per_stream: pricingMarketEco,
+      price_per_stream_sell: pricingSell,
     }));
-    const { error: allocErr } = await supabase.from("campaign_eco_allocations").insert(rows);
+    const { error: allocErr } = await supabase.from("campaign_eco_allocations").insert(rows as any);
     if (allocErr) throw allocErr;
   }
 

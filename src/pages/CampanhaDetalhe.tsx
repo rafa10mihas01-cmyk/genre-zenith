@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusDot } from "@/components/ui/status-dot";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, RefreshCw, Target, Trash2 } from "lucide-react";
+import { ArrowLeft, RefreshCw, Target, Trash2, Copy, CheckCircle2, MessageSquareWarning, Clock } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 type Campaign = {
@@ -15,6 +15,11 @@ type Campaign = {
   goal_plays: number; deadline: string; started_at: string;
   status: "draft" | "active" | "paused" | "completed" | "cancelled";
   total_allocated: number; total_delivered: number; notes: string | null;
+  public_plan_token: string | null;
+  client_approved_at: string | null;
+  client_approved_by: string | null;
+  client_rejected_at: string | null;
+  client_adjustment_request: string | null;
 };
 
 type Allocation = {
@@ -138,6 +143,11 @@ export default function CampanhaDetalhe() {
           <Kpi label="Prazo" value={camp.deadline} sub={daysLeft > 0 ? `${daysLeft}d restantes` : daysLeft === 0 ? "Hoje" : `${Math.abs(daysLeft)}d atraso`} />
         </div>
 
+        {/* Aprovação do cliente + link compartilhável */}
+        <ClientApprovalCard camp={camp} />
+
+
+
         {/* Barra de progresso */}
         <div className="mb-8 rounded-2xl border border-border bg-card p-5">
           <div className="flex items-center justify-between text-sm mb-2">
@@ -212,6 +222,67 @@ function Kpi({ label, value, sub }: { label: string; value: string; sub?: string
       <div className="text-xs uppercase tracking-wider text-muted-foreground">{label}</div>
       <div className="text-2xl font-semibold mt-1 tabular-nums">{value}</div>
       {sub && <div className="text-xs text-muted-foreground mt-1">{sub}</div>}
+    </div>
+  );
+}
+
+function ClientApprovalCard({ camp }: { camp: Campaign }) {
+  const token = camp.public_plan_token;
+  const url = token ? `${window.location.origin}/plano/${token}` : null;
+  const isApproved = !!camp.client_approved_at;
+  const isRejected = !!camp.client_rejected_at && !isApproved;
+
+  async function copyLink() {
+    if (!url) return;
+    try {
+      await navigator.clipboard.writeText(url);
+      toast({ title: "Link copiado", description: "Cole no WhatsApp ou e-mail pro cliente." });
+    } catch {
+      toast({ title: "Não consegui copiar", description: url, variant: "destructive" });
+    }
+  }
+
+  return (
+    <div className="mb-8 rounded-2xl border border-border bg-card p-5">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div className="flex items-start gap-3">
+          {isApproved ? (
+            <CheckCircle2 className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+          ) : isRejected ? (
+            <MessageSquareWarning className="h-5 w-5 text-amber-500 mt-0.5 shrink-0" />
+          ) : (
+            <Clock className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
+          )}
+          <div>
+            <div className="text-xs uppercase tracking-wider text-muted-foreground">Aprovação do cliente</div>
+            {isApproved ? (
+              <>
+                <div className="font-semibold mt-1">Aprovada por {camp.client_approved_by}</div>
+                <div className="text-xs text-muted-foreground">em {new Date(camp.client_approved_at!).toLocaleString("pt-BR")}</div>
+              </>
+            ) : isRejected ? (
+              <>
+                <div className="font-semibold mt-1">Cliente pediu ajuste</div>
+                <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap max-w-xl">{camp.client_adjustment_request}</p>
+                <div className="text-xs text-muted-foreground mt-1">em {new Date(camp.client_rejected_at!).toLocaleString("pt-BR")}</div>
+              </>
+            ) : (
+              <>
+                <div className="font-semibold mt-1">Aguardando cliente</div>
+                <div className="text-xs text-muted-foreground">Envie o link abaixo. A aprovação interna fica bloqueada até o cliente confirmar.</div>
+              </>
+            )}
+          </div>
+        </div>
+        {url && (
+          <div className="flex items-center gap-2 w-full md:w-auto">
+            <code className="text-xs bg-muted px-2 py-1.5 rounded truncate max-w-xs flex-1">{url}</code>
+            <Button size="sm" variant="outline" onClick={copyLink}>
+              <Copy className="h-3.5 w-3.5 mr-1.5" /> Copiar
+            </Button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

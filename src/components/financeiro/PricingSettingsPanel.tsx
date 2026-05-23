@@ -16,12 +16,16 @@ export function PricingSettingsPanel() {
   const { settings, isLoading, update } = usePricingSettings();
   const [eco, setEco] = useState("");
   const [ext, setExt] = useState("");
+  const [marketEco, setMarketEco] = useState("");
+  const [marketExt, setMarketExt] = useState("");
   const [sell, setSell] = useState("");
   const [margin, setMargin] = useState("");
 
   useEffect(() => {
     setEco(String(settings.cost_per_stream_eco));
     setExt(String(settings.cost_per_stream_ext));
+    setMarketEco(String(settings.market_per_stream_eco));
+    setMarketExt(String(settings.market_per_stream_ext));
     setSell(String(settings.price_per_stream_sell));
     setMargin(String(settings.target_margin_pct));
   }, [settings]);
@@ -29,9 +33,11 @@ export function PricingSettingsPanel() {
   const handleSave = async () => {
     const ecoN = Number(eco.replace(",", "."));
     const extN = Number(ext.replace(",", "."));
+    const mEcoN = Number(marketEco.replace(",", "."));
+    const mExtN = Number(marketExt.replace(",", "."));
     const sellN = Number(sell.replace(",", "."));
     const marginN = Number(margin.replace(",", "."));
-    if ([ecoN, extN, sellN, marginN].some(n => !Number.isFinite(n) || n < 0)) {
+    if ([ecoN, extN, mEcoN, mExtN, sellN, marginN].some(n => !Number.isFinite(n) || n < 0)) {
       toast.error("Valores inválidos");
       return;
     }
@@ -39,6 +45,8 @@ export function PricingSettingsPanel() {
       await update.mutateAsync({
         cost_per_stream_eco: ecoN,
         cost_per_stream_ext: extN,
+        market_per_stream_eco: mEcoN,
+        market_per_stream_ext: mExtN,
         price_per_stream_sell: sellN,
         target_margin_pct: marginN,
       });
@@ -59,45 +67,41 @@ export function PricingSettingsPanel() {
     <div className="rounded-2xl border border-border bg-card p-5 space-y-5">
       <header className="flex items-center gap-2">
         <SettingsIcon className="h-4 w-4 text-muted-foreground" />
-        <h3 className="text-base font-semibold">Pricing — custos e preço de venda</h3>
+        <h3 className="text-base font-semibold">Pricing — custos, mercado e venda</h3>
       </header>
       <p className="text-sm text-muted-foreground">
-        Define os valores que o sistema usa para calcular custo, sugerir preço de venda ao cliente e medir margem.
-        Salvo automaticamente por usuário.
+        <strong className="text-foreground">Operacional</strong> = quanto custa de fato pra entregar.{" "}
+        <strong className="text-foreground">Mercado</strong> = valor equivalente se comprado de terceiros (inteligência financeira, não vai pro caixa).{" "}
+        <strong className="text-foreground">Venda</strong> = o que cobra do cliente.
       </p>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field
-          label="Custo por stream — Ecossistema interno"
-          hint={`R$ ${rsPerThousand(ecoN)}/mil`}
-          value={eco}
-          onChange={setEco}
-        />
-        <Field
-          label="Custo por stream — Curadores externos"
-          hint={`R$ ${rsPerThousand(extN)}/mil`}
-          value={ext}
-          onChange={setExt}
-        />
-        <Field
-          label="Preço de venda sugerido (R$/stream)"
-          hint={`R$ ${rsPerThousand(sellN)}/mil`}
-          value={sell}
-          onChange={setSell}
-        />
-        <div className="space-y-2">
-          <Label className="text-xs uppercase tracking-wide text-muted-foreground">
-            Margem alvo (%)
-          </Label>
-          <Input
-            value={margin}
-            onChange={(e) => setMargin(e.target.value)}
-            placeholder="50"
-            inputMode="decimal"
-          />
-          <p className="text-xs text-muted-foreground">
-            Margem prevista com os valores acima: <strong className="text-foreground">{marginPreview.toFixed(0)}%</strong>
-          </p>
+      <div className="space-y-2">
+        <div className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Custo operacional</div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Field label="Ecossistema interno (R$/stream)" hint={`R$ ${rsPerThousand(ecoN)}/mil`} value={eco} onChange={setEco} />
+          <Field label="Curadores externos (R$/stream)" hint={`R$ ${rsPerThousand(extN)}/mil`} value={ext} onChange={setExt} />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <div className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Valor de mercado equivalente</div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Field label="Interno — valor de mercado" hint={`R$ ${rsPerThousand(Number(marketEco.replace(",", ".")) || 0)}/mil`} value={marketEco} onChange={setMarketEco} />
+          <Field label="Externo — valor de mercado" hint={`R$ ${rsPerThousand(Number(marketExt.replace(",", ".")) || 0)}/mil`} value={marketExt} onChange={setMarketExt} />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <div className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Venda ao cliente</div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Field label="Preço de venda (R$/stream)" hint={`R$ ${rsPerThousand(sellN)}/mil`} value={sell} onChange={setSell} />
+          <div className="space-y-2">
+            <Label className="text-xs uppercase tracking-wide text-muted-foreground">Margem alvo (%)</Label>
+            <Input value={margin} onChange={(e) => setMargin(e.target.value)} placeholder="50" inputMode="decimal" />
+            <p className="text-xs text-muted-foreground">
+              Margem prevista: <strong className="text-foreground">{marginPreview.toFixed(0)}%</strong>
+            </p>
+          </div>
         </div>
       </div>
 
