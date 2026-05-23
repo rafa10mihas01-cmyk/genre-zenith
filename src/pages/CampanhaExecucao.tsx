@@ -526,31 +526,44 @@ export default function CampanhaExecucao() {
             </Tabs>
           ),
           curve: (
-            <div className="space-y-6">
-              <CampaignDailyPlan
-                campaignId={camp.id}
-                snapshot={snapshot}
-                startedAt={camp.started_at}
-                ecoAllocations={allocs as unknown as Parameters<typeof CampaignDailyPlan>[0]["ecoAllocations"]}
-                refreshKey={planRefreshKey}
-                engagementMultiplier={camp.engagement_multiplier ?? 30}
-                onEngagementChange={(v) => setCamp((c) => c ? ({ ...c, engagement_multiplier: v }) : c)}
-              />
-              <CampaignFullPlanCard
-                snapshot={snapshot}
-                startedAt={camp.started_at}
-                allocations={allocs as unknown as Parameters<typeof CampaignFullPlanCard>[0]["allocations"]}
-                engagementMultiplier={camp.engagement_multiplier ?? 30}
-                shareToken={camp.public_plan_token ?? null}
-                track={{
-                  name: camp.track_name,
-                  artist: camp.artist,
-                  coverUrl: camp.cover_url,
-                  spotifyUrl: camp.spotify_track_url ?? null,
-                }}
-              />
-            </div>
+            <Tabs defaultValue="diario" className="space-y-4">
+              <TabsList>
+                <TabsTrigger value="diario">Diário</TabsTrigger>
+                <TabsTrigger value="externo">Externo</TabsTrigger>
+                <TabsTrigger value="completo">Plano completo</TabsTrigger>
+              </TabsList>
+              <TabsContent value="diario" className="mt-0">
+                <CampaignDailyPlan
+                  campaignId={camp.id}
+                  snapshot={snapshot}
+                  startedAt={camp.started_at}
+                  ecoAllocations={allocs as unknown as Parameters<typeof CampaignDailyPlan>[0]["ecoAllocations"]}
+                  refreshKey={planRefreshKey}
+                  engagementMultiplier={camp.engagement_multiplier ?? 30}
+                  onEngagementChange={(v) => setCamp((c) => c ? ({ ...c, engagement_multiplier: v }) : c)}
+                />
+              </TabsContent>
+              <TabsContent value="externo" className="mt-0">
+                <ExternalPackageEditor campaignId={camp.id} snapshot={snapshot} onChanged={() => setPlanRefreshKey(k => k + 1)} />
+              </TabsContent>
+              <TabsContent value="completo" className="mt-0">
+                <CampaignFullPlanCard
+                  snapshot={snapshot}
+                  startedAt={camp.started_at}
+                  allocations={allocs as unknown as Parameters<typeof CampaignFullPlanCard>[0]["allocations"]}
+                  engagementMultiplier={camp.engagement_multiplier ?? 30}
+                  shareToken={camp.public_plan_token ?? null}
+                  track={{
+                    name: camp.track_name,
+                    artist: camp.artist,
+                    coverUrl: camp.cover_url,
+                    spotifyUrl: camp.spotify_track_url ?? null,
+                  }}
+                />
+              </TabsContent>
+            </Tabs>
           ),
+
           finance: (
             <div className="space-y-6">
               <ClientPriceEditor
