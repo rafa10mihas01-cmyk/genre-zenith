@@ -1,3 +1,4 @@
+import { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { Music, Lock, Share2, ArrowLeft, ExternalLink, Clock, Copy, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ type Props = {
   daysElapsed?: number;
   daysTotal?: number;
   lastUpdateAt?: string | null;
+  extraActions?: ReactNode;
 };
 
 const STATUS_LABEL: Record<string, string> = {
