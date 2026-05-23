@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LayoutDashboard, ListMusic, Camera, LineChart, Wallet, ScrollText, Upload, Network } from "lucide-react";
+import { LayoutDashboard, ListMusic, Camera, LineChart, Wallet, ScrollText, Network } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CampaignHero } from "./CampaignHero";
 import type { CampaignHubCampaign, CampaignHubMode, CampaignHubTabId } from "./types";
@@ -24,24 +24,24 @@ type Props = {
   tab: CampaignHubTabId;
   onTabChange: (t: CampaignHubTabId) => void;
   slots: Partial<Record<CampaignHubTabId, ReactNode>>;
+  heroExtraActions?: ReactNode;
 };
 
 export function CampaignHub({
   camp, mode, delivered, goal, daysElapsed, daysTotal, lastUpdateAt,
-  tab, onTabChange, slots,
+  tab, onTabChange, slots, heroExtraActions,
 }: Props) {
   const tabs: TabDef[] = [
-    { id: "overview",  label: "Visão geral", icon: LayoutDashboard, content: slots.overview  ?? null },
-    { id: "operacao",  label: "Operação",    icon: Network,         content: slots.operacao  ?? null },
-    { id: "playlists", label: "Playlists",   icon: ListMusic,       content: slots.playlists ?? null, internalOnly: true },
-    { id: "upload",    label: "Importar",    icon: Upload,          content: slots.upload    ?? null },
-    { id: "proofs",    label: "Histórico",   icon: Camera,          content: slots.proofs    ?? null },
-    { id: "curve",     label: "Curva",       icon: LineChart,       content: slots.curve     ?? null, internalOnly: true },
-    { id: "finance",   label: "Financeiro",  icon: Wallet,          content: slots.finance   ?? null, internalOnly: true },
-    { id: "logs",      label: "Logs",        icon: ScrollText,      content: slots.logs      ?? null, internalOnly: true },
+    { id: "overview",  label: "Visão geral",  icon: LayoutDashboard, content: slots.overview  ?? null },
+    { id: "curve",     label: "Distribuição", icon: LineChart,       content: slots.curve     ?? null, internalOnly: true },
+    { id: "operacao",  label: "Operação",     icon: Network,         content: slots.operacao  ?? null },
+    { id: "playlists", label: "Playlists",    icon: ListMusic,       content: slots.playlists ?? null, internalOnly: true },
+    { id: "proofs",    label: "Histórico",    icon: Camera,          content: slots.proofs    ?? null },
+    { id: "finance",   label: "Financeiro",   icon: Wallet,          content: slots.finance   ?? null, internalOnly: true },
+    { id: "logs",      label: "Logs",         icon: ScrollText,      content: slots.logs      ?? null, internalOnly: true },
   ];
 
-  // Tabs sem conteúdo são ocultas (ex.: "upload" só aparece quando há client_token).
+  // Tabs sem conteúdo são ocultas.
   const visible = tabs.filter(t => (mode === "internal" || !t.internalOnly) && t.content != null);
 
   return (
@@ -54,7 +54,9 @@ export function CampaignHub({
         daysElapsed={daysElapsed}
         daysTotal={daysTotal}
         lastUpdateAt={lastUpdateAt}
+        extraActions={heroExtraActions}
       />
+
 
       <Tabs value={tab} onValueChange={(v) => onTabChange(v as CampaignHubTabId)}>
         <div className={cn(

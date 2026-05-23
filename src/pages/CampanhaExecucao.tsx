@@ -16,7 +16,8 @@ import { CampaignDailyPlan } from "@/components/campanhas/CampaignDailyPlan";
 import { PlaylistDailyPlanDialog } from "@/components/campanhas/PlaylistDailyPlanDialog";
 import { buildEcoPlaylistPlan, distributeEcoPositions } from "@/lib/campaignOperationalPlan";
 import { CampaignFullPlanCard } from "@/components/campanhas/CampaignFullPlanCard";
-import { ArrowLeft, Loader2, Save } from "lucide-react";
+import { ArrowLeft, Loader2, Save, Upload } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { CampaignHub } from "@/components/campaign-hub/CampaignHub";
 import { OverviewTab } from "@/components/campaign-hub/tabs/OverviewTab";
@@ -409,6 +410,28 @@ export default function CampanhaExecucao() {
         daysElapsed={daysElapsed}
         daysTotal={snapshot.days}
         lastUpdateAt={lastUpdateAt}
+        heroExtraActions={
+          clientToken ? (
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Upload className="h-4 w-4 mr-1.5" /> Importar
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Importar planilha de streams</DialogTitle>
+                </DialogHeader>
+                <SpreadsheetUploadCard
+                  clientToken={clientToken}
+                  lastUploadAt={lastSpreadsheetUploadAt}
+                  recentUploads={recentUploads}
+                  onUploaded={loadCampaign}
+                />
+              </DialogContent>
+            </Dialog>
+          ) : null
+        }
         slots={{
           overview: (
             <div className="space-y-6">
@@ -478,20 +501,6 @@ export default function CampanhaExecucao() {
               />
               <ExternalPackageEditor campaignId={camp.id} snapshot={snapshot} onChanged={() => setPlanRefreshKey(k => k + 1)} />
             </div>
-          ),
-          upload: clientToken ? (
-            <SpreadsheetUploadCard
-              clientToken={clientToken}
-              lastUploadAt={lastSpreadsheetUploadAt}
-              recentUploads={recentUploads}
-              onUploaded={loadCampaign}
-            />
-          ) : (
-            <Card>
-              <CardContent className="p-6 text-sm text-muted-foreground text-center">
-                Esta campanha ainda não tem link de cliente para receber planilha.
-              </CardContent>
-            </Card>
           ),
           proofs: (
             <div className="space-y-6">

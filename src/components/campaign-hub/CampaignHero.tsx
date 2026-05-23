@@ -1,3 +1,4 @@
+import { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { Music, Lock, Share2, ArrowLeft, ExternalLink, Clock, Copy, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ type Props = {
   daysElapsed?: number;
   daysTotal?: number;
   lastUpdateAt?: string | null;
+  extraActions?: ReactNode;
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -34,7 +36,7 @@ const STATUS_TONE: Record<string, string> = {
   cancelled: "bg-muted text-muted-foreground",
 };
 
-export function CampaignHero({ camp, mode, delivered = 0, goal = 0, daysElapsed = 0, daysTotal = 0, lastUpdateAt }: Props) {
+export function CampaignHero({ camp, mode, delivered = 0, goal = 0, daysElapsed = 0, daysTotal = 0, lastUpdateAt, extraActions }: Props) {
   const pct = goal > 0 ? Math.min(100, Math.round((delivered / goal) * 100)) : 0;
   const daysLeft = Math.max(0, daysTotal - daysElapsed);
   const statusKey = camp.status ?? "draft";
@@ -146,6 +148,7 @@ export function CampaignHero({ camp, mode, delivered = 0, goal = 0, daysElapsed 
                   </PopoverContent>
                 </Popover>
               )}
+              {extraActions}
             </>
           )}
           {mode === "client" && camp.spotify_track_url && (
