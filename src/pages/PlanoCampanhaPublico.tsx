@@ -387,8 +387,17 @@ export default function PlanoCampanhaPublico() {
                 showShare={false}
               />
             ),
+            upload: clientToken ? (
+              <SpreadsheetUploadCard
+                clientToken={clientToken}
+                lastUploadAt={lastUploadAt}
+                recentUploads={recentUploads as any}
+                onUploaded={load}
+              />
+            ) : null,
           }}
         />
+
 
         <p className="text-[10px] text-muted-foreground mt-6 text-center">
           Plano e acompanhamento gerados pela NexEngine. Acesso somente leitura.
