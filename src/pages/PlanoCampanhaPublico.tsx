@@ -42,8 +42,10 @@ type Alloc = {
 
 export default function PlanoCampanhaPublico() {
   const { token } = useParams<{ token: string }>();
+  const navigate = useNavigate();
   const [camp, setCamp] = useState<Camp | null>(null);
   const [allocs, setAllocs] = useState<Alloc[]>([]);
+  const [trackingToken, setTrackingToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
 
@@ -65,12 +67,20 @@ export default function PlanoCampanhaPublico() {
     } else {
       setCamp((data as any).campaign);
       setAllocs((data as any).allocations ?? []);
+      setTrackingToken((data as any).tracking_token ?? null);
       setErr(null);
     }
     setLoading(false);
   }
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [token]);
+
+  // Aprovou e a campanha já virou deal → orçamento some, fica só a campanha.
+  useEffect(() => {
+    if (camp?.client_approved_at && trackingToken) {
+      navigate(`/campanha/${trackingToken}`, { replace: true });
+    }
+  }, [camp?.client_approved_at, trackingToken, navigate]);
 
   async function handleApprove() {
     if (approverName.trim().length < 2) { toast.error("Informe seu nome"); return; }
