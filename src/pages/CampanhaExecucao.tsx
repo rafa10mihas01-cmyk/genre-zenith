@@ -689,6 +689,20 @@ export default function CampanhaExecucao() {
               </Card>
             </div>
           ),
+          upload: clientToken ? (
+            <SpreadsheetUploadCard
+              clientToken={clientToken}
+              lastUploadAt={lastSpreadsheetUploadAt}
+              recentUploads={recentUploads}
+              onUploaded={loadCampaign}
+            />
+          ) : (
+            <Card>
+              <CardContent className="p-5 text-sm text-muted-foreground">
+                Gere o link público do cliente pra habilitar a importação de planilhas (snapshot de streams).
+              </CardContent>
+            </Card>
+          ),
           logs: (
             <Card>
               <CardContent className="p-5 text-sm text-muted-foreground">
