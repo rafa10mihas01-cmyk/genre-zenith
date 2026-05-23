@@ -117,6 +117,14 @@ Deno.serve(async (req) => {
               body: JSON.stringify({ playlist_id: canonicalId }),
             }).then((r) => { if (r.ok) recalculated++; }).catch(() => {});
           }
+
+          // também dispara snapshot das FAIXAS da playlist (fire-and-forget).
+          // Sem isso, tracks_count atualiza mas managed_playlist_tracks fica defasada.
+          fetch(`${SUPABASE_URL}/functions/v1/sync-managed-playlist-tracks`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${SERVICE_KEY}` },
+            body: JSON.stringify({ playlist_id: p.id }),
+          }).catch(() => {});
         } catch (e) {
           failed++;
           errors.push(`${p.name}: ${(e as Error).message}`);
