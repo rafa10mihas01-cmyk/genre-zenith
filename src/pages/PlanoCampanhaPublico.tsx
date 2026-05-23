@@ -238,6 +238,13 @@ export default function PlanoCampanhaPublico() {
           </div>
         )}
 
+        <ClientInvestmentCard
+          meta={camp.simulation_snapshot.meta}
+          days={camp.simulation_snapshot.days}
+          pricePerStreamSell={camp.simulation_snapshot.pricePerStreamSell}
+          clientPriceTotal={camp.simulation_snapshot.clientPriceTotal}
+        />
+
         <CampaignFullPlanCard
           snapshot={camp.simulation_snapshot}
           startedAt={camp.started_at}
