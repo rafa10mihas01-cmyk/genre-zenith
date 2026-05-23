@@ -1,6 +1,8 @@
 import { Link } from "react-router-dom";
-import { Music, Lock, Share2, ArrowLeft, ExternalLink, Clock } from "lucide-react";
+import { Music, Lock, Share2, ArrowLeft, ExternalLink, Clock, Copy, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { formatInt } from "@/lib/campaignEngine";
 import { toast } from "@/hooks/use-toast";
