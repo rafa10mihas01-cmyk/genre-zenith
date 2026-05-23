@@ -89,6 +89,7 @@ type Substitution = {
     zone_fit_score: number;
     function_role: string;
     from_missing_artist: boolean;
+    trending_position?: number | null;
     suggested_position: number;
   } | null;
 };
@@ -100,6 +101,7 @@ type Suggestion = {
   count: number;
   popularity?: number | null;
   from_missing_artist?: boolean;
+  trending_position?: number | null;
   target_zone?: Zone;
   target_zone_label?: string;
   function_role?: string;
