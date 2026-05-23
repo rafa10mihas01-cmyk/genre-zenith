@@ -280,11 +280,11 @@ export function CuradoresLibraryTab({
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-foreground shrink-0"
+                          className="h-7 w-7 text-muted-foreground hover:text-foreground shrink-0"
                           onClick={(e) => e.stopPropagation()}
                           aria-label="Mais ações"
                         >
-                          <MoreHorizontal className="h-4 w-4" />
+                          <MoreHorizontal className="h-3.5 w-3.5" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent
