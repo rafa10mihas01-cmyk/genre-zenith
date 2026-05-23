@@ -16,7 +16,7 @@ import { CampaignDailyPlan } from "@/components/campanhas/CampaignDailyPlan";
 import { PlaylistDailyPlanDialog } from "@/components/campanhas/PlaylistDailyPlanDialog";
 import { buildEcoPlaylistPlan, distributeEcoPositions } from "@/lib/campaignOperationalPlan";
 import { CampaignFullPlanCard } from "@/components/campanhas/CampaignFullPlanCard";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Loader2, Save } from "lucide-react";
 import { CampaignHub } from "@/components/campaign-hub/CampaignHub";
 import { OverviewTab } from "@/components/campaign-hub/tabs/OverviewTab";
 import { PlaylistsGrid } from "@/components/campaign-hub/PlaylistsGrid";
@@ -24,7 +24,7 @@ import { ProofsTimeline, type ProofEvent } from "@/components/campaign-hub/Proof
 import { ShareLinkCard } from "@/components/campaign-hub/ShareLinkCard";
 import type { CampaignHubCampaign, CampaignHubTabId, EcoAllocation } from "@/components/campaign-hub/types";
 import { toast } from "sonner";
-import { Loader2, Save } from "lucide-react";
+import type { Json } from "@/integrations/supabase/types";
 
 type EcoSnap = {
   id: string;
@@ -47,6 +47,8 @@ type DeliveryProof = {
   source: string | null;
   captured_at: string;
 };
+
+type PackageItem = { curator_deal_id: string | null };
 
 export default function CampanhaExecucao() {
   const { id } = useParams<{ id: string }>();
@@ -88,11 +90,11 @@ export default function CampanhaExecucao() {
           .eq("campaign_external_packages.campaign_id", id)
           .not("curator_deal_id", "is", null),
       ]);
-      setCamp(c as any);
-      setAllocs((a ?? []) as any);
-      setSnaps((s ?? []) as any);
+      setCamp(c as CampaignHubCampaign | null);
+      setAllocs((a ?? []) as unknown as EcoAllocation[]);
+      setSnaps((s ?? []) as EcoSnap[]);
 
-      const dealIds = (pkg ?? []).map((p: any) => p.curator_deal_id).filter(Boolean);
+      const dealIds = ((pkg ?? []) as PackageItem[]).map((p) => p.curator_deal_id).filter((dealId): dealId is string => !!dealId);
       if (dealIds.length > 0) {
         const { data: dp } = await supabase
           .from("delivery_proofs")
@@ -100,7 +102,7 @@ export default function CampanhaExecucao() {
           .in("deal_id", dealIds)
           .order("captured_at", { ascending: false })
           .limit(200);
-        setProofs((dp ?? []) as any);
+        setProofs((dp ?? []) as DeliveryProof[]);
       } else {
         setProofs([]);
       }
@@ -114,7 +116,7 @@ export default function CampanhaExecucao() {
     if (!snapshot) return;
     const total = getClientPriceTotal(snapshot);
     setClientPriceInput(total > 0 ? total.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "");
-  }, [camp?.id, snapshot?.clientPriceTotal, snapshot?.pricePerStreamSell]);
+  }, [camp?.id, snapshot]);
 
   const handleSaveClientPrice = async () => {
     if (!camp || !snapshot) return;
@@ -134,20 +136,20 @@ export default function CampanhaExecucao() {
     try {
       const { error } = await supabase
         .from("campaigns")
-        .update({ simulation_snapshot: nextSnapshot as any })
+        .update({ simulation_snapshot: nextSnapshot as unknown as Json })
         .eq("id", camp.id);
       if (error) throw error;
 
       await supabase
         .from("campaign_eco_allocations")
-        .update({ price_per_stream_sell: pricePerStreamSell } as any)
+        .update({ price_per_stream_sell: pricePerStreamSell })
         .eq("campaign_id", camp.id);
 
       setCamp({ ...camp, simulation_snapshot: nextSnapshot });
       setClientPriceInput(total.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
       toast.success("Preço do cliente salvo no orçamento");
-    } catch (e: any) {
-      toast.error(e?.message ?? "Falha ao salvar preço do cliente");
+    } catch (e: unknown) {
+      toast.error(getErrorMessage(e, "Falha ao salvar preço do cliente"));
     } finally {
       setSavingClientPrice(false);
     }
