@@ -134,11 +134,12 @@ export async function closeCampaignFromCalculator(args: {
   snapshot: CampaignSnapshot;
   deadlineISO: string;
   allocations: EcoAllocationPlan[];
+  engagementMultiplier?: number;
   clientId?: string | null;
   curatorId?: string | null;
   status?: "draft" | "active";
 }): Promise<{ campaignId: string }> {
-  const { snapshot, deadlineISO, allocations, clientId = null, curatorId = null, status = "draft" } = args;
+  const { snapshot, deadlineISO, allocations, engagementMultiplier = 30, clientId = null, curatorId = null, status = "draft" } = args;
 
   // Snapshot de pricing (operacional + mercado + venda) pras alocações eco
   const { data: { user } } = await supabase.auth.getUser();
@@ -184,6 +185,7 @@ export async function closeCampaignFromCalculator(args: {
       deadline: deadlineISO,
       status,
       total_allocated: allocations.reduce((s, a) => s + a.planned_streams, 0),
+      engagement_multiplier: Math.max(1, Math.round(engagementMultiplier)),
       simulation_snapshot: enrichedSnapshot as any,
       snapshot_locked_at: snapshot.lockedAt,
       client_id: clientId,

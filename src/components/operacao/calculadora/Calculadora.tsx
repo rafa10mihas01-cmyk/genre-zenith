@@ -27,6 +27,7 @@ import { useEcosystemCapacity } from "@/hooks/useEcosystemCapacity";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format, addDays, differenceInCalendarDays, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { calculatePlaylistCapacity } from "@/lib/campaignOperationalPlan";
 
 type Fonte = "manual" | "top200" | "concorrente" | "orcamento";
 
@@ -60,10 +61,13 @@ type Song = {
   modo: Modo;
   perfil: Perfil;
   splitEco: number;
+  engagementMultiplier: number;
   startDateISO: string; // yyyy-mm-dd
   clientPriceTotal: number; // R$ que o cliente paga (manual) — 0 = usa tabela
   genre: string; // p/ filtrar playlists na distribuição
 };
+
+const ENGAGEMENT_PRESETS = [18, 30, 50] as const;
 
 const STORAGE_KEY_V2 = "nx:calc:state:v2";
 const STORAGE_KEY_V1 = "nx:calculadora:state:v1";
@@ -97,6 +101,7 @@ function emptySong(): Song {
     modo: "simultaneo",
     perfil: "mercado",
     splitEco: DEFAULT_SPLIT.eco,
+    engagementMultiplier: 30,
     startDateISO: startOfDay(new Date()).toISOString().slice(0, 10),
     clientPriceTotal: 0,
     genre: "",
@@ -172,6 +177,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
   const setModo = (v: Modo) => patchActive({ modo: v });
   const setPerfil = (v: Perfil) => patchActive({ perfil: v });
   const setSplitEco = (v: number) => patchActive({ splitEco: v });
+  const setEngagementMultiplier = (v: number) => patchActive({ engagementMultiplier: Math.max(1, Math.min(200, Math.round(v || 1))) });
   const setStartDate = (d: Date) => patchActive({ startDateISO: startOfDay(d).toISOString().slice(0, 10) });
   const setClientPriceTotal = (v: number) => patchActive({ clientPriceTotal: v });
   const setGenre = (v: string) => patchActive({ genre: v });
@@ -210,7 +216,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
   }, pricingCosts), [effectiveMeta, active.days, active.modo, active.perfil, active.splitEco, pricingCosts]);
 
   // Capacidade real do ecossistema filtrada por gênero da música ativa.
-  const ecoCap = useEcosystemCapacity(active.genre, active.days);
+  const ecoCap = useEcosystemCapacity(active.genre, active.days, active.engagementMultiplier ?? 30);
   const ecoNeeded = result.streamsEco;
   const ecoUsagePct = ecoCap.capacityTotal > 0
     ? Math.round((ecoNeeded / ecoCap.capacityTotal) * 100)
@@ -382,9 +388,12 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
         }
       }
 
-      // Capacidade total realista do eco (≈ 1 play/save/dia)
+      // Capacidade total do eco = saves × multiplicador/30 × dias.
       const sumFollowers = (list: typeof allPlaylists) => list.reduce((s, p) => s + Math.max(0, p.followers ?? 0), 0);
-      const capacity = (sumFollowers(coreSlice) + sumFollowers(neighborSlice)) * r.days;
+      const capacity = calculatePlaylistCapacity(
+        sumFollowers(coreSlice) + sumFollowers(neighborSlice),
+        song.engagementMultiplier ?? 30,
+      ) * r.days;
       let shortfall: { capacity: number; missing: number; suggestedExtPct: number } | undefined;
       if (r.streamsEco > capacity && r.meta > 0) {
         const missing = r.streamsEco - capacity;
@@ -416,6 +425,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
         snapshot,
         deadlineISO,
         allocations,
+        engagementMultiplier: song.engagementMultiplier ?? 30,
         clientId: clientId || null,
         curatorId: curatorId || null,
         status: "draft",
@@ -945,8 +955,37 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                     </div>
                   </div>
 
-
-
+                  <div>
+                    <Label className="text-xs">Capacidade das playlists</Label>
+                    <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                      {ENGAGEMENT_PRESETS.map(p => (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => setEngagementMultiplier(p)}
+                          className={cn(
+                            "h-8 px-3 rounded-md text-xs font-medium tabular-nums border transition-colors",
+                            (active.engagementMultiplier ?? 30) === p
+                              ? "bg-primary text-primary-foreground border-primary"
+                              : "border-border text-muted-foreground hover:text-foreground hover:bg-elevated/60",
+                          )}
+                        >
+                          ×{p}
+                        </button>
+                      ))}
+                      <Input
+                        type="number"
+                        min={1}
+                        max={200}
+                        value={active.engagementMultiplier ?? 30}
+                        onChange={(e) => setEngagementMultiplier(Number(e.target.value))}
+                        className="h-8 w-20 text-xs tabular-nums"
+                      />
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-1.5">
+                      Ex.: 1.000 saves × {active.engagementMultiplier ?? 30} = {formatInt(1000 * (active.engagementMultiplier ?? 30))} streams/mês.
+                    </p>
+                  </div>
 
                   <div>
                     <Label className="text-xs">Split ecossistema: {active.splitEco}% próprio · {100 - active.splitEco}% externo</Label>
@@ -994,7 +1033,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                         </div>
                         <div className="text-[11px] text-foreground/80 tabular-nums">
                           Aguenta <strong>{formatInt(ecoCap.capacityTotal)}</strong> streams
-                          ({formatInt(ecoCap.capacityPerDay)}/dia · {ecoCap.playlistCount} playlists) ·
+                          ({formatInt(ecoCap.capacityPerDay)}/dia · ×{active.engagementMultiplier ?? 30} · {ecoCap.playlistCount} playlists) ·
                           {" "}precisa entregar <strong>{formatInt(ecoNeeded)}</strong> pelo eco
                         </div>
                         {ecoOverflow && suggestedEcoPct != null && (
