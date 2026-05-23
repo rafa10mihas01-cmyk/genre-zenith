@@ -28,6 +28,7 @@ type Props = {
   daysElapsed: number;
   showFinance: boolean;
   hideDeliveryPlan?: boolean;
+  hideCurveShortcut?: boolean;
   allocations?: EcoAllocation[];
   snapshots?: EcoSnap[];
   proofs?: ProofPreview[];
@@ -35,7 +36,7 @@ type Props = {
 };
 
 export function OverviewTab({
-  snapshot, delivered, daysElapsed, showFinance, hideDeliveryPlan = false,
+  snapshot, delivered, daysElapsed, showFinance, hideDeliveryPlan = false, hideCurveShortcut = false,
   allocations = [], snapshots = [], proofs = [], onJumpTab,
 }: Props) {
   const pct = snapshot.meta > 0 ? Math.min(100, Math.round((delivered / snapshot.meta) * 100)) : 0;
@@ -190,7 +191,7 @@ export function OverviewTab({
               </div>
             </div>
             <MiniCurva curva={snapshot.curva} elapsedDays={daysElapsed} />
-            {onJumpTab && (
+            {onJumpTab && !hideCurveShortcut && (
               <div className="mt-3 text-right">
                 <Button variant="ghost" size="sm" onClick={() => onJumpTab("curve")} className="h-7 text-xs">
                   Ver curva completa <ArrowRight className="h-3 w-3 ml-1" />

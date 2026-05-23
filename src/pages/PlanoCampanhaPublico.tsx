@@ -374,6 +374,7 @@ export default function PlanoCampanhaPublico() {
                   daysElapsed={daysElapsed}
                   showFinance={false}
                   hideDeliveryPlan
+                  hideCurveShortcut
                   allocations={allocs}
                   snapshots={snaps}
                   proofs={isApproved ? proofs.map(p => ({
