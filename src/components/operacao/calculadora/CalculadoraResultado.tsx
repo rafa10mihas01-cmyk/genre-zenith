@@ -138,6 +138,20 @@ function KpiQuiet({ icon: Icon, label, value, hint }: { icon: any; label: string
   );
 }
 
+/** KPI cliente — destaca o valor cobrado, com borda primary suave */
+function KpiClient({ icon: Icon, label, value, hint }: { icon: any; label: string; value: string; hint?: string }) {
+  return (
+    <div className="rounded-2xl border border-primary/40 bg-primary/5 p-4">
+      <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider font-semibold text-primary">
+        <Icon className="h-3.5 w-3.5" />
+        {label}
+      </div>
+      <div className="text-xl font-semibold mt-1 tabular-nums text-foreground">{value}</div>
+      {hint && <div className="text-[10px] text-muted-foreground mt-0.5">{hint}</div>}
+    </div>
+  );
+}
+
 function SplitBar({
   label, pct, streams, custo, tone,
 }: { label: string; pct: number; streams: number; custo: number; tone: "primary" | "muted" }) {
