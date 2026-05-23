@@ -476,6 +476,7 @@ export default function CampanhaExecucao() {
         daysElapsed={daysElapsed}
         daysTotal={snapshot.days}
         lastUpdateAt={lastUpdateAt}
+        hiddenTabs={["upload"]}
         heroExtraActions={
           clientToken ? (
             <Dialog>
