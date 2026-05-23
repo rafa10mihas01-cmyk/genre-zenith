@@ -203,7 +203,7 @@ export async function closeCampaignFromCalculator(args: {
       status: "pending" as const,
       cost_per_stream_op: pricingOpEco,
       market_per_stream: pricingMarketEco,
-      price_per_stream_sell: pricingSell,
+      price_per_stream_sell: finalPricePerStream,
     }));
     const { error: allocErr } = await supabase.from("campaign_eco_allocations").insert(rows as any);
     if (allocErr) throw allocErr;
