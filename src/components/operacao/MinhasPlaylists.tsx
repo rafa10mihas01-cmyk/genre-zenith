@@ -948,13 +948,20 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
         )}
         {missingGenreCount > 0 && (
           <Button
-            variant="outline"
+            variant={pendingSuggestionCount ? "default" : "outline"}
             size="sm"
-            onClick={runGenreSuggest}
+            onClick={() => {
+              if (pendingSuggestionCount && !suggesting) {
+                setFilterGenreId(null);
+                setFilterMissingGenre(true);
+                return;
+              }
+              runGenreSuggest();
+            }}
             disabled={suggesting}
             className="gap-1.5 h-9 px-2 sm:px-3 shrink-0"
-            title="Sugerir gêneros via IA"
-            aria-label="Sugerir gêneros via IA"
+            title={pendingSuggestionCount ? "Revisar sugestões pendentes" : "Sugerir gêneros via IA"}
+            aria-label={pendingSuggestionCount ? "Revisar sugestões pendentes" : "Sugerir gêneros via IA"}
           >
             <Sparkles className={cn("h-4 w-4", suggesting && "animate-pulse")} />
             <span className="hidden sm:inline">
