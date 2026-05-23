@@ -246,8 +246,16 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
     : null;
   const suggestedEcoPct = suggestedExtPct != null ? 100 - suggestedExtPct : null;
 
+  function songEffectiveMeta(s: Song): number {
+    if (s.fonte === "orcamento") return reverseFromBudget(s.budget, s.splitEco, pricingCosts);
+    if (s.fonte === "top200" && s.top200StreamsDay != null) {
+      return Math.max(0, s.top200StreamsDay - s.baselineStreamsDay) * Math.max(1, s.days);
+    }
+    return s.meta;
+  }
+
   function isSongReady(s: Song): boolean {
-    return !!s.track?.id && s.baselineStreamsDay >= 0 && (s.fonte === "orcamento" ? s.budget > 0 : s.meta > 0);
+    return !!s.track?.id && s.baselineStreamsDay >= 0 && songEffectiveMeta(s) > 0;
   }
   const readyCount = songs.filter(isSongReady).length;
 
@@ -256,10 +264,11 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
     song: s,
     ready: isSongReady(s),
     r: calcCampaign({
-      meta: s.fonte === "orcamento" ? reverseFromBudget(s.budget, s.splitEco, pricingCosts) : s.meta,
+      meta: songEffectiveMeta(s),
       days: s.days, modo: s.modo, perfil: s.perfil, splitEcoPct: s.splitEco,
     }, pricingCosts),
   })), [songs, pricingCosts]);
+
   const totals = useMemo(() => {
     const ready = songResults.filter(x => x.ready);
     return {
