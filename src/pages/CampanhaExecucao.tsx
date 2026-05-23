@@ -17,7 +17,7 @@ import { CampaignDailyPlan } from "@/components/campanhas/CampaignDailyPlan";
 import { PlaylistDailyPlanDialog } from "@/components/campanhas/PlaylistDailyPlanDialog";
 import { buildEcoPlaylistPlan, distributeEcoPositions } from "@/lib/campaignOperationalPlan";
 import { CampaignFullPlanCard } from "@/components/campanhas/CampaignFullPlanCard";
-import { ArrowLeft, Loader2, Save, Upload } from "lucide-react";
+import { ArrowLeft, Loader2, Save, Upload, Rocket, CheckCircle2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { CampaignHub } from "@/components/campaign-hub/CampaignHub";
@@ -81,6 +81,31 @@ export default function CampanhaExecucao() {
   const [lastSpreadsheetUploadAt, setLastSpreadsheetUploadAt] = useState<string | null>(null);
   const [recentUploads, setRecentUploads] = useState<SpreadsheetUpload[]>([]);
   const [externalItems, setExternalItems] = useState<ExternalItemRow[]>([]);
+  const [dispatching, setDispatching] = useState(false);
+
+  async function handleDispatchEco() {
+    if (!camp) return;
+    setDispatching(true);
+    try {
+      const { error } = await (supabase.rpc as any)("approve_campaign", { p_campaign_id: camp.id });
+      if (error) throw error;
+      toast.success("Campanha distribuída", { description: "Deal criado e playlists enviadas pra fila de coleta." });
+      setCamp((c) => c ? ({ ...c, status: "active", eco_dispatched_at: new Date().toISOString() }) : c);
+      setPlanRefreshKey((k) => k + 1);
+    } catch (e: any) {
+      const raw = e?.message ?? String(e);
+      const map: Record<string, string> = {
+        client_approval_required: "O cliente ainda não aprovou o plano. Mande o link público antes.",
+        curator_required: "Edite a campanha e selecione o curador dono das playlists.",
+        campaign_not_in_approvable_state: "Esta campanha já foi distribuída.",
+        campaign_not_found: "Campanha não encontrada.",
+      };
+      const key = Object.keys(map).find((k) => raw.includes(k));
+      toast.error("Não foi possível distribuir", { description: key ? map[key] : raw });
+    } finally {
+      setDispatching(false);
+    }
+  }
 
   const loadCampaign = async () => {
     if (!id) return;
@@ -534,7 +559,39 @@ export default function CampanhaExecucao() {
                 <TabsTrigger value="diario">Diário</TabsTrigger>
                 <TabsTrigger value="completo">Plano completo</TabsTrigger>
               </TabsList>
-              <TabsContent value="diario" className="mt-0">
+              <TabsContent value="diario" className="mt-0 space-y-4">
+                <Card className={cn(
+                  "border-2",
+                  camp.eco_dispatched_at ? "border-primary/30 bg-primary/[0.03]" : "border-primary/40",
+                )}>
+                  <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-start gap-3 min-w-0">
+                      {camp.eco_dispatched_at ? (
+                        <CheckCircle2 className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+                      ) : (
+                        <Rocket className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+                      )}
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold">
+                          {camp.eco_dispatched_at ? "Ecossistema distribuído" : "Distribuir pro ecossistema"}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {camp.eco_dispatched_at ? (
+                            <>Disparado em {new Date(camp.eco_dispatched_at).toLocaleString("pt-BR")}. Deal criado e playlists na fila de coleta.</>
+                          ) : (
+                            <>Confirma o plano abaixo e dispara: cria o deal real e manda as playlists do ecossistema pra fila de coleta do Spotify.</>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                    {!camp.eco_dispatched_at && (
+                      <Button size="sm" variant="solid" onClick={handleDispatchEco} disabled={dispatching}>
+                        {dispatching ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Rocket className="h-4 w-4 mr-1.5" />}
+                        Distribuir agora
+                      </Button>
+                    )}
+                  </CardContent>
+                </Card>
                 <CampaignDailyPlan
                   campaignId={camp.id}
                   snapshot={snapshot}
