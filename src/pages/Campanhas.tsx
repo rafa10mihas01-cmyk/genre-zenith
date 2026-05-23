@@ -206,7 +206,7 @@ function CampaignRow({ c }: { c: Campaign }) {
   const busy = updateStatus.isPending || removeCampaign.isPending || approve.isPending;
 
   const clientUrl = c.public_plan_token
-    ? `${window.location.origin}/p/plano/${c.public_plan_token}`
+    ? `${PUBLIC_DOMAIN}/p/plano/${c.public_plan_token}`
     : null;
   const clientApproved = !!c.client_approved_at;
   const clientPendingAdjust = !!c.client_rejected_at && !clientApproved;
