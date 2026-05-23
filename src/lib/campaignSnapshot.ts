@@ -82,6 +82,7 @@ export interface EcoAllocationPlan {
 }
 
 const PLAYS_PER_SAVE_MONTH = 30;
+const DEFAULT_CAMPAIGN_SLOT_PCT = 0.08; // posição #3 do motor operacional
 
 function ecoWarmupStartDay(index: number, total: number, days: number, modo: CampaignSnapshot["modo"]) {
   if (total <= 1) return 1;
@@ -98,26 +99,35 @@ export function planEcoAllocations(
 ): EcoAllocationPlan[] {
   if (streamsEco <= 0 || playlists.length === 0) return [];
 
-  // Capacidade teórica total ao longo da campanha: followers/dia × dias
-  const capacities = playlists.map(p => ({
-    id: p.id,
-    capacity: Math.max(1, p.followers) * days, // followers × dias (proxy de tráfego total)
-  }));
-  const totalCapacity = capacities.reduce((s, c) => s + c.capacity, 0);
-  if (totalCapacity <= 0) return [];
+  // Capacidade útil estimada por faixa em posição #3 ao longo da campanha.
+  // A distribuição deve usar o menor inventário necessário para bater a meta,
+  // não espalhar uma meta pequena em todas as playlists compatíveis.
+  const capacities = playlists
+    .map(p => ({
+      id: p.id,
+      capacity: Math.max(1, Math.round(Math.max(1, p.followers) * (PLAYS_PER_SAVE_MONTH / 30) * DEFAULT_CAMPAIGN_SLOT_PCT * days)),
+    }))
+    .sort((a, b) => b.capacity - a.capacity);
+  const selected: typeof capacities = [];
+  let selectedCapacity = 0;
+  for (const c of capacities) {
+    if (selectedCapacity >= streamsEco) break;
+    selected.push(c);
+    selectedCapacity += c.capacity;
+  }
+  if (selected.length === 0 || selectedCapacity <= 0) return [];
 
   let allocated = 0;
-  const ordered = capacities
-    .sort((a, b) => b.capacity - a.capacity)
+  const ordered = selected
     .map((c, index) => {
-      const planned = index === capacities.length - 1
+      const planned = index === selected.length - 1
         ? Math.max(0, streamsEco - allocated)
-        : Math.round((c.capacity / totalCapacity) * streamsEco);
+        : Math.min(c.capacity, Math.round((c.capacity / selectedCapacity) * streamsEco));
       allocated += planned;
       return {
         managed_playlist_id: c.id,
         planned_streams: planned,
-        start_day: ecoWarmupStartDay(index, capacities.length, days, modo),
+        start_day: ecoWarmupStartDay(index, selected.length, days, modo),
       };
     })
     .filter(a => a.planned_streams > 0);
