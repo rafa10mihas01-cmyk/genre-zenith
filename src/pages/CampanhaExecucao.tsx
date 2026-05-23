@@ -19,6 +19,7 @@ import { CampaignHub } from "@/components/campaign-hub/CampaignHub";
 import { OverviewTab } from "@/components/campaign-hub/tabs/OverviewTab";
 import { PlaylistsGrid } from "@/components/campaign-hub/PlaylistsGrid";
 import { ProofsTimeline, type ProofEvent } from "@/components/campaign-hub/ProofsTimeline";
+import { ShareLinkCard } from "@/components/campaign-hub/ShareLinkCard";
 import type { CampaignHubCampaign, CampaignHubTabId, EcoAllocation } from "@/components/campaign-hub/types";
 
 type EcoSnap = {
