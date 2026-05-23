@@ -578,7 +578,7 @@ export default function CampanhaExecucao() {
 }
 
 function ClientPriceEditor({
-  snapshot, value, onChange, onSave, saving, approved,
+  snapshot, value, onChange, onSave, saving, approved, showFinanceKpis = true,
 }: {
   snapshot: CampaignSnapshot;
   value: string;
@@ -586,6 +586,7 @@ function ClientPriceEditor({
   onSave: () => void;
   saving: boolean;
   approved: boolean;
+  showFinanceKpis?: boolean;
 }) {
   const currentTotal = getClientPriceTotal(snapshot);
   const typedTotal = parseBRLInput(value);
