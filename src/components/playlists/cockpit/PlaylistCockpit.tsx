@@ -197,6 +197,7 @@ export function PlaylistCockpit({
   const [activeTab, setActiveTab] = useState<string>("identidade");
   const [archiving, setArchiving] = useState(false);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   async function handleArchive() {
     if (!confirm(`Mover "${playlistName}" para a lixeira?`)) return;
@@ -209,6 +210,11 @@ export function PlaylistCockpit({
       toast({ title: "Erro ao arquivar", description: error.message, variant: "destructive" });
       return;
     }
+    // Atualiza cache local imediatamente (otimista) + invalida pra refetch ao chegar em /catalogo.
+    queryClient.setQueryData<any[]>(["managed-playlists"], (prev) =>
+      (prev ?? []).map((p) => (p.id === managedId ? { ...p, archived_at: new Date().toISOString() } : p)),
+    );
+    queryClient.invalidateQueries({ queryKey: ["managed-playlists"] });
     toast({ title: "Movida para lixeira", description: "Você pode restaurar em Catálogo › Lixeira." });
     if (onBack) onBack(); else navigate("/catalogo");
   }
