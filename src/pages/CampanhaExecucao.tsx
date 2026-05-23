@@ -47,6 +47,8 @@ export default function CampanhaExecucao() {
   const { id } = useParams<{ id: string }>();
   const [camp, setCamp] = useState<CampaignHubCampaign | null>(null);
   const [allocs, setAllocs] = useState<EcoAllocation[]>([]);
+  const [snaps, setSnaps] = useState<EcoSnap[]>([]);
+  const [proofs, setProofs] = useState<DeliveryProof[]>([]);
   const [loading, setLoading] = useState(true);
   const [planRefreshKey, setPlanRefreshKey] = useState(0);
   const [tab, setTab] = useState<CampaignHubTabId>("overview");
@@ -56,7 +58,7 @@ export default function CampanhaExecucao() {
     if (!id) return;
     (async () => {
       setLoading(true);
-      const [{ data: c }, { data: a }] = await Promise.all([
+      const [{ data: c }, { data: a }, { data: s }, { data: pkg }] = await Promise.all([
         supabase
           .from("campaigns")
           .select("id, track_name, artist, cover_url, status, deadline, started_at, simulation_snapshot, snapshot_locked_at, eco_dispatched_at, engagement_multiplier, public_plan_token, spotify_track_url, total_delivered, client_approved_at")
@@ -67,9 +69,34 @@ export default function CampanhaExecucao() {
           .select("id, managed_playlist_id, planned_streams, start_day, status, dispatched_at, managed_playlists(name, cover_url, followers, spotify_url)")
           .eq("campaign_id", id)
           .order("planned_streams", { ascending: false }),
+        supabase
+          .from("campaign_eco_snapshots")
+          .select("id, managed_playlist_id, plays_24h, plays_7d, plays_28d, captured_at, source")
+          .eq("campaign_id", id)
+          .order("captured_at", { ascending: false })
+          .limit(500),
+        supabase
+          .from("campaign_external_package_items")
+          .select("curator_deal_id, campaign_external_packages!inner(campaign_id)")
+          .eq("campaign_external_packages.campaign_id", id)
+          .not("curator_deal_id", "is", null),
       ]);
       setCamp(c as any);
       setAllocs((a ?? []) as any);
+      setSnaps((s ?? []) as any);
+
+      const dealIds = (pkg ?? []).map((p: any) => p.curator_deal_id).filter(Boolean);
+      if (dealIds.length > 0) {
+        const { data: dp } = await supabase
+          .from("delivery_proofs")
+          .select("id, playlist_id, playlist_name, screenshot_url, plays_total, plays_24h, position_in_playlist, source, captured_at")
+          .in("deal_id", dealIds)
+          .order("captured_at", { ascending: false })
+          .limit(200);
+        setProofs((dp ?? []) as any);
+      } else {
+        setProofs([]);
+      }
       setLoading(false);
     })();
   }, [id]);
