@@ -106,7 +106,21 @@ export default function CampanhaExecucao() {
     setAllocs((a ?? []) as unknown as EcoAllocation[]);
     setSnaps((s ?? []) as EcoSnap[]);
 
-    const dealId = (c as { deal_id?: string | null } | null)?.deal_id ?? null;
+    let dealId = (c as { deal_id?: string | null } | null)?.deal_id ?? null;
+    let hydratedUploadState = false;
+    if (!dealId && (c as { public_plan_token?: string | null } | null)?.public_plan_token) {
+      const { data: shared } = await supabase.functions.invoke("get-shared-campaign-plan", {
+        body: { token: (c as { public_plan_token: string }).public_plan_token },
+      });
+      dealId = (shared as { campaign?: { deal_id?: string | null } } | null)?.campaign?.deal_id ?? null;
+      if (dealId) setCamp({ ...(c as unknown as CampaignHubCampaign), deal_id: dealId });
+      if ((shared as { client_token?: string | null } | null)?.client_token) {
+        setClientToken((shared as { client_token: string }).client_token);
+        setRecentUploads(((shared as { recent_uploads?: SpreadsheetUpload[] }).recent_uploads ?? []) as SpreadsheetUpload[]);
+        setLastSpreadsheetUploadAt((shared as { last_spreadsheet_upload_at?: string | null }).last_spreadsheet_upload_at ?? null);
+        hydratedUploadState = true;
+      }
+    }
     if (dealId) {
       const { data: song } = await supabase
         .from("curator_deal_songs")
@@ -136,7 +150,7 @@ export default function CampanhaExecucao() {
       setClientToken(token);
       setRecentUploads((uploads ?? []) as SpreadsheetUpload[]);
       setLastSpreadsheetUploadAt((uploads as SpreadsheetUpload[] | null)?.[0]?.created_at ?? null);
-    } else {
+    } else if (!hydratedUploadState) {
       setClientToken(null);
       setRecentUploads([]);
       setLastSpreadsheetUploadAt(null);
