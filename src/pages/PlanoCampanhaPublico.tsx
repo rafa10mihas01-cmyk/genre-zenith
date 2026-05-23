@@ -368,19 +368,12 @@ export default function PlanoCampanhaPublico() {
                   snapshots={snaps}
                   stage={isApproved ? "live" : isRejected ? "rejected" : "approval"}
                 />
-                {clientToken && (
-                  <SpreadsheetUploadCard
-                    clientToken={clientToken}
-                    lastUploadAt={lastUploadAt}
-                    recentUploads={recentUploads as any}
-                    onUploaded={load}
-                  />
-                )}
                 <OverviewTab
                   snapshot={snapshot}
                   delivered={delivered}
                   daysElapsed={daysElapsed}
                   showFinance={false}
+                  hideDeliveryPlan
                   allocations={allocs}
                   snapshots={snaps}
                   proofs={isApproved ? proofs.map(p => ({
@@ -417,23 +410,6 @@ export default function PlanoCampanhaPublico() {
                 </CardContent>
               </Card>
             ),
-            curve: (
-              <CampaignFullPlanCard
-                snapshot={snapshot}
-                startedAt={camp.started_at}
-                allocations={allocs as any}
-                engagementMultiplier={camp.engagement_multiplier ?? 30}
-                showShare={false}
-              />
-            ),
-            upload: clientToken ? (
-              <SpreadsheetUploadCard
-                clientToken={clientToken}
-                lastUploadAt={lastUploadAt}
-                recentUploads={recentUploads as any}
-                onUploaded={load}
-              />
-            ) : null,
           }}
         />
 

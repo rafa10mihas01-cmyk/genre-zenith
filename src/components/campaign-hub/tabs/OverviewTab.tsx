@@ -27,6 +27,7 @@ type Props = {
   delivered: number;
   daysElapsed: number;
   showFinance: boolean;
+  hideDeliveryPlan?: boolean;
   allocations?: EcoAllocation[];
   snapshots?: EcoSnap[];
   proofs?: ProofPreview[];
@@ -34,7 +35,7 @@ type Props = {
 };
 
 export function OverviewTab({
-  snapshot, delivered, daysElapsed, showFinance,
+  snapshot, delivered, daysElapsed, showFinance, hideDeliveryPlan = false,
   allocations = [], snapshots = [], proofs = [], onJumpTab,
 }: Props) {
   const pct = snapshot.meta > 0 ? Math.min(100, Math.round((delivered / snapshot.meta) * 100)) : 0;
@@ -80,6 +81,7 @@ export function OverviewTab({
   return (
     <div className="space-y-6">
       {/* Plano de entrega — leitura única: meta total, ritmo, split eco/ext, hoje */}
+      {!hideDeliveryPlan && (
       <Card>
         <CardContent className="p-5 space-y-5">
           <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -158,6 +160,8 @@ export function OverviewTab({
           </div>
         </CardContent>
       </Card>
+      )}
+
 
       {/* KPIs grandes */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
