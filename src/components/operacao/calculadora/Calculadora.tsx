@@ -358,6 +358,9 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
           coverUrl: song.track.thumbnail_url,
           baselineStreamsDay: song.baselineStreamsDay,
           genre: song.genre || null,
+          top200Position: song.top200Pos ?? song.track.position ?? null,
+          top200StreamsDay: song.top200StreamsDay ?? song.track.streamsDay ?? null,
+          top200ChartDate: song.top200ChartDate ?? song.track.chartDate ?? null,
         },
         {
           clientPriceTotal: song.clientPriceTotal > 0 ? song.clientPriceTotal : null,

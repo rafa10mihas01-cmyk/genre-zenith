@@ -128,6 +128,32 @@ export function canAllocateTrackToPosition(
  */
 export const MIN_CAMPAIGN_POSITION = 3;
 
+export function getCampaignPreferredPositions(snapshot?: CampaignSnapshot | null): number[] {
+  const music = snapshot?.music as (CampaignSnapshot["music"] & {
+    top200Position?: number | null;
+    top200Pos?: number | null;
+  }) | undefined;
+  const topPosition = Number(music?.top200Position ?? music?.top200Pos ?? 0);
+  return Number.isFinite(topPosition) && topPosition > 0 && topPosition <= 50
+    ? [1, 2, 3]
+    : [MIN_CAMPAIGN_POSITION];
+}
+
+export function inferEcoPreferredPositions(
+  snapshot: CampaignSnapshot,
+  allocs: EcoPositionInput[],
+  engagementMultiplier = 30,
+): number[] {
+  const saved = getCampaignPreferredPositions(snapshot);
+  if (saved.some((p) => p < MIN_CAMPAIGN_POSITION)) return saved;
+  const neededPerDay = allocs.reduce((sum, a) => sum + Math.max(0, a.planned_streams || 0), 0) / Math.max(1, snapshot.days);
+  const baseSlotThree = allocs.reduce(
+    (sum, a) => sum + calculateTrackDailyStreams(a.followers, engagementMultiplier, MIN_CAMPAIGN_POSITION),
+    0,
+  );
+  return neededPerDay > baseSlotThree * 1.02 ? [1, 2, 3] : saved;
+}
+
 /**
  * @deprecated Removido — agora a capacidade é derivada de POSITION_PCT.
  * Mantido apenas para compatibilidade de import; não usar em novas chamadas.
@@ -232,13 +258,18 @@ export function distributeEcoPositions(
   allocs: EcoPositionInput[],
   days: number,
   engagementMultiplier = 30,
-  opts: { strongSlotShareCap?: number } = {},
+  opts: { strongSlotShareCap?: number; preferredSlots?: number[] } = {},
 ): Map<string, number> {
+  const preferredSlots = (opts.preferredSlots ?? []).filter((p) => Number.isFinite(p) && p >= 1);
   const cap = opts.strongSlotShareCap ?? 0.4;
   const total = allocs.length;
   const maxStrong = Math.max(1, Math.floor(total * cap));
   const ordered = [...allocs].sort((a, b) => b.followers - a.followers);
   const result = new Map<string, number>();
+  if (preferredSlots.length > 0) {
+    ordered.forEach((a, index) => result.set(a.id, preferredSlots[index % preferredSlots.length] ?? MIN_CAMPAIGN_POSITION));
+    return result;
+  }
   let strongUsed = 0;
 
   for (const a of ordered) {
@@ -527,6 +558,11 @@ export function buildEcoPlaylistPlan(
     })),
     snapshot.days,
     multiplier,
+    { preferredSlots: inferEcoPreferredPositions(snapshot, allocs.map(a => ({
+      id: a.id,
+      planned_streams: a.planned_streams,
+      followers: Number(a.managed_playlists?.followers ?? 0),
+    })), multiplier) },
   );
 
   const ordered = [...allocs].sort((a, b) => b.planned_streams - a.planned_streams);
@@ -590,7 +626,7 @@ export function buildEcoPlaylistPlan(
   });
 
   // Sem overflow no novo modelo: a posição já define o teto diário.
-  let remaining = 0;
+  const remaining = 0;
 
   const result = plans as EcoPlanResult;
   result.unmetEco = Math.max(0, Math.round(remaining));
