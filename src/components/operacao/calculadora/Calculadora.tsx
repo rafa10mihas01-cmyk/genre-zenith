@@ -297,14 +297,24 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
       const effMeta = song.fonte === "orcamento" ? reverseFromBudget(song.budget, song.splitEco, pricingCosts) : song.meta;
       const r = calcCampaign({ meta: effMeta, days: song.days, modo: song.modo, perfil: song.perfil, splitEcoPct: song.splitEco }, pricingCosts);
 
-      const snapshot = buildSnapshot(r, {
-        spotifyTrackId: song.track.id,
-        trackUrl: song.trackUrl || null,
-        title: song.track.title,
-        artist: song.track.artist,
-        coverUrl: song.track.thumbnail_url,
-        baselineStreamsDay: song.baselineStreamsDay,
-      });
+      const snapshot = buildSnapshot(
+        r,
+        {
+          spotifyTrackId: song.track.id,
+          trackUrl: song.trackUrl || null,
+          title: song.track.title,
+          artist: song.track.artist,
+          coverUrl: song.track.thumbnail_url,
+          baselineStreamsDay: song.baselineStreamsDay,
+          genre: song.genre || null,
+        },
+        {
+          clientPriceTotal: song.clientPriceTotal > 0 ? song.clientPriceTotal : null,
+          pricePerStreamSell: song.clientPriceTotal > 0 && effMeta > 0
+            ? song.clientPriceTotal / effMeta
+            : pricingSettings.price_per_stream_sell,
+        },
+      );
 
       const allocations = planEcoAllocations(
         r.streamsEco,
