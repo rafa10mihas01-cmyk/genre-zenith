@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect } from "react";
+import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { showPush } from "@/lib/browserPush";
@@ -42,13 +43,13 @@ export interface NotificationRow {
 }
 
 const LIMIT = 30;
+const QUERY_KEY = ["notifications"] as const;
 
 // Anti-flood de toasts: 60s por dedupe_key
 const TOAST_COOLDOWN_MS = 60_000;
 const recentToasts = new Map<string, number>();
 
 function shouldToast(n: NotificationRow): boolean {
-  // Regras: silent suprime; respeita cooldown por dedupe_key; honra prefs do usuário (críticos sempre passam)
   if (n.metadata?.silent) return false;
   if (!passesAlertPrefs(n.type, n.metadata?.domain)) return false;
 
@@ -57,7 +58,6 @@ function shouldToast(n: NotificationRow): boolean {
   const now = Date.now();
   if (last && now - last < TOAST_COOLDOWN_MS) return false;
   recentToasts.set(key, now);
-  // GC
   if (recentToasts.size > 200) {
     for (const [k, t] of recentToasts) {
       if (now - t > TOAST_COOLDOWN_MS * 5) recentToasts.delete(k);
@@ -67,25 +67,24 @@ function shouldToast(n: NotificationRow): boolean {
 }
 
 export function useNotifications() {
-  const [items, setItems] = useState<NotificationRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const initializedRef = useRef(false);
+  const qc = useQueryClient();
 
-  const load = useCallback(async () => {
-    const { data, error } = await supabase
-      .from("notifications")
-      .select("id, type, title, message, action_url, read, created_at, metadata")
-      .order("created_at", { ascending: false })
-      .limit(LIMIT);
-    if (!error && data) setItems(data as NotificationRow[]);
-    setLoading(false);
-  }, []);
+  const query = useQuery({
+    queryKey: QUERY_KEY,
+    staleTime: 10_000,
+    placeholderData: keepPreviousData,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("notifications")
+        .select("id, type, title, message, action_url, read, created_at, metadata")
+        .order("created_at", { ascending: false })
+        .limit(LIMIT);
+      if (error) throw error;
+      return (data ?? []) as NotificationRow[];
+    },
+  });
 
   useEffect(() => {
-    if (initializedRef.current) return;
-    initializedRef.current = true;
-    load();
-
     const channel = supabase
       .channel("notifications-stream")
       .on(
@@ -93,15 +92,15 @@ export function useNotifications() {
         { event: "INSERT", schema: "public", table: "notifications" },
         (payload) => {
           const n = payload.new as NotificationRow;
-          setItems((prev) => {
-            if (prev.some((p) => p.id === n.id)) return prev;
-            return [n, ...prev].slice(0, LIMIT);
+          qc.setQueryData<NotificationRow[]>(QUERY_KEY, (prev) => {
+            const list = prev ?? [];
+            if (list.some((p) => p.id === n.id)) return list;
+            return [n, ...list].slice(0, LIMIT);
           });
           if (shouldToast(n)) {
             const opts = { description: n.message } as const;
             if (n.type === "critical") toast.error(n.title, { ...opts, duration: 10_000 });
             else if (n.type === "warning") toast.warning(n.title, { ...opts, duration: 6_000 });
-            // Browser push nativo: dispara só se aba estiver oculta (a função decide).
             if (n.type === "critical" || n.type === "warning") {
               showPush({
                 title: n.title,
@@ -118,7 +117,9 @@ export function useNotifications() {
         { event: "UPDATE", schema: "public", table: "notifications" },
         (payload) => {
           const n = payload.new as NotificationRow;
-          setItems((prev) => prev.map((p) => (p.id === n.id ? { ...p, ...n } : p)));
+          qc.setQueryData<NotificationRow[]>(QUERY_KEY, (prev) =>
+            (prev ?? []).map((p) => (p.id === n.id ? { ...p, ...n } : p)),
+          );
         }
       )
       .subscribe();
@@ -126,21 +127,35 @@ export function useNotifications() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [load]);
+  }, [qc]);
 
+  const items = query.data ?? [];
   const unreadCount = items.filter((i) => !i.read).length;
 
   const markRead = useCallback(async (id: string) => {
-    setItems((prev) => prev.map((p) => (p.id === id ? { ...p, read: true } : p)));
-    await supabase.from("notifications").update({ read: true }).eq("id", id);
-  }, []);
+    await qc.cancelQueries({ queryKey: QUERY_KEY });
+    const previous = qc.getQueryData<NotificationRow[]>(QUERY_KEY);
+    qc.setQueryData<NotificationRow[]>(QUERY_KEY, (prev) =>
+      (prev ?? []).map((p) => (p.id === id ? { ...p, read: true } : p)),
+    );
+    const { error } = await supabase.from("notifications").update({ read: true }).eq("id", id);
+    if (error) qc.setQueryData(QUERY_KEY, previous);
+  }, [qc]);
 
   const markAllRead = useCallback(async () => {
-    const unreadIds = items.filter((i) => !i.read).map((i) => i.id);
+    const previous = qc.getQueryData<NotificationRow[]>(QUERY_KEY) ?? [];
+    const unreadIds = previous.filter((i) => !i.read).map((i) => i.id);
     if (unreadIds.length === 0) return;
-    setItems((prev) => prev.map((p) => ({ ...p, read: true })));
-    await supabase.from("notifications").update({ read: true }).in("id", unreadIds);
-  }, [items]);
+    qc.setQueryData<NotificationRow[]>(QUERY_KEY, (prev) =>
+      (prev ?? []).map((p) => ({ ...p, read: true })),
+    );
+    const { error } = await supabase.from("notifications").update({ read: true }).in("id", unreadIds);
+    if (error) qc.setQueryData(QUERY_KEY, previous);
+  }, [qc]);
 
-  return { items, loading, unreadCount, markRead, markAllRead, refresh: load };
+  const refresh = useCallback(async () => {
+    await qc.invalidateQueries({ queryKey: QUERY_KEY });
+  }, [qc]);
+
+  return { items, loading: query.isLoading, unreadCount, markRead, markAllRead, refresh };
 }
