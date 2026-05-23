@@ -45,24 +45,55 @@ const DEFAULT_PLAYS_PER_FOLLOWER_DAY = 0.05;
 
 
 async function calcOne(supabase: any, playlistId: string) {
-  // 1. Carrega playlist canonical + managed (se existir)
+  // 1. Carrega playlist canonical + managed (se existir). Aceita tanto o ID
+  // canônico (`playlists.id`) quanto o ID operacional (`managed_playlists.id`),
+  // porque o cockpit e os batches antigos chamam em formatos diferentes.
+  let canonicalId = playlistId;
+  const { data: directManaged } = await supabase
+    .from("managed_playlists")
+    .select("id, canonical_playlist_id, spotify_playlist_id")
+    .eq("id", playlistId)
+    .maybeSingle();
+  if (directManaged?.canonical_playlist_id) {
+    canonicalId = directManaged.canonical_playlist_id;
+  } else if (directManaged?.spotify_playlist_id) {
+    const { data: canonical, error: canonicalError } = await supabase
+      .from("playlists")
+      .upsert({
+        spotify_playlist_id: directManaged.spotify_playlist_id,
+        name: directManaged.spotify_playlist_id,
+        ownership: "own",
+        source: "managed",
+        monitored: true,
+        last_seen_at: new Date().toISOString(),
+      }, { onConflict: "spotify_playlist_id" })
+      .select("id")
+      .single();
+    if (canonicalError) throw new Error(`canonical playlist: ${canonicalError.message}`);
+    canonicalId = canonical.id;
+    await supabase
+      .from("managed_playlists")
+      .update({ canonical_playlist_id: canonicalId })
+      .eq("id", directManaged.id);
+  }
+
   const { data: pl, error: plErr } = await supabase
     .from("playlists")
     .select("id, spotify_playlist_id, name, ownership, followers")
-    .eq("id", playlistId)
+    .eq("id", canonicalId)
     .maybeSingle();
   if (plErr || !pl) throw new Error(`playlist ${playlistId} não encontrada`);
 
   const { data: mgd } = await supabase
     .from("managed_playlists")
-    .select("id, name, genre_id, tracks_count, last_diagnosis_at, last_metrics_at, metadata, archived_at")
+    .select("id, name, genre_id, tracks_count, followers, last_diagnosis_at, last_metrics_at, metadata, archived_at")
     .eq("spotify_playlist_id", pl.spotify_playlist_id)
     .maybeSingle();
 
   // Se a playlist está arquivada (lixeira), não calcula cérebro — ela some
   // de KPIs, Matriz, recomendações etc. Volta quando restaurada.
   if (mgd?.archived_at) {
-    await supabase.from("playlist_brain").delete().eq("playlist_id", playlistId);
+    await supabase.from("playlist_brain").delete().eq("playlist_id", canonicalId);
     return { skipped: true, reason: "archived" };
   }
 
@@ -103,12 +134,13 @@ async function calcOne(supabase: any, playlistId: string) {
 
   // ============ CÁLCULOS ============
   const now = new Date();
-  const followers = pl.followers ?? 0;
+  const followers = pl.followers ?? mgd?.followers ?? 0;
   const tracksCount = mgd?.tracks_count ?? 0;
   const snapsArr = snaps ?? [];
 
   // identity
-  const nameLower = (pl.name ?? "").toLowerCase();
+  const displayName = mgd?.name ?? pl.name ?? "";
+  const nameLower = displayName.toLowerCase();
   const keywords: string[] = Array.isArray(genreModel?.palavras_chave)
     ? genreModel.palavras_chave.map((k: any) => typeof k === "string" ? k : k?.termo ?? "").filter(Boolean)
     : [];
@@ -478,7 +510,7 @@ async function calcOne(supabase: any, playlistId: string) {
 
   return {
     playlist_id: pl.id,
-    name: pl.name,
+    name: displayName,
     confidence_score: confidence,
     signals_count: signals.length,
     recommendations_count: recommendations.length,
@@ -504,11 +536,15 @@ Deno.serve(async (req) => {
 
     // Modo batch (cron)
     if (body?.batch === true) {
-      const { data: list, error: lErr } = await supabase
-        .from("playlists")
-        .select("id")
-        .eq("ownership", "own");
-      if (lErr) throw new Error(lErr.message);
+      const { data: managedRows, error: mErr } = await supabase
+        .from("managed_playlists")
+        .select("id, canonical_playlist_id, spotify_playlist_id, archived_at")
+        .is("archived_at", null);
+      if (mErr) throw new Error(mErr.message);
+
+      const list = (managedRows ?? []).map((row: any) => ({
+        id: row.canonical_playlist_id ?? row.id,
+      }));
 
       const limit = Math.min(body?.limit ?? 200, 500);
       const subset = (list ?? []).slice(0, limit);

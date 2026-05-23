@@ -108,13 +108,49 @@ Deno.serve(async (req) => {
     }
 
     // 6) upsert em managed_playlists já com followers preenchidos
+    // Cada managed playlist precisa de uma linha canônica em `playlists`.
+    // Sem isso, o playlist-brain-calc em lote não enxerga a playlist e o
+    // cockpit fica sem cérebro/roadmap mesmo com a playlist importada.
     const nowIso = new Date().toISOString();
     let imported = 0;
     let skipped = 0;
     const snapshotInserts: Array<{ playlist_spotify_id: string; followers: number | null; total_tracks: number | null }> = [];
+    const { data: existingManaged } = owned.length > 0
+      ? await supabase
+        .from("managed_playlists")
+        .select("spotify_playlist_id, genre_id, canonical_playlist_id")
+        .in("spotify_playlist_id", owned.map((p) => p.id))
+      : { data: [] as any[] };
+    const existingBySpotifyId = new Map(
+      (existingManaged ?? []).map((row: any) => [row.spotify_playlist_id, row]),
+    );
 
     for (const p of owned) {
       const followers = followersMap.get(p.id) ?? null;
+      const existing = existingBySpotifyId.get(p.id) as any | undefined;
+      let canonicalId = existing?.canonical_playlist_id ?? null;
+      const { data: canonical, error: canonicalError } = await supabase
+        .from("playlists")
+        .upsert({
+          spotify_playlist_id: p.id,
+          name: p.name ?? `Playlist ${p.id}`,
+          ownership: "own",
+          account_id: accountId,
+          source: "managed",
+          followers,
+          cover_url: p.images && p.images.length > 0 ? p.images[0].url : null,
+          genre_id: existing?.genre_id ?? null,
+          monitored: true,
+          last_seen_at: nowIso,
+        }, { onConflict: "spotify_playlist_id" })
+        .select("id")
+        .single();
+      if (canonicalError) {
+        skipped++;
+        console.error("canonical upsert error", p.id, canonicalError.message);
+        continue;
+      }
+      canonicalId = canonical.id;
       const payload = {
         spotify_playlist_id: p.id,
         spotify_url: p.external_urls?.spotify ?? `https://open.spotify.com/playlist/${p.id}`,
@@ -125,6 +161,7 @@ Deno.serve(async (req) => {
         followers,
         last_metrics_at: nowIso,
         account_id: accountId,
+        canonical_playlist_id: canonicalId,
         imported_by: guard.via === "user" ? guard.userId : null,
         owner_spotify_user_id: ownerId,
         metadata: { source: "import-account-playlists", owner_display_name: p.owner?.display_name ?? null },
