@@ -45,11 +45,41 @@ const DEFAULT_PLAYS_PER_FOLLOWER_DAY = 0.05;
 
 
 async function calcOne(supabase: any, playlistId: string) {
-  // 1. Carrega playlist canonical + managed (se existir)
+  // 1. Carrega playlist canonical + managed (se existir). Aceita tanto o ID
+  // canônico (`playlists.id`) quanto o ID operacional (`managed_playlists.id`),
+  // porque o cockpit e os batches antigos chamam em formatos diferentes.
+  let canonicalId = playlistId;
+  const { data: directManaged } = await supabase
+    .from("managed_playlists")
+    .select("id, canonical_playlist_id, spotify_playlist_id")
+    .eq("id", playlistId)
+    .maybeSingle();
+  if (directManaged?.canonical_playlist_id) {
+    canonicalId = directManaged.canonical_playlist_id;
+  } else if (directManaged?.spotify_playlist_id) {
+    const { data: canonical, error: canonicalError } = await supabase
+      .from("playlists")
+      .upsert({
+        spotify_playlist_id: directManaged.spotify_playlist_id,
+        ownership: "own",
+        source: "managed",
+        monitored: true,
+        last_seen_at: new Date().toISOString(),
+      }, { onConflict: "spotify_playlist_id" })
+      .select("id")
+      .single();
+    if (canonicalError) throw new Error(`canonical playlist: ${canonicalError.message}`);
+    canonicalId = canonical.id;
+    await supabase
+      .from("managed_playlists")
+      .update({ canonical_playlist_id: canonicalId })
+      .eq("id", directManaged.id);
+  }
+
   const { data: pl, error: plErr } = await supabase
     .from("playlists")
     .select("id, spotify_playlist_id, name, ownership, followers")
-    .eq("id", playlistId)
+    .eq("id", canonicalId)
     .maybeSingle();
   if (plErr || !pl) throw new Error(`playlist ${playlistId} não encontrada`);
 
@@ -62,7 +92,7 @@ async function calcOne(supabase: any, playlistId: string) {
   // Se a playlist está arquivada (lixeira), não calcula cérebro — ela some
   // de KPIs, Matriz, recomendações etc. Volta quando restaurada.
   if (mgd?.archived_at) {
-    await supabase.from("playlist_brain").delete().eq("playlist_id", playlistId);
+    await supabase.from("playlist_brain").delete().eq("playlist_id", canonicalId);
     return { skipped: true, reason: "archived" };
   }
 
