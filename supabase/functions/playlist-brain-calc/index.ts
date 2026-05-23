@@ -86,7 +86,7 @@ async function calcOne(supabase: any, playlistId: string) {
 
   const { data: mgd } = await supabase
     .from("managed_playlists")
-    .select("id, name, genre_id, tracks_count, last_diagnosis_at, last_metrics_at, metadata, archived_at")
+    .select("id, name, genre_id, tracks_count, followers, last_diagnosis_at, last_metrics_at, metadata, archived_at")
     .eq("spotify_playlist_id", pl.spotify_playlist_id)
     .maybeSingle();
 
@@ -134,12 +134,13 @@ async function calcOne(supabase: any, playlistId: string) {
 
   // ============ CÁLCULOS ============
   const now = new Date();
-  const followers = pl.followers ?? 0;
+  const followers = pl.followers ?? mgd?.followers ?? 0;
   const tracksCount = mgd?.tracks_count ?? 0;
   const snapsArr = snaps ?? [];
 
   // identity
-  const nameLower = (pl.name ?? "").toLowerCase();
+  const displayName = mgd?.name ?? pl.name ?? "";
+  const nameLower = displayName.toLowerCase();
   const keywords: string[] = Array.isArray(genreModel?.palavras_chave)
     ? genreModel.palavras_chave.map((k: any) => typeof k === "string" ? k : k?.termo ?? "").filter(Boolean)
     : [];
@@ -509,7 +510,7 @@ async function calcOne(supabase: any, playlistId: string) {
 
   return {
     playlist_id: pl.id,
-    name: pl.name,
+    name: displayName,
     confidence_score: confidence,
     signals_count: signals.length,
     recommendations_count: recommendations.length,
