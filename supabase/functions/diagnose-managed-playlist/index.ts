@@ -903,6 +903,59 @@ Deno.serve(async (req) => {
       .sort((a, b) => b.count - a.count)
       .slice(0, Math.max(120, N_SUGGEST * 2));
 
+    // 7.a.bis) TRENDING SIGNAL — cruza candidatos com Top 200 BR enriquecido.
+    //   - Marca cada candidato existente com a posição no chart (boost de score)
+    //   - Injeta tracks do Top 50 BR que ainda não estão na lista, DESDE que o
+    //     artista já apareça no pool do nicho (gate de gênero — evita poluir
+    //     uma playlist de samba com funk só porque tá no chart).
+    const trendingMap = new Map<string, { position: number; popularity: number | null; cover: string | null; artist_id: string | null }>();
+    try {
+      const { data: chartRows } = await supabaseAdmin
+        .from("raw_chart_daily")
+        .select("position, spotify_track_id, popularity, cover_url, spotify_artist_id, artist, track")
+        .eq("chart_name", "top200_br")
+        .gte("chart_date", new Date(Date.now() - 3 * 86400_000).toISOString().slice(0, 10))
+        .order("chart_date", { ascending: false })
+        .order("position", { ascending: true })
+        .limit(200);
+      const seenChart = new Set<string>();
+      for (const row of chartRows ?? []) {
+        if (!row.spotify_track_id || seenChart.has(row.spotify_track_id)) continue;
+        seenChart.add(row.spotify_track_id);
+        trendingMap.set(row.spotify_track_id, {
+          position: row.position,
+          popularity: row.popularity ?? null,
+          cover: row.cover_url ?? null,
+          artist_id: row.spotify_artist_id ?? null,
+        });
+      }
+
+      // Injeta tracks do Top 50 ainda ausentes — gate por presença de artista no nicho
+      const nicheArtists = new Set<string>();
+      for (const v of genreRecurrence.values()) {
+        const main = String(v.artist_name ?? "").split(",")[0].trim().toLowerCase();
+        if (main) nicheArtists.add(main);
+      }
+      const existingIds = new Set(rawCandidates.map((c) => c.id));
+      let injected = 0;
+      for (const row of chartRows ?? []) {
+        if (injected >= 15) break;
+        if (!row.spotify_track_id || row.position > 50) continue;
+        if (currentIds.has(row.spotify_track_id) || existingIds.has(row.spotify_track_id)) continue;
+        const mainArtist = String(row.artist ?? "").split(",")[0].trim().toLowerCase();
+        if (!mainArtist || !nicheArtists.has(mainArtist)) continue;
+        rawCandidates.push({
+          id: row.spotify_track_id,
+          track_name: row.track ?? "—",
+          artist_name: row.artist ?? "—",
+          count: 3, // sinal de recorrência sintético (baixo, mas presente)
+        } as any);
+        existingIds.add(row.spotify_track_id);
+        injected++;
+      }
+    } catch (_e) { /* degrade — trending é bonus, não bloqueia diagnóstico */ }
+
+
     // 7.b) Busca meta Spotify dos candidatos (popularity + artista) pra calcular zone scores
     const candMeta = new Map<string, { popularity: number | null; artistPop: number | null; cover: string | null }>();
     const coverMap = new Map<string, string>();
