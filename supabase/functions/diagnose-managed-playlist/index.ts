@@ -1018,6 +1018,7 @@ Deno.serve(async (req) => {
       anchor_eligible: boolean;
       target_zone: Zone;
       function_role: string;
+      trending_position: number | null;
       score: number;
     };
     const ROLE_LABEL: Record<Zone, string> = {
@@ -1028,8 +1029,11 @@ Deno.serve(async (req) => {
     };
     const candidates: Candidate[] = rawCandidates.map((c) => {
       const m = candMeta.get(c.id);
-      const popularity = m?.popularity ?? null;
+      const trend = trendingMap.get(c.id) ?? null;
+      // Se o Spotify não devolveu cover (ex: track injetada via chart), usa cover do chart.
+      const popularity = m?.popularity ?? trend?.popularity ?? null;
       const artistPop = m?.artistPop ?? null;
+      const cover = m?.cover ?? trend?.cover ?? null;
       const pop = popularity ?? 0;
       const aPop = artistPop ?? 0;
       const recNorm = Math.min(100, c.count * 12);
@@ -1039,14 +1043,19 @@ Deno.serve(async (req) => {
       const mainArtist = String(c.artist_name ?? "").split(",")[0].trim().toLowerCase();
       const isDominantArtist = mainArtist.length > 0 && dominantArtists.has(mainArtist);
       const dominantBoost = isDominantArtist ? 20 : 0;
-      const anchorScore  = Math.round(pop * 0.5  + aPop * 0.3  + recNorm * 0.2) + dominantBoost;
-      const premiumScore = Math.round(pop * 0.4  + recNorm * 0.35 + freshness * 0.25);
+      // Trending boost: #1-10 = +25, #11-25 = +15, #26-50 = +10, #51-200 = +5
+      const trendingBoost = trend
+        ? (trend.position <= 10 ? 25 : trend.position <= 25 ? 15 : trend.position <= 50 ? 10 : 5)
+        : 0;
+      const anchorScore  = Math.round(pop * 0.5  + aPop * 0.3  + recNorm * 0.2) + dominantBoost + trendingBoost;
+      const premiumScore = Math.round(pop * 0.4  + recNorm * 0.35 + freshness * 0.25) + trendingBoost;
       const supportScore = Math.round(recNorm * 0.5 + pop * 0.3 + stability * 0.2);
       const tailScore    = Math.round(freshness * 0.5 + Math.max(0, 60 - pop) * 0.3 + recNorm * 0.2);
       // Mesmo critério do tracksAnalysis: dominante do nicho passa com pop ≥ 55
       const anchorEligible =
         (popularity != null && popularity >= 70 && (aPop >= 70 || c.count >= 5)) ||
-        (isDominantArtist && popularity != null && popularity >= 55);
+        (isDominantArtist && popularity != null && popularity >= 55) ||
+        (trend != null && trend.position <= 25); // top 25 chart já é anchor-eligible
 
       const zonePool: { z: Zone; v: number }[] = [
         { z: "premium", v: premiumScore },
@@ -1058,10 +1067,11 @@ Deno.serve(async (req) => {
       const targetZone = zonePool[0].z;
 
       const fromMissing = !!(mainArtist && missingArtistSet.has(mainArtist));
-      // Score global combinando função + recorrência + boost de artista faltando + boost dominante
+      // Score global combinando função + recorrência + boost de artista faltando + boost dominante + trending
       const composite = Math.round(zonePool[0].v * 0.7 + recNorm * 0.3)
         + (fromMissing ? 8 : 0)
-        + (isDominantArtist ? 10 : 0);
+        + (isDominantArtist ? 10 : 0)
+        + trendingBoost;
 
       return {
         spotify_track_id: c.id,
@@ -1071,14 +1081,16 @@ Deno.serve(async (req) => {
         from_missing_artist: fromMissing,
         popularity,
         artist_popularity: artistPop,
-        cover_url: m?.cover ?? null,
+        cover_url: cover,
         zone_scores: { anchor: anchorScore, premium: premiumScore, support: supportScore, tail: tailScore },
         anchor_eligible: anchorEligible,
         target_zone: targetZone,
         function_role: ROLE_LABEL[targetZone],
+        trending_position: trend?.position ?? null,
         score: composite,
       };
     });
+
 
     // 7.d) Pareia substituições — cada faixa que SAI (remove/demote) ganha a melhor candidata
     //      que cumpre a MESMA função na zona-alvo da saída.
