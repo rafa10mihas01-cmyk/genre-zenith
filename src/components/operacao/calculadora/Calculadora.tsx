@@ -27,7 +27,7 @@ import { useEcosystemCapacity } from "@/hooks/useEcosystemCapacity";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format, addDays, differenceInCalendarDays, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { calculatePlaylistCapacity } from "@/lib/campaignOperationalPlan";
+import { calculateTrackDailyStreams } from "@/lib/campaignOperationalPlan";
 
 type Fonte = "manual" | "top200" | "concorrente" | "orcamento";
 
@@ -215,8 +215,13 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
     meta: effectiveMeta, days: active.days, modo: active.modo, perfil: active.perfil, splitEcoPct: active.splitEco,
   }, pricingCosts), [effectiveMeta, active.days, active.modo, active.perfil, active.splitEco, pricingCosts]);
 
+  const preferredSlots = useMemo(() => {
+    const pos = active.track?.position ?? 999;
+    return pos <= 50 ? [1, 2, 3] : [3];
+  }, [active.track?.position]);
+
   // Capacidade real do ecossistema filtrada por gênero da música ativa.
-  const ecoCap = useEcosystemCapacity(active.genre, active.days, active.engagementMultiplier ?? 30);
+  const ecoCap = useEcosystemCapacity(active.genre, active.days, active.engagementMultiplier ?? 30, preferredSlots);
   const ecoNeeded = result.streamsEco;
   const ecoUsagePct = ecoCap.capacityTotal > 0
     ? Math.round((ecoNeeded / ecoCap.capacityTotal) * 100)
