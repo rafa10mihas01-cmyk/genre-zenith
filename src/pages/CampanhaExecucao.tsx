@@ -172,7 +172,7 @@ export default function CampanhaExecucao() {
     if (!snapshot) return new Map<string, number>();
     const mult = camp?.engagement_multiplier ?? 30;
     return new Map(
-      buildEcoPlaylistPlan(snapshot, allocs as any, {
+      buildEcoPlaylistPlan(snapshot, allocs as unknown as Parameters<typeof buildEcoPlaylistPlan>[1], {
         startedAt: camp?.started_at,
         engagementMultiplier: mult,
         positions: ecoPositionByAllocation,
@@ -339,7 +339,7 @@ export default function CampanhaExecucao() {
               <CampaignFullPlanCard
                 snapshot={snapshot}
                 startedAt={camp.started_at}
-                allocations={allocs as any}
+                allocations={allocs as unknown as Parameters<typeof CampaignFullPlanCard>[0]["allocations"]}
                 engagementMultiplier={camp.engagement_multiplier ?? 30}
                 shareToken={camp.public_plan_token ?? null}
                 track={{
