@@ -1033,7 +1033,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                         </div>
                         <div className="text-[11px] text-foreground/80 tabular-nums">
                           Aguenta <strong>{formatInt(ecoCap.capacityTotal)}</strong> streams
-                          ({formatInt(ecoCap.capacityPerDay)}/dia · {ecoCap.playlistCount} playlists) ·
+                          ({formatInt(ecoCap.capacityPerDay)}/dia · ×{active.engagementMultiplier ?? 30} · {ecoCap.playlistCount} playlists) ·
                           {" "}precisa entregar <strong>{formatInt(ecoNeeded)}</strong> pelo eco
                         </div>
                         {ecoOverflow && suggestedEcoPct != null && (
