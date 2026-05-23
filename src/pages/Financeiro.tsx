@@ -1,29 +1,198 @@
-// Financeiro — uma tela só, organizada em seções:
-// 1) Resultado do mês  2) Detalhe por campanha  3) Custos de curadoria  4) Configurações
-import { useState } from "react";
-import { Wallet, ChevronDown, ChevronRight, Settings as SettingsIcon } from "lucide-react";
+// Financeiro — abas: Visão · Receita · Custo · Margem · Configuração
+import { useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import {
+  Wallet,
+  DollarSign,
+  Receipt,
+  TrendingUp,
+  TrendingDown,
+  Settings as SettingsIcon,
+  AlertTriangle,
+} from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { FinanceiroTab } from "@/components/playlist-deals/FinanceiroTab";
 import { FinancialOverview } from "@/components/financeiro/FinancialOverview";
 import { PricingSettingsPanel } from "@/components/financeiro/PricingSettingsPanel";
 import { useCuratorDeals } from "@/hooks/useCuratorDeals";
+import { useFinancialOverview } from "@/hooks/useFinancialOverview";
+import { cn } from "@/lib/utils";
 
-function SectionHeader({ kicker, title, hint }: { kicker: string; title: string; hint?: string }) {
+const fmtBRL = (v: number | null | undefined) =>
+  v == null ? "—" : Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+function MiniKpi({
+  icon: Icon,
+  label,
+  value,
+  tone = "muted",
+  hint,
+}: {
+  icon: any;
+  label: string;
+  value: string;
+  tone?: "primary" | "warn" | "muted";
+  hint?: string;
+}) {
+  const accent =
+    tone === "primary"
+      ? "text-primary bg-primary/10"
+      : tone === "warn"
+        ? "text-amber-500 bg-amber-500/10"
+        : "text-muted-foreground bg-elevated/60";
   return (
-    <header className="space-y-1">
-      <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-semibold">
-        {kicker}
+    <div className="rounded-2xl border border-border bg-card p-4">
+      <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted-foreground">
+        <span className={cn("h-6 w-6 rounded-md flex items-center justify-center", accent)}>
+          <Icon className="h-3.5 w-3.5" />
+        </span>
+        {label}
       </div>
-      <h2 className="text-lg font-semibold text-foreground">{title}</h2>
-      {hint && <p className="text-sm text-muted-foreground">{hint}</p>}
-    </header>
+      <div className="mt-2 text-xl font-bold tabular-nums text-foreground">{value}</div>
+      {hint && <div className="mt-1 text-xs text-muted-foreground">{hint}</div>}
+    </div>
+  );
+}
+
+function ReceitaView() {
+  const { summary, totals, loading } = useFinancialOverview();
+  const rows = useMemo(
+    () => [...summary].sort((a, b) => Number(b.valor_recebido ?? 0) - Number(a.valor_recebido ?? 0)),
+    [summary],
+  );
+  if (loading) return <div className="h-40 rounded-2xl bg-card border border-border animate-pulse" />;
+  return (
+    <div className="space-y-6">
+      <section className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+        <MiniKpi icon={DollarSign} label="Recebido" value={fmtBRL(totals.recebido)} tone="primary" />
+        <MiniKpi icon={Receipt} label="Cobrado" value={fmtBRL(totals.cobrado)} />
+        <MiniKpi
+          icon={AlertTriangle}
+          label="Pendente"
+          value={fmtBRL(Math.max(0, totals.cobrado - totals.recebido))}
+          tone={totals.cobrado - totals.recebido > 0 ? "warn" : "muted"}
+        />
+      </section>
+      <section className="rounded-2xl bg-card border border-border overflow-hidden">
+        <header className="px-5 py-4 border-b border-border">
+          <h3 className="text-sm font-semibold text-foreground">Receita por campanha</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">Cobrado, recebido e pendente do cliente</p>
+        </header>
+        {rows.length === 0 ? (
+          <div className="px-5 py-12 text-center text-sm text-muted-foreground">Nenhuma campanha</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-elevated/30 text-xs uppercase tracking-wider text-muted-foreground">
+                <tr>
+                  <th className="text-left px-4 py-2 font-medium">Campanha</th>
+                  <th className="text-left px-4 py-2 font-medium">Artista</th>
+                  <th className="text-right px-4 py-2 font-medium">Cobrado</th>
+                  <th className="text-right px-4 py-2 font-medium">Recebido</th>
+                  <th className="text-right px-4 py-2 font-medium">Pendente</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {rows.map((s) => {
+                  const pend = Math.max(0, Number(s.valor_cobrado ?? 0) - Number(s.valor_recebido ?? 0));
+                  return (
+                    <tr key={s.campaign_id} className="hover:bg-elevated/40">
+                      <td className="px-4 py-2.5 font-medium text-foreground truncate max-w-[260px]">{s.track_name ?? "—"}</td>
+                      <td className="px-4 py-2.5 text-muted-foreground">{s.artist ?? "—"}</td>
+                      <td className="px-4 py-2.5 text-right tabular-nums">{fmtBRL(s.valor_cobrado)}</td>
+                      <td className="px-4 py-2.5 text-right tabular-nums text-primary font-semibold">{fmtBRL(s.valor_recebido)}</td>
+                      <td className={cn("px-4 py-2.5 text-right tabular-nums", pend > 0 ? "text-amber-500" : "text-muted-foreground")}>
+                        {fmtBRL(pend)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function MargemView() {
+  const { summary, totals, loading } = useFinancialOverview();
+  const rows = useMemo(
+    () => [...summary].sort((a, b) => (b.margem_bruta ?? 0) - (a.margem_bruta ?? 0)),
+    [summary],
+  );
+  if (loading) return <div className="h-40 rounded-2xl bg-card border border-border animate-pulse" />;
+  return (
+    <div className="space-y-6">
+      <section className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+        <MiniKpi
+          icon={totals.margem >= 0 ? TrendingUp : TrendingDown}
+          label="Margem bruta"
+          value={fmtBRL(totals.margem)}
+          tone={totals.margem >= 0 ? "primary" : "warn"}
+        />
+        <MiniKpi
+          icon={TrendingUp}
+          label="Margem %"
+          value={totals.margemPct == null ? "—" : `${totals.margemPct.toFixed(1)}%`}
+          tone={totals.margemPct != null && totals.margemPct >= 30 ? "primary" : "muted"}
+        />
+        <MiniKpi icon={Wallet} label="Resultado líquido" value={fmtBRL(totals.recebido - totals.pago)} />
+      </section>
+      <section className="rounded-2xl bg-card border border-border overflow-hidden">
+        <header className="px-5 py-4 border-b border-border">
+          <h3 className="text-sm font-semibold text-foreground">Margem por campanha</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">Da mais rentável pra menos rentável</p>
+        </header>
+        {rows.length === 0 ? (
+          <div className="px-5 py-12 text-center text-sm text-muted-foreground">Nenhuma campanha</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-elevated/30 text-xs uppercase tracking-wider text-muted-foreground">
+                <tr>
+                  <th className="text-left px-4 py-2 font-medium">Campanha</th>
+                  <th className="text-right px-4 py-2 font-medium">Recebido</th>
+                  <th className="text-right px-4 py-2 font-medium">Pago</th>
+                  <th className="text-right px-4 py-2 font-medium">Margem R$</th>
+                  <th className="text-right px-4 py-2 font-medium">Margem %</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {rows.map((s) => (
+                  <tr key={s.campaign_id} className="hover:bg-elevated/40">
+                    <td className="px-4 py-2.5 font-medium text-foreground truncate max-w-[260px]">{s.track_name ?? "—"}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums">{fmtBRL(s.valor_recebido)}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-muted-foreground">{fmtBRL(s.total_pago_curadores)}</td>
+                    <td className={cn("px-4 py-2.5 text-right tabular-nums font-semibold", s.margem_bruta >= 0 ? "text-primary" : "text-amber-500")}>
+                      {fmtBRL(s.margem_bruta)}
+                    </td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-muted-foreground">
+                      {s.margem_pct == null ? "—" : `${s.margem_pct}%`}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+    </div>
   );
 }
 
 export default function Financeiro() {
   const { deals } = useCuratorDeals();
-  const [pricingOpen, setPricingOpen] = useState(false);
+  const [params, setParams] = useSearchParams();
+  const tab = params.get("tab") ?? "visao";
+  const setTab = (v: string) => {
+    const next = new URLSearchParams(params);
+    next.set("tab", v);
+    setParams(next, { replace: true });
+  };
 
   return (
     <>
@@ -31,64 +200,43 @@ export default function Financeiro() {
         kicker="Operação"
         icon={Wallet}
         title="Financeiro"
-        subtitle="Receita, custo e margem em um só lugar"
+        subtitle="Receita, custo e margem"
         domain="deals"
         manualKey="financeiro"
       />
       <PageContainer>
-        <div className="space-y-10">
-          {/* ===== 1. RESULTADO DO MÊS + ALERTAS + RECEITA POR CAMPANHA ===== */}
-          <section className="space-y-4">
-            <SectionHeader
-              kicker="§ 1"
-              title="Resultado financeiro"
-              hint="Quanto entrou, quanto saiu e quanto sobrou por campanha"
-            />
+        <Tabs value={tab} onValueChange={setTab} className="w-full">
+          <TabsList className="w-full sm:w-auto h-auto flex-wrap justify-start bg-elevated/40 p-1">
+            <TabsTrigger value="visao">Visão</TabsTrigger>
+            <TabsTrigger value="receita">Receita</TabsTrigger>
+            <TabsTrigger value="custo">Custo</TabsTrigger>
+            <TabsTrigger value="margem">Margem</TabsTrigger>
+            <TabsTrigger value="config">
+              <SettingsIcon className="h-3.5 w-3.5 mr-1.5" />
+              Configuração
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="visao" className="mt-6">
             <FinancialOverview />
-          </section>
+          </TabsContent>
 
-          {/* ===== 2. CUSTOS DE CURADORIA ===== */}
-          <section className="space-y-4">
-            <SectionHeader
-              kicker="§ 2"
-              title="Custos de curadoria"
-              hint="Para onde tá indo o dinheiro pago a curadores — eficiência (CPP), pódio e histórico"
-            />
+          <TabsContent value="receita" className="mt-6">
+            <ReceitaView />
+          </TabsContent>
+
+          <TabsContent value="custo" className="mt-6">
             <FinanceiroTab deals={deals} hideHero />
-          </section>
+          </TabsContent>
 
-          {/* ===== 3. CONFIGURAÇÕES (colapsável) ===== */}
-          <section className="space-y-4">
-            <button
-              type="button"
-              onClick={() => setPricingOpen((v) => !v)}
-              className="w-full flex items-center justify-between gap-3 rounded-2xl border border-border bg-card hover:bg-elevated/40 transition-colors px-5 py-4 text-left"
-            >
-              <div className="flex items-center gap-3">
-                <span className="h-8 w-8 rounded-md bg-elevated/60 flex items-center justify-center text-muted-foreground">
-                  <SettingsIcon className="h-4 w-4" />
-                </span>
-                <div>
-                  <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-semibold">
-                    § 3
-                  </div>
-                  <div className="text-base font-semibold text-foreground">
-                    Configurações de pricing
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-0.5">
-                    Custos operacionais, valor de mercado e preço de venda — vale só pra campanhas novas
-                  </div>
-                </div>
-              </div>
-              {pricingOpen ? (
-                <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
-              ) : (
-                <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-              )}
-            </button>
-            {pricingOpen && <PricingSettingsPanel />}
-          </section>
-        </div>
+          <TabsContent value="margem" className="mt-6">
+            <MargemView />
+          </TabsContent>
+
+          <TabsContent value="config" className="mt-6">
+            <PricingSettingsPanel />
+          </TabsContent>
+        </Tabs>
       </PageContainer>
     </>
   );
