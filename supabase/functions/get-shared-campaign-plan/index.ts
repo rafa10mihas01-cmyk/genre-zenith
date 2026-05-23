@@ -1,5 +1,6 @@
-// Public endpoint: returns sanitized campaign plan data for a given share token.
-// No auth required — token acts as the bearer of access.
+// Public endpoint: returns sanitized campaign plan + live tracking data for a share token.
+// Same token is valid before and after approval — the page morphs from "orçamento"
+// to "live portal" without changing URL.
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -30,7 +31,7 @@ Deno.serve(async (req) => {
 
   const { data: camp, error: cErr } = await supabase
     .from("campaigns")
-    .select("id, deal_id, track_name, artist, cover_url, spotify_track_url, spotify_track_id, started_at, deadline, simulation_snapshot, engagement_multiplier, client_approved_at, client_approved_by, client_rejected_at, client_adjustment_request")
+    .select("id, deal_id, track_name, artist, cover_url, spotify_track_url, spotify_track_id, status, started_at, deadline, simulation_snapshot, snapshot_locked_at, eco_dispatched_at, engagement_multiplier, total_delivered, client_approved_at, client_approved_by, client_rejected_at, client_adjustment_request")
     .eq("public_plan_token", token)
     .maybeSingle();
 
@@ -39,28 +40,44 @@ Deno.serve(async (req) => {
 
   const { data: allocs, error: aErr } = await supabase
     .from("campaign_eco_allocations")
-    .select("id, planned_streams, start_day, managed_playlists(name, cover_url, followers, spotify_url)")
+    .select("id, managed_playlist_id, planned_streams, start_day, status, dispatched_at, managed_playlists(name, cover_url, followers, spotify_url)")
     .eq("campaign_id", camp.id)
     .order("planned_streams", { ascending: false });
 
   if (aErr) return jr({ error: aErr.message }, 500);
 
-  // Se a campanha já virou deal, descobre o token do painel pra mandar o
-  // cliente pra acompanhar a campanha ao vivo (o orçamento "some" e fica só
-  // a página de acompanhamento).
-  let trackingToken: string | null = null;
-  if ((camp as any).deal_id) {
-    const { data: songs } = await supabase
-      .from("curator_deal_songs")
-      .select("slug, client_token, campaign_id, position")
-      .eq("deal_id", (camp as any).deal_id)
-      .order("position", { ascending: true })
-      .limit(50);
-    if (songs && songs.length) {
-      const match = songs.find((s: any) => s.campaign_id === camp.id) ?? songs[0];
-      trackingToken = String((match as any).slug ?? (match as any).client_token ?? "") || null;
-    }
+  // Live data: only relevant once the client approved (so the orçamento stays
+  // limpo antes). We still query it sempre — barato e simplifica o front.
+  const { data: snaps } = await supabase
+    .from("campaign_eco_snapshots")
+    .select("id, managed_playlist_id, plays_24h, plays_7d, plays_28d, captured_at, source")
+    .eq("campaign_id", camp.id)
+    .order("captured_at", { ascending: false })
+    .limit(500);
+
+  // Provas externas (telas) ligadas aos deals desta campanha
+  const { data: pkgItems } = await supabase
+    .from("campaign_external_package_items")
+    .select("curator_deal_id, campaign_external_packages!inner(campaign_id)")
+    .eq("campaign_external_packages.campaign_id", camp.id)
+    .not("curator_deal_id", "is", null);
+
+  const dealIds = (pkgItems ?? []).map((p: any) => p.curator_deal_id).filter(Boolean);
+  let proofs: any[] = [];
+  if (dealIds.length > 0) {
+    const { data: dp } = await supabase
+      .from("delivery_proofs")
+      .select("id, playlist_id, playlist_name, screenshot_url, plays_total, plays_24h, position_in_playlist, source, captured_at")
+      .in("deal_id", dealIds)
+      .order("captured_at", { ascending: false })
+      .limit(200);
+    proofs = dp ?? [];
   }
 
-  return jr({ campaign: camp, allocations: allocs ?? [], tracking_token: trackingToken });
+  return jr({
+    campaign: camp,
+    allocations: allocs ?? [],
+    snapshots: snaps ?? [],
+    proofs,
+  });
 });
