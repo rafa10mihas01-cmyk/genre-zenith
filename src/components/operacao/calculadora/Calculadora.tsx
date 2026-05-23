@@ -22,7 +22,8 @@ import {
   type Modo, type Perfil, type CampaignResult,
 } from "@/lib/campaignEngine";
 import { usePricingSettings } from "@/hooks/usePricingSettings";
-import { Table2, ArrowRight, ArrowLeft, Target as TargetIcon, Users, Wallet, Music, Search, CheckCircle2, X, Loader2, CalendarIcon, FileText, Plus, ListMusic, Layers, Zap, Pencil } from "lucide-react";
+import { Table2, ArrowRight, ArrowLeft, Target as TargetIcon, Users, Wallet, Music, Search, CheckCircle2, X, Loader2, CalendarIcon, FileText, Plus, ListMusic, Layers, Zap, Pencil, AlertTriangle } from "lucide-react";
+import { useEcosystemCapacity } from "@/hooks/useEcosystemCapacity";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format, addDays, differenceInCalendarDays, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -207,6 +208,18 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
   const result = useMemo(() => calcCampaign({
     meta: effectiveMeta, days: active.days, modo: active.modo, perfil: active.perfil, splitEcoPct: active.splitEco,
   }, pricingCosts), [effectiveMeta, active.days, active.modo, active.perfil, active.splitEco, pricingCosts]);
+
+  // Capacidade real do ecossistema filtrada por gênero da música ativa.
+  const ecoCap = useEcosystemCapacity(active.genre, active.days);
+  const ecoNeeded = result.streamsEco;
+  const ecoUsagePct = ecoCap.capacityTotal > 0
+    ? Math.round((ecoNeeded / ecoCap.capacityTotal) * 100)
+    : 0;
+  const ecoOverflow = ecoNeeded > ecoCap.capacityTotal && ecoCap.capacityTotal > 0;
+  const suggestedExtPct = ecoOverflow && result.meta > 0
+    ? Math.min(100, Math.round(((result.streamsExt + (ecoNeeded - ecoCap.capacityTotal)) / result.meta) * 100))
+    : null;
+  const suggestedEcoPct = suggestedExtPct != null ? 100 - suggestedExtPct : null;
 
   function isSongReady(s: Song): boolean {
     return !!s.track?.id && s.baselineStreamsDay >= 0 && (s.fonte === "orcamento" ? s.budget > 0 : s.meta > 0);
@@ -932,6 +945,9 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                     </div>
                   </div>
 
+
+
+
                   <div>
                     <Label className="text-xs">Split ecossistema: {active.splitEco}% próprio · {100 - active.splitEco}% externo</Label>
                     <Slider value={[active.splitEco]} onValueChange={([v]) => setSplitEco(v)} min={0} max={100} step={5} className="mt-2" />
@@ -939,6 +955,65 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                       <span>Próprio R$ {(pricingCosts.eco * 1000).toFixed(0)}/mil</span>
                       <span>Externo R$ {(pricingCosts.ext * 1000).toFixed(0)}/mil</span>
                     </div>
+
+                    {/* Capacidade real do eco vs. o que o split exige */}
+                    {ecoCap.loading ? (
+                      <div className="mt-3 text-[11px] text-muted-foreground flex items-center gap-2">
+                        <Loader2 className="h-3 w-3 animate-spin" /> Medindo capacidade do ecossistema…
+                      </div>
+                    ) : !active.genre ? (
+                      <div className="mt-3 rounded-md border border-border/60 bg-muted/10 px-2.5 py-2 text-[11px] text-muted-foreground">
+                        Escolha o gênero da música pra ver quanto o ecossistema aguenta.
+                      </div>
+                    ) : ecoCap.capacityTotal === 0 ? (
+                      <div className="mt-3 rounded-md border border-destructive/40 bg-destructive/5 px-2.5 py-2 text-[11px] text-destructive">
+                        Sem playlists compatíveis com "{active.genre}". Toda a meta vai precisar vir do externo.
+                      </div>
+                    ) : (
+                      <div className={cn(
+                        "mt-3 rounded-md border px-2.5 py-2 space-y-1.5",
+                        ecoOverflow
+                          ? "border-destructive/50 bg-destructive/5"
+                          : ecoUsagePct >= 90
+                            ? "border-amber-500/40 bg-amber-500/5"
+                            : "border-primary/30 bg-primary/5",
+                      )}>
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-muted-foreground">
+                            Capacidade eco · {active.genre}
+                            {ecoCap.neighborCount > 0 && (
+                              <span className="text-muted-foreground/70"> (+{ecoCap.neighborCount} vizinhos)</span>
+                            )}
+                          </span>
+                          <span className={cn(
+                            "font-medium tabular-nums",
+                            ecoOverflow ? "text-destructive" : ecoUsagePct >= 90 ? "text-amber-600 dark:text-amber-400" : "text-primary",
+                          )}>
+                            {ecoUsagePct}% usado
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-foreground/80 tabular-nums">
+                          Aguenta <strong>{formatInt(ecoCap.capacityTotal)}</strong> streams
+                          ({formatInt(ecoCap.capacityPerDay)}/dia · {ecoCap.playlistCount} playlists) ·
+                          {" "}precisa entregar <strong>{formatInt(ecoNeeded)}</strong> pelo eco
+                        </div>
+                        {ecoOverflow && suggestedEcoPct != null && (
+                          <div className="flex items-center justify-between gap-2 pt-1 border-t border-destructive/20">
+                            <span className="text-[11px] text-destructive flex items-center gap-1">
+                              <AlertTriangle className="h-3 w-3" />
+                              Faltam {formatInt(ecoNeeded - ecoCap.capacityTotal)} — sobe pro externo
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setSplitEco(suggestedEcoPct)}
+                              className="text-[11px] font-medium text-primary hover:underline whitespace-nowrap"
+                            >
+                              Aplicar {suggestedEcoPct}/{suggestedExtPct}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
