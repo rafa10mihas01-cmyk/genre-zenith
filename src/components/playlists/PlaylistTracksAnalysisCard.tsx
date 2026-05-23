@@ -89,6 +89,7 @@ type Substitution = {
     zone_fit_score: number;
     function_role: string;
     from_missing_artist: boolean;
+    trending_position?: number | null;
     suggested_position: number;
   } | null;
 };
@@ -100,6 +101,7 @@ type Suggestion = {
   count: number;
   popularity?: number | null;
   from_missing_artist?: boolean;
+  trending_position?: number | null;
   target_zone?: Zone;
   target_zone_label?: string;
   function_role?: string;
@@ -381,6 +383,11 @@ export function PlaylistTracksAnalysisCard({ managedId }: { managedId: string })
                   </div>
                   <div className="text-xs font-medium text-foreground/90 truncate flex items-center gap-1.5">
                     {s.candidate!.nome}
+                    {s.candidate!.trending_position != null && (
+                      <Badge variant="outline" className="text-[9px] h-4 px-1 border-primary/40 text-primary bg-primary/5">
+                        🔥 #{s.candidate!.trending_position} Top 200
+                      </Badge>
+                    )}
                     {s.candidate!.from_missing_artist && (
                       <Badge variant="outline" className="text-[9px] h-4 px-1 border-warning/40 text-warning bg-warning/5">
                         artista faltando
@@ -433,6 +440,11 @@ export function PlaylistTracksAnalysisCard({ managedId }: { managedId: string })
                     <td className="py-2 pr-2 min-w-[180px]">
                       <div className="font-medium text-foreground/90 truncate max-w-[260px] flex items-center gap-1.5">
                         {s.nome}
+                        {s.trending_position != null && (
+                          <Badge variant="outline" className="text-[9px] h-4 px-1 border-primary/40 text-primary bg-primary/5">
+                            🔥 #{s.trending_position}
+                          </Badge>
+                        )}
                         {s.from_missing_artist && (
                           <Badge variant="outline" className="text-[9px] h-4 px-1 border-warning/40 text-warning bg-warning/5">
                             artista faltando

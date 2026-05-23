@@ -903,6 +903,59 @@ Deno.serve(async (req) => {
       .sort((a, b) => b.count - a.count)
       .slice(0, Math.max(120, N_SUGGEST * 2));
 
+    // 7.a.bis) TRENDING SIGNAL — cruza candidatos com Top 200 BR enriquecido.
+    //   - Marca cada candidato existente com a posição no chart (boost de score)
+    //   - Injeta tracks do Top 50 BR que ainda não estão na lista, DESDE que o
+    //     artista já apareça no pool do nicho (gate de gênero — evita poluir
+    //     uma playlist de samba com funk só porque tá no chart).
+    const trendingMap = new Map<string, { position: number; popularity: number | null; cover: string | null; artist_id: string | null }>();
+    try {
+      const { data: chartRows } = await supabase
+        .from("raw_chart_daily")
+        .select("position, spotify_track_id, popularity, cover_url, spotify_artist_id, artist, track")
+        .eq("chart_name", "top200_br")
+        .gte("chart_date", new Date(Date.now() - 3 * 86400_000).toISOString().slice(0, 10))
+        .order("chart_date", { ascending: false })
+        .order("position", { ascending: true })
+        .limit(200);
+      const seenChart = new Set<string>();
+      for (const row of chartRows ?? []) {
+        if (!row.spotify_track_id || seenChart.has(row.spotify_track_id)) continue;
+        seenChart.add(row.spotify_track_id);
+        trendingMap.set(row.spotify_track_id, {
+          position: row.position,
+          popularity: row.popularity ?? null,
+          cover: row.cover_url ?? null,
+          artist_id: row.spotify_artist_id ?? null,
+        });
+      }
+
+      // Injeta tracks do Top 50 ainda ausentes — gate por presença de artista no nicho
+      const nicheArtists = new Set<string>();
+      for (const v of genreRecurrence.values()) {
+        const main = String(v.artist_name ?? "").split(",")[0].trim().toLowerCase();
+        if (main) nicheArtists.add(main);
+      }
+      const existingIds = new Set(rawCandidates.map((c) => c.id));
+      let injected = 0;
+      for (const row of chartRows ?? []) {
+        if (injected >= 15) break;
+        if (!row.spotify_track_id || row.position > 50) continue;
+        if (currentIds.has(row.spotify_track_id) || existingIds.has(row.spotify_track_id)) continue;
+        const mainArtist = String(row.artist ?? "").split(",")[0].trim().toLowerCase();
+        if (!mainArtist || !nicheArtists.has(mainArtist)) continue;
+        rawCandidates.push({
+          id: row.spotify_track_id,
+          track_name: row.track ?? "—",
+          artist_name: row.artist ?? "—",
+          count: 3, // sinal de recorrência sintético (baixo, mas presente)
+        } as any);
+        existingIds.add(row.spotify_track_id);
+        injected++;
+      }
+    } catch (_e) { /* degrade — trending é bonus, não bloqueia diagnóstico */ }
+
+
     // 7.b) Busca meta Spotify dos candidatos (popularity + artista) pra calcular zone scores
     const candMeta = new Map<string, { popularity: number | null; artistPop: number | null; cover: string | null }>();
     const coverMap = new Map<string, string>();
@@ -965,6 +1018,7 @@ Deno.serve(async (req) => {
       anchor_eligible: boolean;
       target_zone: Zone;
       function_role: string;
+      trending_position: number | null;
       score: number;
     };
     const ROLE_LABEL: Record<Zone, string> = {
@@ -975,8 +1029,11 @@ Deno.serve(async (req) => {
     };
     const candidates: Candidate[] = rawCandidates.map((c) => {
       const m = candMeta.get(c.id);
-      const popularity = m?.popularity ?? null;
+      const trend = trendingMap.get(c.id) ?? null;
+      // Se o Spotify não devolveu cover (ex: track injetada via chart), usa cover do chart.
+      const popularity = m?.popularity ?? trend?.popularity ?? null;
       const artistPop = m?.artistPop ?? null;
+      const cover = m?.cover ?? trend?.cover ?? null;
       const pop = popularity ?? 0;
       const aPop = artistPop ?? 0;
       const recNorm = Math.min(100, c.count * 12);
@@ -986,14 +1043,19 @@ Deno.serve(async (req) => {
       const mainArtist = String(c.artist_name ?? "").split(",")[0].trim().toLowerCase();
       const isDominantArtist = mainArtist.length > 0 && dominantArtists.has(mainArtist);
       const dominantBoost = isDominantArtist ? 20 : 0;
-      const anchorScore  = Math.round(pop * 0.5  + aPop * 0.3  + recNorm * 0.2) + dominantBoost;
-      const premiumScore = Math.round(pop * 0.4  + recNorm * 0.35 + freshness * 0.25);
+      // Trending boost: #1-10 = +25, #11-25 = +15, #26-50 = +10, #51-200 = +5
+      const trendingBoost = trend
+        ? (trend.position <= 10 ? 25 : trend.position <= 25 ? 15 : trend.position <= 50 ? 10 : 5)
+        : 0;
+      const anchorScore  = Math.round(pop * 0.5  + aPop * 0.3  + recNorm * 0.2) + dominantBoost + trendingBoost;
+      const premiumScore = Math.round(pop * 0.4  + recNorm * 0.35 + freshness * 0.25) + trendingBoost;
       const supportScore = Math.round(recNorm * 0.5 + pop * 0.3 + stability * 0.2);
       const tailScore    = Math.round(freshness * 0.5 + Math.max(0, 60 - pop) * 0.3 + recNorm * 0.2);
       // Mesmo critério do tracksAnalysis: dominante do nicho passa com pop ≥ 55
       const anchorEligible =
         (popularity != null && popularity >= 70 && (aPop >= 70 || c.count >= 5)) ||
-        (isDominantArtist && popularity != null && popularity >= 55);
+        (isDominantArtist && popularity != null && popularity >= 55) ||
+        (trend != null && trend.position <= 25); // top 25 chart já é anchor-eligible
 
       const zonePool: { z: Zone; v: number }[] = [
         { z: "premium", v: premiumScore },
@@ -1005,10 +1067,11 @@ Deno.serve(async (req) => {
       const targetZone = zonePool[0].z;
 
       const fromMissing = !!(mainArtist && missingArtistSet.has(mainArtist));
-      // Score global combinando função + recorrência + boost de artista faltando + boost dominante
+      // Score global combinando função + recorrência + boost de artista faltando + boost dominante + trending
       const composite = Math.round(zonePool[0].v * 0.7 + recNorm * 0.3)
         + (fromMissing ? 8 : 0)
-        + (isDominantArtist ? 10 : 0);
+        + (isDominantArtist ? 10 : 0)
+        + trendingBoost;
 
       return {
         spotify_track_id: c.id,
@@ -1018,14 +1081,16 @@ Deno.serve(async (req) => {
         from_missing_artist: fromMissing,
         popularity,
         artist_popularity: artistPop,
-        cover_url: m?.cover ?? null,
+        cover_url: cover,
         zone_scores: { anchor: anchorScore, premium: premiumScore, support: supportScore, tail: tailScore },
         anchor_eligible: anchorEligible,
         target_zone: targetZone,
         function_role: ROLE_LABEL[targetZone],
+        trending_position: trend?.position ?? null,
         score: composite,
       };
     });
+
 
     // 7.d) Pareia substituições — cada faixa que SAI (remove/demote) ganha a melhor candidata
     //      que cumpre a MESMA função na zona-alvo da saída.
@@ -1065,8 +1130,10 @@ Deno.serve(async (req) => {
           zone_fit_score: pick.zone_scores[slot.slot_zone],
           function_role: pick.function_role,
           from_missing_artist: pick.from_missing_artist,
+          trending_position: pick.trending_position,
           suggested_position: slot.position, // assume a vaga liberada
         } : null,
+
       };
     });
 
@@ -1109,6 +1176,7 @@ Deno.serve(async (req) => {
           count: p.count,
           popularity: p.popularity,
           from_missing_artist: p.from_missing_artist,
+          trending_position: p.trending_position,
           target_zone: zone,
           target_zone_label: ZONE_LABELS[zone],
           function_role: p.function_role,
@@ -1117,6 +1185,7 @@ Deno.serve(async (req) => {
           fills_deficit: true,
           score: p.score,
         });
+
       }
     }
 
@@ -1137,6 +1206,7 @@ Deno.serve(async (req) => {
           count: p.count,
           popularity: p.popularity,
           from_missing_artist: p.from_missing_artist,
+          trending_position: p.trending_position,
           target_zone: p.target_zone,
           target_zone_label: ZONE_LABELS[p.target_zone],
           function_role: p.function_role,
@@ -1145,6 +1215,7 @@ Deno.serve(async (req) => {
           fills_deficit: false,
           score: p.score,
         });
+
       }
     }
 
@@ -1160,6 +1231,7 @@ Deno.serve(async (req) => {
           count: s.candidate!.recurrence_in_genre,
           popularity: s.candidate!.popularity,
           from_missing_artist: s.candidate!.from_missing_artist,
+          trending_position: s.candidate!.trending_position,
           target_zone: s.slot_zone,
           target_zone_label: s.slot_zone_label,
           function_role: s.candidate!.function_role,
@@ -1172,6 +1244,7 @@ Deno.serve(async (req) => {
           is_substitution: true,
           score: s.candidate!.zone_fit_score,
         })),
+
       ...extraSuggestions,
     ];
 
@@ -1209,6 +1282,7 @@ Deno.serve(async (req) => {
     // Adiciona contagem ao summary pra UI exibir KPI "ADICIONAR"
     (tracksSummary as any).add = tracksSuggestions.length;
     (tracksSummary as any).add_from_missing = tracksSuggestions.filter((t: any) => t.from_missing_artist).length;
+    (tracksSummary as any).add_trending = tracksSuggestions.filter((t: any) => t.trending_position != null).length;
     (tracksSummary as any).substitutions = substitutions.filter((s) => s.candidate).length;
     (tracksSummary as any).zone_deficits = deficits;
     (tracksSummary as any).zone_ideal = zoneIdeal;
