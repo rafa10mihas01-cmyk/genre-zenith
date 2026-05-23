@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -42,8 +42,10 @@ type Alloc = {
 
 export default function PlanoCampanhaPublico() {
   const { token } = useParams<{ token: string }>();
+  const navigate = useNavigate();
   const [camp, setCamp] = useState<Camp | null>(null);
   const [allocs, setAllocs] = useState<Alloc[]>([]);
+  const [trackingToken, setTrackingToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
 
@@ -65,12 +67,20 @@ export default function PlanoCampanhaPublico() {
     } else {
       setCamp((data as any).campaign);
       setAllocs((data as any).allocations ?? []);
+      setTrackingToken((data as any).tracking_token ?? null);
       setErr(null);
     }
     setLoading(false);
   }
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [token]);
+
+  // Aprovou e a campanha já virou deal → orçamento some, fica só a campanha.
+  useEffect(() => {
+    if (camp?.client_approved_at && trackingToken) {
+      navigate(`/campanha/${trackingToken}`, { replace: true });
+    }
+  }, [camp?.client_approved_at, trackingToken, navigate]);
 
   async function handleApprove() {
     if (approverName.trim().length < 2) { toast.error("Informe seu nome"); return; }
@@ -148,12 +158,21 @@ export default function PlanoCampanhaPublico() {
         </div>
 
         {isApproved ? (
-          <div className="rounded-2xl border border-primary/40 bg-primary/5 p-4 mb-6 flex items-start gap-3 print:hidden">
-            <CheckCircle2 className="h-5 w-5 text-primary mt-0.5 shrink-0" />
-            <div>
-              <div className="font-semibold">Aprovado por {camp.client_approved_by}</div>
-              <div className="text-xs text-muted-foreground">em {new Date(camp.client_approved_at!).toLocaleString("pt-BR")}</div>
+          <div className="rounded-2xl border border-primary/40 bg-primary/5 p-4 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 print:hidden">
+            <div className="flex items-start gap-3">
+              <CheckCircle2 className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+              <div>
+                <div className="font-semibold">Aprovado por {camp.client_approved_by}</div>
+                <div className="text-xs text-muted-foreground">em {new Date(camp.client_approved_at!).toLocaleString("pt-BR")}</div>
+              </div>
             </div>
+            {trackingToken ? (
+              <Button size="sm" onClick={() => navigate(`/campanha/${trackingToken}`)}>
+                Acompanhar campanha
+              </Button>
+            ) : (
+              <div className="text-xs text-muted-foreground">Campanha em preparação. O acompanhamento aparece aqui em instantes.</div>
+            )}
           </div>
         ) : isRejected ? (
           <div className="rounded-2xl border border-amber-500/40 bg-amber-500/5 p-4 mb-6 print:hidden">
