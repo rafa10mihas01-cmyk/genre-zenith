@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatBRL, formatInt } from "@/lib/campaignEngine";
 import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
 import { ExternalPackageEditor } from "@/components/campanhas/ExternalPackageEditor";
@@ -494,20 +495,29 @@ export default function CampanhaExecucao() {
           ),
 
           playlists: (
-            <div className="space-y-6">
-              <PlaylistsGrid
-                allocations={allocs}
-                snapshots={snaps}
-                proofThumbs={proofs.map(p => ({
-                  playlist_id: p.playlist_id,
-                  screenshot_url: p.screenshot_url,
-                  captured_at: p.captured_at,
-                }))}
-                positions={ecoPositionByAllocation}
-                mode="internal"
-              />
-              <ExternalPackageEditor campaignId={camp.id} snapshot={snapshot} onChanged={() => setPlanRefreshKey(k => k + 1)} />
-            </div>
+            <Tabs defaultValue="interno" className="space-y-4">
+              <TabsList>
+                <TabsTrigger value="interno">Interno ({allocs.length})</TabsTrigger>
+                <TabsTrigger value="externo">Externo</TabsTrigger>
+              </TabsList>
+              <TabsContent value="interno" className="mt-0">
+                <PlaylistsGrid
+                  allocations={allocs}
+                  snapshots={snaps}
+                  proofThumbs={proofs.map(p => ({
+                    playlist_id: p.playlist_id,
+                    screenshot_url: p.screenshot_url,
+                    captured_at: p.captured_at,
+                  }))}
+                  positions={ecoPositionByAllocation}
+                  mode="internal"
+                  flat
+                />
+              </TabsContent>
+              <TabsContent value="externo" className="mt-0">
+                <ExternalPackageEditor campaignId={camp.id} snapshot={snapshot} onChanged={() => setPlanRefreshKey(k => k + 1)} />
+              </TabsContent>
+            </Tabs>
           ),
           curve: (
             <div className="space-y-6">

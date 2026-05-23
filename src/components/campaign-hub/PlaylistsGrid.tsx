@@ -26,6 +26,7 @@ type Props = {
   proofThumbs?: ProofThumb[];
   positions?: Map<string, number>;
   mode: "internal" | "client";
+  flat?: boolean;
 };
 
 type Group = "active" | "pending" | "paused";
@@ -36,7 +37,7 @@ const GROUP_LABEL: Record<Group, string> = {
   paused: "Pausadas",
 };
 
-export function PlaylistsGrid({ allocations, snapshots, proofThumbs = [], positions, mode }: Props) {
+export function PlaylistsGrid({ allocations, snapshots, proofThumbs = [], positions, mode, flat = false }: Props) {
   const latestSnap = useMemo(() => {
     const m = new Map<string, EcoSnap>();
     for (const s of snapshots) {
@@ -83,6 +84,26 @@ export function PlaylistsGrid({ allocations, snapshots, proofThumbs = [], positi
     );
   }
 
+
+  if (flat) {
+    const sorted = [...allocations].sort(
+      (x, y) => (latestSnap.get(y.managed_playlist_id)?.plays_28d ?? 0) - (latestSnap.get(x.managed_playlist_id)?.plays_28d ?? 0),
+    );
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {sorted.map((a) => (
+          <PlaylistCard
+            key={a.id}
+            alloc={a}
+            snap={latestSnap.get(a.managed_playlist_id)}
+            thumb={latestThumb.get(a.managed_playlist_id)}
+            position={positions?.get(a.id)}
+            mode={mode}
+          />
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
