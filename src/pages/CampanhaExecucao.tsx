@@ -210,22 +210,32 @@ export default function CampanhaExecucao() {
         lastUpdateAt={lastUpdateAt}
         slots={{
           overview: (
-            <OverviewTab
-              snapshot={snapshot}
-              delivered={delivered}
-              daysElapsed={daysElapsed}
-              showFinance={true}
-              allocations={allocs}
-              snapshots={snaps}
-              proofs={proofs.map(p => ({
-                id: p.id,
-                captured_at: p.captured_at,
-                playlist_name: p.playlist_name,
-                screenshot_url: p.screenshot_url,
-                delta_plays: p.plays_24h ?? null,
-              }))}
-              onJumpTab={(t) => setTab(t)}
-            />
+            <div className="space-y-6">
+              {camp.public_plan_token && (
+                <ShareLinkCard
+                  token={camp.public_plan_token}
+                  trackName={camp.track_name}
+                  artist={camp.artist}
+                  approved={!!camp.client_approved_at}
+                />
+              )}
+              <OverviewTab
+                snapshot={snapshot}
+                delivered={delivered}
+                daysElapsed={daysElapsed}
+                showFinance={true}
+                allocations={allocs}
+                snapshots={snaps}
+                proofs={proofs.map(p => ({
+                  id: p.id,
+                  captured_at: p.captured_at,
+                  playlist_name: p.playlist_name,
+                  screenshot_url: p.screenshot_url,
+                  delta_plays: p.plays_24h ?? null,
+                }))}
+                onJumpTab={(t) => setTab(t)}
+              />
+            </div>
           ),
 
           playlists: (
