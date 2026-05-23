@@ -209,6 +209,18 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
     meta: effectiveMeta, days: active.days, modo: active.modo, perfil: active.perfil, splitEcoPct: active.splitEco,
   }, pricingCosts), [effectiveMeta, active.days, active.modo, active.perfil, active.splitEco, pricingCosts]);
 
+  // Capacidade real do ecossistema filtrada por gênero da música ativa.
+  const ecoCap = useEcosystemCapacity(active.genre, active.days);
+  const ecoNeeded = result.streamsEco;
+  const ecoUsagePct = ecoCap.capacityTotal > 0
+    ? Math.round((ecoNeeded / ecoCap.capacityTotal) * 100)
+    : 0;
+  const ecoOverflow = ecoNeeded > ecoCap.capacityTotal && ecoCap.capacityTotal > 0;
+  const suggestedExtPct = ecoOverflow && result.meta > 0
+    ? Math.min(100, Math.round(((result.streamsExt + (ecoNeeded - ecoCap.capacityTotal)) / result.meta) * 100))
+    : null;
+  const suggestedEcoPct = suggestedExtPct != null ? 100 - suggestedExtPct : null;
+
   function isSongReady(s: Song): boolean {
     return !!s.track?.id && s.baselineStreamsDay >= 0 && (s.fonte === "orcamento" ? s.budget > 0 : s.meta > 0);
   }
