@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { POSITION_PCT } from "@/lib/campaignOperationalPlan";
+
 
 export interface EcosystemCapacity {
   loading: boolean;
