@@ -904,7 +904,11 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
             aria-label="Sugerir gêneros via IA"
           >
             <Sparkles className={cn("h-4 w-4", suggesting && "animate-pulse")} />
-            <span className="hidden sm:inline">{suggesting ? "Sugerindo…" : `Sugerir gêneros (${missingGenreCount})`}</span>
+            <span className="hidden sm:inline">
+              {suggesting
+                ? (suggestProgress ? `Sugerindo… ${suggestProgress.done}/${suggestProgress.total}` : "Sugerindo…")
+                : `Sugerir gêneros (${missingGenreCount})`}
+            </span>
           </Button>
         )}
         <div className="sm:ml-auto flex items-center gap-1.5 shrink-0">
