@@ -378,6 +378,14 @@ function CampaignRow({ c }: { c: Campaign }) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" onClick={stop}>
+            {clientUrl && (
+              <>
+                <DropdownMenuItem onSelect={() => copyClientLink()}>
+                  <Link2 className="h-4 w-4 mr-2" /> Copiar link do cliente
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+              </>
+            )}
             {isDraftReady && (
               <>
                 <DropdownMenuItem onSelect={() => approveCampaign()}>
