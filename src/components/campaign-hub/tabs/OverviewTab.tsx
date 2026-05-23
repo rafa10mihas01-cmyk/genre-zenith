@@ -362,6 +362,45 @@ function Kpi({ label, value, sub, tone, compact }: { label: string; value: strin
   );
 }
 
+function SplitRow({
+  tone, label, metaTotal, metaPct, deliveredTotal, perDay,
+}: {
+  tone: "eco" | "ext";
+  label: string;
+  metaTotal: number;
+  metaPct: number;
+  deliveredTotal: number;
+  perDay: number;
+}) {
+  const pct = metaTotal > 0 ? Math.min(100, Math.round((deliveredTotal / metaTotal) * 100)) : 0;
+  const dotClass = tone === "eco" ? "bg-primary" : "bg-[hsl(265_60%_60%)]";
+  const barClass = tone === "eco" ? "bg-primary" : "bg-[hsl(265_60%_60%)]";
+  return (
+    <div className="rounded-lg border border-border/70 px-4 py-3">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <span className={cn("h-2 w-2 rounded-full", dotClass)} />
+          <span className="text-xs font-medium">{label}</span>
+          <span className="text-[10px] text-muted-foreground tabular-nums">{metaPct}%</span>
+        </div>
+        <span className="text-[11px] text-muted-foreground tabular-nums">
+          {formatInt(perDay)}/dia
+        </span>
+      </div>
+      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+        <div className={cn("h-full", barClass)} style={{ width: `${pct}%` }} />
+      </div>
+      <div className="flex items-baseline justify-between mt-1.5 text-[11px] tabular-nums">
+        <span className="text-muted-foreground">
+          <span className="text-foreground font-medium">{formatInt(deliveredTotal)}</span>
+          {" "}/ {formatInt(metaTotal)}
+        </span>
+        <span className="text-muted-foreground">{pct}%</span>
+      </div>
+    </div>
+  );
+}
+
 function DeltaInline({ value }: { value: number | null }) {
   if (value == null || value === 0) {
     return <span className="text-[10px] text-muted-foreground inline-flex items-center gap-0.5 shrink-0 tabular-nums"><Minus className="h-2.5 w-2.5" />—</span>;
