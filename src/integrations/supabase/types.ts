@@ -5757,11 +5757,14 @@ export type Database = {
       }
       raw_chart_daily: {
         Row: {
+          album_name: string | null
           artist: string | null
           captured_at: string
           chart_date: string
           chart_name: string
+          cover_url: string | null
           id: string
+          popularity: number | null
           position: number
           source: string
           spotify_artist_id: string | null
@@ -5771,11 +5774,14 @@ export type Database = {
           track: string | null
         }
         Insert: {
+          album_name?: string | null
           artist?: string | null
           captured_at?: string
           chart_date: string
           chart_name?: string
+          cover_url?: string | null
           id?: string
+          popularity?: number | null
           position: number
           source?: string
           spotify_artist_id?: string | null
@@ -5785,11 +5791,14 @@ export type Database = {
           track?: string | null
         }
         Update: {
+          album_name?: string | null
           artist?: string | null
           captured_at?: string
           chart_date?: string
           chart_name?: string
+          cover_url?: string | null
           id?: string
+          popularity?: number | null
           position?: number
           source?: string
           spotify_artist_id?: string | null
