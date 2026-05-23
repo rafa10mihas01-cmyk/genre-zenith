@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { StatusDot } from "@/components/ui/status-dot";
 import { Plus, RefreshCw, Target, ListChecks, Calculator, Megaphone, CheckCircle2, Percent, MoreHorizontal, Pause, Play, Archive, Trash2, Handshake, Link2, Copy, Check, Clock, MessageSquareWarning } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { PUBLIC_DOMAIN } from "@/lib/curatorPublicUrl";
 import { Calculadora } from "@/components/operacao/calculadora/Calculadora";
 import { KpiBig } from "@/components/KpiBig";
 import { cn } from "@/lib/utils";
