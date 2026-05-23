@@ -51,7 +51,7 @@ export function CampaignFullPlanCard({
   track = null,
 }: Props) {
   const [showZeros, setShowZeros] = useState(false);
-  const [mode, setMode] = useState<"diario" | "acumulado">("diario");
+  const [mode, setMode] = useState<"diario" | "acumulado">("acumulado");
   const [copied, setCopied] = useState(false);
 
   function copyShareLink() {
