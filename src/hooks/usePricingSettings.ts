@@ -1,8 +1,7 @@
-// Hook centralizado de pricing: custos por stream interno/externo,
-// preço de venda sugerido e margem alvo. Singleton por usuário (1 linha em
-// pricing_settings). Se ainda não existir, retorna os defaults do engine
-// (COST_PER_STREAM) — código antigo continua funcionando sem quebrar.
-import { useEffect } from "react";
+// Hook centralizado de pricing.
+// Custos: operacional (cost_per_stream_*) vs valor de mercado equivalente
+// (market_per_stream_*). Preço de venda + margem alvo.
+// Singleton por usuário (1 linha em pricing_settings).
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { COST_PER_STREAM, type CostPerStream } from "@/lib/campaignEngine";
@@ -10,6 +9,8 @@ import { COST_PER_STREAM, type CostPerStream } from "@/lib/campaignEngine";
 export type PricingSettings = {
   cost_per_stream_eco: number;
   cost_per_stream_ext: number;
+  market_per_stream_eco: number;
+  market_per_stream_ext: number;
   price_per_stream_sell: number;
   target_margin_pct: number;
 };
@@ -17,6 +18,8 @@ export type PricingSettings = {
 const DEFAULTS: PricingSettings = {
   cost_per_stream_eco: COST_PER_STREAM.eco,
   cost_per_stream_ext: COST_PER_STREAM.ext,
+  market_per_stream_eco: 0.028,
+  market_per_stream_ext: 0.035,
   price_per_stream_sell: 0.08,
   target_margin_pct: 50,
 };
@@ -38,19 +41,21 @@ export function usePricingSettings() {
       if (error) throw error;
 
       if (!data) {
-        // cria com defaults na primeira leitura
         const { data: created } = await supabase
           .from("pricing_settings")
           .insert({ user_id: user.id, ...DEFAULTS })
           .select("*")
           .maybeSingle();
-        return created ?? DEFAULTS;
+        return (created as any) ?? DEFAULTS;
       }
+      const d = data as any;
       return {
-        cost_per_stream_eco: Number(data.cost_per_stream_eco),
-        cost_per_stream_ext: Number(data.cost_per_stream_ext),
-        price_per_stream_sell: Number(data.price_per_stream_sell),
-        target_margin_pct: Number(data.target_margin_pct),
+        cost_per_stream_eco: Number(d.cost_per_stream_eco),
+        cost_per_stream_ext: Number(d.cost_per_stream_ext),
+        market_per_stream_eco: Number(d.market_per_stream_eco ?? DEFAULTS.market_per_stream_eco),
+        market_per_stream_ext: Number(d.market_per_stream_ext ?? DEFAULTS.market_per_stream_ext),
+        price_per_stream_sell: Number(d.price_per_stream_sell),
+        target_margin_pct: Number(d.target_margin_pct),
       };
     },
     staleTime: 5 * 60_000,
