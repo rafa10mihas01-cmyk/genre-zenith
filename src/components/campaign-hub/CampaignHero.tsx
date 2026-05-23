@@ -148,6 +148,7 @@ export function CampaignHero({ camp, mode, delivered = 0, goal = 0, daysElapsed 
                   </PopoverContent>
                 </Popover>
               )}
+              {extraActions}
             </>
           )}
           {mode === "client" && camp.spotify_track_url && (
