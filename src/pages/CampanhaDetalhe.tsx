@@ -229,7 +229,7 @@ function Kpi({ label, value, sub }: { label: string; value: string; sub?: string
 
 function ClientApprovalCard({ camp }: { camp: Campaign }) {
   const token = camp.public_plan_token;
-  const url = token ? `${window.location.origin}/p/plano/${token}` : null;
+  const url = token ? `${PUBLIC_DOMAIN}/p/plano/${token}` : null;
   const isApproved = !!camp.client_approved_at;
   const isRejected = !!camp.client_rejected_at && !isApproved;
 
