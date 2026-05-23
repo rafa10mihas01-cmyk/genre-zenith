@@ -119,7 +119,7 @@ export default function CampanhaExecucao() {
     const [{ data: c }, { data: a }, { data: s }, { data: pkg }] = await Promise.all([
       supabase
         .from("campaigns")
-        .select("id, deal_id, track_name, artist, cover_url, status, deadline, started_at, simulation_snapshot, snapshot_locked_at, eco_dispatched_at, engagement_multiplier, public_plan_token, spotify_track_id, spotify_track_url, goal_plays, created_by, total_delivered, client_approved_at")
+        .select("id, deal_id, track_name, artist, cover_url, status, deadline, started_at, simulation_snapshot, snapshot_locked_at, eco_dispatched_at, engagement_multiplier, public_plan_token, spotify_track_id, spotify_track_url, goal_plays, created_by, total_delivered, client_approved_at, split_locked_at, locked_eco_streams, eco_max_pct")
         .eq("id", id)
         .maybeSingle(),
       supabase
@@ -338,6 +338,38 @@ export default function CampanhaExecucao() {
     }
   };
 
+  const handleLockSplit = async (ecoStreams: number) => {
+    if (!camp) return;
+    try {
+      const lockedAt = new Date().toISOString();
+      const { error } = await supabase
+        .from("campaigns")
+        .update({ split_locked_at: lockedAt, locked_eco_streams: Math.round(ecoStreams) })
+        .eq("id", camp.id);
+      if (error) throw error;
+      setCamp({ ...camp, split_locked_at: lockedAt, locked_eco_streams: Math.round(ecoStreams) });
+      toast.success("Split eco/externo travado");
+    } catch (e: unknown) {
+      toast.error(getErrorMessage(e, "Falha ao travar split"));
+    }
+  };
+
+  const handleUnlockSplit = async () => {
+    if (!camp) return;
+    try {
+      const { error } = await supabase
+        .from("campaigns")
+        .update({ split_locked_at: null, locked_eco_streams: null })
+        .eq("id", camp.id);
+      if (error) throw error;
+      setCamp({ ...camp, split_locked_at: null, locked_eco_streams: null });
+      toast.success("Split destravado — recalculando automaticamente");
+    } catch (e: unknown) {
+      toast.error(getErrorMessage(e, "Falha ao destravar split"));
+    }
+  };
+
+
   const ecoPositionByAllocation = useMemo(() => {
     if (!snapshot) return new Map<string, number>();
     return distributeEcoPositions(
@@ -484,6 +516,12 @@ export default function CampanhaExecucao() {
                   delta_plays: p.plays_24h ?? null,
                 }))}
                 onJumpTab={(t) => setTab(t)}
+                splitLockedAt={camp.split_locked_at ?? null}
+                lockedEcoStreams={camp.locked_eco_streams ?? null}
+                ecoMaxPct={camp.eco_max_pct ?? 70}
+                canManageSplit={true}
+                onLockSplit={handleLockSplit}
+                onUnlockSplit={handleUnlockSplit}
               />
               <CampaignMonitoring
                 campaignId={camp.id}
