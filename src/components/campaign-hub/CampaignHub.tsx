@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LayoutDashboard, ListMusic, LineChart, Wallet, ScrollText, Network } from "lucide-react";
+import { LayoutDashboard, ListMusic, LineChart, Wallet, ScrollText, Network, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CampaignHero } from "./CampaignHero";
 import type { CampaignHubCampaign, CampaignHubMode, CampaignHubTabId } from "./types";
@@ -33,10 +33,11 @@ export function CampaignHub({
 }: Props) {
   const tabs: TabDef[] = [
     { id: "overview",  label: "Visão geral",  icon: LayoutDashboard, content: slots.overview  ?? null },
-    { id: "playlists", label: "Playlists",    icon: ListMusic,       content: slots.playlists ?? null, internalOnly: true },
-    { id: "curve",     label: "Distribuição", icon: LineChart,       content: slots.curve     ?? null, internalOnly: true },
+    { id: "playlists", label: "Playlists",    icon: ListMusic,       content: slots.playlists ?? null },
+    { id: "curve",     label: "Distribuição", icon: LineChart,       content: slots.curve     ?? null },
     { id: "operacao",  label: "Entregas",     icon: Network,         content: slots.operacao  ?? null },
-    
+    { id: "proofs",    label: "Provas",       icon: ScrollText,      content: slots.proofs    ?? null },
+    { id: "upload",    label: "Importar",     icon: Upload,          content: slots.upload    ?? null },
     { id: "finance",   label: "Financeiro",   icon: Wallet,          content: slots.finance   ?? null, internalOnly: true },
     { id: "logs",      label: "Logs",         icon: ScrollText,      content: slots.logs      ?? null, internalOnly: true },
   ];
