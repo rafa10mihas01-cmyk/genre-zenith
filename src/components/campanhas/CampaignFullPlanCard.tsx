@@ -87,7 +87,7 @@ export function CampaignFullPlanCard({
   );
 
   const plans = useMemo<DailyPlaylistPlan[]>(
-    () => buildEcoPlaylistPlan(snapshot, allocations as any, {
+    () => buildEcoPlaylistPlan(snapshot, allocations, {
       engagementMultiplier,
       startedAt,
       positions: positionByAllocation,
