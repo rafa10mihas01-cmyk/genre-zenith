@@ -534,11 +534,15 @@ Deno.serve(async (req) => {
 
     // Modo batch (cron)
     if (body?.batch === true) {
-      const { data: list, error: lErr } = await supabase
-        .from("playlists")
-        .select("id")
-        .eq("ownership", "own");
-      if (lErr) throw new Error(lErr.message);
+      const { data: managedRows, error: mErr } = await supabase
+        .from("managed_playlists")
+        .select("id, canonical_playlist_id, spotify_playlist_id, archived_at")
+        .is("archived_at", null);
+      if (mErr) throw new Error(mErr.message);
+
+      const list = (managedRows ?? []).map((row: any) => ({
+        id: row.canonical_playlist_id ?? row.id,
+      }));
 
       const limit = Math.min(body?.limit ?? 200, 500);
       const subset = (list ?? []).slice(0, limit);
