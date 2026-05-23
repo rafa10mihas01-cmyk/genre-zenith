@@ -34,13 +34,23 @@ type Props = {
   snapshots?: EcoSnap[];
   proofs?: ProofPreview[];
   onJumpTab?: (tab: "playlists" | "proofs" | "curve" | "finance") => void;
+  // Rebalanceamento eco/ext em runtime
+  splitLockedAt?: string | null;
+  lockedEcoStreams?: number | null;
+  ecoMaxPct?: number | null;
+  canManageSplit?: boolean;
+  onLockSplit?: (ecoStreams: number) => void | Promise<void>;
+  onUnlockSplit?: () => void | Promise<void>;
 };
 
 export function OverviewTab({
   snapshot, delivered, daysElapsed, showFinance, hideDeliveryPlan = false, hideCurveShortcut = false,
   allocations = [], snapshots = [], proofs = [], onJumpTab,
+  splitLockedAt = null, lockedEcoStreams = null, ecoMaxPct = 70,
+  canManageSplit = false, onLockSplit, onUnlockSplit,
 }: Props) {
   const [planOpen, setPlanOpen] = useState(false);
+  const [savingLock, setSavingLock] = useState(false);
   const pct = snapshot.meta > 0 ? Math.min(100, Math.round((delivered / snapshot.meta) * 100)) : 0;
   const plannedToDate = snapshot.curva.slice(0, daysElapsed).reduce((s, p) => s + p.streamsDay, 0);
   const adherence = plannedToDate > 0 ? Math.round((delivered / plannedToDate) * 100) : 0;
@@ -58,13 +68,43 @@ export function OverviewTab({
     .reduce((acc, s) => acc + Number(s.plays_28d ?? s.plays_7d ?? 0), 0);
   const ecoDelivered = Math.min(ecoDeliveredRaw, delivered);
   const extDelivered = Math.max(0, delivered - ecoDelivered);
-  const ecoMetaPct = snapshot.meta > 0 ? Math.round((snapshot.streamsEco / snapshot.meta) * 100) : 0;
-  const extMetaPct = 100 - ecoMetaPct;
+
+  // ---- Split EFETIVO (live ou travado) ----
+  const isLocked = !!splitLockedAt;
+  const maxPct = Math.max(0, Math.min(100, ecoMaxPct ?? 70));
+  const ecoCeiling = Math.floor(snapshot.meta * (maxPct / 100));
+
+  // Capacidade ECO restante = soma(followers) × dias restantes (proxy plays/dia = followers)
+  const ecoCapacityPerDay = allocations
+    .filter(a => a.status === "active" || a.status === "dispatched" || a.status === "pending" || a.status === "done")
+    .reduce((s, a) => s + (a.managed_playlists?.followers ?? 0), 0);
+  const ecoCapacityRemaining = ecoCapacityPerDay * daysRemaining;
+  const ecoTargetLive = Math.min(ecoCeiling, ecoDelivered + ecoCapacityRemaining);
+
+  const ecoTarget = isLocked
+    ? Math.max(0, Math.min(snapshot.meta, lockedEcoStreams ?? snapshot.streamsEco))
+    : ecoTargetLive;
+  const extTarget = Math.max(0, snapshot.meta - ecoTarget);
+  const ecoEffectivePct = snapshot.meta > 0 ? Math.round((ecoTarget / snapshot.meta) * 100) : 0;
+  const extEffectivePct = 100 - ecoEffectivePct;
+  const splitDiverged = Math.abs(ecoTarget - snapshot.streamsEco) > Math.max(1000, snapshot.meta * 0.005);
+  const hitCeiling = !isLocked && ecoTargetLive >= ecoCeiling && ecoCapacityRemaining + ecoDelivered > ecoCeiling;
 
   const today = snapshot.curva[Math.max(0, Math.min(snapshot.curva.length - 1, daysElapsed - 1))];
   const todayTotal = today?.streamsDay ?? 0;
-  const todayEco = today?.streamsEcoDay ?? Math.round(todayTotal * (snapshot.splitEcoPct / 100));
+  const todayEco = Math.round(todayTotal * (ecoEffectivePct / 100));
   const todayExt = Math.max(0, todayTotal - todayEco);
+
+  const handleLock = async () => {
+    if (!onLockSplit) return;
+    setSavingLock(true);
+    try { await onLockSplit(ecoTarget); } finally { setSavingLock(false); }
+  };
+  const handleUnlock = async () => {
+    if (!onUnlockSplit) return;
+    setSavingLock(true);
+    try { await onUnlockSplit(); } finally { setSavingLock(false); }
+  };
 
   // Top 5 playlists no ar por entrega
   const topPlaylists = allocations
