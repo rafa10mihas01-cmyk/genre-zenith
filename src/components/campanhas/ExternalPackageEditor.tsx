@@ -54,11 +54,14 @@ export function ExternalPackageEditor({
   const [loading, setLoading] = useState(true);
   const [confirming, setConfirming] = useState(false);
 
+  const [candidates, setCandidates] = useState<CuratorCandidate[]>([]);
+  const [addOpen, setAddOpen] = useState(false);
+
   async function load() {
     setLoading(true);
     try {
       const { packageId } = await ensureExternalPackageDraft(campaignId, snapshot);
-      const [{ data: p }, { data: its }] = await Promise.all([
+      const [{ data: p }, { data: its }, cand] = await Promise.all([
         supabase
           .from("campaign_external_packages")
           .select("id, status, target_streams, target_cost, confirmed_at")
@@ -69,9 +72,11 @@ export function ExternalPackageEditor({
           .select("id, curator_id, assigned_streams, assigned_cost, cost_per_stream, curator_deal_id, curators(name, contact)")
           .eq("package_id", packageId)
           .order("assigned_streams", { ascending: false }),
+        fetchCuratorCandidates(),
       ]);
       setPkg(p as any);
       setItems((its ?? []) as any);
+      setCandidates(cand);
       onChanged?.();
     } catch (e: any) {
       toast({ title: "Erro ao carregar pacote", description: e.message ?? String(e), variant: "destructive" });
@@ -81,6 +86,22 @@ export function ExternalPackageEditor({
   }
 
   useEffect(() => { load(); }, [campaignId]);
+
+  async function handleAdd(curator: CuratorCandidate) {
+    if (!pkg) return;
+    setAddOpen(false);
+    try {
+      await addPackageItem({
+        packageId: pkg.id,
+        curatorId: curator.id,
+        assignedStreams: 0,
+        costPerStream: curator.cost_per_stream,
+      });
+      await load();
+    } catch (e: any) {
+      toast({ title: "Erro ao adicionar curador", description: e.message, variant: "destructive" });
+    }
+  }
 
   async function handleStreamsChange(item: ItemRow, value: number) {
     setItems(prev => prev.map(i => i.id === item.id
