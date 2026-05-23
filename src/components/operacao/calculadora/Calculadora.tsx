@@ -285,14 +285,17 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
     }
   }
 
-  async function closeOne(song: Song): Promise<{ ok: boolean; campaignId?: string; error?: string }> {
+  async function closeOne(song: Song): Promise<{ ok: boolean; campaignId?: string; error?: string; shortfall?: { capacity: number; missing: number; suggestedExtPct: number } }> {
     if (!song.track?.id) return { ok: false, error: "Sem música carregada" };
     try {
-      const { data: playlists, error } = await supabase
+      const { data: playlistsRaw, error } = await supabase
         .from("managed_playlists")
         .select("id, followers, genre_id")
         .is("archived_at", null);
       if (error) throw error;
+
+      // Piso de qualidade: ≥ 100 saves
+      const playlists = (playlistsRaw ?? []).filter(p => (p.followers ?? 0) >= 100);
 
       const effMeta = song.fonte === "orcamento" ? reverseFromBudget(song.budget, song.splitEco, pricingCosts) : song.meta;
       const r = calcCampaign({ meta: effMeta, days: song.days, modo: song.modo, perfil: song.perfil, splitEcoPct: song.splitEco }, pricingCosts);
@@ -317,20 +320,19 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
       );
 
       // Filtra playlists por afinidade de gênero (núcleo + vizinhas ≥ 0.70, teto 30% mistura, corte duro 0.50)
-      const allPlaylists = (playlists ?? []) as { id: string; followers: number | null; genre_id: string | null }[];
+      const allPlaylists = playlists as { id: string; followers: number | null; genre_id: string | null }[];
       let coreSlice = allPlaylists;
       let neighborSlice: typeof allPlaylists = [];
       let neighborBudget = 0;
       let coreBudget = r.streamsEco;
 
       if (song.genre) {
-        // Resolve slug do gênero da campanha
         const slug = song.genre
           .toLowerCase()
           .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
           .replace(/[^a-z0-9]+/g, " ")
           .trim()
-          .split(/\s+/)[0]; // primeiro token: "rap / trap" → "rap"
+          .split(/\s+/)[0];
         const { data: gRow } = await supabase
           .from("genres")
           .select("id")
@@ -356,16 +358,25 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
             const s = affMap.get(p.genre_id) ?? 0;
             return s >= 0.7;
           });
-          // Sem núcleo → cai pra vizinhos com tudo
           if (coreSlice.length === 0 && neighborSlice.length > 0) {
             coreSlice = neighborSlice;
             neighborSlice = [];
           } else {
-            // Teto 30% pra vizinhos
             neighborBudget = neighborSlice.length > 0 ? Math.round(r.streamsEco * 0.3) : 0;
             coreBudget = r.streamsEco - neighborBudget;
           }
         }
+      }
+
+      // Capacidade total realista do eco (≈ 1 play/save/dia)
+      const sumFollowers = (list: typeof allPlaylists) => list.reduce((s, p) => s + Math.max(0, p.followers ?? 0), 0);
+      const capacity = (sumFollowers(coreSlice) + sumFollowers(neighborSlice)) * r.days;
+      let shortfall: { capacity: number; missing: number; suggestedExtPct: number } | undefined;
+      if (r.streamsEco > capacity && r.meta > 0) {
+        const missing = r.streamsEco - capacity;
+        const newExt = r.streamsExt + missing;
+        const suggestedExtPct = Math.min(100, Math.round((newExt / r.meta) * 100));
+        shortfall = { capacity, missing, suggestedExtPct };
       }
 
       const coreAllocs = planEcoAllocations(
@@ -384,7 +395,6 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
         : [];
       const allocations = [...coreAllocs, ...neighborAllocs];
 
-
       const startD = startOfDay(new Date(song.startDateISO));
       const deadlineISO = addDays(startD, r.days).toISOString().slice(0, 10);
 
@@ -396,11 +406,12 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
         curatorId: curatorId || null,
         status: "draft",
       });
-      return { ok: true, campaignId };
+      return { ok: true, campaignId, shortfall };
     } catch (e: any) {
       return { ok: false, error: e?.message ?? String(e) };
     }
   }
+
 
   async function salvarRascunhoAtiva() {
     if (!active.track?.id) {
