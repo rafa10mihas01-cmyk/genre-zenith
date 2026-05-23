@@ -43,7 +43,7 @@ export function CampaignHero({ camp, mode, delivered = 0, goal = 0, daysElapsed 
   const statusKey = camp.status ?? "draft";
 
   const clientUrl = camp.public_plan_token
-    ? `${window.location.origin}/p/plano/${camp.public_plan_token}`
+    ? `${PUBLIC_DOMAIN}/p/plano/${camp.public_plan_token}`
     : "";
 
   async function copyClientLink() {
