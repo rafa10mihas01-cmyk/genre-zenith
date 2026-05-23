@@ -147,7 +147,7 @@ async function generateEditorialCopy(ctx: {
   currentSize: number;
   competitors: { name: string }[];
 }): Promise<EditorialCopy | null> {
-  if (!LOVABLE_API_KEY) return null;
+  if (!LOVABLE_API_KEY || ctx.skipAi) return null;
 
   const keywordsInCurrent = countKeywordsInName(ctx.currentName, ctx.topKeywords);
   const preserveMode = keywordsInCurrent >= 2;
