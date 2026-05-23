@@ -60,6 +60,9 @@ export default function PlanoCampanhaPublico() {
   const [allocs, setAllocs] = useState<EcoAllocation[]>([]);
   const [snaps, setSnaps] = useState<EcoSnap[]>([]);
   const [proofs, setProofs] = useState<DeliveryProof[]>([]);
+  const [clientToken, setClientToken] = useState<string | null>(null);
+  const [lastUploadAt, setLastUploadAt] = useState<string | null>(null);
+  const [recentUploads, setRecentUploads] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [tab, setTab] = useState<CampaignHubTabId>("overview");
