@@ -10,6 +10,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { CampaignFullPlanCard } from "@/components/campanhas/CampaignFullPlanCard";
+import { ClientInvestmentCard } from "@/components/campanhas/ClientInvestmentCard";
 import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
 import { Printer, ExternalLink, CheckCircle2, MessageSquareWarning, Loader2 } from "lucide-react";
 import { NexEngineLogo } from "@/components/NexEngineLogo";
