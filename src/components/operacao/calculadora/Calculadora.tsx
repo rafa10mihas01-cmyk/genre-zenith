@@ -1342,15 +1342,22 @@ function NumberInput({
 }
 
 function Top200Picker({
-  days, currentStreamsDay = 0, onPick, onOpenList,
-}: { days: number; currentStreamsDay?: number; onPick: (streamsDay: number, position: number) => void; onOpenList: () => void }) {
-  const [pos, setPos] = useState<number | null>(null);
-  const [posStreamsDay, setPosStreamsDay] = useState<number | null>(null);
+  days, currentStreamsDay = 0, value, valueStreamsDay, valueChartDate, onPick, onOpenList,
+}: {
+  days: number;
+  currentStreamsDay?: number;
+  value?: number | null;
+  valueStreamsDay?: number | null;
+  valueChartDate?: string | null;
+  onPick: (streamsDay: number, position: number, chartDate: string) => void;
+  onOpenList: () => void;
+}) {
+  const pos = value ?? null;
+  const posStreamsDay = valueStreamsDay ?? null;
+  const chartDate = valueChartDate ?? null;
   const [loading, setLoading] = useState(false);
-  const [chartDate, setChartDate] = useState<string | null>(null);
 
   async function handlePick(p: number) {
-    setPos(p);
     setLoading(true);
     try {
       const { data: latest } = await supabase
@@ -1375,13 +1382,12 @@ function Top200Picker({
         toast({ title: `Posição ${p} sem dados`, variant: "destructive" });
         return;
       }
-      setChartDate(data.chart_date);
-      setPosStreamsDay(Number(data.streams_day));
-      onPick(Number(data.streams_day), p);
+      onPick(Number(data.streams_day), p, data.chart_date);
     } finally {
       setLoading(false);
     }
   }
+
 
   return (
     <div className="space-y-2">
