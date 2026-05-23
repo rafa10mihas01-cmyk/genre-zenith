@@ -955,8 +955,37 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                     </div>
                   </div>
 
-
-
+                  <div>
+                    <Label className="text-xs">Capacidade das playlists</Label>
+                    <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                      {ENGAGEMENT_PRESETS.map(p => (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => setEngagementMultiplier(p)}
+                          className={cn(
+                            "h-8 px-3 rounded-md text-xs font-medium tabular-nums border transition-colors",
+                            (active.engagementMultiplier ?? 30) === p
+                              ? "bg-primary text-primary-foreground border-primary"
+                              : "border-border text-muted-foreground hover:text-foreground hover:bg-elevated/60",
+                          )}
+                        >
+                          ×{p}
+                        </button>
+                      ))}
+                      <Input
+                        type="number"
+                        min={1}
+                        max={200}
+                        value={active.engagementMultiplier ?? 30}
+                        onChange={(e) => setEngagementMultiplier(Number(e.target.value))}
+                        className="h-8 w-20 text-xs tabular-nums"
+                      />
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-1.5">
+                      Ex.: 1.000 saves × {active.engagementMultiplier ?? 30} = {formatInt(1000 * (active.engagementMultiplier ?? 30))} streams/mês.
+                    </p>
+                  </div>
 
                   <div>
                     <Label className="text-xs">Split ecossistema: {active.splitEco}% próprio · {100 - active.splitEco}% externo</Label>
