@@ -32,6 +32,7 @@ export function CampaignHub({
   camp, mode, delivered, goal, daysElapsed, daysTotal, lastUpdateAt,
   tab, onTabChange, slots, hiddenTabs = [], heroExtraActions,
 }: Props) {
+  const clientAllowedTabs: CampaignHubTabId[] = ["overview", "playlists", "proofs"];
   const tabs: TabDef[] = [
     { id: "overview",  label: "Visão geral",  icon: LayoutDashboard, content: slots.overview  ?? null },
     { id: "playlists", label: "Playlists",    icon: ListMusic,       content: slots.playlists ?? null },
@@ -44,7 +45,12 @@ export function CampaignHub({
   ];
 
   // Tabs sem conteúdo são ocultas.
-  const visible = tabs.filter(t => !hiddenTabs.includes(t.id) && (mode === "internal" || !t.internalOnly) && t.content != null);
+  const visible = tabs.filter(t => {
+    if (hiddenTabs.includes(t.id)) return false;
+    if (mode === "client" && !clientAllowedTabs.includes(t.id)) return false;
+    if (mode !== "internal" && t.internalOnly) return false;
+    return t.content != null;
+  });
   const activeTab = visible.some((t) => t.id === tab) ? tab : visible[0]?.id;
 
   return (
