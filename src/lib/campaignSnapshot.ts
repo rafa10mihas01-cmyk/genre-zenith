@@ -15,6 +15,7 @@ export interface CampaignSnapshot {
     artist: string | null;
     coverUrl: string | null;
     baselineStreamsDay: number;
+    genre?: string | null;
   };
   meta: number;
   days: number;
@@ -39,6 +40,7 @@ export interface CampaignSnapshot {
 export function buildSnapshot(
   result: CampaignResult,
   music: CampaignSnapshot["music"],
+  pricing?: { clientPriceTotal?: number | null; pricePerStreamSell?: number | null },
 ): CampaignSnapshot {
   return {
     version: 1,
@@ -59,6 +61,8 @@ export function buildSnapshot(
     mediaPorDia: result.mediaPorDia,
     inercia: result.inercia,
     curva: result.curva,
+    clientPriceTotal: pricing?.clientPriceTotal ?? undefined,
+    pricePerStreamSell: pricing?.pricePerStreamSell ?? undefined,
   };
 }
 
