@@ -136,6 +136,7 @@ export function scoreTitle(opts: {
 }
 
 async function generateEditorialCopy(ctx: {
+  skipAi?: boolean;
   currentName: string;
   currentDescription: string | null;
   genreName: string | null;
@@ -266,6 +267,7 @@ Deno.serve(async (req) => {
   try {
     const body = await req.json().catch(() => ({}));
     const playlistId: string = body?.playlist_id;
+    const skipAi: boolean = body?.skip_ai === true || body?.source === "batch" || body?.source === "cron";
     if (!playlistId) return jr({ ok: false, error: "playlist_id obrigatório" }, 400);
 
     const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
@@ -1337,6 +1339,7 @@ Deno.serve(async (req) => {
     let aiError: string | null = null;
     try {
       aiCopy = await generateEditorialCopy({
+        skipAi,
         currentName: pl.name,
         currentDescription: pl.description ?? null,
         genreName: (model?.insights?.nicho_nome ?? model?.insights?.nicho ?? null) as string | null,
