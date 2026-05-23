@@ -35,7 +35,7 @@ export function CampaignHub({
     { id: "overview",  label: "Visão geral",  icon: LayoutDashboard, content: slots.overview  ?? null },
     { id: "playlists", label: "Playlists",    icon: ListMusic,       content: slots.playlists ?? null, internalOnly: true },
     { id: "curve",     label: "Distribuição", icon: LineChart,       content: slots.curve     ?? null, internalOnly: true },
-    { id: "operacao",  label: "Operação",     icon: Network,         content: slots.operacao  ?? null },
+    { id: "operacao",  label: "Entregas",     icon: Network,         content: slots.operacao  ?? null },
     
     { id: "finance",   label: "Financeiro",   icon: Wallet,          content: slots.finance   ?? null, internalOnly: true },
     { id: "logs",      label: "Logs",         icon: ScrollText,      content: slots.logs      ?? null, internalOnly: true },

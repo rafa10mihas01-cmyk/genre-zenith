@@ -58,7 +58,10 @@ const STATUS_LABEL: Record<string, string> = {
   cancelled: "Cancelado",
 };
 
+const ROW_LIMIT = 15;
+
 export function OperacaoTab({ allocations, snapshots, externalItems, totalDays, startedAt }: Props) {
+  const [expanded, setExpanded] = useState(false);
   const latestSnap = useMemo(() => {
     const m = new Map<string, EcoSnap>();
     for (const s of snapshots) if (!m.has(s.managed_playlist_id)) m.set(s.managed_playlist_id, s);
@@ -188,12 +191,28 @@ export function OperacaoTab({ allocations, snapshots, externalItems, totalDays, 
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredRows.map((r) => (
+                      {(expanded ? filteredRows : filteredRows.slice(0, ROW_LIMIT)).map((r) => (
                         <OperacaoRow key={r.key} row={r} />
                       ))}
                     </tbody>
                   </table>
                 </div>
+                {filteredRows.length > ROW_LIMIT && (
+                  <div className="border-t border-border px-4 py-2.5 flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground tabular-nums">
+                      {expanded
+                        ? `Mostrando todas (${filteredRows.length})`
+                        : `Mostrando ${ROW_LIMIT} de ${filteredRows.length}`}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setExpanded((v) => !v)}
+                      className="text-primary hover:underline font-medium"
+                    >
+                      {expanded ? "Mostrar menos" : `Ver todas (+${filteredRows.length - ROW_LIMIT})`}
+                    </button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
