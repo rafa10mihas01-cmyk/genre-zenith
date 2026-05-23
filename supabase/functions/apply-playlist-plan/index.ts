@@ -121,6 +121,28 @@ Deno.serve(async (req) => {
     }
     const addItems = suggestions.filter((s) => s.spotify_track_id).slice(0, limitAdd);
 
+    // === NET-POSITIVE ENFORCEMENT ===
+    // Fora de 'bloated', o ciclo NÃO pode terminar com saldo negativo de faixas.
+    const phase = (pl as any).lifecycle_phase ?? "seed";
+    if (action === "all" || action === "add" || action === "remove") {
+      const netChange = addItems.length - removeItems.length;
+      if (phase !== "bloated" && netChange < 0) {
+        return jr({
+          ok: false,
+          error: `BLOCKED: ciclo net-negativo (${netChange}) só permitido em fase 'bloated'. Fase atual: '${phase}'.`,
+          phase,
+          additions: addItems.length,
+          removals: removeItems.length,
+        }, 409);
+      }
+      if (phase === "bloated" && (action === "all" || action === "add")) {
+        // bloated: zera adições padrão pra forçar redução gradual
+        addItems.length = 0;
+      }
+    }
+
+
+
 
     // 3) OAuth token do dono
     let ownerId: string | null = null;
