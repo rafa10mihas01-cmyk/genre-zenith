@@ -165,22 +165,54 @@ export function OverviewTab({
             </div>
           </div>
 
+          {(splitDiverged || isLocked || hitCeiling) && (
+            <div className={cn(
+              "rounded-lg border px-3 py-2 text-xs flex items-start justify-between gap-3 flex-wrap",
+              isLocked ? "border-border/70 bg-muted/20" : "border-amber-500/30 bg-amber-500/5",
+            )}>
+              <div className="flex-1 min-w-0">
+                {isLocked ? (
+                  <span className="text-muted-foreground">
+                    Split travado em {ecoEffectivePct}% / {extEffectivePct}% (eco {formatInt(ecoTarget)} · ext {formatInt(extTarget)})
+                  </span>
+                ) : (
+                  <span className="text-foreground/90">
+                    Split recalculado: <span className="font-medium">{ecoEffectivePct}% / {extEffectivePct}%</span>{" "}
+                    <span className="text-muted-foreground">(planejado {snapshot.splitEcoPct}% / {100 - snapshot.splitEcoPct}%)</span>
+                    {hitCeiling && <span className="text-muted-foreground"> · eco travou no teto de {maxPct}%</span>}
+                  </span>
+                )}
+              </div>
+              {canManageSplit && (
+                isLocked ? (
+                  <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={handleUnlock} disabled={savingLock}>
+                    Destravar
+                  </Button>
+                ) : (
+                  <Button size="sm" variant="outline" className="h-7 text-xs" onClick={handleLock} disabled={savingLock}>
+                    Travar split atual
+                  </Button>
+                )
+              )}
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <SplitRow
               tone="eco"
               label="Ecossistema"
-              metaTotal={snapshot.streamsEco}
-              metaPct={ecoMetaPct}
+              metaTotal={ecoTarget}
+              metaPct={ecoEffectivePct}
               deliveredTotal={ecoDelivered}
-              perDay={Math.round(Math.max(0, snapshot.streamsEco - ecoDelivered) / daysRemaining)}
+              perDay={Math.round(Math.max(0, ecoTarget - ecoDelivered) / daysRemaining)}
             />
             <SplitRow
               tone="ext"
               label="Externo"
-              metaTotal={snapshot.streamsExt}
-              metaPct={extMetaPct}
+              metaTotal={extTarget}
+              metaPct={extEffectivePct}
               deliveredTotal={extDelivered}
-              perDay={Math.round(Math.max(0, snapshot.streamsExt - extDelivered) / daysRemaining)}
+              perDay={Math.round(Math.max(0, extTarget - extDelivered) / daysRemaining)}
             />
           </div>
 
