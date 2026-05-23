@@ -9,6 +9,7 @@ import { StatusDot } from "@/components/ui/status-dot";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, RefreshCw, Target, Trash2, Copy, CheckCircle2, MessageSquareWarning, Clock } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { PUBLIC_DOMAIN } from "@/lib/curatorPublicUrl";
 
 type Campaign = {
   id: string; track_name: string; artist: string | null;
