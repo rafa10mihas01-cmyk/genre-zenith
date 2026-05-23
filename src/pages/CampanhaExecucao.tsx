@@ -214,9 +214,20 @@ export default function CampanhaExecucao() {
               snapshot={snapshot}
               delivered={delivered}
               daysElapsed={daysElapsed}
-              showFinance={false}
+              showFinance={true}
+              allocations={allocs}
+              snapshots={snaps}
+              proofs={proofs.map(p => ({
+                id: p.id,
+                captured_at: p.captured_at,
+                playlist_name: p.playlist_name,
+                screenshot_url: p.screenshot_url,
+                delta_plays: p.plays_24h ?? null,
+              }))}
+              onJumpTab={(t) => setTab(t)}
             />
           ),
+
           playlists: (
             <div className="space-y-6">
               <PlaylistsGrid
