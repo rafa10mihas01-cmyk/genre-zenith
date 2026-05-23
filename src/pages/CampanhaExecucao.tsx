@@ -410,6 +410,28 @@ export default function CampanhaExecucao() {
         daysElapsed={daysElapsed}
         daysTotal={snapshot.days}
         lastUpdateAt={lastUpdateAt}
+        heroExtraActions={
+          clientToken ? (
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Upload className="h-4 w-4 mr-1.5" /> Importar
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Importar planilha de streams</DialogTitle>
+                </DialogHeader>
+                <SpreadsheetUploadCard
+                  clientToken={clientToken}
+                  lastUploadAt={lastSpreadsheetUploadAt}
+                  recentUploads={recentUploads}
+                  onUploaded={loadCampaign}
+                />
+              </DialogContent>
+            </Dialog>
+          ) : null
+        }
         slots={{
           overview: (
             <div className="space-y-6">
