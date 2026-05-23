@@ -26,6 +26,7 @@ import { OnboardingChecklist } from "@/components/playlists/cockpit/OnboardingCh
 import { SeoExperimentCard } from "@/components/playlists/cockpit/SeoExperimentCard";
 import { GenrePicker } from "@/components/playlists/cockpit/GenrePicker";
 import { GenreAffinityCard } from "@/components/playlists/cockpit/GenreAffinityCard";
+import { LifecycleRoadmapCard } from "@/components/playlists/cockpit/LifecycleRoadmapCard";
 
 
 // -------------------- types --------------------
@@ -110,6 +111,7 @@ type Props = {
   tracksCount: number;
   genreName?: string | null;
   brainScore?: number | null;
+  canonicalPlaylistId?: string | null;
   onBack?: () => void;
 };
 
@@ -187,7 +189,7 @@ function norm(s: string | null | undefined): string {
 // -------------------- main --------------------
 export function PlaylistCockpit({
   managedId, spotifyPlaylistId, spotifyUrl, playlistName, coverUrl,
-  followers, tracksCount, genreName, brainScore, onBack,
+  followers, tracksCount, genreName, brainScore, canonicalPlaylistId, onBack,
 }: Props) {
   const [diag, setDiag] = useState<Diagnosis | null>(null);
   const [liveTracksCount, setLiveTracksCount] = useState(tracksCount);
@@ -722,6 +724,12 @@ export function PlaylistCockpit({
                 </Card>
               )}
               <GenreAffinityCard managedId={managedId} />
+              {canonicalPlaylistId && (
+                <LifecycleRoadmapCard
+                  playlistId={canonicalPlaylistId}
+                  currentTracks={liveTracksCount}
+                />
+              )}
             </TabsContent>
 
 

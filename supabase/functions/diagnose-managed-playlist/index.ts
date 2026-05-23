@@ -9,6 +9,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
 import { getSpotifyToken } from "../_shared/spotify.ts";
+import { buildRoadmap, derivePhase, bloatedRemovalBudget } from "../_shared/lifecycle.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -2089,7 +2090,23 @@ Deno.serve(async (req) => {
       })
       .eq("id", pl.id);
 
-    // 9) Persiste diagnóstico
+    // === Lifecycle phase + roadmap (espelho do que brain-calc vai materializar) ===
+    const currentTracksCount = Number((pl as any).tracks_count ?? 0);
+    const benchmarkTracksDiag: number | null = (benchmark?.tracks_p50 as number | null) ?? null;
+    const { phase: lifecyclePhaseDiagRaw, ratio: ratioDiag } = derivePhase(currentTracksCount, benchmarkTracksDiag);
+    // Tenta carregar a fase persistida (que considera decline via snapshots)
+    const { data: mgdPhase } = await supabase
+      .from("managed_playlists")
+      .select("lifecycle_phase")
+      .eq("id", pl.id)
+      .maybeSingle();
+    const lifecyclePhaseDiag = ((mgdPhase as any)?.lifecycle_phase as any) ?? lifecyclePhaseDiagRaw;
+    const growthRoadmapDiag = buildRoadmap(currentTracksCount, benchmarkTracksDiag ?? 0, lifecyclePhaseDiag);
+    const bloatedBudget = lifecyclePhaseDiag === "bloated"
+      ? bloatedRemovalBudget(currentTracksCount, benchmarkTracksDiag ?? 0)
+      : null;
+
+
     const { data: diag, error: dErr } = await supabase
       .from("playlist_diagnoses")
       .insert({
@@ -2105,6 +2122,12 @@ Deno.serve(async (req) => {
         cover_suggestion: coverSuggestion,
         competitors,
         raw: {
+          // === Lifecycle / Roadmap (espelho do brain) ===
+          lifecycle_phase: lifecyclePhaseDiag,
+          benchmark_tracks: benchmarkTracksDiag,
+          ratio_to_benchmark: ratioDiag,
+          growth_roadmap: growthRoadmapDiag,
+          bloated_budget: bloatedBudget,
           model_present: !!model,
           benchmark,
           top_keywords: topKeywords,
@@ -2127,9 +2150,15 @@ Deno.serve(async (req) => {
             max_change_pct: effectivePct,
             max_change_pct_config: maxChangePctConfig,
             max_changes: maxChanges,
-            recommended_remove: recommendedRemove,
+            // Em 'bloated' o cap de remoção segue o budget editorial (25% do excesso, máx 50).
+            // Em outras fases mantém o cap normal e ZERA adições só não-conformes.
+            recommended_remove: bloatedBudget
+              ? Math.max(recommendedRemove, bloatedBudget.max_per_cycle)
+              : recommendedRemove,
             recommended_promote: recommendedPromote,
             recommended_demote: recommendedDemote,
+            recommended_add: lifecyclePhaseDiag === "bloated" ? 0 : null,
+            max_per_day: bloatedBudget?.max_per_day ?? null,
             capped_suggestions: cappedSuggestions.length,
             original_suggestions: tracksSuggestions.length,
           },

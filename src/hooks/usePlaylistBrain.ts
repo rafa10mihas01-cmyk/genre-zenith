@@ -15,6 +15,16 @@ export type BrainRecommendation = {
   reason: string;
 };
 
+export type RoadmapStep = {
+  cycle: number;
+  delta: number;
+  total: number;
+  action: "build" | "trim";
+  phase: string;
+};
+
+export type LifecyclePhase = "seed" | "growth" | "mature" | "bloated" | "decline";
+
 export type PlaylistBrain = {
   id: string;
   playlist_id: string;
@@ -38,6 +48,10 @@ export type PlaylistBrain = {
   recommendations: BrainRecommendation[];
   confidence_score: number;
   last_calculated_at: string;
+  lifecycle_phase: LifecyclePhase | null;
+  benchmark_tracks: number | null;
+  ratio_to_benchmark: number | null;
+  growth_roadmap: RoadmapStep[];
   metadata: Record<string, any>;
 };
 
