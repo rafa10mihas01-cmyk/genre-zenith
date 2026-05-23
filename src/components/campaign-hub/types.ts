@@ -33,6 +33,7 @@ export type CampaignHubCampaign = {
 
 export type CampaignHubTabId =
   | "overview"
+  | "operacao"
   | "playlists"
   | "proofs"
   | "curve"
