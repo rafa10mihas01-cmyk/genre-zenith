@@ -388,24 +388,10 @@ async function calcOne(supabase: any, playlistId: string) {
   if (benchmark && benchmark.sample_size >= 3) confidence += 15;
   confidence = Math.min(100, confidence);
 
-  // ============ LIFECYCLE PHASE (fase editorial dinâmica) ============
+  // ============ LIFECYCLE PHASE ============
   const benchmarkTracks: number | null = benchmark?.tracks_p50 ?? null;
-  let ratioToBenchmark: number | null = null;
-  let lifecyclePhase: "seed" | "growth" | "mature" | "bloated" | "decline" = "seed";
-
-  if (benchmarkTracks && benchmarkTracks > 0 && tracksCount > 0) {
-    ratioToBenchmark = Number((tracksCount / benchmarkTracks).toFixed(3));
-    if (ratioToBenchmark < 0.30) lifecyclePhase = "seed";
-    else if (ratioToBenchmark < 0.80) lifecyclePhase = "growth";
-    else if (ratioToBenchmark <= 1.20) lifecyclePhase = "mature";
-    else lifecyclePhase = "bloated";
-  } else if (tracksCount === 0) {
-    lifecyclePhase = "seed";
-  } else {
-    if (tracksCount < 30) lifecyclePhase = "seed";
-    else if (tracksCount < 80) lifecyclePhase = "growth";
-    else lifecyclePhase = "mature";
-  }
+  const { phase: phaseFromRatio, ratio: ratioToBenchmark } = derivePhase(tracksCount, benchmarkTracks);
+  let lifecyclePhase: "seed" | "growth" | "mature" | "bloated" | "decline" = phaseFromRatio;
 
   // decline sobrescreve — 2+ snapshots consecutivos de queda em followers OU tracks
   if (snapsArr.length >= 3) {
