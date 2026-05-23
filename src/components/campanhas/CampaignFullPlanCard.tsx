@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Grid3x3, Link2, Check, ExternalLink } from "lucide-react";
 import { formatInt } from "@/lib/campaignEngine";
 import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
-import { buildEcoPlaylistPlan, distributeEcoPositions, getCampaignPreferredPositions, type DailyPlaylistPlan } from "@/lib/campaignOperationalPlan";
+import { buildEcoPlaylistPlan, distributeEcoPositions, inferEcoPreferredPositions, type DailyPlaylistPlan } from "@/lib/campaignOperationalPlan";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 
@@ -70,13 +70,14 @@ export function CampaignFullPlanCard({
 
   const positionByAllocation = useMemo(
     () => {
-      const preferredSlots = getCampaignPreferredPositions(snapshot);
+      const positionInputs = allocations.map((a) => ({
+        id: a.id,
+        planned_streams: a.planned_streams,
+        followers: a.managed_playlists?.followers ?? 0,
+      }));
+      const preferredSlots = inferEcoPreferredPositions(snapshot, positionInputs, engagementMultiplier);
       return distributeEcoPositions(
-        allocations.map((a) => ({
-          id: a.id,
-          planned_streams: a.planned_streams,
-          followers: a.managed_playlists?.followers ?? 0,
-        })),
+        positionInputs,
         days,
         engagementMultiplier,
         { preferredSlots },
