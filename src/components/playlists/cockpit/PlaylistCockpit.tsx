@@ -194,6 +194,23 @@ export function PlaylistCockpit({
   const [running, setRunning] = useState(false);
   const [applying, setApplying] = useState<null | "remove" | "demote" | "promote" | "add" | "all">(null);
   const [activeTab, setActiveTab] = useState<string>("identidade");
+  const [archiving, setArchiving] = useState(false);
+  const navigate = useNavigate();
+
+  async function handleArchive() {
+    if (!confirm(`Mover "${playlistName}" para a lixeira?`)) return;
+    setArchiving(true);
+    const { error } = await supabase.functions.invoke("archive-managed-playlist", {
+      body: { playlist_id: managedId, restore: false },
+    });
+    setArchiving(false);
+    if (error) {
+      toast({ title: "Erro ao arquivar", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Movida para lixeira", description: "Você pode restaurar em Catálogo › Lixeira." });
+    if (onBack) onBack(); else navigate("/catalogo");
+  }
 
   useEffect(() => { setLiveTracksCount(tracksCount); }, [tracksCount]);
 
