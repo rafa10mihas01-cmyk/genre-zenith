@@ -451,6 +451,13 @@ export default function CampanhaExecucao() {
                 }))}
                 onJumpTab={(t) => setTab(t)}
               />
+              <CampaignMonitoring
+                campaignId={camp.id}
+                snapshot={snapshot}
+                campaignStartedAt={camp.started_at}
+                campaignStatus={camp.status}
+              />
+              <ProofsTimeline events={proofEvents} />
               <ClientPriceEditor
                 snapshot={snapshot}
                 value={clientPriceInput}
@@ -500,17 +507,6 @@ export default function CampanhaExecucao() {
                 mode="internal"
               />
               <ExternalPackageEditor campaignId={camp.id} snapshot={snapshot} onChanged={() => setPlanRefreshKey(k => k + 1)} />
-            </div>
-          ),
-          proofs: (
-            <div className="space-y-6">
-              <ProofsTimeline events={proofEvents} />
-              <CampaignMonitoring
-                campaignId={camp.id}
-                snapshot={snapshot}
-                campaignStartedAt={camp.started_at}
-                campaignStatus={camp.status}
-              />
             </div>
           ),
           curve: (
