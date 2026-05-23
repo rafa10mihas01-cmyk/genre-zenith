@@ -918,17 +918,17 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                   <div>
                     <Label className="text-xs">Modo</Label>
                     <div className="grid grid-cols-2 gap-2 mt-1.5">
-                      <ModeBtn active={active.modo === "simultaneo"} onClick={() => setModo("simultaneo")} label="Simultâneo" hint="largura ampla" />
-                      <ModeBtn active={active.modo === "sequencial"} onClick={() => setModo("sequencial")} label="Sequencial" hint="pico marcado" />
+                      <ModeBtn active={active.modo === "simultaneo"} onClick={() => setModo("simultaneo")} label="Simultâneo" hint="largura ampla" tooltip="Todas as playlists do plano recebem a faixa no mesmo dia. Cobertura maior e curva mais larga — bom pra lançamentos que querem volume rápido." />
+                      <ModeBtn active={active.modo === "sequencial"} onClick={() => setModo("sequencial")} label="Sequencial" hint="pico marcado" tooltip="Playlists entram em ondas ao longo dos dias. Gera pico mais marcado e ajuda a sustentar engajamento — bom pra faixa que precisa de momentum." />
                     </div>
                   </div>
 
                   <div>
                     <Label className="text-xs">Perfil de audiência</Label>
                     <div className="grid grid-cols-3 gap-2 mt-1.5">
-                      {(["frio", "mercado", "engajado"] as Perfil[]).map(p => (
-                        <ModeBtn key={p} active={active.perfil === p} onClick={() => setPerfil(p)} label={cap(p)} />
-                      ))}
+                      <ModeBtn active={active.perfil === "frio"} onClick={() => setPerfil("frio")} label="Frio" tooltip="Faixa nova, sem tração. Prioriza ecossistema próprio pra garantir entrega controlada e construir histórico. Curva mais lenta e estável." />
+                      <ModeBtn active={active.perfil === "mercado"} onClick={() => setPerfil("mercado")} label="Mercado" tooltip="Lançamento em ritmo normal. Split equilibrado (~60% eco / 40% externo) — mistura playlists internas com curadores externos sem perder previsibilidade." />
+                      <ModeBtn active={active.perfil === "engajado"} onClick={() => setPerfil("engajado")} label="Engajado" tooltip="Faixa com audiência já aquecida. Puxa mais pro externo (curadores) pra empurrar pra novos ouvintes, já que o ecossistema sozinho não dá conta do volume." />
                     </div>
                   </div>
 
