@@ -24,6 +24,7 @@ import { AdjustmentTimeline } from "@/components/playlists/cockpit/AdjustmentTim
 import { OnboardingChecklist } from "@/components/playlists/cockpit/OnboardingChecklist";
 import { SeoExperimentCard } from "@/components/playlists/cockpit/SeoExperimentCard";
 import { GenrePicker } from "@/components/playlists/cockpit/GenrePicker";
+import { GenreAffinityCard } from "@/components/playlists/cockpit/GenreAffinityCard";
 
 
 // -------------------- types --------------------
@@ -648,6 +649,7 @@ export function PlaylistCockpit({
                   </div>
                 </Card>
               )}
+              <GenreAffinityCard managedId={managedId} />
             </TabsContent>
 
 
