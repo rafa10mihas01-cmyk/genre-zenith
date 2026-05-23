@@ -135,7 +135,8 @@ export function EngineHealthGrid() {
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+    <div className="max-h-[720px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
       {items.map((item) => {
         const ps = poolStatus(item);
         const dead = item.dead_signals ?? [];
@@ -215,6 +216,7 @@ export function EngineHealthGrid() {
           </div>
         );
       })}
+      </div>
     </div>
   );
 }
