@@ -206,79 +206,117 @@ export default function PlanoCampanhaPublico() {
         </div>
 
         {/* Banner contextual: aprovação pendente / ajuste pedido / aprovado */}
-        {!isApproved && !isRejected && (
-          <Card className="mb-4 border-primary/30 bg-primary/5 print:hidden">
-            <CardContent className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-              <div>
-                <div className="font-semibold">Orçamento da campanha</div>
-                <div className="text-xs text-muted-foreground">
-                  Revise abaixo. Quando aprovar, esta página vira o acompanhamento ao vivo — sem trocar de link.
+        {!isApproved && !isRejected && (() => {
+          const clientPriceTotal = snapshot.clientPriceTotal && snapshot.clientPriceTotal > 0
+            ? snapshot.clientPriceTotal
+            : snapshot.pricePerStreamSell
+              ? Math.round(snapshot.meta * snapshot.pricePerStreamSell * 100) / 100
+              : 0;
+          const perStream = snapshot.pricePerStreamSell ?? (snapshot.meta > 0 && clientPriceTotal > 0 ? clientPriceTotal / snapshot.meta : 0);
+          const fmtBRL = (n: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(n);
+          const fmtInt = (n: number) => new Intl.NumberFormat("pt-BR").format(Math.round(n));
+          return (
+          <Card className="mb-4 border-primary/30 bg-gradient-to-br from-primary/[0.08] via-primary/[0.03] to-card print:hidden overflow-hidden">
+            <CardContent className="p-5 sm:p-6 space-y-5">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div>
+                  <div className="text-[10px] uppercase tracking-[0.18em] font-semibold text-primary mb-1">Orçamento da campanha</div>
+                  <div className="text-sm text-muted-foreground">
+                    Revise o lançamento abaixo. Quando aprovar, esta página vira o acompanhamento ao vivo — sem trocar de link.
+                  </div>
+                </div>
+                <div className="flex gap-2 w-full sm:w-auto shrink-0">
+                  <Dialog open={adjustOpen} onOpenChange={setAdjustOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" className="flex-1 sm:flex-none">
+                        <MessageSquareWarning className="h-4 w-4 mr-1.5" /> Solicitar ajuste
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Solicitar ajuste</DialogTitle>
+                        <DialogDescription>O que precisa ser ajustado neste plano?</DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-3">
+                        <div className="space-y-1.5">
+                          <Label>Seu nome (opcional)</Label>
+                          <Input value={adjustName} onChange={(e) => setAdjustName(e.target.value)} placeholder="Quem está pedindo" />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label>Mensagem</Label>
+                          <Textarea value={adjustMsg} onChange={(e) => setAdjustMsg(e.target.value)} rows={5}
+                            placeholder="Ex: aumentar prazo pra 30 dias, remover playlists de funk." />
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => setAdjustOpen(false)} disabled={adjusting}>Cancelar</Button>
+                        <Button onClick={handleAdjust} disabled={adjusting}>
+                          {adjusting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Enviar pedido
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+
+                  <Dialog open={approveOpen} onOpenChange={setApproveOpen}>
+                    <DialogTrigger asChild>
+                      <Button className="flex-1 sm:flex-none">
+                        <CheckCircle2 className="h-4 w-4 mr-1.5" /> Aprovar campanha
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Aprovar campanha</DialogTitle>
+                        <DialogDescription>
+                          Ao aprovar, autoriza a NexEngine a executar este plano nos termos descritos.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-3">
+                        <div className="space-y-1.5">
+                          <Label>Seu nome completo</Label>
+                          <Input value={approverName} onChange={(e) => setApproverName(e.target.value)}
+                            placeholder="Como deve constar na aprovação" autoFocus />
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => setApproveOpen(false)} disabled={approving}>Cancelar</Button>
+                        <Button onClick={handleApprove} disabled={approving}>
+                          {approving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Confirmar aprovação
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
                 </div>
               </div>
-              <div className="flex gap-2 w-full sm:w-auto">
-                <Dialog open={adjustOpen} onOpenChange={setAdjustOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" className="flex-1 sm:flex-none">
-                      <MessageSquareWarning className="h-4 w-4 mr-1.5" /> Solicitar ajuste
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Solicitar ajuste</DialogTitle>
-                      <DialogDescription>O que precisa ser ajustado neste plano?</DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-3">
-                      <div className="space-y-1.5">
-                        <Label>Seu nome (opcional)</Label>
-                        <Input value={adjustName} onChange={(e) => setAdjustName(e.target.value)} placeholder="Quem está pedindo" />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label>Mensagem</Label>
-                        <Textarea value={adjustMsg} onChange={(e) => setAdjustMsg(e.target.value)} rows={5}
-                          placeholder="Ex: aumentar prazo pra 30 dias, remover playlists de funk." />
-                      </div>
-                    </div>
-                    <DialogFooter>
-                      <Button variant="outline" onClick={() => setAdjustOpen(false)} disabled={adjusting}>Cancelar</Button>
-                      <Button onClick={handleAdjust} disabled={adjusting}>
-                        {adjusting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Enviar pedido
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
 
-                <Dialog open={approveOpen} onOpenChange={setApproveOpen}>
-                  <DialogTrigger asChild>
-                    <Button className="flex-1 sm:flex-none">
-                      <CheckCircle2 className="h-4 w-4 mr-1.5" /> Aprovar campanha
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Aprovar campanha</DialogTitle>
-                      <DialogDescription>
-                        Ao aprovar, autoriza a NexEngine a executar este plano nos termos descritos.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-3">
-                      <div className="space-y-1.5">
-                        <Label>Seu nome completo</Label>
-                        <Input value={approverName} onChange={(e) => setApproverName(e.target.value)}
-                          placeholder="Como deve constar na aprovação" autoFocus />
-                      </div>
+              {clientPriceTotal > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 pt-4 border-t border-primary/15">
+                  <div>
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Valor total da campanha</div>
+                    <div className="text-3xl sm:text-4xl font-semibold tabular-nums tracking-tight text-foreground">
+                      {fmtBRL(clientPriceTotal)}
                     </div>
-                    <DialogFooter>
-                      <Button variant="outline" onClick={() => setApproveOpen(false)} disabled={approving}>Cancelar</Button>
-                      <Button onClick={handleApprove} disabled={approving}>
-                        {approving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Confirmar aprovação
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-              </div>
+                    {perStream > 0 && (
+                      <div className="text-[11px] text-muted-foreground mt-1 tabular-nums">
+                        R$ {perStream.toFixed(3).replace(".", ",")} por stream
+                      </div>
+                    )}
+                  </div>
+                  <div className="sm:border-l sm:border-primary/15 sm:pl-6">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Streams contratados</div>
+                    <div className="text-2xl sm:text-3xl font-semibold tabular-nums text-foreground">{fmtInt(snapshot.meta)}</div>
+                    <div className="text-[11px] text-muted-foreground mt-1">meta total entregue</div>
+                  </div>
+                  <div className="sm:border-l sm:border-primary/15 sm:pl-6">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Duração</div>
+                    <div className="text-2xl sm:text-3xl font-semibold tabular-nums text-foreground">{snapshot.days}d</div>
+                    <div className="text-[11px] text-muted-foreground mt-1">janela de entrega</div>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
-        )}
+          );
+        })()}
 
         {isRejected && (
           <Card className="mb-4 border-amber-500/40 bg-amber-500/5 print:hidden">
@@ -330,14 +368,6 @@ export default function PlanoCampanhaPublico() {
                   snapshots={snaps}
                   stage={isApproved ? "live" : isRejected ? "rejected" : "approval"}
                 />
-                {!isApproved && (
-                  <ClientInvestmentCard
-                    meta={snapshot.meta}
-                    days={snapshot.days}
-                    pricePerStreamSell={snapshot.pricePerStreamSell}
-                    clientPriceTotal={snapshot.clientPriceTotal}
-                  />
-                )}
                 <OverviewTab
                   snapshot={snapshot}
                   delivered={delivered}
