@@ -172,7 +172,29 @@ export default function CampanhaExecucao() {
     return [...ext, ...eco].sort((a, b) => new Date(b.captured_at).getTime() - new Date(a.captured_at).getTime());
   }, [proofs, snaps, allocs]);
 
+  if (loading) {
+    return (
+      <PageContainer>
+        <Skeleton className="h-10 w-64" />
+        <Skeleton className="h-32 mt-6" />
+        <Skeleton className="h-96 mt-4" />
+      </PageContainer>
+    );
+  }
+
+  if (!camp || !snapshot) {
+    return (
+      <PageContainer>
+        <PageHeader domain="campaigns" title="Execução" subtitle="Campanha não encontrada ou sem snapshot" />
+        <Link to="/campanhas" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mt-4">
+          <ArrowLeft className="h-4 w-4" /> Voltar para campanhas
+        </Link>
+      </PageContainer>
+    );
+  }
+
   const lastUpdateAt = proofEvents[0]?.captured_at ?? camp.started_at;
+
 
   return (
     <PageContainer>
