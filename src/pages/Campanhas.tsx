@@ -201,7 +201,28 @@ function CampaignRow({ c }: { c: Campaign }) {
   const daysLeft = Math.ceil((new Date(c.deadline).getTime() - Date.now()) / 86400_000);
   const href = c.snapshot_locked_at ? `/campanhas/${c.id}/execucao` : `/campanhas/${c.id}`;
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [copied, setCopied] = useState(false);
   const busy = updateStatus.isPending || removeCampaign.isPending || approve.isPending;
+
+  const clientUrl = c.public_plan_token
+    ? `${window.location.origin}/p/plano/${c.public_plan_token}`
+    : null;
+  const clientApproved = !!c.client_approved_at;
+  const clientPendingAdjust = !!c.client_rejected_at && !clientApproved;
+
+  async function copyClientLink(e?: React.MouseEvent) {
+    e?.preventDefault();
+    e?.stopPropagation();
+    if (!clientUrl) return;
+    try {
+      await navigator.clipboard.writeText(clientUrl);
+      setCopied(true);
+      toast({ title: "Link do cliente copiado", description: "Cole no WhatsApp ou e-mail." });
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast({ title: "Não consegui copiar", description: clientUrl, variant: "destructive" });
+    }
+  }
 
   async function doUpdateStatus(status: Campaign["status"], label: string) {
     try {
