@@ -59,6 +59,8 @@ type Song = {
   perfil: Perfil;
   splitEco: number;
   startDateISO: string; // yyyy-mm-dd
+  clientPriceTotal: number; // R$ que o cliente paga (manual) — 0 = usa tabela
+  genre: string; // p/ filtrar playlists na distribuição
 };
 
 const STORAGE_KEY_V2 = "nx:calc:state:v2";
@@ -75,6 +77,11 @@ function makeUid() {
   return Math.random().toString(36).slice(2, 10);
 }
 
+const GENRE_OPTIONS = [
+  "Funk", "Sertanejo", "Pop", "Rap / Trap", "Rock", "Eletrônica",
+  "Gospel", "MPB", "Pagode / Samba", "Forró", "Indie / Alternativo", "Outro",
+];
+
 function emptySong(): Song {
   return {
     uid: makeUid(),
@@ -89,6 +96,8 @@ function emptySong(): Song {
     perfil: "mercado",
     splitEco: DEFAULT_SPLIT.eco,
     startDateISO: startOfDay(new Date()).toISOString().slice(0, 10),
+    clientPriceTotal: 0,
+    genre: "",
   };
 }
 
