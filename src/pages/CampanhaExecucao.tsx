@@ -500,7 +500,12 @@ export default function CampanhaExecucao() {
                 <TabsTrigger value="interno">Interno ({allocs.length})</TabsTrigger>
                 <TabsTrigger value="externo">Externo</TabsTrigger>
               </TabsList>
-              <TabsContent value="interno" className="mt-0">
+              <TabsContent value="interno" className="mt-0 space-y-4">
+                <InternalEcosystemHeader
+                  snapshot={snapshot}
+                  allocations={allocs}
+                  snaps={snaps}
+                />
                 <PlaylistsGrid
                   allocations={allocs}
                   snapshots={snaps}
