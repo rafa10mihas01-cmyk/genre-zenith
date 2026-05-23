@@ -248,42 +248,43 @@ export function CuradoresLibraryTab({
                 )}
               >
                 {/* Linha 1 — identidade */}
-                <div className="flex items-center gap-3 px-4 pt-3.5 pb-2.5 min-w-0">
-                  <div className="h-10 w-10 rounded-md bg-domain-curators/15 border border-domain-curators/25 flex items-center justify-center text-[13px] font-bold text-domain-curators shrink-0">
-                    {initials || <Users className="h-4 w-4" />}
+                <div className="flex items-center gap-2 px-3 pt-3 pb-2 min-w-0">
+                  <div className="h-8 w-8 rounded-md bg-domain-curators/15 border border-domain-curators/25 flex items-center justify-center text-[11px] font-bold text-domain-curators shrink-0">
+                    {initials || <Users className="h-3.5 w-3.5" />}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="text-[14px] font-semibold text-foreground truncate leading-tight">
+                    <div className="text-[12.5px] font-semibold text-foreground truncate leading-tight">
                       {curator.name}
                     </div>
-                    <div className="text-[11.5px] text-muted-foreground truncate mt-0.5">
+                    <div className="text-[10.5px] text-muted-foreground truncate mt-0.5">
                       <span>Curador</span>
                       {curator.contact && (
                         <>
-                          <span className="mx-1.5 opacity-50">·</span>
+                          <span className="mx-1 opacity-50">·</span>
                           <span>{curator.contact}</span>
                         </>
                       )}
                       {totalDeals > 0 && (
                         <>
-                          <span className="mx-1.5 opacity-50">·</span>
+                          <span className="mx-1 opacity-50">·</span>
                           <span>{totalDeals} deal{totalDeals > 1 ? "s" : ""}</span>
                         </>
                       )}
                     </div>
                   </div>
                   <StatusDot variant={status.variant} label={status.label} className="shrink-0" />
+
                   {(onUpdateCurator || onArchiveCurator || onDeleteCurator || onPauseCurator) && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-foreground shrink-0"
+                          className="h-7 w-7 text-muted-foreground hover:text-foreground shrink-0"
                           onClick={(e) => e.stopPropagation()}
                           aria-label="Mais ações"
                         >
-                          <MoreHorizontal className="h-4 w-4" />
+                          <MoreHorizontal className="h-3.5 w-3.5" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent
@@ -388,11 +389,11 @@ export function CuradoresLibraryTab({
                   )}
                 </div>
 
-                <div className="mx-4 border-t border-border/40" />
+                <div className="mx-3 border-t border-border/40" />
 
                 {/* Linha 2 — métricas (empilhadas para o grid 4-col) */}
-                <div className="px-4 py-3 space-y-2.5 min-w-0">
-                  <div className="grid grid-cols-2 gap-3">
+                <div className="px-3 py-2.5 space-y-2 min-w-0">
+                  <div className="grid grid-cols-2 gap-2">
                     <MetricCell
                       label="Comprados"
                       value={formatPlays(purchased)}
@@ -406,21 +407,21 @@ export function CuradoresLibraryTab({
                     />
                   </div>
                   {purchased > 0 && (
-                    <div className="flex flex-col gap-1 min-w-0">
-                      <div className="flex items-center justify-between text-[10.5px] text-muted-foreground">
+                    <div className="flex flex-col gap-0.5 min-w-0">
+                      <div className="flex items-center justify-between text-[9.5px] text-muted-foreground">
                         <span className="uppercase tracking-[0.12em] font-medium">Consumido</span>
                         <span className="tabular-nums font-semibold text-foreground">{consumedPct}%</span>
                       </div>
-                      <Progress value={consumedPct} className="h-1.5 rounded-full" />
-                      <div className="text-[10.5px] text-muted-foreground tabular-nums">
+                      <Progress value={consumedPct} className="h-1 rounded-full" />
+                      <div className="text-[9.5px] text-muted-foreground tabular-nums">
                         {formatPlays(consumed)} / {formatPlays(purchased)}
                       </div>
                     </div>
                   )}
-                  <div className="flex items-center gap-3 flex-wrap text-[11px] text-muted-foreground pt-1 border-t border-border/30">
+                  <div className="flex items-center gap-2 flex-wrap text-[10px] text-muted-foreground pt-1 border-t border-border/30">
                     {cpp !== null && (
-                      <span className="inline-flex items-center gap-1 tabular-nums">
-                        <DollarSign className="h-3 w-3" />
+                      <span className="inline-flex items-center gap-0.5 tabular-nums">
+                        <DollarSign className="h-2.5 w-2.5" />
                         <span className="text-foreground font-medium">{formatCPP(cpp)}</span>/play
                       </span>
                     )}
@@ -428,8 +429,8 @@ export function CuradoresLibraryTab({
                       <span className="tabular-nums">{formatBRL(totalCost)}</span>
                     )}
                     {lastTs > 0 && (
-                      <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                        <Clock className="h-3 w-3" />
+                      <span className="inline-flex items-center gap-0.5 whitespace-nowrap">
+                        <Clock className="h-2.5 w-2.5" />
                         {formatDistanceToNow(new Date(lastTs), {
                           addSuffix: true,
                           locale: ptBR,
@@ -437,8 +438,8 @@ export function CuradoresLibraryTab({
                       </span>
                     )}
                     {closedDeals > 0 && (
-                      <span className="inline-flex items-center gap-1">
-                        <CheckCircle2 className="h-3 w-3" />
+                      <span className="inline-flex items-center gap-0.5">
+                        <CheckCircle2 className="h-2.5 w-2.5" />
                         {closedDeals}
                       </span>
                     )}
