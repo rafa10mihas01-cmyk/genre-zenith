@@ -113,6 +113,26 @@ export function CampaignFullPlanCard({
     return arr;
   }, [dailyTotals, days]);
 
+  // ---- Resumo da distribuição (card no topo) ----
+  const resumo = useMemo(() => {
+    const capacidadeEcoDia = plans.reduce((s, p) => s + (p.capDia ?? 0), 0);
+    const ecoCobertoTotal = plans.reduce((s, p) => s + (p.totalStreams ?? 0), 0);
+    const metaEco = snapshot.streamsEco ?? 0;
+    const metaExt = snapshot.streamsExt ?? Math.max(0, snapshot.meta - metaEco);
+    const necDiaTotal = Math.round(snapshot.meta / Math.max(1, days));
+    const necDiaEco = Math.round(metaEco / Math.max(1, days));
+    const necDiaExt = Math.round(metaExt / Math.max(1, days));
+    const pico = dailyTotals.length ? Math.max(...dailyTotals) : 0;
+    const usoCap = capacidadeEcoDia > 0 ? Math.round((necDiaEco / capacidadeEcoDia) * 100) : 0;
+    const deficitEco = Math.max(0, metaEco - ecoCobertoTotal);
+    return {
+      capacidadeEcoDia, ecoCobertoTotal, metaEco, metaExt,
+      necDiaTotal, necDiaEco, necDiaExt, pico, usoCap, deficitEco,
+      qtdPlaylists: plans.length,
+    };
+  }, [plans, dailyTotals, snapshot, days]);
+
+
   function cellValue(p: DailyPlaylistPlan, i: number) {
     if (mode === "diario") return p.daily[i] ?? 0;
     let acc = 0;
@@ -198,6 +218,46 @@ export function CampaignFullPlanCard({
             </div>
           </div>
         )}
+        {/* Resumo da distribuição — leitura rápida */}
+        <div className="mb-3 rounded-lg border border-border bg-elevated/30 p-4">
+          <div className="flex items-baseline justify-between mb-3">
+            <div>
+              <div className="text-sm font-semibold">Resumo da distribuição</div>
+              <div className="text-[11px] text-muted-foreground">
+                Meta {formatInt(snapshot.meta)} streams em {days} dias · {resumo.qtdPlaylists} playlists do ecossistema
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Pico/dia previsto</div>
+              <div className="text-base font-semibold tabular-nums">{formatInt(resumo.pico)}</div>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <ResumoStat
+              label="Precisa/dia (total)"
+              value={formatInt(resumo.necDiaTotal)}
+              hint={`${formatInt(resumo.necDiaEco)} eco · ${formatInt(resumo.necDiaExt)} ext`}
+            />
+            <ResumoStat
+              label="Capacidade eco/dia"
+              value={formatInt(resumo.capacidadeEcoDia)}
+              hint={`uso ${resumo.usoCap}% pra bater eco`}
+              tone={resumo.usoCap > 90 ? "warning" : "primary"}
+            />
+            <ResumoStat
+              label="Eco coberto pelo plano"
+              value={formatInt(resumo.ecoCobertoTotal)}
+              hint={`meta eco ${formatInt(resumo.metaEco)}${resumo.deficitEco > 0 ? ` · falta ${formatInt(resumo.deficitEco)}` : ""}`}
+              tone={resumo.deficitEco > 0 ? "warning" : "primary"}
+            />
+            <ResumoStat
+              label="Externo a comprar"
+              value={formatInt(resumo.metaExt)}
+              hint={`${formatInt(resumo.necDiaExt)}/dia em deals`}
+            />
+          </div>
+        </div>
+
         <div className="rounded-lg border border-border overflow-hidden">
           <div className="max-h-[560px] overflow-auto">
             <table className="text-[11px] border-separate border-spacing-0 min-w-full">
@@ -341,5 +401,21 @@ export function CampaignFullPlanCard({
         </p>
       </CardContent>
     </Card>
+  );
+}
+
+function ResumoStat({
+  label, value, hint, tone,
+}: { label: string; value: string; hint?: string; tone?: "primary" | "warning" }) {
+  return (
+    <div className="rounded-md border border-border/70 bg-card px-3 py-2.5">
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">{label}</div>
+      <div className={cn(
+        "text-lg font-semibold tabular-nums leading-tight mt-0.5",
+        tone === "primary" && "text-primary",
+        tone === "warning" && "text-warning",
+      )}>{value}</div>
+      {hint && <div className="text-[10px] text-muted-foreground tabular-nums mt-0.5">{hint}</div>}
+    </div>
   );
 }
