@@ -853,6 +853,20 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
             <span className="sm:hidden tabular-nums text-[11px]">{missingGenreCount}</span>
           </Button>
         )}
+        {missingGenreCount > 0 && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={runGenreSuggest}
+            disabled={suggesting}
+            className="gap-1.5 h-9 px-2 sm:px-3 shrink-0"
+            title="Sugerir gêneros via IA"
+            aria-label="Sugerir gêneros via IA"
+          >
+            <Sparkles className={cn("h-4 w-4", suggesting && "animate-pulse")} />
+            <span className="hidden sm:inline">{suggesting ? "Sugerindo…" : `Sugerir gêneros (${missingGenreCount})`}</span>
+          </Button>
+        )}
         <div className="sm:ml-auto flex items-center gap-1.5 shrink-0">
           <button
             onClick={() => setShowArchived(false)}
