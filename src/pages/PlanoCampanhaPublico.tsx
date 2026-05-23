@@ -323,7 +323,18 @@ export default function PlanoCampanhaPublico() {
                   delivered={delivered}
                   daysElapsed={daysElapsed}
                   showFinance={false}
+                  allocations={allocs}
+                  snapshots={snaps}
+                  proofs={isApproved ? proofs.map(p => ({
+                    id: p.id,
+                    captured_at: p.captured_at,
+                    playlist_name: p.playlist_name,
+                    screenshot_url: p.screenshot_url,
+                    delta_plays: p.plays_24h ?? null,
+                  })) : []}
+                  onJumpTab={(t) => setTab(t)}
                 />
+
               </div>
             ),
             playlists: (
