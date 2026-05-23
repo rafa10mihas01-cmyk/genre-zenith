@@ -189,7 +189,7 @@ function norm(s: string | null | undefined): string {
 // -------------------- main --------------------
 export function PlaylistCockpit({
   managedId, spotifyPlaylistId, spotifyUrl, playlistName, coverUrl,
-  followers, tracksCount, genreName, brainScore, onBack,
+  followers, tracksCount, genreName, brainScore, canonicalPlaylistId, onBack,
 }: Props) {
   const [diag, setDiag] = useState<Diagnosis | null>(null);
   const [liveTracksCount, setLiveTracksCount] = useState(tracksCount);
