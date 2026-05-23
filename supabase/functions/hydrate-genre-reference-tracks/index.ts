@@ -30,6 +30,14 @@ async function spotifyFetch(token: string, url: string): Promise<any> {
   return r.json();
 }
 
+function normalizeReleaseDate(value: unknown): string | null {
+  const raw = String(value ?? "").trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  if (/^\d{4}-\d{2}$/.test(raw)) return `${raw}-01`;
+  if (/^\d{4}$/.test(raw)) return `${raw}-01-01`;
+  return null;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const guard = await requireTeamAccess(req);
@@ -76,18 +84,18 @@ Deno.serve(async (req) => {
 
     for (const row of picked) {
       try {
-        const rows: any[] = [];
+        const rowsByTrack = new Map<string, any>();
         let url: string | null =
           `https://api.spotify.com/v1/playlists/${row.spotify_playlist_id}/items` +
           `?fields=items(track(id,name,duration_ms,popularity,artists(name),album(name,release_date,images))),next&limit=100`;
         let pos = 0;
-        while (url && rows.length < maxTracks) {
+        while (url && rowsByTrack.size < maxTracks) {
           const j = await spotifyFetch(token, url);
           for (const it of j.items ?? []) {
             const tr = it?.track;
             if (!tr?.id) { pos++; continue; }
             const imgs = tr.album?.images ?? [];
-            rows.push({
+            if (!rowsByTrack.has(tr.id)) rowsByTrack.set(tr.id, {
               genre_id: row.genre_id,
               result_id: row.id,
               nome_musica: tr.name ?? "Desconhecida",
@@ -96,18 +104,20 @@ Deno.serve(async (req) => {
               posicao_na_playlist: ++pos,
               coletado_em: new Date().toISOString(),
               cover_url: imgs[0]?.url ?? imgs[imgs.length - 1]?.url ?? null,
-              release_date: tr.album?.release_date ?? null,
+              release_date: normalizeReleaseDate(tr.album?.release_date),
               popularity: typeof tr.popularity === "number" ? tr.popularity : null,
               album: tr.album?.name ?? null,
               duration_ms: tr.duration_ms ?? null,
             });
-            if (rows.length >= maxTracks) break;
+            if (rowsByTrack.size >= maxTracks) break;
           }
           url = j.next ?? null;
         }
-        await supabase.from("search_tracks").delete().eq("result_id", row.id);
+        const rows = Array.from(rowsByTrack.values());
         if (rows.length > 0) {
-          const { error: insErr } = await supabase.from("search_tracks").insert(rows);
+          const { error: insErr } = await supabase
+            .from("search_tracks")
+            .upsert(rows, { onConflict: "genre_id,spotify_track_id" });
           if (insErr) throw new Error(insErr.message);
           saved += rows.length;
         }
