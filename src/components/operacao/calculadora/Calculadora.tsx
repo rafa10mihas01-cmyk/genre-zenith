@@ -11,6 +11,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { Top200Tab } from "./Top200Tab";
 import { CalculadoraResultado, CalculadoraKpis } from "./CalculadoraResultado";
 import { supabase } from "@/integrations/supabase/client";
@@ -917,17 +918,17 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                   <div>
                     <Label className="text-xs">Modo</Label>
                     <div className="grid grid-cols-2 gap-2 mt-1.5">
-                      <ModeBtn active={active.modo === "simultaneo"} onClick={() => setModo("simultaneo")} label="Simultâneo" hint="largura ampla" />
-                      <ModeBtn active={active.modo === "sequencial"} onClick={() => setModo("sequencial")} label="Sequencial" hint="pico marcado" />
+                      <ModeBtn active={active.modo === "simultaneo"} onClick={() => setModo("simultaneo")} label="Simultâneo" hint="largura ampla" tooltip="Todas as playlists do plano recebem a faixa no mesmo dia. Cobertura maior e curva mais larga — bom pra lançamentos que querem volume rápido." />
+                      <ModeBtn active={active.modo === "sequencial"} onClick={() => setModo("sequencial")} label="Sequencial" hint="pico marcado" tooltip="Playlists entram em ondas ao longo dos dias. Gera pico mais marcado e ajuda a sustentar engajamento — bom pra faixa que precisa de momentum." />
                     </div>
                   </div>
 
                   <div>
                     <Label className="text-xs">Perfil de audiência</Label>
                     <div className="grid grid-cols-3 gap-2 mt-1.5">
-                      {(["frio", "mercado", "engajado"] as Perfil[]).map(p => (
-                        <ModeBtn key={p} active={active.perfil === p} onClick={() => setPerfil(p)} label={cap(p)} />
-                      ))}
+                      <ModeBtn active={active.perfil === "frio"} onClick={() => setPerfil("frio")} label="Frio" tooltip="Faixa nova, sem tração. Prioriza ecossistema próprio pra garantir entrega controlada e construir histórico. Curva mais lenta e estável." />
+                      <ModeBtn active={active.perfil === "mercado"} onClick={() => setPerfil("mercado")} label="Mercado" tooltip="Lançamento em ritmo normal. Split equilibrado (~60% eco / 40% externo) — mistura playlists internas com curadores externos sem perder previsibilidade." />
+                      <ModeBtn active={active.perfil === "engajado"} onClick={() => setPerfil("engajado")} label="Engajado" tooltip="Faixa com audiência já aquecida. Puxa mais pro externo (curadores) pra empurrar pra novos ouvintes, já que o ecossistema sozinho não dá conta do volume." />
                     </div>
                   </div>
 
@@ -1145,12 +1146,12 @@ function FonteBtn({ active, onClick, icon: Icon, label }: any) {
   );
 }
 
-function ModeBtn({ active, onClick, label, hint }: { active: boolean; onClick: () => void; label: string; hint?: string }) {
-  return (
+function ModeBtn({ active, onClick, label, hint, tooltip }: { active: boolean; onClick: () => void; label: string; hint?: string; tooltip?: string }) {
+  const btn = (
     <button
       onClick={onClick}
       className={cn(
-        "h-12 rounded-lg border text-xs font-medium transition-colors px-2",
+        "h-12 rounded-lg border text-xs font-medium transition-colors px-2 w-full",
         active ? "border-primary bg-primary/10 text-primary"
                : "border-border hover:border-foreground/30 text-muted-foreground hover:text-foreground",
       )}
@@ -1158,6 +1159,17 @@ function ModeBtn({ active, onClick, label, hint }: { active: boolean; onClick: (
       <div>{label}</div>
       {hint && <div className="text-[10px] opacity-70">{hint}</div>}
     </button>
+  );
+  if (!tooltip) return btn;
+  return (
+    <TooltipProvider delayDuration={150}>
+      <Tooltip>
+        <TooltipTrigger asChild>{btn}</TooltipTrigger>
+        <TooltipContent side="top" className="max-w-[260px] text-xs leading-relaxed">
+          {tooltip}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
 
