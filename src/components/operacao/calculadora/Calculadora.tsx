@@ -1036,6 +1036,9 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                           ({formatInt(ecoCap.capacityPerDay)}/dia · ×{active.engagementMultiplier ?? 30} · {ecoCap.playlistCount} playlists) ·
                           {" "}precisa entregar <strong>{formatInt(ecoNeeded)}</strong> pelo eco
                         </div>
+                        <div className="text-[10px] text-muted-foreground tabular-nums">
+                          Conta: {formatInt(ecoCap.savesTotal)} saves compatíveis × {active.engagementMultiplier ?? 30} ÷ 30 × {active.days} dias
+                        </div>
                         {ecoOverflow && suggestedEcoPct != null && (
                           <div className="flex items-center justify-between gap-2 pt-1 border-t border-destructive/20">
                             <span className="text-[11px] text-destructive flex items-center gap-1">
