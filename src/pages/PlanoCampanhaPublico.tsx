@@ -199,9 +199,9 @@ export default function PlanoCampanhaPublico() {
   async function handleApprove() {
     if (approverName.trim().length < 2) { toast.error("Informe seu nome"); return; }
     setApproving(true);
-    const { error } = await supabase.rpc("client_approve_campaign" as any, {
+    const { error } = await (supabase.rpc("client_approve_campaign", {
       p_token: token, p_approver_name: approverName.trim(), p_approver_ip: null,
-    });
+    }) as PublicRpcResult);
     setApproving(false);
     if (error) { toast.error(error.message); return; }
     toast.success("Campanha aprovada");
@@ -211,9 +211,9 @@ export default function PlanoCampanhaPublico() {
   async function handleAdjust() {
     if (adjustMsg.trim().length < 3) { toast.error("Descreva o ajuste"); return; }
     setAdjusting(true);
-    const { error } = await supabase.rpc("client_request_adjustment" as any, {
+    const { error } = await (supabase.rpc("client_request_adjustment", {
       p_token: token, p_message: adjustMsg.trim(), p_requester_name: adjustName.trim() || null,
-    });
+    }) as PublicRpcResult);
     setAdjusting(false);
     if (error) { toast.error(error.message); return; }
     toast.success("Pedido de ajuste enviado");
