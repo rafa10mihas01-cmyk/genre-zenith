@@ -58,17 +58,31 @@ export function PlaylistsGrid({ allocations, snapshots, proofThumbs = [], positi
   const grouped = useMemo(() => {
     const g: Record<Group, EcoAllocation[]> = { active: [], pending: [], paused: [] };
     for (const a of allocations) {
-      if (a.status === "active" || a.status === "dispatched" || a.status === "done") g.active.push(a);
+      const snap = latestSnap.get(a.managed_playlist_id);
+      const delivered = Number(snap?.plays_28d ?? snap?.plays_7d ?? snap?.plays_24h ?? 0);
+      // Modo cliente: só conta como "no ar" quando JÁ entregou algo (espelha
+      // a visão do curador — só aparece o que está rodando, não o ecossistema inteiro).
+      const isDelivering = mode === "client"
+        ? delivered > 0
+        : (a.status === "active" || a.status === "dispatched" || a.status === "done");
+      if (isDelivering) g.active.push(a);
       else if (a.status === "paused" || a.status === "failed" || a.status === "cancelled") g.paused.push(a);
       else g.pending.push(a);
     }
     g.active.sort((x, y) => (latestSnap.get(y.managed_playlist_id)?.plays_28d ?? 0) - (latestSnap.get(x.managed_playlist_id)?.plays_28d ?? 0));
     return g;
-  }, [allocations, latestSnap]);
+  }, [allocations, latestSnap, mode]);
 
-  if (allocations.length === 0) {
-    return <div className="text-sm text-muted-foreground py-8 text-center">Nenhuma playlist alocada.</div>;
+  const groupsToRender: Group[] = mode === "client" ? ["active"] : ["active", "pending", "paused"];
+
+  if (allocations.length === 0 || (mode === "client" && grouped.active.length === 0)) {
+    return (
+      <div className="text-sm text-muted-foreground py-10 text-center">
+        Nenhuma playlist começou a entregar ainda. Assim que os primeiros prints chegarem, elas aparecem aqui.
+      </div>
+    );
   }
+
 
   return (
     <div className="space-y-6">
