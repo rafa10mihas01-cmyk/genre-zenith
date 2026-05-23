@@ -27,7 +27,7 @@ import { useEcosystemCapacity } from "@/hooks/useEcosystemCapacity";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format, addDays, differenceInCalendarDays, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { calculatePlaylistCapacity } from "@/lib/campaignOperationalPlan";
+import { calculateTrackDailyStreams } from "@/lib/campaignOperationalPlan";
 
 type Fonte = "manual" | "top200" | "concorrente" | "orcamento";
 
@@ -215,8 +215,13 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
     meta: effectiveMeta, days: active.days, modo: active.modo, perfil: active.perfil, splitEcoPct: active.splitEco,
   }, pricingCosts), [effectiveMeta, active.days, active.modo, active.perfil, active.splitEco, pricingCosts]);
 
+  const preferredSlots = useMemo(() => {
+    const pos = active.track?.position ?? 999;
+    return pos <= 50 ? [1, 2, 3] : [3];
+  }, [active.track?.position]);
+
   // Capacidade real do ecossistema filtrada por gênero da música ativa.
-  const ecoCap = useEcosystemCapacity(active.genre, active.days, active.engagementMultiplier ?? 30);
+  const ecoCap = useEcosystemCapacity(active.genre, active.days, active.engagementMultiplier ?? 30, preferredSlots);
   const ecoNeeded = result.streamsEco;
   const ecoUsagePct = ecoCap.capacityTotal > 0
     ? Math.round((ecoNeeded / ecoCap.capacityTotal) * 100)
@@ -388,12 +393,13 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
         }
       }
 
-      // Capacidade total do eco = saves × multiplicador/30 × dias.
-      const sumFollowers = (list: typeof allPlaylists) => list.reduce((s, p) => s + Math.max(0, p.followers ?? 0), 0);
-      const capacity = calculatePlaylistCapacity(
-        sumFollowers(coreSlice) + sumFollowers(neighborSlice),
-        song.engagementMultiplier ?? 30,
-      ) * r.days;
+      // Capacidade total do eco = uma posição diária por playlist, sem repetir a música.
+      const compatiblePlaylists = [...coreSlice, ...neighborSlice].sort((a, b) => (b.followers ?? 0) - (a.followers ?? 0));
+      const slots = (song.track?.position ?? 999) <= 50 ? [1, 2, 3] : [3];
+      const capacityPerDay = compatiblePlaylists.reduce((sum, playlist, index) => (
+        sum + calculateTrackDailyStreams(playlist.followers ?? 0, song.engagementMultiplier ?? 30, slots[index % slots.length] ?? 3)
+      ), 0);
+      const capacity = capacityPerDay * r.days;
       let shortfall: { capacity: number; missing: number; suggestedExtPct: number } | undefined;
       if (r.streamsEco > capacity && r.meta > 0) {
         const missing = r.streamsEco - capacity;
@@ -1037,7 +1043,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                           {" "}precisa entregar <strong>{formatInt(ecoNeeded)}</strong> pelo eco
                         </div>
                         <div className="text-[10px] text-muted-foreground tabular-nums">
-                          Conta: {formatInt(ecoCap.savesTotal)} saves compatíveis × {active.engagementMultiplier ?? 30} ÷ 30 × {active.days} dias
+                          Conta: {formatInt(ecoCap.savesTotal)} saves × {active.engagementMultiplier ?? 30} ÷ 30 × % da posição {ecoCap.slotPositions.map(p => `#${p}`).join("/")} × {active.days} dias
                         </div>
                         {ecoOverflow && suggestedEcoPct != null && (
                           <div className="flex items-center justify-between gap-2 pt-1 border-t border-destructive/20">
