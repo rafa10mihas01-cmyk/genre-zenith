@@ -345,7 +345,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
       // Piso de qualidade: ≥ 100 saves
       const playlists = (playlistsRaw ?? []).filter(p => (p.followers ?? 0) >= 100);
 
-      const effMeta = song.fonte === "orcamento" ? reverseFromBudget(song.budget, song.splitEco, pricingCosts) : song.meta;
+      const effMeta = songEffectiveMeta(song);
       const r = calcCampaign({ meta: effMeta, days: song.days, modo: song.modo, perfil: song.perfil, splitEcoPct: song.splitEco }, pricingCosts);
 
       const snapshot = buildSnapshot(
