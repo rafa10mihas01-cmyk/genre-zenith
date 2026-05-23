@@ -218,6 +218,46 @@ export function CampaignFullPlanCard({
             </div>
           </div>
         )}
+        {/* Resumo da distribuição — leitura rápida */}
+        <div className="mb-3 rounded-lg border border-border bg-elevated/30 p-4">
+          <div className="flex items-baseline justify-between mb-3">
+            <div>
+              <div className="text-sm font-semibold">Resumo da distribuição</div>
+              <div className="text-[11px] text-muted-foreground">
+                Meta {formatInt(snapshot.meta)} streams em {days} dias · {resumo.qtdPlaylists} playlists do ecossistema
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Pico/dia previsto</div>
+              <div className="text-base font-semibold tabular-nums">{formatInt(resumo.pico)}</div>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <ResumoStat
+              label="Precisa/dia (total)"
+              value={formatInt(resumo.necDiaTotal)}
+              hint={`${formatInt(resumo.necDiaEco)} eco · ${formatInt(resumo.necDiaExt)} ext`}
+            />
+            <ResumoStat
+              label="Capacidade eco/dia"
+              value={formatInt(resumo.capacidadeEcoDia)}
+              hint={`uso ${resumo.usoCap}% pra bater eco`}
+              tone={resumo.usoCap > 90 ? "warning" : "primary"}
+            />
+            <ResumoStat
+              label="Eco coberto pelo plano"
+              value={formatInt(resumo.ecoCobertoTotal)}
+              hint={`meta eco ${formatInt(resumo.metaEco)}${resumo.deficitEco > 0 ? ` · falta ${formatInt(resumo.deficitEco)}` : ""}`}
+              tone={resumo.deficitEco > 0 ? "warning" : "primary"}
+            />
+            <ResumoStat
+              label="Externo a comprar"
+              value={formatInt(resumo.metaExt)}
+              hint={`${formatInt(resumo.necDiaExt)}/dia em deals`}
+            />
+          </div>
+        </div>
+
         <div className="rounded-lg border border-border overflow-hidden">
           <div className="max-h-[560px] overflow-auto">
             <table className="text-[11px] border-separate border-spacing-0 min-w-full">
