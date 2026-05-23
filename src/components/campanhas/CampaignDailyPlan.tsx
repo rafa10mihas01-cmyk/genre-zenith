@@ -14,7 +14,6 @@ import {
   buildEcoPlaylistPlan,
   buildExternalPlan,
   exportCampaignPlanCsv,
-  getCampaignPreferredPositions,
   type EcoPlanInput,
   type ExternalPlanInput,
 } from "@/lib/campaignOperationalPlan";
@@ -93,7 +92,6 @@ export function CampaignDailyPlan({
     const ecoPlans = buildEcoPlaylistPlan(snapshot, ecoAllocations, {
       engagementMultiplier,
       startedAt,
-      positions: undefined,
     });
     const externalPlans = buildExternalPlan(snapshot, externalItems, { startedAt });
     const daily = buildDailyCampaignPlan({ snapshot, startedAt, ecoPlans, externalPlans });
