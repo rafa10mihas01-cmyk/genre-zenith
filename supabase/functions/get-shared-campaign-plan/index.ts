@@ -31,7 +31,7 @@ Deno.serve(async (req) => {
 
   const { data: camp, error: cErr } = await supabase
     .from("campaigns")
-    .select("id, deal_id, track_name, artist, cover_url, spotify_track_url, spotify_track_id, status, started_at, deadline, simulation_snapshot, snapshot_locked_at, eco_dispatched_at, engagement_multiplier, total_delivered, client_approved_at, client_approved_by, client_rejected_at, client_adjustment_request")
+    .select("id, deal_id, track_name, artist, cover_url, spotify_track_url, spotify_track_id, goal_plays, status, started_at, deadline, simulation_snapshot, snapshot_locked_at, eco_dispatched_at, engagement_multiplier, total_delivered, client_approved_at, client_approved_by, client_rejected_at, client_adjustment_request, created_by")
     .eq("public_plan_token", token)
     .maybeSingle();
 
@@ -79,14 +79,75 @@ Deno.serve(async (req) => {
   let clientToken: string | null = null;
   let lastSpreadsheetUploadAt: string | null = null;
   let recentUploads: any[] = [];
-  if (camp.deal_id) {
+  let dealId = camp.deal_id as string | null;
+  if (!dealId && camp.spotify_track_id) {
+    let userId = (camp as any).created_by as string | null;
+    if (!userId) {
+      const { data: latestDeal } = await supabase
+        .from("curator_deals")
+        .select("user_id")
+        .not("user_id", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      userId = (latestDeal as any)?.user_id ?? null;
+    }
+
+    if (userId) {
+      const goal = Number((camp as any).goal_plays ?? (camp as any).simulation_snapshot?.meta ?? 0);
+      const { data: newDeal } = await supabase
+        .from("curator_deals")
+        .insert({
+          user_id: userId,
+          curator_name: "Campanha",
+          song_spotify_url: camp.spotify_track_url || `spotify:track:${camp.spotify_track_id}`,
+          song_name: camp.track_name,
+          song_artist: camp.artist,
+          song_cover_url: camp.cover_url,
+          target_plays: goal,
+          baseline_plays: 0,
+          cost: 0,
+          started_at: camp.started_at,
+          ends_at: camp.deadline ? `${camp.deadline}T23:59:59.000Z` : null,
+          state: "active",
+          source: "campaign_internal",
+          origin: "campaign",
+          campaign_id: camp.id,
+        })
+        .select("id")
+        .single();
+
+      if (newDeal?.id) {
+        dealId = newDeal.id as string;
+        await supabase
+          .from("curator_deal_songs")
+          .insert({
+            deal_id: dealId,
+            spotify_track_id: camp.spotify_track_id,
+            song_spotify_url: camp.spotify_track_url || `spotify:track:${camp.spotify_track_id}`,
+            song_name: camp.track_name,
+            song_artist: camp.artist,
+            song_cover_url: camp.cover_url,
+            target_plays: goal,
+            baseline_plays: 0,
+            position: 1,
+            started_at: camp.started_at,
+            ends_at: camp.deadline ? `${camp.deadline}T23:59:59.000Z` : null,
+          });
+        await supabase.from("campaigns").update({ deal_id: dealId }).eq("id", camp.id);
+        (camp as any).deal_id = dealId;
+      }
+    }
+  }
+
+  if (dealId) {
     // Pega primeira música do deal. Se já tiver client_token, usa.
     // Se não tiver, mintamos um na hora pra garantir que o card de
     // upload de planilha sempre funcione no portal da campanha.
     const { data: song } = await supabase
       .from("curator_deal_songs")
       .select("id, client_token")
-      .eq("deal_id", camp.deal_id)
+      .eq("deal_id", dealId)
       .order("created_at", { ascending: true })
       .limit(1)
       .maybeSingle();
@@ -109,7 +170,7 @@ Deno.serve(async (req) => {
     const { data: uploads } = await supabase
       .from("label_spreadsheet_uploads")
       .select("id, created_at, rows_imported, total_streams, status, file_name")
-      .eq("deal_id", camp.deal_id)
+      .eq("deal_id", dealId)
       .order("created_at", { ascending: false })
       .limit(10);
     recentUploads = uploads ?? [];
