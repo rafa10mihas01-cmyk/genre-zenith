@@ -393,12 +393,14 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
         }
       }
 
-      // Capacidade total do eco = saves × multiplicador/30 × dias.
+      // Capacidade total do eco = uma posição diária por playlist, sem repetir a música.
       const sumFollowers = (list: typeof allPlaylists) => list.reduce((s, p) => s + Math.max(0, p.followers ?? 0), 0);
-      const capacity = calculatePlaylistCapacity(
-        sumFollowers(coreSlice) + sumFollowers(neighborSlice),
-        song.engagementMultiplier ?? 30,
-      ) * r.days;
+      const compatiblePlaylists = [...coreSlice, ...neighborSlice].sort((a, b) => (b.followers ?? 0) - (a.followers ?? 0));
+      const slots = (song.track?.position ?? 999) <= 50 ? [1, 2, 3] : [3];
+      const capacityPerDay = compatiblePlaylists.reduce((sum, playlist, index) => (
+        sum + calculateTrackDailyStreams(playlist.followers ?? 0, song.engagementMultiplier ?? 30, slots[index % slots.length] ?? 3)
+      ), 0);
+      const capacity = capacityPerDay * r.days;
       let shortfall: { capacity: number; missing: number; suggestedExtPct: number } | undefined;
       if (r.streamsEco > capacity && r.meta > 0) {
         const missing = r.streamsEco - capacity;
