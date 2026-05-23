@@ -22,6 +22,7 @@ export function PlaylistsTable({
 }) {
   const [query, setQuery] = useState("");
   const [genreFilter, setGenreFilter] = useState<string>("all");
+  const [sizeFilter, setSizeFilter] = useState<string>("all");
   const [classFilter, setClassFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<SortKey>("crescimento");
 
@@ -32,13 +33,20 @@ export function PlaylistsTable({
     return dataset.filter(r => {
       if (q && !r.nome.toLowerCase().includes(q)) return false;
       if (genreFilter !== "all" && r.genre_id !== genreFilter) return false;
+      if (sizeFilter !== "all") {
+        const f = r.followers_now ?? 0;
+        if (sizeFilter === "pequena" && !(f < 1000)) return false;
+        if (sizeFilter === "media" && !(f >= 1000 && f < 10000)) return false;
+        if (sizeFilter === "grande" && !(f >= 10000 && f < 100000)) return false;
+        if (sizeFilter === "top" && !(f >= 100000)) return false;
+      }
       if (classFilter !== "all") {
         const cls = altaIds.has(r.template_id) ? "alta" : baixaIds.has(r.template_id) ? "baixa" : "media";
         if (cls !== classFilter) return false;
       }
       return true;
     });
-  }, [dataset, query, genreFilter, classFilter, altaIds, baixaIds]);
+  }, [dataset, query, genreFilter, sizeFilter, classFilter, altaIds, baixaIds]);
 
   const sorted = useMemo(() => {
     const arr = filtered.slice();
@@ -84,6 +92,16 @@ export function PlaylistsTable({
             {genres.map(g => (
               <SelectItem key={g.id} value={g.id} className="capitalize">{g.nome}</SelectItem>
             ))}
+          </SelectContent>
+        </Select>
+        <Select value={sizeFilter} onValueChange={setSizeFilter}>
+          <SelectTrigger className="w-[160px] h-9"><SelectValue placeholder="Tamanho" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os tamanhos</SelectItem>
+            <SelectItem value="pequena">Pequenas (&lt; 1K)</SelectItem>
+            <SelectItem value="media">Médias (1K–10K)</SelectItem>
+            <SelectItem value="grande">Grandes (10K–100K)</SelectItem>
+            <SelectItem value="top">Top (100K+)</SelectItem>
           </SelectContent>
         </Select>
         <Select value={classFilter} onValueChange={setClassFilter}>
