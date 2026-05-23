@@ -385,6 +385,64 @@ async function calcOne(supabase: any, playlistId: string) {
   if (benchmark && benchmark.sample_size >= 3) confidence += 15;
   confidence = Math.min(100, confidence);
 
+  // ============ LIFECYCLE PHASE (fase editorial dinâmica) ============
+  const benchmarkTracks: number | null = benchmark?.tracks_p50 ?? null;
+  let ratioToBenchmark: number | null = null;
+  let lifecyclePhase: "seed" | "growth" | "mature" | "bloated" | "decline" = "seed";
+
+  if (benchmarkTracks && benchmarkTracks > 0 && tracksCount > 0) {
+    ratioToBenchmark = Number((tracksCount / benchmarkTracks).toFixed(3));
+    if (ratioToBenchmark < 0.30) lifecyclePhase = "seed";
+    else if (ratioToBenchmark < 0.80) lifecyclePhase = "growth";
+    else if (ratioToBenchmark <= 1.20) lifecyclePhase = "mature";
+    else lifecyclePhase = "bloated";
+  } else if (tracksCount === 0) {
+    lifecyclePhase = "seed";
+  } else {
+    if (tracksCount < 30) lifecyclePhase = "seed";
+    else if (tracksCount < 80) lifecyclePhase = "growth";
+    else lifecyclePhase = "mature";
+  }
+
+  // decline sobrescreve — 2+ snapshots consecutivos de queda em followers OU tracks
+  if (snapsArr.length >= 3) {
+    let fDrop = 0, tDrop = 0;
+    for (let i = 0; i < Math.min(snapsArr.length - 1, 3); i++) {
+      const cur = snapsArr[i], prev = snapsArr[i + 1];
+      if (cur.followers != null && prev.followers != null && cur.followers < prev.followers) fDrop++;
+      if (cur.total_tracks != null && prev.total_tracks != null && cur.total_tracks < prev.total_tracks) tDrop++;
+    }
+    if (fDrop >= 2 || tDrop >= 2) lifecyclePhase = "decline";
+  }
+
+  const growthRoadmap = buildRoadmap(tracksCount, benchmarkTracks ?? 0, lifecyclePhase);
+
+  if (lifecyclePhase === "bloated") {
+    signals.push({
+      code: "acima_do_benchmark",
+      severity: "medium",
+      message: `${tracksCount} faixas (benchmark ${benchmarkTracks}) — modo redução ativo`,
+      detected_at: sigDate,
+    });
+  } else if (lifecyclePhase === "decline") {
+    signals.push({
+      code: "fase_decline",
+      severity: "high",
+      message: "Queda em 2+ ciclos consecutivos — modo estrutural",
+      detected_at: sigDate,
+    });
+  }
+
+  if (mgd?.id) {
+    await supabase
+      .from("managed_playlists")
+      .update({
+        lifecycle_phase: lifecyclePhase,
+        lifecycle_phase_updated_at: now.toISOString(),
+      })
+      .eq("id", mgd.id);
+  }
+
   // ============ UPSERT ============
   const payload = {
     playlist_id: pl.id,
@@ -400,12 +458,17 @@ async function calcOne(supabase: any, playlistId: string) {
     confidence_score: confidence,
     last_calculated_at: now.toISOString(),
     calculation_version: CALC_VERSION,
+    lifecycle_phase: lifecyclePhase,
+    benchmark_tracks: benchmarkTracks,
+    ratio_to_benchmark: ratioToBenchmark,
+    growth_roadmap: growthRoadmap,
     metadata: {
       followers_at_calc: followers,
       score_health_at_calc: score?.health_score ?? null,
       genre_name: genreModel?.nome ?? null,
       benchmark_sample_size: benchmark?.sample_size ?? 0,
       plays_per_follower: playsPerFollower,
+      tracks_count_at_calc: tracksCount,
     },
   };
 
