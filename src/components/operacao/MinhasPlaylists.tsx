@@ -359,20 +359,13 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   }, []);
 
   const load = useCallback(async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from("managed_playlists")
-      .select("*")
-      .order("imported_at", { ascending: false });
-    if (error) toast({ title: "Erro ao carregar", description: error.message, variant: "destructive" });
-    const list = (data ?? []) as ManagedPlaylist[];
-    setItems(list);
-    setLoading(false);
+    const result = await itemsQuery.refetch();
+    const list = result.data ?? [];
     const canonicals = list.map(i => i.canonical_playlist_id).filter(Boolean) as string[];
     loadScores(canonicals);
     loadBrains(canonicals);
     loadValuations(list.map(i => i.spotify_playlist_id).filter(Boolean));
-  }, [loadScores, loadValuations, loadBrains]);
+  }, [itemsQuery, loadScores, loadValuations, loadBrains]);
 
   async function handleRecalc() {
     setRecalcing(true);
@@ -391,15 +384,20 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
     }
   }
 
-  useEffect(() => { load(); }, [load]);
+  // Dispara loads derivados sempre que items chega/muda (incluindo hidratação do cache).
+  useEffect(() => {
+    if (!items.length) { setScores({}); setBrains({}); setValuations({}); return; }
+    const canonicals = items.map(i => i.canonical_playlist_id).filter(Boolean) as string[];
+    loadScores(canonicals);
+    loadBrains(canonicals);
+    loadValuations(items.map(i => i.spotify_playlist_id).filter(Boolean));
+  }, [items, loadScores, loadBrains, loadValuations]);
 
   const [genres, setGenres] = useState<{ id: string; nome: string }[]>([]);
-  const [filterMissingGenre, setFilterMissingGenre] = useState(false);
-  const [filterGenreId, setFilterGenreId] = useState<string | null>(null);
-  const [filterSize, setFilterSize] = useState<"all" | "pequena" | "media" | "grande" | "top">("all");
   const [savingGenre, setSavingGenre] = useState(false);
   const [suggesting, setSuggesting] = useState(false);
   const [suggestProgress, setSuggestProgress] = useState<{ done: number; total: number } | null>(null);
+
 
   async function runGenreSuggest() {
     setSuggesting(true);
