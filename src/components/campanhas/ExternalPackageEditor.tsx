@@ -146,12 +146,14 @@ export function ExternalPackageEditor({
       </CardHeader>
       <CardContent className="space-y-3">
         {/* KPIs */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
-          <KPI label="Streams" value={formatInt(totalStreams)} delta={deltaStreams} unit="" />
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
+          <KPI label="Streams totais" value={formatInt(totalStreams)} delta={deltaStreams} unit="" />
+          <KPI label="Diário necessário" value={formatInt(Math.round(totalStreams / Math.max(1, snapshot.days || 1)))} />
           <KPI label="Custo" value={formatBRL(totalCost)} delta={deltaCost} unit=" R$" isCurrency />
           <KPI label="Cobertura" value={`${coverage.toFixed(0)}%`} />
           <KPI label="Curadores" value={String(items.length)} />
         </div>
+
 
         {noCapacity && (
           <div className="flex items-start gap-2 rounded-md bg-warning/10 border border-warning/30 p-3">
