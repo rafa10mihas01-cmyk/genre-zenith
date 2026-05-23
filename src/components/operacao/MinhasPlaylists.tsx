@@ -936,11 +936,13 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
             size="sm"
             onClick={() => setFilterMissingGenre(v => !v)}
             className="gap-1.5 h-9 px-2 sm:px-3 shrink-0"
-            title={`Sem gênero (${missingGenreCount})`}
+            title={`Sem gênero (${missingGenreCount})${pendingSuggestionCount ? ` · ${pendingSuggestionCount} com sugestão` : ""}`}
             aria-label="Filtrar sem gênero"
           >
             <AlertCircle className="h-4 w-4" />
-            <span className="hidden sm:inline">Sem gênero ({missingGenreCount})</span>
+            <span className="hidden sm:inline">
+              Sem gênero ({missingGenreCount}{pendingSuggestionCount ? ` · ${pendingSuggestionCount} sugeridas` : ""})
+            </span>
             <span className="sm:hidden tabular-nums text-[11px]">{missingGenreCount}</span>
           </Button>
         )}
@@ -958,7 +960,9 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
             <span className="hidden sm:inline">
               {suggesting
                 ? (suggestProgress ? `Sugerindo… ${suggestProgress.done}/${suggestProgress.total}` : "Sugerindo…")
-                : `Sugerir gêneros (${missingGenreCount})`}
+                : pendingSuggestionCount
+                  ? `Revisar sugestões (${pendingSuggestionCount})`
+                  : `Sugerir gêneros (${missingGenreCount})`}
             </span>
           </Button>
         )}
