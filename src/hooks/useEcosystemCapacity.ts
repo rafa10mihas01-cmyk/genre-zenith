@@ -8,6 +8,7 @@ export interface EcosystemCapacity {
   playlistCount: number;
   coreCount: number;
   neighborCount: number;
+  savesTotal: number;         // soma de saves das playlists compatíveis
   capacityTotal: number;     // streams totais que o eco aguenta na janela
   capacityPerDay: number;    // streams/dia
   genreResolved: boolean;    // true se conseguimos casar o gênero com a tabela genres
@@ -25,6 +26,7 @@ export function useEcosystemCapacity(genre: string, days: number, engagementMult
     playlistCount: 0,
     coreCount: 0,
     neighborCount: 0,
+    savesTotal: 0,
     capacityTotal: 0,
     capacityPerDay: 0,
     genreResolved: false,
@@ -90,6 +92,7 @@ export function useEcosystemCapacity(genre: string, days: number, engagementMult
         playlistCount: core.length + neighbors.length,
         coreCount: core.length,
         neighborCount: neighbors.length,
+        savesTotal: saves,
         capacityPerDay: perDay,
         capacityTotal: total,
         genreResolved,
