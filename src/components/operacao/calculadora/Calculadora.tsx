@@ -59,6 +59,8 @@ type Song = {
   perfil: Perfil;
   splitEco: number;
   startDateISO: string; // yyyy-mm-dd
+  clientPriceTotal: number; // R$ que o cliente paga (manual) — 0 = usa tabela
+  genre: string; // p/ filtrar playlists na distribuição
 };
 
 const STORAGE_KEY_V2 = "nx:calc:state:v2";
@@ -75,6 +77,11 @@ function makeUid() {
   return Math.random().toString(36).slice(2, 10);
 }
 
+const GENRE_OPTIONS = [
+  "Funk", "Sertanejo", "Pop", "Rap / Trap", "Rock", "Eletrônica",
+  "Gospel", "MPB", "Pagode / Samba", "Forró", "Indie / Alternativo", "Outro",
+];
+
 function emptySong(): Song {
   return {
     uid: makeUid(),
@@ -89,6 +96,8 @@ function emptySong(): Song {
     perfil: "mercado",
     splitEco: DEFAULT_SPLIT.eco,
     startDateISO: startOfDay(new Date()).toISOString().slice(0, 10),
+    clientPriceTotal: 0,
+    genre: "",
   };
 }
 
@@ -162,6 +171,8 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
   const setPerfil = (v: Perfil) => patchActive({ perfil: v });
   const setSplitEco = (v: number) => patchActive({ splitEco: v });
   const setStartDate = (d: Date) => patchActive({ startDateISO: startOfDay(d).toISOString().slice(0, 10) });
+  const setClientPriceTotal = (v: number) => patchActive({ clientPriceTotal: v });
+  const setGenre = (v: string) => patchActive({ genre: v });
 
   // --- Multi-música ops ---
   function addSong() {
@@ -286,14 +297,24 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
       const effMeta = song.fonte === "orcamento" ? reverseFromBudget(song.budget, song.splitEco, pricingCosts) : song.meta;
       const r = calcCampaign({ meta: effMeta, days: song.days, modo: song.modo, perfil: song.perfil, splitEcoPct: song.splitEco }, pricingCosts);
 
-      const snapshot = buildSnapshot(r, {
-        spotifyTrackId: song.track.id,
-        trackUrl: song.trackUrl || null,
-        title: song.track.title,
-        artist: song.track.artist,
-        coverUrl: song.track.thumbnail_url,
-        baselineStreamsDay: song.baselineStreamsDay,
-      });
+      const snapshot = buildSnapshot(
+        r,
+        {
+          spotifyTrackId: song.track.id,
+          trackUrl: song.trackUrl || null,
+          title: song.track.title,
+          artist: song.track.artist,
+          coverUrl: song.track.thumbnail_url,
+          baselineStreamsDay: song.baselineStreamsDay,
+          genre: song.genre || null,
+        },
+        {
+          clientPriceTotal: song.clientPriceTotal > 0 ? song.clientPriceTotal : null,
+          pricePerStreamSell: song.clientPriceTotal > 0 && effMeta > 0
+            ? song.clientPriceTotal / effMeta
+            : pricingSettings.price_per_stream_sell,
+        },
+      );
 
       const allocations = planEcoAllocations(
         r.streamsEco,
@@ -654,6 +675,17 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                     </Label>
                     <NumberInput value={active.baselineStreamsDay} onChange={setBaselineStreamsDay} placeholder="ex: 20.000" />
                   </div>
+
+                  <div className="space-y-1.5 pt-1">
+                    <Label className="text-xs">Gênero <span className="text-muted-foreground">(filtra playlists na distribuição)</span></Label>
+                    <Select value={active.genre || "__none__"} onValueChange={(v) => setGenre(v === "__none__" ? "" : v)}>
+                      <SelectTrigger><SelectValue placeholder="Selecione o gênero" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">— Sem gênero —</SelectItem>
+                        {GENRE_OPTIONS.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </CardContent>
               </Card>
 
@@ -714,6 +746,71 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                   )}
                 </CardContent>
               </Card>
+
+              {/* Valor que o cliente paga (orçamento de venda) */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Wallet className="h-4 w-4 text-primary" />
+                    Valor cliente
+                  </CardTitle>
+                  <CardDescription>
+                    Quanto o cliente vai pagar nesta música. Vira o orçamento que aparece no portal pra ele aprovar.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div>
+                    <Label className="text-xs">Valor fechado (R$)</Label>
+                    <NumberInput
+                      value={active.clientPriceTotal}
+                      onChange={setClientPriceTotal}
+                      placeholder={`tabela: ${formatBRL((effectiveMeta || 0) * (pricingSettings.price_per_stream_sell || 0))}`}
+                    />
+                  </div>
+                  {effectiveMeta > 0 && (
+                    <div className="grid grid-cols-2 gap-2 text-[11px]">
+                      <div className="rounded-lg border border-border bg-muted/20 p-2">
+                        <div className="text-muted-foreground">Tabela (R$/1M)</div>
+                        <div className="text-foreground font-semibold tabular-nums">
+                          {formatBRL((pricingSettings.price_per_stream_sell || 0) * 1_000_000)}
+                        </div>
+                      </div>
+                      <div className="rounded-lg border border-border bg-muted/20 p-2">
+                        <div className="text-muted-foreground">Custo interno</div>
+                        <div className="text-foreground font-semibold tabular-nums">{formatBRL(result.custoTotal)}</div>
+                      </div>
+                      {active.clientPriceTotal > 0 && (
+                        <>
+                          <div className="rounded-lg border border-primary/30 bg-primary/5 p-2">
+                            <div className="text-muted-foreground">R$/stream venda</div>
+                            <div className="text-primary font-semibold tabular-nums">
+                              R$ {(active.clientPriceTotal / effectiveMeta).toFixed(4)}
+                            </div>
+                          </div>
+                          <div className="rounded-lg border border-primary/30 bg-primary/5 p-2">
+                            <div className="text-muted-foreground">Margem</div>
+                            <div className="text-primary font-semibold tabular-nums">
+                              {formatBRL(active.clientPriceTotal - result.custoTotal)}
+                              {active.clientPriceTotal > 0 && (
+                                <span className="text-muted-foreground font-normal ml-1">
+                                  ({Math.round(((active.clientPriceTotal - result.custoTotal) / active.clientPriceTotal) * 100)}%)
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+                  {active.clientPriceTotal === 0 && (
+                    <p className="text-[11px] text-muted-foreground">
+                      Vazio = usa a tabela ({formatBRL((pricingSettings.price_per_stream_sell || 0) * 1_000_000)} / 1M streams).
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+
+
 
               {/* Estratégia */}
               <Card>

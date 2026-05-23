@@ -15,6 +15,7 @@ export interface CampaignSnapshot {
     artist: string | null;
     coverUrl: string | null;
     baselineStreamsDay: number;
+    genre?: string | null;
   };
   meta: number;
   days: number;
@@ -39,6 +40,7 @@ export interface CampaignSnapshot {
 export function buildSnapshot(
   result: CampaignResult,
   music: CampaignSnapshot["music"],
+  pricing?: { clientPriceTotal?: number | null; pricePerStreamSell?: number | null },
 ): CampaignSnapshot {
   return {
     version: 1,
@@ -59,6 +61,8 @@ export function buildSnapshot(
     mediaPorDia: result.mediaPorDia,
     inercia: result.inercia,
     curva: result.curva,
+    clientPriceTotal: pricing?.clientPriceTotal ?? undefined,
+    pricePerStreamSell: pricing?.pricePerStreamSell ?? undefined,
   };
 }
 
@@ -153,11 +157,20 @@ export async function closeCampaignFromCalculator(args: {
   }
 
   // Enriquecer snapshot com o preço cobrado do cliente (congelado no fechamento).
+  // Se a calculadora já fechou um valor manual, ele tem prioridade sobre a tabela.
+  const manualClientPrice = typeof snapshot.clientPriceTotal === "number" && snapshot.clientPriceTotal > 0
+    ? snapshot.clientPriceTotal
+    : null;
+  const finalClientPrice = manualClientPrice ?? Math.round(snapshot.meta * pricingSell * 100) / 100;
+  const finalPricePerStream = manualClientPrice && snapshot.meta > 0
+    ? manualClientPrice / snapshot.meta
+    : pricingSell;
   const enrichedSnapshot: CampaignSnapshot = {
     ...snapshot,
-    pricePerStreamSell: pricingSell,
-    clientPriceTotal: Math.round(snapshot.meta * pricingSell * 100) / 100,
+    pricePerStreamSell: finalPricePerStream,
+    clientPriceTotal: finalClientPrice,
   };
+
 
   const { data: campaign, error } = await supabase
     .from("campaigns")
@@ -190,7 +203,7 @@ export async function closeCampaignFromCalculator(args: {
       status: "pending" as const,
       cost_per_stream_op: pricingOpEco,
       market_per_stream: pricingMarketEco,
-      price_per_stream_sell: pricingSell,
+      price_per_stream_sell: finalPricePerStream,
     }));
     const { error: allocErr } = await supabase.from("campaign_eco_allocations").insert(rows as any);
     if (allocErr) throw allocErr;
