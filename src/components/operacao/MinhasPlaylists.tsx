@@ -342,6 +342,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   const [genres, setGenres] = useState<{ id: string; nome: string }[]>([]);
   const [filterMissingGenre, setFilterMissingGenre] = useState(false);
   const [filterGenreId, setFilterGenreId] = useState<string | null>(null);
+  const [filterSize, setFilterSize] = useState<"all" | "pequena" | "media" | "grande" | "top">("all");
   const [savingGenre, setSavingGenre] = useState(false);
 
   useEffect(() => {
@@ -395,6 +396,15 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
     .filter((p) => (showArchived ? !!p.archived_at : !p.archived_at))
     .filter((p) => (filterMissingGenre ? !p.genre_id : true))
     .filter((p) => (filterGenreId ? p.genre_id === filterGenreId : true))
+    .filter((p) => {
+      if (filterSize === "all") return true;
+      const f = p.followers ?? 0;
+      if (filterSize === "pequena") return f < 1000;
+      if (filterSize === "media") return f >= 1000 && f < 10000;
+      if (filterSize === "grande") return f >= 10000 && f < 100000;
+      if (filterSize === "top") return f >= 100000;
+      return true;
+    })
     .slice()
     .sort((a, b) => {
       if (sortBy !== "valuation") return 0;
@@ -726,6 +736,48 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
                 <span className="truncate">{g.nome}</span>
               </DropdownMenuItem>
             ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant={filterSize !== "all" ? "default" : "outline"}
+              size="sm"
+              className="gap-1.5 h-9 w-9 sm:w-auto px-0 sm:px-3 shrink-0"
+              title="Filtrar por tamanho"
+              aria-label="Filtrar por tamanho"
+            >
+              <Filter className="h-4 w-4" />
+              <span className="hidden sm:inline max-w-[120px] truncate">
+                {filterSize === "all" ? "Tamanho"
+                  : filterSize === "pequena" ? "Pequenas"
+                  : filterSize === "media" ? "Médias"
+                  : filterSize === "grande" ? "Grandes" : "Top"}
+              </span>
+              <ChevronDown className="h-3.5 w-3.5 opacity-70 -mr-0.5 hidden sm:inline" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-56">
+            <DropdownMenuItem onClick={() => setFilterSize("all")} className="gap-2">
+              {filterSize === "all" ? <Check className="h-4 w-4 text-primary" /> : <span className="w-4" />}
+              <span>Todos os tamanhos</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setFilterSize("pequena")} className="gap-2">
+              {filterSize === "pequena" ? <Check className="h-4 w-4 text-primary" /> : <span className="w-4" />}
+              <span>Pequenas (&lt; 1K)</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setFilterSize("media")} className="gap-2">
+              {filterSize === "media" ? <Check className="h-4 w-4 text-primary" /> : <span className="w-4" />}
+              <span>Médias (1K–10K)</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setFilterSize("grande")} className="gap-2">
+              {filterSize === "grande" ? <Check className="h-4 w-4 text-primary" /> : <span className="w-4" />}
+              <span>Grandes (10K–100K)</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setFilterSize("top")} className="gap-2">
+              {filterSize === "top" ? <Check className="h-4 w-4 text-primary" /> : <span className="w-4" />}
+              <span>Top (100K+)</span>
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
         <Button
