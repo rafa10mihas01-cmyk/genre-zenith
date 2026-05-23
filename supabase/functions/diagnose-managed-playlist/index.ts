@@ -2127,6 +2127,7 @@ Deno.serve(async (req) => {
           benchmark_tracks: benchmarkTracksDiag,
           ratio_to_benchmark: ratioDiag,
           growth_roadmap: growthRoadmapDiag,
+          bloated_budget: bloatedBudget,
           model_present: !!model,
           benchmark,
           top_keywords: topKeywords,
