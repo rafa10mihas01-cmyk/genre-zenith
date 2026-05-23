@@ -41,11 +41,28 @@ export function OverviewTab({
   const plannedToDate = snapshot.curva.slice(0, daysElapsed).reduce((s, p) => s + p.streamsDay, 0);
   const adherence = plannedToDate > 0 ? Math.round((delivered / plannedToDate) * 100) : 0;
 
-  // Top 5 playlists no ar por entrega
+  // ---- Plano de entrega: meta · eco vs externo · hoje ----
+  const daysRemaining = Math.max(1, snapshot.days - daysElapsed);
+  const restante = Math.max(0, snapshot.meta - delivered);
+  const ritmoNecessario = Math.round(restante / daysRemaining);
+
   const latestByPl = new Map<string, EcoSnap>();
   for (const s of snapshots) {
     if (!latestByPl.has(s.managed_playlist_id)) latestByPl.set(s.managed_playlist_id, s);
   }
+  const ecoDeliveredRaw = Array.from(latestByPl.values())
+    .reduce((acc, s) => acc + Number(s.plays_28d ?? s.plays_7d ?? 0), 0);
+  const ecoDelivered = Math.min(ecoDeliveredRaw, delivered);
+  const extDelivered = Math.max(0, delivered - ecoDelivered);
+  const ecoMetaPct = snapshot.meta > 0 ? Math.round((snapshot.streamsEco / snapshot.meta) * 100) : 0;
+  const extMetaPct = 100 - ecoMetaPct;
+
+  const today = snapshot.curva[Math.max(0, Math.min(snapshot.curva.length - 1, daysElapsed - 1))];
+  const todayTotal = today?.streamsDay ?? 0;
+  const todayEco = today?.streamsEcoDay ?? Math.round(todayTotal * (snapshot.splitEcoPct / 100));
+  const todayExt = Math.max(0, todayTotal - todayEco);
+
+  // Top 5 playlists no ar por entrega
   const topPlaylists = allocations
     .filter(a => a.status === "active" || a.status === "dispatched" || a.status === "done")
     .map(a => ({
@@ -62,6 +79,86 @@ export function OverviewTab({
 
   return (
     <div className="space-y-6">
+      {/* Plano de entrega — leitura única: meta total, ritmo, split eco/ext, hoje */}
+      <Card>
+        <CardContent className="p-5 space-y-5">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+              <div className="text-sm font-semibold">Plano de entrega</div>
+              <div className="text-xs text-muted-foreground">
+                Quanto falta, em quanto tempo, e como se divide entre ecossistema e externo
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Ritmo necessário</div>
+              <div className="text-2xl font-semibold tabular-nums leading-none mt-1">
+                {formatInt(ritmoNecessario)}<span className="text-xs text-muted-foreground font-normal">/dia</span>
+              </div>
+              <div className="text-[10px] text-muted-foreground tabular-nums mt-1">
+                {daysRemaining}d restantes · {formatInt(restante)} a entregar
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-baseline justify-between text-xs mb-1.5">
+              <span className="text-muted-foreground">Meta</span>
+              <span className="tabular-nums">
+                <span className="text-foreground font-medium">{formatInt(delivered)}</span>
+                <span className="text-muted-foreground"> / {formatInt(snapshot.meta)} ({pct}%)</span>
+              </span>
+            </div>
+            <div className="h-2 rounded-full bg-muted overflow-hidden">
+              <div className="h-full bg-primary transition-all" style={{ width: `${pct}%` }} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <SplitRow
+              tone="eco"
+              label="Ecossistema"
+              metaTotal={snapshot.streamsEco}
+              metaPct={ecoMetaPct}
+              deliveredTotal={ecoDelivered}
+              perDay={Math.round(Math.max(0, snapshot.streamsEco - ecoDelivered) / daysRemaining)}
+            />
+            <SplitRow
+              tone="ext"
+              label="Externo"
+              metaTotal={snapshot.streamsExt}
+              metaPct={extMetaPct}
+              deliveredTotal={extDelivered}
+              perDay={Math.round(Math.max(0, snapshot.streamsExt - extDelivered) / daysRemaining)}
+            />
+          </div>
+
+          <div className="rounded-lg border border-border/70 bg-muted/20 px-4 py-3">
+            <div className="flex items-baseline justify-between gap-3 flex-wrap">
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Meta de hoje · D{Math.max(1, daysElapsed)}
+                </div>
+                <div className="text-xl font-semibold tabular-nums leading-none mt-1">
+                  {formatInt(todayTotal)} <span className="text-xs text-muted-foreground font-normal">streams</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-4 text-xs tabular-nums">
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-primary" />
+                  <span className="text-muted-foreground">Eco</span>
+                  <span className="font-medium">{formatInt(todayEco)}</span>
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-[hsl(265_60%_60%)]" />
+                  <span className="text-muted-foreground">Externo</span>
+                  <span className="font-medium">{formatInt(todayExt)}</span>
+                </span>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* KPIs grandes */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Kpi label="Meta" value={formatInt(snapshot.meta)} sub="streams" />
