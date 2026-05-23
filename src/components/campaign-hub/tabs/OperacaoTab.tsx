@@ -156,15 +156,14 @@ export function OperacaoTab({ allocations, snapshots, externalItems, totalDays, 
         </TabsList>
 
         <TabsContent value={filter} className="mt-4 space-y-4">
-          {/* KPIs por escopo selecionado */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-            <SummaryKpi label="Meta" value={formatInt(scope.planned)} sub={`alvo ${scopeLabel}`} />
-            <SummaryKpi label="Entregue" value={formatInt(scope.delivered)} sub={`${scope.coverage}% da meta`} />
-            <SummaryKpi label="Falta entregar" value={formatInt(scope.remaining)} sub={scope.remaining === 0 ? "meta batida" : "restante"} />
-            <SummaryKpi label="Diário necessário" value={formatInt(scope.dailyNeeded)} sub={`em ${scope.daysLeft} dia${scope.daysLeft === 1 ? "" : "s"}`} />
-            <SummaryKpi label={filter === "internal" ? "Fontes internas" : filter === "external" ? "Curadores externos" : "Fontes"} value={String(filteredRows.length)} sub={filter === "all" ? `${totals.internalCount} int · ${totals.externalCount} ext` : undefined} />
-            <SummaryKpi label="Custo" value={formatBRL(scope.cost)} sub={filter === "internal" ? "playlists próprias" : "pago a curadores"} />
+          {/* Régua de entrega — só o que importa pro dia-a-dia */}
+          <div className="grid grid-cols-3 gap-3">
+            <SummaryKpi label="Entregue" value={formatInt(scope.delivered)} sub={`de ${formatInt(scope.planned)}`} />
+            <SummaryKpi label="Falta" value={formatInt(scope.remaining)} sub={scope.remaining === 0 ? "meta batida" : "pra bater a meta"} />
+            <SummaryKpi label="Cobertura" value={`${scope.coverage}%`} sub={scope.coverage >= 100 ? "no alvo" : scope.coverage >= 80 ? "perto do alvo" : "abaixo do alvo"} />
           </div>
+
+
 
 
           {filteredRows.length === 0 ? (
