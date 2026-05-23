@@ -27,11 +27,9 @@ import { FinanceiroTab } from "@/components/playlist-deals/FinanceiroTab";
 type DealsTab = "active" | "running" | "waiting" | "done" | "ledger" | "all";
 
 const TABS = [
-  { id: "active"   as const, label: "Ativos",            icon: Activity },
   { id: "running"  as const, label: "Rodando",           icon: Play },
   { id: "waiting"  as const, label: "Aguardando início", icon: Hourglass },
   { id: "done"     as const, label: "Concluídos",        icon: CheckCircle2 },
-  { id: "all"      as const, label: "Todos",             icon: Layers },
 ];
 
 function filterByTab(
