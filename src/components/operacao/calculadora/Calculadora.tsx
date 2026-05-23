@@ -577,7 +577,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
           {/* Formulário vertical único — Música → Meta → Estratégia */}
           <div className="space-y-5">
               {/* KPIs SÓ da música ativa (operação atual). */}
-              <CalculadoraKpis r={result} />
+              <CalculadoraKpis r={result} pricePerStreamSell={pricingSettings.price_per_stream_sell} />
 
               {/* Música */}
               <Card>
