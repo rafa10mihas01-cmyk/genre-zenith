@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LayoutDashboard, ListMusic, Camera, LineChart, Wallet, ScrollText, Upload } from "lucide-react";
+import { LayoutDashboard, ListMusic, Camera, LineChart, Wallet, ScrollText, Upload, Network } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CampaignHero } from "./CampaignHero";
 import type { CampaignHubCampaign, CampaignHubMode, CampaignHubTabId } from "./types";
@@ -32,7 +32,8 @@ export function CampaignHub({
 }: Props) {
   const tabs: TabDef[] = [
     { id: "overview",  label: "Visão geral", icon: LayoutDashboard, content: slots.overview  ?? null },
-    { id: "playlists", label: "Playlists",   icon: ListMusic,       content: slots.playlists ?? null },
+    { id: "operacao",  label: "Operação",    icon: Network,         content: slots.operacao  ?? null },
+    { id: "playlists", label: "Playlists",   icon: ListMusic,       content: slots.playlists ?? null, internalOnly: true },
     { id: "upload",    label: "Importar",    icon: Upload,          content: slots.upload    ?? null },
     { id: "proofs",    label: "Histórico",   icon: Camera,          content: slots.proofs    ?? null },
     { id: "curve",     label: "Curva",       icon: LineChart,       content: slots.curve     ?? null, internalOnly: true },

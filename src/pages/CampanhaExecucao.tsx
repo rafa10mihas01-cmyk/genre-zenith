@@ -20,6 +20,7 @@ import { ArrowLeft, Loader2, Save } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CampaignHub } from "@/components/campaign-hub/CampaignHub";
 import { OverviewTab } from "@/components/campaign-hub/tabs/OverviewTab";
+import { OperacaoTab, type ExternalItemRow } from "@/components/campaign-hub/tabs/OperacaoTab";
 import { PlaylistsGrid } from "@/components/campaign-hub/PlaylistsGrid";
 import { ProofsTimeline, type ProofEvent } from "@/components/campaign-hub/ProofsTimeline";
 import { ShareLinkCard } from "@/components/campaign-hub/ShareLinkCard";
@@ -76,6 +77,7 @@ export default function CampanhaExecucao() {
   const [clientToken, setClientToken] = useState<string | null>(null);
   const [lastSpreadsheetUploadAt, setLastSpreadsheetUploadAt] = useState<string | null>(null);
   const [recentUploads, setRecentUploads] = useState<SpreadsheetUpload[]>([]);
+  const [externalItems, setExternalItems] = useState<ExternalItemRow[]>([]);
 
   const loadCampaign = async () => {
     if (!id) return;
@@ -214,6 +216,39 @@ export default function CampanhaExecucao() {
       setProofs((dp ?? []) as DeliveryProof[]);
     } else {
       setProofs([]);
+    }
+
+    // Itens externos do pacote (curadores contratados) com plays reais via curator_deals
+    const { data: extPkg } = await supabase
+      .from("campaign_external_packages")
+      .select("id")
+      .eq("campaign_id", id)
+      .maybeSingle();
+    if (extPkg?.id) {
+      const { data: items } = await supabase
+        .from("campaign_external_package_items")
+        .select("id, assigned_streams, assigned_cost, curator_deal_id, curators(name), curator_deals(reconciled_total_plays, state)")
+        .eq("package_id", extPkg.id)
+        .order("assigned_streams", { ascending: false });
+      const mapped: ExternalItemRow[] = ((items ?? []) as unknown as Array<{
+        id: string;
+        assigned_streams: number;
+        assigned_cost: number;
+        curator_deal_id: string | null;
+        curators: { name: string } | null;
+        curator_deals: { reconciled_total_plays: number | null; state: string | null } | null;
+      }>).map((it) => ({
+        id: it.id,
+        curator_name: it.curators?.name ?? "Curador",
+        assigned_streams: Number(it.assigned_streams ?? 0),
+        assigned_cost: Number(it.assigned_cost ?? 0),
+        curator_deal_id: it.curator_deal_id,
+        delivered_plays: Number(it.curator_deals?.reconciled_total_plays ?? 0),
+        state: it.curator_deals?.state ?? "pending",
+      }));
+      setExternalItems(mapped);
+    } else {
+      setExternalItems([]);
     }
     setLoading(false);
   };
@@ -410,6 +445,14 @@ export default function CampanhaExecucao() {
                 onJumpTab={(t) => setTab(t)}
               />
             </div>
+          ),
+
+          operacao: (
+            <OperacaoTab
+              allocations={allocs}
+              snapshots={snaps}
+              externalItems={externalItems}
+            />
           ),
 
           playlists: (
