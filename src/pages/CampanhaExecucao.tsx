@@ -555,22 +555,37 @@ function ClientPriceEditor({
           {approved && <div className="text-[10px] uppercase tracking-wide text-primary font-semibold">Cliente já aprovou</div>}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-[minmax(220px,1fr)_auto] gap-3 lg:items-end">
-          <div className="space-y-2">
-            <Label className="text-xs uppercase tracking-wide text-muted-foreground">Valor fechado da campanha</Label>
-            <Input
-              value={value}
-              onChange={(e) => onChange(e.target.value)}
-              inputMode="decimal"
-              placeholder="Ex.: 50.000,00"
-              className="text-lg font-semibold tabular-nums"
-            />
-          </div>
-          <Button onClick={onSave} disabled={saving} className="w-full lg:w-auto">
-            {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-            Salvar orçamento
-          </Button>
-        </div>
+        {(() => {
+          const isDirty = Number.isFinite(typedTotal) && typedTotal > 0 && Math.abs(typedTotal - currentTotal) > 0.005;
+          const isSaved = !isDirty && currentTotal > 0;
+          return (
+            <div className="grid grid-cols-1 lg:grid-cols-[minmax(220px,1fr)_auto] gap-3 lg:items-end">
+              <div className="space-y-2">
+                <Label className="text-xs uppercase tracking-wide text-muted-foreground">Valor fechado da campanha</Label>
+                <Input
+                  value={value}
+                  onChange={(e) => onChange(e.target.value)}
+                  inputMode="decimal"
+                  placeholder="Ex.: 50.000,00"
+                  className={cn(
+                    "text-lg font-semibold tabular-nums transition-colors",
+                    isSaved && "text-muted-foreground/70",
+                  )}
+                />
+              </div>
+              <Button
+                onClick={onSave}
+                disabled={saving || !isDirty}
+                variant={isDirty ? "default" : "outline"}
+                className="w-full lg:w-auto"
+              >
+                {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                {isSaved ? "Orçamento salvo" : "Salvar orçamento"}
+              </Button>
+            </div>
+          );
+        })()}
+
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <FinKpi label="Cliente paga" value={formatBRL(effectiveTotal)} sub={`${formatInt(snapshot.meta)} streams`} />
