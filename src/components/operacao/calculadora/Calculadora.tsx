@@ -858,9 +858,12 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                     <Top200Picker
                       days={active.days}
                       currentStreamsDay={active.baselineStreamsDay}
-                      onPick={(streamsDay, pos) => {
+                      value={active.top200Pos}
+                      valueStreamsDay={active.top200StreamsDay}
+                      valueChartDate={active.top200ChartDate}
+                      onPick={(streamsDay, pos, chartDate) => {
+                        patchActive({ top200Pos: pos, top200StreamsDay: streamsDay, top200ChartDate: chartDate });
                         const gapDay = Math.max(0, streamsDay - active.baselineStreamsDay);
-                        setMeta(gapDay * active.days);
                         toast({
                           title: `Posição #${pos}`,
                           description: active.baselineStreamsDay > 0
@@ -868,6 +871,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                             : `${formatInt(streamsDay)} streams/dia × ${active.days}d = ${formatInt(streamsDay * active.days)}`,
                         });
                       }}
+
                       onOpenList={() => setTop200Open(true)}
                     />
                   )}
