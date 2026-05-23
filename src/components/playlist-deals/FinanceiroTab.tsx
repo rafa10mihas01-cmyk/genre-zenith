@@ -18,9 +18,10 @@ const initials = (name: string) =>
 
 interface Props {
   deals: CuratorDeal[];
+  hideHero?: boolean;
 }
 
-export function FinanceiroTab({ deals }: Props) {
+export function FinanceiroTab({ deals, hideHero = false }: Props) {
   const { byCurator, purchases, totals, loading } = useCuratorFinance();
 
   const committed = useMemo(() => {
