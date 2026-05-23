@@ -368,6 +368,14 @@ export default function PlanoCampanhaPublico() {
                   snapshots={snaps}
                   stage={isApproved ? "live" : isRejected ? "rejected" : "approval"}
                 />
+                {clientToken && (
+                  <SpreadsheetUploadCard
+                    clientToken={clientToken}
+                    lastUploadAt={lastUploadAt}
+                    recentUploads={recentUploads as any}
+                    onUploaded={load}
+                  />
+                )}
                 <OverviewTab
                   snapshot={snapshot}
                   delivered={delivered}
@@ -384,6 +392,7 @@ export default function PlanoCampanhaPublico() {
                   })) : []}
                   onJumpTab={(t) => setTab(t)}
                 />
+
               </div>
             ),
             playlists: (
