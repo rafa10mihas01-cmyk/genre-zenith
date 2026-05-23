@@ -590,7 +590,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
       {/* ============== STEP 2 — MÚSICAS ============== */}
       {step === 2 && (
         <div className="space-y-5">
-          <SessionChip clientName={clientName} curatorName={curatorName} onEdit={() => setStep(1)} />
+
 
           {/* Trilha horizontal de músicas (substitui sidebar) */}
           <div className="space-y-2">
