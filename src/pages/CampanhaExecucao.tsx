@@ -479,20 +479,6 @@ export default function CampanhaExecucao() {
               <ExternalPackageEditor campaignId={camp.id} snapshot={snapshot} onChanged={() => setPlanRefreshKey(k => k + 1)} />
             </div>
           ),
-          upload: clientToken ? (
-            <SpreadsheetUploadCard
-              clientToken={clientToken}
-              lastUploadAt={lastSpreadsheetUploadAt}
-              recentUploads={recentUploads}
-              onUploaded={loadCampaign}
-            />
-          ) : (
-            <Card>
-              <CardContent className="p-6 text-sm text-muted-foreground text-center">
-                Esta campanha ainda não tem link de cliente para receber planilha.
-              </CardContent>
-            </Card>
-          ),
           proofs: (
             <div className="space-y-6">
               <ProofsTimeline events={proofEvents} />
