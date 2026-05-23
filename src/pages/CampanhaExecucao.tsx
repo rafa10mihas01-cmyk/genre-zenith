@@ -90,7 +90,7 @@ export default function CampanhaExecucao() {
           .eq("campaign_external_packages.campaign_id", id)
           .not("curator_deal_id", "is", null),
       ]);
-      setCamp(c as CampaignHubCampaign | null);
+      setCamp(c as unknown as CampaignHubCampaign | null);
       setAllocs((a ?? []) as unknown as EcoAllocation[]);
       setSnaps((s ?? []) as EcoSnap[]);
 
@@ -331,7 +331,7 @@ export default function CampanhaExecucao() {
                 campaignId={camp.id}
                 snapshot={snapshot}
                 startedAt={camp.started_at}
-                ecoAllocations={allocs as any}
+                ecoAllocations={allocs as unknown as Parameters<typeof CampaignDailyPlan>[0]["ecoAllocations"]}
                 refreshKey={planRefreshKey}
                 engagementMultiplier={camp.engagement_multiplier ?? 30}
                 onEngagementChange={(v) => setCamp((c) => c ? ({ ...c, engagement_multiplier: v }) : c)}
@@ -387,8 +387,8 @@ export default function CampanhaExecucao() {
       <PlaylistDailyPlanDialog
         open={!!selectedAlloc}
         onOpenChange={(o) => !o && setSelectedAlloc(null)}
-        allocation={selectedAlloc as any}
-        allAllocations={allocs as any}
+        allocation={selectedAlloc as unknown as Parameters<typeof PlaylistDailyPlanDialog>[0]["allocation"]}
+        allAllocations={allocs as unknown as Parameters<typeof PlaylistDailyPlanDialog>[0]["allAllocations"]}
         snapshot={snapshot}
         startedAt={camp.started_at}
         campaignTitle={camp.track_name}
@@ -467,6 +467,10 @@ function getClientPriceTotal(snapshot: CampaignSnapshot) {
     return Math.round(snapshot.meta * snapshot.pricePerStreamSell * 100) / 100;
   }
   return 0;
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
 }
 
 function FinKpi({ label, value, sub }: { label: string; value: string; sub?: string }) {
