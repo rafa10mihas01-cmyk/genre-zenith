@@ -80,15 +80,31 @@ Deno.serve(async (req) => {
   let lastSpreadsheetUploadAt: string | null = null;
   let recentUploads: any[] = [];
   if (camp.deal_id) {
+    // Pega primeira música do deal. Se já tiver client_token, usa.
+    // Se não tiver, mintamos um na hora pra garantir que o card de
+    // upload de planilha sempre funcione no portal da campanha.
     const { data: song } = await supabase
       .from("curator_deal_songs")
-      .select("client_token")
+      .select("id, client_token")
       .eq("deal_id", camp.deal_id)
-      .not("client_token", "is", null)
       .order("created_at", { ascending: true })
       .limit(1)
       .maybeSingle();
-    clientToken = (song as any)?.client_token ?? null;
+    if (song) {
+      const existing = (song as any).client_token as string | null;
+      if (existing) {
+        clientToken = existing;
+      } else {
+        const newToken =
+          crypto.randomUUID().replace(/-/g, "") +
+          crypto.randomUUID().replace(/-/g, "");
+        const { error: tokErr } = await supabase
+          .from("curator_deal_songs")
+          .update({ client_token: newToken })
+          .eq("id", (song as any).id);
+        if (!tokErr) clientToken = newToken;
+      }
+    }
 
     const { data: uploads } = await supabase
       .from("label_spreadsheet_uploads")
