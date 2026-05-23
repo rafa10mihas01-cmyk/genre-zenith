@@ -191,12 +191,28 @@ export function OperacaoTab({ allocations, snapshots, externalItems, totalDays, 
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredRows.map((r) => (
+                      {(expanded ? filteredRows : filteredRows.slice(0, ROW_LIMIT)).map((r) => (
                         <OperacaoRow key={r.key} row={r} />
                       ))}
                     </tbody>
                   </table>
                 </div>
+                {filteredRows.length > ROW_LIMIT && (
+                  <div className="border-t border-border px-4 py-2.5 flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground tabular-nums">
+                      {expanded
+                        ? `Mostrando todas (${filteredRows.length})`
+                        : `Mostrando ${ROW_LIMIT} de ${filteredRows.length}`}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setExpanded((v) => !v)}
+                      className="text-primary hover:underline font-medium"
+                    >
+                      {expanded ? "Mostrar menos" : `Ver todas (+${filteredRows.length - ROW_LIMIT})`}
+                    </button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
