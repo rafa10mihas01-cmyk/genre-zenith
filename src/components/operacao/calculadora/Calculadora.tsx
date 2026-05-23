@@ -217,12 +217,17 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
 
   const effectiveMeta = useMemo(() => {
     if (active.fonte === "orcamento") return reverseFromBudget(active.budget, active.splitEco, pricingCosts);
+    if (active.fonte === "top200" && active.top200StreamsDay != null) {
+      const gapDay = Math.max(0, active.top200StreamsDay - active.baselineStreamsDay);
+      return gapDay * Math.max(1, active.days);
+    }
     return active.meta;
-  }, [active.fonte, active.budget, active.splitEco, active.meta, pricingCosts]);
+  }, [active.fonte, active.budget, active.splitEco, active.meta, active.top200StreamsDay, active.baselineStreamsDay, active.days, pricingCosts]);
 
   const result = useMemo(() => calcCampaign({
     meta: effectiveMeta, days: active.days, modo: active.modo, perfil: active.perfil, splitEcoPct: active.splitEco,
   }, pricingCosts), [effectiveMeta, active.days, active.modo, active.perfil, active.splitEco, pricingCosts]);
+
 
   const preferredSlots = useMemo(() => {
     const pos = active.track?.position ?? 999;
