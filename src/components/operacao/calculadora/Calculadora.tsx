@@ -171,6 +171,8 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
   const setPerfil = (v: Perfil) => patchActive({ perfil: v });
   const setSplitEco = (v: number) => patchActive({ splitEco: v });
   const setStartDate = (d: Date) => patchActive({ startDateISO: startOfDay(d).toISOString().slice(0, 10) });
+  const setClientPriceTotal = (v: number) => patchActive({ clientPriceTotal: v });
+  const setGenre = (v: string) => patchActive({ genre: v });
 
   // --- Multi-música ops ---
   function addSong() {
