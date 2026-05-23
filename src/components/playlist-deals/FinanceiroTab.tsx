@@ -96,7 +96,9 @@ export function FinanceiroTab({ deals, hideHero = false }: Props) {
   return (
     <div className="space-y-6">
       {/* ============= HERO FINANCEIRO — mesmo padrão do KpiBig hero ============= */}
+      {!hideHero && (
       <section className="relative overflow-hidden rounded-2xl border border-border border-l-2 border-l-primary bg-gradient-to-br from-card via-card to-primary/[0.08]">
+
         {/* Glow verde sutil no canto */}
         <div
           className="pointer-events-none absolute -top-16 -right-16 h-40 w-40 rounded-full bg-primary/20 blur-3xl"
