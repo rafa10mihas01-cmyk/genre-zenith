@@ -50,7 +50,7 @@ Deno.serve(async (req) => {
           "Authorization": `Bearer ${SERVICE_KEY}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ playlist_id: r.id }),
+        body: JSON.stringify({ playlist_id: r.id, skip_ai: true, source: "batch" }),
       });
       const json = await resp.json().catch(() => ({}));
       results.push({ id: r.id, ok: resp.ok && json?.ok !== false, error: resp.ok ? undefined : (json?.error ?? `http_${resp.status}`) });
