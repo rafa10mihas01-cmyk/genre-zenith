@@ -115,10 +115,12 @@ Deno.serve(async (req) => {
     let imported = 0;
     let skipped = 0;
     const snapshotInserts: Array<{ playlist_spotify_id: string; followers: number | null; total_tracks: number | null }> = [];
-    const { data: existingManaged } = await supabase
-      .from("managed_playlists")
-      .select("spotify_playlist_id, genre_id, canonical_playlist_id")
-      .in("spotify_playlist_id", owned.map((p) => p.id));
+    const { data: existingManaged } = owned.length > 0
+      ? await supabase
+        .from("managed_playlists")
+        .select("spotify_playlist_id, genre_id, canonical_playlist_id")
+        .in("spotify_playlist_id", owned.map((p) => p.id))
+      : { data: [] as any[] };
     const existingBySpotifyId = new Map(
       (existingManaged ?? []).map((row: any) => [row.spotify_playlist_id, row]),
     );
