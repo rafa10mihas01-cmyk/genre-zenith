@@ -128,6 +128,17 @@ export function canAllocateTrackToPosition(
  */
 export const MIN_CAMPAIGN_POSITION = 3;
 
+export function getCampaignPreferredPositions(snapshot?: CampaignSnapshot | null): number[] {
+  const music = snapshot?.music as (CampaignSnapshot["music"] & {
+    top200Position?: number | null;
+    top200Pos?: number | null;
+  }) | undefined;
+  const topPosition = Number(music?.top200Position ?? music?.top200Pos ?? 0);
+  return Number.isFinite(topPosition) && topPosition > 0 && topPosition <= 50
+    ? [1, 2, 3]
+    : [MIN_CAMPAIGN_POSITION];
+}
+
 /**
  * @deprecated Removido — agora a capacidade é derivada de POSITION_PCT.
  * Mantido apenas para compatibilidade de import; não usar em novas chamadas.
@@ -232,13 +243,18 @@ export function distributeEcoPositions(
   allocs: EcoPositionInput[],
   days: number,
   engagementMultiplier = 30,
-  opts: { strongSlotShareCap?: number } = {},
+  opts: { strongSlotShareCap?: number; preferredSlots?: number[] } = {},
 ): Map<string, number> {
+  const preferredSlots = (opts.preferredSlots ?? []).filter((p) => Number.isFinite(p) && p >= 1);
   const cap = opts.strongSlotShareCap ?? 0.4;
   const total = allocs.length;
   const maxStrong = Math.max(1, Math.floor(total * cap));
   const ordered = [...allocs].sort((a, b) => b.followers - a.followers);
   const result = new Map<string, number>();
+  if (preferredSlots.length > 0) {
+    ordered.forEach((a, index) => result.set(a.id, preferredSlots[index % preferredSlots.length] ?? MIN_CAMPAIGN_POSITION));
+    return result;
+  }
   let strongUsed = 0;
 
   for (const a of ordered) {
