@@ -81,6 +81,31 @@ export default function CampanhaExecucao() {
   const [lastSpreadsheetUploadAt, setLastSpreadsheetUploadAt] = useState<string | null>(null);
   const [recentUploads, setRecentUploads] = useState<SpreadsheetUpload[]>([]);
   const [externalItems, setExternalItems] = useState<ExternalItemRow[]>([]);
+  const [dispatching, setDispatching] = useState(false);
+
+  async function handleDispatchEco() {
+    if (!camp) return;
+    setDispatching(true);
+    try {
+      const { error } = await (supabase.rpc as any)("approve_campaign", { p_campaign_id: camp.id });
+      if (error) throw error;
+      toast.success("Campanha distribuída", { description: "Deal criado e playlists enviadas pra fila de coleta." });
+      setCamp((c) => c ? ({ ...c, status: "active", eco_dispatched_at: new Date().toISOString() }) : c);
+      setPlanRefreshKey((k) => k + 1);
+    } catch (e: any) {
+      const raw = e?.message ?? String(e);
+      const map: Record<string, string> = {
+        client_approval_required: "O cliente ainda não aprovou o plano. Mande o link público antes.",
+        curator_required: "Edite a campanha e selecione o curador dono das playlists.",
+        campaign_not_in_approvable_state: "Esta campanha já foi distribuída.",
+        campaign_not_found: "Campanha não encontrada.",
+      };
+      const key = Object.keys(map).find((k) => raw.includes(k));
+      toast.error("Não foi possível distribuir", { description: key ? map[key] : raw });
+    } finally {
+      setDispatching(false);
+    }
+  }
 
   const loadCampaign = async () => {
     if (!id) return;
