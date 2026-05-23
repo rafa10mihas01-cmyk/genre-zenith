@@ -231,12 +231,16 @@ export default function CampanhaExecucao() {
               <ExternalPackageEditor campaignId={camp.id} snapshot={snapshot} onChanged={() => setPlanRefreshKey(k => k + 1)} />
             </div>
           ),
-          proofs: <ProofsTimeline events={proofEvents} />,
-              campaignId={camp.id}
-              snapshot={snapshot}
-              campaignStartedAt={camp.started_at}
-              campaignStatus={camp.status}
-            />
+          proofs: (
+            <div className="space-y-6">
+              <ProofsTimeline events={proofEvents} />
+              <CampaignMonitoring
+                campaignId={camp.id}
+                snapshot={snapshot}
+                campaignStartedAt={camp.started_at}
+                campaignStatus={camp.status}
+              />
+            </div>
           ),
           curve: (
             <div className="space-y-6">
