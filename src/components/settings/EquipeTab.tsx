@@ -93,14 +93,20 @@ export function EquipeTab() {
       const { data, error } = await supabase.functions.invoke("invite-team-member", {
         body: { email, role: inviteRole },
       });
-      if (error || !data?.ok) throw new Error(data?.error ?? error?.message ?? "Falha ao convidar");
+      // Quando o edge function retorna 4xx/5xx, supabase-js seta `error` E `data` vem com o JSON do erro.
+      // Tentamos extrair a mensagem real do backend antes de cair no fallback genérico do "Edge Function...".
+      const backendError = (data as any)?.error;
+      if (backendError || (error && !data?.ok)) {
+        throw new Error(backendError ?? error?.message ?? "Falha ao convidar");
+      }
       toast.success("Convite enviado", {
         description: `${email} receberá um email para criar a senha. Papel: ${ROLE_LABEL[inviteRole]}.`,
       });
       setInviteEmail("");
       await loadMembers();
     } catch (e: any) {
-      toast.error("Não foi possível convidar", { description: e?.message });
+      console.error("[invite-team-member] erro:", e);
+      toast.error("Não foi possível convidar", { description: e?.message ?? String(e) });
     } finally {
       setInviting(false);
     }
