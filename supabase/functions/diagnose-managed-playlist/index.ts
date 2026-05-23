@@ -2090,7 +2090,23 @@ Deno.serve(async (req) => {
       })
       .eq("id", pl.id);
 
-    // 9) Persiste diagnóstico
+    // === Lifecycle phase + roadmap (espelho do que brain-calc vai materializar) ===
+    const currentTracksCount = Number((pl as any).tracks_count ?? 0);
+    const benchmarkTracksDiag: number | null = (benchmark?.tracks_p50 as number | null) ?? null;
+    const { phase: lifecyclePhaseDiagRaw, ratio: ratioDiag } = derivePhase(currentTracksCount, benchmarkTracksDiag);
+    // Tenta carregar a fase persistida (que considera decline via snapshots)
+    const { data: mgdPhase } = await supabase
+      .from("managed_playlists")
+      .select("lifecycle_phase")
+      .eq("id", pl.id)
+      .maybeSingle();
+    const lifecyclePhaseDiag = ((mgdPhase as any)?.lifecycle_phase as any) ?? lifecyclePhaseDiagRaw;
+    const growthRoadmapDiag = buildRoadmap(currentTracksCount, benchmarkTracksDiag ?? 0, lifecyclePhaseDiag);
+    const bloatedBudget = lifecyclePhaseDiag === "bloated"
+      ? bloatedRemovalBudget(currentTracksCount, benchmarkTracksDiag ?? 0)
+      : null;
+
+
     const { data: diag, error: dErr } = await supabase
       .from("playlist_diagnoses")
       .insert({
