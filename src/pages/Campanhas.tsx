@@ -5,7 +5,7 @@ import { PageContainer } from "@/components/PageContainer";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusDot } from "@/components/ui/status-dot";
-import { Plus, RefreshCw, Target, ListChecks, Calculator, Megaphone, CheckCircle2, Percent, MoreHorizontal, Pause, Play, Archive, Trash2, Handshake } from "lucide-react";
+import { Plus, RefreshCw, Target, ListChecks, Calculator, Megaphone, CheckCircle2, Percent, MoreHorizontal, Pause, Play, Archive, Trash2, Handshake, Link2, Copy, Check, Clock, MessageSquareWarning } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { Calculadora } from "@/components/operacao/calculadora/Calculadora";
 import { KpiBig } from "@/components/KpiBig";
@@ -201,7 +201,28 @@ function CampaignRow({ c }: { c: Campaign }) {
   const daysLeft = Math.ceil((new Date(c.deadline).getTime() - Date.now()) / 86400_000);
   const href = c.snapshot_locked_at ? `/campanhas/${c.id}/execucao` : `/campanhas/${c.id}`;
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [copied, setCopied] = useState(false);
   const busy = updateStatus.isPending || removeCampaign.isPending || approve.isPending;
+
+  const clientUrl = c.public_plan_token
+    ? `${window.location.origin}/p/plano/${c.public_plan_token}`
+    : null;
+  const clientApproved = !!c.client_approved_at;
+  const clientPendingAdjust = !!c.client_rejected_at && !clientApproved;
+
+  async function copyClientLink(e?: React.MouseEvent) {
+    e?.preventDefault();
+    e?.stopPropagation();
+    if (!clientUrl) return;
+    try {
+      await navigator.clipboard.writeText(clientUrl);
+      setCopied(true);
+      toast({ title: "Link do cliente copiado", description: "Cole no WhatsApp ou e-mail." });
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast({ title: "Não consegui copiar", description: clientUrl, variant: "destructive" });
+    }
+  }
 
   async function doUpdateStatus(status: Campaign["status"], label: string) {
     try {
@@ -300,6 +321,46 @@ function CampaignRow({ c }: { c: Campaign }) {
               <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
             </div>
           </div>
+
+          {/* Aprovação do cliente — visível em rascunho e ativa */}
+          {clientUrl && (c.status === "draft" || c.status === "active") && (
+            <div
+              className={cn(
+                "rounded-lg border px-2.5 py-2 flex items-center justify-between gap-2",
+                clientApproved
+                  ? "border-primary/30 bg-primary/5"
+                  : clientPendingAdjust
+                    ? "border-amber-500/30 bg-amber-500/5"
+                    : "border-border/60 bg-muted/20",
+              )}
+            >
+              <div className="flex items-center gap-1.5 min-w-0">
+                {clientApproved ? (
+                  <CheckCircle2 className="h-3.5 w-3.5 text-primary shrink-0" />
+                ) : clientPendingAdjust ? (
+                  <MessageSquareWarning className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                ) : (
+                  <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                )}
+                <span className="text-[11px] truncate">
+                  {clientApproved
+                    ? `Aprovado por ${c.client_approved_by ?? "cliente"}`
+                    : clientPendingAdjust
+                      ? "Cliente pediu ajuste"
+                      : "Aguardando cliente"}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={copyClientLink}
+                className="shrink-0 inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
+                title="Copiar link de aprovação do cliente"
+              >
+                {copied ? <Check className="h-3 w-3 text-primary" /> : <Copy className="h-3 w-3" />}
+                {copied ? "Copiado" : "Copiar link"}
+              </button>
+            </div>
+          )}
         </div>
       </Link>
 
@@ -317,6 +378,14 @@ function CampaignRow({ c }: { c: Campaign }) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" onClick={stop}>
+            {clientUrl && (
+              <>
+                <DropdownMenuItem onSelect={() => copyClientLink()}>
+                  <Link2 className="h-4 w-4 mr-2" /> Copiar link do cliente
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+              </>
+            )}
             {isDraftReady && (
               <>
                 <DropdownMenuItem onSelect={() => approveCampaign()}>
