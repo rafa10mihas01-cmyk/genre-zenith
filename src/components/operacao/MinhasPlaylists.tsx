@@ -348,6 +348,50 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   const [filterGenreId, setFilterGenreId] = useState<string | null>(null);
   const [filterSize, setFilterSize] = useState<"all" | "pequena" | "media" | "grande" | "top">("all");
   const [savingGenre, setSavingGenre] = useState(false);
+  const [suggesting, setSuggesting] = useState(false);
+
+  async function runGenreSuggest() {
+    setSuggesting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("classify-playlist-genre", { body: { only_missing: true } });
+      if (error) throw error;
+      toast({
+        title: "Sugestões geradas",
+        description: `${data?.ok ?? 0} de ${data?.processed ?? 0} playlists classificadas${data?.failed ? ` · ${data.failed} falharam` : ""}.`,
+      });
+      await load();
+    } catch (e: any) {
+      toast({ title: "Falha ao sugerir gêneros", description: e.message ?? String(e), variant: "destructive" });
+    } finally { setSuggesting(false); }
+  }
+
+  async function acceptSuggestion(pl: ManagedPlaylist) {
+    if (!pl.suggested_genre_id) return;
+    const { error } = await supabase
+      .from("managed_playlists")
+      .update({
+        genre_id: pl.suggested_genre_id,
+        suggested_genre_id: null,
+        suggestion_confidence: null,
+        suggestion_reason: null,
+        suggested_at: null,
+      })
+      .eq("id", pl.id);
+    if (error) {
+      toast({ title: "Erro ao aplicar gênero", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Gênero aplicado" });
+    setItems((prev) => prev.map((x) => x.id === pl.id ? { ...x, genre_id: pl.suggested_genre_id!, suggested_genre_id: null, suggestion_confidence: null, suggestion_reason: null, suggested_at: null } : x));
+  }
+
+  async function dismissSuggestion(pl: ManagedPlaylist) {
+    await supabase
+      .from("managed_playlists")
+      .update({ suggested_genre_id: null, suggestion_confidence: null, suggestion_reason: null, suggested_at: null })
+      .eq("id", pl.id);
+    setItems((prev) => prev.map((x) => x.id === pl.id ? { ...x, suggested_genre_id: null, suggestion_confidence: null, suggestion_reason: null, suggested_at: null } : x));
+  }
 
   useEffect(() => {
     supabase.from("genres").select("id, nome").order("nome").then(({ data }) => {
