@@ -17,9 +17,13 @@ export type Campaign = {
   snapshot_locked_at: string | null;
   curator_id: string | null;
   deal_id: string | null;
+  public_plan_token: string | null;
+  client_approved_at: string | null;
+  client_approved_by: string | null;
+  client_rejected_at: string | null;
 };
 
-const SELECT = "id, track_name, artist, goal_plays, deadline, status, total_allocated, total_delivered, created_at, snapshot_locked_at, curator_id, deal_id";
+const SELECT = "id, track_name, artist, goal_plays, deadline, status, total_allocated, total_delivered, created_at, snapshot_locked_at, curator_id, deal_id, public_plan_token, client_approved_at, client_approved_by, client_rejected_at";
 const QUERY_KEY = ["campaigns"] as const;
 
 export function useCampaigns() {
