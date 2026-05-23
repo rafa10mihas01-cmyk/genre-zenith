@@ -338,6 +338,38 @@ export default function CampanhaExecucao() {
     }
   };
 
+  const handleLockSplit = async (ecoStreams: number) => {
+    if (!camp) return;
+    try {
+      const lockedAt = new Date().toISOString();
+      const { error } = await supabase
+        .from("campaigns")
+        .update({ split_locked_at: lockedAt, locked_eco_streams: Math.round(ecoStreams) })
+        .eq("id", camp.id);
+      if (error) throw error;
+      setCamp({ ...camp, split_locked_at: lockedAt, locked_eco_streams: Math.round(ecoStreams) });
+      toast.success("Split eco/externo travado");
+    } catch (e: unknown) {
+      toast.error(getErrorMessage(e, "Falha ao travar split"));
+    }
+  };
+
+  const handleUnlockSplit = async () => {
+    if (!camp) return;
+    try {
+      const { error } = await supabase
+        .from("campaigns")
+        .update({ split_locked_at: null, locked_eco_streams: null })
+        .eq("id", camp.id);
+      if (error) throw error;
+      setCamp({ ...camp, split_locked_at: null, locked_eco_streams: null });
+      toast.success("Split destravado — recalculando automaticamente");
+    } catch (e: unknown) {
+      toast.error(getErrorMessage(e, "Falha ao destravar split"));
+    }
+  };
+
+
   const ecoPositionByAllocation = useMemo(() => {
     if (!snapshot) return new Map<string, number>();
     return distributeEcoPositions(
