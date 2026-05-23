@@ -85,7 +85,6 @@ export function OverviewTab({
     <div className="space-y-6">
       {/* Plano de entrega — leitura única: meta total, ritmo, split eco/ext, hoje */}
       {!hideDeliveryPlan && (
-      {!hideDeliveryPlan && (
       <Card>
         <button
           type="button"
