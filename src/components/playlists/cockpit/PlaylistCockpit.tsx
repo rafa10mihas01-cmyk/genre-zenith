@@ -477,8 +477,20 @@ export function PlaylistCockpit({
                 <ExternalLink className="h-3.5 w-3.5" /> <span className="sm:inline">Abrir no Spotify</span>
               </a>
             </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleArchive}
+              disabled={archiving}
+              className="h-8 gap-1.5 text-muted-foreground hover:text-destructive hover:border-destructive/40"
+              title="Mover para lixeira"
+            >
+              {archiving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+              <span className="hidden sm:inline">Lixeira</span>
+            </Button>
           </div>
         </div>
+
 
         {/* KPI row — mesma régua do DealDetail/Cliente/Curador */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
