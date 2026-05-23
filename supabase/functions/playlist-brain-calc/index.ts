@@ -42,48 +42,7 @@ type Recommendation = {
  */
 const DEFAULT_PLAYS_PER_FOLLOWER_DAY = 0.05;
 
-/**
- * Roteiro multi-ciclo até a playlist atingir a faixa saudável (0.80–1.20× benchmark).
- * - seed: adiciona até +80 por ciclo
- * - growth: adiciona até 25% do benchmark por ciclo
- * - bloated: remove min(25% do excesso, 50) por ciclo
- * - mature/decline: sem roadmap construtivo (vazio)
- */
-export type RoadmapStep = {
-  cycle: number;
-  delta: number;
-  total: number;
-  action: "build" | "trim";
-  phase: string;
-};
-export function buildRoadmap(current: number, benchmark: number, phase: string): RoadmapStep[] {
-  const out: RoadmapStep[] = [];
-  if (!benchmark || benchmark <= 0) return out;
-  let t = current, c = 1;
-  while (c <= 20) {
-    if (phase === "seed" || phase === "growth") {
-      const gap = benchmark - t;
-      if (gap <= 0) break;
-      const add = phase === "seed"
-        ? Math.min(gap, 80)
-        : Math.min(gap, Math.ceil(benchmark * 0.25));
-      if (add <= 0) break;
-      out.push({ cycle: c, delta: +add, total: t + add, action: "build", phase });
-      t += add;
-    } else if (phase === "bloated") {
-      const exc = t - benchmark;
-      if (exc <= 0) break;
-      const rem = Math.min(Math.ceil(exc * 0.25), 50);
-      if (rem <= 0) break;
-      out.push({ cycle: c, delta: -rem, total: t - rem, action: "trim", phase });
-      t -= rem;
-    } else break;
-    const nr = t / benchmark;
-    if (nr >= 0.80 && nr <= 1.20) break;
-    c++;
-  }
-  return out;
-}
+
 
 async function calcOne(supabase: any, playlistId: string) {
   // 1. Carrega playlist canonical + managed (se existir)
