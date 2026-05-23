@@ -1907,9 +1907,21 @@ Deno.serve(async (req) => {
     const tracksLightCooled = hasCooldown("tracks_light");
     const allCooled = tracksFullCooled && tracksLightCooled && hasCooldown("cover") && hasCooldown("description");
 
+    // Playlist subdimensionada ou vazia: NÃO é "madura", é underbuilt.
+    // Força modo que libera adições mesmo sem sinais de remove/promote.
+    const benchP50Early = Number(benchmark?.tracks_p50 ?? 0);
+    const isEmpty = totalTracks === 0;
+    const isSeverelyUndersize = benchP50Early > 0 && totalTracks < benchP50Early * 0.5;
+
     if (allCooled) {
       mode = "hold";
       justifications.push("Todas as frentes estão em janela de observação. Aguardando maturação das últimas mudanças antes de qualquer nova intervenção.");
+    } else if (isEmpty) {
+      mode = tracksFullCooled ? "light" : "structural";
+      justifications.push(`Playlist sem faixas. Construção inicial necessária — alvo de mercado: ~${benchP50Early || "?"} faixas.`);
+    } else if (isSeverelyUndersize) {
+      mode = tracksFullCooled ? "light" : "structural";
+      justifications.push(`Playlist subdimensionada (${totalTracks} faixas vs. ~${benchP50Early} do mercado). Crescimento prioritário.`);
     } else if (removeRatio >= 0.25 || saturatedRatio >= 0.5) {
       mode = tracksFullCooled ? "light" : "structural";
       if (tracksFullCooled) {
@@ -1927,6 +1939,7 @@ Deno.serve(async (req) => {
       mode = "hold";
       justifications.push("Playlist madura e estável. Nenhuma alteração recomendada — manter como está e observar impacto.");
     }
+
 
     // 8.i) Aplica caps por modo + max_change_pct configurado
     const modeCapPct: Record<typeof mode, number> = { hold: 0, light: 5, moderate: 10, structural: 15 };
