@@ -349,20 +349,60 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   const [filterSize, setFilterSize] = useState<"all" | "pequena" | "media" | "grande" | "top">("all");
   const [savingGenre, setSavingGenre] = useState(false);
   const [suggesting, setSuggesting] = useState(false);
+  const [suggestProgress, setSuggestProgress] = useState<{ done: number; total: number } | null>(null);
 
   async function runGenreSuggest() {
     setSuggesting(true);
+    setSuggestProgress(null);
     try {
-      const { data, error } = await supabase.functions.invoke("classify-playlist-genre", { body: { only_missing: true } });
-      if (error) throw error;
+      // 1) Busca IDs das playlists sem gênero (controle do lote fica no cliente)
+      const { data: pending, error: pendErr } = await supabase
+        .from("managed_playlists")
+        .select("id")
+        .is("genre_id", null)
+        .is("archived_at", null);
+      if (pendErr) throw pendErr;
+      const ids = (pending ?? []).map((p) => p.id);
+      if (!ids.length) {
+        toast({ title: "Nada a sugerir", description: "Todas as playlists já têm gênero." });
+        return;
+      }
+
+      // 2) Fila sequencial — lotes de 5 (cada chamada ~5-10s, bem dentro do timeout)
+      const BATCH = 5;
+      let okTotal = 0;
+      let failTotal = 0;
+      setSuggestProgress({ done: 0, total: ids.length });
+
+      for (let i = 0; i < ids.length; i += BATCH) {
+        const slice = ids.slice(i, i + BATCH);
+        try {
+          const { data, error } = await supabase.functions.invoke("classify-playlist-genre", {
+            body: { playlist_ids: slice, only_missing: true },
+          });
+          if (error) throw error;
+          okTotal += data?.ok ?? 0;
+          failTotal += data?.failed ?? 0;
+        } catch (e: any) {
+          failTotal += slice.length;
+          console.error("[classify batch]", e?.message ?? e);
+        }
+        setSuggestProgress({ done: Math.min(i + BATCH, ids.length), total: ids.length });
+        // pequena pausa entre lotes pra aliviar rate limit do Gemini
+        if (i + BATCH < ids.length) await new Promise((r) => setTimeout(r, 800));
+      }
+
       toast({
         title: "Sugestões geradas",
-        description: `${data?.ok ?? 0} de ${data?.processed ?? 0} playlists classificadas${data?.failed ? ` · ${data.failed} falharam` : ""}.`,
+        description: `${okTotal} de ${ids.length} classificadas${failTotal ? ` · ${failTotal} falharam` : ""}.`,
       });
       await load();
     } catch (e: any) {
       toast({ title: "Falha ao sugerir gêneros", description: e.message ?? String(e), variant: "destructive" });
-    } finally { setSuggesting(false); }
+    } finally {
+      setSuggesting(false);
+      setSuggestProgress(null);
+    }
   }
 
   async function acceptSuggestion(pl: ManagedPlaylist) {
