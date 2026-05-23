@@ -22,6 +22,7 @@ import { PlaylistsGrid } from "@/components/campaign-hub/PlaylistsGrid";
 import { ProofsTimeline, type ProofEvent } from "@/components/campaign-hub/ProofsTimeline";
 import { CampaignDailyPlan } from "@/components/campanhas/CampaignDailyPlan";
 import { distributeEcoPositions } from "@/lib/campaignOperationalPlan";
+import { ClientHeroCard } from "@/components/campaign-hub/ClientHeroCard";
 import type { CampaignHubCampaign, CampaignHubTabId, EcoAllocation } from "@/components/campaign-hub/types";
 
 type EcoSnap = {
