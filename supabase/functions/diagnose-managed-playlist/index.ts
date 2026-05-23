@@ -2105,6 +2105,11 @@ Deno.serve(async (req) => {
         cover_suggestion: coverSuggestion,
         competitors,
         raw: {
+          // === Lifecycle / Roadmap (espelho do brain) ===
+          lifecycle_phase: lifecyclePhaseDiag,
+          benchmark_tracks: benchmarkTracksDiag,
+          ratio_to_benchmark: ratioDiag,
+          growth_roadmap: growthRoadmapDiag,
           model_present: !!model,
           benchmark,
           top_keywords: topKeywords,
