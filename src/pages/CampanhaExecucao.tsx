@@ -23,7 +23,7 @@ import { OverviewTab } from "@/components/campaign-hub/tabs/OverviewTab";
 import { OperacaoTab, type ExternalItemRow } from "@/components/campaign-hub/tabs/OperacaoTab";
 import { PlaylistsGrid } from "@/components/campaign-hub/PlaylistsGrid";
 import { ProofsTimeline, type ProofEvent } from "@/components/campaign-hub/ProofsTimeline";
-import { ShareLinkCard } from "@/components/campaign-hub/ShareLinkCard";
+
 import { SpreadsheetUploadCard } from "@/components/client-portal/SpreadsheetUploadCard";
 import type { CampaignHubCampaign, CampaignHubTabId, EcoAllocation } from "@/components/campaign-hub/types";
 import { toast } from "sonner";
@@ -412,27 +412,11 @@ export default function CampanhaExecucao() {
         slots={{
           overview: (
             <div className="space-y-6">
-              <ClientPriceEditor
-                snapshot={snapshot}
-                value={clientPriceInput}
-                onChange={setClientPriceInput}
-                onSave={handleSaveClientPrice}
-                saving={savingClientPrice}
-                approved={!!camp.client_approved_at}
-              />
-              {camp.public_plan_token && (
-                <ShareLinkCard
-                  token={camp.public_plan_token}
-                  trackName={camp.track_name}
-                  artist={camp.artist}
-                  approved={!!camp.client_approved_at}
-                />
-              )}
               <OverviewTab
                 snapshot={snapshot}
                 delivered={delivered}
                 daysElapsed={daysElapsed}
-                showFinance={true}
+                showFinance={false}
                 allocations={allocs}
                 snapshots={snaps}
                 proofs={proofs.map(p => ({
@@ -444,8 +428,32 @@ export default function CampanhaExecucao() {
                 }))}
                 onJumpTab={(t) => setTab(t)}
               />
+              <ClientPriceEditor
+                snapshot={snapshot}
+                value={clientPriceInput}
+                onChange={setClientPriceInput}
+                onSave={handleSaveClientPrice}
+                saving={savingClientPrice}
+                approved={!!camp.client_approved_at}
+                showFinanceKpis={false}
+              />
+              <Card>
+                <CardContent className="p-5 space-y-4">
+                  <div>
+                    <div className="text-sm font-semibold">Resumo financeiro interno</div>
+                    <div className="text-xs text-muted-foreground">Quanto entra, quanto sai e quanto sobra desta campanha.</div>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <FinKpi label="Cliente paga" value={formatBRL(getClientPriceTotal(snapshot))} sub={`${formatInt(snapshot.meta)} streams`} />
+                    <FinKpi label="Tabela" value={formatBRL(snapshot.meta > 0 ? (getClientPriceTotal(snapshot) / snapshot.meta) * 1_000_000 : 0)} sub="por 1M streams" />
+                    <FinKpi label="Seu custo" value={formatBRL(snapshot.custoTotal)} sub="interno" />
+                    <FinKpi label="Margem" value={formatBRL(getClientPriceTotal(snapshot) - snapshot.custoTotal)} sub={`${getClientPriceTotal(snapshot) > 0 ? Math.round(((getClientPriceTotal(snapshot) - snapshot.custoTotal) / getClientPriceTotal(snapshot)) * 100) : 0}% sobre venda`} />
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           ),
+
 
           operacao: (
             <OperacaoTab
@@ -570,7 +578,7 @@ export default function CampanhaExecucao() {
 }
 
 function ClientPriceEditor({
-  snapshot, value, onChange, onSave, saving, approved,
+  snapshot, value, onChange, onSave, saving, approved, showFinanceKpis = true,
 }: {
   snapshot: CampaignSnapshot;
   value: string;
@@ -578,6 +586,7 @@ function ClientPriceEditor({
   onSave: () => void;
   saving: boolean;
   approved: boolean;
+  showFinanceKpis?: boolean;
 }) {
   const currentTotal = getClientPriceTotal(snapshot);
   const typedTotal = parseBRLInput(value);
@@ -631,12 +640,14 @@ function ClientPriceEditor({
         })()}
 
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <FinKpi label="Cliente paga" value={formatBRL(effectiveTotal)} sub={`${formatInt(snapshot.meta)} streams`} />
-          <FinKpi label="Tabela" value={formatBRL(perMillion)} sub="por 1M streams" />
-          <FinKpi label="Seu custo" value={formatBRL(snapshot.custoTotal)} sub="interno" />
-          <FinKpi label="Margem" value={formatBRL(margin)} sub={`${marginPct}% sobre venda`} />
-        </div>
+        {showFinanceKpis && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <FinKpi label="Cliente paga" value={formatBRL(effectiveTotal)} sub={`${formatInt(snapshot.meta)} streams`} />
+            <FinKpi label="Tabela" value={formatBRL(perMillion)} sub="por 1M streams" />
+            <FinKpi label="Seu custo" value={formatBRL(snapshot.custoTotal)} sub="interno" />
+            <FinKpi label="Margem" value={formatBRL(margin)} sub={`${marginPct}% sobre venda`} />
+          </div>
+        )}
       </CardContent>
     </Card>
   );
