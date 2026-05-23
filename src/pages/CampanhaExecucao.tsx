@@ -640,12 +640,14 @@ function ClientPriceEditor({
         })()}
 
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <FinKpi label="Cliente paga" value={formatBRL(effectiveTotal)} sub={`${formatInt(snapshot.meta)} streams`} />
-          <FinKpi label="Tabela" value={formatBRL(perMillion)} sub="por 1M streams" />
-          <FinKpi label="Seu custo" value={formatBRL(snapshot.custoTotal)} sub="interno" />
-          <FinKpi label="Margem" value={formatBRL(margin)} sub={`${marginPct}% sobre venda`} />
-        </div>
+        {showFinanceKpis && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <FinKpi label="Cliente paga" value={formatBRL(effectiveTotal)} sub={`${formatInt(snapshot.meta)} streams`} />
+            <FinKpi label="Tabela" value={formatBRL(perMillion)} sub="por 1M streams" />
+            <FinKpi label="Seu custo" value={formatBRL(snapshot.custoTotal)} sub="interno" />
+            <FinKpi label="Margem" value={formatBRL(margin)} sub={`${marginPct}% sobre venda`} />
+          </div>
+        )}
       </CardContent>
     </Card>
   );
