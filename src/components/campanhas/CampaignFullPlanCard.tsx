@@ -113,6 +113,26 @@ export function CampaignFullPlanCard({
     return arr;
   }, [dailyTotals, days]);
 
+  // ---- Resumo da distribuição (card no topo) ----
+  const resumo = useMemo(() => {
+    const capacidadeEcoDia = plans.reduce((s, p) => s + (p.capDia ?? 0), 0);
+    const ecoCobertoTotal = plans.reduce((s, p) => s + (p.totalStreams ?? 0), 0);
+    const metaEco = snapshot.streamsEco ?? 0;
+    const metaExt = snapshot.streamsExt ?? Math.max(0, snapshot.meta - metaEco);
+    const necDiaTotal = Math.round(snapshot.meta / Math.max(1, days));
+    const necDiaEco = Math.round(metaEco / Math.max(1, days));
+    const necDiaExt = Math.round(metaExt / Math.max(1, days));
+    const pico = dailyTotals.length ? Math.max(...dailyTotals) : 0;
+    const usoCap = capacidadeEcoDia > 0 ? Math.round((necDiaEco / capacidadeEcoDia) * 100) : 0;
+    const deficitEco = Math.max(0, metaEco - ecoCobertoTotal);
+    return {
+      capacidadeEcoDia, ecoCobertoTotal, metaEco, metaExt,
+      necDiaTotal, necDiaEco, necDiaExt, pico, usoCap, deficitEco,
+      qtdPlaylists: plans.length,
+    };
+  }, [plans, dailyTotals, snapshot, days]);
+
+
   function cellValue(p: DailyPlaylistPlan, i: number) {
     if (mode === "diario") return p.daily[i] ?? 0;
     let acc = 0;
