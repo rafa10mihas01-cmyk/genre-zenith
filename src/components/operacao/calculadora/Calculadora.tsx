@@ -103,7 +103,7 @@ function loadPersisted(): PersistedV2 {
 export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandoff) => void }) {
   const initial = useMemo(loadPersisted, []);
   const navigate = useNavigate();
-  const { costs: pricingCosts } = usePricingSettings();
+  const { costs: pricingCosts, settings: pricingSettings } = usePricingSettings();
   const [closing, setClosing] = useState(false);
   const [top200Open, setTop200Open] = useState(false);
   // Wizard: 1 Sessão · 2 Músicas · 3 Revisão.
