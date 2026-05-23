@@ -197,6 +197,8 @@ export function FinanceiroTab({ deals, hideHero = false }: Props) {
           </div>
         </div>
       </section>
+      )}
+
 
       {/* ============= PÓDIO ============= */}
       {topByVolume.length > 0 && (
