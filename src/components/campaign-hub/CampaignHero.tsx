@@ -39,16 +39,24 @@ export function CampaignHero({ camp, mode, delivered = 0, goal = 0, daysElapsed 
   const daysLeft = Math.max(0, daysTotal - daysElapsed);
   const statusKey = camp.status ?? "draft";
 
+  const clientUrl = camp.public_plan_token
+    ? `${window.location.origin}/p/plano/${camp.public_plan_token}`
+    : "";
+
   async function copyClientLink() {
-    const token = camp.public_plan_token;
-    if (!token) return;
-    const url = `${window.location.origin}/p/plano/${token}`;
+    if (!clientUrl) return;
     try {
-      await navigator.clipboard.writeText(url);
+      await navigator.clipboard.writeText(clientUrl);
       toast({ title: "Link copiado", description: "Cole no WhatsApp ou e-mail pro cliente." });
     } catch {
-      toast({ title: "Não consegui copiar", description: url, variant: "destructive" });
+      toast({ title: "Não consegui copiar", description: clientUrl, variant: "destructive" });
     }
+  }
+
+  function shareWhatsApp() {
+    if (!clientUrl) return;
+    const text = `Acompanhe a campanha de ${camp.track_name}${camp.artist ? ` — ${camp.artist}` : ""}: ${clientUrl}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
   }
 
   return (
