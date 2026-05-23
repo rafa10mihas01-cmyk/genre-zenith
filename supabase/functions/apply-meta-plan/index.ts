@@ -3,16 +3,27 @@
 // as demais pra baixo, padrão Spotify). Se já existir em outra posição, MOVE
 // pra posição planejada.
 //
+// FIDELIDADE: depois de adicionar/mover, RE-LISTA a playlist e verifica o
+// índice real. Se a posição final divergir do alvo (Spotify relinkou, contou
+// item local/episode diferente, etc.), faz um REORDER de correção pra cravar
+// exatamente a posição planejada. Sem isso, era comum cair em pos 3 → 5.
+//
 // Body: {
 //   spotify_track_id: string,
 //   slots: { playlist_id: string (managed_playlists.id), position: number }[]
 // }
 //
-// Retorno: { ok: true, results: [{playlist_id, name, status: "added"|"moved"|"skip"|"error", message?}] }
+// Retorno: { ok: true, results: [{playlist_id, name, status, message?, final_position?}] }
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
 import { getUserAccessToken, getSpotifyToken } from "../_shared/spotify.ts";
+import {
+  addPlaylistTracks,
+  findPlaylistTrackIndex,
+  listPlaylistTrackRefs,
+  reorderPlaylistTracks,
+} from "../_shared/spotify-playlist.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -22,37 +33,6 @@ function jr(p: unknown, status = 200) {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
-}
-
-async function spotifyFetch(url: string, init: RequestInit, token: string) {
-  const r = await fetch(url, {
-    ...init,
-    headers: {
-      ...(init.headers ?? {}),
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-  });
-  const txt = await r.text();
-  if (!r.ok) throw new Error(`Spotify ${r.status}: ${txt.slice(0, 300)}`);
-  try { return txt ? JSON.parse(txt) : {}; } catch { return {}; }
-}
-
-async function fetchAllTrackUris(playlistId: string, token: string): Promise<string[]> {
-  const uris: string[] = [];
-  let url: string | null =
-    `https://api.spotify.com/v1/playlists/${playlistId}/items?fields=items(track(uri)),next&limit=100`;
-  while (url) {
-    const j = await spotifyFetch(url, { method: "GET" }, token);
-    for (const it of j.items ?? []) {
-      // IMPORTANTE: preservar slots vazios (faixas locais/removidas têm track=null)
-      // pra que os índices batam EXATAMENTE com o que o Spotify enxerga.
-      const uri = it?.track?.uri ?? "";
-      uris.push(uri);
-    }
-    url = j.next ?? null;
-  }
-  return uris;
 }
 
 // cache de token por owner_id (várias playlists podem compartilhar)
@@ -106,58 +86,97 @@ Deno.serve(async (req) => {
         results.push({ playlist_id: slot.playlist_id, status: "error", message: "playlist não encontrada" });
         continue;
       }
-      const targetIdx = Math.max(0, Math.floor(slot.position) - 1); // posição 1-based → índice 0-based
+      const planned1 = Math.max(1, Math.floor(slot.position));
+      const targetIdx0 = planned1 - 1; // 1-based → 0-based
       try {
         const { token } = await tokenForOwner(pl.spotify_playlist_id);
-        const uris = await fetchAllTrackUris(pl.spotify_playlist_id, token);
-        const existingIdx = uris.indexOf(trackUri);
 
-        if (existingIdx >= 0) {
-          // já existe — mover pra posição alvo.
-          // Semântica do Spotify: insert_before usa índices da lista ORIGINAL.
-          // - Subindo (existingIdx > targetIdx): insert_before = targetIdx
-          // - Descendo (existingIdx < targetIdx): insert_before = targetIdx + 1
-          //   (porque o próprio item ocupa um slot antes do destino)
-          const clampedTarget = Math.max(0, Math.min(targetIdx, uris.length - 1));
-          const insertBefore = existingIdx < clampedTarget
-            ? Math.min(clampedTarget + 1, uris.length)
-            : clampedTarget;
-          if (insertBefore === existingIdx || insertBefore === existingIdx + 1) {
-            results.push({ playlist_id: pl.id, name: pl.name, status: "skip", message: `já está na posição ${existingIdx + 1}` });
+        // 1) snapshot inicial via helper canônico (com linked_from)
+        let refs = await listPlaylistTrackRefs(pl.spotify_playlist_id, token);
+        let existingIdx = findPlaylistTrackIndex(refs, trackUri);
+
+        let action: "added" | "moved" | "skip" = "skip";
+        let message = "";
+
+        if (existingIdx < 0) {
+          // ADD na posição alvo (Spotify: position é 0-based; clamp em len)
+          const insertPos = Math.min(targetIdx0, refs.length);
+          await addPlaylistTracks(pl.spotify_playlist_id, [trackUri], token, { position: insertPos });
+          action = "added";
+          message = `inserida na pos ${planned1}`;
+        } else {
+          const clampedTarget = Math.max(0, Math.min(targetIdx0, refs.length - 1));
+          if (existingIdx === clampedTarget) {
+            results.push({
+              playlist_id: pl.id, name: pl.name, status: "skip",
+              message: `já está na posição ${existingIdx + 1}`,
+              final_position: existingIdx + 1, planned_position: planned1,
+            });
             continue;
           }
-          await spotifyFetch(
-            `https://api.spotify.com/v1/playlists/${pl.spotify_playlist_id}/items`,
-            {
-              method: "PUT",
-              body: JSON.stringify({
-                range_start: existingIdx,
-                insert_before: insertBefore,
-                range_length: 1,
-              }),
-            },
+          const insertBefore = existingIdx < clampedTarget
+            ? Math.min(clampedTarget + 1, refs.length)
+            : clampedTarget;
+          await reorderPlaylistTracks(
+            pl.spotify_playlist_id,
+            { range_start: existingIdx, insert_before: insertBefore, range_length: 1 },
             token,
           );
-          results.push({ playlist_id: pl.id, name: pl.name, status: "moved", message: `${existingIdx + 1} → ${slot.position}` });
-        } else {
-          // não existe — inserir na posição (Spotify empurra as demais pra baixo)
-          const position = Math.min(targetIdx, uris.length);
-          await spotifyFetch(
-            `https://api.spotify.com/v1/playlists/${pl.spotify_playlist_id}/items`,
-            {
-              method: "POST",
-              body: JSON.stringify({ uris: [trackUri], position }),
-            },
-            token,
-          );
-          results.push({ playlist_id: pl.id, name: pl.name, status: "added", message: `inserida na pos ${slot.position}` });
+          action = "moved";
+          message = `${existingIdx + 1} → ${planned1}`;
         }
+
+        // 2) VERIFICA fidelidade — re-lista e confere o índice real
+        refs = await listPlaylistTrackRefs(pl.spotify_playlist_id, token);
+        let actualIdx = findPlaylistTrackIndex(refs, trackUri);
+        const desiredIdx = Math.max(0, Math.min(targetIdx0, Math.max(0, refs.length - 1)));
+
+        let corrected = false;
+        if (actualIdx >= 0 && actualIdx !== desiredIdx) {
+          // 3) Correção: REORDER pra cravar a posição exata
+          const insertBefore = actualIdx < desiredIdx
+            ? Math.min(desiredIdx + 1, refs.length)
+            : desiredIdx;
+          await reorderPlaylistTracks(
+            pl.spotify_playlist_id,
+            { range_start: actualIdx, insert_before: insertBefore, range_length: 1 },
+            token,
+          );
+          refs = await listPlaylistTrackRefs(pl.spotify_playlist_id, token);
+          actualIdx = findPlaylistTrackIndex(refs, trackUri);
+          corrected = true;
+        }
+
+        const finalPos = actualIdx >= 0 ? actualIdx + 1 : null;
+        const fidelityOk = finalPos === planned1;
+
+        results.push({
+          playlist_id: pl.id,
+          name: pl.name,
+          status: action,
+          message: corrected
+            ? `${message} (corrigido p/ ${planned1})`
+            : message,
+          planned_position: planned1,
+          final_position: finalPos,
+          fidelity_ok: fidelityOk,
+        });
       } catch (e) {
-        results.push({ playlist_id: pl.id, name: pl.name, status: "error", message: (e as Error).message });
+        results.push({
+          playlist_id: pl.id,
+          name: pl.name,
+          status: "error",
+          message: (e as Error).message,
+          planned_position: planned1,
+        });
       }
     }
 
-    const counts = results.reduce((acc: any, r) => { acc[r.status] = (acc[r.status] ?? 0) + 1; return acc; }, {});
+    const counts = results.reduce((acc: any, r) => {
+      acc[r.status] = (acc[r.status] ?? 0) + 1;
+      if (r.fidelity_ok === false) acc.fidelity_drift = (acc.fidelity_drift ?? 0) + 1;
+      return acc;
+    }, {});
     await supabase.from("collection_logs").insert({
       acao: "apply-meta-plan",
       status: (counts.error ?? 0) === 0 ? "sucesso" : "parcial",
