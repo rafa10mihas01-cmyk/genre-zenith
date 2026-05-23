@@ -11,10 +11,15 @@ import {
   confirmExternalPackage,
   updatePackageItem,
   removePackageItem,
+  addPackageItem,
+  fetchCuratorCandidates,
+  type CuratorCandidate,
 } from "@/lib/externalPackage";
 import { Link } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, Trash2, Users, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Loader2, Trash2, Users, AlertTriangle, CheckCircle2, Plus, Search } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 
 type PackageRow = {
