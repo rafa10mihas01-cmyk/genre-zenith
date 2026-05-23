@@ -440,6 +440,11 @@ export function PlaylistTracksAnalysisCard({ managedId }: { managedId: string })
                     <td className="py-2 pr-2 min-w-[180px]">
                       <div className="font-medium text-foreground/90 truncate max-w-[260px] flex items-center gap-1.5">
                         {s.nome}
+                        {s.trending_position != null && (
+                          <Badge variant="outline" className="text-[9px] h-4 px-1 border-primary/40 text-primary bg-primary/5">
+                            🔥 #{s.trending_position}
+                          </Badge>
+                        )}
                         {s.from_missing_artist && (
                           <Badge variant="outline" className="text-[9px] h-4 px-1 border-warning/40 text-warning bg-warning/5">
                             artista faltando
