@@ -75,12 +75,13 @@ export default function Campanhas() {
 
         actions={
           tab === "lista" ? (
-            <Button variant="outline" onClick={recalcAll} disabled={recalcing}>
-              <RefreshCw className={`h-4 w-4 mr-2 ${recalcing ? "animate-spin" : ""}`} />
+            <Button variant="outline" onClick={doRecalcAll} disabled={recalcAll.isPending}>
+              <RefreshCw className={`h-4 w-4 mr-2 ${recalcAll.isPending ? "animate-spin" : ""}`} />
               Recalcular
             </Button>
           ) : undefined
         }
+
       />
 
       <PageContainer>
