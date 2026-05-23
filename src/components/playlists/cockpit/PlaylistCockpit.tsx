@@ -26,6 +26,7 @@ import { OnboardingChecklist } from "@/components/playlists/cockpit/OnboardingCh
 import { SeoExperimentCard } from "@/components/playlists/cockpit/SeoExperimentCard";
 import { GenrePicker } from "@/components/playlists/cockpit/GenrePicker";
 import { GenreAffinityCard } from "@/components/playlists/cockpit/GenreAffinityCard";
+import { LifecycleRoadmapCard } from "@/components/playlists/cockpit/LifecycleRoadmapCard";
 
 
 // -------------------- types --------------------
