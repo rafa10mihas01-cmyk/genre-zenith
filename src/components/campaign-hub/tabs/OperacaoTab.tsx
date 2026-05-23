@@ -58,7 +58,7 @@ const STATUS_LABEL: Record<string, string> = {
   cancelled: "Cancelado",
 };
 
-const ROW_LIMIT = 15;
+const ROW_LIMIT = 50;
 
 export function OperacaoTab({ allocations, snapshots, externalItems, totalDays, startedAt }: Props) {
   const [expanded, setExpanded] = useState(false);
