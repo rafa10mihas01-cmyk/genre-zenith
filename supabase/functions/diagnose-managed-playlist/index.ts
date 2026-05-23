@@ -1231,6 +1231,7 @@ Deno.serve(async (req) => {
           count: s.candidate!.recurrence_in_genre,
           popularity: s.candidate!.popularity,
           from_missing_artist: s.candidate!.from_missing_artist,
+          trending_position: s.candidate!.trending_position,
           target_zone: s.slot_zone,
           target_zone_label: s.slot_zone_label,
           function_role: s.candidate!.function_role,
@@ -1243,6 +1244,7 @@ Deno.serve(async (req) => {
           is_substitution: true,
           score: s.candidate!.zone_fit_score,
         })),
+
       ...extraSuggestions,
     ];
 
