@@ -43,6 +43,8 @@ type Props = {
   allocations: EcoAllocation[];
   snapshots: EcoSnap[];
   externalItems: ExternalItemRow[];
+  totalDays?: number;
+  startedAt?: string | null;
 };
 
 const STATUS_LABEL: Record<string, string> = {
