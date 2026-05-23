@@ -403,3 +403,19 @@ export function CampaignFullPlanCard({
     </Card>
   );
 }
+
+function ResumoStat({
+  label, value, hint, tone,
+}: { label: string; value: string; hint?: string; tone?: "primary" | "warning" }) {
+  return (
+    <div className="rounded-md border border-border/70 bg-card px-3 py-2.5">
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">{label}</div>
+      <div className={cn(
+        "text-lg font-semibold tabular-nums leading-tight mt-0.5",
+        tone === "primary" && "text-primary",
+        tone === "warning" && "text-warning",
+      )}>{value}</div>
+      {hint && <div className="text-[10px] text-muted-foreground tabular-nums mt-0.5">{hint}</div>}
+    </div>
+  );
+}
