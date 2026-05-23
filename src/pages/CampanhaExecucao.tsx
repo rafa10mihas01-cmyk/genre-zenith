@@ -4,6 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { PageContainer } from "@/components/PageContainer";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatBRL, formatInt } from "@/lib/campaignEngine";
@@ -21,6 +23,8 @@ import { PlaylistsGrid } from "@/components/campaign-hub/PlaylistsGrid";
 import { ProofsTimeline, type ProofEvent } from "@/components/campaign-hub/ProofsTimeline";
 import { ShareLinkCard } from "@/components/campaign-hub/ShareLinkCard";
 import type { CampaignHubCampaign, CampaignHubTabId, EcoAllocation } from "@/components/campaign-hub/types";
+import { toast } from "sonner";
+import { Loader2, Save } from "lucide-react";
 
 type EcoSnap = {
   id: string;
@@ -54,6 +58,8 @@ export default function CampanhaExecucao() {
   const [planRefreshKey, setPlanRefreshKey] = useState(0);
   const [tab, setTab] = useState<CampaignHubTabId>("overview");
   const [selectedAlloc, setSelectedAlloc] = useState<EcoAllocation | null>(null);
+  const [clientPriceInput, setClientPriceInput] = useState("");
+  const [savingClientPrice, setSavingClientPrice] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -103,6 +109,49 @@ export default function CampanhaExecucao() {
   }, [id]);
 
   const snapshot = camp?.simulation_snapshot ?? null;
+
+  useEffect(() => {
+    if (!snapshot) return;
+    const total = getClientPriceTotal(snapshot);
+    setClientPriceInput(total > 0 ? total.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "");
+  }, [camp?.id, snapshot?.clientPriceTotal, snapshot?.pricePerStreamSell]);
+
+  const handleSaveClientPrice = async () => {
+    if (!camp || !snapshot) return;
+    const total = parseBRLInput(clientPriceInput);
+    if (!Number.isFinite(total) || total <= 0) {
+      toast.error("Informe o valor total que o cliente vai pagar");
+      return;
+    }
+    const pricePerStreamSell = snapshot.meta > 0 ? Number((total / snapshot.meta).toFixed(6)) : 0;
+    const nextSnapshot: CampaignSnapshot = {
+      ...snapshot,
+      pricePerStreamSell,
+      clientPriceTotal: Number(total.toFixed(2)),
+    };
+
+    setSavingClientPrice(true);
+    try {
+      const { error } = await supabase
+        .from("campaigns")
+        .update({ simulation_snapshot: nextSnapshot as any })
+        .eq("id", camp.id);
+      if (error) throw error;
+
+      await supabase
+        .from("campaign_eco_allocations")
+        .update({ price_per_stream_sell: pricePerStreamSell } as any)
+        .eq("campaign_id", camp.id);
+
+      setCamp({ ...camp, simulation_snapshot: nextSnapshot });
+      setClientPriceInput(total.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+      toast.success("Preço do cliente salvo no orçamento");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao salvar preço do cliente");
+    } finally {
+      setSavingClientPrice(false);
+    }
+  };
 
   const ecoPositionByAllocation = useMemo(() => {
     if (!snapshot) return new Map<string, number>();
@@ -212,6 +261,14 @@ export default function CampanhaExecucao() {
         slots={{
           overview: (
             <div className="space-y-6">
+              <ClientPriceEditor
+                snapshot={snapshot}
+                value={clientPriceInput}
+                onChange={setClientPriceInput}
+                onSave={handleSaveClientPrice}
+                saving={savingClientPrice}
+                approved={!!camp.client_approved_at}
+              />
               {camp.public_plan_token && (
                 <ShareLinkCard
                   token={camp.public_plan_token}
@@ -293,17 +350,27 @@ export default function CampanhaExecucao() {
             </div>
           ),
           finance: (
-            <Card>
-              <CardContent className="p-5 space-y-4">
-                <div className="text-sm font-semibold">Resumo financeiro interno</div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <FinKpi label="Investimento total" value={formatBRL(snapshot.custoTotal)} />
-                  <FinKpi label="CPP" value={formatBRL(snapshot.custoPorStream)} sub="custo por stream" />
-                  <FinKpi label="Eco" value={`${snapshot.splitEcoPct}%`} sub={`${formatInt(snapshot.streamsEco)} streams`} />
-                  <FinKpi label="Externo" value={`${100 - snapshot.splitEcoPct}%`} sub={`${formatInt(snapshot.streamsExt)} streams`} />
-                </div>
-              </CardContent>
-            </Card>
+            <div className="space-y-6">
+              <ClientPriceEditor
+                snapshot={snapshot}
+                value={clientPriceInput}
+                onChange={setClientPriceInput}
+                onSave={handleSaveClientPrice}
+                saving={savingClientPrice}
+                approved={!!camp.client_approved_at}
+              />
+              <Card>
+                <CardContent className="p-5 space-y-4">
+                  <div className="text-sm font-semibold">Resumo financeiro interno</div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <FinKpi label="Custo total" value={formatBRL(snapshot.custoTotal)} sub="quanto você paga" />
+                    <FinKpi label="Venda ao cliente" value={formatBRL(getClientPriceTotal(snapshot))} sub="valor do orçamento" />
+                    <FinKpi label="Margem" value={formatBRL(getClientPriceTotal(snapshot) - snapshot.custoTotal)} sub="venda menos custo" />
+                    <FinKpi label="CPP interno" value={formatBRL(snapshot.custoPorStream)} sub="custo por stream" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           ),
           logs: (
             <Card>
@@ -327,6 +394,77 @@ export default function CampanhaExecucao() {
       />
     </PageContainer>
   );
+}
+
+function ClientPriceEditor({
+  snapshot, value, onChange, onSave, saving, approved,
+}: {
+  snapshot: CampaignSnapshot;
+  value: string;
+  onChange: (value: string) => void;
+  onSave: () => void;
+  saving: boolean;
+  approved: boolean;
+}) {
+  const currentTotal = getClientPriceTotal(snapshot);
+  const typedTotal = parseBRLInput(value);
+  const effectiveTotal = Number.isFinite(typedTotal) && typedTotal > 0 ? typedTotal : currentTotal;
+  const perMillion = snapshot.meta > 0 ? (effectiveTotal / snapshot.meta) * 1_000_000 : 0;
+  const margin = effectiveTotal - snapshot.custoTotal;
+  const marginPct = effectiveTotal > 0 ? Math.round((margin / effectiveTotal) * 100) : 0;
+
+  return (
+    <Card className="border-primary/30">
+      <CardContent className="p-5 space-y-4">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <div className="text-sm font-semibold">Preço do cliente</div>
+            <div className="text-xs text-muted-foreground">
+              Este é o valor total que aparece no portal para o cliente aprovar.
+            </div>
+          </div>
+          {approved && <div className="text-[10px] uppercase tracking-wide text-primary font-semibold">Cliente já aprovou</div>}
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(220px,1fr)_auto] gap-3 lg:items-end">
+          <div className="space-y-2">
+            <Label className="text-xs uppercase tracking-wide text-muted-foreground">Valor fechado da campanha</Label>
+            <Input
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              inputMode="decimal"
+              placeholder="Ex.: 50.000,00"
+              className="text-lg font-semibold tabular-nums"
+            />
+          </div>
+          <Button onClick={onSave} disabled={saving} className="w-full lg:w-auto">
+            {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+            Salvar orçamento
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <FinKpi label="Cliente paga" value={formatBRL(effectiveTotal)} sub={`${formatInt(snapshot.meta)} streams`} />
+          <FinKpi label="Tabela" value={formatBRL(perMillion)} sub="por 1M streams" />
+          <FinKpi label="Seu custo" value={formatBRL(snapshot.custoTotal)} sub="interno" />
+          <FinKpi label="Margem" value={formatBRL(margin)} sub={`${marginPct}% sobre venda`} />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function parseBRLInput(value: string) {
+  const normalized = value.trim().replace(/\s/g, "").replace(/\./g, "").replace(",", ".");
+  return Number(normalized);
+}
+
+function getClientPriceTotal(snapshot: CampaignSnapshot) {
+  if (snapshot.clientPriceTotal && snapshot.clientPriceTotal > 0) return snapshot.clientPriceTotal;
+  if (snapshot.pricePerStreamSell && snapshot.pricePerStreamSell > 0) {
+    return Math.round(snapshot.meta * snapshot.pricePerStreamSell * 100) / 100;
+  }
+  return 0;
 }
 
 function FinKpi({ label, value, sub }: { label: string; value: string; sub?: string }) {
