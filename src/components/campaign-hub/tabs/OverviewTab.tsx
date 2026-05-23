@@ -27,6 +27,7 @@ type Props = {
   delivered: number;
   daysElapsed: number;
   showFinance: boolean;
+  hideDeliveryPlan?: boolean;
   allocations?: EcoAllocation[];
   snapshots?: EcoSnap[];
   proofs?: ProofPreview[];
@@ -34,7 +35,7 @@ type Props = {
 };
 
 export function OverviewTab({
-  snapshot, delivered, daysElapsed, showFinance,
+  snapshot, delivered, daysElapsed, showFinance, hideDeliveryPlan = false,
   allocations = [], snapshots = [], proofs = [], onJumpTab,
 }: Props) {
   const pct = snapshot.meta > 0 ? Math.min(100, Math.round((delivered / snapshot.meta) * 100)) : 0;
