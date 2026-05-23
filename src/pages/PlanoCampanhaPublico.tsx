@@ -23,6 +23,7 @@ import { ProofsTimeline, type ProofEvent } from "@/components/campaign-hub/Proof
 import { CampaignDailyPlan } from "@/components/campanhas/CampaignDailyPlan";
 import { distributeEcoPositions } from "@/lib/campaignOperationalPlan";
 import { ClientHeroCard } from "@/components/campaign-hub/ClientHeroCard";
+import { SpreadsheetUploadCard } from "@/components/client-portal/SpreadsheetUploadCard";
 import type { CampaignHubCampaign, CampaignHubTabId, EcoAllocation } from "@/components/campaign-hub/types";
 
 type EcoSnap = {
