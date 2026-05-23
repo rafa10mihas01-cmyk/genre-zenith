@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -100,14 +101,63 @@ type PlaylistStats = {
 };
 
 export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => void } = {}) {
-  const [items, setItems] = useState<ManagedPlaylist[]>([]);
+  const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Filtros vivem na URL — sobrevivem navegação (voltar do detalhe preserva contexto).
+  const filterMissingGenre = searchParams.get("sem_genero") === "1";
+  const filterGenreId = searchParams.get("genero");
+  const filterSize = (searchParams.get("tamanho") as "all" | "pequena" | "media" | "grande" | "top") || "all";
+  const showArchived = searchParams.get("arquivadas") === "1";
+  const sortBy = (searchParams.get("sort") as "recent" | "valuation") || "recent";
+
+  const updateParam = useCallback((key: string, val: string | null) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (val == null || val === "" || val === "all" || val === "recent") next.delete(key);
+      else next.set(key, val);
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  const setFilterMissingGenre = (v: boolean | ((prev: boolean) => boolean)) => {
+    const next = typeof v === "function" ? (v as any)(filterMissingGenre) : v;
+    updateParam("sem_genero", next ? "1" : null);
+  };
+  const setFilterGenreId = (v: string | null) => updateParam("genero", v);
+  const setFilterSize = (v: "all" | "pequena" | "media" | "grande" | "top") => updateParam("tamanho", v);
+  const setShowArchived = (v: boolean) => updateParam("arquivadas", v ? "1" : null);
+  const setSortBy = (v: "recent" | "valuation") => updateParam("sort", v);
+
+  // items via React Query — cache global (staleTime 60s), navegação não refetcha.
+  const itemsQuery = useQuery({
+    queryKey: ["managed-playlists"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("managed_playlists")
+        .select("*")
+        .order("imported_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as ManagedPlaylist[];
+    },
+  });
+  const items = itemsQuery.data ?? [];
+  const loading = itemsQuery.isPending;
+  const setItems = useCallback(
+    (updater: ManagedPlaylist[] | ((prev: ManagedPlaylist[]) => ManagedPlaylist[])) => {
+      queryClient.setQueryData<ManagedPlaylist[]>(["managed-playlists"], (prev) => {
+        const base = prev ?? [];
+        return typeof updater === "function" ? (updater as (p: ManagedPlaylist[]) => ManagedPlaylist[])(base) : updater;
+      });
+    },
+    [queryClient],
+  );
+
   const [scores, setScores] = useState<Record<string, PlaylistScoreRow>>({});
   const [valuations, setValuations] = useState<Record<string, Valuation>>({});
   const [brains, setBrains] = useState<Record<string, BrainRow>>({});
   const [recalcing, setRecalcing] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [showArchived, setShowArchived] = useState(false);
-  const [sortBy, setSortBy] = useState<"recent" | "valuation">("recent");
+
   const [importOpen, setImportOpen] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -309,20 +359,13 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   }, []);
 
   const load = useCallback(async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from("managed_playlists")
-      .select("*")
-      .order("imported_at", { ascending: false });
-    if (error) toast({ title: "Erro ao carregar", description: error.message, variant: "destructive" });
-    const list = (data ?? []) as ManagedPlaylist[];
-    setItems(list);
-    setLoading(false);
+    const result = await itemsQuery.refetch();
+    const list = result.data ?? [];
     const canonicals = list.map(i => i.canonical_playlist_id).filter(Boolean) as string[];
     loadScores(canonicals);
     loadBrains(canonicals);
     loadValuations(list.map(i => i.spotify_playlist_id).filter(Boolean));
-  }, [loadScores, loadValuations, loadBrains]);
+  }, [itemsQuery, loadScores, loadValuations, loadBrains]);
 
   async function handleRecalc() {
     setRecalcing(true);
@@ -341,15 +384,20 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
     }
   }
 
-  useEffect(() => { load(); }, [load]);
+  // Dispara loads derivados sempre que items chega/muda (incluindo hidratação do cache).
+  useEffect(() => {
+    if (!items.length) { setScores({}); setBrains({}); setValuations({}); return; }
+    const canonicals = items.map(i => i.canonical_playlist_id).filter(Boolean) as string[];
+    loadScores(canonicals);
+    loadBrains(canonicals);
+    loadValuations(items.map(i => i.spotify_playlist_id).filter(Boolean));
+  }, [items, loadScores, loadBrains, loadValuations]);
 
   const [genres, setGenres] = useState<{ id: string; nome: string }[]>([]);
-  const [filterMissingGenre, setFilterMissingGenre] = useState(false);
-  const [filterGenreId, setFilterGenreId] = useState<string | null>(null);
-  const [filterSize, setFilterSize] = useState<"all" | "pequena" | "media" | "grande" | "top">("all");
   const [savingGenre, setSavingGenre] = useState(false);
   const [suggesting, setSuggesting] = useState(false);
   const [suggestProgress, setSuggestProgress] = useState<{ done: number; total: number } | null>(null);
+
 
   async function runGenreSuggest() {
     setSuggesting(true);
