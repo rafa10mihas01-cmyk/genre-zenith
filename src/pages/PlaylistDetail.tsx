@@ -163,6 +163,7 @@ export default function PlaylistDetail() {
       tracksCount={mgd.tracks_count}
       genreName={genreName}
       brainScore={brain?.capacity_total ? Math.round(brain.confidence_score) : null}
+      canonicalPlaylistId={pl.id}
       onBack={handleBack}
     />
   );
