@@ -310,7 +310,10 @@ export function useCuratorDeals() {
   // Também recarrega a lista quando deals são criados/alterados fora da tela atual
   // (ex.: separação manual de campanhas em deals independentes).
   useEffect(() => {
-    if (!user || dealIds.length === 0) return;
+    if (!user) return;
+    // Sempre escuta INSERT/UPDATE/DELETE em curator_deals — independente de já ter
+    // deals carregados. Garante que novos deals criados em outras telas (ex.: portal
+    // do curador, aprovação de campanha) apareçam aqui em tempo real.
     const channel = supabase
       .channel(`curator-deals-live-${user.id}-${Math.random().toString(36).slice(2)}`)
       .on(
@@ -343,11 +346,20 @@ export function useCuratorDeals() {
           }
         },
       )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "curator_deal_payments" },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["financial-summary"] });
+          queryClient.invalidateQueries({ queryKey: ["deal-payments"] });
+        },
+      )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
   }, [user, dealIds, queryClient, load]);
+
 
   useEffect(() => {
     if (!user) return;
