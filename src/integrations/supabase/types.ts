@@ -495,36 +495,45 @@ export type Database = {
       campaign_eco_allocations: {
         Row: {
           campaign_id: string
+          cost_per_stream_op: number | null
           created_at: string
           dispatched_at: string | null
           id: string
           job_id: string | null
           managed_playlist_id: string
+          market_per_stream: number | null
           planned_streams: number
+          price_per_stream_sell: number | null
           start_day: number
           status: string
           updated_at: string
         }
         Insert: {
           campaign_id: string
+          cost_per_stream_op?: number | null
           created_at?: string
           dispatched_at?: string | null
           id?: string
           job_id?: string | null
           managed_playlist_id: string
+          market_per_stream?: number | null
           planned_streams?: number
+          price_per_stream_sell?: number | null
           start_day?: number
           status?: string
           updated_at?: string
         }
         Update: {
           campaign_id?: string
+          cost_per_stream_op?: number | null
           created_at?: string
           dispatched_at?: string | null
           id?: string
           job_id?: string | null
           managed_playlist_id?: string
+          market_per_stream?: number | null
           planned_streams?: number
+          price_per_stream_sell?: number | null
           start_day?: number
           status?: string
           updated_at?: string
@@ -778,7 +787,12 @@ export type Database = {
       campaigns: {
         Row: {
           artist: string | null
+          client_adjustment_request: string | null
+          client_approved_at: string | null
+          client_approved_by: string | null
+          client_approved_ip: string | null
           client_id: string | null
+          client_rejected_at: string | null
           cover_url: string | null
           created_at: string
           created_by: string | null
@@ -808,7 +822,12 @@ export type Database = {
         }
         Insert: {
           artist?: string | null
+          client_adjustment_request?: string | null
+          client_approved_at?: string | null
+          client_approved_by?: string | null
+          client_approved_ip?: string | null
           client_id?: string | null
+          client_rejected_at?: string | null
           cover_url?: string | null
           created_at?: string
           created_by?: string | null
@@ -838,7 +857,12 @@ export type Database = {
         }
         Update: {
           artist?: string | null
+          client_adjustment_request?: string | null
+          client_approved_at?: string | null
+          client_approved_by?: string | null
+          client_approved_ip?: string | null
           client_id?: string | null
+          client_rejected_at?: string | null
           cover_url?: string | null
           created_at?: string
           created_by?: string | null
@@ -4127,6 +4151,7 @@ export type Database = {
           canonical_playlist_id: string | null
           cover_url: string | null
           created_at: string
+          curator_id: string | null
           curatorial_state: Database["public"]["Enums"]["curatorial_state"]
           description: string | null
           followers: number
@@ -4167,6 +4192,7 @@ export type Database = {
           canonical_playlist_id?: string | null
           cover_url?: string | null
           created_at?: string
+          curator_id?: string | null
           curatorial_state?: Database["public"]["Enums"]["curatorial_state"]
           description?: string | null
           followers?: number
@@ -4207,6 +4233,7 @@ export type Database = {
           canonical_playlist_id?: string | null
           cover_url?: string | null
           created_at?: string
+          curator_id?: string | null
           curatorial_state?: Database["public"]["Enums"]["curatorial_state"]
           description?: string | null
           followers?: number
@@ -4248,6 +4275,27 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "playlists"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "managed_playlists_curator_id_fkey"
+            columns: ["curator_id"]
+            isOneToOne: false
+            referencedRelation: "curators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "managed_playlists_curator_id_fkey"
+            columns: ["curator_id"]
+            isOneToOne: false
+            referencedRelation: "v_curator_balance"
+            referencedColumns: ["curator_id"]
+          },
+          {
+            foreignKeyName: "managed_playlists_curator_id_fkey"
+            columns: ["curator_id"]
+            isOneToOne: false
+            referencedRelation: "v_curator_finance"
+            referencedColumns: ["curator_id"]
           },
           {
             foreignKeyName: "managed_playlists_suggested_genre_id_fkey"
@@ -5728,6 +5776,8 @@ export type Database = {
           cost_per_stream_ext: number
           created_at: string
           id: string
+          market_per_stream_eco: number
+          market_per_stream_ext: number
           price_per_stream_sell: number
           target_margin_pct: number
           updated_at: string
@@ -5738,6 +5788,8 @@ export type Database = {
           cost_per_stream_ext?: number
           created_at?: string
           id?: string
+          market_per_stream_eco?: number
+          market_per_stream_ext?: number
           price_per_stream_sell?: number
           target_margin_pct?: number
           updated_at?: string
@@ -5748,6 +5800,8 @@ export type Database = {
           cost_per_stream_ext?: number
           created_at?: string
           id?: string
+          market_per_stream_eco?: number
+          market_per_stream_ext?: number
           price_per_stream_sell?: number
           target_margin_pct?: number
           updated_at?: string
@@ -6440,6 +6494,7 @@ export type Database = {
         Row: {
           account_id: string
           created_at: string
+          default_curator_id: string | null
           display_name: string | null
           email: string | null
           id: string
@@ -6453,6 +6508,7 @@ export type Database = {
         Insert: {
           account_id: string
           created_at?: string
+          default_curator_id?: string | null
           display_name?: string | null
           email?: string | null
           id?: string
@@ -6466,6 +6522,7 @@ export type Database = {
         Update: {
           account_id?: string
           created_at?: string
+          default_curator_id?: string | null
           display_name?: string | null
           email?: string | null
           id?: string
@@ -6490,6 +6547,27 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "v_playlist_vps_assignment"
             referencedColumns: ["account_id"]
+          },
+          {
+            foreignKeyName: "spotify_accounts_default_curator_id_fkey"
+            columns: ["default_curator_id"]
+            isOneToOne: false
+            referencedRelation: "curators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "spotify_accounts_default_curator_id_fkey"
+            columns: ["default_curator_id"]
+            isOneToOne: false
+            referencedRelation: "v_curator_balance"
+            referencedColumns: ["curator_id"]
+          },
+          {
+            foreignKeyName: "spotify_accounts_default_curator_id_fkey"
+            columns: ["default_curator_id"]
+            isOneToOne: false
+            referencedRelation: "v_curator_finance"
+            referencedColumns: ["curator_id"]
           },
           {
             foreignKeyName: "spotify_accounts_vps_node_id_fkey"
@@ -7348,7 +7426,7 @@ export type Database = {
         }
         Returns: string
       }
-      approve_campaign: { Args: { p_campaign_id: string }; Returns: string }
+      approve_campaign: { Args: { p_campaign_id: string }; Returns: Json }
       bump_ai_quota: {
         Args: { p_month_start: string; p_tokens: number; p_user_id: string }
         Returns: Json
@@ -7372,6 +7450,18 @@ export type Database = {
       cleanup_stale_autopilot_runs: {
         Args: { p_minutes?: number }
         Returns: number
+      }
+      client_approve_campaign: {
+        Args: {
+          p_approver_ip?: string
+          p_approver_name: string
+          p_token: string
+        }
+        Returns: string
+      }
+      client_request_adjustment: {
+        Args: { p_message: string; p_requester_name?: string; p_token: string }
+        Returns: string
       }
       community_accept_campaign: {
         Args: { p_campaign_id: string }
