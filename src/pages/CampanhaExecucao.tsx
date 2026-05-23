@@ -5,7 +5,7 @@ import { PageContainer } from "@/components/PageContainer";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { formatBRL, formatInt } from "@/lib/campaignEngine";
 import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
 import { ExternalPackageEditor } from "@/components/campanhas/ExternalPackageEditor";
@@ -14,34 +14,41 @@ import { CampaignDailyPlan } from "@/components/campanhas/CampaignDailyPlan";
 import { PlaylistDailyPlanDialog } from "@/components/campanhas/PlaylistDailyPlanDialog";
 import { buildEcoPlaylistPlan, distributeEcoPositions } from "@/lib/campaignOperationalPlan";
 import { CampaignFullPlanCard } from "@/components/campanhas/CampaignFullPlanCard";
-import { ArrowLeft, ListMusic } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { ArrowLeft } from "lucide-react";
 import { CampaignHub } from "@/components/campaign-hub/CampaignHub";
 import { OverviewTab } from "@/components/campaign-hub/tabs/OverviewTab";
+import { PlaylistsGrid } from "@/components/campaign-hub/PlaylistsGrid";
+import { ProofsTimeline, type ProofEvent } from "@/components/campaign-hub/ProofsTimeline";
 import type { CampaignHubCampaign, CampaignHubTabId, EcoAllocation } from "@/components/campaign-hub/types";
 
-const STATUS_LABEL: Record<string, string> = {
-  pending: "Aguardando",
-  dispatched: "Enviada ao bot",
-  active: "No ar",
-  done: "Concluída",
-  failed: "Falhou",
-  cancelled: "Cancelada",
+type EcoSnap = {
+  id: string;
+  managed_playlist_id: string;
+  plays_24h: number | null;
+  plays_7d: number | null;
+  plays_28d: number | null;
+  captured_at: string;
+  source?: string | null;
 };
 
-const STATUS_TONE: Record<string, string> = {
-  pending: "bg-muted text-muted-foreground border-border",
-  dispatched: "bg-warning/10 text-warning border-warning/30",
-  active: "bg-primary/15 text-primary border-primary/40",
-  done: "bg-primary/10 text-primary border-primary/30",
-  failed: "bg-destructive/10 text-destructive border-destructive/30",
-  cancelled: "bg-muted text-muted-foreground border-border",
+type DeliveryProof = {
+  id: string;
+  playlist_id: string;
+  playlist_name: string;
+  screenshot_url: string | null;
+  plays_total: number;
+  plays_24h: number | null;
+  position_in_playlist: number | null;
+  source: string | null;
+  captured_at: string;
 };
 
 export default function CampanhaExecucao() {
   const { id } = useParams<{ id: string }>();
   const [camp, setCamp] = useState<CampaignHubCampaign | null>(null);
   const [allocs, setAllocs] = useState<EcoAllocation[]>([]);
+  const [snaps, setSnaps] = useState<EcoSnap[]>([]);
+  const [proofs, setProofs] = useState<DeliveryProof[]>([]);
   const [loading, setLoading] = useState(true);
   const [planRefreshKey, setPlanRefreshKey] = useState(0);
   const [tab, setTab] = useState<CampaignHubTabId>("overview");
@@ -51,7 +58,7 @@ export default function CampanhaExecucao() {
     if (!id) return;
     (async () => {
       setLoading(true);
-      const [{ data: c }, { data: a }] = await Promise.all([
+      const [{ data: c }, { data: a }, { data: s }, { data: pkg }] = await Promise.all([
         supabase
           .from("campaigns")
           .select("id, track_name, artist, cover_url, status, deadline, started_at, simulation_snapshot, snapshot_locked_at, eco_dispatched_at, engagement_multiplier, public_plan_token, spotify_track_url, total_delivered, client_approved_at")
@@ -62,9 +69,34 @@ export default function CampanhaExecucao() {
           .select("id, managed_playlist_id, planned_streams, start_day, status, dispatched_at, managed_playlists(name, cover_url, followers, spotify_url)")
           .eq("campaign_id", id)
           .order("planned_streams", { ascending: false }),
+        supabase
+          .from("campaign_eco_snapshots")
+          .select("id, managed_playlist_id, plays_24h, plays_7d, plays_28d, captured_at, source")
+          .eq("campaign_id", id)
+          .order("captured_at", { ascending: false })
+          .limit(500),
+        supabase
+          .from("campaign_external_package_items")
+          .select("curator_deal_id, campaign_external_packages!inner(campaign_id)")
+          .eq("campaign_external_packages.campaign_id", id)
+          .not("curator_deal_id", "is", null),
       ]);
       setCamp(c as any);
       setAllocs((a ?? []) as any);
+      setSnaps((s ?? []) as any);
+
+      const dealIds = (pkg ?? []).map((p: any) => p.curator_deal_id).filter(Boolean);
+      if (dealIds.length > 0) {
+        const { data: dp } = await supabase
+          .from("delivery_proofs")
+          .select("id, playlist_id, playlist_name, screenshot_url, plays_total, plays_24h, position_in_playlist, source, captured_at")
+          .in("deal_id", dealIds)
+          .order("captured_at", { ascending: false })
+          .limit(200);
+        setProofs((dp ?? []) as any);
+      } else {
+        setProofs([]);
+      }
       setLoading(false);
     })();
   }, [id]);
@@ -125,87 +157,42 @@ export default function CampanhaExecucao() {
     );
   }
 
-  const ecoTotals = {
-    planned: allocs.reduce((s, a) => s + a.planned_streams, 0),
-    count: allocs.length,
-    dispatched: allocs.filter(a => a.status !== "pending").length,
-  };
+  const proofEvents = useMemo<ProofEvent[]>(() => {
+    // 1) Provas externas (delivery_proofs) — já têm screenshot
+    const ext: ProofEvent[] = proofs.map((p) => ({
+      id: `dp-${p.id}`,
+      captured_at: p.captured_at,
+      playlist_name: p.playlist_name,
+      playlist_cover: null,
+      screenshot_url: p.screenshot_url,
+      plays_total: Number(p.plays_total ?? 0),
+      delta_plays: p.plays_24h ?? null,
+      position: p.position_in_playlist ?? null,
+      source: p.source ?? "bot",
+    }));
 
-  const playlistsSlot = (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-sm flex items-center gap-2">
-          <ListMusic className="h-4 w-4 text-primary" /> Ecossistema próprio
-        </CardTitle>
-        <p className="text-xs text-muted-foreground mt-1">
-          <strong className="text-foreground tabular-nums">{formatInt(ecoTotals.planned)}</strong> streams
-          em <strong className="text-foreground">{ecoTotals.count}</strong> playlists
-          {ecoTotals.dispatched > 0 && <> · {ecoTotals.dispatched} já enviadas ao bot</>}
-          <span className="ml-1 text-[10px] text-primary">· clique numa playlist para ver o plano diário</span>
-        </p>
-      </CardHeader>
-      <CardContent>
-        {allocs.length === 0 ? (
-          <div className="text-sm text-muted-foreground py-6 text-center">Sem alocação Eco.</div>
-        ) : (
-          <div className="rounded-lg border border-border overflow-hidden">
-            <div className="max-h-[560px] overflow-auto">
-              <table className="w-full text-xs border-separate border-spacing-0">
-                <thead className="text-muted-foreground sticky top-0 bg-card z-10">
-                  <tr>
-                    <th className="text-left font-medium py-2 px-3 border-b border-border">Playlist</th>
-                    <th className="text-right font-medium py-2 px-3 border-b border-border w-32">Planejado</th>
-                    <th className="text-right font-medium py-2 px-3 border-b border-border w-20">Posição</th>
-                    <th className="text-right font-medium py-2 px-3 border-b border-border w-20">Início</th>
-                    <th className="text-right font-medium py-2 px-3 border-b border-border w-32">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {allocs.map((a, i) => (
-                    <tr key={a.id} onClick={() => setSelectedAlloc(a)} className={cn("hover:bg-primary/5 cursor-pointer transition-colors", i % 2 === 1 && "bg-elevated/30")}>
-                      <td className="py-2 px-3 border-b border-border/30">
-                        <div className="flex items-center gap-2">
-                          {a.managed_playlists?.cover_url ? (
-                            <img src={a.managed_playlists.cover_url} alt="" className="w-7 h-7 rounded object-cover" />
-                          ) : (
-                            <div className="w-7 h-7 rounded bg-muted" />
-                          )}
-                          <div className="min-w-0">
-                            <div className="font-medium truncate">{a.managed_playlists?.name ?? "—"}</div>
-                            <div className="text-[10px] text-muted-foreground tabular-nums">
-                              {formatInt(a.managed_playlists?.followers ?? 0)} saves
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-2 px-3 text-right tabular-nums font-semibold border-b border-border/30">
-                        {formatInt(a.planned_streams)}
-                      </td>
-                      <td className="py-2 px-3 text-right tabular-nums border-b border-border/30">
-                        {(() => {
-                          const pos = ecoPositionByAllocation.get(a.id) ?? 3;
-                          const tone = pos <= 5 ? "text-primary" : pos <= 12 ? "text-foreground" : "text-muted-foreground";
-                          return <span className={cn("font-semibold", tone)}>#{pos}</span>;
-                        })()}
-                      </td>
-                      <td className="py-2 px-3 text-right tabular-nums text-muted-foreground border-b border-border/30">
-                        D{ecoPlanByAllocation.get(a.id) ?? a.start_day}
-                      </td>
-                      <td className="py-2 px-3 text-right border-b border-border/30">
-                        <span className={cn("inline-flex items-center px-2 h-5 rounded text-[10px] font-medium border", STATUS_TONE[a.status] ?? STATUS_TONE.pending)}>
-                          {STATUS_LABEL[a.status] ?? a.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
+    // 2) Eco snapshots — sem screenshot, mas mostram crescimento
+    const plById = new Map(allocs.map(a => [a.managed_playlist_id, a.managed_playlists]));
+    const eco: ProofEvent[] = snaps.map((s) => {
+      const pl = plById.get(s.managed_playlist_id);
+      return {
+        id: `es-${s.id}`,
+        captured_at: s.captured_at,
+        playlist_name: pl?.name ?? "Playlist própria",
+        playlist_cover: pl?.cover_url ?? null,
+        screenshot_url: null,
+        plays_total: Number(s.plays_28d ?? s.plays_7d ?? s.plays_24h ?? 0),
+        delta_plays: s.plays_24h ?? null,
+        position: null,
+        source: s.source ?? "bot",
+        spotify_url: pl?.spotify_url ?? null,
+      };
+    });
+
+    return [...ext, ...eco].sort((a, b) => new Date(b.captured_at).getTime() - new Date(a.captured_at).getTime());
+  }, [proofs, snaps, allocs]);
+
+  const lastUpdateAt = proofEvents[0]?.captured_at ?? camp.started_at;
 
   return (
     <PageContainer>
@@ -218,7 +205,7 @@ export default function CampanhaExecucao() {
         goal={snapshot.meta}
         daysElapsed={daysElapsed}
         daysTotal={snapshot.days}
-        lastUpdateAt={camp.started_at}
+        lastUpdateAt={lastUpdateAt}
         slots={{
           overview: (
             <OverviewTab
@@ -230,17 +217,30 @@ export default function CampanhaExecucao() {
           ),
           playlists: (
             <div className="space-y-6">
-              {playlistsSlot}
+              <PlaylistsGrid
+                allocations={allocs}
+                snapshots={snaps}
+                proofThumbs={proofs.map(p => ({
+                  playlist_id: p.playlist_id,
+                  screenshot_url: p.screenshot_url,
+                  captured_at: p.captured_at,
+                }))}
+                positions={ecoPositionByAllocation}
+                mode="internal"
+              />
               <ExternalPackageEditor campaignId={camp.id} snapshot={snapshot} onChanged={() => setPlanRefreshKey(k => k + 1)} />
             </div>
           ),
           proofs: (
-            <CampaignMonitoring
-              campaignId={camp.id}
-              snapshot={snapshot}
-              campaignStartedAt={camp.started_at}
-              campaignStatus={camp.status}
-            />
+            <div className="space-y-6">
+              <ProofsTimeline events={proofEvents} />
+              <CampaignMonitoring
+                campaignId={camp.id}
+                snapshot={snapshot}
+                campaignStartedAt={camp.started_at}
+                campaignStatus={camp.status}
+              />
+            </div>
           ),
           curve: (
             <div className="space-y-6">
