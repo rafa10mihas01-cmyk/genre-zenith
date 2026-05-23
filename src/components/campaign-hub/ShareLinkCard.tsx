@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Copy, ExternalLink, Check, MessageCircle, Share2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { PUBLIC_DOMAIN } from "@/lib/curatorPublicUrl";
 
 type Props = {
   token: string;
