@@ -26,6 +26,7 @@ type Props = {
   proofThumbs?: ProofThumb[];
   positions?: Map<string, number>;
   mode: "internal" | "client";
+  flat?: boolean;
 };
 
 type Group = "active" | "pending" | "paused";
