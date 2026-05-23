@@ -910,7 +910,7 @@ Deno.serve(async (req) => {
     //     uma playlist de samba com funk só porque tá no chart).
     const trendingMap = new Map<string, { position: number; popularity: number | null; cover: string | null; artist_id: string | null }>();
     try {
-      const { data: chartRows } = await supabaseAdmin
+      const { data: chartRows } = await supabase
         .from("raw_chart_daily")
         .select("position, spotify_track_id, popularity, cover_url, spotify_artist_id, artist, track")
         .eq("chart_name", "top200_br")
