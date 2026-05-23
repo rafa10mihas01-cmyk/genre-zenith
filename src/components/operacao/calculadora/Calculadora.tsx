@@ -394,7 +394,6 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
       }
 
       // Capacidade total do eco = uma posição diária por playlist, sem repetir a música.
-      const sumFollowers = (list: typeof allPlaylists) => list.reduce((s, p) => s + Math.max(0, p.followers ?? 0), 0);
       const compatiblePlaylists = [...coreSlice, ...neighborSlice].sort((a, b) => (b.followers ?? 0) - (a.followers ?? 0));
       const slots = (song.track?.position ?? 999) <= 50 ? [1, 2, 3] : [3];
       const capacityPerDay = compatiblePlaylists.reduce((sum, playlist, index) => (
@@ -1044,7 +1043,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                           {" "}precisa entregar <strong>{formatInt(ecoNeeded)}</strong> pelo eco
                         </div>
                         <div className="text-[10px] text-muted-foreground tabular-nums">
-                          Conta: {formatInt(ecoCap.savesTotal)} saves compatíveis × {active.engagementMultiplier ?? 30} ÷ 30 × {active.days} dias
+                          Conta: {formatInt(ecoCap.savesTotal)} saves × {active.engagementMultiplier ?? 30} ÷ 30 × % da posição {ecoCap.slotPositions.map(p => `#${p}`).join("/")} × {active.days} dias
                         </div>
                         {ecoOverflow && suggestedEcoPct != null && (
                           <div className="flex items-center justify-between gap-2 pt-1 border-t border-destructive/20">
