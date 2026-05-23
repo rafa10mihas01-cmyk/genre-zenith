@@ -111,6 +111,7 @@ type Props = {
   tracksCount: number;
   genreName?: string | null;
   brainScore?: number | null;
+  canonicalPlaylistId?: string | null;
   onBack?: () => void;
 };
 
