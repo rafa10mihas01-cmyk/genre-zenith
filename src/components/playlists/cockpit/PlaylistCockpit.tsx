@@ -588,6 +588,42 @@ export function PlaylistCockpit({
 
             {/* ============ PLANO DE AÇÃO ============ */}
             <TabsContent value="plano" className="space-y-4 mt-0">
+              {(() => {
+                const mode = diag.raw?.recommendation_mode ?? "light";
+                const total = buckets.remove.length + buckets.demote.length + buckets.promote.length + buckets.add.length;
+                const detectedTotal = buckets.detected.remove + buckets.detected.demote + buckets.detected.promote + buckets.detected.add;
+                if (mode === "hold") {
+                  return (
+                    <Card className="p-5 border-primary/30 bg-primary/5">
+                      <div className="flex items-start gap-3">
+                        <ShieldCheck className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                        <div className="space-y-1 min-w-0">
+                          <div className="text-sm font-semibold">Não mexer agora</div>
+                          <div className="text-xs text-muted-foreground leading-relaxed">
+                            O cérebro analisou essa playlist e decidiu que ela está performando bem — qualquer mexida agora atrapalha mais do que ajuda.
+                            {detectedTotal > 0 && <> Existem <span className="text-foreground font-semibold">{detectedTotal}</span> ajustes possíveis, mas estão segurados nesse ciclo.</>}
+                            {" "}Volte depois de 7 dias ou clique em <strong className="text-foreground">Reavaliar</strong> se algo mudou.
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                }
+                if (total === 0 && detectedTotal === 0) {
+                  return (
+                    <Card className="p-5">
+                      <div className="flex items-start gap-3">
+                        <ShieldCheck className="h-5 w-5 text-success shrink-0 mt-0.5" />
+                        <div className="space-y-1 min-w-0">
+                          <div className="text-sm font-semibold">Nada a fazer</div>
+                          <div className="text-xs text-muted-foreground">Nenhuma faixa fora do padrão nem sugestão pra adicionar agora.</div>
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                }
+                return null;
+              })()}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                 <ActionCard kind="remove" count={buckets.remove.length} detected={buckets.detected.remove} hrefId="bucket-remove" />
                 <ActionCard kind="demote" count={buckets.demote.length} detected={buckets.detected.demote} hrefId="bucket-demote" />
