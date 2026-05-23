@@ -532,7 +532,6 @@ export default function CampanhaExecucao() {
             <Tabs defaultValue="diario" className="space-y-4">
               <TabsList>
                 <TabsTrigger value="diario">Diário</TabsTrigger>
-                <TabsTrigger value="externo">Externo</TabsTrigger>
                 <TabsTrigger value="completo">Plano completo</TabsTrigger>
               </TabsList>
               <TabsContent value="diario" className="mt-0">
@@ -545,9 +544,6 @@ export default function CampanhaExecucao() {
                   engagementMultiplier={camp.engagement_multiplier ?? 30}
                   onEngagementChange={(v) => setCamp((c) => c ? ({ ...c, engagement_multiplier: v }) : c)}
                 />
-              </TabsContent>
-              <TabsContent value="externo" className="mt-0">
-                <ExternalPackageEditor campaignId={camp.id} snapshot={snapshot} onChanged={() => setPlanRefreshKey(k => k + 1)} />
               </TabsContent>
               <TabsContent value="completo" className="mt-0">
                 <CampaignFullPlanCard
