@@ -181,10 +181,11 @@ export default function Campanhas() {
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                {filtered.map(c => <CampaignRow key={c.id} c={c} onChanged={load} />)}
+                {filtered.map(c => <CampaignRow key={c.id} c={c} />)}
               </div>
             )}
           </>
+
         )}
 
         {tab === "financeiro" && <Calculadora />}
