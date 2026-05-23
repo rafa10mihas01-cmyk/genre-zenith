@@ -290,7 +290,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
     try {
       const { data: playlists, error } = await supabase
         .from("managed_playlists")
-        .select("id, followers")
+        .select("id, followers, genre_id")
         .is("archived_at", null);
       if (error) throw error;
 
@@ -316,12 +316,74 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
         },
       );
 
-      const allocations = planEcoAllocations(
-        r.streamsEco,
+      // Filtra playlists por afinidade de gênero (núcleo + vizinhas ≥ 0.70, teto 30% mistura, corte duro 0.50)
+      const allPlaylists = (playlists ?? []) as { id: string; followers: number | null; genre_id: string | null }[];
+      let coreSlice = allPlaylists;
+      let neighborSlice: typeof allPlaylists = [];
+      let neighborBudget = 0;
+      let coreBudget = r.streamsEco;
+
+      if (song.genre) {
+        // Resolve slug do gênero da campanha
+        const slug = song.genre
+          .toLowerCase()
+          .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+          .replace(/[^a-z0-9]+/g, " ")
+          .trim()
+          .split(/\s+/)[0]; // primeiro token: "rap / trap" → "rap"
+        const { data: gRow } = await supabase
+          .from("genres")
+          .select("id")
+          .or(`slug.eq.${slug},nome.ilike.${slug}%`)
+          .limit(1)
+          .maybeSingle();
+        const campaignGenreId = gRow?.id ?? null;
+
+        if (campaignGenreId) {
+          const { data: aff } = await supabase
+            .from("genre_affinities")
+            .select("genre_a_id, genre_b_id, score")
+            .or(`genre_a_id.eq.${campaignGenreId},genre_b_id.eq.${campaignGenreId}`)
+            .gte("score", 0.5);
+          const affMap = new Map<string, number>();
+          for (const row of (aff ?? []) as { genre_a_id: string; genre_b_id: string; score: number }[]) {
+            const other = row.genre_a_id === campaignGenreId ? row.genre_b_id : row.genre_a_id;
+            affMap.set(other, Number(row.score));
+          }
+          coreSlice = allPlaylists.filter(p => p.genre_id === campaignGenreId);
+          neighborSlice = allPlaylists.filter(p => {
+            if (!p.genre_id || p.genre_id === campaignGenreId) return false;
+            const s = affMap.get(p.genre_id) ?? 0;
+            return s >= 0.7;
+          });
+          // Sem núcleo → cai pra vizinhos com tudo
+          if (coreSlice.length === 0 && neighborSlice.length > 0) {
+            coreSlice = neighborSlice;
+            neighborSlice = [];
+          } else {
+            // Teto 30% pra vizinhos
+            neighborBudget = neighborSlice.length > 0 ? Math.round(r.streamsEco * 0.3) : 0;
+            coreBudget = r.streamsEco - neighborBudget;
+          }
+        }
+      }
+
+      const coreAllocs = planEcoAllocations(
+        coreBudget,
         r.days,
-        (playlists ?? []).map(p => ({ id: p.id, followers: p.followers ?? 0 })),
+        coreSlice.map(p => ({ id: p.id, followers: p.followers ?? 0 })),
         r.modo,
       );
+      const neighborAllocs = neighborBudget > 0
+        ? planEcoAllocations(
+            neighborBudget,
+            r.days,
+            neighborSlice.map(p => ({ id: p.id, followers: p.followers ?? 0 })),
+            r.modo,
+          )
+        : [];
+      const allocations = [...coreAllocs, ...neighborAllocs];
+
 
       const startD = startOfDay(new Date(song.startDateISO));
       const deadlineISO = addDays(startD, r.days).toISOString().slice(0, 10);
