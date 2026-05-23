@@ -492,8 +492,11 @@ export default function CampanhaExecucao() {
               allocations={allocs}
               snapshots={snaps}
               externalItems={externalItems}
+              totalDays={snapshot.days}
+              startedAt={camp.started_at}
             />
           ),
+
 
           playlists: (
             <Tabs defaultValue="interno" className="space-y-4">

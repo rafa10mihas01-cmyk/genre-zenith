@@ -43,6 +43,8 @@ type Props = {
   allocations: EcoAllocation[];
   snapshots: EcoSnap[];
   externalItems: ExternalItemRow[];
+  totalDays?: number;
+  startedAt?: string | null;
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -56,7 +58,7 @@ const STATUS_LABEL: Record<string, string> = {
   cancelled: "Cancelado",
 };
 
-export function OperacaoTab({ allocations, snapshots, externalItems }: Props) {
+export function OperacaoTab({ allocations, snapshots, externalItems, totalDays, startedAt }: Props) {
   const latestSnap = useMemo(() => {
     const m = new Map<string, EcoSnap>();
     for (const s of snapshots) if (!m.has(s.managed_playlist_id)) m.set(s.managed_playlist_id, s);
@@ -123,16 +125,29 @@ export function OperacaoTab({ allocations, snapshots, externalItems }: Props) {
     [rows, filter],
   );
 
+  const scope = useMemo(() => {
+    const planned = filteredRows.reduce((s, r) => s + r.planned, 0);
+    const delivered = filteredRows.reduce((s, r) => s + r.delivered, 0);
+    const cost = filteredRows.reduce((s, r) => s + r.cost, 0);
+    const remaining = Math.max(0, planned - delivered);
+    const coverage = planned > 0 ? Math.round((delivered / planned) * 100) : 0;
+
+    const days = Math.max(1, totalDays ?? 30);
+    let daysElapsed = 0;
+    if (startedAt) {
+      const ms = Date.now() - new Date(startedAt).getTime();
+      daysElapsed = Math.max(0, Math.floor(ms / 86400000));
+    }
+    const daysLeft = Math.max(1, days - daysElapsed);
+    const dailyNeeded = Math.round(remaining / daysLeft);
+
+    return { planned, delivered, remaining, cost, coverage, dailyNeeded, daysLeft, days };
+  }, [filteredRows, totalDays, startedAt]);
+
+  const scopeLabel = filter === "internal" ? "interno" : filter === "external" ? "externo" : "total";
+
   return (
     <div className="space-y-4">
-      {/* KPIs do consolidado */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <SummaryKpi label="Plays alvo" value={formatInt(totals.planned)} sub="meta total" />
-        <SummaryKpi label="Plays entregues" value={formatInt(totals.delivered)} sub={`${pct(totals.delivered, totals.planned)}% da meta`} />
-        <SummaryKpi label="Custo externo" value={formatBRL(totals.cost)} sub="pago a curadores" />
-        <SummaryKpi label="Fontes" value={`${totals.internalCount + totals.externalCount}`} sub={`${totals.internalCount} interna · ${totals.externalCount} externa`} />
-      </div>
-
       <Tabs value={filter} onValueChange={(v) => setFilter(v as typeof filter)}>
         <TabsList>
           <TabsTrigger value="all">Todas <span className="ml-1.5 text-[10px] text-muted-foreground tabular-nums">{rows.length}</span></TabsTrigger>
@@ -140,7 +155,18 @@ export function OperacaoTab({ allocations, snapshots, externalItems }: Props) {
           <TabsTrigger value="external">Externo <span className="ml-1.5 text-[10px] text-muted-foreground tabular-nums">{totals.externalCount}</span></TabsTrigger>
         </TabsList>
 
-        <TabsContent value={filter} className="mt-4">
+        <TabsContent value={filter} className="mt-4 space-y-4">
+          {/* KPIs por escopo selecionado */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            <SummaryKpi label="Meta" value={formatInt(scope.planned)} sub={`alvo ${scopeLabel}`} />
+            <SummaryKpi label="Entregue" value={formatInt(scope.delivered)} sub={`${scope.coverage}% da meta`} />
+            <SummaryKpi label="Falta entregar" value={formatInt(scope.remaining)} sub={scope.remaining === 0 ? "meta batida" : "restante"} />
+            <SummaryKpi label="Diário necessário" value={formatInt(scope.dailyNeeded)} sub={`em ${scope.daysLeft} dia${scope.daysLeft === 1 ? "" : "s"}`} />
+            <SummaryKpi label={filter === "internal" ? "Fontes internas" : filter === "external" ? "Curadores externos" : "Fontes"} value={String(filteredRows.length)} sub={filter === "all" ? `${totals.internalCount} int · ${totals.externalCount} ext` : undefined} />
+            <SummaryKpi label="Custo" value={formatBRL(scope.cost)} sub={filter === "internal" ? "playlists próprias" : "pago a curadores"} />
+          </div>
+
+
           {filteredRows.length === 0 ? (
             <Card>
               <CardContent className="p-8 text-center text-sm text-muted-foreground">
