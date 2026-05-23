@@ -1,6 +1,6 @@
-// useFinancialOverview — agrega dados da view v_financial_summary,
-// pagamentos a curadores (curator_deal_payments) e deals ativos.
-import { useCallback, useEffect, useMemo, useState } from "react";
+// useFinancialOverview — React Query + realtime (via useCuratorDeals channel).
+import { useCallback, useEffect, useMemo } from "react";
+import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -46,39 +46,91 @@ export type DealFinanceRow = {
 
 export function useFinancialOverview() {
   const { user } = useAuth();
-  const [summary, setSummary] = useState<FinancialSummaryRow[]>([]);
-  const [payments, setPayments] = useState<DealPayment[]>([]);
-  const [dealsFinance, setDealsFinance] = useState<DealFinanceRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const qc = useQueryClient();
 
-  const load = useCallback(async () => {
-    if (!user) return;
-    setLoading(true);
-    const [sumRes, payRes, dealsRes] = await Promise.all([
-      supabase.from("v_financial_summary").select("*"),
-      supabase
+  const summaryQuery = useQuery({
+    queryKey: ["financial-summary"],
+    enabled: !!user,
+    staleTime: 60_000,
+    placeholderData: keepPreviousData,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("v_financial_summary").select("*");
+      if (error) throw error;
+      return (data ?? []) as FinancialSummaryRow[];
+    },
+  });
+
+  const paymentsQuery = useQuery({
+    queryKey: ["deal-payments"],
+    enabled: !!user,
+    staleTime: 30_000,
+    placeholderData: keepPreviousData,
+    queryFn: async () => {
+      const { data, error } = await supabase
         .from("curator_deal_payments")
         .select("*")
         .order("payment_date", { ascending: false })
-        .limit(500),
-      supabase
+        .limit(500);
+      if (error) throw error;
+      return (data ?? []) as DealPayment[];
+    },
+  });
+
+  const dealsQuery = useQuery({
+    queryKey: ["financial-deals"],
+    enabled: !!user,
+    staleTime: 30_000,
+    placeholderData: keepPreviousData,
+    queryFn: async () => {
+      const { data, error } = await supabase
         .from("curator_deals")
         .select(
           "id, campaign_id, curator_name, song_name, target_plays, cost, reconciled_total_plays, started_at, closed_at",
         )
         .order("started_at", { ascending: false })
-        .limit(500),
-    ]);
+        .limit(500);
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+  });
 
-    if (!sumRes.error && sumRes.data) setSummary(sumRes.data as FinancialSummaryRow[]);
-    if (!payRes.error && payRes.data) setPayments(payRes.data as DealPayment[]);
+  // Realtime: pagamentos atualizam summary + payments
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel(`financial-live-${user.id}-${Math.random().toString(36).slice(2)}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "curator_deal_payments" },
+        () => {
+          qc.invalidateQueries({ queryKey: ["deal-payments"] });
+          qc.invalidateQueries({ queryKey: ["financial-summary"] });
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "curator_deals" },
+        () => {
+          qc.invalidateQueries({ queryKey: ["financial-deals"] });
+          qc.invalidateQueries({ queryKey: ["financial-summary"] });
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, qc]);
 
+  const summary = summaryQuery.data ?? [];
+  const payments = paymentsQuery.data ?? [];
+  const dealsRaw = dealsQuery.data ?? [];
+
+  const dealsFinance = useMemo<DealFinanceRow[]>(() => {
     const paid = new Map<string, number>();
-    for (const p of (payRes.data ?? []) as DealPayment[]) {
+    for (const p of payments) {
       paid.set(p.deal_id, (paid.get(p.deal_id) ?? 0) + Number(p.amount));
     }
-
-    const rows: DealFinanceRow[] = ((dealsRes.data ?? []) as any[]).map((d) => {
+    return dealsRaw.map((d) => {
       const target = Number(d.target_plays ?? 0);
       const delivered = Number(d.reconciled_total_plays ?? 0);
       const start = d.started_at ? new Date(d.started_at) : new Date();
@@ -98,13 +150,7 @@ export function useFinancialOverview() {
         days_open: days,
       };
     });
-    setDealsFinance(rows);
-    setLoading(false);
-  }, [user]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
+  }, [dealsRaw, payments]);
 
   const totals = useMemo(() => {
     let recebido = 0;
@@ -125,6 +171,14 @@ export function useFinancialOverview() {
     };
   }, [summary]);
 
+  const reload = useCallback(async () => {
+    await Promise.all([
+      qc.invalidateQueries({ queryKey: ["financial-summary"] }),
+      qc.invalidateQueries({ queryKey: ["deal-payments"] }),
+      qc.invalidateQueries({ queryKey: ["financial-deals"] }),
+    ]);
+  }, [qc]);
+
   const registerPayment = useCallback(
     async (input: {
       deal_id: string;
@@ -133,19 +187,41 @@ export function useFinancialOverview() {
       method?: string;
       notes?: string;
     }) => {
-      const { error } = await supabase.from("curator_deal_payments").insert({
+      const optimistic: DealPayment = {
+        id: `tmp-${crypto.randomUUID()}`,
         deal_id: input.deal_id,
         amount: Number(input.amount.toFixed(2)),
         payment_date: input.payment_date ?? new Date().toISOString().slice(0, 10),
         method: input.method ?? null,
         notes: input.notes ?? null,
+        created_at: new Date().toISOString(),
+      };
+      await qc.cancelQueries({ queryKey: ["deal-payments"] });
+      const previous = qc.getQueryData<DealPayment[]>(["deal-payments"]);
+      qc.setQueryData<DealPayment[]>(["deal-payments"], (old) => [optimistic, ...(old ?? [])]);
+
+      const { error } = await supabase.from("curator_deal_payments").insert({
+        deal_id: input.deal_id,
+        amount: optimistic.amount,
+        payment_date: optimistic.payment_date,
+        method: optimistic.method,
+        notes: optimistic.notes,
         created_by: user?.id ?? null,
       });
-      if (error) throw error;
-      await load();
+      if (error) {
+        qc.setQueryData(["deal-payments"], previous);
+        throw error;
+      }
+      await reload();
     },
-    [user, load],
+    [user, qc, reload],
   );
 
-  return { summary, payments, dealsFinance, totals, loading, reload: load, registerPayment };
+  const loading =
+    (summaryQuery.isLoading || paymentsQuery.isLoading || dealsQuery.isLoading) &&
+    summary.length === 0 &&
+    payments.length === 0 &&
+    dealsRaw.length === 0;
+
+  return { summary, payments, dealsFinance, totals, loading, reload, registerPayment };
 }

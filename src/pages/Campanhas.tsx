@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
 import { Button } from "@/components/ui/button";
@@ -18,22 +17,8 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useCampaigns, type Campaign } from "@/hooks/useCampaigns";
 
-
-type Campaign = {
-  id: string;
-  track_name: string;
-  artist: string | null;
-  goal_plays: number;
-  deadline: string;
-  status: "draft" | "active" | "paused" | "completed" | "cancelled";
-  total_allocated: number;
-  total_delivered: number;
-  created_at: string;
-  snapshot_locked_at: string | null;
-  curator_id: string | null;
-  deal_id: string | null;
-};
 
 const STATUS_TONE: Record<string, "success" | "warning" | "neutral" | "danger"> = {
   active: "success",
@@ -49,28 +34,9 @@ const STATUS_LABEL: Record<string, string> = {
 
 export default function Campanhas() {
   const navigate = useNavigate();
-  const [items, setItems] = useState<Campaign[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { items, loading, recalcAll } = useCampaigns();
   const [filter, setFilter] = useState<"all" | "active" | "draft" | "completed">("all");
-  
-  const [recalcing, setRecalcing] = useState(false);
   const [tab, setTab] = useState<"lista" | "financeiro">("financeiro");
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from("campaigns")
-      .select("id, track_name, artist, goal_plays, deadline, status, total_allocated, total_delivered, created_at, snapshot_locked_at, curator_id, deal_id")
-      .order("created_at", { ascending: false });
-    setLoading(false);
-    if (error) {
-      toast({ title: "Erro ao carregar campanhas", description: error.message, variant: "destructive" });
-      return;
-    }
-    setItems((data ?? []) as Campaign[]);
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
 
   const filtered = useMemo(
     () => filter === "all" ? items : items.filter(i => i.status === filter),
@@ -86,13 +52,16 @@ export default function Campanhas() {
     return { activeCount: active.length, goal, delivered, allocated, pct };
   }, [items]);
 
-  async function recalcAll() {
-    setRecalcing(true);
-    const { error } = await (supabase.rpc as any)("recalc_campaign_progress", { p_campaign_id: null });
-    setRecalcing(false);
-    if (error) toast({ title: "Erro no recálculo", description: error.message, variant: "destructive" });
-    else { toast({ title: "Recalculado" }); load(); }
+  async function doRecalcAll() {
+    try {
+      await recalcAll.mutateAsync();
+      toast({ title: "Recalculado" });
+    } catch (e) {
+      toast({ title: "Erro no recálculo", description: (e as Error).message, variant: "destructive" });
+    }
   }
+
+
 
   return (
     <>
@@ -106,12 +75,13 @@ export default function Campanhas() {
 
         actions={
           tab === "lista" ? (
-            <Button variant="outline" onClick={recalcAll} disabled={recalcing}>
-              <RefreshCw className={`h-4 w-4 mr-2 ${recalcing ? "animate-spin" : ""}`} />
+            <Button variant="outline" onClick={doRecalcAll} disabled={recalcAll.isPending}>
+              <RefreshCw className={`h-4 w-4 mr-2 ${recalcAll.isPending ? "animate-spin" : ""}`} />
               Recalcular
             </Button>
           ) : undefined
         }
+
       />
 
       <PageContainer>
@@ -211,10 +181,11 @@ export default function Campanhas() {
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                {filtered.map(c => <CampaignRow key={c.id} c={c} onChanged={load} />)}
+                {filtered.map(c => <CampaignRow key={c.id} c={c} />)}
               </div>
             )}
           </>
+
         )}
 
         {tab === "financeiro" && <Calculadora />}
@@ -224,19 +195,21 @@ export default function Campanhas() {
 }
 
 
-function CampaignRow({ c, onChanged }: { c: Campaign; onChanged: () => void }) {
+function CampaignRow({ c }: { c: Campaign }) {
+  const { updateStatus, removeCampaign, approve } = useCampaigns();
   const pct = c.goal_plays > 0 ? Math.min(100, Math.round((c.total_delivered / c.goal_plays) * 100)) : 0;
   const daysLeft = Math.ceil((new Date(c.deadline).getTime() - Date.now()) / 86400_000);
   const href = c.snapshot_locked_at ? `/campanhas/${c.id}/execucao` : `/campanhas/${c.id}`;
-  const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const busy = updateStatus.isPending || removeCampaign.isPending || approve.isPending;
 
-  async function updateStatus(status: Campaign["status"], label: string) {
-    setBusy(true);
-    const { error } = await supabase.from("campaigns").update({ status }).eq("id", c.id);
-    setBusy(false);
-    if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
-    else { toast({ title: label }); onChanged(); }
+  async function doUpdateStatus(status: Campaign["status"], label: string) {
+    try {
+      await updateStatus.mutateAsync({ id: c.id, status });
+      toast({ title: label });
+    } catch (e) {
+      toast({ title: "Erro", description: (e as Error).message, variant: "destructive" });
+    }
   }
 
   async function approveCampaign() {
@@ -244,26 +217,26 @@ function CampaignRow({ c, onChanged }: { c: Campaign; onChanged: () => void }) {
       toast({ title: "Sem curador", description: "Edite a campanha e selecione o curador dono das playlists.", variant: "destructive" });
       return;
     }
-    setBusy(true);
-    const { data, error } = await (supabase.rpc as any)("approve_campaign", { p_campaign_id: c.id });
-    setBusy(false);
-    if (error) {
-      toast({ title: "Erro ao aprovar", description: error.message, variant: "destructive" });
-      return;
+    try {
+      const data = await approve.mutateAsync(c.id);
+      toast({ title: "Campanha aprovada", description: "Deal real criado e enviado para a fila de coleta." });
+      return data;
+    } catch (e) {
+      toast({ title: "Erro ao aprovar", description: (e as Error).message, variant: "destructive" });
     }
-    toast({ title: "Campanha aprovada", description: "Deal real criado e enviado para a fila de coleta." });
-    onChanged();
-    return data;
   }
 
   async function doDelete() {
-    setBusy(true);
-    const { error } = await supabase.from("campaigns").delete().eq("id", c.id);
-    setBusy(false);
-    setConfirmDelete(false);
-    if (error) toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
-    else { toast({ title: "Campanha excluída" }); onChanged(); }
+    try {
+      await removeCampaign.mutateAsync(c.id);
+      toast({ title: "Campanha excluída" });
+    } catch (e) {
+      toast({ title: "Erro ao excluir", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setConfirmDelete(false);
+    }
   }
+
 
   const isDraftReady = c.status === "draft" && !!c.curator_id;
 
@@ -332,23 +305,24 @@ function CampaignRow({ c, onChanged }: { c: Campaign; onChanged: () => void }) {
               </>
             )}
             {c.status === "paused" ? (
-              <DropdownMenuItem onSelect={() => updateStatus("active", "Campanha retomada")}>
+              <DropdownMenuItem onSelect={() => doUpdateStatus("active", "Campanha retomada")}>
                 <Play className="h-4 w-4 mr-2" /> Retomar
               </DropdownMenuItem>
             ) : (
               <DropdownMenuItem
                 disabled={c.status === "completed" || c.status === "cancelled" || c.status === "draft"}
-                onSelect={() => updateStatus("paused", "Campanha pausada")}
+                onSelect={() => doUpdateStatus("paused", "Campanha pausada")}
               >
                 <Pause className="h-4 w-4 mr-2" /> Pausar
               </DropdownMenuItem>
             )}
             <DropdownMenuItem
               disabled={c.status === "cancelled"}
-              onSelect={() => updateStatus("cancelled", "Campanha arquivada")}
+              onSelect={() => doUpdateStatus("cancelled", "Campanha arquivada")}
             >
               <Archive className="h-4 w-4 mr-2" /> Arquivar
             </DropdownMenuItem>
+
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="text-destructive focus:text-destructive"
