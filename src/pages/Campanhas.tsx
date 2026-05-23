@@ -195,19 +195,21 @@ export default function Campanhas() {
 }
 
 
-function CampaignRow({ c, onChanged }: { c: Campaign; onChanged: () => void }) {
+function CampaignRow({ c }: { c: Campaign }) {
+  const { updateStatus, removeCampaign, approve } = useCampaigns();
   const pct = c.goal_plays > 0 ? Math.min(100, Math.round((c.total_delivered / c.goal_plays) * 100)) : 0;
   const daysLeft = Math.ceil((new Date(c.deadline).getTime() - Date.now()) / 86400_000);
   const href = c.snapshot_locked_at ? `/campanhas/${c.id}/execucao` : `/campanhas/${c.id}`;
-  const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const busy = updateStatus.isPending || removeCampaign.isPending || approve.isPending;
 
-  async function updateStatus(status: Campaign["status"], label: string) {
-    setBusy(true);
-    const { error } = await supabase.from("campaigns").update({ status }).eq("id", c.id);
-    setBusy(false);
-    if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
-    else { toast({ title: label }); onChanged(); }
+  async function doUpdateStatus(status: Campaign["status"], label: string) {
+    try {
+      await updateStatus.mutateAsync({ id: c.id, status });
+      toast({ title: label });
+    } catch (e) {
+      toast({ title: "Erro", description: (e as Error).message, variant: "destructive" });
+    }
   }
 
   async function approveCampaign() {
@@ -215,26 +217,26 @@ function CampaignRow({ c, onChanged }: { c: Campaign; onChanged: () => void }) {
       toast({ title: "Sem curador", description: "Edite a campanha e selecione o curador dono das playlists.", variant: "destructive" });
       return;
     }
-    setBusy(true);
-    const { data, error } = await (supabase.rpc as any)("approve_campaign", { p_campaign_id: c.id });
-    setBusy(false);
-    if (error) {
-      toast({ title: "Erro ao aprovar", description: error.message, variant: "destructive" });
-      return;
+    try {
+      const data = await approve.mutateAsync(c.id);
+      toast({ title: "Campanha aprovada", description: "Deal real criado e enviado para a fila de coleta." });
+      return data;
+    } catch (e) {
+      toast({ title: "Erro ao aprovar", description: (e as Error).message, variant: "destructive" });
     }
-    toast({ title: "Campanha aprovada", description: "Deal real criado e enviado para a fila de coleta." });
-    onChanged();
-    return data;
   }
 
   async function doDelete() {
-    setBusy(true);
-    const { error } = await supabase.from("campaigns").delete().eq("id", c.id);
-    setBusy(false);
-    setConfirmDelete(false);
-    if (error) toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
-    else { toast({ title: "Campanha excluída" }); onChanged(); }
+    try {
+      await removeCampaign.mutateAsync(c.id);
+      toast({ title: "Campanha excluída" });
+    } catch (e) {
+      toast({ title: "Erro ao excluir", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setConfirmDelete(false);
+    }
   }
+
 
   const isDraftReady = c.status === "draft" && !!c.curator_id;
 
