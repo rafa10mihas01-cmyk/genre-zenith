@@ -626,7 +626,7 @@ export function buildEcoPlaylistPlan(
   });
 
   // Sem overflow no novo modelo: a posição já define o teto diário.
-  let remaining = 0;
+  const remaining = 0;
 
   const result = plans as EcoPlanResult;
   result.unmetEco = Math.max(0, Math.round(remaining));
