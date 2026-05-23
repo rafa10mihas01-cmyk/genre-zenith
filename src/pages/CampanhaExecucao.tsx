@@ -89,7 +89,13 @@ export default function CampanhaExecucao() {
     try {
       const { error } = await (supabase.rpc as any)("approve_campaign", { p_campaign_id: camp.id });
       if (error) throw error;
-      toast.success("Campanha distribuída", { description: "Deal criado e playlists enviadas pra fila de coleta." });
+      // Dispara o planner agora pra enfileirar os ADDs imediatamente (sem esperar o cron de 1min).
+      const { error: planErr } = await supabase.functions.invoke("execution-planner", { body: {} });
+      if (planErr) {
+        toast.success("Campanha distribuída", { description: "Deal criado. Inserções começam no próximo ciclo (~1min)." });
+      } else {
+        toast.success("Campanha distribuída", { description: "Inserções enfileiradas — músicas entram nas playlists nas próximas execuções do bot." });
+      }
       setCamp((c) => c ? ({ ...c, status: "active", eco_dispatched_at: new Date().toISOString() }) : c);
       setPlanRefreshKey((k) => k + 1);
     } catch (e: any) {
