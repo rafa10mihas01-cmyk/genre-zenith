@@ -15,7 +15,7 @@ type Props = {
 
 export function ShareLinkCard({ token, trackName, artist, approved }: Props) {
   const [copied, setCopied] = useState(false);
-  const url = `${window.location.origin}/p/plano/${token}`;
+  const url = `${PUBLIC_DOMAIN}/p/plano/${token}`;
 
   async function copy() {
     try {
