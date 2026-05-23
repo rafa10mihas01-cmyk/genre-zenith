@@ -4078,6 +4078,10 @@ export type Database = {
           recommended_change_count: number | null
           spotify_playlist_id: string
           spotify_url: string
+          suggested_at: string | null
+          suggested_genre_id: string | null
+          suggestion_confidence: number | null
+          suggestion_reason: string | null
           tracks_count: number
           updated_at: string
         }
@@ -4112,6 +4116,10 @@ export type Database = {
           recommended_change_count?: number | null
           spotify_playlist_id: string
           spotify_url: string
+          suggested_at?: string | null
+          suggested_genre_id?: string | null
+          suggestion_confidence?: number | null
+          suggestion_reason?: string | null
           tracks_count?: number
           updated_at?: string
         }
@@ -4146,6 +4154,10 @@ export type Database = {
           recommended_change_count?: number | null
           spotify_playlist_id?: string
           spotify_url?: string
+          suggested_at?: string | null
+          suggested_genre_id?: string | null
+          suggestion_confidence?: number | null
+          suggestion_reason?: string | null
           tracks_count?: number
           updated_at?: string
         }
@@ -4155,6 +4167,20 @@ export type Database = {
             columns: ["canonical_playlist_id"]
             isOneToOne: false
             referencedRelation: "playlists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "managed_playlists_suggested_genre_id_fkey"
+            columns: ["suggested_genre_id"]
+            isOneToOne: false
+            referencedRelation: "genres"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "managed_playlists_suggested_genre_id_fkey"
+            columns: ["suggested_genre_id"]
+            isOneToOne: false
+            referencedRelation: "genres_with_health"
             referencedColumns: ["id"]
           },
         ]

@@ -52,6 +52,10 @@ type ManagedPlaylist = {
   max_change_pct?: number | null;
   recommended_change_count?: number | null;
   lifecycle_stage?: "onboarding" | "testing" | "mature" | null;
+  suggested_genre_id?: string | null;
+  suggestion_confidence?: number | null;
+  suggestion_reason?: string | null;
+  suggested_at?: string | null;
 };
 
 type SpotifyAccountLite = { id: string; spotify_user_id: string | null; display_name: string | null; email: string | null; is_default: boolean | null };
@@ -344,6 +348,50 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   const [filterGenreId, setFilterGenreId] = useState<string | null>(null);
   const [filterSize, setFilterSize] = useState<"all" | "pequena" | "media" | "grande" | "top">("all");
   const [savingGenre, setSavingGenre] = useState(false);
+  const [suggesting, setSuggesting] = useState(false);
+
+  async function runGenreSuggest() {
+    setSuggesting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("classify-playlist-genre", { body: { only_missing: true } });
+      if (error) throw error;
+      toast({
+        title: "Sugestões geradas",
+        description: `${data?.ok ?? 0} de ${data?.processed ?? 0} playlists classificadas${data?.failed ? ` · ${data.failed} falharam` : ""}.`,
+      });
+      await load();
+    } catch (e: any) {
+      toast({ title: "Falha ao sugerir gêneros", description: e.message ?? String(e), variant: "destructive" });
+    } finally { setSuggesting(false); }
+  }
+
+  async function acceptSuggestion(pl: ManagedPlaylist) {
+    if (!pl.suggested_genre_id) return;
+    const { error } = await supabase
+      .from("managed_playlists")
+      .update({
+        genre_id: pl.suggested_genre_id,
+        suggested_genre_id: null,
+        suggestion_confidence: null,
+        suggestion_reason: null,
+        suggested_at: null,
+      })
+      .eq("id", pl.id);
+    if (error) {
+      toast({ title: "Erro ao aplicar gênero", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Gênero aplicado" });
+    setItems((prev) => prev.map((x) => x.id === pl.id ? { ...x, genre_id: pl.suggested_genre_id!, suggested_genre_id: null, suggestion_confidence: null, suggestion_reason: null, suggested_at: null } : x));
+  }
+
+  async function dismissSuggestion(pl: ManagedPlaylist) {
+    await supabase
+      .from("managed_playlists")
+      .update({ suggested_genre_id: null, suggestion_confidence: null, suggestion_reason: null, suggested_at: null })
+      .eq("id", pl.id);
+    setItems((prev) => prev.map((x) => x.id === pl.id ? { ...x, suggested_genre_id: null, suggestion_confidence: null, suggestion_reason: null, suggested_at: null } : x));
+  }
 
   useEffect(() => {
     supabase.from("genres").select("id, nome").order("nome").then(({ data }) => {
@@ -805,6 +853,20 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
             <span className="sm:hidden tabular-nums text-[11px]">{missingGenreCount}</span>
           </Button>
         )}
+        {missingGenreCount > 0 && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={runGenreSuggest}
+            disabled={suggesting}
+            className="gap-1.5 h-9 px-2 sm:px-3 shrink-0"
+            title="Sugerir gêneros via IA"
+            aria-label="Sugerir gêneros via IA"
+          >
+            <Sparkles className={cn("h-4 w-4", suggesting && "animate-pulse")} />
+            <span className="hidden sm:inline">{suggesting ? "Sugerindo…" : `Sugerir gêneros (${missingGenreCount})`}</span>
+          </Button>
+        )}
         <div className="sm:ml-auto flex items-center gap-1.5 shrink-0">
           <button
             onClick={() => setShowArchived(false)}
@@ -900,6 +962,37 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
                   <span><span className="font-semibold text-foreground">{formatNumber(p.followers)}</span> seg.</span>
                   <span><span className="font-semibold text-foreground">{p.tracks_count || "—"}</span> fx</span>
                 </div>
+                {!p.genre_id && p.suggested_genre_id && (
+                  <div
+                    className="flex items-center gap-1 rounded-md border border-primary/30 bg-primary/10 px-1.5 py-1 text-[10.5px]"
+                    onClick={(e) => e.preventDefault()}
+                    title={p.suggestion_reason ?? ""}
+                  >
+                    <Sparkles className="h-3 w-3 text-primary shrink-0" />
+                    <span className="flex-1 truncate text-primary capitalize">
+                      {genres.find(g => g.id === p.suggested_genre_id)?.nome ?? "—"}
+                      <span className="text-muted-foreground ml-1 tabular-nums">{p.suggestion_confidence ?? 0}%</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); acceptSuggestion(p); }}
+                      className="h-4 w-4 inline-flex items-center justify-center rounded hover:bg-primary/20 text-primary"
+                      title="Aceitar sugestão"
+                      aria-label="Aceitar sugestão"
+                    >
+                      <Check className="h-3 w-3" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); dismissSuggestion(p); }}
+                      className="h-4 w-4 inline-flex items-center justify-center rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive"
+                      title="Descartar sugestão"
+                      aria-label="Descartar sugestão"
+                    >
+                      <XCircle className="h-3 w-3" />
+                    </button>
+                  </div>
+                )}
                 {/* Régua única — ícones à esquerda, números à direita, distribuídos */}
                 {(valuations[p.spotify_playlist_id] || p.last_diagnosis_at || p.account_id || !p.account_id || p.curatorial_state || p.lifecycle_stage === "onboarding" || (cooldownsByPlaylist[p.id]?.length ?? 0) > 0 || (p.canonical_playlist_id && scores[p.canonical_playlist_id])) && (
                   <div className="flex items-center justify-between flex-wrap gap-y-1 mt-0.5">
