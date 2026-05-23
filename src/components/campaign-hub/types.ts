@@ -29,6 +29,9 @@ export type CampaignHubCampaign = {
   spotify_track_url?: string | null;
   total_delivered?: number | null;
   client_approved_at?: string | null;
+  split_locked_at?: string | null;
+  locked_eco_streams?: number | null;
+  eco_max_pct?: number | null;
 };
 
 export type CampaignHubTabId =
