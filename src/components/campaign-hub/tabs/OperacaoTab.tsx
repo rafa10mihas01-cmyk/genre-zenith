@@ -58,7 +58,7 @@ const STATUS_LABEL: Record<string, string> = {
   cancelled: "Cancelado",
 };
 
-export function OperacaoTab({ allocations, snapshots, externalItems }: Props) {
+export function OperacaoTab({ allocations, snapshots, externalItems, totalDays, startedAt }: Props) {
   const latestSnap = useMemo(() => {
     const m = new Map<string, EcoSnap>();
     for (const s of snapshots) if (!m.has(s.managed_playlist_id)) m.set(s.managed_playlist_id, s);
