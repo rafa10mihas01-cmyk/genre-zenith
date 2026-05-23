@@ -24,12 +24,13 @@ type Props = {
   tab: CampaignHubTabId;
   onTabChange: (t: CampaignHubTabId) => void;
   slots: Partial<Record<CampaignHubTabId, ReactNode>>;
+  hiddenTabs?: CampaignHubTabId[];
   heroExtraActions?: ReactNode;
 };
 
 export function CampaignHub({
   camp, mode, delivered, goal, daysElapsed, daysTotal, lastUpdateAt,
-  tab, onTabChange, slots, heroExtraActions,
+  tab, onTabChange, slots, hiddenTabs = [], heroExtraActions,
 }: Props) {
   const tabs: TabDef[] = [
     { id: "overview",  label: "Visão geral",  icon: LayoutDashboard, content: slots.overview  ?? null },
@@ -43,7 +44,7 @@ export function CampaignHub({
   ];
 
   // Tabs sem conteúdo são ocultas.
-  const visible = tabs.filter(t => (mode === "internal" || !t.internalOnly) && t.content != null);
+  const visible = tabs.filter(t => !hiddenTabs.includes(t.id) && (mode === "internal" || !t.internalOnly) && t.content != null);
 
   return (
     <div className="campaign-hub">
